@@ -153,12 +153,6 @@ PILReader
   :members:
 
 
-FastMRIReader
-~~~~~~~~~~~~~
-.. autoclass:: monai.apps.reconstruction.fastmri_reader.FastMRIReader
-  :members:
-
-
 Image writer
 ------------
 
@@ -318,6 +312,12 @@ OpenSlideWSIReader
 .. autoclass:: monai.data.OpenSlideWSIReader
   :members:
 
+TiffFileWSIReader
+~~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.TiffFileWSIReader
+  :members:
+
+
 Whole slide image datasets
 --------------------------
 
@@ -340,3 +340,18 @@ Bounding box
 ------------
 .. automodule:: monai.data.box_utils
     :members:
+
+Video datasets
+--------------
+
+VideoDataset
+~~~~~~~~~~~~
+.. autoclass:: monai.data.video_dataset.VideoDataset
+
+VideoFileDataset
+~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.video_dataset.VideoFileDataset
+
+CameraDataset
+~~~~~~~~~~~~~
+.. autoclass:: monai.data.video_dataset.CameraDataset

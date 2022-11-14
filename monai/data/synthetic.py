@@ -48,6 +48,9 @@ def create_test_image_2d(
         channel_dim: if None, create an image without channel dimension, otherwise create
             an image with channel dimension as first dim or last dim. Defaults to `None`.
         random_state: the random generator to use. Defaults to `np.random`.
+
+    Returns:
+        Randomised Numpy array with shape (`width`, `height`)
     """
 
     if rad_max <= rad_min:
@@ -119,6 +122,9 @@ def create_test_image_3d(
         channel_dim: if None, create an image without channel dimension, otherwise create
             an image with channel dimension as first dim or last dim. Defaults to `None`.
         random_state: the random generator to use. Defaults to `np.random`.
+
+    Returns:
+        Randomised Numpy array with shape (`width`, `height`, `depth`)
 
     See also:
         :py:meth:`~create_test_image_2d`

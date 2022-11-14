@@ -1,4 +1,5 @@
-name: crons
+# nightly: Jenkinsfile.monai-pytorch-versions, monai-latest-image, monai-pip, monai-latest-docker, monai-notebooks
+name: nightly-crons
 
 on:
   # schedule:
@@ -9,31 +10,86 @@ on:
 jobs:
   cron-gpu:
     if: github.repository == 'Project-MONAI/MONAI'
-    container:
-      image: nvcr.io/nvidia/pytorch:21.06-py3  # CUDA 11.3
-      options: "--gpus all"
-    runs-on: [self-hosted, linux, x64, common]
     strategy:
       matrix:
-        pytorch-version: [1.7.1, 1.8.1, 1.9.1, 1.10.2, latest]
+        environment:
+          - "PT182+CUDA102"
+          - "PT191+CUDA113"
+          - "PT110+CUDA113"
+          - "PT112+CUDA113"
+          - "PTLATEST+CUDA117"
+        include:
+          # https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes
+          - environment: PT182+CUDA102
+            pytorch: "torch==1.8.2 torchvision==0.9.2 --extra-index-url https://download.pytorch.org/whl/lts/1.8/cu102"
+            base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
+          - environment: PT191+CUDA113
+            pytorch: "torch==1.9.1 torchvision==0.10.1 --extra-index-url https://download.pytorch.org/whl/cu113"
+            base: "nvcr.io/nvidia/pytorch:21.06-py3"  # CUDA 11.3
+          - environment: PT110+CUDA113
+            pytorch: "torch==1.10.2 torchvision==0.11.3 --extra-index-url https://download.pytorch.org/whl/cu113"
+            base: "nvcr.io/nvidia/pytorch:21.06-py3"  # CUDA 11.3
+          - environment: PT112+CUDA113
+            pytorch: "torch==1.12.1 torchvision==0.13.1 --extra-index-url https://download.pytorch.org/whl/cu113"
+            base: "nvcr.io/nvidia/pytorch:21.06-py3"  # CUDA 11.3
+          - environment: PTLATEST+CUDA117
+            pytorch: "-U torch torchvision --extra-index-url https://download.pytorch.org/whl/cu117"
+            base: "nvcr.io/nvidia/pytorch:22.08-py3"  # CUDA 11.7
+    container:
+      image: ${{ matrix.base }}
+      options: "--gpus all"
+    runs-on: [self-hosted, linux, x64, common]
     steps:
     - uses: actions/checkout@v3
+    - name: apt install
+      run: |
+        # FIXME: workaround for https://github.com/Project-MONAI/MONAI/issues/4200
+        apt-key del 7fa2af80 && rm -rf /etc/apt/sources.list.d/nvidia-ml.list /etc/apt/sources.list.d/cuda.list
+        apt-get update
+        apt-get install -y wget
+        wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-keyring_1.0-1_all.deb
+        dpkg -i cuda-keyring_1.0-1_all.deb
+
+        if [ ${{ matrix.environment }} = "PT182+CUDA102" ]
+        then
+        PYVER=3.7 PYSFX=3 DISTUTILS=python3-distutils && \
+        apt-get update && apt-get install -y --no-install-recommends \
+          curl \
+          pkg-config \
+          python$PYVER \
+          python$PYVER-dev \
+          python$PYSFX-pip \
+          $DISTUTILS \
+          rsync \
+          swig \
+          unzip \
+          zip \
+          zlib1g-dev \
+          libboost-locale-dev \
+          libboost-program-options-dev \
+          libboost-system-dev \
+          libboost-thread-dev \
+          libboost-test-dev \
+          libgoogle-glog-dev \
+          libjsoncpp-dev \
+          cmake \
+          git && \
+        rm -rf /var/lib/apt/lists/* && \
+        export PYTHONIOENCODING=utf-8 LC_ALL=C.UTF-8 && \
+        rm -f /usr/bin/python && \
+        rm -f /usr/bin/python`echo $PYVER | cut -c1-1` && \
+        ln -s /usr/bin/python$PYVER /usr/bin/python && \
+        ln -s /usr/bin/python$PYVER /usr/bin/python`echo $PYVER | cut -c1-1` &&
+        curl -O https://bootstrap.pypa.io/get-pip.py && \
+        python get-pip.py && \
+        rm get-pip.py;
+        fi
     - name: Install the dependencies
       run: |
         which python
         python -m pip install --upgrade pip wheel
         python -m pip uninstall -y torch torchvision
-        if [ ${{ matrix.pytorch-version }} == "latest" ]; then
-          python -m pip install torch torchvision --extra-index-url https://download.pytorch.org/whl/cu113
-        elif [ ${{ matrix.pytorch-version }} == "1.7.1" ]; then
-          python -m pip install torch==1.7.1 torchvision==0.8.2 --extra-index-url https://download.pytorch.org/whl/cu113
-        elif [ ${{ matrix.pytorch-version }} == "1.8.1" ]; then
-          python -m pip install torch==1.8.1 torchvision==0.9.1 --extra-index-url https://download.pytorch.org/whl/cu113
-        elif [ ${{ matrix.pytorch-version }} == "1.9.1" ]; then
-          python -m pip install torch==1.9.1 torchvision==0.10.1 --extra-index-url https://download.pytorch.org/whl/cu113
-        elif [ ${{ matrix.pytorch-version }} == "1.10.2" ]; then
-          python -m pip install torch==1.10.2 torchvision==0.11.3 --extra-index-url https://download.pytorch.org/whl/cu113
-        fi
+        python -m pip install ${{ matrix.pytorch }}
         python -m pip install -r requirements-dev.txt
         python -m pip list
     - name: Run tests report coverage
@@ -42,7 +98,7 @@ jobs:
         echo "Sleep $LAUNCH_DELAY"
         sleep $LAUNCH_DELAY
         nvidia-smi
-        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils | tail -n 1)
         echo $CUDA_VISIBLE_DEVICES
         trap 'if pgrep python; then pkill python; fi;' ERR
         python -c $'import torch\na,b=torch.zeros(1,device="cuda:0"),torch.zeros(1,device="cuda:1");\nwhile True:print(a,b)' > /dev/null &
@@ -50,23 +106,24 @@ jobs:
         python -c 'import torch; print(torch.rand(5, 3, device=torch.device("cuda:0")))'
         BUILD_MONAI=1 ./runtests.sh --build --coverage --unittests --disttests  # unit tests with coverage report
         BUILD_MONAI=1 ./runtests.sh --build --coverage --net  # integration tests with coverage report
-        coverage xml
+        coverage xml --ignore-errors
         if pgrep python; then pkill python; fi
+      shell: bash
     - name: Upload coverage
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v3
       with:
         fail_ci_if_error: false
-        file: ./coverage.xml
+        files: ./coverage.xml
 
   cron-pt-image:
     if: github.repository == 'Project-MONAI/MONAI'
     strategy:
       matrix:
-        container: ["pytorch:21.02", "pytorch:21.10", "pytorch:22.06"]  # 21.02, 21.10 for backward comp.
+        container: ["pytorch:21.02", "pytorch:21.10", "pytorch:22.10"]  # 21.02, 21.10 for backward comp.
     container:
       image: nvcr.io/nvidia/${{ matrix.container }}-py3  # testing with the latest pytorch base image
       options: "--gpus all"
-    runs-on: [self-hosted, linux, x64, common]
+    runs-on: [self-hosted, linux, x64, integration]
     steps:
     - uses: actions/checkout@v3
     - name: Install APT dependencies
@@ -85,7 +142,7 @@ jobs:
         echo "Sleep $LAUNCH_DELAY"
         sleep $LAUNCH_DELAY
         nvidia-smi
-        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils | tail -n 1)
         echo $CUDA_VISIBLE_DEVICES
         trap 'if pgrep python; then pkill python; fi;' ERR
         python -c $'import torch\na,b=torch.zeros(1,device="cuda:0"),torch.zeros(1,device="cuda:1");\nwhile True:print(a,b)' > /dev/null &
@@ -93,24 +150,25 @@ jobs:
         python -c 'import torch; print(torch.rand(5, 3, device=torch.device("cuda:0")))'
         BUILD_MONAI=1 ./runtests.sh --build --coverage --unittests --disttests  # unit tests with coverage report
         BUILD_MONAI=1 ./runtests.sh --build --coverage --net  # integration tests with coverage report
-        coverage xml
+        coverage xml --ignore-errors
         if pgrep python; then pkill python; fi
+      shell: bash
     - name: Upload coverage
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v3
       with:
         fail_ci_if_error: false
-        file: ./coverage.xml
+        files: ./coverage.xml
 
   cron-pip:
     # pip install monai[all] and use it to run unit tests
     if: github.repository == 'Project-MONAI/MONAI'
     strategy:
       matrix:
-        container: ["pytorch:21.02", "pytorch:21.10", "pytorch:22.06"]  # 21.02, 21.10 for backward comp.
+        container: ["pytorch:21.02", "pytorch:21.10", "pytorch:22.10"]  # 21.02, 21.10 for backward comp.
     container:
       image: nvcr.io/nvidia/${{ matrix.container }}-py3  # testing with the latest pytorch base image
       options: "--gpus all"
-    runs-on: [self-hosted, linux, x64, common]
+    runs-on: [self-hosted, linux, x64, integration]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -121,6 +179,7 @@ jobs:
           python -m pip install --upgrade pip wheel twine
           python -m pip list
       - name: Run tests report coverage
+        shell: bash
         run: |
           pip uninstall monai
           pip list | grep -iv monai
@@ -160,7 +219,7 @@ jobs:
           echo "Sleep $LAUNCH_DELAY"
           sleep $LAUNCH_DELAY
           nvidia-smi
-          export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+          export CUDA_VISIBLE_DEVICES=$(python -m tests.utils | tail -n 1)
           echo $CUDA_VISIBLE_DEVICES
           trap 'if pgrep python; then pkill python; fi;' ERR
           python -c $'import torch\na,b=torch.zeros(1,device="cuda:0"),torch.zeros(1,device="cuda:1");\nwhile True:print(a,b)' > /dev/null &
@@ -175,7 +234,7 @@ jobs:
     container:
       image: docker://projectmonai/monai:latest  # this might be slow and has the pull count limitations
       options: "--gpus all"
-    runs-on: [self-hosted, linux, x64, common]
+    runs-on: [self-hosted, linux, x64, integration]
     steps:
     - name: Run tests report coverage
       # The docker image process has done the compilation.
@@ -183,7 +242,7 @@ jobs:
       run: |
         cd /opt/monai
         nvidia-smi
-        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils | tail -n 1)
         echo $CUDA_VISIBLE_DEVICES
         trap 'if pgrep python; then pkill python; fi;' ERR
         python -c $'import torch\na,b=torch.zeros(1,device="cuda:0"),torch.zeros(1,device="cuda:1");\nwhile True:print(a,b)' > /dev/null &
@@ -192,21 +251,22 @@ jobs:
         ngc --version
         BUILD_MONAI=1 ./runtests.sh --build --coverage --pytype --unittests --disttests  # unit tests with pytype checks, coverage report
         BUILD_MONAI=1 ./runtests.sh --build --coverage --net  # integration tests with coverage report
-        coverage xml
+        coverage xml --ignore-errors
         if pgrep python; then pkill python; fi
+      shell: bash
     - name: Upload coverage
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v3
       with:
         fail_ci_if_error: false
-        file: ./coverage.xml
+        files: ./coverage.xml
 
   cron-tutorial-notebooks:
     if: github.repository == 'Project-MONAI/MONAI'
     needs: cron-gpu  # so that monai itself is verified first
     container:
-      image: nvcr.io/nvidia/pytorch:22.06-py3  # testing with the latest pytorch base image
+      image: nvcr.io/nvidia/pytorch:22.10-py3  # testing with the latest pytorch base image
       options: "--gpus all --ipc=host"
-    runs-on: [self-hosted, linux, x64, common]
+    runs-on: [self-hosted, linux, x64, integration]
     steps:
     - uses: actions/checkout@v3
     - name: Install MONAI
@@ -217,9 +277,9 @@ jobs:
         python -m pip install -r requirements-dev.txt
         BUILD_MONAI=1 python setup.py develop  # install monai
         nvidia-smi
-        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils | tail -n 1)
         echo $CUDA_VISIBLE_DEVICES
-        echo "::set-output name=devices::$CUDA_VISIBLE_DEVICES"
+        echo "devices=$CUDA_VISIBLE_DEVICES" >> $GITHUB_OUTPUT
     - name: Checkout tutorials and install their requirements
       run: |
         cd /opt
@@ -238,3 +298,4 @@ jobs:
         $(pwd)/runner.sh
         python -c 'import monai; monai.config.print_debug_info()'
         if pgrep python; then pkill python; fi
+      shell: bash

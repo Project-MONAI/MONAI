@@ -12,6 +12,7 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 from scipy.ndimage import zoom as zoom_scipy
 
@@ -51,6 +52,8 @@ class TestRandZoom(NumpyImageTestCase2D):
             self.assertTrue(np.array_equal(zoomed.shape, self.imt.shape[1:]))
             zoomed = random_zoom(im)
             self.assertTrue(np.array_equal(zoomed.shape, self.imt.shape[1:]))
+            random_zoom.prob = 0.0
+            self.assertEqual(random_zoom(im).dtype, torch.float32)
 
     @parameterized.expand(
         [("no_min_zoom", None, 1.1, "bilinear", TypeError), ("invalid_mode", 0.9, 1.1, "s", ValueError)]

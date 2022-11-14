@@ -34,7 +34,7 @@ from monai.transforms import (
     Spacing,
 )
 from monai.utils import set_determinism
-from tests.utils import make_nifti_image
+from tests.utils import assert_allclose, make_nifti_image
 
 
 class TestInvert(unittest.TestCase):
@@ -64,7 +64,9 @@ class TestInvert(unittest.TestCase):
         dataset = Dataset(data, transform=transform)
         self.assertIsInstance(transform.inverse(dataset[0]), MetaTensor)
         loader = DataLoader(dataset, num_workers=num_workers, batch_size=1)
-        inverter = Invert(transform=transform, nearest_interp=True, device="cpu")
+        inverter = Invert(
+            transform=transform, nearest_interp=True, device="cpu", post_func=lambda x: torch.as_tensor(x)
+        )
 
         for d in loader:
             d = decollate_batch(d)
@@ -73,7 +75,7 @@ class TestInvert(unittest.TestCase):
                 i = inverter(item)
                 self.assertTupleEqual(orig.shape[1:], (100, 100, 100))
                 # check the nearest interpolation mode
-                torch.testing.assert_allclose(i.to(torch.uint8).to(torch.float), i.to(torch.float))
+                assert_allclose(i.to(torch.uint8).to(torch.float), i.to(torch.float))
                 self.assertTupleEqual(i.shape[1:], (100, 101, 107))
         # check labels match
         reverted = i.detach().cpu().numpy().astype(np.int32)

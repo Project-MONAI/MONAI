@@ -43,7 +43,9 @@ class TestMedNISTDataset(unittest.TestCase):
         _test_dataset(data)
 
         # testing from
-        data = MedNISTDataset(root_dir=Path(testing_dir), transform=transform, section="test", download=False)
+        data = MedNISTDataset(
+            root_dir=Path(testing_dir), transform=transform, section="test", download=False, runtime_cache=True
+        )
         self.assertEqual(data.get_num_classes(), 6)
         _test_dataset(data)
         data = MedNISTDataset(root_dir=testing_dir, section="test", download=False)

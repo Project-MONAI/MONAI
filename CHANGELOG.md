@@ -1,14 +1,96 @@
 # Changelog
 All notable changes to MONAI are documented in this file.
 
-The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
-and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+
+## [1.0.1] - 2022-10-24
+### Fixes
+* DiceCELoss for multichannel targets
+* Auto3DSeg DataAnalyzer out-of-memory error and other minor issues
+* An optional flag issue in the RetinaNet detector
+* An issue with output offset for Spacing
+* A `LoadImage` issue when `track_meta` is `False`
+* 1D data output error in `VarAutoEncoder`
+* An issue with resolution computing in `ImageStats`
+### Added
+* Flexible min/max pixdim options for Spacing
+* Upsample mode `deconvgroup` and optional kernel sizes
+* Docstrings for gradient-based saliency maps
+* Occlusion sensitivity to use sliding window inference
+* Enhanced Gaussian window and device assignments for sliding window inference
+* Multi-GPU support for MonaiAlgo
+* `ClientAlgoStats` and `MonaiAlgoStats` for federated summary statistics
+* MetaTensor support for `OneOf`
+* Add a file check for bundle logging config
+* Additional content and an authentication token option for bundle info API
+* An anti-aliasing option for `Resized`
+* `SlidingWindowInferer` adaptive device based on `cpu_thresh`
+* `SegResNetDS` with deep supervision and non-isotropic kernel support
+* Premerge tests for Python 3.10
+### Changed
+* Base Docker image upgraded to `nvcr.io/nvidia/pytorch:22.09-py3` from `nvcr.io/nvidia/pytorch:22.08-py3`
+* Replace `None` type metadata content with `"none"` for `collate_fn` compatibility
+* HoVerNet Mode and Branch to independent StrEnum
+* Automatically infer device from the first item in random elastic deformation dict
+* Add channel dim in `ComputeHoVerMaps` and `ComputeHoVerMapsd`
+* Remove batch dim in `SobelGradients` and `SobelGradientsd`
+### Deprecated
+* Deprecating `compute_meandice`, `compute_meaniou` in `monai.metrics`, in favor of
+`compute_dice` and `compute_iou` respectively
+
+## [1.0.0] - 2022-09-16
+### Added
+* `monai.auto3dseg` base APIs and `monai.apps.auto3dseg` components for automated machine learning (AutoML) workflow
+* `monai.fl` module with base APIs and `MonaiAlgo` for federated learning client workflow
+* An initial backwards compatibility [guide](https://github.com/Project-MONAI/MONAI/blob/dev/CONTRIBUTING.md#backwards-compatibility)
+* Initial release of accelerated MRI reconstruction components, including `CoilSensitivityModel`
+* Support of `MetaTensor` and new metadata attributes for various digital pathology components
+* Various `monai.bundle` enhancements for MONAI model-zoo usability, including config debug mode and `get_all_bundles_list`
+* new `monai.transforms` components including `SignalContinuousWavelet` for 1D signal, `ComputeHoVerMaps` for digital pathology, and `SobelGradients` for spatial gradients
+* `VarianceMetric` and `LabelQualityScore` metrics for active learning
+* Dataset API for real-time stream and videos
+* Several networks and building blocks including `FlexibleUNet` and `HoVerNet`
+* `MeanIoUHandler` and `LogfileHandler` workflow event handlers
+* `WSIReader` with the TiffFile backend
+* Multi-threading in `WSIReader` with cuCIM backend
+* `get_stats` API in `monai.engines.Workflow`
+* `prune_meta_pattern` in `monai.transforms.LoadImage`
+* `max_interactions` for deepedit interaction workflow
+* Various profiling utilities in `monai.utils.profiling`
+### Changed
+* Base Docker image upgraded to `nvcr.io/nvidia/pytorch:22.08-py3` from `nvcr.io/nvidia/pytorch:22.06-py3`
+* Optionally depend on PyTorch-Ignite v0.4.10 instead of v0.4.9
+* The cache-based dataset now matches the transform information when read/write the cache
+* `monai.losses.ContrastiveLoss` now infers `batch_size` during `forward()`
+* Rearrange the spatial axes in `RandSmoothDeform` transforms following PyTorch's convention
+* Unified several environment flags into `monai.utils.misc.MONAIEnvVars`
+* Simplified `__str__` implementation of `MetaTensor` instead of relying on the `__repr__` implementation
+### Fixed
+* Improved error messages when both `monai` and `monai-weekly` are pip-installed
+* Inconsistent pseudo number sequences for different `num_workers` in `DataLoader`
+* Issue of repeated sequences for `monai.data.ShuffleBuffer`
+* Issue of not preserving the physical extent in `monai.transforms.Spacing`
+* Issue of using `inception_v3` as the backbone of `monai.networks.nets.TorchVisionFCModel`
+* Index device issue for `monai.transforms.Crop`
+* Efficiency issue when converting the array dtype and contiguous memory
+### Deprecated
+* `Addchannel` and `AsChannelFirst` transforms in favor of `EnsureChannelFirst`
+* `monai.apps.pathology.data` components in favor of the corresponding components from `monai.data`
+* `monai.apps.pathology.handlers` in favor of the corresponding components from `monai.handlers`
+### Removed
+* `Status` section in the pull request template in favor of the pull request draft mode
+* `monai.engines.BaseWorkflow`
+* `ndim` and `dimensions` arguments in favor of `spatial_dims`
+* `n_classes`, `num_classes` arguments in `AsDiscrete` in favor of `to_onehot`
+* `logit_thresh`, `threshold_values` arguments in `AsDiscrete` in favor of `threshold`
+* `torch.testing.assert_allclose` in favor of `tests.utils.assert_allclose`
 
 ## [0.9.1] - 2022-07-22
 ### Added
 * Support of `monai.data.MetaTensor` as core data structure across the modules
+* Support of `inverse` in array-based transforms
 * `monai.apps.TciaDataset` APIs for The Cancer Imaging Archive (TCIA) datasets, including a pydicom-backend reader
 * Initial release of components for MRI reconstruction in `monai.apps.reconstruction`, including various FFT utilities
 * New metrics and losses, including mean IoU and structural similarity index
@@ -27,6 +109,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Wrong generalized Dice score metric when denominator is 0 but prediction is non-empty
 * Docker image build error due to NGC CLI upgrade
 * Optional default value when parsing id unavailable in a ConfigParser instance
+* Immutable data input for the patch-based WSI datasets
+### Deprecated
+* `*_transforms` and `*_meta_dict` fields in dictionary-based transforms in favor of MetaTensor
+* `meta_keys`, `meta_key_postfix`, `src_affine` arguments in various transforms, in favor of MetaTensor
+* `AsChannelFirst` and `AddChannel`, in favor of `EnsureChannelFirst` transform
 
 ## [0.9.0] - 2022-06-08
 ### Added
@@ -556,7 +643,9 @@ the postprocessing steps should be used before calling the metrics methods
 
 [highlights]: https://github.com/Project-MONAI/MONAI/blob/master/docs/source/highlights.md
 
-[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/0.9.1...HEAD
+[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/1.0.1...HEAD
+[1.0.1]: https://github.com/Project-MONAI/MONAI/compare/1.0.0...1.0.1
+[1.0.0]: https://github.com/Project-MONAI/MONAI/compare/0.9.1...1.0.0
 [0.9.1]: https://github.com/Project-MONAI/MONAI/compare/0.9.0...0.9.1
 [0.9.0]: https://github.com/Project-MONAI/MONAI/compare/0.8.1...0.9.0
 [0.8.1]: https://github.com/Project-MONAI/MONAI/compare/0.8.0...0.8.1

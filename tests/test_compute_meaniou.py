@@ -15,13 +15,14 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.metrics import MeanIoU, compute_meaniou
+from monai.metrics import MeanIoU, compute_iou, compute_meaniou
 
+_device = "cuda:0" if torch.cuda.is_available() else "cpu"
 # keep background
 TEST_CASE_1 = [  # y (1, 1, 2, 2), y_pred (1, 1, 2, 2), expected out (1, 1)
     {
-        "y_pred": torch.tensor([[[[1.0, 0.0], [0.0, 1.0]]]]),
-        "y": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
+        "y_pred": torch.tensor([[[[1.0, 0.0], [0.0, 1.0]]]], device=_device),
+        "y": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]], device=_device),
         "include_background": True,
     },
     [[0.6667]],
@@ -191,7 +192,7 @@ class TestComputeMeanIoU(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_3])
     def test_nans(self, input_data, expected_value):
-        result = compute_meaniou(**input_data)
+        result = compute_iou(**input_data)
         self.assertTrue(np.allclose(np.isnan(result.cpu().numpy()), expected_value))
 
     # MeanIoU class tests

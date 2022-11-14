@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 from typing import Dict, Hashable, Mapping, Optional, Sequence
 
 import numpy as np
@@ -132,7 +131,8 @@ class RandomKspaceMaskd(RandomizableTransform, MapTransform):
         d = dict(data)
         for key in self.key_iterator(d):
             d[key + "_masked"], d[key + "_masked_ifft"] = self.masker(d[key])
-            d[FastMRIKeys.MASK] = self.masker.mask  # type: ignore
+            d[FastMRIKeys.MASK] = self.masker.mask
+
         return d  # type: ignore
 
 

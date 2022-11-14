@@ -59,7 +59,6 @@ PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
 cp, has_cp = optional_import("cupy")
 
-
 __all__ = [
     "Identity",
     "AsChannelFirst",
@@ -204,45 +203,64 @@ class AddChannel(Transform):
 
 class EnsureChannelFirst(Transform):
     """
-    Automatically adjust or add the channel dimension of input data to ensure `channel_first` shape.
-    It extracts the `original_channel_dim` info from provided meta_data dictionary.
-    Typical values of `original_channel_dim` can be: "no_channel", 0, -1.
-    Convert the data to `channel_first` based on the `original_channel_dim` information.
+    Adjust or add the channel dimension of input data to ensure `channel_first` shape.
+
+    This extracts the `original_channel_dim` info from provided meta_data dictionary or MetaTensor input. This value
+    should state which dimension is the channel dimension so that it can be moved forward, or contain "no_channel" to
+    state no dimension is the channel and so a 1-size first dimension is to be added.
+
+    Args:
+        strict_check: whether to raise an error when the meta information is insufficient.
+        channel_dim: This argument can be used to specify the original channel dimension (integer) of the input array.
+            It overrides the `original_channel_dim` from provided MetaTensor input.
+            If the input array doesn't have a channel dim, this value should be ``'no_channel'``.
+            If this is set to `None`, this class relies on `img` or `meta_dict` to provide the channel dimension.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, strict_check: bool = True):
-        """
-        Args:
-            strict_check: whether to raise an error when the meta information is insufficient.
-        """
+    def __init__(self, strict_check: bool = True, channel_dim: Union[None, str, int] = None):
         self.strict_check = strict_check
-        self.add_channel = AddChannel()
+        self.input_channel_dim = channel_dim
 
     def __call__(self, img: torch.Tensor, meta_dict: Optional[Mapping] = None) -> torch.Tensor:
         """
         Apply the transform to `img`.
         """
         if not isinstance(img, MetaTensor) and not isinstance(meta_dict, Mapping):
-            msg = "metadata not available, EnsureChannelFirst is not in use."
-            if self.strict_check:
-                raise ValueError(msg)
-            warnings.warn(msg)
-            return img
+            if self.input_channel_dim is None:
+                msg = "Metadata not available and channel_dim=None, EnsureChannelFirst is not in use."
+                if self.strict_check:
+                    raise ValueError(msg)
+                warnings.warn(msg)
+                return img
+            else:
+                img = MetaTensor(img)
+
         if isinstance(img, MetaTensor):
             meta_dict = img.meta
-        channel_dim = meta_dict.get("original_channel_dim")  # type: ignore
+
+        channel_dim = meta_dict.get("original_channel_dim", None) if isinstance(meta_dict, Mapping) else None
+        if self.input_channel_dim is not None:
+            channel_dim = self.input_channel_dim
 
         if channel_dim is None:
-            msg = "Unknown original_channel_dim in the meta_dict, EnsureChannelFirst is not in use."
+            msg = "Unknown original_channel_dim in the MetaTensor meta dict or `meta_dict` or `channel_dim`."
             if self.strict_check:
                 raise ValueError(msg)
             warnings.warn(msg)
             return img
+
+        # track the original channel dim
+        if isinstance(meta_dict, dict):
+            meta_dict["original_channel_dim"] = channel_dim
+
         if channel_dim == "no_channel":
-            return self.add_channel(img)  # type: ignore
-        return AsChannelFirst(channel_dim=channel_dim)(img)  # type: ignore
+            result = img[None]
+        else:
+            result = moveaxis(img, channel_dim, 0)  # type: ignore
+
+        return convert_to_tensor(result, track_meta=get_track_meta())  # type: ignore
 
 
 class RepeatChannel(Transform):
@@ -255,7 +273,7 @@ class RepeatChannel(Transform):
         repeats: the number of repetitions for each element.
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH]
 
     def __init__(self, repeats: int) -> None:
         if repeats <= 0:
@@ -405,19 +423,19 @@ class ToTensor(Transform):
         device: target device to put the converted Tensor data.
         wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
             E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
-        track_meta: whether to convert to `MetaTensor`, default to `False`, output type will be `torch.Tensor`.
-            if `None`, use the return value of ``get_track_meta``.
+        track_meta: whether to convert to `MetaTensor` or regular tensor, default to `None`,
+            use the return value of ``get_track_meta``.
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH]
 
     def __init__(
         self,
         dtype: Optional[torch.dtype] = None,
         device: Optional[torch.device] = None,
         wrap_sequence: bool = True,
-        track_meta: Optional[bool] = False,
+        track_meta: Optional[bool] = None,
     ) -> None:
         super().__init__()
         self.dtype = dtype
@@ -449,8 +467,8 @@ class EnsureType(Transform):
         device: for Tensor data type, specify the target device.
         wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
             E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
-        track_meta: whether to convert to `MetaTensor` when `data_type` is "tensor".
-            If False, the output data type will be `torch.Tensor`. Default to the return value of ``get_track_meta``.
+        track_meta: if `True` convert to ``MetaTensor``, otherwise to Pytorch ``Tensor``,
+            if ``None`` behave according to return value of py:func:`monai.data.meta_obj.get_track_meta`.
 
     """
 
@@ -505,7 +523,7 @@ class ToNumpy(Transform):
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.NUMPY]
 
     def __init__(self, dtype: DtypeLike = None, wrap_sequence: bool = True) -> None:
         super().__init__()
@@ -532,7 +550,7 @@ class ToCupy(Transform):
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.CUPY]
 
     def __init__(self, dtype: Optional[np.dtype] = None, wrap_sequence: bool = True) -> None:
         super().__init__()
@@ -551,7 +569,7 @@ class ToPIL(Transform):
     Converts the input image (in the form of NumPy array or PyTorch Tensor) to PIL image
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.NUMPY]
 
     def __call__(self, img):
         """
@@ -569,7 +587,7 @@ class Transpose(Transform):
     Transposes the input image based on the given `indices` dimension ordering.
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH]
 
     def __init__(self, indices: Optional[Sequence[int]]) -> None:
         self.indices = None if indices is None else tuple(indices)
@@ -589,11 +607,12 @@ class SqueezeDim(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, dim: Optional[int] = 0) -> None:
+    def __init__(self, dim: Optional[int] = 0, update_meta=True) -> None:
         """
         Args:
             dim: dimension to be squeezed. Default = 0
                 "None" works when the input is numpy array.
+            update_meta: whether to update the meta info if the input is a metatensor. Default is ``True``.
 
         Raises:
             TypeError: When ``dim`` is not an ``Optional[int]``.
@@ -602,6 +621,7 @@ class SqueezeDim(Transform):
         if dim is not None and not isinstance(dim, int):
             raise TypeError(f"dim must be None or a int but is {type(dim).__name__}.")
         self.dim = dim
+        self.update_meta = update_meta
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
@@ -610,11 +630,25 @@ class SqueezeDim(Transform):
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         if self.dim is None:
+            if self.update_meta:
+                warnings.warn("update_meta=True is ignored when dim=None.")
             return img.squeeze()
+        dim = (self.dim + len(img.shape)) if self.dim < 0 else self.dim
         # for pytorch/numpy unification
-        if img.shape[self.dim] != 1:
-            raise ValueError(f"Can only squeeze singleton dimension, got shape {img.shape}.")
-        return img.squeeze(self.dim)
+        if img.shape[dim] != 1:
+            raise ValueError(f"Can only squeeze singleton dimension, got shape {img.shape[dim]} of {img.shape}.")
+        img = img.squeeze(dim)
+        if self.update_meta and isinstance(img, MetaTensor) and dim > 0 and len(img.affine.shape) == 2:
+            h, w = img.affine.shape
+            affine, device = img.affine, img.affine.device if isinstance(img.affine, torch.Tensor) else None
+            if h > dim:
+                affine = affine[torch.arange(0, h, device=device) != dim - 1]
+            if w > dim:
+                affine = affine[:, torch.arange(0, w, device=device) != dim - 1]
+            if (affine.shape[0] == affine.shape[1]) and not np.linalg.det(convert_to_numpy(affine, wrap_sequence=True)):
+                warnings.warn(f"After SqueezeDim, img.affine is ill-posed: \n{img.affine}.")
+            img.affine = affine
+        return img
 
 
 class DataStats(Transform):
@@ -673,8 +707,7 @@ class DataStats(Transform):
         if logging.root.getEffectiveLevel() > logging.INFO:
             # Avoid duplicate stream handlers to be added when multiple DataStats are used in a chain.
             has_console_handler = any(
-                hasattr(h, "is_data_stats_handler") and h.is_data_stats_handler  # type:ignore[attr-defined]
-                for h in _logger.handlers
+                hasattr(h, "is_data_stats_handler") and h.is_data_stats_handler for h in _logger.handlers
             )
             if not has_console_handler:
                 # if the root log level is higher than INFO, set a separate stream handler to record
@@ -1021,7 +1054,7 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
     """
     Convert labels to multi channels based on brats18 classes:
     label 1 is the necrotic and non-enhancing tumor core
-    label 2 is the the peritumoral edema
+    label 2 is the peritumoral edema
     label 4 is the GD-enhancing tumor
     The possible classes are TC (Tumor core), WT (Whole tumor)
     and ET (Enhancing tumor).
@@ -1060,7 +1093,7 @@ class AddExtremePointsChannel(Randomizable, Transform):
         ValueError: When label image is not single channel.
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH]
 
     def __init__(self, background: int = 0, pert: float = 0.0) -> None:
         self._background = background
@@ -1392,7 +1425,7 @@ class AddCoordinateChannels(Transform):
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.NUMPY]
 
     @deprecated_arg(
         name="spatial_channels", new_name="spatial_dims", since="0.8", msg_suffix="please use `spatial_dims` instead."

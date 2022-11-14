@@ -32,7 +32,6 @@
 # * Neither the name of the copyright holder nor the names of its
 #   contributors may be used to endorse or promote products derived from
 #   this software without specific prior written permission.
-
 """
 Part of this script is adapted from
 https://github.com/pytorch/vision/blob/main/torchvision/models/detection/retinanet.py
@@ -113,7 +112,7 @@ class RetinaNetDetector(nn.Module):
 
             - spatial_dims (int) is the spatial dimension of the network, we support both 2D and 3D.
             - num_classes (int) is the number of classes, excluding the background.
-            - size_divisible (int or Sequene[int]) is the expection on the input image shape.
+            - size_divisible (int or Sequence[int]) is the expectation on the input image shape.
               The network needs the input spatial_size to be divisible by size_divisible, length should be 2 or 3.
             - cls_key (str) is the key to represent classification in the output dict.
             - box_reg_key (str) is the key to represent box regression in the output dict.
@@ -318,13 +317,17 @@ class RetinaNetDetector(nn.Module):
         Args:
             fg_iou_thresh: foreground IoU threshold for Matcher, considered as matched if IoU > fg_iou_thresh
             bg_iou_thresh: background IoU threshold for Matcher, considered as not matched if IoU < bg_iou_thresh
+            allow_low_quality_matches: if True, produce additional matches
+                for predictions that have only low-quality match candidates.
         """
         if fg_iou_thresh < bg_iou_thresh:
             raise ValueError(
                 "Require fg_iou_thresh >= bg_iou_thresh. "
                 f"Got fg_iou_thresh={fg_iou_thresh}, bg_iou_thresh={bg_iou_thresh}."
             )
-        self.proposal_matcher = Matcher(fg_iou_thresh, bg_iou_thresh, allow_low_quality_matches=True)
+        self.proposal_matcher = Matcher(
+            fg_iou_thresh, bg_iou_thresh, allow_low_quality_matches=allow_low_quality_matches
+        )
 
     def set_atss_matcher(self, num_candidates: int = 4, center_in_gt: bool = False) -> None:
         """
@@ -422,7 +425,7 @@ class RetinaNetDetector(nn.Module):
 
         #. For each level, discard boxes with scores less than self.score_thresh.
         #. For each level, keep boxes with top self.topk_candidates_per_level scores.
-        #. For the whole image, perform non-maximum suppression (NMS) on boxes, with overapping threshold nms_thresh.
+        #. For the whole image, perform non-maximum suppression (NMS) on boxes, with overlapping threshold nms_thresh.
         #. For the whole image, keep boxes with top self.detections_per_img scores.
 
         Args:
@@ -614,7 +617,7 @@ class RetinaNetDetector(nn.Module):
                 A = self.num_anchors_per_loc.
 
         Return:
-            a list of dict, each dict scorresponds to detection result on image.
+            a list of dict, each dict corresponds to detection result on image.
         """
 
         # recover level sizes, HWA or HWDA for each level
@@ -732,7 +735,7 @@ class RetinaNetDetector(nn.Module):
             # or a negative value indicating that anchor i could not be matched.
             # BELOW_LOW_THRESHOLD = -1, BETWEEN_THRESHOLDS = -2
             if isinstance(self.proposal_matcher, Matcher):
-                # if torcvision matcher
+                # if torchvision matcher
                 match_quality_matrix = self.box_overlap_metric(
                     targets_per_image[self.target_box_key].to(anchors_per_image.device), anchors_per_image
                 )

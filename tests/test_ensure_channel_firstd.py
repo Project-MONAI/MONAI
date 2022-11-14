@@ -33,9 +33,9 @@ class TestEnsureChannelFirstd(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_load_nifti(self, input_param, filenames, original_channel_dim):
         if original_channel_dim is None:
-            test_image = np.random.rand(128, 128, 128)
+            test_image = np.random.rand(8, 8, 8)
         elif original_channel_dim == -1:
-            test_image = np.random.rand(128, 128, 128, 1)
+            test_image = np.random.rand(8, 8, 8, 1)
 
         with tempfile.TemporaryDirectory() as tempdir:
             for i, name in enumerate(filenames):
@@ -46,7 +46,7 @@ class TestEnsureChannelFirstd(unittest.TestCase):
             self.assertEqual(result["img"].shape[0], len(filenames))
 
     def test_load_png(self):
-        spatial_size = (256, 256, 3)
+        spatial_size = (6, 6, 3)
         test_image = np.random.randint(0, 256, size=spatial_size)
         with tempfile.TemporaryDirectory() as tempdir:
             filename = os.path.join(tempdir, "test_image.png")
@@ -57,12 +57,24 @@ class TestEnsureChannelFirstd(unittest.TestCase):
 
     def test_exceptions(self):
         im = torch.zeros((1, 2, 3))
+        im_nodim = MetaTensor(im, meta={"original_channel_dim": None})
+
         with self.assertRaises(ValueError):  # no meta
-            EnsureChannelFirstd("img")({"img": im})
+            EnsureChannelFirstd("img", channel_dim=None)({"img": im})
         with self.assertRaises(ValueError):  # no meta channel
-            EnsureChannelFirstd("img")({"img": MetaTensor(im, meta={"original_channel_dim": None})})
-        EnsureChannelFirstd("img", strict_check=False)({"img": im})
-        EnsureChannelFirstd("img", strict_check=False)({"img": MetaTensor(im, meta={"original_channel_dim": None})})
+            EnsureChannelFirstd("img", channel_dim=None)({"img": im_nodim})
+
+        with self.assertWarns(Warning):
+            EnsureChannelFirstd("img", strict_check=False, channel_dim=None)({"img": im})
+
+        with self.assertWarns(Warning):
+            EnsureChannelFirstd("img", strict_check=False, channel_dim=None)({"img": im_nodim})
+
+    def test_default_channel_first(self):
+        im = torch.rand(4, 4)
+        result = EnsureChannelFirstd("img", channel_dim="no_channel")({"img": im})
+
+        self.assertEqual(result["img"].shape, (1, 4, 4))
 
 
 if __name__ == "__main__":

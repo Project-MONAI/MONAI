@@ -304,6 +304,7 @@ class EnsureChannelFirstd(MapTransform):
         meta_key_postfix: str = DEFAULT_POST_FIX,
         strict_check: bool = True,
         allow_missing_keys: bool = False,
+        channel_dim=None,
     ) -> None:
         """
         Args:
@@ -311,9 +312,13 @@ class EnsureChannelFirstd(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             strict_check: whether to raise an error when the meta information is insufficient.
             allow_missing_keys: don't raise exception if key is missing.
+            channel_dim: This argument can be used to specify the original channel dimension (integer) of the input array.
+                It overrides the `original_channel_dim` from provided MetaTensor input.
+                If the input array doesn't have a channel dim, this value should be ``'no_channel'``.
+                If this is set to `None`, this class relies on `img` or `meta_dict` to provide the channel dimension.
         """
         super().__init__(keys, allow_missing_keys)
-        self.adjuster = EnsureChannelFirst(strict_check=strict_check)
+        self.adjuster = EnsureChannelFirst(strict_check=strict_check, channel_dim=channel_dim)
         self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
@@ -375,6 +380,9 @@ class RemoveRepeatedChanneld(MapTransform):
 
 
 class SplitDimd(MapTransform):
+
+    backend = SplitDim.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -382,6 +390,7 @@ class SplitDimd(MapTransform):
         dim: int = 0,
         keepdim: bool = True,
         update_meta: bool = True,
+        list_output: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -397,15 +406,34 @@ class SplitDimd(MapTransform):
                 dimension will be squeezed.
             update_meta: if `True`, copy `[key]_meta_dict` for each output and update affine to
                 reflect the cropped image
+            list_output: it `True`, the output will be a list of dictionaries with the same keys as original.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
         self.output_postfixes = output_postfixes
         self.splitter = SplitDim(dim, keepdim, update_meta)
+        self.list_output = list_output
+        if self.list_output is None and self.output_postfixes is not None:
+            raise ValueError("`output_postfixes` should not be provided when `list_output` is `True`.")
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(
+        self, data: Mapping[Hashable, torch.Tensor]
+    ) -> Union[Dict[Hashable, torch.Tensor], List[Dict[Hashable, torch.Tensor]]]:
         d = dict(data)
-        for key in self.key_iterator(d):
+        all_keys = list(set(self.key_iterator(d)))
+
+        if self.list_output:
+            output = []
+            results = [self.splitter(d[key]) for key in all_keys]
+            for row in zip(*results):
+                new_dict = dict(zip(all_keys, row))
+                # fill in the extra keys with unmodified data
+                for k in set(d.keys()).difference(set(all_keys)):
+                    new_dict[k] = deepcopy(d[k])
+                output.append(new_dict)
+            return output
+
+        for key in all_keys:
             rets = self.splitter(d[key])
             postfixes: Sequence = list(range(len(rets))) if self.output_postfixes is None else self.output_postfixes
             if len(postfixes) != len(rets):
@@ -489,7 +517,7 @@ class ToTensord(MapTransform, InvertibleTransform):
         dtype: Optional[torch.dtype] = None,
         device: Optional[torch.device] = None,
         wrap_sequence: bool = True,
-        track_meta: Optional[bool] = False,
+        track_meta: Optional[bool] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -500,8 +528,8 @@ class ToTensord(MapTransform, InvertibleTransform):
             device: specify the target device to put the Tensor data.
             wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
                 E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
-            track_meta: whether to convert to `MetaTensor`, default to `False`, output type will be `torch.Tensor`.
-                if `None`, use the return value of ``get_track_meta``.
+            track_meta: if `True` convert to ``MetaTensor``, otherwise to Pytorch ``Tensor``,
+                if ``None`` behave according to return value of py:func:`monai.data.meta_obj.get_track_meta`.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
@@ -511,19 +539,19 @@ class ToTensord(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
-            self.push_transform(d, key)
             d[key] = self.converter(d[key])
+            self.push_transform(d, key)
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
+            # Remove the applied transform
+            self.pop_transform(d, key)
             # Create inverse transform
             inverse_transform = ToNumpy()
             # Apply inverse
             d[key] = inverse_transform(d[key])
-            # Remove the applied transform
-            self.pop_transform(d, key)
         return d
 
 
@@ -721,7 +749,7 @@ class DeleteItemsd(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             sep: the separator tag to define nested dictionary keys, default to ".".
             use_re: whether the specified key is a regular expression, it also can be
-                a list of bool values, map the to keys.
+                a list of bool values, mapping them to `keys`.
         """
         super().__init__(keys)
         self.sep = sep
@@ -733,7 +761,7 @@ class DeleteItemsd(MapTransform):
             if len(keys) > 1:
                 d[key] = _delete_item(keys[1:], d[key], use_re)
                 return d
-            return {k: v for k, v in d.items() if (use_re and not re.search(key, k)) or (not use_re and k != key)}
+            return {k: v for k, v in d.items() if (use_re and not re.search(key, f"{k}")) or (not use_re and k != key)}
 
         d = dict(data)
         for key, use_re in zip(self.keys, self.use_re):
@@ -761,16 +789,19 @@ class SqueezeDimd(MapTransform):
 
     backend = SqueezeDim.backend
 
-    def __init__(self, keys: KeysCollection, dim: int = 0, allow_missing_keys: bool = False) -> None:
+    def __init__(
+        self, keys: KeysCollection, dim: int = 0, update_meta: bool = True, allow_missing_keys: bool = False
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             dim: dimension to be squeezed. Default: 0 (the first dimension)
+            update_meta: whether to update the meta info if the input is a metatensor. Default is ``True``.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
-        self.converter = SqueezeDim(dim=dim)
+        self.converter = SqueezeDim(dim=dim, update_meta=update_meta)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)

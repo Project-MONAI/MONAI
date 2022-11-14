@@ -18,6 +18,9 @@ from parameterized import parameterized
 
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import SaveImaged
+from monai.utils import optional_import
+
+_, has_itk = optional_import("itk", allow_namespace_pkg=True)
 
 TEST_CASE_1 = [
     {"img": MetaTensor(torch.randint(0, 255, (1, 2, 3, 4)), meta={"filename_or_obj": "testfile0.nii.gz"})},
@@ -44,6 +47,7 @@ TEST_CASE_3 = [
 ]
 
 
+@unittest.skipUnless(has_itk, "itk not installed")
 class TestSaveImaged(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_saved_content(self, test_data, output_ext, resample):

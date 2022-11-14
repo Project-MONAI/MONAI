@@ -76,6 +76,7 @@ class ConfigParser:
             The current supported globals and alias names are
             ``{"monai": "monai", "torch": "torch", "np": "numpy", "numpy": "numpy"}``.
             These are MONAI's minimal dependencies. Additional packages could be included with `globals={"itk": "itk"}`.
+            Set it to ``False`` to disable `self.globals` module importing.
 
     See also:
 
@@ -95,14 +96,14 @@ class ConfigParser:
         self,
         config: Any = None,
         excludes: Optional[Union[Sequence[str], str]] = None,
-        globals: Optional[Dict[str, Any]] = None,
+        globals: Union[Dict[str, Any], None, bool] = None,
     ):
         self.config = None
         self.globals: Dict[str, Any] = {}
         _globals = _default_globals.copy()
-        if isinstance(_globals, dict) and globals is not None:
-            _globals.update(globals)
-        if _globals is not None:
+        if isinstance(_globals, dict) and globals not in (None, False):
+            _globals.update(globals)  # type: ignore
+        if _globals is not None and globals is not False:
             for k, v in _globals.items():
                 self.globals[k] = optional_import(v)[0] if isinstance(v, str) else v
 
@@ -132,8 +133,12 @@ class ConfigParser:
         for k in str(id).split(ID_SEP_KEY):
             if not isinstance(config, (dict, list)):
                 raise ValueError(f"config must be dict or list for key `{k}`, but got {type(config)}: {config}.")
-            indexing = k if isinstance(config, dict) else int(k)
-            config = config[indexing]
+            try:
+                config = (
+                    look_up_option(k, config, print_all_options=False) if isinstance(config, dict) else config[int(k)]
+                )
+            except ValueError as e:
+                raise KeyError(f"query key: {k}") from e
         return config
 
     def __setitem__(self, id: Union[str, int], config: Any):
@@ -157,6 +162,7 @@ class ConfigParser:
         # get the last parent level config item and replace it
         last_id = ID_SEP_KEY.join(keys[:-1])
         conf_ = self[last_id]
+
         indexing = keys[-1] if isinstance(conf_, dict) else int(keys[-1])
         conf_[indexing] = config
         self.ref_resolver.reset()
@@ -173,18 +179,29 @@ class ConfigParser:
         """
         try:
             return self[id]
-        except KeyError:
+        except (KeyError, IndexError, ValueError):  # Index error for integer indexing
             return default
 
-    def set(self, config: Any, id: str = ""):
+    def set(self, config: Any, id: str = "", recursive: bool = True):
         """
         Set config by ``id``.
 
         Args:
             config: config to set at location ``id``.
             id: id to specify the expected position. See also :py:meth:`__setitem__`.
+            recursive: if the nested id doesn't exist, whether to recursively create the nested items in the config.
+                default to `True`. for the nested id, only support `dict` for the missing section.
 
         """
+        keys = str(id).split(ID_SEP_KEY)
+        conf_ = self.get()
+        if recursive:
+            if conf_ is None:
+                self.config = conf_ = {}  # type: ignore
+            for k in keys[:-1]:
+                if isinstance(conf_, dict) and k not in conf_:
+                    conf_[k] = {}
+                conf_ = conf_[k if isinstance(conf_, dict) else int(k)]
         self[id] = config
 
     def update(self, pairs: Dict[str, Any]):
@@ -209,7 +226,7 @@ class ConfigParser:
         try:
             _ = self[id]
             return True
-        except KeyError:
+        except (KeyError, IndexError, ValueError):  # Index error for integer indexing
             return False
 
     def parse(self, reset: bool = True):
@@ -357,6 +374,8 @@ class ConfigParser:
             kwargs: other arguments for ``json.load`` or ```yaml.safe_load``, depends on the file format.
 
         """
+        if not filepath:
+            return {}
         _filepath: str = str(Path(filepath))
         if not re.compile(cls.path_match, re.IGNORECASE).findall(_filepath):
             raise ValueError(f'unknown file input: "{filepath}"')
@@ -403,7 +422,8 @@ class ConfigParser:
         writer = look_up_option(fmt.lower(), {"json", "yaml"})
         with open(_filepath, "w") as f:
             if writer == "json":
-                return json.dump(config, f, **kwargs)
+                json.dump(config, f, **kwargs)
+                return
             if writer == "yaml":
                 return yaml.safe_dump(config, f, **kwargs)
             raise ValueError(f"only support JSON or YAML config file so far, got {writer}.")

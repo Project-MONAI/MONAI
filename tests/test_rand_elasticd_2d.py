@@ -161,6 +161,8 @@ class TestRand2DElasticd(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_rand_2d_elasticd(self, input_param, input_data, expected_val):
         g = Rand2DElasticd(**input_param)
+        if input_param.get("device", None) is None and isinstance(input_data["img"], torch.Tensor):
+            input_data["img"].to("cuda:0" if torch.cuda.is_available() else "cpu")
         g.set_random_state(123)
         res = g(input_data)
         for key in res:

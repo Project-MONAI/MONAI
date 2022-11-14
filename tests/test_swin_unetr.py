@@ -16,12 +16,14 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.nets.swin_unetr import PatchMerging, SwinUNETR
+from monai.networks.nets.swin_unetr import PatchMerging, PatchMergingV2, SwinUNETR
 from monai.utils import optional_import
 
 einops, has_einops = optional_import("einops")
 
 TEST_CASE_SWIN_UNETR = []
+case_idx = 0
+test_merging_mode = ["mergingv2", "merging", PatchMerging, PatchMergingV2]
 for attn_drop_rate in [0.4]:
     for in_channels in [1]:
         for depth in [[2, 1, 1, 1], [1, 2, 1, 1]]:
@@ -39,10 +41,12 @@ for attn_drop_rate in [0.4]:
                                     "depths": depth,
                                     "norm_name": norm_name,
                                     "attn_drop_rate": attn_drop_rate,
+                                    "downsample": test_merging_mode[case_idx % 4],
                                 },
                                 (2, in_channels, *img_size),
                                 (2, out_channels, *img_size),
                             ]
+                            case_idx += 1
                             TEST_CASE_SWIN_UNETR.append(test_case)
 
 

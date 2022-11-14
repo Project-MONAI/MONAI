@@ -56,7 +56,7 @@ class TraceableTransform(Transform):
     `MONAI_TRACE_TRANSFORM` when initializing the class.
     """
 
-    tracing = not os.environ.get("MONAI_TRACE_TRANSFORM", "1") == "0"
+    tracing = os.environ.get("MONAI_TRACE_TRANSFORM", "1") != "0"
 
     def set_tracing(self, tracing: bool) -> None:
         """Set whether to trace transforms."""
@@ -100,7 +100,7 @@ class TraceableTransform(Transform):
             info[TraceKeys.EXTRA_INFO] = extra_info
         # If class is randomizable transform, store whether the transform was actually performed (based on `prob`)
         if hasattr(self, "_do_transform"):  # RandomizableTransform
-            info[TraceKeys.DO_TRANSFORM] = self._do_transform  # type: ignore
+            info[TraceKeys.DO_TRANSFORM] = self._do_transform
         return info
 
     def push_transform(
