@@ -48,13 +48,14 @@ class SSIMLoss(_Loss):
         )
         self.cov_norm = (win_size**2) / (win_size**2 - 1)
 
-    def forward(self, x: torch.Tensor, y: torch.Tensor, data_range: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, y: torch.Tensor, data_range: torch.Tensor, full: bool=True) -> torch.Tensor:
         """
         Args:
             x: first sample (e.g., the reference image). Its shape is (B,C,W,H) for 2D and pseudo-3D data,
                 and (B,C,W,H,D) for 3D data,
             y: second sample (e.g., the reconstructed image). It has similar shape as x.
             data_range: dynamic range of the data
+            full: 
 
         Returns:
             1-ssim_value (recall this is meant to be a loss function)
@@ -121,5 +122,8 @@ class SSIMLoss(_Loss):
         numerator = (2 * ux * uy + c1) * (2 * vxy + c2)
         denom = (ux**2 + uy**2 + c1) * (vx + vy + c2)
         ssim_value = numerator / denom
-        loss: torch.Tensor = 1 - ssim_value
+        if full:
+            cs = (2 * vxy + c2) / (vx + vy + c2) # contrast sensitivity function
+            return ssim_value, cs
+        loss: torch.Tensor = 1 - ssim_value.mean()
         return loss
