@@ -285,7 +285,7 @@ class SSIMMetric(RegressionMetric):
         self.spatial_dims = spatial_dims
         self.cov_norm = (win_size**2) / (win_size**2 - 1)
         self.w = torch.ones([1, 1] + [win_size for _ in range(spatial_dims)]) / win_size**spatial_dims
-        
+
 
     def _compute_metric(self, x: torch.Tensor, y: torch.Tensor, full: bool=True) -> torch.Tensor:
         """
@@ -293,7 +293,7 @@ class SSIMMetric(RegressionMetric):
             x: first sample (e.g., the reference image). Its shape is (B,C,W,H) for 2D data and (B,C,W,H,D) for 3D.
                 A fastMRI sample should use the 2D format with C being the number of slices.
             y: second sample (e.g., the reconstructed image). It has similar shape as x
-            full:  return ssim value and constrast sensitivity if True 
+            full:  return ssim value and constrast sensitivity if True
 
         Returns:
             ssim_value

@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import torch
-import torch.nn.functional as F
 from torch.nn.modules.loss import _Loss
 from monai.metrics.regression import SSIMMetric
 
@@ -41,7 +40,7 @@ class SSIMLoss(_Loss):
         self.win_size = win_size
         self.k1, self.k2 = k1, k2
         self.spatial_dims = spatial_dims
-        
+
 
     def forward(self, x: torch.Tensor, y: torch.Tensor, data_range: torch.Tensor) -> torch.Tensor:
         """
