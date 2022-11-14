@@ -1,5 +1,6 @@
 {
     "dataset_dir": "/workspace/data/Task09_Spleen",
+    "output_dir": "need override",
     "prediction_shape": "prediction shape:",
     "import_glob": "$import glob",
     "device": "$torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')",
@@ -87,7 +88,7 @@
             {
                 "_target_": "SaveImaged",
                 "keys": "pred",
-                "output_dir": "@_meta_#output_dir"
+                "output_dir": "@output_dir"
             },
             {
                 "_target_": "Lambdad",

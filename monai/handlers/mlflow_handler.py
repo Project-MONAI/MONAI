@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence
 
 import torch
@@ -90,6 +91,8 @@ class MLFlowHandler:
         tag_name: str = DEFAULT_TAG,
     ) -> None:
         if tracking_uri is not None:
+            if isinstance(tracking_uri, str):
+                tracking_uri = Path(tracking_uri).as_uri()
             mlflow.set_tracking_uri(tracking_uri)
 
         self.iteration_log = iteration_log
