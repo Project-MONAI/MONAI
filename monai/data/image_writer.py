@@ -453,7 +453,7 @@ class ITKWriter(ImageWriter):
             self.data_obj,
             channel_dim=self.channel_dim,
             affine=self.affine,
-            dtype=self.output_dtype,  # type: ignore
+            dtype=self.output_dtype,
             affine_lps_to_ras=self.affine_lps_to_ras,  # type: ignore
             **kwargs,
         )
@@ -604,7 +604,7 @@ class NibabelWriter(ImageWriter):
         """
         super().write(filename, verbose=verbose)
         self.data_obj = self.create_backend_obj(
-            self.data_obj, affine=self.affine, dtype=self.output_dtype, **obj_kwargs  # type: ignore
+            self.data_obj, affine=self.affine, dtype=self.output_dtype, **obj_kwargs
         )
         if self.affine is None:
             self.affine = np.eye(4)
@@ -746,7 +746,7 @@ class PILWriter(ImageWriter):
         super().write(filename, verbose=verbose)
         self.data_obj = self.create_backend_obj(
             data_array=self.data_obj,
-            dtype=self.output_dtype,  # type: ignore
+            dtype=self.output_dtype,
             reverse_indexing=kwargs.pop("reverse_indexing", True),
             image_mode=kwargs.pop("image_mode", None),
             scale=self.scale,  # type: ignore
