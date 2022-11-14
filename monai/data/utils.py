@@ -30,7 +30,6 @@ from torch.utils.data._utils.collate import default_collate
 from monai import config
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor, PathLike
 from monai.data.meta_obj import MetaObj
-from monai.networks.layers.simplelayers import GaussianFilter
 from monai.utils import (
     MAX_SEED,
     BlendMode,
@@ -52,7 +51,6 @@ from monai.utils import (
 pd, _ = optional_import("pandas")
 DataFrame, _ = optional_import("pandas", name="DataFrame")
 nib, _ = optional_import("nibabel")
-
 
 __all__ = [
     "AFFINE_TOL",
@@ -875,17 +873,19 @@ def compute_shape_offset(
     corners_out = inv_mat @ corners
     corners_out = corners_out[:-1] / corners_out[-1]
     out_shape = np.round(corners_out.ptp(axis=1)) if scale_extent else np.round(corners_out.ptp(axis=1) + 1.0)
-    mat = inv_mat[:-1, :-1]
-    i = 0
+    all_dist = inv_mat[:-1, :-1] @ corners[:-1, :]
+    offset = None
     for i in range(corners.shape[1]):
-        min_corner = np.min(mat @ corners[:-1, :] - mat @ corners[:-1, i : i + 1], 1)
+        min_corner = np.min(all_dist - all_dist[:, i : i + 1], 1)
         if np.allclose(min_corner, 0.0, rtol=AFFINE_TOL):
+            offset = corners[:-1, i]  # corner is the smallest, shift the corner to origin
             break
-    offset = corners[:-1, i]
+    if offset is None:  # otherwise make output image center aligned with the input image center
+        offset = in_affine_[:-1, :-1] @ (shape / 2.0) + in_affine_[:-1, -1] - out_affine_[:-1, :-1] @ (out_shape / 2.0)
     if scale_extent:
         in_offset = np.append(0.5 * (shape / out_shape - 1.0), 1.0)
         offset = np.abs((in_affine_ @ in_offset / in_offset[-1])[:-1]) * np.sign(offset)
-    return out_shape.astype(int, copy=False), offset
+    return out_shape.astype(int, copy=False), offset  # type: ignore
 
 
 def to_affine_nd(r: Union[np.ndarray, int], affine: NdarrayTensor, dtype=np.float64) -> NdarrayTensor:
@@ -1065,17 +1065,16 @@ def compute_importance_map(
     if mode == BlendMode.CONSTANT:
         importance_map = torch.ones(patch_size, device=device, dtype=torch.float)
     elif mode == BlendMode.GAUSSIAN:
-        center_coords = [i // 2 for i in patch_size]
+
         sigma_scale = ensure_tuple_rep(sigma_scale, len(patch_size))
         sigmas = [i * sigma_s for i, sigma_s in zip(patch_size, sigma_scale)]
 
-        importance_map = torch.zeros(patch_size, device=device)
-        importance_map[tuple(center_coords)] = 1
-        pt_gaussian = GaussianFilter(len(patch_size), sigmas).to(device=device, dtype=torch.float)
-        importance_map = pt_gaussian(importance_map.unsqueeze(0).unsqueeze(0))
-        importance_map = importance_map.squeeze(0).squeeze(0)
-        importance_map = importance_map / torch.max(importance_map)
-        importance_map = importance_map.float()
+        for i in range(len(patch_size)):
+            x = torch.arange(
+                start=-(patch_size[i] - 1) / 2.0, end=(patch_size[i] - 1) / 2.0 + 1, dtype=torch.float, device=device
+            )
+            x = torch.exp(x**2 / (-2 * sigmas[i] ** 2))  # 1D gaussian
+            importance_map = importance_map.unsqueeze(-1) * x[(None,) * i] if i > 0 else x
     else:
         raise ValueError(
             f"Unsupported mode: {mode}, available options are [{BlendMode.CONSTANT}, {BlendMode.CONSTANT}]."

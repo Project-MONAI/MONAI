@@ -9,15 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import torch
 import torch.nn.functional as F
-from torch import nn
+from torch.nn.modules.loss import _Loss
 
 from monai.utils.type_conversion import convert_to_dst_type
 
 
-class SSIMLoss(nn.Module):
+class SSIMLoss(_Loss):
     """
     Build a Pytorch version of the SSIM loss function based on the original formula of SSIM
 

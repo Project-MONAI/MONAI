@@ -9,6 +9,46 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .post.array import (
+    GenerateDistanceMap,
+    GenerateInstanceBorder,
+    GenerateInstanceCentroid,
+    GenerateInstanceContour,
+    GenerateInstanceType,
+    GenerateSuccinctContour,
+    GenerateWatershedMarkers,
+    GenerateWatershedMask,
+    Watershed,
+)
+from .post.dictionary import (
+    GenerateDistanceMapD,
+    GenerateDistanceMapd,
+    GenerateDistanceMapDict,
+    GenerateInstanceBorderD,
+    GenerateInstanceBorderd,
+    GenerateInstanceBorderDict,
+    GenerateInstanceCentroidD,
+    GenerateInstanceCentroidd,
+    GenerateInstanceCentroidDict,
+    GenerateInstanceContourD,
+    GenerateInstanceContourd,
+    GenerateInstanceContourDict,
+    GenerateInstanceTypeD,
+    GenerateInstanceTyped,
+    GenerateInstanceTypeDict,
+    GenerateSuccinctContourD,
+    GenerateSuccinctContourd,
+    GenerateSuccinctContourDict,
+    GenerateWatershedMarkersD,
+    GenerateWatershedMarkersd,
+    GenerateWatershedMarkersDict,
+    GenerateWatershedMaskD,
+    GenerateWatershedMaskd,
+    GenerateWatershedMaskDict,
+    WatershedD,
+    Watershedd,
+    WatershedDict,
+)
 from .spatial.array import SplitOnGrid, TileOnGrid
 from .spatial.dictionary import SplitOnGridd, SplitOnGridD, SplitOnGridDict, TileOnGridd, TileOnGridD, TileOnGridDict
 from .stain.array import ExtractHEStains, NormalizeHEStains

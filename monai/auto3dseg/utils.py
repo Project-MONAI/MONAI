@@ -106,6 +106,9 @@ def get_label_ccp(mask_index: MetaTensor, use_gpu: bool = True) -> Tuple[List[An
             shape_list.append(bbox_shape)
         ncomponents = len(vals)
 
+        del mask_cupy, labeled, vals, comp_idx, ncomp
+        cp.get_default_memory_pool().free_all_blocks()
+
     elif has_measure:
         labeled, ncomponents = measure_np.label(mask_index.data.cpu().numpy(), background=-1, return_num=True)
         for ncomp in range(1, ncomponents + 1):
@@ -174,7 +177,7 @@ def concat_val_to_np(
     elif ragged:
         return np.concatenate(np_list, **kwargs)  # type: ignore
     else:
-        return np.concatenate([np_list], **kwargs)  # type: ignore
+        return np.concatenate([np_list], **kwargs)
 
 
 def concat_multikeys_to_dict(

@@ -107,7 +107,7 @@ class NetAdapter(torch.nn.Module):
         x = self.features(x)
         if isinstance(x, tuple):
             x = x[0]  # it might be a namedtuple such as torchvision.model.InceptionOutputs
-        elif isinstance(x, dict):
+        elif torch.jit.isinstance(x, Dict[str, torch.Tensor]):
             x = x[self.node_name]  # torchvision create_feature_extractor
         if self.pool is not None:
             x = self.pool(x)

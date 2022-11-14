@@ -3,7 +3,7 @@
 pytorch-ignite==0.4.10
 gdown>=4.4.0
 scipy
-itk>=5.2
+itk>=5.2; python_version < "3.10"
 nibabel
 pillow!=8.3.0  # https://github.com/python-pillow/Pillow/issues/5571
 tensorboard
@@ -33,8 +33,8 @@ sphinx-autodoc-typehints==1.11.1
 sphinx-rtd-theme==0.5.2
 cucim==22.8.1; platform_system == "Linux"
 openslide-python==1.1.2
-imagecodecs; platform_system == "Linux"
-tifffile; platform_system == "Linux"
+imagecodecs; platform_system == "Linux" or platform_system == "Darwin"
+tifffile; platform_system == "Linux" or platform_system == "Darwin"
 pandas
 requests
 einops

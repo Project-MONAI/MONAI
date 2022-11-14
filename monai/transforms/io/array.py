@@ -113,7 +113,7 @@ class LoadImage(Transform):
         self,
         reader=None,
         image_only: bool = False,
-        dtype: DtypeLike = np.float32,
+        dtype: Optional[DtypeLike] = np.float32,
         ensure_channel_first: bool = False,
         simple_keys: bool = False,
         prune_meta_pattern: Optional[str] = None,
@@ -278,7 +278,7 @@ class LoadImage(Transform):
             img = EnsureChannelFirst()(img)
         if self.image_only:
             return img
-        return img, img.meta  # for compatibility purpose
+        return img, img.meta if isinstance(img, MetaTensor) else meta_data
 
 
 class SaveImage(Transform):
@@ -293,7 +293,7 @@ class SaveImage(Transform):
         output_dir: output image directory.
         output_postfix: a string appended to all output file names, default to `trans`.
         output_ext: output file extension name.
-        output_dtype: data type for saving data. Defaults to ``np.float32``.
+        output_dtype: data type (if not None) for saving data. Defaults to ``np.float32``.
         resample: whether to resample image (if needed) before saving the data array,
             based on the `spatial_shape` (and `original_affine`) from metadata.
         mode: This option is used when ``resample=True``. Defaults to ``"nearest"``.
@@ -310,7 +310,7 @@ class SaveImage(Transform):
         scale: {``255``, ``65535``} postprocess data by clipping to [0, 1] and scaling
             [0, 255] (uint8) or [0, 65535] (uint16). Default is `None` (no scaling).
         dtype: data type during resampling computation. Defaults to ``np.float64`` for best precision.
-            if None, use the data type of input data. To be compatible with other modules,
+            if None, use the data type of input data. To set the output data type, use `output_dtype`.
         squeeze_end_dims: if True, any trailing singleton dimensions will be removed (after the channel
             has been moved to the end). So if input is (C,H,W,D), this will be altered to (H,W,D,C), and
             then if C==1, it will be saved as (H,W,D). If D is also 1, it will be saved as (H,W). If `false`,
@@ -347,7 +347,7 @@ class SaveImage(Transform):
         output_dir: PathLike = "./",
         output_postfix: str = "trans",
         output_ext: str = ".nii.gz",
-        output_dtype: DtypeLike = np.float32,
+        output_dtype: Optional[DtypeLike] = np.float32,
         resample: bool = True,
         mode: str = "nearest",
         padding_mode: str = GridSamplePadMode.BORDER,
@@ -382,9 +382,9 @@ class SaveImage(Transform):
         self.writer_obj = None
 
         _output_dtype = output_dtype
-        if self.output_ext == ".png" and _output_dtype not in (np.uint8, np.uint16):
+        if self.output_ext == ".png" and _output_dtype not in (np.uint8, np.uint16, None):
             _output_dtype = np.uint8
-        if self.output_ext == ".dcm" and _output_dtype not in (np.uint8, np.uint16):
+        if self.output_ext == ".dcm" and _output_dtype not in (np.uint8, np.uint16, None):
             _output_dtype = np.uint8
         self.init_kwargs = {"output_dtype": _output_dtype, "scale": scale}
         self.data_kwargs = {"squeeze_end_dims": squeeze_end_dims, "channel_dim": channel_dim}

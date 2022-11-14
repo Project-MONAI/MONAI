@@ -58,7 +58,6 @@ PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
 cp, has_cp = optional_import("cupy")
 
-
 __all__ = [
     "Identity",
     "AsChannelFirst",
@@ -209,15 +208,15 @@ class EnsureChannelFirst(Transform):
 
     Args:
         strict_check: whether to raise an error when the meta information is insufficient.
-        channel_dim: If the input image `img` is not a MetaTensor or `meta_dict` is not given,
-            this argument can be used to specify the original channel dimension (integer) of the input array.
-            If the input array doesn't have a channel dim, this value should be ``'no_channel'`` (default).
+        channel_dim: This argument can be used to specify the original channel dimension (integer) of the input array.
+            It overrides the `original_channel_dim` from provided MetaTensor input.
+            If the input array doesn't have a channel dim, this value should be ``'no_channel'``.
             If this is set to `None`, this class relies on `img` or `meta_dict` to provide the channel dimension.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, strict_check: bool = True, channel_dim: Union[None, str, int] = "no_channel"):
+    def __init__(self, strict_check: bool = True, channel_dim: Union[None, str, int] = None):
         self.strict_check = strict_check
         self.input_channel_dim = channel_dim
 
@@ -239,17 +238,19 @@ class EnsureChannelFirst(Transform):
             meta_dict = img.meta
 
         channel_dim = meta_dict.get("original_channel_dim", None) if isinstance(meta_dict, Mapping) else None
+        if self.input_channel_dim is not None:
+            channel_dim = self.input_channel_dim
 
         if channel_dim is None:
-            if self.input_channel_dim is None:
-                msg = "Unknown original_channel_dim in the MetaTensor meta dict or `meta_dict` or `channel_dim`."
-                if self.strict_check:
-                    raise ValueError(msg)
-                warnings.warn(msg)
-                return img
-            channel_dim = self.input_channel_dim
-            if isinstance(meta_dict, dict):
-                meta_dict["original_channel_dim"] = self.input_channel_dim
+            msg = "Unknown original_channel_dim in the MetaTensor meta dict or `meta_dict` or `channel_dim`."
+            if self.strict_check:
+                raise ValueError(msg)
+            warnings.warn(msg)
+            return img
+
+        # track the original channel dim
+        if isinstance(meta_dict, dict):
+            meta_dict["original_channel_dim"] = channel_dim
 
         if channel_dim == "no_channel":
             result = img[None]
@@ -703,8 +704,7 @@ class DataStats(Transform):
         if logging.root.getEffectiveLevel() > logging.INFO:
             # Avoid duplicate stream handlers to be added when multiple DataStats are used in a chain.
             has_console_handler = any(
-                hasattr(h, "is_data_stats_handler") and h.is_data_stats_handler  # type:ignore[attr-defined]
-                for h in _logger.handlers
+                hasattr(h, "is_data_stats_handler") and h.is_data_stats_handler for h in _logger.handlers
             )
             if not has_console_handler:
                 # if the root log level is higher than INFO, set a separate stream handler to record

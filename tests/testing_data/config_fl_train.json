@@ -1,6 +1,6 @@
 {
     "bundle_root": "tests/testing_data",
-    "dataset_dir": "tests/testing_data",
+    "dataset_dir": "@bundle_root",
     "imports": [
         "$import os"
     ],
@@ -30,7 +30,7 @@
                 "image_only": true
             },
             {
-                "_target_": "AddChanneld",
+                "_target_": "EnsureChannelFirstD",
                 "keys": [
                     "image"
                 ]
@@ -96,7 +96,7 @@
         "dataloader": {
             "_target_": "DataLoader",
             "dataset": "@train#dataset",
-            "batch_size": 128,
+            "batch_size": 3,
             "shuffle": true,
             "num_workers": 2
         },

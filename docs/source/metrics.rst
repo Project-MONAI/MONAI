@@ -104,6 +104,13 @@ Metrics
 .. autoclass:: SurfaceDiceMetric
     :members:
 
+`PanopticQualityMetric`
+-----------------------
+.. autofunction:: compute_panoptic_quality
+
+.. autoclass:: PanopticQualityMetric
+    :members:
+
 `Mean squared error`
 --------------------
 .. autoclass:: MSEMetric

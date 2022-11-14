@@ -29,13 +29,18 @@ The solution offers different levels of user experience for beginners and advanc
 It has been tested on large-scale 3D medical imaging datasets in different modalities.
 
 ## Federated Learning Client
-![federated-learning](../images/federated.png)
+![federated-learning](../images/federated.svg)
 
-MONAI now includes the federated learning client algorithm APIs that are exposed as an abstract base class
+MONAI now includes the federated learning (FL) client algorithm APIs that are exposed as an abstract base class
 for defining an algorithm to be run on any federated learning platform.
 [NVIDIA FLARE](https://github.com/NVIDIA/NVFlare), the federated learning platform developed by [NVIDIA](https://www.nvidia.com/en-us/),
-has already built [the integration piece](https://github.com/NVIDIA/NVFlare/tree/2.2/integration/monai) with these new APIs.
-With [the new federated learning APIs](https://docs.monai.io/en/latest/fl.html), MONAI bundles can seamlessly be extended to a federated paradigm.
+has already built [the integration piece](https://github.com/NVIDIA/NVFlare/tree/dev/integration/monai) with these new APIs.
+With [the new federated learning APIs](https://docs.monai.io/en/latest/fl.html), MONAI bundles can seamlessly be extended to a federated paradigm
+and executed using single- or multi-GPU training.
+The MONAI FL client also allows computing summary data statistics (e.g., intensity histograms) on the datasets defined in the bundle configs.
+These can be shared and visualized on the FL server, for example, using NVIDIA FLARE's federated statistics operators,
+see [here](https://github.com/NVIDIA/NVFlare/tree/dev/integration/monai/examples/spleen_ct_segmentation) for an example.
+
 We welcome other federated learning toolkits to integrate with MONAI FL APIs, building a common foundation for
 collaborative learning in medical imaging.
 

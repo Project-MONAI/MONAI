@@ -26,7 +26,7 @@ from monai.config import DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.utils import get_random_patch, get_valid_patch_size
-from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
+from monai.networks.layers import GaussianFilter, HilbertTransform, MedianFilter, SavitzkyGolayFilter
 from monai.transforms.transform import RandomizableTransform, Transform
 from monai.transforms.utils import Fourier, equalize_hist, is_positive, rescale_array
 from monai.transforms.utils_pytorch_numpy_unification import clip, percentile, where
@@ -56,6 +56,7 @@ __all__ = [
     "MaskIntensity",
     "DetectEnvelope",
     "SavitzkyGolaySmooth",
+    "MedianSmooth",
     "GaussianSmooth",
     "RandGaussianSmooth",
     "GaussianSharpen",
@@ -1133,6 +1134,35 @@ class DetectEnvelope(Transform):
         out = hilbert_transform(img_t.unsqueeze(0)).squeeze(0).abs()
         out, *_ = convert_to_dst_type(src=out, dst=img)
 
+        return out
+
+
+class MedianSmooth(Transform):
+    """
+    Apply median filter to the input data based on specified `radius` parameter.
+    A default value `radius=1` is provided for reference.
+
+    See also: :py:func:`monai.networks.layers.median_filter`
+
+    Args:
+        radius: if a list of values, must match the count of spatial dimensions of input data,
+            and apply every value in the list to 1 spatial dimension. if only 1 value provided,
+            use it for all spatial dimensions.
+    """
+
+    backend = [TransformBackends.TORCH]
+
+    def __init__(self, radius: Union[Sequence[int], int] = 1) -> None:
+        self.radius = radius
+
+    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)
+        spatial_dims = img_t.ndim - 1
+        r = ensure_tuple_rep(self.radius, spatial_dims)
+        median_filter_instance = MedianFilter(r, spatial_dims=spatial_dims)
+        out_t: torch.Tensor = median_filter_instance(img_t)
+        out, *_ = convert_to_dst_type(out_t, dst=img, dtype=out_t.dtype)
         return out
 
 
@@ -2293,6 +2323,7 @@ class ForegroundMask(Transform):
 class ComputeHoVerMaps(Transform):
     """Compute horizontal and vertical maps from an instance mask
     It generates normalized horizontal and vertical distances to the center of mass of each region.
+    Input data with the size of [1xHxW[xD]], which channel dim will temporarily removed for calculating coordinates.
 
     Args:
         dtype: the data type of output Tensor. Defaults to `"float32"`.
@@ -2311,6 +2342,7 @@ class ComputeHoVerMaps(Transform):
 
         h_map = instance_mask.astype(self.dtype, copy=True)
         v_map = instance_mask.astype(self.dtype, copy=True)
+        instance_mask = instance_mask.squeeze(0)  # remove channel dim
 
         for region in skimage.measure.regionprops(instance_mask):
             v_dist = region.coords[:, 0] - region.centroid[0]
@@ -2325,5 +2357,5 @@ class ComputeHoVerMaps(Transform):
             h_map[h_map == region.label] = h_dist
             v_map[v_map == region.label] = v_dist
 
-        hv_maps = convert_to_tensor(np.stack([h_map, v_map]), track_meta=get_track_meta())
+        hv_maps = convert_to_tensor(np.concatenate([h_map, v_map]), track_meta=get_track_meta())
         return hv_maps

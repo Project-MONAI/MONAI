@@ -47,6 +47,7 @@ __all__ = [
     "MAX_SEED",
     "copy_to_device",
     "str2bool",
+    "str2list",
     "MONAIEnvVars",
     "ImageMetaKey",
     "is_module_ver_at_least",
@@ -292,7 +293,7 @@ def set_determinism(
         if hasattr(torch, "use_deterministic_algorithms"):  # `use_deterministic_algorithms` is new in torch 1.8.0
             torch.use_deterministic_algorithms(use_deterministic_algorithms)
         elif hasattr(torch, "set_deterministic"):  # `set_deterministic` is new in torch 1.7.0
-            torch.set_deterministic(use_deterministic_algorithms)  # type: ignore
+            torch.set_deterministic(use_deterministic_algorithms)
         else:
             warnings.warn("use_deterministic_algorithms=True, but PyTorch version is too old to set the mode.")
 
@@ -363,21 +364,29 @@ def copy_to_device(
     return obj
 
 
-def str2bool(value: str, default: bool = False, raise_exc: bool = True) -> bool:
+def str2bool(value: Union[str, bool], default: bool = False, raise_exc: bool = True) -> bool:
     """
     Convert a string to a boolean. Case insensitive.
     True: yes, true, t, y, 1. False: no, false, f, n, 0.
 
     Args:
-        value: string to be converted to a boolean.
+        value: string to be converted to a boolean. If value is a bool already, simply return it.
         raise_exc: if value not in tuples of expected true or false inputs,
-            should we raise an exception? If not, return `None`.
+            should we raise an exception? If not, return `default`.
     Raises
         ValueError: value not in tuples of expected true or false inputs and
             `raise_exc` is `True`.
+    Useful with argparse, for example:
+        parser.add_argument("--convert", default=False, type=str2bool)
+        python mycode.py --convert=True
     """
+
+    if isinstance(value, bool):
+        return value
+
     true_set = ("yes", "true", "t", "y", "1")
     false_set = ("no", "false", "f", "n", "0")
+
     if isinstance(value, str):
         value = value.lower()
         if value in true_set:
@@ -390,6 +399,38 @@ def str2bool(value: str, default: bool = False, raise_exc: bool = True) -> bool:
     return default
 
 
+def str2list(value: Optional[Union[str, list]], raise_exc: bool = True) -> Optional[list]:
+    """
+    Convert a string to a list.  Useful with argparse commandline arguments:
+        parser.add_argument("--blocks", default=[1,2,3], type=str2list)
+        python mycode.py --blocks=1,2,2,4
+
+    Args:
+        value: string (comma separated) to be converted to a list
+        raise_exc: if not possible to convert to a list, raise an exception
+    Raises
+        ValueError: value not a string or list or not possible to convert
+    """
+
+    if value is None:
+        return None
+    elif isinstance(value, list):
+        return value
+    elif isinstance(value, str):
+        v = value.split(",")
+        for i in range(len(v)):
+            try:
+                a = literal_eval(v[i].strip())  # attempt to convert
+                v[i] = a
+            except Exception:
+                pass
+        return v
+    elif raise_exc:
+        raise ValueError(f'Unable to convert "{value}", expected a comma-separated str, e.g. 1,2,3')
+
+    return None
+
+
 class MONAIEnvVars:
     """
     Environment variables used by MONAI.
@@ -397,7 +438,7 @@ class MONAIEnvVars:
 
     @staticmethod
     def data_dir() -> Optional[str]:
-        return os.environ.get("MONAI_DATA_DIRECTORY", None)
+        return os.environ.get("MONAI_DATA_DIRECTORY")
 
     @staticmethod
     def debug() -> bool:
@@ -406,7 +447,7 @@ class MONAIEnvVars:
 
     @staticmethod
     def doc_images() -> Optional[str]:
-        return os.environ.get("MONAI_DOC_IMAGES", None)
+        return os.environ.get("MONAI_DOC_IMAGES")
 
 
 class ImageMetaKey:

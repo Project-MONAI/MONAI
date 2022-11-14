@@ -1,4 +1,5 @@
-name: build-gpu
+# Jenkinsfile.monai-premerge
+name: premerge-gpu
 
 on:
   # quick tests for pull requests and the releasing branches
@@ -7,6 +8,7 @@ on:
       - main
       - releasing/*
   pull_request:
+    types: [opened, synchronize, closed]
 
 concurrency:
   # automatically cancel the previously triggered workflows when there's a newer version
@@ -15,66 +17,54 @@ concurrency:
 
 jobs:
   GPU-quick-py3:  # GPU with full dependencies
-    if: github.repository == 'Project-MONAI/MONAI'
+    if: ${{ github.repository == 'Project-MONAI/MONAI' && github.event.pull_request.merged != true }}
     strategy:
       matrix:
         environment:
-          - "PT19+CUDA114"
-          - "PT17+CUDA102"
           - "PT18+CUDA102"
-          - "PT18+CUDA112"
-          - "PT112+CUDA117"
-          - "PT110+CUDA102"
-          - "PT112+CUDA102"
+          - "PT19+CUDA114DOCKER"
+          - "PT110+CUDA111"
+          - "PT112+CUDA118DOCKER"
+          - "PT113+CUDA116"
         include:
           # https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes
-          - environment: PT17+CUDA102
-            pytorch: "torch==1.7.1 torchvision==0.8.2"
-            base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
           - environment: PT18+CUDA102
             # pytorch 1.8.2 LTS
             pytorch: "torch==1.8.2 torchvision==0.9.2 --extra-index-url https://download.pytorch.org/whl/lts/1.8/cu102"
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
-          - environment: PT18+CUDA112
-            # we explicitly set pytorch to -h to avoid pip install error
-            # 21.03: 1.9.0a0+df837d0
-            pytorch: "-h"
-            base: "nvcr.io/nvidia/pytorch:21.03-py3"
-          - environment: PT19+CUDA114
-            # we explicitly set pytorch to -h to avoid pip install error
+          - environment: PT19+CUDA114DOCKER
             # 21.10: 1.10.0a0+0aef44c
-            pytorch: "-h"
+            pytorch: "-h"  # we explicitly set pytorch to -h to avoid pip install error
             base: "nvcr.io/nvidia/pytorch:21.10-py3"
-          - environment: PT112+CUDA117
-            # we explicitly set pytorch to -h to avoid pip install error
-            # 22.08: 1.13.0a0+d321be6
-            pytorch: "-h"
-            base: "nvcr.io/nvidia/pytorch:22.08-py3"
-          - environment: PT110+CUDA102
-            pytorch: "torch==1.10.2 torchvision==0.11.3"
-            base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
-          - environment: PT112+CUDA102
-            pytorch: "torch==1.12.1 torchvision==0.13.1"
-            base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
+          - environment: PT110+CUDA111
+            pytorch: "torch==1.10.2 torchvision==0.11.3 --extra-index-url https://download.pytorch.org/whl/cu111"
+            base: "nvcr.io/nvidia/cuda:11.1.1-devel-ubuntu18.04"
+          - environment: PT112+CUDA118DOCKER
+            # 22.09: 1.13.0a0+d0d6b1f
+            pytorch: "-h"  # we explicitly set pytorch to -h to avoid pip install error
+            base: "nvcr.io/nvidia/pytorch:22.09-py3"
+          - environment: PT113+CUDA116
+            pytorch: "torch==1.13.0 torchvision==0.14.0"
+            base: "nvcr.io/nvidia/cuda:11.6.1-devel-ubuntu18.04"
     container:
       image: ${{ matrix.base }}
-      options: --gpus all
+      options: --gpus all --env NVIDIA_DISABLE_REQUIRE=true  # workaround for unsatisfied condition: cuda>=11.6
     runs-on: [self-hosted, linux, x64, common]
     steps:
     - uses: actions/checkout@v3
     - name: apt install
+      if: github.event.pull_request.merged != true
       run: |
-        # workaround for https://github.com/Project-MONAI/MONAI/issues/4200
+        # FIXME: workaround for https://github.com/Project-MONAI/MONAI/issues/4200
         apt-key del 7fa2af80 && rm -rf /etc/apt/sources.list.d/nvidia-ml.list /etc/apt/sources.list.d/cuda.list
         apt-get update
         apt-get install -y wget
         wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-keyring_1.0-1_all.deb
         dpkg -i cuda-keyring_1.0-1_all.deb
 
-        if [ ${{ matrix.environment }} = "PT17+CUDA102" ] || \
-          [ ${{ matrix.environment }} = "PT18+CUDA102" ] || \
-          [ ${{ matrix.environment }} = "PT110+CUDA102" ] || \
-          [ ${{ matrix.environment }} = "PT112+CUDA102" ]
+        if [ ${{ matrix.environment }} = "PT18+CUDA102" ] || \
+          [ ${{ matrix.environment }} = "PT110+CUDA111" ] || \
+          [ ${{ matrix.environment }} = "PT113+CUDA116" ]
         then
         PYVER=3.7 PYSFX=3 DISTUTILS=python3-distutils && \
         apt-get update && apt-get install -y --no-install-recommends \
@@ -108,10 +98,11 @@ jobs:
         python get-pip.py && \
         rm get-pip.py;
         fi
-    - if: matrix.environment == 'PT19+CUDA114'
+    - if: matrix.environment == 'PT19+CUDA114DOCKER'
       name: Optional Cupy dependency (cuda114)
       run: echo "cupy-cuda114" >> requirements-dev.txt
     - name: Install dependencies
+      if: github.event.pull_request.merged != true
       run: |
         which python
         python -m pip install --upgrade pip wheel
@@ -120,7 +111,11 @@ jobs:
         python -m pip install ${{ matrix.pytorch }}
         python -m pip install -r requirements-dev.txt
         python -m pip list
+        DRIVER_VERSION=$(cat /proc/driver/nvidia/version | head -1 | awk -F' ' '{print $8}')
+        ls -ltr /usr/lib/x86_64-linux-gnu/libcuda* && ln -fs /usr/lib/x86_64-linux-gnu/libcuda.so.$DRIVER_VERSION /usr/lib/x86_64-linux-gnu/libcuda.so.1 || true
+        ls -ltr /usr/lib64/libcuda* && ln -fs /usr/lib64/libcuda.so.$DRIVER_VERSION /usr/lib64/libcuda.so.1 || true
     - name: Run quick tests (GPU)
+      if: github.event.pull_request.merged != true
       run: |
         git clone --depth 1 \
           https://github.com/Project-MONAI/MONAI-extra-test-data.git /MONAI-extra-test-data
@@ -137,8 +132,9 @@ jobs:
         python -c 'import torch; print(torch.rand(5, 3, device=torch.device("cuda:0")))'
         python -c "import monai; monai.config.print_config()"
         # build for the current self-hosted CI Tesla V100
-        BUILD_MONAI=1 TORCH_CUDA_ARCH_LIST="7.0" ./runtests.sh --build --quick --unittests --disttests
-        if [ ${{ matrix.environment }} = "PT110+CUDA102" ]; then
+        BUILD_MONAI=1 TORCH_CUDA_ARCH_LIST="7.0" ./runtests.sh --build --disttests
+        ./runtests.sh --quick --unittests
+        if [ ${{ matrix.environment }} = "PT18+CUDA102" ]; then
           # test the clang-format tool downloading once
           coverage run -m tests.clang_format_utils
         fi
@@ -146,6 +142,7 @@ jobs:
         if pgrep python; then pkill python; fi
       shell: bash
     - name: Upload coverage
-      uses: codecov/codecov-action@v1
+      if: ${{ github.head_ref != 'dev' && github.event.pull_request.merged != true }}
+      uses: codecov/codecov-action@v3
       with:
-        file: ./coverage.xml
+        files: ./coverage.xml

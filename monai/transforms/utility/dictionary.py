@@ -301,7 +301,7 @@ class EnsureChannelFirstd(MapTransform):
         meta_key_postfix: str = DEFAULT_POST_FIX,
         strict_check: bool = True,
         allow_missing_keys: bool = False,
-        channel_dim="no_channel",
+        channel_dim=None,
     ) -> None:
         """
         Args:
@@ -309,9 +309,9 @@ class EnsureChannelFirstd(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             strict_check: whether to raise an error when the meta information is insufficient.
             allow_missing_keys: don't raise exception if key is missing.
-            channel_dim: If the input image `img` is not a MetaTensor or `meta_dict` is not given,
-                this argument can be used to specify the original channel dimension (integer) of the input array.
-                If the input array doesn't have a channel dim, this value should be ``'no_channel'`` (default).
+            channel_dim: This argument can be used to specify the original channel dimension (integer) of the input array.
+                It overrides the `original_channel_dim` from provided MetaTensor input.
+                If the input array doesn't have a channel dim, this value should be ``'no_channel'``.
                 If this is set to `None`, this class relies on `img` or `meta_dict` to provide the channel dimension.
         """
         super().__init__(keys, allow_missing_keys)
@@ -423,7 +423,7 @@ class SplitDimd(MapTransform):
             output = []
             results = [self.splitter(d[key]) for key in all_keys]
             for row in zip(*results):
-                new_dict = {k: v for k, v in zip(all_keys, row)}
+                new_dict = dict(zip(all_keys, row))
                 # fill in the extra keys with unmodified data
                 for k in set(d.keys()).difference(set(all_keys)):
                     new_dict[k] = deepcopy(d[k])
@@ -536,19 +536,19 @@ class ToTensord(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
-            self.push_transform(d, key)
             d[key] = self.converter(d[key])
+            self.push_transform(d, key)
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
+            # Remove the applied transform
+            self.pop_transform(d, key)
             # Create inverse transform
             inverse_transform = ToNumpy()
             # Apply inverse
             d[key] = inverse_transform(d[key])
-            # Remove the applied transform
-            self.pop_transform(d, key)
         return d
 
 

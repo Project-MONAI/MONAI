@@ -167,7 +167,6 @@ for track_meta in (False, True):
     for device in TEST_DEVICES:
         TESTS_TORCH.append([{"axcodes": "LPS"}, torch.zeros((1, 3, 4, 5)), track_meta, *device])
 
-
 ILL_CASES = [
     # too short axcodes
     [{"axcodes": "RA"}, torch.arange(12).reshape((2, 1, 2, 3)), torch.eye(4)]

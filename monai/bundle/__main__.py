@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 from monai.bundle.scripts import ckpt_export, download, init_bundle, run, verify_metadata, verify_net_in_out
 
 if __name__ == "__main__":

@@ -52,6 +52,9 @@ __all__ = [
     "ImageStatsKeys",
     "LabelStatsKeys",
     "AlgoEnsembleKeys",
+    "HoVerNetMode",
+    "HoVerNetBranch",
+    "LazyAttr",
 ]
 
 
@@ -167,6 +170,7 @@ class UpsampleMode(StrEnum):
     """
 
     DECONV = "deconv"
+    DECONVGROUP = "deconvgroup"
     NONTRAINABLE = "nontrainable"  # e.g. using torch.nn.Upsample
     PIXELSHUFFLE = "pixelshuffle"
 
@@ -550,6 +554,7 @@ class DataStatsKeys(StrEnum):
     IMAGE_STATS = "image_stats"
     FG_IMAGE_STATS = "image_foreground_stats"
     LABEL_STATS = "label_stats"
+    IMAGE_HISTOGRAM = "image_histogram"
 
 
 class ImageStatsKeys(StrEnum):
@@ -563,6 +568,7 @@ class ImageStatsKeys(StrEnum):
     CROPPED_SHAPE = "cropped_shape"
     SPACING = "spacing"
     INTENSITY = "intensity"
+    HISTOGRAM = "histogram"
 
 
 class LabelStatsKeys(StrEnum):
@@ -572,7 +578,7 @@ class LabelStatsKeys(StrEnum):
     """
 
     LABEL_UID = "labels"
-    PIXEL_PCT = "pixel_percentage"
+    PIXEL_PCT = "foreground_percentage"
     IMAGE_INTST = "image_intensity"
     LABEL = "label"
     LABEL_SHAPE = "shape"
@@ -587,3 +593,40 @@ class AlgoEnsembleKeys(StrEnum):
     ID = "identifier"
     ALGO = "infer_algo"
     SCORE = "best_metric"
+
+
+class HoVerNetMode(StrEnum):
+    """
+    Modes for HoVerNet model:
+    `FAST`: a faster implementation (than original)
+    `ORIGINAL`: the original implementation
+    """
+
+    FAST = "FAST"
+    ORIGINAL = "ORIGINAL"
+
+
+class HoVerNetBranch(StrEnum):
+    """
+    Three branches of HoVerNet model, which results in three outputs:
+    `HV` is horizontal and vertical gradient map of each nucleus (regression),
+    `NP` is the pixel prediction of all nuclei (segmentation), and
+    `NC` is the type of each nucleus (classification).
+    """
+
+    HV = "horizontal_vertical"
+    NP = "nucleus_prediction"
+    NC = "type_prediction"
+
+
+class LazyAttr(StrEnum):
+    """
+    MetaTensor with pending operations requires some key attributes tracked especially when the primary array
+    is not up-to-date due to lazy evaluation.
+    This class specifies the set of key attributes to be tracked for each MetaTensor.
+    """
+
+    SHAPE = "lazy_shape"  # spatial shape
+    AFFINE = "lazy_affine"
+    PADDING_MODE = "lazy_padding_mode"
+    INTERP_MODE = "lazy_interpolation_mode"

@@ -76,10 +76,16 @@ class DataLoader(_TorchDataLoader):
             # when num_workers > 0, random states are determined by worker_init_fn
             # this is to make the behavior consistent when num_workers == 0
             # torch.int64 doesn't work well on some versions of windows
-            _g = torch.random.default_generator if kwargs.get("generator", None) is None else kwargs["generator"]
+            _g = torch.random.default_generator if kwargs.get("generator") is None else kwargs["generator"]
             init_seed = _g.initial_seed()
             _seed = torch.empty((), dtype=torch.int64).random_(generator=_g).item()
             set_rnd(dataset, int(_seed))
+            # disable unnecessary multiprocessing caching
+            from monai.data.dataset import CacheDataset  # avoid circular import
+
+            if isinstance(dataset, CacheDataset) and dataset.runtime_cache:
+                dataset.disable_share_memory_cache()
+
             _g.manual_seed(init_seed)
         if "collate_fn" not in kwargs:
             kwargs["collate_fn"] = list_data_collate

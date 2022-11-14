@@ -443,7 +443,7 @@ def get_state_dict(obj: Union[torch.nn.Module, Mapping]):
     """
     if isinstance(obj, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
         obj = obj.module
-    return obj.state_dict() if hasattr(obj, "state_dict") else obj  # type: ignore
+    return obj.state_dict() if hasattr(obj, "state_dict") else obj
 
 
 def copy_model_state(
@@ -516,6 +516,8 @@ def copy_model_state(
     unchanged_keys = sorted(set(all_keys).difference(updated_keys))
     logger.info(f"'dst' model updated: {len(updated_keys)} of {len(dst_dict)} variables.")
     if inplace and isinstance(dst, torch.nn.Module):
+        if isinstance(dst, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
+            dst = dst.module
         dst.load_state_dict(dst_dict)
     return dst_dict, updated_keys, unchanged_keys
 

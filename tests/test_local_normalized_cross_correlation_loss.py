@@ -37,6 +37,14 @@ TEST_CASES = [
         -1.0,
     ],
     [
+        {"spatial_dims": 1, "kernel_type": "triangular", "smooth_dr": 0.1},
+        {
+            "pred": torch.zeros(1, 2, 3).reshape(1, 1, -1).to(dtype=torch.float, device=device),
+            "target": torch.zeros(1, 2, 3).reshape(1, 1, -1).to(dtype=torch.float, device=device),
+        },
+        0.0,
+    ],
+    [
         {"spatial_dims": 2, "kernel_type": "rectangular"},
         {
             "pred": torch.arange(0, 3).reshape(1, 1, -1, 1).expand(1, 1, 3, 3).to(dtype=torch.float, device=device),
@@ -146,7 +154,6 @@ class TestLocalNormalizedCrossCorrelationLoss(unittest.TestCase):
 #         input_param, input_data, _ = TEST_CASES[0]
 #         loss = LocalNormalizedCrossCorrelationLoss(**input_param)
 #         test_script_save(loss, input_data["pred"], input_data["target"])
-
 
 if __name__ == "__main__":
     unittest.main()

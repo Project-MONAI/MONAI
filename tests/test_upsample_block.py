@@ -67,6 +67,16 @@ TEST_CASES = [
         (16, 1, 10, 15, 20),
         (16, 3, 20, 30, 40),
     ],  # 1-channel 3D, batch 16, pre_conv
+    [
+        {"spatial_dims": 3, "in_channels": 8, "out_channels": 4, "mode": "deconvgroup"},
+        (16, 8, 16, 16, 16),
+        (16, 4, 32, 32, 32),
+    ],  # 8-channel 3D, batch 16
+    [
+        {"spatial_dims": 2, "in_channels": 32, "out_channels": 16, "mode": "deconvgroup", "scale_factor": 2},
+        (8, 32, 16, 16),
+        (8, 16, 32, 32),
+    ],  # 32-channel 2D, batch 8
 ]
 
 TEST_CASES_EQ = []
@@ -87,14 +97,34 @@ for s in range(1, 5):
         ]
         TEST_CASES_EQ.append(test_case)
 
+TEST_CASES_EQ2 = []  # type: ignore
+for s in range(2, 5):
+    for k in range(1, 7):
+        expected_shape = (16, 5, 4 * s, 5 * s, 6 * s)
+        for t in UpsampleMode:
+            test_case = [
+                {
+                    "spatial_dims": 3,
+                    "in_channels": 3,
+                    "out_channels": 5,
+                    "mode": t,
+                    "scale_factor": s,
+                    "kernel_size": k,
+                    "align_corners": False,
+                },
+                (16, 3, 4, 5, 6),
+                expected_shape,
+            ]
+            TEST_CASES_EQ.append(test_case)
+
 
 class TestUpsample(unittest.TestCase):
-    @parameterized.expand(TEST_CASES + TEST_CASES_EQ)
+    @parameterized.expand(TEST_CASES + TEST_CASES_EQ + TEST_CASES_EQ2)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = UpSample(**input_param)
         with eval_mode(net):
             result = net(torch.randn(input_shape))
-            self.assertEqual(result.shape, expected_shape)
+            self.assertEqual(result.shape, expected_shape, msg=str(input_param))
 
 
 if __name__ == "__main__":
