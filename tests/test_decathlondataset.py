@@ -47,7 +47,12 @@ class TestDecathlonDataset(unittest.TestCase):
 
         _test_dataset(data)
         data = DecathlonDataset(
-            root_dir=testing_dir, task="Task04_Hippocampus", transform=transform, section="validation", download=False
+            root_dir=testing_dir,
+            task="Task04_Hippocampus",
+            transform=transform,
+            section="validation",
+            download=False,
+            runtime_cache=True,
         )
         _test_dataset(data)
         self.assertTrue(data[0]["image"].meta["filename_or_obj"].endswith("hippocampus_163.nii.gz"))

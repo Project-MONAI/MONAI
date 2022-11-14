@@ -1,3 +1,4 @@
+# triggering the workflows by commenting `/black` and `/integration-test`
 name: chatops
 
 # currently dispatches /black command to project-monai/monai-code-formatter

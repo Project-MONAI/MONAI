@@ -22,7 +22,9 @@ Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
+    Engine, _ = optional_import(
+        "ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine", as_type="decorator"
+    )
 
 DEFAULT_KEY_VAL_FORMAT = "{}: {:.4f} "
 DEFAULT_TAG = "Loss"
@@ -203,9 +205,9 @@ class StatsHandler:
             and hasattr(engine.state, "best_metric")
             and hasattr(engine.state, "best_metric_epoch")
         ):
-            out_str = f"Key metric: {engine.state.key_metric_name} "  # type: ignore
-            out_str += f"best value: {engine.state.best_metric} "  # type: ignore
-            out_str += f"at epoch: {engine.state.best_metric_epoch}"  # type: ignore
+            out_str = f"Key metric: {engine.state.key_metric_name} "
+            out_str += f"best value: {engine.state.best_metric} "
+            out_str += f"at epoch: {engine.state.best_metric_epoch}"
             self.logger.info(out_str)
 
         if self.state_attributes is not None and len(self.state_attributes) > 0:

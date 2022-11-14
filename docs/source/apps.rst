@@ -131,6 +131,14 @@ Applications
     :members:
 
 .. automodule:: monai.apps.pathology.transforms.post.array
+.. autoclass:: GenerateSuccinctContour
+    :members:
+.. autoclass:: GenerateInstanceContour
+    :members:
+.. autoclass:: GenerateInstanceCentroid
+    :members:
+.. autoclass:: GenerateInstanceType
+    :members:
 .. autoclass:: Watershed
     :members:
 .. autoclass:: GenerateWatershedMask
@@ -143,6 +151,14 @@ Applications
     :members:
 
 .. automodule:: monai.apps.pathology.transforms.post.dictionary
+.. autoclass:: GenerateSuccinctContourd
+    :members:
+.. autoclass:: GenerateInstanceContourd
+    :members:
+.. autoclass:: GenerateInstanceCentroidd
+    :members:
+.. autoclass:: GenerateInstanceTyped
+    :members:
 .. autoclass:: Watershedd
     :members:
 .. autoclass:: GenerateWatershedMaskd
