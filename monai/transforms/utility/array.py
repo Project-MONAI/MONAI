@@ -1682,9 +1682,9 @@ class ImageFilter(Transform):
             return SavitzkyGolayFilter(size, **kwargs)
 
     def _apply_filter(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
-        if isinstance(self.filter, Transform): 
+        if isinstance(self.filter, Transform):
             return self.filter(img)
-        else: 
+        else:
             return self.filter(img.unsqueeze(0))[0]  # add and remove batch dim
 
 

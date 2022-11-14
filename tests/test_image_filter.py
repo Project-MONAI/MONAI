@@ -32,18 +32,18 @@ SAMPLE_IMAGE_3D = torch.randn(1, 10, 10, 10)
 SAMPLE_DICT = {"image_2d": SAMPLE_IMAGE_2D, "image_3d": SAMPLE_IMAGE_3D}
 
 ADDITIONAL_ARGUMENTS = {
-    "order": 1, 
+    "order": 1,
     "sigma": 1
     }
 
 class TestModule(torch.nn.Module):
-    def __init__(self): 
-        super(TestModule, self).__init__()
-    
-    def forward(self, x): 
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
         return x + 1
 
-class TestNotAModuleOrTransform: 
+class TestNotAModuleOrTransform:
     pass
 
 class TestImageFilter(unittest.TestCase):
@@ -53,22 +53,22 @@ class TestImageFilter(unittest.TestCase):
         _ = ImageFilter(kernel_name, 3, **ADDITIONAL_ARGUMENTS)
 
     def test_init_raises(self):
-        with self.assertRaises(Exception) as context: 
+        with self.assertRaises(Exception) as context:
             _ = ImageFilter("mean")
             self.assertTrue(
                 "`filter_size` must be specified when specifying filters by string." in str(context.output)
             )
-        with self.assertRaises(Exception) as context: 
+        with self.assertRaises(Exception) as context:
             _ = ImageFilter("mean")
             self.assertTrue(
                 "`filter_size` should be a single uneven integer." in str(context.output)
             )
-        with self.assertRaises(Exception) as context: 
+        with self.assertRaises(Exception) as context:
             _ = ImageFilter("gauss", 3)
             self.assertTrue(
                 "`filter='gauss', requires the additonal keyword argument `sigma`" in str(context.output)
             )
-        with self.assertRaises(Exception) as context: 
+        with self.assertRaises(Exception) as context:
             _ = ImageFilter("savitzky_golay", 3)
             self.assertTrue(
                 "`filter='savitzky_golay', requires the additonal keyword argument `order`" in str(context.output)
@@ -80,13 +80,13 @@ class TestImageFilter(unittest.TestCase):
         _ = ImageFilter(torch.ones(3, 3, 3))
         _ = ImageFilter(np.ones((3, 3)))
         _ = ImageFilter(np.ones((3, 3, 3)))
-        
+
         with self.assertRaises(Exception) as context:
             _ = ImageFilter(torch.ones(3, 3, 3, 3))
             self.assertTrue(
                 "Only 1D, 2D, and 3D filters are supported." in str(context.output)
             )
-    
+
     def test_init_from_module(self):
         filter = ImageFilter(TestModule())
         out = filter(torch.zeros(1,3,3,3))
@@ -95,8 +95,8 @@ class TestImageFilter(unittest.TestCase):
     def test_init_from_transform(self):
         _ = ImageFilter(GaussianFilter(3, sigma = 2))
 
-    def test_init_from_wrong_type_fails(self): 
-        with self.assertRaises(Exception) as context: 
+    def test_init_from_wrong_type_fails(self):
+        with self.assertRaises(Exception) as context:
             _ = ImageFilter(TestNotAModuleOrTransform())
             self.assertTrue(
                 "<class 'type'> is not supported." in str(context.output)
