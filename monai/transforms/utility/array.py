@@ -13,6 +13,7 @@ A collection of "vanilla" transforms for utility functions
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
+from functools import partial
 import logging
 import sys
 import time
@@ -22,13 +23,23 @@ from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Uni
 
 import numpy as np
 import torch
+import torch.nn as nn
 
 from monai.config import DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import no_collation
-from monai.networks.layers import apply_filter
+from monai.networks.layers.simplelayers import (
+    ApplyFilter,
+    EllipticalFilter,
+    GaussianFilter,
+    LaplaceFilter,
+    MeanFilter,
+    SavitzkyGolayFilter,
+    SharpenFilter,
+    median_filter,
+)
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import Randomizable, RandomizableTransform, Transform
 from monai.transforms.utils import (
@@ -58,7 +69,6 @@ from monai.utils.type_conversion import convert_to_dst_type, get_equivalent_dtyp
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
 cp, has_cp = optional_import("cupy")
-
 
 __all__ = [
     "Identity",
@@ -94,8 +104,8 @@ __all__ = [
     "CuCIM",
     "RandCuCIM",
     "ToCupy",
-    "KernelTransform",
-    "RandKernelTransform",
+    "ImageFilter",
+    "RandImageFilter",
 ]
 
 
@@ -204,45 +214,64 @@ class AddChannel(Transform):
 
 class EnsureChannelFirst(Transform):
     """
-    Automatically adjust or add the channel dimension of input data to ensure `channel_first` shape.
-    It extracts the `original_channel_dim` info from provided meta_data dictionary.
-    Typical values of `original_channel_dim` can be: "no_channel", 0, -1.
-    Convert the data to `channel_first` based on the `original_channel_dim` information.
+    Adjust or add the channel dimension of input data to ensure `channel_first` shape.
+
+    This extracts the `original_channel_dim` info from provided meta_data dictionary or MetaTensor input. This value
+    should state which dimension is the channel dimension so that it can be moved forward, or contain "no_channel" to
+    state no dimension is the channel and so a 1-size first dimension is to be added.
+
+    Args:
+        strict_check: whether to raise an error when the meta information is insufficient.
+        channel_dim: This argument can be used to specify the original channel dimension (integer) of the input array.
+            It overrides the `original_channel_dim` from provided MetaTensor input.
+            If the input array doesn't have a channel dim, this value should be ``'no_channel'``.
+            If this is set to `None`, this class relies on `img` or `meta_dict` to provide the channel dimension.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, strict_check: bool = True):
-        """
-        Args:
-            strict_check: whether to raise an error when the meta information is insufficient.
-        """
+    def __init__(self, strict_check: bool = True, channel_dim: Union[None, str, int] = None):
         self.strict_check = strict_check
-        self.add_channel = AddChannel()
+        self.input_channel_dim = channel_dim
 
     def __call__(self, img: torch.Tensor, meta_dict: Optional[Mapping] = None) -> torch.Tensor:
         """
         Apply the transform to `img`.
         """
         if not isinstance(img, MetaTensor) and not isinstance(meta_dict, Mapping):
-            msg = "metadata not available, EnsureChannelFirst is not in use."
-            if self.strict_check:
-                raise ValueError(msg)
-            warnings.warn(msg)
-            return img
+            if self.input_channel_dim is None:
+                msg = "Metadata not available and channel_dim=None, EnsureChannelFirst is not in use."
+                if self.strict_check:
+                    raise ValueError(msg)
+                warnings.warn(msg)
+                return img
+            else:
+                img = MetaTensor(img)
+
         if isinstance(img, MetaTensor):
             meta_dict = img.meta
-        channel_dim = meta_dict.get("original_channel_dim")  # type: ignore
+
+        channel_dim = meta_dict.get("original_channel_dim", None) if isinstance(meta_dict, Mapping) else None
+        if self.input_channel_dim is not None:
+            channel_dim = self.input_channel_dim
 
         if channel_dim is None:
-            msg = "Unknown original_channel_dim in the meta_dict, EnsureChannelFirst is not in use."
+            msg = "Unknown original_channel_dim in the MetaTensor meta dict or `meta_dict` or `channel_dim`."
             if self.strict_check:
                 raise ValueError(msg)
             warnings.warn(msg)
             return img
+
+        # track the original channel dim
+        if isinstance(meta_dict, dict):
+            meta_dict["original_channel_dim"] = channel_dim
+
         if channel_dim == "no_channel":
-            return self.add_channel(img)  # type: ignore
-        return AsChannelFirst(channel_dim=channel_dim)(img)  # type: ignore
+            result = img[None]
+        else:
+            result = moveaxis(img, channel_dim, 0)  # type: ignore
+
+        return convert_to_tensor(result, track_meta=get_track_meta())  # type: ignore
 
 
 class RepeatChannel(Transform):
@@ -255,7 +284,7 @@ class RepeatChannel(Transform):
         repeats: the number of repetitions for each element.
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH]
 
     def __init__(self, repeats: int) -> None:
         if repeats <= 0:
@@ -405,19 +434,19 @@ class ToTensor(Transform):
         device: target device to put the converted Tensor data.
         wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
             E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
-        track_meta: whether to convert to `MetaTensor`, default to `False`, output type will be `torch.Tensor`.
-            if `None`, use the return value of ``get_track_meta``.
+        track_meta: whether to convert to `MetaTensor` or regular tensor, default to `None`,
+            use the return value of ``get_track_meta``.
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH]
 
     def __init__(
         self,
         dtype: Optional[torch.dtype] = None,
         device: Optional[torch.device] = None,
         wrap_sequence: bool = True,
-        track_meta: Optional[bool] = False,
+        track_meta: Optional[bool] = None,
     ) -> None:
         super().__init__()
         self.dtype = dtype
@@ -449,8 +478,8 @@ class EnsureType(Transform):
         device: for Tensor data type, specify the target device.
         wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
             E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
-        track_meta: whether to convert to `MetaTensor` when `data_type` is "tensor".
-            If False, the output data type will be `torch.Tensor`. Default to the return value of ``get_track_meta``.
+        track_meta: if `True` convert to ``MetaTensor``, otherwise to Pytorch ``Tensor``,
+            if ``None`` behave according to return value of py:func:`monai.data.meta_obj.get_track_meta`.
 
     """
 
@@ -505,7 +534,7 @@ class ToNumpy(Transform):
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.NUMPY]
 
     def __init__(self, dtype: DtypeLike = None, wrap_sequence: bool = True) -> None:
         super().__init__()
@@ -532,7 +561,7 @@ class ToCupy(Transform):
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.CUPY]
 
     def __init__(self, dtype: Optional[np.dtype] = None, wrap_sequence: bool = True) -> None:
         super().__init__()
@@ -551,7 +580,7 @@ class ToPIL(Transform):
     Converts the input image (in the form of NumPy array or PyTorch Tensor) to PIL image
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.NUMPY]
 
     def __call__(self, img):
         """
@@ -569,7 +598,7 @@ class Transpose(Transform):
     Transposes the input image based on the given `indices` dimension ordering.
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH]
 
     def __init__(self, indices: Optional[Sequence[int]]) -> None:
         self.indices = None if indices is None else tuple(indices)
@@ -589,11 +618,12 @@ class SqueezeDim(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, dim: Optional[int] = 0) -> None:
+    def __init__(self, dim: Optional[int] = 0, update_meta=True) -> None:
         """
         Args:
             dim: dimension to be squeezed. Default = 0
                 "None" works when the input is numpy array.
+            update_meta: whether to update the meta info if the input is a metatensor. Default is ``True``.
 
         Raises:
             TypeError: When ``dim`` is not an ``Optional[int]``.
@@ -602,6 +632,7 @@ class SqueezeDim(Transform):
         if dim is not None and not isinstance(dim, int):
             raise TypeError(f"dim must be None or a int but is {type(dim).__name__}.")
         self.dim = dim
+        self.update_meta = update_meta
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
@@ -610,11 +641,25 @@ class SqueezeDim(Transform):
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         if self.dim is None:
+            if self.update_meta:
+                warnings.warn("update_meta=True is ignored when dim=None.")
             return img.squeeze()
+        dim = (self.dim + len(img.shape)) if self.dim < 0 else self.dim
         # for pytorch/numpy unification
-        if img.shape[self.dim] != 1:
-            raise ValueError(f"Can only squeeze singleton dimension, got shape {img.shape}.")
-        return img.squeeze(self.dim)
+        if img.shape[dim] != 1:
+            raise ValueError(f"Can only squeeze singleton dimension, got shape {img.shape[dim]} of {img.shape}.")
+        img = img.squeeze(dim)
+        if self.update_meta and isinstance(img, MetaTensor) and dim > 0 and len(img.affine.shape) == 2:
+            h, w = img.affine.shape
+            affine, device = img.affine, img.affine.device if isinstance(img.affine, torch.Tensor) else None
+            if h > dim:
+                affine = affine[torch.arange(0, h, device=device) != dim - 1]
+            if w > dim:
+                affine = affine[:, torch.arange(0, w, device=device) != dim - 1]
+            if (affine.shape[0] == affine.shape[1]) and not np.linalg.det(convert_to_numpy(affine, wrap_sequence=True)):
+                warnings.warn(f"After SqueezeDim, img.affine is ill-posed: \n{img.affine}.")
+            img.affine = affine
+        return img
 
 
 class DataStats(Transform):
@@ -673,8 +718,7 @@ class DataStats(Transform):
         if logging.root.getEffectiveLevel() > logging.INFO:
             # Avoid duplicate stream handlers to be added when multiple DataStats are used in a chain.
             has_console_handler = any(
-                hasattr(h, "is_data_stats_handler") and h.is_data_stats_handler  # type:ignore[attr-defined]
-                for h in _logger.handlers
+                hasattr(h, "is_data_stats_handler") and h.is_data_stats_handler for h in _logger.handlers
             )
             if not has_console_handler:
                 # if the root log level is higher than INFO, set a separate stream handler to record
@@ -1021,7 +1065,7 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
     """
     Convert labels to multi channels based on brats18 classes:
     label 1 is the necrotic and non-enhancing tumor core
-    label 2 is the the peritumoral edema
+    label 2 is the peritumoral edema
     label 4 is the GD-enhancing tumor
     The possible classes are TC (Tumor core), WT (Whole tumor)
     and ET (Enhancing tumor).
@@ -1060,7 +1104,7 @@ class AddExtremePointsChannel(Randomizable, Transform):
         ValueError: When label image is not single channel.
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH]
 
     def __init__(self, background: int = 0, pert: float = 0.0) -> None:
         self._background = background
@@ -1392,7 +1436,7 @@ class AddCoordinateChannels(Transform):
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.NUMPY]
 
     @deprecated_arg(
         name="spatial_channels", new_name="spatial_dims", since="0.8", msg_suffix="please use `spatial_dims` instead."
@@ -1415,108 +1459,139 @@ class AddCoordinateChannels(Transform):
         return concatenate((img, coord_channels), axis=0)
 
 
-class KernelTransform(Transform):
+class ImageFilter(Transform):
     """
-    Applies a kernel transformation to the input image.
+    Applies a convolution filter to the input image.
 
     Args:
-        kernel:
-            A string specifying the kernel or a custom kernel as `torch.Tenor` or `np.ndarray`.
-            Available options are: `mean`, `laplacian`, `elliptical`, `gaussian``
-            See below for short explanations on every kernel.
-        kernel_size:
-            A single integer value specifying the size of the quadratic or cubic kernel.
-            Computational complexity scales to the power of 2 (2D kernel) or 3 (3D kernel), which
-            should be considered when choosing kernel size.
+        filter:
+            A string specifying the filter, a custom filter as `torch.Tenor` or `np.ndarray` or a `nn.Module`.
+            Available options for string are: `mean`, `laplace`, `elliptical`, `sobel`, `sharpen`, `median`, `gauss`
+            See below for short explanations on every filter.
+        filter_size:
+            A single integer value specifying the size of the quadratic or cubic filter.
+            Computational complexity scales to the power of 2 (2D filter) or 3 (3D filter), which
+            should be considered when choosing filter size.
+        kwargs:
+            Additional arguments passed to filter function, required by `sobel` and `gauss`.
+            See below for details.
 
     Raises:
-        AssertionError: When `kernel` is a string  and `kernel_size` is not specified
-        AssertionError: When `kernel_size` is not an uneven integer
-        AssertionError: When `kernel` is an array and `ndim` is not in [1,2,3]
-        AssertionError: When `kernel` is an array and any dimension has an even shape
-        NotImplementedError: When `kernel` is a string and not in `self.supported_kernels`
+        ValueError: When `filter_size` is not an uneven integer
+        ValueError: When `filter` is an array and `ndim` is not in [1,2,3]
+        ValueError: When `filter` is an array and any dimension has an even shape
+        NotImplementedError: When `filter` is a string and not in `self.supported_filters`
+        KeyError: When necessary `kwargs` are not passed to a filter that requires additional arguments.
 
 
-    ## Mean kernel
-    > `kernel='mean'`
+    **Mean Filtering:** ``filter='mean'``
 
     Mean filtering can smooth edges and remove aliasing artifacts in an segmentation image.
-    Example 2D kernel (5 x 5):
+    See also py:func:`monai.networks.layers.simplelayers.MeanFilter`
+    Example 2D filter (5 x 5)::
 
-            [1, 1, 1, 1, 1]
-            [1, 1, 1, 1, 1]
-            [1, 1, 1, 1, 1]
-            [1, 1, 1, 1, 1]
-            [1, 1, 1, 1, 1]
+        [[1, 1, 1, 1, 1],
+         [1, 1, 1, 1, 1],
+         [1, 1, 1, 1, 1],
+         [1, 1, 1, 1, 1],
+         [1, 1, 1, 1, 1]]
 
-    If smoothing labels with this kernel, ensure they are in one-hot format.
+    If smoothing labels with this filter, ensure they are in one-hot format.
 
-    ## Laplacian kernel
-    > `kernel='laplacian'`
+    **Outline Detection:** ``filter='laplace'``
 
     Laplacian filtering for outline detection in images. Can be used to transform labels to contours.
-    Example 2D kernel (5x5):
+    See also py:func:`monai.networks.layers.simplelayers.LaplaceFilter`
 
-            [-1., -1., -1., -1., -1.]
-            [-1., -1., -1., -1., -1.]
-            [-1., -1., 24., -1., -1.]
-            [-1., -1., -1., -1., -1.]
-            [-1., -1., -1., -1., -1.]
+    Example 2D filter (5x5)::
 
-    ## Elliptical kernel
-    > `kernel='elliptical'`
+        [[-1., -1., -1., -1., -1.],
+         [-1., -1., -1., -1., -1.],
+         [-1., -1., 24., -1., -1.],
+         [-1., -1., -1., -1., -1.],
+         [-1., -1., -1., -1., -1.]]
 
-    An elliptical kernel can be used to dilate labels or label-contours.
-    Example 2D kernel (5x5):
+    **Dilation:** ``filter='elliptical'``
 
-            [0., 0., 1., 0., 0.]
-            [1., 1., 1., 1., 1.]
-            [1., 1., 1., 1., 1.]
-            [1., 1., 1., 1., 1.]
-            [0., 0., 1., 0., 0.]
+    An elliptical filter can be used to dilate labels or label-contours.
+    Example 2D filter (5x5)::
 
-    ## Sobel kernel
-    > `kernel={'sobel_h', 'sobel_w', ''sobel_d}`
+        [[0., 0., 1., 0., 0.],
+         [1., 1., 1., 1., 1.],
+         [1., 1., 1., 1., 1.],
+         [1., 1., 1., 1., 1.],
+         [0., 0., 1., 0., 0.]]
 
-    Edge detection with sobel kernel, along the h,w or d axis of tensor.
-    Example 2D kernel (5x5) for `sobel_w`:
+    **Edge Detection:** ``filter='sobel'``
 
-            [-0.25, -0.20,  0.00,  0.20,  0.25]
-            [-0.40, -0.50,  0.00,  0.50,  0.40]
-            [-0.50, -1.00,  0.00,  1.00,  0.50]
-            [-0.40, -0.50,  0.00,  0.50,  0.40]
-            [-0.25, -0.20,  0.00,  0.20,  0.25]
+    This filter allows for additional arguments passed as ``kwargs`` during initialization.
+    See also py:func:`monai.transforms.post.SobelGradients`
+    ::kwargs::
+        spatial_axes: the axes that define the direction of the gradient to be calculated. It calculate the gradient
+            along each of the provide axis. By default it calculate the gradient for all spatial axes.
+        normalize_kernels: if normalize the Sobel kernel to provide proper gradients. Defaults to True.
+        normalize_gradients: if normalize the output gradient to 0 and 1. Defaults to False.
+        padding_mode: the padding mode of the image when convolving with Sobel kernels. Defaults to `"reflect"`.
+            Acceptable values are ``'zeros'``, ``'reflect'``, ``'replicate'`` or ``'circular'``.
+            See ``torch.nn.Conv1d()`` for more information.
+        dtype: kernel data type (torch.dtype). Defaults to `torch.float32`.
 
-    ## Sharpen kernel
-    > `kernel="sharpen"`
+    **Sharpening:** ``filter='sharpen'``
 
-    Sharpen an image with a 2D or 3D kernel.
-    Example 2D kernel (5x5):
+    Sharpen an image with a 2D or 3D filter.
+    Example 2D filter (5x5)::
 
-            [ 0.,  0., -1.,  0.,  0.]
-            [-1., -1., -1., -1., -1.]
-            [-1., -1., 17., -1., -1.]
-            [-1., -1., -1., -1., -1.]
-            [ 0.,  0., -1.,  0.,  0.]
+        [[ 0.,  0., -1.,  0.,  0.],
+         [-1., -1., -1., -1., -1.],
+         [-1., -1., 17., -1., -1.],
+         [-1., -1., -1., -1., -1.],
+         [ 0.,  0., -1.,  0.,  0.]]
+
+    **Gaussian Smooth:** ``filter='gauss'``
+
+    Blur/smooth an image with 2D or 3D gaussian filter.
+    This filter requires additional arguments passed as ``kwargs`` during initialization.
+    See also py:func:`monai.networks.layers.simplelayers.GaussianFilter`
+    ::kwargs::
+        sigma: std. could be a single value, or spatial_dims number of values.
+        truncated: spreads how many stds.
+        approx: discrete Gaussian kernel type, available options are "erf", "sampled", and "scalespace".
+            - `erf` approximation interpolates the error function;
+            - `sampled` uses a sampled Gaussian kernel;
+            - `scalespace` corresponds to
+
+    **Median Filter:** ``filter='median'``
+
+    Blur an image with 2D or 3D median filter to remove noise.
+    Useful in image preprocessing to improve results of later processing.
+    See also py:func:`monai.networks.layers.simplelayers.MedianFilter`
+
+
+    **Savitzky Golay Filter:** ``filter = 'savitzky_golay'``
+
+    Convolve a Tensor along a particular axis with a Savitzky-Golay kernel.
+    This filter requires additional arguments passed as ``kwargs`` during initialization.
+    See also py:func:`monai.networks.layers.simplelayers.SavitzkyGolayFilter`
+    ::kwargs::
+        order: Order of the polynomial to fit to each window, must be less than ``window_length``.
+        axis (optional): Axis along which to apply the filter kernel. Default 2 (first spatial dimension).
+        mode (string, optional): padding mode passed to convolution class. ``'zeros'``, ``'reflect'``, ``'replicate'`` or
+        ``'circular'``. Default: ``'zeros'``. See torch.nn.Conv1d() for more information.
+
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
-    supported_kernels = sorted(["mean", "laplacian", "elliptical", "sobel_w", "sobel_h", "sobel_d", "sharpen"])
+    supported_filters = sorted(["mean", "laplace", "elliptical", "sobel", "sharpen", "median", "gauss", "savitzky_golay"])
 
-    def __init__(self, kernel: Union[str, NdarrayOrTensor], kernel_size: Optional[int] = None) -> None:
+    def __init__(
+        self, filter: Union[str, NdarrayOrTensor, nn.Module], filter_size: Optional[int] = None, **kwargs
+    ) -> None:
 
-        if isinstance(kernel, str):
-            assert kernel_size, "`kernel_size` must be specified when specifying kernels by string."
-            assert kernel_size % 2 == 1, "`kernel_size` should be a single uneven integer."
-            if kernel not in self.supported_kernels:
-                raise NotImplementedError(f"{kernel}. Supported kernels are {self.supported_kernels}.")
-        else:
-            assert kernel.ndim in [1, 2, 3], "Only 1D, 2D, and 3D kernels are supported"
-            kernel = convert_to_tensor(kernel, dtype=torch.float32)
-            self._assert_all_values_uneven(kernel.shape)
-
-        self.kernel = kernel
-        self.kernel_size = kernel_size
+        self._check_filter_format(filter, filter_size)
+        self._check_kwargs_are_present(filter, **kwargs)
+        self.filter = filter
+        self.filter_size = filter_size
+        self.additional_args_for_filter = kwargs
 
     def __call__(self, img: NdarrayOrTensor, meta_dict: Optional[Mapping] = None) -> NdarrayOrTensor:
         """
@@ -1531,119 +1606,112 @@ class KernelTransform(Transform):
             meta_dict = img.meta
         img_, prev_type, device = convert_data_type(img, torch.Tensor)
         ndim = img_.ndim - 1  # assumes channel first format
-        if isinstance(self.kernel, str):
-            self.kernel = self._create_kernel_from_string(self.kernel, self.kernel_size, ndim)
-        img_ = img_.unsqueeze(0)
-        img_ = apply_filter(img_, self.kernel)  # batch, channels, H[, W, D] is required for img_
-        img_ = img_[0]
+        if not callable(self.filter):
+            self.filter = self._create_filter(self.filter, self.filter_size, ndim)
+        img_ = self._apply_filter(img_)
         if meta_dict:
             img_ = MetaTensor(img_, meta_dict)
         else:
             img_, *_ = convert_data_type(img_, prev_type, device)
         return img_
 
-    def _assert_all_values_uneven(self, x: tuple) -> None:
+    def _check_all_values_uneven(self, x: tuple) -> None:
         for value in x:
-            assert value % 2 == 1, f"Only uneven kernels are supported, but kernel size is {x}"
+            if value % 2 == 0:
+                raise ValueError(f"Only uneven filters are supported, but filter size is {x}")
 
-    def _create_kernel_from_string(self, name, size, ndim) -> torch.Tensor:
-        """Create an `ndim` kernel of size `(size, ) * ndim`."""
-        func = getattr(self, f"_create_{name}_kernel")
-        kernel = func(size, ndim)
-        return kernel.to(torch.float32)
-
-    def _create_mean_kernel(self, size, ndim) -> torch.Tensor:
-        """Create a torch.Tensor with shape (size, ) * ndim with all values equal to `1`"""
-        return torch.ones([size] * ndim)
-
-    def _create_laplacian_kernel(self, size, ndim) -> torch.Tensor:
-        """Create a torch.Tensor with shape (size, ) * ndim.
-        All values are `-1` except the center value which is size**ndim - 1
-        """
-        kernel = torch.zeros([size] * ndim).float() - 1  # make all -1
-        center_point = tuple([size // 2] * ndim)
-        kernel[center_point] = (size**ndim) - 1
-        return kernel
-
-    def _create_elliptical_kernel(self, size: int, ndim: int) -> torch.Tensor:
-        """Create a torch.Tensor with shape (size, ) * ndim containing a circle/sphere of `1`"""
-        radius = size // 2
-        grid = torch.meshgrid(*[torch.arange(0, size) for _ in range(ndim)])
-        squared_distances = torch.stack([(axis - radius) ** 2 for axis in grid], 0).sum(0)
-        kernel = squared_distances <= radius**2
-        return kernel
-
-    def _sobel_2d(self, size) -> torch.Tensor:
-        """Create a generic 2d sobel kernel"""
-        numerator = torch.arange(-size // 2 + 1, size // 2 + 1, dtype=torch.float32).unsqueeze(0)
-        denominator = numerator * numerator
-        denominator = denominator + denominator.T
-        denominator[:, size // 2] = 1.0  # to avoid division by zero
-        return numerator / denominator
-
-    def _sobel_3d(self, size) -> torch.Tensor:
-        """Create a generic 3d sobel kernel"""
-        kernel_2d = self._sobel_2d(size)
-        kernel_3d = torch.stack((kernel_2d,) * size, -1)
-        adapter = (size // 2) - torch.arange(-size // 2 + 1, size // 2 + 1, dtype=torch.float32).abs()
-        adapter = adapter / adapter.max() + 1  # scale between 1 - 2
-        return kernel_3d * adapter
-
-    def _create_sobel_w_kernel(self, size, ndim) -> torch.Tensor:
-        """Sobel kernel in x/w direction for Tensor in shape (B,C)[WH[D]]"""
-        if ndim == 2:
-            kernel = self._sobel_2d(size)
-        elif ndim == 3:
-            kernel = self._sobel_3d(size)
+    def _check_filter_format(
+        self, filter: Union[str, NdarrayOrTensor, nn.Module], filter_size: Optional[int] = None
+    ) -> None:
+        if isinstance(filter, str):
+            if not filter_size:
+                raise ValueError("`filter_size` must be specified when specifying filters by string.")
+            if filter_size % 2 == 0:
+                raise ValueError("`filter_size` should be a single uneven integer.")
+            if filter not in self.supported_filters:
+                raise NotImplementedError(f"{filter}. Supported filters are {self.supported_filters}.")
+        elif isinstance(filter, torch.Tensor) or isinstance(filter, np.ndarray):
+            if filter.ndim not in [1, 2, 3]:
+                raise ValueError("Only 1D, 2D, and 3D filters are supported.")
+            self._check_all_values_uneven(filter.shape)  # type: ignore
+        elif isinstance(filter, (nn.Module, Transform)):
+            pass
         else:
-            raise ValueError(f"Only 2 or 3 dimensional kernels are supported. Got {ndim}")
-        return kernel
+            raise TypeError(
+                f"{type(filter)} is not supported."
+                "Supported types are `class 'str'`, `class 'torch.Tensor'`, `class 'np.ndarray'`, `class 'torch.nn.modules.module.Module'`, `class 'monai.transforms.Transform'`"
+            )
 
-    def _create_sobel_h_kernel(self, size, ndim) -> torch.Tensor:
-        """Sobel kernel in y/h direction for Tensor in shape (B,C)[WH[D]]"""
-        kernel = self._create_sobel_w_kernel(size, ndim).transpose(0, 1)
-        return kernel
+    def _check_kwargs_are_present(self, filter, **kwargs):
+        if filter == "gauss" and "sigma" not in kwargs.keys():
+            raise KeyError("`filter='gauss', requires the additonal keyword argument `sigma`")
+        if filter == "savitzky_golay" and "order" not in kwargs.keys():
+            raise KeyError("`filter='savitzky_golay', requires the additonal keyword argument `order`")
 
-    def _create_sobel_d_kernel(self, size, ndim) -> torch.Tensor:
-        """Sobel kernel in z/d direction for Tensor in shape (B,C)[WHD]]"""
-        assert ndim == 3, "Only 3 dimensional kernels are supported for `sobel_d`"
-        return self._sobel_3d(size).transpose(1, 2)
+    def _create_filter(self, filter: Union[str, NdarrayOrTensor], size: int, ndim: int) -> nn.Module:
+        """Create an `ndim` filter of size `(size, ) * ndim`."""
+        if isinstance(filter, str):
+            filter = self._get_filter_from_string(filter, size, ndim)
+        else:
+            filter = ApplyFilter(filter)
+        return filter
 
-    def _create_sharpen_kernel(self, size, ndim) -> torch.Tensor:
-        """Create a torch.Tensor with shape (size, ) * ndim.
-        The kernel contains a circle/sphere of `-1`, with the center value beeing
-        the absolut sum of all non-zero elements in the kernel
-        """
-        kernel = self._create_elliptical_kernel(size, ndim)
-        center_point = tuple([size // 2] * ndim)
-        center_value = kernel.sum()
-        kernel = kernel * -1
-        kernel[center_point] = center_value
-        return kernel
+    def _get_filter_from_string(self, filter: str, size: int, ndim: int) -> nn.Module:
+        if filter == "mean":  # this would be a great future use for match/case
+            return MeanFilter(ndim, size)
+        elif filter == "laplace":
+            return LaplaceFilter(ndim, size)
+        elif filter == "elliptical":
+            return EllipticalFilter(ndim, size)
+        elif filter == "sobel":
+            from monai.transforms.post.array import SobelGradients  # cannot import on top because of circular imports
+            allowed_keys = SobelGradients.__init__.__annotations__.keys()
+            kwargs = {k: v for k,v in self.additional_args_for_filter.items() if k in allowed_keys}
+            return SobelGradients(size, **kwargs)
+        elif filter == "sharpen":
+            return SharpenFilter(ndim, size)
+        elif filter == "gauss":
+            allowed_keys = GaussianFilter.__init__.__annotations__.keys()
+            kwargs = {k: v for k,v in self.additional_args_for_filter.items() if k in allowed_keys}
+            return GaussianFilter(ndim, **kwargs)
+        elif filter == "median":
+            return partial(median_filter, kernel_size = size, spatial_dims = ndim)
+        elif filter == "savitzky_golay":
+            allowed_keys = SavitzkyGolayFilter.__init__.__annotations__.keys()
+            kwargs = {k: v for k,v in self.additional_args_for_filter.items() if k in allowed_keys}
+            return SavitzkyGolayFilter(size, **kwargs)
+
+    def _apply_filter(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+        if isinstance(self.filter, Transform): 
+            return self.filter(img)
+        else: 
+            return self.filter(img.unsqueeze(0))[0]  # add and remove batch dim
 
 
-class RandKernelTransform(RandomizableTransform):
-    """Randomly apply a Filterkernel to the input data.
+class RandImageFilter(RandomizableTransform):
+    """
+    Randomly apply a convolutional filter to the input data.
+
     Args:
-        kernel:
-            A string specifying the kernel or a custom kernel as `torch.Tenor` or `np.ndarray`.
-            Available options are: `mean`, `laplacian`, `elliptical`, `gaussian``
-            See below for short explanations on every kernel.
-        kernel_size:
-            A single integer value specifying the size of the quadratic or cubic kernel.
-            Computational complexity scales to the power of 2 (2D kernel) or 3 (3D kernel), which
-            should be considered when choosing kernel size.
+        filter:
+            A string specifying the filter or a custom filter as `torch.Tenor` or `np.ndarray`.
+            Available options are: `mean`, `laplace`, `elliptical`, `gaussian``
+            See below for short explanations on every filter.
+        filter_size:
+            A single integer value specifying the size of the quadratic or cubic filter.
+            Computational complexity scales to the power of 2 (2D filter) or 3 (3D filter), which
+            should be considered when choosing filter size.
         prob:
             Probability the transform is applied to the data
     """
 
-    backend = KernelTransform.backend
+    backend = ImageFilter.backend
 
     def __init__(
-        self, kernel: Union[str, NdarrayOrTensor], kernel_size: Optional[int] = None, prob: float = 0.1
+        self, filter: Union[str, NdarrayOrTensor], filter_size: Optional[int] = None, prob: float = 0.1
     ) -> None:
         super().__init__(prob)
-        self.filter = KernelTransform(kernel, kernel_size)
+        self.filter = ImageFilter(filter, filter_size)
 
     def __call__(self, img: NdarrayOrTensor, meta_dict: Optional[Mapping] = None) -> NdarrayOrTensor:
         """
