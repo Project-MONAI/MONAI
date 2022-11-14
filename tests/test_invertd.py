@@ -35,7 +35,7 @@ from monai.transforms import (
     Spacingd,
 )
 from monai.utils import set_determinism
-from tests.utils import make_nifti_image
+from tests.utils import assert_allclose, make_nifti_image
 
 KEYS = ["image", "label"]
 
@@ -77,7 +77,8 @@ class TestInvertd(unittest.TestCase):
             transform=transform,
             orig_keys=["label", "label"],
             nearest_interp=True,
-            device="cpu",
+            device=None,
+            post_func=lambda x: torch.as_tensor(x),
         )
 
         inverter_1 = Invertd(
@@ -102,10 +103,10 @@ class TestInvertd(unittest.TestCase):
                 self.assertTupleEqual(item["label"].shape[1:], (100, 100, 100))
                 # check the nearest interpolation mode
                 i = item["image_inverted"]
-                torch.testing.assert_allclose(i.to(torch.uint8).to(torch.float), i.to(torch.float))
+                assert_allclose(i.to(torch.uint8).to(torch.float), i.to(torch.float))
                 self.assertTupleEqual(i.shape[1:], (100, 101, 107))
                 i = item["label_inverted"]
-                torch.testing.assert_allclose(i.to(torch.uint8).to(torch.float), i.to(torch.float))
+                assert_allclose(i.to(torch.uint8).to(torch.float), i.to(torch.float))
                 self.assertTupleEqual(i.shape[1:], (100, 101, 107))
 
                 # check the case that different items use different interpolation mode to invert transforms

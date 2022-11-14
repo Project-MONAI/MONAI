@@ -78,6 +78,8 @@ grid_4 = [
 ]
 grid_5 = [[[0, 0, 1, 0, 0], [0, 1, 1, 1, 1], [1, 1, 1, 0, 0], [1, 1, 0, 1, 0], [1, 1, 0, 0, 1]]]
 
+grid_6 = [[[0, 0, 1, 1, 0, 0, 1], [0, 0, 0, 1, 0, 0, 1], [1, 1, 0, 0, 1, 0, 1], [0, 0, 0, 1, 0, 0, 1]]]
+
 TESTS = []
 for p in TEST_NDARRAYS:
     TESTS.append(
@@ -343,6 +345,37 @@ for p in TEST_NDARRAYS:
             torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [0, 2, 1, 0, 0], [0, 2, 0, 1, 0], [2, 2, 0, 0, 0]]]),
         ]
     )
+    # no connected regions
+    TESTS.append(["0 regions", {"num_components": 0}, p(grid_6), p(torch.zeros(1, 4, 7))])
+    # 1 connected region
+    TESTS.append(
+        [
+            "1 region",
+            {"num_components": 1},
+            p(grid_6),
+            p(
+                torch.tensor(
+                    [[[0, 0, 1, 1, 0, 0, 0], [0, 0, 0, 1, 0, 0, 0], [0, 0, 0, 0, 1, 0, 0], [0, 0, 0, 1, 0, 0, 0]]]
+                )
+            ),
+        ]
+    )
+    # 2 connected regions
+    TESTS.append(
+        [
+            "2 regions",
+            {"num_components": 2},
+            p(grid_6),
+            p(
+                torch.tensor(
+                    [[[0, 0, 1, 1, 0, 0, 1], [0, 0, 0, 1, 0, 0, 1], [0, 0, 0, 0, 1, 0, 1], [0, 0, 0, 1, 0, 0, 1]]]
+                )
+            ),
+        ]
+    )
+    # 3+ connected regions unchanged (as input has 3)
+    for num_connected in (3, 4):
+        TESTS.append([f"{num_connected} regions", {"num_components": num_connected}, p(grid_6), p(grid_6)])
 
 
 class TestKeepLargestConnectedComponent(unittest.TestCase):

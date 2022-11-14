@@ -9,15 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import torch
 import torch.nn.functional as F
-from torch import nn
+from torch.nn.modules.loss import _Loss
 
 from monai.utils.type_conversion import convert_to_dst_type
 
 
-class SSIMLoss(nn.Module):
+class SSIMLoss(_Loss):
     """
     Build a Pytorch version of the SSIM loss function based on the original formula of SSIM
 
@@ -38,7 +37,7 @@ class SSIMLoss(nn.Module):
             win_size: gaussian weighting window size
             k1: stability constant used in the luminance denominator
             k2: stability constant used in the contrast denominator
-            spatial_dims: if 2, input shape is expected to be (B,C,W,H). if 3, it is expected to be (B,C,W,H,D)
+            spatial_dims: if 2, input shape is expected to be (B,C,H,W). if 3, it is expected to be (B,C,H,W,D)
         """
         super().__init__()
         self.win_size = win_size
@@ -52,8 +51,8 @@ class SSIMLoss(nn.Module):
     def forward(self, x: torch.Tensor, y: torch.Tensor, data_range: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            x: first sample (e.g., the reference image). Its shape is (B,C,W,H) for 2D data and (B,C,W,H,D) for 3D.
-                A fastMRI sample should use the 2D format with C being the number of slices.
+            x: first sample (e.g., the reference image). Its shape is (B,C,W,H) for 2D and pseudo-3D data,
+                and (B,C,W,H,D) for 3D data,
             y: second sample (e.g., the reconstructed image). It has similar shape as x.
             data_range: dynamic range of the data
 
@@ -64,12 +63,45 @@ class SSIMLoss(nn.Module):
             .. code-block:: python
 
                 import torch
+
+                # 2D data
                 x = torch.ones([1,1,10,10])/2
                 y = torch.ones([1,1,10,10])/2
                 data_range = x.max().unsqueeze(0)
                 # the following line should print 1.0 (or 0.9999)
                 print(1-SSIMLoss(spatial_dims=2)(x,y,data_range))
+
+                # pseudo-3D data
+                x = torch.ones([1,5,10,10])/2  # 5 could represent number of slices
+                y = torch.ones([1,5,10,10])/2
+                data_range = x.max().unsqueeze(0)
+                # the following line should print 1.0 (or 0.9999)
+                print(1-SSIMLoss(spatial_dims=2)(x,y,data_range))
+
+                # 3D data
+                x = torch.ones([1,1,10,10,10])/2
+                y = torch.ones([1,1,10,10,10])/2
+                data_range = x.max().unsqueeze(0)
+                # the following line should print 1.0 (or 0.9999)
+                print(1-SSIMLoss(spatial_dims=3)(x,y,data_range))
         """
+        if x.shape[1] > 1:  # handling multiple channels (C>1)
+            if x.shape[1] != y.shape[1]:
+                raise ValueError(
+                    f"x and y should have the same number of channels, "
+                    f"but x has {x.shape[1]} channels and y has {y.shape[1]} channels."
+                )
+            losses = torch.stack(
+                [
+                    SSIMLoss(self.win_size, self.k1, self.k2, self.spatial_dims)(
+                        x[:, i, ...].unsqueeze(1), y[:, i, ...].unsqueeze(1), data_range
+                    )
+                    for i in range(x.shape[1])
+                ]
+            )
+            channel_wise_loss: torch.Tensor = losses.mean()
+            return channel_wise_loss
+
         data_range = data_range[(None,) * (self.spatial_dims + 2)]
         # determine whether to work with 2D convolution or 3D
         conv = getattr(F, f"conv{self.spatial_dims}d")

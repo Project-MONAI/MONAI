@@ -1,4 +1,4 @@
-# What's new in 0.9 🎉🎉
+# What's new in 0.9
 
 - MONAI Bundle
 - Object detection in medical images
@@ -17,7 +17,7 @@ The key benefits of Bundle and the `monai.bundle` APIs are:
 - Flexible config components to allow for different low-level Python implementations,
 - Help to decouple the component details from higher level learning paradigms such as federated learning and AutoML.
 
-More details are [in the tutorials](https://github.com/Project-MONAI/tutorials/tree/main/modules/bundle).
+More details are [in the tutorials](https://github.com/Project-MONAI/tutorials/tree/main/bundle).
 
 ## Object detection in medical images
 This release includes essential components for object localization and categorization workflows.
@@ -57,5 +57,5 @@ especially for the data-driven approaches that MONAI has been focusing.
 Starting from this release, we roll out a major refactoring for data representation in MONAI. For the first
 step, [the core data structures](https://github.com/Project-MONAI/MONAI/blob/dev/monai/data/meta_tensor.py)
 `MetaTensor` and `MetaObj` are implemented as a feature preview.
-Further developments [on the feature branch](https://github.com/Project-MONAI/MONAI/tree/feature/MetaTensor)
+Further developments [on the feature branch](https://github.com/Project-MONAI/MONAI/pull/4539)
 will be made available in future milestone releases.

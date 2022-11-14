@@ -9,7 +9,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from torch import Tensor
+
 from monai.config.type_definitions import NdarrayOrTensor
+
+
+def root_sum_of_squares_t(x: Tensor, spatial_dim: int) -> Tensor:
+    """
+    Compute the root sum of squares (rss) of the data (typically done for multi-coil MRI samples)
+
+    Args:
+        x: Input tensor
+        spatial_dim: dimension along which rss is applied
+
+    Returns:
+        rss of x along spatial_dim
+
+    Example:
+        .. code-block:: python
+
+            import numpy as np
+            x = torch.ones([2,3])
+            # the following line prints Tensor([1.41421356, 1.41421356, 1.41421356])
+            print(rss(x,spatial_dim=0))
+    """
+    rss_x: Tensor = (x**2).sum(spatial_dim) ** 0.5
+    return rss_x
 
 
 def root_sum_of_squares(x: NdarrayOrTensor, spatial_dim: int) -> NdarrayOrTensor:
@@ -31,5 +56,5 @@ def root_sum_of_squares(x: NdarrayOrTensor, spatial_dim: int) -> NdarrayOrTensor
             # the following line prints array([1.41421356, 1.41421356, 1.41421356])
             print(rss(x,spatial_dim=0))
     """
-    rss_x: NdarrayOrTensor = (x**2).sum(spatial_dim) ** 0.5
+    rss_x: NdarrayOrTensor = root_sum_of_squares_t(x, spatial_dim)  # type: ignore
     return rss_x

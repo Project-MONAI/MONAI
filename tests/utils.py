@@ -17,6 +17,8 @@ import json
 import operator
 import os
 import queue
+import ssl
+import subprocess
 import sys
 import tempfile
 import time
@@ -45,6 +47,7 @@ from monai.utils.module import pytorch_after, version_leq
 from monai.utils.type_conversion import convert_data_type
 
 nib, _ = optional_import("nibabel")
+http_error, has_requests = optional_import("requests", name="HTTPError")
 
 quick_test_var = "QUICKTEST"
 _tf32_enabled = None
@@ -121,8 +124,11 @@ def assert_allclose(
 def skip_if_downloading_fails():
     try:
         yield
-    except (ContentTooShortError, HTTPError, ConnectionError) as e:
+    except (ContentTooShortError, HTTPError, ConnectionError) + (http_error,) if has_requests else () as e:
         raise unittest.SkipTest(f"error while downloading: {e}") from e
+    except ssl.SSLError as ssl_e:
+        if "decryption failed" in str(ssl_e):
+            raise unittest.SkipTest(f"SSL error while downloading: {ssl_e}") from ssl_e
     except RuntimeError as rt_e:
         if "unexpected EOF" in str(rt_e):
             raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e  # incomplete download
@@ -131,6 +137,8 @@ def skip_if_downloading_fails():
         if "gdown dependency" in str(rt_e):  # no gdown installed
             raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
         if "md5 check" in str(rt_e):
+            raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
+        if "limit" in str(rt_e):  # HTTP Error 503: Egress is over the account limit
             raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
         raise rt_e
 
@@ -208,23 +216,30 @@ class SkipIfModule:
 
 def skip_if_no_cpp_extension(obj):
     """
-    Skip the unit tests if the cpp extension is not available
+    Skip the unit tests if the cpp extension is not available.
     """
     return unittest.skipUnless(USE_COMPILED, "Skipping cpp extension tests")(obj)
 
 
 def skip_if_no_cuda(obj):
     """
-    Skip the unit tests if torch.cuda.is_available is False
+    Skip the unit tests if torch.cuda.is_available is False.
     """
     return unittest.skipUnless(torch.cuda.is_available(), "Skipping CUDA-based tests")(obj)
 
 
 def skip_if_windows(obj):
     """
-    Skip the unit tests if platform is win32
+    Skip the unit tests if platform is win32.
     """
     return unittest.skipIf(sys.platform == "win32", "Skipping tests on Windows")(obj)
+
+
+def skip_if_darwin(obj):
+    """
+    Skip the unit tests if platform is macOS (Darwin).
+    """
+    return unittest.skipIf(sys.platform == "darwin", "Skipping tests on macOS/Darwin")(obj)
 
 
 class SkipIfBeforePyTorchVersion:
@@ -392,6 +407,7 @@ class DistCall:
             timeout: Timeout for operations executed against the process group.
             init_method: URL specifying how to initialize the process group.
                 Default is "env://" or "file:///d:/a_temp" (windows) if unspecified.
+                If ``"no_init"``, the `dist.init_process_group` must be called within the code to be tested.
             backend: The backend to use. Depending on build-time configurations,
                 valid values include ``mpi``, ``gloo``, and ``nccl``.
             daemon: the process’s daemon flag.
@@ -439,13 +455,14 @@ class DistCall:
             if torch.cuda.is_available():
                 torch.cuda.set_device(int(local_rank))  # using device ids from CUDA_VISIBILE_DEVICES
 
-            dist.init_process_group(
-                backend=self.backend,
-                init_method=self.init_method,
-                timeout=self.timeout,
-                world_size=int(os.environ["WORLD_SIZE"]),
-                rank=int(os.environ["RANK"]),
-            )
+            if self.init_method != "no_init":
+                dist.init_process_group(
+                    backend=self.backend,
+                    init_method=self.init_method,
+                    timeout=self.timeout,
+                    world_size=int(os.environ["WORLD_SIZE"]),
+                    rank=int(os.environ["RANK"]),
+                )
             func(*args, **kwargs)
             # the primary node lives longer to
             # avoid _store_based_barrier, RuntimeError: Broken pipe
@@ -681,16 +698,21 @@ def test_script_save(net, *inputs, device=None, rtol=1e-4, atol=0.0):
     """
     # TODO: would be nice to use GPU if available, but it currently causes CI failures.
     device = "cpu"
-    with tempfile.TemporaryDirectory() as tempdir:
-        convert_to_torchscript(
-            model=net,
-            filename_or_obj=os.path.join(tempdir, "model.ts"),
-            verify=True,
-            inputs=inputs,
-            device=device,
-            rtol=rtol,
-            atol=atol,
-        )
+    try:
+        with tempfile.TemporaryDirectory() as tempdir:
+            convert_to_torchscript(
+                model=net,
+                filename_or_obj=os.path.join(tempdir, "model.ts"),
+                verify=True,
+                inputs=inputs,
+                device=device,
+                rtol=rtol,
+                atol=atol,
+            )
+    except (RuntimeError, AttributeError):
+        if sys.version_info.major == 3 and sys.version_info.minor == 11:
+            warnings.warn("skipping py 3.11")
+            return
 
 
 def download_url_or_skip_test(*args, **kwargs):
@@ -732,10 +754,22 @@ def test_local_inversion(invertible_xform, to_invert, im, dict_key=None):
     assert_allclose(im_inv.affine, im_ref.affine, atol=1e-3, rtol=1e-3)
 
 
-TEST_TORCH_TENSORS: Tuple[Callable] = (torch.as_tensor,)
+def command_line_tests(cmd, copy_env=True):
+    test_env = os.environ.copy() if copy_env else os.environ
+    print(f"CUDA_VISIBLE_DEVICES in {__file__}", test_env.get("CUDA_VISIBLE_DEVICES"))
+    try:
+        normal_out = subprocess.run(cmd, env=test_env, check=True, capture_output=True)
+        print(repr(normal_out).replace("\\n", "\n").replace("\\t", "\t"))
+    except subprocess.CalledProcessError as e:
+        output = repr(e.stdout).replace("\\n", "\n").replace("\\t", "\t")
+        errors = repr(e.stderr).replace("\\n", "\n").replace("\\t", "\t")
+        raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}") from e
+
+
+TEST_TORCH_TENSORS: Tuple = (torch.as_tensor,)
 if torch.cuda.is_available():
     gpu_tensor: Callable = partial(torch.as_tensor, device="cuda")
-    TEST_NDARRAYS = TEST_TORCH_TENSORS + (gpu_tensor,)
+    TEST_TORCH_TENSORS = TEST_TORCH_TENSORS + (gpu_tensor,)
 
 DEFAULT_TEST_AFFINE = torch.tensor(
     [[2.0, 0.0, 0.0, 0.0], [0.0, 2.0, 0.0, 0.0], [0.0, 0.0, 2.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
@@ -747,11 +781,10 @@ TEST_TORCH_AND_META_TENSORS: Tuple[Callable] = TEST_TORCH_TENSORS + (_metatensor
 # alias for branch tests
 TEST_NDARRAYS_ALL = TEST_NDARRAYS
 
-
 TEST_DEVICES = [[torch.device("cpu")]]
 if torch.cuda.is_available():
     TEST_DEVICES.append([torch.device("cuda")])
 
-
 if __name__ == "__main__":
-    print(query_memory())
+    print("\n", query_memory(), sep="\n")  # print to stdout
+    sys.exit(0)

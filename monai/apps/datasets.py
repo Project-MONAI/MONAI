@@ -53,15 +53,15 @@ class MedNISTDataset(Randomizable, CacheDataset):
             if expected file already exists, skip downloading even set it to True.
             user can manually copy `MedNIST.tar.gz` file or `MedNIST` folder to root directory.
         seed: random seed to randomly split training, validation and test datasets, default is 0.
-        val_frac: percentage of of validation fraction in the whole dataset, default is 0.1.
-        test_frac: percentage of of test fraction in the whole dataset, default is 0.1.
+        val_frac: percentage of validation fraction in the whole dataset, default is 0.1.
+        test_frac: percentage of test fraction in the whole dataset, default is 0.1.
         cache_num: number of items to be cached. Default is `sys.maxsize`.
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         cache_rate: percentage of cached data in total, default is 1.0 (cache all).
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
-        num_workers: the number of worker threads to use.
+        num_workers: the number of worker threads if computing cache in the initialization.
             If num_workers is None then the number returned by os.cpu_count() is used.
-            If a value less than 1 is speficied, 1 will be used instead.
+            If a value less than 1 is specified, 1 will be used instead.
         progress: whether to display a progress bar when downloading dataset and computing the transform cache content.
         copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
             default to `True`. if the random transforms don't modify the cached content
@@ -70,6 +70,8 @@ class MedNISTDataset(Randomizable, CacheDataset):
             may set `copy=False` for better performance.
         as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
             it may help improve the performance of following logic.
+        runtime_cache: whether to compute cache at the runtime, default to `False` to prepare
+            the cache content at initializaiton.
 
     Raises:
         ValueError: When ``root_dir`` is not a directory.
@@ -97,6 +99,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
         progress: bool = True,
         copy_cache: bool = True,
         as_contiguous: bool = True,
+        runtime_cache: bool = False,
     ) -> None:
         root_dir = Path(root_dir)
         if not root_dir.is_dir():
@@ -135,6 +138,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
             progress=progress,
             copy_cache=copy_cache,
             as_contiguous=as_contiguous,
+            runtime_cache=runtime_cache,
         )
 
     def randomize(self, data: np.ndarray) -> None:
@@ -201,20 +205,20 @@ class DecathlonDataset(Randomizable, CacheDataset):
             "Task08_HepaticVessel", "Task09_Spleen", "Task10_Colon").
         section: expected data section, can be: `training`, `validation` or `test`.
         transform: transforms to execute operations on input data.
-            for further usage, use `AddChanneld` or `AsChannelFirstd` to convert the shape to [C, H, W, D].
+            for further usage, use `EnsureChannelFirstd` to convert the shape to [C, H, W, D].
         download: whether to download and extract the Decathlon from resource link, default is False.
             if expected file already exists, skip downloading even set it to True.
             user can manually copy tar file or dataset folder to the root directory.
-        val_frac: percentage of of validation fraction in the whole dataset, default is 0.2.
+        val_frac: percentage of validation fraction in the whole dataset, default is 0.2.
         seed: random seed to randomly shuffle the datalist before splitting into training and validation, default is 0.
             note to set same seed for `training` and `validation` sections.
         cache_num: number of items to be cached. Default is `sys.maxsize`.
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         cache_rate: percentage of cached data in total, default is 1.0 (cache all).
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
-        num_workers: the number of worker threads to use.
+        num_workers: the number of worker threads if computing cache in the initialization.
             If num_workers is None then the number returned by os.cpu_count() is used.
-            If a value less than 1 is speficied, 1 will be used instead.
+            If a value less than 1 is specified, 1 will be used instead.
         progress: whether to display a progress bar when downloading dataset and computing the transform cache content.
         copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
             default to `True`. if the random transforms don't modify the cached content
@@ -223,6 +227,8 @@ class DecathlonDataset(Randomizable, CacheDataset):
             may set `copy=False` for better performance.
         as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
             it may help improve the performance of following logic.
+        runtime_cache: whether to compute cache at the runtime, default to `False` to prepare
+            the cache content at initializaiton.
 
     Raises:
         ValueError: When ``root_dir`` is not a directory.
@@ -236,7 +242,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         transform = Compose(
             [
                 LoadImaged(keys=["image", "label"]),
-                AddChanneld(keys=["image", "label"]),
+                EnsureChannelFirstd(keys=["image", "label"]),
                 ScaleIntensityd(keys="image"),
                 ToTensord(keys=["image", "label"]),
             ]
@@ -290,6 +296,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         progress: bool = True,
         copy_cache: bool = True,
         as_contiguous: bool = True,
+        runtime_cache: bool = False,
     ) -> None:
         root_dir = Path(root_dir)
         if not root_dir.is_dir():
@@ -342,6 +349,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
             progress=progress,
             copy_cache=copy_cache,
             as_contiguous=as_contiguous,
+            runtime_cache=runtime_cache,
         )
 
     def get_indices(self) -> np.ndarray:
@@ -395,7 +403,7 @@ class TciaDataset(Randomizable, CacheDataset):
     and generate items for training, validation or test.
 
     The Highdicom library is used to load dicom data with modality "SEG", but only a part of collections are
-    supoorted, such as: "C4KC-KiTS", "NSCLC-Radiomics", "NSCLC-Radiomics-Interobserver1", " QIN-PROSTATE-Repeatability"
+    supported, such as: "C4KC-KiTS", "NSCLC-Radiomics", "NSCLC-Radiomics-Interobserver1", " QIN-PROSTATE-Repeatability"
     and "PROSTATEx". Therefore, if "seg" is included in `keys` of the `LoadImaged` transform and loading some
     other collections, errors may be raised. For supported collections, the original "SEG" information may not
     always be consistent for each dicom file. Therefore, to avoid creating different format of labels, please use
@@ -414,7 +422,7 @@ class TciaDataset(Randomizable, CacheDataset):
             https://www.cancerimagingarchive.net/collections/
         section: expected data section, can be: `training`, `validation` or `test`.
         transform: transforms to execute operations on input data.
-            for further usage, use `AddChanneld` or `AsChannelFirstd` to convert the shape to [C, H, W, D].
+            for further usage, use `EnsureChannelFirstd` to convert the shape to [C, H, W, D].
             If not specified, `LoadImaged(reader="PydicomReader", keys=["image"])` will be used as the default
             transform. In addition, we suggest to set the argument `labels` for `PydicomReader` if segmentations
             are needed to be loaded. The original labels for each dicom series may be different, using this argument
@@ -431,16 +439,16 @@ class TciaDataset(Randomizable, CacheDataset):
         specific_tags: tags that will be loaded for "SEG" series. This argument will be used in
             `monai.data.PydicomReader`. Default is [(0x0008, 0x1115), (0x0008,0x1140), (0x3006, 0x0010),
             (0x0020,0x000D), (0x0010,0x0010), (0x0010,0x0020), (0x0020,0x0011), (0x0020,0x0012)].
-        val_frac: percentage of of validation fraction in the whole dataset, default is 0.2.
+        val_frac: percentage of validation fraction in the whole dataset, default is 0.2.
         seed: random seed to randomly shuffle the datalist before splitting into training and validation, default is 0.
             note to set same seed for `training` and `validation` sections.
         cache_num: number of items to be cached. Default is `sys.maxsize`.
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         cache_rate: percentage of cached data in total, default is 0.0 (no cache).
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
-        num_workers: the number of worker threads to use.
+        num_workers: the number of worker threads if computing cache in the initialization.
             If num_workers is None then the number returned by os.cpu_count() is used.
-            If a value less than 1 is speficied, 1 will be used instead.
+            If a value less than 1 is specified, 1 will be used instead.
         progress: whether to display a progress bar when downloading dataset and computing the transform cache content.
         copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
             default to `True`. if the random transforms don't modify the cached content
@@ -449,6 +457,8 @@ class TciaDataset(Randomizable, CacheDataset):
             may set `copy=False` for better performance.
         as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
             it may help improve the performance of following logic.
+        runtime_cache: whether to compute cache at the runtime, default to `False` to prepare
+            the cache content at initializaiton.
 
     Example::
 
@@ -504,6 +514,7 @@ class TciaDataset(Randomizable, CacheDataset):
         progress: bool = True,
         copy_cache: bool = True,
         as_contiguous: bool = True,
+        runtime_cache: bool = False,
     ) -> None:
         root_dir = Path(root_dir)
         if not root_dir.is_dir():
@@ -550,6 +561,7 @@ class TciaDataset(Randomizable, CacheDataset):
             progress=progress,
             copy_cache=copy_cache,
             as_contiguous=as_contiguous,
+            runtime_cache=runtime_cache,
         )
 
     def get_indices(self) -> np.ndarray:
@@ -701,7 +713,7 @@ class CrossValidation:
 
     def get_dataset(self, folds: Union[Sequence[int], int], **dataset_params):
         """
-        Generate dataset based on the specified fold indice in the cross validation group.
+        Generate dataset based on the specified fold indices in the cross validation group.
 
         Args:
             folds: index of folds for training or validation, if a list of values, concatenate the data.

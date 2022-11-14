@@ -82,6 +82,7 @@ class MetaObj:
     def __init__(self):
         self._meta: dict = MetaObj.get_default_meta()
         self._applied_operations: list = MetaObj.get_default_applied_operations()
+        self._pending_operations: list = MetaObj.get_default_applied_operations()  # the same default as applied_ops
         self._is_batch: bool = False
 
     @staticmethod
@@ -174,7 +175,8 @@ class MetaObj:
         """Set the meta."""
         if d == TraceKeys.NONE:
             self._meta = MetaObj.get_default_meta()
-        self._meta = d
+        else:
+            self._meta = d
 
     @property
     def applied_operations(self) -> list[dict]:
@@ -197,6 +199,19 @@ class MetaObj:
 
     def pop_applied_operation(self) -> Any:
         return self._applied_operations.pop()
+
+    @property
+    def pending_operations(self) -> list[dict]:
+        """Get the pending operations. Defaults to ``[]``."""
+        if hasattr(self, "_pending_operations"):
+            return self._pending_operations
+        return MetaObj.get_default_applied_operations()  # the same default as applied_ops
+
+    def push_pending_operation(self, t: Any) -> None:
+        self._pending_operations.append(t)
+
+    def pop_pending_operation(self) -> Any:
+        return self._pending_operations.pop()
 
     @property
     def is_batch(self) -> bool:

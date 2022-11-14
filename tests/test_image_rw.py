@@ -23,10 +23,13 @@ from monai.data.image_reader import ITKReader, NibabelReader, NrrdReader, PILRea
 from monai.data.image_writer import ITKWriter, NibabelWriter, PILWriter, register_writer, resolve_writer
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import LoadImage, SaveImage, moveaxis
-from monai.utils import OptionalImportError
+from monai.utils import MetaKeys, OptionalImportError, optional_import
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
+_, has_itk = optional_import("itk", allow_namespace_pkg=True)
 
+
+@unittest.skipUnless(has_itk, "itk not installed")
 class TestLoadSaveNifti(unittest.TestCase):
     def setUp(self):
         self.test_dir = tempfile.mkdtemp()
@@ -41,7 +44,12 @@ class TestLoadSaveNifti(unittest.TestCase):
             output_ext = ".nii.gz"
             filepath = f"testfile_{ndim}d"
             saver = SaveImage(
-                output_dir=self.test_dir, output_ext=output_ext, resample=resample, separate_folder=False, writer=writer
+                output_dir=self.test_dir,
+                output_ext=output_ext,
+                output_dtype=None,
+                resample=resample,
+                separate_folder=False,
+                writer=writer,
             )
             meta_dict = {
                 "filename_or_obj": f"{filepath}.png",
@@ -49,11 +57,13 @@ class TestLoadSaveNifti(unittest.TestCase):
                 "original_affine": np.array([[0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]),
             }
             test_data = MetaTensor(p(test_data), meta=meta_dict)
+            self.assertEqual(test_data.meta[MetaKeys.SPACE], "RAS")
             saver(test_data)
             saved_path = os.path.join(self.test_dir, filepath + "_trans" + output_ext)
             self.assertTrue(os.path.exists(saved_path))
-            loader = LoadImage(image_only=True, reader=reader, squeeze_non_spatial_dims=True)
+            loader = LoadImage(image_only=True, reader=reader, squeeze_non_spatial_dims=True, dtype=None)
             data = loader(saved_path)
+            self.assertIn(dtype.__name__, str(data.dtype))
             meta = data.meta
             if meta["original_channel_dim"] == -1:
                 _test_data = moveaxis(test_data, 0, -1)
@@ -61,6 +71,8 @@ class TestLoadSaveNifti(unittest.TestCase):
                 _test_data = test_data[0]
             if resample:
                 _test_data = moveaxis(_test_data, 0, 1)
+            assert_allclose(meta["qform_code"], 1, type_test=False)
+            assert_allclose(meta["sform_code"], 1, type_test=False)
             assert_allclose(data, torch.as_tensor(_test_data))
 
     @parameterized.expand(itertools.product([NibabelReader, ITKReader], [NibabelWriter, "ITKWriter"]))
@@ -72,15 +84,16 @@ class TestLoadSaveNifti(unittest.TestCase):
     @parameterized.expand(itertools.product([NibabelReader, ITKReader], [NibabelWriter, ITKWriter]))
     def test_3d(self, reader, writer):
         test_data = np.arange(48, dtype=np.uint8).reshape(1, 2, 3, 8)
-        self.nifti_rw(test_data, reader, writer, int)
-        self.nifti_rw(test_data, reader, writer, int, False)
+        self.nifti_rw(test_data, reader, writer, np.int16)
+        self.nifti_rw(test_data, reader, writer, float, False)
 
     @parameterized.expand(itertools.product([NibabelReader, ITKReader], ["NibabelWriter", ITKWriter]))
     def test_4d(self, reader, writer):
         test_data = np.arange(48, dtype=np.uint8).reshape(2, 1, 3, 8)
-        self.nifti_rw(test_data, reader, writer, np.float16)
+        self.nifti_rw(test_data, reader, writer, np.float64)
 
 
+@unittest.skipUnless(has_itk, "itk not installed")
 class TestLoadSavePNG(unittest.TestCase):
     def setUp(self):
         self.test_dir = tempfile.mkdtemp()
@@ -136,6 +149,7 @@ class TestRegRes(unittest.TestCase):
         self.assertEqual(resolve_writer("new")[0](0), 1)
 
 
+@unittest.skipUnless(has_itk, "itk not installed")
 class TestLoadSaveNrrd(unittest.TestCase):
     def setUp(self):
         self.test_dir = tempfile.mkdtemp()

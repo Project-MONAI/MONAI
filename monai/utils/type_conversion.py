@@ -36,6 +36,9 @@ __all__ = [
     "convert_to_dst_type",
 ]
 
+# conversion map for types unsupported by torch.as_tensor
+UNSUPPORTED_TYPES = {np.dtype("uint16"): np.int32, np.dtype("uint32"): np.int64, np.dtype("uint64"): np.int64}
+
 
 def get_numpy_dtype_from_string(dtype: str) -> np.dtype:
     """Get a numpy dtype (e.g., `np.float32`) from its string (e.g., `"float32"`)."""
@@ -98,8 +101,8 @@ def get_dtype(data: Any):
 
 def convert_to_tensor(
     data,
-    dtype: Optional[torch.dtype] = None,
-    device: Optional[torch.device] = None,
+    dtype: Union[DtypeLike, torch.dtype] = None,
+    device: Union[None, str, torch.device] = None,
     wrap_sequence: bool = False,
     track_meta: bool = False,
 ):
@@ -123,6 +126,10 @@ def convert_to_tensor(
 
     def _convert_tensor(tensor, **kwargs):
         if not isinstance(tensor, torch.Tensor):
+            # certain numpy types are not supported as being directly convertible to Pytorch tensors
+            if isinstance(tensor, np.ndarray) and tensor.dtype in UNSUPPORTED_TYPES:
+                tensor = tensor.astype(UNSUPPORTED_TYPES[tensor.dtype])
+
             # if input data is not Tensor, convert it to Tensor first
             tensor = torch.as_tensor(tensor, **kwargs)
         if track_meta and not isinstance(tensor, monai.data.MetaTensor):
@@ -175,6 +182,13 @@ def convert_to_numpy(data, dtype: DtypeLike = None, wrap_sequence: bool = False)
     elif has_cp and isinstance(data, cp_ndarray):
         data = cp.asnumpy(data).astype(dtype, copy=False)
     elif isinstance(data, (np.ndarray, float, int, bool)):
+        # Convert into a contiguous array first if the current dtype's size is smaller than the target dtype's size.
+        # This help improve the performance because (convert to contiguous array) -> (convert dtype) is faster
+        # than (convert dtype) -> (convert to contiguous array) when src dtype (e.g., uint8) is smaller than
+        # target dtype(e.g., float32) and we are going to convert it to contiguous array anyway later in this
+        # method.
+        if isinstance(data, np.ndarray) and data.ndim > 0 and data.dtype.itemsize < np.dtype(dtype).itemsize:
+            data = np.ascontiguousarray(data)
         data = np.asarray(data, dtype=dtype)
     elif isinstance(data, list):
         list_ret = [convert_to_numpy(i, dtype=dtype) for i in data]
@@ -229,7 +243,7 @@ def convert_to_cupy(data, dtype: Optional[np.dtype] = None, wrap_sequence: bool 
 def convert_data_type(
     data: Any,
     output_type: Optional[Type[NdarrayTensor]] = None,
-    device: Optional[torch.device] = None,
+    device: Union[None, str, torch.device] = None,
     dtype: Union[DtypeLike, torch.dtype] = None,
     wrap_sequence: bool = False,
 ) -> Tuple[NdarrayTensor, type, Optional[torch.device]]:
@@ -293,7 +307,11 @@ def convert_data_type(
 
 
 def convert_to_dst_type(
-    src: Any, dst: NdarrayTensor, dtype: Union[DtypeLike, torch.dtype, None] = None, wrap_sequence: bool = False
+    src: Any,
+    dst: NdarrayTensor,
+    dtype: Union[DtypeLike, torch.dtype, None] = None,
+    wrap_sequence: bool = False,
+    device: Union[None, str, torch.device] = None,
 ) -> Tuple[NdarrayTensor, type, Optional[torch.device]]:
     """
     Convert source data to the same data type and device as the destination data.
@@ -307,12 +325,13 @@ def convert_to_dst_type(
         dtype: an optional argument if the target `dtype` is different from the original `dst`'s data type.
         wrap_sequence: if `False`, then lists will recursively call this function. E.g., `[1, 2]` -> `[array(1), array(2)]`.
             If `True`, then `[1, 2]` -> `array([1, 2])`.
+        device: target device to put the converted Tensor data. If unspecified, `dst.device` will be used if possible.
 
     See Also:
         :func:`convert_data_type`
     """
 
-    device = dst.device if isinstance(dst, torch.Tensor) else None
+    device = dst.device if device is None and isinstance(dst, torch.Tensor) else device
     if dtype is None:
         dtype = dst.dtype
 

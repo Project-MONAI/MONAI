@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from functools import partial
-from typing import Any, Callable, List, Optional, Tuple, Type, Union
+from typing import Any, Callable, List, Tuple, Type, Union
 
 import torch
 import torch.nn as nn
@@ -20,9 +20,18 @@ from monai.networks.layers.utils import get_pool_layer
 from monai.utils import ensure_tuple_rep
 from monai.utils.module import look_up_option
 
-__all__ = ["ResNet", "resnet10", "resnet18", "resnet34", "resnet50", "resnet101", "resnet152", "resnet200"]
-
-from monai.utils import deprecated_arg
+__all__ = [
+    "ResNet",
+    "ResNetBlock",
+    "ResNetBottleneck",
+    "resnet10",
+    "resnet18",
+    "resnet34",
+    "resnet50",
+    "resnet101",
+    "resnet152",
+    "resnet200",
+]
 
 
 def get_inplanes():
@@ -167,12 +176,8 @@ class ResNet(nn.Module):
         num_classes: number of output (classifications).
         feed_forward: whether to add the FC layer for the output, default to `True`.
 
-    .. deprecated:: 0.6.0
-        ``n_classes`` is deprecated, use ``num_classes`` instead.
-
     """
 
-    @deprecated_arg("n_classes", since="0.6")
     def __init__(
         self,
         block: Union[Type[Union[ResNetBlock, ResNetBottleneck]], str],
@@ -187,13 +192,9 @@ class ResNet(nn.Module):
         widen_factor: float = 1.0,
         num_classes: int = 400,
         feed_forward: bool = True,
-        n_classes: Optional[int] = None,
     ) -> None:
 
         super().__init__()
-        # in case the new num_classes is default but you still call deprecated n_classes
-        if n_classes is not None and num_classes == 400:
-            num_classes = n_classes
 
         if isinstance(block, str):
             if block == "basic":

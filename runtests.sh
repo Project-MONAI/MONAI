@@ -14,13 +14,6 @@
 # script for running all tests
 set -e
 
-# FIXME: https://github.com/Project-MONAI/MONAI/issues/4354
-protobuf_major_version=$(pip list | grep '^protobuf ' | tr -s ' ' | cut -d' ' -f2 | cut -d'.' -f1)
-if [ "$protobuf_major_version" -ge "4" ]
-then
-    export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
-fi
-
 # output formatting
 separator=""
 blue=""
@@ -117,6 +110,13 @@ function print_usage {
     echo "To choose an alternative python executable, set the environmental variable, \"MONAI_PY_EXE\"."
     exit 1
 }
+
+# FIXME: https://github.com/Project-MONAI/MONAI/issues/4354
+protobuf_major_version=$(${PY_EXE} -m pip list | grep '^protobuf ' | tr -s ' ' | cut -d' ' -f2 | cut -d'.' -f1)
+if [ "$protobuf_major_version" -ge "4" ]
+then
+    export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+fi
 
 function check_import {
     echo "Python: ${PY_EXE}"
@@ -681,5 +681,5 @@ if [ $doCoverage = true ]
 then
     echo "${separator}${blue}coverage${noColor}"
     ${cmdPrefix}${PY_EXE} -m coverage combine --append .coverage/
-    ${cmdPrefix}${PY_EXE} -m coverage report
+    ${cmdPrefix}${PY_EXE} -m coverage report --ignore-errors
 fi
