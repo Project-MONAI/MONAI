@@ -1,5 +1,6 @@
 ---
 dataset_dir: "/workspace/data/Task09_Spleen"
+output_dir: "need override"
 prediction_shape: "prediction shape:"
 device: "$torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')"
 print_test_name: "$print('yaml_test')"
@@ -63,7 +64,7 @@ postprocessing:
     argmax: true
   - _target_: SaveImaged
     keys: pred
-    output_dir: "@_meta_#output_dir"
+    output_dir: "@output_dir"
   - _target_: Lambdad
     keys: pred
     func: "$lambda x: print(@prediction_shape + str(x.shape))"
