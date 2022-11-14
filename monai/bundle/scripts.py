@@ -469,25 +469,26 @@ def get_bundle_info(
     return bundle_info[version]
 
 
-def patch_bundle_handler(parser: ConfigParser, settings: dict):
+def patch_bundle_tracking(parser: ConfigParser, settings: dict):
     """
-    Patch the loaded bundle config with a new handler logic.
+    Patch the loaded bundle config with a new handler logic to enable experiment tracking features.
 
     Args:
         parser: loaded config content to patch the handler.
-        settings: if `string`, treat it as file path to load the handler settings, if `dict`,
-            treat it as handler settings, otherwise, use the default settings.
+        settings: if `string`, treat it as file path to load the tracking settings, if `dict`,
+            treat it as tracking settings, otherwise, use the default settings.
 
     """
     for k, v in settings["handlers_id"].items():
         engine = parser.get(v["id"])
         if engine is not None:
             handlers = parser.get(v["handlers"])
-            handler_config = settings["configs"][k]
-            if handlers is None:
-                engine["train_handlers" if k == "trainer" else "val_handlers"] = [handler_config]
-            else:
-                handlers.append(handler_config)
+            handler_config = settings["configs"].get(k, None)
+            if handler_config is not None:
+                if handlers is None:
+                    engine["train_handlers" if k == "trainer" else "val_handlers"] = [handler_config]
+                else:
+                    handlers.append(handler_config)
 
 
 def run(
@@ -529,9 +530,32 @@ def run(
             if it is a list of file paths, the content of them will be merged.
         logging_file: config file for `logging` module in the program, default to `None`. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
-        tracking: if "mlflow", will add `MLFlowHandler` to the parsed bundle with default loggging settings,
+        tracking: enable the experiment tracking feature at runtime with optionally configurable and extensible.
+            if "mlflow", will add `MLFlowHandler` to the parsed bundle with default loggging settings,
             if other string, treat it as file path to load the logging settings, if `dict`,
             treat it as logging settings, otherwise, use all the default settings.
+            example of customized settings:
+
+            .. code-block:: python
+
+                tracking = {
+                    "handlers_id": {
+                        "trainer": {"id": "train#trainer", "handlers": "train#handlers"},
+                        "validator": {"id": "evaluate#evaluator", "handlers": "evaluate#handlers"},
+                        "evaluator": {"id": "evaluator", "handlers": "handlers"},
+                    },
+                    "configs": {
+                        "trainer": {
+                            "_target_": "MLFlowHandler",
+                            "tracking_uri": "<path>",
+                            "iteration_log": True,
+                            "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
+                        },
+                        "validator": {"_target_": "MLFlowHandler", "tracking_uri": "<path>", "iteration_log": False},
+                        "evaluator": {"_target_": "MLFlowHandler", "tracking_uri": "<path>", "iteration_log": False},
+                    }
+                }
+
         args_file: a JSON or YAML file to provide default values for `runner_id`, `meta_file`,
             `config_file`, `logging`, and override pairs. so that the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.
@@ -574,7 +598,7 @@ def run(
             settings_ = DEFAULT_MLFLOW_SETTINGS
         else:
             settings_ = ConfigParser.load_config_files(tracking_)
-        patch_bundle_handler(parser=parser, settings=settings_)
+        patch_bundle_tracking(parser=parser, settings=settings_)
 
     # resolve and execute the specified runner expressions in the config, return the results
     return [parser.get_parsed_content(i, lazy=True, eval_expr=True, instantiate=True) for i in ensure_tuple(runner_id_)]
