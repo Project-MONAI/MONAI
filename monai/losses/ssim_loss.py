@@ -121,5 +121,5 @@ class SSIMLoss(_Loss):
         numerator = (2 * ux * uy + c1) * (2 * vxy + c2)
         denom = (ux**2 + uy**2 + c1) * (vx + vy + c2)
         ssim_value = numerator / denom
-        loss: torch.Tensor = 1 - ssim_value.mean()
+        loss: torch.Tensor = 1 - ssim_value
         return loss
