@@ -12,7 +12,6 @@
 import os
 import shutil
 import subprocess
-import sys
 from copy import deepcopy
 from time import sleep
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -64,7 +63,7 @@ class AutoRunner:
         work_dir: working directory to save the intermediate and final results.
         input: the configuration dictionary or the file path to the configuration in form of YAML.
             The configuration should contain datalist, dataroot, modality, multigpu, and class_names info.
-        algos: optionally specify a list of algorithms to use 
+        algos: optionally specify a list of algorithms to use
         analyze: on/off switch to run DataAnalyzer and generate a datastats report. Defaults to None, to automatically
             decide based on cache, and run data analysis only if we have not completed this step yet.
         algo_gen: on/off switch to run AlgoGen and generate templated BundleAlgos. Defaults to None, to automatically
@@ -216,7 +215,7 @@ class AutoRunner:
         else:
             raise ValueError(f"{input} is not a valid file or dict")
 
-        missing_keys = set(["dataroot", "datalist", "modality"]).difference(self.data_src_cfg.keys())
+        missing_keys = {"dataroot", "datalist", "modality"}.difference(self.data_src_cfg.keys())
         if len(missing_keys) > 0:
             raise ValueError(f"Config keys are missing {missing_keys}")
 
