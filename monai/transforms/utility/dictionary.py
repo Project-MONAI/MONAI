@@ -1034,6 +1034,8 @@ class Lambdad(MapTransform, InvertibleTransform):
             It also can be a sequence of Callable, each element corresponds to a key in ``keys``.
         overwrite: whether to overwrite the original data in the input dictionary with lamdbda function output.
             default to True. it also can be a sequence of bool, each element corresponds to a key in ``keys``.
+        new_key: it will create a new key for the output and keep the value of key intact when overwrite set to False.
+            default to None. it also can be a sequence of str, each element corresponds to a key in ``keys``.
         allow_missing_keys: don't raise exception if key is missing.
 
     Note: The inverse operation doesn't allow to define `extra_info` or access other information, such as the
