@@ -1049,20 +1049,24 @@ class Lambdad(MapTransform, InvertibleTransform):
         func: Union[Sequence[Callable], Callable],
         inv_func: Union[Sequence[Callable], Callable] = no_collation,
         overwrite: Union[Sequence[bool], bool] = True,
+        new_key: Union[Sequence[str], str] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.func = ensure_tuple_rep(func, len(self.keys))
         self.inv_func = ensure_tuple_rep(inv_func, len(self.keys))
         self.overwrite = ensure_tuple_rep(overwrite, len(self.keys))
+        self.new_key = ensure_tuple_rep(new_key, len(self.keys))
         self._lambd = Lambda()
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
-        for key, func, overwrite in self.key_iterator(d, self.func, self.overwrite):
+        for key, new_key, func, overwrite in self.key_iterator(d, self.new_key, self.func, self.overwrite):
             ret = self._lambd(img=d[key], func=func)
             if overwrite:
                 d[key] = ret
+            elif new_key is not None:
+                d[new_key] = ret
         return d
 
     def inverse(self, data):
