@@ -321,7 +321,7 @@ class AutoRunner:
             raise ValueError(f"num_fold is expected to be an integer greater than zero. Now it gets {num_fold}")
         self.num_fold = num_fold
 
-    def set_training_params(self, params: Dict[str, Any] = {}):
+    def set_training_params(self, params: Optional[Dict[str, Any]] = None):
         """
         Set the training params for all algos.
 
@@ -334,9 +334,9 @@ class AutoRunner:
                 {"num_iterations": 8, "num_iterations_per_validation": 4}
 
         """
-        self.train_params = deepcopy(params)
+        self.train_params = deepcopy(params) if params is not None else {}
 
-    def set_prediction_params(self, params: Dict[str, Any] = {}):
+    def set_prediction_params(self, params: Optional[Dict[str, Any]] = None):
         """
         Set the prediction params for all algos.
 
@@ -350,7 +350,7 @@ class AutoRunner:
                 two files in the testing datalist {"file_slices": slice(0, 2)}
 
         """
-        self.pred_params = deepcopy(params)
+        self.pred_params = deepcopy(params) if params is not None else {}
 
     def set_analyze_params(self, params: Optional[Dict[str, Any]] = None):
         """
