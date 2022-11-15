@@ -33,6 +33,7 @@ from monai.utils import (
     SpaceKeys,
     TraceKeys,
     deprecated,
+    deprecated_arg,
     ensure_tuple,
     ensure_tuple_rep,
     optional_import,
@@ -871,12 +872,12 @@ class NibabelReader(ImageReader):
             this is used to set original_channel_dim in the metadata, EnsureChannelFirstD reads this field.
             if None, `original_channel_dim` will be either `no_channel` or `-1`.
             most Nifti files are usually "channel last", no need to specify this argument for them.
-        dtype: dtype of the output data array when loading with Nibabel library.
         kwargs: additional args for `nibabel.load` API. more details about available args:
             https://github.com/nipy/nibabel/blob/master/nibabel/loadsave.py
 
     """
 
+    @deprecated_arg("dtype", since="1.0", msg_suffix="please modify dtype of the returned by ``get_data`` instead.")
     def __init__(
         self,
         channel_dim: Optional[int] = None,
@@ -889,7 +890,7 @@ class NibabelReader(ImageReader):
         self.channel_dim = channel_dim
         self.as_closest_canonical = as_closest_canonical
         self.squeeze_non_spatial_dims = squeeze_non_spatial_dims
-        self.dtype = dtype
+        self.dtype = dtype  # deprecated
         self.kwargs = kwargs
 
     def verify_suffix(self, filename: Union[Sequence[PathLike], PathLike]) -> bool:
@@ -1027,9 +1028,7 @@ class NibabelReader(ImageReader):
             img: a Nibabel image object loaded from an image file.
 
         """
-        _array = np.array(img.get_fdata(dtype=self.dtype))
-        img.uncache()
-        return _array
+        return np.asanyarray(img.dataobj)
 
 
 class NumpyReader(ImageReader):

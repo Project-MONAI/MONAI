@@ -14,8 +14,9 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.networks import eval_mode
+from monai.networks import eval_mode, train_mode
 from monai.networks.nets import HoVerNet
+from monai.networks.nets.hovernet import _DenseLayerDecoder
 from tests.utils import test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -66,7 +67,7 @@ def check_branch(branch, mode):
     if branch.decoderblock1.convf.kernel_size != (1, 1):
         return True
     for block in branch.decoderblock1:
-        if type(block) is HoVerNet._DenseLayerDecoder:
+        if isinstance(block, _DenseLayerDecoder):
             if block.layers.conv1.kernel_size != (1, 1) or block.layers.conv2.kernel_size != (ksize, ksize):
                 return True
 
@@ -76,7 +77,7 @@ def check_branch(branch, mode):
         return True
 
     for block in branch.decoderblock2:
-        if type(block) is HoVerNet._DenseLayerDecoder:
+        if isinstance(block, _DenseLayerDecoder):
             if block.layers.conv1.kernel_size != (1, 1) or block.layers.conv2.kernel_size != (ksize, ksize):
                 return True
 
@@ -93,6 +94,8 @@ def check_output(out_block, mode):
         return True
     if out_block.decoderblock4.conv.kernel_size != (1, 1) or out_block.decoderblock4.conv.stride != (1, 1):
         return True
+
+    return False
 
 
 def check_kernels(net, mode):
@@ -145,6 +148,8 @@ def check_kernels(net, mode):
     if check_output(net.type_prediction.output_features, mode):
         return True
 
+    return False
+
 
 class TestHoverNet(unittest.TestCase):
     @parameterized.expand(CASES)
@@ -183,14 +188,23 @@ class TestHoverNet(unittest.TestCase):
             with self.assertRaises(ValueError):
                 net.forward(torch.randn(1, 3, 270, 260))
 
-    def check_kernels_strides(self):
-        net = HoVerNet(mode=HoVerNet.Mode.FAST)
+    def test_kernels_strides(self):
+        net = HoVerNet(mode=HoVerNet.Mode.FAST, out_classes=2)
         with eval_mode(net):
             self.assertEqual(check_kernels(net, HoVerNet.Mode.FAST), False)
 
-        net = HoVerNet(mode=HoVerNet.Mode.ORIGINAL)
+        net = HoVerNet(mode=HoVerNet.Mode.ORIGINAL, out_classes=2)
         with eval_mode(net):
             self.assertEqual(check_kernels(net, HoVerNet.Mode.ORIGINAL), False)
+
+    def test_freeze_encoder(self):
+        net = HoVerNet(mode=HoVerNet.Mode.FAST, freeze_encoder=True)
+        with train_mode(net):
+            for _, param in net.res_blocks[1:].named_parameters():
+                self.assertFalse(param.requires_grad)
+            for name, param in net.res_blocks[0].named_parameters():
+                if param.requires_grad is True:
+                    self.assertTrue("bna_block" or "shortcut" in name)
 
     @parameterized.expand(ILL_CASES)
     def test_ill_input_hyper_params(self, input_param):

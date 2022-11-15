@@ -27,7 +27,7 @@ from torch.cuda import is_available
 from monai.apps.utils import _basename, download_url, extractall, get_logger
 from monai.bundle.config_item import ConfigComponent
 from monai.bundle.config_parser import ConfigParser
-from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA
+from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA, DEFAULT_MLFLOW_SETTINGS
 from monai.config import IgniteInfo, PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
 from monai.networks import convert_to_torchscript, copy_model_state, get_state_dict, save_state
@@ -469,11 +469,34 @@ def get_bundle_info(
     return bundle_info[version]
 
 
+def patch_bundle_tracking(parser: ConfigParser, settings: dict):
+    """
+    Patch the loaded bundle config with a new handler logic to enable experiment tracking features.
+
+    Args:
+        parser: loaded config content to patch the handler.
+        settings: if `string`, treat it as file path to load the tracking settings, if `dict`,
+            treat it as tracking settings, otherwise, use the default settings.
+
+    """
+    for k, v in settings["handlers_id"].items():
+        engine = parser.get(v["id"])
+        if engine is not None:
+            handlers = parser.get(v["handlers"])
+            handler_config = settings["configs"].get(k, None)
+            if handler_config is not None:
+                if handlers is None:
+                    engine["train_handlers" if k == "trainer" else "val_handlers"] = [handler_config]
+                else:
+                    handlers.append(handler_config)
+
+
 def run(
     runner_id: Optional[Union[str, Sequence[str]]] = None,
     meta_file: Optional[Union[str, Sequence[str]]] = None,
     config_file: Optional[Union[str, Sequence[str]]] = None,
     logging_file: Optional[str] = None,
+    tracking: Optional[Union[str, dict]] = None,
     args_file: Optional[str] = None,
     **override,
 ):
@@ -507,6 +530,32 @@ def run(
             if it is a list of file paths, the content of them will be merged.
         logging_file: config file for `logging` module in the program, default to `None`. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
+        tracking: enable the experiment tracking feature at runtime with optionally configurable and extensible.
+            if "mlflow", will add `MLFlowHandler` to the parsed bundle with default loggging settings,
+            if other string, treat it as file path to load the logging settings, if `dict`,
+            treat it as logging settings, otherwise, use all the default settings.
+            example of customized settings:
+
+            .. code-block:: python
+
+                tracking = {
+                    "handlers_id": {
+                        "trainer": {"id": "train#trainer", "handlers": "train#handlers"},
+                        "validator": {"id": "evaluate#evaluator", "handlers": "evaluate#handlers"},
+                        "evaluator": {"id": "evaluator", "handlers": "handlers"},
+                    },
+                    "configs": {
+                        "trainer": {
+                            "_target_": "MLFlowHandler",
+                            "tracking_uri": "<path>",
+                            "iteration_log": True,
+                            "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
+                        },
+                        "validator": {"_target_": "MLFlowHandler", "tracking_uri": "<path>", "iteration_log": False},
+                        "evaluator": {"_target_": "MLFlowHandler", "tracking_uri": "<path>", "iteration_log": False},
+                    }
+                }
+
         args_file: a JSON or YAML file to provide default values for `runner_id`, `meta_file`,
             `config_file`, `logging`, and override pairs. so that the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.
@@ -520,13 +569,14 @@ def run(
         meta_file=meta_file,
         config_file=config_file,
         logging_file=logging_file,
+        tracking=tracking,
         **override,
     )
     if "config_file" not in _args:
         warnings.warn("`config_file` not provided for 'monai.bundle run'.")
     _log_input_summary(tag="run", args=_args)
-    config_file_, meta_file_, runner_id_, logging_file_ = _pop_args(
-        _args, config_file=None, meta_file=None, runner_id="", logging_file=None
+    config_file_, meta_file_, runner_id_, logging_file_, tracking_ = _pop_args(
+        _args, config_file=None, meta_file=None, runner_id="", logging_file=None, tracking=None
     )
     if logging_file_ is not None:
         if not os.path.exists(logging_file_):
@@ -541,6 +591,14 @@ def run(
 
     # the rest key-values in the _args are to override config content
     parser.update(pairs=_args)
+
+    # patch the bundle with mlflow handler
+    if tracking_ is not None:
+        if isinstance(tracking_, str) and tracking_ == "mlflow":
+            settings_ = DEFAULT_MLFLOW_SETTINGS
+        else:
+            settings_ = ConfigParser.load_config_files(tracking_)
+        patch_bundle_tracking(parser=parser, settings=settings_)
 
     # resolve and execute the specified runner expressions in the config, return the results
     return [parser.get_parsed_content(i, lazy=True, eval_expr=True, instantiate=True) for i in ensure_tuple(runner_id_)]
@@ -799,6 +857,7 @@ def init_bundle(
     bundle_dir: PathLike,
     ckpt_file: Optional[PathLike] = None,
     network: Optional[torch.nn.Module] = None,
+    dataset_license: bool = False,
     metadata_str: Union[Dict, str] = DEFAULT_METADATA,
     inference_str: Union[Dict, str] = DEFAULT_INFERENCE,
 ):
@@ -815,6 +874,8 @@ def init_bundle(
         bundle_dir: directory name to create, must not exist but parent direct must exist
         ckpt_file: optional checkpoint file to copy into bundle
         network: if given instead of ckpt_file this network's weights will be stored in bundle
+        dataset_license: if `True`, a default license file called "data_license.txt" will be produced. This
+            file is required if there are any license conditions stated for data your bundle uses.
     """
 
     bundle_dir = Path(bundle_dir).absolute()
@@ -863,8 +924,12 @@ def init_bundle(
 
         o.write(dedent(readme))
 
-    with open(str(docs_dir / "license.txt"), "w") as o:
+    with open(str(bundle_dir / "LICENSE"), "w") as o:
         o.write("Select a license and place its terms here\n")
+
+    if dataset_license is True:
+        with open(str(docs_dir / "data_license.txt"), "w") as o:
+            o.write("Select a license for dataset and place its terms here\n")
 
     if ckpt_file is not None:
         copyfile(str(ckpt_file), str(models_dir / "model.pt"))
