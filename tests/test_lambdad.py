@@ -25,10 +25,13 @@ class TestLambdad(NumpyImageTestCase2D):
             def noise_func(x):
                 return x + 1.0
 
-            expected = {"img": noise_func(data["img"]), "prop": 1.0}
-            ret = Lambdad(keys=["img", "prop"], func=noise_func, overwrite=[True, False])(data)
+            expected = {"img": noise_func(data["img"]), "prop": 1.0, "new_prob": 2.0}
+            ret = Lambdad(keys=["img", "prop"], func=noise_func, overwrite=[True, False], new_key=[None, "new_prob"])(
+                data
+            )
             assert_allclose(expected["img"], ret["img"], type_test=False)
             assert_allclose(expected["prop"], ret["prop"], type_test=False)
+            assert_allclose(expected["new_prob"], ret["new_prob"], type_test=False)
 
     def test_lambdad_slicing(self):
         for p in TEST_NDARRAYS:

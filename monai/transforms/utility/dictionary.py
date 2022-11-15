@@ -1032,8 +1032,10 @@ class Lambdad(MapTransform, InvertibleTransform):
             each element corresponds to a key in ``keys``.
         inv_func: Lambda/function of inverse operation if want to invert transforms, default to `lambda x: x`.
             It also can be a sequence of Callable, each element corresponds to a key in ``keys``.
-        overwrite: whether to overwrite the original data in the input dictionary with lamdbda function output.
+        overwrite: whether to overwrite the original data in the input dictionary with lambda function output.
             default to True. it also can be a sequence of bool, each element corresponds to a key in ``keys``.
+        new_key: it will create a new key for the output and keep the value of key intact when overwrite is set
+            to False. default to None. it also can be a sequence of str, each element corresponds to a key in ``keys``.
         allow_missing_keys: don't raise exception if key is missing.
 
     Note: The inverse operation doesn't allow to define `extra_info` or access other information, such as the
@@ -1049,20 +1051,24 @@ class Lambdad(MapTransform, InvertibleTransform):
         func: Union[Sequence[Callable], Callable],
         inv_func: Union[Sequence[Callable], Callable] = no_collation,
         overwrite: Union[Sequence[bool], bool] = True,
+        new_key: Union[Sequence[str], str] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.func = ensure_tuple_rep(func, len(self.keys))
         self.inv_func = ensure_tuple_rep(inv_func, len(self.keys))
         self.overwrite = ensure_tuple_rep(overwrite, len(self.keys))
+        self.new_key = ensure_tuple_rep(new_key, len(self.keys))
         self._lambd = Lambda()
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
-        for key, func, overwrite in self.key_iterator(d, self.func, self.overwrite):
+        for key, new_key, func, overwrite in self.key_iterator(d, self.new_key, self.func, self.overwrite):
             ret = self._lambd(img=d[key], func=func)
             if overwrite:
                 d[key] = ret
+            elif new_key is not None:
+                d[new_key] = ret
         return d
 
     def inverse(self, data):
@@ -1086,7 +1092,7 @@ class RandLambdad(Lambdad, RandomizableTransform):
             each element corresponds to a key in ``keys``.
         inv_func: Lambda/function of inverse operation if want to invert transforms, default to `lambda x: x`.
             It also can be a sequence of Callable, each element corresponds to a key in ``keys``.
-        overwrite: whether to overwrite the original data in the input dictionary with lamdbda function output.
+        overwrite: whether to overwrite the original data in the input dictionary with lambda function output.
             default to True. it also can be a sequence of bool, each element corresponds to a key in ``keys``.
         prob: probability of executing the random function, default to 1.0, with 100% probability to execute.
             note that all the data specified by `keys` will share the same random probability to execute or not.
