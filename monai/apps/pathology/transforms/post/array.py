@@ -38,7 +38,7 @@ __all__ = [
     "GenerateInstanceContour",
     "GenerateInstanceCentroid",
     "GenerateInstanceType",
-    "HoVerNetNCBranchPostProcessing",
+    "HoVerNetNuclearTypePostProcessing",
 ]
 
 
@@ -627,7 +627,7 @@ class GenerateInstanceType(Transform):
         return (int(inst_type), float(type_prob))
 
 
-class HoVerNetNCBranchPostProcessing(Transform):
+class HoVerNetNuclearTypePostProcessing(Transform):
     """
     The whole post-procesing transform for nuclear type classification branch. It return a dict which contains
     centroid, bounding box, type prediciton for each instance.
@@ -656,16 +656,16 @@ class HoVerNetNCBranchPostProcessing(Transform):
         self.generate_instance_centroid = GenerateInstanceCentroid()
         self.generate_instance_type = GenerateInstanceType()
 
-    def __call__(self, type_pred: NdarrayOrTensor, inst_pred: NdarrayOrTensor) -> Dict:  # type: ignore
+    def __call__(self, type_pred: NdarrayOrTensor, instance_pred: NdarrayOrTensor) -> Dict:  # type: ignore
         type_pred = Activations(softmax=True)(type_pred)
         type_pred = AsDiscrete(argmax=True)(type_pred)
 
-        inst_id_list = np.unique(inst_pred)[1:]  # exclude background
+        inst_id_list = np.unique(instance_pred)[1:]  # exclude background
         inst_info_dict = None
         if self.return_centroids:
             inst_info_dict = {}
             for inst_id in inst_id_list:
-                inst_map = inst_pred == inst_id
+                inst_map = instance_pred == inst_id
                 inst_bbox = BoundingRect()(inst_map)
                 inst_map = inst_map[:, inst_bbox[0][0] : inst_bbox[0][1], inst_bbox[0][2] : inst_bbox[0][3]]
                 offset = [inst_bbox[0][2], inst_bbox[0][0]]
@@ -685,7 +685,7 @@ class HoVerNetNCBranchPostProcessing(Transform):
                 inst_type, type_prob = self.generate_instance_type(
                     bbox=inst_info_dict[inst_id]["bounding_box"],  # type: ignore
                     type_pred=type_pred,
-                    seg_pred=inst_pred,
+                    seg_pred=instance_pred,
                     instance_id=inst_id,
                 )
                 inst_info_dict[inst_id]["type"] = inst_type  # type: ignore

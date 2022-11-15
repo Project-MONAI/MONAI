@@ -22,7 +22,7 @@ from monai.apps.pathology.transforms.post.array import (
     GenerateSuccinctContour,
     GenerateWatershedMarkers,
     GenerateWatershedMask,
-    HoVerNetNCBranchPostProcessing,
+    HoVerNetNuclearTypePostProcessing,
     Watershed,
 )
 from monai.config.type_definitions import DtypeLike, KeysCollection, NdarrayOrTensor
@@ -61,9 +61,9 @@ __all__ = [
     "GenerateInstanceTypeDict",
     "GenerateInstanceTypeD",
     "GenerateInstanceTyped",
-    "HoVerNetNCBranchPostProcessingDict",
-    "HoVerNetNCBranchPostProcessingD",
-    "HoVerNetNCBranchPostProcessingd",
+    "HoVerNetNuclearTypePostProcessingDict",
+    "HoVerNetNuclearTypePostProcessingD",
+    "HoVerNetNuclearTypePostProcessingd",
 ]
 
 
@@ -485,14 +485,14 @@ class GenerateInstanceTyped(MapTransform):
         return d
 
 
-class HoVerNetNCBranchPostProcessingd(Transform):
+class HoVerNetNuclearTypePostProcessingd(Transform):
     """
-    Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.post.array.HoVerNetNCBranchPostProcessing`.
+    Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.post.array.HoVerNetNuclearTypePostProcessing`.
     Generate instance type and probability for each instance.
 
     Args:
         type_pred_key: the key pointing to the pred type map to be transformed.
-        inst_pred_key: the key pointing to the pred distance map.
+        instance_pred_key: the key pointing to the pred distance map.
         min_num_points: assumed that the created contour does not form a contour if it does not contain more points
             than the specified value. Defaults to 3.
         level: optional. Used in `skimage.measure.find_contours`. Value along which to find contours in the array.
@@ -502,7 +502,7 @@ class HoVerNetNCBranchPostProcessingd(Transform):
             from the output.
         return_centroids: whether to return centroids for each instance.
         output_classes: number of the nuclear type classes.
-        inst_info_dict_key: key use to record information for each instance.
+        instance_info_dict_key: key use to record information for each instance.
         allow_missing_keys: don't raise exception if key is missing.
 
     """
@@ -510,31 +510,31 @@ class HoVerNetNCBranchPostProcessingd(Transform):
     def __init__(
         self,
         type_pred_key: str = HoVerNetBranch.NC.value,
-        inst_pred_key: str = "dist",
+        instance_pred_key: str = "dist",
         min_num_points: int = 3,
         level: Optional[float] = None,
         return_binary: Optional[bool] = True,
         pred_binary_key: Optional[str] = "pred_binary",
         return_centroids: Optional[bool] = False,
         output_classes: Optional[int] = None,
-        inst_info_dict_key: Optional[str] = "inst_info_dict",
+        instance_info_dict_key: Optional[str] = "instance_info_dict",
     ) -> None:
         super().__init__()
-        self.converter = HoVerNetNCBranchPostProcessing(
+        self.converter = HoVerNetNuclearTypePostProcessing(
             min_num_points=min_num_points, level=level, return_centroids=return_centroids, output_classes=output_classes
         )
         self.type_pred_key = type_pred_key
-        self.inst_pred_key = inst_pred_key
+        self.instance_pred_key = instance_pred_key
         self.pred_binary_key = pred_binary_key
-        self.inst_info_dict_key = inst_info_dict_key
+        self.instance_info_dict_key = instance_info_dict_key
         self.return_binary = return_binary
 
     def __call__(self, data):
         d = dict(data)
-        inst_pred = d[self.inst_pred_key]
+        inst_pred = d[self.instance_pred_key]
         type_pred = d[self.type_pred_key]
         inst_info_dict = self.converter(type_pred, inst_pred)
-        key_to_add = f"{self.inst_info_dict_key}"
+        key_to_add = f"{self.instance_info_dict_key}"
         if key_to_add in d:
             raise KeyError(f"Type information with key {key_to_add} already exists.")
         d[key_to_add] = inst_info_dict  # type: ignore
@@ -556,4 +556,4 @@ GenerateSuccinctContourDict = GenerateSuccinctContourD = GenerateSuccinctContour
 GenerateInstanceContourDict = GenerateInstanceContourD = GenerateInstanceContourd
 GenerateInstanceCentroidDict = GenerateInstanceCentroidD = GenerateInstanceCentroidd
 GenerateInstanceTypeDict = GenerateInstanceTypeD = GenerateInstanceTyped
-HoVerNetNCBranchPostProcessingDict = HoVerNetNCBranchPostProcessingD = HoVerNetNCBranchPostProcessingd
+HoVerNetNuclearTypePostProcessingDict = HoVerNetNuclearTypePostProcessingD = HoVerNetNuclearTypePostProcessingd
