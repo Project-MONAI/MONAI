@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import Any, Callable, Dict, List, Mapping, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Mapping, Sequence, Tuple, Union
 
 import torch
 import torch.nn.functional as F
@@ -44,10 +44,12 @@ def sliding_window_inference(
     sigma_scale: Union[Sequence[float], float] = 0.125,
     padding_mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
     cval: float = 0.0,
-    sw_device: Union[torch.device, str, None] = None,
-    device: Union[torch.device, str, None] = None,
+    sw_device: Optional[Union[torch.device, str]] = None,
+    device: Optional[Union[torch.device, str]] = None,
     progress: bool = False,
-    roi_weight_map: Union[torch.Tensor, None] = None,
+    roi_weight_map: Optional[torch.Tensor] = None,
+    extra_input_padding: Optional[Tuple[int]] = None,
+    pad_output: bool = False,
     *args: Any,
     **kwargs: Any,
 ) -> Union[torch.Tensor, Tuple[torch.Tensor, ...], Dict[Any, torch.Tensor]]:
@@ -108,6 +110,9 @@ def sliding_window_inference(
         progress: whether to print a `tqdm` progress bar.
         roi_weight_map: pre-computed (non-negative) weight map for each ROI.
             If not given, and ``mode`` is not `constant`, this map will be computed on the fly.
+        extra_input_padding: the amount of padding for the input image, which is a tuple of even number of pads.
+            Refer to to the `pad` argument of `torch.nn.functional.pad` for more details.
+        pad_output: wether to pad the inference output to match window size
         args: optional args to be passed to ``predictor``.
         kwargs: optional keyword args to be passed to ``predictor``.
 
@@ -119,6 +124,12 @@ def sliding_window_inference(
     num_spatial_dims = len(inputs.shape) - 2
     if overlap < 0 or overlap >= 1:
         raise ValueError("overlap must be >= 0 and < 1.")
+
+    if extra_input_padding is not None:
+        _, _, *image_size_original = inputs.shape
+        inputs = F.pad(
+            inputs, pad=tuple(extra_input_padding), mode=look_up_option(padding_mode, PytorchPadMode), value=cval
+        )
 
     # determine image spatial size and batch size
     # Note: all input images must have the same image size and batch size
@@ -149,19 +160,21 @@ def sliding_window_inference(
     # Create window-level importance map
     valid_patch_size = get_valid_patch_size(image_size, roi_size)
     if valid_patch_size == roi_size and (roi_weight_map is not None):
-        importance_map = roi_weight_map
+        importance_map_ = roi_weight_map
     else:
         try:
-            importance_map = compute_importance_map(valid_patch_size, mode=mode, sigma_scale=sigma_scale, device=device)
+            importance_map_ = compute_importance_map(
+                valid_patch_size, mode=mode, sigma_scale=sigma_scale, device=device
+            )
         except BaseException as e:
             raise RuntimeError(
                 "Seems to be OOM. Please try smaller patch size or mode='constant' instead of mode='gaussian'."
             ) from e
-    importance_map = convert_data_type(importance_map, torch.Tensor, device, compute_dtype)[0]
+    importance_map_ = convert_data_type(importance_map_, torch.Tensor, device, compute_dtype)[0]
 
     # handle non-positive weights
-    min_non_zero = max(importance_map[importance_map != 0].min().item(), 1e-3)
-    importance_map = torch.clamp(importance_map.to(torch.float32), min=min_non_zero).to(compute_dtype)
+    min_non_zero = max(importance_map_[importance_map_ != 0].min().item(), 1e-3)
+    importance_map_ = torch.clamp(importance_map_.to(torch.float32), min=min_non_zero).to(compute_dtype)
 
     # Perform predictions
     dict_key, output_image_list, count_map_list = None, [], []
@@ -193,9 +206,30 @@ def sliding_window_inference(
             seg_prob_tuple = ensure_tuple(seg_prob_out)
             is_tensor_output = False
 
+        if pad_output:
+            window_shape = window_data.shape[2:]
+            output_shape = seg_prob_tuple[0].shape[2:]
+
+            window_pad_size = []
+            window_pad_slices = []
+            for window_s, output_s in zip(window_shape, output_shape):
+                pad_width = max(window_s - output_s, 0)
+                pad_half_1 = pad_width // 2
+                pad_half_2 = pad_width - pad_half_1
+                window_pad_size.extend([pad_half_1, pad_half_2])
+                window_pad_slices.append(slice(pad_half_1, window_s - pad_half_2))
+
+            # Make the padding area of the importance map zero
+            importance_map = torch.zeros(window_shape)
+            importance_map[window_pad_slices] = importance_map_[window_pad_slices]
+        else:
+            importance_map = importance_map_
+
         # for each output in multi-output list
         for ss, seg_prob in enumerate(seg_prob_tuple):
             seg_prob = seg_prob.to(device)  # BxCxMxNxP or BxCxMxN
+            if pad_output:
+                seg_prob = F.pad(seg_prob, pad=tuple(window_pad_size), mode="constant", value=cval)
 
             # compute zoom scale: out_roi_size/in_roi_size
             zoom_scale = []
@@ -272,6 +306,16 @@ def sliding_window_inference(
         while len(final_slicing) < len(output_i.shape):
             final_slicing.insert(0, slice(None))
         output_image_list[ss] = output_i[final_slicing]
+
+        if extra_input_padding is not None:
+            extra_slicing = []
+            for sp in range(len(extra_input_padding) // 2):
+                slice_dim = slice(
+                    extra_input_padding[sp * 2],
+                    image_size_original[num_spatial_dims - sp - 1] + extra_input_padding[sp * 2],
+                )
+                extra_slicing.insert(0, slice_dim)
+            output_image_list[ss] = output_image_list[ss][extra_slicing]
 
     if dict_key is not None:  # if output of predictor is a dict
         final_output = dict(zip(dict_key, output_image_list))

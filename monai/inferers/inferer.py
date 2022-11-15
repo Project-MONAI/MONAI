@@ -15,7 +15,6 @@ from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Tuple, Unio
 
 import torch
 import torch.nn as nn
-
 from monai.inferers.utils import compute_importance_map, sliding_window_inference
 from monai.utils import BlendMode, PytorchPadMode, ensure_tuple
 from monai.visualize import CAM, GradCAM, GradCAMpp
@@ -121,10 +120,13 @@ class SlidingWindowInferer(Inferer):
             set to device=torch.device('cpu') the gpu memory consumption is less and independent of the
             `inputs` and `roi_size`. Output is on the `device`.
         progress: whether to print a tqdm progress bar.
-        cache_roi_weight_map: whether to precompute the ROI weight map.
+        cache_roi_weight_map: whether to pre-compute the ROI weight map.
         cpu_thresh: when provided, dynamically switch to stitching on cpu (to save gpu memory)
-            when input image volume is larger than this threshold (in pixels/volxels).
+            when input image volume is larger than this threshold (in pixels/voxels).
             Otherwise use ``"device"``. Thus, the output may end-up on either cpu or gpu.
+        extra_input_padding: the amount of padding for the input image, which is a tuple of even number of pads.
+            Refer to to the `pad` argument of `torch.nn.functional.pad` for more details.
+        pad_output: wether to pad the inference output to match window size
 
     Note:
         ``sw_batch_size`` denotes the max number of windows per network inference iteration,
@@ -141,11 +143,13 @@ class SlidingWindowInferer(Inferer):
         sigma_scale: Union[Sequence[float], float] = 0.125,
         padding_mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
         cval: float = 0.0,
-        sw_device: Union[torch.device, str, None] = None,
-        device: Union[torch.device, str, None] = None,
+        sw_device: Optional[Union[torch.device, str]] = None,
+        device: Optional[Union[torch.device, str]] = None,
         progress: bool = False,
         cache_roi_weight_map: bool = False,
         cpu_thresh: Optional[int] = None,
+        extra_input_padding: Optional[Tuple[int]] = None,
+        pad_output: bool = False,
     ) -> None:
         super().__init__()
         self.roi_size = roi_size
@@ -159,6 +163,8 @@ class SlidingWindowInferer(Inferer):
         self.device = device
         self.progress = progress
         self.cpu_thresh = cpu_thresh
+        self.extra_input_padding = extra_input_padding
+        self.pad_output = pad_output
 
         # compute_importance_map takes long time when computing on cpu. We thus
         # compute it once if it's static and then save it for future usage
@@ -213,6 +219,8 @@ class SlidingWindowInferer(Inferer):
             device,
             self.progress,
             self.roi_weight_map,
+            self.extra_input_padding,
+            self.pad_output,
             *args,
             **kwargs,
         )
