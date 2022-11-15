@@ -243,6 +243,8 @@ class _ResidualBlock(nn.Module):
         dropout_prob: float = 0.0,
         act: Union[str, tuple] = ("relu", {"inplace": True}),
         norm: Union[str, tuple] = "batch",
+        freeze_dense_layer: bool = False,
+        freeze_block: bool = False,
     ) -> None:
         """Residual block.
 
@@ -259,6 +261,9 @@ class _ResidualBlock(nn.Module):
             dropout_prob: dropout rate after each dense layer.
             act: activation type and arguments. Defaults to relu.
             norm: feature normalization type and arguments. Defaults to batch norm.
+            freeze_dense_layer: whether to freeze all dense layers within the block.
+            freeze_block: whether to freeze the whole block.
+
         """
         super().__init__()
 
@@ -280,6 +285,11 @@ class _ResidualBlock(nn.Module):
             self.layers.add_module(f"denselayer_{i}", layer)
 
         self.bna_block = _Transition(out_channels, act=act, norm=norm)
+
+        if freeze_dense_layer:
+            self.layers.requires_grad_(False)
+        if freeze_block:
+            self.requires_grad_(False)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
 
@@ -423,6 +433,7 @@ class HoVerNet(nn.Module):
             repository, each user is responsible for checking the content of model/datasets and the applicable licenses
             and determining if suitable for the intended use. please check the following link for more details:
             https://github.com/vqdang/hover_net#data-format
+        freeze_encoder: whether to freeze the encoder of the network.
     """
 
     Mode = HoVerNetMode
@@ -439,6 +450,7 @@ class HoVerNet(nn.Module):
         decoder_padding: bool = False,
         dropout_prob: float = 0.0,
         pretrained_url: Optional[str] = None,
+        freeze_encoder: bool = False,
     ) -> None:
 
         super().__init__()
@@ -491,6 +503,13 @@ class HoVerNet(nn.Module):
         self.res_blocks = nn.Sequential()
 
         for i, num_layers in enumerate(_block_config):
+            freeze_dense_layer = False
+            freeze_block = False
+            if freeze_encoder:
+                if i == 0:
+                    freeze_dense_layer = True
+                else:
+                    freeze_block = True
             block = _ResidualBlock(
                 layers=num_layers,
                 num_features=_num_features,
@@ -499,6 +518,8 @@ class HoVerNet(nn.Module):
                 dropout_prob=dropout_prob,
                 act=act,
                 norm=norm,
+                freeze_dense_layer=freeze_dense_layer,
+                freeze_block=freeze_block,
             )
             self.res_blocks.add_module(f"d{i}", block)
 
@@ -535,9 +556,6 @@ class HoVerNet(nn.Module):
 
         if pretrained_url is not None:
             _load_pretrained_encoder(self, pretrained_url)
-
-    def freeze_encoder(self):
-        self.res_blocks.requires_grad_(False)
 
     def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
 
