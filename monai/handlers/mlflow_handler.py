@@ -173,12 +173,8 @@ class MLFlowHandler:
         """
         mlflow.set_experiment(self.experiment_name)
         if mlflow.active_run() is None:
-            if self.run_name:
-                mlflow.start_run(run_name=self.run_name)
-            else:
-                cur_time = time.strftime("%Y%m%d_%H%M%S")
-                run_name = "run_" + cur_time
-                mlflow.start_run(run_name=run_name)
+            run_name = f"run_{time.strftime("%Y%m%d_%H%M%S")}" if self.run_name is None else self.run_name
+            mlflow.start_run(run_name=run_name)
 
         if self.experiment_param:
             mlflow.log_params(self.experiment_param)
