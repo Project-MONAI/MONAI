@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import Any, Callable, Dict, List, Optional, Mapping, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn.functional as F
