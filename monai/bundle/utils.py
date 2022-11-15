@@ -95,6 +95,31 @@ DEFAULT_INFERENCE = {
     "evaluating": ["$@evaluator.run()"],
 }
 
+DEFAULT_HANDLERS_ID = {
+    "trainer": {"id": "train#trainer", "handlers": "train#handlers"},
+    "validator": {"id": "validate#evaluator", "handlers": "validate#handlers"},
+    "evaluator": {"id": "evaluator", "handlers": "handlers"},
+}
+
+DEFAULT_MLFLOW_SETTINGS = {
+    "handlers_id": DEFAULT_HANDLERS_ID,
+    "configs": {
+        # MLFlowHandler config for the trainer
+        "trainer": {
+            "_target_": "MLFlowHandler",
+            "tracking_uri": "$@output_dir + '/mlflow'",
+            "iteration_log": True,
+            "epoch_log": True,
+            "tag_name": "train_loss",
+            "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
+        },
+        # MLFlowHandler config for the validator
+        "validator": {"_target_": "MLFlowHandler", "tracking_uri": "$@output_dir + '/mlflow'", "iteration_log": False},
+        # MLFlowHandler config for the evaluator
+        "evaluator": {"_target_": "MLFlowHandler", "tracking_uri": "$@output_dir + '/mlflow'", "iteration_log": False},
+    },
+}
+
 
 def load_bundle_config(bundle_path: str, *config_names, **load_kw_args) -> Any:
     """

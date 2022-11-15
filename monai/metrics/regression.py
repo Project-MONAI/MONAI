@@ -261,12 +261,23 @@ class SSIMMetric(RegressionMetric):
         k1: stability constant used in the luminance denominator
         k2: stability constant used in the contrast denominator
         spatial_dims: if 2, input shape is expected to be (B,C,W,H). if 3, it is expected to be (B,C,W,H,D)
+        reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
+            available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+            ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction
+        get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans)
     """
 
     def __init__(
-        self, data_range: torch.Tensor, win_size: int = 7, k1: float = 0.01, k2: float = 0.03, spatial_dims: int = 2
+        self,
+        data_range: torch.Tensor,
+        win_size: int = 7,
+        k1: float = 0.01,
+        k2: float = 0.03,
+        spatial_dims: int = 2,
+        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        get_not_nans: bool = False,
     ):
-        super().__init__()
+        super().__init__(reduction=reduction, get_not_nans=get_not_nans)
         self.data_range = data_range
         self.win_size = win_size
         self.k1, self.k2 = k1, k2
@@ -292,7 +303,22 @@ class SSIMMetric(RegressionMetric):
                 # the following line should print 1.0 (or 0.9999)
                 print(SSIMMetric(data_range=data_range,spatial_dims=2)._compute_metric(x,y))
         """
-        ssim_value: torch.Tensor = 1 - SSIMLoss(self.win_size, self.k1, self.k2, self.spatial_dims)(
-            x, y, self.data_range
-        )
+        ssim_value = torch.empty((1), dtype=torch.float)
+        if x.shape[0] == 1:
+            ssim_value = 1 - SSIMLoss(self.win_size, self.k1, self.k2, self.spatial_dims)(x, y, self.data_range)
+        elif x.shape[0] > 1:
+
+            for i in range(x.shape[0]):
+                ssim_val: torch.Tensor = 1 - SSIMLoss(self.win_size, self.k1, self.k2, self.spatial_dims)(
+                    x[i : i + 1], y[i : i + 1], self.data_range
+                )
+                if i == 0:
+                    ssim_value = ssim_val
+                else:
+                    ssim_value = torch.cat((ssim_value.view(1), ssim_val.view(1)), dim=0)
+
+        else:
+            raise ValueError("Batch size is not nonnegative integer value")
+        # 1- dimensional tensor is only allowed
+        ssim_value = ssim_value.view(-1, 1)
         return ssim_value

@@ -12,6 +12,7 @@
 from .active_learning_metrics import LabelQualityScore, VarianceMetric, compute_variance, label_quality_score
 from .confusion_matrix import ConfusionMatrixMetric, compute_confusion_matrix_metric, get_confusion_matrix
 from .cumulative_average import CumulativeAverage
+from .f_beta_score import FBetaScore
 from .froc import compute_fp_tp_probs, compute_froc_curve_data, compute_froc_score
 from .generalized_dice import GeneralizedDiceScore, compute_generalized_dice
 from .hausdorff_distance import HausdorffDistanceMetric, compute_hausdorff_distance, compute_percent_hausdorff_distance

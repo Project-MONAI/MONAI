@@ -27,6 +27,7 @@ from monai.networks import one_hot
 from monai.networks.layers import GaussianFilter, apply_filter, separable_filtering
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import Transform
+from monai.transforms.utility.array import ToTensor
 from monai.transforms.utils import (
     convert_applied_interp_mode,
     fill_holes,
@@ -788,16 +789,18 @@ class Invert(Transform):
         self,
         transform: Optional[InvertibleTransform] = None,
         nearest_interp: Union[bool, Sequence[bool]] = True,
-        device: Union[Union[str, torch.device], Sequence[Union[str, torch.device]]] = "cpu",
-        post_func: Union[Callable, Sequence[Callable]] = lambda x: x,
+        device: Union[str, torch.device, None] = None,
+        post_func: Optional[Callable] = None,
+        to_tensor: Union[bool, Sequence[bool]] = True,
     ) -> None:
         """
         Args:
             transform: the previously applied transform.
             nearest_interp: whether to use `nearest` interpolation mode when inverting the spatial transforms,
                 default to `True`. If `False`, use the same interpolation mode as the original transform.
-            device: move the inverted results to a target device before `post_func`, default to "cpu".
-            post_func: postprocessing for the inverted MetaTensor, should be a callable function.
+            device: move the inverted results to a target device before `post_func`, default to `None`.
+            post_func: postprocessing for the inverted result, should be a callable function.
+            to_tensor: whether to convert the inverted data into PyTorch Tensor first, default to `True`.
         """
         if not isinstance(transform, InvertibleTransform):
             raise ValueError("transform is not invertible, can't invert transform for the data.")
@@ -805,6 +808,8 @@ class Invert(Transform):
         self.nearest_interp = nearest_interp
         self.device = device
         self.post_func = post_func
+        self.to_tensor = to_tensor
+        self._totensor = ToTensor()
 
     def __call__(self, data):
         if not isinstance(data, MetaTensor):
@@ -817,7 +822,12 @@ class Invert(Transform):
 
         data = data.detach()
         inverted = self.transform.inverse(data)
-        inverted = self.post_func(inverted.to(self.device))
+        if self.to_tensor and not isinstance(inverted, MetaTensor):
+            inverted = self._totensor(inverted)
+        if isinstance(inverted, torch.Tensor):
+            inverted = inverted.to(device=self.device)
+        if callable(self.post_func):
+            inverted = self.post_func(inverted)
         return inverted
 
 

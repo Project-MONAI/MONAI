@@ -547,13 +547,17 @@ class ProbNMSd(MapTransform):
 
 class Invertd(MapTransform):
     """
-    Utility transform to automatically invert the previously applied transforms.
+    Utility transform to invert the previously applied transforms.
 
     Taking the ``transform`` previously applied on ``orig_keys``, this ``Invertd`` will apply the inverse of it
-    to the data stored at ``keys``. ``Invertd``'s output will also include a copy of the metadata
-    dictionary (originally from  ``orig_meta_keys``), with the relevant fields inverted and stored at ``meta_keys``.
+    to the data stored at ``keys``.
 
-    A typical usage is to apply the inverse of the preprocessing on input ``image`` to the model ``pred``.
+    ``Invertd``'s output will also include a copy of the metadata
+    dictionary (originally from  ``orig_meta_keys`` or the metadata of ``orig_keys``),
+    with the relevant fields inverted and stored at ``meta_keys``.
+
+    A typical usage is to apply the inverse of the preprocessing (``transform=preprocessings``) on
+    input ``orig_keys=image`` to the model predictions ``keys=pred``.
 
     A detailed usage example is available in the tutorial:
     https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/torch/unet_inference_dict.py
@@ -580,8 +584,8 @@ class Invertd(MapTransform):
         meta_key_postfix: str = DEFAULT_POST_FIX,
         nearest_interp: Union[bool, Sequence[bool]] = True,
         to_tensor: Union[bool, Sequence[bool]] = True,
-        device: Union[Union[str, torch.device], Sequence[Union[str, torch.device]]] = "cpu",
-        post_func: Union[Callable, Sequence[Callable]] = lambda x: x,
+        device: Union[Union[str, torch.device], Sequence[Union[str, torch.device]], None] = None,
+        post_func: Union[Callable, Sequence[Callable], None] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -609,7 +613,7 @@ class Invertd(MapTransform):
             to_tensor: whether to convert the inverted data into PyTorch Tensor first, default to `True`.
                 It also can be a list of bool, each matches to the `keys` data.
             device: if converted to Tensor, move the inverted results to target device before `post_func`,
-                default to "cpu", it also can be a list of string or `torch.device`, each matches to the `keys` data.
+                default to None, it also can be a list of string or `torch.device`, each matches to the `keys` data.
             post_func: post processing for the inverted data, should be a callable function.
                 It also can be a list of callable, each matches to the `keys` data.
             allow_missing_keys: don't raise exception if key is missing.
@@ -694,16 +698,14 @@ class Invertd(MapTransform):
                 inverted = self.transform.inverse(input_dict)
 
             # save the inverted data
-            if to_tensor and not isinstance(inverted[orig_key], MetaTensor):
-                inverted_data = self._totensor(inverted[orig_key])
-            else:
-                inverted_data = inverted[orig_key]
-            if isinstance(inverted_data, np.ndarray) and torch.device(device).type != "cpu":
-                raise ValueError("Inverted data with type of 'numpy.ndarray' do not support GPU.")
-            elif isinstance(inverted_data, torch.Tensor):
-                d[key] = post_func(inverted_data.to(device))
-            else:
-                d[key] = post_func(inverted_data)
+            inverted_data = inverted[orig_key]
+            if to_tensor and not isinstance(inverted_data, MetaTensor):
+                inverted_data = self._totensor(inverted_data)
+            if isinstance(inverted_data, np.ndarray) and device is not None and torch.device(device).type != "cpu":
+                raise ValueError(f"Inverted data with type of 'numpy.ndarray' support device='cpu', got {device}.")
+            if isinstance(inverted_data, torch.Tensor):
+                inverted_data = inverted_data.to(device=device)
+            d[key] = post_func(inverted_data) if callable(post_func) else inverted_data
             # save the invertd applied_operations if it's in the source dict
             if InvertibleTransform.trace_key(orig_key) in d:
                 d[InvertibleTransform.trace_key(orig_key)] = inverted_data.applied_operations
