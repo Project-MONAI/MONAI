@@ -1032,7 +1032,7 @@ class Lambdad(MapTransform, InvertibleTransform):
             each element corresponds to a key in ``keys``.
         inv_func: Lambda/function of inverse operation if want to invert transforms, default to `lambda x: x`.
             It also can be a sequence of Callable, each element corresponds to a key in ``keys``.
-        overwrite: whether to overwrite the original data in the input dictionary with lambda function output. it 
+        overwrite: whether to overwrite the original data in the input dictionary with lambda function output. it
             can be bool or str, when setting to str, it will create a new key for the output and keep the value of
             key intact. default to True. it also can be a sequence of bool or str, each element corresponds to a key
             in ``keys``.
