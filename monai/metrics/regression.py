@@ -305,9 +305,7 @@ class SSIMMetric(RegressionMetric):
         """
         ssim_value = torch.empty((1), dtype=torch.float)
         if x.shape[0] == 1:
-            ssim_value: torch.Tensor = 1 - SSIMLoss(self.win_size, self.k1, self.k2, self.spatial_dims)(
-                x, y, self.data_range
-            )
+            ssim_value = 1 - SSIMLoss(self.win_size, self.k1, self.k2, self.spatial_dims)(x, y, self.data_range)
         elif x.shape[0] > 1:
 
             for i in range(x.shape[0]):

@@ -319,7 +319,7 @@ class Cropd(MapTransform, InvertibleTransform):
         return d
 
 
-class RandCropd(Cropd, Randomizable):
+class RandCropd(Cropd, Randomizable):  # type: ignore
     """
     Base class for random crop transform.
 
