@@ -10,9 +10,10 @@
 # limitations under the License.
 
 import torch
-import torch.nn.functional as F
 from torch.nn.modules.loss import _Loss
+
 from monai.metrics.regression import SSIMMetric
+
 
 class SSIMLoss(_Loss):
     """
@@ -41,7 +42,6 @@ class SSIMLoss(_Loss):
         self.win_size = win_size
         self.k1, self.k2 = k1, k2
         self.spatial_dims = spatial_dims
-        
 
     def forward(self, x: torch.Tensor, y: torch.Tensor, data_range: torch.Tensor) -> torch.Tensor:
         """
@@ -82,14 +82,12 @@ class SSIMLoss(_Loss):
         """
         ssim_value = torch.empty((1), dtype=torch.float)
         if x.shape[0] == 1:
-            ssim_value: torch.Tensor = SSIMMetric(data_range, self.win_size, self.k1, self.k2, self.spatial_dims)(
-                x, y, data_range
-            )
+            ssim_value: torch.Tensor = SSIMMetric(data_range, self.win_size, self.k1, self.k2, self.spatial_dims)(x, y)
         elif x.shape[0] > 1:
 
             for i in range(x.shape[0]):
                 ssim_val: torch.Tensor = SSIMMetric(data_range, self.win_size, self.k1, self.k2, self.spatial_dims)(
-                    x[i : i + 1], y[i : i + 1],  data_range
+                    x[i : i + 1], y[i : i + 1]
                 )
                 if i == 0:
                     ssim_value = ssim_val
