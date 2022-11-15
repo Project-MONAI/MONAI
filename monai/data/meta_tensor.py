@@ -253,6 +253,8 @@ class MetaTensor(MetaObj, torch.Tensor):
         # we might have 1 or multiple outputs. Might be MetaTensor, might be something
         # else (e.g., `__repr__` returns a string).
         # Convert to list (if necessary), process, and at end remove list if one was added.
+        if isinstance(ret, torch.Size):  # tensor.shape/tensor.size()
+            return ret
         if (
             hasattr(torch, "return_types")
             and hasattr(func, "__name__")
