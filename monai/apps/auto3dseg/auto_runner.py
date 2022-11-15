@@ -12,9 +12,10 @@
 import os
 import shutil
 import subprocess
+import sys
 from copy import deepcopy
 from time import sleep
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
 
@@ -63,14 +64,13 @@ class AutoRunner:
         work_dir: working directory to save the intermediate and final results.
         input: the configuration dictionary or the file path to the configuration in form of YAML.
             The configuration should contain datalist, dataroot, modality, multigpu, and class_names info.
-        analyze: on/off switch to run DataAnalyzer and generate a datastats report. If it is set to False,
-            The AutoRunner will attempt to skip datastats analysis and use cached results. If there is no such cache,
-            AutoRunner will report an error and stop.
-        algo_gen: on/off switch to run AlgoGen and generate templated BundleAlgos. If it is set to False,
-            The AutoRunner will attempt to skip the algorithm generation and stop if there is no cache to load.
-        train: on/off switch to run training and generate algorithm checkpoints. If it is set to False,
-            The AutoRunner will attempt to skip the training for all algorithms. If there is zero trained algorithm
-            but ``train`` is set to False, AutoRunner will stop.
+        algos: optionally specify a list of algorithms to use 
+        analyze: on/off switch to run DataAnalyzer and generate a datastats report. Defaults to None, to automatically
+            decide based on cache, and run data analysis only if we have not completed this step yet.
+        algo_gen: on/off switch to run AlgoGen and generate templated BundleAlgos. Defaults to None, to automatically
+            decide based on cache, and run algorithm folders generation only if we have not completed this step yet.
+        train: on/off switch to run training and generate algorithm checkpoints. Defaults to None, to automatically
+            decide based on cache, and run training only if we have not completed this step yet.
         hpo: use hyperparameter optimization (HPO) in the training phase. Users can provide a list of
             hyper-parameter and a search will be performed to investigate the algorithm performances.
         hpo_backend: a string that indicates the backend of the HPO. Currently, only NNI Grid-search mode
@@ -181,58 +181,80 @@ class AutoRunner:
         self,
         work_dir: str = "./work_dir",
         input: Union[Dict[str, Any], str, None] = None,
-        analyze: bool = True,
-        algo_gen: bool = True,
-        train: bool = True,
-        hpo: bool = False,
-        hpo_backend: str = "nni",
+        algos: Optional[Union[Tuple, List]] = None,
+        analyze: Optional[bool] = None,
+        algo_gen: Optional[bool] = None,
+        train: Optional[bool] = None,
         ensemble: bool = True,
         not_use_cache: bool = False,
+        hpo: bool = False,
+        hpo_backend: str = "nni",
         **kwargs,
     ):
-        if not os.path.isdir(work_dir):
-            logger.info(f"{work_dir} does not exists. Creating...")
-            os.makedirs(work_dir)
-            logger.info(f"{work_dir} created to save all results")
-        else:
-            logger.info(f"Work directory {work_dir} is used to save all results")
+
+        logger.info(f"AutoRunner using work directory {work_dir}")
+        os.makedirs(work_dir, exist_ok=True)
 
         self.work_dir = os.path.abspath(work_dir)
         self.data_src_cfg_name = os.path.join(self.work_dir, "input.yaml")
+        self.algos = algos
 
-        if input is None:
-            input = os.path.join(self.work_dir, "input.yaml")
-        elif isinstance(input, Dict):
-            ConfigParser.export_config_file(input, self.data_src_cfg_name)
+        if input is None and os.path.isfile(self.data_src_cfg_name):
+            input = self.data_src_cfg_name
+            logger.info(f"Input config is not provided, using the default {input}")
+
+        if isinstance(input, Dict):
             self.data_src_cfg = input
+            ConfigParser.export_config_file(
+                config=input, filepath=self.data_src_cfg_name, fmt="yaml", default_flow_style=None, sort_keys=False
+            )
         elif isinstance(input, str) and os.path.isfile(input):
-            shutil.copy(input, self.data_src_cfg_name)
-            logger.info(f"Loading {input} for AutoRunner and making a copy in {self.data_src_cfg_name}")
-            self.data_src_cfg = ConfigParser.load_config_file(self.data_src_cfg_name)
+            self.data_src_cfg = ConfigParser.load_config_file(input)
+            logger.info(f"Loading input config {input}")
+            if input != self.data_src_cfg_name:
+                shutil.copy(input, self.data_src_cfg_name)
         else:
-            raise ValueError(f"{input} is not a valid file")
+            raise ValueError(f"{input} is not a valid file or dict")
 
-        self.not_use_cache = not_use_cache
-        self.cache_filename = os.path.join(self.work_dir, "cache.yaml")
-        self.cache = self.check_cache()
-        self.export_cache()
+        missing_keys = set(["dataroot", "datalist", "modality"]).difference(self.data_src_cfg.keys())
+        if len(missing_keys) > 0:
+            raise ValueError(f"Config keys are missing {missing_keys}")
 
-        # Whether we need all the steps or not
-        self.analyze = self.check_analyze(analyze)
-        self.algo_gen = self.check_algo_gen(algo_gen)
-        self.train = self.check_train(train)
-        self.ensemble = ensemble  # last step, no need to check
-
-        # intermediate variables
         self.dataroot = self.data_src_cfg["dataroot"]
         self.datalist_filename = self.data_src_cfg["datalist"]
         self.datastats_filename = os.path.join(self.work_dir, "datastats.yaml")
+
+        self.not_use_cache = not_use_cache
+        self.cache_filename = os.path.join(self.work_dir, "cache.yaml")
+        self.cache = self.read_cache()
+        self.export_cache()
+
+        # determine if we need to analyze, algo_gen or train from cache, unless manually provided
+        self.analyze = not self.cache["analyze"] if analyze is None else analyze
+        self.algo_gen = not self.cache["algo_gen"] if algo_gen is None else algo_gen
+        self.train = not self.cache["train"] if train is None else train
+        self.ensemble = ensemble  # last step, no need to check
+
+        # since each next depends on the previous, check the dependencies
+        self.train = self.train or (
+            self.ensemble and not self.cache["train"]
+        )  # train is a necessary step to run ensemble
+        self.algo_gen = self.algo_gen or (
+            self.train and not self.cache["algo_gen"]
+        )  # algo_gen is a necessary step to run train
+        self.analyze = self.analyze or (
+            self.algo_gen and not self.cache["analyze"]
+        )  # analyze is a necessary step to run algo_gen
+
+        # intermediate variables
+        self.set_num_fold(num_fold=5)
         self.set_training_params()
-        self.set_num_fold()
         self.set_prediction_params()
+        self.set_analyze_params()
+
         self.save_image = self.set_image_save_transform(kwargs)
         self.ensemble_method: AlgoEnsemble
-        self.set_ensemble_method()
+        self.set_ensemble_method(ensemble_method_name="AlgoEnsembleBestByFold")
 
         # hpo
         if hpo_backend.lower() != "nni":
@@ -242,7 +264,7 @@ class AutoRunner:
         self.search_space: Dict[str, Dict[str, Any]] = {}
         self.hpo_tasks = 0
 
-    def check_cache(self):
+    def read_cache(self):
         """
         Check if the intermediate result is cached after each step in the current working directory
 
@@ -251,84 +273,42 @@ class AutoRunner:
             working directory, the result will be ``empty_cache`` in which all ``has_cache`` keys are
             set to False.
         """
-        empty_cache = {
-            "analyze": {"has_cache": False, "datastats": None},
-            "algo_gen": {"has_cache": False},
-            "train": {"has_cache": False},
-        }
+
+        empty_cache = {"analyze": False, "datastats": None, "algo_gen": False, "train": False}
+
         if self.not_use_cache or not os.path.isfile(self.cache_filename):
             return empty_cache
 
         cache = ConfigParser.load_config_file(self.cache_filename)
 
-        if cache["analyze"]["has_cache"]:
-            # check if the file in the right format and exists.
-            if not isinstance(cache["analyze"]["datastats"], str):
+        for k, v in empty_cache.items():
+            cache.setdefault(k, v)
+
+        if cache["analyze"]:
+            if not (isinstance(cache["datastats"], str) and os.path.isfile(cache["datastats"])):
                 cache["analyze"] = False
-                cache["analyze"]["datastats"] = None
+                cache["datastats"] = None
 
-            if not os.path.isfile(cache["analyze"]["datastats"]):
-                cache["analyze"]["has_cache"] = False
-
-        if cache["algo_gen"]["has_cache"]:
+        if cache["algo_gen"]:
             history = import_bundle_algo_history(self.work_dir, only_trained=False)
             if len(history) == 0:  # no saved algo_objects
-                cache["algo_gen"]["has_cache"] = False
+                cache["algo_gen"] = False
 
-        if cache["train"]["has_cache"]:
+        if cache["train"]:
             trained_history = import_bundle_algo_history(self.work_dir, only_trained=True)
             if len(trained_history) == 0:
-                cache["train"]["has_cache"] = False
+                cache["train"] = False
 
         return cache
 
-    def export_cache(self):
+    def export_cache(self, **kwargs):
         """
         Save the cache state as ``cache.yaml`` in the working directory
         """
-        ConfigParser.export_config_file(self.cache, self.cache_filename, fmt="yaml", default_flow_style=None)
-
-    def check_analyze(self, analyze: bool):
-        """Check if the AutoRunner can skip data analysis."""
-
-        if self.cache["analyze"]["has_cache"]:
-            return False  # we can use cached result
-
-        if analyze:
-            return True  # we need to do analysis
-        else:
-            raise ValueError(
-                f"cache data analysis report is not found in {self.work_dir}"
-                "or the cache.yaml file is missing in the directory"
-            )
-
-    def check_algo_gen(self, algo_gen: bool):
-        """Check if the AutoRunner can skip AlgoGen/BundleGen."""
-
-        if self.cache["algo_gen"]["has_cache"]:
-            return False  # we can use cached result
-
-        if algo_gen:
-            return True  # we need to do algo_gen
-        else:
-            raise ValueError(
-                f"algo_object.pkl is not found in the task folders under {self.work_dir}"
-                "or the cache.yaml file is missing in the directory"
-            )
-
-    def check_train(self, train: bool):
-        """Check if the AutoRunner can skip training."""
-
-        if self.cache["train"]["has_cache"]:
-            return False  # we can use cached result
-
-        if train:
-            return True  # we need to do training
-        else:
-            raise ValueError(
-                f"algo_object.pkl in the task folders under {self.work_dir} has no [best_metrics] key"
-                "or the cache.yaml file is missing in the directory"
-            )
+        self.cache.update(kwargs)
+        ConfigParser.export_config_file(
+            self.cache, self.cache_filename, fmt="yaml", default_flow_style=None, sort_keys=False
+        )
 
     def set_num_fold(self, num_fold: int = 5):
         """
@@ -341,7 +321,7 @@ class AutoRunner:
             raise ValueError(f"num_fold is expected to be an integer greater than zero. Now it gets {num_fold}")
         self.num_fold = num_fold
 
-    def set_training_params(self, params: Optional[Dict[str, Any]] = None):
+    def set_training_params(self, params: Dict[str, Any] = {}):
         """
         Set the training params for all algos.
 
@@ -354,12 +334,9 @@ class AutoRunner:
                 {"num_iterations": 8, "num_iterations_per_validation": 4}
 
         """
-        if params is None:
-            self.train_params = {}
-        else:
-            self.train_params = deepcopy(params)
+        self.train_params = deepcopy(params)
 
-    def set_prediction_params(self, params: Optional[Dict[str, Any]] = None):
+    def set_prediction_params(self, params: Dict[str, Any] = {}):
         """
         Set the prediction params for all algos.
 
@@ -373,10 +350,25 @@ class AutoRunner:
                 two files in the testing datalist {"file_slices": slice(0, 2)}
 
         """
+        self.pred_params = deepcopy(params)
+
+    def set_analyze_params(self, params: Optional[Dict[str, Any]] = None):
+        """
+        Set the data analysis extra params.
+
+        Args:
+            params: a dict that defines the overriding key-value pairs during training. The overriding method
+                is defined by the algo class.
+
+        Examples:
+            For BundleAlgo objects, the training parameter to shorten the training time to a few epochs can be
+                {"num_iterations": 8, "num_iterations_per_validation": 4}
+
+        """
         if params is None:
-            self.pred_params = {"sigmoid": True}  # output will be 0-1
+            self.analyze_params = {"do_ccp": False, "device": "cuda"}
         else:
-            self.pred_params = deepcopy(params)
+            self.analyze_params = deepcopy(params)
 
     def set_hpo_params(self, params: Optional[Dict[str, Any]] = None):
         """
@@ -438,15 +430,11 @@ class AutoRunner:
             os.makedirs(output_dir)
             logger.info(f"Directory {output_dir} is created to save ensemble predictions")
 
-        if "output_postfix" in kwargs:
-            output_postfix = kwargs.pop("output_postfix")
-        else:
-            output_postfix = "ensemble"
-
+        output_postfix = kwargs.pop("output_postfix", "ensemble")
         self.output_dir = output_dir
         return SaveImage(output_dir=output_dir, output_postfix=output_postfix, **kwargs)
 
-    def set_ensemble_method(self, ensemble_method_name: str = "AlgoEnsembleBestN", **kwargs):
+    def set_ensemble_method(self, ensemble_method_name: str = "AlgoEnsembleBestByFold", **kwargs):
         """
         Set the bundle ensemble method
 
@@ -555,17 +543,20 @@ class AutoRunner:
         """
         # step 1: data analysis
         if self.analyze:
-            da = DataAnalyzer(self.datalist_filename, self.dataroot, output_path=self.datastats_filename)
+            logger.info("Running data analysis...")
+            da = DataAnalyzer(
+                self.datalist_filename, self.dataroot, output_path=self.datastats_filename, **self.analyze_params
+            )
             da.get_all_case_stats()
-            self.cache["analyze"]["has_cache"] = True
-            self.cache["analyze"]["datastats"] = self.datastats_filename
-            self.export_cache()
+            self.export_cache(analyze=True, datastats=self.datastats_filename)
         else:
-            logger.info("Found cached results and skipping data analysis...")
+            logger.info("Skipping data analysis...")
 
         # step 2: algorithm generation
         if self.algo_gen:
+
             bundle_generator = BundleGen(
+                algos=self.algos,
                 algo_path=self.work_dir,
                 data_stats_filename=self.datastats_filename,
                 data_src_cfg_name=self.data_src_cfg_name,
@@ -574,10 +565,9 @@ class AutoRunner:
             bundle_generator.generate(self.work_dir, num_fold=self.num_fold)
             history = bundle_generator.get_history()
             export_bundle_algo_history(history)
-            self.cache["algo_gen"]["has_cache"] = True
-            self.export_cache()
+            self.export_cache(algo_gen=True)
         else:
-            logger.info("Found cached results and skipping algorithm generation...")
+            logger.info("Skipping algorithm generation...")
 
         # step 3: algo training
         if self.train:
@@ -586,10 +576,9 @@ class AutoRunner:
                 self._train_algo_in_sequence(history)
             else:
                 self._train_algo_in_nni(history)
-            self.cache["train"]["has_cache"] = True
-            self.export_cache()
+            self.export_cache(train=True)
         else:
-            logger.info("Found cached results and skipping algorithm training...")
+            logger.info("Skipping algorithm training...")
 
         # step 4: model ensemble and write the prediction to disks.
         if self.ensemble:

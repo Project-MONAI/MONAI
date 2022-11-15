@@ -327,24 +327,24 @@ class BundleGen(AlgoGen):
 
         if isinstance(algos, dict):
             for algo_name, algo_params in algos.items():
+
+                template_path = os.path.dirname(algo_params.get("template_path", "."))
+                if len(template_path) > 0 and template_path not in sys.path:
+                    sys.path.append(template_path)
+
                 try:
                     self.algos.append(ConfigParser(algo_params).get_parsed_content())
                 except RuntimeError as e:
-                    if "ModuleNotFoundError" in str(e):
-                        msg = """Please make sure the folder structure of an Algo Template follows
-                            [algo_name]
-                            ├── configs
-                            │   ├── hyperparameters.yaml  # automatically generated yaml from a set of ``template_configs``
-                            │   ├── network.yaml  # automatically generated network yaml from a set of ``template_configs``
-                            │   ├── transforms_train.yaml  # automatically generated yaml to define transforms for training
-                            │   ├── transforms_validate.yaml  # automatically generated yaml to define transforms for validation
-                            │   └── transforms_infer.yaml  # automatically generated yaml to define transforms for inference
-                            └── scripts
-                                ├── test.py
-                                ├── __init__.py
-                                └── validate.py
-                        """
-                        raise RuntimeError(msg) from e
+                    msg = """Please make sure the folder structure of an Algo Template follows
+                        [algo_name]
+                        ├── configs
+                        │   ├── hyper_parameters.yaml  # automatically generated yaml from a set of ``template_configs``
+                        └── scripts
+                            ├── test.py
+                            ├── __init__.py
+                            └── validate.py
+                    """
+                    raise RuntimeError(msg) from e
                 self.algos[-1].name = algo_name
         else:
             self.algos = ensure_tuple(algos)
