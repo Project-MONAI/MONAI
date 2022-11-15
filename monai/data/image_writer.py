@@ -421,7 +421,7 @@ class ITKWriter(ImageWriter):
                 defaulting to ``bilinear``, ``border``, ``False``, and ``np.float64`` respectively.
         """
         original_affine, affine, spatial_shape = self.get_meta_info(meta_dict)
-        if self.output_dtype is None and hasattr(self.data_obj, "dtype"):  # pylint: disable=E0203
+        if self.output_dtype is None and hasattr(self.data_obj, "dtype"):  # type: ignore # pylint: disable=E0203
             self.output_dtype = self.data_obj.dtype
         self.data_obj, self.affine = self.resample_if_needed(
             data_array=self.data_obj,
@@ -576,7 +576,7 @@ class NibabelWriter(ImageWriter):
                 defaulting to ``bilinear``, ``border``, ``False``, and ``np.float64`` respectively.
         """
         original_affine, affine, spatial_shape = self.get_meta_info(meta_dict)
-        if self.output_dtype is None and hasattr(self.data_obj, "dtype"):  # pylint: disable=E0203
+        if self.output_dtype is None and hasattr(self.data_obj, "dtype"):  # type: ignore # pylint: disable=E0203
             self.output_dtype = self.data_obj.dtype
         self.data_obj, self.affine = self.resample_if_needed(
             data_array=self.data_obj,
@@ -721,7 +721,7 @@ class PILWriter(ImageWriter):
                 currently support ``mode``, defaulting to ``bicubic``.
         """
         spatial_shape = self.get_meta_info(meta_dict)
-        if self.output_dtype is None and hasattr(self.data_obj, "dtype"):  # pylint: disable=E0203
+        if self.output_dtype is None and hasattr(self.data_obj, "dtype"):  # type: ignore  # pylint: disable=E0203
             self.output_dtype = self.data_obj.dtype
         self.data_obj = self.resample_and_clip(
             data_array=self.data_obj,
