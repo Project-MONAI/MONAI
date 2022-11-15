@@ -216,7 +216,7 @@ class AsymmetricUnifiedFocalLoss(_Loss):
             y_true = one_hot(y_true, num_classes=self.num_classes)
 
         if torch.max(y_true) != self.num_classes - 1:
-            raise ValueError(f"Pelase make sure the number of classes is {self.num_classes-1}")
+            raise ValueError(f"Please make sure the number of classes is {self.num_classes-1}")
 
         n_pred_ch = y_pred.shape[1]
         if self.to_onehot_y:

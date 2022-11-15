@@ -11,14 +11,13 @@
 
 import json
 import os
-import subprocess
 import tempfile
 import unittest
 
 from parameterized import parameterized
 
-from monai.bundle import ConfigParser
-from tests.utils import download_url_or_skip_test, skip_if_windows, testing_data_config
+from monai.bundle import ConfigParser, verify_metadata
+from tests.utils import command_line_tests, download_url_or_skip_test, skip_if_windows, testing_data_config
 
 SCHEMA_FILE = os.path.join(os.path.dirname(__file__), "testing_data", "schema.json")
 
@@ -45,7 +44,7 @@ class TestVerifyMetaData(unittest.TestCase):
 
             cmd = ["coverage", "run", "-m", "monai.bundle", "verify_metadata", "--meta_file", meta_file]
             cmd += ["--filepath", schema_file, "--hash_val", self.config["hash_val"], "--args_file", def_args_file]
-            subprocess.check_call(cmd)
+            command_line_tests(cmd)
 
     def test_verify_error(self):
         with tempfile.TemporaryDirectory() as tempdir:
@@ -55,8 +54,8 @@ class TestVerifyMetaData(unittest.TestCase):
             with open(metafile, "w") as f:
                 json.dump(meta_dict, f)
 
-            cmd = ["coverage", "run", "-m", "monai.bundle", "verify_metadata", metafile, "--filepath", filepath]
-            subprocess.check_call(cmd)
+            with self.assertRaises(ValueError):
+                verify_metadata(meta_file=metafile, filepath=filepath)
 
 
 if __name__ == "__main__":

@@ -21,12 +21,10 @@ yaml, _ = optional_import("yaml")
 
 __all__ = ["ID_REF_KEY", "ID_SEP_KEY", "EXPR_KEY", "MACRO_KEY"]
 
-
 ID_REF_KEY = "@"  # start of a reference to a ConfigItem
 ID_SEP_KEY = "#"  # separator for the ID of a ConfigItem
 EXPR_KEY = "$"  # start of a ConfigExpression
 MACRO_KEY = "%"  # start of a macro of a config
-
 
 _conf_values = get_config_values()
 
@@ -56,7 +54,7 @@ DEFAULT_INFERENCE = {
         "_target_": "Compose",
         "transforms": [
             {"_target_": "LoadImaged", "keys": "image"},
-            {"_target_": "AddChanneld", "keys": "image"},
+            {"_target_": "EnsureChannelFirstd", "keys": "image"},
             {"_target_": "ScaleIntensityd", "keys": "image"},
             {"_target_": "EnsureTyped", "keys": "image", "device": "@device"},
         ],
@@ -95,6 +93,31 @@ DEFAULT_INFERENCE = {
         "val_handlers": "@handlers",
     },
     "evaluating": ["$@evaluator.run()"],
+}
+
+DEFAULT_HANDLERS_ID = {
+    "trainer": {"id": "train#trainer", "handlers": "train#handlers"},
+    "validator": {"id": "evaluate#evaluator", "handlers": "evaluate#handlers"},
+    "evaluator": {"id": "evaluator", "handlers": "handlers"},
+}
+
+DEFAULT_MLFLOW_SETTINGS = {
+    "handlers_id": DEFAULT_HANDLERS_ID,
+    "configs": {
+        # MLFlowHandler config for the trainer
+        "trainer": {
+            "_target_": "MLFlowHandler",
+            "tracking_uri": "$@output_dir + '/mlflow'",
+            "iteration_log": True,
+            "epoch_log": True,
+            "tag_name": "train_loss",
+            "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
+        },
+        # MLFlowHandler config for the validator
+        "validator": {"_target_": "MLFlowHandler", "tracking_uri": "$@output_dir + '/mlflow'", "iteration_log": False},
+        # MLFlowHandler config for the evaluator
+        "evaluator": {"_target_": "MLFlowHandler", "tracking_uri": "$@output_dir + '/mlflow'", "iteration_log": False},
+    },
 }
 
 

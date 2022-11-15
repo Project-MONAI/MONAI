@@ -32,7 +32,6 @@
 # * Neither the name of the copyright holder nor the names of its
 #   contributors may be used to endorse or promote products derived from
 #   this software without specific prior written permission.
-
 """
 Part of this script is adapted from
 https://github.com/pytorch/vision/blob/main/torchvision/models/detection/retinanet.py
@@ -105,7 +104,7 @@ class BoxSelector:
         """
         Select indices with highest scores.
 
-        The indice selection is performed with the following steps:
+        The indices selection is performed with the following steps:
 
         #. If self.apply_sigmoid, get scores by applying sigmoid to logits. Otherwise, use logits as scores.
         #. Discard indices with scores less than self.score_thresh

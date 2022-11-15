@@ -16,6 +16,7 @@ from typing import Any, Union
 
 import torch
 
+from monai.losses.ssim_loss import SSIMLoss
 from monai.metrics.utils import do_metric_reduction
 from monai.utils import MetricReduction
 
@@ -28,6 +29,8 @@ class RegressionMetric(CumulativeIterationMetric):
     Input `y_pred` is compared with ground truth `y`.
     Both `y_pred` and `y` are expected to be real-valued, where `y_pred` is output from a regression model.
     `y_preds` and `y` can be a list of channel-first Tensor (CHW[D]) or a batch-first Tensor (BCHW[D]).
+
+    Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
 
     Args:
         reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
@@ -45,7 +48,7 @@ class RegressionMetric(CumulativeIterationMetric):
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):  # type: ignore
+    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):
         """
         Args:
             reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
@@ -89,6 +92,8 @@ class MSEMetric(RegressionMetric):
     Input `y_pred` is compared with ground truth `y`.
     Both `y_pred` and `y` are expected to be real-valued, where `y_pred` is output from a regression model.
 
+    Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
+
     Args:
         reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
             available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
@@ -120,6 +125,8 @@ class MAEMetric(RegressionMetric):
 
     Input `y_pred` is compared with ground truth `y`.
     Both `y_pred` and `y` are expected to be real-valued, where `y_pred` is output from a regression model.
+
+    Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
 
     Args:
         reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
@@ -153,6 +160,8 @@ class RMSEMetric(RegressionMetric):
 
     Input `y_pred` is compared with ground truth `y`.
     Both `y_pred` and `y` are expected to be real-valued, where `y_pred` is output from a regression model.
+
+    Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
 
     Args:
         reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
@@ -191,6 +200,8 @@ class PSNRMetric(RegressionMetric):
     Input `y_pred` is compared with ground truth `y`.
     Both `y_pred` and `y` are expected to be real-valued, where `y_pred` is output from a regression model.
 
+    Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
+
     Args:
         max_val: The dynamic range of the images/volumes (i.e., the difference between the
             maximum and the minimum allowed values e.g. 255 for a uint8 image).
@@ -224,3 +235,90 @@ def compute_mean_error_metrics(y_pred: torch.Tensor, y: torch.Tensor, func) -> t
     # reduction of batch handled inside __call__() using do_metric_reduction() in respective calling class
     flt = partial(torch.flatten, start_dim=1)
     return torch.mean(flt(func(y - y_pred)), dim=-1, keepdim=True)
+
+
+class SSIMMetric(RegressionMetric):
+    r"""
+    Build a Pytorch version of the SSIM metric based on the original formula of SSIM
+
+    .. math::
+        \operatorname {SSIM}(x,y) =\frac {(2 \mu_x \mu_y + c_1)(2 \sigma_{xy} + c_2)}{((\mu_x^2 + \
+                \mu_y^2 + c_1)(\sigma_x^2 + \sigma_y^2 + c_2)}
+
+    For more info, visit
+        https://vicuesoft.com/glossary/term/ssim-ms-ssim/
+
+    Modified and adopted from:
+        https://github.com/facebookresearch/fastMRI/blob/main/banding_removal/fastmri/ssim_loss_mixin.py
+
+    SSIM reference paper:
+        Wang, Zhou, et al. "Image quality assessment: from error visibility to structural
+        similarity." IEEE transactions on image processing 13.4 (2004): 600-612.
+
+    Args:
+        data_range: dynamic range of the data
+        win_size: gaussian weighting window size
+        k1: stability constant used in the luminance denominator
+        k2: stability constant used in the contrast denominator
+        spatial_dims: if 2, input shape is expected to be (B,C,W,H). if 3, it is expected to be (B,C,W,H,D)
+        reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
+            available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+            ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction
+        get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans)
+    """
+
+    def __init__(
+        self,
+        data_range: torch.Tensor,
+        win_size: int = 7,
+        k1: float = 0.01,
+        k2: float = 0.03,
+        spatial_dims: int = 2,
+        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        get_not_nans: bool = False,
+    ):
+        super().__init__(reduction=reduction, get_not_nans=get_not_nans)
+        self.data_range = data_range
+        self.win_size = win_size
+        self.k1, self.k2 = k1, k2
+        self.spatial_dims = spatial_dims
+
+    def _compute_metric(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            x: first sample (e.g., the reference image). Its shape is (B,C,W,H) for 2D data and (B,C,W,H,D) for 3D.
+                A fastMRI sample should use the 2D format with C being the number of slices.
+            y: second sample (e.g., the reconstructed image). It has similar shape as x
+
+        Returns:
+            ssim_value
+
+        Example:
+            .. code-block:: python
+
+                import torch
+                x = torch.ones([1,1,10,10])/2 # ground truth
+                y = torch.ones([1,1,10,10])/2 # prediction
+                data_range = x.max().unsqueeze(0)
+                # the following line should print 1.0 (or 0.9999)
+                print(SSIMMetric(data_range=data_range,spatial_dims=2)._compute_metric(x,y))
+        """
+        ssim_value = torch.empty((1), dtype=torch.float)
+        if x.shape[0] == 1:
+            ssim_value = 1 - SSIMLoss(self.win_size, self.k1, self.k2, self.spatial_dims)(x, y, self.data_range)
+        elif x.shape[0] > 1:
+
+            for i in range(x.shape[0]):
+                ssim_val: torch.Tensor = 1 - SSIMLoss(self.win_size, self.k1, self.k2, self.spatial_dims)(
+                    x[i : i + 1], y[i : i + 1], self.data_range
+                )
+                if i == 0:
+                    ssim_value = ssim_val
+                else:
+                    ssim_value = torch.cat((ssim_value.view(1), ssim_val.view(1)), dim=0)
+
+        else:
+            raise ValueError("Batch size is not nonnegative integer value")
+        # 1- dimensional tensor is only allowed
+        ssim_value = ssim_value.view(-1, 1)
+        return ssim_value

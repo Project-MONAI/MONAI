@@ -27,6 +27,8 @@ try:
 except (OptionalImportError, ImportError, AttributeError):
     HAS_EXT = USE_COMPILED = False
 
+USE_META_DICT = os.environ.get("USE_META_DICT", "0") == "1"  # set to True for compatibility, use meta dict.
+
 psutil, has_psutil = optional_import("psutil")
 psutil_version = psutil.__version__ if has_psutil else "NOT INSTALLED or UNKNOWN VERSION."
 
@@ -38,6 +40,7 @@ __all__ = [
     "print_gpu_info",
     "print_debug_info",
     "USE_COMPILED",
+    "USE_META_DICT",
     "IgniteInfo",
 ]
 
@@ -89,7 +92,7 @@ def print_config(file=sys.stdout):
     """
     for k, v in get_config_values().items():
         print(f"{k} version: {v}", file=file, flush=True)
-    print(f"MONAI flags: HAS_EXT = {HAS_EXT}, USE_COMPILED = {USE_COMPILED}")
+    print(f"MONAI flags: HAS_EXT = {HAS_EXT}, USE_COMPILED = {USE_COMPILED}, USE_META_DICT = {USE_META_DICT}")
     print(f"MONAI rev id: {monai.__revision_id__}")
     print(f"MONAI __file__: {monai.__file__}")
 

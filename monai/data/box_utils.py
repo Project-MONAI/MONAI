@@ -8,7 +8,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """
 This utility module mainly supports rectangular bounding boxes with a few
 different parameterizations and methods for converting between them. It
@@ -35,7 +34,6 @@ from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 # We support 2-D or 3-D bounding boxes
 SUPPORTED_SPATIAL_DIMS = [2, 3]
-
 
 # TO_REMOVE = 0.0 if the bottom-right corner pixel/voxel is not included in the boxes,
 #      i.e., when xmin=1., xmax=2., we have w = 1.
@@ -657,7 +655,7 @@ def boxes_center_distance(
     center2 = box_centers(boxes2_t.to(COMPUTE_DTYPE))  # (M, spatial_dims)
 
     if euclidean:
-        dists = (center1[:, None] - center2[None]).pow(2).sum(-1).sqrt()
+        dists = (center1[:, None] - center2[None]).pow(2).sum(-1).sqrt()  # type: ignore
     else:
         # before sum: (N, M, spatial_dims)
         dists = (center1[:, None] - center2[None]).sum(-1)
@@ -960,7 +958,7 @@ def spatial_crop_boxes(
     """
 
     # convert numpy to tensor if needed
-    boxes_t, *_ = convert_data_type(deepcopy(boxes), torch.Tensor)
+    boxes_t = convert_data_type(boxes, torch.Tensor)[0].clone()
 
     # convert to float32 since torch.clamp_ does not support float16
     boxes_t = boxes_t.to(dtype=COMPUTE_DTYPE)
@@ -972,8 +970,10 @@ def spatial_crop_boxes(
     # makes sure the bounding boxes are within the patch
     spatial_dims = get_spatial_dims(boxes=boxes, spatial_size=roi_end)
     for axis in range(0, spatial_dims):
-        boxes_t[:, axis].clamp_(min=roi_start_t[axis], max=roi_end_t[axis] - TO_REMOVE)
-        boxes_t[:, axis + spatial_dims].clamp_(min=roi_start_t[axis], max=roi_end_t[axis] - TO_REMOVE)
+        boxes_t[:, axis] = boxes_t[:, axis].clamp(min=roi_start_t[axis], max=roi_end_t[axis] - TO_REMOVE)
+        boxes_t[:, axis + spatial_dims] = boxes_t[:, axis + spatial_dims].clamp(
+            min=roi_start_t[axis], max=roi_end_t[axis] - TO_REMOVE
+        )
         boxes_t[:, axis] -= roi_start_t[axis]
         boxes_t[:, axis + spatial_dims] -= roi_start_t[axis]
 
@@ -1061,7 +1061,7 @@ def non_max_suppression(
 
     # initialize the list of picked indexes
     pick = []
-    idxs = torch.Tensor(list(range(0, boxes_sort.shape[0]))).to(torch.long)
+    idxs = torch.Tensor(list(range(0, boxes_sort.shape[0]))).to(device=boxes_t.device, dtype=torch.long)
 
     # keep looping while some indexes still remain in the indexes list
     while len(idxs) > 0:

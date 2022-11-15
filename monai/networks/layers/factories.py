@@ -8,7 +8,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """
 Defines factories for creating layers in generic, extensible, and dimensionally independent ways. A separate factory
 object is created for each type of layer, and factory functions keyed to names are added to these objects. Whenever
@@ -69,7 +68,6 @@ import torch.nn as nn
 from monai.utils import look_up_option, optional_import
 
 InstanceNorm3dNVFuser, has_nvfuser = optional_import("apex.normalization", name="InstanceNorm3dNVFuser")
-
 
 __all__ = ["LayerFactory", "Dropout", "Norm", "Act", "Conv", "Pool", "Pad", "split_args"]
 
@@ -250,7 +248,7 @@ def sync_batch_factory(_dim) -> Type[nn.SyncBatchNorm]:
 @Norm.factory_function("instance_nvfuser")
 def instance_nvfuser_factory(dim):
     """
-    `InstanceNorm3dNVFuser` is a faster verison of InstanceNorm layer and implemented in `apex`.
+    `InstanceNorm3dNVFuser` is a faster version of InstanceNorm layer and implemented in `apex`.
     It only supports 3d tensors as the input. It also requires to use with CUDA and non-Windows OS.
     In this function, if the required library `apex.normalization.InstanceNorm3dNVFuser` does not exist,
     `nn.InstanceNorm3d` will be returned instead.

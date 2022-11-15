@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import warnings
 from typing import List, Optional, Tuple, Union
 
@@ -39,16 +38,16 @@ __all__ = ["DiNTS", "TopologyConstruction", "TopologyInstance", "TopologySearch"
 class CellInterface(torch.nn.Module):
     """interface for torchscriptable Cell"""
 
-    def forward(self, x: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
-        pass
+    def forward(self, x: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:  # type: ignore
+        pass  # type: ignore
 
 
 @torch.jit.interface
 class StemInterface(torch.nn.Module):
     """interface for torchscriptable Stem"""
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        pass
+    def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore
+        pass  # type: ignore
 
 
 class StemTS(StemInterface):

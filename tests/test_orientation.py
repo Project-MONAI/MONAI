@@ -167,7 +167,6 @@ for track_meta in (False, True):
     for device in TEST_DEVICES:
         TESTS_TORCH.append([{"axcodes": "LPS"}, torch.zeros((1, 3, 4, 5)), track_meta, *device])
 
-
 ILL_CASES = [
     # too short axcodes
     [{"axcodes": "RA"}, torch.arange(12).reshape((2, 1, 2, 3)), torch.eye(4)]
@@ -221,7 +220,7 @@ class TestOrientationCase(unittest.TestCase):
     def test_inverse(self, device):
         img_t = torch.rand((1, 10, 9, 8), dtype=torch.float32, device=device)
         affine = torch.tensor(
-            [[0, 0, -1, 0], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1]], dtype=torch.float32, device=device
+            [[0, 0, -1, 0], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1]], dtype=torch.float32, device="cpu"
         )
         meta = {"fname": "somewhere"}
         img = MetaTensor(img_t, affine=affine, meta=meta)
