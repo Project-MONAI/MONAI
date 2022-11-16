@@ -184,10 +184,10 @@ class AutoRunner:
         analyze: Optional[bool] = None,
         algo_gen: Optional[bool] = None,
         train: Optional[bool] = None,
-        ensemble: bool = True,
-        not_use_cache: bool = False,
         hpo: bool = False,
         hpo_backend: str = "nni",
+        ensemble: bool = True,
+        not_use_cache: bool = False,
         **kwargs,
     ):
 

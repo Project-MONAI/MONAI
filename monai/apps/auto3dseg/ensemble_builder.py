@@ -81,13 +81,14 @@ class AlgoEnsemble(ABC):
         for d in datalist[data_key]:
             self.infer_files.append({"image": os.path.join(dataroot, d["image"])})
 
-    def ensemble_pred(self, preds, sigmoid=True):
+    def ensemble_pred(self, preds, sigmoid=False):
         """
         ensemble the results using either "mean" or "vote" method
 
         Args:
             preds: a list of probability prediction in Tensor-Like format.
-            sigmoid: use the sigmoid function to threshold probability one-hot map.
+            sigmoid: use the sigmoid function to threshold probability one-hot map,
+                otherwise argmax is used. Defaults to False
 
         Returns:
             a tensor which is the ensembled prediction.
@@ -113,7 +114,7 @@ class AlgoEnsemble(ABC):
                     make prediction on the infer_files[file_slices].
                 'mode': ensemble mode. Currently "mean" and "vote" (majority voting) schemes are supported.
                 'sigmoid': use the sigmoid function (e.g. x>0.5) to convert the prediction probability map to
-                    the label class prediction.
+                    the label class prediction, otherwise argmax(x) is used.
 
         Returns:
             A list of tensors.
@@ -132,10 +133,7 @@ class AlgoEnsemble(ABC):
             mode = param.pop("mode")
             self.mode = look_up_option(mode, supported=["mean", "vote"])
 
-        sigmoid = True
-        if "sigmoid" in param:
-            sigmoid = param.pop("sigmoid")
-            sigmoid = look_up_option(sigmoid, supported=[True, False])
+        sigmoid = param.pop("sigmoid", False)
 
         outputs = []
         for i in range(len(files)):
