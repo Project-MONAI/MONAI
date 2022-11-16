@@ -264,7 +264,19 @@ class TestSlidingWindowInference(unittest.TestCase):
             return {1: data + 1, 2: data[:, ::3, ::2, ::2] + 2, 3: data[:, ::2, ::4, ::4] + 3}
 
         result = sliding_window_inference(
-            inputs, roi_shape, sw_batch_size, compute, 0.5, "constant", 1.0, "constant", 0.0, device, device, has_tqdm
+            inputs,
+            roi_shape,
+            sw_batch_size,
+            compute,
+            0.5,
+            "constant",
+            1.0,
+            "constant",
+            0.0,
+            device,
+            device,
+            has_tqdm,
+            None,
         )
         result_dict = sliding_window_inference(
             inputs,
@@ -279,6 +291,7 @@ class TestSlidingWindowInference(unittest.TestCase):
             device,
             device,
             has_tqdm,
+            None,
         )
         expected = (np.ones((1, 6, 20, 20)) + 1, np.ones((1, 2, 10, 10)) + 2, np.ones((1, 3, 5, 5)) + 3)
         expected_dict = {1: np.ones((1, 6, 20, 20)) + 1, 2: np.ones((1, 2, 10, 10)) + 2, 3: np.ones((1, 3, 5, 5)) + 3}
