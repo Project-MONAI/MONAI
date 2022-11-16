@@ -182,5 +182,5 @@ class SlidingWindowHoVerNetInferer(Inferer):
                 extra_slicing.insert(0, slice_dim)
             for k, v in results.items():
                 results[k] = v[extra_slicing]
-                
+
         return results
