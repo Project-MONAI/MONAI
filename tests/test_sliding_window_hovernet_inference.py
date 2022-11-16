@@ -24,6 +24,13 @@ from tests.utils import TEST_TORCH_AND_META_TENSORS, skip_if_no_cuda
 
 _, has_tqdm = optional_import("tqdm")
 
+TEST_CASES_PADDING = [
+    [None, (1, 3, 16, 8), (4, 4), 7, 0.5, "constant", torch.device("cpu:0"), None, True],
+    ["hover", (1, 3, 16, 8), (4, 4), 7, 0.5, "constant", torch.device("cpu:0"), None, True],
+    [None, (1, 3, 16, 8), (4, 4), 7, 0.5, "constant", torch.device("cpu:0"), (1,) * 4, True],
+    ["hover", (1, 3, 16, 8), (4, 4), 7, 0.5, "constant", torch.device("cpu:0"), (1,) * 4, True],
+]
+
 TEST_CASES = [
     [(2, 3, 16), (4,), 3, 0.25, "constant", torch.device("cpu:0")],  # 1D small roi
     [(2, 3, 16, 15, 7, 9), 4, 3, 0.25, "constant", torch.device("cpu:0")],  # 4D small roi
@@ -46,6 +53,41 @@ TEST_CASES = [
 
 
 class TestSlidingWindowInference(unittest.TestCase):
+    @parameterized.expand(TEST_CASES_PADDING)
+    def test_sliding_window_with_padding(
+        self, key, image_shape, roi_shape, sw_batch_size, overlap, mode, device, extra_input_padding, pad_output
+    ):
+        n_total = np.prod(image_shape)
+        if mode == "constant":
+            inputs = torch.arange(n_total, dtype=torch.float).reshape(*image_shape)
+        else:
+            inputs = torch.ones(*image_shape, dtype=torch.float)
+        if device.type == "cuda" and not torch.cuda.is_available():
+            device = torch.device("cpu:0")
+
+        def compute(data):
+            if key:
+                return {key: torch.clone(data[..., 1:-1, 1:-1]) + 1}
+            else:
+                return torch.clone(data[..., 1:-1, 1:-1]) + 1
+
+        if mode == "constant":
+            expected_val = np.arange(n_total, dtype=np.float32).reshape(*image_shape) + 1.0
+        else:
+            expected_val = np.ones(image_shape, dtype=np.float32) + 1.0
+
+        if extra_input_padding is None:
+            expected_val[..., 0, :] = expected_val[..., -1, :] = None
+            expected_val[..., 0] = expected_val[..., -1] = None
+
+        sliding_inference = SlidingWindowHoVerNetInferer(
+            roi_shape, sw_batch_size, overlap, mode, extra_input_padding=extra_input_padding, pad_output=pad_output
+        )
+        result = sliding_inference(inputs.to(device), compute)
+        result = result[key] if key else result
+        np.testing.assert_string_equal(device.type, result.device.type)
+        np.testing.assert_allclose(result.cpu().numpy(), expected_val)
+
     @parameterized.expand(TEST_CASES)
     def test_sliding_window_default(self, image_shape, roi_shape, sw_batch_size, overlap, mode, device):
         n_total = np.prod(image_shape)

@@ -174,13 +174,20 @@ class SlidingWindowHoVerNetInferer(Inferer):
 
         if self.extra_input_padding:
             extra_slicing: List[slice] = []
-            for sp in range(len(self.extra_input_padding) // 2):
+            num_padded_dims = len(self.extra_input_padding) // 2
+            for sp in range(num_padded_dims):
                 slice_dim = slice(
                     self.extra_input_padding[sp * 2],
                     image_size_original[num_spatial_dims - sp - 1] + self.extra_input_padding[sp * 2],
                 )
                 extra_slicing.insert(0, slice_dim)
-            for k, v in results.items():
-                results[k] = v[extra_slicing]
+            for i in range(len(inputs.shape) - num_padded_dims):
+                extra_slicing.insert(0, slice(None))
+
+            if isinstance(results, dict):
+                for k, v in results.items():
+                    results[k] = v[extra_slicing]
+            else:
+                results = results[extra_slicing]
 
         return results
