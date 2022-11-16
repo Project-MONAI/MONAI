@@ -84,7 +84,7 @@ Generic Interfaces
     :members:
 
 `RandomOrder`
-^^^^^^^
+^^^^^^^^^^^^^
 .. autoclass:: RandomOrder
     :members:
 
