@@ -10,10 +10,9 @@
 # limitations under the License.
 
 import torch
-import torch.nn.functional as F
 from torch.nn.modules.loss import _Loss
 
-from monai.utils.type_conversion import convert_to_dst_type
+from monai.metrics.regression import SSIMMetric
 
 
 class SSIMLoss(_Loss):
@@ -43,10 +42,6 @@ class SSIMLoss(_Loss):
         self.win_size = win_size
         self.k1, self.k2 = k1, k2
         self.spatial_dims = spatial_dims
-        self.register_buffer(
-            "w", torch.ones([1, 1] + [win_size for _ in range(spatial_dims)]) / win_size**spatial_dims
-        )
-        self.cov_norm = (win_size**2) / (win_size**2 - 1)
 
     def forward(self, x: torch.Tensor, y: torch.Tensor, data_range: torch.Tensor) -> torch.Tensor:
         """
@@ -85,41 +80,23 @@ class SSIMLoss(_Loss):
                 # the following line should print 1.0 (or 0.9999)
                 print(1-SSIMLoss(spatial_dims=3)(x,y,data_range))
         """
-        if x.shape[1] > 1:  # handling multiple channels (C>1)
-            if x.shape[1] != y.shape[1]:
-                raise ValueError(
-                    f"x and y should have the same number of channels, "
-                    f"but x has {x.shape[1]} channels and y has {y.shape[1]} channels."
+        ssim_value = torch.empty((1), dtype=torch.float)
+        if x.shape[0] == 1:
+            ssim_value: torch.Tensor = SSIMMetric(data_range, self.win_size, self.k1, self.k2, self.spatial_dims)(x, y)
+        elif x.shape[0] > 1:
+
+            for i in range(x.shape[0]):
+                ssim_val: torch.Tensor = SSIMMetric(data_range, self.win_size, self.k1, self.k2, self.spatial_dims)(
+                    x[i : i + 1], y[i : i + 1]
                 )
-            losses = torch.stack(
-                [
-                    SSIMLoss(self.win_size, self.k1, self.k2, self.spatial_dims)(
-                        x[:, i, ...].unsqueeze(1), y[:, i, ...].unsqueeze(1), data_range
-                    )
-                    for i in range(x.shape[1])
-                ]
-            )
-            channel_wise_loss: torch.Tensor = losses.mean()
-            return channel_wise_loss
+                if i == 0:
+                    ssim_value = ssim_val
+                else:
+                    ssim_value = torch.cat((ssim_value.view(1), ssim_val.view(1)), dim=0)
 
-        data_range = data_range[(None,) * (self.spatial_dims + 2)]
-        # determine whether to work with 2D convolution or 3D
-        conv = getattr(F, f"conv{self.spatial_dims}d")
-        w = convert_to_dst_type(src=self.w, dst=x)[0]
-
-        c1 = (self.k1 * data_range) ** 2  # stability constant for luminance
-        c2 = (self.k2 * data_range) ** 2  # stability constant for contrast
-        ux = conv(x, w)  # mu_x
-        uy = conv(y, w)  # mu_y
-        uxx = conv(x * x, w)  # mu_x^2
-        uyy = conv(y * y, w)  # mu_y^2
-        uxy = conv(x * y, w)  # mu_xy
-        vx = self.cov_norm * (uxx - ux * ux)  # sigma_x
-        vy = self.cov_norm * (uyy - uy * uy)  # sigma_y
-        vxy = self.cov_norm * (uxy - ux * uy)  # sigma_xy
-
-        numerator = (2 * ux * uy + c1) * (2 * vxy + c2)
-        denom = (ux**2 + uy**2 + c1) * (vx + vy + c2)
-        ssim_value = numerator / denom
+        else:
+            raise ValueError("Batch size is not nonnegative integer value")
+        # 1- dimensional tensor is only allowed
+        ssim_value = ssim_value.view(-1, 1)
         loss: torch.Tensor = 1 - ssim_value.mean()
         return loss

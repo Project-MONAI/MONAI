@@ -15,10 +15,11 @@ from functools import partial
 from typing import Any, Union
 
 import torch
+import torch.nn.functional as F
 
-from monai.losses.ssim_loss import SSIMLoss
 from monai.metrics.utils import do_metric_reduction
 from monai.utils import MetricReduction
+from monai.utils.type_conversion import convert_to_dst_type
 
 from .metric import CumulativeIterationMetric
 
@@ -282,13 +283,16 @@ class SSIMMetric(RegressionMetric):
         self.win_size = win_size
         self.k1, self.k2 = k1, k2
         self.spatial_dims = spatial_dims
+        self.cov_norm = (win_size**2) / (win_size**2 - 1)
+        self.w = torch.ones([1, 1] + [win_size for _ in range(spatial_dims)]) / win_size**spatial_dims
 
-    def _compute_metric(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    def _compute_metric(self, x: torch.Tensor, y: torch.Tensor, full: bool = False) -> torch.Tensor:
         """
         Args:
             x: first sample (e.g., the reference image). Its shape is (B,C,W,H) for 2D data and (B,C,W,H,D) for 3D.
                 A fastMRI sample should use the 2D format with C being the number of slices.
             y: second sample (e.g., the reconstructed image). It has similar shape as x
+            full:  return ssim value and constrast sensitivity if True
 
         Returns:
             ssim_value
@@ -303,22 +307,60 @@ class SSIMMetric(RegressionMetric):
                 # the following line should print 1.0 (or 0.9999)
                 print(SSIMMetric(data_range=data_range,spatial_dims=2)._compute_metric(x,y))
         """
-        ssim_value = torch.empty((1), dtype=torch.float)
-        if x.shape[0] == 1:
-            ssim_value = 1 - SSIMLoss(self.win_size, self.k1, self.k2, self.spatial_dims)(x, y, self.data_range)
-        elif x.shape[0] > 1:
-
-            for i in range(x.shape[0]):
-                ssim_val: torch.Tensor = 1 - SSIMLoss(self.win_size, self.k1, self.k2, self.spatial_dims)(
-                    x[i : i + 1], y[i : i + 1], self.data_range
+        if x.shape[1] > 1:  # handling multiple channels (C>1)
+            if x.shape[1] != y.shape[1]:
+                raise ValueError(
+                    f"x and y should have the same number of channels, "
+                    f"but x has {x.shape[1]} channels and y has {y.shape[1]} channels."
                 )
-                if i == 0:
-                    ssim_value = ssim_val
-                else:
-                    ssim_value = torch.cat((ssim_value.view(1), ssim_val.view(1)), dim=0)
+            if full:
+                ssim = []
+                cs = []
+                for i in range(x.shape[1]):
+                    ssim_val, cs_val = SSIMMetric(
+                        self.data_range, self.win_size, self.k1, self.k2, self.spatial_dims
+                    )._compute_metric(x[:, i, ...].unsqueeze(1), y[:, i, ...].unsqueeze(1), full)
+                    ssim.append(ssim_val)
+                    cs.append(cs_val)
+                channel_wise_ssim: torch.Tensor = torch.stack(ssim).mean(1).view(-1, 1)
+                channel_wise_cs: torch.Tensor = torch.stack(cs).mean(1).view(-1, 1)
+                return channel_wise_ssim, channel_wise_cs
 
-        else:
-            raise ValueError("Batch size is not nonnegative integer value")
-        # 1- dimensional tensor is only allowed
-        ssim_value = ssim_value.view(-1, 1)
-        return ssim_value
+            ssim = torch.stack(
+                [
+                    SSIMMetric(self.data_range, self.win_size, self.k1, self.k2, self.spatial_dims)(
+                        x[:, i, ...].unsqueeze(1), y[:, i, ...].unsqueeze(1)
+                    )
+                    for i in range(x.shape[1])
+                ],
+                dim=1,
+            )
+            channel_wise_ssim: torch.Tensor = ssim.mean(1).view(-1, 1)
+            return channel_wise_ssim
+
+        data_range = self.data_range[(None,) * (self.spatial_dims + 2)]
+        # determine whether to work with 2D convolution or 3D
+        conv = getattr(F, f"conv{self.spatial_dims}d")
+        w = convert_to_dst_type(src=self.w, dst=x)[0]
+
+        c1 = (self.k1 * data_range) ** 2  # stability constant for luminance
+        c2 = (self.k2 * data_range) ** 2  # stability constant for contrast
+        ux = conv(x, w)  # mu_x
+        uy = conv(y, w)  # mu_y
+        uxx = conv(x * x, w)  # mu_x^2
+        uyy = conv(y * y, w)  # mu_y^2
+        uxy = conv(x * y, w)  # mu_xy
+        vx = self.cov_norm * (uxx - ux * ux)  # sigma_x
+        vy = self.cov_norm * (uyy - uy * uy)  # sigma_y
+        vxy = self.cov_norm * (uxy - ux * uy)  # sigma_xy
+
+        numerator = (2 * ux * uy + c1) * (2 * vxy + c2)
+        denom = (ux**2 + uy**2 + c1) * (vx + vy + c2)
+        ssim_value = numerator / denom
+        # [B, 1]
+        ssim_per_batch = ssim_value.view(ssim_value.shape[1], -1).mean(1, keepdim=True)
+        if full:
+            cs = (2 * vxy + c2) / (vx + vy + c2)  # contrast sensitivity function
+            cs_per_batch = cs.view(cs.shape[0], -1).mean(1, keepdim=True)  # [B, 1]
+            return ssim_per_batch, cs_per_batch
+        return ssim_per_batch
