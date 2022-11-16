@@ -213,6 +213,7 @@ class SlidingWindowInferer(Inferer):
             device,
             self.progress,
             self.roi_weight_map,
+            False,
             *args,
             **kwargs,
         )
