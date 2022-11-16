@@ -12,6 +12,7 @@
 import warnings
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 
@@ -181,13 +182,19 @@ class SlidingWindowHoVerNetInferer(Inferer):
                     image_size_original[num_spatial_dims - sp - 1] + self.extra_input_padding[sp * 2],
                 )
                 extra_slicing.insert(0, slice_dim)
-            for i in range(len(inputs.shape) - num_padded_dims):
+            for _ in range(len(inputs.shape) - num_padded_dims):
                 extra_slicing.insert(0, slice(None))
 
             if isinstance(results, dict):
                 for k, v in results.items():
                     results[k] = v[extra_slicing]
-            else:
+            elif isinstance(results, (list, tuple)):
+                results = type(results)([res[extra_slicing] for res in results])
+            elif isinstance(results, (torch.Tensor, np.ndarray)):
                 results = results[extra_slicing]
+            else:
+                raise ValueError(
+                    f"The output [{type(results)}] should be either dict, list, tuple, torch.Tensor, or numpy array."
+                )
 
         return results
