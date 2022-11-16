@@ -144,8 +144,8 @@ class SlidingWindowHoVerNetInferer(Inferer):
             device = "cpu"  # stitch in cpu memory if image is too large
 
         if self.extra_input_padding:
-            _, _, *image_size_original = inputs.shape
-            num_spatial_dims = image_size_original.shape
+            image_size_original = inputs.shape[2:]
+            num_spatial_dims = len(image_size_original)
             inputs = F.pad(
                 inputs,
                 pad=tuple(self.extra_input_padding),
