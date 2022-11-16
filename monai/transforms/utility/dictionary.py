@@ -1032,8 +1032,10 @@ class Lambdad(MapTransform, InvertibleTransform):
             each element corresponds to a key in ``keys``.
         inv_func: Lambda/function of inverse operation if want to invert transforms, default to `lambda x: x`.
             It also can be a sequence of Callable, each element corresponds to a key in ``keys``.
-        overwrite: whether to overwrite the original data in the input dictionary with lamdbda function output.
-            default to True. it also can be a sequence of bool, each element corresponds to a key in ``keys``.
+        overwrite: whether to overwrite the original data in the input dictionary with lambda function output. it
+            can be bool or str, when setting to str, it will create a new key for the output and keep the value of
+            key intact. default to True. it also can be a sequence of bool or str, each element corresponds to a key
+            in ``keys``.
         allow_missing_keys: don't raise exception if key is missing.
 
     Note: The inverse operation doesn't allow to define `extra_info` or access other information, such as the
@@ -1048,7 +1050,7 @@ class Lambdad(MapTransform, InvertibleTransform):
         keys: KeysCollection,
         func: Union[Sequence[Callable], Callable],
         inv_func: Union[Sequence[Callable], Callable] = no_collation,
-        overwrite: Union[Sequence[bool], bool] = True,
+        overwrite: Union[Sequence[bool], bool, Sequence[str], str] = True,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -1061,8 +1063,10 @@ class Lambdad(MapTransform, InvertibleTransform):
         d = dict(data)
         for key, func, overwrite in self.key_iterator(d, self.func, self.overwrite):
             ret = self._lambd(img=d[key], func=func)
-            if overwrite:
+            if overwrite and isinstance(overwrite, bool):
                 d[key] = ret
+            elif isinstance(overwrite, str):
+                d[overwrite] = ret
         return d
 
     def inverse(self, data):
@@ -1086,7 +1090,7 @@ class RandLambdad(Lambdad, RandomizableTransform):
             each element corresponds to a key in ``keys``.
         inv_func: Lambda/function of inverse operation if want to invert transforms, default to `lambda x: x`.
             It also can be a sequence of Callable, each element corresponds to a key in ``keys``.
-        overwrite: whether to overwrite the original data in the input dictionary with lamdbda function output.
+        overwrite: whether to overwrite the original data in the input dictionary with lambda function output.
             default to True. it also can be a sequence of bool, each element corresponds to a key in ``keys``.
         prob: probability of executing the random function, default to 1.0, with 100% probability to execute.
             note that all the data specified by `keys` will share the same random probability to execute or not.

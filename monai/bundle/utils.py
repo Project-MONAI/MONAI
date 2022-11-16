@@ -97,7 +97,7 @@ DEFAULT_INFERENCE = {
 
 DEFAULT_HANDLERS_ID = {
     "trainer": {"id": "train#trainer", "handlers": "train#handlers"},
-    "validator": {"id": "evaluate#evaluator", "handlers": "evaluate#handlers"},
+    "validator": {"id": "validate#evaluator", "handlers": "validate#handlers"},
     "evaluator": {"id": "evaluator", "handlers": "handlers"},
 }
 
