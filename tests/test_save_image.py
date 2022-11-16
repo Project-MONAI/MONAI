@@ -49,6 +49,7 @@ class TestSaveImage(unittest.TestCase):
                 output_ext=output_ext,
                 resample=resample,
                 separate_folder=False,  # test saving into the same folder
+                output_name_formatter=lambda x, xform: dict(subject=x["filename_or_obj"] if x else "0"),
             )
             trans(test_data)
 

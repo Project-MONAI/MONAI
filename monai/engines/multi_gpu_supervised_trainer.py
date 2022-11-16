@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn
@@ -55,7 +55,7 @@ def create_multigpu_supervised_trainer(
     net: torch.nn.Module,
     optimizer: Optimizer,
     loss_fn: Callable,
-    devices: Optional[Sequence[torch.device]] = None,
+    devices: Optional[Sequence[Union[str, torch.device]]] = None,
     non_blocking: bool = False,
     prepare_batch: Callable = _prepare_batch,
     output_transform: Callable = _default_transform,
@@ -105,7 +105,7 @@ def create_multigpu_supervised_trainer(
 def create_multigpu_supervised_evaluator(
     net: torch.nn.Module,
     metrics: Optional[Dict[str, Metric]] = None,
-    devices: Optional[Sequence[torch.device]] = None,
+    devices: Optional[Sequence[Union[str, torch.device]]] = None,
     non_blocking: bool = False,
     prepare_batch: Callable = _prepare_batch,
     output_transform: Callable = _default_eval_transform,
