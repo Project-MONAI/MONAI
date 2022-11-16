@@ -208,11 +208,11 @@ def sliding_window_inference(
 
         if pad_output:
             window_shape = window_data.shape[2:]
-            output_shape = seg_prob_tuple[0].shape[2:]
+            seg_shape = seg_prob_tuple[0].shape[2:]
 
             window_pad_size = []
             window_pad_slices = []
-            for window_s, output_s in zip(window_shape, output_shape):
+            for window_s, output_s in zip(window_shape, seg_shape):
                 pad_width = max(window_s - output_s, 0)
                 pad_half_1 = pad_width // 2
                 pad_half_2 = pad_width - pad_half_1
@@ -308,7 +308,7 @@ def sliding_window_inference(
         output_image_list[ss] = output_i[final_slicing]
 
         if extra_input_padding is not None:
-            extra_slicing = []
+            extra_slicing: List[slice] = []
             for sp in range(len(extra_input_padding) // 2):
                 slice_dim = slice(
                     extra_input_padding[sp * 2],
