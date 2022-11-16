@@ -15,13 +15,7 @@ from copy import deepcopy
 from parameterized import parameterized
 
 from monai.data import MetaTensor
-from monai.transforms import (
-    EnsureChannelFirst,
-    InvertibleTransform,
-    RandomOrder,
-    TraceableTransform,
-    Transform,
-)
+from monai.transforms import EnsureChannelFirst, InvertibleTransform, RandomOrder, TraceableTransform, Transform
 from monai.transforms.compose import Compose
 from monai.transforms.transform import MapTransform
 
