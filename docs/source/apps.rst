@@ -153,6 +153,8 @@ Applications
     :members:
 .. autoclass:: GenerateWatershedMarkers
     :members:
+.. autoclass:: HoVerNetNuclearTypePostProcessing
+    :members:
 
 .. automodule:: monai.apps.pathology.transforms.post.dictionary
 .. autoclass:: GenerateSuccinctContourd
@@ -172,6 +174,8 @@ Applications
 .. autoclass:: GenerateDistanceMapd
     :members:
 .. autoclass:: GenerateWatershedMarkersd
+    :members:
+.. autoclass:: HoVerNetNuclearTypePostProcessingd
     :members:
 
 `Detection`
