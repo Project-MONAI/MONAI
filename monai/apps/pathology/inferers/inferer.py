@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import Any, Callable, Dict,List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn.functional as F
@@ -150,7 +150,7 @@ class SlidingWindowHoVerNetInferer(Inferer):
                 inputs,
                 pad=tuple(self.extra_input_padding),
                 mode=look_up_option(self.padding_mode, PytorchPadMode),
-                value=self.cval
+                value=self.cval,
             )
 
         results = sliding_window_inference(
@@ -168,6 +168,7 @@ class SlidingWindowHoVerNetInferer(Inferer):
             self.progress,
             self.roi_weight_map,
             self.pad_output,
+            False,
             *args,
             **kwargs,
         )
