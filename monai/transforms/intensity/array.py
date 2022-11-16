@@ -220,12 +220,14 @@ class ShiftIntensity(Transform):
 
     Args:
         offset: offset value to shift the intensity of image.
+        clip_range: intensity range to clip after shift intensity. defaults to None.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, offset: float) -> None:
+    def __init__(self, offset: float, clip_range: Optional[Sequence[float]] = None) -> None:
         self.offset = offset
+        self.clip_range = clip_range
 
     def __call__(self, img: NdarrayOrTensor, offset: Optional[float] = None) -> NdarrayOrTensor:
         """
@@ -235,6 +237,8 @@ class ShiftIntensity(Transform):
         img = convert_to_tensor(img, track_meta=get_track_meta())
         offset = self.offset if offset is None else offset
         out = img + offset
+        if self.clip_range is not None:
+            out = clip(out, self.clip_range[0], self.clip_range[1])
         out, *_ = convert_data_type(data=out, dtype=img.dtype)
 
         return out
@@ -247,11 +251,17 @@ class RandShiftIntensity(RandomizableTransform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, offsets: Union[Tuple[float, float], float], prob: float = 0.1) -> None:
+    def __init__(
+        self,
+        offsets: Union[Tuple[float, float], float],
+        prob: float = 0.1,
+        clip_range: Optional[Sequence[float]] = None,
+    ) -> None:
         """
         Args:
             offsets: offset range to randomly shift.
                 if single number, offset value is picked from (-offsets, offsets).
+            clip_range: intensity range to clip after shift intensity. defaults to None.
             prob: probability of shift.
         """
         RandomizableTransform.__init__(self, prob)
@@ -262,7 +272,7 @@ class RandShiftIntensity(RandomizableTransform):
         else:
             self.offsets = (min(offsets), max(offsets))
         self._offset = self.offsets[0]
-        self._shifter = ShiftIntensity(self._offset)
+        self._shifter = ShiftIntensity(self._offset, clip_range=clip_range)
 
     def randomize(self, data: Optional[Any] = None) -> None:
         super().randomize(None)
@@ -801,14 +811,16 @@ class AdjustContrast(Transform):
 
     Args:
         gamma: gamma value to adjust the contrast as function.
+        clip_range: intensity range to clip after adjust contrast. defaults to None.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, gamma: float) -> None:
+    def __init__(self, gamma: float, clip_range: Optional[Sequence[float]] = None) -> None:
         if not isinstance(gamma, (int, float)):
             raise ValueError("gamma must be a float or int number.")
         self.gamma = gamma
+        self.clip_range = clip_range
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
@@ -819,6 +831,8 @@ class AdjustContrast(Transform):
         img_min = img.min()
         img_range = img.max() - img_min
         ret: NdarrayOrTensor = ((img - img_min) / float(img_range + epsilon)) ** self.gamma * img_range + img_min
+        if self.clip_range is not None:
+            ret = clip(ret, self.clip_range[0], self.clip_range[1])
         return ret
 
 
@@ -832,11 +846,17 @@ class RandAdjustContrast(RandomizableTransform):
         prob: Probability of adjustment.
         gamma: Range of gamma values.
             If single number, value is picked from (0.5, gamma), default is (0.5, 4.5).
+        clip_range: intensity range to clip after adjust contrast. defaults to None.
     """
 
     backend = AdjustContrast.backend
 
-    def __init__(self, prob: float = 0.1, gamma: Union[Sequence[float], float] = (0.5, 4.5)) -> None:
+    def __init__(
+        self,
+        prob: float = 0.1,
+        gamma: Union[Sequence[float], float] = (0.5, 4.5),
+        clip_range: Optional[Sequence[float]] = None,
+    ) -> None:
         RandomizableTransform.__init__(self, prob)
 
         if isinstance(gamma, (int, float)):
@@ -851,6 +871,7 @@ class RandAdjustContrast(RandomizableTransform):
             self.gamma = (min(gamma), max(gamma))
 
         self.gamma_value: Optional[float] = None
+        self.clip_range = clip_range
 
     def randomize(self, data: Optional[Any] = None) -> None:
         super().randomize(None)
@@ -871,7 +892,7 @@ class RandAdjustContrast(RandomizableTransform):
 
         if self.gamma_value is None:
             raise RuntimeError("gamma_value is not set, please call `randomize` function first.")
-        return AdjustContrast(self.gamma_value)(img)
+        return AdjustContrast(self.gamma_value, self.clip_range)(img)
 
 
 class ScaleIntensityRangePercentiles(Transform):

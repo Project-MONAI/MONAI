@@ -37,6 +37,14 @@ class TestShiftIntensityd(NumpyImageTestCase2D):
         expected = self.imt + 1.0 * np.nanmax(self.imt)
         np.testing.assert_allclose(result[key], expected)
 
+    def test_value_with_clip(self):
+        key = "img"
+        for p in TEST_NDARRAYS:
+            shifter = ShiftIntensityd(keys=[key], offset=1.0, clip_range=[1.0, 1.5])
+            result = shifter({key: p(self.imt)})
+            expected = np.clip((self.imt + 1.0 * np.nanmax(self.imt)), 1.0, 1.5)
+            assert_allclose(result[key], p(expected), type_test="tensor")
+
 
 if __name__ == "__main__":
     unittest.main()

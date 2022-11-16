@@ -304,6 +304,7 @@ class ShiftIntensityd(MapTransform):
         self,
         keys: KeysCollection,
         offset: float,
+        clip_range: Optional[Sequence[float]] = None,
         factor_key: Optional[str] = None,
         meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
@@ -314,6 +315,7 @@ class ShiftIntensityd(MapTransform):
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             offset: offset value to shift the intensity of image.
+            clip_range: intensity range to clip after shift intensity. defaults to None.
             factor_key: if not None, use it as the key to extract a value from the corresponding
                 metadata dictionary of `key` at runtime, and multiply the `offset` to shift intensity.
                 Usually, `IntensityStatsd` transform can pre-compute statistics of intensity values
@@ -336,7 +338,7 @@ class ShiftIntensityd(MapTransform):
         if len(self.keys) != len(self.meta_keys):
             raise ValueError("meta_keys should have the same length as keys.")
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
-        self.shifter = ShiftIntensity(offset)
+        self.shifter = ShiftIntensity(offset, clip_range)
 
     def __call__(self, data) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -361,6 +363,7 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
         self,
         keys: KeysCollection,
         offsets: Union[Tuple[float, float], float],
+        clip_range: Optional[Sequence[float]] = None,
         factor_key: Optional[str] = None,
         meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
@@ -373,6 +376,7 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             offsets: offset range to randomly shift.
                 if single number, offset value is picked from (-offsets, offsets).
+            clip_range: intensity range to clip after shift intensity. defaults to None.
             factor_key: if not None, use it as the key to extract a value from the corresponding
                 metadata dictionary of `key` at runtime, and multiply the random `offset` to shift intensity.
                 Usually, `IntensityStatsd` transform can pre-compute statistics of intensity values
@@ -399,7 +403,7 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
         if len(self.keys) != len(self.meta_keys):
             raise ValueError("meta_keys should have the same length as keys.")
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
-        self.shifter = RandShiftIntensity(offsets=offsets, prob=1.0)
+        self.shifter = RandShiftIntensity(offsets=offsets, prob=1.0, clip_range=clip_range)
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
@@ -802,14 +806,21 @@ class AdjustContrastd(MapTransform):
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
         gamma: gamma value to adjust the contrast as function.
+        clip_range: intensity range to clip after adjust contrast. defaults to None.
         allow_missing_keys: don't raise exception if key is missing.
     """
 
     backend = AdjustContrast.backend
 
-    def __init__(self, keys: KeysCollection, gamma: float, allow_missing_keys: bool = False) -> None:
+    def __init__(
+        self,
+        keys: KeysCollection,
+        gamma: float,
+        clip_range: Optional[Sequence[float]] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.adjuster = AdjustContrast(gamma)
+        self.adjuster = AdjustContrast(gamma, clip_range)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -831,6 +842,7 @@ class RandAdjustContrastd(RandomizableTransform, MapTransform):
         prob: Probability of adjustment.
         gamma: Range of gamma values.
             If single number, value is picked from (0.5, gamma), default is (0.5, 4.5).
+        clip_range: intensity range to clip after adjust contrast. defaults to None.
         allow_missing_keys: don't raise exception if key is missing.
     """
 
@@ -841,11 +853,12 @@ class RandAdjustContrastd(RandomizableTransform, MapTransform):
         keys: KeysCollection,
         prob: float = 0.1,
         gamma: Union[Tuple[float, float], float] = (0.5, 4.5),
+        clip_range: Optional[Sequence[float]] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        self.adjuster = RandAdjustContrast(gamma=gamma, prob=1.0)
+        self.adjuster = RandAdjustContrast(gamma=gamma, prob=1.0, clip_range=clip_range)
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None

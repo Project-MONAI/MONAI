@@ -31,6 +31,18 @@ class TestRandShiftIntensity(NumpyImageTestCase2D):
         expected = self.imt + np.random.uniform(low=-1.0, high=1.0)
         assert_allclose(result, expected, type_test="tensor")
 
+    @parameterized.expand([[p] for p in TEST_NDARRAYS])
+    def test_value_with_clip(self, p):
+        shifter = RandShiftIntensity(offsets=1.0, prob=1.0, clip_range=[0.0, 1.0])
+        shifter.set_random_state(seed=0)
+        im = p(self.imt)
+        result = shifter(im, factor=1.0)
+        np.random.seed(0)
+        # simulate the randomize() of transform
+        np.random.random()
+        expected = np.clip(self.imt + np.random.uniform(low=-1.0, high=1.0), 0.0, 1.0)
+        assert_allclose(result, expected, type_test="tensor")
+
 
 if __name__ == "__main__":
     unittest.main()

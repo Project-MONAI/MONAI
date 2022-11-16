@@ -24,6 +24,12 @@ class TestShiftIntensity(NumpyImageTestCase2D):
         expected = self.imt + 1.0
         np.testing.assert_allclose(result, expected)
 
+    def test_value_with_clip(self):
+        shifter = ShiftIntensity(offset=1.0, clip_range=[0.0, 1.0])
+        result = shifter(self.imt)
+        expected = np.clip((self.imt + 1.0), 0.0, 1.0)
+        np.testing.assert_allclose(result, expected)
+
 
 if __name__ == "__main__":
     unittest.main()
