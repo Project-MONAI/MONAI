@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import functools
 import warnings
 from copy import deepcopy
 from typing import Any, Sequence
@@ -27,6 +28,25 @@ from monai.utils.enums import LazyAttr, MetaKeys, PostFix, SpaceKeys
 from monai.utils.type_conversion import convert_data_type, convert_to_numpy, convert_to_tensor
 
 __all__ = ["MetaTensor"]
+
+
+@functools.lru_cache(None)
+def _get_named_tuple_like_type(func):
+    if (
+        hasattr(torch, "return_types")
+        and hasattr(func, "__name__")
+        and hasattr(torch.return_types, func.__name__)
+        and isinstance(getattr(torch.return_types, func.__name__), type)
+    ):
+        return getattr(torch.return_types, func.__name__)
+    return None
+
+
+def _not_requiring_metadata(ret):
+    return isinstance(ret, (int, str, bytes, torch.Size, torch.dtype, torch.device, np.ndarray)) or not (
+        isinstance(ret, MetaTensor) or (isinstance(ret, Sequence) and any(isinstance(x, MetaTensor) for x in ret))
+    )
+
 
 class MetaTensor(MetaObj, torch.Tensor):
     """
@@ -252,17 +272,9 @@ class MetaTensor(MetaObj, torch.Tensor):
         # we might have 1 or multiple outputs. Might be MetaTensor, might be something
         # else (e.g., `__repr__` returns a string).
         # Convert to list (if necessary), process, and at end remove list if one was added.
-        if isinstance(ret, (str, bytes, torch.Size)) or not (
-            isinstance(ret, MetaTensor) or (isinstance(ret, Sequence) and any(isinstance(x, MetaTensor) for x in ret))
-        ):
+        if _not_requiring_metadata(ret):
             return ret
-        if (
-            hasattr(torch, "return_types")
-            and hasattr(func, "__name__")
-            and hasattr(torch.return_types, func.__name__)
-            and isinstance(getattr(torch.return_types, func.__name__), type)
-            and isinstance(ret, getattr(torch.return_types, func.__name__))
-        ):
+        if _get_named_tuple_like_type(func) is not None and isinstance(ret, _get_named_tuple_like_type(func)):
             # for torch.max(torch.tensor(1.0), dim=0), the return type is named-tuple like
             out_items = MetaTensor.update_meta(ret, func, args, kwargs)
             for idx in range(ret.n_fields):
