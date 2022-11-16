@@ -152,7 +152,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             metrics={},
             metric_details={},
             dataloader=None,
-            device=device if isinstance(device, torch.device) else torch.device(device),
+            device=device if isinstance(device, torch.device) or device is None else torch.device(device),
             key_metric_name=None,  # we can set many metrics, only use key_metric to compare and save the best model
             best_metric=-1,
             best_metric_epoch=-1,
