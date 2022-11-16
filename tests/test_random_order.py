@@ -19,7 +19,6 @@ from monai.transforms import (
     EnsureChannelFirst,
     InvertibleTransform,
     RandomOrder,
-    Compose,
     TraceableTransform,
     Transform,
 )
@@ -100,7 +99,6 @@ class InvB(Inv):
         self.inv_fn = lambda x: x / 100
 
 
-
 KEYS = ["x", "y"]
 TEST_INVERSES = [
     (RandomOrder((InvA(KEYS), InvB(KEYS))), True, True),
@@ -108,6 +106,7 @@ TEST_INVERSES = [
     (RandomOrder((Compose((InvA(KEYS), InvB(KEYS))), Compose((InvB(KEYS), InvA(KEYS))))), True, False),
     (RandomOrder((NonInv(KEYS), NonInv(KEYS))), False, False),
 ]
+
 
 class TestRandomOrder(unittest.TestCase):
     def test_flatten_and_len(self):
@@ -128,11 +127,7 @@ class TestRandomOrder(unittest.TestCase):
 
         if invertible:
             for k in KEYS:
-                t = (
-                    fwd_data[TraceableTransform.trace_key(k)]
-                    if not use_metatensor
-                    else fwd_data[k].applied_operations
-                )
+                t = fwd_data[TraceableTransform.trace_key(k)] if not use_metatensor else fwd_data[k].applied_operations
                 print(k, t)
 
         # call the inverse
