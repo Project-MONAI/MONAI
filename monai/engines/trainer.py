@@ -134,7 +134,7 @@ class SupervisedTrainer(Trainer):
 
     def __init__(
         self,
-        device: torch.device,
+        device: str | torch.device,
         max_epochs: int,
         train_data_loader: Iterable | DataLoader,
         network: torch.nn.Module,
@@ -304,7 +304,7 @@ class GanTrainer(Trainer):
 
     def __init__(
         self,
-        device: torch.device,
+        device: str | torch.device,
         max_epochs: int,
         train_data_loader: DataLoader,
         g_network: torch.nn.Module,
