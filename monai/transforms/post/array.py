@@ -922,7 +922,7 @@ class SobelGradients(Transform):
         grad_list = []
         for ax in spatial_axes:
             kernels = [kernel_smooth] * n_spatial_dims
-            kernels[ax - 1] = kernel_diff
+            kernels[ax] = kernel_diff
             grad = separable_filtering(image_tensor, kernels, mode=self.padding)
             if self.normalize_gradients:
                 grad_min = grad.min()
