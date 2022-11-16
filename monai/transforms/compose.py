@@ -287,7 +287,7 @@ class OneOf(Compose):
 
 class RandomOrder(Compose):
     """
-    ``RandomOrder`` provides the ability to apply a list of transformations in a random order.
+    ``RandomOrder`` provides the ability to apply a list of transformations in random order.
 
     Args:
         transforms: sequence of callables.
