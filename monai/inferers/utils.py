@@ -48,7 +48,7 @@ def sliding_window_inference(
     device: Optional[Union[torch.device, str]] = None,
     progress: bool = False,
     roi_weight_map: Optional[torch.Tensor] = None,
-    pad_output: bool = False,
+    process_fn: Optional[Callable] = None,
     *args: Any,
     **kwargs: Any,
 ) -> Union[torch.Tensor, Tuple[torch.Tensor, ...], Dict[Any, torch.Tensor]]:
@@ -109,7 +109,7 @@ def sliding_window_inference(
         progress: whether to print a `tqdm` progress bar.
         roi_weight_map: pre-computed (non-negative) weight map for each ROI.
             If not given, and ``mode`` is not `constant`, this map will be computed on the fly.
-        pad_output: wether to pad the inference output to match window size
+        process_fn: process inference output and adjust the importance map per window
         args: optional args to be passed to ``predictor``.
         kwargs: optional keyword args to be passed to ``predictor``.
 
@@ -197,30 +197,14 @@ def sliding_window_inference(
             seg_prob_tuple = ensure_tuple(seg_prob_out)
             is_tensor_output = False
 
-        if pad_output:
-            window_shape = window_data.shape[2:]
-            seg_shape = seg_prob_tuple[0].shape[2:]
-
-            window_pad_size = []
-            window_pad_slices = []
-            for window_s, output_s in zip(window_shape, seg_shape):
-                pad_width = max(window_s - output_s, 0)
-                pad_half_1 = pad_width // 2
-                pad_half_2 = pad_width - pad_half_1
-                window_pad_size.extend([pad_half_1, pad_half_2])
-                window_pad_slices.append(slice(pad_half_1, window_s - pad_half_2))
-
-            # Make the padding area of the importance map zero
-            importance_map = torch.zeros(window_shape)
-            importance_map[window_pad_slices] = importance_map_[window_pad_slices]
+        if process_fn:
+            seg_prob_tuple, importance_map = process_fn(seg_prob_tuple, window_data, importance_map_)
         else:
             importance_map = importance_map_
 
         # for each output in multi-output list
         for ss, seg_prob in enumerate(seg_prob_tuple):
             seg_prob = seg_prob.to(device)  # BxCxMxNxP or BxCxMxN
-            if pad_output:
-                seg_prob = F.pad(seg_prob, pad=tuple(window_pad_size), mode="constant", value=cval)
 
             # compute zoom scale: out_roi_size/in_roi_size
             zoom_scale = []

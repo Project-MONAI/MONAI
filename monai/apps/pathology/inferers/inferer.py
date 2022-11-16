@@ -122,6 +122,30 @@ class SlidingWindowHoVerNetInferer(Inferer):
                 "Seems to be OOM. Please try smaller roi_size, or use mode='constant' instead of mode='gaussian'. "
             ) from e
 
+    @staticmethod
+    def process_output(seg_prob_tuple, window_data, importance_map_):
+        window_shape = window_data.shape[2:]
+        seg_shape = seg_prob_tuple[0].shape[2:]
+
+        window_pad_size = []
+        window_pad_slices = []
+        for window_s, output_s in zip(window_shape, seg_shape):
+            pad_width = max(window_s - output_s, 0)
+            pad_half_1 = pad_width // 2
+            pad_half_2 = pad_width - pad_half_1
+            window_pad_size.extend([pad_half_1, pad_half_2])
+            window_pad_slices.append(slice(pad_half_1, window_s - pad_half_2))
+
+        # Make the padding area of the importance map zero
+        importance_map = torch.zeros(window_shape)
+        importance_map[window_pad_slices] = importance_map_[window_pad_slices]
+
+        seg_prob_tuple = tuple(
+            F.pad(seg_prob, pad=tuple(window_pad_size), mode="constant") for seg_prob in seg_prob_tuple
+        )
+
+        return seg_prob_tuple, importance_map
+
     def __call__(
         self,
         inputs: torch.Tensor,
@@ -168,7 +192,7 @@ class SlidingWindowHoVerNetInferer(Inferer):
             device,
             self.progress,
             self.roi_weight_map,
-            self.pad_output,
+            self.process_output,
             *args,
             **kwargs,
         )
