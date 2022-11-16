@@ -68,7 +68,7 @@ class ExtraFPNBlock(nn.Module):
     Same code as https://github.com/pytorch/vision/blob/release/0.12/torchvision/ops/feature_pyramid_network.py
     """
 
-    def forward(self, results: List[Tensor], x: List[Tensor], names: List[str]) -> Tuple[List[Tensor], List[str]]:
+    def forward(self, results: List[Tensor], x: List[Tensor], names: List[str]):
         """
         Compute extended set of results of the FPN and their names.
 
