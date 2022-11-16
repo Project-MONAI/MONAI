@@ -22,11 +22,13 @@ from monai.apps.pathology.transforms.post.array import (
     GenerateSuccinctContour,
     GenerateWatershedMarkers,
     GenerateWatershedMask,
+    HoVerNetNuclearTypePostProcessing,
     Watershed,
 )
 from monai.config.type_definitions import DtypeLike, KeysCollection, NdarrayOrTensor
-from monai.transforms.transform import MapTransform
-from monai.utils import optional_import
+from monai.transforms.transform import MapTransform, Transform
+from monai.utils import convert_to_dst_type, optional_import
+from monai.utils.enums import HoVerNetBranch
 
 find_contours, _ = optional_import("skimage.measure", name="find_contours")
 moments, _ = optional_import("skimage.measure", name="moments")
@@ -59,6 +61,9 @@ __all__ = [
     "GenerateInstanceTypeDict",
     "GenerateInstanceTypeD",
     "GenerateInstanceTyped",
+    "HoVerNetNuclearTypePostProcessingDict",
+    "HoVerNetNuclearTypePostProcessingD",
+    "HoVerNetNuclearTypePostProcessingd",
 ]
 
 
@@ -354,7 +359,7 @@ class GenerateInstanceContourd(MapTransform):
         contour_key_postfix: the output contour coordinates will be written to the value of
             `{key}_{contour_key_postfix}`.
         offset_key: keys of offset used in `GenerateInstanceContour`.
-        points_num: assumed that the created contour does not form a contour if it does not contain more points
+        min_num_points: assumed that the created contour does not form a contour if it does not contain more points
             than the specified value. Defaults to 3.
         level: optional. Value along which to find contours in the array. By default, the level is set
             to (max(image) + min(image)) / 2.
@@ -369,12 +374,12 @@ class GenerateInstanceContourd(MapTransform):
         keys: KeysCollection,
         contour_key_postfix: str = "contour",
         offset_key: Optional[str] = None,
-        points_num: int = 3,
+        min_num_points: int = 3,
         level: Optional[float] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.converter = GenerateInstanceContour(points_num=points_num, level=level)
+        self.converter = GenerateInstanceContour(min_num_points=min_num_points, level=level)
         self.contour_key_postfix = contour_key_postfix
         self.offset_key = offset_key
 
@@ -480,6 +485,68 @@ class GenerateInstanceTyped(MapTransform):
         return d
 
 
+class HoVerNetNuclearTypePostProcessingd(Transform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.post.array.HoVerNetNuclearTypePostProcessing`.
+    Generate instance type and probability for each instance.
+
+    Args:
+        type_pred_key: the key pointing to the pred type map to be transformed.
+        instance_pred_key: the key pointing to the pred distance map.
+        min_num_points: assumed that the created contour does not form a contour if it does not contain more points
+            than the specified value. Defaults to 3.
+        level: optional. Used in `skimage.measure.find_contours`. Value along which to find contours in the array.
+            By default, the level is set to (max(image) + min(image)) / 2.
+        return_binary: whether to return the binary segmentation prediction after `seg_postprocessing`.
+        pred_binary_key: if `return_binary` is True, this `pred_binary_key` is used to get the binary prediciton
+            from the output.
+        return_centroids: whether to return centroids for each instance.
+        output_classes: number of the nuclear type classes.
+        instance_info_dict_key: key use to record information for each instance.
+        allow_missing_keys: don't raise exception if key is missing.
+
+    """
+
+    def __init__(
+        self,
+        type_pred_key: str = HoVerNetBranch.NC.value,
+        instance_pred_key: str = "dist",
+        min_num_points: int = 3,
+        level: Optional[float] = None,
+        return_binary: Optional[bool] = True,
+        pred_binary_key: Optional[str] = "pred_binary",
+        return_centroids: Optional[bool] = False,
+        output_classes: Optional[int] = None,
+        instance_info_dict_key: Optional[str] = "instance_info_dict",
+    ) -> None:
+        super().__init__()
+        self.converter = HoVerNetNuclearTypePostProcessing(
+            min_num_points=min_num_points, level=level, return_centroids=return_centroids, output_classes=output_classes
+        )
+        self.type_pred_key = type_pred_key
+        self.instance_pred_key = instance_pred_key
+        self.pred_binary_key = pred_binary_key
+        self.instance_info_dict_key = instance_info_dict_key
+        self.return_binary = return_binary
+
+    def __call__(self, data):
+        d = dict(data)
+        inst_pred = d[self.instance_pred_key]
+        type_pred = d[self.type_pred_key]
+        inst_info_dict = self.converter(type_pred, inst_pred)
+        key_to_add = f"{self.instance_info_dict_key}"
+        if key_to_add in d:
+            raise KeyError(f"Type information with key {key_to_add} already exists.")
+        d[key_to_add] = inst_info_dict  # type: ignore
+
+        inst_pred = convert_to_dst_type(inst_pred, type_pred)[0]
+        if self.return_binary:
+            inst_pred[inst_pred > 0] = 1
+            d[self.pred_binary_key] = inst_pred
+
+        return d
+
+
 WatershedD = WatershedDict = Watershedd
 GenerateWatershedMaskD = GenerateWatershedMaskDict = GenerateWatershedMaskd
 GenerateInstanceBorderD = GenerateInstanceBorderDict = GenerateInstanceBorderd
@@ -489,3 +556,4 @@ GenerateSuccinctContourDict = GenerateSuccinctContourD = GenerateSuccinctContour
 GenerateInstanceContourDict = GenerateInstanceContourD = GenerateInstanceContourd
 GenerateInstanceCentroidDict = GenerateInstanceCentroidD = GenerateInstanceCentroidd
 GenerateInstanceTypeDict = GenerateInstanceTypeD = GenerateInstanceTyped
+HoVerNetNuclearTypePostProcessingDict = HoVerNetNuclearTypePostProcessingD = HoVerNetNuclearTypePostProcessingd

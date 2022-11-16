@@ -33,7 +33,7 @@ class FBetaScore(CumulativeIterationMetric):
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  #
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
         is_binary_tensor(y_pred, "y_pred")
         is_binary_tensor(y, "y")
 

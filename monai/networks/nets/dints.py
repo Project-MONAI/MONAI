@@ -38,16 +38,16 @@ __all__ = ["DiNTS", "TopologyConstruction", "TopologyInstance", "TopologySearch"
 class CellInterface(torch.nn.Module):
     """interface for torchscriptable Cell"""
 
-    def forward(self, x: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
-        pass
+    def forward(self, x: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:  # type: ignore
+        pass  # type: ignore
 
 
 @torch.jit.interface
 class StemInterface(torch.nn.Module):
     """interface for torchscriptable Stem"""
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        pass
+    def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore
+        pass  # type: ignore
 
 
 class StemTS(StemInterface):
