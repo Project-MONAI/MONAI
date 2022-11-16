@@ -28,7 +28,6 @@ from monai.utils.type_conversion import convert_data_type, convert_to_numpy, con
 
 __all__ = ["MetaTensor"]
 
-
 class MetaTensor(MetaObj, torch.Tensor):
     """
     Class that inherits from both `torch.Tensor` and `MetaObj`, adding support for metadata.
@@ -253,8 +252,8 @@ class MetaTensor(MetaObj, torch.Tensor):
         # we might have 1 or multiple outputs. Might be MetaTensor, might be something
         # else (e.g., `__repr__` returns a string).
         # Convert to list (if necessary), process, and at end remove list if one was added.
-        if not isinstance(ret, MetaTensor) or (
-            isinstance(ret, Sequence) and not any(isinstance(x, MetaTensor) for x in ret)
+        if isinstance(ret, (str, bytes, torch.Size)) or not (
+            isinstance(ret, MetaTensor) or (isinstance(ret, Sequence) and any(isinstance(x, MetaTensor) for x in ret))
         ):
             return ret
         if (
@@ -270,7 +269,7 @@ class MetaTensor(MetaObj, torch.Tensor):
                 ret[idx].meta = out_items[idx].meta
                 ret[idx].applied_operations = out_items[idx].applied_operations
             return ret
-        if isinstance(ret, (str, bytes)) or not isinstance(ret, Sequence):
+        if not isinstance(ret, Sequence):
             ret = [ret]
             unpack = True
         else:
