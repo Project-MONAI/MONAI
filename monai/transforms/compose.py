@@ -31,7 +31,7 @@ from monai.transforms.transform import (  # noqa: F401
 from monai.utils import MAX_SEED, ensure_tuple, get_seed
 from monai.utils.enums import TraceKeys
 
-__all__ = ["Compose", "OneOf"]
+__all__ = ["Compose", "OneOf", "RandomOrder"]
 
 
 class Compose(Randomizable, InvertibleTransform):
@@ -283,3 +283,36 @@ class OneOf(Compose):
         _transform = self.transforms[index]
         # apply the inverse
         return _transform.inverse(data) if isinstance(_transform, InvertibleTransform) else data
+
+
+class RandomOrder(Compose):
+    """
+    ``RandomOrder`` provides the ability to apply a list of transformations in a random order.
+
+    Args:
+        transforms: sequence of callables.
+        map_items: whether to apply transform to each item in the input `data` if `data` is a list or tuple.
+            defaults to `True`.
+        unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
+            defaults to `False`.
+        log_stats: whether to log the detailed information of data and applied transform when error happened,
+            for NumPy array and PyTorch Tensor, log the data shape and value range,
+            for other metadata, log the values directly. default to `False`.
+
+    """
+    def __init__(
+        self,
+        transforms: Optional[Union[Sequence[Callable], Callable]] = None,
+        map_items: bool = True,
+        unpack_items: bool = False,
+        log_stats: bool = False,
+    ) -> None:
+        super().__init__(transforms, map_items, unpack_items, log_stats)
+    
+    def __call__(self, input_):
+        self.transforms = self.R.permutation(self.transforms)
+
+        for _transform in self.transforms:
+            input_ = apply_transform(_transform, input_, self.map_items, self.unpack_items, self.log_stats)
+        return input_
+

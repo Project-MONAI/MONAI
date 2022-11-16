@@ -83,6 +83,11 @@ Generic Interfaces
 .. autoclass:: OneOf
     :members:
 
+`RandomOrder`
+^^^^^^^
+.. autoclass:: RandomOrder
+    :members:
+
 Vanilla Transforms
 ------------------
 
