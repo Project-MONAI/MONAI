@@ -60,7 +60,7 @@ class IterationEvents(EventEnum):
     INNER_ITERATION_COMPLETED = "inner_iteration_completed"
 
 
-def get_devices_spec(devices: Optional[Sequence[torch.device]] = None) -> List[torch.device]:
+def get_devices_spec(devices: Optional[Sequence[torch.device]] = None) -> List[Union[torch.device, str]]:
     """
     Get a valid specification for one or more devices. If `devices` is None get devices for all CUDA devices available.
     If `devices` is and zero-length structure a single CPU compute device is returned. In any other cases `devices` is
