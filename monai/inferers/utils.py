@@ -48,7 +48,6 @@ def sliding_window_inference(
     device: Optional[Union[torch.device, str]] = None,
     progress: bool = False,
     roi_weight_map: Optional[torch.Tensor] = None,
-    extra_input_padding: Optional[Tuple[int]] = None,
     pad_output: bool = False,
     *args: Any,
     **kwargs: Any,
@@ -110,8 +109,6 @@ def sliding_window_inference(
         progress: whether to print a `tqdm` progress bar.
         roi_weight_map: pre-computed (non-negative) weight map for each ROI.
             If not given, and ``mode`` is not `constant`, this map will be computed on the fly.
-        extra_input_padding: the amount of padding for the input image, which is a tuple of even number of pads.
-            Refer to to the `pad` argument of `torch.nn.functional.pad` for more details.
         pad_output: wether to pad the inference output to match window size
         args: optional args to be passed to ``predictor``.
         kwargs: optional keyword args to be passed to ``predictor``.
@@ -124,12 +121,6 @@ def sliding_window_inference(
     num_spatial_dims = len(inputs.shape) - 2
     if overlap < 0 or overlap >= 1:
         raise ValueError("overlap must be >= 0 and < 1.")
-
-    if extra_input_padding is not None:
-        _, _, *image_size_original = inputs.shape
-        inputs = F.pad(
-            inputs, pad=tuple(extra_input_padding), mode=look_up_option(padding_mode, PytorchPadMode), value=cval
-        )
 
     # determine image spatial size and batch size
     # Note: all input images must have the same image size and batch size
@@ -306,16 +297,6 @@ def sliding_window_inference(
         while len(final_slicing) < len(output_i.shape):
             final_slicing.insert(0, slice(None))
         output_image_list[ss] = output_i[final_slicing]
-
-        if extra_input_padding is not None:
-            extra_slicing: List[slice] = []
-            for sp in range(len(extra_input_padding) // 2):
-                slice_dim = slice(
-                    extra_input_padding[sp * 2],
-                    image_size_original[num_spatial_dims - sp - 1] + extra_input_padding[sp * 2],
-                )
-                extra_slicing.insert(0, slice_dim)
-            output_image_list[ss] = output_image_list[ss][extra_slicing]
 
     if dict_key is not None:  # if output of predictor is a dict
         final_output = dict(zip(dict_key, output_image_list))

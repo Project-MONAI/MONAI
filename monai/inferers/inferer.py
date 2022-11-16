@@ -125,8 +125,6 @@ class SlidingWindowInferer(Inferer):
         cpu_thresh: when provided, dynamically switch to stitching on cpu (to save gpu memory)
             when input image volume is larger than this threshold (in pixels/voxels).
             Otherwise use ``"device"``. Thus, the output may end-up on either cpu or gpu.
-        extra_input_padding: the amount of padding for the input image, which is a tuple of even number of pads.
-            Refer to to the `pad` argument of `torch.nn.functional.pad` for more details.
         pad_output: wether to pad the inference output to match window size
 
     Note:
@@ -149,7 +147,6 @@ class SlidingWindowInferer(Inferer):
         progress: bool = False,
         cache_roi_weight_map: bool = False,
         cpu_thresh: Optional[int] = None,
-        extra_input_padding: Optional[Tuple[int]] = None,
         pad_output: bool = False,
     ) -> None:
         super().__init__()
@@ -164,7 +161,6 @@ class SlidingWindowInferer(Inferer):
         self.device = device
         self.progress = progress
         self.cpu_thresh = cpu_thresh
-        self.extra_input_padding = extra_input_padding
         self.pad_output = pad_output
 
         # compute_importance_map takes long time when computing on cpu. We thus
@@ -220,7 +216,6 @@ class SlidingWindowInferer(Inferer):
             device,
             self.progress,
             self.roi_weight_map,
-            self.extra_input_padding,
             self.pad_output,
             *args,
             **kwargs,
