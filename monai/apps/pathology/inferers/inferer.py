@@ -117,7 +117,7 @@ class SlidingWindowHoVerNetInferer(SlidingWindowInferer):
             window_pad_slices.append(slice(pad_half_1, window_s - pad_half_2))
 
         # Make the padding area of the importance map zero
-        importance_map = torch.zeros(window_shape)
+        importance_map = torch.zeros(window_shape, dtype=importance_map_.dtype, device=importance_map_.device)
         importance_map[window_pad_slices] = importance_map_[window_pad_slices]
 
         seg_prob_tuple = tuple(
