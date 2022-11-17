@@ -324,6 +324,7 @@ class FgImageStats(Analyzer):
         ndas = [d[self.image_key][i] for i in range(d[self.image_key].shape[0])]
         ndas_label = d[self.label_key]  # (H,W,D)
         nda_foregrounds = [get_foreground_label(nda, ndas_label) for nda in ndas]
+        nda_foregrounds = [nda if nda.numel() > 0 else torch.Tensor([0,]) for nda in nda_foregrounds]
 
         # perform calculation
         report = deepcopy(self.get_report_format())
@@ -449,6 +450,7 @@ class LabelStats(Analyzer):
         ndas = [d[self.image_key][i] for i in range(d[self.image_key].shape[0])]
         ndas_label = d[self.label_key]  # (H,W,D)
         nda_foregrounds = [get_foreground_label(nda, ndas_label) for nda in ndas]
+        nda_foregrounds = [nda if nda.numel() > 0 else torch.Tensor([0,]) for nda in nda_foregrounds]
 
         unique_label = unique(ndas_label)
         if isinstance(ndas_label, (MetaTensor, torch.Tensor)):
