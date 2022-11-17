@@ -9,21 +9,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 
-from monai.inferers import Inferer
-from monai.inferers.utils import compute_importance_map, sliding_window_inference
-from monai.utils import BlendMode, PytorchPadMode, ensure_tuple, look_up_option
+from monai.inferers import SlidingWindowInferer
+from monai.inferers.utils import sliding_window_inference
+from monai.utils import BlendMode, PytorchPadMode, look_up_option
 
 __all__ = ["SlidingWindowHoVerNetInferer"]
 
 
-class SlidingWindowHoVerNetInferer(Inferer):
+class SlidingWindowHoVerNetInferer(SlidingWindowInferer):
     """
     Sliding window method for HoVerNet model inference,
     with `sw_batch_size` windows for every model.forward().
@@ -65,7 +64,6 @@ class SlidingWindowHoVerNetInferer(Inferer):
             Otherwise use ``"device"``. Thus, the output may end-up on either cpu or gpu.
         extra_input_padding: the amount of padding for the input image, which is a tuple of even number of pads.
             Refer to to the `pad` argument of `torch.nn.functional.pad` for more details.
-        pad_output: wether to pad the inference output to match window size
 
     Note:
         ``sw_batch_size`` denotes the max number of windows per network inference iteration,
@@ -88,42 +86,24 @@ class SlidingWindowHoVerNetInferer(Inferer):
         cache_roi_weight_map: bool = False,
         cpu_thresh: Optional[int] = None,
         extra_input_padding: Optional[Tuple[int]] = None,
-        pad_output: bool = False,
     ) -> None:
-        super().__init__()
-        self.roi_size = roi_size
-        self.sw_batch_size = sw_batch_size
-        self.overlap = overlap
-        self.mode: BlendMode = BlendMode(mode)
-        self.sigma_scale = sigma_scale
-        self.padding_mode = padding_mode
-        self.cval = cval
-        self.sw_device = sw_device
-        self.device = device
-        self.progress = progress
-        self.cpu_thresh = cpu_thresh
+        super().__init__(
+            roi_size=roi_size,
+            sw_batch_size=sw_batch_size,
+            overlap=overlap,
+            mode=mode,
+            sigma_scale=sigma_scale,
+            padding_mode=padding_mode,
+            cval=cval,
+            sw_device=sw_device,
+            device=device,
+            progress=progress,
+            cache_roi_weight_map=cache_roi_weight_map,
+            cpu_thresh=cpu_thresh,
+        )
         self.extra_input_padding = extra_input_padding
-        self.pad_output = pad_output
 
-        # compute_importance_map takes long time when computing on cpu. We thus
-        # compute it once if it's static and then save it for future usage
-        self.roi_weight_map = None
-        try:
-            if cache_roi_weight_map and isinstance(roi_size, Sequence) and min(roi_size) > 0:  # non-dynamic roi size
-                if device is None:
-                    device = "cpu"
-                self.roi_weight_map = compute_importance_map(
-                    ensure_tuple(self.roi_size), mode=mode, sigma_scale=sigma_scale, device=device
-                )
-            if cache_roi_weight_map and self.roi_weight_map is None:
-                warnings.warn("cache_roi_weight_map=True, but cache is not created. (dynamic roi_size?)")
-        except BaseException as e:
-            raise RuntimeError(
-                "Seems to be OOM. Please try smaller roi_size, or use mode='constant' instead of mode='gaussian'. "
-            ) from e
-
-    @staticmethod
-    def process_output(seg_prob_tuple, window_data, importance_map_):
+    def process_output(self, seg_prob_tuple, window_data, importance_map_):
         window_shape = window_data.shape[2:]
         seg_shape = seg_prob_tuple[0].shape[2:]
 
@@ -141,7 +121,8 @@ class SlidingWindowHoVerNetInferer(Inferer):
         importance_map[window_pad_slices] = importance_map_[window_pad_slices]
 
         seg_prob_tuple = tuple(
-            F.pad(seg_prob, pad=tuple(window_pad_size), mode="constant") for seg_prob in seg_prob_tuple
+            F.pad(seg_prob, pad=tuple(window_pad_size), mode=self.padding_mode, value=self.cval)
+            for seg_prob in seg_prob_tuple
         )
 
         return seg_prob_tuple, importance_map

@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import itertools
 import unittest
 
 import numpy as np
@@ -17,38 +16,17 @@ import torch
 from parameterized import parameterized
 
 from monai.apps.pathology.inferers import SlidingWindowHoVerNetInferer
-from monai.data.utils import list_data_collate
 from monai.inferers import sliding_window_inference
 from monai.utils import optional_import
-from tests.utils import TEST_TORCH_AND_META_TENSORS, skip_if_no_cuda
+from tests.test_sliding_window_inference import TEST_CASES
 
 _, has_tqdm = optional_import("tqdm")
 
 TEST_CASES_PADDING = [
-    [None, (1, 3, 16, 8), (4, 4), 7, 0.5, "constant", torch.device("cpu:0"), None, True],
-    ["hover", (1, 3, 16, 8), (4, 4), 7, 0.5, "constant", torch.device("cpu:0"), None, True],
-    [None, (1, 3, 16, 8), (4, 4), 7, 0.5, "constant", torch.device("cpu:0"), (1,) * 4, True],
-    ["hover", (1, 3, 16, 8), (4, 4), 7, 0.5, "constant", torch.device("cpu:0"), (1,) * 4, True],
-]
-
-TEST_CASES = [
-    [(2, 3, 16), (4,), 3, 0.25, "constant", torch.device("cpu:0")],  # 1D small roi
-    [(2, 3, 16, 15, 7, 9), 4, 3, 0.25, "constant", torch.device("cpu:0")],  # 4D small roi
-    [(1, 3, 16, 15, 7), (4, -1, 7), 3, 0.25, "constant", torch.device("cpu:0")],  # 3D small roi
-    [(2, 3, 16, 15, 7), (4, -1, 7), 3, 0.25, "constant", torch.device("cpu:0")],  # 3D small roi
-    [(3, 3, 16, 15, 7), (4, -1, 7), 3, 0.25, "constant", torch.device("cpu:0")],  # 3D small roi
-    [(2, 3, 16, 15, 7), (4, -1, 7), 3, 0.25, "constant", torch.device("cpu:0")],  # 3D small roi
-    [(1, 3, 16, 15, 7), (4, 10, 7), 3, 0.25, "constant", torch.device("cpu:0")],  # 3D small roi
-    [(1, 3, 16, 15, 7), (20, 22, 23), 10, 0.25, "constant", torch.device("cpu:0")],  # 3D large roi
-    [(2, 3, 15, 7), (2, 6), 1000, 0.25, "constant", torch.device("cpu:0")],  # 2D small roi, large batch
-    [(1, 3, 16, 7), (80, 50), 7, 0.25, "constant", torch.device("cpu:0")],  # 2D large roi
-    [(1, 3, 16, 15, 7), (20, 22, 23), 10, 0.5, "constant", torch.device("cpu:0")],  # 3D large overlap
-    [(1, 3, 16, 7), (80, 50), 7, 0.5, "gaussian", torch.device("cpu:0")],  # 2D large overlap, gaussian
-    [(1, 3, 16, 15, 7), (4, 10, 7), 3, 0.25, "gaussian", torch.device("cpu:0")],  # 3D small roi, gaussian
-    [(3, 3, 16, 15, 7), (4, 10, 7), 3, 0.25, "gaussian", torch.device("cpu:0")],  # 3D small roi, gaussian
-    [(1, 3, 16, 15, 7), (4, 10, 7), 3, 0.25, "gaussian", torch.device("cuda:0")],  # test inference on gpu if availabe
-    [(1, 3, 16, 15, 7), (4, 1, 7), 3, 0.25, "constant", torch.device("cpu:0")],  # 3D small roi
-    [(5, 3, 16, 15, 7), (4, 1, 7), 3, 0.25, "constant", torch.device("cpu:0")],  # 3D small roi
+    [None, (1, 3, 16, 8), (4, 4), 7, 0.5, "constant", torch.device("cpu:0"), None],
+    ["hover", (1, 3, 16, 8), (4, 4), 7, 0.5, "constant", torch.device("cpu:0"), None],
+    [None, (1, 3, 16, 8), (4, 4), 7, 0.5, "constant", torch.device("cpu:0"), (1,) * 4],
+    ["hover", (1, 3, 16, 8), (4, 4), 7, 0.5, "constant", torch.device("cpu:0"), (1,) * 4],
 ]
 
 
@@ -111,39 +89,6 @@ class TestSlidingWindowInference(unittest.TestCase):
 
         result = SlidingWindowHoVerNetInferer(roi_shape, sw_batch_size, overlap, mode)(inputs.to(device), compute)
         np.testing.assert_string_equal(device.type, result.device.type)
-        np.testing.assert_allclose(result.cpu().numpy(), expected_val)
-
-    @parameterized.expand([[x] for x in TEST_TORCH_AND_META_TENSORS])
-    def test_default_device(self, data_type):
-        device = "cuda" if torch.cuda.is_available() else "cpu:0"
-        inputs = data_type(torch.ones((3, 16, 15, 7))).to(device=device)
-        inputs = list_data_collate([inputs])  # make a proper batch
-        roi_shape = (4, 10, 7)
-        sw_batch_size = 10
-
-        def compute(data):
-            return data + 1
-
-        result = sliding_window_inference(inputs, roi_shape, sw_batch_size, compute)
-        np.testing.assert_string_equal(inputs.device.type, result.device.type)
-        expected_val = np.ones((1, 3, 16, 15, 7), dtype=np.float32) + 1
-        np.testing.assert_allclose(result.cpu().numpy(), expected_val)
-
-    @parameterized.expand(list(itertools.product(TEST_TORCH_AND_META_TENSORS, ("cpu", "cuda"), ("cpu", "cuda", None))))
-    @skip_if_no_cuda
-    def test_sw_device(self, data_type, device, sw_device):
-        inputs = data_type(torch.ones((3, 16, 15, 7))).to(device=device)
-        inputs = list_data_collate([inputs])  # make a proper batch
-        roi_shape = (4, 10, 7)
-        sw_batch_size = 10
-
-        def compute(data):
-            self.assertEqual(data.device.type, sw_device or device)
-            return data + torch.tensor(1, device=sw_device or device)
-
-        result = sliding_window_inference(inputs, roi_shape, sw_batch_size, compute, sw_device=sw_device, device="cpu")
-        np.testing.assert_string_equal("cpu", result.device.type)
-        expected_val = np.ones((1, 3, 16, 15, 7), dtype=np.float32) + 1
         np.testing.assert_allclose(result.cpu().numpy(), expected_val)
 
     def test_sigma(self):
@@ -284,7 +229,6 @@ class TestSlidingWindowInference(unittest.TestCase):
             device,
             has_tqdm,
             None,
-            False,
             t1,
             test2=t2,
         )
@@ -322,6 +266,7 @@ class TestSlidingWindowInference(unittest.TestCase):
             device,
             has_tqdm,
             None,
+            None,
         )
         result_dict = sliding_window_inference(
             inputs,
@@ -336,6 +281,7 @@ class TestSlidingWindowInference(unittest.TestCase):
             device,
             device,
             has_tqdm,
+            None,
             None,
         )
         expected = (np.ones((1, 6, 20, 20)) + 1, np.ones((1, 2, 10, 10)) + 2, np.ones((1, 3, 5, 5)) + 3)
