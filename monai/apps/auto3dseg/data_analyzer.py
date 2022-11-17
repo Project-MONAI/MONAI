@@ -25,13 +25,11 @@ from monai.data import DataLoader, Dataset
 from monai.data.utils import no_collation
 from monai.transforms import (
     Compose,
-    EnsureChannelFirstd,
     EnsureTyped,
     Lambdad,
     LoadImaged,
     Orientationd,
     SqueezeDimd,
-    ToDeviced,
 )
 from monai.utils import StrEnum, min_version, optional_import
 from monai.utils.enums import DataStatsKeys, ImageStatsKeys
