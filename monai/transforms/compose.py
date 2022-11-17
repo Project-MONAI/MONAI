@@ -311,7 +311,8 @@ class RandomOrder(Compose):
         super().__init__(transforms, map_items, unpack_items, log_stats)
 
     def __call__(self, input_):
-        self.transforms = self.R.permutation(self.transforms)
+        self.transforms = list(self.transforms)
+        self.R.shuffle(self.transforms)
 
         for _transform in self.transforms:
             input_ = apply_transform(_transform, input_, self.map_items, self.unpack_items, self.log_stats)
