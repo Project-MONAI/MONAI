@@ -261,6 +261,9 @@ class DataAnalyzer:
 
         result[DataStatsKeys.SUMMARY] = summarizer.summarize(result[DataStatsKeys.BY_CASE])
 
+        if not self._check_data_uniformity([ImageStatsKeys.SPACING], result):
+            print("Data spacing is not completely uniform. MONAI transforms may provide unexpected result")
+
         if self.output_path:
             ConfigParser.export_config_file(result, self.output_path, fmt=self.fmt, default_flow_style=None)
 
