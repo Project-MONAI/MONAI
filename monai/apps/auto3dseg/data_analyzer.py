@@ -223,9 +223,8 @@ class DataAnalyzer:
             ]
 
         transform = Compose(transforms=list(filter(None, transform_list)))
-        
-        torch.multiprocessing.set_start_method('fork', force=True) 
 
+        torch.multiprocessing.set_start_method("fork", force=True)
 
         files, _ = datafold_read(datalist=self.datalist, basedir=self.dataroot, fold=-1, key=key)
         dataset = Dataset(data=files, transform=transform)
