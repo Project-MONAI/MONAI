@@ -21,6 +21,7 @@ import numpy as np
 from monai.apps.auto3dseg.bundle_gen import BundleAlgo
 from monai.apps.utils import get_logger
 from monai.auto3dseg import concat_val_to_np
+from monai.auto3dseg.utils import datafold_read
 from monai.bundle import ConfigParser
 from monai.transforms import MeanEnsemble, VoteEnsemble
 from monai.utils.enums import AlgoEnsembleKeys
@@ -75,11 +76,8 @@ class AlgoEnsemble(ABC):
             dataroot: the path of the files
             data_src_cfg_file: the data source file path
         """
-        with open(data_list_file_path) as f:
-            datalist = json.load(f)
 
-        for d in datalist[data_key]:
-            self.infer_files.append({"image": os.path.join(dataroot, d["image"])})
+        self.infer_files, _ = datafold_read(datalist=data_list_file_path, basedir=dataroot, fold=-1, key=data_key)
 
     def ensemble_pred(self, preds, sigmoid=False):
         """
