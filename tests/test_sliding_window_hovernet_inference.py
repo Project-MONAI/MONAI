@@ -30,10 +30,10 @@ TEST_CASES_PADDING = [
 ]
 
 
-class TestSlidingWindowInference(unittest.TestCase):
+class TestSlidingWindowHoVerNetInference(unittest.TestCase):
     @parameterized.expand(TEST_CASES_PADDING)
     def test_sliding_window_with_padding(
-        self, key, image_shape, roi_shape, sw_batch_size, overlap, mode, device, extra_input_padding, pad_output
+        self, key, image_shape, roi_shape, sw_batch_size, overlap, mode, device, extra_input_padding
     ):
         n_total = np.prod(image_shape)
         if mode == "constant":
@@ -59,7 +59,7 @@ class TestSlidingWindowInference(unittest.TestCase):
             expected_val[..., 0] = expected_val[..., -1] = None
 
         sliding_inference = SlidingWindowHoVerNetInferer(
-            roi_shape, sw_batch_size, overlap, mode, extra_input_padding=extra_input_padding, pad_output=pad_output
+            roi_shape, sw_batch_size, overlap, mode, extra_input_padding=extra_input_padding
         )
         result = sliding_inference(inputs.to(device), compute)
         result = result[key] if key else result
@@ -228,6 +228,7 @@ class TestSlidingWindowInference(unittest.TestCase):
             device,
             device,
             has_tqdm,
+            None,
             None,
             t1,
             test2=t2,
