@@ -10,13 +10,63 @@
 # limitations under the License.
 
 import unittest
+from copy import deepcopy
 
 from parameterized import parameterized
-from test_one_of import InvA, InvB, NonInv
 
 from monai.data import MetaTensor
-from monai.transforms import EnsureChannelFirst, RandomOrder, TraceableTransform
+from monai.transforms import EnsureChannelFirst, InvertibleTransform, RandomOrder, TraceableTransform
 from monai.transforms.compose import Compose
+from monai.transforms.transform import MapTransform
+
+
+class MapBase(MapTransform):
+    def __init__(self, keys):
+        super().__init__(keys)
+        self.fwd_fn, self.inv_fn = None, None
+
+    def __call__(self, data):
+        d = deepcopy(dict(data))
+        for key in self.key_iterator(d):
+            d[key] = self.fwd_fn(d[key])
+        return d
+
+
+class NonInv(MapBase):
+    def __init__(self, keys):
+        super().__init__(keys)
+        self.fwd_fn = lambda x: x * 2
+
+
+class Inv(MapBase, InvertibleTransform):
+    def __call__(self, data):
+        d = deepcopy(dict(data))
+        for key in self.key_iterator(d):
+            d[key] = self.fwd_fn(d[key])
+            self.push_transform(d, key)
+        return d
+
+    def inverse(self, data):
+        d = deepcopy(dict(data))
+        for key in self.key_iterator(d):
+            d[key] = self.inv_fn(d[key])
+            self.pop_transform(d, key)
+        return d
+
+
+class InvA(Inv):
+    def __init__(self, keys):
+        super().__init__(keys)
+        self.fwd_fn = lambda x: x + 1
+        self.inv_fn = lambda x: x - 1
+
+
+class InvB(Inv):
+    def __init__(self, keys):
+        super().__init__(keys)
+        self.fwd_fn = lambda x: x * 100
+        self.inv_fn = lambda x: x / 100
+
 
 KEYS = ["x", "y"]
 TEST_INVERSES = [
@@ -28,6 +78,11 @@ TEST_INVERSES = [
 
 
 class TestRandomOrder(unittest.TestCase):
+    def test_empty_compose(self):
+        c = RandomOrder()
+        i = 1
+        self.assertEqual(c(i), 1)
+
     def test_flatten_and_len(self):
         x = EnsureChannelFirst()
         t1 = Compose([x, x, x, x, Compose([RandomOrder([x, x]), x, x])])
