@@ -15,8 +15,8 @@ import subprocess
 from copy import deepcopy
 from time import sleep
 from typing import Any, Dict, List, Optional, Tuple, Union
-import numpy as np
 
+import numpy as np
 import torch
 
 from monai.apps.auto3dseg.bundle_gen import BundleGen
@@ -435,7 +435,9 @@ class AutoRunner:
         output_dtype = kwargs.pop("output_dtype", np.uint8)
         resample = kwargs.pop("resample", False)
 
-        return SaveImage(output_dir=output_dir, output_postfix=output_postfix, output_dtype=output_dtype, resample=resample, **kwargs)
+        return SaveImage(
+            output_dir=output_dir, output_postfix=output_postfix, output_dtype=output_dtype, resample=resample, **kwargs
+        )
 
     def set_ensemble_method(self, ensemble_method_name: str = "AlgoEnsembleBestByFold", **kwargs):
         """
