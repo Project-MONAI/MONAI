@@ -92,7 +92,7 @@ class TestInteractions(unittest.TestCase):
 
         # set up engine
         engine = SupervisedTrainer(
-            device=torch.device("cpu"),
+            device="cpu",
             max_epochs=1,
             train_data_loader=data_loader,
             network=network,
