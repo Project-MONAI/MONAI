@@ -10,88 +10,13 @@
 # limitations under the License.
 
 import unittest
-from copy import deepcopy
 
 from parameterized import parameterized
+from test_one_of import InvA, InvB, NonInv
 
 from monai.data import MetaTensor
-from monai.transforms import EnsureChannelFirst, InvertibleTransform, RandomOrder, TraceableTransform, Transform
+from monai.transforms import EnsureChannelFirst, RandomOrder, TraceableTransform
 from monai.transforms.compose import Compose
-from monai.transforms.transform import MapTransform
-
-
-class X(Transform):
-    def __call__(self, x):
-        return x
-
-
-class Y(Transform):
-    def __call__(self, x):
-        return x
-
-
-class A(Transform):
-    def __call__(self, x):
-        return x + 1
-
-
-class B(Transform):
-    def __call__(self, x):
-        return x + 2
-
-
-class C(Transform):
-    def __call__(self, x):
-        return x + 3
-
-
-class MapBase(MapTransform):
-    def __init__(self, keys):
-        super().__init__(keys)
-        self.fwd_fn, self.inv_fn = None, None
-
-    def __call__(self, data):
-        d = deepcopy(dict(data))
-        for key in self.key_iterator(d):
-            d[key] = self.fwd_fn(d[key])
-        return d
-
-
-class NonInv(MapBase):
-    def __init__(self, keys):
-        super().__init__(keys)
-        self.fwd_fn = lambda x: x * 2
-
-
-class Inv(MapBase, InvertibleTransform):
-    def __call__(self, data):
-        d = deepcopy(dict(data))
-        for key in self.key_iterator(d):
-            d[key] = self.fwd_fn(d[key])
-            self.push_transform(d, key)
-        return d
-
-    def inverse(self, data):
-        d = deepcopy(dict(data))
-        for key in self.key_iterator(d):
-            d[key] = self.inv_fn(d[key])
-            self.pop_transform(d, key)
-        return d
-
-
-class InvA(Inv):
-    def __init__(self, keys):
-        super().__init__(keys)
-        self.fwd_fn = lambda x: x + 1
-        self.inv_fn = lambda x: x - 1
-
-
-class InvB(Inv):
-    def __init__(self, keys):
-        super().__init__(keys)
-        self.fwd_fn = lambda x: x * 100
-        self.inv_fn = lambda x: x / 100
-
 
 KEYS = ["x", "y"]
 TEST_INVERSES = [
@@ -118,11 +43,6 @@ class TestRandomOrder(unittest.TestCase):
     def test_inverse(self, transform, invertible, use_metatensor):
         data = {k: (i + 1) * 10.0 if not use_metatensor else MetaTensor((i + 1) * 10.0) for i, k in enumerate(KEYS)}
         fwd_data = transform(data)
-
-        if invertible:
-            for k in KEYS:
-                t = fwd_data[TraceableTransform.trace_key(k)] if not use_metatensor else fwd_data[k].applied_operations
-                print(k, t)
 
         # call the inverse
         fwd_inv_data = transform.inverse(fwd_data)
