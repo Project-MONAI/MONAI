@@ -15,6 +15,7 @@ import subprocess
 from copy import deepcopy
 from time import sleep
 from typing import Any, Dict, List, Optional, Tuple, Union
+import numpy as np
 
 import torch
 
@@ -429,9 +430,12 @@ class AutoRunner:
             os.makedirs(output_dir)
             logger.info(f"Directory {output_dir} is created to save ensemble predictions")
 
-        output_postfix = kwargs.pop("output_postfix", "ensemble")
         self.output_dir = output_dir
-        return SaveImage(output_dir=output_dir, output_postfix=output_postfix, **kwargs)
+        output_postfix = kwargs.pop("output_postfix", "ensemble")
+        output_dtype = kwargs.pop("output_dtype", np.uint8)
+        resample = kwargs.pop("resample", False)
+
+        return SaveImage(output_dir=output_dir, output_postfix=output_postfix, output_dtype=output_dtype, resample=resample, **kwargs)
 
     def set_ensemble_method(self, ensemble_method_name: str = "AlgoEnsembleBestByFold", **kwargs):
         """
