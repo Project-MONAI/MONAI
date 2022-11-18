@@ -228,7 +228,7 @@ from .inverse_batch_transform import BatchInverseTransform, Decollated, Decollat
 from .io.array import SUPPORTED_READERS, LoadImage, SaveImage
 from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict, SaveImaged, SaveImageD, SaveImageDict
 from .lazy.functional import apply
-from .meta_matrix import matmul
+from .lazy.utils import matmul, resample
 from .meta_utility.dictionary import (
     FromMetaTensord,
     FromMetaTensorD,

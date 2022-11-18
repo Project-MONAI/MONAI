@@ -13,7 +13,7 @@ import unittest
 
 import torch
 
-from monai.transforms.utility.functional import resample
+from monai.transforms.lazy.functional import resample
 from monai.utils import convert_to_tensor
 from tests.utils import get_arange_img
 

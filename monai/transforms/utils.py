@@ -890,53 +890,52 @@ def _create_translate(
 
 
 def _create_rotate_90(
-    spatial_dims: int, axis: Tuple[int, int], steps: Optional[int] = 1, eye_func: Callable = np.eye
+    spatial_dims: int, axes: Tuple[int, int], steps: int = 1, eye_func: Callable = np.eye
 ) -> NdarrayOrTensor:
 
     values = [(1, 0, 0, 1), (0, -1, 1, 0), (-1, 0, 0, -1), (0, 1, -1, 0)]
 
     if spatial_dims == 2:
-        if axis != (0, 1):
-            raise ValueError(f"if 'spatial_dims' is 2, 'axis' must be (0, 1) but is {axis}")
+        if axes != (0, 1):
+            raise ValueError(f"if 'spatial_dims' is 2, 'axis' must be (0, 1) but is {axes}")
     elif spatial_dims == 3:
-        if axis not in ((0, 1), (0, 2), (1, 2)):
-            raise ValueError("if 'spatial_dims' is 3, 'axis' must be (0,1), (0, 2), or (1, 2) " f"but is {axis}")
+        if axes not in ((0, 1), (0, 2), (1, 2)):
+            raise ValueError("if 'spatial_dims' is 3, 'axis' must be (0,1), (0, 2), or (1, 2) " f"but is {axes}")
     else:
         raise ValueError(f"'spatial_dims' must be 2 or 3 but is {spatial_dims}")
 
     affine = eye_func(spatial_dims + 1)
 
-    a, b = (0, 1) if spatial_dims == 2 else axis
+    a, b = (0, 1) if spatial_dims == 2 else axes
     affine[a, a], affine[a, b], affine[b, a], affine[b, b] = values[steps % 4]
-    return affine
+    return affine  # type: ignore
 
 
 def create_rotate_90(
     spatial_dims: int,
-    axis: int,
-    steps: Optional[int] = 1,
+    axes: Tuple[int, int] = (0, 1),
+    steps: int = 1,
     device: Optional[torch.device] = None,
     backend: str = TransformBackends.NUMPY,
 ) -> NdarrayOrTensor:
     """
-    create a 2D or 3D rotation matrix
+    create a 2D or 3D rotation90 matrix.
+
     Args:
         spatial_dims: {``2``, ``3``} spatial rank
-        radians: rotation radians
-            when spatial_dims == 3, the `radians` sequence corresponds to
-            rotation in the 1st, 2nd, and 3rd dim respectively.
+        axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
+            Default: (0, 1), this is the first two axis in spatial dimensions.
+            If axis is negative it counts from the last to the first axis.
+        steps: number of times to rotate by 90 degrees
         device: device to compute and store the output (when the backend is "torch").
         backend: APIs to use, ``numpy`` or ``torch``.
-    Raises:
-        ValueError: When ``radians`` is empty.
-        ValueError: When ``spatial_dims`` is not one of [2, 3].
     """
     _backend = look_up_option(backend, TransformBackends)
     if _backend == TransformBackends.NUMPY:
-        return _create_rotate_90(spatial_dims=spatial_dims, axis=axis, steps=steps, eye_func=np.eye)
+        return _create_rotate_90(spatial_dims=spatial_dims, axes=axes, steps=steps, eye_func=np.eye)
     if _backend == TransformBackends.TORCH:
         return _create_rotate_90(
-            spatial_dims=spatial_dims, axis=axis, steps=steps, eye_func=lambda rank: torch.eye(rank, device=device)
+            spatial_dims=spatial_dims, axes=axes, steps=steps, eye_func=lambda rank: torch.eye(rank, device=device)
         )
     raise ValueError(f"backend {backend} is not supported")
 
@@ -974,9 +973,9 @@ def create_flip(
 ) -> NdarrayOrTensor:
     _backend = look_up_option(backend, TransformBackends)
     if _backend == TransformBackends.NUMPY:
-        return _create_flip(spatial_dims=spatial_dims, spatial_axis=spatial_axis, eye_func=np.eye)
+        return _create_flip(spatial_dims=spatial_dims, spatial_axis=spatial_axis, eye_func=np.eye)  # type: ignore
     if _backend == TransformBackends.TORCH:
-        return _create_flip(
+        return _create_flip(  # type: ignore
             spatial_dims=spatial_dims, spatial_axis=spatial_axis, eye_func=lambda rank: torch.eye(rank, device=device)
         )
     raise ValueError(f"backend {backend} is not supported")

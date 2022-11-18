@@ -11,42 +11,13 @@
 
 from typing import Optional, Union
 
-import numpy as np
 import torch
 
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
-from monai.transforms.meta_matrix import matmul
-from monai.transforms.utility.functional import resample
-from monai.utils import LazyAttr
+from monai.transforms.lazy.utils import is_compatible_kwargs, kwargs_from_pending, mat_from_pending, matmul, resample
 
 __all__ = ["apply"]
-
-
-def mat_from_pending(pending_item):
-    if isinstance(pending_item, (torch.Tensor, np.ndarray)):
-        return pending_item
-    if isinstance(pending_item, dict):
-        return pending_item[LazyAttr.AFFINE]
-    return pending_item
-
-
-def kwargs_from_pending(pending_item):
-    if not isinstance(pending_item, dict):
-        return {}
-    ret = {
-        LazyAttr.INTERP_MODE: pending_item.get(LazyAttr.INTERP_MODE, None),  # interpolation mode
-        LazyAttr.PADDING_MODE: pending_item.get(LazyAttr.PADDING_MODE, None),  # padding mode
-    }
-    if LazyAttr.SHAPE in pending_item:
-        ret[LazyAttr.SHAPE] = pending_item[LazyAttr.SHAPE]
-    if LazyAttr.DTYPE in pending_item:
-        ret[LazyAttr.DTYPE] = pending_item[LazyAttr.DTYPE]
-    return ret
-
-
-def is_compatible_kwargs(kwargs_1, kwargs_2):
-    return True
 
 
 def apply(data: Union[torch.Tensor, MetaTensor], pending: Optional[list] = None):
