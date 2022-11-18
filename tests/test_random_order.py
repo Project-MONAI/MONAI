@@ -17,9 +17,7 @@ from monai.data import MetaTensor
 from monai.transforms import RandomOrder, TraceableTransform
 from monai.transforms.compose import Compose
 from monai.utils.enums import TraceKeys
-from tests.test_one_of import NonInv, InvA, InvB
-
-
+from tests.test_one_of import InvA, InvB, NonInv
 
 KEYS = ["x", "y"]
 TEST_INVERSES = [

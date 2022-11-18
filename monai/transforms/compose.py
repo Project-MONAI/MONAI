@@ -327,7 +327,6 @@ class RandomOrder(Compose):
                     self.push_transform(input_, key, extra_info={"applied_order": applied_order})
         return input_
 
-
     def inverse(self, data):
         if len(self.transforms) == 0:
             return data
