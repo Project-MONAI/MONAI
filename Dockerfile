@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,7 +11,7 @@
 
 # To build with a different base image
 # please run `docker build` using the `--build-arg PYTORCH_IMAGE=...` flag.
-ARG PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:21.09-py3
+ARG PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:22.10-py3
 FROM ${PYTORCH_IMAGE}
 
 LABEL maintainer="monai.contact@gmail.com"
@@ -38,11 +38,11 @@ RUN BUILD_MONAI=1 FORCE_CUDA=1 python setup.py develop \
 
 # NGC Client
 WORKDIR /opt/tools
-ARG NGC_CLI_URI="https://ngc.nvidia.com/downloads/ngccli_cat_linux.zip"
-RUN wget -q ${NGC_CLI_URI} && \
-    unzip ngccli_cat_linux.zip && chmod u+x ngc && \
-    md5sum -c ngc.md5 && \
-    rm -rf ngccli_cat_linux.zip ngc.md5
+ARG NGC_CLI_URI="https://ngc.nvidia.com/downloads/ngccli_linux.zip"
+RUN wget -q ${NGC_CLI_URI} && unzip ngccli_linux.zip && chmod u+x ngc-cli/ngc && \
+    find ngc-cli/ -type f -exec md5sum {} + | LC_ALL=C sort | md5sum -c ngc-cli.md5 && \
+    rm -rf ngccli_linux.zip ngc-cli.md5
+ENV PATH=${PATH}:/opt/tools:/opt/tools/ngc-cli
 RUN apt-get update \
   && DEBIAN_FRONTEND="noninteractive" apt-get install -y libopenslide0  \
   && rm -rf /var/lib/apt/lists/*

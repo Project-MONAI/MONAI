@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,7 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.losses import DiceLoss
-from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
+from tests.utils import test_script_save
 
 TEST_CASES = [
     [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
@@ -184,7 +184,6 @@ class TestDiceLoss(unittest.TestCase):
             loss = DiceLoss(to_onehot_y=True)
             loss.forward(chn_input, chn_target)
 
-    @SkipIfBeforePyTorchVersion((1, 7, 0))
     def test_script(self):
         loss = DiceLoss()
         test_input = torch.ones(2, 1, 8, 8)

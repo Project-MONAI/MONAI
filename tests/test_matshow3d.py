@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,7 +15,7 @@ import unittest
 
 import numpy as np
 
-from monai.transforms import AddChanneld, Compose, LoadImaged, RandSpatialCropSamplesd, ScaleIntensityd
+from monai.transforms import AddChanneld, Compose, LoadImaged, RandSpatialCropSamplesd, RepeatChanneld, ScaleIntensityd
 from monai.utils import optional_import
 from monai.visualize.utils import matshow3d
 from tests.utils import SkipIfNoModule
@@ -34,13 +34,16 @@ class TestMatshow3d(unittest.TestCase):
         ims = xforms({keys: image_path})
 
         fig = pyplot.figure()  # external figure
-        fig, _ = matshow3d(ims[keys], fig=fig, figsize=(2, 2), frames_per_row=5, every_n=2, show=False)
+        fig, _ = matshow3d(ims[keys], fig=fig, figsize=(2, 2), frames_per_row=5, every_n=2, frame_dim=-1, show=False)
 
         with tempfile.TemporaryDirectory() as tempdir:
             tempimg = f"{tempdir}/matshow3d_test.png"
             fig.savefig(tempimg)
             comp = compare_images(f"{testing_dir}/matshow3d_test.png", tempimg, 5e-2)
             self.assertIsNone(comp, f"value of comp={comp}")  # None indicates test passed
+
+        _, axes = pyplot.subplots()
+        matshow3d(ims[keys], fig=axes, figsize=(2, 2), frames_per_row=5, every_n=2, frame_dim=-1, show=False)
 
     def test_samples(self):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
@@ -70,6 +73,39 @@ class TestMatshow3d(unittest.TestCase):
                 np.testing.assert_allclose(comp["rms"], 30.786983, atol=1e-3, rtol=1e-3)
             else:
                 self.assertIsNone(comp, f"value of comp={comp}")  # None indicates test passed
+
+    def test_3d_rgb(self):
+        testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
+        keys = "image"
+        xforms = Compose(
+            [
+                LoadImaged(keys=keys),
+                AddChanneld(keys=keys),
+                ScaleIntensityd(keys=keys),
+                # change to RGB color image
+                RepeatChanneld(keys=keys, repeats=3),
+            ]
+        )
+        image_path = os.path.join(testing_dir, "anatomical.nii")
+        ims = xforms({keys: image_path})
+
+        fig = pyplot.figure()  # external figure
+        fig, _ = matshow3d(
+            volume=ims[keys],
+            fig=fig,
+            figsize=(2, 2),
+            frames_per_row=5,
+            every_n=2,
+            frame_dim=-1,
+            channel_dim=0,
+            show=False,
+        )
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            tempimg = f"{tempdir}/matshow3d_rgb_test.png"
+            fig.savefig(tempimg)
+            comp = compare_images(f"{testing_dir}/matshow3d_rgb_test.png", tempimg, 5e-2)
+            self.assertIsNone(comp, f"value of comp={comp}")  # None indicates test passed
 
 
 if __name__ == "__main__":

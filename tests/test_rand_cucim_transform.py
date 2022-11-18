@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,10 +16,10 @@ from parameterized import parameterized
 
 from monai.transforms import RandCuCIM
 from monai.utils import optional_import, set_determinism
-from tests.utils import skip_if_no_cuda
+from tests.utils import HAS_CUPY, skip_if_no_cuda
 
 _, has_cut = optional_import("cucim.core.operations.expose.transform")
-cp, has_cp = optional_import("cupy")
+cp, _ = optional_import("cupy")
 
 set_determinism(seed=0)
 
@@ -40,7 +40,6 @@ TEST_CASE_RAND_ROTATE_1 = [
     np.array([[[0.0, 1.0], [2.0, 3.0]], [[0.0, 1.0], [2.0, 3.0]], [[0.0, 1.0], [2.0, 3.0]]], dtype=np.float32),
     np.array([[[1.0, 3.0], [0.0, 2.0]], [[1.0, 3.0], [0.0, 2.0]], [[1.0, 3.0], [0.0, 2.0]]], dtype=np.float32),
 ]
-
 
 TEST_CASE_RAND_ROTATE_2 = [
     {"name": "rand_image_rotate_90", "prob": 0.0, "max_k": 1, "spatial_axis": (-2, -1)},
@@ -74,7 +73,7 @@ TEST_CASE_RAND_ZOOM_2 = [
 
 
 @skip_if_no_cuda
-@unittest.skipUnless(has_cp, "CuPy is required.")
+@unittest.skipUnless(HAS_CUPY, "CuPy is required.")
 @unittest.skipUnless(has_cut, "cuCIM transforms are required.")
 class TestRandCuCIM(unittest.TestCase):
     @parameterized.expand(
@@ -90,12 +89,11 @@ class TestRandCuCIM(unittest.TestCase):
         ]
     )
     def test_tramsforms_numpy_single(self, params, input, expected):
-        # apply_prob=1.0
+        input = np.copy(input)
         output = RandCuCIM(apply_prob=1.0, **params)(input)
         self.assertTrue(output.dtype == expected.dtype)
         self.assertTrue(isinstance(output, np.ndarray))
         cp.testing.assert_allclose(output, expected)
-        # apply_prob=0.0
         output = RandCuCIM(apply_prob=0.0, **params)(input)
         self.assertTrue(output.dtype == input.dtype)
         self.assertTrue(isinstance(output, np.ndarray))
@@ -114,14 +112,12 @@ class TestRandCuCIM(unittest.TestCase):
         ]
     )
     def test_tramsforms_numpy_batch(self, params, input, expected):
-        input = input[cp.newaxis, ...]
+        input = np.copy(input[cp.newaxis, ...])
         expected = expected[cp.newaxis, ...]
-        # apply_prob=1.0
         output = RandCuCIM(apply_prob=1.0, **params)(input)
         self.assertTrue(output.dtype == expected.dtype)
         self.assertTrue(isinstance(output, np.ndarray))
         cp.testing.assert_allclose(output, expected)
-        # apply_prob=0.0
         output = RandCuCIM(apply_prob=0.0, **params)(input)
         self.assertTrue(output.dtype == input.dtype)
         self.assertTrue(isinstance(output, np.ndarray))
@@ -142,12 +138,10 @@ class TestRandCuCIM(unittest.TestCase):
     def test_tramsforms_cupy_single(self, params, input, expected):
         input = cp.asarray(input)
         expected = cp.asarray(expected)
-        # apply_prob=1.0
         output = RandCuCIM(apply_prob=1.0, **params)(input)
         self.assertTrue(output.dtype == expected.dtype)
         self.assertTrue(isinstance(output, cp.ndarray))
         cp.testing.assert_allclose(output, expected)
-        # apply_prob=0.0
         output = RandCuCIM(apply_prob=0.0, **params)(input)
         self.assertTrue(output.dtype == input.dtype)
         self.assertTrue(isinstance(output, cp.ndarray))
@@ -168,12 +162,10 @@ class TestRandCuCIM(unittest.TestCase):
     def test_tramsforms_cupy_batch(self, params, input, expected):
         input = cp.asarray(input)[cp.newaxis, ...]
         expected = cp.asarray(expected)[cp.newaxis, ...]
-        # apply_prob=1.0
         output = RandCuCIM(**params)(input)
         self.assertTrue(output.dtype == expected.dtype)
         self.assertTrue(isinstance(output, cp.ndarray))
         cp.testing.assert_allclose(output, expected)
-        # apply_prob=0.0
         output = RandCuCIM(apply_prob=0.0, **params)(input)
         self.assertTrue(output.dtype == input.dtype)
         self.assertTrue(isinstance(output, cp.ndarray))

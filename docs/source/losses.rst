@@ -53,6 +53,11 @@ Segmentation Losses
 .. autoclass:: DiceFocalLoss
     :members:
 
+`GeneralizedDiceFocalLoss`
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: GeneralizedDiceFocalLoss
+    :members:
+
 `FocalLoss`
 ~~~~~~~~~~~
 .. autoclass:: FocalLoss
@@ -61,6 +66,11 @@ Segmentation Losses
 `TverskyLoss`
 ~~~~~~~~~~~~~
 .. autoclass:: TverskyLoss
+    :members:
+
+`ContrastiveLoss`
+~~~~~~~~~~~~~~~~~
+.. autoclass:: ContrastiveLoss
     :members:
 
 Registration Losses
@@ -80,6 +90,15 @@ Registration Losses
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: GlobalMutualInformationLoss
     :members:
+
+Reconstruction Losses
+---------------------
+
+`SSIMLoss`
+~~~~~~~~~~
+.. autoclass:: monai.losses.ssim_loss.SSIMLoss
+    :members:
+
 
 Loss Wrappers
 -------------

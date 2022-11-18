@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -68,7 +68,7 @@ class TestMeanEnsemble(unittest.TestCase):
             img = img.to(torch.device("cuda:0"))
             expected_value = expected_value.to(torch.device("cuda:0"))
         result = MeanEnsemble(torch.tensor([[[1, 3]], [[3, 1]]]))(img)
-        torch.testing.assert_allclose(result, expected_value)
+        assert_allclose(result, expected_value)
 
 
 if __name__ == "__main__":

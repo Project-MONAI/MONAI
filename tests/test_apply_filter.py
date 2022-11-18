@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -64,7 +64,6 @@ class ApplyFilterTestCase(unittest.TestCase):
                 ],
             ]
         )
-        expected = expected
         # testing shapes
         k = torch.tensor([[[1, 1, 1], [1, 1, 1], [1, 1, 1]]])
         for kernel in (k, k[None], k[None][None]):
@@ -80,7 +79,7 @@ class ApplyFilterTestCase(unittest.TestCase):
         with self.assertRaisesRegex(NotImplementedError, ""):
             apply_filter(torch.ones((1, 1, 1, 2, 3, 2)), torch.ones((2,)))
         with self.assertRaisesRegex(TypeError, ""):
-            apply_filter(((1, 1, 1, 2, 3, 2)), torch.ones((2,)))  # type: ignore
+            apply_filter(((1, 1, 1, 2, 3, 2)), torch.ones((2,)))
 
 
 if __name__ == "__main__":

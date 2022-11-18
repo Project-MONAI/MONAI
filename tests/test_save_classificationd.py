@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,12 +13,14 @@ import csv
 import os
 import tempfile
 import unittest
+from pathlib import Path
 
 import numpy as np
 import torch
 
 from monai.data import CSVSaver, decollate_batch
 from monai.transforms import Compose, CopyItemsd, SaveClassificationd
+from monai.utils.enums import PostFix
 
 
 class TestSaveClassificationd(unittest.TestCase):
@@ -27,34 +29,37 @@ class TestSaveClassificationd(unittest.TestCase):
             data = [
                 {
                     "pred": torch.zeros(8),
-                    "image_meta_dict": {"filename_or_obj": ["testfile" + str(i) for i in range(8)]},
+                    PostFix.meta("image"): {"filename_or_obj": ["testfile" + str(i) for i in range(8)]},
                 },
                 {
                     "pred": torch.zeros(8),
-                    "image_meta_dict": {"filename_or_obj": ["testfile" + str(i) for i in range(8, 16)]},
+                    PostFix.meta("image"): {"filename_or_obj": ["testfile" + str(i) for i in range(8, 16)]},
                 },
                 {
                     "pred": torch.zeros(8),
-                    "image_meta_dict": {"filename_or_obj": ["testfile" + str(i) for i in range(16, 24)]},
+                    PostFix.meta("image"): {"filename_or_obj": ["testfile" + str(i) for i in range(16, 24)]},
                 },
             ]
 
-            saver = CSVSaver(output_dir=tempdir, filename="predictions2.csv", overwrite=False, flush=False)
+            saver = CSVSaver(
+                output_dir=Path(tempdir), filename="predictions2.csv", overwrite=False, flush=False, delimiter="\t"
+            )
             # set up test transforms
             post_trans = Compose(
                 [
-                    CopyItemsd(keys="image_meta_dict", times=1, names="pred_meta_dict"),
+                    CopyItemsd(keys=PostFix.meta("image"), times=1, names=PostFix.meta("pred")),
                     # 1st saver saves data into CSV file
                     SaveClassificationd(
                         keys="pred",
                         saver=None,
                         meta_keys=None,
-                        output_dir=tempdir,
+                        output_dir=Path(tempdir),
                         filename="predictions1.csv",
+                        delimiter="\t",
                         overwrite=True,
                     ),
                     # 2rd saver only saves data into the cache, manually finalize later
-                    SaveClassificationd(keys="pred", saver=saver, meta_key_postfix="meta_dict"),
+                    SaveClassificationd(keys="pred", saver=saver, meta_key_postfix=PostFix.meta()),
                 ]
             )
             # simulate inference 2 iterations
@@ -71,9 +76,10 @@ class TestSaveClassificationd(unittest.TestCase):
             trans2 = SaveClassificationd(
                 keys="pred",
                 saver=None,
-                meta_keys="image_meta_dict",  # specify meta key, so no need to copy anymore
+                meta_keys=PostFix.meta("image"),  # specify meta key, so no need to copy anymore
                 output_dir=tempdir,
                 filename="predictions1.csv",
+                delimiter="\t",
                 overwrite=False,
             )
             d = decollate_batch(data[2])
@@ -84,7 +90,7 @@ class TestSaveClassificationd(unittest.TestCase):
                 filepath = os.path.join(tempdir, filename)
                 self.assertTrue(os.path.exists(filepath))
                 with open(filepath) as f:
-                    reader = csv.reader(f)
+                    reader = csv.reader(f, delimiter="\t")
                     i = 0
                     for row in reader:
                         self.assertEqual(row[0], "testfile" + str(i))

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,8 +15,7 @@ import torch.nn as nn
 
 from monai.networks.blocks.convolutions import Convolution
 from monai.networks.blocks.upsample import UpSample
-from monai.networks.layers.factories import Act
-from monai.networks.layers.utils import get_norm_layer
+from monai.networks.layers.utils import get_act_layer, get_norm_layer
 from monai.utils import InterpolateMode, UpsampleMode
 
 
@@ -50,13 +49,21 @@ class ResBlock(nn.Module):
     <https://arxiv.org/pdf/1810.11654.pdf>`_.
     """
 
-    def __init__(self, spatial_dims: int, in_channels: int, norm: Union[Tuple, str], kernel_size: int = 3) -> None:
+    def __init__(
+        self,
+        spatial_dims: int,
+        in_channels: int,
+        norm: Union[Tuple, str],
+        kernel_size: int = 3,
+        act: Union[Tuple, str] = ("RELU", {"inplace": True}),
+    ) -> None:
         """
         Args:
             spatial_dims: number of spatial dimensions, could be 1, 2 or 3.
             in_channels: number of input channels.
             norm: feature normalization type and arguments.
             kernel_size: convolution kernel size, the value should be an odd number. Defaults to 3.
+            act: activation type and arguments. Defaults to ``RELU``.
         """
 
         super().__init__()
@@ -66,7 +73,7 @@ class ResBlock(nn.Module):
 
         self.norm1 = get_norm_layer(name=norm, spatial_dims=spatial_dims, channels=in_channels)
         self.norm2 = get_norm_layer(name=norm, spatial_dims=spatial_dims, channels=in_channels)
-        self.relu = Act[Act.RELU](inplace=True)
+        self.act = get_act_layer(act)
         self.conv1 = get_conv_layer(spatial_dims, in_channels=in_channels, out_channels=in_channels)
         self.conv2 = get_conv_layer(spatial_dims, in_channels=in_channels, out_channels=in_channels)
 
@@ -75,11 +82,11 @@ class ResBlock(nn.Module):
         identity = x
 
         x = self.norm1(x)
-        x = self.relu(x)
+        x = self.act(x)
         x = self.conv1(x)
 
         x = self.norm2(x)
-        x = self.relu(x)
+        x = self.act(x)
         x = self.conv2(x)
 
         x += identity

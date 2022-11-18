@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -35,6 +35,8 @@ class TestCumulative(unittest.TestCase):
         c.append()
         c.extend()
         self.assertEqual(c.get_buffer(), [])
+        c.get_buffer().append(1)
+        self.assertEqual(c.get_buffer(), [])  # no in-place update for the buffer
 
         c.reset()
 

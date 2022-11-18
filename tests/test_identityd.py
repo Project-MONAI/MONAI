@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,8 +19,7 @@ class TestIdentityd(NumpyImageTestCase2D):
     def test_identityd(self):
         for p in TEST_NDARRAYS:
             img = p(self.imt)
-            data = {}
-            data["img"] = img
+            data = {"img": img}
             identity = Identityd(keys=data.keys())
             assert_allclose(img, identity(data)["img"])
 

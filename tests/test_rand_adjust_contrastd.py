@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -35,7 +35,7 @@ class TestRandAdjustContrastd(NumpyImageTestCase2D):
                 np.power(((self.imt - img_min) / float(img_range + epsilon)), adjuster.adjuster.gamma_value) * img_range
                 + img_min
             )
-            assert_allclose(expected, result["img"], rtol=1e-05, type_test=False)
+            assert_allclose(result["img"], expected, rtol=1e-05, type_test="tensor")
 
 
 if __name__ == "__main__":

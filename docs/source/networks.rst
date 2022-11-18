@@ -21,7 +21,7 @@ Blocks
     :members:
 
 `CRF`
-~~~~~~~~~~~~~
+~~~~~
 .. autoclass:: CRF
     :members:
 
@@ -38,6 +38,19 @@ Blocks
 `MemoryEfficientSwish`
 ~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: MemoryEfficientSwish
+    :members:
+
+`FPN`
+~~~~~
+.. autoclass:: ExtraFPNBlock
+    :members:
+.. autoclass:: FeaturePyramidNetwork
+    :members:
+.. autoclass:: LastLevelMaxPool
+    :members:
+.. autoclass:: LastLevelP6P7
+    :members:
+.. autoclass:: BackboneWithFPN
     :members:
 
 `Mish`
@@ -73,6 +86,13 @@ Blocks
     :members:
 .. autoclass:: UnetUpBlock
     :members:
+.. autoclass:: UnetOutBlock
+    :members:
+
+`DenseBlock`
+~~~~~~~~~~~~~
+.. autoclass:: DenseBlock
+   :members:
 
 `SegResnet Block`
 ~~~~~~~~~~~~~~~~~
@@ -188,6 +208,26 @@ Blocks
 .. autoclass:: PatchEmbeddingBlock
     :members:
 
+`FactorizedIncreaseBlock`
+~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: FactorizedIncreaseBlock
+    :members:
+
+`FactorizedReduceBlock`
+~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: FactorizedReduceBlock
+    :members:
+
+`P3DActiConvNormBlock`
+~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: P3DActiConvNormBlock
+    :members:
+
+`ActiConvNormBlock`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: ActiConvNormBlock
+    :members:
+
 `Warp`
 ~~~~~~
 .. autoclass:: Warp
@@ -197,6 +237,21 @@ Blocks
 ~~~~~~~~~
 .. autoclass:: DVF2DDF
     :members:
+
+`VarNetBlock`
+~~~~~~~~~~~~~
+.. autoclass:: monai.apps.reconstruction.networks.blocks.varnetblock.VarNetBlock
+   :members:
+
+N-Dim Fourier Transform
+~~~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: monai.networks.blocks.fft_utils_t
+.. autofunction:: monai.networks.blocks.fft_utils_t.fftn_centered_t
+.. autofunction:: monai.networks.blocks.fft_utils_t.ifftn_centered_t
+.. autofunction:: monai.networks.blocks.fft_utils_t.roll
+.. autofunction:: monai.networks.blocks.fft_utils_t.roll_1d
+.. autofunction:: monai.networks.blocks.fft_utils_t.fftshift
+.. autofunction:: monai.networks.blocks.fft_utils_t.ifftshift
 
 Layers
 ------
@@ -232,6 +287,11 @@ Layers
 `Conv`
 ~~~~~~
 .. automodule:: monai.networks.layers.Conv
+  :members:
+
+`Pad`
+~~~~~
+.. automodule:: monai.networks.layers.Pad
   :members:
 
 `Pool`
@@ -274,13 +334,23 @@ Layers
 .. autoclass:: GaussianFilter
     :members:
 
+`MedianFilter`
+~~~~~~~~~~~~~~
+.. autoclass:: MedianFilter
+    :members:
+
+`median_filter`
+~~~~~~~~~~~~~~~
+.. autoclass:: median_filter
+    :members:
+
 `BilateralFilter`
 ~~~~~~~~~~~~~~~~~
 .. autoclass:: BilateralFilter
     :members:
 
 `PHLFilter`
-~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~
 .. autoclass:: PHLFilter
 
 `GaussianMixtureModel`
@@ -366,6 +436,11 @@ Nets
 .. autoclass:: EfficientNet
   :members:
 
+`BlockArgs`
+~~~~~~~~~~~
+.. autoclass:: BlockArgs
+  :members:
+
 `EfficientNetBN`
 ~~~~~~~~~~~~~~~~
 .. autoclass:: EfficientNetBN
@@ -384,6 +459,11 @@ Nets
 `SegResNetVAE`
 ~~~~~~~~~~~~~~
 .. autoclass:: SegResNetVAE
+  :members:
+
+`ResNet`
+~~~~~~~~
+.. autoclass:: ResNet
   :members:
 
 `SENet`
@@ -436,9 +516,19 @@ Nets
 .. autoclass:: Unet
 .. autoclass:: unet
 
+`AttentionUnet`
+~~~~~~~~~~~~~~~
+.. autoclass:: AttentionUnet
+  :members:
+
 `UNETR`
 ~~~~~~~
 .. autoclass:: UNETR
+    :members:
+
+`SwinUNETR`
+~~~~~~~~~~~
+.. autoclass:: SwinUNETR
     :members:
 
 `BasicUNet`
@@ -447,6 +537,18 @@ Nets
   :members:
 .. autoclass:: BasicUnet
 .. autoclass:: Basicunet
+
+`BasicUNetPlusPlus`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: BasicUNetPlusPlus
+  :members:
+.. autoclass:: BasicUnetPlusPlus
+.. autoclass:: BasicunetPlusPlus
+
+`FlexibleUNet`
+~~~~~~~~~~~~~~
+.. autoclass:: FlexibleUNet
+  :members:
 
 `VNet`
 ~~~~~~
@@ -493,6 +595,11 @@ Nets
 .. autoclass:: FullyConnectedNet
   :members:
 
+`VarFullyConnectedNet`
+~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: VarFullyConnectedNet
+  :members:
+
 `Generator`
 ~~~~~~~~~~~
 .. autoclass:: Generator
@@ -533,12 +640,50 @@ Nets
 .. autoclass:: TorchVisionFCModel
   :members:
 
-`TorchVisionFullyConvModel`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: TorchVisionFullyConvModel
+`MILModel`
+~~~~~~~~~~
+.. autoclass:: MILModel
   :members:
+
+`DiNTS`
+~~~~~~~
+.. autoclass:: DiNTS
+  :members:
+
+`TopologyConstruction for DiNTS`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TopologyConstruction
+  :members:
+
+`TopologyInstance for DiNTS`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TopologyInstance
+  :members:
+
+`TopologySearch for DiNTS`
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TopologySearch
+  :members:
+
+`ComplexUnet`
+~~~~~~~~~~~~~
+.. autoclass:: monai.apps.reconstruction.networks.nets.complex_unet.ComplexUnet
+   :members:
+
+`CoilSensitivityModel`
+~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: monai.apps.reconstruction.networks.nets.coil_sensitivity_model.CoilSensitivityModel
+   :members:
+
+`e2e-VarNet`
+~~~~~~~~~~~~
+.. autoclass:: monai.apps.reconstruction.networks.nets.varnet.VariationalNetworkModel
+   :members:
 
 Utilities
 ---------
 .. automodule:: monai.networks.utils
+  :members:
+
+.. automodule:: monai.apps.reconstruction.networks.nets.utils
   :members:

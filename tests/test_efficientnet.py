@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -26,7 +26,7 @@ from monai.networks.nets import (
     get_efficientnet_image_size,
 )
 from monai.utils import optional_import
-from tests.utils import skip_if_quick, test_pretrained_networks, test_script_save
+from tests.utils import skip_if_downloading_fails, skip_if_quick, test_pretrained_networks, test_script_save
 
 if TYPE_CHECKING:
     import torchvision
@@ -250,12 +250,8 @@ class TestEFFICIENTNET(unittest.TestCase):
     def test_shape(self, input_param, input_shape, expected_shape):
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        try:
-            # initialize model
+        with skip_if_downloading_fails():
             net = EfficientNetBN(**input_param).to(device)
-        except (ContentTooShortError, HTTPError, RuntimeError) as e:
-            print(str(e))
-            return  # skipping the tests because of http errors
 
         # run inference with random tensor
         with eval_mode(net):
@@ -268,12 +264,8 @@ class TestEFFICIENTNET(unittest.TestCase):
     def test_non_default_shapes(self, input_param, input_shape, expected_shape):
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        try:
-            # initialize model
+        with skip_if_downloading_fails():
             net = EfficientNetBN(**input_param).to(device)
-        except (ContentTooShortError, HTTPError, RuntimeError) as e:
-            print(str(e))
-            return  # skipping the tests because of http errors
 
         # override input shape with different variations
         num_dims = len(input_shape) - 2
@@ -375,7 +367,8 @@ class TestEFFICIENTNET(unittest.TestCase):
             self.assertEqual(result_shape, expected_shape)
 
     def test_script(self):
-        net = EfficientNetBN(model_name="efficientnet-b0", spatial_dims=2, in_channels=3, num_classes=1000)
+        with skip_if_downloading_fails():
+            net = EfficientNetBN(model_name="efficientnet-b0", spatial_dims=2, in_channels=3, num_classes=1000)
         net.set_swish(memory_efficient=False)  # at the moment custom memory efficient swish is not exportable with jit
         test_data = torch.randn(1, 3, 224, 224)
         test_script_save(net, test_data)
@@ -386,12 +379,8 @@ class TestExtractFeatures(unittest.TestCase):
     def test_shape(self, input_param, input_shape, expected_shapes):
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        try:
-            # initialize model
+        with skip_if_downloading_fails():
             net = EfficientNetBNFeatures(**input_param).to(device)
-        except (ContentTooShortError, HTTPError, RuntimeError) as e:
-            print(str(e))
-            return  # skipping the tests because of http errors
 
         # run inference with random tensor
         with eval_mode(net):

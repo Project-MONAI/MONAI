@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -34,6 +34,7 @@ class TestConvertToTorchScript(unittest.TestCase):
                 device="cuda" if torch.cuda.is_available() else "cpu",
                 rtol=1e-3,
                 atol=1e-4,
+                optimize=None,
             )
             self.assertTrue(isinstance(torchscript_model, torch.nn.Module))
 

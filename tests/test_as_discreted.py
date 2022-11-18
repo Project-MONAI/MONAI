@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,14 +20,7 @@ TEST_CASES = []
 for p in TEST_NDARRAYS:
     TEST_CASES.append(
         [
-            {
-                "keys": ["pred", "label"],
-                "argmax": [True, False],
-                "to_onehot": True,
-                "num_classes": 2,
-                "threshold_values": False,
-                "logit_thresh": 0.5,
-            },
+            {"keys": ["pred", "label"], "argmax": [True, False], "to_onehot": 2, "threshold": 0.5},
             {"pred": p([[[0.0, 1.0]], [[2.0, 3.0]]]), "label": p([[[0, 1]]])},
             {"pred": p([[[0.0, 0.0]], [[1.0, 1.0]]]), "label": p([[[1.0, 0.0]], [[0.0, 1.0]]])},
             (2, 1, 2),
@@ -36,14 +29,7 @@ for p in TEST_NDARRAYS:
 
     TEST_CASES.append(
         [
-            {
-                "keys": ["pred", "label"],
-                "argmax": False,
-                "to_onehot": False,
-                "num_classes": None,
-                "threshold_values": [True, False],
-                "logit_thresh": 0.6,
-            },
+            {"keys": ["pred", "label"], "argmax": False, "to_onehot": None, "threshold": [0.6, None]},
             {"pred": p([[[0.0, 1.0], [2.0, 3.0]]]), "label": p([[[0, 1], [1, 1]]])},
             {"pred": p([[[0.0, 1.0], [1.0, 1.0]]]), "label": p([[[0.0, 1.0], [1.0, 1.0]]])},
             (1, 2, 2),
@@ -52,14 +38,7 @@ for p in TEST_NDARRAYS:
 
     TEST_CASES.append(
         [
-            {
-                "keys": ["pred"],
-                "argmax": True,
-                "to_onehot": True,
-                "num_classes": 2,
-                "threshold_values": False,
-                "logit_thresh": 0.5,
-            },
+            {"keys": ["pred"], "argmax": True, "to_onehot": 2, "threshold": 0.5, "dim": 0, "keepdim": True},
             {"pred": p([[[0.0, 1.0]], [[2.0, 3.0]]])},
             {"pred": p([[[0.0, 0.0]], [[1.0, 1.0]]])},
             (2, 1, 2),
@@ -75,15 +54,25 @@ for p in TEST_NDARRAYS:
         ]
     )
 
+    # test threshold = 0.0
+    TEST_CASES.append(
+        [
+            {"keys": ["pred", "label"], "argmax": False, "to_onehot": None, "threshold": [0.0, None]},
+            {"pred": p([[[0.0, -1.0], [-2.0, 3.0]]]), "label": p([[[0, 1], [1, 1]]])},
+            {"pred": p([[[1.0, 0.0], [0.0, 1.0]]]), "label": p([[[0.0, 1.0], [1.0, 1.0]]])},
+            (1, 2, 2),
+        ]
+    )
+
 
 class TestAsDiscreted(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_value_shape(self, input_param, test_input, output, expected_shape):
         result = AsDiscreted(**input_param)(test_input)
-        assert_allclose(result["pred"], output["pred"], rtol=1e-3)
+        assert_allclose(result["pred"], output["pred"], rtol=1e-3, type_test="tensor")
         self.assertTupleEqual(result["pred"].shape, expected_shape)
         if "label" in result:
-            assert_allclose(result["label"], output["label"], rtol=1e-3)
+            assert_allclose(result["label"], output["label"], rtol=1e-3, type_test="tensor")
             self.assertTupleEqual(result["label"].shape, expected_shape)
 
 

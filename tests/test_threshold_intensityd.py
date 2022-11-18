@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -47,9 +47,9 @@ class TestThresholdIntensityd(unittest.TestCase):
     def test_value(self, in_type, input_param, expected_value):
         test_data = {"image": in_type(np.arange(10)), "label": in_type(np.arange(10)), "extra": in_type(np.arange(10))}
         result = ThresholdIntensityd(**input_param)(test_data)
-        assert_allclose(result["image"], in_type(expected_value))
-        assert_allclose(result["label"], in_type(expected_value))
-        assert_allclose(result["extra"], in_type(expected_value))
+        assert_allclose(result["image"], in_type(expected_value), type_test="tensor")
+        assert_allclose(result["label"], in_type(expected_value), type_test="tensor")
+        assert_allclose(result["extra"], in_type(expected_value), type_test="tensor")
 
 
 if __name__ == "__main__":

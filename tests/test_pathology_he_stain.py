@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -48,7 +48,6 @@ EXTRACT_STAINS_TEST_CASE_5 = [
     np.array([[[100, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0]]]),
     np.array([[0.70710677, 0.18696113], [0.0, 0.0], [0.70710677, 0.98236734]]),
 ]
-
 
 # input pixels all transparent and below the beta absorbance threshold
 NORMALIZE_STAINS_TEST_CASE_1 = [np.full((3, 2, 3), 240)]

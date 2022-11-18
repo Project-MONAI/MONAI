@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,7 +19,18 @@ import numpy as np
 
 from monai.data import Dataset, DatasetSummary, create_test_image_3d
 from monai.transforms import LoadImaged
+from monai.transforms.compose import Compose
+from monai.transforms.utility.dictionary import ToNumpyd
 from monai.utils import set_determinism
+
+
+def test_collate(batch):
+    elem = batch[0]
+    elem_type = type(elem)
+    if isinstance(elem, np.ndarray):
+        return np.stack(batch, 0)
+    elif isinstance(elem, dict):
+        return elem_type({key: test_collate([d[key] for d in batch]) for key in elem})
 
 
 class TestDatasetSummary(unittest.TestCase):
@@ -40,11 +51,18 @@ class TestDatasetSummary(unittest.TestCase):
                 {"image": image_name, "label": label_name} for image_name, label_name in zip(train_images, train_labels)
             ]
 
-            dataset = Dataset(data=data_dicts, transform=LoadImaged(keys=["image", "label"]))
+            t = Compose(
+                [
+                    LoadImaged(keys=["image", "label"]),
+                    ToNumpyd(keys=["image", "label", "image_meta_dict", "label_meta_dict"]),
+                ]
+            )
+            dataset = Dataset(data=data_dicts, transform=t)
 
-            calculator = DatasetSummary(dataset, num_workers=4)
+            # test **kwargs of `DatasetSummary` for `DataLoader`
+            calculator = DatasetSummary(dataset, num_workers=4, meta_key="image_meta_dict", collate_fn=test_collate)
 
-            target_spacing = calculator.get_target_spacing()
+            target_spacing = calculator.get_target_spacing(spacing_key="pixdim")
             self.assertEqual(target_spacing, (1.0, 1.0, 1.0))
             calculator.calculate_statistics()
             np.testing.assert_allclose(calculator.data_mean, 0.892599, rtol=1e-5, atol=1e-5)
@@ -72,7 +90,8 @@ class TestDatasetSummary(unittest.TestCase):
                 {"image": image_name, "label": label_name} for image_name, label_name in zip(train_images, train_labels)
             ]
 
-            dataset = Dataset(data=data_dicts, transform=LoadImaged(keys=["image", "label"]))
+            t = Compose([LoadImaged(keys=["image", "label"])])
+            dataset = Dataset(data=data_dicts, transform=t)
 
             calculator = DatasetSummary(dataset, num_workers=4)
 

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,10 +16,10 @@ from parameterized import parameterized
 
 from monai.transforms import CuCIM
 from monai.utils import optional_import, set_determinism
-from tests.utils import skip_if_no_cuda
+from tests.utils import HAS_CUPY, skip_if_no_cuda
 
 _, has_cut = optional_import("cucim.core.operations.expose.transform")
-cp, has_cp = optional_import("cupy")
+cp, _ = optional_import("cupy")
 
 set_determinism(seed=0)
 
@@ -41,7 +41,6 @@ TEST_CASE_FLIP_1 = [
     np.array([[[1.0, 0.0], [3.0, 2.0]], [[1.0, 0.0], [3.0, 2.0]], [[1.0, 0.0], [3.0, 2.0]]], dtype=np.float32),
 ]
 
-
 TEST_CASE_ROTATE_1 = [
     {"name": "image_rotate_90", "k": 1, "spatial_axis": (-2, -1)},
     np.array([[[0.0, 1.0], [2.0, 3.0]], [[0.0, 1.0], [2.0, 3.0]], [[0.0, 1.0], [2.0, 3.0]]], dtype=np.float32),
@@ -62,7 +61,7 @@ TEST_CASE_ZOOM_1 = [
 
 
 @skip_if_no_cuda
-@unittest.skipUnless(has_cp, "CuPy is required.")
+@unittest.skipUnless(HAS_CUPY, "CuPy is required.")
 @unittest.skipUnless(has_cut, "cuCIM transforms are required.")
 class TestCuCIM(unittest.TestCase):
     @parameterized.expand(

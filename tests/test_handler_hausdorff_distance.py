@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,6 +17,7 @@ import torch
 from ignite.engine import Engine
 
 from monai.handlers import HausdorffDistance
+from tests.utils import assert_allclose
 
 
 def create_spherical_seg_3d(
@@ -102,7 +103,7 @@ class TestHandlerHausdorffDistance(unittest.TestCase):
         hd_metric.update([y_pred, y])
         y_pred, y = TEST_SAMPLE_2
         hd_metric.update([y_pred, y])
-        torch.testing.assert_allclose(hd_metric.compute().float(), torch.tensor([10.0, 0.0]))
+        assert_allclose(hd_metric.compute().float(), torch.tensor([10.0, 0.0]))
 
 
 if __name__ == "__main__":

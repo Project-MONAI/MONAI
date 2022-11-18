@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,10 +17,8 @@ from ignite.engine import Engine
 
 from monai.data import SmartCacheDataset
 from monai.handlers import SmartCacheHandler
-from tests.utils import SkipIfBeforePyTorchVersion
 
 
-@SkipIfBeforePyTorchVersion((1, 7))
 class TestHandlerSmartCache(unittest.TestCase):
     def test_content(self):
         data = [0, 1, 2, 3, 4, 5, 6, 7, 8]

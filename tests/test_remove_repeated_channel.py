@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,15 +11,14 @@
 
 import unittest
 
-import numpy as np
-import torch
 from parameterized import parameterized
 
 from monai.transforms import RemoveRepeatedChannel
+from tests.utils import TEST_NDARRAYS
 
 TEST_CASES = []
-for q in (torch.Tensor, np.array):
-    TEST_CASES.append([{"repeats": 2}, q([[1, 2], [1, 2], [3, 4], [3, 4]]), (2, 2)])  # type: ignore
+for q in TEST_NDARRAYS:
+    TEST_CASES.append([{"repeats": 2}, q([[1, 2], [1, 2], [3, 4], [3, 4]]), (2, 2)])
 
 
 class TestRemoveRepeatedChannel(unittest.TestCase):

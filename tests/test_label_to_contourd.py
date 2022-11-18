@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -154,7 +154,7 @@ class TestContourd(unittest.TestCase):
                 test_result_np = test_result_cube["img"]
                 channels = cube.shape[0]
                 for channel in range(channels):
-                    assert_allclose(test_result_np[channel, ...], expected_output)
+                    assert_allclose(test_result_np[channel, ...], expected_output, type_test="tensor")
 
             # check 4-dim input data
             test_img, expected_output = gen_fixed_img(p)
@@ -165,7 +165,7 @@ class TestContourd(unittest.TestCase):
 
                 test_result_np = test_result_img["img"]
                 for channel in range(channels):
-                    assert_allclose(test_result_np[channel, ...], expected_output)
+                    assert_allclose(test_result_np[channel, ...], expected_output, type_test="tensor")
 
         # check invalid input data
         error_input = {"img": torch.rand(1, 2)}

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,10 +11,14 @@
 
 import copy
 import os
+import pickle
 import tempfile
 from typing import Dict, Optional
 
 import torch
+from torch.serialization import DEFAULT_PROTOCOL
+
+from monai.config.type_definitions import PathLike
 
 __all__ = ["StateCacher"]
 
@@ -34,7 +38,14 @@ class StateCacher:
     >>> model.load_state_dict(state_cacher.retrieve("model"))
     """
 
-    def __init__(self, in_memory: bool, cache_dir: Optional[str] = None, allow_overwrite: bool = True) -> None:
+    def __init__(
+        self,
+        in_memory: bool,
+        cache_dir: Optional[PathLike] = None,
+        allow_overwrite: bool = True,
+        pickle_module=pickle,
+        pickle_protocol: int = DEFAULT_PROTOCOL,
+    ) -> None:
         """Constructor.
 
         Args:
@@ -46,20 +57,39 @@ class StateCacher:
             allow_overwrite: allow the cache to be overwritten. If set to `False`, an
                 error will be thrown if a matching already exists in the list of cached
                 objects.
+            pickle_module: module used for pickling metadata and objects, default to `pickle`.
+                this arg is used by `torch.save`, for more details, please check:
+                https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
+            pickle_protocol: can be specified to override the default protocol, default to `2`.
+                this arg is used by `torch.save`, for more details, please check:
+                https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
+
         """
         self.in_memory = in_memory
-        self.cache_dir = cache_dir
-        self.allow_overwrite = allow_overwrite
-
-        if self.cache_dir is None:
-            self.cache_dir = tempfile.gettempdir()
-        elif not os.path.isdir(self.cache_dir):
+        self.cache_dir = tempfile.gettempdir() if cache_dir is None else cache_dir
+        if not os.path.isdir(self.cache_dir):
             raise ValueError("Given `cache_dir` is not a valid directory.")
 
-        self.cached: Dict[str, str] = {}
+        self.allow_overwrite = allow_overwrite
+        self.pickle_module = pickle_module
+        self.pickle_protocol = pickle_protocol
+        self.cached: Dict = {}
 
-    def store(self, key, data_obj):
-        """Store a given object with the given key name."""
+    def store(self, key, data_obj, pickle_module=None, pickle_protocol: Optional[int] = None):
+        """
+        Store a given object with the given key name.
+
+        Args:
+            key: key of the data object to store.
+            data_obj: data object to store.
+            pickle_module: module used for pickling metadata and objects, default to `self.pickle_module`.
+                this arg is used by `torch.save`, for more details, please check:
+                https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
+            pickle_protocol: can be specified to override the default protocol, default to `self.pickle_protocol`.
+                this arg is used by `torch.save`, for more details, please check:
+                https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
+
+        """
         if key in self.cached and not self.allow_overwrite:
             raise RuntimeError("Cached key already exists and overwriting is disabled.")
         if self.in_memory:
@@ -67,7 +97,12 @@ class StateCacher:
         else:
             fn = os.path.join(self.cache_dir, f"state_{key}_{id(self)}.pt")
             self.cached.update({key: {"obj": fn}})
-            torch.save(data_obj, fn)
+            torch.save(
+                obj=data_obj,
+                f=fn,
+                pickle_module=self.pickle_module if pickle_module is None else pickle_module,
+                pickle_protocol=self.pickle_protocol if pickle_protocol is None else pickle_protocol,
+            )
             # store object's device if relevant
             if hasattr(data_obj, "device"):
                 self.cached[key]["device"] = data_obj.device

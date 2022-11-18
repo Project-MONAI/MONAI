@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -32,9 +32,10 @@ def build_test_cases(data):
         {"params": [bias], "lr": 1e-2, "amsgrad": True, "grad_averaging": True, "weight_decay": 0.1},
     ]
 
-    test_cases = []
-    test_cases.append([test_case_same_param, default_params, weight, bias, input])
-    test_cases.append([test_case_diff_param, default_params, weight, bias, input])
+    test_cases = [
+        [test_case_same_param, default_params, weight, bias, input],
+        [test_case_diff_param, default_params, weight, bias, input],
+    ]
     return test_cases
 
 

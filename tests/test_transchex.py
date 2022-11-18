@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -38,7 +38,7 @@ for drop_out in [0.4]:
                                         "num_classes": num_classes,
                                         "drop_out": drop_out,
                                     },
-                                    (2, num_classes),  # type: ignore
+                                    (2, num_classes),
                                 ]
                                 TEST_CASE_TRANSCHEX.append(test_case)
 

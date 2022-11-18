@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import os
+import pickle
 import random
 import sys
 import unittest
@@ -23,6 +24,8 @@ from monai.networks.nets import DenseNet
 from monai.optimizers import LearningRateFinder
 from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd, ToTensord
 from monai.utils import optional_import, set_determinism
+from monai.utils.misc import MONAIEnvVars
+from tests.utils import skip_if_downloading_fails
 
 if TYPE_CHECKING:
     import matplotlib.pyplot as plt
@@ -45,7 +48,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 class TestLRFinder(unittest.TestCase):
     def setUp(self):
 
-        self.root_dir = os.environ.get("MONAI_DATA_DIRECTORY")
+        self.root_dir = MONAIEnvVars.data_dir()
         if not self.root_dir:
             self.root_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
 
@@ -60,15 +63,16 @@ class TestLRFinder(unittest.TestCase):
 
     def test_lr_finder(self):
         # 0.001 gives 54 examples
-        train_ds = MedNISTDataset(
-            root_dir=self.root_dir,
-            transform=self.transforms,
-            section="validation",
-            val_frac=0.001,
-            download=True,
-            num_workers=10,
-        )
-        train_loader = DataLoader(train_ds, batch_size=300, shuffle=True, num_workers=10)
+        with skip_if_downloading_fails():
+            train_ds = MedNISTDataset(
+                root_dir=self.root_dir,
+                transform=self.transforms,
+                section="validation",
+                val_frac=0.001,
+                download=True,
+                num_workers=2,
+            )
+        train_loader = DataLoader(train_ds, batch_size=300, shuffle=True, num_workers=2)
         num_classes = train_ds.get_num_classes()
 
         model = DenseNet(
@@ -78,7 +82,14 @@ class TestLRFinder(unittest.TestCase):
         learning_rate = 1e-5
         optimizer = torch.optim.Adam(model.parameters(), learning_rate)
 
-        lr_finder = LearningRateFinder(model, optimizer, loss_function, device=device)
+        lr_finder = LearningRateFinder(
+            model=model,
+            optimizer=optimizer,
+            criterion=loss_function,
+            device=device,
+            pickle_module=pickle,
+            pickle_protocol=4,
+        )
         lr_finder.range_test(train_loader, val_loader=train_loader, end_lr=10, num_iter=5)
         print(lr_finder.get_steepest_gradient(0, 0)[0])
 

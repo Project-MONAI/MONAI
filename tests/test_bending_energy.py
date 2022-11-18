@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -22,9 +22,28 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 TEST_CASES = [
     [{}, {"pred": torch.ones((1, 3, 5, 5, 5), device=device)}, 0.0],
     [{}, {"pred": torch.arange(0, 5, device=device)[None, None, None, None, :].expand(1, 3, 5, 5, 5)}, 0.0],
-    [{}, {"pred": torch.arange(0, 5, device=device)[None, None, None, None, :].expand(1, 3, 5, 5, 5) ** 2}, 4.0],
-    [{}, {"pred": torch.arange(0, 5, device=device)[None, None, None, :].expand(1, 3, 5, 5) ** 2}, 4.0],
-    [{}, {"pred": torch.arange(0, 5, device=device)[None, None, :].expand(1, 3, 5) ** 2}, 4.0],
+    [
+        {"normalize": False},
+        {"pred": torch.arange(0, 5, device=device)[None, None, None, None, :].expand(1, 3, 5, 5, 5) ** 2},
+        4.0,
+    ],
+    [
+        {"normalize": False},
+        {"pred": torch.arange(0, 5, device=device)[None, None, None, :].expand(1, 2, 5, 5) ** 2},
+        4.0,
+    ],
+    [{"normalize": False}, {"pred": torch.arange(0, 5, device=device)[None, None, :].expand(1, 1, 5) ** 2}, 4.0],
+    [
+        {"normalize": True},
+        {"pred": torch.arange(0, 5, device=device)[None, None, None, None, :].expand(1, 3, 5, 5, 5) ** 2},
+        100.0,
+    ],
+    [
+        {"normalize": True},
+        {"pred": torch.arange(0, 5, device=device)[None, None, None, :].expand(1, 2, 5, 5) ** 2},
+        100.0,
+    ],
+    [{"normalize": True}, {"pred": torch.arange(0, 5, device=device)[None, None, :].expand(1, 1, 5) ** 2}, 100.0],
 ]
 
 
@@ -37,17 +56,22 @@ class TestBendingEnergy(unittest.TestCase):
     def test_ill_shape(self):
         loss = BendingEnergyLoss()
         # not in 3-d, 4-d, 5-d
-        with self.assertRaisesRegex(ValueError, ""):
+        with self.assertRaisesRegex(ValueError, "Expecting 3-d, 4-d or 5-d"):
             loss.forward(torch.ones((1, 3), device=device))
-        with self.assertRaisesRegex(ValueError, ""):
-            loss.forward(torch.ones((1, 3, 5, 5, 5, 5), device=device))
-        # spatial_dim < 5
-        with self.assertRaisesRegex(ValueError, ""):
+        with self.assertRaisesRegex(ValueError, "Expecting 3-d, 4-d or 5-d"):
+            loss.forward(torch.ones((1, 4, 5, 5, 5, 5), device=device))
+        with self.assertRaisesRegex(ValueError, "All spatial dimensions"):
             loss.forward(torch.ones((1, 3, 4, 5, 5), device=device))
-        with self.assertRaisesRegex(ValueError, ""):
+        with self.assertRaisesRegex(ValueError, "All spatial dimensions"):
             loss.forward(torch.ones((1, 3, 5, 4, 5)))
-        with self.assertRaisesRegex(ValueError, ""):
+        with self.assertRaisesRegex(ValueError, "All spatial dimensions"):
             loss.forward(torch.ones((1, 3, 5, 5, 4)))
+
+        # number of vector components unequal to number of spatial dims
+        with self.assertRaisesRegex(ValueError, "Number of vector components"):
+            loss.forward(torch.ones((1, 2, 5, 5, 5)))
+        with self.assertRaisesRegex(ValueError, "Number of vector components"):
+            loss.forward(torch.ones((1, 2, 5, 5, 5)))
 
     def test_ill_opts(self):
         pred = torch.rand(1, 3, 5, 5, 5).to(device=device)

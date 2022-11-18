@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,11 +17,11 @@ from parameterized import parameterized
 
 from monai.transforms import Resample
 from monai.transforms.utils import create_grid
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TESTS = []
-for p in TEST_NDARRAYS:
-    for q in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_ALL:
+    for q in TEST_NDARRAYS_ALL:
         for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cpu"]:
             TESTS.append(
                 [
@@ -156,7 +156,7 @@ class TestResample(unittest.TestCase):
         result = g(**input_data)
         if "device" in input_data:
             self.assertEqual(result.device, input_data["device"])
-        assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4)
+        assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4, type_test=False)
 
 
 if __name__ == "__main__":

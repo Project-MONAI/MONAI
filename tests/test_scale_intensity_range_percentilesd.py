@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -27,20 +27,18 @@ class TestScaleIntensityRangePercentilesd(NumpyImageTestCase2D):
 
         a_min = np.percentile(img, lower)
         a_max = np.percentile(img, upper)
-        expected = (img - a_min) / (a_max - a_min)
-        expected = (expected * (b_max - b_min)) + b_min
+        expected = (((img - a_min) / (a_max - a_min)) * (b_max - b_min) + b_min).astype(np.uint8)
 
         for p in TEST_NDARRAYS:
             data = {"img": p(img)}
             scaler = ScaleIntensityRangePercentilesd(
-                keys=data.keys(), lower=lower, upper=upper, b_min=b_min, b_max=b_max
+                keys=data.keys(), lower=lower, upper=upper, b_min=b_min, b_max=b_max, dtype=np.uint8
             )
-            assert_allclose(p(expected), scaler(data)["img"])
+            assert_allclose(scaler(data)["img"], p(expected), type_test="tensor", rtol=1e-4)
 
     def test_relative_scaling(self):
         img = self.imt
-        data = {}
-        data["img"] = img
+        data = {"img": img}
         lower = 10
         upper = 99
         b_min = 100
@@ -56,7 +54,7 @@ class TestScaleIntensityRangePercentilesd(NumpyImageTestCase2D):
         expected_img = (img - expected_a_min) / (expected_a_max - expected_a_min)
         expected_img = (expected_img * (expected_b_max - expected_b_min)) + expected_b_min
 
-        np.testing.assert_allclose(expected_img, scaler(data)["img"])
+        np.testing.assert_allclose(expected_img, scaler(data)["img"], rtol=1e-3, atol=0.1)
 
     def test_invalid_instantiation(self):
         self.assertRaises(
@@ -74,6 +72,26 @@ class TestScaleIntensityRangePercentilesd(NumpyImageTestCase2D):
         with self.assertRaises(ValueError):
             s = ScaleIntensityRangePercentilesd(keys=["img"], lower=30, upper=90, b_min=None, b_max=20, relative=True)
             s(self.imt)
+
+    def test_channel_wise(self):
+        img = np.tile(self.imt, (3, 1, 1, 1))
+        lower = 10
+        upper = 99
+        b_min = 0
+        b_max = 255
+        scaler = ScaleIntensityRangePercentilesd(
+            keys="img", lower=lower, upper=upper, b_min=b_min, b_max=b_max, channel_wise=True, dtype=np.uint8
+        )
+        expected = []
+        for c in img:
+            a_min = np.percentile(c, lower)
+            a_max = np.percentile(c, upper)
+            expected.append((((c - a_min) / (a_max - a_min)) * (b_max - b_min) + b_min).astype(np.uint8))
+        expected = np.stack(expected)
+
+        for p in TEST_NDARRAYS:
+            data = {"img": p(img)}
+            assert_allclose(scaler(data)["img"], p(expected), type_test="tensor", rtol=1e-4)
 
 
 if __name__ == "__main__":

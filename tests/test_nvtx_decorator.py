@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,19 +17,27 @@ from parameterized import parameterized
 
 from monai.transforms import (
     Compose,
+    CuCIM,
     Flip,
-    FlipD,
+    Flipd,
+    OneOf,
     RandAdjustContrast,
+    RandCuCIM,
     RandFlip,
     Randomizable,
     Rotate90,
+    ToCupy,
+    ToNumpy,
+    TorchVision,
     ToTensor,
-    ToTensorD,
+    ToTensord,
 )
 from monai.utils import Range, optional_import
+from tests.utils import HAS_CUPY
 
 _, has_nvtx = optional_import("torch._C._nvtx", descriptor="NVTX is not installed. Are you sure you have a CUDA build?")
-
+_, has_tvt = optional_import("torchvision.transforms")
+_, has_cut = optional_import("cucim.core.operations.expose.transform")
 
 TEST_CASE_ARRAY_0 = [np.random.randn(3, 3)]
 TEST_CASE_ARRAY_1 = [np.random.randn(3, 10, 10)]
@@ -40,10 +48,36 @@ TEST_CASE_DICT_1 = [{"image": np.random.randn(3, 10, 10)}]
 TEST_CASE_TORCH_0 = [torch.randn(3, 3)]
 TEST_CASE_TORCH_1 = [torch.randn(3, 10, 10)]
 
+TEST_CASE_WRAPPER = [np.random.randn(3, 10, 10)]
 
+TEST_CASE_RECURSIVE_0 = [
+    torch.randn(3, 3),
+    Compose([ToNumpy(), Flip(), RandAdjustContrast(prob=0.0), RandFlip(prob=1.0), ToTensor()]),
+]
+TEST_CASE_RECURSIVE_1 = [
+    torch.randn(3, 3),
+    Compose([ToNumpy(), Flip(), Compose([RandAdjustContrast(prob=0.0), RandFlip(prob=1.0)]), ToTensor()]),
+]
+TEST_CASE_RECURSIVE_2 = [
+    torch.randn(3, 3),
+    Compose(
+        [
+            ToNumpy(),
+            Flip(),
+            OneOf([RandAdjustContrast(prob=0.0), RandFlip(prob=1.0)], weights=[0, 1], log_stats=True),
+            ToTensor(),
+        ]
+    ),
+]
+TEST_CASE_RECURSIVE_LIST = [
+    torch.randn(3, 3),
+    [ToNumpy(), Flip(), RandAdjustContrast(prob=0.0), RandFlip(prob=1.0), ToTensor()],
+]
+
+
+@unittest.skipUnless(has_nvtx, "Required torch._C._nvtx for NVTX Range!")
 class TestNVTXRangeDecorator(unittest.TestCase):
     @parameterized.expand([TEST_CASE_ARRAY_0, TEST_CASE_ARRAY_1])
-    @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX Range!")
     def test_tranform_array(self, input):
         transforms = Compose([Range("random flip")(Flip()), Range()(ToTensor())])
         # Apply transforms
@@ -65,13 +99,12 @@ class TestNVTXRangeDecorator(unittest.TestCase):
         self.assertIsInstance(output2, torch.Tensor)
         self.assertIsInstance(output3, torch.Tensor)
         np.testing.assert_equal(output.numpy(), output1.numpy())
-        np.testing.assert_equal(output.numpy(), output1.numpy())
+        np.testing.assert_equal(output.numpy(), output2.numpy())
         np.testing.assert_equal(output.numpy(), output3.numpy())
 
     @parameterized.expand([TEST_CASE_DICT_0, TEST_CASE_DICT_1])
-    @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX Range!")
     def test_tranform_dict(self, input):
-        transforms = Compose([Range("random flip dict")(FlipD(keys="image")), Range()(ToTensorD("image"))])
+        transforms = Compose([Range("random flip dict")(Flipd(keys="image")), Range()(ToTensord("image"))])
         # Apply transforms
         output = transforms(input)["image"]
 
@@ -94,8 +127,61 @@ class TestNVTXRangeDecorator(unittest.TestCase):
         np.testing.assert_equal(output.numpy(), output2.numpy())
         np.testing.assert_equal(output.numpy(), output3.numpy())
 
+    @parameterized.expand([TEST_CASE_WRAPPER])
+    @unittest.skipUnless(HAS_CUPY, "Requires CuPy.")
+    @unittest.skipUnless(has_cut, "Requires cuCIM transforms.")
+    @unittest.skipUnless(has_tvt, "Requires torchvision transforms.")
+    def test_wrapper_tranforms(self, input):
+        transform_list = [
+            ToTensor(),
+            TorchVision(name="RandomHorizontalFlip", p=1.0),
+            ToCupy(),
+            CuCIM(name="image_flip", spatial_axis=-1),
+            RandCuCIM(name="rand_image_rotate_90", prob=1.0, max_k=1, spatial_axis=(-2, -1)),
+        ]
+
+        transforms = Compose(transform_list)
+        transforms_range = Compose([Range()(t) for t in transform_list])
+
+        # Apply transforms
+        output = transforms(input)
+
+        # Apply transforms with Range
+        output_r = transforms_range(input)
+
+        # Check the outputs
+        np.testing.assert_equal(output.get(), output_r.get())
+
+    @parameterized.expand([TEST_CASE_RECURSIVE_0, TEST_CASE_RECURSIVE_1, TEST_CASE_RECURSIVE_2])
+    def test_recursive_tranforms(self, input, transforms):
+        transforms_range = Range(name="Recursive Compose", recursive=True)(transforms)
+
+        # Apply transforms
+        output = transforms(input)
+
+        # Apply transforms with Range
+        output_r = transforms_range(input)
+
+        # Check the outputs
+        self.assertEqual(transforms.map_items, transforms_range.map_items)
+        self.assertEqual(transforms.unpack_items, transforms_range.unpack_items)
+        self.assertEqual(transforms.log_stats, transforms_range.log_stats)
+        np.testing.assert_equal(output.numpy(), output_r.numpy())
+
+    @parameterized.expand([TEST_CASE_RECURSIVE_LIST])
+    def test_recursive_list_tranforms(self, input, transform_list):
+        transforms_list_range = Range(recursive=True)(transform_list)
+
+        # Apply transforms
+        output = Compose(transform_list)(input)
+
+        # Apply transforms with Range
+        output_r = Compose(transforms_list_range)(input)
+
+        # Check the outputs
+        np.testing.assert_equal(output.numpy(), output_r.numpy())
+
     @parameterized.expand([TEST_CASE_ARRAY_1])
-    @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX Range!")
     def test_tranform_randomized(self, input):
         # Compose deterministic and randomized transforms
         transforms = Compose(
@@ -136,7 +222,6 @@ class TestNVTXRangeDecorator(unittest.TestCase):
                 break
 
     @parameterized.expand([TEST_CASE_TORCH_0, TEST_CASE_TORCH_1])
-    @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX Range!")
     def test_network(self, input):
         # Create a network
         model = torch.nn.Sequential(torch.nn.ReLU(), torch.nn.Sigmoid())
@@ -164,7 +249,6 @@ class TestNVTXRangeDecorator(unittest.TestCase):
         np.testing.assert_equal(output.numpy(), output3.numpy())
 
     @parameterized.expand([TEST_CASE_TORCH_0, TEST_CASE_TORCH_1])
-    @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX Range!")
     def test_loss(self, input):
         # Create a network and loss
         model = torch.nn.Sigmoid()
@@ -194,7 +278,6 @@ class TestNVTXRangeDecorator(unittest.TestCase):
         np.testing.assert_equal(output.numpy(), output2.numpy())
         np.testing.assert_equal(output.numpy(), output3.numpy())
 
-    @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX Range!")
     def test_context_manager(self):
         model = torch.nn.Sigmoid()
         loss = torch.nn.BCELoss()

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,22 +9,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .contrastive import ContrastiveLoss
 from .deform import BendingEnergyLoss
 from .dice import (
     Dice,
     DiceCELoss,
     DiceFocalLoss,
     DiceLoss,
+    GeneralizedDiceFocalLoss,
     GeneralizedDiceLoss,
     GeneralizedWassersteinDiceLoss,
     MaskedDiceLoss,
     dice_ce,
     dice_focal,
     generalized_dice,
+    generalized_dice_focal,
     generalized_wasserstein_dice,
 )
+from .ds_loss import DeepSupervisionLoss
 from .focal_loss import FocalLoss
+from .giou_loss import BoxGIoULoss, giou
 from .image_dissimilarity import GlobalMutualInformationLoss, LocalNormalizedCrossCorrelationLoss
 from .multi_scale import MultiScaleLoss
 from .spatial_mask import MaskedLoss
+from .ssim_loss import SSIMLoss
 from .tversky import TverskyLoss
+from .unified_focal_loss import AsymmetricUnifiedFocalLoss

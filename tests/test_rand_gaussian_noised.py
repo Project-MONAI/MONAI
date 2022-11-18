@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -29,7 +29,7 @@ seed = 0
 class TestRandGaussianNoised(NumpyImageTestCase2D):
     @parameterized.expand(TESTS)
     def test_correct_results(self, _, im_type, keys, mean, std):
-        gaussian_fn = RandGaussianNoised(keys=keys, prob=1.0, mean=mean, std=std)
+        gaussian_fn = RandGaussianNoised(keys=keys, prob=1.0, mean=mean, std=std, dtype=np.float64)
         gaussian_fn.set_random_state(seed)
         im = im_type(self.imt)
         noised = gaussian_fn({k: im for k in keys})
@@ -39,7 +39,6 @@ class TestRandGaussianNoised(NumpyImageTestCase2D):
         noise = np.random.normal(mean, np.random.uniform(0, std), size=self.imt.shape)
         for k in keys:
             expected = self.imt + noise
-            self.assertEqual(type(im), type(noised[k]))
             if isinstance(noised[k], torch.Tensor):
                 noised[k] = noised[k].cpu()
             np.testing.assert_allclose(expected, noised[k], atol=1e-5, rtol=1e-5)

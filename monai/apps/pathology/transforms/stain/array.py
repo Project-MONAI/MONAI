@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -52,7 +52,7 @@ class ExtractHEStains(Transform):
         """Perform Stain Deconvolution and return stain matrix for the image.
 
         Args:
-            img: uint8 RGB image to perform stain deconvolution on
+            image: uint8 RGB image to perform stain deconvolution on
 
         Return:
             he: H&E absorbance matrix for the image (first column is H, second column is E, rows are RGB values)
@@ -67,7 +67,7 @@ class ExtractHEStains(Transform):
 
         # reshape image and calculate absorbance
         image = image.reshape((-1, 3))
-        image = image.astype(np.float32) + 1.0
+        image = image.astype(np.float32, copy=False) + 1.0
         absorbance = -np.log(image.clip(max=self.tli) / self.tli)
 
         # remove transparent pixels
@@ -76,7 +76,7 @@ class ExtractHEStains(Transform):
             raise ValueError("All pixels of the input image are below the absorbance threshold.")
 
         # compute eigenvectors
-        _, eigvecs = np.linalg.eigh(np.cov(absorbance_hat.T).astype(np.float32))
+        _, eigvecs = np.linalg.eigh(np.cov(absorbance_hat.T).astype(np.float32, copy=False))
 
         # project on the plane spanned by the eigenvectors corresponding to the two largest eigenvalues
         t_hat = absorbance_hat.dot(eigvecs[:, 1:3])
@@ -186,7 +186,7 @@ class NormalizeHEStains(Transform):
         conc = np.linalg.lstsq(he, y, rcond=None)[0]
 
         # normalize stain concentrations
-        max_conc = np.array([np.percentile(conc[0, :], 99), np.percentile(conc[1, :], 99)], dtype=np.float32)
+        max_conc = np.asarray([np.percentile(conc[0, :], 99), np.percentile(conc[1, :], 99)], dtype=np.float32)
         tmp = np.divide(max_conc, self.max_cref, dtype=np.float32)
         image_c = np.divide(conc, tmp[:, np.newaxis], dtype=np.float32)
 

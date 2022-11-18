@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pickle
 import warnings
 from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple, Type, Union
@@ -17,6 +18,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.optim import Optimizer
+from torch.serialization import DEFAULT_PROTOCOL
 from torch.utils.data import DataLoader
 
 from monai.networks.utils import eval_mode
@@ -144,30 +146,30 @@ class LearningRateFinder:
     and what is the optimal learning rate.
 
     Example (fastai approach):
-        >>> lr_finder = LearningRateFinder(net, optimizer, criterion)
-        >>> lr_finder.range_test(data_loader, end_lr=100, num_iter=100)
-        >>> lr_finder.get_steepest_gradient()
-        >>> lr_finder.plot() # to inspect the loss-learning rate graph
+    >>> lr_finder = LearningRateFinder(net, optimizer, criterion)
+    >>> lr_finder.range_test(data_loader, end_lr=100, num_iter=100)
+    >>> lr_finder.get_steepest_gradient()
+    >>> lr_finder.plot() # to inspect the loss-learning rate graph
 
     Example (Leslie Smith's approach):
-        >>> lr_finder = LearningRateFinder(net, optimizer, criterion)
-        >>> lr_finder.range_test(train_loader, val_loader=val_loader, end_lr=1, num_iter=100, step_mode="linear")
+    >>> lr_finder = LearningRateFinder(net, optimizer, criterion)
+    >>> lr_finder.range_test(train_loader, val_loader=val_loader, end_lr=1, num_iter=100, step_mode="linear")
 
     Gradient accumulation is supported; example:
-        >>> train_data = ...    # prepared dataset
-        >>> desired_bs, real_bs = 32, 4         # batch size
-        >>> accumulation_steps = desired_bs // real_bs     # required steps for accumulation
-        >>> data_loader = torch.utils.data.DataLoader(train_data, batch_size=real_bs, shuffle=True)
-        >>> acc_lr_finder = LearningRateFinder(net, optimizer, criterion)
-        >>> acc_lr_finder.range_test(data_loader, end_lr=10, num_iter=100, accumulation_steps=accumulation_steps)
+    >>> train_data = ...    # prepared dataset
+    >>> desired_bs, real_bs = 32, 4         # batch size
+    >>> accumulation_steps = desired_bs // real_bs     # required steps for accumulation
+    >>> data_loader = torch.utils.data.DataLoader(train_data, batch_size=real_bs, shuffle=True)
+    >>> acc_lr_finder = LearningRateFinder(net, optimizer, criterion)
+    >>> acc_lr_finder.range_test(data_loader, end_lr=10, num_iter=100, accumulation_steps=accumulation_steps)
 
     By default, image will be extracted from data loader with x["image"] and x[0], depending on whether
     batch data is a dictionary or not (and similar behaviour for extracting the label). If your data loader
     returns something other than this, pass a callable function to extract it, e.g.:
-        >>> image_extractor = lambda x: x["input"]
-        >>> label_extractor = lambda x: x[100]
-        >>> lr_finder = LearningRateFinder(net, optimizer, criterion)
-        >>> lr_finder.range_test(train_loader, val_loader, image_extractor, label_extractor)
+    >>> image_extractor = lambda x: x["input"]
+    >>> label_extractor = lambda x: x[100]
+    >>> lr_finder = LearningRateFinder(net, optimizer, criterion)
+    >>> lr_finder.range_test(train_loader, val_loader, image_extractor, label_extractor)
 
     References:
     Modified from: https://github.com/davidtvs/pytorch-lr-finder.
@@ -183,6 +185,8 @@ class LearningRateFinder:
         memory_cache: bool = True,
         cache_dir: Optional[str] = None,
         amp: bool = False,
+        pickle_module=pickle,
+        pickle_protocol: int = DEFAULT_PROTOCOL,
         verbose: bool = True,
     ) -> None:
         """Constructor.
@@ -202,6 +206,12 @@ class LearningRateFinder:
                 specified, system-wide temporary directory is used. Notice that this
                 parameter will be ignored if `memory_cache` is True.
             amp: use Automatic Mixed Precision
+            pickle_module: module used for pickling metadata and objects, default to `pickle`.
+                this arg is used by `torch.save`, for more details, please check:
+                https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
+            pickle_protocol: can be specified to override the default protocol, default to `2`.
+                this arg is used by `torch.save`, for more details, please check:
+                https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
             verbose: verbose output
         Returns:
             None
@@ -221,7 +231,9 @@ class LearningRateFinder:
         # Save the original state of the model and optimizer so they can be restored if
         # needed
         self.model_device = next(self.model.parameters()).device
-        self.state_cacher = StateCacher(memory_cache, cache_dir=cache_dir)
+        self.state_cacher = StateCacher(
+            in_memory=memory_cache, cache_dir=cache_dir, pickle_module=pickle_module, pickle_protocol=pickle_protocol
+        )
         self.state_cacher.store("model", self.model.state_dict())
         self.state_cacher.store("optimizer", self.optimizer.state_dict())
 

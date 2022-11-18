@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,8 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import MapLabelValue
-from monai.utils import PT_BEFORE_1_7
-from tests.utils import TEST_NDARRAYS
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
 for p in TEST_NDARRAYS:
@@ -33,15 +32,14 @@ for p in TEST_NDARRAYS:
             [{"orig_labels": [1, 2, 3], "target_labels": [0.5, 1.5, 2.5]}, p([3, 1, 1, 2]), p([2.5, 0.5, 0.5, 1.5])],
         ]
     )
-    # PyTorch 1.5.1 doesn't support rich dtypes
-    if not PT_BEFORE_1_7:
-        TESTS.append(
-            [
-                {"orig_labels": [1.5, 2.5, 3.5], "target_labels": [0, 1, 2], "dtype": np.int8},
-                p([3.5, 1.5, 1.5, 2.5]),
-                p([2, 0, 0, 1]),
-            ]
-        )
+    # note: PyTorch 1.5.1 doesn't support rich dtypes
+    TESTS.append(
+        [
+            {"orig_labels": [1.5, 2.5, 3.5], "target_labels": [0, 1, 2], "dtype": np.int8},
+            p([3.5, 1.5, 1.5, 2.5]),
+            p([2, 0, 0, 1]),
+        ]
+    )
 TESTS.extend(
     [
         [
@@ -72,7 +70,7 @@ class TestMapLabelValue(unittest.TestCase):
     def test_shape(self, input_param, input_data, expected_value):
         result = MapLabelValue(**input_param)(input_data)
         if isinstance(expected_value, torch.Tensor):
-            torch.testing.assert_allclose(result, expected_value)
+            assert_allclose(result, expected_value)
         else:
             np.testing.assert_equal(result, expected_value)
         self.assertTupleEqual(result.shape, expected_value.shape)

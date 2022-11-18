@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,8 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pickle
 import unittest
 from os.path import exists, join
+from pathlib import Path
 from tempfile import gettempdir
 
 import torch
@@ -21,10 +23,14 @@ from monai.utils import StateCacher
 DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 TEST_CASE_0 = [torch.Tensor([1]).to(DEVICE), {"in_memory": True}]
-TEST_CASE_1 = [torch.Tensor([1]).to(DEVICE), {"in_memory": False, "cache_dir": gettempdir()}]
+TEST_CASE_1 = [
+    torch.Tensor([1]).to(DEVICE),
+    {"in_memory": False, "cache_dir": gettempdir(), "pickle_module": None, "pickle_protocol": pickle.HIGHEST_PROTOCOL},
+]
 TEST_CASE_2 = [torch.Tensor([1]).to(DEVICE), {"in_memory": False, "allow_overwrite": False}]
+TEST_CASE_3 = [torch.Tensor([1]).to(DEVICE), {"in_memory": False, "cache_dir": Path(gettempdir())}]
 
-TEST_CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2]
+TEST_CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3]
 
 
 class TestStateCacher(unittest.TestCase):
@@ -35,7 +41,7 @@ class TestStateCacher(unittest.TestCase):
 
         state_cacher = StateCacher(**params)
         # store it
-        state_cacher.store(key, data_obj)
+        state_cacher.store(key, data_obj, pickle_module=pickle)
         # create clone then modify original
         data_obj_orig = data_obj.clone()
         data_obj += 1

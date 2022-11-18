@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -71,7 +71,7 @@ class TestAddExtremePointsChannel(unittest.TestCase):
     def test_correct_results(self, input_data, expected):
         add_extreme_points_channel = AddExtremePointsChannel()
         result = add_extreme_points_channel(**input_data)
-        assert_allclose(result[IMG_CHANNEL], expected, rtol=1e-4)
+        assert_allclose(result[IMG_CHANNEL], expected, rtol=1e-4, atol=1e-5)
 
 
 if __name__ == "__main__":

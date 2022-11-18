@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,10 +20,10 @@ from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS, TEST_CASES_ERROR_1, TEST_CASES_ERROR_2 = [], [], []
 for p in TEST_NDARRAYS:
-    TESTS.append([{"spatial_channels": (1, 2, 3)}, p(np.random.randint(0, 2, size=(1, 3, 3, 3))), (4, 3, 3, 3)])
-    TESTS.append([{"spatial_channels": (1,)}, p(np.random.randint(0, 2, size=(1, 3, 3, 3))), (2, 3, 3, 3)])
-    TEST_CASES_ERROR_1.append([{"spatial_channels": (3,)}, p(np.random.randint(0, 2, size=(1, 3, 3)))])
-    TEST_CASES_ERROR_2.append([{"spatial_channels": (0, 1, 2)}, p(np.random.randint(0, 2, size=(1, 3, 3)))])
+    TESTS.append([{"spatial_dims": (0, 1, 2)}, p(np.random.randint(0, 2, size=(1, 3, 3, 3))), (4, 3, 3, 3)])
+    TESTS.append([{"spatial_dims": (0,)}, p(np.random.randint(0, 2, size=(1, 3, 3, 3))), (2, 3, 3, 3)])
+    TEST_CASES_ERROR_1.append([{"spatial_dims": (2,)}, p(np.random.randint(0, 2, size=(1, 3, 3)))])
+    TEST_CASES_ERROR_2.append([{"spatial_dims": (-1, 0, 1)}, p(np.random.randint(0, 2, size=(1, 3, 3)))])
 
 
 class TestAddCoordinateChannels(unittest.TestCase):

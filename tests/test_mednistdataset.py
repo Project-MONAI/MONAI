@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,11 +12,12 @@
 import os
 import shutil
 import unittest
-from urllib.error import ContentTooShortError, HTTPError
+from pathlib import Path
 
 from monai.apps import MedNISTDataset
-from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd, ToTensord
-from tests.utils import skip_if_quick
+from monai.data import MetaTensor
+from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd
+from tests.utils import skip_if_downloading_fails, skip_if_quick
 
 MEDNIST_FULL_DATASET_LENGTH = 58954
 
@@ -25,45 +26,38 @@ class TestMedNISTDataset(unittest.TestCase):
     @skip_if_quick
     def test_values(self):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
-        transform = Compose(
-            [
-                LoadImaged(keys="image"),
-                AddChanneld(keys="image"),
-                ScaleIntensityd(keys="image"),
-                ToTensord(keys=["image", "label"]),
-            ]
-        )
+        transform = Compose([LoadImaged(keys="image"), AddChanneld(keys="image"), ScaleIntensityd(keys="image")])
 
         def _test_dataset(dataset):
             self.assertEqual(len(dataset), int(MEDNIST_FULL_DATASET_LENGTH * dataset.test_frac))
             self.assertTrue("image" in dataset[0])
             self.assertTrue("label" in dataset[0])
-            self.assertTrue("image_meta_dict" in dataset[0])
+            self.assertTrue(isinstance(dataset[0]["image"], MetaTensor))
             self.assertTupleEqual(dataset[0]["image"].shape, (1, 64, 64))
 
-        try:  # will start downloading if testing_dir doesn't have the MedNIST files
-            data = MedNISTDataset(root_dir=testing_dir, transform=transform, section="test", download=True)
-        except (ContentTooShortError, HTTPError, RuntimeError) as e:
-            print(str(e))
-            if isinstance(e, RuntimeError):
-                # FIXME: skip MD5 check as current downloading method may fail
-                self.assertTrue(str(e).startswith("md5 check"))
-            return  # skipping this test due the network connection errors
+        with skip_if_downloading_fails():
+            data = MedNISTDataset(
+                root_dir=testing_dir, transform=transform, section="test", download=True, copy_cache=False
+            )
 
         _test_dataset(data)
 
         # testing from
-        data = MedNISTDataset(root_dir=testing_dir, transform=transform, section="test", download=False)
-        data.get_num_classes()
+        data = MedNISTDataset(
+            root_dir=Path(testing_dir), transform=transform, section="test", download=False, runtime_cache=True
+        )
+        self.assertEqual(data.get_num_classes(), 6)
         _test_dataset(data)
         data = MedNISTDataset(root_dir=testing_dir, section="test", download=False)
         self.assertTupleEqual(data[0]["image"].shape, (64, 64))
         # test same dataset length with different random seed
         data = MedNISTDataset(root_dir=testing_dir, transform=transform, section="test", download=False, seed=42)
         _test_dataset(data)
+        self.assertEqual(data[0]["class_name"], "AbdomenCT")
+        self.assertEqual(data[0]["label"], 0)
         shutil.rmtree(os.path.join(testing_dir, "MedNIST"))
         try:
-            data = MedNISTDataset(root_dir=testing_dir, transform=transform, section="test", download=False)
+            MedNISTDataset(root_dir=testing_dir, transform=transform, section="test", download=False)
         except RuntimeError as e:
             print(str(e))
             self.assertTrue(str(e).startswith("Cannot find dataset directory"))

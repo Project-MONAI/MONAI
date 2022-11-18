@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,6 +17,7 @@ import torch
 from ignite.engine import Engine
 
 from monai.handlers import SurfaceDistance
+from tests.utils import assert_allclose
 
 
 def create_spherical_seg_3d(
@@ -102,7 +103,9 @@ class TestHandlerSurfaceDistance(unittest.TestCase):
         sur_metric.update([y_pred, y])
         y_pred, y = TEST_SAMPLE_2
         sur_metric.update([y_pred, y])
-        torch.testing.assert_allclose(sur_metric.compute().float(), torch.tensor([4.1713, 0.0000]))
+        assert_allclose(
+            sur_metric.compute().float(), torch.tensor([4.1713, 0.0000]), atol=1e-4, rtol=1e-4, type_test=False
+        )
 
 
 if __name__ == "__main__":

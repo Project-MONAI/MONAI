@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -30,7 +30,10 @@ class TestRandRicianNoise(NumpyImageTestCase2D):
         seed = 0
         rician_fn = RandRicianNoise(prob=1.0, mean=mean, std=std)
         rician_fn.set_random_state(seed)
-        noised = rician_fn(in_type(self.imt))
+        im = in_type(self.imt)
+        noised = rician_fn(im)
+        if isinstance(im, torch.Tensor):
+            self.assertEqual(im.dtype, noised.dtype)
         np.random.seed(seed)
         np.random.random()
         _std = np.random.uniform(0, std)

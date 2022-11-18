@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -8,7 +8,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 
 from typing import List, Optional, Tuple, Union
 
@@ -46,7 +45,9 @@ def compute_fp_tp_probs(
 
     """
     if not (probs.shape == y_coord.shape == x_coord.shape):
-        raise AssertionError("the shapes for coordinates and probabilities should be the same.")
+        raise ValueError(
+            f"the shapes between probs {probs.shape}, y_coord {y_coord.shape} and x_coord {x_coord.shape} should be the same."
+        )
 
     if isinstance(probs, torch.Tensor):
         probs = probs.detach().cpu().numpy()

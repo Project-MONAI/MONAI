@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -8,12 +8,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """
 This set of utility function is meant to make using Jupyter notebooks easier with MONAI. Plotting functions using
 Matplotlib produce common plots for metrics and images.
 """
 
+import copy
 from enum import Enum
 from threading import RLock, Thread
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
@@ -178,6 +178,7 @@ def plot_engine_status(
         window_fraction: for metric plot, what fraction of the graph value length to use as the running average window
         image_fn: callable converting tensors keyed to a name in the Engine to a tuple of images to plot
         fig: Figure object to plot into, reuse from previous plotting for flicker-free refreshing
+        selected_inst: index of the instance to show in the image plot
 
     Returns:
         Figure object (or `fig` if given), list of Axes objects for graph and images
@@ -339,7 +340,7 @@ class ThreadContainer(Thread):
 
     def status(self) -> str:
         """Returns a status string for the current state of the engine."""
-        stats = self.status_dict
+        stats = copy.deepcopy(self.status_dict)
 
         msgs = [stats.pop(StatusMembers.STATUS.value), "Iters: " + str(stats.pop(StatusMembers.ITERS.value, 0))]
 

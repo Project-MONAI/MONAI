@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,11 +15,12 @@ import unittest
 
 import torch
 from parameterized import parameterized
-from torch.utils.tensorboard import SummaryWriter
 
 from monai.utils import optional_import
 from monai.visualize import plot_2d_or_3d_image
 from tests.utils import SkipIfNoModule
+
+SummaryWriter, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
 SummaryWriterX, _ = optional_import("tensorboardX", name="SummaryWriter")
 
@@ -34,12 +35,13 @@ TEST_CASE_4 = [(1, 1, 10, 10, 10)]
 TEST_CASE_5 = [(1, 3, 10, 10, 10)]
 
 
+@unittest.skipUnless(has_tb, "Requires SummaryWriter installation")
 class TestPlot2dOr3dImage(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
     def test_tb_image(self, shape):
         with tempfile.TemporaryDirectory() as tempdir:
             writer = SummaryWriter(log_dir=tempdir)
-            plot_2d_or_3d_image(torch.zeros(shape), 0, writer, max_channels=20)
+            plot_2d_or_3d_image(torch.zeros(shape), 0, writer, max_channels=3, frame_dim=-1)
             writer.flush()
             writer.close()
             self.assertTrue(len(glob.glob(tempdir)) > 0)

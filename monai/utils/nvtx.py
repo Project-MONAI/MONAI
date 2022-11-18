@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -43,6 +43,8 @@ class Range:
             Otherwise, it look up predefined methods: "forward", "__call__", "__next__", "__getitem__"
         append_method_name: if append the name of the methods to be decorated to the range's name
             If None (default), it appends the method's name only if we are annotating more than one method.
+        recursive: if set to True, it will recursively annotate every individual module in a list
+            or in a chain of modules (chained using Compose). Default to False.
 
     """
 
@@ -53,17 +55,37 @@ class Range:
         name: Optional[str] = None,
         methods: Optional[Union[str, Tuple[str, ...]]] = None,
         append_method_name: Optional[bool] = None,
+        recursive: bool = False,
     ) -> None:
         self.name = name
         self.methods = methods
         self.append_method_name = append_method_name
+        self.recursive = recursive
 
     def __call__(self, obj: Any):
+        if self.recursive is True:
+            if isinstance(obj, (list, tuple)):
+                return type(obj)(Range(recursive=True)(t) for t in obj)
+
+            from monai.transforms.compose import Compose
+
+            if isinstance(obj, Compose):
+                obj.transforms = Range(recursive=True)(obj.transforms)
+
+            self.recursive = False
+
         # Define the name to be associated to the range if not provided
         if self.name is None:
             name = type(obj).__name__
+            # If CuCIM or TorchVision transform wrappers are being used,
+            # append the underlying transform to the name for more clarity
+            if "CuCIM" in name or "TorchVision" in name:
+                name = f"{name}_{obj.name}"
             self.name_counter[name] += 1
-            self.name = f"{name}_{self.name_counter[name]}"
+            if self.name_counter[name] > 1:
+                self.name = f"{name}_{self.name_counter[name]}"
+            else:
+                self.name = name
 
         # Define the methods to be wrapped if not provided
         if self.methods is None:

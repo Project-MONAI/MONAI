@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -29,7 +29,7 @@ def _enter_pr_4800(self):
     return self
 
 
-# workaround for https://bugs.python.org/issue29620
+# FIXME: workaround for https://bugs.python.org/issue29620
 try:
     # Suppression for issue #494:  tests/__init__.py:34: error: Cannot assign to a method
     unittest.case._AssertWarnsContext.__enter__ = _enter_pr_4800  # type: ignore

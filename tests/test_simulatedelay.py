@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -24,7 +24,7 @@ class TestSimulateDelay(NumpyImageTestCase2D):
     def test_value(self, delay_test_time: float):
         resize = SimulateDelay(delay_time=delay_test_time)
         start: float = time.time()
-        result = resize(self.imt[0])
+        _ = resize(self.imt[0])
         stop: float = time.time()
         measured_approximate: float = stop - start
         np.testing.assert_allclose(delay_test_time, measured_approximate, rtol=0.5)

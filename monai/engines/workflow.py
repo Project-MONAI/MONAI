@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Sequence, Union
 
 import torch
 import torch.distributed as dist
@@ -19,12 +19,12 @@ from torch.utils.data.distributed import DistributedSampler
 
 from monai.config import IgniteInfo
 from monai.engines.utils import IterationEvents, default_metric_cmp_fn, default_prepare_batch
-from monai.transforms import Decollated, Transform
+from monai.transforms import Decollated
 from monai.utils import ensure_tuple, is_scalar, min_version, optional_import
 
 from .utils import engine_apply_transform
 
-IgniteEngine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
+IgniteEngine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine", as_type="")
 State, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "State")
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 
@@ -32,9 +32,15 @@ if TYPE_CHECKING:
     from ignite.engine import Engine, EventEnum
     from ignite.metrics import Metric
 else:
-    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
-    Metric, _ = optional_import("ignite.metrics", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Metric")
-    EventEnum, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "EventEnum")
+    Engine, _ = optional_import(
+        "ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine", as_type="decorator"
+    )
+    Metric, _ = optional_import(
+        "ignite.metrics", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Metric", as_type="decorator"
+    )
+    EventEnum, _ = optional_import(
+        "ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "EventEnum", as_type="decorator"
+    )
 
 
 class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optional_import
@@ -54,9 +60,13 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         epoch_length: number of iterations for one epoch, default to `len(data_loader)`.
         non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously
             with respect to the host. For other cases, this argument has no effect.
-        prepare_batch: function to parse image and label for every iteration.
+        prepare_batch: function to parse expected data (usually `image`, `label` and other network args)
+            from `engine.state.batch` for every iteration, for more details please refer to:
+            https://pytorch.org/ignite/generated/ignite.engine.create_supervised_trainer.html.
         iteration_update: the callable function for every iteration, expect to accept `engine`
-            and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
+            and `engine.state.batch` as inputs, return data will be stored in `engine.state.output`.
+            if not provided, use `self._iteration()` instead. for more details please refer to:
+            https://pytorch.org/ignite/generated/ignite.engine.engine.Engine.html.
         postprocessing: execute additional transformation for the model output data.
             Typically, several Tensor based transforms composed by `Compose`.
         key_metric: compute metric when every iteration completed, and save average value to
@@ -67,7 +77,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             it must accept 2 args (current_metric, previous_best) and return a bool result: if `True`, will update
             `best_metric` and `best_metric_epoch` with current metric and epoch, default to `greater than`.
         handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
-            CheckpointHandler, StatsHandler, SegmentationSaver, etc.
+            CheckpointHandler, StatsHandler, etc.
         amp: whether to enable auto-mixed-precision training or inference, default is False.
         event_names: additional custom ignite events that will register to the engine.
             new events can be a list of str or `ignite.engine.events.EventEnum`.
@@ -77,9 +87,12 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         decollate: whether to decollate the batch-first data to a list of data after model computation,
             recommend `decollate=True` when `postprocessing` uses components from `monai.transforms`.
             default to `True`.
+        to_kwargs: dict of other args for `prepare_batch` API when converting the input data, except for
+            `device`, `non_blocking`.
+        amp_kwargs: dict of the args for `torch.cuda.amp.autocast()` API, for more details:
+            https://pytorch.org/docs/stable/amp.html#torch.cuda.amp.autocast.
 
     Raises:
-        TypeError: When ``device`` is not a ``torch.Device``.
         TypeError: When ``data_loader`` is not a ``torch.utils.data.DataLoader``.
         TypeError: When ``key_metric`` is not a ``Optional[dict]``.
         TypeError: When ``additional_metrics`` is not a ``Optional[dict]``.
@@ -88,13 +101,13 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
 
     def __init__(
         self,
-        device: torch.device,
+        device: Union[torch.device, str],
         max_epochs: int,
         data_loader: Union[Iterable, DataLoader],
         epoch_length: Optional[int] = None,
         non_blocking: bool = False,
         prepare_batch: Callable = default_prepare_batch,
-        iteration_update: Optional[Callable] = None,
+        iteration_update: Optional[Callable[[Engine, Any], Any]] = None,
         postprocessing: Optional[Callable] = None,
         key_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
@@ -104,13 +117,13 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         event_names: Optional[List[Union[str, EventEnum]]] = None,
         event_to_attr: Optional[dict] = None,
         decollate: bool = True,
+        to_kwargs: Optional[Dict] = None,
+        amp_kwargs: Optional[Dict] = None,
     ) -> None:
         if iteration_update is not None:
             super().__init__(iteration_update)
         else:
             super().__init__(self._iteration)
-        if not isinstance(device, torch.device):
-            raise TypeError(f"device must be a torch.device but is {type(device).__name__}.")
 
         if isinstance(data_loader, DataLoader):
             sampler = data_loader.__dict__["sampler"]
@@ -124,7 +137,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
                 epoch_length = len(data_loader)
         else:
             if epoch_length is None:
-                raise ValueError("if data_loader is not PyTorch DataLoader, must specify the epoch_length.")
+                raise ValueError("If data_loader is not PyTorch DataLoader, must specify the epoch_length.")
 
         # set all sharable data for the workflow based on Ignite engine.state
         self.state = State(
@@ -139,7 +152,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             metrics={},
             metric_details={},
             dataloader=None,
-            device=device,
+            device=device if isinstance(device, torch.device) or device is None else torch.device(device),
             key_metric_name=None,  # we can set many metrics, only use key_metric to compare and save the best model
             best_metric=-1,
             best_metric_epoch=-1,
@@ -149,13 +162,15 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         self.prepare_batch = prepare_batch
         self.metric_cmp_fn = metric_cmp_fn
         self.amp = amp
+        self.to_kwargs = {} if to_kwargs is None else to_kwargs
+        self.amp_kwargs = {} if amp_kwargs is None else amp_kwargs
         self.scaler: Optional[torch.cuda.amp.GradScaler] = None
 
         if event_names is None:
             event_names = [IterationEvents]  # type: ignore
         else:
             if not isinstance(event_names, list):
-                raise ValueError("event_names must be a list or string or EventEnum.")
+                raise ValueError("`event_names` must be a list or string or EventEnum.")
             event_names += [IterationEvents]  # type: ignore
         for name in event_names:
             if isinstance(name, str):
@@ -163,14 +178,14 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             elif issubclass(name, EventEnum):  # type: ignore
                 self.register_events(*name, event_to_attr=event_to_attr)
             else:
-                raise ValueError("event_names must be a list or string or EventEnum.")
+                raise ValueError("`event_names` must be a list or string or EventEnum.")
 
         if decollate:
             self._register_decollate()
 
         if postprocessing is not None:
-            if not decollate and isinstance(postprocessing, Transform):
-                warnings.warn("MONAI transforms expect `channel-first` data, `decollate=False` may not work here.")
+            # tips: if `decollate=False` and `postprocessing` is MONAI transforms, it may not work well
+            # because all the MONAI transforms expect `channel-first` data
             self._register_postprocessing(postprocessing)
         if key_metric is not None:
             self._register_metrics(key_metric, additional_metrics)
@@ -214,32 +229,34 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
 
         """
         if not isinstance(k_metric, dict):
-            raise TypeError(f"key_metric must be None or a dict but is {type(k_metric).__name__}.")
+            raise TypeError(f"`key_metric` must be None or a dict but is {type(k_metric).__name__}.")
         self.state.key_metric_name = list(k_metric.keys())[0]
-        metrics = k_metric
+        metrics = dict(k_metric)
         if add_metrics is not None and len(add_metrics) > 0:
             if not isinstance(add_metrics, dict):
-                raise TypeError(f"additional metrics must be None or a dict but is {type(add_metrics).__name__}.")
+                raise TypeError(f"Additional metrics must be None or a dict but is {type(add_metrics).__name__}.")
             metrics.update(add_metrics)
         for name, metric in metrics.items():
             metric.attach(self, name)
 
         @self.on(Events.EPOCH_COMPLETED)
-        def _compare_metrics(engine: Engine) -> None:
-            key_metric_name = engine.state.key_metric_name  # type: ignore
+        def _compare_metrics(engine: Workflow) -> None:
+            key_metric_name = engine.state.key_metric_name
             if key_metric_name is not None:
                 current_val_metric = engine.state.metrics[key_metric_name]
                 if not is_scalar(current_val_metric):
                     warnings.warn(
-                        "key metric is not a scalar value, skip the metric comaprison with best metric."
-                        "please use other metrics as key metric, or change the `reduction` mode to 'mean'."
+                        "Key metric is not a scalar value, skip the metric comparison with the current best metric."
+                        "Please set other metrics as the key metric, or change the `reduction` mode to 'mean'."
                     )
                     return
 
-                if self.metric_cmp_fn(current_val_metric, engine.state.best_metric):  # type: ignore
+                if engine.state.best_metric_epoch == -1 or self.metric_cmp_fn(
+                    current_val_metric, engine.state.best_metric
+                ):
                     self.logger.info(f"Got new best metric of {key_metric_name}: {current_val_metric}")
-                    engine.state.best_metric = current_val_metric  # type: ignore
-                    engine.state.best_metric_epoch = engine.state.epoch  # type: ignore
+                    engine.state.best_metric = current_val_metric
+                    engine.state.best_metric_epoch = engine.state.epoch
 
     def _register_handlers(self, handlers: Sequence):
         """
@@ -253,11 +270,17 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
     def run(self) -> None:
         """
         Execute training, validation or evaluation based on Ignite Engine.
-
         """
+        if self.state.epoch_length == 0:
+            warnings.warn(
+                "`dataloader` is empty or the specified `epoch_length` is 0, skip the `run`."
+                " If running distributed training, the program may hang in `all-gather`, `all-reduce`, etc."
+                " because not all the ranks run the same computation logic."
+            )
+            return
         super().run(data=self.data_loader, max_epochs=self.state.max_epochs)
 
-    def _iteration(self, engine: Engine, batchdata: Dict[str, torch.Tensor]):
+    def _iteration(self, engine, batchdata: Dict[str, torch.Tensor]):
         """
         Abstract callback function for the processing logic of 1 iteration in Ignite Engine.
         Need subclass to implement different logics, like SupervisedTrainer/Evaluator, GANTrainer, etc.
@@ -271,3 +294,14 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+
+    def get_stats(self, *vars):
+        """
+        Get the statistics information of the workflow process.
+
+        Args:
+            vars: variables name in the `self.state`, will use the variable name as the key
+                and the state content as the value. if the variable doesn't exist, default value is `None`.
+
+        """
+        return {k: getattr(self.state, k, None) for k in vars}

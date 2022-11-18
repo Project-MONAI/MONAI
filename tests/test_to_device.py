@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,7 +15,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import ToDevice
-from tests.utils import skip_if_no_cuda
+from tests.utils import assert_allclose, skip_if_no_cuda
 
 TEST_CASE_1 = ["cuda:0"]
 
@@ -33,7 +33,7 @@ class TestToDevice(unittest.TestCase):
         converter = ToDevice(device=device, non_blocking=True)
         data = torch.tensor([1, 2, 3, 4])
         ret = converter(data)
-        torch.testing.assert_allclose(ret, data.to(device))
+        assert_allclose(ret, data.to(device))
 
 
 if __name__ == "__main__":

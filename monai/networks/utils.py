@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,14 +15,18 @@ import re
 import warnings
 from collections import OrderedDict
 from contextlib import contextmanager
-from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Union
+from copy import deepcopy
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
 
-from monai.utils.deprecate_utils import deprecated_arg
-from monai.utils.misc import ensure_tuple, set_determinism
-from monai.utils.module import PT_BEFORE_1_7
+from monai.apps.utils import get_logger
+from monai.config import PathLike
+from monai.utils.deprecate_utils import deprecated
+from monai.utils.misc import ensure_tuple, save_obj, set_determinism
+from monai.utils.module import look_up_option, pytorch_after
+from monai.utils.type_conversion import convert_to_tensor
 
 __all__ = [
     "one_hot",
@@ -35,9 +39,73 @@ __all__ = [
     "pixelshuffle",
     "eval_mode",
     "train_mode",
+    "get_state_dict",
     "copy_model_state",
+    "save_state",
     "convert_to_torchscript",
+    "meshgrid_ij",
+    "meshgrid_xy",
+    "replace_modules",
+    "replace_modules_temp",
+    "look_up_named_module",
+    "set_named_module",
 ]
+
+logger = get_logger(module_name=__name__)
+
+
+def look_up_named_module(name: str, mod, print_all_options=False):
+    """
+    get the named module in `mod` by the attribute name,
+    for example ``look_up_named_module(net, "features.3.1.attn")``
+
+    Args:
+        name: a string representing the module attribute.
+        mod: a pytorch module to be searched (in ``mod.named_modules()``).
+        print_all_options: whether to print all named modules when `name` is not found in `mod`. Defaults to False.
+
+    Returns:
+        the corresponding pytorch module's subcomponent such as ``net.features[3][1].attn``
+    """
+    name_str = look_up_option(
+        name, {n[0] for n in mod.named_modules()}, default=None, print_all_options=print_all_options
+    )
+    if name_str is None:
+        return None
+    if name_str == "":
+        return mod
+    for n in name_str.split("."):
+        if n.isdigit():
+            mod = mod[int(n)]
+        else:
+            n = look_up_option(n, {item[0] for item in mod.named_modules()}, default=None, print_all_options=False)
+            if n is None:
+                return None
+            mod = getattr(mod, n)
+    return mod
+
+
+def set_named_module(mod, name: str, new_layer):
+    """
+    look up `name` in `mod` and replace the layer with `new_layer`, return the updated `mod`.
+
+    Args:
+        mod: a pytorch module to be updated.
+        name: a string representing the target module attribute.
+        new_layer: a new module replacing the corresponding layer at ``mod.name``.
+
+    Returns:
+        an updated ``mod``
+
+    See also: :py:func:`monai.networks.utils.look_up_named_module`.
+    """
+    mods_attr = name.rsplit(".", 1)
+    submods, attr = mods_attr if len(mods_attr) == 2 else ("", name)
+    if not attr:
+        return new_layer
+    _mod = look_up_named_module(submods, mod)
+    setattr(_mod, attr, new_layer)
+    return mod
 
 
 def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.float, dim: int = 1) -> torch.Tensor:
@@ -93,7 +161,13 @@ def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.f
     return labels
 
 
+@deprecated(since="0.8.0", msg_suffix="use `monai.utils.misc.sample_slices` instead.")
 def slice_channels(tensor: torch.Tensor, *slicevals: Optional[int]) -> torch.Tensor:
+    """
+    .. deprecated:: 0.8.0
+        Use `monai.utils.misc.sample_slices` instead.
+
+    """
     slices = [slice(None)] * len(tensor.shape)
     slices[1] = slice(*slicevals)
 
@@ -121,42 +195,56 @@ def predict_segmentation(logits: torch.Tensor, mutually_exclusive: bool = False,
 
 
 def normalize_transform(
-    shape: Sequence[int],
+    shape,
     device: Optional[torch.device] = None,
     dtype: Optional[torch.dtype] = None,
     align_corners: bool = False,
+    zero_centered: bool = False,
 ) -> torch.Tensor:
     """
     Compute an affine matrix according to the input shape.
     The transform normalizes the homogeneous image coordinates to the
-    range of `[-1, 1]`.
+    range of `[-1, 1]`.  Currently the following source coordinates are supported:
+
+        - `align_corners=False`, `zero_centered=False`, normalizing from ``[-0.5, d-0.5]``.
+        - `align_corners=True`, `zero_centered=False`, normalizing from ``[0, d-1]``.
+        - `align_corners=False`, `zero_centered=True`, normalizing from ``[-(d+1)/2, (d-1)/2]``.
+        - `align_corners=True`, `zero_centered=True`, normalizing from ``[-(d-1)/2, (d-1)/2]``.
 
     Args:
-        shape: input spatial shape
+        shape: input spatial shape, a sequence of integers.
         device: device on which the returned affine will be allocated.
         dtype: data type of the returned affine
         align_corners: if True, consider -1 and 1 to refer to the centers of the
             corner pixels rather than the image corners.
             See also: https://pytorch.org/docs/stable/nn.functional.html#torch.nn.functional.grid_sample
+        zero_centered: whether the coordinates are normalized from a zero-centered range, default to `False`.
+            Setting this flag and `align_corners` will jointly specify the normalization source range.
     """
-    norm = torch.tensor(shape, dtype=torch.float64, device=device)  # no in-place change
+    shape = convert_to_tensor(shape, torch.float64, device=device, wrap_sequence=True, track_meta=False)
+    norm = shape.clone().detach().to(dtype=torch.float64, device=device)  # no in-place change
     if align_corners:
         norm[norm <= 1.0] = 2.0
         norm = 2.0 / (norm - 1.0)
         norm = torch.diag(torch.cat((norm, torch.ones((1,), dtype=torch.float64, device=device))))
-        norm[:-1, -1] = -1.0
+        if not zero_centered:  # else shift is 0
+            norm[:-1, -1] = -1.0
     else:
         norm[norm <= 0.0] = 2.0
         norm = 2.0 / norm
         norm = torch.diag(torch.cat((norm, torch.ones((1,), dtype=torch.float64, device=device))))
-        norm[:-1, -1] = 1.0 / torch.tensor(shape, dtype=torch.float64, device=device) - 1.0
+        norm[:-1, -1] = 1.0 / shape - (0.0 if zero_centered else 1.0)
     norm = norm.unsqueeze(0).to(dtype=dtype)
     norm.requires_grad = False
-    return norm
+    return norm  # type: ignore
 
 
 def to_norm_affine(
-    affine: torch.Tensor, src_size: Sequence[int], dst_size: Sequence[int], align_corners: bool = False
+    affine: torch.Tensor,
+    src_size: Sequence[int],
+    dst_size: Sequence[int],
+    align_corners: bool = False,
+    zero_centered: bool = False,
 ) -> torch.Tensor:
     """
     Given ``affine`` defined for coordinates in the pixel space, compute the corresponding affine
@@ -169,6 +257,8 @@ def to_norm_affine(
         align_corners: if True, consider -1 and 1 to refer to the centers of the
             corner pixels rather than the image corners.
             See also: https://pytorch.org/docs/stable/nn.functional.html#torch.nn.functional.grid_sample
+        zero_centered: whether the coordinates are normalized from a zero-centered range, default to `False`.
+            See also: :py:func:`monai.networks.utils.normalize_transform`.
 
     Raises:
         TypeError: When ``affine`` is not a ``torch.Tensor``.
@@ -184,8 +274,8 @@ def to_norm_affine(
     if sr != len(src_size) or sr != len(dst_size):
         raise ValueError(f"affine suggests {sr}D, got src={len(src_size)}D, dst={len(dst_size)}D.")
 
-    src_xform = normalize_transform(src_size, affine.device, affine.dtype, align_corners)
-    dst_xform = normalize_transform(dst_size, affine.device, affine.dtype, align_corners)
+    src_xform = normalize_transform(src_size, affine.device, affine.dtype, align_corners, zero_centered)
+    dst_xform = normalize_transform(dst_size, affine.device, affine.dtype, align_corners, zero_centered)
     return src_xform @ affine @ torch.inverse(dst_xform)
 
 
@@ -230,12 +320,7 @@ def icnr_init(conv, upsample_factor, init=nn.init.kaiming_normal_):
     conv.weight.data.copy_(kernel)
 
 
-@deprecated_arg(
-    name="dimensions", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
-)
-def pixelshuffle(
-    x: torch.Tensor, spatial_dims: int, scale_factor: int, dimensions: Optional[int] = None
-) -> torch.Tensor:
+def pixelshuffle(x: torch.Tensor, spatial_dims: int, scale_factor: int) -> torch.Tensor:
     """
     Apply pixel shuffle to the tensor `x` with spatial dimensions `spatial_dims` and scaling factor `scale_factor`.
 
@@ -249,21 +334,16 @@ def pixelshuffle(
         spatial_dims: number of spatial dimensions, typically 2 or 3 for 2D or 3D
         scale_factor: factor to rescale the spatial dimensions by, must be >=1
 
-    .. deprecated:: 0.6.0
-        ``dimensions`` is deprecated, use ``spatial_dims`` instead.
-
     Returns:
         Reshuffled version of `x`.
 
     Raises:
         ValueError: When input channels of `x` are not divisible by (scale_factor ** spatial_dims)
     """
-    if dimensions is not None:
-        spatial_dims = dimensions
     dim, factor = spatial_dims, scale_factor
     input_size = list(x.size())
     batch_size, channels = input_size[:2]
-    scale_divisor = factor ** dim
+    scale_divisor = factor**dim
 
     if channels % scale_divisor != 0:
         raise ValueError(
@@ -271,14 +351,16 @@ def pixelshuffle(
             f"divisible by scale_factor ** dimensions ({factor}**{dim}={scale_divisor})."
         )
 
-    org_channels = channels // scale_divisor
+    org_channels = int(channels // scale_divisor)
     output_size = [batch_size, org_channels] + [d * factor for d in input_size[2:]]
 
-    indices = tuple(range(2, 2 + 2 * dim))
-    indices_factor, indices_dim = indices[:dim], indices[dim:]
-    permute_indices = (0, 1) + sum(zip(indices_dim, indices_factor), ())
+    indices = list(range(2, 2 + 2 * dim))
+    indices = indices[dim:] + indices[:dim]
+    permute_indices = [0, 1]
+    for idx in range(dim):
+        permute_indices.extend(indices[idx::dim])
 
-    x = x.reshape(batch_size, org_channels, *([factor] * dim + input_size[2:]))
+    x = x.reshape([batch_size, org_channels] + [factor] * dim + input_size[2:])
     x = x.permute(permute_indices).reshape(output_size)
     return x
 
@@ -350,6 +432,20 @@ def train_mode(*nets: nn.Module):
             n.eval()
 
 
+def get_state_dict(obj: Union[torch.nn.Module, Mapping]):
+    """
+    Get the state dict of input object if has `state_dict`, otherwise, return object directly.
+    For data parallel model, automatically convert it to regular model first.
+
+    Args:
+        obj: input object to check and get the state_dict.
+
+    """
+    if isinstance(obj, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
+        obj = obj.module
+    return obj.state_dict() if hasattr(obj, "state_dict") else obj
+
+
 def copy_model_state(
     dst: Union[torch.nn.Module, Mapping],
     src: Union[torch.nn.Module, Mapping],
@@ -394,15 +490,10 @@ def copy_model_state(
             # <All keys matched successfully>
 
     Returns: an OrderedDict of the updated `dst` state, the changed, and unchanged keys.
-    """
 
-    if isinstance(src, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
-        src = src.module
-    if isinstance(dst, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
-        dst = dst.module
-    src_dict = src.state_dict() if isinstance(src, torch.nn.Module) else src
-    dst_dict = dst.state_dict() if isinstance(dst, torch.nn.Module) else dst
-    dst_dict = OrderedDict(dst_dict)
+    """
+    src_dict = get_state_dict(src)
+    dst_dict = OrderedDict(get_state_dict(dst))
 
     to_skip = {s_key for s_key in src_dict if exclude_vars and re.compile(exclude_vars).search(s_key)}
 
@@ -423,10 +514,46 @@ def copy_model_state(
 
     updated_keys = sorted(set(updated_keys))
     unchanged_keys = sorted(set(all_keys).difference(updated_keys))
-    print(f"'dst' model updated: {len(updated_keys)} of {len(dst_dict)} variables.")
+    logger.info(f"'dst' model updated: {len(updated_keys)} of {len(dst_dict)} variables.")
     if inplace and isinstance(dst, torch.nn.Module):
+        if isinstance(dst, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
+            dst = dst.module
         dst.load_state_dict(dst_dict)
     return dst_dict, updated_keys, unchanged_keys
+
+
+def save_state(src: Union[torch.nn.Module, Dict], path: PathLike, **kwargs):
+    """
+    Save the state dict of input source data with PyTorch `save`.
+    It can save `nn.Module`, `state_dict`, a dictionary of `nn.Module` or `state_dict`.
+    And automatically convert the data parallel module to regular module.
+    For example::
+
+        save_state(net, path)
+        save_state(net.state_dict(), path)
+        save_state({"net": net, "opt": opt}, path)
+        net_dp = torch.nn.DataParallel(net)
+        save_state(net_dp, path)
+
+    Refer to: https://pytorch.org/ignite/v0.4.8/generated/ignite.handlers.DiskSaver.html.
+
+    Args:
+        src: input data to save, can be `nn.Module`, `state_dict`, a dictionary of `nn.Module` or `state_dict`.
+        path: target file path to save the input object.
+        kwargs: other args for the `save_obj` except for the `obj` and `path`.
+            default `func` is `torch.save()`, details of the args:
+            https://pytorch.org/docs/stable/generated/torch.save.html.
+
+    """
+
+    ckpt: Dict = {}
+    if isinstance(src, dict):
+        for k, v in src.items():
+            ckpt[k] = get_state_dict(v)
+    else:
+        ckpt = get_state_dict(src)
+
+    save_obj(obj=ckpt, path=path, **kwargs)
 
 
 def convert_to_torchscript(
@@ -449,7 +576,6 @@ def convert_to_torchscript(
         filename_or_obj: if not None, specify a file-like object (has to implement write and flush)
             or a string containing a file path name to save the TorchScript model.
         extra_files: map from filename to contents which will be stored as part of the save model file.
-            works for PyTorch 1.7 or later.
             for more details: https://pytorch.org/docs/stable/generated/torch.jit.save.html.
         verify: whether to verify the input and output of TorchScript model.
             if `filename_or_obj` is not None, load the saved TorchScript model and verify.
@@ -458,16 +584,15 @@ def convert_to_torchscript(
         device: target device to verify the model, if None, use CUDA if available.
         rtol: the relative tolerance when comparing the outputs of PyTorch model and TorchScript model.
         atol: the absolute tolerance when comparing the outputs of PyTorch model and TorchScript model.
+        kwargs: other arguments except `obj` for `torch.jit.script()` to convert model, for more details:
+            https://pytorch.org/docs/master/generated/torch.jit.script.html.
 
     """
     model.eval()
     with torch.no_grad():
-        script_module = torch.jit.script(model)
+        script_module = torch.jit.script(model, **kwargs)
         if filename_or_obj is not None:
-            if PT_BEFORE_1_7:
-                torch.jit.save(m=script_module, f=filename_or_obj)
-            else:
-                torch.jit.save(m=script_module, f=filename_or_obj, _extra_files=extra_files)
+            torch.jit.save(m=script_module, f=filename_or_obj, _extra_files=extra_files)
 
     if verify:
         if device is None:
@@ -489,6 +614,120 @@ def convert_to_torchscript(
         # compare TorchScript and PyTorch results
         for r1, r2 in zip(torch_out, torchscript_out):
             if isinstance(r1, torch.Tensor) or isinstance(r2, torch.Tensor):
-                torch.testing.assert_allclose(r1, r2, rtol=rtol, atol=atol)
+                assert_fn = torch.testing.assert_close if pytorch_after(1, 11) else torch.testing.assert_allclose
+                assert_fn(r1, r2, rtol=rtol, atol=atol)
 
     return script_module
+
+
+def meshgrid_ij(*tensors):
+    if torch.meshgrid.__kwdefaults__ is not None and "indexing" in torch.meshgrid.__kwdefaults__:
+        return torch.meshgrid(*tensors, indexing="ij")  # new api pytorch after 1.10
+
+    return torch.meshgrid(*tensors)
+
+
+def meshgrid_xy(*tensors):
+    if torch.meshgrid.__kwdefaults__ is not None and "indexing" in torch.meshgrid.__kwdefaults__:
+        return torch.meshgrid(*tensors, indexing="xy")  # new api pytorch after 1.10
+
+    return torch.meshgrid(tensors[1], tensors[0], *tensors[2:])
+
+
+def _replace_modules(
+    parent: torch.nn.Module,
+    name: str,
+    new_module: torch.nn.Module,
+    out: List[Tuple[str, torch.nn.Module]],
+    strict_match: bool = True,
+    match_device: bool = True,
+) -> None:
+    """
+    Helper function for :py:class:`monai.networks.utils.replace_modules`.
+    """
+    if match_device:
+        devices = list({i.device for i in parent.parameters()})
+        # if only one device for whole of model
+        if len(devices) == 1:
+            new_module.to(devices[0])
+    idx = name.find(".")
+    # if there is "." in name, call recursively
+    if idx != -1:
+        parent_name = name[:idx]
+        parent = getattr(parent, parent_name)
+        name = name[idx + 1 :]
+        _out: List[Tuple[str, torch.nn.Module]] = []
+        _replace_modules(parent, name, new_module, _out)
+        # prepend the parent name
+        out += [(f"{parent_name}.{r[0]}", r[1]) for r in _out]
+    # no "." in module name, do the actual replacing
+    else:
+        if strict_match:
+            old_module = getattr(parent, name)
+            setattr(parent, name, new_module)
+            out += [(name, old_module)]
+        else:
+            for mod_name, _ in parent.named_modules():
+                if name in mod_name:
+                    _replace_modules(parent, mod_name, deepcopy(new_module), out, strict_match=True)
+
+
+def replace_modules(
+    parent: torch.nn.Module,
+    name: str,
+    new_module: torch.nn.Module,
+    strict_match: bool = True,
+    match_device: bool = True,
+) -> List[Tuple[str, torch.nn.Module]]:
+    """
+    Replace sub-module(s) in a parent module.
+
+    The name of the module to be replace can be nested e.g.,
+    `features.denseblock1.denselayer1.layers.relu1`. If this is the case (there are "."
+    in the module name), then this function will recursively call itself.
+
+    Args:
+        parent: module that contains the module to be replaced
+        name: name of module to be replaced. Can include ".".
+        new_module: `torch.nn.Module` to be placed at position `name` inside `parent`. This will
+            be deep copied if `strict_match == False` multiple instances are independent.
+        strict_match: if `True`, module name must `== name`. If false then
+            `name in named_modules()` will be used. `True` can be used to change just
+            one module, whereas `False` can be used to replace all modules with similar
+            name (e.g., `relu`).
+        match_device: if `True`, the device of the new module will match the model. Requires all
+            of `parent` to be on the same device.
+
+    Returns:
+        List of tuples of replaced modules. Element 0 is module name, element 1 is the replaced module.
+
+    Raises:
+        AttributeError: if `strict_match` is `True` and `name` is not a named module in `parent`.
+    """
+    out: List[Tuple[str, torch.nn.Module]] = []
+    _replace_modules(parent, name, new_module, out, strict_match, match_device)
+    return out
+
+
+@contextmanager
+def replace_modules_temp(
+    parent: torch.nn.Module,
+    name: str,
+    new_module: torch.nn.Module,
+    strict_match: bool = True,
+    match_device: bool = True,
+):
+    """
+    Temporarily replace sub-module(s) in a parent module (context manager).
+
+    See :py:class:`monai.networks.utils.replace_modules`.
+    """
+    replaced: List[Tuple[str, torch.nn.Module]] = []
+    try:
+        # replace
+        _replace_modules(parent, name, new_module, replaced, strict_match, match_device)
+        yield
+    finally:
+        # revert
+        for name, module in replaced:
+            _replace_modules(parent, name, module, [], strict_match=True, match_device=match_device)

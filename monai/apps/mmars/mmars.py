@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -8,7 +8,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """
 Utilities for accessing Nvidia MMARs
 
@@ -19,12 +18,15 @@ See Also:
 import json
 import os
 import warnings
-from typing import Mapping, Union
+from pathlib import Path
+from typing import Mapping, Optional, Union
 
 import torch
 
 import monai.networks.nets as monai_nets
 from monai.apps.utils import download_and_extract, logger
+from monai.config.type_definitions import PathLike
+from monai.networks.utils import copy_model_state
 from monai.utils.module import optional_import
 
 from .model_desc import MODEL_DESC
@@ -40,10 +42,9 @@ def get_model_spec(idx: Union[int, str]):
     if isinstance(idx, str):
         key = idx.strip().lower()
         for cand in MODEL_DESC:
-            if str(cand[Keys.ID]).strip().lower() == key:
+            if str(cand.get(Keys.ID)).strip().lower() == key:
                 return cand
-    logger.info(f"Available specs are: {MODEL_DESC}.")
-    raise ValueError(f"Unknown MODEL_DESC request: {idx}")
+    return idx
 
 
 def _get_all_ngc_models(pattern, page_index=0, page_size=50):
@@ -76,6 +77,7 @@ def _get_all_ngc_models(pattern, page_index=0, page_size=50):
     requests_get, has_requests = optional_import("requests", name="get")
     if has_requests:
         resp = requests_get(full_url)
+        resp.raise_for_status()
     else:
         raise ValueError("NGC API requires requests package.  Please install it.")
     model_list = json.loads(resp.text)
@@ -98,7 +100,9 @@ def _get_ngc_doc_url(model_name: str, model_prefix=""):
     return f"https://ngc.nvidia.com/catalog/models/{model_prefix}{model_name}"
 
 
-def download_mmar(item, mmar_dir=None, progress: bool = True, api: bool = False, version: int = -1):
+def download_mmar(
+    item, mmar_dir: Optional[PathLike] = None, progress: bool = True, api: bool = True, version: int = -1
+):
     """
     Download and extract Medical Model Archive (MMAR) from Nvidia Clara Train.
 
@@ -128,22 +132,22 @@ def download_mmar(item, mmar_dir=None, progress: bool = True, api: bool = False,
     if not mmar_dir:
         get_dir, has_home = optional_import("torch.hub", name="get_dir")
         if has_home:
-            mmar_dir = os.path.join(get_dir(), "mmars")
+            mmar_dir = Path(get_dir()) / "mmars"
         else:
             raise ValueError("mmar_dir=None, but no suitable default directory computed. Upgrade Pytorch to 1.6+ ?")
-
+    mmar_dir = Path(mmar_dir)
     if api:
-        model_dict = _get_all_ngc_models(item)
+        model_dict = _get_all_ngc_models(item.get(Keys.NAME, f"{item}") if isinstance(item, Mapping) else f"{item}")
         if len(model_dict) == 0:
             raise ValueError(f"api query returns no item for pattern {item}.  Please change or shorten it.")
         model_dir_list = []
         for k, v in model_dict.items():
             ver = v["latest"] if version == -1 else str(version)
             download_url = _get_ngc_url(k, ver)
-            model_dir = os.path.join(mmar_dir, v["name"])
+            model_dir = mmar_dir / v["name"]
             download_and_extract(
                 url=download_url,
-                filepath=os.path.join(mmar_dir, f'{v["name"]}_{ver}.zip'),
+                filepath=mmar_dir / f'{v["name"]}_{ver}.zip',
                 output_dir=model_dir,
                 hash_val=None,
                 hash_type="md5",
@@ -152,20 +156,21 @@ def download_mmar(item, mmar_dir=None, progress: bool = True, api: bool = False,
                 progress=progress,
             )
             model_dir_list.append(model_dir)
-        return model_dir_list
+        if not model_dir_list:
+            raise ValueError(f"api query download no item for pattern {item}.  Please change or shorten it.")
+        return model_dir_list[0]
 
     if not isinstance(item, Mapping):
         item = get_model_spec(item)
-
     ver = item.get(Keys.VERSION, 1)
     if version > 0:
         ver = str(version)
     model_fullname = f"{item[Keys.NAME]}_{ver}"
-    model_dir = os.path.join(mmar_dir, model_fullname)
+    model_dir = mmar_dir / model_fullname
     model_url = item.get(Keys.URL) or _get_ngc_url(item[Keys.NAME], version=ver, model_prefix="nvidia/med/")
     download_and_extract(
         url=model_url,
-        filepath=os.path.join(mmar_dir, f"{model_fullname}.{item[Keys.FILE_TYPE]}"),
+        filepath=mmar_dir / f"{model_fullname}.{item[Keys.FILE_TYPE]}",
         output_dir=model_dir,
         hash_val=item[Keys.HASH_VAL],
         hash_type=item[Keys.HASH_TYPE],
@@ -178,13 +183,15 @@ def download_mmar(item, mmar_dir=None, progress: bool = True, api: bool = False,
 
 def load_from_mmar(
     item,
-    mmar_dir=None,
+    mmar_dir: Optional[PathLike] = None,
     progress: bool = True,
     version: int = -1,
     map_location=None,
     pretrained=True,
     weights_only=False,
     model_key: str = "model",
+    api: bool = True,
+    model_file=None,
 ):
     """
     Download and extract Medical Model Archive (MMAR) model weights from Nvidia Clara Train.
@@ -200,6 +207,8 @@ def load_from_mmar(
         model_key: a key to search in the model file or config file for the model dictionary.
             Currently this function assumes that the model dictionary has
             `{"[name|path]": "test.module", "args": {'kw': 'test'}}`.
+        api: whether to query NGC API to get model infomation.
+        model_file: the relative path to the model file within an MMAR.
 
     Examples::
         >>> from monai.apps import load_from_mmar
@@ -209,14 +218,18 @@ def load_from_mmar(
     See Also:
         https://docs.nvidia.com/clara/
     """
+    if api:
+        item = {Keys.NAME: get_model_spec(item)[Keys.NAME] if isinstance(item, int) else f"{item}"}
     if not isinstance(item, Mapping):
         item = get_model_spec(item)
-    model_dir = download_mmar(item=item, mmar_dir=mmar_dir, progress=progress, version=version)
-    model_file = os.path.join(model_dir, item[Keys.MODEL_FILE])
-    logger.info(f'\n*** "{item[Keys.ID]}" available at {model_dir}.')
+    model_dir = download_mmar(item=item, mmar_dir=mmar_dir, progress=progress, version=version, api=api)
+    if model_file is None:
+        model_file = os.path.join("models", "model.pt")
+    model_file = model_dir / item.get(Keys.MODEL_FILE, model_file)
+    logger.info(f'\n*** "{item.get(Keys.NAME)}" available at {model_dir}.')
 
     # loading with `torch.jit.load`
-    if f"{model_file}".endswith(".ts"):
+    if model_file.name.endswith(".ts"):
         if not pretrained:
             warnings.warn("Loading a ScriptModule, 'pretrained' option ignored.")
         if weights_only:
@@ -230,9 +243,9 @@ def load_from_mmar(
 
     # 1. search `model_dict['train_config]` for model config spec.
     model_config = _get_val(dict(model_dict).get("train_conf", {}), key=model_key, default={})
-    if not model_config:
+    if not model_config or not isinstance(model_config, Mapping):
         # 2. search json CONFIG_FILE for model config spec.
-        json_path = os.path.join(model_dir, item.get(Keys.CONFIG_FILE, "config_train.json"))
+        json_path = model_dir / item.get(Keys.CONFIG_FILE, os.path.join("config", "config_train.json"))
         with open(json_path) as f:
             conf_dict = json.load(f)
         conf_dict = dict(conf_dict)
@@ -272,7 +285,9 @@ def load_from_mmar(
     else:
         model_inst = model_cls()
     if pretrained:
-        model_inst.load_state_dict(model_dict.get(model_key, model_dict))
+        _, changed, unchanged = copy_model_state(model_inst, model_dict.get(model_key, model_dict), inplace=True)
+        if not (changed and not unchanged):  # not all model_inst variables are changed
+            logger.warning(f"*** Loading model state -- unchanged: {len(unchanged)}, changed: {len(changed)}.")
     logger.info("\n---")
     doc_url = item.get(Keys.DOC) or _get_ngc_doc_url(item[Keys.NAME], model_prefix="nvidia:med:")
     logger.info(f"For more information, please visit {doc_url}\n")

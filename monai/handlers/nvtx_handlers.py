@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,9 +21,12 @@ _nvtx, _ = optional_import("torch._C._nvtx", descriptor="NVTX is not installed. 
 if TYPE_CHECKING:
     from ignite.engine import Engine, Events
 else:
-    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
-    Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
-
+    Engine, _ = optional_import(
+        "ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine", as_type="decorator"
+    )
+    Events, _ = optional_import(
+        "ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events", as_type="decorator"
+    )
 
 __all__ = ["RangeHandler", "RangePushHandler", "RangePopHandler", "MarkHandler"]
 
@@ -71,7 +74,7 @@ class RangeHandler:
         if len(events) == 1:
             return self.create_paired_events(events[0])
         if len(events) == 2:
-            return (self.get_event(events[0]), self.get_event(events[1]))
+            return self.get_event(events[0]), self.get_event(events[1])
         raise ValueError(f"Exactly two Ignite events should be provided [received {len(events)}].")
 
     def create_paired_events(self, event: str) -> Tuple[Events, Events]:
@@ -80,7 +83,7 @@ class RangeHandler:
         """
         event = event.upper()
         event_prefix = {"": "", "ENGINE": "", "EPOCH": "EPOCH_", "ITERATION": "ITERATION_", "BATCH": "GET_BATCH_"}
-        return (self.get_event(event_prefix[event] + "STARTED"), self.get_event(event_prefix[event] + "COMPLETED"))
+        return self.get_event(event_prefix[event] + "STARTED"), self.get_event(event_prefix[event] + "COMPLETED")
 
     def get_event(self, event: Union[str, Events]) -> Events:
         return Events[event.upper()] if isinstance(event, str) else event

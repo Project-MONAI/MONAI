@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,10 +16,9 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import RandCropByPosNegLabel
-from tests.utils import TEST_NDARRAYS
+from tests.utils import TEST_NDARRAYS_ALL
 
-TESTS = []
-TESTS.append(
+TESTS = [
     [
         {
             "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
@@ -32,9 +31,7 @@ TESTS.append(
         },
         {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
         (3, 2, 2, 3),
-    ]
-)
-TESTS.append(
+    ],
     [
         {
             "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
@@ -47,9 +44,7 @@ TESTS.append(
         },
         {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
         (3, 2, 2, 2),
-    ]
-)
-TESTS.append(
+    ],
     [
         {
             "label": None,
@@ -66,9 +61,7 @@ TESTS.append(
             "image": np.random.randint(0, 2, size=[3, 3, 3, 3]),
         },
         (3, 2, 2, 2),
-    ]
-)
-TESTS.append(
+    ],
     [
         {
             "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
@@ -81,9 +74,7 @@ TESTS.append(
         },
         {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
         (3, 3, 3, 2),
-    ]
-)
-TESTS.append(
+    ],
     [
         {
             "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
@@ -96,8 +87,8 @@ TESTS.append(
         },
         {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
         (3, 3, 3, 3),
-    ]
-)
+    ],
+]
 
 
 class TestRandCropByPosNegLabel(unittest.TestCase):
@@ -112,12 +103,13 @@ class TestRandCropByPosNegLabel(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_type_shape(self, input_param, input_data, expected_shape):
         results = []
-        for p in TEST_NDARRAYS:
+        for p in TEST_NDARRAYS_ALL:
             input_param_mod = self.convert_data_type(p, input_param)
             input_data_mod = self.convert_data_type(p, input_data)
             cropper = RandCropByPosNegLabel(**input_param_mod)
             cropper.set_random_state(0)
             result = cropper(**input_data_mod)
+            self.assertListEqual(cropper.spatial_size, input_param["spatial_size"])
 
             self.assertIsInstance(result, list)
             self.assertTupleEqual(result[0].shape, expected_shape)

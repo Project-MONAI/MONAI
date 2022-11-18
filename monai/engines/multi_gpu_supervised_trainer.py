@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn
@@ -31,8 +31,12 @@ if TYPE_CHECKING:
     from ignite.engine import Engine
     from ignite.metrics import Metric
 else:
-    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
-    Metric, _ = optional_import("ignite.metrics", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Metric")
+    Engine, _ = optional_import(
+        "ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine", as_type="decorator"
+    )
+    Metric, _ = optional_import(
+        "ignite.metrics", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Metric", as_type="decorator"
+    )
 
 __all__ = ["create_multigpu_supervised_trainer", "create_multigpu_supervised_evaluator"]
 
@@ -51,7 +55,7 @@ def create_multigpu_supervised_trainer(
     net: torch.nn.Module,
     optimizer: Optimizer,
     loss_fn: Callable,
-    devices: Optional[Sequence[torch.device]] = None,
+    devices: Optional[Sequence[Union[str, torch.device]]] = None,
     non_blocking: bool = False,
     prepare_batch: Callable = _prepare_batch,
     output_transform: Callable = _default_transform,
@@ -74,8 +78,8 @@ def create_multigpu_supervised_trainer(
             tuple of tensors `(batch_x, batch_y)`.
         output_transform: function that receives 'x', 'y', 'y_pred', 'loss' and returns value
             to be assigned to engine's state.output after each iteration. Default is returning `loss.item()`.
-        distributed: whether convert model to `DistributedDataParallel`, if have multiple devices, use
-            the first device as output device.
+        distributed: whether convert model to `DistributedDataParallel`, if `True`, `devices` must contain
+            only 1 GPU or CPU for current distributed rank.
 
     Returns:
         Engine: a trainer engine with supervised update function.
@@ -87,6 +91,8 @@ def create_multigpu_supervised_trainer(
 
     devices_ = get_devices_spec(devices)
     if distributed:
+        if len(devices_) > 1:
+            raise ValueError(f"for distributed training, `devices` must contain only 1 GPU or CPU, but got {devices_}.")
         net = DistributedDataParallel(net, device_ids=devices_)
     elif len(devices_) > 1:
         net = DataParallel(net)
@@ -99,7 +105,7 @@ def create_multigpu_supervised_trainer(
 def create_multigpu_supervised_evaluator(
     net: torch.nn.Module,
     metrics: Optional[Dict[str, Metric]] = None,
-    devices: Optional[Sequence[torch.device]] = None,
+    devices: Optional[Sequence[Union[str, torch.device]]] = None,
     non_blocking: bool = False,
     prepare_batch: Callable = _prepare_batch,
     output_transform: Callable = _default_eval_transform,
@@ -122,8 +128,8 @@ def create_multigpu_supervised_evaluator(
         output_transform: function that receives 'x', 'y', 'y_pred' and returns value
             to be assigned to engine's state.output after each iteration. Default is returning `(y_pred, y,)`
             which fits output expected by metrics. If you change it you should use `output_transform` in metrics.
-        distributed: whether convert model to `DistributedDataParallel`, if have multiple devices, use
-            the first device as output device.
+        distributed: whether convert model to `DistributedDataParallel`, if `True`, `devices` must contain
+            only 1 GPU or CPU for current distributed rank.
 
     Note:
         `engine.state.output` for this engine is defined by `output_transform` parameter and is
@@ -137,6 +143,10 @@ def create_multigpu_supervised_evaluator(
 
     if distributed:
         net = DistributedDataParallel(net, device_ids=devices_)
+        if len(devices_) > 1:
+            raise ValueError(
+                f"for distributed evaluation, `devices` must contain only 1 GPU or CPU, but got {devices_}."
+            )
     elif len(devices_) > 1:
         net = DataParallel(net)
 

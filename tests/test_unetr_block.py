@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -66,7 +66,6 @@ for spatial_dims in range(1, 4):
                         (1, out_channels, *([in_size * stride] * spatial_dims)),
                     ]
                     TEST_UP_BLOCK.append(test_case)
-
 
 TEST_PRUP_BLOCK = []
 in_channels, out_channels = 4, 2

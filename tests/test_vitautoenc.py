@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,7 +21,7 @@ for in_channels in [1, 4]:
     for img_size in [64, 96, 128]:
         for patch_size in [16]:
             for pos_embed in ["conv", "perceptron"]:
-                for nd in [3]:
+                for nd in [2, 3]:
                     test_case = [
                         {
                             "in_channels": in_channels,
@@ -33,12 +33,32 @@ for in_channels in [1, 4]:
                             "num_heads": 12,
                             "pos_embed": pos_embed,
                             "dropout_rate": 0.6,
+                            "spatial_dims": nd,
                         },
                         (2, in_channels, *([img_size] * nd)),
                         (2, 1, *([img_size] * nd)),
                     ]
 
                     TEST_CASE_Vitautoenc.append(test_case)
+
+TEST_CASE_Vitautoenc.append(
+    [
+        {
+            "in_channels": 1,
+            "img_size": (512, 512, 32),
+            "patch_size": (16, 16, 16),
+            "hidden_size": 768,
+            "mlp_dim": 3072,
+            "num_layers": 4,
+            "num_heads": 12,
+            "pos_embed": "conv",
+            "dropout_rate": 0.6,
+            "spatial_dims": 3,
+        },
+        (2, 1, 512, 512, 32),
+        (2, 1, 512, 512, 32),
+    ]
+)
 
 
 class TestPatchEmbeddingBlock(unittest.TestCase):

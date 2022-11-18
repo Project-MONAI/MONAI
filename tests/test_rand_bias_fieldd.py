@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -33,7 +33,6 @@ class TestRandBiasFieldd(unittest.TestCase):
         img = np.random.rand(*img_shape)
         output = bias_field({key: img})
         np.testing.assert_equal(output[key].shape, img_shape)
-        np.testing.assert_equal(output[key].dtype, bias_field.rand_bias_field.dtype)
 
     @parameterized.expand([TEST_CASES_2D_ZERO_RANGE])
     def test_zero_range(self, class_args, img_shape):

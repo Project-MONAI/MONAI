@@ -1,4 +1,4 @@
-# What's new in 0.7 🎉🎉
+# What's new in 0.7
 
 - Performance enhancements with profiling and tuning guides
 - Major usability improvements in `monai.transforms`

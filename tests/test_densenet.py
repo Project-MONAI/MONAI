@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -28,7 +28,6 @@ if TYPE_CHECKING:
 else:
     torchvision, has_torchvision = optional_import("torchvision")
 
-
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 TEST_CASE_1 = [  # 4-channel 3D, batch 2
@@ -54,9 +53,7 @@ for case in [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3]:
     for model in [DenseNet121, Densenet169, densenet201, DenseNet264]:
         TEST_CASES.append([model, *case])
 
-
 TEST_SCRIPT_CASES = [[model, *TEST_CASE_1] for model in [DenseNet121, Densenet169, densenet201, DenseNet264]]
-
 
 TEST_PRETRAINED_2D_CASE_1 = [  # 4-channel 2D, batch 2
     DenseNet121,

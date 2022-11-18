@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,7 +18,7 @@ from torch.utils.data import DataLoader, Dataset
 from monai.data import create_test_image_2d
 from monai.losses import DiceLoss
 from monai.networks.nets import UNet
-from monai.transforms import AddChannel, Compose, RandRotate90, RandSpatialCrop, ScaleIntensity, ToTensor
+from monai.transforms import AddChannel, Compose, RandRotate90, RandSpatialCrop, ScaleIntensity
 from monai.utils import set_determinism
 from tests.utils import DistTestCase, TimedCall
 
@@ -47,7 +47,7 @@ def run_test(batch_size=64, train_steps=200, device="cuda:0"):
     loss = DiceLoss(sigmoid=True)
     opt = torch.optim.Adam(net.parameters(), 1e-2)
     train_transforms = Compose(
-        [AddChannel(), ScaleIntensity(), RandSpatialCrop((96, 96), random_size=False), RandRotate90(), ToTensor()]
+        [AddChannel(), ScaleIntensity(), RandSpatialCrop((96, 96), random_size=False), RandRotate90()]
     )
 
     src = DataLoader(_TestBatch(train_transforms), batch_size=batch_size, shuffle=True)
@@ -75,7 +75,7 @@ class TestDeterminism(DistTestCase):
     def tearDown(self):
         set_determinism(seed=None)
 
-    @TimedCall(seconds=150)
+    @TimedCall(seconds=150, skip_timing=not torch.cuda.is_available())
     def test_training(self):
         set_determinism(seed=0)
         loss, step = run_test(device=self.device)

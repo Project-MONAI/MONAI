@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,7 +19,6 @@ if optional_import("torch.nn.functional", name="mish")[1]:
     def monai_mish(x, inplace: bool = False):
         return torch.nn.functional.mish(x, inplace=inplace)
 
-
 else:
 
     def monai_mish(x, inplace: bool = False):
@@ -30,7 +29,6 @@ if optional_import("torch.nn.functional", name="silu")[1]:
 
     def monai_swish(x, inplace: bool = False):
         return torch.nn.functional.silu(x, inplace=inplace)
-
 
 else:
 

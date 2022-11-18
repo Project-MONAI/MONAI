@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -48,6 +48,9 @@ def create_test_image_2d(
         channel_dim: if None, create an image without channel dimension, otherwise create
             an image with channel dimension as first dim or last dim. Defaults to `None`.
         random_state: the random generator to use. Defaults to `np.random`.
+
+    Returns:
+        Randomised Numpy array with shape (`width`, `height`)
     """
 
     if rad_max <= rad_min:
@@ -73,7 +76,7 @@ def create_test_image_2d(
         else:
             image[circle] = rs.random() * 0.5 + 0.5
 
-    labels = np.ceil(image).astype(np.int32)
+    labels = np.ceil(image).astype(np.int32, copy=False)
 
     norm = rs.uniform(0, num_seg_classes * noise_max, size=image.shape)
     noisyimage: np.ndarray = rescale_array(np.maximum(image, norm))  # type: ignore
@@ -120,6 +123,9 @@ def create_test_image_3d(
             an image with channel dimension as first dim or last dim. Defaults to `None`.
         random_state: the random generator to use. Defaults to `np.random`.
 
+    Returns:
+        Randomised Numpy array with shape (`width`, `height`, `depth`)
+
     See also:
         :py:meth:`~create_test_image_2d`
     """
@@ -148,7 +154,7 @@ def create_test_image_3d(
         else:
             image[circle] = rs.random() * 0.5 + 0.5
 
-    labels = np.ceil(image).astype(np.int32)
+    labels = np.ceil(image).astype(np.int32, copy=False)
 
     norm = rs.uniform(0, num_seg_classes * noise_max, size=image.shape)
     noisyimage: np.ndarray = rescale_array(np.maximum(image, norm))  # type: ignore

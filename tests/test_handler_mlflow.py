@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -39,7 +39,9 @@ class TestHandlerMLFlow(unittest.TestCase):
 
             # set up testing handler
             test_path = os.path.join(tempdir, "mlflow_test")
-            handler = MLFlowHandler(tracking_uri=Path(test_path).as_uri(), state_attributes=["test"])
+            handler = MLFlowHandler(
+                iteration_log=False, epoch_log=True, tracking_uri=Path(test_path).as_uri(), state_attributes=["test"]
+            )
             handler.attach(engine)
             engine.run(range(3), max_epochs=2)
             handler.close()

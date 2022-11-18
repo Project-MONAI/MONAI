@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -73,7 +73,7 @@ class TestMeanEnsembled(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_value(self, input_param, data, expected_value):
         result = MeanEnsembled(**input_param)(data)
-        torch.testing.assert_allclose(result["output"], expected_value)
+        assert_allclose(result["output"], expected_value)
 
     def test_cuda_value(self):
         img = torch.stack([torch.ones(2, 2, 2, 2), torch.ones(2, 2, 2, 2) + 2])

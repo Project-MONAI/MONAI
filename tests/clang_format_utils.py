@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -34,8 +34,8 @@ PLATFORM_TO_CF_URL = {
 # This dictionary maps each platform to a relative path to a file containing its reference hash.
 # github/pytorch/pytorch/tree/63d62d3e44a0a4ec09d94f30381d49b78cc5b095/tools/clang_format_hash
 PLATFORM_TO_HASH = {
-    "Darwin": "b24cc8972344c4e01afbbae78d6a414f7638ff6f",
-    "Linux": "9073602de1c4e1748f2feea5a0782417b20e3043",
+    "Darwin": "1485a242a96c737ba7cdd9f259114f2201accdb46d87ac7a8650b1a814cd4d4d",
+    "Linux": "e1c8b97b919541a99e0a355df5c3f9e8abebc64259dbee6f8c68e1ef90582856",
 }
 
 # Directory and file paths for the clang-format binary.
@@ -58,7 +58,7 @@ def get_and_check_clang_format():
 
     try:
         download_url(
-            PLATFORM_TO_CF_URL[HOST_PLATFORM], CLANG_FORMAT_PATH, PLATFORM_TO_HASH[HOST_PLATFORM], hash_type="sha1"
+            PLATFORM_TO_CF_URL[HOST_PLATFORM], CLANG_FORMAT_PATH, PLATFORM_TO_HASH[HOST_PLATFORM], hash_type="sha256"
         )
     except Exception as e:
         print(f"Download {CLANG_FORMAT_PATH} failed: {e}")

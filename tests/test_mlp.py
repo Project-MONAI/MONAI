@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,7 +21,7 @@ from monai.networks.blocks.mlp import MLPBlock
 TEST_CASE_MLP = []
 for dropout_rate in np.linspace(0, 1, 4):
     for hidden_size in [128, 256, 512, 768]:
-        for mlp_dim in [512, 1028, 2048, 3072]:
+        for mlp_dim in [0, 1028, 2048, 3072]:
 
             test_case = [
                 {"hidden_size": hidden_size, "mlp_dim": mlp_dim, "dropout_rate": dropout_rate},

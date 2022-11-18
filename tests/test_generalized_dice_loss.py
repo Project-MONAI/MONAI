@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,7 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.losses import GeneralizedDiceLoss
-from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
+from tests.utils import test_script_save
 
 TEST_CASES = [
     [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
@@ -46,7 +46,7 @@ TEST_CASES = [
             "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
             "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
         },
-        0.469964,
+        0.435035,
     ],
     [  # shape: (2, 2, 3), (2, 1, 3)
         {"include_background": True, "to_onehot_y": True, "softmax": True, "smooth_nr": 1e-4, "smooth_dr": 1e-4},
@@ -54,7 +54,7 @@ TEST_CASES = [
             "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
             "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
         },
-        0.414507,
+        0.3837,
     ],
     [  # shape: (2, 2, 3), (2, 1, 3)
         {
@@ -69,7 +69,7 @@ TEST_CASES = [
             "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
             "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
         },
-        0.829015,
+        1.5348,
     ],
     [  # shape: (2, 2, 3), (2, 1, 3)
         {
@@ -84,7 +84,7 @@ TEST_CASES = [
             "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
             "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
         },
-        [[[0.273476]], [[0.555539]]],
+        [[[0.210949], [0.295351]], [[0.599976], [0.428522]]],
     ],
     [  # shape: (2, 2, 3), (2, 1, 3)
         {"include_background": False, "to_onehot_y": True, "smooth_nr": 1e-8, "smooth_dr": 1e-8},
@@ -112,7 +112,7 @@ TEST_CASES = [
             "input": torch.tensor([[[0.0, 10.0, 10.0, 10.0], [10.0, 0.0, 0.0, 0.0]]]),
             "target": torch.tensor([[[1, 1, 0, 0]]]),
         },
-        0.250023,
+        0.26669,
     ],
     [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
         {"include_background": True, "other_act": torch.tanh, "smooth_nr": 1e-4, "smooth_dr": 1e-4},
@@ -134,7 +134,7 @@ TEST_CASES = [
             "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
             "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
         },
-        -0.097833,
+        -8.55485,
     ],
 ]
 
@@ -173,7 +173,26 @@ class TestGeneralizedDiceLoss(unittest.TestCase):
             loss = GeneralizedDiceLoss(to_onehot_y=True)
             loss.forward(chn_input, chn_target)
 
-    @SkipIfBeforePyTorchVersion((1, 7, 0))
+    def test_differentiability(self):
+        prediction = torch.ones((1, 1, 1, 3))
+        target = torch.ones((1, 1, 1, 3))
+        prediction.requires_grad = True
+        target.requires_grad = True
+
+        generalized_dice_loss = GeneralizedDiceLoss()
+        loss = generalized_dice_loss(prediction, target)
+        self.assertNotEqual(loss.grad_fn, None)
+
+    def test_batch(self):
+        prediction = torch.zeros(2, 3, 3, 3)
+        target = torch.zeros(2, 3, 3, 3)
+        prediction.requires_grad = True
+        target.requires_grad = True
+
+        generalized_dice_loss = GeneralizedDiceLoss(batch=True)
+        loss = generalized_dice_loss(prediction, target)
+        self.assertNotEqual(loss.grad_fn, None)
+
     def test_script(self):
         loss = GeneralizedDiceLoss()
         test_input = torch.ones(2, 1, 8, 8)

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -35,7 +35,6 @@ class TestRandGaussianNoise(NumpyImageTestCase2D):
         np.random.seed(seed)
         np.random.random()
         expected = self.imt + np.random.normal(mean, np.random.uniform(0, std), size=self.imt.shape)
-        self.assertEqual(type(im), type(noised))
         if isinstance(noised, torch.Tensor):
             noised = noised.cpu()
         np.testing.assert_allclose(expected, noised, atol=1e-5)

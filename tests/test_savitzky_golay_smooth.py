@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,11 +12,10 @@
 import unittest
 
 import numpy as np
-import torch
 from parameterized import parameterized
 
 from monai.transforms import SavitzkyGolaySmooth
-from tests.utils import TEST_NDARRAYS
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 # Zero-padding trivial tests
 
@@ -59,19 +58,13 @@ TEST_CASE_SINE_SMOOTH = [
 
 
 class TestSavitzkyGolaySmooth(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_SINGLE_VALUE, TEST_CASE_2D_AXIS_2, TEST_CASE_SINE_SMOOTH])
+    @parameterized.expand(
+        [TEST_CASE_SINGLE_VALUE, TEST_CASE_2D_AXIS_2, TEST_CASE_SINE_SMOOTH, TEST_CASE_SINGLE_VALUE_REP]
+    )
     def test_value(self, arguments, image, expected_data, atol):
         for p in TEST_NDARRAYS:
             result = SavitzkyGolaySmooth(**arguments)(p(image.astype(np.float32)))
-            torch.testing.assert_allclose(result, p(expected_data.astype(np.float32)), rtol=1e-4, atol=atol)
-
-
-class TestSavitzkyGolaySmoothREP(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_SINGLE_VALUE_REP])
-    def test_value(self, arguments, image, expected_data, atol):
-        for p in TEST_NDARRAYS:
-            result = SavitzkyGolaySmooth(**arguments)(p(image.astype(np.float32)))
-            torch.testing.assert_allclose(result, p(expected_data.astype(np.float32)), rtol=1e-4, atol=atol)
+            assert_allclose(result, p(expected_data.astype(np.float32)), rtol=1e-4, atol=atol, type_test="tensor")
 
 
 if __name__ == "__main__":

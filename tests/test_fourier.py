@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,8 +21,6 @@ from monai.utils.misc import set_determinism
 from tests.utils import SkipIfBeforePyTorchVersion, SkipIfNoModule
 
 TEST_CASES = [((128, 64),), ((64, 48, 80),)]
-# for shape in ((128, 64), (64, 48, 80)):
-#     TEST_CASES.append(shape)
 
 
 @SkipIfBeforePyTorchVersion((1, 8))

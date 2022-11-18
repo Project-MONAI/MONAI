@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -41,7 +41,7 @@ class TestCheckMD5(unittest.TestCase):
             self.assertTrue(result == expected_result)
 
     def test_hash_type_error(self):
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(ValueError):
             with tempfile.TemporaryDirectory() as tempdir:
                 check_hash(tempdir, "test_hash", "test_type")
 

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -30,6 +30,7 @@ class TestSplitChannel(unittest.TestCase):
     def test_shape(self, input_param, test_data, expected_shape):
         result = SplitChannel(**input_param)(test_data)
         for data in result:
+            self.assertEqual(type(data), type(test_data))
             self.assertTupleEqual(data.shape, expected_shape)
 
 

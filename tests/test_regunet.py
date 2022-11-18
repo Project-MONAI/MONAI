@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,7 +19,6 @@ from monai.networks.nets.regunet import RegUNet
 from tests.utils import test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
-
 
 TEST_CASE_REGUNET_2D = [
     [

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,18 +15,18 @@ import warnings
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Union, overload
 
-from monai.config import KeysCollection
+from monai.config import KeysCollection, PathLike
 from monai.data.utils import partition_dataset, select_cross_validation_folds
 from monai.utils import ensure_tuple
 
 
 @overload
-def _compute_path(base_dir: str, element: str, check_path: bool = False) -> str:
+def _compute_path(base_dir: PathLike, element: PathLike, check_path: bool = False) -> str:
     ...
 
 
 @overload
-def _compute_path(base_dir: str, element: List[str], check_path: bool = False) -> List[str]:
+def _compute_path(base_dir: PathLike, element: List[PathLike], check_path: bool = False) -> List[str]:
     ...
 
 
@@ -43,24 +43,24 @@ def _compute_path(base_dir, element, check_path=False):
 
     """
 
-    def _join_path(base_dir: str, item: str):
+    def _join_path(base_dir: PathLike, item: PathLike):
         result = os.path.normpath(os.path.join(base_dir, item))
         if check_path and not os.path.exists(result):
             # if not an existing path, don't join with base dir
-            return item
-        return result
+            return f"{item}"
+        return f"{result}"
 
-    if isinstance(element, str):
+    if isinstance(element, (str, os.PathLike)):
         return _join_path(base_dir, element)
     if isinstance(element, list):
         for e in element:
-            if not isinstance(e, str):
+            if not isinstance(e, (str, os.PathLike)):
                 return element
         return [_join_path(base_dir, e) for e in element]
     return element
 
 
-def _append_paths(base_dir: str, is_segmentation: bool, items: List[Dict]) -> List[Dict]:
+def _append_paths(base_dir: PathLike, is_segmentation: bool, items: List[Dict]) -> List[Dict]:
     """
     Args:
         base_dir: the base directory of the dataset.
@@ -84,10 +84,10 @@ def _append_paths(base_dir: str, is_segmentation: bool, items: List[Dict]) -> Li
 
 
 def load_decathlon_datalist(
-    data_list_file_path: str,
+    data_list_file_path: PathLike,
     is_segmentation: bool = True,
     data_list_key: str = "training",
-    base_dir: Optional[str] = None,
+    base_dir: Optional[PathLike] = None,
 ) -> List[Dict]:
     """Load image/label paths of decathlon challenge from JSON file
 
@@ -114,23 +114,25 @@ def load_decathlon_datalist(
         ]
 
     """
-    if not os.path.isfile(data_list_file_path):
+    data_list_file_path = Path(data_list_file_path)
+    if not data_list_file_path.is_file():
         raise ValueError(f"Data list file {data_list_file_path} does not exist.")
     with open(data_list_file_path) as json_file:
         json_data = json.load(json_file)
     if data_list_key not in json_data:
         raise ValueError(f'Data list {data_list_key} not specified in "{data_list_file_path}".')
     expected_data = json_data[data_list_key]
-    if data_list_key == "test":
+    if data_list_key == "test" and not isinstance(expected_data[0], dict):
+        # decathlon datalist may save the test images in a list directly instead of dict
         expected_data = [{"image": i} for i in expected_data]
 
     if base_dir is None:
-        base_dir = os.path.dirname(data_list_file_path)
+        base_dir = data_list_file_path.parent
 
     return _append_paths(base_dir, is_segmentation, expected_data)
 
 
-def load_decathlon_properties(data_property_file_path: str, property_keys: Union[Sequence[str], str]) -> Dict:
+def load_decathlon_properties(data_property_file_path: PathLike, property_keys: Union[Sequence[str], str]) -> Dict:
     """Load the properties from the JSON file contains data property with specified `property_keys`.
 
     Args:
@@ -141,7 +143,8 @@ def load_decathlon_properties(data_property_file_path: str, property_keys: Union
             `modality`, `labels`, `numTraining`, `numTest`, etc.
 
     """
-    if not os.path.isfile(data_property_file_path):
+    data_property_file_path = Path(data_property_file_path)
+    if not data_property_file_path.is_file():
         raise ValueError(f"Data property file {data_property_file_path} does not exist.")
     with open(data_property_file_path) as json_file:
         json_data = json.load(json_file)
@@ -155,17 +158,14 @@ def load_decathlon_properties(data_property_file_path: str, property_keys: Union
 
 
 def check_missing_files(
-    datalist: List[Dict],
-    keys: KeysCollection,
-    root_dir: Optional[Union[Path, str]] = None,
-    allow_missing_keys: bool = False,
+    datalist: List[Dict], keys: KeysCollection, root_dir: Optional[PathLike] = None, allow_missing_keys: bool = False
 ):
     """Checks whether some files in the Decathlon datalist are missing.
     It would be helpful to check missing files before a heavy training run.
 
     Args:
         datalist: a list of data items, every item is a dictionary.
-            ususally generated by `load_decathlon_datalist` API.
+            usually generated by `load_decathlon_datalist` API.
         keys: expected keys to check in the datalist.
         root_dir: if not None, provides the root dir for the relative file paths in `datalist`.
         allow_missing_keys: whether allow missing keys in the datalist items.
@@ -184,11 +184,12 @@ def check_missing_files(
                 continue
 
             for f in ensure_tuple(item[k]):
-                if not isinstance(f, (str, Path)):
+                if not isinstance(f, (str, os.PathLike)):
                     raise ValueError(f"filepath of key `{k}` must be a string or a list of strings, but got: {f}.")
-                if isinstance(root_dir, (str, Path)):
-                    f = os.path.join(root_dir, f)
-                if not os.path.exists(f):
+                f = Path(f)
+                if isinstance(root_dir, (str, os.PathLike)):
+                    f = Path(root_dir).joinpath(f)
+                if not f.exists():
                     missing_files.append(f)
 
     return missing_files
@@ -228,7 +229,7 @@ def create_cross_validation_datalist(
         root_dir: if not None, provides the root dir for the relative file paths in `datalist`.
         allow_missing_keys: if check_missing_files is `True`, whether allow missing keys in the datalist items.
             if False, raise exception if missing. default to False.
-        raise_error: when found missing files, if `True`, raise exception and stop, if `False`, print warining.
+        raise_error: when found missing files, if `True`, raise exception and stop, if `False`, print warning.
 
     """
     if check_missing and keys is not None:
@@ -244,6 +245,7 @@ def create_cross_validation_datalist(
     val_list = select_cross_validation_folds(partitions=data, folds=val_folds)
     ret = {train_key: train_list, val_key: val_list}
     if isinstance(filename, (str, Path)):
-        json.dump(ret, open(filename, "w"), indent=4)
+        with open(filename, "w") as f:
+            json.dump(ret, f, indent=4)
 
     return ret

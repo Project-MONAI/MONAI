@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,12 +13,18 @@ from .utils import (
     convert_to_torchscript,
     copy_model_state,
     eval_mode,
+    get_state_dict,
     icnr_init,
+    look_up_named_module,
     normal_init,
     normalize_transform,
     one_hot,
     pixelshuffle,
     predict_segmentation,
+    replace_modules,
+    replace_modules_temp,
+    save_state,
+    set_named_module,
     slice_channels,
     to_norm_affine,
     train_mode,

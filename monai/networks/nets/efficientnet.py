@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,17 +13,26 @@ import math
 import operator
 import re
 from functools import reduce
-from typing import List, NamedTuple, Optional, Tuple, Type, Union
+from typing import Dict, List, NamedTuple, Optional, Tuple, Type, Union
 
 import torch
 from torch import nn
 from torch.utils import model_zoo
 
+from monai.networks.blocks import BaseEncoder
 from monai.networks.layers.factories import Act, Conv, Pad, Pool
 from monai.networks.layers.utils import get_norm_layer
 from monai.utils.module import look_up_option
 
-__all__ = ["EfficientNet", "EfficientNetBN", "get_efficientnet_image_size", "drop_connect"]
+__all__ = [
+    "EfficientNet",
+    "EfficientNetBN",
+    "get_efficientnet_image_size",
+    "drop_connect",
+    "EfficientNetBNFeatures",
+    "BlockArgs",
+    "EfficientNetEncoder",
+]
 
 efficientnet_params = {
     # model_name: (width_mult, depth_mult, image_size, dropout_rate, dropconnect_rate)
@@ -82,7 +91,7 @@ class MBConvBlock(nn.Module):
         Args:
             spatial_dims: number of spatial dimensions.
             in_channels: number of input channels.
-            out_classes: number of output channels.
+            out_channels: number of output channels.
             kernel_size: size of the kernel for conv ops.
             stride: stride to use for conv ops.
             image_size: input image resolution.
@@ -521,11 +530,8 @@ class EfficientNetBN(EfficientNet):
 
         # check if model_name is valid model
         if model_name not in efficientnet_params.keys():
-            raise ValueError(
-                "invalid model_name {} found, must be one of {} ".format(
-                    model_name, ", ".join(efficientnet_params.keys())
-                )
-            )
+            model_name_string = ", ".join(efficientnet_params.keys())
+            raise ValueError(f"invalid model_name {model_name} found, must be one of {model_name_string} ")
 
         # get network parameters
         weight_coeff, depth_coeff, image_size, dropout_rate, dropconnect_rate = efficientnet_params[model_name]
@@ -581,11 +587,8 @@ class EfficientNetBNFeatures(EfficientNet):
 
         # check if model_name is valid model
         if model_name not in efficientnet_params.keys():
-            raise ValueError(
-                "invalid model_name {} found, must be one of {} ".format(
-                    model_name, ", ".join(efficientnet_params.keys())
-                )
-            )
+            model_name_string = ", ".join(efficientnet_params.keys())
+            raise ValueError(f"invalid model_name {model_name} found, must be one of {model_name_string} ")
 
         # get network parameters
         weight_coeff, depth_coeff, image_size, dropout_rate, dropconnect_rate = efficientnet_params[model_name]
@@ -631,6 +634,80 @@ class EfficientNetBNFeatures(EfficientNet):
         return features
 
 
+class EfficientNetEncoder(EfficientNetBNFeatures, BaseEncoder):
+    """
+    Wrap the original efficientnet to an encoder for flexible-unet.
+    """
+
+    backbone_names = [
+        "efficientnet-b0",
+        "efficientnet-b1",
+        "efficientnet-b2",
+        "efficientnet-b3",
+        "efficientnet-b4",
+        "efficientnet-b5",
+        "efficientnet-b6",
+        "efficientnet-b7",
+        "efficientnet-b8",
+        "efficientnet-l2",
+    ]
+
+    @classmethod
+    def get_encoder_parameters(cls) -> List[Dict]:
+        """
+        Get the initialization parameter for efficientnet backbones.
+        """
+        parameter_list = []
+        for backbone_name in cls.backbone_names:
+            parameter_list.append(
+                {
+                    "model_name": backbone_name,
+                    "pretrained": True,
+                    "progress": True,
+                    "spatial_dims": 2,
+                    "in_channels": 3,
+                    "num_classes": 1000,
+                    "norm": ("batch", {"eps": 1e-3, "momentum": 0.01}),
+                    "adv_prop": "ap" in backbone_name,
+                }
+            )
+        return parameter_list
+
+    @classmethod
+    def num_channels_per_output(cls) -> List[Tuple[int, ...]]:
+        """
+        Get number of efficientnet backbone output feature maps' channel.
+        """
+        return [
+            (16, 24, 40, 112, 320),
+            (16, 24, 40, 112, 320),
+            (16, 24, 48, 120, 352),
+            (24, 32, 48, 136, 384),
+            (24, 32, 56, 160, 448),
+            (24, 40, 64, 176, 512),
+            (32, 40, 72, 200, 576),
+            (32, 48, 80, 224, 640),
+            (32, 56, 88, 248, 704),
+            (72, 104, 176, 480, 1376),
+        ]
+
+    @classmethod
+    def num_outputs(cls) -> List[int]:
+        """
+        Get number of efficientnet backbone output feature maps.
+        Since every backbone contains the same 5 output feature maps,
+        the number list should be `[5] * 10`.
+        """
+        return [5] * 10
+
+    @classmethod
+    def get_encoder_names(cls) -> List[str]:
+        """
+        Get names of efficient backbone.
+        """
+        return cls.backbone_names
+
+
 def get_efficientnet_image_size(model_name: str) -> int:
     """
     Get the input image size for a given efficientnet model.
@@ -644,9 +721,8 @@ def get_efficientnet_image_size(model_name: str) -> int:
     """
     # check if model_name is valid model
     if model_name not in efficientnet_params.keys():
-        raise ValueError(
-            "invalid model_name {} found, must be one of {} ".format(model_name, ", ".join(efficientnet_params.keys()))
-        )
+        model_name_string = ", ".join(efficientnet_params.keys())
+        raise ValueError(f"invalid model_name {model_name} found, must be one of {model_name_string} ")
 
     # return input image size (all dims equal so only need to return for one dim)
     _, _, res, _, _ = efficientnet_params[model_name]
@@ -666,7 +742,7 @@ def drop_connect(inputs: torch.Tensor, p: float, training: bool) -> torch.Tensor
     e.g. 1D activations [B, C, H], 2D activations [B, C, H, W] and 3D activations [B, C, H, W, D]
 
     Args:
-        input: input tensor with [B, C, dim_1, dim_2, ..., dim_N] where N=spatial_dims.
+        inputs: input tensor with [B, C, dim_1, dim_2, ..., dim_N] where N=spatial_dims.
         p: probability to use for dropping connections.
         training: whether in training or evaluation mode.
 
@@ -920,15 +996,10 @@ class BlockArgs(NamedTuple):
             A string notation of BlockArgs object arguments.
                 Example: "r1_k3_s11_e1_i32_o16_se0.25_noskip".
         """
-        string = "r{}_k{}_s{}{}_e{}_i{}_o{}_se{}".format(
-            self.num_repeat,
-            self.kernel_size,
-            self.stride,
-            self.stride,
-            self.expand_ratio,
-            self.input_filters,
-            self.output_filters,
-            self.se_ratio,
+        string = (
+            f"r{self.num_repeat}_k{self.kernel_size}_s{self.stride}{self.stride}"
+            f"_e{self.expand_ratio}_i{self.input_filters}_o{self.output_filters}"
+            f"_se{self.se_ratio}"
         )
 
         if not self.id_skip:

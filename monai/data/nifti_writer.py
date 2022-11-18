@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,12 +18,14 @@ from monai.config import DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.utils import compute_shape_offset, to_affine_nd
 from monai.networks.layers import AffineTransform
-from monai.utils import GridSampleMode, GridSamplePadMode, optional_import
+from monai.transforms.utils_pytorch_numpy_unification import allclose
+from monai.utils import GridSampleMode, GridSamplePadMode, deprecated, optional_import
 from monai.utils.type_conversion import convert_data_type
 
 nib, _ = optional_import("nibabel")
 
 
+@deprecated(since="0.8", msg_suffix="use monai.data.NibabelWriter instead.")
 def write_nifti(
     data: NdarrayOrTensor,
     file_name: str,
@@ -31,8 +33,8 @@ def write_nifti(
     target_affine: Optional[np.ndarray] = None,
     resample: bool = True,
     output_spatial_shape: Union[Sequence[int], np.ndarray, None] = None,
-    mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-    padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+    mode: str = GridSampleMode.BILINEAR,
+    padding_mode: str = GridSamplePadMode.BORDER,
     align_corners: bool = False,
     dtype: DtypeLike = np.float64,
     output_dtype: DtypeLike = np.float32,
@@ -87,36 +89,38 @@ def write_nifti(
         mode: {``"bilinear"``, ``"nearest"``}
             This option is used when ``resample = True``.
             Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
         padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
             This option is used when ``resample = True``.
             Padding mode for outside grid values. Defaults to ``"border"``.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
         align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
         dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
             If None, use the data type of input data.
         output_dtype: data type for saving data. Defaults to ``np.float32``.
+
+    .. deprecated:: 0.8
+        Use :py:meth:`monai.data.NibabelWriter` instead.
+
     """
-    if isinstance(data, torch.Tensor):
-        data, *_ = convert_data_type(data, np.ndarray)
-    if isinstance(affine, torch.Tensor):
-        affine, *_ = convert_data_type(affine, np.ndarray)
+    data, *_ = convert_data_type(data, np.ndarray)
+    affine, *_ = convert_data_type(affine, np.ndarray)
     if not isinstance(data, np.ndarray):
         raise AssertionError("input data must be numpy array or torch tensor.")
     dtype = dtype or data.dtype
     sr = min(data.ndim, 3)
     if affine is None:
         affine = np.eye(4, dtype=np.float64)
-    affine = to_affine_nd(sr, affine)  # type: ignore
+    affine = to_affine_nd(sr, affine)
 
     if target_affine is None:
         target_affine = affine
-    target_affine = to_affine_nd(sr, target_affine)
+    target_affine, *_ = convert_data_type(to_affine_nd(sr, target_affine), np.ndarray)
 
-    if np.allclose(affine, target_affine, atol=1e-3):
+    if allclose(affine, target_affine, atol=1e-3):
         # no affine changes, save (data, affine)
-        results_img = nib.Nifti1Image(data.astype(output_dtype), to_affine_nd(3, target_affine))
+        results_img = nib.Nifti1Image(data.astype(output_dtype, copy=False), to_affine_nd(3, target_affine))
         nib.save(results_img, file_name)
         return
 
@@ -127,8 +131,8 @@ def write_nifti(
     data_shape = data.shape
     data = nib.orientations.apply_orientation(data, ornt_transform)
     _affine = affine @ nib.orientations.inv_ornt_aff(ornt_transform, data_shape)
-    if np.allclose(_affine, target_affine, atol=1e-3) or not resample:
-        results_img = nib.Nifti1Image(data.astype(output_dtype), to_affine_nd(3, _affine))  # type: ignore
+    if allclose(_affine, target_affine, atol=1e-3) or not resample:
+        results_img = nib.Nifti1Image(data.astype(output_dtype, copy=False), to_affine_nd(3, _affine))  # type: ignore
         nib.save(results_img, file_name)
         return
 
@@ -147,8 +151,8 @@ def write_nifti(
         data_np: np.ndarray = data.reshape(list(spatial_shape) + [-1])  # type: ignore
         data_np = np.moveaxis(data_np, -1, 0)  # channel first for pytorch
         data_torch = affine_xform(
-            torch.as_tensor(np.ascontiguousarray(data_np).astype(dtype)).unsqueeze(0),
-            torch.as_tensor(np.ascontiguousarray(transform).astype(dtype)),
+            torch.as_tensor(np.ascontiguousarray(data_np, dtype=dtype)).unsqueeze(0),
+            torch.as_tensor(np.ascontiguousarray(transform, dtype=dtype)),
             spatial_size=output_spatial_shape_[:3],
         )
         data_np = data_torch.squeeze(0).detach().cpu().numpy()
@@ -158,12 +162,12 @@ def write_nifti(
         while len(output_spatial_shape_) < len(data.shape):
             output_spatial_shape_ = output_spatial_shape_ + [1]
         data_torch = affine_xform(
-            torch.as_tensor(np.ascontiguousarray(data).astype(dtype)[None, None]),
-            torch.as_tensor(np.ascontiguousarray(transform).astype(dtype)),
+            torch.as_tensor(np.ascontiguousarray(data, dtype=dtype)[None, None]),
+            torch.as_tensor(np.ascontiguousarray(transform, dtype=dtype)),
             spatial_size=output_spatial_shape_[: len(data.shape)],
         )
         data_np = data_torch.squeeze(0).squeeze(0).detach().cpu().numpy()
 
-    results_img = nib.Nifti1Image(data_np.astype(output_dtype), to_affine_nd(3, target_affine))
+    results_img = nib.Nifti1Image(data_np.astype(output_dtype, copy=False), to_affine_nd(3, target_affine))
     nib.save(results_img, file_name)
     return

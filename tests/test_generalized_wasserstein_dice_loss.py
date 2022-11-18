@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,7 +18,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 
 from monai.losses import GeneralizedWassersteinDiceLoss
-from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
+from tests.utils import test_script_save
 
 
 class TestGeneralizedWassersteinDiceLoss(unittest.TestCase):
@@ -216,7 +216,6 @@ class TestGeneralizedWassersteinDiceLoss(unittest.TestCase):
             # check that the predicted segmentation has improved
             self.assertGreater(diff_start, diff_end)
 
-    @SkipIfBeforePyTorchVersion((1, 7, 0))
     def test_script(self):
         target = torch.tensor([[0, 0, 0, 0], [0, 1, 1, 0], [0, 1, 1, 0], [0, 0, 0, 0]])
 

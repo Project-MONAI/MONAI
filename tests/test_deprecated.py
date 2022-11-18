@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -8,7 +8,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 
 import unittest
 import warnings
@@ -29,7 +28,7 @@ class TestDeprecatedRC(unittest.TestCase):
         def foo2():
             pass
 
-        print(foo2())
+        foo2()  # should not raise any warnings
 
     def test_warning_milestone(self):
         """Test deprecated decorator with `since` and `removed` set for a milestone version"""
@@ -38,7 +37,7 @@ class TestDeprecatedRC(unittest.TestCase):
         def foo2():
             pass
 
-        self.assertWarns(DeprecationWarning, foo2)
+        self.assertWarns(FutureWarning, foo2)
 
     def test_warning_last(self):
         """Test deprecated decorator with `since` and `removed` set, for the last version"""
@@ -72,7 +71,7 @@ class TestDeprecated(unittest.TestCase):
         def foo1():
             pass
 
-        self.assertWarns(DeprecationWarning, foo1)
+        self.assertWarns(FutureWarning, foo1)
 
     def test_warning2(self):
         """Test deprecated decorator with `since` and `removed` set."""
@@ -81,7 +80,7 @@ class TestDeprecated(unittest.TestCase):
         def foo2():
             pass
 
-        self.assertWarns(DeprecationWarning, foo2)
+        self.assertWarns(FutureWarning, foo2)
 
     def test_except1(self):
         """Test deprecated decorator raises exception with no versions set."""
@@ -108,7 +107,7 @@ class TestDeprecated(unittest.TestCase):
         class Foo1:
             pass
 
-        self.assertWarns(DeprecationWarning, Foo1)
+        self.assertWarns(FutureWarning, Foo1)
 
     def test_class_warning2(self):
         """Test deprecated decorator with `since` and `removed` set."""
@@ -117,7 +116,7 @@ class TestDeprecated(unittest.TestCase):
         class Foo2:
             pass
 
-        self.assertWarns(DeprecationWarning, Foo2)
+        self.assertWarns(FutureWarning, Foo2)
 
     def test_class_except1(self):
         """Test deprecated decorator raises exception with no versions set."""
@@ -145,7 +144,7 @@ class TestDeprecated(unittest.TestCase):
             def meth1(self):
                 pass
 
-        self.assertWarns(DeprecationWarning, lambda: Foo5().meth1())
+        self.assertWarns(FutureWarning, lambda: Foo5().meth1())
 
     def test_meth_except1(self):
         """Test deprecated decorator with just `since` set."""
@@ -166,18 +165,18 @@ class TestDeprecated(unittest.TestCase):
 
         afoo1(1)  # ok when no b provided
 
-        self.assertWarns(DeprecationWarning, lambda: afoo1(1, 2))
+        self.assertWarns(FutureWarning, lambda: afoo1(1, 2))
 
     def test_arg_warn2(self):
         """Test deprecated_arg decorator with just `since` set."""
 
         @deprecated_arg("b", since=self.prev_version, version_val=self.test_version)
-        def afoo2(a, **kwargs):
+        def afoo2(a, **kw):
             pass
 
         afoo2(1)  # ok when no b provided
 
-        self.assertWarns(DeprecationWarning, lambda: afoo2(1, b=2))
+        self.assertWarns(FutureWarning, lambda: afoo2(1, b=2))
 
     def test_arg_except1(self):
         """Test deprecated_arg decorator raises exception with no versions set."""
@@ -207,8 +206,8 @@ class TestDeprecated(unittest.TestCase):
 
         afoo5(1)  # ok when no b or c provided
 
-        self.assertWarns(DeprecationWarning, lambda: afoo5(1, 2))
-        self.assertWarns(DeprecationWarning, lambda: afoo5(1, 2, 3))
+        self.assertWarns(FutureWarning, lambda: afoo5(1, 2))
+        self.assertWarns(FutureWarning, lambda: afoo5(1, 2, 3))
 
     def test_future(self):
         """Test deprecated decorator with `since` set to a future version."""
@@ -217,9 +216,9 @@ class TestDeprecated(unittest.TestCase):
         def future1():
             pass
 
-        with self.assertWarns(DeprecationWarning) as aw:
+        with self.assertWarns(FutureWarning) as aw:
             future1()
-            warnings.warn("fake warning", DeprecationWarning)
+            warnings.warn("fake warning", FutureWarning)
 
         self.assertEqual(aw.warning.args[0], "fake warning")
 
@@ -235,6 +234,19 @@ class TestDeprecated(unittest.TestCase):
 
         self.assertRaises(DeprecatedError, lambda: afoo4(1, b=2))
 
+    def test_arg_except3_unknown(self):
+        """
+        Test deprecated_arg decorator raises exception with `removed` set in the past.
+        with unknown version and kwargs
+        """
+
+        @deprecated_arg("b", removed=self.prev_version, version_val="0+untagged.1.g3131155")
+        def afoo4(a, b=None, **kwargs):
+            pass
+
+        self.assertRaises(DeprecatedError, lambda: afoo4(1, b=2))
+        self.assertRaises(DeprecatedError, lambda: afoo4(1, b=2, c=3))
+
     def test_replacement_arg(self):
         """
         Test deprecated arg being replaced.
@@ -245,9 +257,35 @@ class TestDeprecated(unittest.TestCase):
             return a
 
         self.assertEqual(afoo4(b=2), 2)
-        # self.assertRaises(DeprecatedError, lambda: afoo4(1, b=2))
         self.assertEqual(afoo4(1, b=2), 1)  # new name is in use
         self.assertEqual(afoo4(a=1, b=2), 1)  # prefers the new arg
+
+    def test_replacement_arg1(self):
+        """
+        Test deprecated arg being replaced with kwargs.
+        """
+
+        @deprecated_arg("b", new_name="a", since=self.prev_version, version_val=self.test_version)
+        def afoo4(a, *args, **kwargs):
+            return a
+
+        self.assertEqual(afoo4(b=2), 2)
+        self.assertEqual(afoo4(1, b=2, c=3), 1)  # new name is in use
+        self.assertEqual(afoo4(a=1, b=2, c=3), 1)  # prefers the new arg
+
+    def test_replacement_arg2(self):
+        """
+        Test deprecated arg (with a default value) being replaced.
+        """
+
+        @deprecated_arg("b", new_name="a", since=self.prev_version, version_val=self.test_version)
+        def afoo4(a, b=None, **kwargs):
+            return a, kwargs
+
+        self.assertEqual(afoo4(b=2, c=3), (2, {"c": 3}))
+        self.assertEqual(afoo4(1, b=2, c=3), (1, {"c": 3}))  # new name is in use
+        self.assertEqual(afoo4(a=1, b=2, c=3), (1, {"c": 3}))  # prefers the new arg
+        self.assertEqual(afoo4(1, 2, c=3), (1, {"c": 3}))  # prefers the new positional arg
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,7 +19,7 @@ from tests.utils import assert_allclose
 
 TEST_CASES = [
     [
-        dict(spacing=(1, 2), magnitude_range=(1.0, 2.0), as_tensor_output=False, device=None),
+        dict(spacing=(1, 2), magnitude_range=(1.0, 2.0), device=None),
         {"spatial_size": (3, 3)},
         np.array(
             [
@@ -48,7 +48,7 @@ TEST_CASES = [
         ),
     ],
     [
-        dict(spacing=(1, 2, 2), magnitude_range=(1.0, 3.0), as_tensor_output=False, device=None),
+        dict(spacing=(1, 2, 2), magnitude_range=(1.0, 3.0), device=None),
         {"spatial_size": (1, 2, 2)},
         np.array(
             [

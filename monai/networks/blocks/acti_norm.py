@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,8 +18,8 @@ from monai.networks.layers.utils import get_act_layer, get_dropout_layer, get_no
 
 class ADN(nn.Sequential):
     """
-    Constructs a sequential module of optional activation, dropout, and normalization layers
-    (with an arbitrary order)::
+    Constructs a sequential module of optional activation (A), dropout (D), and normalization (N) layers
+    with an arbitrary order::
 
         -- (Norm) -- (Dropout) -- (Acti) --
 
@@ -98,4 +98,4 @@ class ADN(nn.Sequential):
             if item not in op_dict:
                 raise ValueError(f"ordering must be a string of {op_dict}, got {item} in it.")
             if op_dict[item] is not None:
-                self.add_module(item, op_dict[item])  # type: ignore
+                self.add_module(item, op_dict[item])

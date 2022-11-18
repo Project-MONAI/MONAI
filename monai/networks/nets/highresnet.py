@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -168,7 +168,7 @@ class HighResNet(nn.Module):
         # residual blocks
         for (idx, params) in enumerate(layer_params[1:-2]):  # res blocks except the 1st and last two conv layers.
             _in_chns, _out_chns = _out_chns, params["n_features"]
-            _dilation = 2 ** idx
+            _dilation = 2**idx
             for _ in range(params["repeat"]):
                 blocks.append(
                     HighResBlock(

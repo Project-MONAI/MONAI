@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -24,7 +24,7 @@ class IntensityScaleIntensityRange(NumpyImageTestCase2D):
             scaled = scaler(p(self.imt))
             self.assertTrue(scaled.dtype, np.uint8)
             expected = (((self.imt - 20) / 88) * 30 + 50).astype(np.uint8)
-            assert_allclose(scaled, p(expected))
+            assert_allclose(scaled, p(expected), type_test="tensor")
 
     def test_image_scale_intensity_range_none_clip(self):
         scaler = ScaleIntensityRange(a_min=20, a_max=108, b_min=None, b_max=80, clip=True, dtype=np.uint8)
@@ -32,7 +32,7 @@ class IntensityScaleIntensityRange(NumpyImageTestCase2D):
             scaled = scaler(p(self.imt))
             self.assertTrue(scaled.dtype, np.uint8)
             expected = (np.clip((self.imt - 20) / 88, None, 80)).astype(np.uint8)
-            assert_allclose(scaled, p(expected))
+            assert_allclose(scaled, p(expected), type_test="tensor")
 
 
 if __name__ == "__main__":

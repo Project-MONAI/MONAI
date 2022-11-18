@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,13 +17,13 @@ from torch.utils.data.dataloader import DataLoader as TorchDataLoader
 
 from monai.config import KeysCollection
 from monai.data.dataloader import DataLoader
-from monai.data.utils import decollate_batch, no_collation, pad_list_data_collate, rep_scalar_to_batch
+from monai.data.utils import decollate_batch, no_collation, pad_list_data_collate
 from monai.transforms.croppad.batch import PadListDataCollate
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Transform
 from monai.utils import first
 
-__all__ = ["BatchInverseTransform", "Decollated"]
+__all__ = ["BatchInverseTransform", "Decollated", "DecollateD", "DecollateDict"]
 
 
 class _BatchInverseDataset(Dataset):
@@ -60,6 +60,8 @@ class BatchInverseTransform(Transform):
         collate_fn: Optional[Callable] = no_collation,
         num_workers: Optional[int] = 0,
         detach: bool = True,
+        pad_batch: bool = True,
+        fill_value=None,
     ) -> None:
         """
         Args:
@@ -73,6 +75,10 @@ class BatchInverseTransform(Transform):
                 if set to `None`, use the `num_workers` of the transform data loader.
             detach: whether to detach the tensors. Scalars tensors will be detached into number types
                 instead of torch tensors.
+            pad_batch: when the items in a batch indicate different batch size,
+                whether to pad all the sequences to the longest.
+                If False, the batch size will be the length of the shortest sequence.
+            fill_value: the value to fill the padded sequences when `pad_batch=True`.
 
         """
         self.transform = transform
@@ -80,10 +86,14 @@ class BatchInverseTransform(Transform):
         self.num_workers = loader.num_workers if num_workers is None else num_workers
         self.collate_fn = collate_fn
         self.detach = detach
-        self.pad_collation_used = loader.collate_fn.__doc__ == pad_list_data_collate.__doc__
+        self.pad_batch = pad_batch
+        self.fill_value = fill_value
+        self.pad_collation_used = loader.collate_fn.__doc__ == pad_list_data_collate.__doc__ or isinstance(
+            loader.collate_fn, PadListDataCollate
+        )
 
     def __call__(self, data: Dict[str, Any]) -> Any:
-        decollated_data = decollate_batch(data, detach=self.detach)
+        decollated_data = decollate_batch(data, detach=self.detach, pad=self.pad_batch, fill_value=self.fill_value)
         inv_ds = _BatchInverseDataset(decollated_data, self.transform, self.pad_collation_used)
         inv_loader = DataLoader(
             inv_ds, batch_size=self.batch_size, num_workers=self.num_workers, collate_fn=self.collate_fn
@@ -99,25 +109,36 @@ class BatchInverseTransform(Transform):
 
 class Decollated(MapTransform):
     """
-    Decollate a batch of data, if input a dictionary, it can also support to only decollate specified keys.
-    Note that unlike most MapTransforms, it will delete other keys not specified and if keys=None, will decollate
-    all the data in the input.
-    And it replicates the scalar values to every item of the decollated list.
+    Decollate a batch of data. If input is a dictionary, it also supports to only decollate specified keys.
+    Note that unlike most MapTransforms, it will delete the other keys that are not specified.
+    if `keys=None`, it will decollate all the data in the input.
+    It replicates the scalar values to every item of the decollated list.
 
     Args:
         keys: keys of the corresponding items to decollate, note that it will delete other keys not specified.
             if None, will decollate all the keys. see also: :py:class:`monai.transforms.compose.MapTransform`.
         detach: whether to detach the tensors. Scalars tensors will be detached into number types
             instead of torch tensors.
+        pad_batch: when the items in a batch indicate different batch size,
+            whether to pad all the sequences to the longest.
+            If False, the batch size will be the length of the shortest sequence.
+        fill_value: the value to fill the padded sequences when `pad_batch=True`.
         allow_missing_keys: don't raise exception if key is missing.
 
     """
 
     def __init__(
-        self, keys: Optional[KeysCollection] = None, detach: bool = True, allow_missing_keys: bool = False
+        self,
+        keys: Optional[KeysCollection] = None,
+        detach: bool = True,
+        pad_batch: bool = True,
+        fill_value=None,
+        allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.detach = detach
+        self.pad_batch = pad_batch
+        self.fill_value = fill_value
 
     def __call__(self, data: Union[Dict, List]):
         d: Union[Dict, List]
@@ -131,4 +152,7 @@ class Decollated(MapTransform):
             for key in self.key_iterator(data):
                 d[key] = data[key]
 
-        return decollate_batch(rep_scalar_to_batch(d), detach=self.detach)
+        return decollate_batch(d, detach=self.detach, pad=self.pad_batch, fill_value=self.fill_value)
+
+
+DecollateD = DecollateDict = Decollated

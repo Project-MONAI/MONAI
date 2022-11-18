@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,6 +19,7 @@ from monai.engines import SupervisedEvaluator
 from monai.handlers import StatsHandler, from_engine
 from monai.handlers.nvtx_handlers import MarkHandler, RangeHandler, RangePopHandler, RangePushHandler
 from monai.utils import optional_import
+from tests.utils import assert_allclose
 
 _, has_nvtx = optional_import("torch._C._nvtx", descriptor="NVTX is not installed. Are you sure you have a CUDA build?")
 
@@ -83,7 +84,7 @@ class TestHandlerDecollateBatch(unittest.TestCase):
         # Get the output from the engine
         output = engine.state.output[0]
 
-        torch.testing.assert_allclose(output["pred"], expected)
+        assert_allclose(output["pred"], expected)
 
 
 if __name__ == "__main__":
