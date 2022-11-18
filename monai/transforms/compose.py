@@ -158,7 +158,7 @@ class Compose(Randomizable, InvertibleTransform):
         """
         new_transforms = []
         for t in self.transforms:
-            if isinstance(t, Compose) and not isinstance(t, OneOf):
+            if isinstance(t, Compose) and not isinstance(t, OneOf) and not isinstance(t, RandomOrder):
                 new_transforms += t.flatten().transforms
             else:
                 new_transforms.append(t)
@@ -311,9 +311,41 @@ class RandomOrder(Compose):
         super().__init__(transforms, map_items, unpack_items, log_stats)
 
     def __call__(self, input_):
-        self.transforms = list(self.transforms)
-        self.R.shuffle(self.transforms)
+        if len(self.transforms) == 0:
+            return input_
+        num = len(self.transforms)
+        applied_order = self.R.permutation(range(num))
 
-        for _transform in self.transforms:
-            input_ = apply_transform(_transform, input_, self.map_items, self.unpack_items, self.log_stats)
+        for index in applied_order:
+            input_ = apply_transform(self.transforms[index], input_, self.map_items, self.unpack_items, self.log_stats)
+        # if the data is a mapping (dictionary), append the RandomOrder transform to the end
+        if isinstance(input_, monai.data.MetaTensor):
+            self.push_transform(input_, extra_info={"applied_order": applied_order})
+        elif isinstance(input_, Mapping):
+            for key in input_:  # dictionary not change size during iteration
+                if isinstance(input_[key], monai.data.MetaTensor) or self.trace_key(key) in input_:
+                    self.push_transform(input_, key, extra_info={"applied_order": applied_order})
         return input_
+
+
+    def inverse(self, data):
+        if len(self.transforms) == 0:
+            return data
+
+        applied_order = None
+        if isinstance(data, monai.data.MetaTensor):
+            applied_order = self.pop_transform(data)[TraceKeys.EXTRA_INFO]["applied_order"]
+        elif isinstance(data, Mapping):
+            for key in data:
+                if isinstance(data[key], monai.data.MetaTensor) or self.trace_key(key) in data:
+                    applied_order = self.pop_transform(data, key)[TraceKeys.EXTRA_INFO]["applied_order"]
+        else:
+            raise RuntimeError("Inverse only implemented for Mapping (dictionary) or MetaTensor data.")
+        if applied_order is None:
+            # no invertible transforms have been applied
+            return data
+
+        # loop backwards over transforms
+        for o in reversed(applied_order):
+            data = apply_transform(self.transforms[o].inverse, data, self.map_items, self.unpack_items, self.log_stats)
+        return data
