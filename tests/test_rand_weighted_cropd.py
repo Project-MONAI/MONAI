@@ -12,180 +12,146 @@
 import unittest
 
 import numpy as np
+from parameterized import parameterized
 
 from monai.transforms.croppad.dictionary import RandWeightedCropd
-from monai.utils.enums import PostFix
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, NumpyImageTestCase3D, assert_allclose
+from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, NumpyImageTestCase3D
 
 
-class TestRandWeightedCrop(NumpyImageTestCase2D):
-    def test_rand_weighted_crop_small_roi(self):
-        for p in TEST_NDARRAYS:
-            for q in TEST_NDARRAYS:
-                img = self.seg1[0]
-                n_samples = 3
-                crop = RandWeightedCropd("img", "w", (10, 12), n_samples)
-                weight = np.zeros_like(img)
-                weight[0, 30, 17] = 1.1
-                weight[0, 40, 31] = 1
-                weight[0, 80, 21] = 1
-                crop.set_random_state(10)
-                d = {"img": p(img), "w": q(weight)}
-                result = crop(d)
-                self.assertTrue(len(result) == n_samples)
-                np.testing.assert_allclose(result[0]["img"].shape, (1, 10, 12))
-                for c, e in zip(crop.centers, [[80, 21], [30, 17], [40, 31]]):
-                    assert_allclose(c, e, type_test=False)
-
-    def test_rand_weighted_crop_default_roi(self):
-        for p in TEST_NDARRAYS:
-            for q in TEST_NDARRAYS:
-                img = self.imt[0]
-                n_samples = 3
-                crop = RandWeightedCropd("im", "weight", (10, -1), n_samples, "coords")
-                weight = np.zeros_like(img)
-                weight[0, 30, 17] = 1.1
-                weight[0, 40, 31] = 1
-                weight[0, 80, 21] = 1
-                crop.set_random_state(10)
-                data = {"im": p(img), "weight": q(weight), "others": np.nan}
-                result = crop(data)
-                self.assertTrue(len(result) == n_samples)
-                np.testing.assert_allclose(result[0]["im"].shape, (1, 10, 64))
-                for c, e in zip(crop.centers, [[14, 32], [105, 32], [20, 32]]):
-                    assert_allclose(c, e, type_test=False)
-                assert_allclose(result[1]["coords"], [105, 32], type_test=False)
-
-    def test_rand_weighted_crop_large_roi(self):
-        for p in TEST_NDARRAYS:
-            for q in TEST_NDARRAYS:
-                img = self.segn[0]
-                n_samples = 3
-                crop = RandWeightedCropd(("img", "seg"), "weight", (10000, 400), n_samples, "location")
-                weight = np.zeros_like(img)
-                weight[0, 30, 17] = 1.1
-                weight[0, 10, 1] = 1
-                crop.set_random_state(10)
-                data = {"img": p(img), "seg": p(self.imt[0]), "weight": q(weight)}
-                result = crop(data)
-                self.assertTrue(len(result) == n_samples)
-                np.testing.assert_allclose(result[0]["img"].shape, (1, 128, 64))
-                np.testing.assert_allclose(result[0]["seg"].shape, (1, 128, 64))
-                for c, e in zip(crop.centers, [[64, 32], [64, 32], [64, 32]]):
-                    assert_allclose(c, e, type_test=False)
-                assert_allclose(result[1]["location"], [64, 32], type_test=False)
-
-    def test_rand_weighted_crop_bad_w(self):
-        for p in TEST_NDARRAYS:
-            for q in TEST_NDARRAYS:
-                img = self.imt[0]
-                n_samples = 3
-                crop = RandWeightedCropd(("img", "seg"), "w", (20, 40), n_samples)
-                weight = np.zeros_like(img)
-                weight[0, 30, 17] = np.inf
-                weight[0, 10, 1] = -np.inf
-                weight[0, 10, 20] = -np.nan
-                crop.set_random_state(10)
-                result = crop({"img": p(img), "seg": p(self.segn[0]), "w": q(weight)})
-                self.assertTrue(len(result) == n_samples)
-                np.testing.assert_allclose(result[0]["img"].shape, (1, 20, 40))
-                np.testing.assert_allclose(result[0]["seg"].shape, (1, 20, 40))
-                for c, e in zip(crop.centers, [[63, 37], [31, 43], [66, 20]]):
-                    assert_allclose(c, e, type_test=False)
+def get_data(ndim):
+    im_gen = NumpyImageTestCase2D() if ndim == 2 else NumpyImageTestCase3D()
+    im_gen.setUp()
+    return im_gen.imt[0], im_gen.seg1[0], im_gen.segn[0]
 
 
-class TestRandWeightedCrop3D(NumpyImageTestCase3D):
-    def test_rand_weighted_crop_small_roi(self):
-        for p in TEST_NDARRAYS:
-            for q in TEST_NDARRAYS:
-                img = self.seg1[0]
-                n_samples = 3
-                crop = RandWeightedCropd("img", "w", (8, 10, 12), n_samples)
-                weight = np.zeros_like(img)
-                weight[0, 5, 30, 17] = 1.1
-                weight[0, 8, 40, 31] = 1
-                weight[0, 11, 23, 21] = 1
-                crop.set_random_state(10)
-                result = crop({"img": p(img), "w": q(weight)})
-                self.assertTrue(len(result) == n_samples)
-                np.testing.assert_allclose(result[0]["img"].shape, (1, 8, 10, 12))
-                for c, e in zip(crop.centers, [[11, 23, 21], [5, 30, 17], [8, 40, 31]]):
-                    assert_allclose(c, e, type_test=False)
+IMT_2D, SEG1_2D, SEGN_2D = get_data(ndim=2)
+IMT_3D, SEG1_3D, SEGN_3D = get_data(ndim=3)
 
-    def test_rand_weighted_crop_default_roi(self):
-        for p in TEST_NDARRAYS:
-            for q in TEST_NDARRAYS:
-                img = self.imt[0]
-                n_samples = 3
-                crop = RandWeightedCropd(("img", "seg"), "w", (10, -1, -1), n_samples)
-                weight = np.zeros_like(img)
-                weight[0, 7, 17] = 1.1
-                weight[0, 13, 31] = 1.1
-                weight[0, 24, 21] = 1
-                crop.set_random_state(10)
-                result = crop({"img": p(img), "seg": p(self.segn[0]), "w": q(weight)})
-                self.assertTrue(len(result) == n_samples)
-                np.testing.assert_allclose(result[0]["img"].shape, (1, 10, 64, 80))
-                np.testing.assert_allclose(result[0]["seg"].shape, (1, 10, 64, 80))
-                for c, e in zip(crop.centers, [[14, 32, 40], [41, 32, 40], [20, 32, 40]]):
-                    assert_allclose(c, e, type_test=False)
+TESTS = []
+for p in TEST_NDARRAYS_ALL:
+    for q in TEST_NDARRAYS_ALL:
+        im = IMT_2D
+        weight = np.zeros_like(im)
+        weight[0, 30, 17] = 1.1
+        weight[0, 40, 31] = 1
+        weight[0, 80, 21] = 1
+        TESTS.append(
+            [
+                "small roi 2d",
+                dict(keys="img", w_key="w", spatial_size=(10, 12), num_samples=3),
+                {"img": p(im), "w": q(weight)},
+                (1, 10, 12),
+                [[80, 21], [30, 17], [40, 31]],
+            ]
+        )
 
-    def test_rand_weighted_crop_large_roi(self):
-        for p in TEST_NDARRAYS:
-            for q in TEST_NDARRAYS:
-                img = self.segn[0]
-                n_samples = 3
-                crop = RandWeightedCropd("img", "w", (10000, 400, 80), n_samples)
-                weight = np.zeros_like(img)
-                weight[0, 30, 17, 20] = 1.1
-                weight[0, 10, 1, 17] = 1
-                crop.set_random_state(10)
-                result = crop({"img": p(img), "w": q(weight)})
-                self.assertTrue(len(result) == n_samples)
-                np.testing.assert_allclose(result[0]["img"].shape, (1, 48, 64, 80))
-                for c, e in zip(crop.centers, [[24, 32, 40], [24, 32, 40], [24, 32, 40]]):
-                    assert_allclose(c, e, type_test=False)
+        weight = np.zeros_like(im)
+        weight[0, 30, 17] = 1.1
+        weight[0, 40, 31] = 1
+        weight[0, 80, 21] = 1
+        TESTS.append(
+            [
+                "default roi 2d",
+                dict(keys="img", w_key="w", spatial_size=(10, -1), num_samples=3),
+                {"img": p(im), "w": q(weight), "others": np.nan},
+                (1, 10, 64),
+                [[14, 32], [105, 32], [20, 32]],
+            ]
+        )
 
-    def test_rand_weighted_crop_bad_w(self):
-        for p in TEST_NDARRAYS:
-            for q in TEST_NDARRAYS:
-                img = self.imt[0]
-                n_samples = 3
-                crop = RandWeightedCropd(("img", "seg"), "w", (48, 64, 80), n_samples)
-                weight = np.zeros_like(img)
-                weight[0, 30, 17] = np.inf
-                weight[0, 10, 1] = -np.inf
-                weight[0, 10, 20] = -np.nan
-                crop.set_random_state(10)
-                result = crop({"img": p(img), "seg": p(self.segn[0]), "w": q(weight)})
-                self.assertTrue(len(result) == n_samples)
-                np.testing.assert_allclose(result[0]["img"].shape, (1, 48, 64, 80))
-                np.testing.assert_allclose(result[0]["seg"].shape, (1, 48, 64, 80))
-                for c, e in zip(crop.centers, [[24, 32, 40], [24, 32, 40], [24, 32, 40]]):
-                    assert_allclose(c, e, type_test=False)
+        weight = np.zeros_like(im)
+        weight[0, 30, 17] = 1.1
+        weight[0, 10, 1] = 1
+        TESTS.append(
+            [
+                "large roi 2d",
+                dict(keys=("img", "seg"), w_key="weight", spatial_size=(10000, 400), num_samples=3),
+                {"img": p(im), "seg": p(SEGN_2D), "weight": q(weight)},
+                (1, 128, 64),
+                [[64, 32], [64, 32], [64, 32]],
+            ]
+        )
 
-    def test_rand_weighted_crop_patch_index(self):
-        for p in TEST_NDARRAYS:
-            for q in TEST_NDARRAYS:
-                img = self.imt[0]
-                n_samples = 3
-                crop = RandWeightedCropd(("img", "seg"), "w", (10, -1, -1), n_samples)
-                weight = np.zeros_like(img)
-                weight[0, 7, 17] = 1.1
-                weight[0, 13, 31] = 1.1
-                weight[0, 24, 21] = 1
-                crop.set_random_state(10)
-                result = crop(
-                    {"img": p(img), "seg": p(self.segn[0]), "w": q(weight), PostFix.meta("img"): {"affine": None}}
-                )
-                self.assertTrue(len(result) == n_samples)
-                for c, e in zip(crop.centers, [[14, 32, 40], [41, 32, 40], [20, 32, 40]]):
-                    assert_allclose(c, e, type_test=False)
-                for i in range(n_samples):
-                    np.testing.assert_allclose(result[i]["img"].shape, (1, 10, 64, 80))
-                    np.testing.assert_allclose(result[i]["seg"].shape, (1, 10, 64, 80))
-                    np.testing.assert_allclose(result[i][PostFix.meta("img")]["patch_index"], i)
-                    np.testing.assert_allclose(result[i][PostFix.meta("seg")]["patch_index"], i)
+        weight = np.zeros_like(im)
+        weight[0, 30, 17] = np.inf
+        weight[0, 10, 1] = -np.inf
+        weight[0, 10, 20] = -np.nan
+        TESTS.append(
+            [
+                "bad w roi 2d",
+                dict(keys=("img", "seg"), w_key="w", spatial_size=(20, 40), num_samples=3),
+                {"img": p(im), "seg": p(SEGN_2D), "w": q(weight)},
+                (1, 20, 40),
+                [[63, 37], [31, 43], [66, 20]],
+            ]
+        )
+
+        im = IMT_3D
+        weight = np.zeros_like(im)
+        weight[0, 5, 30, 17] = 1.1
+        weight[0, 8, 40, 31] = 1
+        weight[0, 11, 23, 21] = 1
+        TESTS.append(
+            [
+                "small roi 3d",
+                dict(keys="img", w_key="w", spatial_size=(8, 10, 12), num_samples=3),
+                {"img": p(im), "w": q(weight)},
+                (1, 8, 10, 12),
+                [[11, 23, 21], [5, 30, 17], [8, 40, 31]],
+            ]
+        )
+
+        weight = np.zeros_like(im)
+        weight[0, 5, 30, 17] = 1.1
+        weight[0, 8, 40, 31] = 1
+        weight[0, 11, 23, 21] = 1
+        TESTS.append(
+            [
+                "default roi 3d",
+                dict(keys=("img", "seg"), w_key="w", spatial_size=(10, -1, -1), num_samples=3),
+                {"img": p(im), "seg": p(SEGN_3D), "w": q(weight)},
+                (1, 10, 64, 80),
+                [[14, 32, 40], [41, 32, 40], [20, 32, 40]],
+            ]
+        )
+
+        weight = np.zeros_like(im)
+        weight[0, 30, 17, 20] = 1.1
+        weight[0, 10, 1, 17] = 1
+        TESTS.append(
+            [
+                "large roi 3d",
+                dict(keys="img", w_key="w", spatial_size=(10000, 400, 80), num_samples=3),
+                {"img": p(im), "w": q(weight)},
+                (1, 48, 64, 80),
+                [[24, 32, 40], [24, 32, 40], [24, 32, 40]],
+            ]
+        )
+
+        weight = np.zeros_like(im)
+        weight[0, 30, 17] = np.inf
+        weight[0, 10, 1] = -np.inf
+        weight[0, 10, 20] = -np.nan
+        TESTS.append(
+            [
+                "bad w roi 3d",
+                dict(keys=("img", "seg"), w_key="w", spatial_size=(48, 64, 80), num_samples=3),
+                {"img": p(im), "seg": p(SEGN_3D), "w": q(weight)},
+                (1, 48, 64, 80),
+                [[24, 32, 40], [24, 32, 40], [24, 32, 40]],
+            ]
+        )
+
+
+class TestRandWeightedCrop(unittest.TestCase):
+    @parameterized.expand(TESTS)
+    def test_rand_weighted_cropd(self, _, init_params, input_data, expected_shape, expected_centers):
+        crop = RandWeightedCropd(**init_params)
+        crop.set_random_state(10)
+        result = crop(input_data)
+        self.assertTrue(len(result) == init_params["num_samples"])
+        _len = len(tuple(input_data.keys()))
+        self.assertTupleEqual(tuple(result[0].keys())[:_len], tuple(input_data.keys()))
 
 
 if __name__ == "__main__":

@@ -9,5 +9,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .inferer import Inferer, SaliencyInferer, SimpleInferer, SlidingWindowInferer
+from .inferer import Inferer, SaliencyInferer, SimpleInferer, SliceInferer, SlidingWindowInferer
 from .utils import sliding_window_inference

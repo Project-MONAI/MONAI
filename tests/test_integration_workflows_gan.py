@@ -9,10 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 import os
 import shutil
-import sys
 import tempfile
 import unittest
 from glob import glob
@@ -24,11 +22,11 @@ import torch
 import monai
 from monai.data import create_test_image_2d
 from monai.engines import GanTrainer
-from monai.engines.utils import GanKeys as Keys
 from monai.handlers import CheckpointSaver, StatsHandler, TensorBoardStatsHandler
 from monai.networks import normal_init
 from monai.networks.nets import Discriminator, Generator
-from monai.transforms import AsChannelFirstd, Compose, LoadImaged, RandFlipd, ScaleIntensityd, ToTensord
+from monai.transforms import AsChannelFirstd, Compose, LoadImaged, RandFlipd, ScaleIntensityd
+from monai.utils import GanKeys as Keys
 from monai.utils import set_determinism
 from tests.utils import DistTestCase, TimedCall, skip_if_quick
 
@@ -44,7 +42,6 @@ def run_training_test(root_dir, device="cuda:0"):
             AsChannelFirstd(keys=["reals"]),
             ScaleIntensityd(keys=["reals"]),
             RandFlipd(keys=["reals"], prob=0.5),
-            ToTensord(keys=["reals"]),
         ]
     )
     train_ds = monai.data.CacheDataset(data=train_files, transform=train_transforms, cache_rate=0.5)
@@ -119,6 +116,7 @@ def run_training_test(root_dir, device="cuda:0"):
         latent_shape=latent_size,
         key_train_metric=key_train_metric,
         train_handlers=train_handlers,
+        to_kwargs={"memory_format": torch.preserve_format, "dtype": torch.float32},
     )
     trainer.run()
 
@@ -138,7 +136,6 @@ class IntegrationWorkflowsGAN(DistTestCase):
 
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
         monai.config.print_config()
-        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
     def tearDown(self):
         set_determinism(seed=None)

@@ -45,7 +45,7 @@ class IterationMetric(Metric):
     Subclasses typically implement the `_compute_tensor` function for the actual tensor computation logic.
     """
 
-    def __call__(self, y_pred: TensorOrList, y: Optional[TensorOrList] = None):  # type: ignore
+    def __call__(self, y_pred: TensorOrList, y: Optional[TensorOrList] = None):
         """
         Execute basic computation for model prediction `y_pred` and ground truth `y` (optional).
         It supports inputs of a list of "channel-first" Tensor and a "batch-first" Tensor.
@@ -201,9 +201,8 @@ class Cumulative:
             self._buffers = [[] for _ in data]
         for b, d in zip(self._buffers, data):
             # converting to pytorch tensors so that we can use the distributed API
-            d_t: torch.Tensor
-            d_t, *_ = convert_data_type(d, output_type=torch.Tensor, wrap_sequence=True)  # type: ignore
-            try:
+            d_t, *_ = convert_data_type(d, output_type=torch.Tensor, wrap_sequence=True)
+            try:  # d_t must be a mini-batch of values
                 b.extend([x[0] for x in torch.split(d_t, 1, dim=0)])
             except (AttributeError, IndexError, RuntimeError) as e:
                 raise TypeError(
@@ -228,8 +227,7 @@ class Cumulative:
             self._buffers = [[] for _ in data]
         for b, d in zip(self._buffers, data):
             # converting to pytorch tensors so that we can use the distributed API
-            d_t: torch.Tensor
-            d_t, *_ = convert_data_type(d, output_type=torch.Tensor, wrap_sequence=True)  # type: ignore
+            d_t, *_ = convert_data_type(d, output_type=torch.Tensor, wrap_sequence=True)
             b.append(d_t)
         self._synced = False
 
@@ -276,7 +274,10 @@ class Cumulative:
 
         """
         self._sync()
-        return self._synced_tensors[0] if len(self._synced_tensors) == 1 else self._synced_tensors
+        if self._synced_tensors is None:
+            return self._synced_tensors
+        buffers = [x.detach().clone() if isinstance(x, torch.Tensor) else x for x in self._synced_tensors]
+        return buffers[0] if len(buffers) == 1 else buffers
 
 
 class CumulativeIterationMetric(Cumulative, IterationMetric):
@@ -285,6 +286,7 @@ class CumulativeIterationMetric(Cumulative, IterationMetric):
 
     Typically, it computes some intermediate results for each iteration, adds them to the buffers,
     then the buffer contents could be gathered and aggregated for the final result when epoch completed.
+    Currently,``Cumulative.aggregate()`` and ``IterationMetric._compute_tensor()`` are expected to be implemented.
 
     For example, `MeanDice` inherits this class and the usage is as follows:
 
@@ -309,7 +311,7 @@ class CumulativeIterationMetric(Cumulative, IterationMetric):
 
     """
 
-    def __call__(self, y_pred: TensorOrList, y: Optional[TensorOrList] = None):  # type: ignore
+    def __call__(self, y_pred: TensorOrList, y: Optional[TensorOrList] = None):
         """
         Execute basic computation for model prediction and ground truth.
         It can support  both `list of channel-first Tensor` and `batch-first Tensor`.
@@ -323,7 +325,8 @@ class CumulativeIterationMetric(Cumulative, IterationMetric):
                 or a `batch-first` Tensor.
 
         Returns:
-            The computed metric values at the iteration level.
+            The computed metric values at the iteration level. The output shape should be
+            a `batch-first` tensor (BC[HWD]) or a list of `batch-first` tensors.
         """
         ret = super().__call__(y_pred=y_pred, y=y)
         if isinstance(ret, (tuple, list)):

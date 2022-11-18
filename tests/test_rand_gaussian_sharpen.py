@@ -131,7 +131,7 @@ class TestRandGaussianSharpen(unittest.TestCase):
         converter = RandGaussianSharpen(**argments)
         converter.set_random_state(seed=0)
         result = converter(image)
-        assert_allclose(result, expected_data, atol=0, rtol=1e-4, type_test=False)
+        assert_allclose(result, expected_data, atol=0, rtol=1e-4, type_test="tensor")
 
 
 if __name__ == "__main__":

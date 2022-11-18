@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Dict, Optional
 import numpy as np
 
 from monai.config import DtypeLike, IgniteInfo
-from monai.utils import min_version, optional_import
+from monai.utils import deprecated, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:
@@ -25,6 +25,13 @@ else:
     Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
 
 
+@deprecated(
+    since="0.8",
+    msg_suffix=(
+        "use `monai.handler.ProbMapProducer` (with `monai.data.wsi_dataset.MaskedPatchWSIDataset` or "
+        "`monai.data.wsi_dataset.SlidingPatchWSIDataset`) instead."
+    ),
+)
 class ProbMapProducer:
     """
     Event handler triggered on completing every iteration to save the probability map

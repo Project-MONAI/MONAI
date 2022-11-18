@@ -16,11 +16,10 @@ import torch
 
 from monai import transforms
 from monai.losses.image_dissimilarity import GlobalMutualInformationLoss
-from tests.utils import SkipIfBeforePyTorchVersion, download_url_or_skip_test
+from tests.utils import SkipIfBeforePyTorchVersion, download_url_or_skip_test, skip_if_quick, testing_data_config
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
+device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-FILE_URL = "https://drive.google.com/uc?id=17tsDLvG_GZm7a4fCVMCv-KyDx0hqq1ji"
 FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + "mri.nii")
 
 EXPECTED_VALUE = {
@@ -51,9 +50,16 @@ EXPECTED_VALUE = {
 }
 
 
+@skip_if_quick
 class TestGlobalMutualInformationLoss(unittest.TestCase):
     def setUp(self):
-        download_url_or_skip_test(FILE_URL, FILE_PATH)
+        config = testing_data_config("images", "Prostate_T2W_AX_1")
+        download_url_or_skip_test(
+            url=config["url"],
+            filepath=FILE_PATH,
+            hash_val=config.get("hash_val"),
+            hash_type=config.get("hash_type", "sha256"),
+        )
 
     @SkipIfBeforePyTorchVersion((1, 9))
     def test_bspline(self):
@@ -100,6 +106,8 @@ class TestGlobalMutualInformationLoss(unittest.TestCase):
                 result = loss_fn(a2, a1).detach().cpu().numpy()
                 np.testing.assert_allclose(result, expected_value, rtol=1e-3, atol=5e-3)
 
+
+class TestGlobalMutualInformationLossIll(unittest.TestCase):
     def test_ill_shape(self):
         loss = GlobalMutualInformationLoss()
         with self.assertRaisesRegex(ValueError, ""):

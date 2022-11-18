@@ -15,10 +15,10 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import GridDistortion
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TESTS = []
-for p in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_ALL:
     TESTS.append(
         [
             dict(num_cells=3, distort_steps=[(1.5,) * 4] * 2, mode="nearest", padding_mode="zeros"),
@@ -101,7 +101,7 @@ class TestGridDistortion(unittest.TestCase):
     def test_grid_distortion(self, input_param, input_data, expected_val):
         g = GridDistortion(**input_param)
         result = g(input_data)
-        assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4)
+        assert_allclose(result, expected_val, type_test=False, rtol=1e-4, atol=1e-4)
 
 
 if __name__ == "__main__":

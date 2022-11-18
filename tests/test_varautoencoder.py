@@ -75,7 +75,34 @@ TEST_CASE_3 = [  # 4-channel 3D, batch 4
     (1, 3, 128, 128, 128),
 ]
 
-CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3]
+TEST_CASE_4 = [  # 4-channel 1D, batch 4
+    {
+        "spatial_dims": 1,
+        "in_shape": (4, 128),
+        "out_channels": 3,
+        "latent_size": 2,
+        "channels": (4, 8, 16),
+        "strides": (2, 2, 2),
+    },
+    (1, 4, 128),
+    (1, 3, 128),
+]
+
+TEST_CASE_5 = [  # 4-channel 1D, batch 4, use_sigmoid = False
+    {
+        "spatial_dims": 1,
+        "in_shape": (4, 128),
+        "out_channels": 3,
+        "latent_size": 2,
+        "channels": (4, 8, 16),
+        "strides": (2, 2, 2),
+        "use_sigmoid": False,
+    },
+    (1, 4, 128),
+    (1, 3, 128),
+]
+
+CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5]
 
 
 class TestVarAutoEncoder(unittest.TestCase):
@@ -91,7 +118,7 @@ class TestVarAutoEncoder(unittest.TestCase):
             spatial_dims=2, in_shape=(1, 32, 32), out_channels=1, latent_size=2, channels=(4, 8), strides=(2, 2)
         )
         test_data = torch.randn(2, 1, 32, 32)
-        test_script_save(net, test_data)
+        test_script_save(net, test_data, rtol=1e-3, atol=1e-3)
 
 
 if __name__ == "__main__":

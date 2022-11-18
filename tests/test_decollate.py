@@ -55,7 +55,6 @@ TESTS_LIST.append((SpatialPad(150), RandFlip(prob=1.0, spatial_axis=1)))
 TESTS_LIST.append((RandRotate90(prob=0.0, max_k=1),))
 TESTS_LIST.append((RandAffine(prob=0.0, translate_range=10),))
 
-
 TEST_BASIC = [
     [("channel", "channel"), ["channel", "channel"]],
     [torch.Tensor([1, 2, 3]), [torch.tensor(1.0), torch.tensor(2.0), torch.tensor(3.0)]],
@@ -74,17 +73,10 @@ TEST_BASIC = [
     ],
     [[None, None], [None, None]],
     [["test"], ["test"]],
+    [np.array([64, 64]), [64, 64]],
     [[], []],
     [[("ch1", "ch2"), ("ch3",)], [["ch1", "ch3"], ["ch2", None]]],  # default pad None
 ]
-
-
-class _ListCompose(Compose):
-    def __call__(self, input_):
-        img, metadata = self.transforms[0](input_)
-        for t in self.transforms[1:]:
-            img = t(img)
-        return img, metadata
 
 
 class TestDeCollate(unittest.TestCase):
@@ -108,7 +100,8 @@ class TestDeCollate(unittest.TestCase):
                 # Transform ids won't match for windows with multiprocessing, so don't check values
                 if k1 == TraceKeys.ID and sys.platform in ["darwin", "win32"]:
                     continue
-                self.check_match(v1, v2)
+                if not (isinstance(k1, str) and k1.endswith("_transforms")):
+                    self.check_match(v1, v2)  # transform stack not necessarily match
         elif isinstance(in1, (list, tuple)):
             for l1, l2 in zip(in1, in2):
                 self.check_match(l1, l2)
@@ -138,7 +131,7 @@ class TestDeCollate(unittest.TestCase):
         t_compose = Compose([AddChanneld(KEYS), Compose(transforms), ToTensord(KEYS)])
         # If nibabel present, read from disk
         if has_nib:
-            t_compose = Compose([LoadImaged("image"), t_compose])
+            t_compose = Compose([LoadImaged("image", image_only=True), t_compose])
 
         dataset = CacheDataset(self.data_dict, t_compose, progress=False)
         self.check_decollate(dataset=dataset)
@@ -158,7 +151,7 @@ class TestDeCollate(unittest.TestCase):
         t_compose = Compose([AddChannel(), Compose(transforms), ToTensor()])
         # If nibabel present, read from disk
         if has_nib:
-            t_compose = _ListCompose([LoadImage(image_only=False), t_compose])
+            t_compose = Compose([LoadImage(image_only=True), t_compose])
 
         dataset = Dataset(self.data_list, t_compose)
         self.check_decollate(dataset=dataset)

@@ -19,8 +19,7 @@ class TestIdentityd(NumpyImageTestCase2D):
     def test_identityd(self):
         for p in TEST_NDARRAYS:
             img = p(self.imt)
-            data = {}
-            data["img"] = img
+            data = {"img": img}
             identity = Identityd(keys=data.keys())
             assert_allclose(img, identity(data)["img"])
 

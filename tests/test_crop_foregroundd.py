@@ -12,14 +12,13 @@
 import unittest
 
 import numpy as np
-import torch
 from parameterized import parameterized
 
 from monai.transforms import CropForegroundd
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TEST_POSITION, TESTS = [], []
-for p in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_ALL:
 
     TEST_POSITION.append(
         [
@@ -82,13 +81,46 @@ for p in TEST_NDARRAYS:
                 "select_fn": lambda x: x > 0,
                 "channel_indices": None,
                 "margin": [2, 1],
+                "allow_smaller": True,
             },
             {
                 "img": p(
-                    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]])
+                    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]])
                 )
             },
-            p(np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]])),
+            p(np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]])),
+        ]
+    )
+    TESTS.append(
+        [
+            {
+                "keys": ["img"],
+                "source_key": "img",
+                "select_fn": lambda x: x > 0,
+                "channel_indices": None,
+                "margin": [2, 1],
+                "allow_smaller": False,
+            },
+            {
+                "img": p(
+                    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]])
+                )
+            },
+            p(
+                np.array(
+                    [
+                        [
+                            [0, 0, 0, 0, 0],
+                            [0, 0, 0, 0, 0],
+                            [0, 1, 2, 1, 0],
+                            [0, 2, 3, 2, 0],
+                            [0, 1, 2, 1, 0],
+                            [0, 0, 0, 0, 0],
+                            [0, 0, 0, 0, 0],
+                        ]
+                    ]
+                )
+            ),
         ]
     )
     TESTS.append(
@@ -118,12 +150,15 @@ for p in TEST_NDARRAYS:
 class TestCropForegroundd(unittest.TestCase):
     @parameterized.expand(TEST_POSITION + TESTS)
     def test_value(self, argments, input_data, expected_data):
-        result = CropForegroundd(**argments)(input_data)
-        r, i = result["img"], input_data["img"]
-        self.assertEqual(type(r), type(i))
-        if isinstance(r, torch.Tensor):
-            self.assertEqual(r.device, i.device)
-        assert_allclose(r, expected_data)
+        cropper = CropForegroundd(**argments)
+        result = cropper(input_data)
+        assert_allclose(result["img"], expected_data, type_test="tensor")
+        if "label" in input_data and "img" in input_data:
+            self.assertTupleEqual(result["img"].shape, result["label"].shape)
+        inv = cropper.inverse(result)
+        self.assertTupleEqual(inv["img"].shape, input_data["img"].shape)
+        if "label" in input_data:
+            self.assertTupleEqual(inv["label"].shape, input_data["label"].shape)
 
     @parameterized.expand(TEST_POSITION)
     def test_foreground_position(self, argments, input_data, _):

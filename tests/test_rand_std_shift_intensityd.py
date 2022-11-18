@@ -12,10 +12,9 @@
 import unittest
 
 import numpy as np
-import torch
 
 from monai.transforms import RandStdShiftIntensityd
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class TestRandStdShiftIntensityd(NumpyImageTestCase2D):
@@ -30,9 +29,7 @@ class TestRandStdShiftIntensityd(NumpyImageTestCase2D):
             shifter = RandStdShiftIntensityd(keys=[key], factors=1.0, prob=1.0)
             shifter.set_random_state(seed=0)
             result = shifter({key: p(self.imt)})[key]
-            if isinstance(result, torch.Tensor):
-                result = result.cpu()
-            np.testing.assert_allclose(result, expected, rtol=1e-5)
+            assert_allclose(result, expected, rtol=1e-5, type_test="tensor")
 
 
 if __name__ == "__main__":

@@ -70,7 +70,8 @@ class MetricsSaver:
                 mean    6.2500   6.2500   7.0000   5.5750      6.9250       2.0000
 
         save_rank: only the handler on specified rank will save to files in multi-gpus validation, default to 0.
-        delimiter: the delimiter character in CSV file, default to "\t".
+        delimiter: the delimiter character in the saved file, default to "," as the default output type is `csv`.
+            to be consistent with: https://docs.python.org/3/library/csv.html#csv.Dialect.delimiter.
         output_type: expected output file type, supported types: ["csv"], default to "csv".
 
     """
@@ -83,7 +84,7 @@ class MetricsSaver:
         batch_transform: Callable = lambda x: x,
         summary_ops: Optional[Union[str, Sequence[str]]] = None,
         save_rank: int = 0,
-        delimiter: str = "\t",
+        delimiter: str = ",",
         output_type: str = "csv",
     ) -> None:
         self.save_dir = save_dir
@@ -143,7 +144,7 @@ class MetricsSaver:
                 _metrics = {k: v for k, v in engine.state.metrics.items() if k in self.metrics or "*" in self.metrics}
             _metric_details = {}
             if hasattr(engine.state, "metric_details"):
-                details = engine.state.metric_details  # type: ignore
+                details = engine.state.metric_details
                 if self.metric_details is not None and len(details) > 0:
                     for k, v in details.items():
                         if k in self.metric_details or "*" in self.metric_details:

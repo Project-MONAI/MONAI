@@ -2,13 +2,13 @@
 requires = [
   "wheel",
   "setuptools",
-  "torch>=1.6",
+  "torch>=1.8",
   "ninja",
 ]
 
 [tool.black]
 line-length = 120
-target-version = ['py37', 'py38', 'py39']
+target-version = ['py37', 'py38', 'py39', 'py310']
 include = '\.pyi?$'
 exclude = '''
 (
@@ -30,3 +30,7 @@ exclude = '''
   | monai/_version.py
 )
 '''
+
+[tool.pycln]
+all = true
+exclude = "monai/bundle/__main__.py"

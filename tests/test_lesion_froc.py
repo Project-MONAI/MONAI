@@ -31,7 +31,7 @@ def save_as_tif(filename, array):
     if not filename.endswith(".tif"):
         filename += ".tif"
     file_path = os.path.join("tests", "testing_data", filename)
-    imwrite(file_path, array, compress="jpeg", tile=(16, 16))
+    imwrite(file_path, array, compression="jpeg", tile=(16, 16))
 
 
 def around(val, interval=3):
@@ -114,7 +114,6 @@ TEST_CASE_0 = [
     np.nan,
 ]
 
-
 TEST_CASE_1 = [
     {
         "data": [
@@ -163,7 +162,6 @@ TEST_CASE_3 = [
     1.0,
 ]
 
-
 TEST_CASE_4 = [
     {
         "data": [
@@ -195,7 +193,6 @@ TEST_CASE_5 = [
     },
     0.5,
 ]
-
 
 TEST_CASE_6 = [
     {

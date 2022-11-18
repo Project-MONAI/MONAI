@@ -17,6 +17,7 @@ from typing import Any, Callable, Mapping, Optional, Sequence, Union
 
 import numpy as np
 
+import monai
 from monai.transforms.inverse import InvertibleTransform
 
 # For backwards compatibility (so this still works: from monai.transforms.compose import MapTransform)
@@ -107,6 +108,9 @@ class Compose(Randomizable, InvertibleTransform):
             defaults to `True`.
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             defaults to `False`.
+        log_stats: whether to log the detailed information of data and applied transform when error happened,
+            for NumPy array and PyTorch Tensor, log the data shape and value range,
+            for other metadata, log the values directly. default to `False`.
 
     """
 
@@ -115,12 +119,14 @@ class Compose(Randomizable, InvertibleTransform):
         transforms: Optional[Union[Sequence[Callable], Callable]] = None,
         map_items: bool = True,
         unpack_items: bool = False,
+        log_stats: bool = False,
     ) -> None:
         if transforms is None:
             transforms = []
         self.transforms = ensure_tuple(transforms)
         self.map_items = map_items
         self.unpack_items = unpack_items
+        self.log_stats = log_stats
         self.set_random_state(seed=get_seed())
 
     def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None) -> "Compose":
@@ -165,7 +171,7 @@ class Compose(Randomizable, InvertibleTransform):
 
     def __call__(self, input_):
         for _transform in self.transforms:
-            input_ = apply_transform(_transform, input_, self.map_items, self.unpack_items)
+            input_ = apply_transform(_transform, input_, self.map_items, self.unpack_items, self.log_stats)
         return input_
 
     def inverse(self, data):
@@ -175,7 +181,7 @@ class Compose(Randomizable, InvertibleTransform):
 
         # loop backwards over transforms
         for t in reversed(invertible_transforms):
-            data = apply_transform(t.inverse, data, self.map_items, self.unpack_items)
+            data = apply_transform(t.inverse, data, self.map_items, self.unpack_items, self.log_stats)
         return data
 
 
@@ -192,6 +198,9 @@ class OneOf(Compose):
             defaults to `True`.
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             defaults to `False`.
+        log_stats: whether to log the detailed information of data and applied transform when error happened,
+            for NumPy array and PyTorch Tensor, log the data shape and value range,
+            for other metadata, log the values directly. default to `False`.
 
     """
 
@@ -201,8 +210,9 @@ class OneOf(Compose):
         weights: Optional[Union[Sequence[float], float]] = None,
         map_items: bool = True,
         unpack_items: bool = False,
+        log_stats: bool = False,
     ) -> None:
-        super().__init__(transforms, map_items, unpack_items)
+        super().__init__(transforms, map_items, unpack_items, log_stats)
         if len(self.transforms) == 0:
             weights = []
         elif weights is None or isinstance(weights, float):
@@ -243,28 +253,29 @@ class OneOf(Compose):
             return data
         index = self.R.multinomial(1, self.weights).argmax()
         _transform = self.transforms[index]
-        data = apply_transform(_transform, data, self.map_items, self.unpack_items)
+        data = apply_transform(_transform, data, self.map_items, self.unpack_items, self.log_stats)
         # if the data is a mapping (dictionary), append the OneOf transform to the end
-        if isinstance(data, Mapping):
-            for key in data.keys():
-                if self.trace_key(key) in data:
+        if isinstance(data, monai.data.MetaTensor):
+            self.push_transform(data, extra_info={"index": index})
+        elif isinstance(data, Mapping):
+            for key in data:  # dictionary not change size during iteration
+                if isinstance(data[key], monai.data.MetaTensor) or self.trace_key(key) in data:
                     self.push_transform(data, key, extra_info={"index": index})
         return data
 
     def inverse(self, data):
         if len(self.transforms) == 0:
             return data
-        if not isinstance(data, Mapping):
-            raise RuntimeError("Inverse only implemented for Mapping (dictionary) data")
 
-        # loop until we get an index and then break (since they'll all be the same)
         index = None
-        for key in data.keys():
-            if self.trace_key(key) in data:
-                # get the index of the applied OneOf transform
-                index = self.get_most_recent_transform(data, key)[TraceKeys.EXTRA_INFO]["index"]
-                # and then remove the OneOf transform
-                self.pop_transform(data, key)
+        if isinstance(data, monai.data.MetaTensor):
+            index = self.pop_transform(data)[TraceKeys.EXTRA_INFO]["index"]
+        elif isinstance(data, Mapping):
+            for key in data:
+                if isinstance(data[key], monai.data.MetaTensor) or self.trace_key(key) in data:
+                    index = self.pop_transform(data, key)[TraceKeys.EXTRA_INFO]["index"]
+        else:
+            raise RuntimeError("Inverse only implemented for Mapping (dictionary) or MetaTensor data.")
         if index is None:
             # no invertible transforms have been applied
             return data

@@ -15,11 +15,12 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
+from monai.data import MetaTensor, set_track_meta
 from monai.transforms import Rand3DElastic
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TESTS = []
-for p in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_ALL:
     for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cpu"]:
         TESTS.append(
             [
@@ -86,9 +87,15 @@ class TestRand3DElastic(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_rand_3d_elastic(self, input_param, input_data, expected_val):
         g = Rand3DElastic(**input_param)
+        set_track_meta(False)
         g.set_random_state(123)
         result = g(**input_data)
-        assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4)
+        self.assertNotIsInstance(result, MetaTensor)
+        self.assertIsInstance(result, torch.Tensor)
+        set_track_meta(True)
+        g.set_random_state(123)
+        result = g(**input_data)
+        assert_allclose(result, expected_val, type_test=False, rtol=1e-1, atol=1e-1)
 
 
 if __name__ == "__main__":

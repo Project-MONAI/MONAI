@@ -19,9 +19,10 @@ from monai.data import decollate_batch
 from monai.metrics import ROCAUCMetric, compute_roc_auc
 from monai.transforms import Activations, AsDiscrete, Compose, ToTensor
 
+_device = "cuda:0" if torch.cuda.is_available() else "cpu"
 TEST_CASE_1 = [
-    torch.tensor([[0.1, 0.9], [0.3, 1.4], [0.2, 0.1], [0.1, 0.5]]),
-    torch.tensor([[0], [1], [0], [1]]),
+    torch.tensor([[0.1, 0.9], [0.3, 1.4], [0.2, 0.1], [0.1, 0.5]], device=_device),
+    torch.tensor([[0], [1], [0], [1]], device=_device),
     True,
     2,
     "macro",
@@ -141,6 +142,8 @@ class TestComputeROCAUC(unittest.TestCase):
         metric = ROCAUCMetric(average=average)
         metric(y_pred=y_pred, y=y)
         result = metric.aggregate()
+        np.testing.assert_allclose(expected_value, result, rtol=1e-5)
+        result = metric.aggregate(average=average)  # test optional argument
         metric.reset()
         np.testing.assert_allclose(expected_value, result, rtol=1e-5)
 

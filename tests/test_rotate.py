@@ -17,11 +17,12 @@ import scipy.ndimage
 import torch
 from parameterized import parameterized
 
+from monai.data import MetaTensor, set_track_meta
 from monai.transforms import Rotate
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, NumpyImageTestCase3D
+from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, NumpyImageTestCase3D, test_local_inversion
 
 TEST_CASES_2D: List[Tuple] = []
-for p in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_ALL:
     TEST_CASES_2D.append((p, np.pi / 6, False, "bilinear", "border", False))
     TEST_CASES_2D.append((p, np.pi / 4, True, "bilinear", "border", False))
     TEST_CASES_2D.append((p, -np.pi / 4.5, True, "nearest", "reflection", False))
@@ -29,7 +30,7 @@ for p in TEST_NDARRAYS:
     TEST_CASES_2D.append((p, -np.pi / 2, False, "bilinear", "zeros", True))
 
 TEST_CASES_3D: List[Tuple] = []
-for p in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_ALL:
     TEST_CASES_3D.append((p, -np.pi / 2, True, "nearest", "border", False))
     TEST_CASES_3D.append((p, np.pi / 4, True, "bilinear", "border", False))
     TEST_CASES_3D.append((p, -np.pi / 4.5, True, "nearest", "reflection", False))
@@ -37,7 +38,7 @@ for p in TEST_NDARRAYS:
     TEST_CASES_3D.append((p, -np.pi / 2, False, "bilinear", "zeros", False))
 
 TEST_CASES_SHAPE_3D: List[Tuple] = []
-for p in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_ALL:
     TEST_CASES_SHAPE_3D.append((p, [-np.pi / 2, 1.0, 2.0], "nearest", "border", False))
     TEST_CASES_SHAPE_3D.append((p, [np.pi / 4, 0, 0], "bilinear", "border", False))
     TEST_CASES_SHAPE_3D.append((p, [-np.pi / 4.5, -20, 20], "nearest", "reflection", False))
@@ -46,7 +47,7 @@ for p in TEST_NDARRAYS:
 class TestRotate2D(NumpyImageTestCase2D):
     @parameterized.expand(TEST_CASES_2D)
     def test_correct_results(self, im_type, angle, keep_size, mode, padding_mode, align_corners):
-        rotate_fn = Rotate(angle, keep_size, mode, padding_mode, align_corners)
+        rotate_fn = Rotate(angle, keep_size, mode, padding_mode, align_corners, dtype=np.float64)
         rotated = rotate_fn(im_type(self.imt[0]))
         if keep_size:
             np.testing.assert_allclose(self.imt[0].shape, rotated.shape)
@@ -74,7 +75,7 @@ class TestRotate2D(NumpyImageTestCase2D):
 class TestRotate3D(NumpyImageTestCase3D):
     @parameterized.expand(TEST_CASES_3D)
     def test_correct_results(self, im_type, angle, keep_size, mode, padding_mode, align_corners):
-        rotate_fn = Rotate([angle, 0, 0], keep_size, mode, padding_mode, align_corners)
+        rotate_fn = Rotate([angle, 0, 0], keep_size, mode, padding_mode, align_corners, dtype=np.float64)
         rotated = rotate_fn(im_type(self.imt[0]))
         if keep_size:
             np.testing.assert_allclose(self.imt[0].shape, rotated.shape)
@@ -100,12 +101,19 @@ class TestRotate3D(NumpyImageTestCase3D):
 
     @parameterized.expand(TEST_CASES_SHAPE_3D)
     def test_correct_shape(self, im_type, angle, mode, padding_mode, align_corners):
-        rotate_fn = Rotate(angle, True, align_corners=align_corners)
-        rotated = rotate_fn(im_type(self.imt[0]), mode=mode, padding_mode=padding_mode)
+        rotate_fn = Rotate(angle, True, align_corners=align_corners, dtype=np.float64)
+        im = im_type(self.imt[0])
+        set_track_meta(False)
+        rotated = rotate_fn(im, mode=mode, padding_mode=padding_mode)
+        self.assertNotIsInstance(rotated, MetaTensor)
         np.testing.assert_allclose(self.imt[0].shape, rotated.shape)
+        set_track_meta(True)
+        rotated = rotate_fn(im, mode=mode, padding_mode=padding_mode)
+        np.testing.assert_allclose(self.imt[0].shape, rotated.shape)
+        test_local_inversion(rotate_fn, rotated, im)
 
     def test_ill_case(self):
-        for p in TEST_NDARRAYS:
+        for p in TEST_NDARRAYS_ALL:
             rotate_fn = Rotate(10, True)
             with self.assertRaises(ValueError):  # wrong shape
                 rotate_fn(p(self.imt))

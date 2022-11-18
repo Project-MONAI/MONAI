@@ -32,21 +32,28 @@ TEST_CASES_3D = [
         (2, 4, 64, 32, 16),
     ],
     [
-        {"c_prev": 8, "c": 8, "rate": 0, "arch_code_c": None},
+        {"c_prev": 8, "c": 8, "rate": 0, "arch_code_c": None, "act_name": "SELU", "norm_name": "BATCH"},
         torch.tensor([1, 1, 1, 1, 1]),
         torch.tensor([0, 0, 0, 1, 0]),
         (2, 8, 32, 16, 8),
         (2, 8, 32, 16, 8),
     ],
     [
-        {"c_prev": 8, "c": 8, "rate": -1, "arch_code_c": None},
+        {
+            "c_prev": 8,
+            "c": 8,
+            "rate": -1,
+            "arch_code_c": None,
+            "act_name": "PRELU",
+            "norm_name": ("BATCH", {"affine": False}),
+        },
         torch.tensor([1, 1, 1, 1, 1]),
         torch.tensor([1, 1, 1, 1, 1]),
         (2, 8, 32, 16, 8),
         (2, 8, 16, 8, 4),
     ],
     [
-        {"c_prev": 8, "c": 8, "rate": -1, "arch_code_c": [1, 0, 0, 0, 1]},
+        {"c_prev": 8, "c": 8, "rate": -1, "arch_code_c": [1, 0, 0, 0, 1], "act_name": "RELU", "norm_name": "INSTANCE"},
         torch.tensor([1, 0, 0, 0, 1]),
         torch.tensor([0.2, 0.2, 0.2, 0.2, 0.2]),
         (2, 8, 32, 16, 8),
@@ -56,12 +63,35 @@ TEST_CASES_3D = [
 
 TEST_CASES_2D = [
     [
-        {"c_prev": 8, "c": 7, "rate": -1, "arch_code_c": [1, 0, 0, 0, 1], "spatial_dims": 2},
+        {
+            "c_prev": 8,
+            "c": 7,
+            "rate": -1,
+            "arch_code_c": [1, 0, 0, 0, 1],
+            "spatial_dims": 2,
+            "act_name": "PRELU",
+            "norm_name": ("BATCH", {"affine": False}),
+        },
         torch.tensor([1, 0]),
         torch.tensor([0.2, 0.2]),
         (2, 8, 16, 8),
         (2, 7, 8, 4),
-    ]
+    ],
+    [
+        {
+            "c_prev": 8,
+            "c": 8,
+            "rate": -1,
+            "arch_code_c": None,
+            "spatial_dims": 2,
+            "act_name": "SELU",
+            "norm_name": "INSTANCE",
+        },
+        torch.tensor([1, 0]),
+        torch.tensor([0.2, 0.2]),
+        (2, 8, 16, 8),
+        (2, 8, 8, 4),
+    ],
 ]
 
 

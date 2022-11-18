@@ -40,6 +40,15 @@ for p in TEST_NDARRAYS:
 
     TEST_CASES.append(
         [
+            {"sigmoid": False, "softmax": True, "other": None, "unused": True, "dim": 1},
+            p([[[0.0, 1.0]], [[2.0, 3.0]]]),
+            p([[[1.0, 1.0]], [[1.0, 1.0]]]),
+            (2, 1, 2),
+        ]
+    )
+
+    TEST_CASES.append(
+        [
             {"sigmoid": False, "softmax": False, "other": torch.tanh},
             p([[[0.0, 1.0], [2.0, 3.0]]]),
             p([[[0.0000, 0.7616], [0.9640, 0.9951]]]),
@@ -76,12 +85,12 @@ TEST_CASE_6 = [
 
 
 class TestActivations(unittest.TestCase):
-    @parameterized.expand(TEST_CASES[:3])
+    @parameterized.expand(TEST_CASES)
     def test_value_shape(self, input_param, img, out, expected_shape):
         result = Activations(**input_param)(img)
 
         def _compare(ret, out, shape):
-            assert_allclose(ret, out, rtol=1e-3)
+            assert_allclose(ret, out, rtol=1e-3, type_test=False)
             self.assertTupleEqual(ret.shape, shape)
 
         if isinstance(result, (list, tuple)):
@@ -94,7 +103,7 @@ class TestActivations(unittest.TestCase):
     def test_monai_activations_value_shape(self, input_param, img, out, expected_shape):
         act = Act[input_param]()
         result = act(img)
-        torch.testing.assert_allclose(result, out, rtol=1e-2, atol=1e-5)
+        assert_allclose(result, out, rtol=1e-2, atol=1e-5)
         self.assertTupleEqual(result.shape, expected_shape)
 
 

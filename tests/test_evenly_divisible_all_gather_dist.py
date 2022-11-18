@@ -15,7 +15,7 @@ import torch
 import torch.distributed as dist
 
 from monai.utils import evenly_divisible_all_gather
-from tests.utils import DistCall, DistTestCase
+from tests.utils import DistCall, DistTestCase, assert_allclose
 
 
 class DistributedEvenlyDivisibleAllGather(DistTestCase):
@@ -35,10 +35,10 @@ class DistributedEvenlyDivisibleAllGather(DistTestCase):
             data3 = torch.tensor(8)
 
         result1 = evenly_divisible_all_gather(data=data1, concat=True)
-        torch.testing.assert_allclose(result1, torch.tensor([[1, 2], [3, 4], [5, 6]]))
+        assert_allclose(result1, torch.tensor([[1, 2], [3, 4], [5, 6]]))
         result2 = evenly_divisible_all_gather(data=data2, concat=False)
         for r, e in zip(result2, [torch.tensor([[1.0, 2.0]]), torch.tensor([[3.0, 4.0], [5.0, 6.0]])]):
-            torch.testing.assert_allclose(r, e)
+            assert_allclose(r, e)
         result3 = evenly_divisible_all_gather(data=data3, concat=False)
         for r in result3:
             self.assertEqual(r.ndimension(), 0)

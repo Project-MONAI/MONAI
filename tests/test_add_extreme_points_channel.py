@@ -71,7 +71,7 @@ class TestAddExtremePointsChannel(unittest.TestCase):
     def test_correct_results(self, input_data, expected):
         add_extreme_points_channel = AddExtremePointsChannel()
         result = add_extreme_points_channel(**input_data)
-        assert_allclose(result[IMG_CHANNEL], expected, rtol=1e-4)
+        assert_allclose(result[IMG_CHANNEL], expected, rtol=1e-4, atol=1e-5)
 
 
 if __name__ == "__main__":

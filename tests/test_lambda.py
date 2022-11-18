@@ -11,6 +11,7 @@
 
 import unittest
 
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms.utility.array import Lambda
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
@@ -24,7 +25,7 @@ class TestLambda(NumpyImageTestCase2D):
                 return x
 
             lambd = Lambda(func=identity_func)
-            assert_allclose(identity_func(img), lambd(img))
+            assert_allclose(identity_func(img), lambd(img), type_test=False)
 
     def test_lambda_slicing(self):
         for p in TEST_NDARRAYS:
@@ -34,7 +35,12 @@ class TestLambda(NumpyImageTestCase2D):
                 return x[:, :, :6, ::2]
 
             lambd = Lambda(func=slice_func)
-            assert_allclose(slice_func(img), lambd(img))
+            out = lambd(img)
+            assert_allclose(slice_func(img), out, type_test=False)
+            self.assertIsInstance(out, MetaTensor)
+            self.assertEqual(len(out.applied_operations), 1)
+            out = lambd.inverse(out)
+            self.assertEqual(len(out.applied_operations), 0)
 
 
 if __name__ == "__main__":

@@ -9,9 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 import os
-import sys
 import tempfile
 import unittest
 
@@ -131,7 +129,6 @@ class TestHandlerCheckpointSaver(unittest.TestCase):
         filenames,
         multi_devices=False,
     ):
-        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
         data = [0] * 8
 
         # set up engine
@@ -171,7 +168,6 @@ class TestHandlerCheckpointSaver(unittest.TestCase):
                 self.assertTrue(os.path.exists(os.path.join(tempdir, filename)))
 
     def test_exception(self):
-        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
         net = torch.nn.PReLU()
 
         # set up engine
@@ -190,7 +186,6 @@ class TestHandlerCheckpointSaver(unittest.TestCase):
             self.assertTrue(os.path.exists(os.path.join(tempdir, "net_final_iteration=1.pt")))
 
     def test_load_state_dict(self):
-        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
         net = torch.nn.PReLU()
 
         # set up engine

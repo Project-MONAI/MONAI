@@ -152,7 +152,7 @@ class TestContour(unittest.TestCase):
 
                 channels = cube.shape[0]
                 for channel in range(channels):
-                    assert_allclose(test_result_cube[channel, ...], expected_output)
+                    assert_allclose(test_result_cube[channel, ...], expected_output, type_test="tensor")
 
             # check 4-dim input data
             test_img, expected_output = gen_fixed_img(p)
@@ -162,7 +162,7 @@ class TestContour(unittest.TestCase):
                 self.assertEqual(test_result_img.shape, img.shape)
 
                 for channel in range(channels):
-                    assert_allclose(test_result_img[channel, ...], expected_output)
+                    assert_allclose(test_result_img[channel, ...], expected_output, type_test="tensor")
 
         # check invalid input data
         error_input = torch.rand(1, 2)

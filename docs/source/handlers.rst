@@ -41,6 +41,12 @@ Mean Dice metrics handler
     :members:
 
 
+Mean IoU metric handler
+-----------------------
+.. autoclass:: MeanIoUHandler
+    :members:
+
+
 ROC AUC metrics handler
 -----------------------
 .. autoclass:: ROCAUC
@@ -62,6 +68,12 @@ Hausdorff distance metrics handler
 Surface distance metrics handler
 --------------------------------
 .. autoclass:: SurfaceDistance
+    :members:
+
+
+Panoptic Quality metrics handler
+--------------------------------
+.. autoclass:: PanopticQuality
     :members:
 
 
@@ -95,9 +107,9 @@ Metric logger
     :members:
 
 
-Segmentation saver
-------------------
-.. autoclass:: SegmentationSaver
+Logfile handler
+---------------
+.. autoclass:: LogfileHandler
     :members:
 
 
@@ -173,4 +185,9 @@ NVTX Handlers
 Utilities
 ---------
 .. automodule:: monai.handlers.utils
+  :members:
+
+Probability Map Handlers
+------------------------
+.. automodule:: monai.handlers.probability_maps
   :members:

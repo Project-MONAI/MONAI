@@ -16,6 +16,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import NetAdapter, resnet18
+from tests.utils import test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -41,12 +42,24 @@ TEST_CASE_4 = [
 class TestNetAdapter(unittest.TestCase):
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_shape(self, input_param, input_shape, expected_shape):
-        model = resnet18(spatial_dims=input_param["dim"])
+        spatial_dims = input_param["dim"]
+        stride = (1, 2, 2)[:spatial_dims]
+        model = resnet18(spatial_dims=spatial_dims, conv1_t_stride=stride)
         input_param["model"] = model
         net = NetAdapter(**input_param).to(device)
         with eval_mode(net):
             result = net.forward(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
+
+    @parameterized.expand([TEST_CASE_0])
+    def test_script(self, input_param, input_shape, expected_shape):
+        spatial_dims = input_param["dim"]
+        stride = (1, 2, 2)[:spatial_dims]
+        model = resnet18(spatial_dims=spatial_dims, conv1_t_stride=stride)
+        input_param["model"] = model
+        net = NetAdapter(**input_param).to("cpu")
+        test_data = torch.randn(input_shape).to("cpu")
+        test_script_save(net, test_data)
 
 
 if __name__ == "__main__":

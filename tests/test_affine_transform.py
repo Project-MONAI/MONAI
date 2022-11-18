@@ -23,12 +23,14 @@ _rtol = 1e-4 if not is_tf32_env() else 5e-3
 
 TEST_NORM_CASES = [
     [(4, 5), True, [[[0.666667, 0, -1], [0, 0.5, -1], [0, 0, 1]]]],
+    [(4, 5), True, [[[0.666667, 0, 0], [0, 0.5, 0], [0, 0, 1]]], True],
     [
         (2, 4, 5),
         True,
         [[[2.0, 0.0, 0.0, -1.0], [0.0, 0.6666667, 0.0, -1.0], [0.0, 0.0, 0.5, -1.0], [0.0, 0.0, 0.0, 1.0]]],
     ],
     [(4, 5), False, [[[0.5, 0.0, -0.75], [0.0, 0.4, -0.8], [0.0, 0.0, 1.0]]]],
+    [(4, 5), False, [[[0.5, 0.0, 0.25], [0.0, 0.4, 0.2], [0.0, 0.0, 1.0]]], True],
     [(2, 4, 5), False, [[[1.0, 0.0, 0.0, -0.5], [0.0, 0.5, 0.0, -0.75], [0.0, 0.0, 0.4, -0.8], [0.0, 0.0, 0.0, 1.0]]]],
 ]
 
@@ -61,6 +63,14 @@ TEST_TO_NORM_AFFINE_CASES = [
         False,
         [[[1.5, 0.0, 0.0, 0.5], [0.0, 1.25, 0.0, 0.25], [0.0, 0.0, 0.5, -0.5], [0.0, 0.0, 0.0, 1.0]]],
     ],
+    [
+        [[[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]],
+        (2, 4, 6),
+        (3, 5, 3),
+        False,
+        [[[1.5, 0.0, 0.0, 0.0], [0.0, 1.25, 0.0, 0.0], [0.0, 0.0, 0.5, 0.0], [0.0, 0.0, 0.0, 1.0]]],
+        True,
+    ],
 ]
 
 TEST_ILL_TO_NORM_AFFINE_CASES = [
@@ -72,15 +82,23 @@ TEST_ILL_TO_NORM_AFFINE_CASES = [
 
 class TestNormTransform(unittest.TestCase):
     @parameterized.expand(TEST_NORM_CASES)
-    def test_norm_xform(self, input_shape, align_corners, expected):
+    def test_norm_xform(self, input_shape, align_corners, expected, zero_centered=False):
         norm = normalize_transform(
-            input_shape, device=torch.device("cpu:0"), dtype=torch.float32, align_corners=align_corners
+            input_shape,
+            device=torch.device("cpu:0"),
+            dtype=torch.float32,
+            align_corners=align_corners,
+            zero_centered=zero_centered,
         )
         norm = norm.detach().cpu().numpy()
         np.testing.assert_allclose(norm, expected, atol=1e-6)
         if torch.cuda.is_available():
             norm = normalize_transform(
-                input_shape, device=torch.device("cuda:0"), dtype=torch.float32, align_corners=align_corners
+                input_shape,
+                device=torch.device("cuda:0"),
+                dtype=torch.float32,
+                align_corners=align_corners,
+                zero_centered=zero_centered,
             )
             norm = norm.detach().cpu().numpy()
             np.testing.assert_allclose(norm, expected, atol=1e-4)
@@ -88,15 +106,15 @@ class TestNormTransform(unittest.TestCase):
 
 class TestToNormAffine(unittest.TestCase):
     @parameterized.expand(TEST_TO_NORM_AFFINE_CASES)
-    def test_to_norm_affine(self, affine, src_size, dst_size, align_corners, expected):
+    def test_to_norm_affine(self, affine, src_size, dst_size, align_corners, expected, zero_centered=False):
         affine = torch.as_tensor(affine, device=torch.device("cpu:0"), dtype=torch.float32)
-        new_affine = to_norm_affine(affine, src_size, dst_size, align_corners)
+        new_affine = to_norm_affine(affine, src_size, dst_size, align_corners, zero_centered)
         new_affine = new_affine.detach().cpu().numpy()
         np.testing.assert_allclose(new_affine, expected, atol=1e-6)
 
         if torch.cuda.is_available():
             affine = torch.as_tensor(affine, device=torch.device("cuda:0"), dtype=torch.float32)
-            new_affine = to_norm_affine(affine, src_size, dst_size, align_corners)
+            new_affine = to_norm_affine(affine, src_size, dst_size, align_corners, zero_centered)
             new_affine = new_affine.detach().cpu().numpy()
             np.testing.assert_allclose(new_affine, expected, atol=1e-5, rtol=_rtol)
 
@@ -153,6 +171,13 @@ class TestAffineTransform(unittest.TestCase):
         image = torch.arange(1.0, 13.0).view(1, 1, 3, 4).to(device=torch.device("cpu:0"))
         out = AffineTransform((1, 2))(image, affine)
         expected = [[[[1, 3]]]]
+        np.testing.assert_allclose(out, expected, atol=1e-5, rtol=_rtol)
+
+    def test_zoom_zero_center(self):
+        affine = torch.as_tensor([[2.0, 0.0, 0.0], [0.0, 2.0, 0.0]], dtype=torch.float32)
+        image = torch.arange(1.0, 13.0).view(1, 1, 3, 4).to(device=torch.device("cpu:0"))
+        out = AffineTransform((1, 2), zero_centered=True)(image, affine)
+        expected = [[[[3, 5]]]]
         np.testing.assert_allclose(out, expected, atol=1e-5, rtol=_rtol)
 
     def test_affine_transform_minimum(self):

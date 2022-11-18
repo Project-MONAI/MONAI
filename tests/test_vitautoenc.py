@@ -41,6 +41,25 @@ for in_channels in [1, 4]:
 
                     TEST_CASE_Vitautoenc.append(test_case)
 
+TEST_CASE_Vitautoenc.append(
+    [
+        {
+            "in_channels": 1,
+            "img_size": (512, 512, 32),
+            "patch_size": (16, 16, 16),
+            "hidden_size": 768,
+            "mlp_dim": 3072,
+            "num_layers": 4,
+            "num_heads": 12,
+            "pos_embed": "conv",
+            "dropout_rate": 0.6,
+            "spatial_dims": 3,
+        },
+        (2, 1, 512, 512, 32),
+        (2, 1, 512, 512, 32),
+    ]
+)
+
 
 class TestPatchEmbeddingBlock(unittest.TestCase):
     @parameterized.expand(TEST_CASE_Vitautoenc)

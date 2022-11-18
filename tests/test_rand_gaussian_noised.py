@@ -39,7 +39,6 @@ class TestRandGaussianNoised(NumpyImageTestCase2D):
         noise = np.random.normal(mean, np.random.uniform(0, std), size=self.imt.shape)
         for k in keys:
             expected = self.imt + noise
-            self.assertEqual(type(im), type(noised[k]))
             if isinstance(noised[k], torch.Tensor):
                 noised[k] = noised[k].cpu()
             np.testing.assert_allclose(expected, noised[k], atol=1e-5, rtol=1e-5)

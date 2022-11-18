@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import csv
 import os
 import tempfile
@@ -41,6 +40,7 @@ class DistributedMetricsSaver(DistTestCase):
             metric_details=["metric3", "metric4"],
             batch_transform=lambda x: x[PostFix.meta("image")],
             summary_ops="*",
+            delimiter="\t",
         )
 
         def _val_func(engine, batch):
@@ -94,7 +94,7 @@ class DistributedMetricsSaver(DistTestCase):
                 f_csv = csv.reader(f)
                 for i, row in enumerate(f_csv):
                     if i > 0:
-                        expected = [f"{fnames[i-1]}\t{float(i)}\t{float(i + 1)}\t{i + 0.5}"]
+                        expected = [f"{fnames[i-1]}\t{float(i):.4f}\t{float(i + 1):.4f}\t{i + 0.5:.4f}"]
                         self.assertEqual(row, expected)
             self.assertTrue(os.path.exists(os.path.join(tempdir, "metric3_summary.csv")))
             # check the metric_summary.csv and content
@@ -109,6 +109,7 @@ class DistributedMetricsSaver(DistTestCase):
                         self.assertEqual(row, ["mean\t2.5000\t2.5000\t3.5000\t1.5000\t3.3000\t0.8165\t3.0000"])
             self.assertTrue(os.path.exists(os.path.join(tempdir, "metric4_raw.csv")))
             self.assertTrue(os.path.exists(os.path.join(tempdir, "metric4_summary.csv")))
+        dist.barrier()
 
 
 if __name__ == "__main__":
