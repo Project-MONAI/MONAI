@@ -9,21 +9,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence
 
 import numpy as np
 
 from monai.transforms.spatial.array import Resize
-from monai.utils import InterpolateMode, ensure_tuple_rep, look_up_option, optional_import
+from monai.utils import (
+    InterpolateMode,
+    convert_data_type,
+    deprecated,
+    ensure_tuple_rep,
+    look_up_option,
+    optional_import,
+)
 
 Image, _ = optional_import("PIL", name="Image")
 
 
+@deprecated(since="0.8", msg_suffix="use monai.data.PILWriter instead.")
 def write_png(
     data: np.ndarray,
     file_name: str,
     output_spatial_shape: Optional[Sequence[int]] = None,
-    mode: Union[InterpolateMode, str] = InterpolateMode.BICUBIC,
+    mode: str = InterpolateMode.BICUBIC,
     scale: Optional[int] = None,
 ) -> None:
     """
@@ -37,14 +45,17 @@ def write_png(
         data: input data to write to file.
         file_name: expected file name that saved on disk.
         output_spatial_shape: spatial shape of the output image.
-        mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+        mode: {``"nearest"``, ``"nearest-exact"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"bicubic"``.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
         scale: {``255``, ``65535``} postprocess data by clipping to [0, 1] and scaling to
             [0, 255] (uint8) or [0, 65535] (uint16). Default is None to disable scaling.
 
     Raises:
         ValueError: When ``scale`` is not one of [255, 65535].
+
+    .. deprecated:: 0.8
+        Use :py:meth:`monai.data.PILWriter` instead.
 
     """
     if not isinstance(data, np.ndarray):
@@ -65,19 +76,19 @@ def write_png(
             data = np.expand_dims(data, 0)  # make a channel
             data = xform(data)[0]  # type: ignore
         if mode != InterpolateMode.NEAREST:
-            data = np.clip(data, _min, _max)  # type: ignore
+            data = np.clip(data, _min, _max)
 
     if scale is not None:
-        data = np.clip(data, 0.0, 1.0)  # type: ignore # png writer only can scale data in range [0, 1]
+        data = np.clip(data, 0.0, 1.0)  # png writer only can scale data in range [0, 1]
         if scale == np.iinfo(np.uint8).max:
-            data = (scale * data).astype(np.uint8, copy=False)
+            data = convert_data_type((scale * data), np.ndarray, dtype=np.uint8)[0]
         elif scale == np.iinfo(np.uint16).max:
-            data = (scale * data).astype(np.uint16, copy=False)
+            data = convert_data_type((scale * data), np.ndarray, dtype=np.uint16)[0]
         else:
             raise ValueError(f"Unsupported scale: {scale}, available options are [255, 65535]")
 
     # PNG data must be int number
-    if data.dtype not in (np.uint8, np.uint16):  # type: ignore
+    if data.dtype not in (np.uint8, np.uint16):
         data = data.astype(np.uint8, copy=False)
 
     data = np.moveaxis(data, 0, 1)

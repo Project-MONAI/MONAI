@@ -2,6 +2,10 @@
 
 * **apps**: high level medical domain specific deep learning applications.
 
+* **auto3dseg**: automated machine learning (AutoML) components for volumetric image analysis.
+
+* **bundle**: components to build the portable self-descriptive model bundle.
+
 * **config**: for system configuration and diagnostic output.
 
 * **csrc**: for C++/CUDA extensions.
@@ -9,6 +13,8 @@
 * **data**: for the datasets, readers/writers, and synthetic data.
 
 * **engines**: engine-derived classes for extending Ignite behaviour.
+
+* **fl**: federated learning components to allow pipeline integration with any federated learning framework.
 
 * **handlers**: defines handlers for implementing functionality at various stages in the training process.
 

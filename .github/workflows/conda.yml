@@ -1,4 +1,5 @@
-name: conda
+# daily tests for different OS with conda
+name: cron-conda
 
 on:
   schedule:
@@ -18,7 +19,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest, macOS-latest, ubuntu-latest]
-        python-version: ["3.7"]
+        python-version: ["3.8"]
     runs-on: ${{ matrix.os }}
     env:
       QUICKTEST: True
@@ -30,7 +31,7 @@ jobs:
         minimum-size: 8
         maximum-size: 16
         disk-root: "D:"
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - uses: conda-incubator/setup-miniconda@v2
       with:
         auto-update-conda: true
@@ -47,7 +48,9 @@ jobs:
       run: |
         conda activate monai
         # this `cpuonly` and -c conda-forge is needed to reduce the paging file size on a github instance
-        conda install pytorch torchvision torchaudio cpuonly -c pytorch -c conda-forge
+        # force to install `cpuonly==2.0.0` is to fix the same issue as:
+        # https://github.com/pytorch/vision/issues/4240
+        conda install pytorch torchvision torchaudio cpuonly==2.0.0 -c pytorch -c conda-forge
         conda deactivate
     - name: Test env(CPU ${{ runner.os }})
       shell: bash -l {0}

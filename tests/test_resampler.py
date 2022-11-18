@@ -17,11 +17,11 @@ from parameterized import parameterized
 
 from monai.transforms import Resample
 from monai.transforms.utils import create_grid
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TESTS = []
-for p in TEST_NDARRAYS:
-    for q in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_ALL:
+    for q in TEST_NDARRAYS_ALL:
         for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cpu"]:
             TESTS.append(
                 [
@@ -156,7 +156,7 @@ class TestResample(unittest.TestCase):
         result = g(**input_data)
         if "device" in input_data:
             self.assertEqual(result.device, input_data["device"])
-        assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4)
+        assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4, type_test=False)
 
 
 if __name__ == "__main__":

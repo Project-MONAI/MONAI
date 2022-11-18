@@ -49,7 +49,7 @@ class TestHistogramNormalize(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_value(self, argments, image, expected_data):
         result = HistogramNormalize(**argments)(image)
-        assert_allclose(result, expected_data)
+        assert_allclose(result, expected_data, type_test="tensor")
         self.assertEqual(get_equivalent_dtype(result.dtype, data_type=np.ndarray), argments.get("dtype", np.float32))
 
 

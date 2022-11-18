@@ -10,6 +10,7 @@
 # limitations under the License.
 
 from .class_activation_maps import CAM, GradCAM, GradCAMpp, ModelWithHooks, default_normalizer
+from .gradient_based import GuidedBackpropGrad, GuidedBackpropSmoothGrad, SmoothGrad, VanillaGrad
 from .img2tensorboard import add_animated_gif, make_animated_gif_summary, plot_2d_or_3d_image
 from .occlusion_sensitivity import OcclusionSensitivity
 from .utils import blend_images, matshow3d

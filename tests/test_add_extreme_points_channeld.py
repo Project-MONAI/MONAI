@@ -68,7 +68,7 @@ class TestAddExtremePointsChanneld(unittest.TestCase):
             keys="img", label_key="label", sigma=1.0, rescale_min=0.0, rescale_max=1.0
         )
         result = add_extreme_points_channel(input_data)
-        assert_allclose(result["img"][IMG_CHANNEL], expected, rtol=1e-4)
+        assert_allclose(result["img"][IMG_CHANNEL], expected, rtol=1e-4, atol=1e-5)
 
 
 if __name__ == "__main__":

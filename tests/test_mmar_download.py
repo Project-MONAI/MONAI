@@ -13,24 +13,20 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
-from urllib.error import ContentTooShortError, HTTPError
 
 import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.apps import RemoteMMARKeys, download_mmar, get_model_spec, load_from_mmar
+from monai.apps import download_mmar, load_from_mmar
 from monai.apps.mmars import MODEL_DESC
 from monai.apps.mmars.mmars import _get_val
-from tests.utils import skip_if_quick
+from tests.utils import skip_if_downloading_fails, skip_if_quick
 
-TEST_CASES = [["clara_pt_prostate_mri_segmentation_1"], ["clara_pt_covid19_ct_lesion_segmentation_1"]]
+TEST_CASES = [["clara_pt_prostate_mri_segmentation"], ["clara_pt_covid19_ct_lesion_segmentation"]]
 TEST_EXTRACT_CASES = [
     (
-        {
-            "item": "clara_pt_prostate_mri_segmentation_1",
-            "map_location": "cuda" if torch.cuda.is_available() else "cpu",
-        },
+        {"item": "clara_pt_prostate_mri_segmentation", "map_location": "cuda" if torch.cuda.is_available() else "cpu"},
         "UNet",
         np.array(
             [
@@ -42,59 +38,72 @@ TEST_EXTRACT_CASES = [
     ),
     (
         {
-            "item": "clara_pt_covid19_ct_lesion_segmentation_1",
+            "item": "clara_pt_covid19_ct_lesion_segmentation",
             "map_location": "cuda" if torch.cuda.is_available() else "cpu",
         },
         "SegResNet",
         np.array(
             [
                 [
-                    [-0.21147135, 0.10815059, -0.04733997],
-                    [-0.3425553, 0.03304602, 0.113512],
-                    [0.1278807, 0.26298857, -0.0583012],
+                    [0.01671106, 0.08502351, -0.1766469],
+                    [-0.13039736, -0.06137804, 0.03924942],
+                    [0.02268324, 0.159056, -0.03485069],
                 ],
                 [
-                    [-0.3658006, -0.14725913, 0.01149207],
-                    [-0.5453718, -0.12894264, -0.05492746],
-                    [0.16887102, 0.17586298, 0.03977356],
+                    [0.04788467, -0.09365353, -0.05802464],
+                    [-0.19500689, -0.13514304, -0.08191573],
+                    [0.0238207, 0.08029253, 0.10818923],
                 ],
                 [
-                    [-0.12767333, -0.07876065, 0.03136465],
-                    [0.26057404, -0.03538669, 0.07552322],
-                    [0.23879515, 0.04919613, 0.01725162],
+                    [-0.11541673, -0.10622888, 0.039689],
+                    [0.18462701, -0.0499289, 0.14309818],
+                    [0.00528282, 0.02152331, 0.1698219],
                 ],
             ]
         ),
     ),
     (
         {
-            "item": "clara_pt_fed_learning_brain_tumor_mri_segmentation_1",
+            "item": "clara_pt_fed_learning_brain_tumor_mri_segmentation",
             "map_location": "cuda" if torch.cuda.is_available() else "cpu",
+            "model_file": os.path.join("models", "server", "best_FL_global_model.pt"),
         },
         "SegResNet",
         np.array(
             [
-                [[-0.0839, 0.0715, -0.0760], [0.0645, 0.1186, 0.0218], [0.0303, 0.0631, -0.0648]],
-                [[0.0128, 0.1440, 0.0213], [0.1658, 0.1813, 0.0541], [-0.0627, 0.0839, 0.0660]],
-                [[-0.1207, 0.0138, -0.0808], [0.0277, 0.0416, 0.0597], [0.0455, -0.0134, -0.0949]],
+                [
+                    [0.01874463, 0.12237817, 0.09269974],
+                    [0.07691482, 0.00621202, -0.06682577],
+                    [-0.07718472, 0.08637864, -0.03222707],
+                ],
+                [
+                    [0.05117761, 0.07428649, -0.03053505],
+                    [0.11045473, 0.07083791, 0.06547518],
+                    [0.09555705, -0.03950734, -0.00819483],
+                ],
+                [
+                    [0.03704128, 0.062543, 0.0380853],
+                    [-0.02814676, -0.03078287, -0.01383446],
+                    [-0.08137762, 0.01385882, 0.01229484],
+                ],
             ]
         ),
     ),
     (
         {
-            "item": "clara_pt_pathology_metastasis_detection_1",
+            "item": "clara_pt_pathology_metastasis_detection",
             "map_location": "cuda" if torch.cuda.is_available() else "cpu",
         },
-        "TorchVisionFullyConvModel",
+        "TorchVisionFCModel",
         np.array(
             [
-                [-0.00693138, -0.00441378, -0.01057985, 0.05604396, 0.03526996, -0.00399302, -0.0267504],
-                [0.00805358, 0.01016939, -0.10749951, -0.28787708, -0.27905375, -0.13328083, -0.00882593],
-                [-0.01909848, 0.04871106, 0.2957697, 0.60376877, 0.53552634, 0.24821444, 0.03773781],
-                [0.02449462, -0.07471243, -0.30943492, -0.43987238, -0.26549947, -0.00698426, 0.04395606],
-                [-0.03124012, 0.00807883, 0.06797771, -0.04612541, -0.30266526, -0.39722857, -0.25109962],
-                [0.02480375, 0.03378576, 0.06519791, 0.24546203, 0.41867673, 0.393786, 0.16055048],
-                [-0.01529332, -0.00062494, -0.016658, -0.06313603, -0.1508078, -0.09107386, -0.01239121],
+                [-0.00540746, -0.00274996, -0.00837622, 0.05415914, 0.03555066, -0.00071636, -0.02325751],
+                [0.00564625, 0.00674562, -0.1098334, -0.2936509, -0.28384757, -0.13580588, -0.00737865],
+                [-0.02159783, 0.04615543, 0.29717407, 0.6001161, 0.53496915, 0.2528417, 0.04530451],
+                [0.0225903, -0.07556137, -0.3070122, -0.43984795, -0.26286602, -0.00172576, 0.05003437],
+                [-0.0320133, 0.00855468, 0.06824744, -0.04786247, -0.30358723, -0.3960023, -0.24895012],
+                [0.02412516, 0.03411723, 0.06513759, 0.24332047, 0.41664436, 0.38999054, 0.15957521],
+                [-0.01303542, -0.00166874, -0.01965466, -0.06620175, -0.15635538, -0.10023144, -0.01698002],
             ]
         ),
     ),
@@ -105,10 +114,7 @@ class TestMMMARDownload(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     @skip_if_quick
     def test_download(self, idx):
-        try:
-            # test model specification
-            cand = get_model_spec(idx)
-            self.assertEqual(cand[RemoteMMARKeys.ID], idx)
+        with skip_if_downloading_fails():
             with self.assertLogs(level="INFO", logger="monai.apps"):
                 download_mmar(idx)
             download_mmar(idx, progress=False)  # repeated to check caching
@@ -116,22 +122,12 @@ class TestMMMARDownload(unittest.TestCase):
                 download_mmar(idx, mmar_dir=tmp_dir, progress=False)
                 download_mmar(idx, mmar_dir=Path(tmp_dir), progress=False, version=1)  # repeated to check caching
                 self.assertTrue(os.path.exists(os.path.join(tmp_dir, idx)))
-        except (ContentTooShortError, HTTPError, RuntimeError) as e:
-            print(str(e))
-            if isinstance(e, HTTPError):
-                self.assertTrue("500" in str(e))  # http error has the code 500
-            return  # skipping this test due the network connection errors
 
     @parameterized.expand(TEST_EXTRACT_CASES)
     @skip_if_quick
     def test_load_ckpt(self, input_args, expected_name, expected_val):
-        try:
+        with skip_if_downloading_fails():
             output = load_from_mmar(**input_args)
-        except (ContentTooShortError, HTTPError, RuntimeError) as e:
-            print(str(e))
-            if isinstance(e, HTTPError):
-                self.assertTrue("500" in str(e))  # http error has the code 500
-            return
         self.assertEqual(output.__class__.__name__, expected_name)
         x = next(output.parameters())  # verify the first element
         np.testing.assert_allclose(x[0][0].detach().cpu().numpy(), expected_val, rtol=1e-3, atol=1e-3)

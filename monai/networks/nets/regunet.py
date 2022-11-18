@@ -92,7 +92,7 @@ class RegUNet(nn.Module):
             raise AssertionError
         self.encode_kernel_sizes: List[int] = encode_kernel_sizes
 
-        self.num_channels = [self.num_channel_initial * (2 ** d) for d in range(self.depth + 1)]
+        self.num_channels = [self.num_channel_initial * (2**d) for d in range(self.depth + 1)]
         self.min_extract_level = min(self.extract_levels)
 
         # init layers
@@ -167,8 +167,6 @@ class RegUNet(nn.Module):
         )
 
     def build_decode_layers(self):
-        # decoding / up-sampling
-        # [depth - 1, depth - 2, ..., min_extract_level]
         self.decode_deconvs = nn.ModuleList(
             [
                 self.build_up_sampling_block(in_channels=self.num_channels[d + 1], out_channels=self.num_channels[d])
@@ -221,9 +219,7 @@ class RegUNet(nn.Module):
 
         outs = [decoded]
 
-        # [depth - 1, ..., min_extract_level]
         for i, (decode_deconv, decode_conv) in enumerate(zip(self.decode_deconvs, self.decode_convs)):
-            # [depth - 1, depth - 2, ..., min_extract_level]
             decoded = decode_deconv(decoded)
             if self.concat_skip:
                 decoded = torch.cat([decoded, skips[-i - 1]], dim=1)
@@ -310,14 +306,14 @@ class GlobalNet(RegUNet):
         encode_kernel_sizes: Union[int, List[int]] = 3,
     ):
         for size in image_size:
-            if size % (2 ** depth) != 0:
+            if size % (2**depth) != 0:
                 raise ValueError(
                     f"given depth {depth}, "
                     f"all input spatial dimension must be divisible by {2 ** depth}, "
                     f"got input of size {image_size}"
                 )
         self.image_size = image_size
-        self.decode_size = [size // (2 ** depth) for size in image_size]
+        self.decode_size = [size // (2**depth) for size in image_size]
         super().__init__(
             spatial_dims=spatial_dims,
             in_channels=in_channels,

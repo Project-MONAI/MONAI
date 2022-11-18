@@ -32,9 +32,10 @@ def build_test_cases(data):
         {"params": [bias], "lr": 1e-2, "amsgrad": True, "grad_averaging": True, "weight_decay": 0.1},
     ]
 
-    test_cases = []
-    test_cases.append([test_case_same_param, default_params, weight, bias, input])
-    test_cases.append([test_case_diff_param, default_params, weight, bias, input])
+    test_cases = [
+        [test_case_same_param, default_params, weight, bias, input],
+        [test_case_diff_param, default_params, weight, bias, input],
+    ]
     return test_cases
 
 

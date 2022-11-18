@@ -24,6 +24,8 @@ from monai.networks.nets import DenseNet
 from monai.optimizers import LearningRateFinder
 from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd, ToTensord
 from monai.utils import optional_import, set_determinism
+from monai.utils.misc import MONAIEnvVars
+from tests.utils import skip_if_downloading_fails
 
 if TYPE_CHECKING:
     import matplotlib.pyplot as plt
@@ -46,7 +48,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 class TestLRFinder(unittest.TestCase):
     def setUp(self):
 
-        self.root_dir = os.environ.get("MONAI_DATA_DIRECTORY")
+        self.root_dir = MONAIEnvVars.data_dir()
         if not self.root_dir:
             self.root_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
 
@@ -61,15 +63,16 @@ class TestLRFinder(unittest.TestCase):
 
     def test_lr_finder(self):
         # 0.001 gives 54 examples
-        train_ds = MedNISTDataset(
-            root_dir=self.root_dir,
-            transform=self.transforms,
-            section="validation",
-            val_frac=0.001,
-            download=True,
-            num_workers=10,
-        )
-        train_loader = DataLoader(train_ds, batch_size=300, shuffle=True, num_workers=10)
+        with skip_if_downloading_fails():
+            train_ds = MedNISTDataset(
+                root_dir=self.root_dir,
+                transform=self.transforms,
+                section="validation",
+                val_frac=0.001,
+                download=True,
+                num_workers=2,
+            )
+        train_loader = DataLoader(train_ds, batch_size=300, shuffle=True, num_workers=2)
         num_classes = train_ds.get_num_classes()
 
         model = DenseNet(

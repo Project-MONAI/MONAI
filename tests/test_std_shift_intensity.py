@@ -12,10 +12,10 @@
 import unittest
 
 import numpy as np
-import torch
 
 from monai.transforms import ShiftIntensity, StdShiftIntensity
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D
+from monai.utils import dtype_numpy_to_torch
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class TestStdShiftIntensity(NumpyImageTestCase2D):
@@ -28,7 +28,7 @@ class TestStdShiftIntensity(NumpyImageTestCase2D):
             expected = shifter(imt)
             std_shifter = StdShiftIntensity(factor=factor)
             result = std_shifter(imt)
-            torch.testing.assert_allclose(result, expected, atol=0, rtol=1e-5)
+            assert_allclose(result, expected, atol=0, rtol=1e-5, type_test=False)
 
     def test_zerostd(self):
         for p in TEST_NDARRAYS:
@@ -38,7 +38,7 @@ class TestStdShiftIntensity(NumpyImageTestCase2D):
                     factor = np.random.rand()
                     std_shifter = StdShiftIntensity(factor=factor, nonzero=nonzero, channel_wise=channel_wise)
                     result = std_shifter(image)
-                    torch.testing.assert_allclose(result, image, atol=0, rtol=1e-5)
+                    assert_allclose(result, image, atol=0, rtol=1e-5, type_test=False)
 
     def test_nonzero(self):
         for p in TEST_NDARRAYS:
@@ -47,7 +47,7 @@ class TestStdShiftIntensity(NumpyImageTestCase2D):
             std_shifter = StdShiftIntensity(factor=factor, nonzero=True)
             result = std_shifter(image)
             expected = p(np.asarray([[4 + factor, 0, 2 + factor], [0, 2 + factor, 4 + factor]], dtype=np.float32))
-            torch.testing.assert_allclose(result, expected, atol=0, rtol=1e-5)
+            assert_allclose(result, expected, atol=0, rtol=1e-5, type_test=False)
 
     def test_channel_wise(self):
         for p in TEST_NDARRAYS:
@@ -58,7 +58,7 @@ class TestStdShiftIntensity(NumpyImageTestCase2D):
             expected = p(
                 np.stack((np.asarray([1 + 0.5 * factor, 2 + 0.5 * factor]), np.asarray([1, 1]))).astype(np.float32)
             )
-            torch.testing.assert_allclose(result, expected, atol=0, rtol=1e-5)
+            assert_allclose(result, expected, atol=0, rtol=1e-5, type_test=False)
 
     def test_dtype(self):
         trans_dtype = np.float32
@@ -67,7 +67,7 @@ class TestStdShiftIntensity(NumpyImageTestCase2D):
             factor = np.random.rand()
             std_shifter = StdShiftIntensity(factor=factor, dtype=trans_dtype)
             result = std_shifter(image)
-            np.testing.assert_equal(result.dtype, trans_dtype)
+            np.testing.assert_equal(result.dtype, dtype_numpy_to_torch(trans_dtype))
 
 
 if __name__ == "__main__":

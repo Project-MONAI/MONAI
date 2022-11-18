@@ -14,14 +14,24 @@ import os
 import re
 import sys
 import warnings
-from functools import wraps
+from functools import partial, wraps
 from importlib import import_module
+from inspect import isclass, isfunction, ismethod
 from pkgutil import walk_packages
+from pydoc import locate
 from re import match
 from types import FunctionType
-from typing import Any, Callable, Collection, Hashable, Iterable, List, Mapping, Tuple, cast
+from typing import Any, Callable, Collection, Hashable, Iterable, List, Mapping, Tuple, Union, cast
 
 import torch
+
+# bundle config system flags
+# set MONAI_EVAL_EXPR=1 to use 'eval', default value: run_eval=True
+run_eval = os.environ.get("MONAI_EVAL_EXPR", "1") != "0"
+# set MONAI_DEBUG_CONFIG=1 to run in debug mode, default value: run_debug=False
+run_debug = os.environ.get("MONAI_DEBUG_CONFIG", "0") != "0"
+# set MONAI_ALLOW_MISSING_REFERENCE=1 to allow missing references, default value: allow_missing_reference=False
+allow_missing_reference = os.environ.get("MONAI_ALLOW_MISSING_REFERENCE", "0") != "0"
 
 OPTIONAL_IMPORT_MSG_FMT = "{}"
 
@@ -36,6 +46,7 @@ __all__ = [
     "optional_import",
     "require_pkg",
     "load_submodules",
+    "instantiate",
     "get_full_type_name",
     "get_package_version",
     "get_torch_version_tuple",
@@ -44,7 +55,7 @@ __all__ = [
 ]
 
 
-def look_up_option(opt_str, supported: Collection, default="no_default"):
+def look_up_option(opt_str, supported: Union[Collection, enum.EnumMeta], default="no_default", print_all_options=True):
     """
     Look up the option in the supported collection and return the matched item.
     Raise a value error possibly with a guess of the closest match.
@@ -55,6 +66,7 @@ def look_up_option(opt_str, supported: Collection, default="no_default"):
         default: If it is given, this method will return `default` when `opt_str` is not found,
             instead of raising a `ValueError`. Otherwise, it defaults to `"no_default"`,
             so that the method may raise a `ValueError`.
+        print_all_options: whether to print all available options when `opt_str` is not found. Defaults to True
 
     Examples:
 
@@ -110,12 +122,12 @@ def look_up_option(opt_str, supported: Collection, default="no_default"):
         if edit_dist <= 3:
             edit_dists[key] = edit_dist
 
-    supported_msg = f"Available options are {set_to_check}.\n"
+    supported_msg = f"Available options are {set_to_check}.\n" if print_all_options else ""
     if edit_dists:
         guess_at_spelling = min(edit_dists, key=edit_dists.get)  # type: ignore
         raise ValueError(
             f"By '{opt_str}', did you mean '{guess_at_spelling}'?\n"
-            + f"'{opt_str}' is not a valid option.\n"
+            + f"'{opt_str}' is not a valid value.\n"
             + supported_msg
         )
     raise ValueError(f"Unsupported option '{opt_str}', " + supported_msg)
@@ -189,18 +201,65 @@ def load_submodules(basemod, load_all: bool = True, exclude_pattern: str = "(.*[
                 submodules.append(mod)
             except OptionalImportError:
                 pass  # could not import the optional deps., they are ignored
+            except ImportError as e:
+                msg = (
+                    "\nMultiple versions of MONAI may have been installed?\n"
+                    "Please see the installation guide: https://docs.monai.io/en/stable/installation.html\n"
+                )  # issue project-monai/monai#5193
+                raise type(e)(f"{e}\n{msg}").with_traceback(e.__traceback__) from e  # raise with modified message
 
     return submodules, err_mod
 
 
+def instantiate(path: str, **kwargs):
+    """
+    Create an object instance or partial function from a class or function represented by string.
+    `kwargs` will be part of the input arguments to the class constructor or function.
+    The target component must be a class or a function, if not, return the component directly.
+
+    Args:
+        path: full path of the target class or function component.
+        kwargs: arguments to initialize the class instance or set default args
+            for `partial` function.
+
+    """
+
+    component = locate(path)
+    if component is None:
+        raise ModuleNotFoundError(f"Cannot locate class or function path: '{path}'.")
+    try:
+        if kwargs.pop("_debug_", False) or run_debug:
+            warnings.warn(
+                f"\n\npdb: instantiating component={component}\n"
+                f"See also Debugger commands documentation: https://docs.python.org/3/library/pdb.html\n"
+            )
+            import pdb
+
+            pdb.set_trace()
+        if isclass(component):
+            return component(**kwargs)
+        # support regular function, static method and class method
+        if isfunction(component) or (ismethod(component) and isclass(getattr(component, "__self__", None))):
+            return partial(component, **kwargs)
+    except Exception as e:
+        raise RuntimeError(f"Failed to instantiate '{path}' with kwargs: {kwargs}") from e
+
+    warnings.warn(f"Component to instantiate must represent a valid class or function, but got {path}.")
+    return component
+
+
 def get_full_type_name(typeobj):
+    """
+    Utility to get the full path name of a class or object type.
+
+    """
     module = typeobj.__module__
     if module is None or module == str.__class__.__module__:
         return typeobj.__name__  # Avoid reporting __builtin__
     return module + "." + typeobj.__name__
 
 
-def min_version(the_module, min_version_str: str = "") -> bool:
+def min_version(the_module, min_version_str: str = "", *_args) -> bool:
     """
     Convert version strings into tuples of int and compare them.
 
@@ -215,7 +274,7 @@ def min_version(the_module, min_version_str: str = "") -> bool:
     return mod_version >= required
 
 
-def exact_version(the_module, version_str: str = "") -> bool:
+def exact_version(the_module, version_str: str = "", *_args) -> bool:
     """
     Returns True if the module's __version__ matches version_str
     """
@@ -250,6 +309,7 @@ def optional_import(
     descriptor: str = OPTIONAL_IMPORT_MSG_FMT,
     version_args=None,
     allow_namespace_pkg: bool = False,
+    as_type: str = "default",
 ) -> Tuple[Any, bool]:
     """
     Imports an optional module specified by `module` string.
@@ -264,6 +324,10 @@ def optional_import(
         descriptor: a format string for the final error message when using a not imported module.
         version_args: additional parameters to the version checker.
         allow_namespace_pkg: whether importing a namespace package is allowed. Defaults to False.
+        as_type: there are cases where the optionally imported object is used as
+            a base class, or a decorator, the exceptions should raise accordingly. The current supported values
+            are "default" (call once to raise), "decorator" (call the constructor and the second call to raise),
+            and anything else will return a lazy class that can be used as a base class (call the constructor to raise).
 
     Returns:
         The imported module and a boolean flag indicating whether the import is successful.
@@ -350,7 +414,22 @@ def optional_import(
             """
             raise self._exception
 
-    return _LazyRaise(), False
+        def __getitem__(self, item):
+            raise self._exception
+
+        def __iter__(self):
+            raise self._exception
+
+    if as_type == "default":
+        return _LazyRaise(), False
+
+    class _LazyCls(_LazyRaise):
+        def __init__(self, *_args, **kwargs):
+            super().__init__()
+            if not as_type.startswith("decorator"):
+                raise self._exception
+
+    return _LazyCls, False
 
 
 def require_pkg(
@@ -421,9 +500,12 @@ def version_leq(lhs: str, rhs: str):
     """
 
     lhs, rhs = str(lhs), str(rhs)
-    ver, has_ver = optional_import("pkg_resources", name="parse_version")
+    pkging, has_ver = optional_import("pkg_resources", name="packaging")
     if has_ver:
-        return ver(lhs) <= ver(rhs)
+        try:
+            return pkging.version.Version(lhs) <= pkging.version.Version(rhs)
+        except pkging.version.InvalidVersion:
+            return True
 
     def _try_cast(val: str):
         val = val.strip()

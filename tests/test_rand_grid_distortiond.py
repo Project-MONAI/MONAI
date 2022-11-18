@@ -15,12 +15,12 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import RandGridDistortiond
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TESTS = []
 num_cells = 2
 seed = 0
-for p in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_ALL:
     img = np.indices([6, 6]).astype(np.float32)
     TESTS.append(
         [
@@ -80,8 +80,8 @@ class TestRandGridDistortiond(unittest.TestCase):
         g = RandGridDistortiond(**input_param)
         g.set_random_state(seed=seed)
         result = g(input_data)
-        assert_allclose(result["img"], expected_val_img, rtol=1e-4, atol=1e-4)
-        assert_allclose(result["mask"], expected_val_mask, rtol=1e-4, atol=1e-4)
+        assert_allclose(result["img"], expected_val_img, type_test=False, rtol=1e-4, atol=1e-4)
+        assert_allclose(result["mask"], expected_val_mask, type_test=False, rtol=1e-4, atol=1e-4)
 
 
 if __name__ == "__main__":

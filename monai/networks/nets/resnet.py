@@ -10,18 +10,28 @@
 # limitations under the License.
 
 from functools import partial
-from typing import Any, Callable, List, Optional, Type, Union
+from typing import Any, Callable, List, Tuple, Type, Union
 
 import torch
 import torch.nn as nn
 
 from monai.networks.layers.factories import Conv, Norm, Pool
 from monai.networks.layers.utils import get_pool_layer
+from monai.utils import ensure_tuple_rep
 from monai.utils.module import look_up_option
 
-__all__ = ["ResNet", "resnet10", "resnet18", "resnet34", "resnet50", "resnet101", "resnet152", "resnet200"]
-
-from monai.utils import deprecated_arg
+__all__ = [
+    "ResNet",
+    "ResNetBlock",
+    "ResNetBottleneck",
+    "resnet10",
+    "resnet18",
+    "resnet34",
+    "resnet50",
+    "resnet101",
+    "resnet152",
+    "resnet200",
+]
 
 
 def get_inplanes():
@@ -30,14 +40,6 @@ def get_inplanes():
 
 def get_avgpool():
     return [0, 1, (1, 1), (1, 1, 1)]
-
-
-def get_conv1(conv1_t_size: int, conv1_t_stride: int):
-    return (
-        [0, conv1_t_size, (conv1_t_size, 7), (conv1_t_size, 7, 7)],
-        [0, conv1_t_stride, (conv1_t_stride, 2), (conv1_t_stride, 2, 2)],
-        [0, (conv1_t_size // 2), (conv1_t_size // 2, 3), (conv1_t_size // 2, 3, 3)],
-    )
 
 
 class ResNetBlock(nn.Module):
@@ -157,6 +159,9 @@ class ResNet(nn.Module):
 
     Args:
         block: which ResNet block to use, either Basic or Bottleneck.
+            ResNet block class or str.
+            for Basic: ResNetBlock or 'basic'
+            for Bottleneck: ResNetBottleneck or 'bottleneck'
         layers: how many layers to use.
         block_inplanes: determine the size of planes at each step. Also tunable with widen_factor.
         spatial_dims: number of spatial dimensions of the input image.
@@ -170,34 +175,36 @@ class ResNet(nn.Module):
         widen_factor: widen output for each layer.
         num_classes: number of output (classifications).
         feed_forward: whether to add the FC layer for the output, default to `True`.
-
-    .. deprecated:: 0.6.0
-        ``n_classes`` is deprecated, use ``num_classes`` instead.
+        bias_downsample: whether to use bias term in the downsampling block when `shortcut_type` is 'B', default to `True`.
 
     """
 
-    @deprecated_arg("n_classes", since="0.6")
     def __init__(
         self,
-        block: Type[Union[ResNetBlock, ResNetBottleneck]],
+        block: Union[Type[Union[ResNetBlock, ResNetBottleneck]], str],
         layers: List[int],
         block_inplanes: List[int],
         spatial_dims: int = 3,
         n_input_channels: int = 3,
-        conv1_t_size: int = 7,
-        conv1_t_stride: int = 1,
+        conv1_t_size: Union[Tuple[int], int] = 7,
+        conv1_t_stride: Union[Tuple[int], int] = 1,
         no_max_pool: bool = False,
         shortcut_type: str = "B",
         widen_factor: float = 1.0,
         num_classes: int = 400,
         feed_forward: bool = True,
-        n_classes: Optional[int] = None,
+        bias_downsample: bool = True,  # for backwards compatibility (also see PR #5477)
     ) -> None:
 
         super().__init__()
-        # in case the new num_classes is default but you still call deprecated n_classes
-        if n_classes is not None and num_classes == 400:
-            num_classes = n_classes
+
+        if isinstance(block, str):
+            if block == "basic":
+                block = ResNetBlock
+            elif block == "bottleneck":
+                block = ResNetBottleneck
+            else:
+                raise ValueError("Unknown block '%s', use basic or bottleneck" % block)
 
         conv_type: Type[Union[nn.Conv1d, nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
         norm_type: Type[Union[nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
@@ -207,18 +214,21 @@ class ResNet(nn.Module):
         ]
 
         block_avgpool = get_avgpool()
-        conv1_kernel, conv1_stride, conv1_padding = get_conv1(conv1_t_size, conv1_t_stride)
         block_inplanes = [int(x * widen_factor) for x in block_inplanes]
 
         self.in_planes = block_inplanes[0]
         self.no_max_pool = no_max_pool
+        self.bias_downsample = bias_downsample
+
+        conv1_kernel_size = ensure_tuple_rep(conv1_t_size, spatial_dims)
+        conv1_stride = ensure_tuple_rep(conv1_t_stride, spatial_dims)
 
         self.conv1 = conv_type(
             n_input_channels,
             self.in_planes,
-            kernel_size=conv1_kernel[spatial_dims],
-            stride=conv1_stride[spatial_dims],
-            padding=conv1_padding[spatial_dims],
+            kernel_size=conv1_kernel_size,  # type: ignore
+            stride=conv1_stride,  # type: ignore
+            padding=tuple(k // 2 for k in conv1_kernel_size),  # type: ignore
             bias=False,
         )
         self.bn1 = norm_type(self.in_planes)
@@ -270,7 +280,13 @@ class ResNet(nn.Module):
                 )
             else:
                 downsample = nn.Sequential(
-                    conv_type(self.in_planes, planes * block.expansion, kernel_size=1, stride=stride),
+                    conv_type(
+                        self.in_planes,
+                        planes * block.expansion,
+                        kernel_size=1,
+                        stride=stride,
+                        bias=self.bias_downsample,
+                    ),
                     norm_type(planes * block.expansion),
                 )
 
@@ -316,7 +332,7 @@ def _resnet(
     progress: bool,
     **kwargs: Any,
 ) -> ResNet:
-    model: ResNet = ResNet(block, layers, block_inplanes, **kwargs)
+    model: ResNet = ResNet(block, layers, block_inplanes, bias_downsample=not pretrained, **kwargs)
     if pretrained:
         # Author of paper zipped the state_dict on googledrive,
         # so would need to download, unzip and read (2.8gb file for a ~150mb state dict).

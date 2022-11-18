@@ -40,7 +40,6 @@ TEST_CASES_AFFINE_TRANSFORM = [
     ],
 ]
 
-
 TEST_CASES_GLOBAL_NET = [
     [
         {

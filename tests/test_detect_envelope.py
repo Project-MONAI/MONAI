@@ -16,8 +16,8 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import DetectEnvelope
-from monai.utils import InvalidPyTorchVersionError, OptionalImportError
-from tests.utils import SkipIfAtLeastPyTorchVersion, SkipIfBeforePyTorchVersion, SkipIfModule, SkipIfNoModule
+from monai.utils import OptionalImportError
+from tests.utils import TEST_NDARRAYS, SkipIfModule, SkipIfNoModule, assert_allclose
 
 n_samples = 500
 hann_windowed_sine = np.sin(2 * np.pi * 10 * np.linspace(0, 1, n_samples)) * np.hanning(n_samples)
@@ -112,7 +112,6 @@ TEST_CASE_INVALID_IMG_LEN = [
 TEST_CASE_INVALID_OBJ = [{}, "a string", "__call__"]  # method expected to raise exception
 
 
-@SkipIfBeforePyTorchVersion((1, 7))
 @SkipIfNoModule("torch.fft")
 class TestDetectEnvelope(unittest.TestCase):
     @parameterized.expand(
@@ -126,8 +125,9 @@ class TestDetectEnvelope(unittest.TestCase):
         ]
     )
     def test_value(self, arguments, image, expected_data, atol):
-        result = DetectEnvelope(**arguments)(image)
-        np.testing.assert_allclose(result, expected_data, atol=atol)
+        for p in TEST_NDARRAYS:
+            result = DetectEnvelope(**arguments)(p(image))
+            assert_allclose(result, p(expected_data), atol=atol, type_test="tensor")
 
     @parameterized.expand(
         [
@@ -147,18 +147,10 @@ class TestDetectEnvelope(unittest.TestCase):
             raise ValueError("Expected raising method invalid. Should be __init__ or __call__.")
 
 
-@SkipIfBeforePyTorchVersion((1, 7))
 @SkipIfModule("torch.fft")
 class TestHilbertTransformNoFFTMod(unittest.TestCase):
     def test_no_fft_module_error(self):
         self.assertRaises(OptionalImportError, DetectEnvelope(), np.random.rand(1, 10))
-
-
-@SkipIfAtLeastPyTorchVersion((1, 7))
-class TestDetectEnvelopeInvalidPyTorch(unittest.TestCase):
-    def test_invalid_pytorch_error(self):
-        with self.assertRaisesRegex(InvalidPyTorchVersionError, "version"):
-            DetectEnvelope()
 
 
 if __name__ == "__main__":

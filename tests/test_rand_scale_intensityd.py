@@ -28,7 +28,7 @@ class TestRandScaleIntensityd(NumpyImageTestCase2D):
             # simulate the randomize function of transform
             np.random.random()
             expected = (self.imt * (1 + np.random.uniform(low=-0.5, high=0.5))).astype(np.float32)
-            assert_allclose(result[key], p(expected))
+            assert_allclose(result[key], p(expected), type_test="tensor")
 
 
 if __name__ == "__main__":

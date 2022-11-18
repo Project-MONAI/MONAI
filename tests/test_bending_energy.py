@@ -60,7 +60,6 @@ class TestBendingEnergy(unittest.TestCase):
             loss.forward(torch.ones((1, 3), device=device))
         with self.assertRaisesRegex(ValueError, "Expecting 3-d, 4-d or 5-d"):
             loss.forward(torch.ones((1, 4, 5, 5, 5, 5), device=device))
-        # spatial_dim < 5
         with self.assertRaisesRegex(ValueError, "All spatial dimensions"):
             loss.forward(torch.ones((1, 3, 4, 5, 5), device=device))
         with self.assertRaisesRegex(ValueError, "All spatial dimensions"):

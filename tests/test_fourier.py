@@ -21,8 +21,6 @@ from monai.utils.misc import set_determinism
 from tests.utils import SkipIfBeforePyTorchVersion, SkipIfNoModule
 
 TEST_CASES = [((128, 64),), ((64, 48, 80),)]
-# for shape in ((128, 64), (64, 48, 80)):
-#     TEST_CASES.append(shape)
 
 
 @SkipIfBeforePyTorchVersion((1, 8))

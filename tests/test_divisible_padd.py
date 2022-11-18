@@ -11,32 +11,25 @@
 
 import unittest
 
-import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import DivisiblePadd
+from monai.utils.enums import NumpyPadMode, PytorchPadMode
+from tests.padders import PadTest
 
-TEST_CASE_1 = [
-    {"keys": ["img"], "k": [4, 3, 2], "mode": "constant"},
-    {"img": np.zeros((3, 8, 8, 4))},
-    np.zeros((3, 8, 9, 4)),
+TESTS = [
+    [{"keys": "img", "k": [4, 3, 2]}, (3, 8, 8, 4), (3, 8, 9, 4)],
+    [{"keys": "img", "k": 7, "method": "end"}, (3, 8, 7), (3, 14, 7)],
 ]
 
-TEST_CASE_2 = [
-    {"keys": ["img"], "k": 7, "mode": "constant", "method": "end"},
-    {"img": np.zeros((3, 8, 7))},
-    np.zeros((3, 14, 7)),
-]
 
-TEST_CASE_3 = [{"keys": ["img"], "k": 0, "mode": {"constant"}}, {"img": np.zeros((3, 8))}, np.zeros((3, 8))]
+class TestDivisiblePadd(PadTest):
+    Padder = DivisiblePadd
 
-
-class TestDivisiblePadd(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
-    def test_pad_shape(self, input_param, input_data, expected_val):
-        padder = DivisiblePadd(**input_param)
-        result = padder(input_data)
-        np.testing.assert_allclose(result["img"], expected_val)
+    @parameterized.expand(TESTS)
+    def test_pad(self, input_param, input_shape, expected_shape):
+        modes = ["constant", NumpyPadMode.CONSTANT, PytorchPadMode.CONSTANT, "edge", NumpyPadMode.EDGE]
+        self.pad_test(input_param, input_shape, expected_shape, modes)
 
 
 if __name__ == "__main__":

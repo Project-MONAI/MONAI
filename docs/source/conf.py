@@ -40,6 +40,8 @@ exclude_patterns = [
     "engines",
     "data",
     "apps",
+    "fl",
+    "bundle",
     "config",
     "handlers",
     "losses",
@@ -47,6 +49,7 @@ exclude_patterns = [
     "utils",
     "inferers",
     "optimizers",
+    "auto3dseg",
 ]
 
 

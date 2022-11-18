@@ -64,7 +64,6 @@ class ApplyFilterTestCase(unittest.TestCase):
                 ],
             ]
         )
-        expected = expected
         # testing shapes
         k = torch.tensor([[[1, 1, 1], [1, 1, 1], [1, 1, 1]]])
         for kernel in (k, k[None], k[None][None]):
@@ -80,7 +79,7 @@ class ApplyFilterTestCase(unittest.TestCase):
         with self.assertRaisesRegex(NotImplementedError, ""):
             apply_filter(torch.ones((1, 1, 1, 2, 3, 2)), torch.ones((2,)))
         with self.assertRaisesRegex(TypeError, ""):
-            apply_filter(((1, 1, 1, 2, 3, 2)), torch.ones((2,)))  # type: ignore
+            apply_filter(((1, 1, 1, 2, 3, 2)), torch.ones((2,)))
 
 
 if __name__ == "__main__":

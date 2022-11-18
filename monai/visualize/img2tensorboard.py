@@ -21,14 +21,13 @@ from monai.utils import convert_data_type, optional_import
 PIL, _ = optional_import("PIL")
 GifImage, _ = optional_import("PIL.GifImagePlugin", name="Image")
 SummaryX, _ = optional_import("tensorboardX.proto.summary_pb2", name="Summary")
+SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 SummaryWriterX, has_tensorboardx = optional_import("tensorboardX", name="SummaryWriter")
 
 if TYPE_CHECKING:
     from tensorboard.compat.proto.summary_pb2 import Summary
-    from torch.utils.tensorboard import SummaryWriter
 else:
     Summary, _ = optional_import("tensorboard.compat.proto.summary_pb2", name="Summary")
-    SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
 __all__ = ["make_animated_gif_summary", "add_animated_gif", "plot_2d_or_3d_image"]
 
@@ -49,8 +48,7 @@ def _image3_animated_gif(
     if len(image.shape) != 3:
         raise AssertionError("3D image tensors expected to be in `HWD` format, len(image.shape) != 3")
 
-    image_np: np.ndarray
-    image_np, *_ = convert_data_type(image, output_type=np.ndarray)  # type: ignore
+    image_np, *_ = convert_data_type(image, output_type=np.ndarray)
     ims = [(i * scale_factor).astype(np.uint8, copy=False) for i in np.moveaxis(image_np, frame_dim, 0)]
     ims = [GifImage.fromarray(im) for im in ims]
     img_str = b""
@@ -105,7 +103,7 @@ def make_animated_gif_summary(
 
 
 def add_animated_gif(
-    writer: SummaryWriter,
+    writer,
     tag: str,
     image_tensor: Union[np.ndarray, torch.Tensor],
     max_out: int = 3,
@@ -137,7 +135,7 @@ def add_animated_gif(
 def plot_2d_or_3d_image(
     data: Union[NdarrayTensor, List[NdarrayTensor]],
     step: int,
-    writer: SummaryWriter,
+    writer,
     index: int = 0,
     max_channels: int = 1,
     frame_dim: int = -3,

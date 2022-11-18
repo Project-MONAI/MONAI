@@ -11,49 +11,28 @@
 
 import unittest
 
-import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import BorderPadd
-from monai.utils import NumpyPadMode
+from monai.utils.enums import NumpyPadMode, PytorchPadMode
+from tests.padders import PadTest
 
-TEST_CASE_1 = [
-    {"keys": ["img", "seg"], "spatial_border": 2, "mode": ["constant", "edge"]},
-    {"img": np.zeros((3, 8, 8, 4)), "seg": np.zeros((3, 8, 8, 4))},
-    np.zeros((3, 12, 12, 8)),
-]
-
-TEST_CASE_2 = [
-    {"keys": "img", "spatial_border": [1, 2, 3], "mode": "constant"},
-    {"img": np.zeros((3, 8, 8, 4))},
-    np.zeros((3, 10, 12, 10)),
-]
-
-TEST_CASE_3 = [
-    {"keys": "img", "spatial_border": [1, 2, 3, 4, 5, 6], "mode": "constant"},
-    {"img": np.zeros((3, 8, 8, 4))},
-    np.zeros((3, 11, 15, 15)),
-]
-
-TEST_CASE_4 = [
-    {"keys": ["img", "seg"], "spatial_border": 2, "mode": ["constant", NumpyPadMode.EDGE]},
-    {"img": np.zeros((3, 8, 8, 4)), "seg": np.zeros((3, 8, 8, 4))},
-    np.zeros((3, 12, 12, 8)),
-]
-
-TEST_CASE_5 = [
-    {"keys": ["img", "seg"], "spatial_border": 2, "mode": [NumpyPadMode.CONSTANT, NumpyPadMode.EDGE]},
-    {"img": np.zeros((3, 8, 8, 4)), "seg": np.zeros((3, 8, 8, 4))},
-    np.zeros((3, 12, 12, 8)),
+TESTS = [
+    [{"keys": "img", "spatial_border": 2}, (3, 8, 8, 4), (3, 12, 12, 8)],
+    [{"keys": "img", "spatial_border": [1, 2, 3]}, (3, 8, 8, 4), (3, 10, 12, 10)],
+    [{"keys": "img", "spatial_border": [1, 2, 3, 4, 5, 6]}, (3, 8, 8, 4), (3, 11, 15, 15)],
+    [{"keys": "img", "spatial_border": 2}, (3, 8, 8, 4), (3, 12, 12, 8)],
+    [{"keys": "img", "spatial_border": 2}, (3, 8, 8, 4), (3, 12, 12, 8)],
 ]
 
 
-class TestBorderPadd(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
-    def test_pad_shape(self, input_param, input_data, expected_val):
-        padder = BorderPadd(**input_param)
-        result = padder(input_data)
-        self.assertAlmostEqual(result["img"].shape, expected_val.shape)
+class TestBorderPadd(PadTest):
+    Padder = BorderPadd
+
+    @parameterized.expand(TESTS)
+    def test_pad(self, input_param, input_shape, expected_shape):
+        modes = ["constant", NumpyPadMode.CONSTANT, PytorchPadMode.CONSTANT, "edge", NumpyPadMode.EDGE]
+        self.pad_test(input_param, input_shape, expected_shape, modes)
 
 
 if __name__ == "__main__":

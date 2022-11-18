@@ -19,13 +19,14 @@ from parameterized import parameterized
 
 from monai.apps.pathology.data import SmartCachePatchWSIDataset
 from monai.utils import optional_import
-from tests.utils import download_url_or_skip_test
+from tests.utils import download_url_or_skip_test, testing_data_config
 
 _cucim, has_cim = optional_import("cucim")
 has_cim = has_cim and hasattr(_cucim, "CuImage")
 
-FILE_URL = "https://drive.google.com/uc?id=1sGTKZlJBIz53pfqTxoTqiIQzIoEzHLAe"
-base_name, extension = FILE_URL.split("id=")[1], ".tiff"
+FILE_KEY = "wsi_img"
+FILE_URL = testing_data_config("images", FILE_KEY, "url")
+base_name, extension = os.path.basename(f"{FILE_URL}"), ".tiff"
 FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + base_name + extension)
 
 TEST_CASE_0 = [
@@ -134,7 +135,9 @@ TEST_CASE_2 = [
 
 class TestSmartCachePatchWSIDataset(unittest.TestCase):
     def setUp(self):
-        download_url_or_skip_test(FILE_URL, FILE_PATH, "5a3cfd4fd725c50578ddb80b517b759f")
+        hash_type = testing_data_config("images", FILE_KEY, "hash_type")
+        hash_val = testing_data_config("images", FILE_KEY, "hash_val")
+        download_url_or_skip_test(FILE_URL, FILE_PATH, hash_type=hash_type, hash_val=hash_val)
 
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2])
     @skipUnless(has_cim, "Requires CuCIM")
@@ -149,8 +152,7 @@ class TestSmartCachePatchWSIDataset(unittest.TestCase):
         dataset.start()
         i = 0
         for _ in range(num_epochs):
-            for j in range(len(dataset)):
-                samples = dataset[j]
+            for samples in dataset:
                 n_patches = len(samples)
                 self.assert_samples_expected(samples, expected[i : i + n_patches])
                 i += n_patches
@@ -158,11 +160,11 @@ class TestSmartCachePatchWSIDataset(unittest.TestCase):
         dataset.shutdown()
 
     def assert_samples_expected(self, samples, expected):
-        for i in range(len(samples)):
-            self.assertTupleEqual(samples[i]["label"].shape, expected[i]["label"].shape)
-            self.assertTupleEqual(samples[i]["image"].shape, expected[i]["image"].shape)
-            self.assertIsNone(assert_array_equal(samples[i]["label"], expected[i]["label"]))
-            self.assertIsNone(assert_array_equal(samples[i]["image"], expected[i]["image"]))
+        for i, item in enumerate(samples):
+            self.assertTupleEqual(item["label"].shape, expected[i]["label"].shape)
+            self.assertTupleEqual(item["image"].shape, expected[i]["image"].shape)
+            self.assertIsNone(assert_array_equal(item["label"], expected[i]["label"]))
+            self.assertIsNone(assert_array_equal(item["image"], expected[i]["image"]))
 
 
 if __name__ == "__main__":

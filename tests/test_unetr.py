@@ -16,6 +16,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.unetr import UNETR
+from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
 
 TEST_CASE_UNETR = []
 for dropout_rate in [0.4]:
@@ -52,7 +53,7 @@ for dropout_rate in [0.4]:
                                             TEST_CASE_UNETR.append(test_case)
 
 
-class TestPatchEmbeddingBlock(unittest.TestCase):
+class TestUNETR(unittest.TestCase):
     @parameterized.expand(TEST_CASE_UNETR)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = UNETR(**input_param)
@@ -116,6 +117,17 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 norm_name="instance",
                 dropout_rate=0.2,
             )
+
+    @parameterized.expand(TEST_CASE_UNETR)
+    @SkipIfBeforePyTorchVersion((1, 9))
+    def test_script(self, input_param, input_shape, _):
+        net = UNETR(**(input_param))
+        net.eval()
+        with torch.no_grad():
+            torch.jit.script(net)
+
+        test_data = torch.randn(input_shape)
+        test_script_save(net, test_data)
 
 
 if __name__ == "__main__":

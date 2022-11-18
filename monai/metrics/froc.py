@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
@@ -46,7 +45,9 @@ def compute_fp_tp_probs(
 
     """
     if not (probs.shape == y_coord.shape == x_coord.shape):
-        raise AssertionError("the shapes for coordinates and probabilities should be the same.")
+        raise ValueError(
+            f"the shapes between probs {probs.shape}, y_coord {y_coord.shape} and x_coord {x_coord.shape} should be the same."
+        )
 
     if isinstance(probs, torch.Tensor):
         probs = probs.detach().cpu().numpy()

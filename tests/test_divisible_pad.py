@@ -11,43 +11,32 @@
 
 import unittest
 
-import numpy as np
-import torch
 from parameterized import parameterized
 
 from monai.transforms import DivisiblePad
-from tests.utils import TEST_NDARRAYS
+from monai.utils.enums import NumpyPadMode, PytorchPadMode
+from tests.padders import PadTest
 
 TESTS = []
 
-for p in TEST_NDARRAYS:
-    # pad first dim to be divisible by 7, the second unchanged.
-    TESTS.append([{"k": (7, -1), "mode": "constant"}, p(np.zeros((3, 8, 7))), p(np.zeros((3, 14, 7)))])
-
-    # pad all dimensions to be divisible by 5
-    TESTS.append(
-        [{"k": 5, "mode": "constant", "method": "end"}, p(np.zeros((3, 10, 5, 17))), p(np.zeros((3, 10, 5, 20)))]
-    )
+# pad first dim to be divisible by 7, the second unchanged.
+TESTS.append([{"k": (7, -1)}, (3, 8, 7), (3, 14, 7)])
+# pad all dimensions to be divisible by 5
+TESTS.append([{"k": 5, "method": "end"}, (3, 10, 5, 17), (3, 10, 5, 20)])
 
 
-class TestDivisiblePad(unittest.TestCase):
+class TestDivisiblePad(PadTest):
+    Padder = DivisiblePad
+
     @parameterized.expand(TESTS)
-    def test_pad_shape(self, input_param, input_data, expected_val):
-        padder = DivisiblePad(**input_param)
-        result = padder(input_data)
-        self.assertAlmostEqual(result.shape, expected_val.shape)
-        result = padder(input_data, mode=input_param["mode"])
-        self.assertAlmostEqual(result.shape, expected_val.shape)
+    def test_pad(self, input_param, input_shape, expected_shape):
+        modes = ["constant", NumpyPadMode.CONSTANT, PytorchPadMode.CONSTANT]
+        self.pad_test(input_param, input_shape, expected_shape, modes)
 
     def test_pad_kwargs(self):
-        for p in TEST_NDARRAYS:
-            input_data = p(np.zeros((3, 8, 4)))
-            if isinstance(input_data, np.ndarray):
-                result = DivisiblePad(k=5, mode="constant", constant_values=((0, 0), (1, 1), (2, 2)))(input_data)
-                np.testing.assert_allclose(result[:, :1, :4], np.ones((3, 1, 4)), rtol=1e-7, atol=0)
-            else:
-                result = DivisiblePad(k=5, mode="constant", value=2)(input_data).cpu()
-            torch.testing.assert_allclose(result[:, :, 4:5], np.ones((3, 10, 1)) + 1, rtol=1e-7, atol=0)
+        kwargs = {"k": 5, "method": "end"}
+        unchanged_slices = [slice(None), slice(None, 8), slice(None, 4)]
+        self.pad_test_kwargs(unchanged_slices, **kwargs)
 
 
 if __name__ == "__main__":

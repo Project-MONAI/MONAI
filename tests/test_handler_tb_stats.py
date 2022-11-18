@@ -14,11 +14,14 @@ import tempfile
 import unittest
 
 from ignite.engine import Engine, Events
-from torch.utils.tensorboard import SummaryWriter
 
 from monai.handlers import TensorBoardStatsHandler
+from monai.utils import optional_import
+
+SummaryWriter, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
 
+@unittest.skipUnless(has_tb, "Requires SummaryWriter installation")
 class TestHandlerTBStats(unittest.TestCase):
     def test_metrics_print(self):
         with tempfile.TemporaryDirectory() as tempdir:
@@ -36,7 +39,7 @@ class TestHandlerTBStats(unittest.TestCase):
                 engine.state.metrics["acc"] = current_metric + 0.1
 
             # set up testing handler
-            stats_handler = TensorBoardStatsHandler(log_dir=tempdir)
+            stats_handler = TensorBoardStatsHandler(log_dir=tempdir, iteration_log=False, epoch_log=True)
             stats_handler.attach(engine)
             engine.run(range(3), max_epochs=2)
             stats_handler.close()
@@ -63,6 +66,8 @@ class TestHandlerTBStats(unittest.TestCase):
             writer = SummaryWriter(log_dir=tempdir)
             stats_handler = TensorBoardStatsHandler(
                 summary_writer=writer,
+                iteration_log=True,
+                epoch_log=False,
                 output_transform=lambda x: {"loss": x[0] * 2.0},
                 global_epoch_transform=lambda x: x * 3.0,
                 state_attributes=["test"],
