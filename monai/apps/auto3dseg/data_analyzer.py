@@ -23,14 +23,7 @@ from monai.bundle import config_parser
 from monai.bundle.config_parser import ConfigParser
 from monai.data import DataLoader, Dataset
 from monai.data.utils import no_collation
-from monai.transforms import (
-    Compose,
-    EnsureTyped,
-    Lambdad,
-    LoadImaged,
-    Orientationd,
-    SqueezeDimd,
-)
+from monai.transforms import Compose, EnsureTyped, Lambdad, LoadImaged, Orientationd, SqueezeDimd
 from monai.utils import StrEnum, min_version, optional_import
 from monai.utils.enums import DataStatsKeys, ImageStatsKeys
 
@@ -213,16 +206,11 @@ class DataAnalyzer:
         keys = list(filter(None, [self.image_key, self.label_key]))
         if transform_list is None:
             transform_list = [
-                LoadImaged(keys=keys, ensure_channel_first=True, dtype=None),
+                LoadImaged(keys=keys, ensure_channel_first=True),
                 EnsureTyped(keys=keys, data_type="tensor", dtype=torch.float),
                 Orientationd(keys=keys, axcodes="RAS"),
-                Lambdad(keys=self.label_key, func=_argmax_if_multichannel) if self.label_key else None,
-                SqueezeDimd(keys=self.label_key, dim=0) if self.label_key else None,
             ]
-
-        transform = Compose(transforms=list(filter(None, transform_list)))
-
-        torch.multiprocessing.set_start_method("fork", force=True)
+        transform = Compose(transform_list)
 
         files, _ = datafold_read(datalist=self.datalist, basedir=self.dataroot, fold=-1, key=key)
         dataset = Dataset(data=files, transform=transform)
@@ -236,8 +224,12 @@ class DataAnalyzer:
 
             batch_data = batch_data[0]
             batch_data[self.image_key] = batch_data[self.image_key].to(self.device)
+
             if self.label_key is not None:
-                batch_data[self.label_key] = batch_data[self.label_key].to(self.device)
+                label = batch_data[self.label_key]
+                label = torch.argmax(label, dim=0) if label.shape[0] > 1 else label[0]
+                batch_data[self.label_key] = label.to(self.device)
+
             d = summarizer(batch_data)
 
             stats_by_cases = {
