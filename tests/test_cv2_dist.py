@@ -32,7 +32,7 @@ def main_worker(rank, ngpus_per_node):
     x = torch.ones(1, 1, 12, 12, 12).to(rank)
     with autocast(enabled=True):
         model(x)
-    
+
     if dist.is_initialized():
         dist.destroy_process_group()
 
