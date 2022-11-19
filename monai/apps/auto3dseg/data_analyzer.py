@@ -23,7 +23,7 @@ from monai.bundle import config_parser
 from monai.bundle.config_parser import ConfigParser
 from monai.data import DataLoader, Dataset
 from monai.data.utils import no_collation
-from monai.transforms import Compose, EnsureTyped, Lambdad, LoadImaged, Orientationd, SqueezeDimd
+from monai.transforms import Compose, EnsureTyped, LoadImaged, Orientationd
 from monai.utils import StrEnum, min_version, optional_import
 from monai.utils.enums import DataStatsKeys, ImageStatsKeys
 
