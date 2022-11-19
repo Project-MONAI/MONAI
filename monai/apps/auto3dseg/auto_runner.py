@@ -590,14 +590,16 @@ class AutoRunner:
             history = import_bundle_algo_history(self.work_dir, only_trained=True)
             builder = AlgoEnsembleBuilder(history, self.data_src_cfg_name)
             builder.set_ensemble_method(self.ensemble_method)
-            ensembler = builder.get_ensemble()
-            preds = ensembler(pred_param=self.pred_params)  # apply sigmoid to binarize the prediction
-            print("Auto3Dseg picked the following networks to ensemble:")
-            for algo in ensembler.get_algo_ensemble():
-                print(algo[AlgoEnsembleKeys.ID])
 
-            for pred in preds:
-                self.save_image(pred)
-            logger.info(f"Auto3Dseg ensemble prediction outputs are saved in {self.output_dir}.")
+            ensembler = builder.get_ensemble()
+            preds = ensembler(pred_param=self.pred_params)
+            if len(preds) > 0:
+                print("Auto3Dseg picked the following networks to ensemble:")
+                for algo in ensembler.get_algo_ensemble():
+                    print(algo[AlgoEnsembleKeys.ID])
+
+                for pred in preds:
+                    self.save_image(pred)
+                logger.info(f"Auto3Dseg ensemble prediction outputs are saved in {self.output_dir}.")
 
         logger.info("Auto3Dseg pipeline is complete successfully.")

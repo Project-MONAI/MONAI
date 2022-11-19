@@ -252,13 +252,12 @@ class BundleAlgo(Algo):
         spec.loader.exec_module(infer_class)
         return infer_class.InferClass(configs_path, *args, **kwargs)
 
-    def predict(self, predict_params=None):
+    def predict(self, predict_files: list, predict_params=None):
         """
-        Use the trained model to predict the outputs with a given input image. Path to input image is in the params
-        dict in a form of {"files", ["path_to_image_1", "path_to_image_2"]}. If it is not specified, then the
-        prediction will use the test images predefined in the bundle config.
+        Use the trained model to predict the outputs with a given input image.
 
         Args:
+            predict_files: a list of paths to files to run inference on ["path_to_image_1", "path_to_image_2"]
             predict_params: a dict to override the parameters in the bundle config (including the files to predict).
 
         """
@@ -267,9 +266,8 @@ class BundleAlgo(Algo):
         else:
             params = deepcopy(predict_params)
 
-        files = params.pop("files", ".")
         inferer = self.get_inferer(**params)
-        return [inferer.infer(f) for f in ensure_tuple(files)]
+        return [inferer.infer(f) for f in ensure_tuple(predict_files)]
 
     def get_output_path(self):
         """Returns the algo output paths to find the algo scripts and configs."""

@@ -12,7 +12,7 @@
 import os
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Union
 from warnings import warn
 
 import numpy as np
@@ -67,7 +67,7 @@ class AlgoEnsemble(ABC):
         """
         return self.algo_ensemble
 
-    def set_infer_files(self, dataroot: str, data_list_file_path: str, data_key: str = "testing"):
+    def set_infer_files(self, dataroot: str, data_list_or_path: Union[str, List], data_key: str = "testing"):
         """
         Set the files to perform model inference.
 
@@ -76,7 +76,18 @@ class AlgoEnsemble(ABC):
             data_src_cfg_file: the data source file path
         """
 
-        self.infer_files, _ = datafold_read(datalist=data_list_file_path, basedir=dataroot, fold=-1, key=data_key)
+        self.infer_files = []
+
+        if isinstance(data_list_or_path, List):
+            self.infer_files = data_list_or_path
+        elif isinstance(data_list_or_path, str):
+            datalist = ConfigParser.load_config_file(data_list_or_path)
+            if data_key in datalist:
+                self.infer_files, _ = datafold_read(datalist=datalist, basedir=dataroot, fold=-1, key=data_key)
+            else:
+                print(f"Datalist file has no testing key {data_key}. No data for inference is specified")
+        else:
+            raise ValueError("Unsupported parameter type")
 
     def ensemble_pred(self, preds, sigmoid=False):
         """
@@ -122,9 +133,13 @@ class AlgoEnsemble(ABC):
             param = deepcopy(pred_param)
 
         files = self.infer_files
+
+        if "infer_files" in param:
+            files = param.pop("infer_files")
+
         if "files_slices" in param:
             slices = param.pop("files_slices")
-            files = self.infer_files[slices]
+            files = files[slices]
 
         if "mode" in param:
             mode = param.pop("mode")
@@ -133,14 +148,12 @@ class AlgoEnsemble(ABC):
         sigmoid = param.pop("sigmoid", False)
 
         outputs = []
-        for i in range(len(files)):
+        for i, file in enumerate(files):
             print(i)
             preds = []
-            infer_filename = self.infer_files[i]
             for algo in self.algo_ensemble:
                 infer_instance = algo[AlgoEnsembleKeys.ALGO]
-                param.update({"files": [infer_filename]})
-                pred = infer_instance.predict(param)
+                pred = infer_instance.predict(predict_files=[file], predict_params=param)
                 preds.append(pred[0])
             outputs.append(self.ensemble_pred(preds, sigmoid=sigmoid))
         return outputs
@@ -243,7 +256,6 @@ class AlgoEnsembleBuilder:
             builder.set_ensemble_method(BundleAlgoEnsembleBestN(3))
             ensemble = builder.get_ensemble()
 
-            result = ensemble.predict()
     """
 
     def __init__(self, history: Sequence[Dict], data_src_cfg_filename: Optional[str] = None):
