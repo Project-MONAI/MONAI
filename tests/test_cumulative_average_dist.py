@@ -13,17 +13,16 @@ import unittest
 
 import numpy as np
 import torch
-import torch.distributed as dist
 
 from monai.metrics import CumulativeAverage
-from tests.utils import DistCall, DistTestCase, SkipIfBeforePyTorchVersion
+from tests.utils import DistTestCase, SkipIfBeforePyTorchVersion
 
 
 @SkipIfBeforePyTorchVersion((1, 8))
 class DistributedCumulativeAverage(DistTestCase):
     def test_value(self):
 
-        rank = 0 
+        rank = 0
         is_cuda = torch.cuda.is_available()
         device = torch.device(rank) if is_cuda else torch.device("cpu")
 
