@@ -177,17 +177,14 @@ class BundleAlgo(Algo):
         Execute the training command with target devices information.
 
         """
-        try:
-            logger.info(f"Launching: {cmd}")
-            ps_environ = os.environ.copy()
-            if devices_info:
-                ps_environ["CUDA_VISIBLE_DEVICES"] = devices_info
-            normal_out = subprocess.run(cmd.split(), env=ps_environ, check=True, capture_output=True)
-            logger.info(repr(normal_out).replace("\\n", "\n").replace("\\t", "\t"))
-        except subprocess.CalledProcessError as e:
-            output = repr(e.stdout).replace("\\n", "\n").replace("\\t", "\t")
-            errors = repr(e.stderr).replace("\\n", "\n").replace("\\t", "\t")
-            raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}") from e
+
+        logger.info(f"Launching: {cmd}")
+        ps_environ = os.environ.copy()
+        if devices_info:
+            ps_environ["CUDA_VISIBLE_DEVICES"] = devices_info
+        normal_out = subprocess.run(cmd.split(), env=ps_environ, check=True)
+        logger.info(repr(normal_out).replace("\\n", "\n").replace("\\t", "\t"))
+
         return normal_out
 
     def train(self, train_params=None):
