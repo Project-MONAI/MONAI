@@ -85,7 +85,8 @@ class AlgoEnsemble(ABC):
             if data_key in datalist:
                 self.infer_files, _ = datafold_read(datalist=datalist, basedir=dataroot, fold=-1, key=data_key)
             else:
-                print(f"Datalist file has no testing key {data_key}. No data for inference is specified")
+                logger.info(f"Datalist file has no testing key - {data_key}. No data for inference is specified")
+
         else:
             raise ValueError("Unsupported parameter type")
 
