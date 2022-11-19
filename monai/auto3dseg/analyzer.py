@@ -33,7 +33,7 @@ from monai.bundle.utils import ID_SEP_KEY
 from monai.data import MetaTensor, affine_to_spacing
 from monai.transforms.transform import MapTransform
 from monai.transforms.utils_pytorch_numpy_unification import sum, unique
-from monai.utils import convert_to_numpy
+from monai.utils import convert_to_numpy, pytorch_after
 from monai.utils.enums import DataStatsKeys, ImageStatsKeys, LabelStatsKeys
 from monai.utils.misc import ImageMetaKey, label_union
 
@@ -330,7 +330,9 @@ class FgImageStats(Analyzer):
             if np.allclose(list(ndas_label.shape), list(ndas[0].shape), atol=10):
                 logger.info(f" Label shape {ndas_label.shape} is slightly different from image shape {ndas[0].shape}")
                 ndas_label = F.interpolate(
-                    input=ndas_label, size=list(ndas[0].shape), mode="nearest", align_corners=False
+                    input=ndas_label,
+                    size=list(ndas[0].shape),
+                    mode="nearest-exact" if pytorch_after(1, 11) else "nearest",
                 )
             else:
                 raise ValueError(f"Label shape {ndas_label.shape} is  different from image shape {ndas[0].shape}")
@@ -467,7 +469,9 @@ class LabelStats(Analyzer):
             if np.allclose(list(ndas_label.shape), list(ndas[0].shape), atol=10):
                 logger.info(f" Label shape {ndas_label.shape} is slightly different from image shape {ndas[0].shape}")
                 ndas_label = F.interpolate(
-                    input=ndas_label, size=list(ndas[0].shape), mode="nearest", align_corners=False
+                    input=ndas_label,
+                    size=list(ndas[0].shape),
+                    mode="nearest-exact" if pytorch_after(1, 11) else "nearest",
                 )
             else:
                 raise ValueError(f"Label shape {ndas_label.shape} is  different from image shape {ndas[0].shape}")
