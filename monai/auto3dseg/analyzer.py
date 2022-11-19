@@ -330,10 +330,10 @@ class FgImageStats(Analyzer):
             if np.allclose(list(ndas_label.shape), list(ndas[0].shape), atol=10):
                 logger.info(f" Label shape {ndas_label.shape} is slightly different from image shape {ndas[0].shape}")
                 ndas_label = F.interpolate(
-                    input=ndas_label,
+                    input=ndas_label.unsqueeze(0).unsqueeze(0),
                     size=list(ndas[0].shape),
                     mode="nearest-exact" if pytorch_after(1, 11) else "nearest",
-                )
+                )[0, 0]
             else:
                 raise ValueError(f"Label shape {ndas_label.shape} is  different from image shape {ndas[0].shape}")
 
@@ -469,10 +469,10 @@ class LabelStats(Analyzer):
             if np.allclose(list(ndas_label.shape), list(ndas[0].shape), atol=10):
                 logger.info(f" Label shape {ndas_label.shape} is slightly different from image shape {ndas[0].shape}")
                 ndas_label = F.interpolate(
-                    input=ndas_label,
+                    input=ndas_label.unsqueeze(0).unsqueeze(0),
                     size=list(ndas[0].shape),
                     mode="nearest-exact" if pytorch_after(1, 11) else "nearest",
-                )
+                )[0, 0]
             else:
                 raise ValueError(f"Label shape {ndas_label.shape} is  different from image shape {ndas[0].shape}")
 
