@@ -37,6 +37,11 @@ class TestShuffleBuffer(unittest.TestCase):
             np.testing.assert_allclose(output, [[2, 3], [1, 4]], err_msg=f"seed {buffer.seed}")
             np.testing.assert_allclose(output2, [[1, 4], [2, 3]], err_msg=f"seed {buffer.seed}")
 
+    def test_epochs(self):
+        buffer = ShuffleBuffer([1, 2, 3, 4], seed=0, epochs=2)
+        output = [convert_data_type(x, np.ndarray)[0] for x in DataLoader(dataset=buffer, batch_size=2)]
+        np.testing.assert_allclose(output, [[2, 1], [3, 4], [4, 2], [3, 1]])
+
 
 if __name__ == "__main__":
     unittest.main()
