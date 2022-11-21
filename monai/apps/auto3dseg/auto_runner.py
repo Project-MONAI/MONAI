@@ -235,17 +235,6 @@ class AutoRunner:
         self.train = not self.cache["train"] if train is None else train
         self.ensemble = ensemble  # last step, no need to check
 
-        # since each next depends on the previous, check the dependencies
-        self.train = self.train or (
-            self.ensemble and not self.cache["train"]
-        )  # train is a necessary step to run ensemble
-        self.algo_gen = self.algo_gen or (
-            self.train and not self.cache["algo_gen"]
-        )  # algo_gen is a necessary step to run train
-        self.analyze = self.analyze or (
-            self.algo_gen and not self.cache["analyze"]
-        )  # analyze is a necessary step to run algo_gen
-
         # intermediate variables
         self.set_num_fold(num_fold=5)
         self.set_training_params()
@@ -560,6 +549,12 @@ class AutoRunner:
         # step 2: algorithm generation
         if self.algo_gen:
 
+            if not os.path.isfile(self.datastats_filename):
+                raise ValueError(
+                    f"Could not find the datastats file {self.datastats_filename}. "
+                    "Possibly the required data analysis step was not completed."
+                )
+
             bundle_generator = BundleGen(
                 algos=self.algos,
                 algo_path=self.work_dir,
@@ -577,6 +572,13 @@ class AutoRunner:
         # step 3: algo training
         if self.train:
             history = import_bundle_algo_history(self.work_dir, only_trained=False)
+
+            if len(history) == 0:
+                raise ValueError(
+                    f"Could not find training scripts in {self.work_dir}. "
+                    "Possibly the required algorithms generation step was not completed."
+                )
+
             if not self.hpo:
                 self._train_algo_in_sequence(history)
             else:
@@ -588,6 +590,12 @@ class AutoRunner:
         # step 4: model ensemble and write the prediction to disks.
         if self.ensemble:
             history = import_bundle_algo_history(self.work_dir, only_trained=True)
+            if len(history) == 0:
+                raise ValueError(
+                    f"Could not find the trained results in {self.work_dir}. "
+                    "Possibly the required training step was not completed."
+                )
+
             builder = AlgoEnsembleBuilder(history, self.data_src_cfg_name)
             builder.set_ensemble_method(self.ensemble_method)
 

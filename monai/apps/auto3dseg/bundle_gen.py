@@ -183,7 +183,6 @@ class BundleAlgo(Algo):
         if devices_info:
             ps_environ["CUDA_VISIBLE_DEVICES"] = devices_info
         normal_out = subprocess.run(cmd.split(), env=ps_environ, check=True)
-        logger.info(repr(normal_out).replace("\\n", "\n").replace("\\t", "\t"))
 
         return normal_out
 
