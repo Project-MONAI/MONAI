@@ -84,7 +84,7 @@ class FastMRIReader(ImageReader):
         header = self._get_meta_dict(dat)
         data: ndarray = np.array(dat[FastMRIKeys.KSPACE])
         header[FastMRIKeys.MASK] = (
-            np.expand_dims(np.array(dat[FastMRIKeys.MASK]),0)[None, ..., None]
+            np.expand_dims(np.array(dat[FastMRIKeys.MASK]), 0)[None, ..., None]
             if FastMRIKeys.MASK in dat.keys()
             else np.zeros(data.shape)
         )
