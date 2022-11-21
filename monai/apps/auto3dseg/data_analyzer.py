@@ -251,7 +251,9 @@ class DataAnalyzer:
             print("Data spacing is not completely uniform. MONAI transforms may provide unexpected result")
 
         if self.output_path:
-            ConfigParser.export_config_file(result, self.output_path, fmt=self.fmt, default_flow_style=None, sort_keys=False)
+            ConfigParser.export_config_file(
+                result, self.output_path, fmt=self.fmt, default_flow_style=None, sort_keys=False
+            )
 
         # release memory
         d = None
