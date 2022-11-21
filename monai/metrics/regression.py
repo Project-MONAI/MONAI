@@ -286,7 +286,7 @@ class SSIMMetric(RegressionMetric):
         self.cov_norm = (win_size**2) / (win_size**2 - 1)
         self.w = torch.ones([1, 1] + [win_size for _ in range(spatial_dims)]) / win_size**spatial_dims
 
-    def _compute_metric(self, x: torch.Tensor, y: torch.Tensor, full: bool = False) -> torch.Tensor:
+    def _compute_metric(self, x: torch.Tensor, y: torch.Tensor, full: bool = False) -> Union[tuple, torch.Tensor]:
         """
         Args:
             x: first sample (e.g., the reference image). Its shape is (B,C,W,H) for 2D data and (B,C,W,H,D) for 3D.
