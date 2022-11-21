@@ -51,7 +51,6 @@ seg_postpprocessing = Compose(
 TEST_CASE_1 = [seg_postpprocessing, {"return_centroids": True, "output_classes": 1}, [image, [10, 10]]]
 TEST_CASE_2 = [seg_postpprocessing, {"return_centroids": False, "output_classes": None}, [image]]
 
-
 TEST_CASE = []
 for p in TEST_NDARRAYS:
     TEST_CASE.append([p, image] + TEST_CASE_1)

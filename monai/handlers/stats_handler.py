@@ -204,7 +204,7 @@ class StatsHandler:
             hasattr(engine.state, "key_metric_name")
             and hasattr(engine.state, "best_metric")
             and hasattr(engine.state, "best_metric_epoch")
-            and engine.state.key_metric_name is not None  # type: ignore
+            and engine.state.key_metric_name is not None
         ):
             out_str = f"Key metric: {engine.state.key_metric_name} "
             out_str += f"best value: {engine.state.best_metric} "
