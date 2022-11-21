@@ -39,7 +39,7 @@ class CellInterface(torch.nn.Module):
     """interface for torchscriptable Cell"""
 
     def forward(self, x: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:  # type: ignore
-        pass  # type: ignore
+        pass
 
 
 @torch.jit.interface
@@ -47,7 +47,7 @@ class StemInterface(torch.nn.Module):
     """interface for torchscriptable Stem"""
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore
-        pass  # type: ignore
+        pass
 
 
 class StemTS(StemInterface):
