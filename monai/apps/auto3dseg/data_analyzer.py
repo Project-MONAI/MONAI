@@ -23,16 +23,7 @@ from monai.bundle import config_parser
 from monai.bundle.config_parser import ConfigParser
 from monai.data import DataLoader, Dataset
 from monai.data.utils import no_collation
-from monai.transforms import (
-    Compose,
-    EnsureChannelFirstd,
-    EnsureTyped,
-    Lambdad,
-    LoadImaged,
-    Orientationd,
-    SqueezeDimd,
-    ToDeviced,
-)
+from monai.transforms import Compose, EnsureTyped, LoadImaged, Orientationd
 from monai.utils import StrEnum, min_version, optional_import
 from monai.utils.enums import DataStatsKeys, ImageStatsKeys
 
@@ -48,10 +39,6 @@ tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
 logger = get_logger(module_name=__name__)
 
 __all__ = ["DataAnalyzer"]
-
-
-def _argmax_if_multichannel(x):
-    return torch.argmax(x, dim=0, keepdim=True) if x.shape[0] > 1 else x
 
 
 class DataAnalyzer:
@@ -125,7 +112,7 @@ class DataAnalyzer:
         dataroot: str = "",
         output_path: str = "./data_stats.yaml",
         average: bool = True,
-        do_ccp: bool = True,
+        do_ccp: bool = False,
         device: Union[str, torch.device] = "cpu",
         worker: int = 2,
         image_key: str = "image",
@@ -145,7 +132,7 @@ class DataAnalyzer:
         self.average = average
         self.do_ccp = do_ccp
         self.device = torch.device(device)
-        self.worker = 0 if (self.device.type == "cuda") else worker
+        self.worker = worker
         self.image_key = image_key
         self.label_key = None if label_key == "None" else label_key
         self.hist_bins = hist_bins
@@ -215,17 +202,11 @@ class DataAnalyzer:
         keys = list(filter(None, [self.image_key, self.label_key]))
         if transform_list is None:
             transform_list = [
-                LoadImaged(keys=keys),
-                EnsureChannelFirstd(keys=keys),  # this creates label to be (1,H,W,D)
+                LoadImaged(keys=keys, ensure_channel_first=True),
+                EnsureTyped(keys=keys, data_type="tensor", dtype=torch.float),
                 Orientationd(keys=keys, axcodes="RAS"),
-                EnsureTyped(keys=keys, data_type="tensor"),
-                Lambdad(keys=self.label_key, func=_argmax_if_multichannel) if self.label_key else None,
-                SqueezeDimd(keys=self.label_key, dim=0) if self.label_key else None,
-                ToDeviced(keys=keys, device=self.device),
             ]
-        transform_list.append(summarizer)
-
-        transform = Compose(transforms=list(filter(None, transform_list)))
+        transform = Compose(transform_list)
 
         files, _ = datafold_read(datalist=self.datalist, basedir=self.dataroot, fold=-1, key=key)
         dataset = Dataset(data=files, transform=transform)
@@ -236,7 +217,17 @@ class DataAnalyzer:
             warnings.warn("tqdm is not installed. not displaying the caching progress.")
 
         for batch_data in tqdm(dataloader) if has_tqdm else dataloader:
-            d = batch_data[0]
+
+            batch_data = batch_data[0]
+            batch_data[self.image_key] = batch_data[self.image_key].to(self.device)
+
+            if self.label_key is not None:
+                label = batch_data[self.label_key]
+                label = torch.argmax(label, dim=0) if label.shape[0] > 1 else label[0]
+                batch_data[self.label_key] = label.to(self.device)
+
+            d = summarizer(batch_data)
+
             stats_by_cases = {
                 DataStatsKeys.BY_CASE_IMAGE_PATH: d[DataStatsKeys.BY_CASE_IMAGE_PATH],
                 DataStatsKeys.BY_CASE_LABEL_PATH: d[DataStatsKeys.BY_CASE_LABEL_PATH],
@@ -257,16 +248,15 @@ class DataAnalyzer:
         result[DataStatsKeys.SUMMARY] = summarizer.summarize(result[DataStatsKeys.BY_CASE])
 
         if not self._check_data_uniformity([ImageStatsKeys.SPACING], result):
-            logger.warning("data spacing is not completely uniform. MONAI transforms may provide unexpected result")
+            print("Data spacing is not completely uniform. MONAI transforms may provide unexpected result")
 
         if self.output_path:
-            ConfigParser.export_config_file(result, self.output_path, fmt=self.fmt, default_flow_style=None)
+            ConfigParser.export_config_file(
+                result, self.output_path, fmt=self.fmt, default_flow_style=None, sort_keys=False
+            )
 
-        # manually release the variable from cuda memory
-        del d[self.image_key]
-        if self.label_key and self.label_key in d:
-            del d[self.label_key]
-
+        # release memory
+        d = None
         if self.device.type == "cuda":
             # release unreferenced tensors to mitigate OOM
             # limitation: https://github.com/pytorch/pytorch/issues/12873#issuecomment-482916237
