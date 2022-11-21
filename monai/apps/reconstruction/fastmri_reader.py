@@ -85,7 +85,7 @@ class FastMRIReader(ImageReader):
         header = self._get_meta_dict(dat)
         data: ndarray = np.array(dat[FastMRIKeys.KSPACE])
         header[FastMRIKeys.MASK] = (
-            convert_to_tensor(np.array(dat[FastMRIKeys.MASK])).unsqueeze(0)[None, ..., None]
+            np.expand_dims(np.array(dat[FastMRIKeys.MASK]),0)
             if FastMRIKeys.MASK in dat.keys()
             else np.zeros(data.shape)
         )
