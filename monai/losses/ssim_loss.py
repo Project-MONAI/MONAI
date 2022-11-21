@@ -80,7 +80,6 @@ class SSIMLoss(_Loss):
                 # the following line should print 1.0 (or 0.9999)
                 print(1-SSIMLoss(spatial_dims=3)(x,y,data_range))
         """
-        ssim_value = torch.empty((1), dtype=torch.float)
         if x.shape[0] == 1:
             ssim_value: torch.Tensor = SSIMMetric(data_range, self.win_size, self.k1, self.k2, self.spatial_dims)(x, y)
         elif x.shape[0] > 1:
