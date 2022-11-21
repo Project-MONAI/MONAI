@@ -41,10 +41,6 @@ logger = get_logger(module_name=__name__)
 __all__ = ["DataAnalyzer"]
 
 
-def _argmax_if_multichannel(x):
-    return torch.argmax(x, dim=0, keepdim=True) if x.shape[0] > 1 else x
-
-
 class DataAnalyzer:
     """
     The DataAnalyzer automatically analyzes given medical image dataset and reports the statistics.
@@ -255,13 +251,10 @@ class DataAnalyzer:
             print("Data spacing is not completely uniform. MONAI transforms may provide unexpected result")
 
         if self.output_path:
-            ConfigParser.export_config_file(result, self.output_path, fmt=self.fmt, default_flow_style=None)
+            ConfigParser.export_config_file(result, self.output_path, fmt=self.fmt, default_flow_style=None, sort_keys=False)
 
-        # manually release the variable from cuda memory
-        del d[self.image_key]
-        if self.label_key and self.label_key in d:
-            del d[self.label_key]
-
+        # release memory
+        d = None
         if self.device.type == "cuda":
             # release unreferenced tensors to mitigate OOM
             # limitation: https://github.com/pytorch/pytorch/issues/12873#issuecomment-482916237
