@@ -115,9 +115,19 @@ DEFAULT_MLFLOW_SETTINGS = {
             "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
         },
         # MLFlowHandler config for the validator
-        "validator": {"_target_": "MLFlowHandler", "tracking_uri": "$@output_dir + '/mlflow'", "iteration_log": False},
+        "validator": {
+            "_target_": "MLFlowHandler",
+            "_disable_": "$torch.distributed.get_rank() > 0 if torch.distributed.is_initialized() else False",
+            "tracking_uri": "$@output_dir + '/mlflow'",
+            "iteration_log": False,
+        },
         # MLFlowHandler config for the evaluator
-        "evaluator": {"_target_": "MLFlowHandler", "tracking_uri": "$@output_dir + '/mlflow'", "iteration_log": False},
+        "evaluator": {
+            "_target_": "MLFlowHandler",
+            "_disable_": "$torch.distributed.get_rank() > 0 if torch.distributed.is_initialized() else False",
+            "tracking_uri": "$@output_dir + '/mlflow'",
+            "iteration_log": False,
+        },
     },
 }
 
