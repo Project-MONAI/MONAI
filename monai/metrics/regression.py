@@ -334,8 +334,7 @@ class SSIMMetric(RegressionMetric):
                         x[:, i, ...].unsqueeze(1), y[:, i, ...].unsqueeze(1)
                     )
                     for i in range(x.shape[1])
-                ],
-                dim=1,
+                ]
             )
             channel_wise_ssim = ssim.mean(1).view(-1, 1)
             return channel_wise_ssim
@@ -362,7 +361,7 @@ class SSIMMetric(RegressionMetric):
         # [B, 1]
         ssim_per_batch: torch.Tensor = ssim_value.view(ssim_value.shape[1], -1).mean(1, keepdim=True)
         if self.cs_return:
-            cs: torch.Tensor = (2 * vxy + c2) / (vx + vy + c2)  # contrast sensitivity function
-            cs_per_batch = cs.view(cs.shape[0], -1).mean(1, keepdim=True)  # [B, 1]
+            cs_per_batch: torch.Tensor = (2 * vxy + c2) / (vx + vy + c2)  # contrast sensitivity function
+            cs_per_batch = cs_per_batch.view(cs_per_batch.shape[0], -1).mean(1, keepdim=True)  # [B, 1]
             return ssim_per_batch, cs_per_batch
         return ssim_per_batch
