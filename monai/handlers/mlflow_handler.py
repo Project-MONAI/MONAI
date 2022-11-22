@@ -158,7 +158,7 @@ class MLFlowHandler:
         else:
             return False
 
-    def _delete_exist_param_in_dict(self, param_dict):
+    def _delete_exist_param_in_dict(self, param_dict: Dict) -> None:
         """
         Delete parameters in given dict, if they are already logged by current mlflow run.
 
@@ -210,6 +210,10 @@ class MLFlowHandler:
             self._try_log_param(engine, param_name)
 
     def _parse_artifacts(self):
+        """
+        Log artifacts to mlflow. Given a path, all files in the path will be logged recursively.
+        Given a file, it will be logged to mlflow.
+        """
         artifact_list = []
         for path_name in self.artifacts:
             if os.path.isfile(path_name):
