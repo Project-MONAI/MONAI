@@ -12,6 +12,7 @@
 from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
+import torch
 
 from monai.config.type_definitions import DtypeLike, NdarrayOrTensor
 from monai.transforms import Activations, AsDiscrete, BoundingRect, RemoveSmallObjects, SobelGradients
@@ -629,8 +630,8 @@ class GenerateInstanceType(Transform):
 
 class HoVerNetNuclearTypePostProcessing(Transform):
     """
-    The whole post-procesing transform for nuclear type classification branch. It return a dict which contains
-    centroid, bounding box, type prediciton for each instance.
+    The whole post-procesing transform for nuclear type classification branch. It returns type prediction map and a
+    dict contains centroid, bounding box, type prediciton for each instance.
 
     Args:
         min_num_points: assumed that the created contour does not form a contour if it does not contain more points
@@ -656,7 +657,11 @@ class HoVerNetNuclearTypePostProcessing(Transform):
         self.generate_instance_centroid = GenerateInstanceCentroid()
         self.generate_instance_type = GenerateInstanceType()
 
-    def __call__(self, type_pred: NdarrayOrTensor, instance_pred: NdarrayOrTensor) -> Dict:  # type: ignore
+    def __call__(  # type: ignore
+        self,
+        type_pred: NdarrayOrTensor,
+        instance_pred: NdarrayOrTensor
+    ) -> Union[Tuple[NdarrayOrTensor, Dict], Dict]:
         type_pred = Activations(softmax=True)(type_pred)
         type_pred = AsDiscrete(argmax=True)(type_pred)
 
@@ -691,4 +696,11 @@ class HoVerNetNuclearTypePostProcessing(Transform):
                 inst_info_dict[inst_id]["type"] = inst_type  # type: ignore
                 inst_info_dict[inst_id]["type_probability"] = type_prob  # type: ignore
 
-        return inst_info_dict
+            instance_pred = convert_to_dst_type(instance_pred, type_pred)[0]
+            pred_type_map = torch.zeros_like(instance_pred)  # type: ignore
+            for key, value in inst_info_dict.items():
+                pred_type_map[instance_pred == key] = value["type"] # type: ignore
+
+            return pred_type_map, inst_info_dict
+        else:
+            return inst_info_dict
