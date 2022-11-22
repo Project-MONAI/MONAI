@@ -16,36 +16,38 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.nets.swin_unetr import SwinUNETR
+from monai.networks.nets.swin_unetr import PatchMerging, PatchMergingV2, SwinUNETR
 from monai.utils import optional_import
 
 einops, has_einops = optional_import("einops")
 
 TEST_CASE_SWIN_UNETR = []
+case_idx = 0
+test_merging_mode = ["mergingv2", "merging", PatchMerging, PatchMergingV2]
 for attn_drop_rate in [0.4]:
     for in_channels in [1]:
         for depth in [[2, 1, 1, 1], [1, 2, 1, 1]]:
             for out_channels in [2]:
-                for img_size in [64]:
+                for img_size in ((64, 32, 192), (96, 32)):
                     for feature_size in [12]:
                         for norm_name in ["instance"]:
-                            for nd in (2, 3):
-                                test_case = [
-                                    {
-                                        "in_channels": in_channels,
-                                        "out_channels": out_channels,
-                                        "img_size": (img_size,) * nd,
-                                        "feature_size": feature_size,
-                                        "depths": depth,
-                                        "norm_name": norm_name,
-                                        "attn_drop_rate": attn_drop_rate,
-                                    },
-                                    (2, in_channels, *([img_size] * nd)),
-                                    (2, out_channels, *([img_size] * nd)),
-                                ]
-                                if nd == 2:
-                                    test_case[0]["spatial_dims"] = 2  # type: ignore
-                                TEST_CASE_SWIN_UNETR.append(test_case)
+                            test_case = [
+                                {
+                                    "spatial_dims": len(img_size),
+                                    "in_channels": in_channels,
+                                    "out_channels": out_channels,
+                                    "img_size": img_size,
+                                    "feature_size": feature_size,
+                                    "depths": depth,
+                                    "norm_name": norm_name,
+                                    "attn_drop_rate": attn_drop_rate,
+                                    "downsample": test_merging_mode[case_idx % 4],
+                                },
+                                (2, in_channels, *img_size),
+                                (2, out_channels, *img_size),
+                            ]
+                            case_idx += 1
+                            TEST_CASE_SWIN_UNETR.append(test_case)
 
 
 class TestSWINUNETR(unittest.TestCase):
@@ -83,6 +85,11 @@ class TestSWINUNETR(unittest.TestCase):
                 norm_name="instance",
                 drop_rate=0.4,
             )
+
+    def test_patch_merging(self):
+        dim = 10
+        t = PatchMerging(dim)(torch.zeros((1, 21, 20, 20, dim)))
+        self.assertEqual(t.shape, torch.Size([1, 11, 10, 10, 20]))
 
 
 if __name__ == "__main__":

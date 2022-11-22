@@ -125,10 +125,10 @@ class ModelWithHooks:
     def class_score(self, logits, class_idx):
         return logits[:, class_idx].squeeze()
 
-    def __call__(self, x, class_idx=None, retain_graph=False):
+    def __call__(self, x, class_idx=None, retain_graph=False, **kwargs):
         train = self.model.training
         self.model.eval()
-        logits = self.model(x)
+        logits = self.model(x, **kwargs)
         self.class_idx = logits.max(1)[-1] if class_idx is None else class_idx
         acti, grad = None, None
         if self.register_forward:
@@ -175,17 +175,18 @@ class CAMBase:
         self.upsampler = upsampler
         self.postprocessing = postprocessing
 
-    def feature_map_size(self, input_size, device="cpu", layer_idx=-1):
+    def feature_map_size(self, input_size, device="cpu", layer_idx=-1, **kwargs):
         """
         Computes the actual feature map size given `nn_module` and the target_layer name.
         Args:
             input_size: shape of the input tensor
             device: the device used to initialise the input tensor
             layer_idx: index of the target layer if there are multiple target layers. Defaults to -1.
+            kwargs: any extra arguments to be passed on to the module as part of its `__call__`.
         Returns:
             shape of the actual feature map.
         """
-        return self.compute_map(torch.zeros(*input_size, device=device), layer_idx=layer_idx).shape
+        return self.compute_map(torch.zeros(*input_size, device=device), layer_idx=layer_idx, **kwargs).shape
 
     def compute_map(self, x, class_idx=None, layer_idx=-1):
         """
@@ -286,8 +287,8 @@ class CAM(CAMBase):
         )
         self.fc_layers = fc_layers
 
-    def compute_map(self, x, class_idx=None, layer_idx=-1):
-        logits, acti, _ = self.nn_module(x)
+    def compute_map(self, x, class_idx=None, layer_idx=-1, **kwargs):
+        logits, acti, _ = self.nn_module(x, **kwargs)
         acti = acti[layer_idx]
         if class_idx is None:
             class_idx = logits.max(1)[-1]
@@ -298,7 +299,7 @@ class CAM(CAMBase):
         output = torch.stack([output[i, b : b + 1] for i, b in enumerate(class_idx)], dim=0)
         return output.reshape(b, 1, *spatial)  # resume the spatial dims on the selected class
 
-    def __call__(self, x, class_idx=None, layer_idx=-1):
+    def __call__(self, x, class_idx=None, layer_idx=-1, **kwargs):
         """
         Compute the activation map with upsampling and postprocessing.
 
@@ -306,11 +307,12 @@ class CAM(CAMBase):
             x: input tensor, shape must be compatible with `nn_module`.
             class_idx: index of the class to be visualized. Default to argmax(logits)
             layer_idx: index of the target layer if there are multiple target layers. Defaults to -1.
+            kwargs: any extra arguments to be passed on to the module as part of its `__call__`.
 
         Returns:
             activation maps
         """
-        acti_map = self.compute_map(x, class_idx, layer_idx)
+        acti_map = self.compute_map(x, class_idx, layer_idx, **kwargs)
         return self._upsample_and_post_process(acti_map, x)
 
 
@@ -356,15 +358,15 @@ class GradCAM(CAMBase):
 
     """
 
-    def compute_map(self, x, class_idx=None, retain_graph=False, layer_idx=-1):
-        _, acti, grad = self.nn_module(x, class_idx=class_idx, retain_graph=retain_graph)
+    def compute_map(self, x, class_idx=None, retain_graph=False, layer_idx=-1, **kwargs):
+        _, acti, grad = self.nn_module(x, class_idx=class_idx, retain_graph=retain_graph, **kwargs)
         acti, grad = acti[layer_idx], grad[layer_idx]
         b, c, *spatial = grad.shape
         weights = grad.view(b, c, -1).mean(2).view(b, c, *[1] * len(spatial))
         acti_map = (weights * acti).sum(1, keepdim=True)
         return F.relu(acti_map)
 
-    def __call__(self, x, class_idx=None, layer_idx=-1, retain_graph=False):
+    def __call__(self, x, class_idx=None, layer_idx=-1, retain_graph=False, **kwargs):
         """
         Compute the activation map with upsampling and postprocessing.
 
@@ -373,11 +375,12 @@ class GradCAM(CAMBase):
             class_idx: index of the class to be visualized. Default to argmax(logits)
             layer_idx: index of the target layer if there are multiple target layers. Defaults to -1.
             retain_graph: whether to retain_graph for torch module backward call.
+            kwargs: any extra arguments to be passed on to the module as part of its `__call__`.
 
         Returns:
             activation maps
         """
-        acti_map = self.compute_map(x, class_idx=class_idx, retain_graph=retain_graph, layer_idx=layer_idx)
+        acti_map = self.compute_map(x, class_idx=class_idx, retain_graph=retain_graph, layer_idx=layer_idx, **kwargs)
         return self._upsample_and_post_process(acti_map, x)
 
 
@@ -395,8 +398,8 @@ class GradCAMpp(GradCAM):
 
     """
 
-    def compute_map(self, x, class_idx=None, retain_graph=False, layer_idx=-1):
-        _, acti, grad = self.nn_module(x, class_idx=class_idx, retain_graph=retain_graph)
+    def compute_map(self, x, class_idx=None, retain_graph=False, layer_idx=-1, **kwargs):
+        _, acti, grad = self.nn_module(x, class_idx=class_idx, retain_graph=retain_graph, **kwargs)
         acti, grad = acti[layer_idx], grad[layer_idx]
         b, c, *spatial = grad.shape
         alpha_nr = grad.pow(2)

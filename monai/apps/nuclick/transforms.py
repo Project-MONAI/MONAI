@@ -16,6 +16,7 @@ from typing import Any, Tuple, Union
 import numpy as np
 
 from monai.config import KeysCollection
+from monai.data import MetaTensor
 from monai.transforms import MapTransform, Randomizable, SpatialPad
 from monai.utils import StrEnum, optional_import
 
@@ -60,7 +61,8 @@ class FlattenLabeld(MapTransform):
     def __call__(self, data):
         d = dict(data)
         for key in self.keys:
-            d[key] = measure.label(d[key], connectivity=self.connectivity).astype(np.uint8)
+            img = d[key].array if isinstance(d[key], MetaTensor) else d[key]
+            d[key] = measure.label(img, connectivity=self.connectivity).astype(np.uint8)
         return d
 
 
@@ -143,7 +145,6 @@ class SplitLabeld(MapTransform):
         min_area: int = 5,
     ):
 
-        # self.label = label
         super().__init__(keys, allow_missing_keys=False)
         self.others = others
         self.mask_value = mask_value
@@ -159,8 +160,9 @@ class SplitLabeld(MapTransform):
         for key in self.keys:
             self.label = key
 
-        label = d[self.label]
-        mask_value = d[self.mask_value]
+        label = d[self.label].array if isinstance(d[self.label], MetaTensor) else d[self.label]
+        mask_value = d[self.mask_value].array if isinstance(d[self.mask_value], MetaTensor) else d[self.mask_value]
+
         mask = np.uint8(label == mask_value)
         others = (1 - mask) * label
         others = self._mask_relabeling(others[0], min_area=self.min_area)[np.newaxis]
@@ -200,7 +202,7 @@ class FilterImaged(MapTransform):
     def __call__(self, data):
         d = dict(data)
         for key in self.keys:
-            img = d[key]
+            img = d[key].array if isinstance(d[key], MetaTensor) else d[key]
             d[key] = self.filter(img)
         return d
 
@@ -284,9 +286,9 @@ class AddPointGuidanceSignald(Randomizable, MapTransform):
     def __call__(self, data):
         d = dict(data)
 
-        image = d[self.image]
-        mask = d[self.label]
-        others = d[self.others]
+        image = d[self.image].array if isinstance(d[self.image], MetaTensor) else d[self.image]
+        mask = d[self.label].array if isinstance(d[self.label], MetaTensor) else d[self.label]
+        others = d[self.others].array if isinstance(d[self.others], MetaTensor) else d[self.others]
 
         inc_sig = self.inclusion_map(mask[0])
         exc_sig = self.exclusion_map(others[0], drop_rate=self.drop_rate, jitter_range=self.jitter_range)
@@ -353,7 +355,8 @@ class AddClickSignalsd(MapTransform):
         cx = [xy[0] for xy in pos]
         cy = [xy[1] for xy in pos]
 
-        img = d[self.image].astype(np.uint8)
+        img = d[self.image].array if isinstance(d[self.image], MetaTensor) else d[self.image]
+        img = img.astype(np.uint8)
         img_width = img.shape[-1]
         img_height = img.shape[-2]
 
@@ -427,8 +430,7 @@ class AddClickSignalsd(MapTransform):
         cx = np.delete(cx, del_indices)
         cy = np.delete(cy, del_indices)
 
-        for i in range(len(bounding_boxes)):
-            bounding_box = bounding_boxes[i]
+        for i, bounding_box in enumerate(bounding_boxes):
             x_start = bounding_box[0]
             y_start = bounding_box[1]
             x_end = bounding_box[2]
@@ -523,9 +525,9 @@ class PostFilterLabeld(MapTransform):
 
     def gen_instance_map(self, masks, bounding_boxes, m, n, flatten=True):
         instance_map = np.zeros((m, n), dtype=np.uint16)
-        for i in range(len(masks)):
+        for i, item in enumerate(masks):
             this_bb = bounding_boxes[i]
-            this_mask_pos = np.argwhere(masks[i] > 0)
+            this_mask_pos = np.argwhere(item > 0)
             this_mask_pos[:, 0] = this_mask_pos[:, 0] + this_bb[1]
             this_mask_pos[:, 1] = this_mask_pos[:, 1] + this_bb[0]
             instance_map[this_mask_pos[:, 0], this_mask_pos[:, 1]] = 1 if flatten else i + 1

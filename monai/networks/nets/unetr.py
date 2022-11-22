@@ -40,6 +40,7 @@ class UNETR(nn.Module):
         res_block: bool = True,
         dropout_rate: float = 0.0,
         spatial_dims: int = 3,
+        qkv_bias: bool = False,
     ) -> None:
         """
         Args:
@@ -56,6 +57,7 @@ class UNETR(nn.Module):
             res_block: bool argument to determine if residual block is used.
             dropout_rate: faction of the input units to drop.
             spatial_dims: number of spatial dims.
+            qkv_bias: apply the bias term for the qkv linear layer in self attention block
 
         Examples::
 
@@ -96,6 +98,7 @@ class UNETR(nn.Module):
             classification=self.classification,
             dropout_rate=dropout_rate,
             spatial_dims=spatial_dims,
+            qkv_bias=qkv_bias,
         )
         self.encoder1 = UnetrBasicBlock(
             spatial_dims=spatial_dims,

@@ -1,10 +1,8 @@
 Fixes # .
 
 ### Description
-A few sentences describing the changes proposed in this pull request.
 
-### Status
-**Ready/Work in progress/Hold**
+A few sentences describing the changes proposed in this pull request.
 
 ### Types of changes
 <!--- Put an `x` in all the boxes that apply, and remove the not applicable items -->

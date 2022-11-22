@@ -19,8 +19,10 @@ import warnings
 from copy import deepcopy
 from typing import Any, Callable, Dict, Hashable, Iterable, List, Mapping, Optional, Sequence, Union
 
+import numpy as np
 import torch
 
+from monai import config
 from monai.config.type_definitions import KeysCollection, NdarrayOrTensor, PathLike
 from monai.data.csv_saver import CSVSaver
 from monai.data.meta_tensor import MetaTensor
@@ -34,13 +36,14 @@ from monai.transforms.post.array import (
     LabelToContour,
     MeanEnsemble,
     ProbNMS,
+    RemoveSmallObjects,
+    SobelGradients,
     VoteEnsemble,
 )
 from monai.transforms.transform import MapTransform
 from monai.transforms.utility.array import ToTensor
 from monai.transforms.utils import allow_missing_keys_mode, convert_applied_interp_mode
-from monai.utils import convert_to_tensor, deprecated_arg, ensure_tuple, ensure_tuple_rep
-from monai.utils.enums import PostFix
+from monai.utils import PostFix, convert_to_tensor, ensure_tuple, ensure_tuple_rep
 
 __all__ = [
     "ActivationsD",
@@ -61,6 +64,9 @@ __all__ = [
     "KeepLargestConnectedComponentD",
     "KeepLargestConnectedComponentDict",
     "KeepLargestConnectedComponentd",
+    "RemoveSmallObjectsD",
+    "RemoveSmallObjectsDict",
+    "RemoveSmallObjectsd",
     "LabelFilterD",
     "LabelFilterDict",
     "LabelFilterd",
@@ -99,6 +105,7 @@ class Activationsd(MapTransform):
         softmax: Union[Sequence[bool], bool] = False,
         other: Optional[Union[Sequence[Callable], Callable]] = None,
         allow_missing_keys: bool = False,
+        **kwargs,
     ) -> None:
         """
         Args:
@@ -112,6 +119,8 @@ class Activationsd(MapTransform):
                 for example: `other = torch.tanh`. it also can be a sequence of Callable, each
                 element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
+            kwargs: additional parameters to `torch.softmax` (used when ``softmax=True``).
+                Defaults to ``dim=0``, unrecognized parameters will be ignored.
 
         """
         super().__init__(keys, allow_missing_keys)
@@ -119,6 +128,7 @@ class Activationsd(MapTransform):
         self.softmax = ensure_tuple_rep(softmax, len(self.keys))
         self.other = ensure_tuple_rep(other, len(self.keys))
         self.converter = Activations()
+        self.converter.kwargs = kwargs
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -134,12 +144,6 @@ class AsDiscreted(MapTransform):
 
     backend = AsDiscrete.backend
 
-    @deprecated_arg(name="n_classes", new_name="num_classes", since="0.6", msg_suffix="please use `to_onehot` instead.")
-    @deprecated_arg("num_classes", since="0.7", msg_suffix="please use `to_onehot` instead.")
-    @deprecated_arg("logit_thresh", since="0.7", msg_suffix="please use `threshold` instead.")
-    @deprecated_arg(
-        name="threshold_values", new_name="threshold", since="0.7", msg_suffix="please use `threshold` instead."
-    )
     def __init__(
         self,
         keys: KeysCollection,
@@ -148,10 +152,7 @@ class AsDiscreted(MapTransform):
         threshold: Union[Sequence[Optional[float]], Optional[float]] = None,
         rounding: Union[Sequence[Optional[str]], Optional[str]] = None,
         allow_missing_keys: bool = False,
-        n_classes: Optional[Union[Sequence[int], int]] = None,  # deprecated
-        num_classes: Optional[Union[Sequence[int], int]] = None,  # deprecated
-        logit_thresh: Union[Sequence[float], float] = 0.5,  # deprecated
-        threshold_values: Union[Sequence[bool], bool] = False,  # deprecated
+        **kwargs,
     ) -> None:
         """
         Args:
@@ -167,40 +168,28 @@ class AsDiscreted(MapTransform):
                 available options: ["torchrounding"]. it also can be a sequence of str or None,
                 each element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
-
-        .. deprecated:: 0.6.0
-            ``n_classes`` is deprecated, use ``to_onehot`` instead.
-
-        .. deprecated:: 0.7.0
-            ``num_classes`` is deprecated, use ``to_onehot`` instead.
-            ``logit_thresh`` is deprecated, use ``threshold`` instead.
-            ``threshold_values`` is deprecated, use ``threshold`` instead.
+            kwargs: additional parameters to ``AsDiscrete``.
+                ``dim``, ``keepdim``, ``dtype`` are supported, unrecognized parameters will be ignored.
+                These default to ``0``, ``True``, ``torch.float`` respectively.
 
         """
         super().__init__(keys, allow_missing_keys)
         self.argmax = ensure_tuple_rep(argmax, len(self.keys))
-        to_onehot_ = ensure_tuple_rep(to_onehot, len(self.keys))
-        num_classes = ensure_tuple_rep(num_classes, len(self.keys))
         self.to_onehot = []
-        for flag, val in zip(to_onehot_, num_classes):
+        for flag in ensure_tuple_rep(to_onehot, len(self.keys)):
             if isinstance(flag, bool):
-                warnings.warn("`to_onehot=True/False` is deprecated, please use `to_onehot=num_classes` instead.")
-                self.to_onehot.append(val if flag else None)
-            else:
-                self.to_onehot.append(flag)
+                raise ValueError("`to_onehot=True/False` is deprecated, please use `to_onehot=num_classes` instead.")
+            self.to_onehot.append(flag)
 
-        threshold_ = ensure_tuple_rep(threshold, len(self.keys))
-        logit_thresh = ensure_tuple_rep(logit_thresh, len(self.keys))
         self.threshold = []
-        for flag, val in zip(threshold_, logit_thresh):
+        for flag in ensure_tuple_rep(threshold, len(self.keys)):
             if isinstance(flag, bool):
-                warnings.warn("`threshold_values=True/False` is deprecated, please use `threshold=value` instead.")
-                self.threshold.append(val if flag else None)
-            else:
-                self.threshold.append(flag)
+                raise ValueError("`threshold_values=True/False` is deprecated, please use `threshold=value` instead.")
+            self.threshold.append(flag)
 
         self.rounding = ensure_tuple_rep(rounding, len(self.keys))
         self.converter = AsDiscrete()
+        self.converter.kwargs = kwargs
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -225,6 +214,7 @@ class KeepLargestConnectedComponentd(MapTransform):
         is_onehot: Optional[bool] = None,
         independent: bool = True,
         connectivity: Optional[int] = None,
+        num_components: int = 1,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -245,13 +235,53 @@ class KeepLargestConnectedComponentd(MapTransform):
                 Accepted values are ranging from  1 to input.ndim. If ``None``, a full
                 connectivity of ``input.ndim`` is used. for more details:
                 https://scikit-image.org/docs/dev/api/skimage.measure.html#skimage.measure.label.
+            num_components: The number of largest components to preserve.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
         super().__init__(keys, allow_missing_keys)
         self.converter = KeepLargestConnectedComponent(
-            applied_labels=applied_labels, is_onehot=is_onehot, independent=independent, connectivity=connectivity
+            applied_labels=applied_labels,
+            is_onehot=is_onehot,
+            independent=independent,
+            connectivity=connectivity,
+            num_components=num_components,
         )
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.converter(d[key])
+        return d
+
+
+class RemoveSmallObjectsd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.RemoveSmallObjectsd`.
+
+    Args:
+        min_size: objects smaller than this size are removed.
+        connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
+            Accepted values are ranging from  1 to input.ndim. If ``None``, a full
+            connectivity of ``input.ndim`` is used. For more details refer to linked scikit-image
+            documentation.
+        independent_channels: Whether or not to consider channels as independent. If true, then
+            conjoining islands from different labels will be removed if they are below the threshold.
+            If false, the overall size islands made from all non-background voxels will be used.
+    """
+
+    backend = RemoveSmallObjects.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        min_size: int = 64,
+        connectivity: int = 1,
+        independent_channels: bool = True,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.converter = RemoveSmallObjects(min_size, connectivity, independent_channels)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -477,7 +507,7 @@ class ProbNMSd(MapTransform):
         prob_threshold: the probability threshold, the function will stop searching if
             the highest probability is no larger than the threshold. The value should be
             no less than 0.0. Defaults to 0.5.
-        box_size: the box size (in pixel) to be removed around the the pixel with the maximum probability.
+        box_size: the box size (in pixel) to be removed around the pixel with the maximum probability.
             It can be an integer that defines the size of a square or cube,
             or a list containing different values for each dimensions. Defaults to 48.
 
@@ -517,13 +547,17 @@ class ProbNMSd(MapTransform):
 
 class Invertd(MapTransform):
     """
-    Utility transform to automatically invert the previously applied transforms.
+    Utility transform to invert the previously applied transforms.
 
     Taking the ``transform`` previously applied on ``orig_keys``, this ``Invertd`` will apply the inverse of it
-    to the data stored at ``keys``. ``Invertd``'s output will also include a copy of the metadata
-    dictionary (originally from  ``orig_meta_keys``), with the relevant fields inverted and stored at ``meta_keys``.
+    to the data stored at ``keys``.
 
-    A typical usage is to apply the inverse of the preprocessing on input ``image`` to the model ``pred``.
+    ``Invertd``'s output will also include a copy of the metadata
+    dictionary (originally from  ``orig_meta_keys`` or the metadata of ``orig_keys``),
+    with the relevant fields inverted and stored at ``meta_keys``.
+
+    A typical usage is to apply the inverse of the preprocessing (``transform=preprocessings``) on
+    input ``orig_keys=image`` to the model predictions ``keys=pred``.
 
     A detailed usage example is available in the tutorial:
     https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/torch/unet_inference_dict.py
@@ -550,8 +584,8 @@ class Invertd(MapTransform):
         meta_key_postfix: str = DEFAULT_POST_FIX,
         nearest_interp: Union[bool, Sequence[bool]] = True,
         to_tensor: Union[bool, Sequence[bool]] = True,
-        device: Union[Union[str, torch.device], Sequence[Union[str, torch.device]]] = "cpu",
-        post_func: Union[Callable, Sequence[Callable]] = lambda x: x,
+        device: Union[Union[str, torch.device], Sequence[Union[str, torch.device]], None] = None,
+        post_func: Union[Callable, Sequence[Callable], None] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -579,7 +613,7 @@ class Invertd(MapTransform):
             to_tensor: whether to convert the inverted data into PyTorch Tensor first, default to `True`.
                 It also can be a list of bool, each matches to the `keys` data.
             device: if converted to Tensor, move the inverted results to target device before `post_func`,
-                default to "cpu", it also can be a list of string or `torch.device`, each matches to the `keys` data.
+                default to None, it also can be a list of string or `torch.device`, each matches to the `keys` data.
             post_func: post processing for the inverted data, should be a callable function.
                 It also can be a list of callable, each matches to the `keys` data.
             allow_missing_keys: don't raise exception if key is missing.
@@ -634,15 +668,16 @@ class Invertd(MapTransform):
                     warnings.warn(f"transform info of `{orig_key}` is not available or no InvertibleTransform applied.")
                     continue
 
+            orig_meta_key = orig_meta_key or f"{orig_key}_{meta_key_postfix}"
             if orig_key in d and isinstance(d[orig_key], MetaTensor):
                 transform_info = d[orig_key].applied_operations
                 meta_info = d[orig_key].meta
             else:
                 transform_info = d[InvertibleTransform.trace_key(orig_key)]
-                meta_info = d.get(orig_meta_key or f"{orig_key}_{meta_key_postfix}", {})
+                meta_info = d.get(orig_meta_key, {})
             if nearest_interp:
                 transform_info = convert_applied_interp_mode(
-                    trans_info=deepcopy(transform_info), mode="nearest", align_corners=None
+                    trans_info=transform_info, mode="nearest", align_corners=None
                 )
 
             inputs = d[key]
@@ -651,23 +686,30 @@ class Invertd(MapTransform):
 
             if not isinstance(inputs, MetaTensor):
                 inputs = convert_to_tensor(inputs, track_meta=True)
-            inputs.applied_operations = transform_info
-            inputs.meta = meta_info
+            inputs.applied_operations = deepcopy(transform_info)
+            inputs.meta = deepcopy(meta_info)
 
             # construct the input dict data
             input_dict = {orig_key: inputs}
-
+            if config.USE_META_DICT:
+                input_dict[InvertibleTransform.trace_key(orig_key)] = transform_info
+                input_dict[PostFix.meta(orig_key)] = meta_info
             with allow_missing_keys_mode(self.transform):  # type: ignore
                 inverted = self.transform.inverse(input_dict)
 
             # save the inverted data
-            if to_tensor and not isinstance(inverted[orig_key], MetaTensor):
-                inverted_data = self._totensor(inverted[orig_key])
-            else:
-                inverted_data = inverted[orig_key]
-            d[key] = post_func(inverted_data.to(device))
-
-            # save the inverted meta dict
+            inverted_data = inverted[orig_key]
+            if to_tensor and not isinstance(inverted_data, MetaTensor):
+                inverted_data = self._totensor(inverted_data)
+            if isinstance(inverted_data, np.ndarray) and device is not None and torch.device(device).type != "cpu":
+                raise ValueError(f"Inverted data with type of 'numpy.ndarray' support device='cpu', got {device}.")
+            if isinstance(inverted_data, torch.Tensor):
+                inverted_data = inverted_data.to(device=device)
+            d[key] = post_func(inverted_data) if callable(post_func) else inverted_data
+            # save the invertd applied_operations if it's in the source dict
+            if InvertibleTransform.trace_key(orig_key) in d:
+                d[InvertibleTransform.trace_key(orig_key)] = inverted_data.applied_operations
+            # save the inverted meta dict if it's in the source dict
             if orig_meta_key in d:
                 meta_key = meta_key or f"{key}_{meta_key_postfix}"
                 d[meta_key] = inverted.get(orig_meta_key)
@@ -753,11 +795,68 @@ class SaveClassificationd(MapTransform):
         return self.saver
 
 
+class SobelGradientsd(MapTransform):
+    """Calculate Sobel horizontal and vertical gradients of a grayscale image.
+
+    Args:
+        keys: keys of the corresponding items to model output.
+        kernel_size: the size of the Sobel kernel. Defaults to 3.
+        spatial_axes: the axes that define the direction of the gradient to be calculated. It calculate the gradient
+            along each of the provide axis. By default it calculate the gradient for all spatial axes.
+        normalize_kernels: if normalize the Sobel kernel to provide proper gradients. Defaults to True.
+        normalize_gradients: if normalize the output gradient to 0 and 1. Defaults to False.
+        padding_mode: the padding mode of the image when convolving with Sobel kernels. Defaults to `"reflect"`.
+            Acceptable values are ``'zeros'``, ``'reflect'``, ``'replicate'`` or ``'circular'``.
+            See ``torch.nn.Conv1d()`` for more information.
+        dtype: kernel data type (torch.dtype). Defaults to `torch.float32`.
+        new_key_prefix: this prefix be prepended to the key to create a new key for the output and keep the value of
+            key intact. By default not prefix is set and the corresponding array to the key will be replaced.
+        allow_missing_keys: don't raise exception if key is missing.
+
+    """
+
+    backend = SobelGradients.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        kernel_size: int = 3,
+        spatial_axes: Optional[Union[Sequence[int], int]] = None,
+        normalize_kernels: bool = True,
+        normalize_gradients: bool = False,
+        padding_mode: str = "reflect",
+        dtype: torch.dtype = torch.float32,
+        new_key_prefix: Optional[str] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.transform = SobelGradients(
+            kernel_size=kernel_size,
+            spatial_axes=spatial_axes,
+            normalize_kernels=normalize_kernels,
+            normalize_gradients=normalize_gradients,
+            padding_mode=padding_mode,
+            dtype=dtype,
+        )
+        self.new_key_prefix = new_key_prefix
+        self.kernel_diff = self.transform.kernel_diff
+        self.kernel_smooth = self.transform.kernel_smooth
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            new_key = key if self.new_key_prefix is None else self.new_key_prefix + key
+            d[new_key] = self.transform(d[key])
+
+        return d
+
+
 ActivationsD = ActivationsDict = Activationsd
 AsDiscreteD = AsDiscreteDict = AsDiscreted
 FillHolesD = FillHolesDict = FillHolesd
 InvertD = InvertDict = Invertd
 KeepLargestConnectedComponentD = KeepLargestConnectedComponentDict = KeepLargestConnectedComponentd
+RemoveSmallObjectsD = RemoveSmallObjectsDict = RemoveSmallObjectsd
 LabelFilterD = LabelFilterDict = LabelFilterd
 LabelToContourD = LabelToContourDict = LabelToContourd
 MeanEnsembleD = MeanEnsembleDict = MeanEnsembled
@@ -765,3 +864,4 @@ ProbNMSD = ProbNMSDict = ProbNMSd
 SaveClassificationD = SaveClassificationDict = SaveClassificationd
 VoteEnsembleD = VoteEnsembleDict = VoteEnsembled
 EnsembleD = EnsembleDict = Ensembled
+SobelGradientsD = SobelGradientsDict = SobelGradientsd

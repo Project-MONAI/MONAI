@@ -66,6 +66,8 @@ class DataLoader(_TorchDataLoader):
         num_workers: how many subprocesses to use for data
             loading. ``0`` means that the data will be loaded in the main process.
             (default: ``0``)
+        collate_fn: default to :py:func:`monai.data.utils.list_data_collate`.
+        worker_init_fn: default to :py:func:`monai.data.utils.worker_init_fn`.
         kwargs: other parameters for PyTorch DataLoader.
     """
 
@@ -74,11 +76,20 @@ class DataLoader(_TorchDataLoader):
             # when num_workers > 0, random states are determined by worker_init_fn
             # this is to make the behavior consistent when num_workers == 0
             # torch.int64 doesn't work well on some versions of windows
-            _seed = torch.empty((), dtype=torch.int32).random_(generator=None).item()
+            _g = torch.random.default_generator if kwargs.get("generator") is None else kwargs["generator"]
+            init_seed = _g.initial_seed()
+            _seed = torch.empty((), dtype=torch.int64).random_(generator=_g).item()
             set_rnd(dataset, int(_seed))
+            # disable unnecessary multiprocessing caching
+            from monai.data.dataset import CacheDataset  # avoid circular import
+
+            if isinstance(dataset, CacheDataset) and dataset.runtime_cache:
+                dataset.disable_share_memory_cache()
+
+            _g.manual_seed(init_seed)
         if "collate_fn" not in kwargs:
-            kwargs.update({"collate_fn": list_data_collate})
+            kwargs["collate_fn"] = list_data_collate
         if "worker_init_fn" not in kwargs:
-            kwargs.update({"worker_init_fn": worker_init_fn})
+            kwargs["worker_init_fn"] = worker_init_fn
 
         super().__init__(dataset=dataset, num_workers=num_workers, **kwargs)

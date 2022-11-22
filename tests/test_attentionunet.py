@@ -39,7 +39,7 @@ class TestAttentionUnet(unittest.TestCase):
             shape = (3, 1) + (92,) * dims
             input = torch.rand(*shape)
             model = att.AttentionUnet(
-                spatial_dims=dims, in_channels=1, out_channels=2, channels=(3, 4, 5), strides=(2, 2)
+                spatial_dims=dims, in_channels=1, out_channels=2, channels=(3, 4, 5), up_kernel_size=5, strides=(1, 2)
             )
             output = model(input)
             self.assertEqual(output.shape[2:], input.shape[2:])

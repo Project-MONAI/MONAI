@@ -180,7 +180,7 @@ TEST_CASE_3:
 
 TEST_CASE_1_answer:
   load_shape: [1, 1, 33, 45, 54]
-  affine: "$np.array([[-2, 0, 0, 34], [0, 2, 0, -64], [0, 0, 2, -54], [0, 0, 0, 1]], dtype=np.float64)"
+  affine: "$np.array([[-2, 0, 0, 30], [0, 2, 0, -62], [0, 0, 2, -48], [0, 0, 0, 1]], dtype=np.float64)"
   inv_affine: "@init_affine"
   inv_shape: "@init_shape"
 
@@ -192,6 +192,6 @@ TEST_CASE_2_answer:
 
 TEST_CASE_3_answer:
   load_shape: [1, 1, 72, 57, 82]
-  affine: "$np.array([[-1.343816, -0.682904, -0.234832, 76.01494], [0.309004, 0.653211, -1.734872, 24.511358], [-0.104049, 1.617199, 0.584171, -56.521294], [0, 0, 0, 1]], dtype=np.float64)"
+  affine: "$np.array([[1.300558,  -0.700765,  -0.511861,  -3.739605], [0.479723,  -1.171149,   1.193079, -50.087933], [0.395736,   1.183532,   0.984201, -80.496605], [0, 0, 0, 1]], dtype=np.float64)"
   inv_affine: "@init_affine"
   inv_shape: "@init_shape"

@@ -12,6 +12,7 @@
 import random
 import sys
 import unittest
+from copy import deepcopy
 from functools import partial
 from typing import TYPE_CHECKING, List, Tuple
 from unittest.case import skipUnless
@@ -63,6 +64,7 @@ from monai.transforms import (
     Zoomd,
     allow_missing_keys_mode,
     convert_applied_interp_mode,
+    reset_ops_id,
 )
 from monai.utils import first, get_seed, optional_import, set_determinism
 from tests.utils import make_nifti_image, make_rand_affine
@@ -497,10 +499,13 @@ class TestInverse(unittest.TestCase):
         resizer = ResizeWithPadOrCrop(spatial_size=shape_before_extra_xform)
         with resizer.trace_transform(False):
             seg_metatensor = resizer(seg_metatensor)
+        no_ops_id_tensor = reset_ops_id(deepcopy(seg_metatensor))
 
         with allow_missing_keys_mode(transforms):
             inv_seg = transforms.inverse({"label": seg_metatensor})["label"]
+            inv_seg_1 = transforms.inverse({"label": no_ops_id_tensor})["label"]
         self.assertEqual(inv_seg.shape[1:], test_data[0]["label"].shape)
+        self.assertEqual(inv_seg_1.shape[1:], test_data[0]["label"].shape)
 
         # # Inverse of batch
         # batch_inverter = BatchInverseTransform(transforms, loader, collate_fn=no_collation, detach=True)

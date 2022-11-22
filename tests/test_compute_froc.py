@@ -17,11 +17,12 @@ from parameterized import parameterized
 
 from monai.metrics import compute_fp_tp_probs, compute_froc_curve_data, compute_froc_score
 
+_device = "cuda:0" if torch.cuda.is_available() else "cpu"
 TEST_CASE_1 = [
     {
-        "probs": torch.tensor([1, 0.6, 0.8]),
-        "y_coord": torch.tensor([0, 2, 3]),
-        "x_coord": torch.tensor([3, 0, 1]),
+        "probs": torch.tensor([1, 0.6, 0.8], device=_device),
+        "y_coord": torch.tensor([0, 2, 3], device=_device),
+        "x_coord": torch.tensor([3, 0, 1], device=_device),
         "evaluation_mask": np.array([[0, 0, 1, 1], [2, 2, 0, 0], [0, 3, 3, 0], [0, 3, 3, 3]]),
         "labels_to_exclude": [2],
         "resolution_level": 0,

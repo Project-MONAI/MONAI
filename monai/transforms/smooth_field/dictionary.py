@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 from typing import Any, Hashable, Mapping, Optional, Sequence, Union
 
 import numpy as np
@@ -25,7 +24,6 @@ from monai.transforms.smooth_field.array import (
 )
 from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, convert_to_tensor, ensure_tuple_rep
-from monai.utils.enums import TransformBackends
 
 __all__ = [
     "RandSmoothFieldAdjustContrastd",
@@ -60,7 +58,7 @@ class RandSmoothFieldAdjustContrastd(RandomizableTransform, MapTransform):
         device: Pytorch device to define field on
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = RandSmoothFieldAdjustContrast.backend
 
     def __init__(
         self,
@@ -138,7 +136,7 @@ class RandSmoothFieldAdjustIntensityd(RandomizableTransform, MapTransform):
         device: Pytorch device to define field on
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = RandSmoothFieldAdjustIntensity.backend
 
     def __init__(
         self,
@@ -219,7 +217,7 @@ class RandSmoothDeformd(RandomizableTransform, MapTransform):
         device: Pytorch device to define field on
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = RandSmoothDeform.backend
 
     def __init__(
         self,

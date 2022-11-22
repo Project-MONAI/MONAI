@@ -23,7 +23,6 @@ from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
 
 _, has_torchvision = optional_import("torchvision")
 
-
 num_anchors = 7
 
 TEST_CASE_1 = [  # 3D, batch 3, 2 input channel

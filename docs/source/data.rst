@@ -278,12 +278,14 @@ N-Dim Fourier Transform
 Meta Object
 -----------
 .. automodule:: monai.data.meta_obj
-    :members:
+  :members:
 
 MetaTensor
 ----------
 .. autoclass:: monai.data.MetaTensor
-   :members:
+  :members:
+  :show-inheritance:
+  :inherited-members: MetaObj
 
 
 
@@ -310,6 +312,12 @@ OpenSlideWSIReader
 .. autoclass:: monai.data.OpenSlideWSIReader
   :members:
 
+TiffFileWSIReader
+~~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.TiffFileWSIReader
+  :members:
+
+
 Whole slide image datasets
 --------------------------
 
@@ -332,3 +340,18 @@ Bounding box
 ------------
 .. automodule:: monai.data.box_utils
     :members:
+
+Video datasets
+--------------
+
+VideoDataset
+~~~~~~~~~~~~
+.. autoclass:: monai.data.video_dataset.VideoDataset
+
+VideoFileDataset
+~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.video_dataset.VideoFileDataset
+
+CameraDataset
+~~~~~~~~~~~~~
+.. autoclass:: monai.data.video_dataset.CameraDataset

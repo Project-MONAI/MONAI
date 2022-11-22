@@ -17,12 +17,11 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.nets import MILModel
 from monai.utils.module import optional_import
-from tests.utils import test_script_save
+from tests.utils import skip_if_downloading_fails, test_script_save
 
 models, _ = optional_import("torchvision.models")
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
-
 
 TEST_CASE_MILMODEL = []
 for num_classes in [1, 5]:
@@ -33,7 +32,6 @@ for num_classes in [1, 5]:
             (1, num_classes),
         ]
         TEST_CASE_MILMODEL.append(test_case)
-
 
 for trans_blocks in [1, 3]:
     test_case = [
@@ -65,7 +63,8 @@ TEST_CASE_MILMODEL.append(
 class TestMilModel(unittest.TestCase):
     @parameterized.expand(TEST_CASE_MILMODEL)
     def test_shape(self, input_param, input_shape, expected_shape):
-        net = MILModel(**input_param).to(device)
+        with skip_if_downloading_fails():
+            net = MILModel(**input_param).to(device)
         with eval_mode(net):
             result = net(torch.randn(input_shape, dtype=torch.float).to(device))
             self.assertEqual(result.shape, expected_shape)

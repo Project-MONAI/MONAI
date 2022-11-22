@@ -20,10 +20,12 @@ from .simplelayers import (
     Flatten,
     GaussianFilter,
     HilbertTransform,
+    MedianFilter,
     Reshape,
     SavitzkyGolayFilter,
     SkipConnection,
     apply_filter,
+    median_filter,
     separable_filtering,
 )
 from .spatial_transforms import AffineTransform, grid_count, grid_grad, grid_pull, grid_push
