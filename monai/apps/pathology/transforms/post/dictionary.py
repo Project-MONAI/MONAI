@@ -537,7 +537,7 @@ class HoVerNetNuclearTypePostProcessingd(Transform):
         key_to_add = f"{self.instance_info_dict_key}"
         if key_to_add in d:
             raise KeyError(f"Type information with key {key_to_add} already exists.")
-        d[key_to_add] = inst_info_dict  # type: ignore
+        d[key_to_add] = inst_info_dict
 
         inst_pred = convert_to_dst_type(inst_pred, type_pred)[0]
         if self.return_binary:
