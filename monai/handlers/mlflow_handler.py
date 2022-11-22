@@ -78,7 +78,7 @@ class MLFlowHandler:
             when epoch completed.
         tag_name: when iteration output is a scalar, `tag_name` is used to track, defaults to `'Loss'`.
         experiment_name: name for an experiment, defaults to `default_experiment`.
-        run_name: name for run in an experiment, defaults to `test_run`.
+        run_name: name for run in an experiment.
         experiment_param: a dict recording parameters which will not change through whole experiment,
             like torch version, cuda version and so on.
         artifacts: paths to images that need to be recorded after a whole run.
@@ -88,6 +88,9 @@ class MLFlowHandler:
     For more details of MLFlow usage, please refer to: https://mlflow.org/docs/latest/index.html.
 
     """
+
+    default_log_param_list = ["network", "device", "optimizer", "loss_function"]
+    default_attr_name = ["seed", "max_epochs", "epoch_length"]
 
     def __init__(
         self,
@@ -122,16 +125,31 @@ class MLFlowHandler:
         self.experiment_param = experiment_param
         self.artifacts = artifacts
         self.optimizer_param_names = optimizer_param_names
-        self.default_attr_name = ["seed", "max_epochs", "epoch_length"]
         self.client = mlflow.MlflowClient()
 
-    def _try_log_param(self, engine: Engine, attr: str):
+    def _try_log_param(self, engine: Engine, attr: str) -> None:
+        """
+        Log parameter to mlflow if it exists in given engine.
+
+        Args:
+            engine: A ignite engine.
+            attr: Attribute that needs to be logged by mlflow.
+        """
         engine_attr = getattr(engine, attr, None)
         if engine_attr:
             attr_type_string = str(type(engine_attr))
             mlflow.log_param(key=attr, value=attr_type_string)
 
-    def _is_param_exists(self, param_name: str):
+    def _is_param_exists(self, param_name: str) -> bool:
+        """
+        Check whether a parameter has already been logged in current mlflow run.
+
+        Args:
+            param_name: name of parameter to check in mlflow run.
+
+        Return:
+            If the given parameter already was logged to mlflow.
+        """
         cur_run = mlflow.active_run()
         log_data = self.client.get_run(cur_run.info.run_id).data
         param_dict = log_data.params
@@ -141,7 +159,13 @@ class MLFlowHandler:
             return False
 
     def _delete_exist_param_in_dict(self, param_dict):
-        key_list = [x for x in param_dict.keys()]
+        """
+        Delete parameters in given dict, if they are already logged by current mlflow run.
+
+        Args:
+            param_dict: parameter dict to be logged to mlflow.
+        """
+        key_list = list(param_dict.keys())
         for key in key_list:
             if self._is_param_exists(key):
                 del param_dict[key]
@@ -161,7 +185,7 @@ class MLFlowHandler:
         if self.epoch_log and not engine.has_event_handler(self.epoch_completed, Events.EPOCH_COMPLETED):
             engine.add_event_handler(Events.EPOCH_COMPLETED, self.epoch_completed)
         if not engine.has_event_handler(self.complete, Events.COMPLETED):
-            engine.add_event_handler(Events.EPOCH_COMPLETED, self.complete)
+            engine.add_event_handler(Events.COMPLETED, self.complete)
 
     def start(self, engine: Engine) -> None:
         """
@@ -176,12 +200,11 @@ class MLFlowHandler:
         if self.experiment_param:
             mlflow.log_params(self.experiment_param)
 
-        attrs = {attr: getattr(engine.state, attr, None) for attr in self.default_attr_name}
+        attrs = {attr: getattr(engine.state, attr, None) for attr in cls.default_attr_name}
         self._delete_exist_param_in_dict(attrs)
         mlflow.log_params(attrs)
 
-        default_log_param_list = ["network", "device", "optimizer", "loss_function"]
-        for param_name in default_log_param_list:
+        for param_name in cls.default_log_param_list:
             if self._is_param_exists(param_name):
                 continue
             self._try_log_param(engine, param_name)
@@ -258,16 +281,6 @@ class MLFlowHandler:
 
         current_epoch = self.global_epoch_transform(engine.state.epoch)
         mlflow.log_metrics(log_dict, step=current_epoch)
-
-        events = engine._event_handlers
-
-        for e in events:
-            for handler, _, _ in engine._event_handlers[e]:
-                if isinstance(handler, ValidationHandler):
-                    evaluator_state = getattr(handler.validator, "state", None)
-                    if evaluator_state:
-                        handler_metrics_dict = evaluator_state.metrics
-                        mlflow.log_metrics(handler_metrics_dict, step=current_epoch)
 
         if self.state_attributes is not None:
             attrs = {attr: getattr(engine.state, attr, None) for attr in self.state_attributes}
