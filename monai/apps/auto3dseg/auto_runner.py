@@ -181,7 +181,6 @@ class AutoRunner:
         self,
         work_dir: str = "./work_dir",
         input: Union[Dict[str, Any], str, None] = None,
-        algos: Optional[Union[Tuple, List]] = None,
         analyze: Optional[bool] = None,
         algo_gen: Optional[bool] = None,
         train: Optional[bool] = None,
@@ -189,6 +188,7 @@ class AutoRunner:
         hpo_backend: str = "nni",
         ensemble: bool = True,
         not_use_cache: bool = False,
+        algos: Optional[Union[Tuple, List]] = None,
         **kwargs,
     ):
 
@@ -235,6 +235,7 @@ class AutoRunner:
         self.train = not self.cache["train"] if train is None else train
         self.ensemble = ensemble  # last step, no need to check
 
+        self.ensemble_method_name = "AlgoEnsembleBestByFold"
         # intermediate variables
         self.set_num_fold(num_fold=5)
         self.set_training_params()
@@ -243,7 +244,7 @@ class AutoRunner:
 
         self.save_image = self.set_image_save_transform(kwargs)
         self.ensemble_method: AlgoEnsemble
-        self.set_ensemble_method(ensemble_method_name="AlgoEnsembleBestByFold")
+        self.set_ensemble_method(ensemble_method_name=self.ensemble_method_name)
 
         # hpo
         if hpo_backend.lower() != "nni":
@@ -309,6 +310,8 @@ class AutoRunner:
         if num_fold <= 0:
             raise ValueError(f"num_fold is expected to be an integer greater than zero. Now it gets {num_fold}")
         self.num_fold = num_fold
+        # ensemble methods may require an update if the num_fold is changed
+        self.set_ensemble_method(ensemble_method_name=self.ensemble_method_name)
 
     def set_training_params(self, params: Optional[Dict[str, Any]] = None):
         """
