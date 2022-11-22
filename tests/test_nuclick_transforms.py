@@ -96,7 +96,7 @@ NUC_POINTS_1 = np.array(
     ],
     dtype=np.float32,
 )
-BB_1 = np.array([[1, 1, 3, 3], [0, 0, 2, 2]], dtype=np.uint8)
+BB_1 = np.array([[0, 0, 5, 5], [1, 1, 6, 6]], dtype=np.uint8)
 
 DATA_FILTER_1 = {"image": RGB_IMAGE_1}
 
@@ -193,7 +193,7 @@ class TestSplitLabelsd(unittest.TestCase):
         np.testing.assert_equal(result["label"], expected_result)
 
 
-class XTestGuidanceSignal(unittest.TestCase):
+class TestGuidanceSignal(unittest.TestCase):
     @parameterized.expand([GUIDANCE_TEST_CASE_1])
     def test_correct_shape(self, arguments, input_data, expected_shape):
         result = AddPointGuidanceSignald(**arguments)(input_data)
@@ -207,7 +207,7 @@ class TestClickSignal(unittest.TestCase):
         np.testing.assert_equal(result["image"].shape, expected_shape)
 
 
-class XTestPostFilterLabel(unittest.TestCase):
+class TestPostFilterLabel(unittest.TestCase):
     @parameterized.expand([LABEL_FILTER_TEST_CASE_1])
     def test_correct_shape(self, arguments, input_data, expected_shape):
         result = PostFilterLabeld(**arguments)(input_data)

@@ -281,7 +281,7 @@ class AddPointGuidanceSignald(Randomizable, MapTransform):
         label: str = NuclickKeys.LABEL,
         others: str = NuclickKeys.OTHERS,
         drop_rate: float = 0.5,
-        jitter_range: int = 3,
+        jitter_range: int = 0,
         gaussian: bool = False,
         sigma: float = 1.0,
         add_exclusion_map: bool = True,
@@ -333,24 +333,27 @@ class AddPointGuidanceSignald(Randomizable, MapTransform):
 
         return point_mask
 
-    def exclusion_map(self, others, dtype, jitter_range=3, drop_rate=0.5):
+    def exclusion_map(self, others, dtype, jitter_range, drop_rate):
         point_mask = torch.zeros_like(others, dtype=dtype)
-        if drop_rate == 1.0:
+        if np.random.choice([True, False], p=[drop_rate, 1 - drop_rate]):
             return point_mask
 
         max_x = point_mask.shape[0] - 1
         max_y = point_mask.shape[1] - 1
         stats = measure.regionprops(torch.Tensor.numpy(others))
         for stat in stats:
-            x, y = stat.centroid
             if np.random.choice([True, False], p=[drop_rate, 1 - drop_rate]):
                 continue
 
             # random jitter
-            x = int(math.floor(x)) + self.R.randint(low=-jitter_range, high=jitter_range)
-            y = int(math.floor(y)) + self.R.randint(low=-jitter_range, high=jitter_range)
-            x = min(max(0, x), max_x)
-            y = min(max(0, y), max_y)
+            x, y = stat.centroid
+            x = int(math.floor(x))
+            y = int(math.floor(y))
+            if jitter_range:
+                x = x + self.R.randint(low=-jitter_range, high=jitter_range)
+                y = y + self.R.randint(low=-jitter_range, high=jitter_range)
+                x = min(max(0, x), max_x)
+                y = min(max(0, y), max_y)
             point_mask[x, y] = 1
 
         return point_mask
@@ -535,8 +538,9 @@ class PostFilterLabeld(MapTransform):
 
     def post_processing(self, preds, thresh=0.33, min_size=10, min_hole=30):
         masks = preds > thresh
-        masks = morphology.remove_small_objects(masks, min_size=min_size)
-        masks = morphology.remove_small_holes(masks, area_threshold=min_hole)
+        for i in range(preds.shape[0]):
+            masks[i] = morphology.remove_small_objects(masks[i], min_size=min_size)
+            masks[i] = morphology.remove_small_holes(masks[i], area_threshold=min_hole)
         return masks
 
     def gen_instance_map(self, masks, bounding_boxes, x, y, flatten=True, pred_classes=None):
@@ -554,6 +558,13 @@ class PostFilterLabeld(MapTransform):
 
 
 class FixNuclickClassd(MapTransform):
+    """
+    Assign class value from the labelmap.  This converts multi-dimension tensor to single scalar tensor.
+
+    Args:
+        offset: offset value to be added to the mask value to determine the final class
+    """
+
     def __init__(self, keys: KeysCollection, offset=-1) -> None:
         super().__init__(keys, allow_missing_keys=False)
         self.offset = offset
