@@ -320,7 +320,7 @@ class SSIMMetric(RegressionMetric):
                 cs = []
                 for i in range(x.shape[1]):
                     ssim_val, cs_val = SSIMMetric(
-                        self.data_range, self.win_size, self.k1, self.k2, self.spatial_dims, self.cs_return
+                        self.data_range, self.win_size, self.k1, self.k2, self.spatial_dims, cs_return=self.cs_return
                     )._compute_metric(x[:, i, ...].unsqueeze(1), y[:, i, ...].unsqueeze(1))
                     ssim.append(ssim_val)
                     cs.append(cs_val)
