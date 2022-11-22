@@ -243,7 +243,7 @@ class AutoRunner:
 
         self.save_image = self.set_image_save_transform(kwargs)
         self.ensemble_method: AlgoEnsemble
-        self.set_ensemble_method(ensemble_method_name="AlgoEnsembleBestByFold")
+        self.set_ensemble_method()
 
         # hpo
         if hpo_backend.lower() != "nni":
@@ -428,7 +428,7 @@ class AutoRunner:
             output_dir=output_dir, output_postfix=output_postfix, output_dtype=output_dtype, resample=resample, **kwargs
         )
 
-    def set_ensemble_method(self, ensemble_method_name: str = "AlgoEnsembleBestByFold", **kwargs):
+    def set_ensemble_method(self, ensemble_method_name: str = "AlgoEnsembleBestN", **kwargs):
         """
         Set the bundle ensemble method
 
