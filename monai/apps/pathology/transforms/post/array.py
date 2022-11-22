@@ -658,9 +658,7 @@ class HoVerNetNuclearTypePostProcessing(Transform):
         self.generate_instance_type = GenerateInstanceType()
 
     def __call__(  # type: ignore
-        self,
-        type_pred: NdarrayOrTensor,
-        instance_pred: NdarrayOrTensor
+        self, type_pred: NdarrayOrTensor, instance_pred: NdarrayOrTensor
     ) -> Union[Tuple[NdarrayOrTensor, Dict], Dict]:
         type_pred = Activations(softmax=True)(type_pred)
         type_pred = AsDiscrete(argmax=True)(type_pred)
@@ -699,7 +697,7 @@ class HoVerNetNuclearTypePostProcessing(Transform):
             instance_pred = convert_to_dst_type(instance_pred, type_pred)[0]
             pred_type_map = torch.zeros_like(instance_pred)  # type: ignore
             for key, value in inst_info_dict.items():
-                pred_type_map[instance_pred == key] = value["type"] # type: ignore
+                pred_type_map[instance_pred == key] = value["type"]  # type: ignore
 
             return pred_type_map, inst_info_dict
         else:
