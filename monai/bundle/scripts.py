@@ -474,8 +474,9 @@ def _add_config_to_mlflow_handler(parser: ConfigParser, handler_config: dict) ->
     Add config info to mlflow handler.
     """
     if "MLFlowHandler" == handler_config["_target_"]:
-        config_json_file = json.dumps(parser.config)
-        handler_config["experiment_param"] = json.dumps({"bundle_info": config_json_file})
+        config_str = json.dumps(parser.config)
+        bundle_info_str = json.dumps({'bundle_info':config_str})
+        handler_config["experiment_param"] = "$" + bundle_info_str
 
 
 def patch_bundle_tracking(parser: ConfigParser, settings: dict):
