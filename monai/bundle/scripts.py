@@ -475,7 +475,7 @@ def _add_config_to_mlflow_handler(parser: ConfigParser, handler_config: dict) ->
     """
     if "MLFlowHandler" == handler_config["_target_"]:
         config_str = json.dumps(parser.config)
-        bundle_info_str = json.dumps({'bundle_info':config_str})
+        bundle_info_str = json.dumps({"bundle_info": config_str})
         handler_config["experiment_param"] = "$" + bundle_info_str
 
 
