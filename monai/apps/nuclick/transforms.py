@@ -18,10 +18,11 @@ import torch
 from monai.config import KeysCollection
 from monai.networks.layers import GaussianFilter
 from monai.transforms import MapTransform, Randomizable, SpatialPad
-from monai.utils import StrEnum, optional_import
+from monai.utils import StrEnum, convert_to_numpy, optional_import
 
 measure, _ = optional_import("skimage.measure")
 morphology, _ = optional_import("skimage.morphology")
+distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_cdt")
 
 
 class NuclickKeys(StrEnum):
@@ -62,7 +63,7 @@ class FlattenLabeld(MapTransform):
     def __call__(self, data):
         d = dict(data)
         for key in self.keys:
-            img = torch.Tensor.numpy(d[key]) if isinstance(d[key], torch.Tensor) else d[key]
+            img = convert_to_numpy(d[key]) if isinstance(d[key], torch.Tensor) else d[key]
             d[key] = measure.label(img, connectivity=self.connectivity).astype(np.uint8)
         return d
 
@@ -176,14 +177,14 @@ class SplitLabeld(MapTransform):
             others = torch.where(label == mask_value, 0, label)
             others[others > 0] = 1
             if torch.count_nonzero(others):
-                others = measure.label(torch.Tensor.numpy(others)[0], connectivity=1)
+                others = measure.label(convert_to_numpy(others)[0], connectivity=1)
                 others = torch.from_numpy(others)[None]
 
             label = mask.type(torch.uint8) if isinstance(mask, torch.Tensor) else mask
             others = others.type(torch.uint8) if isinstance(others, torch.Tensor) else others
 
-            d[key] = label if isinstance(d[key], torch.Tensor) else torch.Tensor.numpy(label)
-            d[self.others] = others if isinstance(d[key], torch.Tensor) else torch.Tensor.numpy(others)
+            d[key] = label if isinstance(d[key], torch.Tensor) else convert_to_numpy(label)
+            d[self.others] = others if isinstance(d[key], torch.Tensor) else convert_to_numpy(others)
 
         return d
 
@@ -207,7 +208,7 @@ class FilterImaged(MapTransform):
     def __call__(self, data):
         d = dict(data)
         for key in self.keys:
-            img = torch.Tensor.numpy(d[key]) if isinstance(d[key], torch.Tensor) else d[key]
+            img = convert_to_numpy(d[key]) if isinstance(d[key], torch.Tensor) else d[key]
             d[key] = self.filter(img)
         return d
 
@@ -272,6 +273,7 @@ class AddPointGuidanceSignald(Randomizable, MapTransform):
         jitter_range: noise added to the points in the point mask for exclusion mask, defaults to ``3``
         gaussian: add gaussian
         sigma: sigma value for gaussian
+        truncated: spreads how many stds for gaussian
         add_exclusion_map: add exclusion map/signal
     """
 
@@ -284,7 +286,9 @@ class AddPointGuidanceSignald(Randomizable, MapTransform):
         jitter_range: int = 0,
         gaussian: bool = False,
         sigma: float = 1.0,
+        truncated: float = 2.0,
         add_exclusion_map: bool = True,
+        use_distance: bool = False,
     ):
         MapTransform.__init__(self, image)
 
@@ -295,7 +299,9 @@ class AddPointGuidanceSignald(Randomizable, MapTransform):
         self.jitter_range = jitter_range
         self.gaussian = gaussian
         self.sigma = sigma
+        self.truncated = truncated
         self.add_exclusion_map = add_exclusion_map
+        self.use_distance = use_distance
 
     def __call__(self, data):
         d = dict(data)
@@ -315,21 +321,36 @@ class AddPointGuidanceSignald(Randomizable, MapTransform):
         else:
             image = torch.cat((image, inc_sig[None]), dim=0)
 
-        d[self.image] = image if isinstance(d[self.image], torch.Tensor) else torch.Tensor.numpy(image)
+        d[self.image] = image if isinstance(d[self.image], torch.Tensor) else convert_to_numpy(image)
         return d
 
     def _apply_gaussion(self, t):
         if not self.gaussian or torch.count_nonzero(t) == 0:
             return t
-        x = GaussianFilter(spatial_dims=2, sigma=self.sigma)(t.unsqueeze(0).unsqueeze(0))
+        x = GaussianFilter(spatial_dims=2, truncated=self.truncated, sigma=self.sigma)(t.unsqueeze(0).unsqueeze(0))
         return x.squeeze(0).squeeze(0)
+
+    def _seed_point(self, label):
+        if distance_transform_cdt is None or not self.use_distance:
+            indices = torch.argwhere(label > 0)
+            if len(indices) > 0:
+                idx = self.R.randint(0, len(indices))
+                return indices[idx, 0], indices[idx, 1]
+
+        distance = distance_transform_cdt(label).flatten()
+        probability = np.exp(distance) - 1.0
+
+        idx = np.where(label.flatten() > 0)[0]
+        seed = self.R.choice(idx, size=1, p=probability[idx] / np.sum(probability[idx]))
+        g = np.asarray(np.unravel_index(seed, label.shape)).transpose().tolist()[0]
+        return g[-2], g[-1]
 
     def inclusion_map(self, mask, dtype):
         point_mask = torch.zeros_like(mask, dtype=dtype)
         indices = torch.argwhere(mask > 0)
         if len(indices) > 0:
-            idx = self.R.randint(0, len(indices))
-            point_mask[indices[idx, 0], indices[idx, 1]] = 1
+            x, y = self._seed_point(mask)
+            point_mask[x, y] = 1
 
         return point_mask
 
@@ -340,7 +361,7 @@ class AddPointGuidanceSignald(Randomizable, MapTransform):
 
         max_x = point_mask.shape[0] - 1
         max_y = point_mask.shape[1] - 1
-        stats = measure.regionprops(torch.Tensor.numpy(others))
+        stats = measure.regionprops(convert_to_numpy(others))
         for stat in stats:
             if np.random.choice([True, False], p=[drop_rate, 1 - drop_rate]):
                 continue
@@ -369,6 +390,7 @@ class AddClickSignalsd(MapTransform):
         bb_size: single integer size, defines a bounding box like (bb_size, bb_size)
         gaussian: add gaussian
         sigma: sigma value for gaussian
+        truncated: spreads how many stds for gaussian
         add_exclusion_map: add exclusion map/signal
     """
 
@@ -379,6 +401,7 @@ class AddClickSignalsd(MapTransform):
         bb_size: int = 128,
         gaussian=False,
         sigma=1.0,
+        truncated: float = 2.0,
         add_exclusion_map=True,
     ):
         self.image = image
@@ -386,6 +409,7 @@ class AddClickSignalsd(MapTransform):
         self.bb_size = bb_size
         self.gaussian = gaussian
         self.sigma = sigma
+        self.truncated = truncated
         self.add_exclusion_map = add_exclusion_map
 
     def __call__(self, data):
@@ -413,7 +437,7 @@ class AddClickSignalsd(MapTransform):
         d[NuclickKeys.IMG_WIDTH.value] = x
         d[NuclickKeys.IMG_HEIGHT.value] = y
 
-        d[self.image] = patches if isinstance(d[self.image], torch.Tensor) else torch.Tensor.numpy(patches)
+        d[self.image] = patches if isinstance(d[self.image], torch.Tensor) else convert_to_numpy(patches)
         return d
 
     def get_clickmap_boundingbox(self, cx, cy, x, y, bb=128):
@@ -479,7 +503,7 @@ class AddClickSignalsd(MapTransform):
     def _apply_gaussion(self, t):
         if not self.gaussian or torch.count_nonzero(t) == 0:
             return t
-        x = GaussianFilter(spatial_dims=2, sigma=self.sigma)(t.unsqueeze(0).unsqueeze(0))
+        x = GaussianFilter(spatial_dims=2, truncated=self.truncated, sigma=self.sigma)(t.unsqueeze(0).unsqueeze(0))
         return x.squeeze(0).squeeze(0)
 
 
@@ -557,7 +581,33 @@ class PostFilterLabeld(MapTransform):
         return instance_map
 
 
-class FixNuclickClassd(MapTransform):
+class AddLabelAsGuidanced(MapTransform):
+    """
+    Add Label as new guidance channel
+
+    Args:
+        source: label/source key which gets added as additional guidance channel
+    """
+
+    def __init__(self, keys: KeysCollection, source="label") -> None:
+        super().__init__(keys, allow_missing_keys=False)
+        self.source = source
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            image = d[key] if isinstance(d[key], torch.Tensor) else torch.from_numpy(d[key])
+            label = d[self.source] if isinstance(d[self.source], torch.Tensor) else torch.from_numpy(d[self.source])
+
+            label = label > 0
+            if len(label.shape) < len(image.shape):
+                label = label[None]
+            image = torch.cat([image, label.type(image.dtype)])
+            d[key] = image if isinstance(d[key], torch.Tensor) else convert_to_numpy(image)
+        return d
+
+
+class SetLabelClassd(MapTransform):
     """
     Assign class value from the labelmap.  This converts multi-dimension tensor to single scalar tensor.
 
@@ -572,7 +622,7 @@ class FixNuclickClassd(MapTransform):
     def __call__(self, data):
         d = dict(data)
         for key in self.keys:
-            label = d[key]
+            label = d[key] if isinstance(d[key], torch.Tensor) else torch.from_numpy(d[key])
             mask_value = int(torch.max(label))
             d[key] = mask_value + self.offset
         return d
