@@ -9,8 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional
-
 from monai.transforms import Randomizable
 
 
@@ -33,13 +31,12 @@ class Algo:
         """
         pass
 
-    def predict(self, predict_files: list, predict_params: Optional[dict] = None):
+    def predict(self, params: dict):
         """
         Read test data and output model predictions.
 
         Args:
-            predict_files: list of files for the predicting pipeline.
-            predict_params: key-value pairs of input parameters for the predicting pipeline.
+            params: key-value pairs of input parameters for the predicting pipeline.
         """
         pass
 
