@@ -469,6 +469,15 @@ def get_bundle_info(
     return bundle_info[version]
 
 
+def _add_config_to_mlflow_handler(parser: ConfigParser, handler_config: dict) -> None:
+    """
+    Add config info to mlflow handler.
+    """
+    if "MLFlowHandler" == handler_config["_target_"]:
+        config_json_file = json.dumps(parser.config)
+        handler_config["experiment_param"] = json.dumps({"bundle_info": config_json_file})
+
+
 def patch_bundle_tracking(parser: ConfigParser, settings: dict):
     """
     Patch the loaded bundle config with a new handler logic to enable experiment tracking features.
@@ -487,6 +496,7 @@ def patch_bundle_tracking(parser: ConfigParser, settings: dict):
                 if handlers is None:
                     engine["train_handlers" if k == "trainer" else "val_handlers"] = [handler_config]
                 else:
+                    _add_config_to_mlflow_handler(parser=parser, handler_config=handler_config)
                     handlers.append(handler_config)
 
 

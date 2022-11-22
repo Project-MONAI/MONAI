@@ -19,7 +19,7 @@ from monai.utils import optional_import
 
 yaml, _ = optional_import("yaml")
 
-__all__ = ["ID_REF_KEY", "ID_SEP_KEY", "EXPR_KEY", "MACRO_KEY"]
+__all__ = ["ID_REF_KEY", "ID_SEP_KEY", "EXPR_KEY", "MACRO_KEY", "DEFAULT_MLFLOW_SETTINGS"]
 
 ID_REF_KEY = "@"  # start of a reference to a ConfigItem
 ID_SEP_KEY = "#"  # separator for the ID of a ConfigItem
@@ -107,6 +107,7 @@ DEFAULT_MLFLOW_SETTINGS = {
         # MLFlowHandler config for the trainer
         "trainer": {
             "_target_": "MLFlowHandler",
+            "_disable_": "$torch.distributed.get_rank() > 0 if torch.distributed.is_initialized() else False",
             "tracking_uri": "$@output_dir + '/mlflow'",
             "iteration_log": True,
             "epoch_log": True,

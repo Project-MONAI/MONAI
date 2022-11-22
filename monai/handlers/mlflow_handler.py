@@ -197,14 +197,15 @@ class MLFlowHandler:
             run_name = f"run_{time.strftime('%Y%m%d_%H%M%S')}" if self.run_name is None else self.run_name
             mlflow.start_run(run_name=run_name)
 
+        self._delete_exist_param_in_dict(self.experiment_param)
         if self.experiment_param:
             mlflow.log_params(self.experiment_param)
 
-        attrs = {attr: getattr(engine.state, attr, None) for attr in cls.default_attr_name}
+        attrs = {attr: getattr(engine.state, attr, None) for attr in self.default_attr_name}
         self._delete_exist_param_in_dict(attrs)
         mlflow.log_params(attrs)
 
-        for param_name in cls.default_log_param_list:
+        for param_name in self.default_log_param_list:
             if self._is_param_exists(param_name):
                 continue
             self._try_log_param(engine, param_name)
