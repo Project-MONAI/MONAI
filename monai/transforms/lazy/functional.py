@@ -15,7 +15,13 @@ import torch
 
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
-from monai.transforms.lazy.utils import is_compatible_kwargs, kwargs_from_pending, mat_from_pending, matmul, resample
+from monai.transforms.lazy.utils import (
+    combine_transforms,
+    is_compatible_kwargs,
+    kwargs_from_pending,
+    mat_from_pending,
+    resample,
+)
 
 __all__ = ["apply"]
 
@@ -44,7 +50,7 @@ def apply(data: Union[torch.Tensor, MetaTensor], pending: Optional[list] = None)
             # carry out an intermediate resample here due to incompatibility between arguments
             data = resample(data, cumulative_xform, cur_kwargs)
         next_matrix = mat_from_pending(p)
-        cumulative_xform = matmul(cumulative_xform, next_matrix)
+        cumulative_xform = combine_transforms(cumulative_xform, next_matrix)
         cur_kwargs.update(new_kwargs)
     data = resample(data, cumulative_xform, cur_kwargs)
     if isinstance(data, MetaTensor):
