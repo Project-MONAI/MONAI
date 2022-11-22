@@ -832,7 +832,7 @@ class Invert(Transform):
 
 
 class SobelGradients(Transform):
-    """Calculate Sobel gradients of a grayscale image with the shape of (CxH[xWxDx...]).
+    """Calculate Sobel gradients of a grayscale image with the shape of CxH[xWxDx...] or BxH[xWxDx...].
 
     Args:
         kernel_size: the size of the Sobel kernel. Defaults to 3.
@@ -922,7 +922,7 @@ class SobelGradients(Transform):
         grad_list = []
         for ax in spatial_axes:
             kernels = [kernel_smooth] * n_spatial_dims
-            kernels[ax - 1] = kernel_diff
+            kernels[ax] = kernel_diff
             grad = separable_filtering(image_tensor, kernels, mode=self.padding)
             if self.normalize_gradients:
                 grad_min = grad.min()

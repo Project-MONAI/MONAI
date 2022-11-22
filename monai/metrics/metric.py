@@ -202,7 +202,7 @@ class Cumulative:
         for b, d in zip(self._buffers, data):
             # converting to pytorch tensors so that we can use the distributed API
             d_t, *_ = convert_data_type(d, output_type=torch.Tensor, wrap_sequence=True)
-            try:
+            try:  # d_t must be a mini-batch of values
                 b.extend([x[0] for x in torch.split(d_t, 1, dim=0)])
             except (AttributeError, IndexError, RuntimeError) as e:
                 raise TypeError(
@@ -286,6 +286,7 @@ class CumulativeIterationMetric(Cumulative, IterationMetric):
 
     Typically, it computes some intermediate results for each iteration, adds them to the buffers,
     then the buffer contents could be gathered and aggregated for the final result when epoch completed.
+    Currently,``Cumulative.aggregate()`` and ``IterationMetric._compute_tensor()`` are expected to be implemented.
 
     For example, `MeanDice` inherits this class and the usage is as follows:
 
@@ -324,7 +325,8 @@ class CumulativeIterationMetric(Cumulative, IterationMetric):
                 or a `batch-first` Tensor.
 
         Returns:
-            The computed metric values at the iteration level.
+            The computed metric values at the iteration level. The output shape should be
+            a `batch-first` tensor (BC[HWD]) or a list of `batch-first` tensors.
         """
         ret = super().__call__(y_pred=y_pred, y=y)
         if isinstance(ret, (tuple, list)):

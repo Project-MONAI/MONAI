@@ -165,6 +165,7 @@ class CheckpointSaver:
                     warnings.warn(
                         "key metric is not a scalar value, skip metric comparison and don't save a model."
                         "please use other metrics as key metric, or change the `reduction` mode to 'mean'."
+                        f"got metric: {metric_name}={metric}."
                     )
                     return -1
                 return (-1 if key_metric_negative_sign else 1) * metric

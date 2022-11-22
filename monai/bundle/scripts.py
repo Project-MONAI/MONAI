@@ -475,8 +475,7 @@ def patch_bundle_tracking(parser: ConfigParser, settings: dict):
 
     Args:
         parser: loaded config content to patch the handler.
-        settings: if `string`, treat it as file path to load the tracking settings, if `dict`,
-            treat it as tracking settings, otherwise, use the default settings.
+        settings: settings for the experiment tracking, should follow the pattern of default settings.
 
     """
     for k, v in settings["handlers_id"].items():

@@ -785,6 +785,7 @@ class CacheDataset(Dataset):
                 2. to execute `runtime cache` on GPU memory, must co-work with
                 `monai.data.DataLoader`, and can't work with `monai.data.DistributedSampler`
                 as GPU Tensor usually can't be shared in the multiprocessing context.
+                (try ``cache_dataset.disable_share_memory_cache()`` in case of GPU caching issues.)
 
         """
         if not isinstance(transform, Compose):

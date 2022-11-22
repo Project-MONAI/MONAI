@@ -15,6 +15,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 
 import nibabel as nib
 import numpy as np
@@ -103,11 +104,14 @@ class TestBundleRun(unittest.TestCase):
             json.dump("Dataset", f)
 
         if sys.platform == "win32":
-            override = f"--network $@network_def.to(@device) --dataset#_target_ Dataset --output_dir {tempdir}"
+            outdir = Path(tempdir).as_uri()
+            override = "--network $@network_def.to(@device) --dataset#_target_ Dataset"
         else:
-            override = f"--network %{overridefile1}#move_net --dataset#_target_ %{overridefile2} --output_dir {tempdir}"
+            outdir = tempdir
+            override = f"--network %{overridefile1}#move_net --dataset#_target_ %{overridefile2}"
         # test with `monai.bundle` as CLI entry directly
-        cmd = f"-m monai.bundle run evaluating --postprocessing#transforms#2#output_postfix seg {override}"
+        cmd = "-m monai.bundle run evaluating --postprocessing#transforms#2#output_postfix seg"
+        cmd += f" {override} --save_dir {tempdir} --output_dir {outdir}"
         la = ["coverage", "run"] + cmd.split(" ") + ["--meta_file", meta_file] + ["--config_file", config_file]
         test_env = os.environ.copy()
         print(f"CUDA_VISIBLE_DEVICES in {__file__}", test_env.get("CUDA_VISIBLE_DEVICES"))
@@ -118,7 +122,7 @@ class TestBundleRun(unittest.TestCase):
 
         # here test the script with `google fire` tool as CLI
         cmd = "-m fire monai.bundle.scripts run --runner_id evaluating --tracking mlflow"
-        cmd += f" --evaluator#amp False {override}"
+        cmd += f" --evaluator#amp False {override} --save_dir {tempdir} --output_dir {outdir}"
         la = ["coverage", "run"] + cmd.split(" ") + ["--meta_file", meta_file] + ["--config_file", config_file]
         command_line_tests(la)
         self.assertTupleEqual(loader(os.path.join(tempdir, "image", "image_trans.nii.gz")).shape, expected_shape)

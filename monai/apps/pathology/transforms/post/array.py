@@ -9,12 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, List, Optional, Sequence, Tuple, Union
+from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
 from monai.config.type_definitions import DtypeLike, NdarrayOrTensor
-from monai.transforms.post.array import Activations, AsDiscrete, RemoveSmallObjects, SobelGradients
+from monai.transforms import Activations, AsDiscrete, BoundingRect, RemoveSmallObjects, SobelGradients
 from monai.transforms.transform import Transform
 from monai.transforms.utils_pytorch_numpy_unification import max, maximum, min, sum, unique
 from monai.utils import TransformBackends, convert_to_numpy, optional_import
@@ -38,6 +38,7 @@ __all__ = [
     "GenerateInstanceContour",
     "GenerateInstanceCentroid",
     "GenerateInstanceType",
+    "HoVerNetNuclearTypePostProcessing",
 ]
 
 
@@ -512,7 +513,7 @@ class GenerateInstanceContour(Transform):
     the pixels to which lines need to be drawn
 
     Args:
-        points_num: assumed that the created contour does not form a contour if it does not contain more points
+        min_num_points: assumed that the created contour does not form a contour if it does not contain more points
             than the specified value. Defaults to 3.
         level: optional. Value along which to find contours in the array. By default, the level is set
             to (max(image) + min(image)) / 2.
@@ -521,9 +522,9 @@ class GenerateInstanceContour(Transform):
 
     backend = [TransformBackends.NUMPY]
 
-    def __init__(self, points_num: int = 3, level: Optional[float] = None) -> None:
+    def __init__(self, min_num_points: int = 3, level: Optional[float] = None) -> None:
         self.level = level
-        self.points_num = points_num
+        self.min_num_points = min_num_points
 
     def __call__(self, image: NdarrayOrTensor, offset: Optional[Sequence[int]] = (0, 0)) -> np.ndarray:
         """
@@ -537,10 +538,10 @@ class GenerateInstanceContour(Transform):
         generate_contour = GenerateSuccinctContour(image.shape[0], image.shape[1])
         inst_contour = generate_contour(inst_contour_cv)
 
-        # < `self.points_num` points don't make a contour, so skip, likely artifact too
+        # < `self.min_num_points` points don't make a contour, so skip, likely artifact too
         # as the contours obtained via approximation => too small or sthg
-        if inst_contour.shape[0] < self.points_num:
-            print(f"< {self.points_num} points don't make a contour, so skip")
+        if inst_contour.shape[0] < self.min_num_points:
+            print(f"< {self.min_num_points} points don't make a contour, so skip")
             return None  # type: ignore
         # check for tricky shape
         elif len(inst_contour.shape) != 2:
@@ -624,3 +625,70 @@ class GenerateInstanceType(Transform):
         type_prob = type_dict[inst_type] / (sum(seg_map_crop) + 1.0e-6)
 
         return (int(inst_type), float(type_prob))
+
+
+class HoVerNetNuclearTypePostProcessing(Transform):
+    """
+    The whole post-procesing transform for nuclear type classification branch. It return a dict which contains
+    centroid, bounding box, type prediciton for each instance.
+
+    Args:
+        min_num_points: assumed that the created contour does not form a contour if it does not contain more points
+            than the specified value. Defaults to 3.
+        level: optional. Used in `skimage.measure.find_contours`. Value along which to find contours in the array.
+            By default, the level is set to (max(image) + min(image)) / 2.
+        return_centroids: whether to return centroids for each instance.
+        output_classes: number of the nuclear type classes.
+    """
+
+    def __init__(
+        self,
+        min_num_points: int = 3,
+        level: Optional[float] = None,
+        return_centroids: Optional[bool] = False,
+        output_classes: Optional[int] = None,
+    ) -> None:
+        super().__init__()
+        self.return_centroids = return_centroids
+        self.output_classes = output_classes
+
+        self.generate_instance_contour = GenerateInstanceContour(min_num_points=min_num_points, level=level)
+        self.generate_instance_centroid = GenerateInstanceCentroid()
+        self.generate_instance_type = GenerateInstanceType()
+
+    def __call__(self, type_pred: NdarrayOrTensor, instance_pred: NdarrayOrTensor) -> Dict:  # type: ignore
+        type_pred = Activations(softmax=True)(type_pred)
+        type_pred = AsDiscrete(argmax=True)(type_pred)
+
+        inst_id_list = np.unique(instance_pred)[1:]  # exclude background
+        inst_info_dict = None
+        if self.return_centroids:
+            inst_info_dict = {}
+            for inst_id in inst_id_list:
+                inst_map = instance_pred == inst_id
+                inst_bbox = BoundingRect()(inst_map)
+                inst_map = inst_map[:, inst_bbox[0][0] : inst_bbox[0][1], inst_bbox[0][2] : inst_bbox[0][3]]
+                offset = [inst_bbox[0][2], inst_bbox[0][0]]
+                inst_contour = self.generate_instance_contour(inst_map, offset)
+                inst_centroid = self.generate_instance_centroid(inst_map, offset)
+                if inst_contour is not None:
+                    inst_info_dict[inst_id] = {  # inst_id should start at 1
+                        "bounding_box": inst_bbox,
+                        "centroid": inst_centroid,
+                        "contour": inst_contour,
+                        "type_probability": None,
+                        "type": None,
+                    }
+
+        if self.output_classes is not None:
+            for inst_id in list(inst_info_dict.keys()):
+                inst_type, type_prob = self.generate_instance_type(
+                    bbox=inst_info_dict[inst_id]["bounding_box"],  # type: ignore
+                    type_pred=type_pred,
+                    seg_pred=instance_pred,
+                    instance_id=inst_id,
+                )
+                inst_info_dict[inst_id]["type"] = inst_type  # type: ignore
+                inst_info_dict[inst_id]["type_probability"] = type_prob  # type: ignore
+
+        return inst_info_dict
