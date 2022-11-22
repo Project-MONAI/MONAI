@@ -25,4 +25,4 @@ from .scripts import (
     verify_metadata,
     verify_net_in_out,
 )
-from .utils import EXPR_KEY, ID_REF_KEY, ID_SEP_KEY, MACRO_KEY, load_bundle_config, DEFAULT_MLFLOW_SETTINGS
+from .utils import DEFAULT_MLFLOW_SETTINGS, EXPR_KEY, ID_REF_KEY, ID_SEP_KEY, MACRO_KEY, load_bundle_config

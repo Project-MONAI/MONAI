@@ -18,7 +18,6 @@ import torch
 
 from monai.config import IgniteInfo
 from monai.engines import Trainer
-from monai.handlers.validation_handler import ValidationHandler
 from monai.utils import min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
@@ -197,9 +196,11 @@ class MLFlowHandler:
             run_name = f"run_{time.strftime('%Y%m%d_%H%M%S')}" if self.run_name is None else self.run_name
             mlflow.start_run(run_name=run_name)
 
-        self._delete_exist_param_in_dict(self.experiment_param)
         if self.experiment_param:
-            mlflow.log_params(self.experiment_param)
+            # avoid to recording same parameters in the same run
+            self._delete_exist_param_in_dict(self.experiment_param)
+            if self.experiment_param:
+                mlflow.log_params(self.experiment_param)
 
         attrs = {attr: getattr(engine.state, attr, None) for attr in self.default_attr_name}
         self._delete_exist_param_in_dict(attrs)
