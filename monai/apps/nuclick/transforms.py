@@ -164,7 +164,8 @@ class SplitLabeld(MapTransform):
             return None
 
         for key in self.keys:
-            label = d[key]
+            label = d[key] if isinstance(d[key], torch.Tensor) else torch.from_numpy(d[key])
+
             if self.mask_value:
                 mask_value = d[self.mask_value]
             else:
@@ -178,8 +179,12 @@ class SplitLabeld(MapTransform):
                 others = measure.label(torch.Tensor.numpy(others)[0], connectivity=1)
                 others = torch.from_numpy(others)[None]
 
-            d[key] = mask.type(torch.uint8) if isinstance(mask, torch.Tensor) else mask
-            d[self.others] = others.type(torch.uint8) if isinstance(others, torch.Tensor) else others
+            label = mask.type(torch.uint8) if isinstance(mask, torch.Tensor) else mask
+            others = others.type(torch.uint8) if isinstance(others, torch.Tensor) else others
+
+            d[key] = label if isinstance(d[key], torch.Tensor) else torch.Tensor.numpy(label)
+            d[self.others] = others if isinstance(d[key], torch.Tensor) else torch.Tensor.numpy(others)
+
         return d
 
 
@@ -295,13 +300,13 @@ class AddPointGuidanceSignald(Randomizable, MapTransform):
     def __call__(self, data):
         d = dict(data)
 
-        image = d[self.image]
-        mask = d[self.label]
+        image = d[self.image] if isinstance(d[self.image], torch.Tensor) else torch.from_numpy(d[self.image])
+        mask = d[self.label] if isinstance(d[self.label], torch.Tensor) else torch.from_numpy(d[self.label])
 
         inc_sig = self.inclusion_map(mask[0], dtype=image.dtype)
         inc_sig = self._apply_gaussion(inc_sig)
         if self.add_exclusion_map:
-            others = d[self.others]
+            others = d[self.others] if isinstance(d[self.others], torch.Tensor) else torch.from_numpy(d[self.others])
             exc_sig = self.exclusion_map(
                 others[0], dtype=image.dtype, drop_rate=self.drop_rate, jitter_range=self.jitter_range
             )
@@ -310,7 +315,7 @@ class AddPointGuidanceSignald(Randomizable, MapTransform):
         else:
             image = torch.cat((image, inc_sig[None]), dim=0)
 
-        d[self.image] = image
+        d[self.image] = image if isinstance(d[self.image], torch.Tensor) else torch.Tensor.numpy(image)
         return d
 
     def _apply_gaussion(self, t):
@@ -383,6 +388,10 @@ class AddClickSignalsd(MapTransform):
     def __call__(self, data):
         d = dict(data)
 
+        img = d[self.image] if isinstance(d[self.image], torch.Tensor) else torch.from_numpy(d[self.image])
+        x = img.shape[-2]
+        y = img.shape[-1]
+
         location = d.get(NuclickKeys.LOCATION.value, (0, 0))
         tx, ty = location[0], location[1]
         pos = d.get(self.foreground)
@@ -391,59 +400,51 @@ class AddClickSignalsd(MapTransform):
         cx = [xy[0] for xy in pos]
         cy = [xy[1] for xy in pos]
 
-        img = d[self.image]
-        img_width = img.shape[-1]
-        img_height = img.shape[-2]
-
-        click_map, bounding_boxes = self.get_clickmap_boundingbox(
-            cx=cx, cy=cy, m=img_height, n=img_width, bb=self.bb_size
-        )
+        click_map, bounding_boxes = self.get_clickmap_boundingbox(cx=cx, cy=cy, x=x, y=y, bb=self.bb_size)
 
         patches = self.get_patches_and_signals(
-            img=img, click_map=click_map, bounding_boxes=bounding_boxes, cx=cx, cy=cy, m=img_height, n=img_width
+            img=img, click_map=click_map, bounding_boxes=bounding_boxes, cx=cx, cy=cy, x=x, y=y
         )
 
         d[NuclickKeys.BOUNDING_BOXES.value] = bounding_boxes
-        d[NuclickKeys.IMG_WIDTH.value] = img_width
-        d[NuclickKeys.IMG_HEIGHT.value] = img_height
+        d[NuclickKeys.IMG_WIDTH.value] = x
+        d[NuclickKeys.IMG_HEIGHT.value] = y
 
-        d[self.image] = patches
+        d[self.image] = patches if isinstance(d[self.image], torch.Tensor) else torch.Tensor.numpy(patches)
         return d
 
-    def get_clickmap_boundingbox(self, cx, cy, m, n, bb=128):
-        click_map = torch.zeros((m, n), dtype=torch.uint8)
+    def get_clickmap_boundingbox(self, cx, cy, x, y, bb=128):
+        click_map = torch.zeros((x, y), dtype=torch.uint8)
 
-        x_del_indices = {i for i in range(len(cx)) if cx[i] >= n or cx[i] < 0}
-        y_del_indices = {i for i in range(len(cy)) if cy[i] >= m or cy[i] < 0}
+        x_del_indices = {i for i in range(len(cx)) if cx[i] >= x or cx[i] < 0}
+        y_del_indices = {i for i in range(len(cy)) if cy[i] >= y or cy[i] < 0}
         del_indices = list(x_del_indices.union(y_del_indices))
         cx = np.delete(cx, del_indices)
         cy = np.delete(cy, del_indices)
 
-        click_map[cy, cx] = 1
+        click_map[cx, cy] = 1
         bounding_boxes = []
         for i in range(len(cx)):
-            x_start = cx[i] - bb // 2
-            y_start = cy[i] - bb // 2
-            if x_start < 0:
-                x_start = 0
-            if y_start < 0:
-                y_start = 0
-            x_end = x_start + bb - 1
-            y_end = y_start + bb - 1
-            if x_end > n - 1:
-                x_end = n - 1
-                x_start = x_end - bb + 1
-            if y_end > m - 1:
-                y_end = m - 1
-                y_start = y_end - bb + 1
-            bounding_boxes.append([x_start, y_start, x_end, y_end])
+            x_start = max(0, cx[i] - bb // 2)
+            y_start = max(0, cy[i] - bb // 2)
+            x_end = min(x_start + bb, x)
+            y_end = min(y_start + bb, y)
+
+            if x_end - x_start != bb:
+                x_start = x_end - bb
+            if y_end - y_start != bb:
+                y_start = y_end - bb
+            if x_end - x_start == bb and y_end - y_start == bb:
+                bounding_boxes.append([x_start, y_start, x_end, y_end])
+            else:
+                print(f"Ignore smaller sized bbox ({x_start}, {y_start}, {x_end}, {y_end}) (Min size: {bb}x{bb})")
         return click_map, bounding_boxes
 
-    def get_patches_and_signals(self, img, click_map, bounding_boxes, cx, cy, m, n):
+    def get_patches_and_signals(self, img, click_map, bounding_boxes, cx, cy, x, y):
         patches = []
 
-        x_del_indices = {i for i in range(len(cx)) if cx[i] >= n or cx[i] < 0}
-        y_del_indices = {i for i in range(len(cy)) if cy[i] >= m or cy[i] < 0}
+        x_del_indices = {i for i in range(len(cx)) if cx[i] >= x or cx[i] < 0}
+        y_del_indices = {i for i in range(len(cy)) if cy[i] >= y or cy[i] < 0}
         del_indices = list(x_del_indices.union(y_del_indices))
         cx = np.delete(cx, del_indices)
         cy = np.delete(cy, del_indices)
@@ -454,17 +455,17 @@ class AddClickSignalsd(MapTransform):
             x_end = bounding_box[2]
             y_end = bounding_box[3]
 
-            patch = img[:, y_start : y_end + 1, x_start : x_end + 1]
+            patch = img[:, x_start:x_end, y_start:y_end]
 
-            this_click_map = torch.zeros((m, n), dtype=img.dtype)
-            this_click_map[cy[i], cx[i]] = 1
+            this_click_map = torch.zeros((x, y), dtype=img.dtype)
+            this_click_map[cx[i], cy[i]] = 1
 
-            nuc_points = this_click_map[y_start : y_end + 1, x_start : x_end + 1]
+            nuc_points = this_click_map[x_start:x_end, y_start:y_end]
             nuc_points = self._apply_gaussion(nuc_points)
 
             if self.add_exclusion_map:
                 others_click_map = ((click_map - this_click_map) > 0).type(img.dtype)
-                other_points = others_click_map[y_start : y_end + 1, x_start : x_end + 1]
+                other_points = others_click_map[x_start:x_end, y_start:y_end]
                 other_points = self._apply_gaussion(other_points)
                 patches.append(torch.cat([patch, nuc_points[None], other_points[None]]))
             else:
@@ -523,15 +524,13 @@ class PostFilterLabeld(MapTransform):
 
         pred_classes = d.get(self.pred_classes)
         bounding_boxes = d[self.bounding_boxes]
-        img_height = d[self.img_height]
-        img_width = d[self.img_width]
+        x = d[self.img_width]
+        y = d[self.img_height]
 
         for key in self.keys:
             label = d[key].astype(np.uint8)
             masks = self.post_processing(label, self.thresh, self.min_size, self.min_hole)
-            d[key] = self.gen_instance_map(
-                masks, bounding_boxes, img_height, img_width, pred_classes=pred_classes
-            ).astype(np.uint8)
+            d[key] = self.gen_instance_map(masks, bounding_boxes, x, y, pred_classes=pred_classes).astype(np.uint8)
         return d
 
     def post_processing(self, preds, thresh=0.33, min_size=10, min_hole=30):
@@ -540,16 +539,17 @@ class PostFilterLabeld(MapTransform):
         masks = morphology.remove_small_holes(masks, area_threshold=min_hole)
         return masks
 
-    def gen_instance_map(self, masks, bounding_boxes, m, n, flatten=True, pred_classes=None):
-        instance_map = np.zeros((m, n), dtype=np.uint16)
-        for i, item in enumerate(masks):
-            this_bb = bounding_boxes[i]
-            this_mask_pos = np.argwhere(item > 0)
-            this_mask_pos[:, 0] = this_mask_pos[:, 0] + this_bb[1]
-            this_mask_pos[:, 1] = this_mask_pos[:, 1] + this_bb[0]
-
+    def gen_instance_map(self, masks, bounding_boxes, x, y, flatten=True, pred_classes=None):
+        instance_map = np.zeros((x, y), dtype=np.uint16)
+        for i, mask in enumerate(masks):
+            bb = bounding_boxes[i]
             c = pred_classes[i] if pred_classes and i < len(pred_classes) else 1
-            instance_map[this_mask_pos[:, 0], this_mask_pos[:, 1]] = c if flatten else i + 1
+            c = c if flatten else i + 1
+
+            this_map = instance_map[bb[0] : bb[2], bb[1] : bb[3]]
+            this_map = np.where(mask > 0, c, this_map)
+            instance_map[bb[0] : bb[2], bb[1] : bb[3]] = this_map
+
         return instance_map
 
 
