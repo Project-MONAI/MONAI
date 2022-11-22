@@ -266,6 +266,7 @@ class SSIMMetric(RegressionMetric):
             available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction
         get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans)
+        cs_return:  return ssim value and constrast sensitivity if True
     """
 
     def __init__(
@@ -277,6 +278,7 @@ class SSIMMetric(RegressionMetric):
         spatial_dims: int = 2,
         reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
         get_not_nans: bool = False,
+        cs_return: bool = False,
     ):
         super().__init__(reduction=reduction, get_not_nans=get_not_nans)
         self.data_range = data_range
@@ -285,14 +287,14 @@ class SSIMMetric(RegressionMetric):
         self.spatial_dims = spatial_dims
         self.cov_norm = (win_size**2) / (win_size**2 - 1)
         self.w = torch.ones([1, 1] + [win_size for _ in range(spatial_dims)]) / win_size**spatial_dims
+        self.cs_return = cs_return
 
-    def _compute_metric(self, x: torch.Tensor, y: torch.Tensor, full: bool = False) -> Union[tuple, torch.Tensor]:
+    def _compute_metric(self, x: torch.Tensor, y: torch.Tensor) -> Union[tuple, torch.Tensor]:
         """
         Args:
             x: first sample (e.g., the reference image). Its shape is (B,C,W,H) for 2D data and (B,C,W,H,D) for 3D.
                 A fastMRI sample should use the 2D format with C being the number of slices.
             y: second sample (e.g., the reconstructed image). It has similar shape as x
-            full:  return ssim value and constrast sensitivity if True
 
         Returns:
             ssim_value
@@ -313,13 +315,13 @@ class SSIMMetric(RegressionMetric):
                     f"x and y should have the same number of channels, "
                     f"but x has {x.shape[1]} channels and y has {y.shape[1]} channels."
                 )
-            if full:
+            if self.cs_return:
                 ssim = []
                 cs = []
                 for i in range(x.shape[1]):
                     ssim_val, cs_val = SSIMMetric(
                         self.data_range, self.win_size, self.k1, self.k2, self.spatial_dims
-                    )._compute_metric(x[:, i, ...].unsqueeze(1), y[:, i, ...].unsqueeze(1), full)
+                    )._compute_metric(x[:, i, ...].unsqueeze(1), y[:, i, ...].unsqueeze(1), self.cs_return)
                     ssim.append(ssim_val)
                     cs.append(cs_val)
                 channel_wise_ssim: torch.Tensor = torch.stack(ssim).mean(1).view(-1, 1)
@@ -335,7 +337,7 @@ class SSIMMetric(RegressionMetric):
                 ],
                 dim=1,
             )
-            channel_wise_ssim: torch.Tensor = ssim.mean(1).view(-1, 1)
+            channel_wise_ssim = ssim.mean(1).view(-1, 1)
             return channel_wise_ssim
 
         data_range = self.data_range[(None,) * (self.spatial_dims + 2)]
@@ -358,9 +360,9 @@ class SSIMMetric(RegressionMetric):
         denom = (ux**2 + uy**2 + c1) * (vx + vy + c2)
         ssim_value = numerator / denom
         # [B, 1]
-        ssim_per_batch = ssim_value.view(ssim_value.shape[1], -1).mean(1, keepdim=True)
-        if full:
-            cs = (2 * vxy + c2) / (vx + vy + c2)  # contrast sensitivity function
+        ssim_per_batch: torch.Tensor = ssim_value.view(ssim_value.shape[1], -1).mean(1, keepdim=True)
+        if self.cs_return:
+            cs: torch.Tensor = (2 * vxy + c2) / (vx + vy + c2)  # contrast sensitivity function
             cs_per_batch = cs.view(cs.shape[0], -1).mean(1, keepdim=True)  # [B, 1]
             return ssim_per_batch, cs_per_batch
         return ssim_per_batch

@@ -31,9 +31,9 @@ TESTS3D = [(x, y1, data_range, torch.tensor(1.0).unsqueeze(0)), (x, y2, data_ran
 x = torch.ones([3, 3, 10, 10, 10]) / 2
 y1 = torch.ones([3, 3, 10, 10, 10]) / 2
 data_range = x.max().unsqueeze(0)
-full = True
+cs_return = True
 res = torch.tensor(1.0).unsqueeze(0) * torch.ones((3, 1))
-TESTSFULL = [(x, y1, data_range, full, res)]
+TESTSCS = [(x, y1, data_range, cs_return, res)]
 
 
 class TestSSIMMetric(unittest.TestCase):
@@ -61,9 +61,9 @@ class TestSSIMMetric(unittest.TestCase):
         self.assertTrue(isinstance(result2, torch.Tensor))
         self.assertTrue(torch.abs(result2 - result).item() < 0.001)
 
-    @parameterized.expand(TESTSFULL)
-    def testfull(self, x, y, drange, full, res):
-        result, cs = SSIMMetric(data_range=drange, spatial_dims=3)._compute_metric(x, y, full=full)
+    @parameterized.expand(TESTSCS)
+    def testfull(self, x, y, drange, cs_return, res):
+        result, cs = SSIMMetric(data_range=drange, spatial_dims=3, cs_return=cs_return)._compute_metric(x, y)
         self.assertTrue(isinstance(result, torch.Tensor))
         self.assertTrue(isinstance(cs, torch.Tensor))
         self.assertTrue((torch.abs(res - cs) < 0.001).all().item())
