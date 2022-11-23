@@ -106,7 +106,7 @@ class MLFlowHandler:
         run_name: Optional[str] = None,
         experiment_param: Optional[Dict] = None,
         artifacts: Optional[Sequence[Path]] = None,
-        optimizer_param_names: Tuple[str] = ("lr"),
+        optimizer_param_names: Tuple[str, ...] = ("lr",),
     ) -> None:
         if tracking_uri is not None:
             mlflow.set_tracking_uri(tracking_uri)

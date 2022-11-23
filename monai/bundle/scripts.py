@@ -468,6 +468,7 @@ def get_bundle_info(
 
     return bundle_info[version]
 
+
 def patch_bundle_tracking(parser: ConfigParser, settings: dict):
     """
     Patch the loaded bundle config with a new handler logic to enable experiment tracking features.
