@@ -523,6 +523,7 @@ class HoVerNetNuclearTypePostProcessingd(Transform):
         self.converter = HoVerNetNuclearTypePostProcessing(
             min_num_points=min_num_points, level=level, return_centroids=return_centroids, output_classes=output_classes
         )
+        self.output_classes = output_classes
         self.type_pred_key = type_pred_key
         self.instance_pred_key = instance_pred_key
         self.pred_binary_key = pred_binary_key
@@ -533,16 +534,21 @@ class HoVerNetNuclearTypePostProcessingd(Transform):
         d = dict(data)
         inst_pred = d[self.instance_pred_key]
         type_pred = d[self.type_pred_key]
-        inst_info_dict = self.converter(type_pred, inst_pred)
+        if self.output_classes is not None:
+            pred_type_map, inst_info_dict = self.converter(type_pred, inst_pred)
+            d[self.type_pred_key] = pred_type_map
+        else:
+            inst_info_dict = self.converter(type_pred, inst_pred)
+
         key_to_add = f"{self.instance_info_dict_key}"
         if key_to_add in d:
             raise KeyError(f"Type information with key {key_to_add} already exists.")
-        d[key_to_add] = inst_info_dict  # type: ignore
+        d[key_to_add] = inst_info_dict
 
-        inst_pred = convert_to_dst_type(inst_pred, type_pred)[0]
         if self.return_binary:
-            inst_pred[inst_pred > 0] = 1
-            d[self.pred_binary_key] = inst_pred
+            d[self.pred_binary_key] = (inst_pred > 0).astype(int)
+        inst_pred = convert_to_dst_type(inst_pred, type_pred)[0]
+        d[self.instance_pred_key] = inst_pred
 
         return d
 
