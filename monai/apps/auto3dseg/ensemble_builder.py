@@ -9,10 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import os
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Sequence
 from warnings import warn
 
 import numpy as np
@@ -20,7 +21,6 @@ import numpy as np
 from monai.apps.auto3dseg.bundle_gen import BundleAlgo
 from monai.apps.utils import get_logger
 from monai.auto3dseg import concat_val_to_np
-from monai.auto3dseg.utils import datafold_read
 from monai.bundle import ConfigParser
 from monai.transforms import MeanEnsemble, VoteEnsemble
 from monai.utils.enums import AlgoEnsembleKeys
@@ -67,7 +67,7 @@ class AlgoEnsemble(ABC):
         """
         return self.algo_ensemble
 
-    def set_infer_files(self, dataroot: str, data_list_or_path: Union[str, List], data_key: str = "testing"):
+    def set_infer_files(self, dataroot: str, data_list_file_path: str, data_key: str = "testing"):
         """
         Set the files to perform model inference.
 
@@ -75,29 +75,19 @@ class AlgoEnsemble(ABC):
             dataroot: the path of the files
             data_src_cfg_file: the data source file path
         """
+        with open(data_list_file_path) as f:
+            datalist = json.load(f)
 
-        self.infer_files = []
+        for d in datalist[data_key]:
+            self.infer_files.append({"image": os.path.join(dataroot, d["image"])})
 
-        if isinstance(data_list_or_path, List):
-            self.infer_files = data_list_or_path
-        elif isinstance(data_list_or_path, str):
-            datalist = ConfigParser.load_config_file(data_list_or_path)
-            if data_key in datalist:
-                self.infer_files, _ = datafold_read(datalist=datalist, basedir=dataroot, fold=-1, key=data_key)
-            else:
-                logger.info(f"Datalist file has no testing key - {data_key}. No data for inference is specified")
-
-        else:
-            raise ValueError("Unsupported parameter type")
-
-    def ensemble_pred(self, preds, sigmoid=False):
+    def ensemble_pred(self, preds, sigmoid=True):
         """
         ensemble the results using either "mean" or "vote" method
 
         Args:
             preds: a list of probability prediction in Tensor-Like format.
-            sigmoid: use the sigmoid function to threshold probability one-hot map,
-                otherwise argmax is used. Defaults to False
+            sigmoid: use the sigmoid function to threshold probability one-hot map.
 
         Returns:
             a tensor which is the ensembled prediction.
@@ -123,7 +113,7 @@ class AlgoEnsemble(ABC):
                     make prediction on the infer_files[file_slices].
                 'mode': ensemble mode. Currently "mean" and "vote" (majority voting) schemes are supported.
                 'sigmoid': use the sigmoid function (e.g. x>0.5) to convert the prediction probability map to
-                    the label class prediction, otherwise argmax(x) is used.
+                    the label class prediction.
 
         Returns:
             A list of tensors.
@@ -134,27 +124,28 @@ class AlgoEnsemble(ABC):
             param = deepcopy(pred_param)
 
         files = self.infer_files
-
-        if "infer_files" in param:
-            files = param.pop("infer_files")
-
         if "files_slices" in param:
             slices = param.pop("files_slices")
-            files = files[slices]
+            files = self.infer_files[slices]
 
         if "mode" in param:
             mode = param.pop("mode")
             self.mode = look_up_option(mode, supported=["mean", "vote"])
 
-        sigmoid = param.pop("sigmoid", False)
+        sigmoid = True
+        if "sigmoid" in param:
+            sigmoid = param.pop("sigmoid")
+            sigmoid = look_up_option(sigmoid, supported=[True, False])
 
         outputs = []
-        for i, file in enumerate(files):
+        for i in range(len(files)):
             print(i)
             preds = []
+            infer_filename = self.infer_files[i]
             for algo in self.algo_ensemble:
                 infer_instance = algo[AlgoEnsembleKeys.ALGO]
-                pred = infer_instance.predict(predict_files=[file], predict_params=param)
+                param.update({"files": [infer_filename]})
+                pred = infer_instance.predict(param)
                 preds.append(pred[0])
             outputs.append(self.ensemble_pred(preds, sigmoid=sigmoid))
         return outputs
@@ -231,7 +222,8 @@ class AlgoEnsembleBestByFold(AlgoEnsemble):
             best_score = -1.0
             best_model: Optional[BundleAlgo] = None
             for algo in self.algos:
-                identifier = algo[AlgoEnsembleKeys.ID].split("_")[-1]
+                # algorithm folder: {net}_{fold_index}_{other}
+                identifier = algo[AlgoEnsembleKeys.ID].split("_")[1]
                 try:
                     algo_id = int(identifier)
                 except ValueError as err:
@@ -257,6 +249,7 @@ class AlgoEnsembleBuilder:
             builder.set_ensemble_method(BundleAlgoEnsembleBestN(3))
             ensemble = builder.get_ensemble()
 
+            result = ensemble.predict()
     """
 
     def __init__(self, history: Sequence[Dict], data_src_cfg_filename: Optional[str] = None):

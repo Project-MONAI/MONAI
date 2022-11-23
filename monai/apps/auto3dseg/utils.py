@@ -31,7 +31,7 @@ def import_bundle_algo_history(
 
     history = []
 
-    for name in sorted(os.listdir(output_folder)):
+    for name in os.listdir(output_folder):
         write_path = os.path.join(output_folder, name)
 
         if not os.path.isdir(write_path):
