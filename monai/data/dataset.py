@@ -825,7 +825,7 @@ class CacheDataset(Dataset):
                 cache = Manager().list([None for _ in range(self.cache_num)])
                 if self._is_dist:
                     obj_list = [cache]
-                    # broadcast the ProxyList to all the ranks, then share the same cache content at runtime
+                    # broadcast the ListProxy to all the ranks, then share the same cache content at runtime
                     dist.broadcast_object_list(obj_list, src=0)
                     cache = obj_list[0]
             else:
@@ -846,11 +846,11 @@ class CacheDataset(Dataset):
 
     def disable_share_memory_cache(self):
         """
-        If the cache content is multiprocessing share memory list, convert it to a regular ptython list.
-        Because multiprocessing ProxyList is not supported for the GPU caching, may need to explicitly diasble it.
+        If the cache content is a multiprocessing shared memory ListProxy, convert it to a regular python list.
+        Because multiprocessing ListProxy is not supported for the GPU caching,  explicitly disable it.
 
         """
-        if self.runtime_cache and not dist.is_initialized():
+        if self.runtime_cache and not self._is_dist:
             self._cache = list(self._cache)
 
     def _fill_cache(self, indices=None) -> List:
