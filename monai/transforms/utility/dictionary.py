@@ -1405,7 +1405,7 @@ class TorchVisiond(MapTransform):
         return d
 
 
-class RandTorchVisiond(Randomizable, MapTransform):
+class RandTorchVisiond(RandomizableTransform, MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.TorchVision` for randomized transforms.
     For deterministic non-randomized transforms of TorchVision use :py:class:`monai.transforms.TorchVisiond`.
@@ -1414,32 +1414,42 @@ class RandTorchVisiond(Randomizable, MapTransform):
 
         - As most of the TorchVision transforms only work for PIL image and PyTorch Tensor, this transform expects input
           data to be dict of PyTorch Tensors, users can easily call `ToTensord` transform to convert Numpy to Tensor.
-        - This class inherits the ``Randomizable`` purely to prevent any dataset caching to skip the transform
+        - This class inherits the ``RandomizableTransform`` purely to prevent any dataset caching to skip the transform
           computation. If the random factor of the underlying torchvision transform is not derived from `self.R`,
-          the results may not be deterministic.
-          See Also: :py:class:`monai.transforms.Randomizable`.
+          the results may not be deterministic.  It also provides the probability to apply this transform.
+          See Also: :py:class:`monai.transforms.RandomizableTransform`.
 
     """
 
     backend = TorchVision.backend
 
-    def __init__(self, keys: KeysCollection, name: str, allow_missing_keys: bool = False, *args, **kwargs) -> None:
+    def __init__(
+        self, keys: KeysCollection, name: str, prob: float = 1.0, allow_missing_keys: bool = False, *args, **kwargs
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             name: The transform name in TorchVision package.
+            prob: Probability of applying this transform.
             allow_missing_keys: don't raise exception if key is missing.
             args: parameters for the TorchVision transform.
             kwargs: parameters for the TorchVision transform.
 
         """
+        RandomizableTransform.__init__(self, prob=prob)
         MapTransform.__init__(self, keys, allow_missing_keys)
+
         self.name = name
         self.trans = TorchVision(name, *args, **kwargs)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
+
+        self.randomize(data)
+        if not self._do_transform:
+            return d
+
         for key in self.key_iterator(d):
             d[key] = self.trans(d[key])
         return d
