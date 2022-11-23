@@ -46,6 +46,11 @@ Metrics
 .. autoclass:: CumulativeIterationMetric
     :members:
 
+`LossMetric`
+------------
+.. autoclass:: LossMetric
+    :members:
+
 `Mean Dice`
 -----------
 .. autofunction:: compute_meandice
