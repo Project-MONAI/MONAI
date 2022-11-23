@@ -28,7 +28,7 @@ __all__ = ["Warp", "DVF2DDF"]
 
 class Warp(nn.Module):
     """
-    Warp an image with given dense displacement field (DDF).
+    Warp an image with given dense displacement field (DisplacementField).
     """
 
     def __init__(self, mode=GridSampleMode.BILINEAR.value, padding_mode=GridSamplePadMode.BORDER.value):
@@ -113,7 +113,7 @@ class Warp(nn.Module):
         ddf_shape = (image.shape[0], spatial_dims) + tuple(image.shape[2:])
         if ddf.shape != ddf_shape:
             raise ValueError(
-                f"Given input {spatial_dims}-d image shape {image.shape}, the input DDF shape must be {ddf_shape}, "
+                f"Given input {spatial_dims}-d image shape {image.shape}, the input DisplacementField shape must be {ddf_shape}, "
                 f"Got {ddf.shape} instead."
             )
         grid = self.get_reference_grid(ddf) + ddf
@@ -134,7 +134,7 @@ class Warp(nn.Module):
 
 class DVF2DDF(nn.Module):
     """
-    Layer calculates a dense displacement field (DDF) from a dense velocity field (DVF)
+    Layer calculates a dense displacement field (DisplacementField) from a dense velocity field (DVF)
     with scaling and squaring.
 
     Adapted from:

@@ -34,14 +34,14 @@ class Affine:
         """Check if the data is an affine matrix."""
         if isinstance(data, Affine):
             return True
-        if isinstance(data, DDF):
+        if isinstance(data, DisplacementField):
             return False
         if not hasattr(data, "shape") or len(data.shape) < 2:
             return False
         return data.shape[-1] in (3, 4) and data.shape[-2] in (3, 4) and data.shape[-1] == data.shape[-2]
 
 
-class DDF:
+class DisplacementField:
     """A class to represent a dense displacement field."""
 
     __slots__ = ("data",)
@@ -52,7 +52,7 @@ class DDF:
     @staticmethod
     def is_ddf_shaped(data):
         """Check if the data is a DDF."""
-        if isinstance(data, DDF):
+        if isinstance(data, DisplacementField):
             return True
         if isinstance(data, Affine):
             return False
@@ -67,9 +67,11 @@ def combine_transforms(left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
         left = convert_to_tensor(left.data if isinstance(left, Affine) else left, wrap_sequence=True)
         right = convert_to_tensor(right.data if isinstance(right, Affine) else right, wrap_sequence=True)
         return torch.matmul(left, right)
-    if DDF.is_ddf_shaped(left) and DDF.is_ddf_shaped(right):  # adds DDFs, do we need metadata if metatensor input?
-        left = convert_to_tensor(left.data if isinstance(left, DDF) else left, wrap_sequence=True)
-        right = convert_to_tensor(right.data if isinstance(right, DDF) else right, wrap_sequence=True)
+    if DisplacementField.is_ddf_shaped(left) and DisplacementField.is_ddf_shaped(
+        right
+    ):  # adds DDFs, do we need metadata if metatensor input?
+        left = convert_to_tensor(left.data if isinstance(left, DisplacementField) else left, wrap_sequence=True)
+        right = convert_to_tensor(right.data if isinstance(right, DisplacementField) else right, wrap_sequence=True)
         return left + right
     raise NotImplementedError
 
