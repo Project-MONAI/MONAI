@@ -1975,6 +1975,12 @@ Utility (Dict)
     :members:
     :special-members: __call__
 
+`FlattenSubKeysd`
+""""""""""""""""""""
+.. autoclass:: FlattenSubKeysd
+    :members:
+    :special-members: __call__
+
 `Transposed`
 """"""""""""
 .. autoclass:: Transposed
