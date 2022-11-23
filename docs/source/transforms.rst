@@ -1976,7 +1976,7 @@ Utility (Dict)
     :special-members: __call__
 
 `FlattenSubKeysd`
-""""""""""""""""""""
+"""""""""""""""""
 .. autoclass:: FlattenSubKeysd
     :members:
     :special-members: __call__
