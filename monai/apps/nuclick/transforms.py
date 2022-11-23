@@ -427,7 +427,7 @@ class AddClickSignalsd(MapTransform):
         cx = [xy[0] for xy in pos]
         cy = [xy[1] for xy in pos]
 
-        click_map, bounding_boxes = self.get_clickmap_boundingbox(cx=cx, cy=cy, x=x, y=y, bb=self.bb_size)
+        click_map, bounding_boxes = self.get_clickmap_boundingbox(img, cx=cx, cy=cy, x=x, y=y, bb=self.bb_size)
 
         patches = self.get_patches_and_signals(
             img=img, click_map=click_map, bounding_boxes=bounding_boxes, cx=cx, cy=cy, x=x, y=y
@@ -440,8 +440,8 @@ class AddClickSignalsd(MapTransform):
         d[self.image] = patches if isinstance(d[self.image], torch.Tensor) else convert_to_numpy(patches)
         return d
 
-    def get_clickmap_boundingbox(self, cx, cy, x, y, bb=128):
-        click_map = torch.zeros((x, y), dtype=torch.uint8)
+    def get_clickmap_boundingbox(self, img, cx, cy, x, y, bb=128):
+        click_map = torch.zeros((x, y), dtype=img.dtype, device=img.get_device())
 
         x_del_indices = {i for i in range(len(cx)) if cx[i] >= x or cx[i] < 0}
         y_del_indices = {i for i in range(len(cy)) if cy[i] >= y or cy[i] < 0}
@@ -484,7 +484,7 @@ class AddClickSignalsd(MapTransform):
 
             patch = img[:, x_start:x_end, y_start:y_end]
 
-            this_click_map = torch.zeros((x, y), dtype=img.dtype)
+            this_click_map = torch.zeros((x, y), dtype=img.dtype, device=img.get_device())
             this_click_map[cx[i], cy[i]] = 1
 
             nuc_points = this_click_map[x_start:x_end, y_start:y_end]
@@ -602,7 +602,7 @@ class AddLabelAsGuidanced(MapTransform):
             label = label > 0
             if len(label.shape) < len(image.shape):
                 label = label[None]
-            image = torch.cat([image, label.type(image.dtype)])
+            image = torch.cat([image, label.type(image.dtype)], dim=len(label.shape) - 3)
             d[key] = image if isinstance(d[key], torch.Tensor) else convert_to_numpy(image)
         return d
 
