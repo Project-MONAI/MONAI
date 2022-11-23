@@ -16,7 +16,7 @@ import torch
 
 import monai
 from monai.config import NdarrayOrTensor
-from monai.utils import LazyAttr
+from monai.utils import LazyAttr, convert_to_tensor
 
 __all__ = ["resample", "combine_transforms"]
 
@@ -61,19 +61,15 @@ class DDF:
         return not Affine.is_affine_shaped(data)
 
 
-def combine_transforms(left: torch.Tensor, right: torch.Tensor):
+def combine_transforms(left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
     """Given transforms A and B to be applied to x, return the combined transform (AB), so that A(B(x)) becomes AB(x)"""
     if Affine.is_affine_shaped(left) and Affine.is_affine_shaped(right):  # linear transforms
-        if isinstance(left, Affine):
-            left = left.data
-        if isinstance(right, Affine):
-            right = right.data
+        left = convert_to_tensor(left.data if isinstance(left, Affine) else left, wrap_sequence=True)
+        right = convert_to_tensor(right.data if isinstance(right, Affine) else right, wrap_sequence=True)
         return torch.matmul(left, right)
-    if DDF.is_ddf_shaped(left) and DDF.is_ddf_shaped(right):  # adds DDFs
-        if isinstance(left, DDF):
-            left = left.data
-        if isinstance(right, DDF):
-            right = right.data
+    if DDF.is_ddf_shaped(left) and DDF.is_ddf_shaped(right):  # adds DDFs, do we need metadata if metatensor input?
+        left = convert_to_tensor(left.data if isinstance(left, DDF) else left, wrap_sequence=True)
+        right = convert_to_tensor(right.data if isinstance(right, DDF) else right, wrap_sequence=True)
         return left + right
     raise NotImplementedError
 

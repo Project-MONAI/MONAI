@@ -12,10 +12,11 @@
 import unittest
 
 import torch
+from parameterized import parameterized
 
 from monai.transforms.lazy.functional import resample
 from monai.utils import convert_to_tensor
-from tests.utils import get_arange_img
+from tests.utils import assert_allclose, get_arange_img
 
 
 def rotate_90_2d():
@@ -25,15 +26,14 @@ def rotate_90_2d():
     return t
 
 
+RESAMPLE_FUNCTION_CASES = [(get_arange_img((3, 3)), rotate_90_2d(), [[2, 5, 8], [1, 4, 7], [0, 3, 6]])]
+
+
 class TestResampleFunction(unittest.TestCase):
-    def _test_resample_function_impl(self, img, matrix):
-        resample(convert_to_tensor(img), matrix)
-
-    RESAMPLE_FUNCTION_CASES = [(get_arange_img((1, 16, 16)), rotate_90_2d())]
-
-    def test_resample_function(self):
-        for case in self.RESAMPLE_FUNCTION_CASES:
-            self._test_resample_function_impl(*case)
+    @parameterized.expand(RESAMPLE_FUNCTION_CASES)
+    def test_resample_function_impl(self, img, matrix, expected):
+        out = resample(convert_to_tensor(img), matrix)
+        assert_allclose(out[0], expected, type_test=False)
 
 
 if __name__ == "__main__":

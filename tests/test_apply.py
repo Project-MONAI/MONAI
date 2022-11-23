@@ -17,15 +17,20 @@ import torch
 from monai.transforms.lazy.functional import apply
 from monai.transforms.utils import create_rotate
 from monai.utils import LazyAttr, convert_to_tensor
+from tests.utils import get_arange_img
 
 
 def single_2d_transform_cases():
     return [
-        (torch.randn((1, 32, 32)), [{LazyAttr.AFFINE: create_rotate(2, np.pi / 4)}], (1, 32, 32)),
-        (torch.randn((1, 32, 32)), [create_rotate(2, np.pi / 4)], (1, 32, 32)),
         (
-            torch.randn((1, 16, 16)),
-            [{LazyAttr.AFFINE: create_rotate(2, np.pi / 4), LazyAttr.SHAPE: (1, 45, 45)}],
+            torch.as_tensor(get_arange_img((32, 32))),
+            [{LazyAttr.AFFINE: create_rotate(2, np.pi / 4)}, {LazyAttr.AFFINE: create_rotate(2, -np.pi / 4)}],
+            (1, 32, 32),
+        ),
+        (torch.as_tensor(get_arange_img((32, 32))), [create_rotate(2, np.pi / 2)], (1, 32, 32)),
+        (
+            torch.as_tensor(get_arange_img((16, 16))),
+            [{LazyAttr.AFFINE: create_rotate(2, np.pi / 2), LazyAttr.SHAPE: (1, 45, 45)}],
             (1, 45, 45),
         ),
     ]
@@ -45,7 +50,6 @@ class TestApply(unittest.TestCase):
             for p in pending_transforms:
                 tensor_.push_pending_operation(p)
             result, transforms = apply(tensor_)
-
         self.assertEqual(result.shape, expected_shape)
 
     SINGLE_TRANSFORM_CASES = single_2d_transform_cases()
