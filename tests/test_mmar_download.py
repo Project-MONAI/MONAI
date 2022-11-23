@@ -18,9 +18,11 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
+from monai import __version__
 from monai.apps import download_mmar, load_from_mmar
 from monai.apps.mmars import MODEL_DESC
 from monai.apps.mmars.mmars import _get_val
+from monai.utils import version_leq
 from tests.utils import skip_if_downloading_fails, skip_if_quick
 
 TEST_CASES = [["clara_pt_prostate_mri_segmentation"], ["clara_pt_covid19_ct_lesion_segmentation"]]
@@ -125,6 +127,7 @@ class TestMMMARDownload(unittest.TestCase):
 
     @parameterized.expand(TEST_EXTRACT_CASES)
     @skip_if_quick
+    @unittest.skipIf(version_leq(__version__, "0.6"), "requires newer monai")
     def test_load_ckpt(self, input_args, expected_name, expected_val):
         with skip_if_downloading_fails():
             output = load_from_mmar(**input_args)
