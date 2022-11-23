@@ -20,8 +20,13 @@ import torch.distributed as dist
 import monai
 from monai.apps.auto3dseg.data_analyzer import DataAnalyzer
 from monai.auto3dseg import SegSummarizer
-from monai.bundle import ConfigParser
-from monai.bundle.config_item import ConfigComponent, ConfigItem
+from monai.bundle import (
+    DEFAULT_EXPERIMENT_MANAGEMENT_SETTINGS,
+    ConfigComponent,
+    ConfigItem,
+    ConfigParser,
+    patch_bundle_tracking,
+)
 from monai.fl.client import ClientAlgo, ClientAlgoStats
 from monai.fl.utils.constants import (
     BundleKeys,
@@ -93,7 +98,7 @@ def disable_ckpt_loaders(parser):
 
 class MonaiAlgoStats(ClientAlgoStats):
     """
-    Implementation of ``ClientAlgo`` to allow federated learning with MONAI bundle configurations.
+    Implementation of ``ClientAlgoStats`` to allow federated learning with MONAI bundle configurations.
 
     Args:
         bundle_root: path of bundle.
@@ -343,6 +348,38 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         multi_gpu: whether to run MonaiAlgo in a multi-GPU setting; defaults to `False`.
         backend: backend to use for torch.distributed; defaults to "nccl".
         init_method: init_method for torch.distributed; defaults to "env://".
+        tracking: enable the experiment tracking feature at runtime with optionally configurable and extensible.
+            if "mlflow", will add `MLFlowHandler` to the parsed bundle with default loggging settings,
+            if other string, treat it as file path to load the logging settings, if `dict`,
+            treat it as logging settings, otherwise, use all the default settings.
+            will patch the target config content with `tracking handlers` and the top-level items of `configs`.
+            example of customized settings:
+
+            .. code-block:: python
+
+                tracking = {
+                    "handlers_id": {
+                        "trainer": {"id": "train#trainer", "handlers": "train#handlers"},
+                        "validator": {"id": "evaluate#evaluator", "handlers": "evaluate#handlers"},
+                        "evaluator": {"id": "evaluator", "handlers": "handlers"},
+                    },
+                    "configs": {
+                        "tracking_uri": "<path>",
+                        "trainer": {
+                            "_target_": "MLFlowHandler",
+                            "tracking_uri": "@tracking_uri",
+                            "iteration_log": True,
+                            "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
+                        },
+                        "validator": {
+                            "_target_": "MLFlowHandler", "tracking_uri": "@tracking_uri", "iteration_log": False,
+                        },
+                        "evaluator": {
+                            "_target_": "MLFlowHandler", "tracking_uri": "@tracking_uri", "iteration_log": False,
+                        },
+                    },
+                },
+
     """
 
     def __init__(
@@ -365,6 +402,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         train_data_key: Optional[str] = BundleKeys.TRAIN_DATA,
         eval_data_key: Optional[str] = BundleKeys.VALID_DATA,
         data_stats_transform_list: Optional[list] = None,
+        tracking: Optional[Union[str, dict]] = None,
     ):
         self.logger = logging.getLogger(self.__class__.__name__)
         if config_evaluate_filename == "default":
@@ -387,6 +425,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         self.train_data_key = train_data_key
         self.eval_data_key = eval_data_key
         self.data_stats_transform_list = data_stats_transform_list
+        self.tracking = tracking
 
         self.app_root = None
         self.train_parser = None
@@ -466,6 +505,15 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         if self.disable_ckpt_loading:
             disable_ckpt_loaders(self.train_parser)
             disable_ckpt_loaders(self.eval_parser)
+
+        # set tracking configs for experiment management
+        if self.tracking is not None:
+            if isinstance(self.tracking, str) and self.tracking in DEFAULT_EXPERIMENT_MANAGEMENT_SETTINGS:
+                settings_ = DEFAULT_EXPERIMENT_MANAGEMENT_SETTINGS[self.tracking]
+            else:
+                settings_ = ConfigParser.load_config_files(self.tracking)
+            patch_bundle_tracking(parser=self.train_parser, settings=settings_)
+            patch_bundle_tracking(parser=self.eval_parser, settings=settings_)
 
         # Get trainer, evaluator
         self.trainer = self.train_parser.get_parsed_content(

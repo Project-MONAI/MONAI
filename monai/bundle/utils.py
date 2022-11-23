@@ -104,7 +104,7 @@ DEFAULT_HANDLERS_ID = {
 DEFAULT_MLFLOW_SETTINGS = {
     "handlers_id": DEFAULT_HANDLERS_ID,
     "configs": {
-        "tracking_uri": "$@output_dir + '/mlflow'",
+        "tracking_uri": "$@output_dir + '/mlruns'",
         # MLFlowHandler config for the trainer
         "trainer": {
             "_target_": "MLFlowHandler",
