@@ -763,7 +763,7 @@ class CacheDataset(Dataset):
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
             num_workers: the number of worker threads if computing cache in the initialization.
                 If num_workers is None then the number returned by os.cpu_count() is used.
-                If a value less than 1 is speficied, 1 will be used instead.
+                If a value less than 1 is specified, 1 will be used instead.
             progress: whether to display a progress bar.
             copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
                 default to `True`. if the random transforms don't modify the cached content
@@ -778,14 +778,12 @@ class CacheDataset(Dataset):
             hash_func: if `hash_as_key`, a callable to compute hash from data items to be cached.
                 defaults to `monai.data.utils.pickle_hashing`.
             runtime_cache: whether to compute cache at the runtime, default to `False` to prepare
-                the cache content at initializaiton, if `True`, it will cache during the first epoch
+                the cache content at initialization, if `True`, it will cache during the first epoch
                 of model training, so it can start the first mini-batch earlier. please note that:
                 1. when using this option in multi-gpu distributed training,
                 `torch.cuda.set_device()` must be called before initializing this class.
-                2. to execute `runtime cache` on GPU memory, must co-work with
-                `monai.data.DataLoader`, and can't work with `monai.data.DistributedSampler`
-                as GPU Tensor usually can't be shared in the multiprocessing context.
-                (try ``cache_dataset.disable_share_memory_cache()`` in case of GPU caching issues.)
+                2. if caching data that is in GPU memory during multi-gpu distributed training, this option
+                should not be used, since the underlying shared cache only works for CPU shared memory.
 
         """
         if not isinstance(transform, Compose):
