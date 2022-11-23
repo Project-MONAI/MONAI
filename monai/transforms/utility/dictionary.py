@@ -1410,10 +1410,23 @@ class RandTorchVisiond(RandomizableTransform, MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.TorchVision` for randomized transforms.
     For deterministic non-randomized transforms of TorchVision use :py:class:`monai.transforms.TorchVisiond`.
 
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        name: The transform name in TorchVision package.
+        apply_prob: Probability of applying this transform.
+        allow_missing_keys: don't raise exception if key is missing.
+        args: parameters for the TorchVision transform.
+        kwargs: parameters for the TorchVision transform.
+
     Note:
 
         - As most of the TorchVision transforms only work for PIL image and PyTorch Tensor, this transform expects input
           data to be dict of PyTorch Tensors, users can easily call `ToTensord` transform to convert Numpy to Tensor.
+        - If the torchvision transform is already randomized the `apply_prob` argument has nothing to do with
+          the randomness of the underlying torchvision transform. `apply_prob` defines if the transform (either randomized
+          or non-randomized) being applied randomly, so it can apply non-randomized transforms randomly but be careful
+          with setting `apply_prob` to anything than 1.0 when using along with torchvision's randomized transforms.
         - This class inherits the ``RandomizableTransform`` purely to prevent any dataset caching to skip the transform
           computation. If the random factor of the underlying torchvision transform is not derived from `self.R`,
           the results may not be deterministic.  It also provides the probability to apply this transform.
@@ -1424,20 +1437,16 @@ class RandTorchVisiond(RandomizableTransform, MapTransform):
     backend = TorchVision.backend
 
     def __init__(
-        self, keys: KeysCollection, name: str, prob: float = 1.0, allow_missing_keys: bool = False, *args, **kwargs
+        self,
+        keys: KeysCollection,
+        name: str,
+        apply_prob: float = 1.0,
+        allow_missing_keys: bool = False,
+        *args,
+        **kwargs,
     ) -> None:
-        """
-        Args:
-            keys: keys of the corresponding items to be transformed.
-                See also: :py:class:`monai.transforms.compose.MapTransform`
-            name: The transform name in TorchVision package.
-            prob: Probability of applying this transform.
-            allow_missing_keys: don't raise exception if key is missing.
-            args: parameters for the TorchVision transform.
-            kwargs: parameters for the TorchVision transform.
 
-        """
-        RandomizableTransform.__init__(self, prob=prob)
+        RandomizableTransform.__init__(self, prob=apply_prob)
         MapTransform.__init__(self, keys, allow_missing_keys)
 
         self.name = name
@@ -1625,7 +1634,7 @@ class CuCIMd(MapTransform):
         return d
 
 
-class RandCuCIMd(CuCIMd, RandomizableTransform):
+class RandCuCIMd(RandomizableTransform, MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.CuCIM` for randomized transforms.
     For deterministic non-randomized transforms of CuCIM use :py:class:`monai.transforms.CuCIMd`.
@@ -1650,9 +1659,21 @@ class RandCuCIMd(CuCIMd, RandomizableTransform):
           the results may not be deterministic. See Also: :py:class:`monai.transforms.Randomizable`.
     """
 
-    def __init__(self, apply_prob: float = 1.0, *args, **kwargs) -> None:
-        CuCIMd.__init__(self, *args, **kwargs)
+    def __init__(
+        self,
+        keys: KeysCollection,
+        name: str,
+        apply_prob: float = 1.0,
+        allow_missing_keys: bool = False,
+        *args,
+        **kwargs,
+    ) -> None:
+
         RandomizableTransform.__init__(self, prob=apply_prob)
+        MapTransform.__init__(self, keys, allow_missing_keys)
+
+        self.name = name
+        self.trans = CuCIM(name, *args, **kwargs)
 
     def __call__(self, data):
         """
@@ -1663,10 +1684,15 @@ class RandCuCIMd(CuCIMd, RandomizableTransform):
             Dict[Hashable, `cupy.ndarray`]
 
         """
+        d = dict(data)
+
         self.randomize(data)
         if not self._do_transform:
-            return dict(data)
-        return super().__call__(data)
+            return d
+
+        for key in self.key_iterator(d):
+            d[key] = self.trans(d[key])
+        return d
 
 
 class AddCoordinateChannelsd(MapTransform):
