@@ -12,7 +12,7 @@
 import math
 from abc import abstractmethod
 from functools import partial
-from typing import Any, Union
+from typing import Any, Tuple, Union
 
 import torch
 import torch.nn.functional as F
@@ -266,7 +266,6 @@ class SSIMMetric(RegressionMetric):
             available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction
         get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans)
-        cs_return:  return ssim value and constrast sensitivity if True
     """
 
     def __init__(
@@ -278,7 +277,6 @@ class SSIMMetric(RegressionMetric):
         spatial_dims: int = 2,
         reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
         get_not_nans: bool = False,
-        cs_return: bool = False,
     ):
         super().__init__(reduction=reduction, get_not_nans=get_not_nans)
         self.data_range = data_range
@@ -287,9 +285,28 @@ class SSIMMetric(RegressionMetric):
         self.spatial_dims = spatial_dims
         self.cov_norm = (win_size**2) / (win_size**2 - 1)
         self.w = torch.ones([1, 1] + [win_size for _ in range(spatial_dims)]) / win_size**spatial_dims
-        self.cs_return = cs_return
 
-    def _compute_metric(self, x: torch.Tensor, y: torch.Tensor) -> Union[tuple, torch.Tensor]:
+    def _compute_intermediate_statistics(self, x: torch.Tensor, y: torch.Tensor) -> Tuple[torch.Tensor, ...]:
+
+        data_range = self.data_range[(None,) * (self.spatial_dims + 2)]
+        # determine whether to work with 2D convolution or 3D
+        conv = getattr(F, f"conv{self.spatial_dims}d")
+        w = convert_to_dst_type(src=self.w, dst=x)[0]
+
+        c1 = (self.k1 * data_range) ** 2  # stability constant for luminance
+        c2 = (self.k2 * data_range) ** 2  # stability constant for contrast
+        ux = conv(x, w)  # mu_x
+        uy = conv(y, w)  # mu_y
+        uxx = conv(x * x, w)  # mu_x^2
+        uyy = conv(y * y, w)  # mu_y^2
+        uxy = conv(x * y, w)  # mu_xy
+        vx = self.cov_norm * (uxx - ux * ux)  # sigma_x
+        vy = self.cov_norm * (uyy - uy * uy)  # sigma_y
+        vxy = self.cov_norm * (uxy - ux * uy)  # sigma_xy
+
+        return c1, c2, ux, uy, vx, vy, vxy
+
+    def _compute_metric(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         """
         Args:
             x: first sample (e.g., the reference image). Its shape is (B,C,W,H) for 2D data and (B,C,W,H,D) for 3D.
@@ -315,18 +332,6 @@ class SSIMMetric(RegressionMetric):
                     f"x and y should have the same number of channels, "
                     f"but x has {x.shape[1]} channels and y has {y.shape[1]} channels."
                 )
-            if self.cs_return:
-                ssim = []
-                cs = []
-                for i in range(x.shape[1]):
-                    ssim_val, cs_val = SSIMMetric(
-                        self.data_range, self.win_size, self.k1, self.k2, self.spatial_dims, cs_return=self.cs_return
-                    )._compute_metric(x[:, i, ...].unsqueeze(1), y[:, i, ...].unsqueeze(1))
-                    ssim.append(ssim_val)
-                    cs.append(cs_val)
-                channel_wise_ssim: torch.Tensor = torch.stack(ssim).mean(1).view(-1, 1)
-                channel_wise_cs: torch.Tensor = torch.stack(cs).mean(1).view(-1, 1)
-                return channel_wise_ssim, channel_wise_cs
 
             ssim = torch.stack(
                 [
@@ -339,29 +344,53 @@ class SSIMMetric(RegressionMetric):
             channel_wise_ssim = ssim.mean(1).view(-1, 1)
             return channel_wise_ssim
 
-        data_range = self.data_range[(None,) * (self.spatial_dims + 2)]
-        # determine whether to work with 2D convolution or 3D
-        conv = getattr(F, f"conv{self.spatial_dims}d")
-        w = convert_to_dst_type(src=self.w, dst=x)[0]
-
-        c1 = (self.k1 * data_range) ** 2  # stability constant for luminance
-        c2 = (self.k2 * data_range) ** 2  # stability constant for contrast
-        ux = conv(x, w)  # mu_x
-        uy = conv(y, w)  # mu_y
-        uxx = conv(x * x, w)  # mu_x^2
-        uyy = conv(y * y, w)  # mu_y^2
-        uxy = conv(x * y, w)  # mu_xy
-        vx = self.cov_norm * (uxx - ux * ux)  # sigma_x
-        vy = self.cov_norm * (uyy - uy * uy)  # sigma_y
-        vxy = self.cov_norm * (uxy - ux * uy)  # sigma_xy
+        c1, c2, ux, uy, vx, vy, vxy = self._compute_intermediate_statistics(x, y)
 
         numerator = (2 * ux * uy + c1) * (2 * vxy + c2)
         denom = (ux**2 + uy**2 + c1) * (vx + vy + c2)
         ssim_value = numerator / denom
         # [B, 1]
         ssim_per_batch: torch.Tensor = ssim_value.view(ssim_value.shape[1], -1).mean(1, keepdim=True)
-        if self.cs_return:
-            cs_per_batch: torch.Tensor = (2 * vxy + c2) / (vx + vy + c2)  # contrast sensitivity function
-            cs_per_batch = cs_per_batch.view(cs_per_batch.shape[0], -1).mean(1, keepdim=True)  # [B, 1]
-            return ssim_per_batch, cs_per_batch
+
         return ssim_per_batch
+
+    def _compute_metric_and_contrast(self, x: torch.Tensor, y: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Args:
+            x: first sample (e.g., the reference image). Its shape is (B,C,W,H) for 2D data and (B,C,W,H,D) for 3D.
+                A fastMRI sample should use the 2D format with C being the number of slices.
+            y: second sample (e.g., the reconstructed image). It has similar shape as x
+
+        Returns:
+            ssim_value, cs_value
+        """
+        if x.shape[1] > 1:  # handling multiple channels (C>1)
+            if x.shape[1] != y.shape[1]:
+                raise ValueError(
+                    f"x and y should have the same number of channels, "
+                    f"but x has {x.shape[1]} channels and y has {y.shape[1]} channels."
+                )
+
+            ssim_ls = []
+            cs_ls = []
+            for i in range(x.shape[1]):
+                ssim_val, cs_val = SSIMMetric(
+                    self.data_range, self.win_size, self.k1, self.k2, self.spatial_dims
+                )._compute_metric_and_contrast(x[:, i, ...].unsqueeze(1), y[:, i, ...].unsqueeze(1))
+                ssim_ls.append(ssim_val)
+                cs_ls.append(cs_val)
+            channel_wise_ssim: torch.Tensor = torch.stack(ssim_ls).mean(1).view(-1, 1)
+            channel_wise_cs: torch.Tensor = torch.stack(cs_ls).mean(1).view(-1, 1)
+            return channel_wise_ssim, channel_wise_cs
+
+        c1, c2, ux, uy, vx, vy, vxy = self._compute_intermediate_statistics(x, y)
+
+        numerator = (2 * ux * uy + c1) * (2 * vxy + c2)
+        denom = (ux**2 + uy**2 + c1) * (vx + vy + c2)
+        ssim_value = numerator / denom
+        # [B, 1]
+        ssim_per_batch: torch.Tensor = ssim_value.view(ssim_value.shape[1], -1).mean(1, keepdim=True)
+
+        cs_per_batch: torch.Tensor = (2 * vxy + c2) / (vx + vy + c2)  # contrast sensitivity function
+        cs_per_batch = cs_per_batch.view(cs_per_batch.shape[0], -1).mean(1, keepdim=True)  # [B, 1]
+        return ssim_per_batch, cs_per_batch
