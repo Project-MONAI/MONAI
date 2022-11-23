@@ -700,5 +700,5 @@ class HoVerNetNuclearTypePostProcessing(Transform):
                 pred_type_map[instance_pred == key] = value["type"]  # type: ignore
 
             return pred_type_map, inst_info_dict
-        
+
         return inst_info_dict
