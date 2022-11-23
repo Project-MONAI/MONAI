@@ -21,7 +21,7 @@ from monai.transforms import create_grid, create_rotate
 from monai.config import DtypeLike
 from monai.data import get_track_meta, MetaTensor
 from monai.transforms.lazy.functional import extents_from_shape, shape_from_extents, apply
-from monai.transforms.meta_matrix import MatrixFactory, apply_align_corners, MetaMatrix
+from monai.transforms.meta_matrix import MatrixFactory, apply_align_corners, MetaMatrix, is_matrix_shaped
 from monai.utils import (
     convert_to_tensor,
     ensure_tuple,
@@ -74,14 +74,40 @@ def lazily_apply_op(
             return tensor, op
 
 
+def transform_shape(input_shape: Sequence[int], matrix: torch.Tensor):
+    """
+    TODO: this method should accept Matrix and Grid types also
+    TODO: this method should be moved to transforms.utils
+    Transform `input_shape` according to `transform`. This can be used for any transforms that
+    widen / narrow the resulting region of interest (typically transforms that have a 'keep_size'
+    parameter such as rotate.
+
+    Args:
+        input_shape: the shape to be transformed
+        matrix: the matrix to apply to it
+
+    Returns:
+        The resulting shape
+    """
+    if not is_matrix_shaped(matrix):
+        raise ValueError("'matrix' must have a valid 2d or 3d homogenous matrix shape but has shape "
+                         f"{matrix.shape}")
+    im_extents = extents_from_shape(input_shape)
+    im_extents = [matrix @ e for e in im_extents]
+    output_shape = shape_from_extents(input_shape, im_extents)
+    return output_shape
+
+
 def identity(
     img: torch.Tensor,
     mode: Optional[Union[InterpolateMode, str]] = None,
     padding_mode: Optional[Union[NumpyPadMode, GridSamplePadMode, str]] = None,
     dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
+    shape_override: Optional[Sequence[int]] = None,
     lazy_evaluation: Optional[bool] = True
 ):
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
+    input_shape = img_.shape if shape_override is None else shape_override
 
     mode_ = None if mode is None else look_up_option(mode, GridSampleMode)
     padding_mode_ = None if padding_mode is None else look_up_option(padding_mode, GridSamplePadMode)
@@ -89,7 +115,9 @@ def identity(
 
     transform = MatrixFactory.from_tensor(img_).identity().matrix.matrix
 
-    metadata = dict()
+    metadata = {
+        "shape_override": input_shape
+    }
     if mode_ is not None:
         metadata["mode"] = mode_
     if padding_mode_ is not None:
@@ -137,6 +165,7 @@ def spacing(
     """
 
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
+
     input_shape = img_.shape if shape_override is None else shape_override
     input_ndim = len(input_shape) - 1
 
@@ -153,9 +182,8 @@ def spacing(
 
     # TODO: decide whether we are consistently returning MetaMatrix or concrete transforms
     transform = MatrixFactory.from_tensor(img).scale(zoom_factors).matrix.data
-    im_extents = extents_from_shape(input_shape)
-    im_extents = [transform @ e for e in im_extents]
-    shape_override_ = shape_from_extents(input_shape, im_extents)
+
+    output_shape = transform_shape(input_shape, transform)
 
     metadata = {
         "pixdim": pixdim_,
@@ -165,17 +193,10 @@ def spacing(
         "padding_mode": padding_mode_,
         "align_corners": align_corners,
         "dtype": dtype_,
-        # "im_extents": im_extents,
-        "shape_override": shape_override_
+        "shape_override": output_shape
     }
 
     return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
-
-
-def orientation(
-        img: torch.Tensor
-):
-    pass
 
 
 def flip(
@@ -191,15 +212,14 @@ def flip(
     if spatial_axis_ is None:
         spatial_axis_ = tuple(i for i in range(len(input_shape[1:])))
     transform = MatrixFactory.from_tensor(img).flip(spatial_axis_).matrix.data
-    # im_extents = extents_from_shape(input_shape)
-    # im_extents = [transform @ e for e in im_extents]
-    #
-    # shape_override_ = shape_from_extents(input_shape, im_extents)
+    im_extents = extents_from_shape(input_shape)
+    im_extents = [transform @ e for e in im_extents]
+
+    output_shape = shape_from_extents(input_shape, im_extents)
 
     metadata = {
         "spatial_axis": spatial_axis_,
-        # "im_extents": im_extents,
-        "shape_override": shape_override
+        "shape_override": output_shape
     }
     return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
 
@@ -267,9 +287,8 @@ def resize(
     dtype_ = get_equivalent_dtype(dtype or img.dtype, torch.Tensor)
     zoom_factors = [i / j for i, j in zip(spatial_size_, input_shape[1:])]
     transform = MatrixFactory.from_tensor(img).scale(zoom_factors).matrix.data
-    im_extents = extents_from_shape(input_shape)
-    im_extents = [transform @ e for e in im_extents]
-    shape_override_ = shape_from_extents(input_shape, im_extents)
+
+    output_shape = transform_shape(input_shape, transform)
 
     metadata = {
         "spatial_size": spatial_size,
@@ -279,8 +298,7 @@ def resize(
         "anti_aliasing": anti_aliasing,
         "anti_aliasing_sigma": anti_aliasing_sigma,
         "dtype": dtype_,
-        # "im_extents": im_extents,
-        "shape_override": shape_override_
+        "shape_override": output_shape
     }
     return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
 
@@ -333,15 +351,10 @@ def rotate(
 
     angle_ = ensure_tuple_rep(angle, 1 if input_ndim == 2 else 3)
     rotate_tx = torch.from_numpy(create_rotate(input_ndim, angle_).astype(np.float32))
-    im_extents = extents_from_shape(input_shape)
-    if not keep_size:
-        im_extents = [rotate_tx @ e for e in im_extents]
-        spatial_shape = shape_from_extents(input_shape, im_extents)
-    else:
-        spatial_shape = input_shape
+    output_shape = input_shape if keep_size is False else transform_shape(input_shape, rotate_tx)
 
     if align_corners is True:
-        transform = apply_align_corners(rotate_tx, spatial_shape[1:],
+        transform = apply_align_corners(rotate_tx, output_shape[1:],
                                         MatrixFactory.from_tensor(img_)).matrix.data
     else:
         transform = rotate_tx
@@ -353,8 +366,7 @@ def rotate(
         "padding_mode": padding_mode_,
         "align_corners": align_corners,
         "dtype": dtype_,
-        # "im_extents": im_extents,
-        "shape_override": spatial_shape
+        "shape_override": output_shape
     }
     return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
 
@@ -398,18 +410,17 @@ def zoom(
     dtype_ = get_equivalent_dtype(dtype or img_.dtype, torch.Tensor)
 
     transform = MatrixFactory.from_tensor(img_).scale(zoom_factors).matrix.matrix
-    im_extents = extents_from_shape(input_shape)
-    if keep_size is False:
-        im_extents = [transform @ e for e in im_extents]
-        shape_override_ = shape_from_extents(input_shape, im_extents)
-    else:
-        shape_override_ = input_shape
+
+    output_shape = input_shape if keep_size is False else transform_shape(input_shape, transform)
 
     if align_corners is True:
-        transform_ = apply_align_corners(transform, shape_override_[1:],
+        transform_ = apply_align_corners(transform, output_shape[1:],
                                         MatrixFactory.from_tensor(img_)).matrix.data
+        # TODO: confirm whether a second transform shape is required or not
+        output_shape = transform_shape(output_shape, transform)
     else:
         transform_ = transform
+
 
     metadata = {
         "factor": zoom_factors,
@@ -418,12 +429,10 @@ def zoom(
         "align_corners": align_corners,
         "keep_size": keep_size,
         "dtype": dtype_,
-        "im_extents": im_extents
+        "shape_override": output_shape
     }
-    if keep_size is False:
-        metadata["shape_override"] = shape_override_
 
-    return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
+    return lazily_apply_op(img_, MetaMatrix(transform_, metadata), lazy_evaluation)
 
 
 def rotate90(
@@ -433,21 +442,31 @@ def rotate90(
         shape_override: Optional[Sequence[int]] = None,
         lazy_evaluation: Optional[bool] = True
 ):
+    """
+    TODO: confirm the behaviour of rotate 90 when rotating non-square/non-cubic datasets"
+
+    Args:
+        img:
+        k:
+        spatial_axes:
+        shape_override:
+        lazy_evaluation:
+
+    Returns:
+
+    """
     if len(spatial_axes) != 2:
         raise ValueError("'spatial_axes' must be a tuple of two integers indicating")
 
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
-    # axes = map_spatial_axes(img.ndim, spatial_axes)
-    # ori_shape = img.shape[1:]
     input_shape = img_.shape if shape_override is None else shape_override
-    input_ndim = len(input_shape) - 1
 
     transform = MatrixFactory.from_tensor(img_).rotate_90(k, )
 
     metadata = {
         "k": k,
         "spatial_axes": spatial_axes,
-        "shape_override": shape_override
+        "shape_override": input_shape
     }
     return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
 
@@ -506,6 +525,7 @@ def elastic_3d(
         lazy_evaluation: Optional[bool] = True
 ):
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
+    input_shape = img_.shape if shape_override is None else shape_override
 
     sp_size = fall_back_tuple(spatial_size, img.shape[1:])
     device_ = img.device if isinstance(img, torch.Tensor) else device
@@ -517,6 +537,7 @@ def elastic_3d(
         "sigma": sigma,
         "magnitude": magnitude,
         "offsets": offsets,
+        "shape_override": input_shape
     }
     if spatial_size is not None:
         metadata["spatial_size"] = spatial_size
@@ -524,8 +545,6 @@ def elastic_3d(
         metadata["mode"] = mode
     if padding_mode is not None:
         metadata["padding_mode"] = padding_mode
-    if shape_override is not None:
-        metadata["shape_override"] = shape_override
 
     return lazily_apply_op(img_, MetaMatrix(grid, metadata), lazy_evaluation)
 
@@ -541,21 +560,20 @@ def translate(
 ):
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
     input_shape = img_.shape if shape_override is None else shape_override
+    dtype_ = img_.dtype if dtype is None else dtype
     input_ndim = len(input_shape) - 1
     if len(translation) != input_ndim:
         raise ValueError(f"'translate' length {len(translation)} must be equal to 'img' "
                          f"spatial dimensions of {input_ndim}")
 
     transform = MatrixFactory.from_tensor(img).translate(translation).matrix.matrix
-    im_extents = extents_from_shape(input_shape)
-    im_extents = [transform @ e for e in im_extents]
-    # shape_override_ = shape_from_extents(input_shape, im_extents)
 
     metadata = {
         "translation": translation,
+        "mode": mode,
         "padding_mode": padding_mode,
-        "dtype": img.dtype,
-        "im_extents": im_extents,
-        # "shape_override": shape_override_
+        "dtype": dtype_,
+        "shape_override": input_shape
     }
+
     return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
