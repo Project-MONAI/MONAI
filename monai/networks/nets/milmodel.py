@@ -78,7 +78,7 @@ class MILModel(nn.Module):
             nfc = net.fc.in_features  # save the number of final features
             net.fc = torch.nn.Identity()  # remove final linear layer
 
-            self.extra_outputs = {}  # type: Dict[str, torch.Tensor]
+            self.extra_outputs: Dict[str, torch.Tensor] = {}
 
             if mil_mode == "att_trans_pyramid":
                 # register hooks to capture outputs of intermediate layers
