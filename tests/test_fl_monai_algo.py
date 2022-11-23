@@ -33,7 +33,6 @@ TEST_TRAIN_1 = [
         "config_train_filename": os.path.join(_data_dir, "config_fl_train.json"),
         "config_evaluate_filename": None,
         "config_filters_filename": os.path.join(_data_dir, "config_fl_filters.json"),
-        "tracking": "mlflow",
     }
 ]
 TEST_TRAIN_2 = [
