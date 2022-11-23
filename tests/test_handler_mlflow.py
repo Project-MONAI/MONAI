@@ -49,7 +49,7 @@ class TestHandlerMLFlow(unittest.TestCase):
             self.assertTrue(len(glob.glob(test_path)) > 0)
 
     def test_input_parameters(self):
-        experiment_param = {"backbone" : "efficientnet_b0"}
+        experiment_param = {"backbone": "efficientnet_b0"}
         artifacts_path = tempfile.TemporaryDirectory()
         handler = MLFlowHandler(experiment_param=experiment_param, artifacts=artifacts_path)
         self.assertEqual(handler.experiment_param, experiment_param)
