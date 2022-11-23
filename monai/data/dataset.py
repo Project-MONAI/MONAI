@@ -852,7 +852,8 @@ class CacheDataset(Dataset):
         Because multiprocessing ProxyList is not supported for the GPU caching, may need to explicitly diasble it.
 
         """
-        self._cache = list(self._cache)
+        if self.runtime_cache and not dist.is_initialized():
+            self._cache = list(self._cache)
 
     def _fill_cache(self, indices=None) -> List:
         """
