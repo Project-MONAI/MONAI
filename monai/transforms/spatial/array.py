@@ -902,14 +902,6 @@ class Rotate(InvertibleTransform, LazyTransform):
             dtype: Union[DtypeLike, torch.dtype] = np.float32,
             lazy_evaluation: Optional[bool] = False
     ):
-        LazyTransform.__init__(self, lazy_evaluation)
-        self.angle = angle
-        self.keep_size = keep_size
-        self.mode = mode
-        self.padding_mode = padding_mode
-        self.align_corners = align_corners
-        self.dtype = dtype
-
         """
         Args:
             img: channel first array, must have shape: [chns, H, W] or [chns, H, W, D].
@@ -931,6 +923,13 @@ class Rotate(InvertibleTransform, LazyTransform):
             ValueError: When ``img`` spatially is not one of [2D, 3D].
 
         """
+        LazyTransform.__init__(self, lazy_evaluation)
+        self.angle = angle
+        self.keep_size = keep_size
+        self.mode = mode
+        self.padding_mode = padding_mode
+        self.align_corners = align_corners
+        self.dtype = dtype
 
     def __call__(
             self,
@@ -952,13 +951,8 @@ class Rotate(InvertibleTransform, LazyTransform):
         if shape_override_ is None and isinstance(img, MetaTensor) and img.has_pending_transforms:
             shape_override_ = img.peek_pending_transform().metadata.get("shape_override", None)
 
-        img_t, transform, metadata = rotate(img, angle_, keep_size, mode_, padding_mode_,
-                                            align_corners_, dtype_, shape_override_)
-
-        # TODO: candidate for refactoring into a LazyTransform method
-        img_t.push_pending_transform(MetaMatrix(transform, metadata))
-        if not self.lazy_evaluation:
-            img_t = apply(img_t)
+        img_t, _ = rotate(img, angle_, keep_size, mode_, padding_mode_,
+                          align_corners_, dtype_, shape_override_)
 
         return img_t
 
@@ -1192,6 +1186,10 @@ class RandRotate90(RandomizableTransform, InvertibleTransform, LazyTransform):
 
 
 class RandRotate(InvertibleTransform, LazyTrait, RandomizableTrait):
+    """
+    This implementation of RandRotate is a reworking of the standard random wrapper around
+    the non-random array-based transform.
+    """
 
     def __init__(
             self,
@@ -1289,8 +1287,11 @@ class RandRotate(InvertibleTransform, LazyTrait, RandomizableTrait):
         raise NotImplementedError()
 
 
-class RandRotate(InvertibleTransform, LazyTrait, RandomizableTrait):
-
+class RandRotate2(RandomizableTransform, InvertibleTransform, LazyTrait):
+    """
+    This implementation makes use of an external randomizer object that provides the
+    randomized values for both array-based RandRotate and dictionary-based RandRotated
+    """
     def __init__(
             self,
             range_x: Optional[Union[Tuple[float, float], float]] = 0.0,
@@ -1330,12 +1331,22 @@ class RandRotate(InvertibleTransform, LazyTrait, RandomizableTrait):
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``float32``.
         """
-        self.randomizer = RotateRandomizer(value_to_tuple_range(range_x),
-                                           value_to_tuple_range(range_y),
-                                           value_to_tuple_range(range_z),
-                                           prob)
+        RandomizableTransform.__init__(self, prob)
 
         self.op = Rotate(0, keep_size, mode, padding_mode, align_corners, dtype, lazy_evaluation)
+        self.range_x, self.range_y, self.range_z = range_x, range_y, range_z
+        self.x, self.y, self.z = 0, 0, 0
+
+    def randomize(self, data: Optional[Any] = None) -> None:
+        super().randomize(None)
+        if self._do_transform:
+            self.x = self.R.uniform(low=self.range_x[0], high=self.range_x[1])
+            self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
+            self.z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
+        else:
+            self.x = 0
+            self.y = 0
+            self.z = 0
 
     def __call__(
             self,
@@ -1363,7 +1374,10 @@ class RandRotate(InvertibleTransform, LazyTrait, RandomizableTrait):
                 the output data type is always ``float32``.
             randomize: whether to execute `randomize()` function first, default to True.
         """
-        angles = self.randomizer.sample(img)
+        if randomize:
+            self.randomize(data=img)
+
+        angles = self.x if img.ndim == 3 else (self.x, self.y, self.z)
 
         return self.op(img, angles, mode, padding_mode, align_corners, shape_override)
 

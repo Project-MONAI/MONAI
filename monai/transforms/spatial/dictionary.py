@@ -40,6 +40,8 @@ from monai.transforms.spatial.array import (
     RandAxisFlip,
     RandGridDistortion,
     RandGridPatch,
+    RandRotate,
+    RandRotate2,
     RandZoom,
     ResampleToMatch,
     Resize,
@@ -50,7 +52,7 @@ from monai.transforms.spatial.array import (
     Zoom,
 )
 from monai.transforms.spatial.randomizers import RotateRandomizer
-from monai.transforms.transform import MapTransform, RandomizableTransform, LazyTransform, RandomizableTrait
+from monai.transforms.transform import MapTransform, RandomizableTransform, LazyTransform, RandomizableTrait, LazyTrait
 from monai.transforms.utils import create_grid, value_to_tuple_range
 from monai.utils import (
     GridSampleMode,
@@ -1438,8 +1440,8 @@ class RandRotated(MapTransform, InvertibleTransform, LazyTransform, Randomizable
             padding_mode: SequenceStr = GridSamplePadMode.BORDER,
             align_corners: Union[Sequence[bool], bool] = False,
             dtype: Union[Sequence[Union[DtypeLike, torch.dtype]], DtypeLike, torch.dtype] = np.float32,
-            lazy_evaluation: Optional[bool] = True,
             allow_missing_keys: Optional[bool] = False,
+            lazy_evaluation: Optional[bool] = True,
     ):
         """
         Dictionary-based version :py:class:`monai.transforms.RandRotate`
@@ -1476,23 +1478,30 @@ class RandRotated(MapTransform, InvertibleTransform, LazyTransform, Randomizable
         """
         self.keys = keys
         self.allow_missing_keys = allow_missing_keys
+        self.mode = ensure_tuple_rep(mode)
+        self.padding_mode = ensure_tuple_rep(padding_mode)
+        self.align_corners = ensure_tuple_rep(align_corners)
         self.randomizer = RotateRandomizer(value_to_tuple_range(range_x),
                                            value_to_tuple_range(range_y),
                                            value_to_tuple_range(range_z),
                                            prob)
-        self.op = Rotate(0, keep_size, mode, padding_mode, align_corners, dtype, lazy_evaluation)
+        self.op = Rotate(0, keep_size,
+                         dtype=dtype, lazy_evaluation=lazy_evaluation)
 
     def __call__(
             self,
             data: Mapping[Hashable, torch.Tensor]
     ):
-        keys = keys_to_process(self.keys, data, self.allow_missing_keys)
         rd = dict(data)
+
+        keys = keys_to_process(self.keys, data, self.allow_missing_keys)
+        if len(keys) == 0:
+            return rd
 
         angles = self.randomizer.sample(data[keys[0]])
 
         for ik, k in enumerate(keys):
-            rd[k] = self.op(data[k], angles)
+            rd[k] = self.op(data[k], angles, self.mode[ik], self.padding_mode[ik], self.align_corners[ik])
 
         return rd
 
@@ -1502,80 +1511,107 @@ class RandRotated(MapTransform, InvertibleTransform, LazyTransform, Randomizable
 
 # an alternative way of handling randomness for dictionary transforms wrapping array
 # transforms
-# class RandRotated2(MapTransform, InvertibleTransform, LazyTransform, RandomizableTrait):
-#
-#     def __init__(
-#             self,
-#             keys: KeysCollection,
-#             range_x: Union[Tuple[float, float], float] = 0.0,
-#             range_y: Union[Tuple[float, float], float] = 0.0,
-#             range_z: Union[Tuple[float, float], float] = 0.0,
-#             prob: float = 0.1,
-#             keep_size: bool = True,
-#             mode: SequenceStr = GridSampleMode.BILINEAR,
-#             padding_mode: SequenceStr = GridSamplePadMode.BORDER,
-#             align_corners: Union[Sequence[bool], bool] = False,
-#             dtype: Union[Sequence[Union[DtypeLike, torch.dtype]], DtypeLike, torch.dtype] = np.float32,
-#             lazy_evaluation: Optional[bool] = True,
-#             allow_missing_keys: Optional[bool] = False,
-#     ):
-#         """
-#         Dictionary-based version :py:class:`monai.transforms.RandRotate`
-#         Randomly rotates the input arrays.
-#
-#         Args:
-#             keys: Keys to pick data for transformation.
-#             range_x: Range of rotation angle in radians in the plane defined by the first and second axes.
-#                 If single number, angle is uniformly sampled from (-range_x, range_x).
-#             range_y: Range of rotation angle in radians in the plane defined by the first and third axes.
-#                 If single number, angle is uniformly sampled from (-range_y, range_y). only work for 3D data.
-#             range_z: Range of rotation angle in radians in the plane defined by the second and third axes.
-#                 If single number, angle is uniformly sampled from (-range_z, range_z). only work for 3D data.
-#             prob: Probability of rotation.
-#             keep_size: If it is False, the output shape is adapted so that the
-#                 input array is contained completely in the output.
-#                 If it is True, the output shape is the same as the input. Default is True.
-#             mode: {``"bilinear"``, ``"nearest"``}
-#                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-#                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-#                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
-#             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
-#                 Padding mode for outside grid values. Defaults to ``"border"``.
-#                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-#                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
-#             align_corners: Defaults to False.
-#                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
-#                 It also can be a sequence of bool, each element corresponds to a key in ``keys``.
-#             dtype: data type for resampling computation. Defaults to ``float64`` for best precision.
-#                 If None, use the data type of input data. To be compatible with other modules,
-#                 the output data type is always ``float32``.
-#                 It also can be a sequence of dtype or None, each element corresponds to a key in ``keys``.
-#             allow_missing_keys: don't raise exception if key is missing.
-#         """
-#         self.keys = keys
-#         self.allow_missing_keys = allow_missing_keys
-#         self.op = RandRotate2(
-#             0, 0, 0, prob, keep_size, mode, padding_mode, align_corners, dtype, lazy_evaluation
-#         )
-#
-#     def __call__(
-#             self,
-#             data: Mapping[Hashable, torch.Tensor]
-#     ):
-#         keys = keys_to_process(self.keys, data, self.allow_missing_keys)
-#         rd = dict(data)
-#
-#
-#         if self.op._do_transform:
-#             d[key]
-#
-#         for ik, k in enumerate(keys):
-#             rd[k] = self.op(data[k], angles)
-#
-#         return rd
-#
-#     def inverse(self, data):
-#         raise NotImplementedError()
+class RandRotated2(MapTransform, InvertibleTransform, LazyTrait, RandomizableTrait):
+
+    def __init__(
+            self,
+            keys: KeysCollection,
+            range_x: Union[Tuple[float, float], float] = 0.0,
+            range_y: Union[Tuple[float, float], float] = 0.0,
+            range_z: Union[Tuple[float, float], float] = 0.0,
+            prob: float = 0.1,
+            keep_size: bool = True,
+            mode: SequenceStr = GridSampleMode.BILINEAR,
+            padding_mode: SequenceStr = GridSamplePadMode.BORDER,
+            align_corners: Union[Sequence[bool], bool] = False,
+            dtype: Union[Sequence[Union[DtypeLike, torch.dtype]], DtypeLike, torch.dtype] = np.float32,
+            allow_missing_keys: Optional[bool] = False,
+            lazy_evaluation: Optional[bool] = True,
+    ):
+        """
+        Dictionary-based version :py:class:`monai.transforms.RandRotate`
+        Randomly rotates the input arrays.
+
+        Args:
+            keys: Keys to pick data for transformation.
+            range_x: Range of rotation angle in radians in the plane defined by the first and second axes.
+                If single number, angle is uniformly sampled from (-range_x, range_x).
+            range_y: Range of rotation angle in radians in the plane defined by the first and third axes.
+                If single number, angle is uniformly sampled from (-range_y, range_y). only work for 3D data.
+            range_z: Range of rotation angle in radians in the plane defined by the second and third axes.
+                If single number, angle is uniformly sampled from (-range_z, range_z). only work for 3D data.
+            prob: Probability of rotation.
+            keep_size: If it is False, the output shape is adapted so that the
+                input array is contained completely in the output.
+                If it is True, the output shape is the same as the input. Default is True.
+            mode: {``"bilinear"``, ``"nearest"``}
+                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+                Padding mode for outside grid values. Defaults to ``"border"``.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+            align_corners: Defaults to False.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
+                It also can be a sequence of bool, each element corresponds to a key in ``keys``.
+            dtype: data type for resampling computation. Defaults to ``float64`` for best precision.
+                If None, use the data type of input data. To be compatible with other modules,
+                the output data type is always ``float32``.
+                It also can be a sequence of dtype or None, each element corresponds to a key in ``keys``.
+            allow_missing_keys: don't raise exception if key is missing.
+        """
+
+        self.keys = keys
+        self.allow_missing_keys = allow_missing_keys
+        self.mode = ensure_tuple_rep(mode)
+        self.padding_mode = ensure_tuple_rep(padding_mode)
+        self.align_corners = ensure_tuple_rep(align_corners)
+        self.op = RandRotate2(
+            range_x, range_y, range_z, prob,
+            keep_size, mode, padding_mode, align_corners, dtype, lazy_evaluation
+        )
+
+    def __call__(
+            self,
+            data: Mapping[Hashable, torch.Tensor]
+    ):
+        rd = dict(data)
+        keys = keys_to_process(self.keys, data, self.allow_missing_keys)
+        if len(keys) == 0:
+            return rd
+
+        self.op.randomize(rd[keys[0]])
+
+        if self.op._do_transform:
+            angles = self.op.x if data[keys[0]].ndim == 3 else (self.op.x, self.op.y, self.op.z)
+        else:
+            angles = 0 if data[keys[0]].ndim == 3 else (0, 0, 0)
+
+        for ik, k in enumerate(keys):
+            rd[k] = self.op(data[k], angles,
+                            mode=self.mode[ik], padding_mode=self.padding_mode[ik],
+                            align_corners=self.align_corners[ik], randomize=False)
+
+        return rd
+
+    def __call2__(self, data: Mapping[Hashable, torch.Tensor]):
+        rd = dict(data)
+        first_key = self.first_key(rd)
+        if first_key == ():
+            out = convert_to_tensor(rd, track_meta=get_track_meta())
+            return out
+
+        self.op.randomize(rd[first_key])
+
+        it = self.key_iterator(rd, self.mode, self.padding_mode, self.align_corners)
+        for key, mode, padding_mode, align_corners in it:
+            rd[key] = self.op(
+                rd[key], angles, mode=mode, padding_mode=padding_mode, align_corners=align_corners, randomize=False)
+
+
+    def inverse(self, data):
+        raise NotImplementedError()
 
 
 class Zoomd(MapTransform, InvertibleTransform):
