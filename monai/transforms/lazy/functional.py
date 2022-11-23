@@ -17,9 +17,9 @@ from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
 from monai.transforms.lazy.utils import (
     combine_transforms,
-    is_compatible_kwargs,
+    is_compatible_apply_kwargs,
     kwargs_from_pending,
-    mat_from_pending,
+    affine_from_pending,
     resample,
 )
 
@@ -28,10 +28,10 @@ __all__ = ["apply"]
 
 def apply(data: Union[torch.Tensor, MetaTensor], pending: Optional[list] = None):
     """
-    This method applies pending transforms to tensors.
+    This method applies pending transforms to `data` tensors.
 
     Args:
-        data: A torch Tensor, monai MetaTensor
+        data: A torch Tensor or a monai MetaTensor.
         pending: pending transforms. This must be set if data is a Tensor, but is optional if data is a MetaTensor.
     """
     if isinstance(data, MetaTensor) and pending is None:
@@ -41,15 +41,15 @@ def apply(data: Union[torch.Tensor, MetaTensor], pending: Optional[list] = None)
     if not pending:
         return data
 
-    cumulative_xform = mat_from_pending(pending[0])
+    cumulative_xform = affine_from_pending(pending[0])
     cur_kwargs = kwargs_from_pending(pending[0])
 
     for p in pending[1:]:
         new_kwargs = kwargs_from_pending(p)
-        if not is_compatible_kwargs(cur_kwargs, new_kwargs):
+        if not is_compatible_apply_kwargs(cur_kwargs, new_kwargs):
             # carry out an intermediate resample here due to incompatibility between arguments
             data = resample(data, cumulative_xform, cur_kwargs)
-        next_matrix = mat_from_pending(p)
+        next_matrix = affine_from_pending(p)
         cumulative_xform = combine_transforms(cumulative_xform, next_matrix)
         cur_kwargs.update(new_kwargs)
     data = resample(data, cumulative_xform, cur_kwargs)

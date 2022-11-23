@@ -78,7 +78,8 @@ def combine_transforms(left: torch.Tensor, right: torch.Tensor):
     raise NotImplementedError
 
 
-def mat_from_pending(pending_item):
+def affine_from_pending(pending_item):
+    """Extract the affine matrix from a pending transform item."""
     if isinstance(pending_item, (torch.Tensor, np.ndarray)):
         return pending_item
     if isinstance(pending_item, dict):
@@ -87,6 +88,7 @@ def mat_from_pending(pending_item):
 
 
 def kwargs_from_pending(pending_item):
+    """Extract kwargs from a pending transform item."""
     if not isinstance(pending_item, dict):
         return {}
     ret = {
@@ -100,7 +102,8 @@ def kwargs_from_pending(pending_item):
     return ret
 
 
-def is_compatible_kwargs(kwargs_1, kwargs_2):
+def is_compatible_apply_kwargs(kwargs_1, kwargs_2):
+    """Check if two sets of kwargs are compatible (to be combined in `apply`)."""
     return True
 
 
