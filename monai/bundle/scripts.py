@@ -27,7 +27,7 @@ from torch.cuda import is_available
 from monai.apps.utils import _basename, download_url, extractall, get_logger
 from monai.bundle.config_item import ConfigComponent
 from monai.bundle.config_parser import ConfigParser
-from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA, DEFAULT_MLFLOW_SETTINGS
+from monai.bundle.utils import DEFAULT_EXP_MGMT_SETTINGS, DEFAULT_INFERENCE, DEFAULT_METADATA
 from monai.config import IgniteInfo, PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
 from monai.networks import convert_to_torchscript, copy_model_state, get_state_dict, save_state
@@ -478,16 +478,17 @@ def patch_bundle_tracking(parser: ConfigParser, settings: dict):
         settings: settings for the experiment tracking, should follow the pattern of default settings.
 
     """
-    for k, v in settings["handlers_id"].items():
-        engine = parser.get(v["id"])
-        if engine is not None:
-            handlers = parser.get(v["handlers"])
-            handler_config = settings["configs"].get(k, None)
-            if handler_config is not None:
+    for k, v in settings["configs"].items():
+        if k in settings["handlers_id"]:
+            engine = parser.get(settings["handlers_id"][k]["id"])
+            if engine is not None:
+                handlers = parser.get(settings["handlers_id"][k]["handlers"])
                 if handlers is None:
-                    engine["train_handlers" if k == "trainer" else "val_handlers"] = [handler_config]
+                    engine["train_handlers" if k == "trainer" else "val_handlers"] = [v]
                 else:
-                    handlers.append(handler_config)
+                    handlers.append(v)
+        elif k not in parser:
+            parser[k] = v
 
 
 def run(
@@ -533,6 +534,7 @@ def run(
             if "mlflow", will add `MLFlowHandler` to the parsed bundle with default loggging settings,
             if other string, treat it as file path to load the logging settings, if `dict`,
             treat it as logging settings, otherwise, use all the default settings.
+            will patch the target config content with `tracking handlers` and the top-level items of `configs`.
             example of customized settings:
 
             .. code-block:: python
@@ -544,16 +546,21 @@ def run(
                         "evaluator": {"id": "evaluator", "handlers": "handlers"},
                     },
                     "configs": {
+                        "tracking_uri": "<path>",
                         "trainer": {
                             "_target_": "MLFlowHandler",
-                            "tracking_uri": "<path>",
+                            "tracking_uri": "@tracking_uri",
                             "iteration_log": True,
                             "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
                         },
-                        "validator": {"_target_": "MLFlowHandler", "tracking_uri": "<path>", "iteration_log": False},
-                        "evaluator": {"_target_": "MLFlowHandler", "tracking_uri": "<path>", "iteration_log": False},
-                    }
-                }
+                        "validator": {
+                            "_target_": "MLFlowHandler", "tracking_uri": "@tracking_uri", "iteration_log": False,
+                        },
+                        "evaluator": {
+                            "_target_": "MLFlowHandler", "tracking_uri": "@tracking_uri", "iteration_log": False,
+                        },
+                    },
+                },
 
         args_file: a JSON or YAML file to provide default values for `runner_id`, `meta_file`,
             `config_file`, `logging`, and override pairs. so that the command line inputs can be simplified.
@@ -591,10 +598,10 @@ def run(
     # the rest key-values in the _args are to override config content
     parser.update(pairs=_args)
 
-    # patch the bundle with mlflow handler
+    # set tracking configs for experiment management
     if tracking_ is not None:
-        if isinstance(tracking_, str) and tracking_ == "mlflow":
-            settings_ = DEFAULT_MLFLOW_SETTINGS
+        if isinstance(tracking_, str) and tracking_ in DEFAULT_EXP_MGMT_SETTINGS:
+            settings_ = DEFAULT_EXP_MGMT_SETTINGS[tracking_]
         else:
             settings_ = ConfigParser.load_config_files(tracking_)
         patch_bundle_tracking(parser=parser, settings=settings_)
