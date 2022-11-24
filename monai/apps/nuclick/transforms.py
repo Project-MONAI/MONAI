@@ -332,10 +332,11 @@ class AddPointGuidanceSignald(Randomizable, MapTransform):
 
     def _seed_point(self, label):
         if distance_transform_cdt is None or not self.use_distance:
-            indices = torch.argwhere(label > 0)
+            indices = torch.argwhere(label > 0) if torch.argwhere else np.argwhere(convert_to_numpy(label) > 0)
             if len(indices) > 0:
                 idx = self.R.randint(0, len(indices))
                 return indices[idx, 0], indices[idx, 1]
+            return None
 
         distance = distance_transform_cdt(label).flatten()
         probability = np.exp(distance) - 1.0
@@ -347,10 +348,9 @@ class AddPointGuidanceSignald(Randomizable, MapTransform):
 
     def inclusion_map(self, mask, dtype):
         point_mask = torch.zeros_like(mask, dtype=dtype)
-        indices = torch.argwhere(mask > 0)
-        if len(indices) > 0:
-            x, y = self._seed_point(mask)
-            point_mask[x, y] = 1
+        pt = self._seed_point(mask)
+        if pt is not None:
+            point_mask[pt[0], pt[1]] = 1
 
         return point_mask
 
@@ -441,7 +441,7 @@ class AddClickSignalsd(MapTransform):
         return d
 
     def get_clickmap_boundingbox(self, img, cx, cy, x, y, bb=128):
-        click_map = torch.zeros((x, y), dtype=img.dtype, device=img.get_device())
+        click_map = torch.zeros_like(img[0])
 
         x_del_indices = {i for i in range(len(cx)) if cx[i] >= x or cx[i] < 0}
         y_del_indices = {i for i in range(len(cy)) if cy[i] >= y or cy[i] < 0}
@@ -484,7 +484,7 @@ class AddClickSignalsd(MapTransform):
 
             patch = img[:, x_start:x_end, y_start:y_end]
 
-            this_click_map = torch.zeros((x, y), dtype=img.dtype, device=img.get_device())
+            this_click_map = torch.zeros_like(img[0])
             this_click_map[cx[i], cy[i]] = 1
 
             nuc_points = this_click_map[x_start:x_end, y_start:y_end]
