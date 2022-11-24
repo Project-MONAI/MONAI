@@ -1552,6 +1552,7 @@ def get_transform_backends():
                 "LambdaD",
                 "MapTransform",
                 "OneOf",
+                "RandomOrder",
                 "PadListDataCollate",
                 "RandLambda",
                 "RandLambdaD",
