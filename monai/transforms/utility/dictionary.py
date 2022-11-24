@@ -127,6 +127,9 @@ __all__ = [
     "MapLabelValueD",
     "MapLabelValueDict",
     "MapLabelValued",
+    "FlattenSubKeysd",
+    "FlattenSubKeysD",
+    "FlattenSubKeysDict",
     "RandCuCIMd",
     "RandCuCIMD",
     "RandCuCIMDict",
@@ -770,13 +773,62 @@ class DeleteItemsd(MapTransform):
 class SelectItemsd(MapTransform):
     """
     Select only specified items from data dictionary to release memory.
-    It will copy the selected key-values and construct and new dictionary.
+    It will copy the selected key-values and construct a new dictionary.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __call__(self, data):
         return {key: data[key] for key in self.key_iterator(data)}
+
+
+class FlattenSubKeysd(MapTransform):
+    """
+    If an item is dictionary, it flatten the item by moving the sub-items (defined by sub-keys) to the top level.
+    {"pred": {"a": ..., "b", ... }} --> {"a": ..., "b", ... }
+
+    Args:
+        keys: keys of the corresponding items to be flatten
+        sub_keys: the sub-keys of items to be flatten. If not provided all the sub-keys are flattened.
+        delete_keys: whether to delete the key of the items that their sub-keys are flattened. Default to True.
+        prefix: optional prefix to be added to the sub-keys when moving to the top level.
+            By default no prefix will be added.
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        sub_keys: Optional[KeysCollection] = None,
+        delete_keys: bool = True,
+        prefix: Optional[str] = None,
+    ) -> None:
+        super().__init__(keys)
+        self.sub_keys = sub_keys
+        self.delete_keys = delete_keys
+        self.prefix = prefix
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.key_iterator(d):
+            # set the sub-keys for the specified key
+            sub_keys = d[key].keys() if self.sub_keys is None else self.sub_keys
+
+            # move all the sub-keys to the top level
+            for sk in sub_keys:
+                # set the top-level key for the sub-key
+                sk_top = f"{self.prefix}_{sk}" if self.prefix else sk
+                if sk_top in d:
+                    raise ValueError(
+                        f"'{sk_top}' already exists in the top-level keys. Please change `prefix` to avoid duplicity."
+                    )
+                d[sk_top] = d[key][sk]
+
+            # delete top level key that is flattened
+            if self.delete_keys:
+                del d[key]
+        return d
 
 
 class SqueezeDimd(MapTransform):
@@ -1405,7 +1457,7 @@ class TorchVisiond(MapTransform):
         return d
 
 
-class RandTorchVisiond(Randomizable, MapTransform):
+class RandTorchVisiond(RandomizableTransform, MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.TorchVision` for randomized transforms.
     For deterministic non-randomized transforms of TorchVision use :py:class:`monai.transforms.TorchVisiond`.
@@ -1414,32 +1466,42 @@ class RandTorchVisiond(Randomizable, MapTransform):
 
         - As most of the TorchVision transforms only work for PIL image and PyTorch Tensor, this transform expects input
           data to be dict of PyTorch Tensors, users can easily call `ToTensord` transform to convert Numpy to Tensor.
-        - This class inherits the ``Randomizable`` purely to prevent any dataset caching to skip the transform
+        - This class inherits the ``RandomizableTransform`` purely to prevent any dataset caching to skip the transform
           computation. If the random factor of the underlying torchvision transform is not derived from `self.R`,
-          the results may not be deterministic.
-          See Also: :py:class:`monai.transforms.Randomizable`.
+          the results may not be deterministic.  It also provides the probability to apply this transform.
+          See Also: :py:class:`monai.transforms.RandomizableTransform`.
 
     """
 
     backend = TorchVision.backend
 
-    def __init__(self, keys: KeysCollection, name: str, allow_missing_keys: bool = False, *args, **kwargs) -> None:
+    def __init__(
+        self, keys: KeysCollection, name: str, prob: float = 1.0, allow_missing_keys: bool = False, *args, **kwargs
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             name: The transform name in TorchVision package.
+            prob: Probability of applying this transform.
             allow_missing_keys: don't raise exception if key is missing.
             args: parameters for the TorchVision transform.
             kwargs: parameters for the TorchVision transform.
 
         """
+        RandomizableTransform.__init__(self, prob=prob)
         MapTransform.__init__(self, keys, allow_missing_keys)
+
         self.name = name
         self.trans = TorchVision(name, *args, **kwargs)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
+
+        self.randomize(data)
+        if not self._do_transform:
+            return d
+
         for key in self.key_iterator(d):
             d[key] = self.trans(d[key])
         return d
@@ -1732,3 +1794,4 @@ ToDeviceD = ToDeviceDict = ToDeviced
 CuCIMD = CuCIMDict = CuCIMd
 RandCuCIMD = RandCuCIMDict = RandCuCIMd
 AddCoordinateChannelsD = AddCoordinateChannelsDict = AddCoordinateChannelsd
+FlattenSubKeysD = FlattenSubKeysDict = FlattenSubKeysd
