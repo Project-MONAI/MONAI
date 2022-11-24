@@ -20,13 +20,7 @@ import torch.distributed as dist
 import monai
 from monai.apps.auto3dseg.data_analyzer import DataAnalyzer
 from monai.auto3dseg import SegSummarizer
-from monai.bundle import (
-    DEFAULT_EXPERIMENT_MANAGEMENT_SETTINGS,
-    ConfigComponent,
-    ConfigItem,
-    ConfigParser,
-    patch_bundle_tracking,
-)
+from monai.bundle import DEFAULT_EXP_MGMT_SETTINGS, ConfigComponent, ConfigItem, ConfigParser, patch_bundle_tracking
 from monai.fl.client import ClientAlgo, ClientAlgoStats
 from monai.fl.utils.constants import (
     BundleKeys,
@@ -508,8 +502,8 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
 
         # set tracking configs for experiment management
         if self.tracking is not None:
-            if isinstance(self.tracking, str) and self.tracking in DEFAULT_EXPERIMENT_MANAGEMENT_SETTINGS:
-                settings_ = DEFAULT_EXPERIMENT_MANAGEMENT_SETTINGS[self.tracking]
+            if isinstance(self.tracking, str) and self.tracking in DEFAULT_EXP_MGMT_SETTINGS:
+                settings_ = DEFAULT_EXP_MGMT_SETTINGS[self.tracking]
             else:
                 settings_ = ConfigParser.load_config_files(self.tracking)
             patch_bundle_tracking(parser=self.train_parser, settings=settings_)

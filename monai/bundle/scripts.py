@@ -27,7 +27,7 @@ from torch.cuda import is_available
 from monai.apps.utils import _basename, download_url, extractall, get_logger
 from monai.bundle.config_item import ConfigComponent
 from monai.bundle.config_parser import ConfigParser
-from monai.bundle.utils import DEFAULT_EXPERIMENT_MANAGEMENT_SETTINGS, DEFAULT_INFERENCE, DEFAULT_METADATA
+from monai.bundle.utils import DEFAULT_EXP_MGMT_SETTINGS, DEFAULT_INFERENCE, DEFAULT_METADATA
 from monai.config import IgniteInfo, PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
 from monai.networks import convert_to_torchscript, copy_model_state, get_state_dict, save_state
@@ -600,8 +600,8 @@ def run(
 
     # set tracking configs for experiment management
     if tracking_ is not None:
-        if isinstance(tracking_, str) and tracking_ in DEFAULT_EXPERIMENT_MANAGEMENT_SETTINGS:
-            settings_ = DEFAULT_EXPERIMENT_MANAGEMENT_SETTINGS[tracking_]
+        if isinstance(tracking_, str) and tracking_ in DEFAULT_EXP_MGMT_SETTINGS:
+            settings_ = DEFAULT_EXP_MGMT_SETTINGS[tracking_]
         else:
             settings_ = ConfigParser.load_config_files(tracking_)
         patch_bundle_tracking(parser=parser, settings=settings_)

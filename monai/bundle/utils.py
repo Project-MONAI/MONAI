@@ -121,7 +121,7 @@ DEFAULT_MLFLOW_SETTINGS = {
     },
 }
 
-DEFAULT_EXPERIMENT_MANAGEMENT_SETTINGS = {"mlflow": DEFAULT_MLFLOW_SETTINGS}
+DEFAULT_EXP_MGMT_SETTINGS = {"mlflow": DEFAULT_MLFLOW_SETTINGS}  # default expriment management settings
 
 
 def load_bundle_config(bundle_path: str, *config_names, **load_kw_args) -> Any:
