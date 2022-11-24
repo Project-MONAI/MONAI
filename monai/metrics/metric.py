@@ -62,7 +62,6 @@ class IterationMetric(Metric):
             When it's a list of tensors, each item in the list can represent a specific type of metric.
 
         """
-        ret: TensorOrList
         # handling a list of channel-first data
         if isinstance(y_pred, (list, tuple)) or isinstance(y, (list, tuple)):
             return self._compute_list(y_pred, y)
