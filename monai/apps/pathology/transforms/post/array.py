@@ -361,13 +361,13 @@ class GenerateSuccinctContour(Transform):
 
         p_delta = (current[0] - previous[0], current[1] - previous[1])
 
-        if p_delta == (0.0, 1.0) or p_delta == (0.5, 0.5) or p_delta == (1.0, 0.0):
+        if p_delta in ((0.0, 1.0), (0.5, 0.5), (1.0, 0.0)):
             row = int(current[0] + 0.5)
             col = int(current[1])
-        elif p_delta == (0.0, -1.0) or p_delta == (0.5, -0.5):
+        elif p_delta in ((0.0, -1.0), (0.5, -0.5)):
             row = int(current[0])
             col = int(current[1])
-        elif p_delta == (-1, 0.0) or p_delta == (-0.5, -0.5):
+        elif p_delta in ((-1, 0.0), (-0.5, -0.5)):
             row = int(current[0])
             col = int(current[1] + 0.5)
         elif p_delta == (-0.5, 0.5):
