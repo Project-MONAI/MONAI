@@ -864,8 +864,8 @@ def init_bundle(
     ckpt_file: Optional[PathLike] = None,
     network: Optional[torch.nn.Module] = None,
     dataset_license: bool = False,
-    metadata_str: Union[Dict, str] = None,
-    inference_str: Union[Dict, str] = None,
+    metadata_str: Union[Dict, str, None] = None,
+    inference_str: Union[Dict, str, None] = None,
 ):
     """
     Initialise a new bundle directory with some default configuration files and optionally network weights.
