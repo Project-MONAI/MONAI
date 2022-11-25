@@ -23,10 +23,10 @@ from monai.transforms.lazy.utils import (
     resample,
 )
 
-__all__ = ["apply"]
+__all__ = ["apply_transforms"]
 
 
-def apply(data: Union[torch.Tensor, MetaTensor], pending: Optional[list] = None):
+def apply_transforms(data: Union[torch.Tensor, MetaTensor], pending: Optional[list] = None):
     """
     This method applies pending transforms to `data` tensors.
 
