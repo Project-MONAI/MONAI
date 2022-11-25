@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 import torch
 
-from monai.transforms.lazy.functional import apply
+from monai.transforms.lazy.functional import apply_transforms
 from monai.transforms.utils import create_rotate
 from monai.utils import LazyAttr, convert_to_tensor
 from tests.utils import get_arange_img
@@ -38,18 +38,18 @@ def single_2d_transform_cases():
 
 class TestApply(unittest.TestCase):
     def _test_apply_impl(self, tensor, pending_transforms, expected_shape):
-        result = apply(tensor, pending_transforms)
+        result = apply_transforms(tensor, pending_transforms)
         self.assertListEqual(result[1], pending_transforms)
         self.assertEqual(result[0].shape, expected_shape)
 
     def _test_apply_metatensor_impl(self, tensor, pending_transforms, expected_shape, pending_as_parameter):
         tensor_ = convert_to_tensor(tensor, track_meta=True)
         if pending_as_parameter:
-            result, transforms = apply(tensor_, pending_transforms)
+            result, transforms = apply_transforms(tensor_, pending_transforms)
         else:
             for p in pending_transforms:
                 tensor_.push_pending_operation(p)
-            result, transforms = apply(tensor_)
+            result, transforms = apply_transforms(tensor_)
         self.assertEqual(result.shape, expected_shape)
 
     SINGLE_TRANSFORM_CASES = single_2d_transform_cases()
