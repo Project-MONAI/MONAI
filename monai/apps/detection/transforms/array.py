@@ -526,9 +526,6 @@ class RotateBox90(Rotate90):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, k: int = 1, spatial_axes: Tuple[int, int] = (0, 1)) -> None:
-        super().__init__(k, spatial_axes)
-
     def __call__(self, boxes: NdarrayOrTensor, spatial_size: Union[Sequence[int], int]):  # type: ignore
         """
         Args:

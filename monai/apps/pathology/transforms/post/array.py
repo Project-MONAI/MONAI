@@ -594,9 +594,6 @@ class GenerateInstanceType(Transform):
 
     backend = [TransformBackends.NUMPY]
 
-    def __init__(self) -> None:
-        super().__init__()
-
     def __call__(  # type: ignore
         self, type_pred: NdarrayOrTensor, seg_pred: NdarrayOrTensor, bbox: np.ndarray, instance_id: int
     ) -> Tuple[int, float]:
