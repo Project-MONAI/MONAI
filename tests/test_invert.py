@@ -65,7 +65,7 @@ class TestInvert(unittest.TestCase):
         self.assertIsInstance(transform.inverse(dataset[0]), MetaTensor)
         loader = DataLoader(dataset, num_workers=num_workers, batch_size=1)
         inverter = Invert(
-            transform=transform, nearest_interp=True, device="cpu", post_func=lambda x: torch.as_tensor(x)
+            transform=transform, nearest_interp=True, device="cpu", post_func=torch.as_tensor
         )
 
         for d in loader:

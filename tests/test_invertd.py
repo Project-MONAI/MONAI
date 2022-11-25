@@ -78,7 +78,7 @@ class TestInvertd(unittest.TestCase):
             orig_keys=["label", "label"],
             nearest_interp=True,
             device=None,
-            post_func=lambda x: torch.as_tensor(x),
+            post_func=torch.as_tensor,
         )
 
         inverter_1 = Invertd(
