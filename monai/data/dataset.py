@@ -784,6 +784,11 @@ class CacheDataset(Dataset):
                 `torch.cuda.set_device()` must be called before initializing this class.
                 2. if caching data that is in GPU memory during multi-gpu distributed training, this option
                 should not be used, since the underlying shared cache only works for CPU shared memory.
+                3. to execute `runtime cache` on GPU memory, must co-work with
+                `monai.data.DataLoader`, and can't work with `monai.data.DistributedSampler`
+                as GPU Tensor usually can't be shared in the multiprocessing context.
+                (try ``cache_dataset.disable_share_memory_cache()`` in case of GPU caching issues.)
+
 
         """
         if not isinstance(transform, Compose):
