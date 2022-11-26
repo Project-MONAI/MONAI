@@ -64,9 +64,7 @@ class ComponentLocator:
         Find all the modules start with MOD_START and don't contain any of `excludes`.
 
         """
-        return [
-            m for m in sys.modules if m.startswith(self.MOD_START) and all(s not in m for s in self.excludes)
-        ]
+        return [m for m in sys.modules if m.startswith(self.MOD_START) and all(s not in m for s in self.excludes)]
 
     def _find_classes_or_functions(self, modnames: Union[Sequence[str], str]) -> Dict[str, List]:
         """

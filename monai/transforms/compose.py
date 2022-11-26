@@ -158,7 +158,7 @@ class Compose(Randomizable, InvertibleTransform):
         """
         new_transforms = []
         for t in self.transforms:
-            if type(t) is Compose:  # nopep8
+            if type(t) is Compose:  # nopep8
                 new_transforms += t.flatten().transforms
             else:
                 new_transforms.append(t)
