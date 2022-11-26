@@ -65,7 +65,7 @@ class ComponentLocator:
 
         """
         return [
-            m for m in sys.modules.keys() if m.startswith(self.MOD_START) and all(s not in m for s in self.excludes)
+            m for m in sys.modules if m.startswith(self.MOD_START) and all(s not in m for s in self.excludes)
         ]
 
     def _find_classes_or_functions(self, modnames: Union[Sequence[str], str]) -> Dict[str, List]:

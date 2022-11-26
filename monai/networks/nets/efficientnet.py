@@ -529,7 +529,7 @@ class EfficientNetBN(EfficientNet):
         ]
 
         # check if model_name is valid model
-        if model_name not in efficientnet_params.keys():
+        if model_name not in efficientnet_params:
             model_name_string = ", ".join(efficientnet_params.keys())
             raise ValueError(f"invalid model_name {model_name} found, must be one of {model_name_string} ")
 
@@ -586,7 +586,7 @@ class EfficientNetBNFeatures(EfficientNet):
         ]
 
         # check if model_name is valid model
-        if model_name not in efficientnet_params.keys():
+        if model_name not in efficientnet_params:
             model_name_string = ", ".join(efficientnet_params.keys())
             raise ValueError(f"invalid model_name {model_name} found, must be one of {model_name_string} ")
 
@@ -720,7 +720,7 @@ def get_efficientnet_image_size(model_name: str) -> int:
 
     """
     # check if model_name is valid model
-    if model_name not in efficientnet_params.keys():
+    if model_name not in efficientnet_params:
         model_name_string = ", ".join(efficientnet_params.keys())
         raise ValueError(f"invalid model_name {model_name} found, must be one of {model_name_string} ")
 

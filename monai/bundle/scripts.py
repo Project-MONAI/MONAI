@@ -384,7 +384,7 @@ def get_all_bundles_list(
 
     bundles_info = _get_all_bundles_info(repo=repo, tag=tag, auth_token=auth_token)
     bundles_list = []
-    for bundle_name in bundles_info.keys():
+    for bundle_name in bundles_info:
         latest_version = sorted(bundles_info[bundle_name].keys())[-1]
         bundles_list.append((bundle_name, latest_version))
 
