@@ -31,7 +31,7 @@ from monai.transforms.transform import (  # noqa: F401
 from monai.utils import MAX_SEED, ensure_tuple, get_seed
 from monai.utils.enums import TraceKeys
 
-__all__ = ["Compose", "OneOf"]
+__all__ = ["Compose", "OneOf", "RandomOrder"]
 
 
 class Compose(Randomizable, InvertibleTransform):
@@ -158,7 +158,7 @@ class Compose(Randomizable, InvertibleTransform):
         """
         new_transforms = []
         for t in self.transforms:
-            if isinstance(t, Compose) and not isinstance(t, OneOf):
+            if type(t) is Compose:
                 new_transforms += t.flatten().transforms
             else:
                 new_transforms.append(t)
@@ -283,3 +283,68 @@ class OneOf(Compose):
         _transform = self.transforms[index]
         # apply the inverse
         return _transform.inverse(data) if isinstance(_transform, InvertibleTransform) else data
+
+
+class RandomOrder(Compose):
+    """
+    ``RandomOrder`` provides the ability to apply a list of transformations in random order.
+
+    Args:
+        transforms: sequence of callables.
+        map_items: whether to apply transform to each item in the input `data` if `data` is a list or tuple.
+            defaults to `True`.
+        unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
+            defaults to `False`.
+        log_stats: whether to log the detailed information of data and applied transform when error happened,
+            for NumPy array and PyTorch Tensor, log the data shape and value range,
+            for other metadata, log the values directly. default to `False`.
+
+    """
+
+    def __init__(
+        self,
+        transforms: Optional[Union[Sequence[Callable], Callable]] = None,
+        map_items: bool = True,
+        unpack_items: bool = False,
+        log_stats: bool = False,
+    ) -> None:
+        super().__init__(transforms, map_items, unpack_items, log_stats)
+
+    def __call__(self, input_):
+        if len(self.transforms) == 0:
+            return input_
+        num = len(self.transforms)
+        applied_order = self.R.permutation(range(num))
+
+        for index in applied_order:
+            input_ = apply_transform(self.transforms[index], input_, self.map_items, self.unpack_items, self.log_stats)
+        # if the data is a mapping (dictionary), append the RandomOrder transform to the end
+        if isinstance(input_, monai.data.MetaTensor):
+            self.push_transform(input_, extra_info={"applied_order": applied_order})
+        elif isinstance(input_, Mapping):
+            for key in input_:  # dictionary not change size during iteration
+                if isinstance(input_[key], monai.data.MetaTensor) or self.trace_key(key) in input_:
+                    self.push_transform(input_, key, extra_info={"applied_order": applied_order})
+        return input_
+
+    def inverse(self, data):
+        if len(self.transforms) == 0:
+            return data
+
+        applied_order = None
+        if isinstance(data, monai.data.MetaTensor):
+            applied_order = self.pop_transform(data)[TraceKeys.EXTRA_INFO]["applied_order"]
+        elif isinstance(data, Mapping):
+            for key in data:
+                if isinstance(data[key], monai.data.MetaTensor) or self.trace_key(key) in data:
+                    applied_order = self.pop_transform(data, key)[TraceKeys.EXTRA_INFO]["applied_order"]
+        else:
+            raise RuntimeError("Inverse only implemented for Mapping (dictionary) or MetaTensor data.")
+        if applied_order is None:
+            # no invertible transforms have been applied
+            return data
+
+        # loop backwards over transforms
+        for o in reversed(applied_order):
+            data = apply_transform(self.transforms[o].inverse, data, self.map_items, self.unpack_items, self.log_stats)
+        return data
