@@ -60,7 +60,7 @@ class MultiScaleLoss(_Loss):
             kernel: gaussian or cauchy.
         """
         super().__init__(reduction=LossReduction(reduction).value)
-        if kernel not in kernel_fn_dict.keys():
+        if kernel not in kernel_fn_dict:
             raise ValueError(f"got unsupported kernel type: {kernel}", "only support gaussian and cauchy")
         self.kernel_fn = kernel_fn_dict[kernel]
         self.loss = loss
