@@ -13,9 +13,9 @@ import glob
 import os
 import tempfile
 import unittest
-import numpy as np
 from pathlib import Path
 
+import numpy as np
 from ignite.engine import Engine, Events
 
 from monai.handlers import MLFlowHandler
@@ -42,23 +42,24 @@ class TestHandlerMLFlow(unittest.TestCase):
             # set up testing handler
             test_path = os.path.join(tempdir, "mlflow_test")
             artifact_path = os.path.join(tempdir, "artifacts")
-            os.makedirs(artifact_path,exist_ok=True)
+            os.makedirs(artifact_path, exist_ok=True)
             dummy_numpy = np.zeros((64, 64, 3))
-            dummy_path =  os.path.join(artifact_path, "tmp.npy")
+            dummy_path = os.path.join(artifact_path, "tmp.npy")
             np.save(dummy_path, dummy_numpy)
             handler = MLFlowHandler(
-                iteration_log=False, \
-                epoch_log=True, \
-                tracking_uri=Path(test_path).as_uri(), \
-                state_attributes=["test"], \
-                experiment_param=experiment_param, \
-                artifacts=[artifact_path]
+                iteration_log=False,
+                epoch_log=True,
+                tracking_uri=Path(test_path).as_uri(),
+                state_attributes=["test"],
+                experiment_param=experiment_param,
+                artifacts=[artifact_path],
             )
             handler.attach(engine)
             engine.run(range(3), max_epochs=2)
             handler.close()
             # check logging output
             self.assertTrue(len(glob.glob(test_path)) > 0)
+
 
 if __name__ == "__main__":
     unittest.main()
