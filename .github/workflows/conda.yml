@@ -6,6 +6,9 @@ on:
     - cron: "0 3 * * *"  # at 03:00 UTC
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
+  push:
+    branches:
+      - fixes-conda-tests
 
 concurrency:
   # automatically cancel the previously triggered workflows when there's a newer version
@@ -19,7 +22,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest, macOS-latest, ubuntu-latest]
-        python-version: ["3.8"]
+        python-version: ["3.9"]
     runs-on: ${{ matrix.os }}
     env:
       QUICKTEST: True
@@ -41,6 +44,7 @@ jobs:
       run: |
         conda info
         conda list
+        conda config --set channel_priority strict
         conda env create --file environment-dev.yml
     - if: runner.os == 'windows'
       name: Windows only install
