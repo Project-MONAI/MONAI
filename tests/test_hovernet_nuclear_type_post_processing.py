@@ -74,7 +74,7 @@ class TestHoVerNetNuclearTypePostProcessing(unittest.TestCase):
         post_transforms = HoVerNetNuclearTypePostProcessing(**kwargs)
         out = post_transforms(type_pred=in_type(test_data[None]), instance_pred=pred["dist"])
         if out is not None:
-            assert_allclose(out[1]["centroid"], expected[1], type_test=False)
+            assert_allclose(out[1][1]["centroid"], expected[1], type_test=False)
 
 
 if __name__ == "__main__":

@@ -154,7 +154,7 @@ class PatchEmbed(nn.Module):
 
         super().__init__()
 
-        if not (spatial_dims == 2 or spatial_dims == 3):
+        if spatial_dims not in (2, 3):
             raise ValueError("spatial dimension should be 2 or 3.")
 
         patch_size = ensure_tuple_rep(patch_size, spatial_dims)
