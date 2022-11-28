@@ -196,10 +196,7 @@ class MLFlowHandler:
             mlflow.start_run(run_name=run_name)
 
         if self.experiment_param:
-            # avoid to record same parameters in the same run
-            self._delete_exist_param_in_dict(self.experiment_param)
-            if self.experiment_param:
-                mlflow.log_params(self.experiment_param)
+            mlflow.log_params(self.experiment_param)
 
         attrs = {attr: getattr(engine.state, attr, None) for attr in self.default_attr_name}
         self._delete_exist_param_in_dict(attrs)
