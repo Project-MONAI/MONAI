@@ -121,7 +121,7 @@ class MLFlowHandler:
         self.experiment_name = experiment_name
         self.run_name = run_name
         self.experiment_param = experiment_param
-        self.artifacts = ensure_tuple(artifacts) if artifacts else None
+        self.artifacts = ensure_tuple(artifacts)
         self.optimizer_param_names = optimizer_param_names
         self.client = mlflow.MlflowClient()
 
@@ -212,6 +212,9 @@ class MLFlowHandler:
         """
         artifact_list = []
         for path_name in self.artifacts:
+            # in case the input is (None,) by default
+            if not path_name:
+                continue
             if os.path.isfile(path_name):
                 artifact_list.append(path_name)
             else:
