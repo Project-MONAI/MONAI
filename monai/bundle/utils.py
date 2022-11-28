@@ -105,7 +105,7 @@ DEFAULT_MLFLOW_SETTINGS = {
     "handlers_id": DEFAULT_HANDLERS_ID,
     "configs": {
         "tracking_uri": "$@output_dir + '/mlruns'",
-        "experiment_name" : "default_experiment",
+        "experiment_name": "default_experiment",
         "run_name": "$None",
         # MLFlowHandler config for the trainer
         "trainer": {

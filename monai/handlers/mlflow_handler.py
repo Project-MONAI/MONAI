@@ -18,7 +18,7 @@ import torch
 
 from monai.config import IgniteInfo
 from monai.engines import Trainer
-from monai.utils import min_version, optional_import, ensure_tuple
+from monai.utils import ensure_tuple, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 mlflow, _ = optional_import("mlflow")
@@ -308,7 +308,7 @@ class MLFlowHandler:
             mlflow.log_metrics(loss, step=engine.state.iteration)
 
         # If there is optimizer attr in engine, then record parameters specified in init function.
-        if hasattr(engine, 'optimizer'):
+        if hasattr(engine, "optimizer"):
             cur_optimizer = engine.optimizer  # type: ignore
             for param_name in self.optimizer_param_names:
                 params = {
