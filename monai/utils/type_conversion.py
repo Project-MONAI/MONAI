@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import re
+import warnings
 from typing import Any, Optional, Sequence, Tuple, Type, Union
 
 import numpy as np
@@ -290,6 +291,10 @@ def convert_data_type(
     output_type = output_type or orig_type
 
     dtype_ = get_equivalent_dtype(dtype, output_type)
+    dtype_max_value = get_dtype_max_value(dtype_)
+
+    if max(data) > dtype_max_value:
+        warnings.warn("The maximum value of the data is greater than set dtype!")
 
     data_: NdarrayTensor
 
@@ -366,3 +371,12 @@ def convert_to_list(data: Union[Sequence, torch.Tensor, np.ndarray]) -> list:
 
     """
     return data.tolist() if isinstance(data, (torch.Tensor, np.ndarray)) else list(data)
+
+
+def get_dtype_max_value(dtype):
+    is_floating_point = get_equivalent_dtype(dtype, torch.Tensor).is_floating_point
+    dtype = get_equivalent_dtype(dtype, np.array)
+    if is_floating_point:
+        return np.finfo(dtype).max
+    else:
+        return np.iinfo(dtype).max
