@@ -23,7 +23,6 @@ I = torch.randn(2, 3)
 D1 = {"a": A, "b": B}
 D2 = {"a": A, "b": B, "c": C}
 
-
 TEST_CASE_0 = [{"keys": "pred"}, {"image": I, "pred": D1}, {"a": A, "b": B, "image": I}]
 TEST_CASE_1 = [{"keys": "pred"}, {"image": I, "pred": D2}, {"a": A, "b": B, "c": C, "image": I}]
 TEST_CASE_2 = [{"keys": "pred", "sub_keys": ["a", "b"]}, {"image": I, "pred": D1}, {"a": A, "b": B, "image": I}]
