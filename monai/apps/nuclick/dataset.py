@@ -17,8 +17,8 @@ import pathlib
 from typing import Dict, List
 
 import numpy as np
-from tqdm import tqdm
 
+from monai.apps.utils import tqdm
 from monai.utils import optional_import
 
 loadmat, _ = optional_import("scipy.io", name="loadmat")
