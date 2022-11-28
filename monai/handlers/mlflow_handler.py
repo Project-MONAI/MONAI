@@ -18,7 +18,7 @@ import torch
 
 from monai.config import IgniteInfo
 from monai.engines import Trainer
-from monai.utils import min_version, optional_import
+from monai.utils import min_version, optional_import, ensure_tuple
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 mlflow, _ = optional_import("mlflow")
@@ -88,7 +88,6 @@ class MLFlowHandler:
 
     """
 
-    default_log_param_list = ["network", "device", "optimizer", "loss_function"]
     default_attr_name = ["max_epochs", "epoch_length"]
 
     def __init__(
@@ -122,7 +121,7 @@ class MLFlowHandler:
         self.experiment_name = experiment_name
         self.run_name = run_name
         self.experiment_param = experiment_param
-        self.artifacts = artifacts
+        self.artifacts = ensure_tuple(artifacts) if artifacts else None
         self.optimizer_param_names = optimizer_param_names
         self.client = mlflow.MlflowClient()
 
@@ -197,7 +196,7 @@ class MLFlowHandler:
             mlflow.start_run(run_name=run_name)
 
         if self.experiment_param:
-            # avoid to recording same parameters in the same run
+            # avoid to record same parameters in the same run
             self._delete_exist_param_in_dict(self.experiment_param)
             if self.experiment_param:
                 mlflow.log_params(self.experiment_param)
@@ -205,11 +204,6 @@ class MLFlowHandler:
         attrs = {attr: getattr(engine.state, attr, None) for attr in self.default_attr_name}
         self._delete_exist_param_in_dict(attrs)
         mlflow.log_params(attrs)
-
-        for param_name in self.default_log_param_list:
-            if self._is_param_exists(param_name):
-                continue
-            self._try_log_param(engine, param_name)
 
     def _parse_artifacts(self):
         """
@@ -317,7 +311,7 @@ class MLFlowHandler:
             mlflow.log_metrics(loss, step=engine.state.iteration)
 
         # If there is optimizer attr in engine, then record parameters specified in init function.
-        try:
+        if hasattr(engine, 'optimizer'):
             cur_optimizer = engine.optimizer  # type: ignore
             for param_name in self.optimizer_param_names:
                 params = {
@@ -325,6 +319,3 @@ class MLFlowHandler:
                     for i, param_group in enumerate(cur_optimizer.param_groups)
                 }
                 mlflow.log_metrics(params, step=engine.state.iteration)
-
-        except AttributeError:
-            pass

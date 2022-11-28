@@ -105,11 +105,15 @@ DEFAULT_MLFLOW_SETTINGS = {
     "handlers_id": DEFAULT_HANDLERS_ID,
     "configs": {
         "tracking_uri": "$@output_dir + '/mlruns'",
+        "experiment_name" : "default_experiment",
+        "run_name": "$None",
         # MLFlowHandler config for the trainer
         "trainer": {
             "_target_": "MLFlowHandler",
             "_disabled_": "$torch.distributed.get_rank() > 0 if (torch.distributed.is_available() and torch.distributed.is_initialized()) else False",
             "tracking_uri": "@tracking_uri",
+            "experiment_name": "@experiment_name",
+            "run_name": "@run_name",
             "iteration_log": True,
             "epoch_log": True,
             "tag_name": "train_loss",
@@ -120,6 +124,8 @@ DEFAULT_MLFLOW_SETTINGS = {
             "_target_": "MLFlowHandler",
             "_disabled_": "$torch.distributed.get_rank() > 0 if (torch.distributed.is_available() and torch.distributed.is_initialized()) else False",
             "tracking_uri": "@tracking_uri",
+            "experiment_name": "@experiment_name",
+            "run_name": "@run_name",
             "iteration_log": False,
         },
         # MLFlowHandler config for the evaluator
@@ -127,6 +133,8 @@ DEFAULT_MLFLOW_SETTINGS = {
             "_target_": "MLFlowHandler",
             "_disabled_": "$torch.distributed.get_rank() > 0 if (torch.distributed.is_available() and torch.distributed.is_initialized()) else False",
             "tracking_uri": "@tracking_uri",
+            "experiment_name": "@experiment_name",
+            "run_name": "@run_name",
             "iteration_log": False,
         },
     },
