@@ -199,6 +199,7 @@ pip install -r requirements-dev.txt
 ```
 
 To install all optional dependencies with `conda` based on MONAI development environment settings:
+(This assumes PyTorch is installed, for example, following https://pytorch.org/get-started/locally/#start-locally)
 ```bash
 git clone https://github.com/Project-MONAI/MONAI.git
 cd MONAI/
