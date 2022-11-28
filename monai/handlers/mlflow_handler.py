@@ -89,7 +89,7 @@ class MLFlowHandler:
     """
 
     default_log_param_list = ["network", "device", "optimizer", "loss_function"]
-    default_attr_name = ["seed", "max_epochs", "epoch_length"]
+    default_attr_name = ["max_epochs", "epoch_length"]
 
     def __init__(
         self,
