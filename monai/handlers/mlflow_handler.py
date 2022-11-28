@@ -225,9 +225,6 @@ class MLFlowHandler:
         """
         Handler for train or validation/evaluation completed Event.
         """
-        # If just input one path, convert it to list.
-        if isinstance(self.artifacts, str):
-            self.artifacts = [self.artifacts]
         if self.artifacts:
             artifact_list = self._parse_artifacts()
             for artifact in artifact_list:
