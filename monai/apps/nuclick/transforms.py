@@ -437,6 +437,8 @@ class AddClickSignalsd(MapTransform):
         cy = [xy[1] for xy in pos]
 
         click_map, bounding_boxes = self.get_clickmap_boundingbox(img, cx=cx, cy=cy, x=x, y=y, bb=self.bb_size)
+        if len(bounding_boxes) == 0:
+            raise ValueError("Failed to create patches from given click points")
 
         patches = self.get_patches_and_signals(
             img=img, click_map=click_map, bounding_boxes=bounding_boxes, cx=cx, cy=cy, x=x, y=y
