@@ -17,12 +17,12 @@ import pathlib
 from typing import Dict, List
 
 import numpy as np
-from PIL import Image
 from tqdm import tqdm
 
 from monai.utils import optional_import
 
 loadmat, _ = optional_import("scipy.io", name="loadmat")
+PILImage, _ = optional_import("PIL.Image")
 
 
 def consep_nuclei_dataset(datalist, output_dir, crop_size, min_area=80, min_distance=20, limit=0) -> List[Dict]:
@@ -72,7 +72,7 @@ def consep_nuclei_dataset(datalist, output_dir, crop_size, min_area=80, min_dist
         logging.debug(f"Processing Image: {d['image']} => Label: {d['label']}")
 
         # Image
-        image = Image.open(d["image"]).convert("RGB")
+        image = PILImage.open(d["image"]).convert("RGB")
 
         # Label
         m = loadmat(d["label"])
@@ -140,10 +140,10 @@ def __prepare_patch(
     centroid = centroid[0] - bbox[0], centroid[1] - bbox[1]
     others = np.where(np.logical_and(cropped_label_np > 0, cropped_label_np != instance_idx), others_idx, 0)
     cropped_label_np = this_label + others
-    cropped_label = Image.fromarray(cropped_label_np.astype(np.uint8), None)
+    cropped_label = PILImage.fromarray(cropped_label_np.astype(np.uint8), None)
 
     cropped_image_np = image_np[bbox[0] : bbox[2], bbox[1] : bbox[3], :]
-    cropped_image = Image.fromarray(cropped_image_np, "RGB")
+    cropped_image = PILImage.fromarray(cropped_image_np, "RGB")
 
     images_dir = os.path.join(output_dir, "Images") if output_dir else "Images"
     labels_dir = os.path.join(output_dir, "Labels") if output_dir else "Labels"
