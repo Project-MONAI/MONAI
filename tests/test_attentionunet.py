@@ -14,7 +14,7 @@ import unittest
 import torch
 
 import monai.networks.nets.attentionunet as att
-from tests.utils import skip_if_no_cuda
+from tests.utils import skip_if_no_cuda, skip_if_quick
 
 
 class TestAttentionUnet(unittest.TestCase):
@@ -34,6 +34,7 @@ class TestAttentionUnet(unittest.TestCase):
             output = block(g, x)
             self.assertEqual(output.shape, x.shape)
 
+    @skip_if_quick
     def test_attentionunet(self):
         for dims in [2, 3]:
             shape = (3, 1) + (92,) * dims
