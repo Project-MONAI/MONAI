@@ -6,6 +6,7 @@ channels:
 dependencies:
   - numpy>=1.17
   - pytorch>=1.8
+  - pytorch-cuda=11.6
   - pip
   - pip:
     - -r requirements-dev.txt
