@@ -855,8 +855,13 @@ class CacheDataset(Dataset):
         Because multiprocessing ListProxy is not supported for the GPU caching,  explicitly disable it.
 
         """
-        if self.runtime_cache and not self._is_dist:
+        if not self._is_dist:
             self._cache = list(self._cache)
+        elif self.runtime_cache:
+            warnings.warn(
+                "Unable to disable shared cache in DDP, when runtime_cache==True."
+                "Please use runtime_cache=False option to explicitly not use the shared cache."
+            )
 
     def _fill_cache(self, indices=None) -> List:
         """
