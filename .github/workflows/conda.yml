@@ -44,7 +44,6 @@ jobs:
       run: |
         conda info
         conda list
-        conda config --set channel_priority strict
         conda env create --file environment-dev.yml
     - if: runner.os == 'windows'
       name: Windows only install
