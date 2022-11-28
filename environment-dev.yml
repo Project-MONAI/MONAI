@@ -2,6 +2,7 @@ name: monai
 channels:
   - pytorch
   - defaults
+  - nvidia
   - conda-forge
 dependencies:
   - numpy>=1.17
