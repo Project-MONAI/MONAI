@@ -110,7 +110,11 @@ DEFAULT_MLFLOW_SETTINGS = {
         # MLFlowHandler config for the trainer
         "trainer": {
             "_target_": "MLFlowHandler",
-            "_disabled_": "$torch.distributed.get_rank() > 0 if (torch.distributed.is_available() and torch.distributed.is_initialized()) else False",
+            "_disabled_": (
+                "$torch.distributed.get_rank() > 0 \
+                if (torch.distributed.is_available() and torch.distributed.is_initialized()) \
+                else False"
+            ),
             "tracking_uri": "@tracking_uri",
             "experiment_name": "@experiment_name",
             "run_name": "@run_name",
@@ -122,7 +126,11 @@ DEFAULT_MLFLOW_SETTINGS = {
         # MLFlowHandler config for the validator
         "validator": {
             "_target_": "MLFlowHandler",
-            "_disabled_": "$torch.distributed.get_rank() > 0 if (torch.distributed.is_available() and torch.distributed.is_initialized()) else False",
+            "_disabled_": (
+                "$torch.distributed.get_rank() > 0 \
+                if (torch.distributed.is_available() and torch.distributed.is_initialized()) \
+                    else False"
+            ),
             "tracking_uri": "@tracking_uri",
             "experiment_name": "@experiment_name",
             "run_name": "@run_name",
@@ -131,7 +139,11 @@ DEFAULT_MLFLOW_SETTINGS = {
         # MLFlowHandler config for the evaluator
         "evaluator": {
             "_target_": "MLFlowHandler",
-            "_disabled_": "$torch.distributed.get_rank() > 0 if (torch.distributed.is_available() and torch.distributed.is_initialized()) else False",
+            "_disabled_": (
+                "$torch.distributed.get_rank() > 0 \
+                if (torch.distributed.is_available() and torch.distributed.is_initialized()) \
+                else False"
+            ),
             "tracking_uri": "@tracking_uri",
             "experiment_name": "@experiment_name",
             "run_name": "@run_name",
