@@ -763,7 +763,7 @@ class CacheDataset(Dataset):
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
             num_workers: the number of worker threads if computing cache in the initialization.
                 If num_workers is None then the number returned by os.cpu_count() is used.
-                If a value less than 1 is speficied, 1 will be used instead.
+                If a value less than 1 is specified, 1 will be used instead.
             progress: whether to display a progress bar.
             copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
                 default to `True`. if the random transforms don't modify the cached content
@@ -778,7 +778,7 @@ class CacheDataset(Dataset):
             hash_func: if `hash_as_key`, a callable to compute hash from data items to be cached.
                 defaults to `monai.data.utils.pickle_hashing`.
             runtime_cache: whether to compute cache at the runtime, default to `False` to prepare
-                the cache content at initializaiton, if `True`, it will cache during the first epoch
+                the cache content at initialization, if `True`, it will cache during the first epoch
                 of model training, so it can start the first mini-batch earlier. please note that:
                 1. when using this option in multi-gpu distributed training,
                 `torch.cuda.set_device()` must be called before initializing this class.
@@ -848,10 +848,14 @@ class CacheDataset(Dataset):
 
     def disable_share_memory_cache(self):
         """
-        If the cache content is multiprocessing share memory list, convert it to a regular ptython list.
-        Because multiprocessing ProxyList is not supported for the GPU caching, may need to explicitly diasble it.
+        If the cache content is multiprocessing share memory list, convert it to a regular python list.
+        Because multiprocessing ProxyList is not supported for the GPU caching, may need to explicitly disable it.
 
         """
+        if self._is_dist:
+            torch.distributed.barrier()
+            if torch.distributed.get_rank() == 0:
+                time.sleep(0.5)  # rank 0 should exit after all the other ranks, as the cache was broadcast from rank 0
         self._cache = list(self._cache)
 
     def _fill_cache(self, indices=None) -> List:
@@ -982,10 +986,10 @@ class SmartCacheDataset(Randomizable, CacheDataset):
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         num_init_workers: the number of worker threads to initialize the cache for first epoch.
             If num_init_workers is None then the number returned by os.cpu_count() is used.
-            If a value less than 1 is speficied, 1 will be used instead.
+            If a value less than 1 is specified, 1 will be used instead.
         num_replace_workers: the number of worker threads to prepare the replacement cache for every epoch.
             If num_replace_workers is None then the number returned by os.cpu_count() is used.
-            If a value less than 1 is speficied, 1 will be used instead.
+            If a value less than 1 is specified, 1 will be used instead.
         progress: whether to display a progress bar when caching for the first epoch.
         shuffle: whether to shuffle the whole data list before preparing the cache content for first epoch.
             it will not modify the original input data sequence in-place.
