@@ -38,7 +38,6 @@ dependencies:
   - pandas
   - requests
   - einops
-  - transformers<4.22  # https://github.com/Project-MONAI/MONAI/issues/5157
   - mlflow
   - tensorboardX
   - pyyaml
@@ -65,3 +64,4 @@ dependencies:
     - tifffile; platform_system == "Linux"
     - matplotlib!=3.5.0
     - nni
+    - transformers<4.22  # https://github.com/Project-MONAI/MONAI/issues/5157
