@@ -24,23 +24,12 @@ class Algo:
         """Provide dataset (and summaries) so that the model creation can depend on the input datasets."""
         pass
 
-    def train(self, params: dict):
-        """
-        Read training/validation data and output a model.
-
-        Args:
-            params: key-value pairs of input parameters for the training pipeline.
-        """
+    def train(self, *args, **kwargs):
+        """Read training/validation data and output a model."""
         pass
 
-    def predict(self, predict_files: list, predict_params: Optional[dict] = None):
-        """
-        Read test data and output model predictions.
-
-        Args:
-            predict_files: list of files for the predicting pipeline.
-            predict_params: key-value pairs of input parameters for the predicting pipeline.
-        """
+    def predict(self, *args, **kwargs):
+        """Read test data and output model predictions."""
         pass
 
     def get_score(self, *args, **kwargs):
