@@ -26,7 +26,7 @@ from monai.data.utils import no_collation
 from monai.transforms import Compose, EnsureTyped, LoadImaged, Orientationd
 from monai.utils import StrEnum, min_version, optional_import
 from monai.utils.enums import DataStatsKeys, ImageStatsKeys
-
+from monai.apps.auto3dseg import CheckLabelShaped
 
 def strenum_representer(dumper, data):
     return dumper.represent_scalar("tag:yaml.org,2002:str", data.value)
@@ -206,6 +206,9 @@ class DataAnalyzer:
                 EnsureTyped(keys=keys, data_type="tensor", dtype=torch.float),
                 Orientationd(keys=keys, axcodes="RAS"),
             ]
+            if self.label_key is not None:
+                transform_list.append(CheckLabelShaped(keys=self.label_key, source_key=self.image_key, allowed_shape_difference=10))
+
         transform = Compose(transform_list)
 
         files, _ = datafold_read(datalist=self.datalist, basedir=self.dataroot, fold=-1, key=key)
