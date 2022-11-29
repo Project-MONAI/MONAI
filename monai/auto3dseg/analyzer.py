@@ -16,7 +16,6 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 import torch
-import torch.nn.functional as F
 
 from monai.apps.utils import get_logger
 from monai.auto3dseg.operations import Operations, SampleOperations, SummaryOperations
@@ -33,7 +32,7 @@ from monai.bundle.utils import ID_SEP_KEY
 from monai.data import MetaTensor, affine_to_spacing
 from monai.transforms.transform import MapTransform
 from monai.transforms.utils_pytorch_numpy_unification import sum, unique
-from monai.utils import convert_to_numpy, pytorch_after
+from monai.utils import convert_to_numpy
 from monai.utils.enums import DataStatsKeys, ImageStatsKeys, LabelStatsKeys
 from monai.utils.misc import ImageMetaKey, label_union
 
