@@ -26,7 +26,7 @@ from monai.data.utils import no_collation
 from monai.transforms import Compose, EnsureTyped, LoadImaged, Orientationd
 from monai.utils import StrEnum, min_version, optional_import
 from monai.utils.enums import DataStatsKeys, ImageStatsKeys
-from monai.apps.auto3dseg import CheckLabelShaped
+from monai.apps.auto3dseg.transforms import CheckLabelShaped
 
 def strenum_representer(dumper, data):
     return dumper.represent_scalar("tag:yaml.org,2002:str", data.value)
