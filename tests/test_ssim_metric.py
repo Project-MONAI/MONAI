@@ -28,6 +28,12 @@ y2 = torch.zeros([1, 1, 10, 10, 10])
 data_range = x.max().unsqueeze(0)
 TESTS3D = [(x, y1, data_range, torch.tensor(1.0).unsqueeze(0)), (x, y2, data_range, torch.tensor(0.0).unsqueeze(0))]
 
+x = torch.ones([3, 3, 10, 10, 10]) / 2
+y1 = torch.ones([3, 3, 10, 10, 10]) / 2
+data_range = x.max().unsqueeze(0)
+res = torch.tensor(1.0).unsqueeze(0) * torch.ones((3, 1))
+TESTSCS = [(x, y1, data_range, res)]
+
 
 class TestSSIMMetric(unittest.TestCase):
     @parameterized.expand(TESTS2D)
@@ -36,11 +42,30 @@ class TestSSIMMetric(unittest.TestCase):
         self.assertTrue(isinstance(result, torch.Tensor))
         self.assertTrue(torch.abs(res - result).item() < 0.001)
 
+        ssim = SSIMMetric(data_range=drange, spatial_dims=2)
+        ssim(x, y)
+        result2 = ssim.aggregate()
+        self.assertTrue(isinstance(result2, torch.Tensor))
+        self.assertTrue(torch.abs(result2 - result).item() < 0.001)
+
     @parameterized.expand(TESTS3D)
     def test3d(self, x, y, drange, res):
         result = SSIMMetric(data_range=drange, spatial_dims=3)._compute_metric(x, y)
         self.assertTrue(isinstance(result, torch.Tensor))
         self.assertTrue(torch.abs(res - result).item() < 0.001)
+
+        ssim = SSIMMetric(data_range=drange, spatial_dims=3)
+        ssim(x, y)
+        result2 = ssim.aggregate()
+        self.assertTrue(isinstance(result2, torch.Tensor))
+        self.assertTrue(torch.abs(result2 - result).item() < 0.001)
+
+    @parameterized.expand(TESTSCS)
+    def testfull(self, x, y, drange, res):
+        result, cs = SSIMMetric(data_range=drange, spatial_dims=3)._compute_metric_and_contrast(x, y)
+        self.assertTrue(isinstance(result, torch.Tensor))
+        self.assertTrue(isinstance(cs, torch.Tensor))
+        self.assertTrue((torch.abs(res - cs) < 0.001).all().item())
 
 
 if __name__ == "__main__":

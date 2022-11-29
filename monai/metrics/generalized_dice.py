@@ -80,7 +80,7 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
             y_pred=y_pred, y=y, include_background=self.include_background, weight_type=self.weight_type
         )
 
-    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):  # type: ignore
+    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):
         """
         Execute reduction logic for the output of `compute_generalized_dice`.
 

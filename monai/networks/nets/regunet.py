@@ -167,8 +167,6 @@ class RegUNet(nn.Module):
         )
 
     def build_decode_layers(self):
-        # decoding / up-sampling
-        # [depth - 1, depth - 2, ..., min_extract_level]
         self.decode_deconvs = nn.ModuleList(
             [
                 self.build_up_sampling_block(in_channels=self.num_channels[d + 1], out_channels=self.num_channels[d])
@@ -221,9 +219,7 @@ class RegUNet(nn.Module):
 
         outs = [decoded]
 
-        # [depth - 1, ..., min_extract_level]
         for i, (decode_deconv, decode_conv) in enumerate(zip(self.decode_deconvs, self.decode_convs)):
-            # [depth - 1, depth - 2, ..., min_extract_level]
             decoded = decode_deconv(decoded)
             if self.concat_skip:
                 decoded = torch.cat([decoded, skips[-i - 1]], dim=1)
@@ -346,7 +342,7 @@ class AdditiveUpSampleBlock(nn.Module):
         self.deconv = get_deconv_block(spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        output_size = (size * 2 for size in x.shape[2:])
+        output_size = [size * 2 for size in x.shape[2:]]
         deconved = self.deconv(x)
         resized = F.interpolate(x, output_size)
         resized = torch.sum(torch.stack(resized.split(split_size=resized.shape[1] // 2, dim=1), dim=-1), dim=-1)
@@ -376,6 +372,7 @@ class LocalNet(RegUNet):
         out_activation: Optional[str] = None,
         out_channels: int = 3,
         pooling: bool = True,
+        use_addictive_sampling: bool = True,
         concat_skip: bool = False,
     ):
         """
@@ -388,12 +385,15 @@ class LocalNet(RegUNet):
             out_channels: number of channels for the output
             extract_levels: list, which levels from net to extract. The maximum level must equal to ``depth``
             pooling: for down-sampling, use non-parameterized pooling if true, otherwise use conv3d
+            use_addictive_sampling: whether use additive up-sampling layer for decoding.
             concat_skip: when up-sampling, concatenate skipped tensor if true, otherwise use addition
         """
+        self.use_additive_upsampling = use_addictive_sampling
         super().__init__(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
             num_channel_initial=num_channel_initial,
+            extract_levels=extract_levels,
             depth=max(extract_levels),
             out_kernel_initializer=out_kernel_initializer,
             out_activation=out_activation,
@@ -410,7 +410,7 @@ class LocalNet(RegUNet):
         )
 
     def build_up_sampling_block(self, in_channels: int, out_channels: int) -> nn.Module:
-        if self._use_additive_upsampling:
+        if self.use_additive_upsampling:
             return AdditiveUpSampleBlock(
                 spatial_dims=self.spatial_dims, in_channels=in_channels, out_channels=out_channels
             )

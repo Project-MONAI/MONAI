@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import functools
 import warnings
 from copy import deepcopy
 from typing import Any, Sequence
@@ -23,10 +24,28 @@ from monai.config.type_definitions import NdarrayTensor
 from monai.data.meta_obj import MetaObj, get_track_meta
 from monai.data.utils import affine_to_spacing, decollate_batch, list_data_collate, remove_extra_metadata
 from monai.utils import look_up_option
-from monai.utils.enums import MetaKeys, PostFix, SpaceKeys
-from monai.utils.type_conversion import convert_data_type, convert_to_tensor
+from monai.utils.enums import LazyAttr, MetaKeys, PostFix, SpaceKeys
+from monai.utils.type_conversion import convert_data_type, convert_to_numpy, convert_to_tensor
 
 __all__ = ["MetaTensor"]
+
+
+@functools.lru_cache(None)
+def _get_named_tuple_like_type(func):
+    if (
+        hasattr(torch, "return_types")
+        and hasattr(func, "__name__")
+        and hasattr(torch.return_types, func.__name__)
+        and isinstance(getattr(torch.return_types, func.__name__), type)
+    ):
+        return getattr(torch.return_types, func.__name__)
+    return None
+
+
+def _not_requiring_metadata(ret):
+    return isinstance(ret, (int, str, bytes, torch.Size, torch.dtype, torch.device, np.ndarray)) or not (
+        isinstance(ret, MetaTensor) or (isinstance(ret, Sequence) and any(isinstance(x, MetaTensor) for x in ret))
+    )
 
 
 class MetaTensor(MetaObj, torch.Tensor):
@@ -43,7 +62,7 @@ class MetaTensor(MetaObj, torch.Tensor):
 
         * For `c = a + b`, then auxiliary data (e.g., metadata) will be copied from the
           first instance of `MetaTensor` if `a.is_batch` is False
-          (For batched data, the metdata will be shallow copied for efficiency purposes).
+          (For batched data, the metadata will be shallow copied for efficiency purposes).
 
     Example:
         .. code-block:: python
@@ -253,20 +272,16 @@ class MetaTensor(MetaObj, torch.Tensor):
         # we might have 1 or multiple outputs. Might be MetaTensor, might be something
         # else (e.g., `__repr__` returns a string).
         # Convert to list (if necessary), process, and at end remove list if one was added.
-        if (
-            hasattr(torch, "return_types")
-            and hasattr(func, "__name__")
-            and hasattr(torch.return_types, func.__name__)
-            and isinstance(getattr(torch.return_types, func.__name__), type)
-            and isinstance(ret, getattr(torch.return_types, func.__name__))
-        ):
+        if _not_requiring_metadata(ret):
+            return ret
+        if _get_named_tuple_like_type(func) is not None and isinstance(ret, _get_named_tuple_like_type(func)):
             # for torch.max(torch.tensor(1.0), dim=0), the return type is named-tuple like
             out_items = MetaTensor.update_meta(ret, func, args, kwargs)
             for idx in range(ret.n_fields):
                 ret[idx].meta = out_items[idx].meta
                 ret[idx].applied_operations = out_items[idx].applied_operations
             return ret
-        if isinstance(ret, (str, bytes)) or not isinstance(ret, Sequence):
+        if not isinstance(ret, Sequence):
             ret = [ret]
             unpack = True
         else:
@@ -312,7 +327,8 @@ class MetaTensor(MetaObj, torch.Tensor):
         except AttributeError:
             return NotImplemented
 
-    def get_default_affine(self, dtype=torch.float64) -> torch.Tensor:
+    @staticmethod
+    def get_default_affine(dtype=torch.float64) -> torch.Tensor:
         return torch.eye(4, device=torch.device("cpu"), dtype=dtype)
 
     def as_tensor(self) -> torch.Tensor:
@@ -320,7 +336,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         Return the `MetaTensor` as a `torch.Tensor`.
         It is OS dependent as to whether this will be a deep copy or not.
         """
-        return self.as_subclass(torch.Tensor)  # type: ignore
+        return self.as_subclass(torch.Tensor)
 
     def get_array(self, output_type=np.ndarray, dtype=None, device=None, *_args, **_kwargs):
         """
@@ -444,6 +460,20 @@ class MetaTensor(MetaObj, torch.Tensor):
             return [affine_to_spacing(a) for a in self.affine]
         return affine_to_spacing(self.affine)
 
+    def peek_pending_shape(self):
+        """Get the currently expected spatial shape as if all the pending operations are executed."""
+        res = None
+        if self.pending_operations:
+            res = self.pending_operations[-1].get(LazyAttr.SHAPE, None)
+        # default to spatial shape (assuming channel-first input)
+        return tuple(convert_to_numpy(self.shape, wrap_sequence=True).tolist()[1:]) if res is None else res
+
+    def peek_pending_affine(self):
+        res = None
+        if self.pending_operations:
+            res = self.pending_operations[-1].get(LazyAttr.AFFINE, None)
+        return self.affine if res is None else res
+
     def new_empty(self, size, dtype=None, device=None, requires_grad=False):
         """
         must be defined for deepcopy to work
@@ -503,4 +533,16 @@ class MetaTensor(MetaObj, torch.Tensor):
         return MetaTensor(img, meta=meta)
 
     def __repr__(self, *, tensor_contents=None):
+        """
+        Prints out a long representation of the MetaTensor object with metadata as well as content data.
+
+        Args:
+            tensor_contents: currently unused
+        """
         return self.as_tensor().__repr__() + super().__repr__()
+
+    def __str__(self):
+        """
+        Prints a simpler representation of the tensor identical to torch.Tensor.__str__.
+        """
+        return str(self.as_tensor())

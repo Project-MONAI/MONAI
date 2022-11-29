@@ -24,7 +24,10 @@ from parameterized import parameterized
 from monai.data.image_reader import ITKReader, NibabelReader
 from monai.data.image_writer import ITKWriter
 from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, ResampleToMatch, SaveImaged
+from monai.utils import optional_import
 from tests.utils import assert_allclose, download_url_or_skip_test, testing_data_config
+
+_, has_itk = optional_import("itk", allow_namespace_pkg=True)
 
 TEST_CASES = ["itkreader", "nibabelreader"]
 
@@ -36,6 +39,7 @@ def get_rand_fname(len=10, suffix=".nii.gz"):
     return out
 
 
+@unittest.skipUnless(has_itk, "itk not installed")
 class TestResampleToMatch(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -60,8 +64,6 @@ class TestResampleToMatch(unittest.TestCase):
         loader = Compose([LoadImaged(("im1", "im2"), reader=reader), EnsureChannelFirstd(("im1", "im2"))])
         data = loader({"im1": self.fnames[0], "im2": self.fnames[1]})
 
-        with self.assertRaises(ValueError):
-            ResampleToMatch(mode=None)(img=data["im2"], img_dst=data["im1"])
         im_mod = ResampleToMatch()(data["im2"], data["im1"])
         saver = SaveImaged(
             "im3", output_dir=self.tmpdir, output_postfix="", separate_folder=False, writer=writer, resample=False

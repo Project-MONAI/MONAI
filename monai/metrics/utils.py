@@ -211,9 +211,46 @@ def is_binary_tensor(input: torch.Tensor, name: str):
         ValueError: if `input` is not a PyTorch Tensor.
 
     Returns:
-        Union[str, None]: warning message, if the tensor is not binary. Othwerwise, None.
+        Union[str, None]: warning message, if the tensor is not binary. Otherwise, None.
     """
     if not isinstance(input, torch.Tensor):
         raise ValueError(f"{name} must be of type PyTorch Tensor.")
     if not torch.all(input.byte() == input) or input.max() > 1 or input.min() < 0:
         warnings.warn(f"{name} should be a binarized tensor.")
+
+
+def remap_instance_id(pred: torch.Tensor, by_size: bool = False):
+    """
+    This function is used to rename all instance id of `pred`, so that the id is
+    contiguous.
+    For example: all ids of the input can be [0, 1, 2] rather than [0, 2, 5].
+    This function is helpful for calculating metrics like Panoptic Quality (PQ).
+    The implementation refers to:
+
+    https://github.com/vqdang/hover_net
+
+    Args:
+        pred: segmentation predictions in the form of torch tensor. Each
+            value of the tensor should be an integer, and represents the prediction of its corresponding instance id.
+        by_size: if True, larget instance will be assigned a smaller id.
+
+    """
+    pred_id = list(pred.unique())
+    # the original implementation has the limitation that if there is no 0 in pred, error will happen
+    pred_id = [i for i in pred_id if i != 0]
+
+    if len(pred_id) == 0:
+        return pred
+    if by_size is True:
+        instance_size = []
+        for instance_id in pred_id:
+            instance_size.append((pred == instance_id).sum())
+
+        pair_data = zip(pred_id, instance_size)
+        pair_list = sorted(pair_data, key=lambda x: x[1], reverse=True)  # type: ignore
+        pred_id, _ = zip(*pair_list)
+
+    new_pred = torch.zeros_like(pred, dtype=torch.int)
+    for idx, instance_id in enumerate(pred_id):
+        new_pred[pred == instance_id] = idx + 1
+    return new_pred

@@ -64,6 +64,7 @@ class TestTciaDataset(unittest.TestCase):
             section="validation",
             download=False,
             val_frac=val_frac,
+            runtime_cache=True,
         )
         _test_dataset(data)
         self.assertTrue(

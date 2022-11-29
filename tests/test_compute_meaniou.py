@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.metrics import MeanIoU, compute_meaniou
+from monai.metrics import MeanIoU, compute_iou, compute_meaniou
 
 _device = "cuda:0" if torch.cuda.is_available() else "cpu"
 # keep background
@@ -192,7 +192,7 @@ class TestComputeMeanIoU(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_3])
     def test_nans(self, input_data, expected_value):
-        result = compute_meaniou(**input_data)
+        result = compute_iou(**input_data)
         self.assertTrue(np.allclose(np.isnan(result.cpu().numpy()), expected_value))
 
     # MeanIoU class tests

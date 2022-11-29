@@ -30,7 +30,6 @@ _, has_tiff = optional_import("tifffile", name="imwrite")
 _, has_codec = optional_import("imagecodecs")
 has_tiff = has_tiff and has_codec
 
-
 FILE_KEY = "wsi_img"
 FILE_URL = testing_data_config("images", FILE_KEY, "url")
 base_name, extension = os.path.basename(f"{FILE_URL}"), ".tiff"
@@ -87,13 +86,13 @@ class MaskedPatchWSIDatasetTests:
                 self.assertTrue(d1[ProbMapKeys.NAME] == os.path.basename(d2["image"]))
 
             for i, sample in enumerate(dataset):
-                self.assertEqual(sample["metadata"][WSIPatchKeys.LEVEL], expected["patch_level"])
-                assert_array_equal(sample["metadata"][WSIPatchKeys.SIZE], expected["patch_size"])
+                self.assertEqual(sample["image"].meta[WSIPatchKeys.LEVEL], expected["patch_level"])
+                assert_array_equal(sample["image"].meta[WSIPatchKeys.SIZE], expected["patch_size"])
                 assert_array_equal(sample["image"].shape[1:], expected["patch_size"])
-                self.assertTrue(sample["metadata"][WSIPatchKeys.LOCATION][0] >= 0)
-                self.assertTrue(sample["metadata"][WSIPatchKeys.LOCATION][0] < expected["wsi_size"][0])
-                self.assertTrue(sample["metadata"][WSIPatchKeys.LOCATION][1] >= 0)
-                self.assertTrue(sample["metadata"][WSIPatchKeys.LOCATION][1] < expected["wsi_size"][1])
+                self.assertTrue(sample["image"].meta[WSIPatchKeys.LOCATION][0] >= 0)
+                self.assertTrue(sample["image"].meta[WSIPatchKeys.LOCATION][0] < expected["wsi_size"][0])
+                self.assertTrue(sample["image"].meta[WSIPatchKeys.LOCATION][1] >= 0)
+                self.assertTrue(sample["image"].meta[WSIPatchKeys.LOCATION][1] < expected["wsi_size"][1])
                 if i > 10:
                     break
 

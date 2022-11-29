@@ -92,6 +92,14 @@ Applications
 .. autoclass:: ProbMapProducer
     :members:
 
+.. automodule:: monai.apps.pathology.inferers
+.. autoclass:: SlidingWindowHoVerNetInferer
+    :members:
+
+.. automodule:: monai.apps.pathology.losses.hovernet_loss
+.. autoclass:: HoVerNetLoss
+    :members:
+
 .. automodule:: monai.apps.pathology.metrics
 .. autoclass:: LesionFROC
     :members:
@@ -124,6 +132,50 @@ Applications
 .. autoclass:: SplitOnGridd
     :members:
 .. autoclass:: TileOnGridd
+    :members:
+
+.. automodule:: monai.apps.pathology.transforms.post.array
+.. autoclass:: GenerateSuccinctContour
+    :members:
+.. autoclass:: GenerateInstanceContour
+    :members:
+.. autoclass:: GenerateInstanceCentroid
+    :members:
+.. autoclass:: GenerateInstanceType
+    :members:
+.. autoclass:: Watershed
+    :members:
+.. autoclass:: GenerateWatershedMask
+    :members:
+.. autoclass:: GenerateInstanceBorder
+    :members:
+.. autoclass:: GenerateDistanceMap
+    :members:
+.. autoclass:: GenerateWatershedMarkers
+    :members:
+.. autoclass:: HoVerNetNuclearTypePostProcessing
+    :members:
+
+.. automodule:: monai.apps.pathology.transforms.post.dictionary
+.. autoclass:: GenerateSuccinctContourd
+    :members:
+.. autoclass:: GenerateInstanceContourd
+    :members:
+.. autoclass:: GenerateInstanceCentroidd
+    :members:
+.. autoclass:: GenerateInstanceTyped
+    :members:
+.. autoclass:: Watershedd
+    :members:
+.. autoclass:: GenerateWatershedMaskd
+    :members:
+.. autoclass:: GenerateInstanceBorderd
+    :members:
+.. autoclass:: GenerateDistanceMapd
+    :members:
+.. autoclass:: GenerateWatershedMarkersd
+    :members:
+.. autoclass:: HoVerNetNuclearTypePostProcessingd
     :members:
 
 `Detection`
@@ -191,6 +243,11 @@ Applications
 `Reconstruction`
 ----------------
 
+FastMRIReader
+~~~~~~~~~~~~~
+.. autoclass:: monai.apps.reconstruction.fastmri_reader.FastMRIReader
+  :members:
+
 `ConvertToTensorComplex`
 ~~~~~~~~~~~~~~~~~~~~~~~~
 .. autofunction:: monai.apps.reconstruction.complex_utils.convert_to_tensor_complex
@@ -210,3 +267,10 @@ Applications
 `ComplexConj`
 ~~~~~~~~~~~~~
 .. autofunction:: monai.apps.reconstruction.complex_utils.complex_conj
+
+`auto3dseg`
+-----------
+
+.. automodule:: monai.apps.auto3dseg
+  :members:
+  :imported-members:

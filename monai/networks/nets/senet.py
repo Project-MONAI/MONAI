@@ -34,7 +34,6 @@ __all__ = [
     "SE_NET_MODELS",
 ]
 
-
 SE_NET_MODELS = {
     "senet154": "http://data.lip6.fr/cadene/pretrainedmodels/senet154-c7b49a05.pth",
     "se_resnet50": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnet50-ce0d4300.pth",

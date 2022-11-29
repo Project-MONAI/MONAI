@@ -14,14 +14,15 @@ from typing import Union
 import torch
 
 from monai.metrics.utils import do_metric_reduction, ignore_background, is_binary_tensor
-from monai.utils import MetricReduction
+from monai.utils import MetricReduction, deprecated
 
 from .metric import CumulativeIterationMetric
 
 
 class MeanIoU(CumulativeIterationMetric):
     """
-    Compute average IoU score between two tensors. It can support both multi-classes and multi-labels tasks.
+    Compute average Intersection over Union (IoU) score between two tensors.
+    It supports both multi-classes and multi-labels tasks.
     Input `y_pred` is compared with ground truth `y`.
     `y_pred` is expected to have binarized predictions and `y` should be in one-hot format. You can use suitable transforms
     in ``monai.transforms.post`` first to achieve binarized values.
@@ -80,11 +81,11 @@ class MeanIoU(CumulativeIterationMetric):
         if dims < 3:
             raise ValueError(f"y_pred should have at least 3 dimensions (batch, channel, spatial), got {dims}.")
         # compute IoU (BxC) for each channel for each batch
-        return compute_meaniou(
+        return compute_iou(
             y_pred=y_pred, y=y, include_background=self.include_background, ignore_empty=self.ignore_empty
         )
 
-    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):  # type: ignore
+    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):
         """
         Execute reduction logic for the output of `compute_meaniou`.
 
@@ -103,10 +104,10 @@ class MeanIoU(CumulativeIterationMetric):
         return (f, not_nans) if self.get_not_nans else f
 
 
-def compute_meaniou(
+def compute_iou(
     y_pred: torch.Tensor, y: torch.Tensor, include_background: bool = True, ignore_empty: bool = True
 ) -> torch.Tensor:
-    """Computes IoU score metric from full size Tensor and collects average.
+    """Computes Intersection over Union (IoU) score metric from a batch of predictions.
 
     Args:
         y_pred: input data to compute, typical segmentation model output.
@@ -146,6 +147,11 @@ def compute_meaniou(
     y_pred_o = torch.sum(y_pred, dim=reduce_axis)
     union = y_o + y_pred_o - intersection
 
-    if ignore_empty is True:
+    if ignore_empty:
         return torch.where(y_o > 0, (intersection) / union, torch.tensor(float("nan"), device=y_o.device))
     return torch.where(union > 0, (intersection) / union, torch.tensor(1.0, device=y_o.device))
+
+
+@deprecated(since="1.0.0", msg_suffix="use `compute_iou` instead.")
+def compute_meaniou(*args, **kwargs):
+    return compute_iou(*args, **kwargs)

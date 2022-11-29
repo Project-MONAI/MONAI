@@ -43,7 +43,6 @@
 # CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
 """
 This script is modified from torchvision to support N-D images,
 
@@ -173,7 +172,7 @@ class BoxCoder:
 
         Args:
             rel_codes: encoded boxes, Nx4 or Nx6 torch tensor.
-            boxes: a list of reference boxes, each element is Mx4 or Mx6 torch tensor.
+            reference_boxes: a list of reference boxes, each element is Mx4 or Mx6 torch tensor.
                 The box mode is assumed to be ``StandardMode``
 
         Return:

@@ -9,14 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import re
 import warnings
 from typing import Any, Dict, Optional, Sequence, Set
 
 from monai.bundle.config_item import ConfigComponent, ConfigExpression, ConfigItem
 from monai.bundle.utils import ID_REF_KEY, ID_SEP_KEY
-from monai.utils import look_up_option
+from monai.utils import allow_missing_reference, look_up_option
 
 __all__ = ["ReferenceResolver"]
 
@@ -53,7 +52,7 @@ class ReferenceResolver:
     # match a reference string, e.g. "@id#key", "@id#key#0", "@_target_#key"
     id_matcher = re.compile(rf"{ref}(?:\w*)(?:{sep}\w*)*")
     # if `allow_missing_reference` and can't find a reference ID, will just raise a warning and don't update the config
-    allow_missing_reference = os.environ.get("MONAI_ALLOW_MISSING_REFERENCE", "0") != "0"
+    allow_missing_reference = allow_missing_reference
 
     def __init__(self, items: Optional[Sequence[ConfigItem]] = None):
         # save the items in a dictionary with the `ConfigItem.id` as key

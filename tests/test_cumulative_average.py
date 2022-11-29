@@ -17,46 +17,55 @@ from parameterized import parameterized
 
 from monai.metrics import CumulativeAverage
 
-# single class value
-TEST_CASE_1 = [[torch.as_tensor([[0.1]]), torch.as_tensor([[0.2]]), torch.as_tensor([[0.3]])], torch.as_tensor([0.2])]
+TEST_CASE_1 = []
+TEST_CASE_1.append([{"vals": [1, 2, 3], "avg": 2}])
+TEST_CASE_1.append([{"vals": [[1, 1, 1], [2, 2, 2], [3, 6, 9]], "avg": [2, 3, 4]}])
 
-# multi-class value
-TEST_CASE_2 = [
-    [torch.as_tensor([[0.1, 0.2]]), torch.as_tensor([[0.2, 0.3]]), torch.as_tensor([[0.3, 0.4]])],
-    torch.as_tensor([0.2, 0.3]),
-]
+TEST_CASE_1.append([{"vals": [2, 4, 6], "counts": [2, 1, 2], "avg": 4}])
+TEST_CASE_1.append(
+    [{"vals": [[3, 2, 1], [2, 3, 2], [0, 0, 9]], "counts": [[4, 4, 4], [4, 4, 4], [2, 2, 2]], "avg": [2, 2, 3]}]
+)
 
-# Nan value
-TEST_CASE_3 = [
-    [torch.as_tensor([[0.1]]), torch.as_tensor([[0.2]]), torch.as_tensor([[float("nan")]])],
-    torch.as_tensor([0.15]),
-]
-
-# different input shape
-TEST_CASE_4 = [[torch.as_tensor(0.1), torch.as_tensor(0.2), torch.as_tensor(0.3)], torch.as_tensor(0.2)]
+TEST_CASE_1.append([{"vals": [1, 2, float("nan")], "avg": 1.5}])
 
 
-class TestCumulativeAverage(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
-    def test_value(self, input_data, expected_value):
-        average = CumulativeAverage()
-        func = average.append if input_data[0].ndim < 2 else average.extend
-        func(input_data[0])
-        func(input_data[1])
-        result = average.aggregate()
-        # continue to update new data
-        func(input_data[2])
-        result = average.aggregate()
-        torch.testing.assert_allclose(result, expected_value)
+class TestAverageMeter(unittest.TestCase):
+    @parameterized.expand(TEST_CASE_1)
+    def test_value_all(self, data):
 
-    def test_numpy_array(self):
-        class TestCumulativeAverage(CumulativeAverage):
-            def get_buffer(self):
-                return np.array([[1, 2], [3, np.nan]])
+        # test orig
+        self.run_test(data)
 
-        average = TestCumulativeAverage()
-        result = average.aggregate()
-        np.testing.assert_allclose(result, np.array([2.0, 2.0]))
+        # test in numpy
+        data["vals"] = np.array(data["vals"])
+        data["avg"] = np.array(data["avg"])
+        self.run_test(data)
+
+        # test as Tensors
+        data["vals"] = torch.tensor(data["vals"])
+        data["avg"] = torch.tensor(data["avg"], dtype=torch.float)
+        self.run_test(data)
+
+        if torch.cuda.is_available():
+            data["vals"] = data["vals"].cuda()
+            self.run_test(data)
+
+    def run_test(self, data):
+        vals = data["vals"]
+        avg = data["avg"]
+
+        counts = data.get("counts", None)
+        if counts is not None and not isinstance(counts, list) and isinstance(vals, list):
+            counts = [counts] * len(vals)
+
+        avg_meter = CumulativeAverage()
+        for i in range(len(vals)):
+            if counts is not None:
+                avg_meter.append(vals[i], counts[i])
+            else:
+                avg_meter.append(vals[i])
+
+        np.testing.assert_equal(avg_meter.aggregate(), avg)
 
 
 if __name__ == "__main__":

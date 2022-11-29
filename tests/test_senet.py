@@ -30,9 +30,7 @@ if TYPE_CHECKING:
 else:
     pretrainedmodels, has_cadene_pretrain = optional_import("pretrainedmodels")
 
-
 device = "cuda" if torch.cuda.is_available() else "cpu"
-
 
 NET_ARGS = {"spatial_dims": 3, "in_channels": 2, "num_classes": 2}
 TEST_CASE_1 = [SENet154, NET_ARGS]

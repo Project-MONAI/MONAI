@@ -22,7 +22,6 @@ from tests.utils import TEST_NDARRAYS
 # here, we test TargetBasedSpatialCropd's functionality
 # which focuses on automatic input crop based on target image's shape.
 
-
 TESTS = []
 for p in TEST_NDARRAYS:
     # 2D

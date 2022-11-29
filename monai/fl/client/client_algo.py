@@ -9,71 +9,144 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import abc
+from typing import Optional
 
 from monai.fl.utils.exchange_object import ExchangeObject
 
 
-class ClientAlgo(abc.ABC):
+class BaseClient:
     """
-    objective: provide an abstract base class for defining algo to run on any platform.
+    Provide an abstract base class to allow the client to return summary statistics of the data.
+
+    To define a new stats script, subclass this class and implement the
+    following abstract methods::
+
+        - self.get_data_stats()
+
+    initialize(), abort(), and finalize() -- inherited from `ClientAlgoStats`; can be optionally be implemented
+    to help with lifecycle management of the class object.
+    """
+
+    def initialize(self, extra: Optional[dict] = None):
+        """
+        Call to initialize the ClientAlgo class.
+
+        Args:
+            extra: optional extra information, e.g. dict of `ExtraItems.CLIENT_NAME` and/or `ExtraItems.APP_ROOT`.
+        """
+        pass
+
+    def finalize(self, extra: Optional[dict] = None):
+        """
+        Call to finalize the ClientAlgo class.
+
+        Args:
+            extra: Dict with additional information that can be provided by the FL system.
+        """
+        pass
+
+    def abort(self, extra: Optional[dict] = None):
+        """
+        Call to abort the ClientAlgo training or evaluation.
+
+        Args:
+            extra: Dict with additional information that can be provided by the FL system.
+        """
+
+        pass
+
+
+class ClientAlgoStats(BaseClient):
+    def get_data_stats(self, extra: Optional[dict] = None) -> ExchangeObject:
+        """
+        Get summary statistics about the local data.
+
+        Args:
+            extra: Dict with additional information that can be provided by the FL system.
+                For example, requested statistics.
+
+        Returns:
+
+            ExchangeObject: summary statistics.
+
+        Extra dict example::
+
+            requested_stats = {
+                FlStatistics.STATISTICS: metrics,
+                FlStatistics.NUM_OF_BINS: num_of_bins,
+                FlStatistics.BIN_RANGES: bin_ranges
+            }
+
+        Returned ExchangeObject example::
+
+            ExchangeObject(
+                statistics = {...}
+            )
+
+        """
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+
+
+class ClientAlgo(ClientAlgoStats):
+    """
+    Provide an abstract base class for defining algo to run on any platform.
     To define a new algo script, subclass this class and implement the
     following abstract methods:
 
-        - #Algo.train()
-        - #Algo.get_weights()
-        - #Algo.evaluate()
+        - self.train()
+        - self.get_weights()
+        - self.evaluate()
+        - self.get_data_stats() (optional, inherited from `ClientAlgoStats`)
 
-    initialize() and finalize() can be optionally be implemented to help with lifecycle management of the object.
+    initialize(), abort(), and finalize() - inherited from `ClientAlgoStats` - can be optionally be implemented
+    to help with lifecycle management of the class object.
     """
 
-    def initialize(self, extra=None):
-        """call to initialize the ClientAlgo class"""
-        pass
-
-    def finalize(self, extra=None):
-        """call to finalize the ClientAlgo class"""
-        pass
-
-    def abort(self, extra=None):
-        """call to abort the ClientAlgo training or evaluation"""
-        pass
-
-    @abc.abstractmethod
-    def train(self, data: ExchangeObject, extra=None) -> None:
+    def train(self, data: ExchangeObject, extra: Optional[dict] = None) -> None:
         """
-        objective: train network and produce new network from train data.
-        # Arguments
-        data: ExchangeObject containing current network weights to base training on.
+        Train network and produce new network from train data.
+
+        Args:
+            data: ExchangeObject containing current network weights to base training on.
+            extra: Dict with additional information that can be provided by the FL system.
+
+        Returns:
+            None
         """
-        raise NotImplementedError
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    @abc.abstractmethod
-    def get_weights(self, extra=None) -> ExchangeObject:
+    def get_weights(self, extra: Optional[dict] = None) -> ExchangeObject:
         """
-        objective: get current local weights or weight differences
+        Get current local weights or weight differences.
 
-        # Returns
-        ExchangeObject: current local weights or weight differences.
+        Args:
+            extra: Dict with additional information that can be provided by the FL system.
 
-        # Example returns ExchangeObject, e.g.::
+        Returns:
+            ExchangeObject: current local weights or weight differences.
+
+        `ExchangeObject` example:
+
+        .. code-block:: python
 
             ExchangeObject(
                 weights = self.trainer.network.state_dict(),
                 optim = None,  # could be self.optimizer.state_dict()
                 weight_type = WeightType.WEIGHTS
             )
-        """
-        raise NotImplementedError
 
-    @abc.abstractmethod
-    def evaluate(self, data: ExchangeObject, extra=None) -> ExchangeObject:
         """
-        objective: get evaluation metrics on test data.
-        # Arguments
-        data: ExchangeObject with network weights to use for evaluation
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-        # Returns
-        metrics: ExchangeObject with evaluation metrics.
+    def evaluate(self, data: ExchangeObject, extra: Optional[dict] = None) -> ExchangeObject:
         """
-        raise NotImplementedError
+        Get evaluation metrics on test data.
+
+        Args:
+            data: ExchangeObject with network weights to use for evaluation.
+            extra: Dict with additional information that can be provided by the FL system.
+
+        Returns:
+            metrics: ExchangeObject with evaluation metrics.
+        """
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")

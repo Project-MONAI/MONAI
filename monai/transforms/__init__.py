@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from .adaptors import FunctionSignature, adaptor, apply_alias, to_kwargs
-from .compose import Compose, OneOf
+from .compose import Compose, OneOf, RandomOrder
 from .croppad.array import (
     BorderPad,
     BoundingRect,
@@ -89,6 +89,7 @@ from .croppad.dictionary import (
 )
 from .intensity.array import (
     AdjustContrast,
+    ComputeHoVerMaps,
     DetectEnvelope,
     ForegroundMask,
     GaussianSharpen,
@@ -98,6 +99,7 @@ from .intensity.array import (
     IntensityRemap,
     KSpaceSpikeNoise,
     MaskIntensity,
+    MedianSmooth,
     NormalizeIntensity,
     RandAdjustContrast,
     RandBiasField,
@@ -127,6 +129,9 @@ from .intensity.dictionary import (
     AdjustContrastd,
     AdjustContrastD,
     AdjustContrastDict,
+    ComputeHoVerMapsd,
+    ComputeHoVerMapsD,
+    ComputeHoVerMapsDict,
     ForegroundMaskd,
     ForegroundMaskD,
     ForegroundMaskDict,
@@ -148,6 +153,9 @@ from .intensity.dictionary import (
     MaskIntensityd,
     MaskIntensityD,
     MaskIntensityDict,
+    MedianSmoothd,
+    MedianSmoothD,
+    MedianSmoothDict,
     NormalizeIntensityd,
     NormalizeIntensityD,
     NormalizeIntensityDict,
@@ -219,6 +227,8 @@ from .inverse import InvertibleTransform, TraceableTransform
 from .inverse_batch_transform import BatchInverseTransform, Decollated, DecollateD, DecollateDict
 from .io.array import SUPPORTED_READERS, LoadImage, SaveImage
 from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict, SaveImaged, SaveImageD, SaveImageDict
+from .lazy.functional import apply_transforms
+from .lazy.utils import combine_transforms, resample
 from .meta_utility.dictionary import (
     FromMetaTensord,
     FromMetaTensorD,
@@ -263,6 +273,8 @@ from .post.array import (
     LabelToContour,
     MeanEnsemble,
     ProbNMS,
+    RemoveSmallObjects,
+    SobelGradients,
     VoteEnsemble,
 )
 from .post.dictionary import (
@@ -296,12 +308,31 @@ from .post.dictionary import (
     ProbNMSD,
     ProbNMSd,
     ProbNMSDict,
+    RemoveSmallObjectsD,
+    RemoveSmallObjectsd,
+    RemoveSmallObjectsDict,
     SaveClassificationD,
     SaveClassificationd,
     SaveClassificationDict,
+    SobelGradientsd,
+    SobelGradientsD,
+    SobelGradientsDict,
     VoteEnsembleD,
     VoteEnsembled,
     VoteEnsembleDict,
+)
+from .signal.array import (
+    SignalContinuousWavelet,
+    SignalFillEmpty,
+    SignalRandAddGaussianNoise,
+    SignalRandAddSine,
+    SignalRandAddSinePartial,
+    SignalRandAddSquarePulse,
+    SignalRandAddSquarePulsePartial,
+    SignalRandDrop,
+    SignalRandScale,
+    SignalRandShift,
+    SignalRemoveFrequency,
 )
 from .smooth_field.array import (
     RandSmoothDeform,
@@ -420,7 +451,18 @@ from .spatial.dictionary import (
     ZoomD,
     ZoomDict,
 )
-from .transform import MapTransform, Randomizable, RandomizableTransform, ThreadUnsafe, Transform, apply_transform
+from .transform import (
+    LazyTrait,
+    LazyTransform,
+    MapTransform,
+    MultiSampleTrait,
+    Randomizable,
+    RandomizableTrait,
+    RandomizableTransform,
+    ThreadUnsafe,
+    Transform,
+    apply_transform,
+)
 from .utility.array import (
     AddChannel,
     AddCoordinateChannels,
@@ -505,6 +547,9 @@ from .utility.dictionary import (
     FgBgToIndicesd,
     FgBgToIndicesD,
     FgBgToIndicesDict,
+    FlattenSubKeysd,
+    FlattenSubKeysD,
+    FlattenSubKeysDict,
     Identityd,
     IdentityD,
     IdentityDict,
@@ -605,6 +650,7 @@ from .utils import (
     map_spatial_axes,
     print_transform_backends,
     rand_choice,
+    remove_small_objects,
     rescale_array,
     rescale_array_int_max,
     rescale_instance_array,

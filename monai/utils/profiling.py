@@ -162,7 +162,7 @@ class WorkflowProfiler:
 
     The tracing functionality uses a selector to choose which calls to trace, since tracing all calls induces
     infinite loops and would be terribly slow even if not. This selector is a callable accepting a `call` trace
-    frame and returns True if the call should be traced. The dedault is `select_transform_call` which will return
+    frame and returns True if the call should be traced. The default is `select_transform_call` which will return
     True for `Transform.__call__` calls only.
 
     Example showing use of all profiling functions:
@@ -369,7 +369,7 @@ class WorkflowProfiler:
         return result
 
     def get_times_summary_pd(self, times_in_s=True):
-        """Returns the same informatoin as `get_times_summary` but in a Pandas DataFrame."""
+        """Returns the same information as `get_times_summary` but in a Pandas DataFrame."""
         import pandas as pd
 
         summ = self.get_times_summary(times_in_s)

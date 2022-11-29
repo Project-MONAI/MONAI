@@ -45,7 +45,7 @@ class PatchWSIDataset(Dataset):
         This means from "image1.tiff" extract a region centered at the given location `location`
         with the size of `region_size`, and then extract patches with the size of `patch_size`
         from a grid with the shape of `grid_shape`.
-        Be aware the the `grid_shape` should construct a grid with the same number of element as `labels`,
+        Be aware the `grid_shape` should construct a grid with the same number of element as `labels`,
         so for this example the `grid_shape` should be (2, 2).
 
     """

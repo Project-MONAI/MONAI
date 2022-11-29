@@ -4,6 +4,7 @@
 1. [From PyPI](#from-pypi)
 	1. [Milestone release](#milestone-release)
 	2. [Weekly preview release](#weekly-preview-release)
+	3. [Uninstall the packages](#uninstall-the-packages)
 1. [From conda-forge](#from-conda-forge)
 2. [From GitHub](#from-github)
 	1. [System-wide](#milestone-release)
@@ -25,6 +26,11 @@ To install optional features such as handling the NIfTI files using
 Ignite](https://pytorch.org/ignite/), please follow the instructions:
 - [Installing the recommended dependencies](#installing-the-recommended-dependencies)
 
+The installation commands bellow usually end up installing CPU variant of PyTorch. To install GPU-enabled PyTorch:
+1. Install the latest NVIDIA driver.
+1. Check [PyTorch Official Guide](https://pytorch.org/get-started/locally/) for the recommended CUDA versions. For Pip package, the user needs to download the CUDA manually, install it on the system, and ensure CUDA_PATH is set properly.
+1. Continue to follow the guide and install PyTorch.
+1. Install MONAI using one the ways described below.
 ---
 
 
@@ -46,6 +52,19 @@ The weekly build is released to PyPI every Sunday with a pre-release build numbe
 To report any issues on the weekly preview, please include the version and commit information:
 ```bash
 python -c "import monai; print(monai.__version__); print(monai.__commit_id__)"
+```
+
+Coexistence of package `monai` and `monai-weekly` in a system may cause namespace conflicts
+and `ImportError`.
+This is usually a result of running both `pip install monai` and `pip install monai-weekly`
+without uninstalling the existing one first.
+To address this issue, please uninstall both packages, and retry the installation.
+
+### Uninstall the packages
+The packages installed using `pip install` could be removed by:
+```bash
+pip uninstall -y monai
+pip uninstall -y monai-weekly
 ```
 
 ## From conda-forge
@@ -125,7 +144,7 @@ and the codebase is ready to use (without the additional features of MONAI C++/C
 ## Validating the install
 You can verify the installation by:
 ```bash
-python -c 'import monai; monai.config.print_config()'
+python -c "import monai; monai.config.print_config()"
 ```
 If the installation is successful, this command will print out the MONAI version information, and this confirms the core
 modules of MONAI are ready-to-use.
@@ -184,7 +203,8 @@ cd MONAI/
 pip install -r requirements-dev.txt
 ```
 
-To install all optional dependencies with `conda` based on MONAI development environment settings:
+To install all optional dependencies with `conda` based on MONAI development environment settings (`environment-dev.yml`;
+this will install PyTorch as well as `pytorch-cuda`, please follow https://pytorch.org/get-started/locally/#start-locally for more details about installing PyTorch):
 ```bash
 git clone https://github.com/Project-MONAI/MONAI.git
 cd MONAI/
@@ -196,9 +216,9 @@ Since MONAI v0.2.0, the extras syntax such as `pip install 'monai[nibabel]'` is 
 
 - The options are
 ```
-[nibabel, skimage, pillow, tensorboard, gdown, ignite, torchvision, itk, tqdm, lmdb, psutil, cucim, openslide, pandas, einops, transformers, mlflow, matplotlib, tensorboardX, tifffile, imagecodecs, pyyaml, fire, jsonschema, pynrrd, pydicom, h5py]
+[nibabel, skimage, pillow, tensorboard, gdown, ignite, torchvision, itk, tqdm, lmdb, psutil, cucim, openslide, pandas, einops, transformers, mlflow, matplotlib, tensorboardX, tifffile, imagecodecs, pyyaml, fire, jsonschema, ninja, pynrrd, pydicom, h5py, nni, optuna]
 ```
 which correspond to `nibabel`, `scikit-image`, `pillow`, `tensorboard`,
-`gdown`, `pytorch-ignite`, `torchvision`, `itk`, `tqdm`, `lmdb`, `psutil`, `cucim`, `openslide-python`, `pandas`, `einops`, `transformers`, `mlflow`, `matplotlib`, `tensorboardX`, `tifffile`, `imagecodecs`, `pyyaml`, `fire`, `jsonschema`, `pynrrd`, `pydicom`, h5py , respectively.
+`gdown`, `pytorch-ignite`, `torchvision`, `itk`, `tqdm`, `lmdb`, `psutil`, `cucim`, `openslide-python`, `pandas`, `einops`, `transformers`, `mlflow`, `matplotlib`, `tensorboardX`, `tifffile`, `imagecodecs`, `pyyaml`, `fire`, `jsonschema`, `ninja`, `pynrrd`, `pydicom`, `h5py`, `nni`, `optuna`, respectively.
 
 - `pip install 'monai[all]'` installs all the optional dependencies.

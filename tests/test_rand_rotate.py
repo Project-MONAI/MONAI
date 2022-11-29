@@ -19,7 +19,13 @@ from parameterized import parameterized
 
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import RandRotate
-from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, NumpyImageTestCase3D, test_local_inversion
+from tests.utils import (
+    TEST_NDARRAYS_ALL,
+    NumpyImageTestCase2D,
+    NumpyImageTestCase3D,
+    assert_allclose,
+    test_local_inversion,
+)
 
 TEST_CASES_2D: List[Tuple] = []
 for p in TEST_NDARRAYS_ALL:
@@ -111,7 +117,7 @@ class TestRandRotate3D(NumpyImageTestCase3D):
         rotate_fn.set_random_state(243)
         im = im_type(self.imt[0])
         rotated = rotate_fn(im)
-        torch.testing.assert_allclose(rotated.shape, expected, rtol=1e-7, atol=0)
+        assert_allclose(rotated.shape, expected, rtol=1e-7, atol=0)
         test_local_inversion(rotate_fn, rotated, im)
 
         set_track_meta(False)
@@ -119,6 +125,23 @@ class TestRandRotate3D(NumpyImageTestCase3D):
         self.assertNotIsInstance(rotated, MetaTensor)
         self.assertIsInstance(rotated, torch.Tensor)
         set_track_meta(True)
+
+
+class TestRandRotateDtype(NumpyImageTestCase2D):
+    @parameterized.expand(TEST_CASES_2D)
+    def test_correct_results(self, im_type, degrees, keep_size, mode, padding_mode, align_corners):
+        rotate_fn = RandRotate(
+            range_x=1.0,
+            prob=0.5,
+            keep_size=keep_size,
+            mode=mode,
+            padding_mode=padding_mode,
+            align_corners=align_corners,
+            dtype=np.float64,
+        )
+        im = im_type(self.imt[0])
+        rotated = rotate_fn(im)
+        self.assertEqual(rotated.dtype, torch.float32)
 
 
 if __name__ == "__main__":

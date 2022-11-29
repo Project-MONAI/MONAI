@@ -32,7 +32,6 @@
 # * Neither the name of the copyright holder nor the names of its
 #   contributors may be used to endorse or promote products derived from
 #   this software without specific prior written permission.
-
 """
 This script is adapted from
 https://github.com/pytorch/vision/blob/release/0.12/torchvision/models/detection/anchor_utils.py
@@ -171,13 +170,13 @@ class AnchorGenerator(nn.Module):
         scales_t = torch.as_tensor(scales, dtype=dtype, device=device)  # sized (N,)
         aspect_ratios_t = torch.as_tensor(aspect_ratios, dtype=dtype, device=device)  # sized (M,) or (M,2)
         if (self.spatial_dims >= 3) and (len(aspect_ratios_t.shape) != 2):
-            ValueError(
+            raise ValueError(
                 f"In {self.spatial_dims}-D image, aspect_ratios for each level should be \
                 {len(aspect_ratios_t.shape)-1}-D. But got aspect_ratios with shape {aspect_ratios_t.shape}."
             )
 
         if (self.spatial_dims >= 3) and (aspect_ratios_t.shape[1] != self.spatial_dims - 1):
-            ValueError(
+            raise ValueError(
                 f"In {self.spatial_dims}-D image, aspect_ratios for each level should has \
                 shape (_,{self.spatial_dims-1}). But got aspect_ratios with shape {aspect_ratios_t.shape}."
             )

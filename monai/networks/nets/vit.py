@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 from typing import Sequence, Union
 
 import torch
@@ -44,6 +43,7 @@ class ViT(nn.Module):
         dropout_rate: float = 0.0,
         spatial_dims: int = 3,
         post_activation="Tanh",
+        qkv_bias: bool = False,
     ) -> None:
         """
         Args:
@@ -61,6 +61,7 @@ class ViT(nn.Module):
             spatial_dims: number of spatial dimensions.
             post_activation: add a final acivation function to the classification head when `classification` is True.
                 Default to "Tanh" for `nn.Tanh()`. Set to other values to remove this function.
+            qkv_bias: apply bias to the qkv linear layer in self attention block
 
         Examples::
 
@@ -95,7 +96,7 @@ class ViT(nn.Module):
             spatial_dims=spatial_dims,
         )
         self.blocks = nn.ModuleList(
-            [TransformerBlock(hidden_size, mlp_dim, num_heads, dropout_rate) for i in range(num_layers)]
+            [TransformerBlock(hidden_size, mlp_dim, num_heads, dropout_rate, qkv_bias) for i in range(num_layers)]
         )
         self.norm = nn.LayerNorm(hidden_size)
         if self.classification:

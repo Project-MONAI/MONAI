@@ -61,12 +61,10 @@ class TestRandLambdad(unittest.TestCase):
         ret = tr(deepcopy(data))
         self.check(tr, data, ret, expected)
 
-        # prob = 0
         tr = RandLambdad(keys=["img", "prop"], func=test_func, prob=0.0)
         ret = tr(deepcopy(data))
         self.check(tr, data, ret, expected=data)
 
-        # prob = 0.5
         trans = RandLambdad(keys=["img", "prop"], func=test_func, prob=0.5)
         trans.set_random_state(seed=123)
         ret = trans(deepcopy(data))

@@ -21,12 +21,10 @@ yaml, _ = optional_import("yaml")
 
 __all__ = ["ID_REF_KEY", "ID_SEP_KEY", "EXPR_KEY", "MACRO_KEY"]
 
-
 ID_REF_KEY = "@"  # start of a reference to a ConfigItem
 ID_SEP_KEY = "#"  # separator for the ID of a ConfigItem
 EXPR_KEY = "$"  # start of a ConfigExpression
 MACRO_KEY = "%"  # start of a macro of a config
-
 
 _conf_values = get_config_values()
 
@@ -34,7 +32,7 @@ DEFAULT_METADATA = {
     "version": "0.0.1",
     "changelog": {"0.0.1": "Initial version"},
     "monai_version": _conf_values["MONAI"],
-    "pytorch_version": _conf_values["Pytorch"],
+    "pytorch_version": str(_conf_values["Pytorch"]).split("+")[0].split("a")[0],  # 1.9.0a0+df837d0 or 1.13.0+cu117
     "numpy_version": _conf_values["Numpy"],
     "optional_packages_version": {},
     "task": "Describe what the network predicts",
@@ -96,6 +94,34 @@ DEFAULT_INFERENCE = {
     },
     "evaluating": ["$@evaluator.run()"],
 }
+
+DEFAULT_HANDLERS_ID = {
+    "trainer": {"id": "train#trainer", "handlers": "train#handlers"},
+    "validator": {"id": "validate#evaluator", "handlers": "validate#handlers"},
+    "evaluator": {"id": "evaluator", "handlers": "handlers"},
+}
+
+DEFAULT_MLFLOW_SETTINGS = {
+    "handlers_id": DEFAULT_HANDLERS_ID,
+    "configs": {
+        "tracking_uri": "$@output_dir + '/mlruns'",
+        # MLFlowHandler config for the trainer
+        "trainer": {
+            "_target_": "MLFlowHandler",
+            "tracking_uri": "@tracking_uri",
+            "iteration_log": True,
+            "epoch_log": True,
+            "tag_name": "train_loss",
+            "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
+        },
+        # MLFlowHandler config for the validator
+        "validator": {"_target_": "MLFlowHandler", "tracking_uri": "@tracking_uri", "iteration_log": False},
+        # MLFlowHandler config for the evaluator
+        "evaluator": {"_target_": "MLFlowHandler", "tracking_uri": "@tracking_uri", "iteration_log": False},
+    },
+}
+
+DEFAULT_EXP_MGMT_SETTINGS = {"mlflow": DEFAULT_MLFLOW_SETTINGS}  # default expriment management settings
 
 
 def load_bundle_config(bundle_path: str, *config_names, **load_kw_args) -> Any:

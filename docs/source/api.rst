@@ -7,6 +7,7 @@ API Reference
    :maxdepth: 1
 
    apps
+   auto3dseg
    fl
    bundle
    transforms

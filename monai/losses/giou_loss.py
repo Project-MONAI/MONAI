@@ -19,7 +19,6 @@ from monai.utils import LossReduction
 
 
 class BoxGIoULoss(_Loss):
-
     """
     Compute the generalized intersection over union (GIoU) loss of a pair of boxes.
     The two inputs should have the same shape. giou_loss = 1.0 - giou

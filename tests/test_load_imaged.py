@@ -15,7 +15,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import itk
 import nibabel as nib
 import numpy as np
 import torch
@@ -26,7 +25,10 @@ from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import Compose, EnsureChannelFirstD, FromMetaTensord, LoadImaged, SaveImageD
 from monai.transforms.meta_utility.dictionary import ToMetaTensord
+from monai.utils import optional_import
 from tests.utils import assert_allclose
+
+itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
 
 KEYS = ["image", "label", "extra"]
 
@@ -40,6 +42,7 @@ for track_meta in (False, True):
     TESTS_META.append([{"keys": KEYS, "reader": "ITKReader", "fallback_only": False}, (128, 128, 128), track_meta])
 
 
+@unittest.skipUnless(has_itk, "itk not installed")
 class TestLoadImaged(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_shape(self, input_param, expected_shape):
@@ -87,6 +90,7 @@ class TestLoadImaged(unittest.TestCase):
             LoadImaged(keys="img", reader="nibabelreader", image_only=True)({"img": "unknown"})
 
 
+@unittest.skipUnless(has_itk, "itk not installed")
 class TestConsistency(unittest.TestCase):
     def _cmp(self, filename, ch_shape, reader_1, reader_2, outname, ext):
         data_dict = {"img": filename}
@@ -147,6 +151,7 @@ class TestConsistency(unittest.TestCase):
             self._cmp(filename, (3, 224, 256), "itkreader", "nibabelreader", output_name, ".png")
 
 
+@unittest.skipUnless(has_itk, "itk not installed")
 class TestLoadImagedMeta(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

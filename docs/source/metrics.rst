@@ -17,6 +17,20 @@ Metrics
 .. autoclass:: Metric
     :members:
 
+`Variance`
+--------------
+.. autofunction:: compute_variance
+
+.. autoclass:: VarianceMetric
+    :members:
+
+`LabelQualityScore`
+--------------------
+.. autofunction:: label_quality_score
+
+.. autoclass:: LabelQualityScore
+    :members:
+
 `IterationMetric`
 -----------------
 .. autoclass:: IterationMetric
@@ -30,6 +44,11 @@ Metrics
 `CumulativeIterationMetric`
 ---------------------------
 .. autoclass:: CumulativeIterationMetric
+    :members:
+
+`LossMetric`
+------------
+.. autoclass:: LossMetric
     :members:
 
 `Mean Dice`
@@ -88,6 +107,13 @@ Metrics
 .. autofunction:: compute_surface_dice
 
 .. autoclass:: SurfaceDiceMetric
+    :members:
+
+`PanopticQualityMetric`
+-----------------------
+.. autofunction:: compute_panoptic_quality
+
+.. autoclass:: PanopticQualityMetric
     :members:
 
 `Mean squared error`

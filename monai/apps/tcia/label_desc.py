@@ -9,11 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 from typing import Dict
 
 __all__ = ["TCIA_LABEL_DICT"]
-
 
 TCIA_LABEL_DICT: Dict[str, Dict[str, int]] = {
     "C4KC-KiTS": {"Kidney": 0, "Renal Tumor": 1},

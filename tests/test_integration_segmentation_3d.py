@@ -83,7 +83,9 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
 
     # create a training data loader
     if cachedataset == 2:
-        train_ds = monai.data.CacheDataset(data=train_files, transform=train_transforms, cache_rate=0.8)
+        train_ds = monai.data.CacheDataset(
+            data=train_files, transform=train_transforms, cache_rate=0.8, runtime_cache=True
+        )
     elif cachedataset == 3:
         train_ds = monai.data.LMDBDataset(data=train_files, transform=train_transforms, cache_dir=root_dir)
     else:
@@ -170,7 +172,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
                 plot_2d_or_3d_image(val_outputs, epoch + 1, writer, index=0, tag="output")
     print(f"train completed, best_metric: {best_metric:0.4f}  at epoch: {best_metric_epoch}")
     writer.close()
-    return epoch_loss_values, best_metric, best_metric_epoch
+    return epoch_loss_values, best_metric
 
 
 def run_inference_test(root_dir, device="cuda:0"):
@@ -256,9 +258,7 @@ class IntegrationSegmentation3D(DistTestCase):
             _readers = ("itkreader", "itkreader")
         elif idx == 2:
             _readers = ("itkreader", "nibabelreader")
-        losses, best_metric, best_metric_epoch = run_training_test(
-            self.data_dir, device=self.device, cachedataset=idx, readers=_readers
-        )
+        losses, best_metric = run_training_test(self.data_dir, device=self.device, cachedataset=idx, readers=_readers)
         infer_metric = run_inference_test(self.data_dir, device=self.device)
 
         # check training properties

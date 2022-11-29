@@ -144,12 +144,12 @@ metric_names = [
     "mk",
 ]
 result: Any = None
-for idx in range(len(metric_names)):
+for idx, item in enumerate(metric_names):
     for reduction in ["mean", "mean_batch"]:
         TEST_CASE: List[Any] = [data.copy()]
         TEST_CASE[0]["compute_sample"] = True
         TEST_CASE[0]["include_background"] = True
-        TEST_CASE[0]["metric_name"] = metric_names[idx]
+        TEST_CASE[0]["metric_name"] = item
         TEST_CASE[0]["reduction"] = reduction
         TEST_CASE[0]["get_not_nans"] = True
         if reduction == "mean_batch":
@@ -239,8 +239,8 @@ class TestConfusionMatrix(unittest.TestCase):
         metric = ConfusionMatrixMetric(**params)
         metric(**vals)
         results = metric.aggregate()
-        for idx in range(len(results)):
-            result = results[idx][0]
+        for idx, item in enumerate(results):
+            result = item[0]
             expected_value = expected_values[idx]
             assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
 

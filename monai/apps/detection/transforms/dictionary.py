@@ -262,7 +262,8 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
                 f"'affine' is not found in {meta_key}. \
                 Please check whether it is the correct the image meta key."
             )
-        affine: NdarrayOrTensor = meta_dict["affine"]  # type: ignore
+        affine: NdarrayOrTensor = meta_dict["affine"]
+
         if self.affine_lps_to_ras:  # RAS affine
             affine = orientation_ras_lps(affine)
 
@@ -522,14 +523,14 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
-        first_key: Union[Hashable, List] = self.first_key(d)
-        if first_key == []:
+        first_key: Hashable = self.first_key(d)
+        if first_key == ():
             return d
 
         self.randomize(None)
 
         # all the keys share the same random zoom factor
-        self.rand_zoom.randomize(d[first_key])  # type: ignore
+        self.rand_zoom.randomize(d[first_key])
 
         # zoom box
         for box_key, box_ref_image_key in zip(self.box_keys, self.box_ref_image_keys):
@@ -1108,7 +1109,7 @@ class RandCropBoxByPosNegLabeld(Randomizable, MapTransform):
         thresh_image: Optional[NdarrayOrTensor] = None,
     ) -> None:
         if fg_indices is None or bg_indices is None:
-            # We don't require crop center to be whthin the boxes.
+            # We don't require crop center to be within the boxes.
             # As along as the cropped patch contains a box, it is considered as a foreground patch.
             # Positions within extended_boxes are crop centers for foreground patches
             extended_boxes_np = self.generate_fg_center_boxes_np(boxes, image_size)

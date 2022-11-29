@@ -363,7 +363,7 @@ class DivisiblePad(Pad):
 
 class Crop(InvertibleTransform):
     """
-    Perform crop operation on the input image.
+    Perform crop operations on the input image.
 
     """
 
@@ -378,7 +378,7 @@ class Crop(InvertibleTransform):
         roi_slices: Optional[Sequence[slice]] = None,
     ):
         """
-        Compute the crop slices based on specified `center & size` or `start & end`.
+        Compute the crop slices based on specified `center & size` or `start & end` or `slices`.
 
         Args:
             roi_center: voxel coordinates for center of the crop ROI.
@@ -471,7 +471,7 @@ class SpatialCrop(Crop):
     It can support to crop ND spatial (channel-first) data.
 
     The cropped region can be parameterised in various ways:
-        - a list of slices for each spatial dimension (allows for use of -ve indexing and `None`)
+        - a list of slices for each spatial dimension (allows for use of negative indexing and `None`)
         - a spatial center and size
         - the start and end coordinates of the ROI
     """

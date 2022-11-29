@@ -10,14 +10,15 @@
 # limitations under the License.
 
 import logging
-import os
 import threading
 from typing import TYPE_CHECKING, Dict, Optional
 
 import numpy as np
 
 from monai.config import DtypeLike, IgniteInfo
+from monai.data.folder_layout import FolderLayout
 from monai.utils import ProbMapKeys, min_version, optional_import
+from monai.utils.enums import CommonKeys
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:
@@ -28,7 +29,10 @@ else:
 
 class ProbMapProducer:
     """
-    Event handler triggered on completing every iteration to calculate and save the probability map
+    Event handler triggered on completing every iteration to calculate and save the probability map.
+    This handler use metadata from MetaTensor to create the probability map. This can be simply achieved by using
+    `monai.data.SlidingPatchWSIDataset` or `monai.data.MaskedPatchWSIDataset` as the dataset.
+
     """
 
     def __init__(
@@ -48,10 +52,17 @@ class ProbMapProducer:
             name: identifier of logging.logger to use, defaulting to `engine.logger`.
 
         """
+        self.folder_layout = FolderLayout(
+            output_dir=output_dir,
+            postfix=output_postfix,
+            extension=".npy",
+            parent=False,
+            makedirs=True,
+            data_root_dir="",
+        )
+
         self.logger = logging.getLogger(name)
         self._name = name
-        self.output_dir = output_dir
-        self.output_postfix = output_postfix
         self.prob_key = prob_key
         self.dtype = dtype
         self.prob_map: Dict[str, np.ndarray] = {}
@@ -91,8 +102,8 @@ class ProbMapProducer:
         """
         if not isinstance(engine.state.batch, dict) or not isinstance(engine.state.output, dict):
             raise ValueError("engine.state.batch and engine.state.output must be dictionaries.")
-        names = engine.state.batch["metadata"][ProbMapKeys.NAME]
-        locs = engine.state.batch["metadata"][ProbMapKeys.LOCATION]
+        names = engine.state.batch[CommonKeys.IMAGE].meta[ProbMapKeys.NAME]
+        locs = engine.state.batch[CommonKeys.IMAGE].meta[ProbMapKeys.LOCATION]
         probs = engine.state.output[self.prob_key]
         for name, loc, prob in zip(names, locs, probs):
             self.prob_map[name][tuple(loc)] = prob
@@ -109,8 +120,8 @@ class ProbMapProducer:
         Args:
             name: the name of image to be saved.
         """
-        file_path = os.path.join(self.output_dir, name)
-        np.save(file_path + self.output_postfix + ".npy", self.prob_map[name])
+        file_path = self.folder_layout.filename(name)
+        np.save(file_path, self.prob_map[name])
 
         self.num_done_images += 1
         self.logger.info(f"Inference of '{name}' is done [{self.num_done_images}/{self.num_images}]!")

@@ -28,7 +28,17 @@ from monai.data.utils import (
     orientation_ras_lps,
 )
 from monai.transforms.utility.array import EnsureChannelFirst
-from monai.utils import MetaKeys, SpaceKeys, deprecated, ensure_tuple, ensure_tuple_rep, optional_import, require_pkg
+from monai.utils import (
+    MetaKeys,
+    SpaceKeys,
+    TraceKeys,
+    deprecated,
+    deprecated_arg,
+    ensure_tuple,
+    ensure_tuple_rep,
+    optional_import,
+    require_pkg,
+)
 
 if TYPE_CHECKING:
     import itk
@@ -131,7 +141,7 @@ def _copy_compatible_dict(from_dict: Dict, to_dict: Dict):
             datum = from_dict[key]
             if isinstance(datum, np.ndarray) and np_str_obj_array_pattern.search(datum.dtype.str) is not None:
                 continue
-            to_dict[key] = datum
+            to_dict[key] = str(TraceKeys.NONE) if datum is None else datum  # NoneType to string for default_collate
     else:
         affine_key, shape_key = MetaKeys.AFFINE, MetaKeys.SPATIAL_SHAPE
         if affine_key in from_dict and not np.allclose(from_dict[affine_key], to_dict[affine_key]):
@@ -309,7 +319,12 @@ class ITKReader(ImageReader):
 
         """
         img_meta_dict = img.GetMetaDataDictionary()
-        meta_dict = {key: img_meta_dict[key] for key in img_meta_dict.GetKeys() if not key.startswith("ITK_")}
+        meta_dict = {}
+        for key in img_meta_dict.GetKeys():
+            if key.startswith("ITK_"):
+                continue
+            val = img_meta_dict[key]
+            meta_dict[key] = np.asarray(val) if type(val).__name__.startswith("itk") else val
 
         meta_dict["spacing"] = np.asarray(img.GetSpacing())
         return meta_dict
@@ -857,12 +872,12 @@ class NibabelReader(ImageReader):
             this is used to set original_channel_dim in the metadata, EnsureChannelFirstD reads this field.
             if None, `original_channel_dim` will be either `no_channel` or `-1`.
             most Nifti files are usually "channel last", no need to specify this argument for them.
-        dtype: dtype of the output data array when loading with Nibabel library.
         kwargs: additional args for `nibabel.load` API. more details about available args:
             https://github.com/nipy/nibabel/blob/master/nibabel/loadsave.py
 
     """
 
+    @deprecated_arg("dtype", since="1.0", msg_suffix="please modify dtype of the returned by ``get_data`` instead.")
     def __init__(
         self,
         channel_dim: Optional[int] = None,
@@ -875,7 +890,7 @@ class NibabelReader(ImageReader):
         self.channel_dim = channel_dim
         self.as_closest_canonical = as_closest_canonical
         self.squeeze_non_spatial_dims = squeeze_non_spatial_dims
-        self.dtype = dtype
+        self.dtype = dtype  # deprecated
         self.kwargs = kwargs
 
     def verify_suffix(self, filename: Union[Sequence[PathLike], PathLike]) -> bool:
@@ -1013,9 +1028,7 @@ class NibabelReader(ImageReader):
             img: a Nibabel image object loaded from an image file.
 
         """
-        _array = np.array(img.get_fdata(dtype=self.dtype))
-        img.uncache()
-        return _array
+        return np.asanyarray(img.dataobj)
 
 
 class NumpyReader(ImageReader):

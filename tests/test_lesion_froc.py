@@ -114,7 +114,6 @@ TEST_CASE_0 = [
     np.nan,
 ]
 
-
 TEST_CASE_1 = [
     {
         "data": [
@@ -163,7 +162,6 @@ TEST_CASE_3 = [
     1.0,
 ]
 
-
 TEST_CASE_4 = [
     {
         "data": [
@@ -195,7 +193,6 @@ TEST_CASE_5 = [
     },
     0.5,
 ]
-
 
 TEST_CASE_6 = [
     {

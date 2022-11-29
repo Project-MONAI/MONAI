@@ -51,7 +51,7 @@ class ROCAUCMetric(CumulativeIterationMetric):
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
         return y_pred, y
 
-    def aggregate(self, average: Union[Average, str, None] = None):  # type: ignore
+    def aggregate(self, average: Union[Average, str, None] = None):
         """
         Typically `y_pred` and `y` are stored in the cumulative buffers at each iteration,
         This function reads the buffers and computes the area under the ROC.

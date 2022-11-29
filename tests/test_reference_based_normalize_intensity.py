@@ -24,7 +24,6 @@ from tests.utils import TEST_NDARRAYS_NO_META_TENSOR, assert_allclose
 # which focuses on (1) automatic target normalization and (2) mean-std
 # return values
 
-
 TESTS = []
 for p in TEST_NDARRAYS_NO_META_TENSOR:
     TESTS.append(
