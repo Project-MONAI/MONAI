@@ -19,11 +19,11 @@ from monai.networks.utils import pytorch_after
 from monai.transforms import MapTransform
 
 
-class CheckLabelShaped(MapTransform):
+class EnsureSameShape(MapTransform):
     """
     Checks if segmentation label images (in keys) have the same spatial shape as the main image (in source_key),
     and raise an error if the shapes are significantly different.
-    if the shapes are only slightly different (within an allowed_shape_difference in each dim), then quietly resize the label.
+    if the shapes are only slightly different (within an allowed_shape_difference in each dim), then resize the label.
     This transform is designed to quietly correct datasets with label shape mismatches. Generally image and segmentation label
     must have the same spatial shape, however some public datasets having a slight shape mismatches, which will cause
     potential crashes when calculating loss or metric functions.
@@ -36,7 +36,15 @@ class CheckLabelShaped(MapTransform):
         source_key: str = "image",
         allowed_shape_difference: int = 5,
     ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be compared to the source_key item shape.
+            allow_missing_keys: don't raise exception if key is missing.
+            source_key: key of the item with a reference shape
+            allowed_shape_difference: raises error if shapes are different more then this value in any dimension,
+                otherwise corrects for the shape mismatch using nearest interpolation
 
+        """
         super().__init__(keys=keys, allow_missing_keys=allow_missing_keys)
         self.source_key = source_key
         self.allowed_shape_difference = allowed_shape_difference

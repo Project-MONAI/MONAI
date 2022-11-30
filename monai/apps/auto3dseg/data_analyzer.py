@@ -16,7 +16,7 @@ from typing import Dict, List, Optional, Union
 import numpy as np
 import torch
 
-from monai.apps.auto3dseg.transforms import CheckLabelShaped
+from monai.apps.auto3dseg.transforms import EnsureSameShape
 from monai.apps.utils import get_logger
 from monai.auto3dseg import SegSummarizer
 from monai.auto3dseg.utils import datafold_read
@@ -209,7 +209,7 @@ class DataAnalyzer:
             ]
             if self.label_key is not None:
                 transform_list.append(
-                    CheckLabelShaped(keys=self.label_key, source_key=self.image_key, allowed_shape_difference=10)
+                    EnsureSameShape(keys=self.label_key, source_key=self.image_key, allowed_shape_difference=5)
                 )
 
         transform = Compose(transform_list)
