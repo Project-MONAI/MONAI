@@ -27,7 +27,7 @@ from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_tensor import MetaObj, MetaTensor
 from monai.data.utils import no_collation
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
+from monai.transforms.transform import MapTransform, Randomizable, RandomizableTrait, RandomizableTransform
 from monai.transforms.utility.array import (
     AddChannel,
     AddCoordinateChannels,
@@ -1457,7 +1457,7 @@ class TorchVisiond(MapTransform):
         return d
 
 
-class RandTorchVisiond(Randomizable, MapTransform):
+class RandTorchVisiond(MapTransform, RandomizableTrait):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.TorchVision` for randomized transforms.
     For deterministic non-randomized transforms of TorchVision use :py:class:`monai.transforms.TorchVisiond`.
@@ -1664,7 +1664,7 @@ class CuCIMd(MapTransform):
         return d
 
 
-class RandCuCIMd(Randomizable, MapTransform):
+class RandCuCIMd(MapTransform, RandomizableTrait):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.CuCIM` for randomized transforms.
     For deterministic non-randomized transforms of CuCIM use :py:class:`monai.transforms.CuCIMd`.
