@@ -1672,10 +1672,10 @@ class RandCuCIMd(Randomizable, MapTransform):
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
-        name: The transform name in TorchVision package.
+        name: The transform name in CuCIM package.
         allow_missing_keys: don't raise exception if key is missing.
-        args: parameters for the TorchVision transform.
-        kwargs: parameters for the TorchVision transform.
+        args: parameters for the CuCIM transform.
+        kwargs: parameters for the CuCIM transform.
 
     Note:
         - CuCIM transform only work with CuPy arrays, so this transform expects input data to be `cupy.ndarray`.
