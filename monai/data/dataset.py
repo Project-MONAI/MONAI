@@ -1017,7 +1017,6 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         seed: int = 0,
         copy_cache: bool = True,
         as_contiguous: bool = True,
-        runtime_cache: bool = False,
     ) -> None:
         if shuffle:
             self.set_random_state(seed=seed)
