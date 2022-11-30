@@ -11,6 +11,7 @@
 
 import collections.abc
 import math
+import multiprocessing as mp
 import pickle
 import shutil
 import sys
@@ -826,6 +827,12 @@ class CacheDataset(Dataset):
             if self.runtime_cache:
                 cache = Manager().list([None for _ in range(self.cache_num)])
                 if self._is_dist:
+                    # ensure each process has the same authkey, otherwise broadcast_object_list fails
+                    authkey = bytearray(mp.current_process().authkey).ljust(32)[:32]
+                    ak_tensor = torch.frombuffer(authkey, dtype=torch.uint8).cuda(torch.cuda.current_device())
+                    dist.broadcast(ak_tensor, src=0)
+                    mp.current_process().authkey = ak_tensor.cpu().numpy().tobytes()
+
                     obj_list = [cache]
                     # broadcast the ProxyList to all the ranks, then share the same cache content at runtime
                     dist.broadcast_object_list(obj_list, src=0)
