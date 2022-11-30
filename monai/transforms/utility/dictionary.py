@@ -1482,14 +1482,7 @@ class RandTorchVisiond(Randomizable, MapTransform):
 
     backend = TorchVision.backend
 
-    def __init__(
-        self,
-        keys: KeysCollection,
-        name: str,
-        allow_missing_keys: bool = False,
-        *args,
-        **kwargs,
-    ) -> None:
+    def __init__(self, keys: KeysCollection, name: str, allow_missing_keys: bool = False, *args, **kwargs) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.name = name
         self.trans = TorchVision(name, *args, **kwargs)
@@ -1692,15 +1685,7 @@ class RandCuCIMd(Randomizable, MapTransform):
           the results may not be deterministic. See Also: :py:class:`monai.transforms.Randomizable`.
     """
 
-    def __init__(
-        self,
-        keys: KeysCollection,
-        name: str,
-        apply_prob: float = 1.0,
-        allow_missing_keys: bool = False,
-        *args,
-        **kwargs,
-    ) -> None:
+    def __init__(self, keys: KeysCollection, name: str, allow_missing_keys: bool = False, *args, **kwargs) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.name = name
         self.trans = CuCIM(name, *args, **kwargs)
