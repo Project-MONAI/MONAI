@@ -15,7 +15,15 @@ import numpy as np
 import torch
 
 from monai.config.type_definitions import DtypeLike, NdarrayOrTensor
-from monai.transforms import Activations, AsDiscrete, BoundingRect, RemoveSmallObjects, SobelGradients
+from monai.transforms import (
+    Activations,
+    AsDiscrete,
+    BoundingRect,
+    FillHoles,
+    GaussianSmooth,
+    RemoveSmallObjects,
+    SobelGradients,
+)
 from monai.transforms.transform import Transform
 from monai.transforms.utils_pytorch_numpy_unification import max, maximum, min, sum, unique
 from monai.utils import TransformBackends, convert_to_numpy, optional_import
@@ -39,7 +47,7 @@ __all__ = [
     "GenerateInstanceContour",
     "GenerateInstanceCentroid",
     "GenerateInstanceType",
-    "HoVerNetNuclearTypePostProcessing",
+    "HoVerNetPostProcessing",
 ]
 
 
@@ -91,7 +99,7 @@ class GenerateWatershedMask(Transform):
     Args:
         softmax: if True, apply a softmax function to the prediction.
         sigmoid: if True, apply a sigmoid function to the prediction.
-        threshold: if not None, threshold the float values to int number 0 or 1 with specified theashold.
+        threshold: if not None, threshold the float values to int number 0 or 1 with specified threshold.
         remove_small_objects: whether need to remove some objects in the marker. Defaults to True.
         min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
         dtype: target data content type to convert, default is np.uint8.
@@ -625,77 +633,103 @@ class GenerateInstanceType(Transform):
         return (int(inst_type), float(type_prob))
 
 
-class HoVerNetNuclearTypePostProcessing(Transform):
+class HoVerNetPostProcessing(Transform):
     """
-    The whole post-procesing transform for nuclear type classification branch. It returns type prediction map and a
-    dict contains centroid, bounding box, type prediciton for each instance.
+    The whole post-processing transform for nuclear type classification branch. It returns type prediction map and a
+    dict contains centroid, bounding box, type prediction for each instance.
 
     Args:
         min_num_points: assumed that the created contour does not form a contour if it does not contain more points
             than the specified value. Defaults to 3.
         level: optional. Used in `skimage.measure.find_contours`. Value along which to find contours in the array.
             By default, the level is set to (max(image) + min(image)) / 2.
-        return_centroids: whether to return centroids for each instance.
         output_classes: number of the nuclear type classes.
     """
 
     def __init__(
         self,
+        distance_smooth_fn: Callable = GaussianSmooth(),
+        watershed_postprocess_fn: Callable = FillHoles(),
         min_num_points: int = 3,
         level: Optional[float] = None,
-        return_centroids: Optional[bool] = False,
-        output_classes: Optional[int] = None,
     ) -> None:
         super().__init__()
-        self.return_centroids = return_centroids
-        self.output_classes = output_classes
 
+        # instance segmentation transforms
+        self.generate_watershed_mask = GenerateWatershedMask(softmax=True)
+        self.generate_instance_border = GenerateInstanceBorder(kernel_size=3)
+        self.generate_distance_map = GenerateDistanceMap(smooth_fn=distance_smooth_fn)
+        self.generate_watershed_markers = GenerateWatershedMarkers(
+            threshold=0.7, radius=2, postprocess_fn=watershed_postprocess_fn
+        )
+        self.watershed = Watershed()
+        # instance
         self.generate_instance_contour = GenerateInstanceContour(min_num_points=min_num_points, level=level)
         self.generate_instance_centroid = GenerateInstanceCentroid()
         self.generate_instance_type = GenerateInstanceType()
 
-    def __call__(  # type: ignore
-        self, type_pred: NdarrayOrTensor, instance_pred: NdarrayOrTensor
-    ) -> Union[Tuple[NdarrayOrTensor, Dict], Dict]:
-        type_pred = Activations(softmax=True)(type_pred)
-        type_pred = AsDiscrete(argmax=True)(type_pred)
+        # type post-processing
+        self.activation = Activations(softmax=True)
+        self.as_discrete = AsDiscrete(argmax=True)
 
-        inst_id_list = np.unique(instance_pred)[1:]  # exclude background
-        inst_info_dict = None
-        if self.return_centroids:
-            inst_info_dict = {}
-            for inst_id in inst_id_list:
-                inst_map = instance_pred == inst_id
-                inst_bbox = BoundingRect()(inst_map)
-                inst_map = inst_map[:, inst_bbox[0][0] : inst_bbox[0][1], inst_bbox[0][2] : inst_bbox[0][3]]
-                offset = [inst_bbox[0][2], inst_bbox[0][0]]
-                inst_contour = self.generate_instance_contour(inst_map, offset)
-                inst_centroid = self.generate_instance_centroid(inst_map, offset)
-                if inst_contour is not None:
-                    inst_info_dict[inst_id] = {  # inst_id should start at 1
-                        "bounding_box": inst_bbox,
-                        "centroid": inst_centroid,
-                        "contour": inst_contour,
-                        "type_probability": None,
-                        "type": None,
-                    }
+    def _process_instance_segmentation(self, nuclear_prediction, hover_map):
+        """post-process instance segmentation branches (NP and HV) to generate instance segmentation map."""
 
-        if self.output_classes is not None:
-            for inst_id in list(inst_info_dict.keys()):
-                inst_type, type_prob = self.generate_instance_type(
-                    bbox=inst_info_dict[inst_id]["bounding_box"],  # type: ignore
-                    type_pred=type_pred,
-                    seg_pred=instance_pred,
+        # Process NP and HV branch using watershed algorithm
+        watershed_mask = self.generate_watershed_mask(nuclear_prediction)
+        instance_borders = self.generate_instance_border(watershed_mask, hover_map)
+        distance_map = self.generate_distance_map(watershed_mask, instance_borders)
+        watershed_markers = self.generate_watershed_markers(watershed_mask, instance_borders)
+        instance_seg_map = self.watershed(distance_map, watershed_markers, watershed_markers)
+
+        # Create bounding boxes, contours and centroids
+        instance_ids = set(np.unique(instance_seg_map)) - {0}  # exclude background
+        instance_info_dict = {}
+        for inst_id in instance_ids:
+            instance_mask = instance_seg_map == inst_id
+            instance_bbox = BoundingRect()(instance_mask)
+
+            instance_mask = instance_mask[
+                :, instance_bbox[0][0] : instance_bbox[0][1], instance_bbox[0][2] : instance_bbox[0][3]
+            ]
+            offset = [instance_bbox[0][2], instance_bbox[0][0]]
+            instance_contour = self.generate_instance_contour(instance_mask, offset)
+            if instance_contour is not None:
+                instance_centroid = self.generate_instance_centroid(instance_mask, offset)
+                instance_info_dict[inst_id] = {
+                    "bounding_box": instance_bbox,
+                    "centroid": instance_centroid,
+                    "contour": instance_contour,
+                }
+
+        return instance_info_dict, instance_seg_map
+
+    def __call__(
+        self,
+        nuclear_prediction: NdarrayOrTensor,
+        hover_map: NdarrayOrTensor,
+        type_prediction: Optional[NdarrayOrTensor] = None,
+    ) -> Tuple[NdarrayOrTensor, Dict, Dict]:
+        # Process NP and HV branches to create final instance map
+        instance_info_dict, instance_seg_map = self._process_instance_segmentation(nuclear_prediction, hover_map)
+
+        instance_type_map = convert_to_dst_type(torch.zeros(instance_seg_map.shape), instance_seg_map)
+        if type_prediction is not None:
+            # Process NC (type prediction) branch and add type and its probability
+            for inst_id in instance_info_dict:
+                type_prediction = self.activation(type_prediction)
+                type_prediction = self.as_discrete(type_prediction)
+                instance_type, instance_type_probability = self.generate_instance_type(
+                    bbox=instance_info_dict[inst_id]["bounding_box"],
+                    type_pred=type_prediction,
+                    seg_pred=instance_seg_map,
                     instance_id=inst_id,
                 )
-                inst_info_dict[inst_id]["type"] = inst_type  # type: ignore
-                inst_info_dict[inst_id]["type_probability"] = type_prob  # type: ignore
+                # update instance info dict with type data
+                instance_info_dict[inst_id]["type_probability"] = instance_type_probability
+                instance_info_dict[inst_id]["type"] = instance_type
 
-            instance_pred = convert_to_dst_type(instance_pred, type_pred)[0]
-            pred_type_map = torch.zeros_like(instance_pred)  # type: ignore
-            for key, value in inst_info_dict.items():
-                pred_type_map[instance_pred == key] = value["type"]  # type: ignore
+                # update instance type map
+                instance_type_map[instance_seg_map == inst_id] = instance_type
 
-            return pred_type_map, inst_info_dict
-
-        return inst_info_dict
+        return instance_info_dict, instance_seg_map, instance_type_map
