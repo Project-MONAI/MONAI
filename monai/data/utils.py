@@ -286,10 +286,10 @@ def iter_patch(
 
     # set padded flag to false if pad mode is None
     padded = bool(mode)
+    is_v = [bool(p) for p in ensure_tuple_size(patch_size, arr.ndim)]  # whether a valid patch size provided
+    _pad_size = tuple(p if v and padded else 0 for p, v in zip(patch_size_, is_v))  # pad p if v else 0
     # pad image by maximum values needed to ensure patches are taken from inside an image
     if padded:
-        is_v = [bool(p) for p in ensure_tuple_size(patch_size, arr.ndim)]  # whether a valid patch size provided
-        _pad_size = tuple(p * v for p, v in zip(patch_size_, is_v))  # pad p if v else 0
         arrpad = np.pad(arr, tuple((p, p) for p in _pad_size), look_up_option(mode, NumpyPadMode).value, **pad_opts)
         # choose a start position in the padded image
         start_pos_padded = tuple(s + p for s, p in zip(start_pos, _pad_size))
@@ -312,7 +312,7 @@ def iter_patch(
 
     # copy back data from the padded image if required
     if copy_back:
-        slices = tuple(slice(p, p + s) for p, s in zip(patch_size_, arr.shape))
+        slices = tuple(slice(p, p + s) for p, s in zip(_pad_size, arr.shape))
         arr[...] = arrpad[slices]
 
 
