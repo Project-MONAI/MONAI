@@ -829,9 +829,9 @@ class CacheDataset(Dataset):
                 if self._is_dist:
                     # ensure each process has the same authkey, otherwise broadcast_object_list fails
                     authkey = bytearray(mp.current_process().authkey).ljust(32)[:32]
-                    ak_tensor = torch.frombuffer(authkey, dtype=torch.uint8)
-                    if dist.get_backend()==dist.Backend.NCCL:
-                        ak_tensor=ak_tensor.cuda(torch.cuda.current_device())
+                    ak_tensor = torch.from_numpy(np.frombuffer(authkey, dtype=np.uint8))
+                    if dist.get_backend() == dist.Backend.NCCL:
+                        ak_tensor = ak_tensor.cuda(torch.cuda.current_device())
                     dist.broadcast(ak_tensor, src=0)
                     mp.current_process().authkey = ak_tensor.cpu().numpy().tobytes()
 
