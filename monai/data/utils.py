@@ -257,7 +257,8 @@ def iter_patch(
 
     Args:
         arr: array to iterate over
-        patch_size: size of patches to generate slices for, 0 or None selects whole dimension
+        patch_size: size of patches to generate slices for, 0 or None selects whole dimension.
+            For 0 or None, padding of the corresponding dimension will be 0.
         start_pos: starting position in the array, default is 0 for each dimension
         overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
             If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
