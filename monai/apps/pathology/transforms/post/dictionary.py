@@ -171,8 +171,8 @@ class GenerateInstanceBorderd(Transform):
 
     Args:
         mask_key: the input key where the watershed mask is stored. Defaults to `"mask"`.
-        hover_map_key: keys of hover map used to generate probability map.
-        border_key: the instance border map will be written to the value of `{border_key}`.
+        hover_map_key: the input key where hover map is stored. Defaults to `"hover_map"`.
+        border_key: the output key where instance border map is written. Defaults to `"border"`.
         kernel_size: the size of the Sobel kernel. Defaults to 21.
         dtype: target data content type to convert, default is np.float32.
         allow_missing_keys: don't raise exception if key is missing.
@@ -242,19 +242,18 @@ class GenerateDistanceMapd(Transform):
         return d
 
 
-class GenerateWatershedMarkersd(MapTransform):
+class GenerateWatershedMarkersd(Transform):
     """
     Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.array.GenerateWatershedMarkers`.
 
     Args:
-        keys: keys of the corresponding items to be transformed.
-        border_key: keys of the instance border map used to generate markers.
-        markers_key: the markers will be written to the value of `{markers_key}`.
-        threshold: threshold the float values of instance border map to int 0 or 1 with specified theashold.
+        mask_key: the input key where the watershed mask is stored. Defaults to `"mask"`.
+        border_key: the input key where instance border map is stored. Defaults to `"border"`.
+        markers_key: the output key where markers is written. Defaults to `"markers"`.
+        threshold: threshold the float values of instance border map to int 0 or 1 with specified threshold.
             It turns uncertain area to 1 and other area to 0. Defaults to 0.4.
         radius: the radius of the disk-shaped footprint used in `opening`. Defaults to 2.
-        min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
-        remove_small_objects: whether need to remove some objects in the marker. Defaults to True.
+        min_object_size: objects smaller than this size are removed. Defaults to 10.
         postprocess_fn: execute additional post transformation on marker. Defaults to None.
         dtype: target data content type to convert, default is np.uint8.
         allow_missing_keys: don't raise exception if key is missing.
@@ -264,37 +263,31 @@ class GenerateWatershedMarkersd(MapTransform):
 
     def __init__(
         self,
-        keys: KeysCollection,
+        mask_key: str = "mask",
         border_key: str = "border",
         markers_key: str = "markers",
         threshold: float = 0.4,
         radius: int = 2,
-        min_size: int = 10,
-        remove_small_objects: bool = True,
+        min_object_size: int = 10,
         postprocess_fn: Optional[Callable] = None,
         dtype: DtypeLike = np.uint8,
-        allow_missing_keys: bool = False,
     ) -> None:
-        super().__init__(keys, allow_missing_keys)
+        self.mask_key = mask_key
         self.border_key = border_key
         self.markers_key = markers_key
         self.transform = GenerateWatershedMarkers(
             threshold=threshold,
             radius=radius,
-            min_size=min_size,
-            remove_small_objects=remove_small_objects,
+            min_object_size=min_object_size,
             postprocess_fn=postprocess_fn,
             dtype=dtype,
         )
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        for key in self.key_iterator(d):
-            markers = self.transform(d[key], d[self.border_key])
-            key_to_add = f"{self.markers_key}"
-            if key_to_add in d:
-                raise KeyError(f"Markers with key {key_to_add} already exists.")
-            d[key_to_add] = markers
+        if self.markers_key in d:
+            raise KeyError(f"The key '{self.markers_key}' for markers already exists.")
+        d[self.markers_key] = self.transform(d[self.mask_key], d[self.border_key])
         return d
 
 

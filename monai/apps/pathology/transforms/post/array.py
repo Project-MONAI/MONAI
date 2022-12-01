@@ -280,8 +280,9 @@ class GenerateWatershedMarkers(Transform):
             It turns uncertain area to 1 and other area to 0. Defaults to 0.4.
         radius: the radius of the disk-shaped footprint used in `opening`. Defaults to 2.
         min_object_size: objects smaller than this size are removed. Defaults to 10.
-        postprocess_fn: execute additional post transformation on marker. Defaults to None.
-        dtype: target data content type to convert, default is np.uint8.
+        postprocess_fn: additional post-process function on the markers.
+            If not provided, :py:class:`monai.transforms.post.FillHoles()` will be used.
+        dtype: target data type to convert to. Defaults to np.uint8.
 
     """
 
@@ -299,7 +300,10 @@ class GenerateWatershedMarkers(Transform):
         self.radius = radius
         self.postprocess_fn = postprocess_fn
         self.dtype = dtype
-
+        if postprocess_fn is not None:
+            self.postprocess_fn = postprocess_fn
+        else:
+            self.postprocess_fn = FillHoles()
         self.remove_small_objects = RemoveSmallObjects(min_size=min_object_size) if min_object_size > 0 else lambda x: x
 
     def __call__(self, mask: NdarrayOrTensor, instance_border: NdarrayOrTensor) -> NdarrayOrTensor:  # type: ignore
@@ -319,8 +323,7 @@ class GenerateWatershedMarkers(Transform):
 
         marker = mask - convert_to_dst_type(instance_border, mask, np.uint8)[0]  # certain foreground
         marker[marker < 0] = 0  # type: ignore
-        if self.postprocess_fn:
-            marker = self.postprocess_fn(marker)
+        marker = self.postprocess_fn(marker)
 
         marker = convert_to_numpy(marker)
 
@@ -642,26 +645,26 @@ class HoVerNetInstanceMapPostProcessing(Transform):
     def __init__(
         self,
         activation: Union[str, Callable] = "softmax",
-        threshold: Optional[float] = None,
+        mask_threshold: Optional[float] = None,
         min_object_size: int = 10,
-        kernel_size: int = 5,
+        sobel_kernel_size: int = 5,
         distance_smooth_fn: Optional[Callable] = None,
+        marker_threshold: float = 0.4,
+        marker_radius: int = 2,
         marker_postprocess_fn: Optional[Callable] = None,
     ) -> None:
         super().__init__()
 
-        if marker_postprocess_fn is not None:
-            self.marker_postprocess_fn = marker_postprocess_fn
-        else:
-            self.marker_postprocess_fn = FillHoles()
-
         self.generate_watershed_mask = GenerateWatershedMask(
-            activation=activation, threshold=threshold, min_object_size=min_object_size
+            activation=activation, threshold=mask_threshold, min_object_size=min_object_size
         )
-        self.generate_instance_border = GenerateInstanceBorder(kernel_size=kernel_size)
+        self.generate_instance_border = GenerateInstanceBorder(kernel_size=sobel_kernel_size)
         self.generate_distance_map = GenerateDistanceMap(smooth_fn=distance_smooth_fn)
         self.generate_watershed_markers = GenerateWatershedMarkers(
-            threshold=0.7, radius=2, postprocess_fn=self.marker_postprocess_fn
+            threshold=marker_threshold,
+            radius=marker_radius,
+            postprocess_fn=marker_postprocess_fn,
+            min_object_size=min_object_size,
         )
         self.watershed = Watershed()
 
