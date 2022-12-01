@@ -827,7 +827,7 @@ class CacheDataset(Dataset):
                 cache = Manager().list([None for _ in range(self.cache_num)])
                 if self._is_dist:
                     obj_list = [cache]
-                    # broadcast the ProxyList to all the ranks, then share the same cache content at runtime
+                    # broadcast the ListProxy to all the ranks, then share the same cache content at runtime
                     dist.broadcast_object_list(obj_list, src=0)
                     cache = obj_list[0]
             else:
@@ -849,7 +849,7 @@ class CacheDataset(Dataset):
     def disable_share_memory_cache(self):
         """
         If the cache content is multiprocessing share memory list, convert it to a regular python list.
-        Because multiprocessing ProxyList is not supported for the GPU caching, may need to explicitly disable it.
+        Because multiprocessing ListProxy is not supported for the GPU caching, may need to explicitly disable it.
 
         """
         if self._is_dist:
@@ -998,6 +998,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
             may set `copy=False` for better performance.
         as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
             it may help improve the performance of following logic.
+        runtime_cache: option reserved but not currently implemented.
 
     """
 
@@ -1015,6 +1016,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         seed: int = 0,
         copy_cache: bool = True,
         as_contiguous: bool = True,
+        runtime_cache: bool = False,
     ) -> None:
         if shuffle:
             self.set_random_state(seed=seed)
@@ -1025,6 +1027,8 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         self._round: int = 1
         self._replace_done: bool = False
         self._replace_mgr: Optional[threading.Thread] = None
+        if runtime_cache:
+            raise NotImplementedError("runtime_cache=True not implemented.")
 
         super().__init__(data, transform, cache_num, cache_rate, num_init_workers, progress, copy_cache, as_contiguous)
         if self._cache is None:
