@@ -43,7 +43,7 @@ class TestHoVerNetTypeMapPostProcessing(unittest.TestCase):
         nuclear_type = in_type(test_data)
 
         inst_info, inst_map = HoVerNetInstanceMapPostProcessing()(nuclear_prediction, hover_map)
-        inst_info, type_map = HoVerNetTypeMapPostProcessing(**kwargs)(inst_info, inst_map, nuclear_type)
+        inst_info, type_map = HoVerNetTypeMapPostProcessing(**kwargs)(nuclear_type, inst_info, inst_map)
 
         # instance prediction info
         for key in inst_info:

@@ -150,10 +150,7 @@ class GenerateWatershedMaskd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.mask_key = mask_key
         self.transform = GenerateWatershedMask(
-            activation=activation,
-            threshold=threshold,
-            min_object_size=min_object_size,
-            dtype=dtype,
+            activation=activation, threshold=threshold, min_object_size=min_object_size, dtype=dtype
         )
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
@@ -459,18 +456,13 @@ class GenerateInstanceTyped(MapTransform):
 
 class HoVerNetInstanceMapPostProcessingd(Transform):
     """
-    Dictionary-based wrapper for :py:class:`monai.apps.pathology.transforms.post.array.HoVerNetTypeMapPostProcessing`.
-    It generate a dictionary containing centroid, bounding box, type prediction for each instance. Also if requested,
-    it returns binary maps for instance segmentation and predicted types.
-
-    The output dictionary will have three new keys:
-
-    - "instance_info" mapping each instance to their centroid, bounding box, predicted type and probability.
-    - "instance_seg_map" containing an instance segmentation map.
-    - "type_seg_map" containing a segmentation map with associated types for each pixel.
+    Dictionary-based wrapper for :py:class:`monai.apps.pathology.transforms.post.array.HoVerNetInstanceMapPostProcessing`.
+    The post-processing transform for HoVerNet model to generate instance segmentation map.
+    It generates an instance segmentation map as well as a dictionary containing centroids, bounding boxes, and contours
+    for each instance.
 
     Args:
-        nuclear_prediction_key: the key for HoVerNet NC (nuclear prediction) branch. Defaults to `HoVerNetBranch.NP`.
+        nuclear_prediction_key: the key for HoVerNet NP (nuclear prediction) branch. Defaults to `HoVerNetBranch.NP`.
         hover_map_key: the key for HoVerNet NC (nuclear prediction) branch. Defaults to `HoVerNetBranch.HV`.
         instance_info_key: the output key where instance information (contour, bounding boxes, and centroids)
             is written. Defaults to `"instance_info"`.
@@ -550,58 +542,48 @@ class HoVerNetTypeMapPostProcessingd(Transform):
     It generate a dictionary containing centroid, bounding box, type prediction for each instance. Also if requested,
     it returns binary maps for instance segmentation and predicted types.
 
-    The output dictionary will have three new keys:
-
-    - "instance_info" mapping each instance to their centroid, bounding box, predicted type and probability.
-    - "instance_seg_map" containing an instance segmentation map.
-    - "type_seg_map" containing a segmentation map with associated types for each pixel.
-
     Args:
-        level: optional value for `skimage.measure.find_contours`, to find contours in the array.
-            If not provided, the level is set to (max(image) + min(image)) / 2.
-        distance_smooth_fn: smoothing function for distance map.
-            If not provided, :py:class:`monai.transforms.intensity.GaussianSmooth()` will be used..
-        marker_postprocess_fn: post-process function for watershed markers.
-            If not provided, :py:class:`monai.transforms.post.FillHoles()` will be used.
-        allow_missing_keys: don't raise exception if key is missing.
+        type_prediction_key: the key for HoVerNet NC (type prediction) branch. Defaults to `HoVerNetBranch.NC`.
+        instance_info_key: the key where instance information (contour, bounding boxes, and centroids) is stored.
+            Defaults to `"instance_info"`.
+        instance_map_key: the key where instance map is stored. Defaults to `"instance_map"`.
+        type_map_key: the output key where type map is written. Defaults to `"type_map"`.
+
 
     """
 
     def __init__(
         self,
-        nuclear_prediction_key: str = HoVerNetBranch.NP.value,
-        hover_map_key: str = HoVerNetBranch.HV.value,
         type_prediction_key: str = HoVerNetBranch.NC.value,
-        min_num_points: int = 3,
-        level: Optional[float] = None,
-        distance_smooth_fn: Optional[Callable] = None,
-        marker_postprocess_fn: Optional[Callable] = None,
+        instance_info_key: str = "instance_info",
+        instance_map_key: str = "instance_map",
+        type_map_key: str = "type_map",
+        activation: Union[str, Callable] = "softmax",
+        threshold: Optional[float] = None,
+        return_type_map: bool = True,
     ) -> None:
         super().__init__()
-        self.post_process = HoVerNetTypeMapPostProcessing(
-            min_num_points=min_num_points,
-            level=level,
-            distance_smooth_fn=distance_smooth_fn,
-            marker_postprocess_fn=marker_postprocess_fn,
+        self.type_post_process = HoVerNetTypeMapPostProcessing(
+            activation=activation,
+            threshold=threshold,
+            return_type_map=return_type_map,
         )
-        self.nuclear_prediction_key = nuclear_prediction_key
-        self.hover_map_key = hover_map_key
         self.type_prediction_key = type_prediction_key
+        self.instance_info_key = instance_info_key
+        self.instance_map_key = instance_map_key
+        self.type_map_key = type_map_key
+        self.return_type_map = return_type_map
 
     def __call__(self, data):
         d = dict(data)
-        instance_info, instance_seg_map, type_seg_map = self.post_process(
-            d[self.nuclear_prediction_key], d[self.hover_map_key], d[self.type_prediction_key]
+
+        d[self.instance_info_key], type_map = self.type_post_process(
+            d[self.type_prediction_key], d[self.instance_info_key], d[self.instance_map_key]
         )
-
-        output_keys = ["instance_info", "instance_seg_map", "type_seg_map"]
-        for k in output_keys:
-            if k in d:
-                raise ValueError("The output key ['{k}'] already exists in the input dictionary!")
-
-        d["instance_info"] = instance_info
-        d["instance_seg_map"] = instance_seg_map
-        d["type_seg_map"] = type_seg_map
+        if self.return_type_map:
+            if self.type_map_key in d:
+                raise ValueError("The output key ['{self.type_map_key}'] already exists in the input dictionary!")
+            d[self.type_map_key] = type_map
 
         return d
 

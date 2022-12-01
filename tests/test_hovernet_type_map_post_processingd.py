@@ -14,8 +14,11 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.apps.pathology.transforms.post.dictionary import HoVerNetTypeMapPostProcessingd
-from monai.transforms import ComputeHoVerMaps, FillHoles, GaussianSmooth
+from monai.apps.pathology.transforms.post.dictionary import (
+    HoVerNetTypeMapPostProcessingd,
+    HoVerNetInstanceMapPostProcessingd,
+)
+from monai.transforms import ComputeHoVerMaps
 from monai.utils import min_version, optional_import
 from monai.utils.enums import HoVerNetBranch
 from tests.utils import TEST_NDARRAYS, assert_allclose
@@ -29,15 +32,11 @@ image = image[None, ...].astype("uint8")
 
 
 TEST_CASE_1 = [{}, [{"1": [10, 10]}, np.zeros_like(image), np.zeros_like(image)]]
-TEST_CASE_2 = [{"distance_smooth_fn": GaussianSmooth()}, [{"1": [10, 10]}, np.zeros_like(image), np.zeros_like(image)]]
-TEST_CASE_3 = [{"marker_postprocess_fn": FillHoles()}, [{"1": [10, 10]}, np.zeros_like(image), np.zeros_like(image)]]
 
 
 TEST_CASE = []
 for p in TEST_NDARRAYS:
     TEST_CASE.append([p, image] + TEST_CASE_1)
-    TEST_CASE.append([p, image] + TEST_CASE_2)
-    TEST_CASE.append([p, image] + TEST_CASE_3)
 
 
 @unittest.skipUnless(has_scipy, "Requires scipy library.")
@@ -51,20 +50,21 @@ class TestHoVerNetTypeMapPostProcessingd(unittest.TestCase):
             HoVerNetBranch.NC.value: in_type(test_data),
         }
 
-        outputs = HoVerNetTypeMapPostProcessingd(**kwargs)(input)
+        outputs = HoVerNetInstanceMapPostProcessingd()(input)
+        outputs = HoVerNetTypeMapPostProcessingd(**kwargs)(outputs)
 
         # instance prediction info
         for key in outputs["instance_info"]:
             assert_allclose(outputs["instance_info"][key]["centroid"], expected[0][key], type_test=False)
 
         # instance map
-        assert_allclose(outputs["instance_seg_map"], expected[1], type_test=False)
+        assert_allclose(outputs["instance_map"], expected[1], type_test=False)
 
         # type map
         if expected[2] is None:
-            self.assertIsNone(outputs["type_seg_map"])
+            self.assertIsNone(outputs["type_map"])
         else:
-            assert_allclose(outputs["type_seg_map"], expected[2], type_test=False)
+            assert_allclose(outputs["type_map"], expected[2], type_test=False)
 
 
 if __name__ == "__main__":

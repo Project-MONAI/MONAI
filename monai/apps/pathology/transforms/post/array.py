@@ -99,7 +99,8 @@ class GenerateWatershedMask(Transform):
     Args:
         activation: the activation layer to be applied on the input probability map.
             It can be "softmax" or "sigmoid" string, or any callable. Defaults to "softmax".
-        threshold: a float value to threshold to binarize probability map.
+        threshold: an optional float value to threshold to binarize probability map.
+            If not provided, defaults to 0.5 when activation is not "softmax", otherwise None.
         min_object_size: objects smaller than this size are removed. Defaults to 10.
         dtype: target data content type to convert, default is np.uint8.
 
@@ -134,7 +135,7 @@ class GenerateWatershedMask(Transform):
         self.activation = Activations(softmax=use_softmax, sigmoid=use_sigmoid, other=activation_fn)
 
         # set discretization transform
-        if threshold is None:
+        if not use_softmax and threshold is None:
             threshold = 0.5
         self.as_discrete = AsDiscrete(threshold=threshold, argmax=use_softmax)
 
@@ -628,7 +629,7 @@ class GenerateInstanceType(Transform):
 class HoVerNetInstanceMapPostProcessing(Transform):
     """
     The post-processing transform for HoVerNet model to generate instance segmentation map.
-    It generates an instance segmentation map as well as a dictionary containing centroid, bounding box, and contours
+    It generates an instance segmentation map as well as a dictionary containing centroids, bounding boxes, and contours
     for each instance.
 
     Args:
@@ -698,13 +699,13 @@ class HoVerNetInstanceMapPostProcessing(Transform):
         instance_borders = self.generate_instance_border(watershed_mask, hover_map)
         distance_map = self.generate_distance_map(watershed_mask, instance_borders)
         watershed_markers = self.generate_watershed_markers(watershed_mask, instance_borders)
-        instance_seg_map = self.watershed(distance_map, watershed_markers, watershed_markers)
+        instance_map = self.watershed(distance_map, watershed_markers, watershed_markers)
 
         # Create bounding boxes, contours and centroids
-        instance_ids = set(np.unique(instance_seg_map)) - {0}  # exclude background
+        instance_ids = set(np.unique(instance_map)) - {0}  # exclude background
         instance_info = {}
         for inst_id in instance_ids:
-            instance_mask = instance_seg_map == inst_id
+            instance_mask = instance_map == inst_id
             instance_bbox = BoundingRect()(instance_mask)
 
             instance_mask = instance_mask[
@@ -720,7 +721,7 @@ class HoVerNetInstanceMapPostProcessing(Transform):
                     "contour": instance_contour,
                 }
 
-        return instance_info, instance_seg_map
+        return instance_info, instance_map
 
 
 class HoVerNetTypeMapPostProcessing(Transform):
@@ -732,6 +733,8 @@ class HoVerNetTypeMapPostProcessing(Transform):
     Args:
         activation: the activation layer to be applied on nuclear type branch. It can be "softmax" or "sigmoid" string,
             or any callable. Defaults to "softmax".
+        threshold: an optional float value to threshold to binarize probability map.
+            If not provided, defaults to 0.5 when activation is not "softmax", otherwise None.
         return_type_map: whether to calculate and return segmentation map with associated type to each pixel.
 
     """
@@ -743,12 +746,10 @@ class HoVerNetTypeMapPostProcessing(Transform):
         return_type_map: bool = True,
     ) -> None:
         super().__init__()
-
         self.return_type_map = return_type_map
-        # instance type transforms
         self.generate_instance_type = GenerateInstanceType()
 
-        # type prediction post-processing
+        # set activation layer
         use_softmax = False
         use_sigmoid = False
         activation_fn = None
@@ -764,22 +765,26 @@ class HoVerNetTypeMapPostProcessing(Transform):
         else:
             raise ValueError(f"The activation type should be either str or callable. '{type(activation)}' was given.")
         self.activation = Activations(softmax=use_softmax, sigmoid=use_sigmoid, other=activation_fn)
+
+        # set discretization transform
+        if not use_softmax and threshold is None:
+            threshold = 0.5
         self.as_discrete = AsDiscrete(threshold=threshold, argmax=use_softmax)
 
     def __call__(  # type: ignore
-        self, instance_info: Dict[int, Dict], instance_seg_map: NdarrayOrTensor, type_prediction: NdarrayOrTensor
+        self, type_prediction: NdarrayOrTensor, instance_info: Dict[int, Dict], instance_map: NdarrayOrTensor
     ) -> Tuple[Dict, Optional[NdarrayOrTensor]]:
         """Process NC (type prediction) branch and combine it with instance segmentation
         It updates the instance_info with instance type and associated probability, and generate instance type map.
 
         Args:
             instance_info: instance information dictionary, the output of :py:class:`HoVerNetInstanceMapPostProcessing`
-            instance_seg_map: instance segmentation map, the output of :py:class:`HoVerNetInstanceMapPostProcessing`
+            instance_map: instance segmentation map, the output of :py:class:`HoVerNetInstanceMapPostProcessing`
             type_prediction: the output of NC (type prediction) branch of HoVerNet model
         """
         type_map = None
         if self.return_type_map:
-            type_map = convert_to_dst_type(torch.zeros(instance_seg_map.shape), instance_seg_map)[0]
+            type_map = convert_to_dst_type(torch.zeros(instance_map.shape), instance_map)[0]
 
         for inst_id in instance_info:
             type_prediction = self.activation(type_prediction)
@@ -787,7 +792,7 @@ class HoVerNetTypeMapPostProcessing(Transform):
             instance_type, instance_type_prob = self.generate_instance_type(
                 bbox=instance_info[inst_id]["bounding_box"],
                 type_pred=type_prediction,
-                seg_pred=instance_seg_map,
+                seg_pred=instance_map,
                 instance_id=inst_id,
             )
             # update instance info dict with type data
@@ -796,6 +801,6 @@ class HoVerNetTypeMapPostProcessing(Transform):
 
             # update instance type map
             if type_map is not None:
-                type_map[instance_seg_map == inst_id] = instance_type
+                type_map[instance_map == inst_id] = instance_type
 
         return instance_info, type_map
