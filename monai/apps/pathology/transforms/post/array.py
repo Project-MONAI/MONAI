@@ -699,7 +699,7 @@ class HoVerNetInstanceMapPostProcessing(Transform):
         instance_borders = self.generate_instance_border(watershed_mask, hover_map)
         distance_map = self.generate_distance_map(watershed_mask, instance_borders)
         watershed_markers = self.generate_watershed_markers(watershed_mask, instance_borders)
-        instance_map = self.watershed(distance_map, watershed_markers, watershed_markers)
+        instance_map = self.watershed(distance_map, watershed_mask, watershed_markers)
 
         # Create bounding boxes, contours and centroids
         instance_ids = set(np.unique(instance_map)) - {0}  # exclude background
@@ -782,17 +782,18 @@ class HoVerNetTypeMapPostProcessing(Transform):
             instance_map: instance segmentation map, the output of :py:class:`HoVerNetInstanceMapPostProcessing`
             type_prediction: the output of NC (type prediction) branch of HoVerNet model
         """
+        type_prediction = self.activation(type_prediction)
+        type_prediction = self.as_discrete(type_prediction)
+
         type_map = None
         if self.return_type_map:
             type_map = convert_to_dst_type(torch.zeros(instance_map.shape), instance_map)[0]
 
         for inst_id in instance_info:
-            type_prediction = self.activation(type_prediction)
-            type_prediction = self.as_discrete(type_prediction)
             instance_type, instance_type_prob = self.generate_instance_type(
-                bbox=instance_info[inst_id]["bounding_box"],
                 type_pred=type_prediction,
                 seg_pred=instance_map,
+                bbox=instance_info[inst_id]["bounding_box"],
                 instance_id=inst_id,
             )
             # update instance info dict with type data
