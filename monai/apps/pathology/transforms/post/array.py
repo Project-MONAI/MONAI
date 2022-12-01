@@ -324,9 +324,9 @@ class GenerateWatershedMarkers(Transform):
         marker = convert_to_numpy(marker)
 
         marker = opening(marker.squeeze(), disk(self.radius))
-        marker = label(marker)[0]
+        marker = label(marker)[0][None]
         if self.remove_small_objects is not None:
-            marker = self.remove_small_objects(marker[None])
+            marker = self.remove_small_objects(marker)
 
         return convert_to_dst_type(marker, mask, dtype=self.dtype)[0]
 
