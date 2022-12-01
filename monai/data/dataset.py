@@ -828,12 +828,7 @@ class CacheDataset(Dataset):
                 cache = Manager().list([None for _ in range(self.cache_num)])
                 if self._is_dist:
                     # ensure each process has the same authkey, otherwise broadcast_object_list fails
-                    authkey = bytearray(mp.current_process().authkey).ljust(32)[:32]
-                    ak_tensor = torch.from_numpy(np.frombuffer(authkey, dtype=np.uint8))
-                    if dist.get_backend() == dist.Backend.NCCL:
-                        ak_tensor = ak_tensor.cuda(torch.cuda.current_device())
-                    dist.broadcast(ak_tensor, src=0)
-                    mp.current_process().authkey = ak_tensor.cpu().numpy().tobytes()
+                    mp.current_process().authkey = np.arange(32, dtype=np.uint8).tobytes()
 
                     obj_list = [cache]
                     # broadcast the ProxyList to all the ranks, then share the same cache content at runtime
