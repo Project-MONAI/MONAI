@@ -48,7 +48,7 @@ class TestHoVerNetTypeMapPostProcessing(unittest.TestCase):
             HoVerNetBranch.HV.value: in_type(ComputeHoVerMaps()(test_data.astype(int))),
         }
 
-        outputs = p = HoVerNetInstanceMapPostProcessingd(**kwargs)(input)
+        outputs = HoVerNetInstanceMapPostProcessingd(**kwargs)(input)
         inst_info_key = kwargs.get("instance_info_key", "instance_info")
         inst_map_key = kwargs.get("instance_map_key", "instance_map")
 
