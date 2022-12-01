@@ -132,6 +132,7 @@ class AutoRunner:
             templates_path_or_url = "./local_path_to/algorithm_templates"
             runner = AutoRunner(work_dir=work_dir, input=input, algos=algos, templates_path_or_url = templates_path_or_url)
             runner.run()
+            
         - User can specify training parameters by:
 
         .. code-block:: python

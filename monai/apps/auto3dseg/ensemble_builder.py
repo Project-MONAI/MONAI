@@ -251,6 +251,7 @@ class AlgoEnsembleBuilder:
         data_src_cfg_filename: filename of the data source.
 
     Examples:
+
         .. code-block:: python
 
             builder = AlgoEnsembleBuilder(history, data_src_cfg)
