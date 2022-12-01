@@ -643,8 +643,10 @@ class HoVerNetPostProcessing(Transform):
         min_num_points: minimum number of points to be considered as a contour. Defaults to 3.
         level: optional value for `skimage.measure.find_contours`, to find contours in the array.
             If not provided, the level is set to (max(image) + min(image)) / 2.
-        distance_smooth_fn: smoothing function for distance map. Defaults to :py:class:`monai.transforms.intensity.GaussianSmooth()`.
-        marker_post_process_fn: post-process function for watershed markers. Defaults to :py:class:`monai.transforms.post.FillHoles()`.
+        distance_smooth_fn: smoothing function for distance map.
+            If not provided, :py:class:`monai.transforms.intensity.GaussianSmooth()` will be used..
+        marker_post_process_fn: post-process function for watershed markers.
+            If not provided, :py:class:`monai.transforms.post.FillHoles()` will be used.
 
     """
 
@@ -652,17 +654,27 @@ class HoVerNetPostProcessing(Transform):
         self,
         min_num_points: int = 3,
         level: Optional[float] = None,
-        distance_smooth_fn: Callable = GaussianSmooth(),
-        marker_post_process_fn: Callable = FillHoles(),
+        distance_smooth_fn: Optional[Callable] = None,
+        marker_post_process_fn: Optional[Callable] = None,
     ) -> None:
         super().__init__()
+
+        if distance_smooth_fn is not None:
+            self.distance_smooth_fn = distance_smooth_fn
+        else:
+            self.distance_smooth_fn = GaussianSmooth()
+
+        if marker_post_process_fn is not None:
+            self.marker_post_process_fn = marker_post_process_fn
+        else:
+            self.marker_post_process_fn = FillHoles()
 
         # instance segmentation transforms
         self.generate_watershed_mask = GenerateWatershedMask(softmax=True)
         self.generate_instance_border = GenerateInstanceBorder(kernel_size=3)
-        self.generate_distance_map = GenerateDistanceMap(smooth_fn=distance_smooth_fn)
+        self.generate_distance_map = GenerateDistanceMap(smooth_fn=self.distance_smooth_fn)
         self.generate_watershed_markers = GenerateWatershedMarkers(
-            threshold=0.7, radius=2, postprocess_fn=marker_post_process_fn
+            threshold=0.7, radius=2, postprocess_fn=self.marker_post_process_fn
         )
         self.watershed = Watershed()
         # instance
@@ -743,12 +755,12 @@ class HoVerNetPostProcessing(Transform):
 
         return instance_info_dict, instance_type_map
 
-    def __call__(
+    def __call__(  # type: ignore
         self,
         nuclear_prediction: NdarrayOrTensor,
         hover_map: NdarrayOrTensor,
         type_prediction: Optional[NdarrayOrTensor] = None,
-    ) -> Tuple[Dict, NdarrayOrTensor, NdarrayOrTensor]:
+    ) -> Tuple[Dict, NdarrayOrTensor, Optional[NdarrayOrTensor]]:
         """
         Args:
             nuclear_prediction: the output of NC (nuclear prediction) branch of HoVerNet model.

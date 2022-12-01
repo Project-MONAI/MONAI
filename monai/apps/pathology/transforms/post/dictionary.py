@@ -26,9 +26,8 @@ from monai.apps.pathology.transforms.post.array import (
     Watershed,
 )
 from monai.config.type_definitions import DtypeLike, KeysCollection, NdarrayOrTensor
-from monai.transforms import FillHoles, GaussianSmooth
 from monai.transforms.transform import MapTransform, Transform
-from monai.utils import convert_to_dst_type, optional_import
+from monai.utils import optional_import
 from monai.utils.enums import HoVerNetBranch
 
 find_contours, _ = optional_import("skimage.measure", name="find_contours")
@@ -501,8 +500,10 @@ class HoVerNetPostProcessingd(Transform):
     Args:
         level: optional value for `skimage.measure.find_contours`, to find contours in the array.
             If not provided, the level is set to (max(image) + min(image)) / 2.
-        distance_smooth_fn: smoothing function for distance map. Defaults to :py:class:`monai.transforms.intensity.GaussianSmooth()`.
-        marker_post_process_fn: post-process function for watershed markers. Defaults to :py:class:`monai.transforms.post.FillHoles()`.
+        distance_smooth_fn: smoothing function for distance map.
+            If not provided, :py:class:`monai.transforms.intensity.GaussianSmooth()` will be used..
+        marker_post_process_fn: post-process function for watershed markers.
+            If not provided, :py:class:`monai.transforms.post.FillHoles()` will be used.
         allow_missing_keys: don't raise exception if key is missing.
 
     """
@@ -514,8 +515,8 @@ class HoVerNetPostProcessingd(Transform):
         type_prediction_key: str = HoVerNetBranch.NC.value,
         min_num_points: int = 3,
         level: Optional[float] = None,
-        distance_smooth_fn: Callable = GaussianSmooth(),
-        marker_post_process_fn: Callable = FillHoles(),
+        distance_smooth_fn: Optional[Callable] = None,
+        marker_post_process_fn: Optional[Callable] = None,
     ) -> None:
         super().__init__()
         self.post_process = HoVerNetPostProcessing(
