@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.apps.pathology.transforms.post.dictionary import HoVerNetPostProcessingd
+from monai.apps.pathology.transforms.post.dictionary import HoVerNetTypeMapPostProcessingd
 from monai.transforms import ComputeHoVerMaps, FillHoles, GaussianSmooth
 from monai.utils import min_version, optional_import
 from monai.utils.enums import HoVerNetBranch
@@ -42,7 +42,7 @@ for p in TEST_NDARRAYS:
 
 @unittest.skipUnless(has_scipy, "Requires scipy library.")
 @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
-class TestHoVerNetPostProcessingd(unittest.TestCase):
+class TestHoVerNetTypeMapPostProcessingd(unittest.TestCase):
     @parameterized.expand(TEST_CASE)
     def test_value(self, in_type, test_data, kwargs, expected):
         input = {
@@ -51,7 +51,7 @@ class TestHoVerNetPostProcessingd(unittest.TestCase):
             HoVerNetBranch.NC.value: in_type(test_data),
         }
 
-        outputs = HoVerNetPostProcessingd(**kwargs)(input)
+        outputs = HoVerNetTypeMapPostProcessingd(**kwargs)(input)
 
         # instance prediction info
         for key in outputs["instance_info"]:

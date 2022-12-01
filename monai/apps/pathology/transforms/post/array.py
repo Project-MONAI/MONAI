@@ -47,7 +47,7 @@ __all__ = [
     "GenerateInstanceContour",
     "GenerateInstanceCentroid",
     "GenerateInstanceType",
-    "HoVerNetPostProcessing",
+    "HoVerNetTypeMapPostProcessing",
 ]
 
 
@@ -97,11 +97,10 @@ class GenerateWatershedMask(Transform):
     generate mask used in `watershed`. Only points at which mask == True will be labeled.
 
     Args:
-        softmax: if True, apply a softmax function to the prediction.
-        sigmoid: if True, apply a sigmoid function to the prediction.
+        activation: the activation layer to be applied on nuclear type branch. It can be "softmax" or "sigmoid" string,
+            or any callable. Defaults to "softmax".
         threshold: if not None, threshold the float values to int number 0 or 1 with specified threshold.
-        remove_small_objects: whether need to remove some objects in the marker. Defaults to True.
-        min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
+        min_object_size: objects smaller than this size are removed. Defaults to 10.
         dtype: target data content type to convert, default is np.uint8.
 
     """
@@ -110,23 +109,37 @@ class GenerateWatershedMask(Transform):
 
     def __init__(
         self,
-        softmax: bool = True,
-        sigmoid: bool = False,
+        activation: Union[str, Callable] = "softmax",
         threshold: Optional[float] = None,
-        remove_small_objects: bool = True,
-        min_size: int = 10,
+        min_object_size: int = 10,
         dtype: DtypeLike = np.uint8,
     ) -> None:
-        if sigmoid and threshold is None:
-            raise ValueError("Threshold is needed when using sigmoid activation.")
-
         self.dtype = dtype
-        self.activations = Activations(sigmoid=sigmoid, softmax=softmax)
-        self.asdiscrete = AsDiscrete(threshold=threshold, argmax=softmax)
-        if remove_small_objects:
-            self.remove_small_objects = RemoveSmallObjects(min_size=min_size)
+
+        # set activation layer
+        use_softmax = False
+        use_sigmoid = False
+        activation_fn = None
+        if isinstance(activation, str):
+            if activation.lower() == "softmax":
+                use_softmax = True
+            elif activation.lower() == "sigmoid":
+                use_sigmoid = True
+            else:
+                raise ValueError(f"The activation should be either 'softmax' or 'sigmoid'. '{activation}' was given.")
+        elif callable(activation):
+            activation_fn = activation
         else:
-            self.remove_small_objects = None  # type: ignore
+            raise ValueError(f"The activation type should be either str or callable. '{type(activation)}' was given.")
+        self.activation = Activations(softmax=use_softmax, sigmoid=use_sigmoid, other=activation_fn)
+
+        # set discretization transform
+        if threshold is None:
+            threshold = 0.5
+        self.as_discrete = AsDiscrete(threshold=threshold, argmax=use_softmax)
+
+        # set small object removal transform
+        self.remove_small_objects = RemoveSmallObjects(min_size=min_object_size) if min_object_size > 0 else lambda x: x
 
     def __call__(self, prob_map: NdarrayOrTensor) -> NdarrayOrTensor:
         """
@@ -134,14 +147,13 @@ class GenerateWatershedMask(Transform):
             prob_map: probability map of segmentation, shape must be [C, H, W, [D]]
         """
 
-        pred = self.activations(prob_map)
-        pred = self.asdiscrete(pred)
+        pred = self.activation(prob_map)
+        pred = self.as_discrete(pred)
 
         pred = convert_to_numpy(pred)
 
         pred = label(pred)[0]
-        if self.remove_small_objects:
-            pred = self.remove_small_objects(pred)
+        pred = self.remove_small_objects(pred)
         pred[pred > 0] = 1  # type: ignore
 
         return convert_to_dst_type(pred, prob_map, dtype=self.dtype)[0]
@@ -633,16 +645,13 @@ class GenerateInstanceType(Transform):
         return (int(inst_type), float(type_prob))
 
 
-class HoVerNetPostProcessing(Transform):
+class HoVerNetInstanceMapPostProcessing(Transform):
     """
-    The post-processing transform for HoVerNet model, which includes all the three branches.
-    It generate a dictionary containing centroid, bounding box, type prediction for each instance. Also if requested,
-    it returns binary maps for instance segmentation and predicted types.
+    The post-processing transform for HoVerNet model to generate instance segmentation map.
+    It generates an instance segmentation map as well as a dictionary containing centroid, bounding box, and contours
+    for each instance.
 
     Args:
-        min_num_points: minimum number of points to be considered as a contour. Defaults to 3.
-        level: optional value for `skimage.measure.find_contours`, to find contours in the array.
-            If not provided, the level is set to (max(image) + min(image)) / 2.
         distance_smooth_fn: smoothing function for distance map.
             If not provided, :py:class:`monai.transforms.intensity.GaussianSmooth()` will be used..
         marker_postprocess_fn: post-process function for watershed markers.
@@ -652,8 +661,10 @@ class HoVerNetPostProcessing(Transform):
 
     def __init__(
         self,
-        min_num_points: int = 3,
-        level: Optional[float] = None,
+        activation: Union[str, Callable] = "softmax",
+        threshold: Optional[float] = None,
+        min_object_size: int = 10,
+        mask_dtype: DtypeLike = np.uint8,
         distance_smooth_fn: Optional[Callable] = None,
         marker_postprocess_fn: Optional[Callable] = None,
     ) -> None:
@@ -669,8 +680,9 @@ class HoVerNetPostProcessing(Transform):
         else:
             self.marker_postprocess_fn = FillHoles()
 
-        # instance segmentation transforms
-        self.generate_watershed_mask = GenerateWatershedMask(softmax=True)
+        self.generate_watershed_mask = GenerateWatershedMask(
+            activation=activation, threshold=threshold, min_object_size=min_object_size, dtype=mask_dtype
+        )
         self.generate_instance_border = GenerateInstanceBorder(kernel_size=3)
         self.generate_distance_map = GenerateDistanceMap(smooth_fn=self.distance_smooth_fn)
         self.generate_watershed_markers = GenerateWatershedMarkers(
@@ -678,16 +690,9 @@ class HoVerNetPostProcessing(Transform):
         )
         self.watershed = Watershed()
 
-        # per instance transforms
-        self.generate_instance_contour = GenerateInstanceContour(min_num_points=min_num_points, level=level)
-        self.generate_instance_centroid = GenerateInstanceCentroid()
-        self.generate_instance_type = GenerateInstanceType()
-
-        # type prediction post-processing
-        self.activation = Activations(softmax=True)
-        self.as_discrete = AsDiscrete(argmax=True)
-
-    def process_instance_segmentation(self, nuclear_prediction, hover_map) -> Tuple[Dict, NdarrayOrTensor]:
+    def __call__(  # type: ignore
+        self, nuclear_prediction: NdarrayOrTensor, hover_map: NdarrayOrTensor
+    ) -> Tuple[Dict, NdarrayOrTensor]:
         """post-process instance segmentation branches (NP and HV) to generate instance segmentation map.
 
         Args:
@@ -704,7 +709,7 @@ class HoVerNetPostProcessing(Transform):
 
         # Create bounding boxes, contours and centroids
         instance_ids = set(np.unique(instance_seg_map)) - {0}  # exclude background
-        instance_info_dict = {}
+        instance_info = {}
         for inst_id in instance_ids:
             instance_mask = instance_seg_map == inst_id
             instance_bbox = BoundingRect()(instance_mask)
@@ -716,68 +721,96 @@ class HoVerNetPostProcessing(Transform):
             instance_contour = self.generate_instance_contour(instance_mask, offset)
             if instance_contour is not None:
                 instance_centroid = self.generate_instance_centroid(instance_mask, offset)
-                instance_info_dict[inst_id] = {
+                instance_info[inst_id] = {
                     "bounding_box": instance_bbox,
                     "centroid": instance_centroid,
                     "contour": instance_contour,
                 }
 
-        return instance_info_dict, instance_seg_map
+        return instance_info, instance_seg_map
 
-    def process_nuclear_type(
-        self, instance_info_dict, instance_seg_map, type_prediction
+
+class HoVerNetTypeMapPostProcessing(Transform):
+    """
+    The post-processing transform for HoVerNet model to generate a segmentation map with types.
+    It generate a segmentation map with associated type to each pixel. It also updates the input instance info
+    dictionary with information about type of the cells (type value and probability).
+
+    Args:
+        min_num_points: minimum number of points to be considered as a contour. Defaults to 3.
+        level: optional value for `skimage.measure.find_contours`, to find contours in the array.
+            If not provided, the level is set to (max(image) + min(image)) / 2.
+        activation: the activation layer to be applied on nuclear type branch. It can be "softmax" or "sigmoid" string,
+            or any callable. Defaults to "softmax".
+        return_type_map: whether to calculate and return segmentation map with associated type to each pixel.
+
+    """
+
+    def __init__(
+        self,
+        min_num_points: int = 3,
+        level: Optional[float] = None,
+        activation: Union[str, Callable] = "softmax",
+        threshold: Optional[float] = None,
+        return_type_map: bool = True,
+    ) -> None:
+        super().__init__()
+
+        self.return_type_map = return_type_map
+
+        # per instance transforms
+        self.generate_instance_contour = GenerateInstanceContour(min_num_points=min_num_points, level=level)
+        self.generate_instance_centroid = GenerateInstanceCentroid()
+        self.generate_instance_type = GenerateInstanceType()
+
+        # type prediction post-processing
+        use_softmax = False
+        use_sigmoid = False
+        activation_fn = None
+        if isinstance(activation, str):
+            if activation.lower() == "softmax":
+                use_softmax = True
+            elif activation.lower() == "sigmoid":
+                use_sigmoid = True
+            else:
+                raise ValueError(f"The activation should be either 'softmax' or 'sigmoid'. '{activation}' was given.")
+        elif callable(activation):
+            activation_fn = activation
+        else:
+            raise ValueError(f"The activation type should be either str or callable. '{type(activation)}' was given.")
+        self.activation = Activations(softmax=use_softmax, sigmoid=use_sigmoid, other=activation_fn)
+        self.asdiscrete = AsDiscrete(threshold=threshold, argmax=use_softmax)
+
+    def __call__(  # type: ignore
+        self, instance_info, instance_seg_map, type_prediction
     ) -> Tuple[Dict, NdarrayOrTensor]:
         """Process NC (type prediction) branch and combine it with instance segmentation
-        It updates the instance_info_dict with instance type and associated probability, and generate instance type map.
+        It updates the instance_info with instance type and associated probability, and generate instance type map.
 
         Args:
-            instance_info_dict: instance information dictionary, which is output of `self.instance_segmentation`
-            instance_seg_map: instance segmentation map, which is output of `self.instance_segmentation`
+            instance_info: instance information dictionary, the output of :py:class:`HoVerNetInstanceMapPostProcessing`
+            instance_seg_map: instance segmentation map, the output of :py:class:`HoVerNetInstanceMapPostProcessing`
             type_prediction: the output of NC (type prediction) branch of HoVerNet model
         """
+        type_map = None
+        if self.return_type_map:
+            type_map = convert_to_dst_type(torch.zeros(instance_seg_map.shape), instance_seg_map)[0]
 
-        instance_type_map = convert_to_dst_type(torch.zeros(instance_seg_map.shape), instance_seg_map)[0]
-
-        for inst_id in instance_info_dict:
+        for inst_id in instance_info:
             type_prediction = self.activation(type_prediction)
             type_prediction = self.as_discrete(type_prediction)
-            instance_type, instance_type_probability = self.generate_instance_type(
-                bbox=instance_info_dict[inst_id]["bounding_box"],
+            instance_type, instance_type_prob = self.generate_instance_type(
+                bbox=instance_info[inst_id]["bounding_box"],
                 type_pred=type_prediction,
                 seg_pred=instance_seg_map,
                 instance_id=inst_id,
             )
             # update instance info dict with type data
-            instance_info_dict[inst_id]["type_probability"] = instance_type_probability
-            instance_info_dict[inst_id]["type"] = instance_type
+            instance_info[inst_id]["type_prob"] = instance_type_prob
+            instance_info[inst_id]["type"] = instance_type
 
             # update instance type map
-            instance_type_map[instance_seg_map == inst_id] = instance_type
+            if self.return_type_map:
+                type_map[instance_seg_map == inst_id] = instance_type
 
-        return instance_info_dict, instance_type_map
-
-    def __call__(  # type: ignore
-        self,
-        nuclear_prediction: NdarrayOrTensor,
-        hover_map: NdarrayOrTensor,
-        type_prediction: Optional[NdarrayOrTensor] = None,
-    ) -> Tuple[Dict, NdarrayOrTensor, Optional[NdarrayOrTensor]]:
-        """
-        Args:
-            nuclear_prediction: the output of NC (nuclear prediction) branch of HoVerNet model.
-            hover_map: the output of HV (hover map) branch of HoVerNet model.
-            type_prediction: the output of NC (type prediction) branch of HoVerNet model (optional).
-                If not provided, the type info and the type segmentation map is not generated.
-
-        """
-        # Process NP and HV branches to create final instance map
-        instance_info_dict, instance_seg_map = self.process_instance_segmentation(nuclear_prediction, hover_map)
-
-        type_seg_map = None
-        # Process NC branch to create segmentation map with types
-        if type_prediction is not None:
-            instance_info_dict, type_seg_map = self.process_nuclear_type(
-                instance_info_dict, instance_seg_map, type_prediction
-            )
-
-        return instance_info_dict, instance_seg_map, type_seg_map
+        return instance_info, type_map

@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Dict, Hashable, Mapping, Optional
+from typing import Callable, Dict, Hashable, Mapping, Optional, Union
 
 import numpy as np
 
@@ -22,7 +22,7 @@ from monai.apps.pathology.transforms.post.array import (
     GenerateSuccinctContour,
     GenerateWatershedMarkers,
     GenerateWatershedMask,
-    HoVerNetPostProcessing,
+    HoVerNetTypeMapPostProcessing,
     Watershed,
 )
 from monai.config.type_definitions import DtypeLike, KeysCollection, NdarrayOrTensor
@@ -61,9 +61,9 @@ __all__ = [
     "GenerateInstanceTypeDict",
     "GenerateInstanceTypeD",
     "GenerateInstanceTyped",
-    "HoVerNetPostProcessingDict",
-    "HoVerNetPostProcessingD",
-    "HoVerNetPostProcessingd",
+    "HoVerNetTypeMapPostProcessingDict",
+    "HoVerNetTypeMapPostProcessingD",
+    "HoVerNetTypeMapPostProcessingd",
 ]
 
 
@@ -125,12 +125,11 @@ class GenerateWatershedMaskd(MapTransform):
     Args:
         keys: keys of the corresponding items to be transformed.
         mask_key: the mask will be written to the value of `{mask_key}`.
-        softmax: if True, apply a softmax function to the prediction.
-        sigmoid: if True, apply a sigmoid function to the prediction.
-        threshold: if not None, threshold the float values to int number 0 or 1 with specified theashold.
-        remove_small_objects: whether need to remove some objects in the marker. Defaults to True.
-        min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
-        dtype: target data content type to convert. Defaults to np.uint8.
+        activation: the activation layer to be applied on nuclear type branch. It can be "softmax" or "sigmoid" string,
+            or any callable. Defaults to "softmax".
+        threshold: if not None, threshold the float values to int number 0 or 1 with specified threshold.
+        min_object_size: objects smaller than this size are removed. Defaults to 10.
+        dtype: target data content type to convert, default is np.uint8.
         allow_missing_keys: don't raise exception if key is missing.
 
     """
@@ -141,22 +140,18 @@ class GenerateWatershedMaskd(MapTransform):
         self,
         keys: KeysCollection,
         mask_key: str = "mask",
-        softmax: bool = True,
-        sigmoid: bool = False,
+        activation: Union[str, Callable] = "softmax",
         threshold: Optional[float] = None,
-        remove_small_objects: bool = True,
-        min_size: int = 10,
+        min_object_size: int = 10,
         dtype: DtypeLike = np.uint8,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.mask_key = mask_key
         self.transform = GenerateWatershedMask(
-            softmax=softmax,
-            sigmoid=sigmoid,
+            activation=activation,
             threshold=threshold,
-            remove_small_objects=remove_small_objects,
-            min_size=min_size,
+            min_object_size=min_object_size,
             dtype=dtype,
         )
 
@@ -164,10 +159,9 @@ class GenerateWatershedMaskd(MapTransform):
         d = dict(data)
         for key in self.key_iterator(d):
             mask = self.transform(d[key])
-            key_to_add = f"{self.mask_key}"
-            if key_to_add in d:
-                raise KeyError(f"Mask with key {key_to_add} already exists.")
-            d[key_to_add] = mask
+            if self.mask_key in d:
+                raise KeyError(f"Mask with key {self.mask_key} already exists.")
+            d[self.mask_key] = mask
         return d
 
 
@@ -485,9 +479,9 @@ class GenerateInstanceTyped(MapTransform):
         return d
 
 
-class HoVerNetPostProcessingd(Transform):
+class HoVerNetTypeMapPostProcessingd(Transform):
     """
-    Dictionary-based wrapper for :py:class:`monai.apps.pathology.transforms.post.array.HoVerNetPostProcessing`.
+    Dictionary-based wrapper for :py:class:`monai.apps.pathology.transforms.post.array.HoVerNetTypeMapPostProcessing`.
     It generate a dictionary containing centroid, bounding box, type prediction for each instance. Also if requested,
     it returns binary maps for instance segmentation and predicted types.
 
@@ -519,7 +513,7 @@ class HoVerNetPostProcessingd(Transform):
         marker_postprocess_fn: Optional[Callable] = None,
     ) -> None:
         super().__init__()
-        self.post_process = HoVerNetPostProcessing(
+        self.post_process = HoVerNetTypeMapPostProcessing(
             min_num_points=min_num_points,
             level=level,
             distance_smooth_fn=distance_smooth_fn,
@@ -556,4 +550,4 @@ GenerateSuccinctContourDict = GenerateSuccinctContourD = GenerateSuccinctContour
 GenerateInstanceContourDict = GenerateInstanceContourD = GenerateInstanceContourd
 GenerateInstanceCentroidDict = GenerateInstanceCentroidD = GenerateInstanceCentroidd
 GenerateInstanceTypeDict = GenerateInstanceTypeD = GenerateInstanceTyped
-HoVerNetPostProcessingDict = HoVerNetPostProcessingD = HoVerNetPostProcessingd
+HoVerNetTypeMapPostProcessingDict = HoVerNetTypeMapPostProcessingD = HoVerNetTypeMapPostProcessingd
