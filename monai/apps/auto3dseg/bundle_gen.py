@@ -14,6 +14,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 import warnings
 from copy import deepcopy
 from pathlib import Path
@@ -355,6 +356,7 @@ class BundleGen(AlgoGen):
                         msg = f"Download and extract of {templates_path_or_url} failed, attempt {i+1}/{download_attempts}."
                         if i < download_attempts - 1:
                             warnings.warn(msg)
+                            time.sleep(i)
                         else:
                             zip_download_dir.cleanup()
                             raise ValueError(msg) from e
