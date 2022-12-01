@@ -165,9 +165,7 @@ class GenerateInstanceBorder(Transform):
     the larger the grey scale value. The grey value of the instance's border will be larger.
 
     Args:
-        kernel_size: the size of the Sobel kernel. Defaults to 21.
-        min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
-        remove_small_objects: whether need to remove some objects in segmentation results. Defaults to True.
+        kernel_size: the size of the Sobel kernel. Defaults to 5.
         dtype: target data content type to convert, default is np.float32.
 
 
@@ -179,26 +177,14 @@ class GenerateInstanceBorder(Transform):
 
     backend = [TransformBackends.NUMPY]
 
-    def __init__(
-        self,
-        kernel_size: int = 21,
-        min_size: int = 10,
-        remove_small_objects: bool = True,
-        dtype: DtypeLike = np.float32,
-    ) -> None:
-
+    def __init__(self, kernel_size: int = 5, dtype: DtypeLike = np.float32) -> None:
         self.dtype = dtype
-
         self.sobel_gradient = SobelGradients(kernel_size=kernel_size)
-        if remove_small_objects:
-            self.remove_small_objects = RemoveSmallObjects(min_size=min_size)
-        else:
-            self.remove_small_objects = None  # type: ignore
 
     def __call__(self, mask: NdarrayOrTensor, hover_map: NdarrayOrTensor) -> NdarrayOrTensor:  # type: ignore
         """
         Args:
-            mask: binarized segmentation result.  Shape must be [1, H, W].
+            mask: binary segmentation map.  Shape must be [1, H, W].
             hover_map:  horizontal and vertical distances of nuclear pixels to their centres of mass. Shape must be [2, H, W].
                 The first and second channel represent the horizontal and vertical maps respectively. For more details refer
                 to papers: https://arxiv.org/abs/1812.06499.
@@ -664,7 +650,7 @@ class HoVerNetInstanceMapPostProcessing(Transform):
         activation: Union[str, Callable] = "softmax",
         threshold: Optional[float] = None,
         min_object_size: int = 10,
-        mask_dtype: DtypeLike = np.uint8,
+        kernel_size: int = 5,
         distance_smooth_fn: Optional[Callable] = None,
         marker_postprocess_fn: Optional[Callable] = None,
     ) -> None:
@@ -681,9 +667,9 @@ class HoVerNetInstanceMapPostProcessing(Transform):
             self.marker_postprocess_fn = FillHoles()
 
         self.generate_watershed_mask = GenerateWatershedMask(
-            activation=activation, threshold=threshold, min_object_size=min_object_size, dtype=mask_dtype
+            activation=activation, threshold=threshold, min_object_size=min_object_size
         )
-        self.generate_instance_border = GenerateInstanceBorder(kernel_size=3)
+        self.generate_instance_border = GenerateInstanceBorder(kernel_size=kernel_size)
         self.generate_distance_map = GenerateDistanceMap(smooth_fn=self.distance_smooth_fn)
         self.generate_watershed_markers = GenerateWatershedMarkers(
             threshold=0.7, radius=2, postprocess_fn=self.marker_postprocess_fn

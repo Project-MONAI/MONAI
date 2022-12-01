@@ -174,8 +174,6 @@ class GenerateInstanceBorderd(MapTransform):
         hover_map_key: keys of hover map used to generate probability map.
         border_key: the instance border map will be written to the value of `{border_key}`.
         kernel_size: the size of the Sobel kernel. Defaults to 21.
-        min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
-        remove_small_objects: whether need to remove some objects in segmentation results. Defaults to True.
         dtype: target data content type to convert, default is np.float32.
         allow_missing_keys: don't raise exception if key is missing.
 
@@ -193,17 +191,13 @@ class GenerateInstanceBorderd(MapTransform):
         hover_map_key: str = "hover_map",
         border_key: str = "border",
         kernel_size: int = 21,
-        min_size: int = 10,
-        remove_small_objects: bool = True,
         dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.hover_map_key = hover_map_key
         self.border_key = border_key
-        self.transform = GenerateInstanceBorder(
-            kernel_size=kernel_size, remove_small_objects=remove_small_objects, min_size=min_size, dtype=dtype
-        )
+        self.transform = GenerateInstanceBorder(kernel_size=kernel_size, dtype=dtype)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)

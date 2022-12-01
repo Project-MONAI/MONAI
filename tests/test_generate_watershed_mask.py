@@ -26,14 +26,14 @@ TESTS = []
 
 np.random.RandomState(123)
 
-for array_type in TEST_NDARRAYS:
+for p in TEST_NDARRAYS:
     EXCEPTION_TESTS.append([{"activation": "incorrect"}, ValueError])
     EXCEPTION_TESTS.append([{"activation": 1}, ValueError])
 
     TESTS.append(
         [
             {"activation": "softmax", "min_object_size": 0},
-            array_type(
+            p(
                 [
                     [[0.5022, 0.3403, 0.9997], [0.8793, 0.5514, 0.2697], [0.6134, 0.6389, 0.0680]],
                     [[0.5000, 0.3400, 0.9900], [0.8900, 0.5600, 0.2700], [0.6100, 0.6300, 0.0600]],
@@ -47,7 +47,7 @@ for array_type in TEST_NDARRAYS:
     TESTS.append(
         [
             {"activation": "sigmoid", "threshold": 0.5, "min_object_size": 0},
-            array_type([[[0.5022, 0.3403, 0.9997], [0.8793, 0.5514, 0.2697], [-0.1134, -0.0389, -0.0680]]]),
+            p([[[0.5022, 0.3403, 0.9997], [0.8793, 0.5514, 0.2697], [-0.1134, -0.0389, -0.0680]]]),
             (1, 3, 3),
             [0, 1],
         ]
