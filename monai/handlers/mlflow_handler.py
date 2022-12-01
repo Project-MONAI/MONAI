@@ -124,24 +124,6 @@ class MLFlowHandler:
         self.optimizer_param_names = ensure_tuple(optimizer_param_names)
         self.client = mlflow.MlflowClient()
 
-    def _is_param_exists(self, param_name: str) -> bool:
-        """
-        Check whether a parameter has already been logged in current mlflow run.
-
-        Args:
-            param_name: name of parameter to check in mlflow run.
-
-        Return:
-            If the given parameter already was logged to mlflow.
-        """
-        cur_run = mlflow.active_run()
-        log_data = self.client.get_run(cur_run.info.run_id).data
-        param_dict = log_data.params
-        if param_name in param_dict:
-            return True
-        else:
-            return False
-
     def _delete_exist_param_in_dict(self, param_dict: Dict) -> None:
         """
         Delete parameters in given dict, if they are already logged by current mlflow run.
@@ -150,8 +132,11 @@ class MLFlowHandler:
             param_dict: parameter dict to be logged to mlflow.
         """
         key_list = list(param_dict.keys())
+        cur_run = mlflow.active_run()
+        log_data = self.client.get_run(cur_run.info.run_id).data
+        log_param_dict = log_data.params
         for key in key_list:
-            if self._is_param_exists(key):
+            if key in log_param_dict:
                 del param_dict[key]
 
     def attach(self, engine: Engine) -> None:
@@ -178,7 +163,8 @@ class MLFlowHandler:
         """
         mlflow.set_experiment(self.experiment_name)
         if mlflow.active_run() is None:
-            run_name = f"run_{time.strftime('%Y%m%d_%H%M%S')}" if self.run_name is None else self.run_name
+            run_name = (f"run_{time.strftime('%Y%m%d_%H%M%S')}" \
+                if (self.run_name is None or self.run_name == "None") else self.run_name)
             mlflow.start_run(run_name=run_name)
 
         if self.experiment_param:
