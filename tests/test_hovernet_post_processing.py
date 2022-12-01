@@ -28,7 +28,7 @@ image = image[None, ...].astype("uint8")
 
 TEST_CASE_1 = [{}, [{"1": [10, 10]}, np.zeros_like(image), np.zeros_like(image)]]
 TEST_CASE_2 = [{"distance_smooth_fn": GaussianSmooth()}, [{"1": [10, 10]}, np.zeros_like(image), np.zeros_like(image)]]
-TEST_CASE_3 = [{"marker_post_process_fn": FillHoles()}, [{"1": [10, 10]}, np.zeros_like(image), np.zeros_like(image)]]
+TEST_CASE_3 = [{"marker_postprocess_fn": FillHoles()}, [{"1": [10, 10]}, np.zeros_like(image), np.zeros_like(image)]]
 
 TEST_CASE = []
 for p in TEST_NDARRAYS:

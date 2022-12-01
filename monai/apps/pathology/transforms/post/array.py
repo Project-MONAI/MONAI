@@ -278,11 +278,11 @@ class GenerateWatershedMarkers(Transform):
     Generate markers to be used in `watershed`. The watershed algorithm treats pixels values as a local topography
     (elevation). The algorithm floods basins from the markers until basins attributed to different markers meet on
     watershed lines. Generally, markers are chosen as local minima of the image, from which basins are flooded.
-    Here is the implementation from HoVerNet papar.
+    Here is the implementation from HoVerNet paper.
     For more details refer to papers: https://arxiv.org/abs/1812.06499.
 
     Args:
-        threshold: threshold the float values of foreground probability map to int 0 or 1 with specified theashold.
+        threshold: threshold the float values of foreground probability map to int 0 or 1 with specified threshold.
             It turns uncertain area to 1 and other area to 0. Defaults to 0.4.
         radius: the radius of the disk-shaped footprint used in `opening`. Defaults to 2.
         min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
@@ -387,7 +387,7 @@ class GenerateSuccinctContour(Transform):
     def _calculate_distance_from_topleft(self, sequence: Sequence[Tuple[int, int]]) -> int:
         """
         Each sequence of coordinates describes a boundary between foreground and background starting and ending at two sides
-        of the bounding box. To order the sequences correctly, we compute the distance from the topleft of the bounding box
+        of the bounding box. To order the sequences correctly, we compute the distance from the top-left of the bounding box
         around the perimeter in a clockwise direction.
 
         Args:
@@ -645,7 +645,7 @@ class HoVerNetPostProcessing(Transform):
             If not provided, the level is set to (max(image) + min(image)) / 2.
         distance_smooth_fn: smoothing function for distance map.
             If not provided, :py:class:`monai.transforms.intensity.GaussianSmooth()` will be used..
-        marker_post_process_fn: post-process function for watershed markers.
+        marker_postprocess_fn: post-process function for watershed markers.
             If not provided, :py:class:`monai.transforms.post.FillHoles()` will be used.
 
     """
@@ -655,7 +655,7 @@ class HoVerNetPostProcessing(Transform):
         min_num_points: int = 3,
         level: Optional[float] = None,
         distance_smooth_fn: Optional[Callable] = None,
-        marker_post_process_fn: Optional[Callable] = None,
+        marker_postprocess_fn: Optional[Callable] = None,
     ) -> None:
         super().__init__()
 
@@ -664,25 +664,26 @@ class HoVerNetPostProcessing(Transform):
         else:
             self.distance_smooth_fn = GaussianSmooth()
 
-        if marker_post_process_fn is not None:
-            self.marker_post_process_fn = marker_post_process_fn
+        if marker_postprocess_fn is not None:
+            self.marker_postprocess_fn = marker_postprocess_fn
         else:
-            self.marker_post_process_fn = FillHoles()
+            self.marker_postprocess_fn = FillHoles()
 
         # instance segmentation transforms
         self.generate_watershed_mask = GenerateWatershedMask(softmax=True)
         self.generate_instance_border = GenerateInstanceBorder(kernel_size=3)
         self.generate_distance_map = GenerateDistanceMap(smooth_fn=self.distance_smooth_fn)
         self.generate_watershed_markers = GenerateWatershedMarkers(
-            threshold=0.7, radius=2, postprocess_fn=self.marker_post_process_fn
+            threshold=0.7, radius=2, postprocess_fn=self.marker_postprocess_fn
         )
         self.watershed = Watershed()
-        # instance
+
+        # per instance transforms
         self.generate_instance_contour = GenerateInstanceContour(min_num_points=min_num_points, level=level)
         self.generate_instance_centroid = GenerateInstanceCentroid()
         self.generate_instance_type = GenerateInstanceType()
 
-        # type post-processing
+        # type prediction post-processing
         self.activation = Activations(softmax=True)
         self.as_discrete = AsDiscrete(argmax=True)
 

@@ -502,7 +502,7 @@ class HoVerNetPostProcessingd(Transform):
             If not provided, the level is set to (max(image) + min(image)) / 2.
         distance_smooth_fn: smoothing function for distance map.
             If not provided, :py:class:`monai.transforms.intensity.GaussianSmooth()` will be used..
-        marker_post_process_fn: post-process function for watershed markers.
+        marker_postprocess_fn: post-process function for watershed markers.
             If not provided, :py:class:`monai.transforms.post.FillHoles()` will be used.
         allow_missing_keys: don't raise exception if key is missing.
 
@@ -516,14 +516,14 @@ class HoVerNetPostProcessingd(Transform):
         min_num_points: int = 3,
         level: Optional[float] = None,
         distance_smooth_fn: Optional[Callable] = None,
-        marker_post_process_fn: Optional[Callable] = None,
+        marker_postprocess_fn: Optional[Callable] = None,
     ) -> None:
         super().__init__()
         self.post_process = HoVerNetPostProcessing(
             min_num_points=min_num_points,
             level=level,
             distance_smooth_fn=distance_smooth_fn,
-            marker_post_process_fn=marker_post_process_fn,
+            marker_postprocess_fn=marker_postprocess_fn,
         )
         self.nuclear_prediction_key = nuclear_prediction_key
         self.hover_map_key = hover_map_key
