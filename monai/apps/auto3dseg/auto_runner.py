@@ -64,7 +64,11 @@ class AutoRunner:
         work_dir: working directory to save the intermediate and final results.
         input: the configuration dictionary or the file path to the configuration in form of YAML.
             The configuration should contain datalist, dataroot, modality, multigpu, and class_names info.
-        algos: optionally specify a list of algorithms to use.
+        algos: optionally specify a list of algorithms to use.  If dictionary, it outlines the algorithm to use. 
+            Must be in the form   {"algname": dict(_target_="algname.scripts.algo.AlgnameAlgo", template_path="algname"), ...}
+            If a list or a string, defines a subset of names of the algorithms to use, e.g. ('segresnet', 'dints') out 
+            of the full set of algorithm templates provided by templates_path_or_url. 
+            Defaults to None - to use all available algorithms.
         analyze: on/off switch to run DataAnalyzer and generate a datastats report. Defaults to None, to automatically
             decide based on cache, and run data analysis only if we have not completed this step yet.
         algo_gen: on/off switch to run AlgoGen and generate templated BundleAlgos. Defaults to None, to automatically
@@ -79,6 +83,8 @@ class AutoRunner:
             datasets.
         not_use_cache: if the value is True, it will ignore all cached results in data analysis,
             algorithm generation, or training, and start the pipeline from scratch.
+        templates_path_or_url: the folder with the algorithm templates or a url. If None provided, the default template 
+            zip url will be downloaded.
         kwargs: image writing parameters for the ensemble inference. The kwargs format follows the SaveImage
             transform. For more information, check https://docs.monai.io/en/stable/transforms.html#saveimage.
 
@@ -189,6 +195,7 @@ class AutoRunner:
         hpo_backend: str = "nni",
         ensemble: bool = True,
         not_use_cache: bool = False,
+        templates_path_or_url=None,
         **kwargs,
     ):
 
@@ -198,6 +205,7 @@ class AutoRunner:
         self.work_dir = os.path.abspath(work_dir)
         self.data_src_cfg_name = os.path.join(self.work_dir, "input.yaml")
         self.algos = algos
+        self.templates_path_or_url = templates_path_or_url
 
         if input is None and os.path.isfile(self.data_src_cfg_name):
             input = self.data_src_cfg_name
@@ -558,6 +566,7 @@ class AutoRunner:
             bundle_generator = BundleGen(
                 algos=self.algos,
                 algo_path=self.work_dir,
+                templates_path_or_url=self.templates_path_or_url,
                 data_stats_filename=self.datastats_filename,
                 data_src_cfg_name=self.data_src_cfg_name,
             )
