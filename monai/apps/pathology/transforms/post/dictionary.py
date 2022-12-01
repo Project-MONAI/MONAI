@@ -22,10 +22,11 @@ from monai.apps.pathology.transforms.post.array import (
     GenerateSuccinctContour,
     GenerateWatershedMarkers,
     GenerateWatershedMask,
-    HoVerNetNuclearTypePostProcessing,
+    HoVerNetPostProcessing,
     Watershed,
 )
 from monai.config.type_definitions import DtypeLike, KeysCollection, NdarrayOrTensor
+from monai.transforms import FillHoles, GaussianSmooth
 from monai.transforms.transform import MapTransform, Transform
 from monai.utils import convert_to_dst_type, optional_import
 from monai.utils.enums import HoVerNetBranch
@@ -61,9 +62,9 @@ __all__ = [
     "GenerateInstanceTypeDict",
     "GenerateInstanceTypeD",
     "GenerateInstanceTyped",
-    "HoVerNetNuclearTypePostProcessingDict",
-    "HoVerNetNuclearTypePostProcessingD",
-    "HoVerNetNuclearTypePostProcessingd",
+    "HoVerNetPostProcessingDict",
+    "HoVerNetPostProcessingD",
+    "HoVerNetPostProcessingd",
 ]
 
 
@@ -485,70 +486,62 @@ class GenerateInstanceTyped(MapTransform):
         return d
 
 
-class HoVerNetNuclearTypePostProcessingd(Transform):
+class HoVerNetPostProcessingd(Transform):
     """
-    Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.post.array.HoVerNetNuclearTypePostProcessing`.
-    Generate instance type and probability for each instance.
+    Dictionary-based wrapper for :py:class:`monai.apps.pathology.transforms.post.array.HoVerNetPostProcessing`.
+    It generate a dictionary containing centroid, bounding box, type prediction for each instance. Also if requested,
+    it returns binary maps for instance segmentation and predicted types.
+
+    The output dictionary will have three new keys:
+
+    - "instance_info" mapping each instance to their centroid, bounding box, predicted type and probability.
+    - "instance_seg_map" containing an instance segmentation map.
+    - "type_seg_map" containing a segmentation map with associated types for each pixel.
 
     Args:
-        type_pred_key: the key pointing to the pred type map to be transformed.
-        instance_pred_key: the key pointing to the pred distance map.
-        min_num_points: assumed that the created contour does not form a contour if it does not contain more points
-            than the specified value. Defaults to 3.
-        level: optional. Used in `skimage.measure.find_contours`. Value along which to find contours in the array.
-            By default, the level is set to (max(image) + min(image)) / 2.
-        return_binary: whether to return the binary segmentation prediction after `seg_postprocessing`.
-        pred_binary_key: if `return_binary` is True, this `pred_binary_key` is used to get the binary prediciton
-            from the output.
-        return_centroids: whether to return centroids for each instance.
-        output_classes: number of the nuclear type classes.
-        instance_info_dict_key: key use to record information for each instance.
+        level: optional value for `skimage.measure.find_contours`, to find contours in the array.
+            If not provided, the level is set to (max(image) + min(image)) / 2.
+        distance_smooth_fn: smoothing function for distance map. Defaults to :py:class:`monai.transforms.intensity.GaussianSmooth()`.
+        marker_post_process_fn: post-process function for watershed markers. Defaults to :py:class:`monai.transforms.post.FillHoles()`.
         allow_missing_keys: don't raise exception if key is missing.
 
     """
 
     def __init__(
         self,
-        type_pred_key: str = HoVerNetBranch.NC.value,
-        instance_pred_key: str = "dist",
+        nuclear_prediction_key: str = HoVerNetBranch.NP.value,
+        hover_map_key: str = HoVerNetBranch.HV.value,
+        type_prediction_key: str = HoVerNetBranch.NC.value,
         min_num_points: int = 3,
         level: Optional[float] = None,
-        return_binary: Optional[bool] = True,
-        pred_binary_key: Optional[str] = "pred_binary",
-        return_centroids: Optional[bool] = False,
-        output_classes: Optional[int] = None,
-        instance_info_dict_key: Optional[str] = "instance_info_dict",
+        distance_smooth_fn: Callable = GaussianSmooth(),
+        marker_post_process_fn: Callable = FillHoles(),
     ) -> None:
         super().__init__()
-        self.converter = HoVerNetNuclearTypePostProcessing(
-            min_num_points=min_num_points, level=level, return_centroids=return_centroids, output_classes=output_classes
+        self.post_process = HoVerNetPostProcessing(
+            min_num_points=min_num_points,
+            level=level,
+            distance_smooth_fn=distance_smooth_fn,
+            marker_post_process_fn=marker_post_process_fn,
         )
-        self.output_classes = output_classes
-        self.type_pred_key = type_pred_key
-        self.instance_pred_key = instance_pred_key
-        self.pred_binary_key = pred_binary_key
-        self.instance_info_dict_key = instance_info_dict_key
-        self.return_binary = return_binary
+        self.nuclear_prediction_key = nuclear_prediction_key
+        self.hover_map_key = hover_map_key
+        self.type_prediction_key = type_prediction_key
 
     def __call__(self, data):
         d = dict(data)
-        inst_pred = d[self.instance_pred_key]
-        type_pred = d[self.type_pred_key]
-        if self.output_classes is not None:
-            pred_type_map, inst_info_dict = self.converter(type_pred, inst_pred)
-            d[self.type_pred_key] = pred_type_map
-        else:
-            inst_info_dict = self.converter(type_pred, inst_pred)
+        instance_info, instance_seg_map, type_seg_map = self.post_process(
+            d[self.nuclear_prediction_key], d[self.hover_map_key], d[self.type_prediction_key]
+        )
 
-        key_to_add = f"{self.instance_info_dict_key}"
-        if key_to_add in d:
-            raise KeyError(f"Type information with key {key_to_add} already exists.")
-        d[key_to_add] = inst_info_dict
+        output_keys = ["instance_info", "instance_seg_map", "type_seg_map"]
+        for k in output_keys:
+            if k in d:
+                raise ValueError("The output key ['{k}'] already exists in the input dictionary!")
 
-        if self.return_binary:
-            d[self.pred_binary_key] = (inst_pred > 0).astype(int)
-        inst_pred = convert_to_dst_type(inst_pred, type_pred)[0]
-        d[self.instance_pred_key] = inst_pred
+        d["instance_info"] = instance_info
+        d["instance_seg_map"] = instance_seg_map
+        d["type_seg_map"] = type_seg_map
 
         return d
 
@@ -562,4 +555,4 @@ GenerateSuccinctContourDict = GenerateSuccinctContourD = GenerateSuccinctContour
 GenerateInstanceContourDict = GenerateInstanceContourD = GenerateInstanceContourd
 GenerateInstanceCentroidDict = GenerateInstanceCentroidD = GenerateInstanceCentroidd
 GenerateInstanceTypeDict = GenerateInstanceTypeD = GenerateInstanceTyped
-HoVerNetNuclearTypePostProcessingDict = HoVerNetNuclearTypePostProcessingD = HoVerNetNuclearTypePostProcessingd
+HoVerNetPostProcessingDict = HoVerNetPostProcessingD = HoVerNetPostProcessingd

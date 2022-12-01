@@ -635,15 +635,17 @@ class GenerateInstanceType(Transform):
 
 class HoVerNetPostProcessing(Transform):
     """
-    The whole post-processing transform for nuclear type classification branch. It returns type prediction map and a
-    dict contains centroid, bounding box, type prediction for each instance.
+    The post-processing transform for HoVerNet model, which includes all the three branches.
+    It generate a dictionary containing centroid, bounding box, type prediction for each instance. Also if requested,
+    it returns binary maps for instance segmentation and predicted types.
 
     Args:
-        min_num_points: assumed that the created contour does not form a contour if it does not contain more points
-            than the specified value. Defaults to 3.
-        level: optional. Used in `skimage.measure.find_contours`. Value along which to find contours in the array.
-            By default, the level is set to (max(image) + min(image)) / 2.
-        output_classes: number of the nuclear type classes.
+        min_num_points: minimum number of points to be considered as a contour. Defaults to 3.
+        level: optional value for `skimage.measure.find_contours`, to find contours in the array.
+            If not provided, the level is set to (max(image) + min(image)) / 2.
+        distance_smooth_fn: smoothing function for distance map. Defaults to :py:class:`monai.transforms.intensity.GaussianSmooth()`.
+        marker_post_process_fn: post-process function for watershed markers. Defaults to :py:class:`monai.transforms.post.FillHoles()`.
+
     """
 
     def __init__(
@@ -651,7 +653,7 @@ class HoVerNetPostProcessing(Transform):
         min_num_points: int = 3,
         level: Optional[float] = None,
         distance_smooth_fn: Callable = GaussianSmooth(),
-        watershed_postprocess_fn: Callable = FillHoles(),
+        marker_post_process_fn: Callable = FillHoles(),
     ) -> None:
         super().__init__()
 
@@ -660,7 +662,7 @@ class HoVerNetPostProcessing(Transform):
         self.generate_instance_border = GenerateInstanceBorder(kernel_size=3)
         self.generate_distance_map = GenerateDistanceMap(smooth_fn=distance_smooth_fn)
         self.generate_watershed_markers = GenerateWatershedMarkers(
-            threshold=0.7, radius=2, postprocess_fn=watershed_postprocess_fn
+            threshold=0.7, radius=2, postprocess_fn=marker_post_process_fn
         )
         self.watershed = Watershed()
         # instance
