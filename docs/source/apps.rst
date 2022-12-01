@@ -153,7 +153,7 @@ Applications
     :members:
 .. autoclass:: GenerateWatershedMarkers
     :members:
-.. autoclass:: HoVerNetNuclearTypePostProcessing
+.. autoclass:: HoVerNetPostProcessing
     :members:
 
 .. automodule:: monai.apps.pathology.transforms.post.dictionary
@@ -175,7 +175,7 @@ Applications
     :members:
 .. autoclass:: GenerateWatershedMarkersd
     :members:
-.. autoclass:: HoVerNetNuclearTypePostProcessingd
+.. autoclass:: HoVerNetPostProcessingd
     :members:
 
 `Detection`
