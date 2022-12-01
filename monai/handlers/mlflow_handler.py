@@ -17,7 +17,6 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Union
 import torch
 
 from monai.config import IgniteInfo
-from monai.engines import Trainer
 from monai.utils import ensure_tuple, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
