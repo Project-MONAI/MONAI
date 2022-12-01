@@ -25,18 +25,33 @@ np.random.RandomState(123)
 
 for p in TEST_NDARRAYS:
     EXCEPTION_TESTS.append(
-        [{"keys": "mask", "border_key": "border"}, p(np.random.rand(2, 5, 5)), p(np.random.rand(1, 5, 5)), ValueError]
+        [
+            {"mask_key": "mask", "border_key": "border"},
+            p(np.random.rand(2, 5, 5)),
+            p(np.random.rand(1, 5, 5)),
+            ValueError,
+        ]
     )
     EXCEPTION_TESTS.append(
-        [{"keys": "mask", "border_key": "border"}, p(np.random.rand(1, 5, 5)), p(np.random.rand(2, 5, 5)), ValueError]
+        [
+            {"mask_key": "mask", "border_key": "border"},
+            p(np.random.rand(1, 5, 5)),
+            p(np.random.rand(2, 5, 5)),
+            ValueError,
+        ]
     )
 
     TESTS.append(
-        [{"keys": "mask", "border_key": "border"}, p(np.random.rand(1, 5, 5)), p(np.random.rand(1, 5, 5)), (1, 5, 5)]
+        [
+            {},
+            p(np.random.rand(1, 5, 5)),
+            p(np.random.rand(1, 5, 5)),
+            (1, 5, 5),
+        ]
     )
     TESTS.append(
         [
-            {"keys": "mask", "border_key": "border", "smooth_fn": GaussianSmooth(sigma=0.4)},
+            {"mask_key": "mask", "border_key": "border", "smooth_fn": GaussianSmooth(sigma=0.4)},
             p(np.random.rand(1, 5, 5)),
             p(np.random.rand(1, 5, 5)),
             (1, 5, 5),
@@ -53,7 +68,7 @@ class TestGenerateDistanceMapd(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_value2(self, argments, mask, border_map, expected_shape):
         result = GenerateDistanceMapd(**argments)({"mask": mask, "border": border_map})
-        self.assertEqual(result["dist"].shape, expected_shape)
+        self.assertEqual(result["dist_map"].shape, expected_shape)
 
 
 if __name__ == "__main__":

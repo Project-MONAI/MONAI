@@ -165,12 +165,12 @@ class GenerateWatershedMaskd(MapTransform):
         return d
 
 
-class GenerateInstanceBorderd(MapTransform):
+class GenerateInstanceBorderd(Transform):
     """
     Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.array.GenerateInstanceBorder`.
 
     Args:
-        keys: keys of the corresponding items to be transformed.
+        mask_key: the input key where the watershed mask is stored. Defaults to `"mask"`.
         hover_map_key: keys of hover map used to generate probability map.
         border_key: the instance border map will be written to the value of `{border_key}`.
         kernel_size: the size of the Sobel kernel. Defaults to 21.
@@ -187,68 +187,58 @@ class GenerateInstanceBorderd(MapTransform):
 
     def __init__(
         self,
-        keys: KeysCollection,
+        mask_key: str = "mask",
         hover_map_key: str = "hover_map",
         border_key: str = "border",
         kernel_size: int = 21,
         dtype: DtypeLike = np.float32,
-        allow_missing_keys: bool = False,
     ) -> None:
-        super().__init__(keys, allow_missing_keys)
+        self.mask_key = mask_key
         self.hover_map_key = hover_map_key
         self.border_key = border_key
         self.transform = GenerateInstanceBorder(kernel_size=kernel_size, dtype=dtype)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        for key in self.key_iterator(d):
-            instance_border = self.transform(d[key], d[self.hover_map_key])
-            key_to_add = f"{self.border_key}"
-            if key_to_add in d:
-                raise KeyError(f"Instance border map with key {key_to_add} already exists.")
-            d[key_to_add] = instance_border
+        if self.border_key in d:
+            raise KeyError(f"The key '{self.border_key}' for instance border map already exists.")
+        d[self.border_key] = self.transform(d[self.mask_key], d[self.hover_map_key])
         return d
 
 
-class GenerateDistanceMapd(MapTransform):
+class GenerateDistanceMapd(Transform):
     """
     Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.array.GenerateDistanceMap`.
 
     Args:
-        keys: keys of the corresponding items to be transformed.
-        border_key: keys of the instance border map used to generate distance map.
-        dist_key: the distance map will be written to the value of `{dist_key}`.
-        smooth_fn: execute smooth function on distance map. Defaults to None. You can specify
-            callable functions for smoothing.
-            For example, if you want apply gaussian smooth, you can specify `smooth_fn = GaussianSmooth()`
+        mask_key: the input key where the watershed mask is stored. Defaults to `"mask"`.
+        border_key: the input key where instance border map is stored. Defaults to `"border"`.
+        dist_map_key: the output key where distance map is written. Defaults to `"dist_map"`.
+        smooth_fn: smoothing function for distance map, which can be any callable object.
+            If not provided :py:class:`monai.transforms.GaussianSmooth()` is used.
         dtype: target data content type to convert, default is np.float32.
-        allow_missing_keys: don't raise exception if key is missing.
     """
 
     backend = GenerateDistanceMap.backend
 
     def __init__(
         self,
-        keys: KeysCollection,
+        mask_key: str = "mask",
         border_key: str = "border",
-        dist_key: str = "dist",
+        dist_map_key: str = "dist_map",
         smooth_fn: Optional[Callable] = None,
         dtype: DtypeLike = np.float32,
-        allow_missing_keys: bool = False,
     ) -> None:
-        super().__init__(keys, allow_missing_keys)
+        self.mask_key = mask_key
         self.border_key = border_key
-        self.dist_key = dist_key
+        self.dist_map_key = dist_map_key
         self.transform = GenerateDistanceMap(smooth_fn=smooth_fn, dtype=dtype)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        for key in self.key_iterator(d):
-            distance_map = self.transform(d[key], d[self.border_key])
-            key_to_add = f"{self.dist_key}"
-            if key_to_add in d:
-                raise KeyError(f"Distance map with key {key_to_add} already exists.")
-            d[key_to_add] = distance_map
+        if self.dist_map_key in d:
+            raise KeyError(f"The key '{self.dist_map_key}' for distance map already exists.")
+        d[self.dist_map_key] = self.transform(d[self.mask_key], d[self.border_key])
         return d
 
 

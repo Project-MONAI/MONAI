@@ -24,20 +24,20 @@ np.random.RandomState(123)
 
 for p in TEST_NDARRAYS:
     EXCEPTION_TESTS.append(
-        [{"keys": "mask", "kernel_size": 3}, p(np.random.rand(1, 5, 5, 5)), p(np.random.rand(2, 5, 5)), ValueError]
+        [{"mask_key": "mask", "kernel_size": 3}, p(np.random.rand(1, 5, 5, 5)), p(np.random.rand(2, 5, 5)), ValueError]
     )
     EXCEPTION_TESTS.append(
-        [{"keys": "mask", "kernel_size": 3}, p(np.random.rand(1, 5, 5)), p(np.random.rand(1, 5, 5)), ValueError]
+        [{"mask_key": "mask", "kernel_size": 3}, p(np.random.rand(1, 5, 5)), p(np.random.rand(1, 5, 5)), ValueError]
     )
     EXCEPTION_TESTS.append(
-        [{"keys": "mask", "kernel_size": 3}, p(np.random.rand(2, 5, 5)), p(np.random.rand(2, 5, 5)), ValueError]
+        [{"mask_key": "mask", "kernel_size": 3}, p(np.random.rand(2, 5, 5)), p(np.random.rand(2, 5, 5)), ValueError]
     )
 
     TESTS.append(
-        [{"keys": "mask", "kernel_size": 3}, p(np.random.rand(1, 5, 5)), p(np.random.rand(2, 5, 5)), (1, 5, 5)]
+        [{"mask_key": "mask", "kernel_size": 3}, p(np.random.rand(1, 5, 5)), p(np.random.rand(2, 5, 5)), (1, 5, 5)]
     )
     TESTS.append(
-        [{"keys": "mask", "kernel_size": 3}, p(np.random.rand(1, 5, 5)), p(np.random.rand(2, 5, 5)), (1, 5, 5)]
+        [{"mask_key": "mask", "kernel_size": 3}, p(np.random.rand(1, 5, 5)), p(np.random.rand(2, 5, 5)), (1, 5, 5)]
     )
 
 

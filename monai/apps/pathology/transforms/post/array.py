@@ -184,18 +184,11 @@ class GenerateInstanceBorder(Transform):
     def __call__(self, mask: NdarrayOrTensor, hover_map: NdarrayOrTensor) -> NdarrayOrTensor:  # type: ignore
         """
         Args:
-            mask: binary segmentation map, the output of :py:class:`GenerateWatershedMask`.  Shape must be [1, H, W].
+            mask: binary segmentation map, the output of :py:class:`GenerateWatershedMask`.
+                Shape must be [1, H, W].
             hover_map:  horizontal and vertical distances of nuclear pixels to their centres of mass. Shape must be [2, H, W].
                 The first and second channel represent the horizontal and vertical maps respectively. For more details refer
                 to papers: https://arxiv.org/abs/1812.06499.
-
-        Return:
-            Instance border map.
-
-        Raises:
-            ValueError: when the `hover_map` has only one value.
-            ValueError: when the `sobel gradient map` has only one value.
-
         """
         if len(mask.shape) != 3 or len(hover_map.shape) != 3:
             raise ValueError(
@@ -258,7 +251,8 @@ class GenerateDistanceMap(Transform):
     def __call__(self, mask: NdarrayOrTensor, instance_border: NdarrayOrTensor) -> NdarrayOrTensor:  # type: ignore
         """
         Args:
-            mask: binary segmentation map, the output of :py:class:`GenerateWatershedMask`. Shape must be [1, H, W].
+            mask: binary segmentation map, the output of :py:class:`GenerateWatershedMask`.
+                Shape must be [1, H, W].
             instance_border: foreground probability map, the output of :py:class:`GenerateInstanceBorder`.
                 Shape must be [1, H, W].
         """
@@ -282,11 +276,10 @@ class GenerateWatershedMarkers(Transform):
     For more details refer to papers: https://arxiv.org/abs/1812.06499.
 
     Args:
-        threshold: threshold the float values of foreground probability map to int 0 or 1 with specified threshold.
+        threshold: a float value to threshold to binarize foreground probability map.
             It turns uncertain area to 1 and other area to 0. Defaults to 0.4.
         radius: the radius of the disk-shaped footprint used in `opening`. Defaults to 2.
-        min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
-        remove_small_objects: whether need to remove some objects in the marker. Defaults to True.
+        min_object_size: objects smaller than this size are removed. Defaults to 10.
         postprocess_fn: execute additional post transformation on marker. Defaults to None.
         dtype: target data content type to convert, default is np.uint8.
 
@@ -298,8 +291,7 @@ class GenerateWatershedMarkers(Transform):
         self,
         threshold: float = 0.4,
         radius: int = 2,
-        min_size: int = 10,
-        remove_small_objects: bool = True,
+        min_object_size: int = 10,
         postprocess_fn: Optional[Callable] = None,
         dtype: DtypeLike = np.uint8,
     ) -> None:
@@ -308,14 +300,15 @@ class GenerateWatershedMarkers(Transform):
         self.postprocess_fn = postprocess_fn
         self.dtype = dtype
 
-        if remove_small_objects:
-            self.remove_small_objects = RemoveSmallObjects(min_size=min_size)
+        self.remove_small_objects = RemoveSmallObjects(min_size=min_object_size) if min_object_size > 0 else lambda x: x
 
     def __call__(self, mask: NdarrayOrTensor, instance_border: NdarrayOrTensor) -> NdarrayOrTensor:  # type: ignore
         """
         Args:
-            mask: binarized segmentation result. Shape must be [1, H, W].
-            instance_border: instance border map. Shape must be [1, H, W].
+            mask: binary segmentation map, the output of :py:class:`GenerateWatershedMask`.
+                Shape must be [1, H, W].
+            instance_border: instance border map, the output of :py:class:`GenerateInstanceBorder`.
+                Shape must be [1, H, W].
         """
         if mask.shape[0] != 1 or mask.ndim != 3:
             raise ValueError(f"Input mask should be with size of [1, H, W], but got {mask.shape}")
@@ -333,8 +326,7 @@ class GenerateWatershedMarkers(Transform):
 
         marker = opening(marker.squeeze(), disk(self.radius))
         marker = label(marker)[0]
-        if self.remove_small_objects:
-            marker = self.remove_small_objects(marker[None])
+        marker = self.remove_small_objects(marker[None])
 
         return convert_to_dst_type(marker, mask, dtype=self.dtype)[0]
 
