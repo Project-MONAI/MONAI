@@ -177,17 +177,13 @@ class BundleAlgo(Algo):
         Execute the training command with target devices information.
 
         """
-        try:
-            logger.info(f"Launching: {cmd}")
-            ps_environ = os.environ.copy()
-            if devices_info:
-                ps_environ["CUDA_VISIBLE_DEVICES"] = devices_info
-            normal_out = subprocess.run(cmd.split(), env=ps_environ, check=True, capture_output=True)
-            logger.info(repr(normal_out).replace("\\n", "\n").replace("\\t", "\t"))
-        except subprocess.CalledProcessError as e:
-            output = repr(e.stdout).replace("\\n", "\n").replace("\\t", "\t")
-            errors = repr(e.stderr).replace("\\n", "\n").replace("\\t", "\t")
-            raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}") from e
+
+        logger.info(f"Launching: {cmd}")
+        ps_environ = os.environ.copy()
+        if devices_info:
+            ps_environ["CUDA_VISIBLE_DEVICES"] = devices_info
+        normal_out = subprocess.run(cmd.split(), env=ps_environ, check=True)
+
         return normal_out
 
     def train(self, train_params=None):
@@ -252,13 +248,12 @@ class BundleAlgo(Algo):
         spec.loader.exec_module(infer_class)
         return infer_class.InferClass(configs_path, *args, **kwargs)
 
-    def predict(self, predict_params=None):
+    def predict(self, predict_files: list, predict_params=None):
         """
-        Use the trained model to predict the outputs with a given input image. Path to input image is in the params
-        dict in a form of {"files", ["path_to_image_1", "path_to_image_2"]}. If it is not specified, then the
-        prediction will use the test images predefined in the bundle config.
+        Use the trained model to predict the outputs with a given input image.
 
         Args:
+            predict_files: a list of paths to files to run inference on ["path_to_image_1", "path_to_image_2"]
             predict_params: a dict to override the parameters in the bundle config (including the files to predict).
 
         """
@@ -267,9 +262,8 @@ class BundleAlgo(Algo):
         else:
             params = deepcopy(predict_params)
 
-        files = params.pop("files", ".")
         inferer = self.get_inferer(**params)
-        return [inferer.infer(f) for f in ensure_tuple(files)]
+        return [inferer.infer(f) for f in ensure_tuple(predict_files)]
 
     def get_output_path(self):
         """Returns the algo output paths to find the algo scripts and configs."""
@@ -327,24 +321,24 @@ class BundleGen(AlgoGen):
 
         if isinstance(algos, dict):
             for algo_name, algo_params in algos.items():
+
+                template_path = os.path.dirname(algo_params.get("template_path", "."))
+                if len(template_path) > 0 and template_path not in sys.path:
+                    sys.path.append(template_path)
+
                 try:
                     self.algos.append(ConfigParser(algo_params).get_parsed_content())
                 except RuntimeError as e:
-                    if "ModuleNotFoundError" in str(e):
-                        msg = """Please make sure the folder structure of an Algo Template follows
-                            [algo_name]
-                            ├── configs
-                            │   ├── hyperparameters.yaml  # automatically generated yaml from a set of ``template_configs``
-                            │   ├── network.yaml  # automatically generated network yaml from a set of ``template_configs``
-                            │   ├── transforms_train.yaml  # automatically generated yaml to define transforms for training
-                            │   ├── transforms_validate.yaml  # automatically generated yaml to define transforms for validation
-                            │   └── transforms_infer.yaml  # automatically generated yaml to define transforms for inference
-                            └── scripts
-                                ├── test.py
-                                ├── __init__.py
-                                └── validate.py
-                        """
-                        raise RuntimeError(msg) from e
+                    msg = """Please make sure the folder structure of an Algo Template follows
+                        [algo_name]
+                        ├── configs
+                        │   ├── hyper_parameters.yaml  # automatically generated yaml from a set of ``template_configs``
+                        └── scripts
+                            ├── test.py
+                            ├── __init__.py
+                            └── validate.py
+                    """
+                    raise RuntimeError(msg) from e
                 self.algos[-1].name = algo_name
         else:
             self.algos = ensure_tuple(algos)

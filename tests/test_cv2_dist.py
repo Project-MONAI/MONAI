@@ -33,6 +33,9 @@ def main_worker(rank, ngpus_per_node):
     with autocast(enabled=True):
         model(x)
 
+    if dist.is_initialized():
+        dist.destroy_process_group()
+
 
 @skip_if_no_cuda
 class TestCV2Dist(unittest.TestCase):
