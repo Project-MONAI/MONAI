@@ -28,7 +28,7 @@ from monai.apps.pathology.transforms.post.array import (
 from monai.config.type_definitions import DtypeLike, KeysCollection, NdarrayOrTensor
 from monai.transforms import FillHoles, GaussianSmooth
 from monai.transforms.transform import MapTransform, Transform
-from monai.utils import convert_to_dst_type, optional_import
+from monai.utils import optional_import
 from monai.utils.enums import HoVerNetBranch
 
 find_contours, _ = optional_import("skimage.measure", name="find_contours")
