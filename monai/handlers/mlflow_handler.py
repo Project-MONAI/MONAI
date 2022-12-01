@@ -12,7 +12,7 @@
 import os
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Tuple, Union
 
 import torch
 
@@ -104,8 +104,8 @@ class MLFlowHandler:
         experiment_name: str = "default_experiment",
         run_name: Optional[str] = None,
         experiment_param: Optional[Dict] = None,
-        artifacts: Optional[Sequence[Path]] = None,
-        optimizer_param_names: Tuple[str, ...] = ("lr",),
+        artifacts: Optional[Union[str, Sequence[Path]]] = None,
+        optimizer_param_names: Union[str, Sequence[str]] = "lr",
     ) -> None:
         if tracking_uri is not None:
             mlflow.set_tracking_uri(tracking_uri)
@@ -122,7 +122,7 @@ class MLFlowHandler:
         self.run_name = run_name
         self.experiment_param = experiment_param
         self.artifacts = ensure_tuple(artifacts)
-        self.optimizer_param_names = optimizer_param_names
+        self.optimizer_param_names = ensure_tuple(optimizer_param_names)
         self.client = mlflow.MlflowClient()
 
     def _try_log_param(self, engine: Engine, attr: str) -> None:
