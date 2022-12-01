@@ -648,10 +648,10 @@ class HoVerNetPostProcessing(Transform):
 
     def __init__(
         self,
-        distance_smooth_fn: Callable = GaussianSmooth(),
-        watershed_postprocess_fn: Callable = FillHoles(),
         min_num_points: int = 3,
         level: Optional[float] = None,
+        distance_smooth_fn: Callable = GaussianSmooth(),
+        watershed_postprocess_fn: Callable = FillHoles(),
     ) -> None:
         super().__init__()
 
@@ -672,8 +672,13 @@ class HoVerNetPostProcessing(Transform):
         self.activation = Activations(softmax=True)
         self.as_discrete = AsDiscrete(argmax=True)
 
-    def _process_instance_segmentation(self, nuclear_prediction, hover_map):
-        """post-process instance segmentation branches (NP and HV) to generate instance segmentation map."""
+    def process_instance_segmentation(self, nuclear_prediction, hover_map) -> Tuple[Dict, NdarrayOrTensor]:
+        """post-process instance segmentation branches (NP and HV) to generate instance segmentation map.
+
+        Args:
+            nuclear_prediction: the output of NP (nuclear prediction) branch of HoVerNet model
+            hover_map: the output of HV (hover map) branch of HoVerNet model
+        """
 
         # Process NP and HV branch using watershed algorithm
         watershed_mask = self.generate_watershed_mask(nuclear_prediction)
@@ -704,32 +709,60 @@ class HoVerNetPostProcessing(Transform):
 
         return instance_info_dict, instance_seg_map
 
+    def process_nuclear_type(
+        self, instance_info_dict, instance_seg_map, type_prediction
+    ) -> Tuple[Dict, NdarrayOrTensor]:
+        """Process NC (type prediction) branch and combine it with instance segmentation
+        It updates the instance_info_dict with instance type and associated probability, and generate instance type map.
+
+        Args:
+            instance_info_dict: instance information dictionary, which is output of `self.instance_segmentation`
+            instance_seg_map: instance segmentation map, which is output of `self.instance_segmentation`
+            type_prediction: the output of NC (type prediction) branch of HoVerNet model
+        """
+
+        instance_type_map = convert_to_dst_type(torch.zeros(instance_seg_map.shape), instance_seg_map)[0]
+
+        for inst_id in instance_info_dict:
+            type_prediction = self.activation(type_prediction)
+            type_prediction = self.as_discrete(type_prediction)
+            instance_type, instance_type_probability = self.generate_instance_type(
+                bbox=instance_info_dict[inst_id]["bounding_box"],
+                type_pred=type_prediction,
+                seg_pred=instance_seg_map,
+                instance_id=inst_id,
+            )
+            # update instance info dict with type data
+            instance_info_dict[inst_id]["type_probability"] = instance_type_probability
+            instance_info_dict[inst_id]["type"] = instance_type
+
+            # update instance type map
+            instance_type_map[instance_seg_map == inst_id] = instance_type
+
+        return instance_info_dict, instance_type_map
+
     def __call__(
         self,
         nuclear_prediction: NdarrayOrTensor,
         hover_map: NdarrayOrTensor,
         type_prediction: Optional[NdarrayOrTensor] = None,
-    ) -> Tuple[NdarrayOrTensor, Dict, Dict]:
+    ) -> Tuple[Dict, NdarrayOrTensor, NdarrayOrTensor]:
+        """
+        Args:
+            nuclear_prediction: the output of NC (nuclear prediction) branch of HoVerNet model.
+            hover_map: the output of HV (hover map) branch of HoVerNet model.
+            type_prediction: the output of NC (type prediction) branch of HoVerNet model (optional).
+                If not provided, the type info and the type segmentation map is not generated.
+
+        """
         # Process NP and HV branches to create final instance map
-        instance_info_dict, instance_seg_map = self._process_instance_segmentation(nuclear_prediction, hover_map)
+        instance_info_dict, instance_seg_map = self.process_instance_segmentation(nuclear_prediction, hover_map)
 
-        instance_type_map = convert_to_dst_type(torch.zeros(instance_seg_map.shape), instance_seg_map)
+        type_seg_map = None
+        # Process NC branch to create segmentation map with types
         if type_prediction is not None:
-            # Process NC (type prediction) branch and add type and its probability
-            for inst_id in instance_info_dict:
-                type_prediction = self.activation(type_prediction)
-                type_prediction = self.as_discrete(type_prediction)
-                instance_type, instance_type_probability = self.generate_instance_type(
-                    bbox=instance_info_dict[inst_id]["bounding_box"],
-                    type_pred=type_prediction,
-                    seg_pred=instance_seg_map,
-                    instance_id=inst_id,
-                )
-                # update instance info dict with type data
-                instance_info_dict[inst_id]["type_probability"] = instance_type_probability
-                instance_info_dict[inst_id]["type"] = instance_type
+            instance_info_dict, type_seg_map = self.process_nuclear_type(
+                instance_info_dict, instance_seg_map, type_prediction
+            )
 
-                # update instance type map
-                instance_type_map[instance_seg_map == inst_id] = instance_type
-
-        return instance_info_dict, instance_seg_map, instance_type_map
+        return instance_info_dict, instance_seg_map, type_seg_map
