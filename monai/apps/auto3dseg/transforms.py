@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from typing import Dict, Hashable, Mapping
 
 import numpy as np
@@ -19,14 +20,14 @@ from monai.networks.utils import pytorch_after
 from monai.transforms import MapTransform
 
 
-class EnsureSameShape(MapTransform):
+class EnsureSameShaped(MapTransform):
     """
     Checks if segmentation label images (in keys) have the same spatial shape as the main image (in source_key),
     and raise an error if the shapes are significantly different.
-    if the shapes are only slightly different (within an allowed_shape_difference in each dim), then resize the label.
-    This transform is designed to quietly correct datasets with label shape mismatches. Generally image and segmentation label
-    must have the same spatial shape, however some public datasets having a slight shape mismatches, which will cause
-    potential crashes when calculating loss or metric functions.
+    If the shapes are only slightly different (within an allowed_shape_difference in each dim), then resize the label using
+    nearest interpolation. This transform is designed to correct datasets with slight label shape mismatches.
+    Generally image and segmentation label must have the same spatial shape, however some public datasets are having slight
+    shape mismatches, which will cause potential crashes when calculating loss or metric functions.
     """
 
     def __init__(
@@ -39,10 +40,10 @@ class EnsureSameShape(MapTransform):
         """
         Args:
             keys: keys of the corresponding items to be compared to the source_key item shape.
-            allow_missing_keys: don't raise exception if key is missing.
-            source_key: key of the item with a reference shape
-            allowed_shape_difference: raises error if shapes are different more then this value in any dimension,
-                otherwise corrects for the shape mismatch using nearest interpolation
+            allow_missing_keys: do not raise exception if key is missing.
+            source_key: key of the item with the reference shape.
+            allowed_shape_difference: raises error if shapes are different more than this value in any dimension,
+                otherwise corrects for the shape mismatch using nearest interpolation.
 
         """
         super().__init__(keys=keys, allow_missing_keys=allow_missing_keys)
@@ -56,11 +57,12 @@ class EnsureSameShape(MapTransform):
             label_shape = d[key].shape[1:]
             if label_shape != image_shape:
                 if np.allclose(list(label_shape), list(image_shape), atol=self.allowed_shape_difference):
+                    warnings.warn(f"The {key} shape {label_shape} is different from the source shape {image_shape}.")
                     d[key] = torch.nn.functional.interpolate(
                         input=d[key].unsqueeze(0),
                         size=image_shape,
                         mode="nearest-exact" if pytorch_after(1, 11) else "nearest",
                     ).squeeze(0)
                 else:
-                    raise ValueError(f"Label shape {label_shape} is different from image shape {image_shape}")
+                    raise ValueError(f"The {key} shape {label_shape} is different from the source shape {image_shape}.")
         return d
