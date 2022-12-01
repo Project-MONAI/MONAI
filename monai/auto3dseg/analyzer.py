@@ -16,7 +16,6 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 import torch
-import torch.nn.functional as F
 
 from monai.apps.utils import get_logger
 from monai.auto3dseg.operations import Operations, SampleOperations, SummaryOperations
@@ -33,7 +32,7 @@ from monai.bundle.utils import ID_SEP_KEY
 from monai.data import MetaTensor, affine_to_spacing
 from monai.transforms.transform import MapTransform
 from monai.transforms.utils_pytorch_numpy_unification import sum, unique
-from monai.utils import convert_to_numpy, pytorch_after
+from monai.utils import convert_to_numpy
 from monai.utils.enums import DataStatsKeys, ImageStatsKeys, LabelStatsKeys
 from monai.utils.misc import ImageMetaKey, label_union
 
@@ -326,16 +325,7 @@ class FgImageStats(Analyzer):
         ndas_label = d[self.label_key]  # (H,W,D)
 
         if ndas_label.shape != ndas[0].shape:
-            # if image and label shapes are different, check if they are close
-            if np.allclose(list(ndas_label.shape), list(ndas[0].shape), atol=10):
-                logger.info(f" Label shape {ndas_label.shape} is slightly different from image shape {ndas[0].shape}")
-                ndas_label = F.interpolate(
-                    input=ndas_label.unsqueeze(0).unsqueeze(0),
-                    size=list(ndas[0].shape),
-                    mode="nearest-exact" if pytorch_after(1, 11) else "nearest",
-                )[0, 0]
-            else:
-                raise ValueError(f"Label shape {ndas_label.shape} is  different from image shape {ndas[0].shape}")
+            raise ValueError(f"Label shape {ndas_label.shape} is different from image shape {ndas[0].shape}")
 
         nda_foregrounds = [get_foreground_label(nda, ndas_label) for nda in ndas]
         nda_foregrounds = [nda if nda.numel() > 0 else MetaTensor([0.0]) for nda in nda_foregrounds]
@@ -465,16 +455,7 @@ class LabelStats(Analyzer):
         ndas_label = d[self.label_key]  # (H,W,D)
 
         if ndas_label.shape != ndas[0].shape:
-            # if image and label shapes are different, check if they are close
-            if np.allclose(list(ndas_label.shape), list(ndas[0].shape), atol=10):
-                logger.info(f" Label shape {ndas_label.shape} is slightly different from image shape {ndas[0].shape}")
-                ndas_label = F.interpolate(
-                    input=ndas_label.unsqueeze(0).unsqueeze(0),
-                    size=list(ndas[0].shape),
-                    mode="nearest-exact" if pytorch_after(1, 11) else "nearest",
-                )[0, 0]
-            else:
-                raise ValueError(f"Label shape {ndas_label.shape} is  different from image shape {ndas[0].shape}")
+            raise ValueError(f"Label shape {ndas_label.shape} is different from image shape {ndas[0].shape}")
 
         nda_foregrounds = [get_foreground_label(nda, ndas_label) for nda in ndas]
         nda_foregrounds = [nda if nda.numel() > 0 else torch.Tensor([0]) for nda in nda_foregrounds]
