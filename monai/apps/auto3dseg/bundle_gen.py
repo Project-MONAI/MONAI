@@ -14,10 +14,11 @@ import os
 import shutil
 import subprocess
 import sys
+import warnings
 from copy import deepcopy
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Dict, List, Mapping
+from typing import Any, Dict, List, Mapping, Optional, Union
 from urllib.parse import urlparse
 
 import torch
@@ -309,10 +310,10 @@ class BundleGen(AlgoGen):
     def __init__(
         self,
         algo_path: str = ".",
-        algos=None,
-        templates_path_or_url=None,
-        data_stats_filename=None,
-        data_src_cfg_name=None,
+        algos: Optional[Union[Dict, List, str]] = None,
+        templates_path_or_url: Optional[str] = None,
+        data_stats_filename: Optional[str] = None,
+        data_src_cfg_name: Optional[str] = None,
     ):
 
         if algos is None or isinstance(algos, (list, tuple, str)):
@@ -320,10 +321,12 @@ class BundleGen(AlgoGen):
             if templates_path_or_url is None:
                 templates_path_or_url = default_algo_zip
 
+            algo_path = os.path.abspath(algo_path)
             at_path = os.path.join(algo_path, "algorithm_templates")
 
             if os.path.isdir(templates_path_or_url):
                 # copy, if a local folder
+                templates_path_or_url = os.path.abspath(templates_path_or_url)
                 if templates_path_or_url != at_path:
                     if os.path.exists(at_path):
                         shutil.rmtree(at_path)
@@ -343,7 +346,21 @@ class BundleGen(AlgoGen):
                 # trigger the download process if url
                 zip_download_dir = TemporaryDirectory()
                 algo_compressed_file = os.path.join(zip_download_dir.name, "algo_templates.tar.gz")
-                download_and_extract(templates_path_or_url, algo_compressed_file, algo_path)
+
+                download_attempts = 3
+                for i in range(download_attempts):
+                    try:
+                        download_and_extract(templates_path_or_url, algo_compressed_file, algo_path)
+                    except Exception:
+                        msg = f"Download and extract of {templates_path_or_url} failed, attempt {i+1}/{download_attempts}."
+                        if i < download_attempts - 1:
+                            warnings.warn(msg)
+                        else:
+                            zip_download_dir.cleanup()
+                            raise ValueError(msg)
+                    else:
+                        break
+
                 zip_download_dir.cleanup()
                 algos_all = deepcopy(default_algos)
                 for name in algos:

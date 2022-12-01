@@ -14,7 +14,7 @@ import shutil
 import subprocess
 from copy import deepcopy
 from time import sleep
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import torch
@@ -66,8 +66,8 @@ class AutoRunner:
             The configuration should contain datalist, dataroot, modality, multigpu, and class_names info.
         algos: optionally specify a list of algorithms to use.  If dictionary, it outlines the algorithm to use.
             Must be in the form   {"algname": dict(_target_="algname.scripts.algo.AlgnameAlgo", template_path="algname"), ...}
-            If a list or a string, defines a subset of names of the algorithms to use, e.g. ('segresnet', 'dints') out
-            of the full set of algorithm templates provided by templates_path_or_url.
+            If a list or a string, defines a subset of names of the algorithms to use, e.g. 'segresnet' or
+            ['segresnet', 'dints'] out of the full set of algorithm templates provided by templates_path_or_url.
             Defaults to None - to use all available algorithms.
         analyze: on/off switch to run DataAnalyzer and generate a datastats report. Defaults to None, to automatically
             decide based on cache, and run data analysis only if we have not completed this step yet.
@@ -112,6 +112,26 @@ class AutoRunner:
             runner = AutoRunner(work_dir=work_dir, input=input)
             runner.run()
 
+        - User can specify a subset of algorithms to use and run AutoRunner:
+
+        .. code-block:: python
+
+            work_dir = "./work_dir"
+            input = "path_to_yaml_data_cfg"
+            algos = ["segresnet", "dints"]
+            runner = AutoRunner(work_dir=work_dir, input=input, algos=algos)
+            runner.run()
+
+        - User can specify a a local folder with algorithms templates and run AutoRunner:
+
+        .. code-block:: python
+
+            work_dir = "./work_dir"
+            input = "path_to_yaml_data_cfg"
+            algos = "segresnet"
+            templates_path_or_url = "./local_path_to/algorithm_templates"
+            runner = AutoRunner(work_dir=work_dir, input=input, algos=algos, templates_path_or_url = templates_path_or_url)
+            runner.run()
         - User can specify training parameters by:
 
         .. code-block:: python
@@ -187,7 +207,7 @@ class AutoRunner:
         self,
         work_dir: str = "./work_dir",
         input: Union[Dict[str, Any], str, None] = None,
-        algos: Optional[Union[Tuple, List]] = None,
+        algos: Optional[Union[Dict, List, str]] = None,
         analyze: Optional[bool] = None,
         algo_gen: Optional[bool] = None,
         train: Optional[bool] = None,
@@ -195,7 +215,7 @@ class AutoRunner:
         hpo_backend: str = "nni",
         ensemble: bool = True,
         not_use_cache: bool = False,
-        templates_path_or_url=None,
+        templates_path_or_url: Optional[str] = None,
         **kwargs,
     ):
 
