@@ -57,7 +57,10 @@ class EnsureSameShaped(MapTransform):
             label_shape = d[key].shape[1:]
             if label_shape != image_shape:
                 if np.allclose(list(label_shape), list(image_shape), atol=self.allowed_shape_difference):
-                    warnings.warn(f"The {key} shape {label_shape} is different from the source shape {image_shape}.")
+                    warnings.warn(
+                        f"The {key} with shape {label_shape} was resized to match the source shape {image_shape},"
+                        f"the meta-data was not updated."
+                    )
                     d[key] = torch.nn.functional.interpolate(
                         input=d[key].unsqueeze(0),
                         size=image_shape,
