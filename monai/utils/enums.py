@@ -630,3 +630,4 @@ class LazyAttr(StrEnum):
     AFFINE = "lazy_affine"
     PADDING_MODE = "lazy_padding_mode"
     INTERP_MODE = "lazy_interpolation_mode"
+    DTYPE = "lazy_dtype"

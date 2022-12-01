@@ -1552,6 +1552,7 @@ def get_transform_backends():
                 "LambdaD",
                 "MapTransform",
                 "OneOf",
+                "RandomOrder",
                 "PadListDataCollate",
                 "RandLambda",
                 "RandLambdaD",
@@ -1745,7 +1746,7 @@ def paste_slices(tup):
     given a tuple (pos,w,max_w), return a tuple of slices
     """
     pos, w, max_w = tup
-    max_w = max_w.shape[len(max_w.shape) - 1]
+    max_w = max_w.shape[-1]
     orig_min = max(pos, 0)
     orig_max = min(pos + w, max_w)
     block_min = -min(pos, 0)

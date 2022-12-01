@@ -10,11 +10,15 @@
 # limitations under the License.
 
 import os
+import shutil
+import tempfile
 import unittest
+from pathlib import Path
 
 from parameterized import parameterized
 
 from monai.bundle import ConfigParser
+from monai.bundle.utils import DEFAULT_HANDLERS_ID
 from monai.fl.client.monai_algo import MonaiAlgo
 from monai.fl.utils.constants import ExtraItems
 from monai.fl.utils.exchange_object import ExchangeObject
@@ -130,6 +134,7 @@ TEST_GET_WEIGHTS_4 = [
 
 
 @SkipIfNoModule("ignite")
+@SkipIfNoModule("mlflow")
 class TestFLMonaiAlgo(unittest.TestCase):
     @parameterized.expand([TEST_TRAIN_1, TEST_TRAIN_2, TEST_TRAIN_3])
     def test_train(self, input_params):
@@ -140,6 +145,19 @@ class TestFLMonaiAlgo(unittest.TestCase):
             ]
         else:
             config_train_filename = os.path.join(input_params["bundle_root"], input_params["config_train_filename"])
+
+        data_dir = tempfile.mkdtemp()
+        # test experiment management
+        input_params["tracking"] = {
+            "handlers_id": DEFAULT_HANDLERS_ID,
+            "configs": {
+                "trainer": {
+                    "_target_": "MLFlowHandler",
+                    "tracking_uri": Path(data_dir).as_uri() + "/mlflow_override",
+                    "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
+                }
+            },
+        }
 
         # initialize algo
         algo = MonaiAlgo(**input_params)
@@ -157,6 +175,10 @@ class TestFLMonaiAlgo(unittest.TestCase):
         # test train
         algo.train(data=data, extra={})
         algo.finalize()
+        # must close it as we are changing different temp dir for cases here
+        algo.train_parser.get_parsed_content("train#handlers")[-1].close()
+        self.assertTrue(os.path.exists(f"{data_dir}/mlflow_override"))
+        shutil.rmtree(data_dir)
 
     @parameterized.expand([TEST_EVALUATE_1, TEST_EVALUATE_2, TEST_EVALUATE_3])
     def test_evaluate(self, input_params):
