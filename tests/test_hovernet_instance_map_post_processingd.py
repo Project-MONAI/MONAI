@@ -14,9 +14,10 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.apps.pathology.transforms.post.array import HoVerNetInstanceMapPostProcessing
+from monai.apps.pathology.transforms.post.dictionary import HoVerNetInstanceMapPostProcessingd
 from monai.transforms import ComputeHoVerMaps, FillHoles, GaussianSmooth
 from monai.utils import min_version, optional_import
+from monai.utils.enums import HoVerNetBranch
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 _, has_scipy = optional_import("scipy", "1.8.1", min_version)
@@ -33,8 +34,8 @@ TEST_CASE_3 = [{"marker_postprocess_fn": FillHoles()}, {"1": {"type": 1, "type_p
 TEST_CASE = []
 for p in TEST_NDARRAYS:
     TEST_CASE.append([p, image] + TEST_CASE_1)
-    # TEST_CASE.append([p, image] + TEST_CASE_2)
-    # TEST_CASE.append([p, image] + TEST_CASE_3)
+    TEST_CASE.append([p, image] + TEST_CASE_2)
+    TEST_CASE.append([p, image] + TEST_CASE_3)
 
 
 @unittest.skipUnless(has_scipy, "Requires scipy library.")
@@ -42,17 +43,21 @@ for p in TEST_NDARRAYS:
 class TestHoVerNetTypeMapPostProcessing(unittest.TestCase):
     @parameterized.expand(TEST_CASE)
     def test_value(self, in_type, test_data, kwargs, expected_info, expected_map):
-        nuclear_prediction = in_type(test_data.astype(float))
-        hover_map = in_type(ComputeHoVerMaps()(test_data.astype(int)))
+        input = {
+            HoVerNetBranch.NP.value: in_type(test_data.astype(float)),
+            HoVerNetBranch.HV.value: in_type(ComputeHoVerMaps()(test_data.astype(int))),
+        }
 
-        inst_info, inst_map = HoVerNetInstanceMapPostProcessing()(nuclear_prediction, hover_map)
+        outputs = p = HoVerNetInstanceMapPostProcessingd(**kwargs)(input)
+        inst_info_key = kwargs.get("instance_info_key", "instance_info")
+        inst_map_key = kwargs.get("instance_map_key", "instance_map")
 
         # instance info
-        for key in inst_info:
-            assert_allclose(inst_info[key]["centroid"], expected_info[key]["centroid"], type_test=False)
+        for key in outputs[inst_info_key]:
+            assert_allclose(outputs[inst_info_key]["centroid"], expected_info[key]["centroid"], type_test=False)
 
         # instance map
-        assert_allclose(inst_map, expected_map, type_test=False)
+        assert_allclose(outputs[inst_map_key], expected_map, type_test=False)
 
 
 if __name__ == "__main__":

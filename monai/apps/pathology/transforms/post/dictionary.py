@@ -22,6 +22,7 @@ from monai.apps.pathology.transforms.post.array import (
     GenerateSuccinctContour,
     GenerateWatershedMarkers,
     GenerateWatershedMask,
+    HoVerNetInstanceMapPostProcessing,
     HoVerNetTypeMapPostProcessing,
     Watershed,
 )
@@ -456,6 +457,93 @@ class GenerateInstanceTyped(MapTransform):
         return d
 
 
+class HoVerNetInstanceMapPostProcessingd(Transform):
+    """
+    Dictionary-based wrapper for :py:class:`monai.apps.pathology.transforms.post.array.HoVerNetTypeMapPostProcessing`.
+    It generate a dictionary containing centroid, bounding box, type prediction for each instance. Also if requested,
+    it returns binary maps for instance segmentation and predicted types.
+
+    The output dictionary will have three new keys:
+
+    - "instance_info" mapping each instance to their centroid, bounding box, predicted type and probability.
+    - "instance_seg_map" containing an instance segmentation map.
+    - "type_seg_map" containing a segmentation map with associated types for each pixel.
+
+    Args:
+        nuclear_prediction_key: the key for HoVerNet NC (nuclear prediction) branch. Defaults to `HoVerNetBranch.NP`.
+        hover_map_key: the key for HoVerNet NC (nuclear prediction) branch. Defaults to `HoVerNetBranch.HV`.
+        instance_info_key: the output key where instance information (contour, bounding boxes, and centroids)
+            is written. Defaults to `"instance_info"`.
+        instance_map_key: the output key where instance map is written. Defaults to `"instance_map"`.
+        activation: the activation layer to be applied on the input probability map.
+            It can be "softmax" or "sigmoid" string, or any callable. Defaults to "softmax".
+        mask_threshold: a float value to threshold to binarize probability map to generate mask.
+        min_object_size: objects smaller than this size are removed. Defaults to 10.
+        sobel_kernel_size: the size of the Sobel kernel used in :py:class:`GenerateInstanceBorder`. Defaults to 5.
+        distance_smooth_fn: smoothing function for distance map.
+            If not provided, :py:class:`monai.transforms.intensity.GaussianSmooth()` will be used.
+        marker_threshold: a float value to threshold to binarize instance border map for markers.
+            It turns uncertain area to 1 and other area to 0. Defaults to 0.4.
+        marker_radius: the radius of the disk-shaped footprint used in `opening` of markers. Defaults to 2.
+        marker_postprocess_fn: post-process function for watershed markers.
+            If not provided, :py:class:`monai.transforms.post.FillHoles()` will be used.
+        watershed_connectivity: `connectivity` argument of `skimage.segmentation.watershed`.
+        min_num_points: minimum number of points to be considered as a contour. Defaults to 3.
+        contour_level: an optional value for `skimage.measure.find_contours` to find contours in the array.
+            If not provided, the level is set to `(max(image) + min(image)) / 2`.
+    """
+
+    def __init__(
+        self,
+        nuclear_prediction_key: str = HoVerNetBranch.NP.value,
+        hover_map_key: str = HoVerNetBranch.HV.value,
+        instance_info_key: str = "instance_info",
+        instance_map_key: str = "instance_map",
+        activation: Union[str, Callable] = "softmax",
+        mask_threshold: Optional[float] = None,
+        min_object_size: int = 10,
+        sobel_kernel_size: int = 5,
+        distance_smooth_fn: Optional[Callable] = None,
+        marker_threshold: float = 0.4,
+        marker_radius: int = 2,
+        marker_postprocess_fn: Optional[Callable] = None,
+        watershed_connectivity: Optional[int] = 1,
+        min_num_points: int = 3,
+        contour_level: Optional[float] = None,
+    ) -> None:
+        super().__init__()
+        self.instance_map_post_process = HoVerNetInstanceMapPostProcessing(
+            activation=activation,
+            mask_threshold=mask_threshold,
+            min_object_size=min_object_size,
+            sobel_kernel_size=sobel_kernel_size,
+            distance_smooth_fn=distance_smooth_fn,
+            marker_threshold=marker_threshold,
+            marker_radius=marker_radius,
+            marker_postprocess_fn=marker_postprocess_fn,
+            watershed_connectivity=watershed_connectivity,
+            min_num_points=min_num_points,
+            contour_level=contour_level,
+        )
+        self.nuclear_prediction_key = nuclear_prediction_key
+        self.hover_map_key = hover_map_key
+        self.instance_info_key = instance_info_key
+        self.instance_map_key = instance_map_key
+
+    def __call__(self, data):
+        d = dict(data)
+
+        for k in [self.instance_info_key, self.instance_map_key]:
+            if k in d:
+                raise ValueError("The output key ['{k}'] already exists in the input dictionary!")
+
+        d[self.instance_info_key], d[self.instance_map_key] = self.instance_map_post_process(
+            d[self.nuclear_prediction_key], d[self.hover_map_key]
+        )
+
+        return d
+
+
 class HoVerNetTypeMapPostProcessingd(Transform):
     """
     Dictionary-based wrapper for :py:class:`monai.apps.pathology.transforms.post.array.HoVerNetTypeMapPostProcessing`.
@@ -527,4 +615,5 @@ GenerateSuccinctContourDict = GenerateSuccinctContourD = GenerateSuccinctContour
 GenerateInstanceContourDict = GenerateInstanceContourD = GenerateInstanceContourd
 GenerateInstanceCentroidDict = GenerateInstanceCentroidD = GenerateInstanceCentroidd
 GenerateInstanceTypeDict = GenerateInstanceTypeD = GenerateInstanceTyped
+HoVerNetInstanceMapPostProcessingDict = HoVerNetInstanceMapPostProcessingD = HoVerNetInstanceMapPostProcessingd
 HoVerNetTypeMapPostProcessingDict = HoVerNetTypeMapPostProcessingD = HoVerNetTypeMapPostProcessingd

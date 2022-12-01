@@ -19,6 +19,7 @@ from .post.array import (
     GenerateWatershedMarkers,
     GenerateWatershedMask,
     HoVerNetTypeMapPostProcessing,
+    HoVerNetInstanceMapPostProcessing,
     Watershed,
 )
 from .post.dictionary import (
@@ -49,6 +50,9 @@ from .post.dictionary import (
     HoVerNetTypeMapPostProcessingD,
     HoVerNetTypeMapPostProcessingd,
     HoVerNetTypeMapPostProcessingDict,
+    HoVerNetInstanceMapPostProcessingD,
+    HoVerNetInstanceMapPostProcessingd,
+    HoVerNetInstanceMapPostProcessingDict,
     WatershedD,
     Watershedd,
     WatershedDict,

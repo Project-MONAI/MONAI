@@ -33,8 +33,8 @@ TEST_CASE_3 = [{"marker_postprocess_fn": FillHoles()}, {"1": {"type": 1, "type_p
 TEST_CASE = []
 for p in TEST_NDARRAYS:
     TEST_CASE.append([p, image] + TEST_CASE_1)
-    # TEST_CASE.append([p, image] + TEST_CASE_2)
-    # TEST_CASE.append([p, image] + TEST_CASE_3)
+    TEST_CASE.append([p, image] + TEST_CASE_2)
+    TEST_CASE.append([p, image] + TEST_CASE_3)
 
 
 @unittest.skipUnless(has_scipy, "Requires scipy library.")
@@ -45,7 +45,7 @@ class TestHoVerNetTypeMapPostProcessing(unittest.TestCase):
         nuclear_prediction = in_type(test_data.astype(float))
         hover_map = in_type(ComputeHoVerMaps()(test_data.astype(int)))
 
-        inst_info, inst_map = HoVerNetInstanceMapPostProcessing()(nuclear_prediction, hover_map)
+        inst_info, inst_map = HoVerNetInstanceMapPostProcessing(**kwargs)(nuclear_prediction, hover_map)
 
         # instance info
         for key in inst_info:
