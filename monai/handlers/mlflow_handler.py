@@ -125,19 +125,6 @@ class MLFlowHandler:
         self.optimizer_param_names = ensure_tuple(optimizer_param_names)
         self.client = mlflow.MlflowClient()
 
-    def _try_log_param(self, engine: Engine, attr: str) -> None:
-        """
-        Log parameter to mlflow if it exists in given engine.
-
-        Args:
-            engine: A ignite engine.
-            attr: Attribute that needs to be logged by mlflow.
-        """
-        engine_attr = getattr(engine, attr, None)
-        if engine_attr:
-            attr_type_string = str(type(engine_attr))
-            mlflow.log_param(key=attr, value=attr_type_string)
-
     def _is_param_exists(self, param_name: str) -> bool:
         """
         Check whether a parameter has already been logged in current mlflow run.
