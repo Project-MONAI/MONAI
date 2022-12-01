@@ -15,8 +15,8 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.apps.pathology.transforms.post.dictionary import (
-    HoVerNetTypeMapPostProcessingd,
     HoVerNetInstanceMapPostProcessingd,
+    HoVerNetTypeMapPostProcessingd,
 )
 from monai.transforms import ComputeHoVerMaps
 from monai.utils import min_version, optional_import

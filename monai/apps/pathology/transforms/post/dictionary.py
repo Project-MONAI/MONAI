@@ -564,9 +564,7 @@ class HoVerNetTypeMapPostProcessingd(Transform):
     ) -> None:
         super().__init__()
         self.type_post_process = HoVerNetTypeMapPostProcessing(
-            activation=activation,
-            threshold=threshold,
-            return_type_map=return_type_map,
+            activation=activation, threshold=threshold, return_type_map=return_type_map
         )
         self.type_prediction_key = type_prediction_key
         self.instance_info_key = instance_info_key
