@@ -106,7 +106,7 @@ DEFAULT_MLFLOW_SETTINGS = {
     "configs": {
         "tracking_uri": "$@output_dir + '/mlruns'",
         "experiment_name": "default_experiment",
-        "run_name": "$None",
+        "run_name": "None",
         "not_rank0": (
             "$torch.distributed.get_rank() > 0 \
                 if (torch.distributed.is_available() and torch.distributed.is_initialized()) \
