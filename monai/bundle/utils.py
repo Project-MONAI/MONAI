@@ -108,10 +108,10 @@ DEFAULT_MLFLOW_SETTINGS = {
         "experiment_name": "default_experiment",
         "run_name": "$None",
         "not_rank0": (
-                "$torch.distributed.get_rank() > 0 \
+            "$torch.distributed.get_rank() > 0 \
                 if (torch.distributed.is_available() and torch.distributed.is_initialized()) \
                 else False"
-            ),
+        ),
         # MLFlowHandler config for the trainer
         "trainer": {
             "_target_": "MLFlowHandler",
