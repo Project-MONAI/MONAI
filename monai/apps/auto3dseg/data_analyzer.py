@@ -213,7 +213,7 @@ class DataAnalyzer:
             ]
             if self.label_key is not None:
 
-                allowed_shape_difference = self.extra_params.get("allowed_shape_difference", 5)
+                allowed_shape_difference = self.extra_params.pop("allowed_shape_difference", 5)
                 transform_list.append(
                     EnsureSameShaped(
                         keys=self.label_key,
