@@ -94,7 +94,7 @@ class TestGlobalMutualInformationLoss(unittest.TestCase):
         a1 = transformation()
         a1 = torch.tensor(a1).unsqueeze(0).unsqueeze(0).to(device)
 
-        for mode in transform_params_dict.keys():
+        for mode in transform_params_dict:
             transform_params_list = transform_params_dict[mode]
             expected_value_list = EXPECTED_VALUE[mode]
             for transform_params, expected_value in zip(transform_params_list, expected_value_list):

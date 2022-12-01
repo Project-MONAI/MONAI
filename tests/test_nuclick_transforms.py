@@ -16,11 +16,13 @@ from parameterized import parameterized
 
 from monai.apps.nuclick.transforms import (
     AddClickSignalsd,
+    AddLabelAsGuidanced,
     AddPointGuidanceSignald,
     ExtractPatchd,
     FilterImaged,
     FlattenLabeld,
     PostFilterLabeld,
+    SetLabelClassd,
     SplitLabeld,
 )
 
@@ -96,7 +98,7 @@ NUC_POINTS_1 = np.array(
     ],
     dtype=np.float32,
 )
-BB_1 = np.array([[1, 1, 3, 3], [0, 0, 2, 2]], dtype=np.uint8)
+BB_1 = np.array([[0, 0, 5, 5], [1, 1, 6, 6]], dtype=np.uint8)
 
 DATA_FILTER_1 = {"image": RGB_IMAGE_1}
 
@@ -152,10 +154,24 @@ SPLIT_TEST_CASE_1 = [{"keys": ["label"], "mask_value": "mask_value", "min_area":
 SPLIT_TEST_CASE_2 = [{"keys": ["label"], "mask_value": "mask_value", "min_area": 3}, DATA_SPLIT_2, SPLIT_RESULT_TC2]
 
 GUIDANCE_TEST_CASE_1 = [{"image": "image", "label": "label", "others": "others"}, DATA_GUIDANCE_1, [5, 5, 5]]
+GUIDANCE_TEST_CASE_2 = [
+    {"image": "image", "label": "label", "others": "others", "gaussian": True, "use_distance": True},
+    DATA_GUIDANCE_1,
+    [5, 5, 5],
+]
 
 CLICK_TEST_CASE_1 = [{"image": "image", "foreground": "foreground", "bb_size": 4}, DATA_CLICK_1, [2, 5, 4, 4]]
+CLICK_TEST_CASE_2 = [
+    {"image": "image", "foreground": "foreground", "bb_size": 4, "gaussian": True},
+    DATA_CLICK_1,
+    [2, 5, 4, 4],
+]
 
 LABEL_FILTER_TEST_CASE_1 = [{"keys": ["pred"]}, DATA_LABEL_FILTER_1, [6, 6]]
+
+LABEL_GUIDANCE_TEST_CASE_1 = [{"keys": ["image"], "source": "label"}, DATA_GUIDANCE_1, [4, 5, 5]]
+
+LABEL_CLASS_TEST_CASE_1 = [{"keys": ["label"], "offset": 2}, DATA_GUIDANCE_1, 3]
 
 # Test Case Classes
 
@@ -194,14 +210,14 @@ class TestSplitLabelsd(unittest.TestCase):
 
 
 class TestGuidanceSignal(unittest.TestCase):
-    @parameterized.expand([GUIDANCE_TEST_CASE_1])
+    @parameterized.expand([GUIDANCE_TEST_CASE_1, GUIDANCE_TEST_CASE_2])
     def test_correct_shape(self, arguments, input_data, expected_shape):
         result = AddPointGuidanceSignald(**arguments)(input_data)
         np.testing.assert_equal(result["image"].shape, expected_shape)
 
 
 class TestClickSignal(unittest.TestCase):
-    @parameterized.expand([CLICK_TEST_CASE_1])
+    @parameterized.expand([CLICK_TEST_CASE_1, CLICK_TEST_CASE_2])
     def test_correct_shape(self, arguments, input_data, expected_shape):
         result = AddClickSignalsd(**arguments)(input_data)
         np.testing.assert_equal(result["image"].shape, expected_shape)
@@ -212,6 +228,20 @@ class TestPostFilterLabel(unittest.TestCase):
     def test_correct_shape(self, arguments, input_data, expected_shape):
         result = PostFilterLabeld(**arguments)(input_data)
         np.testing.assert_equal(result["pred"].shape, expected_shape)
+
+
+class TestAddLabelAsGuidance(unittest.TestCase):
+    @parameterized.expand([LABEL_GUIDANCE_TEST_CASE_1])
+    def test_correct_shape(self, arguments, input_data, expected_shape):
+        result = AddLabelAsGuidanced(**arguments)(input_data)
+        np.testing.assert_equal(result["image"].shape, expected_shape)
+
+
+class TestSetLabelClass(unittest.TestCase):
+    @parameterized.expand([LABEL_CLASS_TEST_CASE_1])
+    def test_correct_results(self, arguments, input_data, expected_result):
+        result = SetLabelClassd(**arguments)(input_data)
+        assert result["label"] == expected_result
 
 
 if __name__ == "__main__":

@@ -107,7 +107,7 @@ def make_image(
 
     tiles = np.stack(tiles_list, axis=0)
 
-    if (filter_mode == "min" or filter_mode == "max") and len(tiles) > tile_count**2:
+    if filter_mode in ("min", "max") and len(tiles) > tile_count**2:
         tiles = tiles[np.argsort(tiles.sum(axis=(1, 2, 3)))]
 
     return imlarge, tiles
