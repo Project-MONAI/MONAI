@@ -105,12 +105,11 @@ DEFAULT_MLFLOW_SETTINGS = {
     "handlers_id": DEFAULT_HANDLERS_ID,
     "configs": {
         "tracking_uri": "$@output_dir + '/mlruns'",
-        "experiment_name": "default_experiment",
+        "experiment_name": "monai_experiment",
         "run_name": "None",
         "is_not_rank0": (
-            "$torch.distributed.get_rank() > 0 \
-                if (torch.distributed.is_available() and torch.distributed.is_initialized()) \
-                else False"
+            "$torch.distributed.is_available() \
+                and torch.distributed.is_initialized() and torch.distributed.get_rank() > 0"
         ),
         # MLFlowHandler config for the trainer
         "trainer": {
