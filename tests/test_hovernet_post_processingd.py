@@ -14,9 +14,10 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.apps.pathology.transforms.post.array import HoVerNetPostProcessing
+from monai.apps.pathology.transforms.post.dictionary import HoVerNetPostProcessingd
 from monai.transforms import ComputeHoVerMaps, FillHoles, GaussianSmooth
 from monai.utils import min_version, optional_import
+from monai.utils.enums import HoVerNetBranch
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 _, has_scipy = optional_import("scipy", "1.8.1", min_version)
@@ -26,9 +27,11 @@ y, x = np.ogrid[0:30, 0:30]
 image = (x - 10) ** 2 + (y - 10) ** 2 <= 5**2
 image = image[None, ...].astype("uint8")
 
+
 TEST_CASE_1 = [{}, [{"1": [10, 10]}, np.zeros_like(image), np.zeros_like(image)]]
 TEST_CASE_2 = [{"distance_smooth_fn": GaussianSmooth()}, [{"1": [10, 10]}, np.zeros_like(image), np.zeros_like(image)]]
 TEST_CASE_3 = [{"marker_post_process_fn": FillHoles()}, [{"1": [10, 10]}, np.zeros_like(image), np.zeros_like(image)]]
+
 
 TEST_CASE = []
 for p in TEST_NDARRAYS:
@@ -39,26 +42,29 @@ for p in TEST_NDARRAYS:
 
 @unittest.skipUnless(has_scipy, "Requires scipy library.")
 @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
-class TestHoVerNetPostProcessing(unittest.TestCase):
+class TestHoVerNetPostProcessingd(unittest.TestCase):
     @parameterized.expand(TEST_CASE)
     def test_value(self, in_type, test_data, kwargs, expected):
-        nuclear_prediction = in_type(test_data.astype(float))
-        hover_map = in_type(ComputeHoVerMaps()(test_data.astype(int)))
-        nuclear_type = in_type(test_data)
+        input = {
+            HoVerNetBranch.NP.value: in_type(test_data.astype(float)),
+            HoVerNetBranch.HV.value: in_type(ComputeHoVerMaps()(test_data.astype(int))),
+            HoVerNetBranch.NC.value: in_type(test_data),
+        }
 
-        pred_dict, inst_map, type_map = HoVerNetPostProcessing(**kwargs)(nuclear_prediction, hover_map, nuclear_type)
+        outputs = HoVerNetPostProcessingd(**kwargs)(input)
+
         # instance prediction info
-        for key in pred_dict:
-            assert_allclose(pred_dict[key]["centroid"], expected[0][key], type_test=False)
+        for key in outputs["instance_info"]:
+            assert_allclose(outputs["instance_info"][key]["centroid"], expected[0][key], type_test=False)
 
         # instance map
-        assert_allclose(inst_map, expected[1], type_test=False)
+        assert_allclose(outputs["instance_seg_map"], expected[1], type_test=False)
 
         # type map
         if expected[2] is None:
-            self.assertIsNone(type_map)
+            self.assertIsNone(outputs["type_seg_map"])
         else:
-            assert_allclose(type_map, expected[2], type_test=False)
+            assert_allclose(outputs["type_seg_map"], expected[2], type_test=False)
 
 
 if __name__ == "__main__":
