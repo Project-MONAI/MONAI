@@ -854,8 +854,6 @@ class CacheDataset(Dataset):
         """
         if self._is_dist:
             torch.distributed.barrier()
-            if torch.distributed.get_rank() == 0:
-                time.sleep(0.5)  # rank 0 should exit after all the other ranks, as the cache was broadcast from rank 0
         self._cache = list(self._cache)
 
     def _fill_cache(self, indices=None) -> List:
