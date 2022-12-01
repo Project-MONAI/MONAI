@@ -287,6 +287,64 @@ default_algos = {
 }
 
 
+def _download_algos_url(url: str, at_path: str):
+    """
+    Downloads the algorithm templates release archive, and extracts it into a parent directory of the at_path folder.
+    Returns a dictionary of the algorithm templates.
+    """
+    at_path = os.path.abspath(at_path)
+    zip_download_dir = TemporaryDirectory()
+    algo_compressed_file = os.path.join(zip_download_dir.name, "algo_templates.tar.gz")
+
+    download_attempts = 3
+    for i in range(download_attempts):
+        try:
+            download_and_extract(url=url, filepath=algo_compressed_file, output_dir=os.path.dirname(at_path))
+        except Exception as e:
+            msg = f"Download and extract of {url} failed, attempt {i+1}/{download_attempts}."
+            if i < download_attempts - 1:
+                warnings.warn(msg)
+                time.sleep(i)
+            else:
+                zip_download_dir.cleanup()
+                raise ValueError(msg) from e
+        else:
+            break
+
+    zip_download_dir.cleanup()
+
+    algos_all = deepcopy(default_algos)
+    for name in algos_all:
+        algos_all[name]["template_path"] = os.path.join(at_path, algos_all[name]["template_path"])
+
+    return algos_all
+
+
+def _copy_algos_folder(folder, at_path):
+    """
+    Copies the algorithm templates folder to at_path.
+    Returns a dictionary of of algorithm templates.
+    """
+    folder = os.path.abspath(folder)
+    at_path = os.path.abspath(at_path)
+
+    if folder != at_path:
+        if os.path.exists(at_path):
+            shutil.rmtree(at_path)
+        shutil.copytree(folder, at_path)
+
+    algos_all = {}
+    for name in os.listdir(at_path):
+        if os.path.exists(os.path.join(folder, name, "scripts", "algo.py")):
+            algos_all[name] = dict(
+                _target_=f"{name}.scripts.algo.{name.capitalize()}Algo", template_path=os.path.join(at_path, name)
+            )
+    if len(algos_all) == 0:
+        raise ValueError(f"Unable to find any algos in {folder}")
+
+    return algos_all
+
+
 class BundleGen(AlgoGen):
     """
     This class generates a set of bundles according to the cross-validation folds, each of them can run independently.
@@ -322,59 +380,19 @@ class BundleGen(AlgoGen):
             if templates_path_or_url is None:
                 templates_path_or_url = default_algo_zip
 
-            algo_path = os.path.abspath(algo_path)
-            at_path = os.path.join(algo_path, "algorithm_templates")
+            at_path = os.path.join(os.path.abspath(algo_path), "algorithm_templates")
 
             if os.path.isdir(templates_path_or_url):
-                # copy, if a local folder
-                templates_path_or_url = os.path.abspath(templates_path_or_url)
-                if templates_path_or_url != at_path:
-                    if os.path.exists(at_path):
-                        shutil.rmtree(at_path)
-                    shutil.copytree(templates_path_or_url, at_path)
-
-                algos_all = {}
-                for name in os.listdir(at_path):
-                    if os.path.exists(os.path.join(templates_path_or_url, name, "scripts", "algo.py")):
-                        algos_all[name] = dict(
-                            _target_=f"{name}.scripts.algo.{name.capitalize()}Algo",
-                            template_path=os.path.join(at_path, name),
-                        )
-                if len(algos_all) == 0:
-                    raise ValueError(f"Unable to find any algos in {templates_path_or_url}")
-
+                # if a local folder, copy if necessary
+                algos_all = _copy_algos_folder(folder=templates_path_or_url, at_path=at_path)
             elif urlparse(templates_path_or_url).scheme in ("http", "https"):
-                # trigger the download process if url
-                zip_download_dir = TemporaryDirectory()
-                algo_compressed_file = os.path.join(zip_download_dir.name, "algo_templates.tar.gz")
-
-                download_attempts = 3
-                for i in range(download_attempts):
-                    try:
-                        download_and_extract(templates_path_or_url, algo_compressed_file, algo_path)
-                    except Exception as e:
-                        msg = f"Download and extract of {templates_path_or_url} failed, attempt {i+1}/{download_attempts}."
-                        if i < download_attempts - 1:
-                            warnings.warn(msg)
-                            time.sleep(i)
-                        else:
-                            zip_download_dir.cleanup()
-                            raise ValueError(msg) from e
-                    else:
-                        break
-
-                zip_download_dir.cleanup()
-                algos_all = deepcopy(default_algos)
-                for name in algos_all:
-                    algos_all[name]["template_path"] = os.path.join(at_path, algos_all[name]["template_path"])
+                # if url, trigger the download and extract process
+                algos_all = _download_algos_url(url=templates_path_or_url, at_path=at_path)
             else:
                 raise (f"{self.__class__} received invalid template_path: {templates_path_or_url}")
 
             if algos is not None:
-                # filter only provided algo names
-                if isinstance(algos, str):
-                    algos = [algos]
-                algos = {k: v for k, v in algos_all.items() if k in algos}
+                algos = {k: v for k, v in algos_all.items() if k in ensure_tuple(algos)}  # keep only provided
                 if len(algos_all) == 0:
                     raise ValueError(f"Unable to find provided algos in {algos_all}")
             else:
