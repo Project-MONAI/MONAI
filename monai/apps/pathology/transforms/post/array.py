@@ -57,7 +57,7 @@ class Watershed(Transform):
     See: https://scikit-image.org/docs/stable/api/skimage.segmentation.html#skimage.segmentation.watershed.
 
     Args:
-        connectivity: An array with the same number of dimensions as image whose non-zero elements indicate
+        connectivity: an array with the same number of dimensions as image whose non-zero elements indicate
             neighbors for connection. Following the scipy convention, default is a one-connected array of
             the dimension of the image.
         dtype: target data content type to convert, default is np.uint8.
@@ -97,9 +97,9 @@ class GenerateWatershedMask(Transform):
     generate mask used in `watershed`. Only points at which mask == True will be labeled.
 
     Args:
-        activation: the activation layer to be applied on nuclear type branch. It can be "softmax" or "sigmoid" string,
-            or any callable. Defaults to "softmax".
-        threshold: if not None, threshold the float values to int number 0 or 1 with specified threshold.
+        activation: the activation layer to be applied on the input probability map.
+            It can be "softmax" or "sigmoid" string, or any callable. Defaults to "softmax".
+        threshold: a float value to threshold to binarize probability map.
         min_object_size: objects smaller than this size are removed. Defaults to 10.
         dtype: target data content type to convert, default is np.uint8.
 
@@ -139,7 +139,7 @@ class GenerateWatershedMask(Transform):
         self.as_discrete = AsDiscrete(threshold=threshold, argmax=use_softmax)
 
         # set small object removal transform
-        self.remove_small_objects = RemoveSmallObjects(min_size=min_object_size) if min_object_size > 0 else lambda x: x
+        self.remove_small_objects = RemoveSmallObjects(min_size=min_object_size) if min_object_size > 0 else None
 
     def __call__(self, prob_map: NdarrayOrTensor) -> NdarrayOrTensor:
         """
@@ -153,7 +153,8 @@ class GenerateWatershedMask(Transform):
         pred = convert_to_numpy(pred)
 
         pred = label(pred)[0]
-        pred = self.remove_small_objects(pred)
+        if self.remove_small_objects is not None:
+            pred = self.remove_small_objects(pred)
         pred[pred > 0] = 1  # type: ignore
 
         return convert_to_dst_type(pred, prob_map, dtype=self.dtype)[0]
@@ -241,11 +242,8 @@ class GenerateDistanceMap(Transform):
     backend = [TransformBackends.NUMPY]
 
     def __init__(self, smooth_fn: Optional[Callable] = None, dtype: DtypeLike = np.float32) -> None:
-        if smooth_fn is not None:
-            self.smooth_fn = smooth_fn
-        else:
-            self.smooth_fn = GaussianSmooth()
 
+        self.smooth_fn = smooth_fn if smooth_fn is not None else GaussianSmooth()
         self.dtype = dtype
 
     def __call__(self, mask: NdarrayOrTensor, instance_border: NdarrayOrTensor) -> NdarrayOrTensor:  # type: ignore
@@ -253,7 +251,7 @@ class GenerateDistanceMap(Transform):
         Args:
             mask: binary segmentation map, the output of :py:class:`GenerateWatershedMask`.
                 Shape must be [1, H, W].
-            instance_border: foreground probability map, the output of :py:class:`GenerateInstanceBorder`.
+            instance_border: instance border map, the output of :py:class:`GenerateInstanceBorder`.
                 Shape must be [1, H, W].
         """
         if mask.shape[0] != 1 or mask.ndim != 3:
@@ -262,7 +260,7 @@ class GenerateDistanceMap(Transform):
             raise ValueError(f"Input instance_border should be with size of [1, H, W], but got {instance_border.shape}")
 
         distance_map = (1.0 - instance_border) * mask
-        distance_map = self.smooth_fn(distance_map)
+        distance_map = self.smooth_fn(distance_map)  # type: ignore
 
         return convert_to_dst_type(-distance_map, mask, dtype=self.dtype)[0]
 
@@ -276,7 +274,7 @@ class GenerateWatershedMarkers(Transform):
     For more details refer to papers: https://arxiv.org/abs/1812.06499.
 
     Args:
-        threshold: a float value to threshold to binarize foreground probability map.
+        threshold: a float value to threshold to binarize instance border map.
             It turns uncertain area to 1 and other area to 0. Defaults to 0.4.
         radius: the radius of the disk-shaped footprint used in `opening`. Defaults to 2.
         min_object_size: objects smaller than this size are removed. Defaults to 10.
@@ -298,13 +296,12 @@ class GenerateWatershedMarkers(Transform):
     ) -> None:
         self.threshold = threshold
         self.radius = radius
-        self.postprocess_fn = postprocess_fn
         self.dtype = dtype
-        if postprocess_fn is not None:
-            self.postprocess_fn = postprocess_fn
-        else:
-            self.postprocess_fn = FillHoles()
-        self.remove_small_objects = RemoveSmallObjects(min_size=min_object_size) if min_object_size > 0 else lambda x: x
+        if postprocess_fn is None:
+            postprocess_fn = FillHoles()
+
+        self.postprocess_fn = postprocess_fn
+        self.remove_small_objects = RemoveSmallObjects(min_size=min_object_size) if min_object_size > 0 else None
 
     def __call__(self, mask: NdarrayOrTensor, instance_border: NdarrayOrTensor) -> NdarrayOrTensor:  # type: ignore
         """
@@ -321,22 +318,22 @@ class GenerateWatershedMarkers(Transform):
 
         instance_border = instance_border >= self.threshold  # uncertain area
 
-        marker = mask - convert_to_dst_type(instance_border, mask, np.uint8)[0]  # certain foreground
+        marker = mask - convert_to_dst_type(instance_border, mask)[0]  # certain foreground
         marker[marker < 0] = 0  # type: ignore
         marker = self.postprocess_fn(marker)
-
         marker = convert_to_numpy(marker)
 
         marker = opening(marker.squeeze(), disk(self.radius))
         marker = label(marker)[0]
-        marker = self.remove_small_objects(marker[None])
+        if self.remove_small_objects is not None:
+            marker = self.remove_small_objects(marker[None])
 
         return convert_to_dst_type(marker, mask, dtype=self.dtype)[0]
 
 
 class GenerateSuccinctContour(Transform):
     """
-    Converts Scipy-style contours(generated by skimage.measure.find_contours) to a more succinct version which only includes
+    Converts SciPy-style contours (generated by skimage.measure.find_contours) to a more succinct version which only includes
     the pixels to which lines need to be drawn (i.e. not the intervening pixels along each line).
 
     Args:
@@ -379,7 +376,7 @@ class GenerateSuccinctContour(Transform):
 
         return row, col
 
-    def _calculate_distance_from_topleft(self, sequence: Sequence[Tuple[int, int]]) -> int:
+    def _calculate_distance_from_top_left(self, sequence: Sequence[Tuple[int, int]]) -> int:
         """
         Each sequence of coordinates describes a boundary between foreground and background starting and ending at two sides
         of the bounding box. To order the sequences correctly, we compute the distance from the top-left of the bounding box
@@ -474,7 +471,7 @@ class GenerateSuccinctContour(Transform):
                             corners[corner] = True
 
                 prev = coord
-            dist = self._calculate_distance_from_topleft(sequence)
+            dist = self._calculate_distance_from_top_left(sequence)
 
             sequences.append({"distance": dist, "sequence": sequence})
 
@@ -519,38 +516,38 @@ class GenerateInstanceContour(Transform):
     Args:
         min_num_points: assumed that the created contour does not form a contour if it does not contain more points
             than the specified value. Defaults to 3.
-        level: optional. Value along which to find contours in the array. By default, the level is set
-            to (max(image) + min(image)) / 2.
+        contour_level: an optional value for `skimage.measure.find_contours` to find contours in the array.
+            If not provided, the level is set to `(max(image) + min(image)) / 2`.
 
     """
 
     backend = [TransformBackends.NUMPY]
 
-    def __init__(self, min_num_points: int = 3, level: Optional[float] = None) -> None:
-        self.level = level
+    def __init__(self, min_num_points: int = 3, contour_level: Optional[float] = None) -> None:
+        self.contour_level = contour_level
         self.min_num_points = min_num_points
 
-    def __call__(self, image: NdarrayOrTensor, offset: Optional[Sequence[int]] = (0, 0)) -> np.ndarray:
+    def __call__(self, inst_mask: NdarrayOrTensor, offset: Optional[Sequence[int]] = (0, 0)) -> np.ndarray:
         """
         Args:
-            image: instance-level segmentation result. Shape should be [C, H, W]
-            offset: optional, offset of starting position of the instance in the array, default is (0, 0).
+            inst_mask: segmentation mask for a single instance. Shape should be [1, H, W, [D]]
+            offset: optional offset of starting position of the instance mask in the original array. Default to 0 for each dim.
         """
-        image = image.squeeze()  # squeeze channel dim
-        image = convert_to_numpy(image)
-        inst_contour_cv = find_contours(image, level=self.level)
-        generate_contour = GenerateSuccinctContour(image.shape[0], image.shape[1])
+        inst_mask = inst_mask.squeeze()  # squeeze channel dim
+        inst_mask = convert_to_numpy(inst_mask)
+        inst_contour_cv = find_contours(inst_mask, level=self.contour_level)
+        generate_contour = GenerateSuccinctContour(inst_mask.shape[0], inst_mask.shape[1])
         inst_contour = generate_contour(inst_contour_cv)
 
-        # < `self.min_num_points` points don't make a contour, so skip, likely artifact too
-        # as the contours obtained via approximation => too small or sthg
+        # less than `self.min_num_points` points don't make a contour, so skip.
+        # They are likely to be artifacts as the contours obtained via approximation.
         if inst_contour.shape[0] < self.min_num_points:
             print(f"< {self.min_num_points} points don't make a contour, so skip")
-            return None  # type: ignore
+            return np.array([])
         # check for tricky shape
         elif len(inst_contour.shape) != 2:
             print(f"{len(inst_contour.shape)} != 2, check for tricky shape")
-            return None  # type: ignore
+            return np.array([])
         else:
             inst_contour[:, 0] += offset[0]  # type: ignore
             inst_contour[:, 1] += offset[1]  # type: ignore
@@ -571,23 +568,23 @@ class GenerateInstanceCentroid(Transform):
     def __init__(self, dtype: Optional[DtypeLike] = int) -> None:
         self.dtype = dtype
 
-    def __call__(self, image: NdarrayOrTensor, offset: Union[Sequence[int], int] = 0) -> np.ndarray:
+    def __call__(self, inst_mask: NdarrayOrTensor, offset: Union[Sequence[int], int] = 0) -> NdarrayOrTensor:
         """
         Args:
-            image: instance-level segmentation result. Shape should be [1, H, W, [D]]
-            offset: optional, offset of starting position of the instance in the array, default is 0 for each dim.
+            inst_mask: segmentation mask for a single instance. Shape should be [1, H, W, [D]]
+            offset: optional offset of starting position of the instance mask in the original array. Default to 0 for each dim.
 
         """
-        image = convert_to_numpy(image)
-        image = image.squeeze(0)  # squeeze channel dim
-        ndim = len(image.shape)
+        inst_mask = convert_to_numpy(inst_mask)
+        inst_mask = inst_mask.squeeze(0)  # squeeze channel dim
+        ndim = len(inst_mask.shape)
         offset = ensure_tuple_rep(offset, ndim)
 
-        inst_centroid = centroid(image)
+        inst_centroid = centroid(inst_mask)
         for i in range(ndim):
             inst_centroid[i] += offset[i]
 
-        return convert_to_dst_type(inst_centroid, image, dtype=self.dtype)[0]  # type: ignore
+        return convert_to_dst_type(inst_centroid, inst_mask, dtype=self.dtype)[0]
 
 
 class GenerateInstanceType(Transform):
@@ -635,11 +632,22 @@ class HoVerNetInstanceMapPostProcessing(Transform):
     for each instance.
 
     Args:
+        activation: the activation layer to be applied on the input probability map.
+            It can be "softmax" or "sigmoid" string, or any callable. Defaults to "softmax".
+        mask_threshold: a float value to threshold to binarize probability map to generate mask.
+        min_object_size: objects smaller than this size are removed. Defaults to 10.
+        sobel_kernel_size: the size of the Sobel kernel used in :py:class:`GenerateInstanceBorder`. Defaults to 5.
         distance_smooth_fn: smoothing function for distance map.
-            If not provided, :py:class:`monai.transforms.intensity.GaussianSmooth()` will be used..
+            If not provided, :py:class:`monai.transforms.intensity.GaussianSmooth()` will be used.
+        marker_threshold: a float value to threshold to binarize instance border map for markers.
+            It turns uncertain area to 1 and other area to 0. Defaults to 0.4.
+        marker_radius: the radius of the disk-shaped footprint used in `opening` of markers. Defaults to 2.
         marker_postprocess_fn: post-process function for watershed markers.
             If not provided, :py:class:`monai.transforms.post.FillHoles()` will be used.
-
+        watershed_connectivity: `connectivity` argument of `skimage.segmentation.watershed`.
+        min_num_points: minimum number of points to be considered as a contour. Defaults to 3.
+        contour_level: an optional value for `skimage.measure.find_contours` to find contours in the array.
+            If not provided, the level is set to `(max(image) + min(image)) / 2`.
     """
 
     def __init__(
@@ -652,6 +660,9 @@ class HoVerNetInstanceMapPostProcessing(Transform):
         marker_threshold: float = 0.4,
         marker_radius: int = 2,
         marker_postprocess_fn: Optional[Callable] = None,
+        watershed_connectivity: Optional[int] = 1,
+        min_num_points: int = 3,
+        contour_level: Optional[float] = None,
     ) -> None:
         super().__init__()
 
@@ -666,7 +677,11 @@ class HoVerNetInstanceMapPostProcessing(Transform):
             postprocess_fn=marker_postprocess_fn,
             min_object_size=min_object_size,
         )
-        self.watershed = Watershed()
+        self.watershed = Watershed(connectivity=watershed_connectivity)
+        self.generate_instance_contour = GenerateInstanceContour(
+            min_num_points=min_num_points, contour_level=contour_level
+        )
+        self.generate_instance_centroid = GenerateInstanceCentroid()
 
     def __call__(  # type: ignore
         self, nuclear_prediction: NdarrayOrTensor, hover_map: NdarrayOrTensor
@@ -715,9 +730,6 @@ class HoVerNetTypeMapPostProcessing(Transform):
     dictionary with information about type of the cells (type value and probability).
 
     Args:
-        min_num_points: minimum number of points to be considered as a contour. Defaults to 3.
-        level: optional value for `skimage.measure.find_contours`, to find contours in the array.
-            If not provided, the level is set to (max(image) + min(image)) / 2.
         activation: the activation layer to be applied on nuclear type branch. It can be "softmax" or "sigmoid" string,
             or any callable. Defaults to "softmax".
         return_type_map: whether to calculate and return segmentation map with associated type to each pixel.
@@ -726,8 +738,6 @@ class HoVerNetTypeMapPostProcessing(Transform):
 
     def __init__(
         self,
-        min_num_points: int = 3,
-        level: Optional[float] = None,
         activation: Union[str, Callable] = "softmax",
         threshold: Optional[float] = None,
         return_type_map: bool = True,
@@ -735,10 +745,7 @@ class HoVerNetTypeMapPostProcessing(Transform):
         super().__init__()
 
         self.return_type_map = return_type_map
-
-        # per instance transforms
-        self.generate_instance_contour = GenerateInstanceContour(min_num_points=min_num_points, level=level)
-        self.generate_instance_centroid = GenerateInstanceCentroid()
+        # instance type transforms
         self.generate_instance_type = GenerateInstanceType()
 
         # type prediction post-processing
@@ -757,11 +764,11 @@ class HoVerNetTypeMapPostProcessing(Transform):
         else:
             raise ValueError(f"The activation type should be either str or callable. '{type(activation)}' was given.")
         self.activation = Activations(softmax=use_softmax, sigmoid=use_sigmoid, other=activation_fn)
-        self.asdiscrete = AsDiscrete(threshold=threshold, argmax=use_softmax)
+        self.as_discrete = AsDiscrete(threshold=threshold, argmax=use_softmax)
 
     def __call__(  # type: ignore
-        self, instance_info, instance_seg_map, type_prediction
-    ) -> Tuple[Dict, NdarrayOrTensor]:
+        self, instance_info: Dict[int, Dict], instance_seg_map: NdarrayOrTensor, type_prediction: NdarrayOrTensor
+    ) -> Tuple[Dict, Optional[NdarrayOrTensor]]:
         """Process NC (type prediction) branch and combine it with instance segmentation
         It updates the instance_info with instance type and associated probability, and generate instance type map.
 
@@ -788,7 +795,7 @@ class HoVerNetTypeMapPostProcessing(Transform):
             instance_info[inst_id]["type"] = instance_type
 
             # update instance type map
-            if self.return_type_map:
+            if type_map is not None:
                 type_map[instance_seg_map == inst_id] = instance_type
 
         return instance_info, type_map

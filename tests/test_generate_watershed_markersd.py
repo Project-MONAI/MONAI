@@ -52,9 +52,10 @@ for p in TEST_NDARRAYS:
         ]
     )
 
+    TESTS.append([{}, p(np.random.rand(1, 5, 5)), p(np.random.rand(1, 5, 5)), (1, 5, 5)])
     TESTS.append(
         [
-            {},
+            {"threshold": 0.4, "radius": 1, "min_object_size": 0},
             p(np.random.rand(1, 5, 5)),
             p(np.random.rand(1, 5, 5)),
             (1, 5, 5),

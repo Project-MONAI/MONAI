@@ -41,14 +41,7 @@ for p in TEST_NDARRAYS:
         ]
     )
 
-    TESTS.append(
-        [
-            {},
-            p(np.random.rand(1, 5, 5)),
-            p(np.random.rand(1, 5, 5)),
-            (1, 5, 5),
-        ]
-    )
+    TESTS.append([{}, p(np.random.rand(1, 5, 5)), p(np.random.rand(1, 5, 5)), (1, 5, 5)])
     TESTS.append(
         [
             {"mask_key": "mask", "border_key": "border", "smooth_fn": GaussianSmooth(sigma=0.4)},
