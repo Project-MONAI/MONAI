@@ -107,7 +107,7 @@ DEFAULT_MLFLOW_SETTINGS = {
         "tracking_uri": "$@output_dir + '/mlruns'",
         "experiment_name": "default_experiment",
         "run_name": "None",
-        "not_rank0": (
+        "is_not_rank0": (
             "$torch.distributed.get_rank() > 0 \
                 if (torch.distributed.is_available() and torch.distributed.is_initialized()) \
                 else False"
@@ -115,7 +115,7 @@ DEFAULT_MLFLOW_SETTINGS = {
         # MLFlowHandler config for the trainer
         "trainer": {
             "_target_": "MLFlowHandler",
-            "_disabled_": "@not_rank0",
+            "_disabled_": "@is_not_rank0",
             "tracking_uri": "@tracking_uri",
             "experiment_name": "@experiment_name",
             "run_name": "@run_name",
@@ -127,7 +127,7 @@ DEFAULT_MLFLOW_SETTINGS = {
         # MLFlowHandler config for the validator
         "validator": {
             "_target_": "MLFlowHandler",
-            "_disabled_": "@not_rank0",
+            "_disabled_": "@is_not_rank0",
             "tracking_uri": "@tracking_uri",
             "experiment_name": "@experiment_name",
             "run_name": "@run_name",
@@ -136,7 +136,7 @@ DEFAULT_MLFLOW_SETTINGS = {
         # MLFlowHandler config for the evaluator
         "evaluator": {
             "_target_": "MLFlowHandler",
-            "_disabled_": "@not_rank0",
+            "_disabled_": "@is_not_rank0",
             "tracking_uri": "@tracking_uri",
             "experiment_name": "@experiment_name",
             "run_name": "@run_name",
