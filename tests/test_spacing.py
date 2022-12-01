@@ -20,7 +20,7 @@ from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import affine_to_spacing
 from monai.transforms import Spacing
 from monai.utils import fall_back_tuple
-from tests.utils import TEST_DEVICES, TEST_NDARRAYS_ALL, assert_allclose
+from tests.utils import TEST_DEVICES, TEST_NDARRAYS_ALL, assert_allclose, skip_if_quick
 
 TESTS = []
 for device in TEST_DEVICES:
@@ -261,6 +261,7 @@ for d in TEST_DEVICES:
                 TEST_INVERSE.append([*d, recompute, align, scale_extent])
 
 
+@skip_if_quick
 class TestSpacingCase(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_spacing(self, init_param, img, affine, data_param, expected_output, device):
