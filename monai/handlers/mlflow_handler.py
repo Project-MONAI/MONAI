@@ -12,7 +12,7 @@
 import os
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Union
 
 import torch
 
@@ -291,8 +291,7 @@ class MLFlowHandler:
         if not isinstance(loss, dict):
             loss = {self.tag_name: loss.item() if isinstance(loss, torch.Tensor) else loss}
 
-        if isinstance(engine, Trainer):
-            mlflow.log_metrics(loss, step=engine.state.iteration)
+        mlflow.log_metrics(loss, step=engine.state.iteration)
 
         # If there is optimizer attr in engine, then record parameters specified in init function.
         if hasattr(engine, "optimizer"):
