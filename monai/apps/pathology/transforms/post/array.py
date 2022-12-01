@@ -166,7 +166,7 @@ class GenerateInstanceBorder(Transform):
 
     Args:
         kernel_size: the size of the Sobel kernel. Defaults to 5.
-        dtype: target data content type to convert, default is np.float32.
+        dtype: target data type to convert to. Defaults to np.float32.
 
 
     Raises:
@@ -184,7 +184,7 @@ class GenerateInstanceBorder(Transform):
     def __call__(self, mask: NdarrayOrTensor, hover_map: NdarrayOrTensor) -> NdarrayOrTensor:  # type: ignore
         """
         Args:
-            mask: binary segmentation map.  Shape must be [1, H, W].
+            mask: binary segmentation map, the output of :py:class:`GenerateWatershedMask`.  Shape must be [1, H, W].
             hover_map:  horizontal and vertical distances of nuclear pixels to their centres of mass. Shape must be [2, H, W].
                 The first and second channel represent the horizontal and vertical maps respectively. For more details refer
                 to papers: https://arxiv.org/abs/1812.06499.
@@ -237,26 +237,30 @@ class GenerateDistanceMap(Transform):
     Generate distance map.
     In general, the instance map is calculated from the distance to the background.
     Here, we use 1 - "instance border map" to generate the distance map.
-    Nuclei values form mountains so inverse to get basins.
+    Nuclei values form mountains so inverse them to get basins.
 
     Args:
-        smooth_fn: execute smooth function on distance map. Defaults to None. You can specify
-            callable functions for smoothing.
-            For example, if you want apply gaussian smooth, you can specify `smooth_fn = GaussianSmooth()`
-        dtype: target data content type to convert, default is np.float32.
+        smooth_fn: smoothing function for distance map, which can be any callable object.
+            If not provided :py:class:`monai.transforms.GaussianSmooth()` is used.
+        dtype: target data type to convert to. Defaults to np.float32.
     """
 
     backend = [TransformBackends.NUMPY]
 
     def __init__(self, smooth_fn: Optional[Callable] = None, dtype: DtypeLike = np.float32) -> None:
-        self.smooth_fn = smooth_fn
+        if smooth_fn is not None:
+            self.smooth_fn = smooth_fn
+        else:
+            self.smooth_fn = GaussianSmooth()
+
         self.dtype = dtype
 
     def __call__(self, mask: NdarrayOrTensor, instance_border: NdarrayOrTensor) -> NdarrayOrTensor:  # type: ignore
         """
         Args:
-            mask: binarized segmentation result. Shape must be [1, H, W].
-            instance_border: foreground probability map. Shape must be [1, H, W].
+            mask: binary segmentation map, the output of :py:class:`GenerateWatershedMask`. Shape must be [1, H, W].
+            instance_border: foreground probability map, the output of :py:class:`GenerateInstanceBorder`.
+                Shape must be [1, H, W].
         """
         if mask.shape[0] != 1 or mask.ndim != 3:
             raise ValueError(f"Input mask should be with size of [1, H, W], but got {mask.shape}")
@@ -264,9 +268,7 @@ class GenerateDistanceMap(Transform):
             raise ValueError(f"Input instance_border should be with size of [1, H, W], but got {instance_border.shape}")
 
         distance_map = (1.0 - instance_border) * mask
-
-        if callable(self.smooth_fn):
-            distance_map = self.smooth_fn(distance_map)
+        distance_map = self.smooth_fn(distance_map)
 
         return convert_to_dst_type(-distance_map, mask, dtype=self.dtype)[0]
 
@@ -656,11 +658,6 @@ class HoVerNetInstanceMapPostProcessing(Transform):
     ) -> None:
         super().__init__()
 
-        if distance_smooth_fn is not None:
-            self.distance_smooth_fn = distance_smooth_fn
-        else:
-            self.distance_smooth_fn = GaussianSmooth()
-
         if marker_postprocess_fn is not None:
             self.marker_postprocess_fn = marker_postprocess_fn
         else:
@@ -670,7 +667,7 @@ class HoVerNetInstanceMapPostProcessing(Transform):
             activation=activation, threshold=threshold, min_object_size=min_object_size
         )
         self.generate_instance_border = GenerateInstanceBorder(kernel_size=kernel_size)
-        self.generate_distance_map = GenerateDistanceMap(smooth_fn=self.distance_smooth_fn)
+        self.generate_distance_map = GenerateDistanceMap(smooth_fn=distance_smooth_fn)
         self.generate_watershed_markers = GenerateWatershedMarkers(
             threshold=0.7, radius=2, postprocess_fn=self.marker_postprocess_fn
         )
