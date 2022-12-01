@@ -351,20 +351,20 @@ class BundleGen(AlgoGen):
                 for i in range(download_attempts):
                     try:
                         download_and_extract(templates_path_or_url, algo_compressed_file, algo_path)
-                    except Exception:
+                    except Exception as e:
                         msg = f"Download and extract of {templates_path_or_url} failed, attempt {i+1}/{download_attempts}."
                         if i < download_attempts - 1:
                             warnings.warn(msg)
                         else:
                             zip_download_dir.cleanup()
-                            raise ValueError(msg)
+                            raise ValueError(msg) from e
                     else:
                         break
 
                 zip_download_dir.cleanup()
                 algos_all = deepcopy(default_algos)
-                for name in algos:
-                    algos_all[name]["template_path"] = os.path.join(at_path, algos[name]["template_path"])
+                for name in algos_all:
+                    algos_all[name]["template_path"] = os.path.join(at_path, algos_all[name]["template_path"])
             else:
                 raise (f"{self.__class__} received invalid template_path: {templates_path_or_url}")
 
