@@ -825,11 +825,12 @@ class CacheDataset(Dataset):
 
         def _compute_cache(indices=None):
             if self.runtime_cache:
-                cache = Manager().list([None for _ in range(self.cache_num)])
                 if self._is_dist:
                     # ensure each process has the same authkey, otherwise broadcast_object_list fails
                     mp.current_process().authkey = np.arange(32, dtype=np.uint8).tobytes()
 
+                cache = Manager().list([None for _ in range(self.cache_num)])
+                if self._is_dist:
                     obj_list = [cache]
                     # broadcast the ProxyList to all the ranks, then share the same cache content at runtime
                     dist.broadcast_object_list(obj_list, src=0)
