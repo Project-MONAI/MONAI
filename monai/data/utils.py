@@ -257,7 +257,8 @@ def iter_patch(
 
     Args:
         arr: array to iterate over
-        patch_size: size of patches to generate slices for, 0 or None selects whole dimension
+        patch_size: size of patches to generate slices for, 0 or None selects whole dimension.
+            For 0 or None, padding and overlap ratio of the corresponding dimension will be 0.
         start_pos: starting position in the array, default is 0 for each dimension
         overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
             If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
@@ -285,31 +286,34 @@ def iter_patch(
 
     # set padded flag to false if pad mode is None
     padded = bool(mode)
+    is_v = [bool(p) for p in ensure_tuple_size(patch_size, arr.ndim)]  # whether a valid patch size provided
+    _pad_size = tuple(p if v and padded else 0 for p, v in zip(patch_size_, is_v))  # pad p if v else 0
+    _overlap = [op if v else 0.0 for op, v in zip(ensure_tuple_rep(overlap, arr.ndim), is_v)]  # overlap if v else 0.0
     # pad image by maximum values needed to ensure patches are taken from inside an image
     if padded:
-        arrpad = np.pad(arr, tuple((p, p) for p in patch_size_), look_up_option(mode, NumpyPadMode).value, **pad_opts)
+        arrpad = np.pad(arr, tuple((p, p) for p in _pad_size), look_up_option(mode, NumpyPadMode).value, **pad_opts)
         # choose a start position in the padded image
-        start_pos_padded = tuple(s + p for s, p in zip(start_pos, patch_size_))
+        start_pos_padded = tuple(s + p for s, p in zip(start_pos, _pad_size))
 
         # choose a size to iterate over which is smaller than the actual padded image to prevent producing
         # patches which are only in the padded regions
-        iter_size = tuple(s + p for s, p in zip(arr.shape, patch_size_))
+        iter_size = tuple(s + p for s, p in zip(arr.shape, _pad_size))
     else:
         arrpad = arr
         start_pos_padded = start_pos
         iter_size = arr.shape
 
-    for slices in iter_patch_slices(iter_size, patch_size_, start_pos_padded, overlap, padded=padded):
+    for slices in iter_patch_slices(iter_size, patch_size_, start_pos_padded, _overlap, padded=padded):
         # compensate original image padding
         if padded:
-            coords_no_pad = tuple((coord.start - p, coord.stop - p) for coord, p in zip(slices, patch_size_))
+            coords_no_pad = tuple((coord.start - p, coord.stop - p) for coord, p in zip(slices, _pad_size))
         else:
             coords_no_pad = tuple((coord.start, coord.stop) for coord in slices)
         yield arrpad[slices], np.asarray(coords_no_pad)  # data and coords (in numpy; works with torch loader)
 
     # copy back data from the padded image if required
     if copy_back:
-        slices = tuple(slice(p, p + s) for p, s in zip(patch_size_, arr.shape))
+        slices = tuple(slice(p, p + s) for p, s in zip(_pad_size, arr.shape))
         arr[...] = arrpad[slices]
 
 
