@@ -71,8 +71,8 @@ class DataAnalyzer:
         fmt: format used to save the analysis results. Defaults to "yaml".
         histogram_only: whether to only compute histograms. Defaults to False.
         extra_params: other optional arguments. Currently supported arguments are :
-            'allowed_shape_difference' (default 5) can be used to change the default tolerance of 
-            the allowed shape differences between the image and label items. In case of shape mismatch below 
+            'allowed_shape_difference' (default 5) can be used to change the default tolerance of
+            the allowed shape differences between the image and label items. In case of shape mismatch below
             the tolerance, the label image will be resized to match the image using nearest interpolation.
 
 
