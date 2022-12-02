@@ -64,11 +64,11 @@ class AutoRunner:
         work_dir: working directory to save the intermediate and final results.
         input: the configuration dictionary or the file path to the configuration in form of YAML.
             The configuration should contain datalist, dataroot, modality, multigpu, and class_names info.
-        algos: optionally specify a list of algorithms to use.  If dictionary, it outlines the algorithm to use.
-            Must be in the form   {"algname": dict(_target_="algname.scripts.algo.AlgnameAlgo", template_path="algname"), ...}
+        algos: optionally specify algorithms to use.  If a dictionary, must be in the form   
+            {"algname": dict(_target_="algname.scripts.algo.AlgnameAlgo", template_path="algname"), ...}
             If a list or a string, defines a subset of names of the algorithms to use, e.g. 'segresnet' or
             ['segresnet', 'dints'] out of the full set of algorithm templates provided by templates_path_or_url.
-            Defaults to None - to use all available algorithms.
+            Defaults to None, to use all available algorithms.
         analyze: on/off switch to run DataAnalyzer and generate a datastats report. Defaults to None, to automatically
             decide based on cache, and run data analysis only if we have not completed this step yet.
         algo_gen: on/off switch to run AlgoGen and generate templated BundleAlgos. Defaults to None, to automatically
@@ -84,7 +84,7 @@ class AutoRunner:
         not_use_cache: if the value is True, it will ignore all cached results in data analysis,
             algorithm generation, or training, and start the pipeline from scratch.
         templates_path_or_url: the folder with the algorithm templates or a url. If None provided, the default template
-            zip url will be downloaded.
+            zip url will be downloaded and extracted into the work_dir.
         kwargs: image writing parameters for the ensemble inference. The kwargs format follows the SaveImage
             transform. For more information, check https://docs.monai.io/en/stable/transforms.html#saveimage.
 
@@ -130,7 +130,7 @@ class AutoRunner:
             input = "path_to_yaml_data_cfg"
             algos = "segresnet"
             templates_path_or_url = "./local_path_to/algorithm_templates"
-            runner = AutoRunner(work_dir=work_dir, input=input, algos=algos, templates_path_or_url = templates_path_or_url)
+            runner = AutoRunner(work_dir=work_dir, input=input, algos=algos, templates_path_or_url=templates_path_or_url)
             runner.run()
 
         - User can specify training parameters by:
