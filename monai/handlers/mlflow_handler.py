@@ -165,7 +165,7 @@ class MLFlowHandler:
         if mlflow.active_run() is None:
             run_name = (
                 f"run_{time.strftime('%Y%m%d_%H%M%S')}"
-                if (self.run_name is None or self.run_name == "None")
+                if (self.run_name is None)
                 else self.run_name
             )
             mlflow.start_run(run_name=run_name)
