@@ -84,7 +84,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
     # create a training data loader
     if cachedataset == 2:
         train_ds = monai.data.CacheDataset(
-            data=train_files, transform=train_transforms, cache_rate=0.8, runtime_cache=True
+            data=train_files, transform=train_transforms, cache_rate=0.8, runtime_cache="process"
         )
     elif cachedataset == 3:
         train_ds = monai.data.LMDBDataset(data=train_files, transform=train_transforms, cache_dir=root_dir)

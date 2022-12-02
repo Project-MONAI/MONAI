@@ -750,7 +750,7 @@ class CacheDataset(Dataset):
         as_contiguous: bool = True,
         hash_as_key: bool = False,
         hash_func: Callable[..., bytes] = pickle_hashing,
-        runtime_cache: Union[bool, str, Sequence] = False,
+        runtime_cache: Union[bool, str, List, ListProxy] = False,
     ) -> None:
         """
         Args:
@@ -845,7 +845,7 @@ class CacheDataset(Dataset):
         if self.runtime_cache in (True, "thread"):
             self._cache = [None for _ in range(self.cache_num)]
             return
-        self._cache = self.runtime_cache  # user-provided cache container
+        self._cache = self.runtime_cache  # type: ignore
         return
 
     def _fill_cache(self, indices=None) -> List:
