@@ -81,7 +81,7 @@ class MLFlowHandler:
             like torch version, cuda version and so on.
         artifacts: paths to images that need to be recorded after a whole run.
         optimizer_param_names: parameters' name in optimizer that need to be record during runing,
-            defaults to `["lr"]`.
+            defaults to "lr".
 
     For more details of MLFlow usage, please refer to: https://mlflow.org/docs/latest/index.html.
 
