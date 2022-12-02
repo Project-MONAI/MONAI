@@ -781,16 +781,16 @@ class CacheDataset(Dataset):
                 time required between the constructor called and first mini-batch generated.
                 Three options are provided to compute the cache on the fly after the dataset initialization:
 
-                1. ``"thread"`` or ``True``: use a regular ``list`` to store the cache items.
-                2. ``"process"``: use a ListProxy to store the cache items, it can be shared among processes.
+                1. ``"threads"`` or ``True``: use a regular ``list`` to store the cache items.
+                2. ``"processes"``: use a ListProxy to store the cache items, it can be shared among processes.
                 3. A list-like object: a users-provided container to be used to store the cache items.
 
-                For `thread-based` cache (typically for caching cuda tensors), option 1 is recommended.
-                For single process workflow with multiprocess data loading, option 2 is recommended.
-                For multiprocess workflow (typically for distributed training),
+                For `thread-based` caching (typically for caching cuda tensors), option 1 is recommended.
+                For single process workflows with multiprocessing data loading, option 2 is recommended.
+                For multiprocessing workflows (typically for distributed training),
                 where this class is initialized in subprocesses, option 3 is recommended,
                 and the list-like object should be prepared in the main process and passed to all subprocesses.
-                Not following these recommendations may lead to runtime error or duplicated cache across processes.
+                Not following these recommendations may lead to runtime errors or duplicated cache across processes.
 
         """
         if not isinstance(transform, Compose):
@@ -839,11 +839,12 @@ class CacheDataset(Dataset):
         if self.runtime_cache in (False, None):  # prepare cache content immediately
             self._cache = self._fill_cache(indices)
             return
-        if self.runtime_cache == "process":  # this must be done in the main process, not in the dataloader's workers
-            self._cache = Manager().list([None for _ in range(self.cache_num)])
+        if isinstance(self.runtime_cache, str) and "process" in self.runtime_cache:
+            # this must be in the main process, not in dataloader's workers
+            self._cache = Manager().list([None] * self.cache_num)
             return
-        if self.runtime_cache in (True, "thread"):
-            self._cache = [None for _ in range(self.cache_num)]
+        if (self.runtime_cache is True) or (isinstance(self.runtime_cache, str) and "thread" in self.runtime_cache):
+            self._cache = [None] * self.cache_num
             return
         self._cache = self.runtime_cache  # type: ignore
         return
