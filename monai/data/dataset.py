@@ -26,7 +26,6 @@ from typing import IO, TYPE_CHECKING, Any, Callable, Dict, List, Optional, Seque
 
 import numpy as np
 import torch
-import torch.distributed as dist
 from torch.multiprocessing import Manager
 from torch.serialization import DEFAULT_PROTOCOL
 from torch.utils.data import Dataset as _TorchDataset
@@ -751,7 +750,7 @@ class CacheDataset(Dataset):
         as_contiguous: bool = True,
         hash_as_key: bool = False,
         hash_func: Callable[..., bytes] = pickle_hashing,
-        runtime_cache: bool = False,
+        runtime_cache: Union[bool, str, Sequence] = False,
     ) -> None:
         """
         Args:
@@ -777,18 +776,21 @@ class CacheDataset(Dataset):
                 the dataset has duplicated items or augmented dataset.
             hash_func: if `hash_as_key`, a callable to compute hash from data items to be cached.
                 defaults to `monai.data.utils.pickle_hashing`.
-            runtime_cache: whether to compute cache at the runtime, default to `False` to prepare
-                the cache content at initialization, if `True`, it will cache during the first epoch
-                of model training, so it can start the first mini-batch earlier. please note that:
-                1. when using this option in multi-gpu distributed training,
-                `torch.cuda.set_device()` must be called before initializing this class.
-                2. if caching data that is in GPU memory during multi-gpu distributed training, this option
-                should not be used, since the underlying shared cache only works for CPU shared memory.
-                3. to execute `runtime cache` on GPU memory, must co-work with
-                `monai.data.DataLoader`, and can't work with `monai.data.DistributedSampler`
-                as GPU Tensor usually can't be shared in the multiprocessing context.
-                (try ``cache_dataset.disable_share_memory_cache()`` in case of GPU caching issues.)
+            runtime_cache: mode of cache at the runtime. Default to `False` to prepare
+                the cache content for the entire ``data`` during initialization, this potentially largely increase the
+                time required between the constructor called and first mini-batch generated.
+                Three options are provided to compute the cache on the fly after the dataset initialization:
 
+                1. ``"thread"`` or ``True``: use a regular ``list`` to store the cache items.
+                2. ``"process"``: use a ListProxy to store the cache items, it can be shared among processes.
+                3. A list-like object: a users-provided container to be used to store the cache items.
+
+                For `thread-based` cache (typically for caching cuda tensors), option 1 is recommended.
+                For single process workflow with multiprocess data loading, option 2 is recommended.
+                For multiprocess workflow (typically for distributed training),
+                where this class is initialized in subprocesses, option 3 is recommended,
+                and the list-like object should be prepared in the main process and passed to all subprocesses.
+                Not following these recommendations may lead to runtime error or duplicated cache across processes.
 
         """
         if not isinstance(transform, Compose):
@@ -808,10 +810,9 @@ class CacheDataset(Dataset):
         self.cache_num = 0
         self._cache: Union[List, ListProxy] = []
         self._hash_keys: List = []
-        self._is_dist = dist.is_available() and dist.is_initialized()
         self.set_data(data)
 
-    def set_data(self, data: Sequence):
+    def set_data(self, data: Sequence) -> None:
         """
         Set the input data and run deterministic transforms to generate cache content.
 
@@ -825,21 +826,9 @@ class CacheDataset(Dataset):
         def _compute_cache_num(data_len: int):
             self.cache_num = min(int(self.set_num), int(data_len * self.set_rate), data_len)
 
-        def _compute_cache(indices=None):
-            if self.runtime_cache:
-                cache = Manager().list([None for _ in range(self.cache_num)])
-                if self._is_dist:
-                    obj_list = [cache]
-                    # broadcast the ListProxy to all the ranks, then share the same cache content at runtime
-                    dist.broadcast_object_list(obj_list, src=0)
-                    cache = obj_list[0]
-            else:
-                cache = self._fill_cache(indices)
-            return cache
-
         if self.hash_as_key:
             # only compute cache for the unique items of dataset, and record the last index for duplicated items
-            mapping = {self.hash_func(v): i for i, v in enumerate(data)}
+            mapping = {self.hash_func(v): i for i, v in enumerate(self.data)}
             _compute_cache_num(len(mapping))
             self._hash_keys = list(mapping)[: self.cache_num]
             indices = list(mapping.values())[: self.cache_num]
@@ -847,22 +836,17 @@ class CacheDataset(Dataset):
             _compute_cache_num(len(self.data))
             indices = list(range(self.cache_num))
 
-        self._cache = _compute_cache(indices)
-
-    def disable_share_memory_cache(self):
-        """
-        If the cache content is a multiprocessing shared memory ListProxy, convert it to a regular python list.
-        Because multiprocessing ListProxy is not supported for the GPU caching,  explicitly disable it.
-
-        """
-        if self.runtime_cache:
-            if not self._is_dist:
-                self._cache = list(self._cache)
-            else:
-                warnings.warn(
-                    "Unable to disable shared cache in DDP, when runtime_cache==True."
-                    "Please use runtime_cache=False option to explicitly not use the shared cache."
-                )
+        if self.runtime_cache in (False, None):  # prepare cache content immediately
+            self._cache = self._fill_cache(indices)
+            return
+        if self.runtime_cache == "process":  # this must be done in the main process, not in the dataloader's workers
+            self._cache = Manager().list([None for _ in range(self.cache_num)])
+            return
+        if self.runtime_cache in (True, "thread"):
+            self._cache = [None for _ in range(self.cache_num)]
+            return
+        self._cache = self.runtime_cache  # user-provided cache container
+        return
 
     def _fill_cache(self, indices=None) -> List:
         """
