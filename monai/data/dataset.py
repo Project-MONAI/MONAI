@@ -845,7 +845,7 @@ class CacheDataset(Dataset):
             self._cache = [None] * self.cache_num
         else:
             self._cache = self.runtime_cache  # type: ignore
-            if len(self._cache) == 0:
+            if isinstance(self._cache, (list, ListProxy)) and len(self._cache) == 0:
                 self._cache[:] = [None] * self.cache_num
 
     def _fill_cache(self, indices=None) -> List:
