@@ -87,7 +87,8 @@ class MLFlowHandler:
 
     """
 
-    default_attr_name = ["max_epochs", "epoch_length"]
+    # parameters that are logged at the start of training
+    default_tracking_params = ["max_epochs", "epoch_length"]
 
     def __init__(
         self,
@@ -169,7 +170,7 @@ class MLFlowHandler:
         if self.experiment_param:
             mlflow.log_params(self.experiment_param)
 
-        attrs = {attr: getattr(engine.state, attr, None) for attr in self.default_attr_name}
+        attrs = {attr: getattr(engine.state, attr, None) for attr in self.default_tracking_params}
         self._delete_exist_param_in_dict(attrs)
         mlflow.log_params(attrs)
 
