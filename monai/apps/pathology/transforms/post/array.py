@@ -200,7 +200,9 @@ class GenerateInstanceBorder(Transform):
         if len(mask.shape) == 3:
             if mask.shape[0] != 1:
                 raise ValueError(f"The mask should have only one channel, but got {mask.shape[0]}.")
-        elif len(mask.shape) != 2:
+        elif len(mask.shape) == 2:
+            mask = mask[None]
+        else:
             raise ValueError(f"The mask should have the shape of [1, H, W] or [H, W], but got {mask.shape}.")
         if hover_map.shape[0] != 2:
             raise ValueError(f"Suppose the hover map only has two channels, but got {hover_map.shape[0]}")
@@ -236,7 +238,7 @@ class GenerateDistanceMap(Transform):
     Generate distance map.
     In general, the instance map is calculated from the distance to the background.
     Here, we use 1 - "instance border map" to generate the distance map.
-    Nuclei values form mountains so inverse them to get basins.
+    Nuclei values form mountains so invert them to get basins.
 
     Args:
         smooth_fn: smoothing function for distance map, which can be any callable object.
@@ -255,12 +257,17 @@ class GenerateDistanceMap(Transform):
         """
         Args:
             mask: binary segmentation map, the output of :py:class:`GenerateWatershedMask`.
-                Shape must be [1, H, W].
+                Shape must be [1, H, W] or [H, W].
             instance_border: instance border map, the output of :py:class:`GenerateInstanceBorder`.
                 Shape must be [1, H, W].
         """
-        if mask.shape[0] != 1 or mask.ndim != 3:
-            raise ValueError(f"Input mask should be with size of [1, H, W], but got {mask.shape}")
+        if len(mask.shape) == 3:
+            if mask.shape[0] != 1:
+                raise ValueError(f"The mask should have only one channel, but got {mask.shape[0]}.")
+        elif len(mask.shape) == 2:
+            mask = mask[None]
+        else:
+            raise ValueError(f"The mask should have the shape of [1, H, W] or [H, W], but got {mask.shape}.")
         if instance_border.shape[0] != 1 or instance_border.ndim != 3:
             raise ValueError(f"Input instance_border should be with size of [1, H, W], but got {instance_border.shape}")
 
@@ -312,12 +319,17 @@ class GenerateWatershedMarkers(Transform):
         """
         Args:
             mask: binary segmentation map, the output of :py:class:`GenerateWatershedMask`.
-                Shape must be [1, H, W].
+                Shape must be [1, H, W] or [H, W].
             instance_border: instance border map, the output of :py:class:`GenerateInstanceBorder`.
                 Shape must be [1, H, W].
         """
-        if mask.shape[0] != 1 or mask.ndim != 3:
-            raise ValueError(f"Input mask should be with size of [1, H, W], but got {mask.shape}")
+        if len(mask.shape) == 3:
+            if mask.shape[0] != 1:
+                raise ValueError(f"The mask should have only one channel, but got {mask.shape[0]}.")
+        elif len(mask.shape) == 2:
+            mask = mask[None]
+        else:
+            raise ValueError(f"The mask should have the shape of [1, H, W] or [H, W], but got {mask.shape}.")
         if instance_border.shape[0] != 1 or instance_border.ndim != 3:
             raise ValueError(f"Input instance_border should be with size of [1, H, W], but got {instance_border.shape}")
 
