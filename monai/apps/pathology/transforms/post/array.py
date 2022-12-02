@@ -190,17 +190,18 @@ class GenerateInstanceBorder(Transform):
         """
         Args:
             mask: binary segmentation map, the output of :py:class:`GenerateWatershedMask`.
-                Shape must be [1, H, W].
+                Shape must be [1, H, W] or [H, W].
             hover_map:  horizontal and vertical distances of nuclear pixels to their centres of mass. Shape must be [2, H, W].
                 The first and second channel represent the horizontal and vertical maps respectively. For more details refer
                 to papers: https://arxiv.org/abs/1812.06499.
         """
-        if len(mask.shape) != 3 or len(hover_map.shape) != 3:
-            raise ValueError(
-                f"Suppose the mask and hover map should be with shape of [C, H, W], but got {mask.shape}, {hover_map.shape}"
-            )
-        if mask.shape[0] != 1:
-            raise ValueError(f"Suppose the mask only has one channel, but got {mask.shape[0]}")
+        if len(hover_map.shape) != 3:
+            raise ValueError(f"The hover map should have the shape of [C, H, W], but got {hover_map.shape}.")
+        if len(mask.shape) == 3:
+            if mask.shape[0] != 1:
+                raise ValueError(f"The mask should have only one channel, but got {mask.shape[0]}.")
+        elif len(mask.shape) != 2:
+            raise ValueError(f"The mask should have the shape of [1, H, W] or [H, W], but got {mask.shape}.")
         if hover_map.shape[0] != 2:
             raise ValueError(f"Suppose the hover map only has two channels, but got {hover_map.shape[0]}")
 
