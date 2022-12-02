@@ -47,7 +47,8 @@ __all__ = [
     "GenerateInstanceContour",
     "GenerateInstanceCentroid",
     "GenerateInstanceType",
-    "HoVerNetTypeMapPostProcessing",
+    "HoVerNetInstanceMapPostProcessing",
+    "HoVerNetNuclearTypePostProcessing",
 ]
 
 
@@ -101,7 +102,7 @@ class GenerateWatershedMask(Transform):
             It can be "softmax" or "sigmoid" string, or any callable. Defaults to "softmax".
         threshold: an optional float value to threshold to binarize probability map.
             If not provided, defaults to 0.5 when activation is not "softmax", otherwise None.
-        min_object_size: objects smaller than this size are removed. Defaults to 10.
+        min_object_size: objects smaller than this size (in pixel) are removed. Defaults to 10.
         dtype: target data content type to convert, default is np.uint8.
 
     """
@@ -127,7 +128,9 @@ class GenerateWatershedMask(Transform):
             elif activation.lower() == "sigmoid":
                 use_sigmoid = True
             else:
-                raise ValueError(f"The activation should be either 'softmax' or 'sigmoid'. '{activation}' was given.")
+                raise ValueError(
+                    f"The activation should be 'softmax' or 'sigmoid' string, or any callable. '{activation}' was given."
+                )
         elif callable(activation):
             activation_fn = activation
         else:
@@ -278,7 +281,7 @@ class GenerateWatershedMarkers(Transform):
         threshold: a float value to threshold to binarize instance border map.
             It turns uncertain area to 1 and other area to 0. Defaults to 0.4.
         radius: the radius of the disk-shaped footprint used in `opening`. Defaults to 2.
-        min_object_size: objects smaller than this size are removed. Defaults to 10.
+        min_object_size: objects smaller than this size (in pixel) are removed. Defaults to 10.
         postprocess_fn: additional post-process function on the markers.
             If not provided, :py:class:`monai.transforms.post.FillHoles()` will be used.
         dtype: target data type to convert to. Defaults to np.uint8.
@@ -528,7 +531,7 @@ class GenerateInstanceContour(Transform):
         self.contour_level = contour_level
         self.min_num_points = min_num_points
 
-    def __call__(self, inst_mask: NdarrayOrTensor, offset: Optional[Sequence[int]] = (0, 0)) -> np.ndarray:
+    def __call__(self, inst_mask: NdarrayOrTensor, offset: Optional[Sequence[int]] = (0, 0)) -> Optional[np.ndarray]:
         """
         Args:
             inst_mask: segmentation mask for a single instance. Shape should be [1, H, W, [D]]
@@ -543,12 +546,12 @@ class GenerateInstanceContour(Transform):
         # less than `self.min_num_points` points don't make a contour, so skip.
         # They are likely to be artifacts as the contours obtained via approximation.
         if inst_contour.shape[0] < self.min_num_points:
-            print(f"< {self.min_num_points} points don't make a contour, so skip")
-            return np.array([])
+            print(f"< {self.min_num_points} points don't make a contour, so skipped!")
+            return None
         # check for tricky shape
         elif len(inst_contour.shape) != 2:
-            print(f"{len(inst_contour.shape)} != 2, check for tricky shape")
-            return np.array([])
+            print(f"{len(inst_contour.shape)} != 2, check for tricky shapes!")
+            return None
         else:
             inst_contour[:, 0] += offset[0]  # type: ignore
             inst_contour[:, 1] += offset[1]  # type: ignore
@@ -636,7 +639,7 @@ class HoVerNetInstanceMapPostProcessing(Transform):
         activation: the activation layer to be applied on the input probability map.
             It can be "softmax" or "sigmoid" string, or any callable. Defaults to "softmax".
         mask_threshold: a float value to threshold to binarize probability map to generate mask.
-        min_object_size: objects smaller than this size are removed. Defaults to 10.
+        min_object_size: objects smaller than this size (in pixel) are removed. Defaults to 10.
         sobel_kernel_size: the size of the Sobel kernel used in :py:class:`GenerateInstanceBorder`. Defaults to 5.
         distance_smooth_fn: smoothing function for distance map.
             If not provided, :py:class:`monai.transforms.intensity.GaussianSmooth()` will be used.
@@ -724,18 +727,18 @@ class HoVerNetInstanceMapPostProcessing(Transform):
         return instance_info, instance_map
 
 
-class HoVerNetTypeMapPostProcessing(Transform):
+class HoVerNetNuclearTypePostProcessing(Transform):
     """
-    The post-processing transform for HoVerNet model to generate a segmentation map with types.
-    It generate a segmentation map with associated type to each pixel. It also updates the input instance info
-    dictionary with information about type of the cells (type value and probability).
+    The post-processing transform for HoVerNet model to generate nuclear type information.
+    It updates the input instance info dictionary with information about types of the nuclei (value and probability).
+    Also if requested (`return_type_map=True`), it generates a pixel-level type map.
 
     Args:
         activation: the activation layer to be applied on nuclear type branch. It can be "softmax" or "sigmoid" string,
             or any callable. Defaults to "softmax".
         threshold: an optional float value to threshold to binarize probability map.
             If not provided, defaults to 0.5 when activation is not "softmax", otherwise None.
-        return_type_map: whether to calculate and return segmentation map with associated type to each pixel.
+        return_type_map: whether to calculate and return pixel-level type map.
 
     """
 
@@ -759,7 +762,9 @@ class HoVerNetTypeMapPostProcessing(Transform):
             elif activation.lower() == "sigmoid":
                 use_sigmoid = True
             else:
-                raise ValueError(f"The activation should be either 'softmax' or 'sigmoid'. '{activation}' was given.")
+                raise ValueError(
+                    f"The activation should be 'softmax' or 'sigmoid' string, or any callable. '{activation}' was given."
+                )
         elif callable(activation):
             activation_fn = activation
         else:

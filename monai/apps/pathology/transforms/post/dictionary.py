@@ -23,7 +23,7 @@ from monai.apps.pathology.transforms.post.array import (
     GenerateWatershedMarkers,
     GenerateWatershedMask,
     HoVerNetInstanceMapPostProcessing,
-    HoVerNetTypeMapPostProcessing,
+    HoVerNetNuclearTypePostProcessing,
     Watershed,
 )
 from monai.config.type_definitions import DtypeLike, KeysCollection, NdarrayOrTensor
@@ -62,9 +62,12 @@ __all__ = [
     "GenerateInstanceTypeDict",
     "GenerateInstanceTypeD",
     "GenerateInstanceTyped",
-    "HoVerNetTypeMapPostProcessingDict",
-    "HoVerNetTypeMapPostProcessingD",
-    "HoVerNetTypeMapPostProcessingd",
+    "HoVerNetInstanceMapPostProcessingDict",
+    "HoVerNetInstanceMapPostProcessingD",
+    "HoVerNetInstanceMapPostProcessingd",
+    "HoVerNetNuclearTypePostProcessingDict",
+    "HoVerNetNuclearTypePostProcessingD",
+    "HoVerNetNuclearTypePostProcessingd",
 ]
 
 
@@ -536,11 +539,11 @@ class HoVerNetInstanceMapPostProcessingd(Transform):
         return d
 
 
-class HoVerNetTypeMapPostProcessingd(Transform):
+class HoVerNetNuclearTypePostProcessingd(Transform):
     """
-    Dictionary-based wrapper for :py:class:`monai.apps.pathology.transforms.post.array.HoVerNetTypeMapPostProcessing`.
-    It generate a dictionary containing centroid, bounding box, type prediction for each instance. Also if requested,
-    it returns binary maps for instance segmentation and predicted types.
+    Dictionary-based wrapper for :py:class:`monai.apps.pathology.transforms.post.array.HoVerNetNuclearTypePostProcessing`.
+    It updates the input instance info dictionary with information about types of the nuclei (value and probability).
+    Also if requested (`return_type_map=True`), it generates a pixel-level type map.
 
     Args:
         type_prediction_key: the key for HoVerNet NC (type prediction) branch. Defaults to `HoVerNetBranch.NC`.
@@ -563,7 +566,7 @@ class HoVerNetTypeMapPostProcessingd(Transform):
         return_type_map: bool = True,
     ) -> None:
         super().__init__()
-        self.type_post_process = HoVerNetTypeMapPostProcessing(
+        self.type_post_process = HoVerNetNuclearTypePostProcessing(
             activation=activation, threshold=threshold, return_type_map=return_type_map
         )
         self.type_prediction_key = type_prediction_key
@@ -596,4 +599,4 @@ GenerateInstanceContourDict = GenerateInstanceContourD = GenerateInstanceContour
 GenerateInstanceCentroidDict = GenerateInstanceCentroidD = GenerateInstanceCentroidd
 GenerateInstanceTypeDict = GenerateInstanceTypeD = GenerateInstanceTyped
 HoVerNetInstanceMapPostProcessingDict = HoVerNetInstanceMapPostProcessingD = HoVerNetInstanceMapPostProcessingd
-HoVerNetTypeMapPostProcessingDict = HoVerNetTypeMapPostProcessingD = HoVerNetTypeMapPostProcessingd
+HoVerNetNuclearTypePostProcessingDict = HoVerNetNuclearTypePostProcessingD = HoVerNetNuclearTypePostProcessingd

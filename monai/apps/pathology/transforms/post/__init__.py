@@ -19,7 +19,7 @@ from .array import (
     GenerateWatershedMarkers,
     GenerateWatershedMask,
     HoVerNetInstanceMapPostProcessing,
-    HoVerNetTypeMapPostProcessing,
+    HoVerNetNuclearTypePostProcessing,
     Watershed,
 )
 from .dictionary import (
@@ -50,9 +50,9 @@ from .dictionary import (
     HoVerNetInstanceMapPostProcessingD,
     HoVerNetInstanceMapPostProcessingd,
     HoVerNetInstanceMapPostProcessingDict,
-    HoVerNetTypeMapPostProcessingD,
-    HoVerNetTypeMapPostProcessingd,
-    HoVerNetTypeMapPostProcessingDict,
+    HoVerNetNuclearTypePostProcessingD,
+    HoVerNetNuclearTypePostProcessingd,
+    HoVerNetNuclearTypePostProcessingDict,
     WatershedD,
     Watershedd,
     WatershedDict,

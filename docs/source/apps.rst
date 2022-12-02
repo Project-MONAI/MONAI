@@ -153,7 +153,7 @@ Applications
     :members:
 .. autoclass:: GenerateWatershedMarkers
     :members:
-.. autoclass:: HoVerNetTypeMapPostProcessing
+.. autoclass:: HoVerNetNuclearTypePostProcessing
     :members:
 .. autoclass:: HoVerNetInstanceMapPostProcessing
     :members:
@@ -179,7 +179,7 @@ Applications
     :members:
 .. autoclass:: HoVerNetInstanceMapPostProcessingd
     :members:
-.. autoclass:: HoVerNetTypeMapPostProcessingd
+.. autoclass:: HoVerNetNuclearTypePostProcessingd
     :members:
 
 `Detection`

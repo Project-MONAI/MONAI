@@ -16,7 +16,7 @@ from parameterized import parameterized
 
 from monai.apps.pathology.transforms.post.dictionary import (
     HoVerNetInstanceMapPostProcessingd,
-    HoVerNetTypeMapPostProcessingd,
+    HoVerNetNuclearTypePostProcessingd,
 )
 from monai.transforms import ComputeHoVerMaps
 from monai.utils import min_version, optional_import
@@ -41,7 +41,7 @@ for p in TEST_NDARRAYS:
 
 @unittest.skipUnless(has_scipy, "Requires scipy library.")
 @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
-class TestHoVerNetTypeMapPostProcessingd(unittest.TestCase):
+class TestHoVerNetNuclearTypePostProcessingd(unittest.TestCase):
     @parameterized.expand(TEST_CASE)
     def test_value(self, in_type, test_data, kwargs, expected):
         input = {
@@ -51,7 +51,7 @@ class TestHoVerNetTypeMapPostProcessingd(unittest.TestCase):
         }
 
         outputs = HoVerNetInstanceMapPostProcessingd()(input)
-        outputs = HoVerNetTypeMapPostProcessingd(**kwargs)(outputs)
+        outputs = HoVerNetNuclearTypePostProcessingd(**kwargs)(outputs)
 
         # instance prediction info
         for key in outputs["instance_info"]:
