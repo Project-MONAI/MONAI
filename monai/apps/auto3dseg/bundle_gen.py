@@ -300,7 +300,7 @@ def _download_algos_url(url: str, at_path: str):
     for i in range(download_attempts):
         try:
             download_and_extract(url=url, filepath=algo_compressed_file, output_dir=os.path.dirname(at_path))
-        except Exception as e:
+        except BaseException as e:
             msg = f"Download and extract of {url} failed, attempt {i+1}/{download_attempts}."
             if i < download_attempts - 1:
                 warnings.warn(msg)
