@@ -1006,6 +1006,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
             may set `copy=False` for better performance.
         as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
             it may help improve the performance of following logic.
+        runtime_cache: Default to `False`, other options are not implemented yet.
 
     """
 
@@ -1023,7 +1024,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         seed: int = 0,
         copy_cache: bool = True,
         as_contiguous: bool = True,
-        runtime_cache: bool = False,
+        runtime_cache=False,
     ) -> None:
         if shuffle:
             self.set_random_state(seed=seed)
@@ -1034,8 +1035,20 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         self._round: int = 1
         self._replace_done: bool = False
         self._replace_mgr: Optional[threading.Thread] = None
+        if runtime_cache is not False:
+            raise NotImplementedError("Options other than `runtime_cache=False` is not implemented yet.")
 
-        super().__init__(data, transform, cache_num, cache_rate, num_init_workers, progress, copy_cache, as_contiguous)
+        super().__init__(
+            data=data,
+            transform=transform,
+            cache_num=cache_num,
+            cache_rate=cache_rate,
+            num_workers=num_init_workers,
+            progress=progress,
+            copy_cache=copy_cache,
+            as_contiguous=as_contiguous,
+            runtime_cache=False,
+        )
         if self._cache is None:
             self._cache = self._fill_cache()
         if self.cache_num >= len(data):
