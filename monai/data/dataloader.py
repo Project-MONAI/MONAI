@@ -83,7 +83,7 @@ class DataLoader(_TorchDataLoader):
             # disable unnecessary multiprocessing caching
             from monai.data.dataset import CacheDataset  # avoid circular import
 
-            if isinstance(dataset, CacheDataset) and dataset.runtime_cache:
+            if isinstance(dataset, CacheDataset):
                 dataset.disable_share_memory_cache()
 
             _g.manual_seed(init_seed)
