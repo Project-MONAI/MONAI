@@ -838,16 +838,15 @@ class CacheDataset(Dataset):
 
         if self.runtime_cache in (False, None):  # prepare cache content immediately
             self._cache = self._fill_cache(indices)
-            return
-        if isinstance(self.runtime_cache, str) and "process" in self.runtime_cache:
+        elif isinstance(self.runtime_cache, str) and "process" in self.runtime_cache:
             # this must be in the main process, not in dataloader's workers
             self._cache = Manager().list([None] * self.cache_num)
-            return
-        if (self.runtime_cache is True) or (isinstance(self.runtime_cache, str) and "thread" in self.runtime_cache):
+        elif (self.runtime_cache is True) or (isinstance(self.runtime_cache, str) and "thread" in self.runtime_cache):
             self._cache = [None] * self.cache_num
-            return
-        self._cache = self.runtime_cache  # type: ignore
-        return
+        else:
+            self._cache = self.runtime_cache  # type: ignore
+            if len(self._cache) == 0:
+                self._cache[:] = [None] * self.cache_num
 
     def _fill_cache(self, indices=None) -> List:
         """
