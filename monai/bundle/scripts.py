@@ -547,17 +547,36 @@ def run(
                     },
                     "configs": {
                         "tracking_uri": "<path>",
+                        "experiment_name": "monai_experiment",
+                        "run_name": None,
+                        "is_not_rank0": (
+                            "$torch.distributed.is_available() \
+                                and torch.distributed.is_initialized() and torch.distributed.get_rank() > 0"
+                        ),
                         "trainer": {
                             "_target_": "MLFlowHandler",
+                            "_disabled_": "@is_not_rank0",
                             "tracking_uri": "@tracking_uri",
+                            "experiment_name": "@experiment_name",
+                            "run_name": "@run_name",
                             "iteration_log": True,
                             "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
                         },
                         "validator": {
-                            "_target_": "MLFlowHandler", "tracking_uri": "@tracking_uri", "iteration_log": False,
+                            "_target_": "MLFlowHandler",
+                            "_disabled_": "@is_not_rank0",
+                            "tracking_uri": "@tracking_uri",
+                            "experiment_name": "@experiment_name",
+                            "run_name": "@run_name",
+                            "iteration_log": False,
                         },
                         "evaluator": {
-                            "_target_": "MLFlowHandler", "tracking_uri": "@tracking_uri", "iteration_log": False,
+                            "_target_": "MLFlowHandler",
+                            "_disabled_": "@is_not_rank0",
+                            "tracking_uri": "@tracking_uri",
+                            "experiment_name": "@experiment_name",
+                            "run_name": "@run_name",
+                            "iteration_log": False,
                         },
                     },
                 },
