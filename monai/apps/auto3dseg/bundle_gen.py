@@ -393,7 +393,7 @@ class BundleGen(AlgoGen):
 
             if algos is not None:
                 algos = {k: v for k, v in algos_all.items() if k in ensure_tuple(algos)}  # keep only provided
-                if len(algos_all) == 0:
+                if len(algos) == 0:
                     raise ValueError(f"Unable to find provided algos in {algos_all}")
             else:
                 algos = algos_all
