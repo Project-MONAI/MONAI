@@ -300,7 +300,7 @@ def _download_algos_url(url: str, at_path: str):
     for i in range(download_attempts):
         try:
             download_and_extract(url=url, filepath=algo_compressed_file, output_dir=os.path.dirname(at_path))
-        except BaseException as e:
+        except Exception as e:
             msg = f"Download and extract of {url} failed, attempt {i+1}/{download_attempts}."
             if i < download_attempts - 1:
                 warnings.warn(msg)
@@ -389,7 +389,7 @@ class BundleGen(AlgoGen):
                 # if url, trigger the download and extract process
                 algos_all = _download_algos_url(url=templates_path_or_url, at_path=at_path)
             else:
-                raise (f"{self.__class__} received invalid template_path: {templates_path_or_url}")
+                raise ValueError(f"{self.__class__} received invalid templates_path_or_url: {templates_path_or_url}")
 
             if algos is not None:
                 algos = {k: v for k, v in algos_all.items() if k in ensure_tuple(algos)}  # keep only provided
