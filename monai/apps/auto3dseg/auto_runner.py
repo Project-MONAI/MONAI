@@ -64,7 +64,7 @@ class AutoRunner:
         work_dir: working directory to save the intermediate and final results.
         input: the configuration dictionary or the file path to the configuration in form of YAML.
             The configuration should contain datalist, dataroot, modality, multigpu, and class_names info.
-        algos: optionally specify algorithms to use.  If a dictionary, must be in the form   
+        algos: optionally specify algorithms to use.  If a dictionary, must be in the form
             {"algname": dict(_target_="algname.scripts.algo.AlgnameAlgo", template_path="algname"), ...}
             If a list or a string, defines a subset of names of the algorithms to use, e.g. 'segresnet' or
             ['segresnet', 'dints'] out of the full set of algorithm templates provided by templates_path_or_url.
