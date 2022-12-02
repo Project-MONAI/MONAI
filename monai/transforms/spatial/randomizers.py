@@ -73,6 +73,24 @@ class RotateRandomizer(Randomizer):
             raise ValueError("data should be a tensor with 2 or 3 spatial dimensions but it "
                              f"has {spatial_shape} spatial dimensions")
 
+class DiscreteRandomizer(Randomizer):
+    def __init__(
+            self,
+            min_value,
+            max_value,
+            prob: float = 1.0,
+            seed=None,
+            state=None
+    ):
+        super().__init__(prob, state, seed)
+        self.min_value = min_value
+        self.max_value = max_value
+
+    def sample(
+            self
+    ):
+        return self.R.randint(self.max_value, self.max_value + 1)
+
 
 class Elastic3DRandomizer(Randomizer):
 

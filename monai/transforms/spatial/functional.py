@@ -107,7 +107,15 @@ def identity(
     lazy_evaluation: Optional[bool] = True
 ):
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
-    input_shape = img_.shape if shape_override is None else shape_override
+
+    # if shape_override is set, it always wins
+    input_shape = shape_override
+
+    if input_shape is None:
+        if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
+            input_shape = img.peek_pending_shape()
+        else:
+            input_shape = img_.shape
 
     mode_ = None if mode is None else look_up_option(mode, GridSampleMode)
     padding_mode_ = None if padding_mode is None else look_up_option(padding_mode, GridSamplePadMode)
@@ -166,7 +174,15 @@ def spacing(
 
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
 
-    input_shape = img_.shape if shape_override is None else shape_override
+    # if shape_override is set, it always wins
+    input_shape = shape_override
+
+    if input_shape is None:
+        if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
+            input_shape = img.peek_pending_shape()
+        else:
+            input_shape = img_.shape
+
     input_ndim = len(input_shape) - 1
 
     pixdim_ = ensure_tuple_rep(pixdim, input_ndim)
@@ -206,7 +222,15 @@ def flip(
         lazy_evaluation: Optional[bool] = True
 ):
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
-    input_shape = img_.shape if shape_override is None else shape_override
+
+    # if shape_override is set, it always wins
+    input_shape = shape_override
+
+    if input_shape is None:
+        if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
+            input_shape = img.peek_pending_shape()
+        else:
+            input_shape = img_.shape
 
     spatial_axis_ = spatial_axis
     if spatial_axis_ is None:
@@ -262,7 +286,16 @@ def resize(
     """
 
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
-    input_shape = img_.shape if shape_override is None else shape_override
+
+    # if shape_override is set, it always wins
+    input_shape = shape_override
+
+    if input_shape is None:
+        if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
+            input_shape = img.peek_pending_shape()
+        else:
+            input_shape = img_.shape
+
     input_ndim = len(input_shape) - 1
 
     if size_mode == "all":
@@ -344,7 +377,16 @@ def rotate(
     mode_ = look_up_option(mode, GridSampleMode)
     padding_mode_ = look_up_option(padding_mode, GridSamplePadMode)
     dtype_ = get_equivalent_dtype(dtype or img.dtype, torch.Tensor)
-    input_shape = img_.shape if shape_override is None else shape_override
+
+    # if shape_override is set, it always wins
+    input_shape = shape_override
+
+    if input_shape is None:
+        if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
+            input_shape = img.peek_pending_shape()
+        else:
+            input_shape = img_.shape
+
     input_ndim = len(input_shape) - 1
     if input_ndim not in (2, 3):
         raise ValueError(f"Unsupported image dimension: {input_ndim}, available options are [2, 3].")
@@ -399,7 +441,16 @@ def zoom(
     """
 
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
-    input_shape = img_.shape if shape_override is None else shape_override
+
+    # if shape_override is set, it always wins
+    input_shape = shape_override
+
+    if input_shape is None:
+        if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
+            input_shape = img.peek_pending_shape()
+        else:
+            input_shape = img_.shape
+
     input_ndim = len(input_shape) - 1
 
     zoom_factors = ensure_tuple_rep(factor, input_ndim)
@@ -459,7 +510,15 @@ def rotate90(
         raise ValueError("'spatial_axes' must be a tuple of two integers indicating")
 
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
-    input_shape = img_.shape if shape_override is None else shape_override
+
+    # if shape_override is set, it always wins
+    input_shape = shape_override
+
+    if input_shape is None:
+        if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
+            input_shape = img.peek_pending_shape()
+        else:
+            input_shape = img_.shape
 
     transform = MatrixFactory.from_tensor(img_).rotate_90(k, )
 
@@ -525,7 +584,15 @@ def elastic_3d(
         lazy_evaluation: Optional[bool] = True
 ):
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
-    input_shape = img_.shape if shape_override is None else shape_override
+
+    # if shape_override is set, it always wins
+    input_shape = shape_override
+
+    if input_shape is None:
+        if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
+            input_shape = img.peek_pending_shape()
+        else:
+            input_shape = img_.shape
 
     sp_size = fall_back_tuple(spatial_size, img.shape[1:])
     device_ = img.device if isinstance(img, torch.Tensor) else device
@@ -559,7 +626,16 @@ def translate(
         lazy_evaluation: Optional[bool] = True
 ):
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
-    input_shape = img_.shape if shape_override is None else shape_override
+
+    # if shape_override is set, it always wins
+    input_shape = shape_override
+
+    if input_shape is None:
+        if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
+            input_shape = img.peek_pending_shape()
+        else:
+            input_shape = img_.shape
+
     dtype_ = img_.dtype if dtype is None else dtype
     input_ndim = len(input_shape) - 1
     if len(translation) != input_ndim:

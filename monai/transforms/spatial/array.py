@@ -37,7 +37,7 @@ from monai.transforms.spatial.functional import (
     zoom, elastic_3d, identity
 )
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.spatial.randomizers import RotateRandomizer
+from monai.transforms.spatial.randomizers import RotateRandomizer, DiscreteRandomizer
 from monai.transforms.transform import (
     LazyTrait,
     LazyTransform,
@@ -558,13 +558,9 @@ class Spacing(LazyTransform, InvertibleTransform):
         align_corners_ = align_corners or self.align_corners
         dtype_ = dtype or self.dtype
 
-        shape_override = None
-        if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
-            shape_override = img.peek_pending_shape()
-
         img_t = spacing(img, self.pixdim, self.src_pixdim, self.diagonal,
                         mode_, padding_mode_, align_corners_, dtype_,
-                        shape_override, self.lazy_evaluation)
+                        None, self.lazy_evaluation)
 
         return img_t
 
@@ -732,11 +728,8 @@ class Flip(LazyTransform, InvertibleTransform):
             shape_override: Optional[Sequence] = None
     ):
         spatial_axis_ = self.spatial_axis = spatial_axis
-        shape_override = None
-        if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
-            shape_override = img.peek_pending_shape()
 
-        img_t = flip(img, spatial_axis_, shape_override, self.lazy_evaluation)
+        img_t = flip(img, spatial_axis_, None, self.lazy_evaluation)
         return img_t
 
     def inverse(self, data):
@@ -832,13 +825,9 @@ class Resize(LazyTransform, InvertibleTransform):
         anti_aliasing_ = anti_aliasing or self.anti_aliasing
         anti_aliasing_sigma_ = anti_aliasing_sigma or self.anti_aliasing_sigma
 
-        shape_override = None
-        if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
-            shape_override = img.peek_pending_shape
-
         img_t = resize(img, self.spatial_size, self.size_mode, mode_,
                        align_corners_, anti_aliasing_, anti_aliasing_sigma_,
-                       self.dtype, shape_override, self.lazy_evaluation)
+                       self.dtype, None, self.lazy_evaluation)
 
         return img_t
 
@@ -925,12 +914,8 @@ class Rotate(InvertibleTransform, LazyTransform):
         keep_size = self.keep_size
         dtype_ = self.dtype
 
-        shape_override = None
-        if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
-            shape_override = img.peek_pending_shape()
-
         img_t = rotate(img, angle_, keep_size, mode_, padding_mode_,
-                       align_corners_, dtype_, shape_override, self.lazy_evaluation)
+                       align_corners_, dtype_, None, self.lazy_evaluation)
 
         return img_t
 
@@ -1028,12 +1013,8 @@ class Zoom(LazyTransform, InvertibleTransform):
         keep_size = self.keep_size
         dtype = self.dtype
 
-        shape_override = None
-        if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
-            shape_override = img.peek_pending_shape()
-
         img_t = zoom(img, factor, mode, padding_mode, align_corners,
-                     keep_size, dtype, shape_override, self.lazy_evaluation)
+                     keep_size, dtype, None, self.lazy_evaluation)
 
         return img_t
 
@@ -1079,11 +1060,7 @@ class Rotate90(InvertibleTransform, LazyTransform):
         k_ = k or self.k
         spatial_axes_ = spatial_axes or self.spatial_axes
 
-        shape_override = None
-        if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
-            shape_override = img.peek_pending_shape()
-
-        img_t = rotate90(img, k_, spatial_axes_, shape_override, self.lazy_evaluation)
+        img_t = rotate90(img, k_, spatial_axes_, None, self.lazy_evaluation)
 
         return img_t
 
@@ -1091,7 +1068,9 @@ class Rotate90(InvertibleTransform, LazyTransform):
         raise NotImplementedError()
 
 
-class RandRotate90(RandomizableTransform, InvertibleTransform, LazyTransform):
+# class RandRotate90(RandomizableTransform, InvertibleTransform, LazyTransform):
+class RandRotate90(InvertibleTransform, LazyTransform, RandomizableTrait):
+
     """
     With probability `prob`, input arrays are rotated by 90 degrees
     in the plane specified by `spatial_axes`.
@@ -1102,7 +1081,9 @@ class RandRotate90(RandomizableTransform, InvertibleTransform, LazyTransform):
             prob: float = 0.1,
             max_k: int = 3,
             spatial_axes: Tuple[int, int] = (0, 1),
-            lazy_evaluation: Optional[bool] = True
+            lazy_evaluation: Optional[bool] = True,
+            random_seed=None,
+            random_state=None
     ) -> None:
         """
         Args:
@@ -1112,20 +1093,22 @@ class RandRotate90(RandomizableTransform, InvertibleTransform, LazyTransform):
             spatial_axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
                 Default: (0, 1), this is the first two axis in spatial dimensions.
         """
-        RandomizableTransform.__init__(self, prob)
-        self.max_k = max_k
+        # RandomizableTransform.__init__(self, prob)
+        # self.max_k = max_k
         self.spatial_axes = spatial_axes
 
-        self.k = 0
+        self.randomizer = DiscreteRandomizer(0, max_k, prob, random_seed, random_state)
+
+        # self.k = 0
 
         self.op = Rotate90(0, spatial_axes, lazy_evaluation)
 
-    def randomize(self, data: Optional[Any] = None) -> None:
-        super().randomize(None)
-        if self._do_transform:
-            self.k = self.R.randint(self.max_k) + 1
-        else:
-            self.k = 0
+    # def randomize(self, data: Optional[Any] = None) -> None:
+    #     super().randomize(None)
+    #     if self._do_transform:
+    #         self.k = self.R.randint(self.max_k) + 1
+    #     else:
+    #         self.k = 0
 
     def __call__(
             self,
@@ -1137,10 +1120,10 @@ class RandRotate90(RandomizableTransform, InvertibleTransform, LazyTransform):
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
             randomize: whether to execute `randomize()` function first, default to True.
         """
-        if randomize:
-            self.randomize()
+        # if randomize:
+        #     self.randomize()
 
-        return self.op(img, self.k)
+        return self.op(img, self.randomizer.sample())
 
     def inverse(
             self,
@@ -1251,113 +1234,113 @@ class RandRotate(InvertibleTransform, LazyTrait, RandomizableTrait):
         raise NotImplementedError()
 
 
-class RandRotate2(RandomizableTransform, InvertibleTransform, LazyTrait):
-    """
-    This implementation makes use of an external randomizer object that provides the
-    randomized values for both array-based RandRotate and dictionary-based RandRotated
-    """
-    def __init__(
-            self,
-            range_x: Optional[Union[Tuple[float, float], float]] = 0.0,
-            range_y: Optional[Union[Tuple[float, float], float]] = 0.0,
-            range_z: Optional[Union[Tuple[float, float], float]] = 0.0,
-            prob: Optional[float] = 0.1,
-            keep_size: Optional[bool] = True,
-            mode: Optional[Union[GridSampleMode, str]] = GridSampleMode.BILINEAR,
-            padding_mode: Optional[Union[GridSamplePadMode, str]] = GridSamplePadMode.BORDER,
-            align_corners: Optional[bool] = False,
-            dtype: Optional[Union[DtypeLike, torch.dtype]] = np.float32,
-            lazy_evaluation: Optional[bool] = True
-    ):
-        """
-        Randomly rotate the input arrays.
-
-        Args:
-            range_x: Range of rotation angle in radians in the plane defined by the first and second axes.
-                If single number, angle is uniformly sampled from (-range_x, range_x).
-            range_y: Range of rotation angle in radians in the plane defined by the first and third axes.
-                If single number, angle is uniformly sampled from (-range_y, range_y). only work for 3D data.
-            range_z: Range of rotation angle in radians in the plane defined by the second and third axes.
-                If single number, angle is uniformly sampled from (-range_z, range_z). only work for 3D data.
-            prob: Probability of rotation.
-            keep_size: If it is False, the output shape is adapted so that the
-                input array is contained completely in the output.
-                If it is True, the output shape is the same as the input. Default is True.
-            mode: {``"bilinear"``, ``"nearest"``}
-                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
-                Padding mode for outside grid values. Defaults to ``"border"``.
-                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-            align_corners: Defaults to False.
-                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-            dtype: data type for resampling computation. Defaults to ``float32``.
-                If None, use the data type of input data. To be compatible with other modules,
-                the output data type is always ``float32``.
-        """
-        RandomizableTransform.__init__(self, prob)
-
-        self.op = Rotate(0, keep_size, mode, padding_mode, align_corners, dtype, lazy_evaluation)
-        self.range_x, self.range_y, self.range_z = range_x, range_y, range_z
-        self.x, self.y, self.z = 0, 0, 0
-
-    def randomize(self, data: Optional[Any] = None) -> None:
-        super().randomize(None)
-        if self._do_transform:
-            self.x = self.R.uniform(low=self.range_x[0], high=self.range_x[1])
-            self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
-            self.z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
-        else:
-            self.x = 0
-            self.y = 0
-            self.z = 0
-
-    def __call__(
-            self,
-            img: NdarrayOrTensor,
-            mode: Optional[Union[InterpolateMode, str]] = None,
-            padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
-            align_corners: Optional[bool] = None,
-            dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
-            randomize: Optional[bool] = True,
-            shape_override: Optional[Sequence] = None
-    ) -> NdarrayOrTensor:
-        """
-        Args:
-            img: channel first array, must have shape 2D: (nchannels, H, W), or 3D: (nchannels, H, W, D).
-            mode: {``"bilinear"``, ``"nearest"``}
-                Interpolation mode to calculate output values. Defaults to ``self.mode``.
-                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
-                Padding mode for outside grid values. Defaults to ``self.padding_mode``.
-                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-            align_corners: Defaults to ``self.align_corners``.
-                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-            dtype: data type for resampling computation. Defaults to ``self.dtype``.
-                If None, use the data type of input data. To be compatible with other modules,
-                the output data type is always ``float32``.
-            randomize: whether to execute `randomize()` function first, default to True.
-        """
-        if randomize:
-            self.randomize(data=img)
-
-        angles = self.x if img.ndim == 3 else (self.x, self.y, self.z)
-
-        return self.op(img, angles, mode, padding_mode, align_corners, shape_override)
-
-    @property
-    def lazy_evaluation(self):
-        return self.op.lazy_evaluation
-
-    @lazy_evaluation.setter
-    def lazy_evaluation(self, value):
-        self.op.lazy_evaluation = value
-
-    def inverse(
-            self,
-            data: NdarrayOrTensor,
-    ):
-        raise NotImplementedError()
+# class RandRotate2(RandomizableTransform, InvertibleTransform, LazyTrait):
+#     """
+#     This implementation makes use of an external randomizer object that provides the
+#     randomized values for both array-based RandRotate and dictionary-based RandRotated
+#     """
+#     def __init__(
+#             self,
+#             range_x: Optional[Union[Tuple[float, float], float]] = 0.0,
+#             range_y: Optional[Union[Tuple[float, float], float]] = 0.0,
+#             range_z: Optional[Union[Tuple[float, float], float]] = 0.0,
+#             prob: Optional[float] = 0.1,
+#             keep_size: Optional[bool] = True,
+#             mode: Optional[Union[GridSampleMode, str]] = GridSampleMode.BILINEAR,
+#             padding_mode: Optional[Union[GridSamplePadMode, str]] = GridSamplePadMode.BORDER,
+#             align_corners: Optional[bool] = False,
+#             dtype: Optional[Union[DtypeLike, torch.dtype]] = np.float32,
+#             lazy_evaluation: Optional[bool] = True
+#     ):
+#         """
+#         Randomly rotate the input arrays.
+#
+#         Args:
+#             range_x: Range of rotation angle in radians in the plane defined by the first and second axes.
+#                 If single number, angle is uniformly sampled from (-range_x, range_x).
+#             range_y: Range of rotation angle in radians in the plane defined by the first and third axes.
+#                 If single number, angle is uniformly sampled from (-range_y, range_y). only work for 3D data.
+#             range_z: Range of rotation angle in radians in the plane defined by the second and third axes.
+#                 If single number, angle is uniformly sampled from (-range_z, range_z). only work for 3D data.
+#             prob: Probability of rotation.
+#             keep_size: If it is False, the output shape is adapted so that the
+#                 input array is contained completely in the output.
+#                 If it is True, the output shape is the same as the input. Default is True.
+#             mode: {``"bilinear"``, ``"nearest"``}
+#                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+#                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+#             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+#                 Padding mode for outside grid values. Defaults to ``"border"``.
+#                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+#             align_corners: Defaults to False.
+#                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+#             dtype: data type for resampling computation. Defaults to ``float32``.
+#                 If None, use the data type of input data. To be compatible with other modules,
+#                 the output data type is always ``float32``.
+#         """
+#         RandomizableTransform.__init__(self, prob)
+#
+#         self.op = Rotate(0, keep_size, mode, padding_mode, align_corners, dtype, lazy_evaluation)
+#         self.range_x, self.range_y, self.range_z = range_x, range_y, range_z
+#         self.x, self.y, self.z = 0, 0, 0
+#
+#     def randomize(self, data: Optional[Any] = None) -> None:
+#         super().randomize(None)
+#         if self._do_transform:
+#             self.x = self.R.uniform(low=self.range_x[0], high=self.range_x[1])
+#             self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
+#             self.z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
+#         else:
+#             self.x = 0
+#             self.y = 0
+#             self.z = 0
+#
+#     def __call__(
+#             self,
+#             img: NdarrayOrTensor,
+#             mode: Optional[Union[InterpolateMode, str]] = None,
+#             padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
+#             align_corners: Optional[bool] = None,
+#             dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
+#             randomize: Optional[bool] = True,
+#             shape_override: Optional[Sequence] = None
+#     ) -> NdarrayOrTensor:
+#         """
+#         Args:
+#             img: channel first array, must have shape 2D: (nchannels, H, W), or 3D: (nchannels, H, W, D).
+#             mode: {``"bilinear"``, ``"nearest"``}
+#                 Interpolation mode to calculate output values. Defaults to ``self.mode``.
+#                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+#             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+#                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
+#                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+#             align_corners: Defaults to ``self.align_corners``.
+#                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+#             dtype: data type for resampling computation. Defaults to ``self.dtype``.
+#                 If None, use the data type of input data. To be compatible with other modules,
+#                 the output data type is always ``float32``.
+#             randomize: whether to execute `randomize()` function first, default to True.
+#         """
+#         if randomize:
+#             self.randomize(data=img)
+#
+#         angles = self.x if img.ndim == 3 else (self.x, self.y, self.z)
+#
+#         return self.op(img, angles, mode, padding_mode, align_corners, shape_override)
+#
+#     @property
+#     def lazy_evaluation(self):
+#         return self.op.lazy_evaluation
+#
+#     @lazy_evaluation.setter
+#     def lazy_evaluation(self, value):
+#         self.op.lazy_evaluation = value
+#
+#     def inverse(
+#             self,
+#             data: NdarrayOrTensor,
+#     ):
+#         raise NotImplementedError()
 
 
 class RandFlip(RandomizableTransform, InvertibleTransform, LazyTrait):
