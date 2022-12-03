@@ -27,9 +27,11 @@ TEST_CASE_5 = [{"filename": "C:\\documents\\testfile.nii.gz", "suffixes": ["nii"
 
 TEST_CASE_6 = [{"filename": "1.3.12.2.1107.5.4.4.145.nii.gz", "suffixes": ["nii.gz"]}, True]
 
+TEST_CASE_7 = [{"filename": "test.PNG", "suffixes": ["bmp", "png"]}, True]
+
 
 class TestIsSupportedFormat(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7])
     def test_value(self, input_param, result):
         self.assertEqual(is_supported_format(**input_param), result)
 
