@@ -1075,7 +1075,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         except TypeError as e:
             warnings.warn(f"input data can't be shuffled in SmartCacheDataset with numpy.random.shuffle(): {e}.")
 
-    def _compute_data_idx(self):
+    def _compute_data_idx(self) -> None:
         """
         Update the replacement data position in the total data.
 
@@ -1209,7 +1209,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
                 self._compute_replacements()
             return False, self._round
 
-    def manage_replacement(self):
+    def manage_replacement(self) -> None:
         """
         Background thread for replacement.
 
