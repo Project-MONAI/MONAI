@@ -23,15 +23,16 @@ from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 TESTS: List[Tuple] = []
 for in_type in TEST_NDARRAYS_ALL + (int, float):
     for out_type in TEST_NDARRAYS_ALL:
-        TESTS.append((in_type(np.array(1.0)), out_type(np.array(1.0)), None))  # type: ignore
+        TESTS.append((in_type(np.array(1.0)), out_type(np.array(1.0)), None, False))  # type: ignore
         if in_type is not float:
-            TESTS.append((in_type(np.array(256)), out_type(np.array(255)), np.uint8))  # type: ignore
+            TESTS.append((in_type(np.array(256)), out_type(np.array(255)), np.uint8, True))  # type: ignore
+            TESTS.append((in_type(np.array(256)), out_type(np.array(0)), np.uint8, False))  # type: ignore
 
 TESTS_LIST: List[Tuple] = []
 for in_type in TEST_NDARRAYS_ALL + (int, float):
     for out_type in TEST_NDARRAYS_ALL:
         TESTS_LIST.append(
-            ([in_type(np.array(1.0)), in_type(np.array(1.0))], out_type(np.array([1.0, 1.0])), True, None)  # type: ignore
+            ([in_type(np.array(1.0)), in_type(np.array(1.0))], out_type(np.array([1.0, 1.0])), True, None, False)  # type: ignore
         )
         TESTS_LIST.append(
             (
@@ -39,11 +40,15 @@ for in_type in TEST_NDARRAYS_ALL + (int, float):
                 [out_type(np.array(1.0)), out_type(np.array(1.0))],
                 False,
                 None,
+                False,
             )
         )
         if in_type is not float:
             TESTS_LIST.append(
-                ([in_type(np.array(257)), in_type(np.array(1))], out_type(np.array([255, 1])), True, np.uint8)  # type: ignore
+                ([in_type(np.array(257)), in_type(np.array(1))], out_type(np.array([255, 1])), True, np.uint8, True)  # type: ignore
+            )
+            TESTS_LIST.append(
+                ([in_type(np.array(257)), in_type(np.array(1))], out_type(np.array([1, 1])), True, np.uint8, False)  # type: ignore
             )
             TESTS_LIST.append(
                 (
@@ -51,6 +56,16 @@ for in_type in TEST_NDARRAYS_ALL + (int, float):
                     [out_type(np.array(255)), out_type(np.array(0))],
                     False,
                     np.uint8,
+                    True,
+                )
+            )
+            TESTS_LIST.append(
+                (
+                    [in_type(np.array(257)), in_type(np.array(-12))],  # type: ignore
+                    [out_type(np.array(1)), out_type(np.array(244))],
+                    False,
+                    np.uint8,
+                    False
                 )
             )
 
@@ -63,8 +78,8 @@ class TestTensor(torch.Tensor):
 
 class TestConvertDataType(unittest.TestCase):
     @parameterized.expand(TESTS)
-    def test_convert_data_type(self, in_image, im_out, out_dtype):
-        converted_im, orig_type, orig_device = convert_data_type(in_image, type(im_out), dtype=out_dtype)
+    def test_convert_data_type(self, in_image, im_out, out_dtype, safe):
+        converted_im, orig_type, orig_device = convert_data_type(in_image, type(im_out), dtype=out_dtype, safe=safe)
         # check input is unchanged
         in_type = type(in_image)
         self.assertEqual(in_type, orig_type)
@@ -90,10 +105,10 @@ class TestConvertDataType(unittest.TestCase):
         self.assertEqual(converted_im.dtype, pt_type)
 
     @parameterized.expand(TESTS_LIST)
-    def test_convert_list(self, in_image, im_out, wrap, out_dtype):
+    def test_convert_list(self, in_image, im_out, wrap, out_dtype, safe):
         in_type = type(in_image)
         output_type = type(im_out) if wrap else type(im_out[0])
-        converted_im, *_ = convert_data_type(in_image, output_type, wrap_sequence=wrap, dtype=out_dtype)
+        converted_im, *_ = convert_data_type(in_image, output_type, wrap_sequence=wrap, dtype=out_dtype, safe=safe)
         # check output is desired type
         if not wrap:
             converted_im = converted_im[0]
@@ -107,9 +122,9 @@ class TestConvertDataType(unittest.TestCase):
 
 class TestConvertDataSame(unittest.TestCase):
     # add test for subclass of Tensor
-    @parameterized.expand(TESTS + [(np.array(256), TestTensor(np.array([255])), torch.uint8)])
-    def test_convert_data_type(self, in_image, im_out, out_dtype):
-        converted_im, orig_type, orig_device = convert_to_dst_type(in_image, im_out, dtype=out_dtype)
+    @parameterized.expand(TESTS + [(np.array(256), TestTensor(np.array([255])), torch.uint8, True)])
+    def test_convert_data_type(self, in_image, im_out, out_dtype, safe):
+        converted_im, orig_type, orig_device = convert_to_dst_type(in_image, im_out, dtype=out_dtype, safe=safe)
         # check input is unchanged
         in_type = type(in_image)
         self.assertEqual(in_type, orig_type)
