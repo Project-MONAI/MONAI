@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import unittest
+from typing import Dict, List
 
 import numpy as np
 import torch
@@ -22,7 +23,7 @@ from monai.transforms import Spacing
 from monai.utils import fall_back_tuple
 from tests.utils import TEST_DEVICES, TEST_NDARRAYS_ALL, assert_allclose, skip_if_quick
 
-TESTS = []
+TESTS: List[List] = []
 for device in TEST_DEVICES:
     TESTS.append(
         [
@@ -264,7 +265,15 @@ for d in TEST_DEVICES:
 @skip_if_quick
 class TestSpacingCase(unittest.TestCase):
     @parameterized.expand(TESTS)
-    def test_spacing(self, init_param, img, affine, data_param, expected_output, device):
+    def test_spacing(
+        self,
+        init_param: Dict,
+        img: torch.Tensor,
+        affine: torch.Tensor,
+        data_param: Dict,
+        expected_output: torch.Tensor,
+        device: torch.device,
+    ):
         img = MetaTensor(img, affine=affine).to(device)
         res: MetaTensor = Spacing(**init_param)(img, **data_param)
         self.assertEqual(img.device, res.device)
@@ -275,7 +284,7 @@ class TestSpacingCase(unittest.TestCase):
             init_param["pixdim"] = [init_param["pixdim"]] * sr
         init_pixdim = init_param["pixdim"][:sr]
         norm = affine_to_spacing(res.affine, sr).cpu().numpy()
-        assert_allclose(fall_back_tuple(init_pixdim, norm), norm, type_test=False)
+        assert_allclose(fall_back_tuple(init_pixdim, norm), norm, type_test=False)  # type: ignore
 
     @parameterized.expand(TESTS_TORCH)
     def test_spacing_torch(self, pixdim, img, track_meta: bool):
