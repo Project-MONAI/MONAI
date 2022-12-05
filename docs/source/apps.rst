@@ -155,6 +155,8 @@ Applications
     :members:
 .. autoclass:: HoVerNetNuclearTypePostProcessing
     :members:
+.. autoclass:: HoVerNetInstanceMapPostProcessing
+    :members:
 
 .. automodule:: monai.apps.pathology.transforms.post.dictionary
 .. autoclass:: GenerateSuccinctContourd
@@ -174,6 +176,8 @@ Applications
 .. autoclass:: GenerateDistanceMapd
     :members:
 .. autoclass:: GenerateWatershedMarkersd
+    :members:
+.. autoclass:: HoVerNetInstanceMapPostProcessingd
     :members:
 .. autoclass:: HoVerNetNuclearTypePostProcessingd
     :members:
