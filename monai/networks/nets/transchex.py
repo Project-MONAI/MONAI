@@ -14,7 +14,7 @@ import os
 import shutil
 import tarfile
 import tempfile
-from typing import Sequence, Tuple, Union
+from typing import List, Sequence, Tuple, Union
 
 import torch
 from torch import nn
@@ -22,7 +22,7 @@ from torch import nn
 from monai.utils import optional_import
 
 transformers = optional_import("transformers")
-load_tf_weights_in_bert = optional_import("transformers", name="load_tf_weights_in_bert")
+load_tf_weights_in_bert = optional_import("transformers", name="load_tf_weights_in_bert")[0]
 cached_path = optional_import("transformers.file_utils", name="cached_path")[0]
 BertEmbeddings = optional_import("transformers.models.bert.modeling_bert", name="BertEmbeddings")[0]
 BertLayer = optional_import("transformers.models.bert.modeling_bert", name="BertLayer")[0]
@@ -44,7 +44,7 @@ class BertPreTrainedModel(nn.Module):
 
     def init_bert_weights(self, module):
         if isinstance(module, (nn.Linear, nn.Embedding)):
-            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
+            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)  # type: ignore
         elif isinstance(module, torch.nn.LayerNorm):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
@@ -115,9 +115,9 @@ class BertPreTrainedModel(nn.Module):
                 new_keys.append(new_key)
         for old_key, new_key in zip(old_keys, new_keys):
             state_dict[new_key] = state_dict.pop(old_key)
-        missing_keys = []
-        unexpected_keys = []
-        error_msgs = []
+        missing_keys: List = []
+        unexpected_keys: List = []
+        error_msgs: List = []
         metadata = getattr(state_dict, "_metadata", None)
         state_dict = state_dict.copy()
         if metadata is not None:
