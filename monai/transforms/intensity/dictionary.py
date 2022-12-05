@@ -1577,7 +1577,7 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
         self.dropper.set_random_state(seed, state)
         return self
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
@@ -1650,7 +1650,7 @@ class RandCoarseShuffled(RandomizableTransform, MapTransform):
         self.shuffle.set_random_state(seed, state)
         return self
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:

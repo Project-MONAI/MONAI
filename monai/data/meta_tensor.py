@@ -354,7 +354,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         """
         return convert_data_type(self, output_type=output_type, dtype=dtype, device=device, wrap_sequence=True)[0]
 
-    def set_array(self, src, non_blocking=False, *_args, **_kwargs):
+    def set_array(self, src, non_blocking: bool = False, *_args, **_kwargs):
         """
         Copies the elements from src into self tensor and returns self.
         The src tensor must be broadcastable with the self tensor.
@@ -369,11 +369,11 @@ class MetaTensor(MetaObj, torch.Tensor):
             _args: currently unused parameters.
             _kwargs:  currently unused parameters.
         """
-        src: torch.Tensor = convert_to_tensor(src, track_meta=False, wrap_sequence=True)
+        converted: torch.Tensor = convert_to_tensor(src, track_meta=False, wrap_sequence=True)
         try:
-            return self.copy_(src, non_blocking=non_blocking)
+            return self.copy_(converted, non_blocking=non_blocking)
         except RuntimeError:  # skip the shape checking
-            self.data = src
+            self.data = converted
             return self
 
     @property
