@@ -231,7 +231,8 @@ class AlgoEnsembleBestByFold(AlgoEnsemble):
             best_score = -1.0
             best_model: Optional[BundleAlgo] = None
             for algo in self.algos:
-                identifier = algo[AlgoEnsembleKeys.ID].split("_")[-1]
+                # algorithm folder: {net}_{fold_index}_{other}
+                identifier = algo[AlgoEnsembleKeys.ID].split("_")[1]
                 try:
                     algo_id = int(identifier)
                 except ValueError as err:

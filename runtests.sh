@@ -530,7 +530,7 @@ then
     echo "${separator}${blue}pylint${noColor}"
 
     # ensure that the necessary packages for code format testing are installed
-    if ! is_pip_installed flake8
+    if ! is_pip_installed pylint
     then
         install_deps
     fi
