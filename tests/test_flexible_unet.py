@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import unittest
-from typing import Union
+from typing import Dict, List, Type, Union
 
 import torch
 from parameterized import parameterized
@@ -88,14 +88,14 @@ class ResNetEncoder(ResNet, BaseEncoder):
         return [64, 128, 256, 512]
 
     @classmethod
-    def get_encoder_parameters(cls):
+    def get_encoder_parameters(cls) -> List[Dict]:
         """
         Get parameter list to initialize encoder networks.
         Each parameter dict must have `spatial_dims`, `in_channels`
         and `pretrained` parameters.
         """
         parameter_list = []
-        res_type: Union[ResNetBlock, ResNetBottleneck]
+        res_type: Union[Type[ResNetBlock], Type[ResNetBottleneck]]
         for backbone in range(len(cls.backbone_names)):
             if backbone < 3:
                 res_type = ResNetBlock
