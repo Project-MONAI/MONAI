@@ -80,12 +80,6 @@ class DataLoader(_TorchDataLoader):
             init_seed = _g.initial_seed()
             _seed = torch.empty((), dtype=torch.int64).random_(generator=_g).item()
             set_rnd(dataset, int(_seed))
-            # disable unnecessary multiprocessing caching
-            from monai.data.dataset import CacheDataset  # avoid circular import
-
-            if isinstance(dataset, CacheDataset):
-                dataset.disable_share_memory_cache()
-
             _g.manual_seed(init_seed)
         if "collate_fn" not in kwargs:
             kwargs["collate_fn"] = list_data_collate
