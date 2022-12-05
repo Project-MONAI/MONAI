@@ -21,6 +21,7 @@ from monai.config import print_debug_info
 from monai.networks.utils import copy_model_state
 
 
+@unittest.skip("deprecating mmar tests")
 class TestAllDownloadingMMAR(unittest.TestCase):
     def setUp(self):
         print_debug_info()
