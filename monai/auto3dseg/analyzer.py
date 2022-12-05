@@ -12,7 +12,7 @@
 import time
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Hashable, List, Mapping, Optional
 
 import numpy as np
 import torch
@@ -377,7 +377,7 @@ class LabelStats(Analyzer):
         self.label_key = label_key
         self.do_ccp = do_ccp
 
-        report_format: Dict[str, Any] = {
+        report_format: Dict[LabelStatsKeys, Any] = {
             LabelStatsKeys.LABEL_UID: None,
             LabelStatsKeys.IMAGE_INTST: None,
             LabelStatsKeys.LABEL: [{LabelStatsKeys.PIXEL_PCT: None, LabelStatsKeys.IMAGE_INTST: None}],
@@ -394,7 +394,7 @@ class LabelStats(Analyzer):
         id_seq = ID_SEP_KEY.join([LabelStatsKeys.LABEL, "0", LabelStatsKeys.IMAGE_INTST])
         self.update_ops_nested_label(id_seq, SampleOperations())
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, MetaTensor]) -> Dict[Hashable, MetaTensor]:
         """
         Callable to execute the pre-defined functions.
 
@@ -442,7 +442,7 @@ class LabelStats(Analyzer):
             The stats operation uses numpy and torch to compute max, min, and other
             functions. If the input has nan/inf, the stats results will be nan/inf.
         """
-        d = dict(data)
+        d: Dict[Hashable, MetaTensor] = dict(data)
         start = time.time()
         if isinstance(d[self.image_key], (torch.Tensor, MetaTensor)) and d[self.image_key].device.type == "cuda":
             using_cuda = True
@@ -451,13 +451,13 @@ class LabelStats(Analyzer):
         restore_grad_state = torch.is_grad_enabled()
         torch.set_grad_enabled(False)
 
-        ndas = [d[self.image_key][i] for i in range(d[self.image_key].shape[0])]
-        ndas_label = d[self.label_key]  # (H,W,D)
+        ndas: List[MetaTensor] = [d[self.image_key][i] for i in range(d[self.image_key].shape[0])]  # type: ignore
+        ndas_label: MetaTensor = d[self.label_key]  # (H,W,D)
 
         if ndas_label.shape != ndas[0].shape:
             raise ValueError(f"Label shape {ndas_label.shape} is different from image shape {ndas[0].shape}")
 
-        nda_foregrounds = [get_foreground_label(nda, ndas_label) for nda in ndas]
+        nda_foregrounds: List[torch.Tensor] = [get_foreground_label(nda, ndas_label) for nda in ndas]
         nda_foregrounds = [nda if nda.numel() > 0 else torch.Tensor([0]) for nda in nda_foregrounds]
 
         unique_label = unique(ndas_label)

@@ -221,7 +221,7 @@ class AlgoEnsembleBestByFold(AlgoEnsemble):
         super().__init__()
         self.n_fold = n_fold
 
-    def collect_algos(self):
+    def collect_algos(self) -> None:
         """
         Rank the algos by finding the best model in each cross-validation fold
         """

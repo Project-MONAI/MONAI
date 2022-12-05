@@ -12,6 +12,7 @@
 import os
 from abc import abstractmethod
 from copy import deepcopy
+from typing import Optional
 from warnings import warn
 
 from monai.apps.auto3dseg.bundle_gen import BundleAlgo
@@ -96,7 +97,7 @@ class NNIGen(HPOGen):
         NNI command manually.
     """
 
-    def __init__(self, algo=None, params=None):
+    def __init__(self, algo: Optional[Algo] = None, params=None):
         self.algo: Algo
         self.hint = ""
         self.obj_filename = ""
@@ -115,7 +116,7 @@ class NNIGen(HPOGen):
             else:
                 self.algo = algo
 
-            if isinstance(algo, BundleAlgo):
+            if isinstance(self.algo, BundleAlgo):
                 self.obj_filename = algo_to_pickle(self.algo, template_path=self.algo.template_path)
                 self.print_bundle_algo_instruction()
             else:
@@ -271,7 +272,7 @@ class OptunaGen(HPOGen):
 
     """
 
-    def __init__(self, algo=None, params=None):
+    def __init__(self, algo: Optional[Algo] = None, params=None) -> None:
         self.algo: Algo
         self.obj_filename = ""
 
@@ -289,7 +290,7 @@ class OptunaGen(HPOGen):
             else:
                 self.algo = algo
 
-            if isinstance(algo, BundleAlgo):
+            if isinstance(self.algo, BundleAlgo):
                 self.obj_filename = algo_to_pickle(self.algo, template_path=self.algo.template_path)
             else:
                 self.obj_filename = algo_to_pickle(self.algo)

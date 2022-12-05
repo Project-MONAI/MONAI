@@ -38,7 +38,7 @@ class TestInverseArray(unittest.TestCase):
         return MetaTensor(img, affine=affine)
 
     @parameterized.expand(TESTS)
-    def test_inverse_array(self, use_compose, dtype, device):
+    def test_inverse_array(self, use_compose: bool, dtype: torch.dtype, device: torch.device):
         img: MetaTensor
         tr = Compose([AddChannel(), Orientation("RAS"), Flip(1), Spacing([1.0, 1.2, 0.9], align_corners=False)])
         num_invertible = len([i for i in tr.transforms if isinstance(i, InvertibleTransform)])
