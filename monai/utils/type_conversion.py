@@ -106,7 +106,7 @@ def convert_to_tensor(
     device: Union[None, str, torch.device] = None,
     wrap_sequence: bool = False,
     track_meta: bool = False,
-    safe: bool = False
+    safe: bool = False,
 ):
     """
     Utility to convert the input data to a PyTorch Tensor, if `track_meta` is True, the output will be a `MetaTensor`,
@@ -310,7 +310,9 @@ def convert_data_type(
     data_: NdarrayTensor
     if issubclass(output_type, torch.Tensor):
         track_meta = issubclass(output_type, monai.data.MetaTensor)
-        data_ = convert_to_tensor(data, dtype=dtype_, device=device, wrap_sequence=wrap_sequence, track_meta=track_meta, safe=safe)
+        data_ = convert_to_tensor(
+            data, dtype=dtype_, device=device, wrap_sequence=wrap_sequence, track_meta=track_meta, safe=safe
+        )
         return data_, orig_type, orig_device
     if issubclass(output_type, np.ndarray):
         data_ = convert_to_numpy(data, dtype=dtype_, wrap_sequence=wrap_sequence, safe=safe)
@@ -429,6 +431,7 @@ def safe_dtype_convert(data: Any, dtype: DtypeLike = None):
             return data
 
     from monai.transforms.utils_pytorch_numpy_unification import clip
+
     if has_cp and isinstance(data, cp_ndarray):
         return cp.asnumpy(_safe_dtype_convert(data, dtype))
     elif isinstance(data, np.ndarray):

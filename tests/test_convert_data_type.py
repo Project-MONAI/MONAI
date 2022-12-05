@@ -65,7 +65,7 @@ for in_type in TEST_NDARRAYS_ALL + (int, float):
                     [out_type(np.array(1)), out_type(np.array(244))],
                     False,
                     np.uint8,
-                    False
+                    False,
                 )
             )
 
