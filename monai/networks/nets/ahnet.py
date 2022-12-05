@@ -270,7 +270,7 @@ class PSP(nn.Module):
                 pad_size = (2 ** (i + 3), 2 ** (i + 3), 0)[-spatial_dims:]
                 self.up_modules.append(conv_trans_type(1, 1, kernel_size=size, stride=size, padding=pad_size))
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         outputs = []
         if self.upsample_mode == "transpose":
             for (project_module, pool_module, up_module) in zip(
