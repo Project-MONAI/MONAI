@@ -36,6 +36,7 @@ from monai.data.utils import SUPPORTED_PICKLE_MOD, convert_tables_to_dicts, pick
 from monai.transforms import (
     Compose,
     Randomizable,
+    RandomizableTrait,
     ThreadUnsafe,
     Transform,
     apply_transform,
@@ -278,7 +279,7 @@ class PersistentDataset(Dataset):
         inherit from MONAI's `Transform` class."""
         hashable_transforms = []
         for _tr in self.transform.flatten().transforms:
-            if isinstance(_tr, Randomizable) or not isinstance(_tr, Transform):
+            if isinstance(_tr, RandomizableTrait) or not isinstance(_tr, Transform):
                 break
             hashable_transforms.append(_tr)
         # Try to hash. Fall back to a hash of their names
@@ -315,7 +316,7 @@ class PersistentDataset(Dataset):
         """
         for _transform in self.transform.transforms:
             # execute all the deterministic transforms
-            if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
+            if isinstance(_transform, RandomizableTrait) or not isinstance(_transform, Transform):
                 break
             # this is to be consistent with CacheDataset even though it's not in a multi-thread situation.
             _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
@@ -341,7 +342,7 @@ class PersistentDataset(Dataset):
         for _transform in self.transform.transforms:
             if (
                 start_post_randomize_run
-                or isinstance(_transform, Randomizable)
+                or isinstance(_transform, RandomizableTrait)
                 or not isinstance(_transform, Transform)
             ):
                 start_post_randomize_run = True
@@ -882,7 +883,7 @@ class CacheDataset(Dataset):
         item = self.data[idx]
         for _transform in self.transform.transforms:  # type:ignore
             # execute all the deterministic transforms
-            if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
+            if isinstance(_transform, RandomizableTrait) or not isinstance(_transform, Transform):
                 break
             _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
             item = apply_transform(_xform, item)
@@ -916,7 +917,7 @@ class CacheDataset(Dataset):
         if not isinstance(self.transform, Compose):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
         for _transform in self.transform.transforms:
-            if start_run or isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
+            if start_run or isinstance(_transform, RandomizableTrait) or not isinstance(_transform, Transform):
                 # only need to deep copy data on first non-deterministic transform
                 if not start_run:
                     start_run = True

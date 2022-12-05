@@ -48,9 +48,9 @@ class TestTimeAugmentation:
     """
     Class for performing test time augmentations. This will pass the same image through the network multiple times.
 
-    The user passes transform(s) to be applied to each realisation, and provided that at least one of those transforms
+    The user passes transform(s) to be applied to each realization, and provided that at least one of those transforms
     is random, the network's output will vary. Provided that inverse transformations exist for all supplied spatial
-    transforms, the inverse can be applied to each realisation of the network's output. Once in the same spatial
+    transforms, the inverse can be applied to each realization of the network's output. Once in the same spatial
     reference, the results can then be combined and metrics computed.
 
     Test time augmentations are a useful feature for computing network uncertainty, as well as observing the network's
@@ -63,9 +63,10 @@ class TestTimeAugmentation:
         https://doi.org/10.1016/j.neucom.2019.01.103
 
     Args:
-        transform: transform (or composed) to be applied to each realisation. At least one transform must be of type
-            `Randomizable`. All random transforms must be of type `InvertibleTransform`.
-        batch_size: number of realisations to infer at once.
+        transform: transform (or composed) to be applied to each realization. At least one transform must be of type
+        `RandomizableTrait` (e.i. `Randomizable`, `RandomizableTransform`, or `RandomizableTrait`).
+            . All random transforms must be of type `InvertibleTransform`.
+        batch_size: number of realizations to infer at once.
         num_workers: how many subprocesses to use for data.
         inferrer_fn: function to use to perform inference.
         device: device on which to perform inference.
@@ -167,7 +168,7 @@ class TestTimeAugmentation:
         """
         Args:
             data: dictionary data to be processed.
-            num_examples: number of realisations to be processed and results combined.
+            num_examples: number of realizations to be processed and results combined.
 
         Returns:
             - if `return_full_data==False`: mode, mean, std, vvc. The mode, mean and standard deviation are

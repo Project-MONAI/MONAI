@@ -192,7 +192,7 @@ class ThreadUnsafe:
     pass
 
 
-class Randomizable(ThreadUnsafe):
+class Randomizable(ThreadUnsafe, RandomizableTrait):
     """
     An interface for handling random state locally, currently based on a class
     variable `R`, which is an instance of `np.random.RandomState`.  This
@@ -332,7 +332,7 @@ class LazyTransform(Transform, LazyTrait):
         self.lazy_evaluation = lazy_evaluation
 
 
-class RandomizableTransform(Randomizable, Transform, RandomizableTrait):
+class RandomizableTransform(Randomizable, Transform):
     """
     An interface for handling random state locally, currently based on a class variable `R`,
     which is an instance of `np.random.RandomState`.
