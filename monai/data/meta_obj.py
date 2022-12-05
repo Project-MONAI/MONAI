@@ -79,7 +79,7 @@ class MetaObj:
 
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._meta: dict = MetaObj.get_default_meta()
         self._applied_operations: list = MetaObj.get_default_applied_operations()
         self._pending_operations: list = MetaObj.get_default_applied_operations()  # the same default as applied_ops
