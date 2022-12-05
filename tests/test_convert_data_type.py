@@ -18,26 +18,41 @@ from parameterized import parameterized
 
 from monai.data import MetaTensor
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
-from tests.utils import TEST_NDARRAYS_ALL
+from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TESTS: List[Tuple] = []
 for in_type in TEST_NDARRAYS_ALL + (int, float):
     for out_type in TEST_NDARRAYS_ALL:
-        TESTS.append((in_type(np.array(1.0)), out_type(np.array(1.0))))  # type: ignore
+        TESTS.append((in_type(np.array(1.0)), out_type(np.array(1.0)), None))  # type: ignore
+        if in_type is not float:
+            TESTS.append((in_type(np.array(256)), out_type(np.array(255)), np.uint8))  # type: ignore
 
 TESTS_LIST: List[Tuple] = []
 for in_type in TEST_NDARRAYS_ALL + (int, float):
     for out_type in TEST_NDARRAYS_ALL:
         TESTS_LIST.append(
-            ([in_type(np.array(1.0)), in_type(np.array(1.0))], out_type(np.array([1.0, 1.0])), True)  # type: ignore
+            ([in_type(np.array(1.0)), in_type(np.array(1.0))], out_type(np.array([1.0, 1.0])), True, None)  # type: ignore
         )
         TESTS_LIST.append(
             (
                 [in_type(np.array(1.0)), in_type(np.array(1.0))],  # type: ignore
                 [out_type(np.array(1.0)), out_type(np.array(1.0))],
                 False,
+                None,
             )
         )
+        if in_type is not float:
+            TESTS_LIST.append(
+                ([in_type(np.array(257)), in_type(np.array(1))], out_type(np.array([255, 1])), True, np.uint8)  # type: ignore
+            )
+            TESTS_LIST.append(
+                (
+                    [in_type(np.array(257)), in_type(np.array(-12))],  # type: ignore
+                    [out_type(np.array(255)), out_type(np.array(0))],
+                    False,
+                    np.uint8,
+                )
+            )
 
 UNSUPPORTED_TYPES = {np.dtype("uint16"): torch.int32, np.dtype("uint32"): torch.int64, np.dtype("uint64"): torch.int64}
 
@@ -48,17 +63,21 @@ class TestTensor(torch.Tensor):
 
 class TestConvertDataType(unittest.TestCase):
     @parameterized.expand(TESTS)
-    def test_convert_data_type(self, in_image, im_out):
-        converted_im, orig_type, orig_device = convert_data_type(in_image, type(im_out))
+    def test_convert_data_type(self, in_image, im_out, out_dtype):
+        converted_im, orig_type, orig_device = convert_data_type(in_image, type(im_out), dtype=out_dtype)
         # check input is unchanged
-        self.assertEqual(type(in_image), orig_type)
+        in_type = type(in_image)
+        self.assertEqual(in_type, orig_type)
         if isinstance(in_image, torch.Tensor):
             self.assertEqual(in_image.device, orig_device)
         # check output is desired type
         self.assertEqual(type(converted_im), type(im_out))
+        # check data has been clipped
+        assert_allclose(converted_im, im_out)
         # check dtype is unchanged
-        if isinstance(in_type, (np.ndarray, torch.Tensor)):
-            self.assertEqual(converted_im.dtype, im_out.dtype)
+        if out_dtype is None:
+            if isinstance(in_type, (np.ndarray, torch.Tensor)):
+                self.assertEqual(converted_im.dtype, im_out.dtype)
 
     def test_neg_stride(self):
         _ = convert_data_type(np.array((1, 2))[::-1], torch.Tensor)
@@ -71,14 +90,16 @@ class TestConvertDataType(unittest.TestCase):
         self.assertEqual(converted_im.dtype, pt_type)
 
     @parameterized.expand(TESTS_LIST)
-    def test_convert_list(self, in_image, im_out, wrap):
+    def test_convert_list(self, in_image, im_out, wrap, out_dtype):
+        in_type = type(in_image)
         output_type = type(im_out) if wrap else type(im_out[0])
-        converted_im, *_ = convert_data_type(in_image, output_type, wrap_sequence=wrap)
+        converted_im, *_ = convert_data_type(in_image, output_type, wrap_sequence=wrap, dtype=out_dtype)
         # check output is desired type
         if not wrap:
             converted_im = converted_im[0]
             im_out = im_out[0]
         self.assertEqual(type(converted_im), type(im_out))
+        assert_allclose(converted_im, im_out)
         # check dtype is unchanged
         if isinstance(in_type, (np.ndarray, torch.Tensor)):
             self.assertEqual(converted_im.dtype, im_out.dtype)
@@ -86,11 +107,13 @@ class TestConvertDataType(unittest.TestCase):
 
 class TestConvertDataSame(unittest.TestCase):
     # add test for subclass of Tensor
-    @parameterized.expand(TESTS + [(np.array(1.0), TestTensor(np.array(1.0)))])
-    def test_convert_data_type(self, in_image, im_out):
-        converted_im, orig_type, orig_device = convert_to_dst_type(in_image, im_out)
+    @parameterized.expand(TESTS + [(np.array(256), TestTensor(np.array([255])), torch.uint8)])
+    def test_convert_data_type(self, in_image, im_out, out_dtype):
+        converted_im, orig_type, orig_device = convert_to_dst_type(in_image, im_out, dtype=out_dtype)
         # check input is unchanged
-        self.assertEqual(type(in_image), orig_type)
+        in_type = type(in_image)
+        self.assertEqual(in_type, orig_type)
+        assert_allclose(converted_im, im_out)
         if isinstance(in_image, torch.Tensor):
             self.assertEqual(in_image.device, orig_device)
 
