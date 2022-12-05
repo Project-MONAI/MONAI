@@ -12,7 +12,7 @@
 import os
 import sys
 import tempfile
-from typing import Any, Callable, Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Union
 
 import numpy as np
 from torch.utils.data import Dataset, IterableDataset
@@ -22,7 +22,12 @@ from monai.utils.module import optional_import
 
 __all__ = ["VideoDataset", "VideoFileDataset", "CameraDataset"]
 
-cv2, has_cv2 = None, None
+if TYPE_CHECKING:
+    import cv2
+
+    has_cv2 = True
+else:
+    cv2, has_cv2 = None, None
 
 
 def import_cv():
