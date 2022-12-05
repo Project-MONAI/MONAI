@@ -122,6 +122,7 @@ DEFAULT_MLFLOW_SETTINGS = {
             "epoch_log": True,
             "tag_name": "train_loss",
             "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
+            "auto_close": True,
         },
         # MLFlowHandler config for the validator
         "validator": {
@@ -140,6 +141,7 @@ DEFAULT_MLFLOW_SETTINGS = {
             "experiment_name": "@experiment_name",
             "run_name": "@run_name",
             "iteration_log": False,
+            "auto_close": True,
         },
     },
 }

@@ -561,6 +561,7 @@ def run(
                             "run_name": "@run_name",
                             "iteration_log": True,
                             "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
+                            "auto_close": True,
                         },
                         "validator": {
                             "_target_": "MLFlowHandler",
@@ -577,6 +578,7 @@ def run(
                             "experiment_name": "@experiment_name",
                             "run_name": "@run_name",
                             "iteration_log": False,
+                            "auto_close": True,
                         },
                     },
                 },
