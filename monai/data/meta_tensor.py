@@ -269,9 +269,6 @@ class MetaTensor(MetaObj, torch.Tensor):
         # if `out` has been used as argument, metadata is not copied, nothing to do.
         # if "out" in kwargs:
         #     return ret
-        # we might have 1 or multiple outputs. Might be MetaTensor, might be something
-        # else (e.g., `__repr__` returns a string).
-        # Convert to list (if necessary), process, and at end remove list if one was added.
         if _not_requiring_metadata(ret):
             return ret
         if _get_named_tuple_like_type(func) is not None and isinstance(ret, _get_named_tuple_like_type(func)):
@@ -281,6 +278,9 @@ class MetaTensor(MetaObj, torch.Tensor):
                 ret[idx].meta = out_items[idx].meta
                 ret[idx].applied_operations = out_items[idx].applied_operations
             return ret
+        # we might have 1 or multiple outputs. Might be MetaTensor, might be something
+        # else (e.g., `__repr__` returns a string).
+        # Convert to list (if necessary), process, and at end remove list if one was added.
         if not isinstance(ret, Sequence):
             ret = [ret]
             unpack = True
@@ -354,7 +354,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         """
         return convert_data_type(self, output_type=output_type, dtype=dtype, device=device, wrap_sequence=True)[0]
 
-    def set_array(self, src, non_blocking=False, *_args, **_kwargs):
+    def set_array(self, src, non_blocking: bool = False, *_args, **_kwargs):
         """
         Copies the elements from src into self tensor and returns self.
         The src tensor must be broadcastable with the self tensor.
@@ -369,11 +369,11 @@ class MetaTensor(MetaObj, torch.Tensor):
             _args: currently unused parameters.
             _kwargs:  currently unused parameters.
         """
-        src: torch.Tensor = convert_to_tensor(src, track_meta=False, wrap_sequence=True)
+        converted: torch.Tensor = convert_to_tensor(src, track_meta=False, wrap_sequence=True)
         try:
-            return self.copy_(src, non_blocking=non_blocking)
+            return self.copy_(converted, non_blocking=non_blocking)
         except RuntimeError:  # skip the shape checking
-            self.data = src
+            self.data = converted
             return self
 
     @property
@@ -532,17 +532,22 @@ class MetaTensor(MetaObj, torch.Tensor):
         # return the `MetaTensor`
         return MetaTensor(img, meta=meta)
 
-    def __repr__(self, *, tensor_contents=None):
+    def __repr__(self):
         """
-        Prints out a long representation of the MetaTensor object with metadata as well as content data.
-
-        Args:
-            tensor_contents: currently unused
+        Prints a representation of the tensor identical to ``torch.Tensor.__repr__``.
+        Use ``print_verbose`` for associated metadata.
         """
-        return self.as_tensor().__repr__() + super().__repr__()
+        return self.as_tensor().__repr__()
 
     def __str__(self):
         """
-        Prints a simpler representation of the tensor identical to torch.Tensor.__str__.
+        Prints a representation of the tensor identical to ``torch.Tensor.__str__``.
+        Use ``print_verbose`` for associated metadata.
         """
         return str(self.as_tensor())
+
+    def print_verbose(self) -> None:
+        """Verbose print with meta data."""
+        print(self)
+        if self.meta is not None:
+            print(self.meta.__repr__())

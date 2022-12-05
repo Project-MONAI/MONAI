@@ -30,14 +30,16 @@ for p in TEST_NDARRAYS:
 
 
 class TestSplitDimd(unittest.TestCase):
+    data: MetaTensor
+
     @classmethod
-    def setUpClass(cls):
+    def setUpClass(cls) -> None:
         arr = np.random.rand(2, 10, 8, 7)
         affine = make_rand_affine()
         data = {"i": make_nifti_image(arr, affine)}
 
         loader = LoadImaged("i")
-        cls.data: MetaTensor = loader(data)
+        cls.data = loader(data)
 
     @parameterized.expand(TESTS)
     def test_correct(self, keepdim, im_type, update_meta, list_output):
