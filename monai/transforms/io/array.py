@@ -68,6 +68,14 @@ def switch_endianness(data, new="<"):
         data: input to be converted.
         new: the target endianness, currently support "<" or ">".
     """
+    if isinstance(data, torch.Tensor):
+        device = data.device
+        requires_grad: bool = data.requires_grad
+        return (
+            torch.from_numpy(switch_endianness(data.cpu().detach().numpy(), new))
+            .to(device)
+            .requires_grad_(requires_grad=requires_grad)
+        )
     if isinstance(data, np.ndarray):
         # default to system endian
         sys_native = "<" if (sys.byteorder == "little") else ">"
