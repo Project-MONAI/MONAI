@@ -28,25 +28,38 @@ np.random.RandomState(123)
 
 for p in TEST_NDARRAYS:
     EXCEPTION_TESTS.append(
-        [{"keys": "mask", "border_key": "border"}, p(np.random.rand(2, 5, 5)), p(np.random.rand(1, 5, 5)), ValueError]
+        [
+            {"mask_key": "mask", "border_key": "border"},
+            p(np.random.rand(2, 5, 5)),
+            p(np.random.rand(1, 5, 5)),
+            ValueError,
+        ]
     )
-
-    EXCEPTION_TESTS.append(
-        [{"keys": "mask", "border_key": "border"}, p(np.random.rand(1, 5, 5)), p(np.random.rand(2, 5, 5)), ValueError]
-    )
-
     EXCEPTION_TESTS.append(
         [
-            {"keys": "mask", "border_key": "border", "markers_key": "old_markers"},
+            {"mask_key": "mask", "border_key": "border"},
+            p(np.random.rand(1, 5, 5)),
+            p(np.random.rand(2, 5, 5)),
+            ValueError,
+        ]
+    )
+    EXCEPTION_TESTS.append(
+        [
+            {"mask_key": "mask", "border_key": "border", "markers_key": "old_markers"},
             p(np.random.rand(1, 5, 5)),
             p(np.random.rand(1, 5, 5)),
             KeyError,
         ]
     )
 
-for p in TEST_NDARRAYS:
+    TESTS.append([{}, p(np.random.rand(1, 5, 5)), p(np.random.rand(1, 5, 5)), (1, 5, 5)])
     TESTS.append(
-        [{"keys": "mask", "border_key": "border"}, p(np.random.rand(1, 5, 5)), p(np.random.rand(1, 5, 5)), (1, 5, 5)]
+        [
+            {"threshold": 0.4, "radius": 1, "min_object_size": 0},
+            p(np.random.rand(1, 5, 5)),
+            p(np.random.rand(1, 5, 5)),
+            (1, 5, 5),
+        ]
     )
 
 
@@ -54,13 +67,13 @@ for p in TEST_NDARRAYS:
 @unittest.skipUnless(has_scipy, "Requires scipy library.")
 class TestGenerateWatershedMarkersd(unittest.TestCase):
     @parameterized.expand(EXCEPTION_TESTS)
-    def test_value(self, argments, mask, border_map, exception_type):
+    def test_value(self, arguments, mask, border_map, exception_type):
         with self.assertRaises(exception_type):
-            GenerateWatershedMarkersd(**argments)({"mask": mask, "border": border_map, "old_markers": 1})
+            GenerateWatershedMarkersd(**arguments)({"mask": mask, "border": border_map, "old_markers": 1})
 
     @parameterized.expand(TESTS)
-    def test_value2(self, argments, mask, border_map, expected_shape):
-        result = GenerateWatershedMarkersd(**argments)({"mask": mask, "border": border_map})
+    def test_value2(self, arguments, mask, border_map, expected_shape):
+        result = GenerateWatershedMarkersd(**arguments)({"mask": mask, "border": border_map})
         self.assertEqual(result["markers"].shape, expected_shape)
 
 

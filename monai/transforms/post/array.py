@@ -360,7 +360,7 @@ class RemoveSmallObjects(Transform):
     Data should be one-hotted.
 
     Args:
-        min_size: objects smaller than this size are removed.
+        min_size: objects smaller than this size (in pixel) are removed.
         connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
             Accepted values are ranging from  1 to input.ndim. If ``None``, a full
             connectivity of ``input.ndim`` is used. For more details refer to linked scikit-image

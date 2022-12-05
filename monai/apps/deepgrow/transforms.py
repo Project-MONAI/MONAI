@@ -14,7 +14,7 @@ from typing import Callable, Dict, Hashable, Optional, Sequence, Union
 import numpy as np
 import torch
 
-from monai.config import IndexSelection, KeysCollection
+from monai.config import IndexSelection, KeysCollection, NdarrayOrTensor
 from monai.networks.layers import GaussianFilter
 from monai.transforms import Resize, SpatialCrop
 from monai.transforms.transform import MapTransform, Randomizable, Transform
@@ -50,7 +50,7 @@ class FindAllValidSlicesd(Transform):
                 sids.append(sid)
         return np.asarray(sids)
 
-    def __call__(self, data):
+    def __call__(self, data) -> Dict:
         d: Dict = dict(data)
         label = d[self.label].numpy() if isinstance(data[self.label], torch.Tensor) else data[self.label]
         if label.shape[0] != 1:
@@ -654,7 +654,7 @@ class SpatialCropGuidanced(MapTransform):
             box_start[di], box_end[di] = min_d, max_d
         return box_start, box_end
 
-    def __call__(self, data):
+    def __call__(self, data) -> Dict:
         d: Dict = dict(data)
         first_key: Hashable = self.first_key(d)
         if first_key == ():
@@ -741,7 +741,7 @@ class ResizeGuidanced(Transform):
         self.meta_key_postfix = meta_key_postfix
         self.cropped_shape_key = cropped_shape_key
 
-    def __call__(self, data):
+    def __call__(self, data) -> Dict:
         d = dict(data)
         guidance = d[self.guidance]
         meta_dict: Dict = d[self.meta_keys or f"{self.ref_image}_{self.meta_key_postfix}"]
@@ -836,7 +836,7 @@ class RestoreLabeld(MapTransform):
         self.original_shape_key = original_shape_key
         self.cropped_shape_key = cropped_shape_key
 
-    def __call__(self, data):
+    def __call__(self, data) -> Dict:
         d = dict(data)
         meta_dict: Dict = d[f"{self.ref_image}_{self.meta_key_postfix}"]
 
@@ -857,8 +857,9 @@ class RestoreLabeld(MapTransform):
             box_end = meta_dict[self.end_coord_key]
 
             spatial_dims = min(len(box_start), len(image.shape[1:]))
-            slices = [slice(None)] + [slice(s, e) for s, e in zip(box_start[:spatial_dims], box_end[:spatial_dims])]
-            slices = tuple(slices)
+            slices = tuple(
+                [slice(None)] + [slice(s, e) for s, e in zip(box_start[:spatial_dims], box_end[:spatial_dims])]
+            )
             result[slices] = image
 
             # Undo Spacing
@@ -869,10 +870,11 @@ class RestoreLabeld(MapTransform):
 
             if np.any(np.not_equal(current_size, spatial_size)):
                 resizer = Resize(spatial_size=spatial_size, mode=mode)
-                result = resizer(result, mode=mode, align_corners=align_corners)
+                result = resizer(result, mode=mode, align_corners=align_corners)  # type: ignore
 
             # Undo Slicing
             slice_idx = meta_dict.get("slice_idx")
+            final_result: NdarrayOrTensor
             if slice_idx is None or self.slice_only:
                 final_result = result if len(result.shape) <= 3 else result[0]
             else:
