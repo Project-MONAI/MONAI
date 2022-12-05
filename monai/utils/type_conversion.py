@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import re
-import warnings
 from typing import Any, Optional, Sequence, Tuple, Type, Union
 
 import numpy as np
@@ -388,7 +387,7 @@ def convert_to_list(data: Union[Sequence, torch.Tensor, np.ndarray]) -> list:
     return data.tolist() if isinstance(data, (torch.Tensor, np.ndarray)) else list(data)
 
 
-def get_dtype_bound_value(dtype: DtypeLike):
+def get_dtype_bound_value(dtype: Union[DtypeLike, torch.dtype]):
     """
     Get dtype bound value
     Args:
@@ -402,12 +401,12 @@ def get_dtype_bound_value(dtype: DtypeLike):
         is_floating_point = get_equivalent_dtype(dtype, torch.Tensor).is_floating_point
     dtype = get_equivalent_dtype(dtype, np.array)
     if is_floating_point:
-        return (np.finfo(dtype).min, np.finfo(dtype).max)
+        return (np.finfo(dtype).min, np.finfo(dtype).max)  # type: ignore
     else:
         return (np.iinfo(dtype).min, np.iinfo(dtype).max)
 
 
-def safe_dtype_convert(data: Any, dtype: DtypeLike = None):
+def safe_dtype_convert(data: Any, dtype: Union[DtypeLike, torch.dtype] = None):
     """
     Utility to safely convert the input data to target dtype.
 
@@ -426,11 +425,12 @@ def safe_dtype_convert(data: Any, dtype: DtypeLike = None):
         else:
             data_bound = (min(data), max(data))
         if (data_bound[1] > dtype_bound_value[1]) or (data_bound[0] < dtype_bound_value[0]):
-            return clip(data, dtype_bound_value[0], dtype_bound_value[1])
+            if isinstance(data, torch.Tensor):
+                return torch.clamp(data, dtype_bound_value[0], dtype_bound_value[1])
+            else:
+                return np.clip(data, dtype_bound_value[0], dtype_bound_value[1])
         else:
             return data
-
-    from monai.transforms.utils_pytorch_numpy_unification import clip
 
     if has_cp and isinstance(data, cp_ndarray):
         return cp.asnumpy(_safe_dtype_convert(data, dtype))
