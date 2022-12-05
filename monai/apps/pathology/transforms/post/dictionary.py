@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Dict, Hashable, Mapping, Optional
+from typing import Callable, Dict, Hashable, Mapping, Optional, Union
 
 import numpy as np
 
@@ -22,12 +22,13 @@ from monai.apps.pathology.transforms.post.array import (
     GenerateSuccinctContour,
     GenerateWatershedMarkers,
     GenerateWatershedMask,
+    HoVerNetInstanceMapPostProcessing,
     HoVerNetNuclearTypePostProcessing,
     Watershed,
 )
 from monai.config.type_definitions import DtypeLike, KeysCollection, NdarrayOrTensor
 from monai.transforms.transform import MapTransform, Transform
-from monai.utils import convert_to_dst_type, optional_import
+from monai.utils import optional_import
 from monai.utils.enums import HoVerNetBranch
 
 find_contours, _ = optional_import("skimage.measure", name="find_contours")
@@ -61,6 +62,9 @@ __all__ = [
     "GenerateInstanceTypeDict",
     "GenerateInstanceTypeD",
     "GenerateInstanceTyped",
+    "HoVerNetInstanceMapPostProcessingDict",
+    "HoVerNetInstanceMapPostProcessingD",
+    "HoVerNetInstanceMapPostProcessingd",
     "HoVerNetNuclearTypePostProcessingDict",
     "HoVerNetNuclearTypePostProcessingD",
     "HoVerNetNuclearTypePostProcessingd",
@@ -125,12 +129,11 @@ class GenerateWatershedMaskd(MapTransform):
     Args:
         keys: keys of the corresponding items to be transformed.
         mask_key: the mask will be written to the value of `{mask_key}`.
-        softmax: if True, apply a softmax function to the prediction.
-        sigmoid: if True, apply a sigmoid function to the prediction.
-        threshold: if not None, threshold the float values to int number 0 or 1 with specified theashold.
-        remove_small_objects: whether need to remove some objects in the marker. Defaults to True.
-        min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
-        dtype: target data content type to convert. Defaults to np.uint8.
+        activation: the activation layer to be applied on nuclear type branch. It can be "softmax" or "sigmoid" string,
+            or any callable. Defaults to "softmax".
+        threshold: if not None, threshold the float values to int number 0 or 1 with specified threshold.
+        min_object_size: objects smaller than this size are removed. Defaults to 10.
+        dtype: target data content type to convert, default is np.uint8.
         allow_missing_keys: don't raise exception if key is missing.
 
     """
@@ -141,47 +144,37 @@ class GenerateWatershedMaskd(MapTransform):
         self,
         keys: KeysCollection,
         mask_key: str = "mask",
-        softmax: bool = True,
-        sigmoid: bool = False,
+        activation: Union[str, Callable] = "softmax",
         threshold: Optional[float] = None,
-        remove_small_objects: bool = True,
-        min_size: int = 10,
+        min_object_size: int = 10,
         dtype: DtypeLike = np.uint8,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.mask_key = mask_key
         self.transform = GenerateWatershedMask(
-            softmax=softmax,
-            sigmoid=sigmoid,
-            threshold=threshold,
-            remove_small_objects=remove_small_objects,
-            min_size=min_size,
-            dtype=dtype,
+            activation=activation, threshold=threshold, min_object_size=min_object_size, dtype=dtype
         )
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             mask = self.transform(d[key])
-            key_to_add = f"{self.mask_key}"
-            if key_to_add in d:
-                raise KeyError(f"Mask with key {key_to_add} already exists.")
-            d[key_to_add] = mask
+            if self.mask_key in d:
+                raise KeyError(f"Mask with key {self.mask_key} already exists.")
+            d[self.mask_key] = mask
         return d
 
 
-class GenerateInstanceBorderd(MapTransform):
+class GenerateInstanceBorderd(Transform):
     """
     Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.array.GenerateInstanceBorder`.
 
     Args:
-        keys: keys of the corresponding items to be transformed.
-        hover_map_key: keys of hover map used to generate probability map.
-        border_key: the instance border map will be written to the value of `{border_key}`.
+        mask_key: the input key where the watershed mask is stored. Defaults to `"mask"`.
+        hover_map_key: the input key where hover map is stored. Defaults to `"hover_map"`.
+        border_key: the output key where instance border map is written. Defaults to `"border"`.
         kernel_size: the size of the Sobel kernel. Defaults to 21.
-        min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
-        remove_small_objects: whether need to remove some objects in segmentation results. Defaults to True.
         dtype: target data content type to convert, default is np.float32.
         allow_missing_keys: don't raise exception if key is missing.
 
@@ -195,88 +188,73 @@ class GenerateInstanceBorderd(MapTransform):
 
     def __init__(
         self,
-        keys: KeysCollection,
+        mask_key: str = "mask",
         hover_map_key: str = "hover_map",
         border_key: str = "border",
         kernel_size: int = 21,
-        min_size: int = 10,
-        remove_small_objects: bool = True,
         dtype: DtypeLike = np.float32,
-        allow_missing_keys: bool = False,
     ) -> None:
-        super().__init__(keys, allow_missing_keys)
+        self.mask_key = mask_key
         self.hover_map_key = hover_map_key
         self.border_key = border_key
-        self.transform = GenerateInstanceBorder(
-            kernel_size=kernel_size, remove_small_objects=remove_small_objects, min_size=min_size, dtype=dtype
-        )
+        self.transform = GenerateInstanceBorder(kernel_size=kernel_size, dtype=dtype)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        for key in self.key_iterator(d):
-            instance_border = self.transform(d[key], d[self.hover_map_key])
-            key_to_add = f"{self.border_key}"
-            if key_to_add in d:
-                raise KeyError(f"Instance border map with key {key_to_add} already exists.")
-            d[key_to_add] = instance_border
+        if self.border_key in d:
+            raise KeyError(f"The key '{self.border_key}' for instance border map already exists.")
+        d[self.border_key] = self.transform(d[self.mask_key], d[self.hover_map_key])
         return d
 
 
-class GenerateDistanceMapd(MapTransform):
+class GenerateDistanceMapd(Transform):
     """
     Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.array.GenerateDistanceMap`.
 
     Args:
-        keys: keys of the corresponding items to be transformed.
-        border_key: keys of the instance border map used to generate distance map.
-        dist_key: the distance map will be written to the value of `{dist_key}`.
-        smooth_fn: execute smooth function on distance map. Defaults to None. You can specify
-            callable functions for smoothing.
-            For example, if you want apply gaussian smooth, you can specify `smooth_fn = GaussianSmooth()`
+        mask_key: the input key where the watershed mask is stored. Defaults to `"mask"`.
+        border_key: the input key where instance border map is stored. Defaults to `"border"`.
+        dist_map_key: the output key where distance map is written. Defaults to `"dist_map"`.
+        smooth_fn: smoothing function for distance map, which can be any callable object.
+            If not provided :py:class:`monai.transforms.GaussianSmooth()` is used.
         dtype: target data content type to convert, default is np.float32.
-        allow_missing_keys: don't raise exception if key is missing.
     """
 
     backend = GenerateDistanceMap.backend
 
     def __init__(
         self,
-        keys: KeysCollection,
+        mask_key: str = "mask",
         border_key: str = "border",
-        dist_key: str = "dist",
+        dist_map_key: str = "dist_map",
         smooth_fn: Optional[Callable] = None,
         dtype: DtypeLike = np.float32,
-        allow_missing_keys: bool = False,
     ) -> None:
-        super().__init__(keys, allow_missing_keys)
+        self.mask_key = mask_key
         self.border_key = border_key
-        self.dist_key = dist_key
+        self.dist_map_key = dist_map_key
         self.transform = GenerateDistanceMap(smooth_fn=smooth_fn, dtype=dtype)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        for key in self.key_iterator(d):
-            distance_map = self.transform(d[key], d[self.border_key])
-            key_to_add = f"{self.dist_key}"
-            if key_to_add in d:
-                raise KeyError(f"Distance map with key {key_to_add} already exists.")
-            d[key_to_add] = distance_map
+        if self.dist_map_key in d:
+            raise KeyError(f"The key '{self.dist_map_key}' for distance map already exists.")
+        d[self.dist_map_key] = self.transform(d[self.mask_key], d[self.border_key])
         return d
 
 
-class GenerateWatershedMarkersd(MapTransform):
+class GenerateWatershedMarkersd(Transform):
     """
     Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.array.GenerateWatershedMarkers`.
 
     Args:
-        keys: keys of the corresponding items to be transformed.
-        border_key: keys of the instance border map used to generate markers.
-        markers_key: the markers will be written to the value of `{markers_key}`.
-        threshold: threshold the float values of instance border map to int 0 or 1 with specified theashold.
+        mask_key: the input key where the watershed mask is stored. Defaults to `"mask"`.
+        border_key: the input key where instance border map is stored. Defaults to `"border"`.
+        markers_key: the output key where markers is written. Defaults to `"markers"`.
+        threshold: threshold the float values of instance border map to int 0 or 1 with specified threshold.
             It turns uncertain area to 1 and other area to 0. Defaults to 0.4.
         radius: the radius of the disk-shaped footprint used in `opening`. Defaults to 2.
-        min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
-        remove_small_objects: whether need to remove some objects in the marker. Defaults to True.
+        min_object_size: objects smaller than this size are removed. Defaults to 10.
         postprocess_fn: execute additional post transformation on marker. Defaults to None.
         dtype: target data content type to convert, default is np.uint8.
         allow_missing_keys: don't raise exception if key is missing.
@@ -286,44 +264,38 @@ class GenerateWatershedMarkersd(MapTransform):
 
     def __init__(
         self,
-        keys: KeysCollection,
+        mask_key: str = "mask",
         border_key: str = "border",
         markers_key: str = "markers",
         threshold: float = 0.4,
         radius: int = 2,
-        min_size: int = 10,
-        remove_small_objects: bool = True,
+        min_object_size: int = 10,
         postprocess_fn: Optional[Callable] = None,
         dtype: DtypeLike = np.uint8,
-        allow_missing_keys: bool = False,
     ) -> None:
-        super().__init__(keys, allow_missing_keys)
+        self.mask_key = mask_key
         self.border_key = border_key
         self.markers_key = markers_key
         self.transform = GenerateWatershedMarkers(
             threshold=threshold,
             radius=radius,
-            min_size=min_size,
-            remove_small_objects=remove_small_objects,
+            min_object_size=min_object_size,
             postprocess_fn=postprocess_fn,
             dtype=dtype,
         )
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        for key in self.key_iterator(d):
-            markers = self.transform(d[key], d[self.border_key])
-            key_to_add = f"{self.markers_key}"
-            if key_to_add in d:
-                raise KeyError(f"Markers with key {key_to_add} already exists.")
-            d[key_to_add] = markers
+        if self.markers_key in d:
+            raise KeyError(f"The key '{self.markers_key}' for markers already exists.")
+        d[self.markers_key] = self.transform(d[self.mask_key], d[self.border_key])
         return d
 
 
 class GenerateSuccinctContourd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.post.array.GenerateSuccinctContour`.
-    Converts Scipy-style contours(generated by skimage.measure.find_contours) to a more succinct version which
+    Converts SciPy-style contours (generated by skimage.measure.find_contours) to a more succinct version which
     only includes the pixels to which lines need to be drawn (i.e. not the intervening pixels along each line).
 
     Args:
@@ -379,7 +351,7 @@ class GenerateInstanceContourd(MapTransform):
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.converter = GenerateInstanceContour(min_num_points=min_num_points, level=level)
+        self.converter = GenerateInstanceContour(min_num_points=min_num_points, contour_level=level)
         self.contour_key_postfix = contour_key_postfix
         self.offset_key = offset_key
 
@@ -485,70 +457,134 @@ class GenerateInstanceTyped(MapTransform):
         return d
 
 
-class HoVerNetNuclearTypePostProcessingd(Transform):
+class HoVerNetInstanceMapPostProcessingd(Transform):
     """
-    Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.post.array.HoVerNetNuclearTypePostProcessing`.
-    Generate instance type and probability for each instance.
+    Dictionary-based wrapper for :py:class:`monai.apps.pathology.transforms.post.array.HoVerNetInstanceMapPostProcessing`.
+    The post-processing transform for HoVerNet model to generate instance segmentation map.
+    It generates an instance segmentation map as well as a dictionary containing centroids, bounding boxes, and contours
+    for each instance.
 
     Args:
-        type_pred_key: the key pointing to the pred type map to be transformed.
-        instance_pred_key: the key pointing to the pred distance map.
-        min_num_points: assumed that the created contour does not form a contour if it does not contain more points
-            than the specified value. Defaults to 3.
-        level: optional. Used in `skimage.measure.find_contours`. Value along which to find contours in the array.
-            By default, the level is set to (max(image) + min(image)) / 2.
-        return_binary: whether to return the binary segmentation prediction after `seg_postprocessing`.
-        pred_binary_key: if `return_binary` is True, this `pred_binary_key` is used to get the binary prediciton
-            from the output.
-        return_centroids: whether to return centroids for each instance.
-        output_classes: number of the nuclear type classes.
-        instance_info_dict_key: key use to record information for each instance.
-        allow_missing_keys: don't raise exception if key is missing.
+        nuclear_prediction_key: the key for HoVerNet NP (nuclear prediction) branch. Defaults to `HoVerNetBranch.NP`.
+        hover_map_key: the key for HoVerNet NC (nuclear prediction) branch. Defaults to `HoVerNetBranch.HV`.
+        instance_info_key: the output key where instance information (contour, bounding boxes, and centroids)
+            is written. Defaults to `"instance_info"`.
+        instance_map_key: the output key where instance map is written. Defaults to `"instance_map"`.
+        activation: the activation layer to be applied on the input probability map.
+            It can be "softmax" or "sigmoid" string, or any callable. Defaults to "softmax".
+        mask_threshold: a float value to threshold to binarize probability map to generate mask.
+        min_object_size: objects smaller than this size are removed. Defaults to 10.
+        sobel_kernel_size: the size of the Sobel kernel used in :py:class:`GenerateInstanceBorder`. Defaults to 5.
+        distance_smooth_fn: smoothing function for distance map.
+            If not provided, :py:class:`monai.transforms.intensity.GaussianSmooth()` will be used.
+        marker_threshold: a float value to threshold to binarize instance border map for markers.
+            It turns uncertain area to 1 and other area to 0. Defaults to 0.4.
+        marker_radius: the radius of the disk-shaped footprint used in `opening` of markers. Defaults to 2.
+        marker_postprocess_fn: post-process function for watershed markers.
+            If not provided, :py:class:`monai.transforms.post.FillHoles()` will be used.
+        watershed_connectivity: `connectivity` argument of `skimage.segmentation.watershed`.
+        min_num_points: minimum number of points to be considered as a contour. Defaults to 3.
+        contour_level: an optional value for `skimage.measure.find_contours` to find contours in the array.
+            If not provided, the level is set to `(max(image) + min(image)) / 2`.
+    """
+
+    def __init__(
+        self,
+        nuclear_prediction_key: str = HoVerNetBranch.NP.value,
+        hover_map_key: str = HoVerNetBranch.HV.value,
+        instance_info_key: str = "instance_info",
+        instance_map_key: str = "instance_map",
+        activation: Union[str, Callable] = "softmax",
+        mask_threshold: Optional[float] = None,
+        min_object_size: int = 10,
+        sobel_kernel_size: int = 5,
+        distance_smooth_fn: Optional[Callable] = None,
+        marker_threshold: float = 0.4,
+        marker_radius: int = 2,
+        marker_postprocess_fn: Optional[Callable] = None,
+        watershed_connectivity: Optional[int] = 1,
+        min_num_points: int = 3,
+        contour_level: Optional[float] = None,
+    ) -> None:
+        super().__init__()
+        self.instance_map_post_process = HoVerNetInstanceMapPostProcessing(
+            activation=activation,
+            mask_threshold=mask_threshold,
+            min_object_size=min_object_size,
+            sobel_kernel_size=sobel_kernel_size,
+            distance_smooth_fn=distance_smooth_fn,
+            marker_threshold=marker_threshold,
+            marker_radius=marker_radius,
+            marker_postprocess_fn=marker_postprocess_fn,
+            watershed_connectivity=watershed_connectivity,
+            min_num_points=min_num_points,
+            contour_level=contour_level,
+        )
+        self.nuclear_prediction_key = nuclear_prediction_key
+        self.hover_map_key = hover_map_key
+        self.instance_info_key = instance_info_key
+        self.instance_map_key = instance_map_key
+
+    def __call__(self, data):
+        d = dict(data)
+
+        for k in [self.instance_info_key, self.instance_map_key]:
+            if k in d:
+                raise ValueError("The output key ['{k}'] already exists in the input dictionary!")
+
+        d[self.instance_info_key], d[self.instance_map_key] = self.instance_map_post_process(
+            d[self.nuclear_prediction_key], d[self.hover_map_key]
+        )
+
+        return d
+
+
+class HoVerNetNuclearTypePostProcessingd(Transform):
+    """
+    Dictionary-based wrapper for :py:class:`monai.apps.pathology.transforms.post.array.HoVerNetNuclearTypePostProcessing`.
+    It updates the input instance info dictionary with information about types of the nuclei (value and probability).
+    Also if requested (`return_type_map=True`), it generates a pixel-level type map.
+
+    Args:
+        type_prediction_key: the key for HoVerNet NC (type prediction) branch. Defaults to `HoVerNetBranch.NC`.
+        instance_info_key: the key where instance information (contour, bounding boxes, and centroids) is stored.
+            Defaults to `"instance_info"`.
+        instance_map_key: the key where instance map is stored. Defaults to `"instance_map"`.
+        type_map_key: the output key where type map is written. Defaults to `"type_map"`.
+
 
     """
 
     def __init__(
         self,
-        type_pred_key: str = HoVerNetBranch.NC.value,
-        instance_pred_key: str = "dist",
-        min_num_points: int = 3,
-        level: Optional[float] = None,
-        return_binary: Optional[bool] = True,
-        pred_binary_key: Optional[str] = "pred_binary",
-        return_centroids: Optional[bool] = False,
-        output_classes: Optional[int] = None,
-        instance_info_dict_key: Optional[str] = "instance_info_dict",
+        type_prediction_key: str = HoVerNetBranch.NC.value,
+        instance_info_key: str = "instance_info",
+        instance_map_key: str = "instance_map",
+        type_map_key: str = "type_map",
+        activation: Union[str, Callable] = "softmax",
+        threshold: Optional[float] = None,
+        return_type_map: bool = True,
     ) -> None:
         super().__init__()
-        self.converter = HoVerNetNuclearTypePostProcessing(
-            min_num_points=min_num_points, level=level, return_centroids=return_centroids, output_classes=output_classes
+        self.type_post_process = HoVerNetNuclearTypePostProcessing(
+            activation=activation, threshold=threshold, return_type_map=return_type_map
         )
-        self.output_classes = output_classes
-        self.type_pred_key = type_pred_key
-        self.instance_pred_key = instance_pred_key
-        self.pred_binary_key = pred_binary_key
-        self.instance_info_dict_key = instance_info_dict_key
-        self.return_binary = return_binary
+        self.type_prediction_key = type_prediction_key
+        self.instance_info_key = instance_info_key
+        self.instance_map_key = instance_map_key
+        self.type_map_key = type_map_key
+        self.return_type_map = return_type_map
 
     def __call__(self, data):
         d = dict(data)
-        inst_pred = d[self.instance_pred_key]
-        type_pred = d[self.type_pred_key]
-        if self.output_classes is not None:
-            pred_type_map, inst_info_dict = self.converter(type_pred, inst_pred)
-            d[self.type_pred_key] = pred_type_map
-        else:
-            inst_info_dict = self.converter(type_pred, inst_pred)
 
-        key_to_add = f"{self.instance_info_dict_key}"
-        if key_to_add in d:
-            raise KeyError(f"Type information with key {key_to_add} already exists.")
-        d[key_to_add] = inst_info_dict
-
-        if self.return_binary:
-            d[self.pred_binary_key] = (inst_pred > 0).astype(int)
-        inst_pred = convert_to_dst_type(inst_pred, type_pred)[0]
-        d[self.instance_pred_key] = inst_pred
+        d[self.instance_info_key], type_map = self.type_post_process(
+            d[self.type_prediction_key], d[self.instance_info_key], d[self.instance_map_key]
+        )
+        if self.return_type_map:
+            if self.type_map_key in d:
+                raise ValueError("The output key ['{self.type_map_key}'] already exists in the input dictionary!")
+            d[self.type_map_key] = type_map
 
         return d
 
@@ -562,4 +598,5 @@ GenerateSuccinctContourDict = GenerateSuccinctContourD = GenerateSuccinctContour
 GenerateInstanceContourDict = GenerateInstanceContourD = GenerateInstanceContourd
 GenerateInstanceCentroidDict = GenerateInstanceCentroidD = GenerateInstanceCentroidd
 GenerateInstanceTypeDict = GenerateInstanceTypeD = GenerateInstanceTyped
+HoVerNetInstanceMapPostProcessingDict = HoVerNetInstanceMapPostProcessingD = HoVerNetInstanceMapPostProcessingd
 HoVerNetNuclearTypePostProcessingDict = HoVerNetNuclearTypePostProcessingD = HoVerNetNuclearTypePostProcessingd
