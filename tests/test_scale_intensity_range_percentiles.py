@@ -58,7 +58,7 @@ class TestScaleIntensityRangePercentiles(NumpyImageTestCase2D):
         for p in TEST_NDARRAYS:
             result = scaler(p(img))
             assert_allclose(
-                result, p(np.clip(expected_img, expected_b_min, expected_b_max)), type_test="tensor", rtol=1e-4
+                result, p(np.clip(expected_img, expected_b_min, expected_b_max)), type_test="tensor", rtol=0.1
             )
 
     def test_invalid_instantiation(self):
