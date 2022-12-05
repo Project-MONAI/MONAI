@@ -16,6 +16,7 @@ from typing import Dict, List, Optional, Union
 import numpy as np
 import torch
 
+from monai.apps.auto3dseg.transforms import EnsureSameShaped
 from monai.apps.utils import get_logger
 from monai.auto3dseg import SegSummarizer
 from monai.auto3dseg.utils import datafold_read
@@ -69,9 +70,11 @@ class DataAnalyzer:
         hist_range: ranges to compute histogram for each image channel.
         fmt: format used to save the analysis results. Defaults to "yaml".
         histogram_only: whether to only compute histograms. Defaults to False.
+        extra_params: other optional arguments. Currently supported arguments are :
+            'allowed_shape_difference' (default 5) can be used to change the default tolerance of
+            the allowed shape differences between the image and label items. In case of shape mismatch below
+            the tolerance, the label image will be resized to match the image using nearest interpolation.
 
-    Raises:
-        ValueError if device is GPU and worker > 0.
 
     Examples:
         .. code-block:: python
@@ -121,6 +124,7 @@ class DataAnalyzer:
         hist_range: Optional[list] = None,
         fmt: Optional[str] = "yaml",
         histogram_only: bool = False,
+        **extra_params,
     ):
         if path.isfile(output_path):
             warnings.warn(f"File {output_path} already exists and will be overwritten.")
@@ -139,6 +143,7 @@ class DataAnalyzer:
         self.hist_range: list = [-500, 500] if hist_range is None else hist_range
         self.fmt = fmt
         self.histogram_only = histogram_only
+        self.extra_params = extra_params
 
     @staticmethod
     def _check_data_uniformity(keys: List[str], result: Dict):
@@ -206,6 +211,17 @@ class DataAnalyzer:
                 EnsureTyped(keys=keys, data_type="tensor", dtype=torch.float),
                 Orientationd(keys=keys, axcodes="RAS"),
             ]
+            if self.label_key is not None:
+
+                allowed_shape_difference = self.extra_params.pop("allowed_shape_difference", 5)
+                transform_list.append(
+                    EnsureSameShaped(
+                        keys=self.label_key,
+                        source_key=self.image_key,
+                        allowed_shape_difference=allowed_shape_difference,
+                    )
+                )
+
         transform = Compose(transform_list)
 
         files, _ = datafold_read(datalist=self.datalist, basedir=self.dataroot, fold=-1, key=key)

@@ -71,7 +71,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
         as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
             it may help improve the performance of following logic.
         runtime_cache: whether to compute cache at the runtime, default to `False` to prepare
-            the cache content at initializaiton.
+            the cache content at initialization. See: :py:class:`monai.data.CacheDataset`.
 
     Raises:
         ValueError: When ``root_dir`` is not a directory.
@@ -99,7 +99,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
         progress: bool = True,
         copy_cache: bool = True,
         as_contiguous: bool = True,
-        runtime_cache: bool = False,
+        runtime_cache=False,
     ) -> None:
         root_dir = Path(root_dir)
         if not root_dir.is_dir():
@@ -228,7 +228,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
             it may help improve the performance of following logic.
         runtime_cache: whether to compute cache at the runtime, default to `False` to prepare
-            the cache content at initializaiton.
+            the cache content at initialization. See: :py:class:`monai.data.CacheDataset`.
 
     Raises:
         ValueError: When ``root_dir`` is not a directory.
@@ -296,7 +296,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         progress: bool = True,
         copy_cache: bool = True,
         as_contiguous: bool = True,
-        runtime_cache: bool = False,
+        runtime_cache=False,
     ) -> None:
         root_dir = Path(root_dir)
         if not root_dir.is_dir():
@@ -458,7 +458,7 @@ class TciaDataset(Randomizable, CacheDataset):
         as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
             it may help improve the performance of following logic.
         runtime_cache: whether to compute cache at the runtime, default to `False` to prepare
-            the cache content at initializaiton.
+            the cache content at initialization. See: :py:class:`monai.data.CacheDataset`.
 
     Example::
 
@@ -514,7 +514,7 @@ class TciaDataset(Randomizable, CacheDataset):
         progress: bool = True,
         copy_cache: bool = True,
         as_contiguous: bool = True,
-        runtime_cache: bool = False,
+        runtime_cache=False,
     ) -> None:
         root_dir = Path(root_dir)
         if not root_dir.is_dir():

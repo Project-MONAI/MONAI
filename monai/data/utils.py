@@ -1099,8 +1099,8 @@ def is_supported_format(filename: Union[Sequence[PathLike], PathLike], suffixes:
     """
     filenames: Sequence[PathLike] = ensure_tuple(filename)
     for name in filenames:
-        tokens: Sequence[str] = PurePath(name).suffixes
-        if len(tokens) == 0 or all("." + s.lower() not in "".join(tokens) for s in suffixes):
+        full_suffix = "".join(map(str.lower, PurePath(name).suffixes))
+        if all(f".{s.lower()}" not in full_suffix for s in suffixes):
             return False
 
     return True
