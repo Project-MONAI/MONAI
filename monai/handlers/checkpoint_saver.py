@@ -243,6 +243,7 @@ class CheckpointSaver:
                 engine.add_event_handler(Events.ITERATION_COMPLETED(every=self.save_interval), self.interval_completed)
 
     def _delete_previous_final_ckpt(self):
+        assert self._final_checkpoint is not None
         saved = self._final_checkpoint._saved
         if len(saved) > 0:
             item = saved.pop(0)
