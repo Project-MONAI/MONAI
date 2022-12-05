@@ -1316,7 +1316,7 @@ class Rotate90(InvertibleTransform):
             rot90 = to_affine_nd(r, create_rotate(sp_r, [s * np.pi / 2]))
         else:
             idx = {1, 2, 3} - set(axes)
-            angle = [0, 0, 0]
+            angle: List[float] = [0, 0, 0]
             angle[idx.pop() - 1] = s * np.pi / 2
             rot90 = to_affine_nd(r, create_rotate(sp_r, angle))
         for _ in range(k):
