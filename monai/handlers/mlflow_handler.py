@@ -280,7 +280,7 @@ class MLFlowHandler:
 
         # If there is optimizer attr in engine, then record parameters specified in init function.
         if hasattr(engine, "optimizer"):
-            cur_optimizer = engine.optimizer  # type: ignore
+            cur_optimizer = engine.optimizer
             for param_name in self.optimizer_param_names:
                 params = {
                     f"{param_name} group_{i}": float(param_group[param_name])
