@@ -386,7 +386,14 @@ def convert_to_list(data: Union[Sequence, torch.Tensor, np.ndarray]) -> list:
     return data.tolist() if isinstance(data, (torch.Tensor, np.ndarray)) else list(data)
 
 
-def get_dtype_bound_value(dtype):
+def get_dtype_bound_value(dtype: DtypeLike):
+    """
+    Get dtype bound value
+    Args:
+        dtype: dtype to get bound value
+    Returns:
+        (bound_min_value, bound_max_value)
+    """
     if dtype in UNSUPPORTED_TYPES:
         is_floating_point = False
     else:
@@ -398,16 +405,15 @@ def get_dtype_bound_value(dtype):
         return (np.iinfo(dtype).min, np.iinfo(dtype).max)
 
 
-def safe_dtype_convert(data, dtype: DtypeLike = None):
+def safe_dtype_convert(data: Any, dtype: DtypeLike = None):
     """
-    Utility to convert the input data to a numpy array. If passing a dictionary, list or tuple,
-    recursively check every item and convert it to numpy array.
+    Utility to safely convert the input data to target dtype.
 
     Args:
         data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
-            will convert Tensor, Numpy array, float, int, bool to numpy arrays, strings and objects keep the original.
-            for dictionary, list or tuple, convert every item to a numpy array if applicable.
-        dtype: target data type when converting to numpy array.
+            will convert to target dtype and keep the original type.
+            for dictionary, list or tuple, convert every item.
+        dtype: target data type to convert.
     """
 
     def _safe_dtype_convert(data, dtype):
