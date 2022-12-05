@@ -852,7 +852,7 @@ class RestoreLabeld(MapTransform):
 
             # Undo Crop
             original_shape = meta_dict[self.original_shape_key]
-            result = torch.zeros(original_shape, dtype=torch.float32)
+            result = np.zeros(original_shape, dtype=np.float32)
             box_start = meta_dict[self.start_coord_key]
             box_end = meta_dict[self.end_coord_key]
 
@@ -870,7 +870,7 @@ class RestoreLabeld(MapTransform):
 
             if np.any(np.not_equal(current_size, spatial_size)):
                 resizer = Resize(spatial_size=spatial_size, mode=mode)
-                result = resizer(result, mode=mode, align_corners=align_corners)
+                result = resizer(result, mode=mode, align_corners=align_corners) # type: ignore
 
             # Undo Slicing
             slice_idx = meta_dict.get("slice_idx")
