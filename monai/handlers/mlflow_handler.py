@@ -82,6 +82,7 @@ class MLFlowHandler:
         artifacts: paths to images that need to be recorded after a whole run.
         optimizer_param_names: parameters' name in optimizer that need to be record during runing,
             defaults to "lr".
+        auto_close: whether to close the mlflow run in `complete` phase in workflow, default to False.
 
     For more details of MLFlow usage, please refer to: https://mlflow.org/docs/latest/index.html.
 
@@ -106,6 +107,7 @@ class MLFlowHandler:
         experiment_param: Optional[Dict] = None,
         artifacts: Optional[Union[str, Sequence[Path]]] = None,
         optimizer_param_names: Union[str, Sequence[str]] = "lr",
+        auto_close: bool = False,
     ) -> None:
         if tracking_uri is not None:
             mlflow.set_tracking_uri(tracking_uri)
@@ -124,6 +126,7 @@ class MLFlowHandler:
         self.artifacts = ensure_tuple(artifacts)
         self.optimizer_param_names = ensure_tuple(optimizer_param_names)
         self.client = mlflow.MlflowClient()
+        self.auto_close = auto_close
 
     def _delete_exist_param_in_dict(self, param_dict: Dict) -> None:
         """
@@ -156,6 +159,8 @@ class MLFlowHandler:
             engine.add_event_handler(Events.EPOCH_COMPLETED, self.epoch_completed)
         if not engine.has_event_handler(self.complete, Events.COMPLETED):
             engine.add_event_handler(Events.COMPLETED, self.complete)
+        if self.auto_close and (not engine.has_event_handler(self.close, Events.COMPLETED)):
+            engine.add_event_handler(Events.COMPLETED, self.close)
 
     def start(self, engine: Engine) -> None:
         """
