@@ -108,6 +108,16 @@ class TestAutoRunner(unittest.TestCase):
             runner.run()
 
     @skip_if_no_cuda
+    def test_autorunner_ensemble(self) -> None:
+        work_dir = os.path.join(self.test_path, "work_dir")
+        runner = AutoRunner(work_dir=work_dir, input=self.data_src_cfg)
+        runner.set_training_params(train_param)  # 2 epochs
+        runner.set_ensemble_method("AlgoEnsembleBestByFold")
+        runner.set_num_fold(1)
+        with skip_if_downloading_fails():
+            runner.run()
+
+    @skip_if_no_cuda
     @unittest.skipIf(not has_nni, "nni required")
     def test_autorunner_hpo(self) -> None:
         work_dir = os.path.join(self.test_path, "work_dir")
