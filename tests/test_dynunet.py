@@ -143,7 +143,7 @@ class TestDynUNetWithInstanceNorm3dNVFuser(unittest.TestCase):
                         with eval_mode(net_fuser):
                             result_fuser = net_fuser(input_tensor)
 
-                        assert_allclose(result, result_fuser, rtol=5e-4)
+                        assert_allclose(result, result_fuser, rtol=1e-4, atol=1e-4)
 
 
 class TestDynUNetDeepSupervision(unittest.TestCase):
