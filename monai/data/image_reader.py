@@ -277,7 +277,7 @@ class ITKReader(ImageReader):
                 img_.append(itk.imread(name, **kwargs_))
         return img_ if len(filenames) > 1 else img_[0]
 
-    def get_data(self, img):
+    def get_data(self, img) -> Tuple[np.ndarray, Dict]:
         """
         Extract data array and metadata from loaded image and return them.
         This function returns two objects, first is numpy array of image data, second is dict of metadata.
@@ -564,7 +564,7 @@ class PydicomReader(ImageReader):
 
         return stack_array, stack_metadata
 
-    def get_data(self, data):
+    def get_data(self, data) -> Tuple[np.ndarray, Dict]:
         """
         Extract data array and metadata from loaded image and return them.
         This function returns two objects, first is numpy array of image data, second is dict of metadata.
@@ -929,7 +929,7 @@ class NibabelReader(ImageReader):
             img_.append(img)
         return img_ if len(filenames) > 1 else img_[0]
 
-    def get_data(self, img):
+    def get_data(self, img) -> Tuple[np.ndarray, Dict]:
         """
         Extract data array and metadata from loaded image and return them.
         This function returns two objects, first is numpy array of image data, second is dict of metadata.
@@ -1095,7 +1095,7 @@ class NumpyReader(ImageReader):
 
         return img_ if len(img_) > 1 else img_[0]
 
-    def get_data(self, img):
+    def get_data(self, img) -> Tuple[np.ndarray, Dict]:
         """
         Extract data array and metadata from loaded image and return them.
         This function returns two objects, first is numpy array of image data, second is dict of metadata.
@@ -1113,7 +1113,7 @@ class NumpyReader(ImageReader):
             img = (img,)
 
         for i in ensure_tuple(img):
-            header = {}
+            header: Dict[MetaKeys, Any] = {}
             if isinstance(i, np.ndarray):
                 # if `channel_dim` is None, can not detect the channel dim, use all the dims as spatial_shape
                 spatial_shape = np.asarray(i.shape)
@@ -1184,7 +1184,7 @@ class PILReader(ImageReader):
 
         return img_ if len(filenames) > 1 else img_[0]
 
-    def get_data(self, img):
+    def get_data(self, img) -> Tuple[np.ndarray, Dict]:
         """
         Extract data array and metadata from loaded image and return them.
         This function returns two objects, first is numpy array of image data, second is dict of metadata.
