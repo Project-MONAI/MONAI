@@ -14,12 +14,10 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.apps.pathology.transforms.post.array import (
-    HoVerNetInstanceMapPostProcessing,
-    HoVerNetNuclearTypePostProcessing,
-)
-from monai.transforms import ComputeHoVerMaps
+from monai.apps.pathology.transforms.post.dictionary import HoVerNetInstanceMapPostProcessingd
+from monai.transforms import ComputeHoVerMaps, FillHoles, GaussianSmooth
 from monai.utils import min_version, optional_import
+from monai.utils.enums import HoVerNetBranch
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 _, has_scipy = optional_import("scipy", "1.8.1", min_version)
@@ -29,35 +27,37 @@ y, x = np.ogrid[0:30, 0:30]
 image = (x - 10) ** 2 + (y - 10) ** 2 <= 5**2
 image = image[None, ...].astype("uint8")
 
-TEST_CASE_1 = [{}, {"1": {"type": 1, "type_prob": 1.0}}, np.zeros_like(image)]
+TEST_CASE_1 = [{}, {"1": {"centroid": 1, "bbox": 1.0}}, np.zeros_like(image)]
+TEST_CASE_2 = [{"distance_smooth_fn": GaussianSmooth()}, {"1": {"type": 1, "type_prob": 1.0}}, np.zeros_like(image)]
+TEST_CASE_3 = [{"marker_postprocess_fn": FillHoles()}, {"1": {"type": 1, "type_prob": 1.0}}, np.zeros_like(image)]
 
 TEST_CASE = []
 for p in TEST_NDARRAYS:
     TEST_CASE.append([p, image] + TEST_CASE_1)
+    TEST_CASE.append([p, image] + TEST_CASE_2)
+    TEST_CASE.append([p, image] + TEST_CASE_3)
 
 
 @unittest.skipUnless(has_scipy, "Requires scipy library.")
 @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
-class TestHoVerNetNuclearTypePostProcessing(unittest.TestCase):
+class TestHoVerNetInstanceMapPostProcessingd(unittest.TestCase):
     @parameterized.expand(TEST_CASE)
     def test_value(self, in_type, test_data, kwargs, expected_info, expected_map):
-        nuclear_prediction = in_type(test_data.astype(float))
-        hover_map = in_type(ComputeHoVerMaps()(test_data.astype(int)))
-        nuclear_type = in_type(test_data)
+        input = {
+            HoVerNetBranch.NP.value: in_type(test_data.astype(float)),
+            HoVerNetBranch.HV.value: in_type(ComputeHoVerMaps()(test_data.astype(int))),
+        }
 
-        inst_info, inst_map = HoVerNetInstanceMapPostProcessing()(nuclear_prediction, hover_map)
-        inst_info, type_map = HoVerNetNuclearTypePostProcessing(**kwargs)(nuclear_type, inst_info, inst_map)
+        outputs = HoVerNetInstanceMapPostProcessingd(**kwargs)(input)
+        inst_info_key = kwargs.get("instance_info_key", "instance_info")
+        inst_map_key = kwargs.get("instance_map_key", "instance_map")
 
-        # instance prediction info
-        for key in inst_info:
-            self.assertEqual(inst_info[key]["type"], expected_info[key]["type"])
-            self.assertEqual(inst_info[key]["type_prob"], expected_info[key]["type_prob"])
+        # instance info
+        for key in outputs[inst_info_key]:
+            assert_allclose(outputs[inst_info_key]["centroid"], expected_info[key]["centroid"], type_test=False)
 
-        # type map
-        if expected_map is None:
-            self.assertIsNone(type_map)
-        else:
-            assert_allclose(type_map, expected_map, type_test=False)
+        # instance map
+        assert_allclose(outputs[inst_map_key], expected_map, type_test=False)
 
 
 if __name__ == "__main__":

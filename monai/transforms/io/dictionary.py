@@ -71,7 +71,7 @@ class LoadImaged(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        reader: Optional[Union[ImageReader, str]] = None,
+        reader: Union[Type[ImageReader], str, None] = None,
         dtype: DtypeLike = np.float32,
         meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,

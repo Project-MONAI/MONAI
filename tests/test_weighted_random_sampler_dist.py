@@ -16,9 +16,10 @@ import torch
 import torch.distributed as dist
 
 from monai.data import DistributedWeightedRandomSampler
-from tests.utils import DistCall, DistTestCase
+from tests.utils import DistCall, DistTestCase, skip_if_windows
 
 
+@skip_if_windows
 class DistributedWeightedRandomSamplerTest(DistTestCase):
     @DistCall(nnodes=1, nproc_per_node=2)
     def test_sampling(self):
