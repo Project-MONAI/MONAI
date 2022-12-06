@@ -21,8 +21,6 @@ __all__ = ["create_test_image_2d", "create_test_image_3d"]
 def create_test_image_2d(
     width: int,
     height: int,
-
-
     num_objs: int = 12,
     rad_max: int = 30,
     rad_min: int = 5,
@@ -101,7 +99,7 @@ def create_test_image_3d(
     width: int,
     depth: int,
     num_objs: int = 12,
-    rad_max: int = 30,
+    rad_max: int = 50,
     rad_min: int = 5,
     noise_max: float = 0.0,
     num_seg_classes: int = 5,
