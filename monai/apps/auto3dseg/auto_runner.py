@@ -345,7 +345,7 @@ class AutoRunner:
             raise ValueError(f"num_fold is expected to be an integer greater than zero. Now it gets {num_fold}")
         self.num_fold = num_fold
         if self.ensemble_method_name == "AlgoEnsembleBestByFold":
-            self.ensemble_method.n_fold = self.num_fold
+            self.ensemble_method.n_fold = self.num_fold  # type: ignore
 
     def set_training_params(self, params: Optional[Dict[str, Any]] = None):
         """
