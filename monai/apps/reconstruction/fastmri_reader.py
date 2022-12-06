@@ -19,7 +19,6 @@ from monai.config import PathLike
 from monai.data.image_reader import ImageReader
 from monai.data.utils import is_supported_format
 from monai.utils import FastMRIKeys, optional_import, require_pkg
-from monai.utils.type_conversion import convert_to_tensor
 
 h5py, has_h5py = optional_import("h5py")
 
@@ -85,7 +84,7 @@ class FastMRIReader(ImageReader):
         header = self._get_meta_dict(dat)
         data: ndarray = np.array(dat[FastMRIKeys.KSPACE])
         header[FastMRIKeys.MASK] = (
-            convert_to_tensor(np.array(dat[FastMRIKeys.MASK])).unsqueeze(0)[None, ..., None]
+            np.expand_dims(np.array(dat[FastMRIKeys.MASK]), 0)[None, ..., None]
             if FastMRIKeys.MASK in dat.keys()
             else np.zeros(data.shape)
         )
