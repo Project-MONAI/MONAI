@@ -118,6 +118,8 @@ DEFAULT_MLFLOW_SETTINGS = {
             "tracking_uri": "@tracking_uri",
             "experiment_name": "@experiment_name",
             "run_name": "@run_name",
+            # will fill in the "config_to_string" content when patching the bundle
+            "experiment_param": {"config_info": "@config_to_string"},
             "iteration_log": True,
             "epoch_log": True,
             "tag_name": "train_loss",
@@ -140,6 +142,7 @@ DEFAULT_MLFLOW_SETTINGS = {
             "tracking_uri": "@tracking_uri",
             "experiment_name": "@experiment_name",
             "run_name": "@run_name",
+            "experiment_param": {"config_info": "@config_to_string"},
             "iteration_log": False,
             "close_on_complete": True,
         },
