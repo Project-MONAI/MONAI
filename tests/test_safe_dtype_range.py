@@ -16,10 +16,9 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.utils.type_conversion import safe_dtype_range, get_equivalent_dtype
 from monai.utils import optional_import
-from tests.utils import HAS_CUPY
-from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
+from monai.utils.type_conversion import get_equivalent_dtype, safe_dtype_range
+from tests.utils import HAS_CUPY, TEST_NDARRAYS_ALL, assert_allclose
 
 cp, _ = optional_import("cupy")
 
@@ -35,7 +34,7 @@ for in_type in TEST_NDARRAYS_ALL + (int, float):
     TESTS_LIST.append(
         (
             [in_type(np.array(1.0)), in_type(np.array(1.0))],  # type: ignore
-            [in_type(np.array(1.0)), in_type(np.array(1.0))],
+            [in_type(np.array(1.0)), in_type(np.array(1.0))],  # type: ignore
             None,
         )
     )
@@ -43,16 +42,12 @@ for in_type in TEST_NDARRAYS_ALL + (int, float):
         TESTS_LIST.append(
             (
                 [in_type(np.array(257)), in_type(np.array(-12))],  # type: ignore
-                [in_type(np.array(255)), in_type(np.array(0))],
+                [in_type(np.array(255)), in_type(np.array(0))],  # type: ignore
                 np.uint8,
             )
         )
 
-TESTS_CUPY = [
-    [np.array(1.0), np.array(1.0), None],
-    [np.array([-12]), np.array([0]), np.uint8],
-
-]
+TESTS_CUPY = [[np.array(1.0), np.array(1.0), None], [np.array([-12]), np.array([0]), np.uint8]]
 
 
 class TesSafeDtypeRange(unittest.TestCase):
@@ -95,6 +90,7 @@ class TesSafeDtypeRange(unittest.TestCase):
         self.assertEqual(result.dtype, in_image.dtype)
         # check output
         self.assertEqual(result, cp.asarray(im_out))
+
 
 if __name__ == "__main__":
     unittest.main()
