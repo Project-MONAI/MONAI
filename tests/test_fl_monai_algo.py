@@ -155,7 +155,7 @@ class TestFLMonaiAlgo(unittest.TestCase):
                     "_target_": "MLFlowHandler",
                     "tracking_uri": Path(data_dir).as_uri() + "/mlflow_override",
                     "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
-                    "auto_close": True,
+                    "close_on_complete": True,
                 }
             },
         }
