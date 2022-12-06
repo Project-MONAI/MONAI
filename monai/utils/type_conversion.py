@@ -143,7 +143,7 @@ def convert_to_tensor(
         return tensor
 
     if safe:
-        data = safe_dtype_convert(data, dtype)
+        data = safe_dtype_range(data, dtype)
     dtype = get_equivalent_dtype(dtype, torch.Tensor)
     if isinstance(data, torch.Tensor):
         return _convert_tensor(data).to(dtype=dtype, device=device, memory_format=torch.contiguous_format)
@@ -186,7 +186,7 @@ def convert_to_numpy(data, dtype: DtypeLike = None, wrap_sequence: bool = False,
             E.g., `[256, -12]` -> `[array(0), array(244)]`. If `True`, then `[256, -12]` -> `[array(255), array(0)]`.
     """
     if safe:
-        data = safe_dtype_convert(data, dtype)
+        data = safe_dtype_range(data, dtype)
     if isinstance(data, torch.Tensor):
         data = np.asarray(data.detach().to(device="cpu").numpy(), dtype=get_equivalent_dtype(dtype, np.ndarray))
     elif has_cp and isinstance(data, cp_ndarray):
@@ -232,7 +232,7 @@ def convert_to_cupy(data, dtype: Optional[np.dtype] = None, wrap_sequence: bool 
             E.g., `[256, -12]` -> `[array(0), array(244)]`. If `True`, then `[256, -12]` -> `[array(255), array(0)]`.
     """
     if safe:
-        data = safe_dtype_convert(data, dtype)
+        data = safe_dtype_range(data, dtype)
     # direct calls
     if isinstance(data, (cp_ndarray, np.ndarray, torch.Tensor, float, int, bool)):
         data = cp.asarray(data, dtype)
@@ -406,7 +406,7 @@ def get_dtype_bound_value(dtype: Union[DtypeLike, torch.dtype]):
         return (np.iinfo(dtype).min, np.iinfo(dtype).max)
 
 
-def safe_dtype_convert(data: Any, dtype: Union[DtypeLike, torch.dtype] = None):
+def safe_dtype_range(data: Any, dtype: Union[DtypeLike, torch.dtype] = None):
     """
     Utility to safely convert the input data to target dtype.
 
@@ -417,7 +417,7 @@ def safe_dtype_convert(data: Any, dtype: Union[DtypeLike, torch.dtype] = None):
         dtype: target data type to convert.
     """
 
-    def _safe_dtype_convert(data, dtype):
+    def _safe_dtype_range(data, dtype):
         output_dtype = dtype if dtype is not None else data.dtype
         dtype_bound_value = get_dtype_bound_value(output_dtype)
         if data.ndim == 0:
@@ -427,17 +427,19 @@ def safe_dtype_convert(data: Any, dtype: Union[DtypeLike, torch.dtype] = None):
         if (data_bound[1] > dtype_bound_value[1]) or (data_bound[0] < dtype_bound_value[0]):
             if isinstance(data, torch.Tensor):
                 return torch.clamp(data, dtype_bound_value[0], dtype_bound_value[1])
-            else:
+            elif isinstance(data, np.ndarray):
                 return np.clip(data, dtype_bound_value[0], dtype_bound_value[1])
+            elif has_cp and isinstance(data, cp_ndarray):
+                return cp.clip(data, dtype_bound_value[0], dtype_bound_value[1])
         else:
             return data
 
     if has_cp and isinstance(data, cp_ndarray):
-        return cp.asnumpy(_safe_dtype_convert(data, dtype))
+        return cp.asarray(_safe_dtype_range(data, dtype))
     elif isinstance(data, np.ndarray):
-        return np.asarray(_safe_dtype_convert(data, dtype))
+        return np.asarray(_safe_dtype_range(data, dtype))
     elif isinstance(data, torch.Tensor):
-        return _safe_dtype_convert(data, dtype)
+        return _safe_dtype_range(data, dtype)
     elif isinstance(data, (float, int, bool)) and dtype is None:
         return data
     elif isinstance(data, (float, int, bool)) and dtype is not None:
@@ -448,9 +450,9 @@ def safe_dtype_convert(data: Any, dtype: Union[DtypeLike, torch.dtype] = None):
         return data
 
     elif isinstance(data, list):
-        return [safe_dtype_convert(i, dtype=dtype) for i in data]
+        return [safe_dtype_range(i, dtype=dtype) for i in data]
     elif isinstance(data, tuple):
-        return tuple(safe_dtype_convert(i, dtype=dtype) for i in data)
+        return tuple(safe_dtype_range(i, dtype=dtype) for i in data)
     elif isinstance(data, dict):
-        return {k: safe_dtype_convert(v, dtype=dtype) for k, v in data.items()}
+        return {k: safe_dtype_range(v, dtype=dtype) for k, v in data.items()}
     return data

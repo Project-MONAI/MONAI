@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.data import MetaTensor
-from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
+from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, get_equivalent_dtype
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TESTS: List[Tuple] = []
@@ -81,8 +81,7 @@ class TestConvertDataType(unittest.TestCase):
     def test_convert_data_type(self, in_image, im_out, out_dtype, safe):
         converted_im, orig_type, orig_device = convert_data_type(in_image, type(im_out), dtype=out_dtype, safe=safe)
         # check input is unchanged
-        in_type = type(in_image)
-        self.assertEqual(in_type, orig_type)
+        self.assertEqual(type(in_image), orig_type)
         if isinstance(in_image, torch.Tensor):
             self.assertEqual(in_image.device, orig_device)
         # check output is desired type
@@ -91,7 +90,7 @@ class TestConvertDataType(unittest.TestCase):
         assert_allclose(converted_im, im_out)
         # check dtype is unchanged
         if out_dtype is None:
-            if isinstance(in_type, (np.ndarray, torch.Tensor)):
+            if isinstance(in_image, (np.ndarray, torch.Tensor)):
                 self.assertEqual(converted_im.dtype, im_out.dtype)
 
     def test_neg_stride(self):
@@ -106,7 +105,6 @@ class TestConvertDataType(unittest.TestCase):
 
     @parameterized.expand(TESTS_LIST)
     def test_convert_list(self, in_image, im_out, wrap, out_dtype, safe):
-        in_type = type(in_image)
         output_type = type(im_out) if wrap else type(im_out[0])
         converted_im, *_ = convert_data_type(in_image, output_type, wrap_sequence=wrap, dtype=out_dtype, safe=safe)
         # check output is desired type
@@ -116,8 +114,12 @@ class TestConvertDataType(unittest.TestCase):
         self.assertEqual(type(converted_im), type(im_out))
         assert_allclose(converted_im, im_out)
         # check dtype is unchanged
-        if isinstance(in_type, (np.ndarray, torch.Tensor)):
-            self.assertEqual(converted_im.dtype, im_out.dtype)
+        if isinstance(in_image[0], (np.ndarray, torch.Tensor)):
+            if out_dtype is None:
+                self.assertEqual(converted_im.dtype, im_out.dtype)
+            else:
+                _out_dtype = get_equivalent_dtype(out_dtype, output_type)
+                self.assertEqual(converted_im.dtype, _out_dtype)
 
 
 class TestConvertDataSame(unittest.TestCase):
@@ -126,8 +128,7 @@ class TestConvertDataSame(unittest.TestCase):
     def test_convert_data_type(self, in_image, im_out, out_dtype, safe):
         converted_im, orig_type, orig_device = convert_to_dst_type(in_image, im_out, dtype=out_dtype, safe=safe)
         # check input is unchanged
-        in_type = type(in_image)
-        self.assertEqual(in_type, orig_type)
+        self.assertEqual(type(in_image), orig_type)
         assert_allclose(converted_im, im_out)
         if isinstance(in_image, torch.Tensor):
             self.assertEqual(in_image.device, orig_device)
@@ -141,8 +142,9 @@ class TestConvertDataSame(unittest.TestCase):
             output_type = np.ndarray
         self.assertEqual(type(converted_im), output_type)
         # check dtype is unchanged
-        if isinstance(in_type, (np.ndarray, torch.Tensor, MetaTensor)):
-            self.assertEqual(converted_im.dtype, im_out.dtype)
+        if out_dtype is None:
+            if isinstance(in_image, (np.ndarray, torch.Tensor, MetaTensor)):
+                self.assertEqual(converted_im.dtype, im_out.dtype)
 
 
 if __name__ == "__main__":
