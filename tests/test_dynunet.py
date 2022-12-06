@@ -17,8 +17,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import DynUNet
-from monai.utils.module import pytorch_after
-from tests.utils import skip_if_no_cuda, skip_if_windows, test_script_save
+from tests.utils import assert_allclose, skip_if_no_cuda, skip_if_windows, test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -144,11 +143,7 @@ class TestDynUNetWithInstanceNorm3dNVFuser(unittest.TestCase):
                         with eval_mode(net_fuser):
                             result_fuser = net_fuser(input_tensor)
 
-                        # torch.testing.assert_allclose() is deprecated since 1.12 and will be removed in 1.14
-                        if pytorch_after(1, 12):
-                            torch.testing.assert_close(result, result_fuser)
-                        else:
-                            torch.testing.assert_allclose(result, result_fuser)
+                        assert_allclose(result, result_fuser, rtol=5e-4)
 
 
 class TestDynUNetDeepSupervision(unittest.TestCase):
