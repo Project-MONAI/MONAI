@@ -27,8 +27,6 @@
 # }
 # =========================================================================
 
-import os
-import re
 import warnings
 from collections import OrderedDict
 from typing import Callable, Dict, List, Optional, Sequence, Type, Union
@@ -36,14 +34,67 @@ from typing import Callable, Dict, List, Optional, Sequence, Type, Union
 import torch
 import torch.nn as nn
 
-from monai.apps.utils import download_url
 from monai.networks.blocks import UpSample
 from monai.networks.layers.factories import Conv, Dropout
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
+from monai.utils import optional_import
 from monai.utils.enums import HoVerNetBranch, HoVerNetMode, InterpolateMode, UpsampleMode
 from monai.utils.module import export, look_up_option
 
+ResNetBottleneck, _ = optional_import("torchvision.models.resnet", name="Bottleneck")
+ResNet, _ = optional_import("torchvision.models.resnet", name="ResNet")
+
 __all__ = ["HoVerNet", "Hovernet", "HoVernet", "HoVerNet"]
+
+
+class _EncoderResBlocks(nn.Module):
+    def __init__(
+        self,
+        in_channels: int,
+        act: Union[str, tuple] = ("relu", {"inplace": True}),
+        norm: Union[str, tuple] = "batch",
+        padding: int = 0,
+    ):
+        """
+        Args:
+            in_channels: number of the input channels.
+            act: activation type and arguments. Defaults to relu.
+            norm: feature normalization type and arguments. Defaults to batch norm.
+            padding: padding value for the first convolution. Defaults to 0.
+
+        """
+        super().__init__()
+        conv_type: Type[nn.Conv2d] = Conv[Conv.CONV, 2]
+
+        self.conv1 = conv_type(in_channels, 64, kernel_size=7, stride=1, padding=padding, bias=False)
+        self.bn1 = get_norm_layer(name=norm, spatial_dims=2, channels=64)
+        self.relu = get_act_layer(name=act)
+
+        resnet50 = ResNet(ResNetBottleneck, [3, 4, 6, 3])
+        self.layer1 = resnet50.layer1
+        self.layer2 = resnet50.layer2
+        self.layer3 = resnet50.layer3
+        self.layer4 = resnet50.layer4
+
+    def forward(self, x: torch.Tensor, freeze: bool = False):
+        if self.training:
+            x = self.conv1(x)
+            x = self.bn1(x)
+            x = self.relu(x)
+            with torch.set_grad_enabled(not freeze):
+                x1 = self.layer1(x)
+                x2 = self.layer2(x1)
+                x3 = self.layer3(x2)
+                x4 = self.layer4(x3)
+        else:
+            x = self.conv1(x)
+            x = self.bn1(x)
+            x = self.relu(x)
+            x1 = self.layer1(x)
+            x2 = self.layer2(x1)
+            x3 = self.layer3(x2)
+            x4 = self.layer4(x3)
+        return x1, x2, x3, x4
 
 
 class _DenseLayerDecoder(nn.Module):
@@ -233,84 +284,6 @@ class _Transition(nn.Sequential):
         self.add_module("relu", get_act_layer(name=act))
 
 
-class _ResidualBlock(nn.Module):
-    def __init__(
-        self,
-        layers: int,
-        num_features: int,
-        in_channels: int,
-        out_channels: int,
-        dropout_prob: float = 0.0,
-        act: Union[str, tuple] = ("relu", {"inplace": True}),
-        norm: Union[str, tuple] = "batch",
-        freeze_dense_layer: bool = False,
-        freeze_block: bool = False,
-    ) -> None:
-        """Residual block.
-
-        References:
-            He, Kaiming, et al. "Deep residual learning for image
-            recognition." Proceedings of the IEEE conference on computer
-            vision and pattern recognition. 2016.
-
-        Args:
-            layers: number of layers in the block.
-            num_features: number of internal features used.
-            in_channels: number of the input channel.
-            out_channels: number of the output channel.
-            dropout_prob: dropout rate after each dense layer.
-            act: activation type and arguments. Defaults to relu.
-            norm: feature normalization type and arguments. Defaults to batch norm.
-            freeze_dense_layer: whether to freeze all dense layers within the block.
-            freeze_block: whether to freeze the whole block.
-
-        """
-        super().__init__()
-
-        self.layers = nn.Sequential()
-        conv_type: Callable = Conv[Conv.CONV, 2]
-
-        if in_channels == 64:
-            self.shortcut = conv_type(in_channels, out_channels, kernel_size=1, bias=False)
-        else:
-            self.shortcut = conv_type(in_channels, out_channels, kernel_size=1, stride=2, padding=1, bias=False)
-
-        layer = _DenseLayer(
-            num_features, in_channels, out_channels, dropout_prob, act=act, norm=norm, drop_first_norm_relu=True
-        )
-        self.layers.add_module("denselayer_0", layer)
-
-        for i in range(1, layers):
-            layer = _DenseLayer(num_features, out_channels, out_channels, dropout_prob, act=act, norm=norm)
-            self.layers.add_module(f"denselayer_{i}", layer)
-
-        self.bna_block = _Transition(out_channels, act=act, norm=norm)
-
-        if freeze_dense_layer:
-            self.layers.requires_grad_(False)
-        if freeze_block:
-            self.requires_grad_(False)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-
-        sc = self.shortcut(x)
-
-        if self.shortcut.stride == (2, 2):
-            sc = sc[:, :, :-1, :-1]
-
-        for layer in self.layers:
-            x = layer.forward(x)
-            if x.shape[-2:] != sc.shape[-2:]:
-                x = x[:, :, :-1, :-1]
-
-            x = x + sc
-            sc = x
-
-        x = self.bna_block(x)
-
-        return x
-
-
 class _DecoderBranch(nn.ModuleList):
     def __init__(
         self,
@@ -427,12 +400,8 @@ class HoVerNet(nn.Module):
             of the referred repository, the architecture is changed to do padding on convolution layers in order to
             get the same output size as the input, and this changed version is used on CoNIC challenge.
             Please note that to get consistent output size, `HoVerNetMode.FAST` mode should be employed.
+        encoder_pretrained_path: if specifying, will loaded the pretrained weights of the encoder from the path.
         dropout_prob: dropout rate after each dense layer.
-        pretrained_url: if specifying, will loaded the pretrained weights downloaded from the url.
-            The weights should be ImageNet pretrained preact-resnet50 weights coming from the referred hover_net
-            repository, each user is responsible for checking the content of model/datasets and the applicable licenses
-            and determining if suitable for the intended use. please check the following link for more details:
-            https://github.com/vqdang/hover_net#data-format
         freeze_encoder: whether to freeze the encoder of the network.
     """
 
@@ -449,7 +418,7 @@ class HoVerNet(nn.Module):
         norm: Union[str, tuple] = "batch",
         decoder_padding: bool = False,
         dropout_prob: float = 0.0,
-        pretrained_url: Optional[str] = None,
+        encoder_pretrained_path: Optional[str] = None,
         freeze_encoder: bool = False,
     ) -> None:
 
@@ -472,11 +441,6 @@ class HoVerNet(nn.Module):
         if dropout_prob > 1 or dropout_prob < 0:
             raise ValueError("Dropout can only be in the range 0.0 to 1.0")
 
-        # number of filters in the first convolution layer.
-        _init_features: int = 64
-        # number of layers in each pooling block.
-        _block_config: Sequence[int] = (3, 4, 6, 3)
-
         if self.mode == HoVerNetMode.FAST:
             _ksize = 3
             _pad = 3
@@ -484,53 +448,14 @@ class HoVerNet(nn.Module):
             _ksize = 5
             _pad = 0
 
-        conv_type: Type[nn.Conv2d] = Conv[Conv.CONV, 2]
-
-        self.conv0 = nn.Sequential(
-            OrderedDict(
-                [
-                    ("conv", conv_type(in_channels, _init_features, kernel_size=7, stride=1, padding=_pad, bias=False)),
-                    ("bn", get_norm_layer(name=norm, spatial_dims=2, channels=_init_features)),
-                    ("relu", get_act_layer(name=act)),
-                ]
-            )
-        )
-
-        _in_channels = _init_features
-        _out_channels = 256
-        _num_features = _init_features
-
-        self.res_blocks = nn.Sequential()
-
-        for i, num_layers in enumerate(_block_config):
-            freeze_dense_layer = False
-            freeze_block = False
-            if freeze_encoder:
-                if i == 0:
-                    freeze_dense_layer = True
-                else:
-                    freeze_block = True
-            block = _ResidualBlock(
-                layers=num_layers,
-                num_features=_num_features,
-                in_channels=_in_channels,
-                out_channels=_out_channels,
-                dropout_prob=dropout_prob,
-                act=act,
-                norm=norm,
-                freeze_dense_layer=freeze_dense_layer,
-                freeze_block=freeze_block,
-            )
-            self.res_blocks.add_module(f"d{i}", block)
-
-            _in_channels = _out_channels
-            _out_channels *= 2
-            _num_features *= 2
-
+        # encoder
+        self.res_blocks = _EncoderResBlocks(in_channels=in_channels, act=act, norm=norm, padding=_pad)
+        self.freeze_encoder = freeze_encoder
         # bottleneck convolution
+        conv_type: Type[nn.Conv2d] = Conv[Conv.CONV, 2]
         self.bottleneck = nn.Sequential()
         self.bottleneck.add_module(
-            "conv_bottleneck", conv_type(_in_channels, _num_features, kernel_size=1, stride=1, padding=0, bias=False)
+            "conv_bottleneck", conv_type(2048, 1024, kernel_size=1, stride=1, padding=0, bias=False)
         )
         self.upsample = UpSample(
             2, scale_factor=2, mode=UpsampleMode.NONTRAINABLE, interp_mode=InterpolateMode.BILINEAR, bias=False
@@ -554,8 +479,8 @@ class HoVerNet(nn.Module):
                 nn.init.constant_(torch.as_tensor(m.weight), 1)
                 nn.init.constant_(torch.as_tensor(m.bias), 0)
 
-        if pretrained_url is not None:
-            _load_pretrained_encoder(self, pretrained_url)
+        if encoder_pretrained_path is not None:
+            _load_pretrained_encoder(self, encoder_pretrained_path)
 
     def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
 
@@ -566,14 +491,9 @@ class HoVerNet(nn.Module):
             if x.shape[-1] != 256 or x.shape[-2] != 256:
                 raise ValueError("Input size should be 256 x 256 when using HoVerNetMode.FAST")
 
-        x = self.conv0(x)
-        short_cuts = []
-
-        for i, block in enumerate(self.res_blocks):
-            x = block.forward(x)
-
-            if i <= 2:
-                short_cuts.append(x)
+        short_cuts = self.res_blocks(x, self.freeze_encoder)
+        x = short_cuts[-1]
+        short_cuts = short_cuts[:-1]
 
         x = self.bottleneck(x)
         x = self.upsample(x)
@@ -588,32 +508,9 @@ class HoVerNet(nn.Module):
         return output
 
 
-def _load_pretrained_encoder(model: nn.Module, model_url: str):
+def _load_pretrained_encoder(model: nn.Module, encoder_pretrained_path: str):
 
-    pattern_conv0 = re.compile(r"^(conv0\.\/)(.+)$")
-    pattern_block = re.compile(r"^(d\d+)\.(.+)$")
-    pattern_layer = re.compile(r"^(.+\.d\d+)\.units\.(\d+)(.+)$")
-    pattern_bna = re.compile(r"^(.+\.d\d+)\.blk_bna\.(.+)")
-    # download the pretrained weights into torch hub's default dir
-    weights_dir = os.path.join(torch.hub.get_dir(), "preact-resnet50.pth")
-    download_url(model_url, fuzzy=True, filepath=weights_dir, progress=False)
-    state_dict = torch.load(weights_dir, map_location=None)["desc"]
-    for key in list(state_dict.keys()):
-        new_key = None
-        if pattern_conv0.match(key):
-            new_key = re.sub(pattern_conv0, r"conv0.conv\2", key)
-        elif pattern_block.match(key):
-            new_key = re.sub(pattern_block, r"res_blocks.\1.\2", key)
-            if pattern_layer.match(new_key):
-                new_key = re.sub(pattern_layer, r"\1.layers.denselayer_\2.layers\3", new_key)
-            elif pattern_bna.match(new_key):
-                new_key = re.sub(pattern_bna, r"\1.bna_block.\2", new_key)
-        if new_key:
-            state_dict[new_key] = state_dict[key]
-            del state_dict[key]
-        if "upsample2x" in key:
-            del state_dict[key]
-
+    state_dict = torch.load(encoder_pretrained_path, map_location=None)
     model_dict = model.state_dict()
     state_dict = {
         k: v for k, v in state_dict.items() if (k in model_dict) and (model_dict[k].shape == state_dict[k].shape)
