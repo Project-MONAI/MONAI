@@ -74,8 +74,6 @@ class TestResize(NumpyImageTestCase2D):
             im = p(self.imt[0])
             out = resize(im)
             if isinstance(im, MetaTensor):
-                if not out.applied_operations:
-                    return  # skipped because good shape
                 im_inv = resize.inverse(out)
                 self.assertTrue(not im_inv.applied_operations)
                 assert_allclose(im_inv.shape, im.shape)

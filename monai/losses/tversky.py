@@ -20,7 +20,6 @@ from monai.utils import LossReduction
 
 
 class TverskyLoss(_Loss):
-
     """
     Compute the Tversky loss defined in:
 

@@ -21,7 +21,7 @@ TEST_CASES = []
 for p in TEST_NDARRAYS:
     TEST_CASES.append(
         [
-            {"keys": ["pred", "label"], "sigmoid": False, "softmax": [True, False], "other": None},
+            {"keys": ["pred", "label"], "sigmoid": False, "softmax": [True, False], "other": None, "dim": 0},
             {"pred": p([[[0.0, 1.0]], [[2.0, 3.0]]]), "label": p([[[0.0, 1.0]], [[2.0, 3.0]]])},
             {"pred": p([[[0.1192, 0.1192]], [[0.8808, 0.8808]]]), "label": p([[[0.0, 1.0]], [[2.0, 3.0]]])},
             (2, 1, 2),

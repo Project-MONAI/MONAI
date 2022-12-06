@@ -71,12 +71,10 @@ class TestRandLambda(unittest.TestCase):
         ret = tr(img)
         self.check(tr, img, img_t, ret, expected)
 
-        # prob = 0
         tr = RandLambda(func=test_func, prob=0.0)
         ret = tr(img)
         self.check(tr, img, img_t, ret, expected=img)
 
-        # prob = 0.5
         trans = RandLambda(func=test_func, prob=0.5)
         trans.set_random_state(seed=123)
         ret = trans(img)

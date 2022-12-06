@@ -13,8 +13,7 @@ A collection of "vanilla" transforms for crop and pad operations acting on batch
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from copy import deepcopy
-from typing import Any, Dict, Hashable
+from typing import Any, Dict, Hashable, Mapping
 
 import numpy as np
 import torch
@@ -100,18 +99,24 @@ class PadListDataCollate(InvertibleTransform):
                 batch = replace_element(padded, batch, idx, key_or_idx)
 
                 # If we have a dictionary of data, append to list
+                # padder transform info is re-added with self.push_transform to ensure one info dict per transform.
                 if is_list_of_dicts:
-                    self.push_transform(batch[idx], key_or_idx, orig_size=orig_size)
+                    self.push_transform(
+                        batch[idx],
+                        key_or_idx,
+                        orig_size=orig_size,
+                        extra_info=self.pop_transform(batch[idx], key_or_idx, check=False),
+                    )
 
         # After padding, use default list collator
         return list_data_collate(batch)
 
     @staticmethod
     def inverse(data: dict) -> Dict[Hashable, np.ndarray]:
-        if not isinstance(data, dict):
+        if not isinstance(data, Mapping):
             raise RuntimeError("Inverse can only currently be applied on dictionaries.")
 
-        d = deepcopy(data)
+        d = dict(data)
         for key in d:
             transforms = None
             if isinstance(d[key], MetaTensor):

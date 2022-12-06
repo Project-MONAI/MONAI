@@ -28,7 +28,11 @@ class SchedulerTestNet(torch.nn.Module):
 
 
 TEST_CASE_LRSCHEDULER = [
-    [{"warmup_steps": 2, "t_total": 10}, [0.000, 0.500, 1.00, 0.962, 0.854, 0.691, 0.500, 0.309, 0.146, 0.038]]
+    [{"warmup_steps": 2, "t_total": 10}, [0.000, 0.500, 1.00, 0.962, 0.854, 0.691, 0.500, 0.309, 0.146, 0.038]],
+    [
+        {"warmup_steps": 2, "t_total": 10, "warmup_multiplier": 0.1},
+        [0.1, 0.55, 1.00, 0.962, 0.854, 0.691, 0.500, 0.309, 0.146, 0.038],
+    ],
 ]
 
 
@@ -46,6 +50,13 @@ class TestLRSCHEDULER(unittest.TestCase):
             scheduler.step()
         for a, b in zip(lrs_1, expected_lr):
             self.assertEqual(a, b, msg=f"LR is wrong ! expected {b}, got {a}")
+
+    def test_error(self):
+        """Should fail because warmup_multiplier is outside 0..1"""
+        net = SchedulerTestNet()
+        optimizer = torch.optim.Adam(net.parameters(), lr=1.0)
+        with self.assertRaises(ValueError):
+            WarmupCosineSchedule(optimizer, warmup_steps=2, t_total=10, warmup_multiplier=-1)
 
 
 if __name__ == "__main__":

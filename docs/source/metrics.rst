@@ -17,6 +17,20 @@ Metrics
 .. autoclass:: Metric
     :members:
 
+`Variance`
+--------------
+.. autofunction:: compute_variance
+
+.. autoclass:: VarianceMetric
+    :members:
+
+`LabelQualityScore`
+--------------------
+.. autofunction:: label_quality_score
+
+.. autoclass:: LabelQualityScore
+    :members:
+
 `IterationMetric`
 -----------------
 .. autoclass:: IterationMetric
@@ -32,11 +46,23 @@ Metrics
 .. autoclass:: CumulativeIterationMetric
     :members:
 
+`LossMetric`
+------------
+.. autoclass:: LossMetric
+    :members:
+
 `Mean Dice`
 -----------
 .. autofunction:: compute_meandice
 
 .. autoclass:: DiceMetric
+    :members:
+
+`Mean IoU`
+----------
+.. autofunction:: compute_meaniou
+
+.. autoclass:: MeanIoU
     :members:
 
 `Generalized Dice Score`
@@ -83,6 +109,13 @@ Metrics
 .. autoclass:: SurfaceDiceMetric
     :members:
 
+`PanopticQualityMetric`
+-----------------------
+.. autofunction:: compute_panoptic_quality
+
+.. autoclass:: PanopticQualityMetric
+    :members:
+
 `Mean squared error`
 --------------------
 .. autoclass:: MSEMetric
@@ -102,6 +135,10 @@ Metrics
 ----------------------------
 .. autoclass:: PSNRMetric
     :members:
+
+`Structural similarity index measure`
+-------------------------------------
+.. autoclass:: monai.metrics.regression.SSIMMetric
 
 `Cumulative average`
 --------------------

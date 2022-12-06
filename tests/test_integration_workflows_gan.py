@@ -22,11 +22,11 @@ import torch
 import monai
 from monai.data import create_test_image_2d
 from monai.engines import GanTrainer
-from monai.engines.utils import GanKeys as Keys
 from monai.handlers import CheckpointSaver, StatsHandler, TensorBoardStatsHandler
 from monai.networks import normal_init
 from monai.networks.nets import Discriminator, Generator
 from monai.transforms import AsChannelFirstd, Compose, LoadImaged, RandFlipd, ScaleIntensityd
+from monai.utils import GanKeys as Keys
 from monai.utils import set_determinism
 from tests.utils import DistTestCase, TimedCall, skip_if_quick
 

@@ -56,7 +56,6 @@
 # The views and conclusions contained in the software and documentation are those
 # of the authors and should not be interpreted as representing official policies,
 # either expressed or implied, of the FreeBSD Project.
-
 """
 This script is almost same with https://github.com/MIC-DKFZ/nnDetection/blob/main/nndet/evaluator/detection/coco.py
 The changes include 1) code reformatting, 2) docstrings.
@@ -405,7 +404,7 @@ class COCOMetric:
 
         Args:
             results_list (List[Dict[int, Dict[str, np.ndarray]]]): list with result s per image (in list)
-                per cateory (dict). Inner Dict contains multiple results obtained by :func:`box_matching_batch`.
+                per category (dict). Inner Dict contains multiple results obtained by :func:`box_matching_batch`.
 
                 - `dtMatches`: matched detections [T, D], where T = number of
                   thresholds, D = number of detections

@@ -24,7 +24,7 @@ import torch
 
 from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.meta_tensor import MetaTensor
+from monai.data.meta_tensor import MetaObj, MetaTensor
 from monai.data.utils import no_collation
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
@@ -127,6 +127,9 @@ __all__ = [
     "MapLabelValueD",
     "MapLabelValueDict",
     "MapLabelValued",
+    "FlattenSubKeysd",
+    "FlattenSubKeysD",
+    "FlattenSubKeysDict",
     "RandCuCIMd",
     "RandCuCIMD",
     "RandCuCIMDict",
@@ -300,22 +303,28 @@ class EnsureChannelFirstd(MapTransform):
         meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
         strict_check: bool = True,
+        allow_missing_keys: bool = False,
+        channel_dim=None,
     ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             strict_check: whether to raise an error when the meta information is insufficient.
-
+            allow_missing_keys: don't raise exception if key is missing.
+            channel_dim: This argument can be used to specify the original channel dimension (integer) of the input array.
+                It overrides the `original_channel_dim` from provided MetaTensor input.
+                If the input array doesn't have a channel dim, this value should be ``'no_channel'``.
+                If this is set to `None`, this class relies on `img` or `meta_dict` to provide the channel dimension.
         """
-        super().__init__(keys)
-        self.adjuster = EnsureChannelFirst(strict_check=strict_check)
+        super().__init__(keys, allow_missing_keys)
+        self.adjuster = EnsureChannelFirst(strict_check=strict_check, channel_dim=channel_dim)
         self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
-        for key, meta_key, meta_key_postfix in zip(self.keys, self.meta_keys, self.meta_key_postfix):
+        for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
             d[key] = self.adjuster(d[key], d.get(meta_key or f"{key}_{meta_key_postfix}"))  # type: ignore
         return d
 
@@ -371,6 +380,9 @@ class RemoveRepeatedChanneld(MapTransform):
 
 
 class SplitDimd(MapTransform):
+
+    backend = SplitDim.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -378,6 +390,7 @@ class SplitDimd(MapTransform):
         dim: int = 0,
         keepdim: bool = True,
         update_meta: bool = True,
+        list_output: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -393,15 +406,34 @@ class SplitDimd(MapTransform):
                 dimension will be squeezed.
             update_meta: if `True`, copy `[key]_meta_dict` for each output and update affine to
                 reflect the cropped image
+            list_output: it `True`, the output will be a list of dictionaries with the same keys as original.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
         self.output_postfixes = output_postfixes
         self.splitter = SplitDim(dim, keepdim, update_meta)
+        self.list_output = list_output
+        if self.list_output is None and self.output_postfixes is not None:
+            raise ValueError("`output_postfixes` should not be provided when `list_output` is `True`.")
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(
+        self, data: Mapping[Hashable, torch.Tensor]
+    ) -> Union[Dict[Hashable, torch.Tensor], List[Dict[Hashable, torch.Tensor]]]:
         d = dict(data)
-        for key in self.key_iterator(d):
+        all_keys = list(set(self.key_iterator(d)))
+
+        if self.list_output:
+            output = []
+            results = [self.splitter(d[key]) for key in all_keys]
+            for row in zip(*results):
+                new_dict = dict(zip(all_keys, row))
+                # fill in the extra keys with unmodified data
+                for k in set(d.keys()).difference(set(all_keys)):
+                    new_dict[k] = deepcopy(d[k])
+                output.append(new_dict)
+            return output
+
+        for key in all_keys:
             rets = self.splitter(d[key])
             postfixes: Sequence = list(range(len(rets))) if self.output_postfixes is None else self.output_postfixes
             if len(postfixes) != len(rets):
@@ -485,6 +517,7 @@ class ToTensord(MapTransform, InvertibleTransform):
         dtype: Optional[torch.dtype] = None,
         device: Optional[torch.device] = None,
         wrap_sequence: bool = True,
+        track_meta: Optional[bool] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -495,27 +528,30 @@ class ToTensord(MapTransform, InvertibleTransform):
             device: specify the target device to put the Tensor data.
             wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
                 E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
+            track_meta: if `True` convert to ``MetaTensor``, otherwise to Pytorch ``Tensor``,
+                if ``None`` behave according to return value of py:func:`monai.data.meta_obj.get_track_meta`.
             allow_missing_keys: don't raise exception if key is missing.
+
         """
         super().__init__(keys, allow_missing_keys)
-        self.converter = ToTensor(dtype=dtype, device=device, wrap_sequence=wrap_sequence)
+        self.converter = ToTensor(dtype=dtype, device=device, wrap_sequence=wrap_sequence, track_meta=track_meta)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
-            self.push_transform(d, key)
             d[key] = self.converter(d[key])
+            self.push_transform(d, key)
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
+            # Remove the applied transform
+            self.pop_transform(d, key)
             # Create inverse transform
             inverse_transform = ToNumpy()
             # Apply inverse
             d[key] = inverse_transform(d[key])
-            # Remove the applied transform
-            self.pop_transform(d, key)
         return d
 
 
@@ -683,7 +719,7 @@ class Transposed(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
@@ -713,7 +749,7 @@ class DeleteItemsd(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             sep: the separator tag to define nested dictionary keys, default to ".".
             use_re: whether the specified key is a regular expression, it also can be
-                a list of bool values, map the to keys.
+                a list of bool values, mapping them to `keys`.
         """
         super().__init__(keys)
         self.sep = sep
@@ -725,7 +761,7 @@ class DeleteItemsd(MapTransform):
             if len(keys) > 1:
                 d[key] = _delete_item(keys[1:], d[key], use_re)
                 return d
-            return {k: v for k, v in d.items() if (use_re and not re.search(key, k)) or (not use_re and k != key)}
+            return {k: v for k, v in d.items() if (use_re and not re.search(key, f"{k}")) or (not use_re and k != key)}
 
         d = dict(data)
         for key, use_re in zip(self.keys, self.use_re):
@@ -737,13 +773,62 @@ class DeleteItemsd(MapTransform):
 class SelectItemsd(MapTransform):
     """
     Select only specified items from data dictionary to release memory.
-    It will copy the selected key-values and construct and new dictionary.
+    It will copy the selected key-values and construct a new dictionary.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __call__(self, data):
         return {key: data[key] for key in self.key_iterator(data)}
+
+
+class FlattenSubKeysd(MapTransform):
+    """
+    If an item is dictionary, it flatten the item by moving the sub-items (defined by sub-keys) to the top level.
+    {"pred": {"a": ..., "b", ... }} --> {"a": ..., "b", ... }
+
+    Args:
+        keys: keys of the corresponding items to be flatten
+        sub_keys: the sub-keys of items to be flatten. If not provided all the sub-keys are flattened.
+        delete_keys: whether to delete the key of the items that their sub-keys are flattened. Default to True.
+        prefix: optional prefix to be added to the sub-keys when moving to the top level.
+            By default no prefix will be added.
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        sub_keys: Optional[KeysCollection] = None,
+        delete_keys: bool = True,
+        prefix: Optional[str] = None,
+    ) -> None:
+        super().__init__(keys)
+        self.sub_keys = sub_keys
+        self.delete_keys = delete_keys
+        self.prefix = prefix
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.key_iterator(d):
+            # set the sub-keys for the specified key
+            sub_keys = d[key].keys() if self.sub_keys is None else self.sub_keys
+
+            # move all the sub-keys to the top level
+            for sk in sub_keys:
+                # set the top-level key for the sub-key
+                sk_top = f"{self.prefix}_{sk}" if self.prefix else sk
+                if sk_top in d:
+                    raise ValueError(
+                        f"'{sk_top}' already exists in the top-level keys. Please change `prefix` to avoid duplicity."
+                    )
+                d[sk_top] = d[key][sk]
+
+            # delete top level key that is flattened
+            if self.delete_keys:
+                del d[key]
+        return d
 
 
 class SqueezeDimd(MapTransform):
@@ -753,16 +838,19 @@ class SqueezeDimd(MapTransform):
 
     backend = SqueezeDim.backend
 
-    def __init__(self, keys: KeysCollection, dim: int = 0, allow_missing_keys: bool = False) -> None:
+    def __init__(
+        self, keys: KeysCollection, dim: int = 0, update_meta: bool = True, allow_missing_keys: bool = False
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             dim: dimension to be squeezed. Default: 0 (the first dimension)
+            update_meta: whether to update the meta info if the input is a metatensor. Default is ``True``.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
-        self.converter = SqueezeDim(dim=dim)
+        self.converter = SqueezeDim(dim=dim, update_meta=update_meta)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -917,17 +1005,15 @@ class CopyItemsd(MapTransform):
                 if new_key in d:
                     raise KeyError(f"Key {new_key} already exists in data.")
                 val = d[key]
-                if isinstance(val, torch.Tensor):
-                    d[new_key] = val.detach().clone()
-                else:
-                    d[new_key] = deepcopy(val)
+                d[new_key] = MetaObj.copy_items(val) if isinstance(val, (torch.Tensor, np.ndarray)) else deepcopy(val)
         return d
 
 
 class ConcatItemsd(MapTransform):
     """
     Concatenate specified items from data dictionary together on the first dim to construct a big array.
-    Expect all the items are numpy array or PyTorch Tensor.
+    Expect all the items are numpy array or PyTorch Tensor or MetaTensor.
+    Return the first input's meta information when items are MetaTensor.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
@@ -949,7 +1035,7 @@ class ConcatItemsd(MapTransform):
         """
         Raises:
             TypeError: When items in ``data`` differ in type.
-            TypeError: When the item type is not in ``Union[numpy.ndarray, torch.Tensor]``.
+            TypeError: When the item type is not in ``Union[numpy.ndarray, torch.Tensor, MetaTensor]``.
 
         """
         d = dict(data)
@@ -967,10 +1053,12 @@ class ConcatItemsd(MapTransform):
 
         if data_type is np.ndarray:
             d[self.name] = np.concatenate(output, axis=self.dim)
-        elif data_type is torch.Tensor:
+        elif issubclass(data_type, torch.Tensor):  # type: ignore
             d[self.name] = torch.cat(output, dim=self.dim)  # type: ignore
         else:
-            raise TypeError(f"Unsupported data type: {data_type}, available options are (numpy.ndarray, torch.Tensor).")
+            raise TypeError(
+                f"Unsupported data type: {data_type}, available options are (numpy.ndarray, torch.Tensor, MetaTensor)."
+            )
         return d
 
 
@@ -996,8 +1084,10 @@ class Lambdad(MapTransform, InvertibleTransform):
             each element corresponds to a key in ``keys``.
         inv_func: Lambda/function of inverse operation if want to invert transforms, default to `lambda x: x`.
             It also can be a sequence of Callable, each element corresponds to a key in ``keys``.
-        overwrite: whether to overwrite the original data in the input dictionary with lamdbda function output.
-            default to True. it also can be a sequence of bool, each element corresponds to a key in ``keys``.
+        overwrite: whether to overwrite the original data in the input dictionary with lambda function output. it
+            can be bool or str, when setting to str, it will create a new key for the output and keep the value of
+            key intact. default to True. it also can be a sequence of bool or str, each element corresponds to a key
+            in ``keys``.
         allow_missing_keys: don't raise exception if key is missing.
 
     Note: The inverse operation doesn't allow to define `extra_info` or access other information, such as the
@@ -1012,7 +1102,7 @@ class Lambdad(MapTransform, InvertibleTransform):
         keys: KeysCollection,
         func: Union[Sequence[Callable], Callable],
         inv_func: Union[Sequence[Callable], Callable] = no_collation,
-        overwrite: Union[Sequence[bool], bool] = True,
+        overwrite: Union[Sequence[bool], bool, Sequence[str], str] = True,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -1025,12 +1115,14 @@ class Lambdad(MapTransform, InvertibleTransform):
         d = dict(data)
         for key, func, overwrite in self.key_iterator(d, self.func, self.overwrite):
             ret = self._lambd(img=d[key], func=func)
-            if overwrite:
+            if overwrite and isinstance(overwrite, bool):
                 d[key] = ret
+            elif isinstance(overwrite, str):
+                d[overwrite] = ret
         return d
 
     def inverse(self, data):
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key, overwrite in self.key_iterator(d, self.overwrite):
             ret = self._lambd.inverse(data=d[key])
             if overwrite:
@@ -1050,7 +1142,7 @@ class RandLambdad(Lambdad, RandomizableTransform):
             each element corresponds to a key in ``keys``.
         inv_func: Lambda/function of inverse operation if want to invert transforms, default to `lambda x: x`.
             It also can be a sequence of Callable, each element corresponds to a key in ``keys``.
-        overwrite: whether to overwrite the original data in the input dictionary with lamdbda function output.
+        overwrite: whether to overwrite the original data in the input dictionary with lambda function output.
             default to True. it also can be a sequence of bool, each element corresponds to a key in ``keys``.
         prob: probability of executing the random function, default to 1.0, with 100% probability to execute.
             note that all the data specified by `keys` will share the same random probability to execute or not.
@@ -1100,7 +1192,7 @@ class RandLambdad(Lambdad, RandomizableTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key, overwrite in self.key_iterator(d, self.overwrite):
             if isinstance(d[key], MetaTensor):
                 tr = self.pop_transform(d[key])
@@ -1365,7 +1457,7 @@ class TorchVisiond(MapTransform):
         return d
 
 
-class RandTorchVisiond(Randomizable, MapTransform):
+class RandTorchVisiond(RandomizableTransform, MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.TorchVision` for randomized transforms.
     For deterministic non-randomized transforms of TorchVision use :py:class:`monai.transforms.TorchVisiond`.
@@ -1374,32 +1466,42 @@ class RandTorchVisiond(Randomizable, MapTransform):
 
         - As most of the TorchVision transforms only work for PIL image and PyTorch Tensor, this transform expects input
           data to be dict of PyTorch Tensors, users can easily call `ToTensord` transform to convert Numpy to Tensor.
-        - This class inherits the ``Randomizable`` purely to prevent any dataset caching to skip the transform
+        - This class inherits the ``RandomizableTransform`` purely to prevent any dataset caching to skip the transform
           computation. If the random factor of the underlying torchvision transform is not derived from `self.R`,
-          the results may not be deterministic.
-          See Also: :py:class:`monai.transforms.Randomizable`.
+          the results may not be deterministic.  It also provides the probability to apply this transform.
+          See Also: :py:class:`monai.transforms.RandomizableTransform`.
 
     """
 
     backend = TorchVision.backend
 
-    def __init__(self, keys: KeysCollection, name: str, allow_missing_keys: bool = False, *args, **kwargs) -> None:
+    def __init__(
+        self, keys: KeysCollection, name: str, prob: float = 1.0, allow_missing_keys: bool = False, *args, **kwargs
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             name: The transform name in TorchVision package.
+            prob: Probability of applying this transform.
             allow_missing_keys: don't raise exception if key is missing.
             args: parameters for the TorchVision transform.
             kwargs: parameters for the TorchVision transform.
 
         """
+        RandomizableTransform.__init__(self, prob=prob)
         MapTransform.__init__(self, keys, allow_missing_keys)
+
         self.name = name
         self.trans = TorchVision(name, *args, **kwargs)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
+
+        self.randomize(data)
+        if not self._do_transform:
+            return d
+
         for key in self.key_iterator(d):
             d[key] = self.trans(d[key])
         return d
@@ -1692,3 +1794,4 @@ ToDeviceD = ToDeviceDict = ToDeviced
 CuCIMD = CuCIMDict = CuCIMd
 RandCuCIMD = RandCuCIMDict = RandCuCIMd
 AddCoordinateChannelsD = AddCoordinateChannelsDict = AddCoordinateChannelsd
+FlattenSubKeysD = FlattenSubKeysDict = FlattenSubKeysd

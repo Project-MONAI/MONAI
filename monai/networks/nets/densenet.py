@@ -148,7 +148,7 @@ class DenseNet(nn.Module):
     """
     Densenet based on: `Densely Connected Convolutional Networks <https://arxiv.org/pdf/1608.06993.pdf>`_.
     Adapted from PyTorch Hub 2D version: https://pytorch.org/vision/stable/models.html#id16.
-    This network is non-determistic When `spatial_dims` is 3 and CUDA is enabled. Please check the link below
+    This network is non-deterministic When `spatial_dims` is 3 and CUDA is enabled. Please check the link below
     for more details:
     https://pytorch.org/docs/stable/generated/torch.use_deterministic_algorithms.html#torch.use_deterministic_algorithms
 

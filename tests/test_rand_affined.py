@@ -221,6 +221,8 @@ class TestRandAffined(unittest.TestCase):
         if input_param.get("cache_grid", False):
             self.assertTrue(g.rand_affine._cached_grid is not None)
         for key in res:
+            if isinstance(key, str) and key.endswith("_transforms"):
+                continue
             result = res[key]
             if track_meta:
                 self.assertIsInstance(result, MetaTensor)
