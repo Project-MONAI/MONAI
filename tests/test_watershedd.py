@@ -29,7 +29,7 @@ _, has_skimage = optional_import("skimage", "0.19.3", min_version)
 _, has_scipy = optional_import("scipy", "1.8.1", min_version)
 
 TESTS = []
-params = {"keys": "dist", "mask_key": "mask", "markers_key": "markers", "connectivity": 1}
+params = {"keys": "dist_map", "mask_key": "mask", "markers_key": "markers", "connectivity": 1}
 for p in TEST_NDARRAYS:
     image = p(np.random.rand(1, 10, 10))
     hover_map = p(np.random.rand(2, 10, 10))
@@ -53,15 +53,15 @@ class TestWatershedd(unittest.TestCase):
         trans = Compose(
             [
                 GenerateWatershedMaskd(keys="output"),
-                GenerateInstanceBorderd(keys="mask", hover_map_key="hover_map", kernel_size=3),
-                GenerateDistanceMapd(keys="mask", border_key="border"),
-                GenerateWatershedMarkersd(keys="mask", border_key="border"),
+                GenerateInstanceBorderd(mask_key="mask", hover_map_key="hover_map", kernel_size=3),
+                GenerateDistanceMapd(mask_key="mask", border_key="border"),
+                GenerateWatershedMarkersd(mask_key="mask", border_key="border"),
                 Watershedd(**args),
             ]
         )
 
         output = trans(data)
-        self.assertTupleEqual(output["dist"].shape, expected_shape)
+        self.assertTupleEqual(output["dist_map"].shape, expected_shape)
 
 
 if __name__ == "__main__":

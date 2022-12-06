@@ -53,6 +53,7 @@ class TestHandlerMLFlow(unittest.TestCase):
                 state_attributes=["test"],
                 experiment_param=experiment_param,
                 artifacts=[artifact_path],
+                close_on_complete=True,
             )
             handler.attach(engine)
             engine.run(range(3), max_epochs=2)

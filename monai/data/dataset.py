@@ -1075,7 +1075,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         except TypeError as e:
             warnings.warn(f"input data can't be shuffled in SmartCacheDataset with numpy.random.shuffle(): {e}.")
 
-    def _compute_data_idx(self):
+    def _compute_data_idx(self) -> None:
         """
         Update the replacement data position in the total data.
 
@@ -1091,16 +1091,14 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         Check whether the replacement thread is already started.
 
         """
-        if self._replace_mgr is None:
-            return False
-        return self._replace_mgr.is_alive()
+        return False if self._replace_mgr is None else self._replace_mgr.is_alive()
 
     def start(self):
         """
         Start the background thread to replace training items for every epoch.
 
         """
-        if self._replace_mgr is None or not self.is_started():
+        if not self.is_started():
             self._restart()
 
     def _restart(self):
@@ -1141,8 +1139,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         If the cache has been shutdown before, need to restart the `_replace_mgr` thread.
 
         """
-        if not self._replace_mgr.is_alive():
-            self._restart()
+        self.start()
 
         # make sure update is done
         while not self._try_update_cache():
@@ -1173,7 +1170,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         # wait until replace mgr is done the current round
         while not self._try_shutdown():
             time.sleep(0.01)
-        self._replace_mgr.join()
+        self._replace_mgr.join(300)
 
     def _replace_cache_thread(self, index: int):
         """
@@ -1209,7 +1206,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
                 self._compute_replacements()
             return False, self._round
 
-    def manage_replacement(self):
+    def manage_replacement(self) -> None:
         """
         Background thread for replacement.
 
