@@ -11,7 +11,7 @@
 
 import os
 import sys
-from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
 
@@ -62,14 +62,14 @@ class PatchWSIDataset(Dataset):
     ):
         super().__init__(data, transform)
 
-        self.region_size = ensure_tuple_rep(region_size, 2)
-        self.grid_shape = ensure_tuple_rep(grid_shape, 2)
-        self.patch_size = ensure_tuple_rep(patch_size, 2)
+        self.region_size = cast(Tuple[int, int], ensure_tuple_rep(region_size, 2))
+        self.grid_shape = cast(Tuple[int, int], ensure_tuple_rep(grid_shape, 2))
+        self.patch_size = cast(Tuple[int, int], ensure_tuple_rep(patch_size, 2))
 
         self.image_path_list = list({x["image"] for x in self.data})
         self.image_reader_name = image_reader_name.lower()
         self.image_reader = WSIReader(backend=image_reader_name, **kwargs)
-        self.wsi_object_dict = None
+        self.wsi_object_dict: Optional[Dict] = None
         if self.image_reader_name != "openslide":
             # OpenSlide causes memory issue if we prefetch image objects
             self._fetch_wsi_objects()
@@ -85,11 +85,12 @@ class PatchWSIDataset(Dataset):
         if self.image_reader_name == "openslide":
             img_obj = self.image_reader.read(sample["image"])
         else:
+            assert self.wsi_object_dict is not None
             img_obj = self.wsi_object_dict[sample["image"]]
         location = [sample["location"][i] - self.region_size[i] // 2 for i in range(len(self.region_size))]
         images, _ = self.image_reader.get_data(
             img=img_obj,
-            location=location,
+            location=cast(Tuple[int, int], location),
             size=self.region_size,
             grid_shape=self.grid_shape,
             patch_size=self.patch_size,
@@ -209,7 +210,7 @@ class MaskedInferenceWSIDataset(Dataset):
     ) -> None:
         super().__init__(data, transform)
 
-        self.patch_size = ensure_tuple_rep(patch_size, 2)
+        self.patch_size = cast(Tuple[int, int], ensure_tuple_rep(patch_size, 2))
 
         # set up whole slide image reader
         self.image_reader_name = image_reader_name.lower()
@@ -309,7 +310,7 @@ class MaskedInferenceWSIDataset(Dataset):
         this method, first, finds the whole slide image and the patch that should be extracted,
         then it loads the patch and provide it with its image name and the corresponding mask location.
         """
-        sample_num = np.argmax(self.cum_num_patches > index) - 1
+        sample_num = cast(int, np.argmax(self.cum_num_patches > index)) - 1
         sample = self.data[sample_num]
         patch_num = index - self.cum_num_patches[sample_num]
         location_on_image = sample["image_locations"][patch_num]

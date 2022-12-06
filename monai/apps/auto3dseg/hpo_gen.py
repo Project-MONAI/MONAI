@@ -12,7 +12,7 @@
 import os
 from abc import abstractmethod
 from copy import deepcopy
-from typing import Optional
+from typing import Optional, cast
 from warnings import warn
 
 from monai.apps.auto3dseg.bundle_gen import BundleAlgo
@@ -139,7 +139,8 @@ class NNIGen(HPOGen):
         logger.info("-" * 140)
         logger.info("If NNI will run in a remote env: ")
         logger.info(
-            f"1. Copy the algorithm_templates folder {self.algo.template_path} to remote {{remote_algorithm_templates_dir}}"
+            f"1. Copy the algorithm_templates folder {cast(BundleAlgo, self.algo).template_path} "
+            f"to remote {{remote_algorithm_templates_dir}}"
         )
         logger.info(f"2. Copy the older {self.algo.get_output_path()} to the remote machine {{remote_algo_dir}}")
         logger.info("Then add the following line to the trialCommand in your NNI config: ")
