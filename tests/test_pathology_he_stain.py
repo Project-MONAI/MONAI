@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.apps.pathology.transforms import ExtractHEStains, NormalizeHEStains
+from monai.apps.pathology.transforms import HEStainExtractor, StainNormalizer
 
 # None inputs
 EXTRACT_STAINS_TEST_CASE_0 = (None,)
@@ -23,23 +23,23 @@ NORMALIZE_STAINS_TEST_CASE_0 = (None,)
 NORMALIZE_STAINS_TEST_CASE_00: tuple = ({}, None, None)
 
 # input pixels with negative values
-NEGATIVE_VALUE_TEST_CASE = [np.full((3, 2, 3), -1)]
+NEGATIVE_VALUE_TEST_CASE = [np.full((3, 2, 4), -1)]
 
 # input pixels with greater than 255 values
-INVALID_VALUE_TEST_CASE = [np.full((3, 2, 3), 256)]
+INVALID_VALUE_TEST_CASE = [np.full((3, 2, 4), 256)]
 
 # input pixels all transparent and below the beta absorbance threshold
-EXTRACT_STAINS_TEST_CASE_1 = [np.full((3, 2, 3), 240)]
+EXTRACT_STAINS_TEST_CASE_1 = [np.full((3, 2, 4), 240)]
 
 # input pixels uniformly filled, but above beta absorbance threshold
-EXTRACT_STAINS_TEST_CASE_2 = [np.full((3, 2, 3), 100)]
+EXTRACT_STAINS_TEST_CASE_2 = [np.full((3, 2, 4), 100)]
 
 # input pixels uniformly filled (different value), but above beta absorbance threshold
-EXTRACT_STAINS_TEST_CASE_3 = [np.full((3, 2, 3), 150)]
+EXTRACT_STAINS_TEST_CASE_3 = [np.full((3, 2, 4), 150)]
 
 # input pixels uniformly filled with zeros, leading to two identical stains extracted
 EXTRACT_STAINS_TEST_CASE_4 = [
-    np.zeros((3, 2, 3)),
+    np.zeros((3, 2, 4)),
     np.array([[0.0, 0.0], [0.70710678, 0.70710678], [0.70710678, 0.70710678]]),
 ]
 
@@ -50,27 +50,27 @@ EXTRACT_STAINS_TEST_CASE_5 = [
 ]
 
 # input pixels all transparent and below the beta absorbance threshold
-NORMALIZE_STAINS_TEST_CASE_1 = [np.full((3, 2, 3), 240)]
+NORMALIZE_STAINS_TEST_CASE_1 = [np.full((3, 2, 5), 240)]
 
 # input pixels uniformly filled with zeros, and target stain matrix provided
-NORMALIZE_STAINS_TEST_CASE_2 = [{"target_he": np.full((3, 2), 1)}, np.zeros((3, 2, 3)), np.full((3, 2, 3), 11)]
+NORMALIZE_STAINS_TEST_CASE_2 = [{"ref_stain_coeff": np.full((3, 2), 1)}, np.zeros((3, 2, 4)), np.full((3, 2, 4), 11)]
 
 # input pixels uniformly filled with zeros, and target stain matrix not provided
 NORMALIZE_STAINS_TEST_CASE_3 = [
     {},
     np.zeros((3, 2, 3)),
-    np.array([[[63, 25, 60], [63, 25, 60]], [[63, 25, 60], [63, 25, 60]], [[63, 25, 60], [63, 25, 60]]]),
+    np.array([[[63, 63, 63], [63, 63, 63]], [[25, 25, 25], [25, 25, 25]], [[60, 60, 60], [60, 60, 60]]]),
 ]
 
 # input pixels not uniformly filled
 NORMALIZE_STAINS_TEST_CASE_4 = [
-    {"target_he": np.full((3, 2), 1)},
+    {"ref_stain_coeff": np.full((3, 2), 1)},
     np.array([[[100, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0]]]),
-    np.array([[[87, 87, 87], [33, 33, 33]], [[33, 33, 33], [33, 33, 33]], [[33, 33, 33], [33, 33, 33]]]),
+    np.array([[[87, 33, 33], [33, 33, 33]], [[87, 33, 33], [33, 33, 33]], [[87, 33, 33], [33, 33, 33]]]),
 ]
 
 
-class TestExtractHEStains(unittest.TestCase):
+class TestHEStainExtractor(unittest.TestCase):
     @parameterized.expand(
         [NEGATIVE_VALUE_TEST_CASE, INVALID_VALUE_TEST_CASE, EXTRACT_STAINS_TEST_CASE_0, EXTRACT_STAINS_TEST_CASE_1]
     )
@@ -84,10 +84,10 @@ class TestExtractHEStains(unittest.TestCase):
         """
         if image is None:
             with self.assertRaises(TypeError):
-                ExtractHEStains()(image)
+                HEStainExtractor()(image)
         else:
             with self.assertRaises(ValueError):
-                ExtractHEStains()(image)
+                HEStainExtractor()(image)
 
     @parameterized.expand([EXTRACT_STAINS_TEST_CASE_0, EXTRACT_STAINS_TEST_CASE_2, EXTRACT_STAINS_TEST_CASE_3])
     def test_identical_result_vectors(self, image):
@@ -101,9 +101,9 @@ class TestExtractHEStains(unittest.TestCase):
         """
         if image is None:
             with self.assertRaises(TypeError):
-                ExtractHEStains()(image)
+                HEStainExtractor()(image)
         else:
-            result = ExtractHEStains()(image)
+            result = HEStainExtractor()(image)
             np.testing.assert_array_equal(result[:, 0], result[:, 1])
 
     @parameterized.expand([EXTRACT_STAINS_TEST_CASE_00, EXTRACT_STAINS_TEST_CASE_4, EXTRACT_STAINS_TEST_CASE_5])
@@ -136,13 +136,13 @@ class TestExtractHEStains(unittest.TestCase):
         """
         if image is None:
             with self.assertRaises(TypeError):
-                ExtractHEStains()(image)
+                HEStainExtractor()(image)
         else:
-            result = ExtractHEStains()(image)
+            result = HEStainExtractor()(image)
             np.testing.assert_allclose(result, expected_data)
 
 
-class TestNormalizeHEStains(unittest.TestCase):
+class TestStainNormalizer(unittest.TestCase):
     @parameterized.expand(
         [NEGATIVE_VALUE_TEST_CASE, INVALID_VALUE_TEST_CASE, NORMALIZE_STAINS_TEST_CASE_0, NORMALIZE_STAINS_TEST_CASE_1]
     )
@@ -156,10 +156,10 @@ class TestNormalizeHEStains(unittest.TestCase):
         """
         if image is None:
             with self.assertRaises(TypeError):
-                NormalizeHEStains()(image)
+                StainNormalizer()(image)
         else:
             with self.assertRaises(ValueError):
-                NormalizeHEStains()(image)
+                StainNormalizer()(image)
 
     @parameterized.expand(
         [
@@ -203,7 +203,7 @@ class TestNormalizeHEStains(unittest.TestCase):
         For test case 4:
         - For this non-uniformly filled image, the stain extracted should be
           [[0.70710677,0.18696113],[0,0],[0.70710677,0.98236734]], as validated for the
-          ExtractHEStains class. Solving the linear least squares problem (since
+          HEStainExtractor class. Solving the linear least squares problem (since
           absorbance matrix = stain matrix * concentration matrix), we obtain the concentration
           matrix that should be [[-0.3101, 7.7508, 7.7508, 7.7508, 7.7508, 7.7508],
           [5.8022, 0, 0, 0, 0, 0]]
@@ -216,9 +216,9 @@ class TestNormalizeHEStains(unittest.TestCase):
         """
         if image is None:
             with self.assertRaises(TypeError):
-                NormalizeHEStains()(image)
+                StainNormalizer()(image)
         else:
-            result = NormalizeHEStains(**argments)(image)
+            result = StainNormalizer(**argments)(image)
             np.testing.assert_allclose(result, expected_data)
 
 

@@ -111,15 +111,15 @@ Applications
     :members:
 
 .. automodule:: monai.apps.pathology.transforms.stain.array
-.. autoclass:: ExtractHEStains
+.. autoclass:: HEStainExtractor
     :members:
-.. autoclass:: NormalizeHEStains
+.. autoclass:: StainNormalizer
     :members:
 
 .. automodule:: monai.apps.pathology.transforms.stain.dictionary
-.. autoclass:: ExtractHEStainsd
+.. autoclass:: HEStainExtractord
     :members:
-.. autoclass:: NormalizeHEStainsd
+.. autoclass:: StainNormalizerd
     :members:
 
 .. automodule:: monai.apps.pathology.transforms.spatial.array

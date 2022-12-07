@@ -9,12 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .array import ExtractHEStains, NormalizeHEStains
+from .array import HEStainExtractor, StainNormalizer
 from .dictionary import (
-    ExtractHEStainsd,
-    ExtractHEStainsD,
-    ExtractHEStainsDict,
-    NormalizeHEStainsd,
-    NormalizeHEStainsD,
-    NormalizeHEStainsDict,
+    HEStainExtractord,
+    HEStainExtractorD,
+    HEStainExtractorDict,
+    StainNormalizerd,
+    StainNormalizerD,
+    StainNormalizerDict,
 )
