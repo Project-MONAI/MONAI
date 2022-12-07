@@ -151,12 +151,13 @@ class TestFLMonaiAlgo(unittest.TestCase):
         input_params["tracking"] = {
             "handlers_id": DEFAULT_HANDLERS_ID,
             "configs": {
+                "execute_config": f"{data_dir}/config_executed.json",
                 "trainer": {
                     "_target_": "MLFlowHandler",
                     "tracking_uri": Path(data_dir).as_uri() + "/mlflow_override",
                     "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
                     "close_on_complete": True,
-                }
+                },
             },
         }
 
@@ -177,6 +178,7 @@ class TestFLMonaiAlgo(unittest.TestCase):
         algo.train(data=data, extra={})
         algo.finalize()
         self.assertTrue(os.path.exists(f"{data_dir}/mlflow_override"))
+        self.assertTrue(os.path.exists(f"{data_dir}/config_executed.json"))
         shutil.rmtree(data_dir)
 
     @parameterized.expand([TEST_EVALUATE_1, TEST_EVALUATE_2, TEST_EVALUATE_3])

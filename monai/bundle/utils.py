@@ -104,10 +104,11 @@ DEFAULT_HANDLERS_ID = {
 DEFAULT_MLFLOW_SETTINGS = {
     "handlers_id": DEFAULT_HANDLERS_ID,
     "configs": {
-        "tracking_uri": "$@bundle_root + '/eval/mlruns'",
+        "tracking_uri": "$@output_dir + '/mlruns'",
         "experiment_name": "monai_experiment",
         "run_name": None,
-        "execute_config": "placeholder, may fill at runtime",
+        # may fill it at runtime
+        "execute_config": None,
         "is_not_rank0": (
             "$torch.distributed.is_available() \
                 and torch.distributed.is_initialized() and torch.distributed.get_rank() > 0"
