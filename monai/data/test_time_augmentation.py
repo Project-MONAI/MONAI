@@ -64,7 +64,7 @@ class TestTimeAugmentation:
 
     Args:
         transform: transform (or composed) to be applied to each realization. At least one transform must be of type
-        `RandomizableTrait` (e.i. `Randomizable`, `RandomizableTransform`, or `RandomizableTrait`).
+        `RandomizableTrait` (i.e. `Randomizable`, `RandomizableTransform`, or `RandomizableTrait`).
             . All random transforms must be of type `InvertibleTransform`.
         batch_size: number of realizations to infer at once.
         num_workers: how many subprocesses to use for data.
