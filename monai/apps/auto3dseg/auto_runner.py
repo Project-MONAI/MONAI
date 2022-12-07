@@ -265,14 +265,16 @@ class AutoRunner:
         self.ensemble = ensemble  # last step, no need to check
 
         # intermediate variables
-        self.set_num_fold(num_fold=5)
+        self.num_fold = 5
+        self.ensemble_method_name = "AlgoEnsembleBestN"
         self.set_training_params()
         self.set_prediction_params()
         self.set_analyze_params()
 
         self.save_image = self.set_image_save_transform(kwargs)
         self.ensemble_method: AlgoEnsemble
-        self.set_ensemble_method()
+        self.set_ensemble_method(self.ensemble_method_name)
+        self.set_num_fold(num_fold=self.num_fold)
 
         # hpo
         if hpo_backend.lower() != "nni":
@@ -334,10 +336,16 @@ class AutoRunner:
 
         Args:
             num_fold: a positive integer to define the number of folds.
+
+        Notes:
+            If the ensemble method is ``AlgoEnsembleBestByFold``, this function automatically updates the ``n_fold``
+            parameter in the ``ensemble_method`` to avoid inconsistency between the training and the ensemble.
         """
         if num_fold <= 0:
             raise ValueError(f"num_fold is expected to be an integer greater than zero. Now it gets {num_fold}")
         self.num_fold = num_fold
+        if self.ensemble_method_name == "AlgoEnsembleBestByFold":
+            self.ensemble_method.n_fold = self.num_fold  # type: ignore
 
     def set_training_params(self, params: Optional[Dict[str, Any]] = None):
         """

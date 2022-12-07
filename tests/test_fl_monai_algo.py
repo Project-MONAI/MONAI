@@ -155,6 +155,7 @@ class TestFLMonaiAlgo(unittest.TestCase):
                     "_target_": "MLFlowHandler",
                     "tracking_uri": Path(data_dir).as_uri() + "/mlflow_override",
                     "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
+                    "close_on_complete": True,
                 }
             },
         }
@@ -175,8 +176,6 @@ class TestFLMonaiAlgo(unittest.TestCase):
         # test train
         algo.train(data=data, extra={})
         algo.finalize()
-        # must close it as we are changing different temp dir for cases here
-        algo.train_parser.get_parsed_content("train#handlers")[-1].close()
         self.assertTrue(os.path.exists(f"{data_dir}/mlflow_override"))
         shutil.rmtree(data_dir)
 
