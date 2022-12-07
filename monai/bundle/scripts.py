@@ -10,11 +10,11 @@
 # limitations under the License.
 
 import ast
-import time
 import json
 import os
 import pprint
 import re
+import time
 import warnings
 from logging.config import fileConfig
 from pathlib import Path
@@ -491,10 +491,11 @@ def patch_bundle_tracking(parser: ConfigParser, settings: dict):
         elif k not in parser:
             parser[k] = v
     # save the executed config into file
-    timestamp = time.strftime('%Y%m%d_%H%M%S')
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
     filename = parser["output_dir"] + f"/config_{timestamp}.json"
     # experiment management tools can refer to this config item to track the config info
     parser["execute_config"] = filename
+    Path(filename).parent.mkdir(parents=True, exist_ok=True)
     parser.export_config_file(parser.get(), filename)
 
 

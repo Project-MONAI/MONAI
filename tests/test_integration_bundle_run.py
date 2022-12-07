@@ -15,6 +15,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from glob import glob
 from pathlib import Path
 
 import nibabel as nib
@@ -129,6 +130,8 @@ class TestBundleRun(unittest.TestCase):
         command_line_tests(la)
         self.assertTupleEqual(loader(os.path.join(tempdir, "image", "image_trans.nii.gz")).shape, expected_shape)
         self.assertTrue(os.path.exists(f"{tempdir}/mlflow_override2"))
+        # test the saved execution configs
+        self.assertTrue(len(glob(f"{tempdir}/config_*.json")), 2)
 
 
 if __name__ == "__main__":
