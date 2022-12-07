@@ -20,14 +20,21 @@ from torch.utils.data import Dataset, IterableDataset
 from monai.utils.enums import ColorOrder
 from monai.utils.module import optional_import
 
+__all__ = ["VideoDataset", "VideoFileDataset", "CameraDataset"]
+
 if TYPE_CHECKING:
     import cv2
 
     has_cv2 = True
 else:
-    cv2, has_cv2 = optional_import("cv2")
+    cv2, has_cv2 = None, None
 
-__all__ = ["VideoDataset", "VideoFileDataset", "CameraDataset"]
+
+def import_cv():
+    """Import cv2. Put it inside a function to avoid webcam lights blinking on ``import monai``."""
+    global cv2
+    global has_cv2
+    cv2, has_cv2 = optional_import("cv2")
 
 
 class SuppressStderr:
@@ -50,6 +57,9 @@ class SuppressStderr:
 
 
 class VideoDataset:
+    # import inside class to avoid webcam blinking on ``import monai``.
+    import_cv()
+
     def __init__(
         self,
         video_source: Union[str, int],

@@ -238,10 +238,10 @@ class CAM(CAMBase):
         result = cam(x=torch.rand((1, 1, 48, 64)))
 
         # resnet 2d
-        from monai.networks.nets import se_resnet50
+        from monai.networks.nets import seresnet50
         from monai.visualize import CAM
 
-        model_2d = se_resnet50(spatial_dims=2, in_channels=3, num_classes=4)
+        model_2d = seresnet50(spatial_dims=2, in_channels=3, num_classes=4)
         cam = CAM(nn_module=model_2d, target_layers="layer4", fc_layers="last_linear")
         result = cam(x=torch.rand((2, 3, 48, 64)))
 
@@ -339,10 +339,10 @@ class GradCAM(CAMBase):
         result = cam(x=torch.rand((1, 1, 48, 64)))
 
         # resnet 2d
-        from monai.networks.nets import se_resnet50
+        from monai.networks.nets import seresnet50
         from monai.visualize import GradCAM
 
-        model_2d = se_resnet50(spatial_dims=2, in_channels=3, num_classes=4)
+        model_2d = seresnet50(spatial_dims=2, in_channels=3, num_classes=4)
         cam = GradCAM(nn_module=model_2d, target_layers="layer4")
         result = cam(x=torch.rand((2, 3, 48, 64)))
 
