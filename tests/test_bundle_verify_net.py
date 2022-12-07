@@ -38,8 +38,8 @@ class TestVerifyNetwork(unittest.TestCase):
             cmd += ["--device", "cpu", "--_meta_#network_data_format#inputs#image#spatial_shape", "[16,'*','2**p*n']"]
             command_line_tests(cmd)
 
-    @skip_if_no_cuda
     @parameterized.expand([TEST_CASE_1])
+    @skip_if_no_cuda
     def test_verify_fp16(self, meta_file, config_file):
         with tempfile.TemporaryDirectory() as tempdir:
             def_args = {"meta_file": "will be replaced by `meta_file` arg", "p": 2}
