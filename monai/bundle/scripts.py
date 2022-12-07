@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import ast
+import time
 import json
 import os
 import pprint
@@ -489,6 +490,12 @@ def patch_bundle_tracking(parser: ConfigParser, settings: dict):
                     handlers.append(v)
         elif k not in parser:
             parser[k] = v
+    # save the executed config into file
+    timestamp = time.strftime('%Y%m%d_%H%M%S')
+    filename = parser["output_dir"] + f"/config_{timestamp}.json"
+    # experiment management tools can refer to this config item to track the config info
+    parser["execute_config"] = filename
+    parser.export_config_file(parser.get(), filename)
 
 
 def run(
@@ -625,8 +632,6 @@ def run(
             settings_ = DEFAULT_EXP_MGMT_SETTINGS[tracking_]
         else:
             settings_ = ConfigParser.load_config_files(tracking_)
-        if "config_to_string" not in parser:
-            parser["config_to_string"] = json.dumps(parser.get())
         patch_bundle_tracking(parser=parser, settings=settings_)
 
     # resolve and execute the specified runner expressions in the config, return the results

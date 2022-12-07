@@ -107,6 +107,7 @@ DEFAULT_MLFLOW_SETTINGS = {
         "tracking_uri": "$@output_dir + '/mlruns'",
         "experiment_name": "monai_experiment",
         "run_name": None,
+        "execute_config": "placeholder, may fill at runtime",
         "is_not_rank0": (
             "$torch.distributed.is_available() \
                 and torch.distributed.is_initialized() and torch.distributed.get_rank() > 0"
@@ -118,8 +119,7 @@ DEFAULT_MLFLOW_SETTINGS = {
             "tracking_uri": "@tracking_uri",
             "experiment_name": "@experiment_name",
             "run_name": "@run_name",
-            # will fill in the "config_to_string" content when patching the bundle
-            "experiment_param": {"config_info": "@config_to_string"},
+            "artifacts": "@execute_config",
             "iteration_log": True,
             "epoch_log": True,
             "tag_name": "train_loss",
@@ -142,7 +142,7 @@ DEFAULT_MLFLOW_SETTINGS = {
             "tracking_uri": "@tracking_uri",
             "experiment_name": "@experiment_name",
             "run_name": "@run_name",
-            "experiment_param": {"config_info": "@config_to_string"},
+            "artifacts": "@execute_config",
             "iteration_log": False,
             "close_on_complete": True,
         },
