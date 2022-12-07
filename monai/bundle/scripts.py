@@ -495,7 +495,7 @@ def patch_bundle_tracking(parser: ConfigParser, settings: dict):
     filepath = parser.get("execute_config", None)
     if filepath is None:
         # experiment management tools can refer to this config item to track the config info
-        parser["execute_config"] = os.path.join(parser["output_dir"], default_name)
+        parser["execute_config"] = parser["output_dir"] + f" + '/{default_name}'"
         filepath = os.path.join(parser.get_parsed_content("output_dir"), default_name)
     Path(filepath).parent.mkdir(parents=True, exist_ok=True)
     parser.export_config_file(parser.get(), filepath)
