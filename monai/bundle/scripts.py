@@ -784,7 +784,16 @@ def verify_net_in_out(
     with torch.no_grad():
         spatial_shape = _get_fake_spatial_shape(input_spatial_shape, p=p_, n=n_, any=any_)
         test_data = torch.rand(*(1, input_channels, *spatial_shape), dtype=input_dtype, device=device_)
-        output = net(test_data)
+        if input_dtype == torch.float16:
+            # fp16 can only be executed in gpu mode
+            net.to("cuda")
+            from torch.cuda.amp import autocast
+
+            with autocast():
+                output = net(test_data.cuda())
+            net.to(device_)
+        else:
+            output = net(test_data)
         if output.shape[1] != output_channels:
             raise ValueError(f"output channel number `{output.shape[1]}` doesn't match: `{output_channels}`.")
         if output.dtype != output_dtype:
