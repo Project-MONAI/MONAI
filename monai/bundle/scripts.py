@@ -491,14 +491,14 @@ def patch_bundle_tracking(parser: ConfigParser, settings: dict):
         elif k not in parser:
             parser[k] = v
     # save the executed config into file
-    timestamp = time.strftime("%Y%m%d_%H%M%S")
-    filename = parser.get("execute_config", None)
-    if filename is None:
-        filename = parser["output_dir"] + f"/config_{timestamp}.json"
+    default_name = f"config_{time.strftime('%Y%m%d_%H%M%S')}.json"
+    filepath = parser.get("execute_config", None)
+    if filepath is None:
         # experiment management tools can refer to this config item to track the config info
-        parser["execute_config"] = filename
-    Path(filename).parent.mkdir(parents=True, exist_ok=True)
-    parser.export_config_file(parser.get(), filename)
+        parser["execute_config"] = os.path.join(parser["output_dir"], default_name)
+        filepath = os.path.join(parser.get_parsed_content("output_dir"), default_name)
+    Path(filepath).parent.mkdir(parents=True, exist_ok=True)
+    parser.export_config_file(parser.get(), filepath)
 
 
 def run(
