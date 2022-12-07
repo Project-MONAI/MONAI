@@ -25,10 +25,8 @@ np.random.RandomState(123)
 
 for p in TEST_NDARRAYS:
     EXCEPTION_TESTS.append([{}, p(np.random.rand(2, 5, 5)), p(np.random.rand(1, 5, 5)), ValueError])
-
     EXCEPTION_TESTS.append([{}, p(np.random.rand(1, 5, 5)), p(np.random.rand(2, 5, 5)), ValueError])
 
-for p in TEST_NDARRAYS:
     TESTS.append([{}, p(np.random.rand(1, 5, 5)), p(np.random.rand(1, 5, 5)), (1, 5, 5)])
     TESTS.append(
         [{"smooth_fn": GaussianSmooth(sigma=0.4)}, p(np.random.rand(1, 5, 5)), p(np.random.rand(1, 5, 5)), (1, 5, 5)]
