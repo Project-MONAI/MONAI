@@ -14,7 +14,7 @@ from __future__ import annotations
 import functools
 import warnings
 from copy import deepcopy
-from typing import Any, Sequence, Type, Union
+from typing import Any, Sequence
 
 import numpy as np
 import torch
@@ -436,7 +436,7 @@ class MetaTensor(MetaObj, torch.Tensor):
             mod_str = getattr(dtype, "__module__", "torch")
         mod_str = look_up_option(mod_str, {"torch", "numpy", "np"}, default="numpy")
 
-        out_type: Union[Type[torch.Tensor], Type[np.ndarray], None]
+        out_type: type[torch.Tensor] | type[np.ndarray] | None
         if mod_str == "torch":
             out_type = torch.Tensor
         elif mod_str in ("numpy", "np"):
