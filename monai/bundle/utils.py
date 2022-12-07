@@ -104,7 +104,7 @@ DEFAULT_HANDLERS_ID = {
 DEFAULT_MLFLOW_SETTINGS = {
     "handlers_id": DEFAULT_HANDLERS_ID,
     "configs": {
-        "tracking_uri": "$@output_dir + '/mlruns'",
+        "tracking_uri": "$@bundle_root + '/eval/mlruns'",
         "experiment_name": "monai_experiment",
         "run_name": None,
         "execute_config": "placeholder, may fill at runtime",
