@@ -104,9 +104,14 @@ DEFAULT_HANDLERS_ID = {
 DEFAULT_MLFLOW_SETTINGS = {
     "handlers_id": DEFAULT_HANDLERS_ID,
     "configs": {
-        "tracking_uri": "$@output_dir + '/mlruns'",
+        # if no "output_dir" in the bundle config, default to "<bundle root>/eval"
+        "output_dir": "$@bundle_root + '/eval'",
+        # use URI to support linux, mac and windows os
+        "tracking_uri": "$monai.utils.path_to_uri(@output_dir) + '/mlruns'",
         "experiment_name": "monai_experiment",
         "run_name": None,
+        # may fill it at runtime
+        "execute_config": None,
         "is_not_rank0": (
             "$torch.distributed.is_available() \
                 and torch.distributed.is_initialized() and torch.distributed.get_rank() > 0"
@@ -118,6 +123,7 @@ DEFAULT_MLFLOW_SETTINGS = {
             "tracking_uri": "@tracking_uri",
             "experiment_name": "@experiment_name",
             "run_name": "@run_name",
+            "artifacts": "@execute_config",
             "iteration_log": True,
             "epoch_log": True,
             "tag_name": "train_loss",
@@ -140,6 +146,7 @@ DEFAULT_MLFLOW_SETTINGS = {
             "tracking_uri": "@tracking_uri",
             "experiment_name": "@experiment_name",
             "run_name": "@run_name",
+            "artifacts": "@execute_config",
             "iteration_log": False,
             "close_on_complete": True,
         },
