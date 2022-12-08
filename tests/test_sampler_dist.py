@@ -46,6 +46,12 @@ class DistributedSamplerTest(DistTestCase):
         if dist.get_rank() == 1:
             np.testing.assert_allclose(samples, np.array([2, 4]))
 
+    @DistCall(nnodes=1, nproc_per_node=2)
+    def test_uneven_less_data(self):
+        data = [1]
+        with self.assertRaises(ValueError):
+            DistributedSampler(dataset=data, shuffle=False, even_divisible=False)
+
     @DistCall(nnodes=1, nproc_per_node=2, timeout=120)
     def test_cachedataset(self):
         data = [1, 2, 3, 4, 5]
