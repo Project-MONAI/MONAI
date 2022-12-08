@@ -73,6 +73,7 @@ from .misc import (
     is_scalar_tensor,
     issequenceiterable,
     list_to_dict,
+    path_to_uri,
     progress_bar,
     sample_slices,
     save_obj,

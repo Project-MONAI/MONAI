@@ -104,7 +104,8 @@ DEFAULT_HANDLERS_ID = {
 DEFAULT_MLFLOW_SETTINGS = {
     "handlers_id": DEFAULT_HANDLERS_ID,
     "configs": {
-        "tracking_uri": "$@output_dir + '/mlruns'",
+        # use URI to support linux, mac and windows os
+        "tracking_uri": "$monai.utils.path_to_uri(@output_dir) + '/mlruns'",
         "experiment_name": "monai_experiment",
         "run_name": None,
         # may fill it at runtime

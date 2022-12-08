@@ -56,6 +56,7 @@ __all__ = [
     "check_parent_dir",
     "save_obj",
     "label_union",
+    "path_to_uri",
 ]
 
 _seed = None
@@ -584,3 +585,14 @@ def prob2class(x, sigmoid: bool = False, threshold: float = 0.5, **kwargs):
         threshold: threshold value to activate the sigmoid function.
     """
     return torch.argmax(x, **kwargs) if not sigmoid else (x > threshold).int()
+
+
+def path_to_uri(path: PathLike) -> str:
+    """
+    Convert a file path to URI.
+
+    Args:
+        path: input file path to convert, can be a string or `Path` object.
+
+    """
+    return Path(path).as_uri()
