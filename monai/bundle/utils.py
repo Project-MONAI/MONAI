@@ -104,6 +104,8 @@ DEFAULT_HANDLERS_ID = {
 DEFAULT_MLFLOW_SETTINGS = {
     "handlers_id": DEFAULT_HANDLERS_ID,
     "configs": {
+        # if no "output_dir" in the bundle config, default to "<bundle root>/eval"
+        "output_dir": "$@bundle_root + '/eval'",
         # use URI to support linux, mac and windows os
         "tracking_uri": "$monai.utils.path_to_uri(@output_dir) + '/mlruns'",
         "experiment_name": "monai_experiment",

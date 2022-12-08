@@ -494,6 +494,9 @@ def patch_bundle_tracking(parser: ConfigParser, settings: dict):
     default_name = f"config_{time.strftime('%Y%m%d_%H%M%S')}.json"
     filepath = parser.get("execute_config", None)
     if filepath is None:
+        if "output_dir" not in parser:
+            # if no "output_dir" in the bundle config, default to "<bundle root>/eval"
+            parser["output_dir"] = "$@bundle_root + '/eval'"
         # experiment management tools can refer to this config item to track the config info
         parser["execute_config"] = parser["output_dir"] + f" + '/{default_name}'"
         filepath = os.path.join(parser.get_parsed_content("output_dir"), default_name)
