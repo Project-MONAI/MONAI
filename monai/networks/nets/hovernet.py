@@ -27,7 +27,6 @@
 # }
 # =========================================================================
 
-import os
 import re
 import warnings
 from collections import OrderedDict
@@ -36,7 +35,6 @@ from typing import Callable, Dict, List, Optional, Sequence, Type, Union
 import torch
 import torch.nn as nn
 
-from monai.apps.utils import download_url
 from monai.networks.blocks import UpSample
 from monai.networks.layers.factories import Conv, Dropout
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
@@ -197,8 +195,8 @@ class _DenseLayer(nn.Sequential):
             self.layers.add_module("preact/relu", get_act_layer(name=act))
 
         self.layers.add_module("conv1", conv_type(in_channels, num_features, kernel_size=1, padding=0, bias=False))
-        self.layers.add_module("conv1/bn", get_norm_layer(name=norm, spatial_dims=2, channels=num_features))
-        self.layers.add_module("conv1/relu", get_act_layer(name=act))
+        self.layers.add_module("bn1", get_norm_layer(name=norm, spatial_dims=2, channels=num_features))
+        self.layers.add_module("relu1", get_act_layer(name=act))
 
         if in_channels != 64 and drop_first_norm_relu:
             self.layers.add_module(
@@ -209,8 +207,8 @@ class _DenseLayer(nn.Sequential):
                 "conv2", conv_type(num_features, num_features, kernel_size=kernel_size, padding=1, bias=False)
             )
 
-        self.layers.add_module("conv2/bn", get_norm_layer(name=norm, spatial_dims=2, channels=num_features))
-        self.layers.add_module("conv2/relu", get_act_layer(name=act))
+        self.layers.add_module("bn2", get_norm_layer(name=norm, spatial_dims=2, channels=num_features))
+        self.layers.add_module("relu2", get_act_layer(name=act))
         self.layers.add_module("conv3", conv_type(num_features, out_channels, kernel_size=1, padding=0, bias=False))
 
         if dropout_prob > 0:
@@ -278,11 +276,11 @@ class _ResidualBlock(nn.Module):
         layer = _DenseLayer(
             num_features, in_channels, out_channels, dropout_prob, act=act, norm=norm, drop_first_norm_relu=True
         )
-        self.layers.add_module("denselayer_0", layer)
+        self.layers.add_module("0", layer)
 
         for i in range(1, layers):
             layer = _DenseLayer(num_features, out_channels, out_channels, dropout_prob, act=act, norm=norm)
-            self.layers.add_module(f"denselayer_{i}", layer)
+            self.layers.add_module(f"{i}", layer)
 
         self.bna_block = _Transition(out_channels, act=act, norm=norm)
 
@@ -428,11 +426,7 @@ class HoVerNet(nn.Module):
             get the same output size as the input, and this changed version is used on CoNIC challenge.
             Please note that to get consistent output size, `HoVerNetMode.FAST` mode should be employed.
         dropout_prob: dropout rate after each dense layer.
-        pretrained_url: if specifying, will loaded the pretrained weights downloaded from the url.
-            The weights should be ImageNet pretrained preact-resnet50 weights coming from the referred hover_net
-            repository, each user is responsible for checking the content of model/datasets and the applicable licenses
-            and determining if suitable for the intended use. please check the following link for more details:
-            https://github.com/vqdang/hover_net#data-format
+        encoder_pretrained_path: if specifying, will loaded the pretrained weights of the encoder from the path.
         freeze_encoder: whether to freeze the encoder of the network.
     """
 
@@ -449,7 +443,7 @@ class HoVerNet(nn.Module):
         norm: Union[str, tuple] = "batch",
         decoder_padding: bool = False,
         dropout_prob: float = 0.0,
-        pretrained_url: Optional[str] = None,
+        encoder_pretrained_path: Optional[str] = None,
         freeze_encoder: bool = False,
     ) -> None:
 
@@ -489,8 +483,11 @@ class HoVerNet(nn.Module):
         self.conv0 = nn.Sequential(
             OrderedDict(
                 [
-                    ("conv", conv_type(in_channels, _init_features, kernel_size=7, stride=1, padding=_pad, bias=False)),
-                    ("bn", get_norm_layer(name=norm, spatial_dims=2, channels=_init_features)),
+                    (
+                        "conv1",
+                        conv_type(in_channels, _init_features, kernel_size=7, stride=1, padding=_pad, bias=False),
+                    ),
+                    ("bn1", get_norm_layer(name=norm, spatial_dims=2, channels=_init_features)),
                     ("relu", get_act_layer(name=act)),
                 ]
             )
@@ -521,7 +518,7 @@ class HoVerNet(nn.Module):
                 freeze_dense_layer=freeze_dense_layer,
                 freeze_block=freeze_block,
             )
-            self.res_blocks.add_module(f"d{i}", block)
+            self.res_blocks.add_module(f"d{i+1}", block)
 
             _in_channels = _out_channels
             _out_channels *= 2
@@ -554,8 +551,8 @@ class HoVerNet(nn.Module):
                 nn.init.constant_(torch.as_tensor(m.weight), 1)
                 nn.init.constant_(torch.as_tensor(m.bias), 0)
 
-        if pretrained_url is not None:
-            _load_pretrained_encoder(self, pretrained_url)
+        if encoder_pretrained_path is not None:
+            _load_pretrained_encoder(self, encoder_pretrained_path)
 
     def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
 
@@ -588,36 +585,44 @@ class HoVerNet(nn.Module):
         return output
 
 
-def _load_pretrained_encoder(model: nn.Module, model_url: str):
+def _load_pretrained_encoder(model: nn.Module, encoder_pretrained_path: str):
 
-    pattern_conv0 = re.compile(r"^(conv0\.\/)(.+)$")
-    pattern_block = re.compile(r"^(d\d+)\.(.+)$")
-    pattern_layer = re.compile(r"^(.+\.d\d+)\.units\.(\d+)(.+)$")
-    pattern_bna = re.compile(r"^(.+\.d\d+)\.blk_bna\.(.+)")
-    # download the pretrained weights into torch hub's default dir
-    weights_dir = os.path.join(torch.hub.get_dir(), "preact-resnet50.pth")
-    download_url(model_url, fuzzy=True, filepath=weights_dir, progress=False)
-    state_dict = torch.load(weights_dir, map_location=None)["desc"]
+    pattern_conv0 = re.compile(r"^conv1\.(.+)$")
+    pattern_bn1 = re.compile(r"^bn1\.(.+)$")
+    pattern_block = re.compile(r"^layer(\d+)\.(\d+)\.(.+)$")
+    pattern_bn3 = re.compile(r"^(res_blocks.d\d+\.layers\.)(\d+)\.layers\.bn3\.(.+)$")
+    pattern_downsample0 = re.compile(r"^(res_blocks.d\d+).+\.downsample\.0\.(.+)")
+    pattern_downsample1 = re.compile(r"^(res_blocks.d\d+).+\.downsample\.1\.(.+)")
+
+    state_dict = torch.load(encoder_pretrained_path, map_location=None)
+
     for key in list(state_dict.keys()):
         new_key = None
         if pattern_conv0.match(key):
-            new_key = re.sub(pattern_conv0, r"conv0.conv\2", key)
+            new_key = re.sub(pattern_conv0, r"conv0.conv1.\1", key)
+        elif pattern_bn1.match(key):
+            new_key = re.sub(pattern_bn1, r"conv0.bn1.\1", key)
         elif pattern_block.match(key):
-            new_key = re.sub(pattern_block, r"res_blocks.\1.\2", key)
-            if pattern_layer.match(new_key):
-                new_key = re.sub(pattern_layer, r"\1.layers.denselayer_\2.layers\3", new_key)
-            elif pattern_bna.match(new_key):
-                new_key = re.sub(pattern_bna, r"\1.bna_block.\2", new_key)
+            new_key = re.sub(pattern_block, r"res_blocks.d\1.layers.\2.layers.\3", key)
+            if pattern_bn3.match(new_key):
+                new_key = re.sub(
+                    pattern_bn3,
+                    lambda s: s.group(1) + str(int(s.group(2)) + 1) + ".layers.preact/bn." + s.group(3),
+                    new_key,
+                )
+            elif pattern_downsample0.match(new_key):
+                new_key = re.sub(pattern_downsample0, r"\1.shortcut.\2", new_key)
+            elif pattern_downsample1.match(new_key):
+                new_key = re.sub(pattern_downsample1, r"\1.bna_block.bn.\2", new_key)
         if new_key:
             state_dict[new_key] = state_dict[key]
-            del state_dict[key]
-        if "upsample2x" in key:
             del state_dict[key]
 
     model_dict = model.state_dict()
     state_dict = {
         k: v for k, v in state_dict.items() if (k in model_dict) and (model_dict[k].shape == state_dict[k].shape)
     }
+
     model_dict.update(state_dict)
     model.load_state_dict(model_dict)
 
