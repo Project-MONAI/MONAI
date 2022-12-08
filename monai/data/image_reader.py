@@ -319,12 +319,14 @@ class ITKReader(ImageReader):
 
         """
         img_meta_dict = img.GetMetaDataDictionary()
-        meta_dict = {}
-        for key in img_meta_dict.GetKeys():
-            if key.startswith("ITK_"):
-                continue
-            val = img_meta_dict[key]
-            meta_dict[key] = np.asarray(val) if type(val).__name__.startswith("itk") else val
+        meta_dict = {
+            key: img_meta_dict[key]
+            for key in img_meta_dict.GetKeys()
+            if not key.startswith("ITK_")
+        }
+
+        if "qto_xyz" in meta_dict and not isinstance(meta_dict["qto_xyz"], np.ndarray):
+            meta_dict["qto_xyz"] = np.array(meta_dict["qto_xyz"])
 
         meta_dict["spacing"] = np.asarray(img.GetSpacing())
         return meta_dict
