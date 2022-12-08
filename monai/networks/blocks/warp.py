@@ -151,7 +151,7 @@ class DVF2DDF(nn.Module):
         self.num_steps = num_steps
         self.warp_layer = Warp(mode=mode, padding_mode=padding_mode)
 
-    def forward(self, dvf):
+    def forward(self, dvf: torch.Tensor) -> torch.Tensor:
         """
         Args:
             dvf: dvf to be transformed, in shape (batch, ``spatial_dims``, H, W[,D])

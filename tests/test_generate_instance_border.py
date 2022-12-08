@@ -23,61 +23,23 @@ TESTS = []
 np.random.RandomState(123)
 
 for p in TEST_NDARRAYS:
-    EXCEPTION_TESTS.append(
-        [
-            {"kernel_size": 3, "remove_small_objects": False},
-            p(np.random.rand(1, 5, 5, 5)),
-            p(np.random.rand(2, 5, 5)),
-            ValueError,
-        ]
-    )
+    EXCEPTION_TESTS.append([{"kernel_size": 3}, p(np.random.rand(1, 5, 5, 5)), p(np.random.rand(2, 5, 5)), ValueError])
+    EXCEPTION_TESTS.append([{"kernel_size": 3}, p(np.random.rand(1, 5, 5)), p(np.random.rand(1, 5, 5)), ValueError])
+    EXCEPTION_TESTS.append([{"kernel_size": 3}, p(np.random.rand(2, 5, 5)), p(np.random.rand(2, 5, 5)), ValueError])
 
-    EXCEPTION_TESTS.append(
-        [
-            {"kernel_size": 3, "remove_small_objects": False},
-            p(np.random.rand(1, 5, 5)),
-            p(np.random.rand(1, 5, 5)),
-            ValueError,
-        ]
-    )
-
-    EXCEPTION_TESTS.append(
-        [
-            {"kernel_size": 3, "remove_small_objects": False},
-            p(np.random.rand(2, 5, 5)),
-            p(np.random.rand(2, 5, 5)),
-            ValueError,
-        ]
-    )
-
-for p in TEST_NDARRAYS:
-    TESTS.append(
-        [
-            {"kernel_size": 3, "remove_small_objects": False},
-            p(np.random.rand(1, 5, 5)),
-            p(np.random.rand(2, 5, 5)),
-            (1, 5, 5),
-        ]
-    )
-    TESTS.append(
-        [
-            {"kernel_size": 3, "remove_small_objects": False},
-            p(np.random.rand(1, 5, 5)),
-            p(np.random.rand(2, 5, 5)),
-            (1, 5, 5),
-        ]
-    )
+    TESTS.append([{"kernel_size": 3}, p(np.random.rand(1, 5, 5)), p(np.random.rand(2, 5, 5)), (1, 5, 5)])
+    TESTS.append([{"kernel_size": 3}, p(np.random.rand(1, 5, 5)), p(np.random.rand(2, 5, 5)), (1, 5, 5)])
 
 
 class TestGenerateInstanceBorder(unittest.TestCase):
     @parameterized.expand(EXCEPTION_TESTS)
-    def test_value(self, argments, mask, hover_map, exception_type):
+    def test_value(self, arguments, mask, hover_map, exception_type):
         with self.assertRaises(exception_type):
-            GenerateInstanceBorder(**argments)(mask, hover_map)
+            GenerateInstanceBorder(**arguments)(mask, hover_map)
 
     @parameterized.expand(TESTS)
-    def test_value2(self, argments, mask, hover_map, expected_shape):
-        result = GenerateInstanceBorder(**argments)(mask, hover_map)
+    def test_value2(self, arguments, mask, hover_map, expected_shape):
+        result = GenerateInstanceBorder(**arguments)(mask, hover_map)
         self.assertEqual(result.shape, expected_shape)
 
 

@@ -108,10 +108,20 @@ class TestAutoRunner(unittest.TestCase):
             runner.run()
 
     @skip_if_no_cuda
+    def test_autorunner_ensemble(self) -> None:
+        work_dir = os.path.join(self.test_path, "work_dir")
+        runner = AutoRunner(work_dir=work_dir, input=self.data_src_cfg)
+        runner.set_training_params(train_param)  # 2 epochs
+        runner.set_ensemble_method("AlgoEnsembleBestByFold")
+        runner.set_num_fold(1)
+        with skip_if_downloading_fails():
+            runner.run()
+
+    @skip_if_no_cuda
     @unittest.skipIf(not has_nni, "nni required")
     def test_autorunner_hpo(self) -> None:
         work_dir = os.path.join(self.test_path, "work_dir")
-        runner = AutoRunner(work_dir=work_dir, input=self.data_src_cfg, hpo=True)
+        runner = AutoRunner(work_dir=work_dir, input=self.data_src_cfg, hpo=True, ensemble=False)
         hpo_param = {
             "num_iterations": 8,
             "num_iterations_per_validation": 4,
@@ -129,6 +139,7 @@ class TestAutoRunner(unittest.TestCase):
             "searching#num_images_per_batch": 2,
             "searching#num_epochs": 2,
             "searching#num_warmup_iterations": 4,
+            "nni_dry_run": True,
         }
         search_space = {"learning_rate": {"_type": "choice", "_value": [0.0001, 0.001, 0.01, 0.1]}}
         runner.set_num_fold(1)
