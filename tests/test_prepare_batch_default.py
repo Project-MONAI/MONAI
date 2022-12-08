@@ -23,7 +23,7 @@ class TestNet(torch.nn.Module):
 
 
 class TestPrepareBatchDefault(unittest.TestCase):
-    def test_content(self):
+    def test_dict_content(self):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         dataloader = [
             {
@@ -40,6 +40,46 @@ class TestPrepareBatchDefault(unittest.TestCase):
             val_data_loader=dataloader,
             epoch_length=1,
             network=TestNet(),
+            non_blocking=False,
+            prepare_batch=PrepareBatchDefault(),
+            decollate=False,
+            mode="eval",
+        )
+        evaluator.run()
+        output = evaluator.state.output
+        assert_allclose(output["image"], torch.tensor([1, 2], device=device))
+        assert_allclose(output["label"], torch.tensor([3, 4], device=device))
+
+    def test_tensor_content(self):
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        dataloader = [torch.tensor([1, 2])]
+
+        # set up engine
+        evaluator = SupervisedEvaluator(
+            device=device,
+            val_data_loader=dataloader,
+            epoch_length=1,
+            network=torch.nn.Identity(),
+            non_blocking=False,
+            prepare_batch=PrepareBatchDefault(),
+            decollate=False,
+            mode="eval",
+        )
+        evaluator.run()
+        output = evaluator.state.output
+        assert_allclose(output["image"], torch.tensor([1, 2], device=device))
+        self.assertTrue(output["label"] is None)
+
+    def test_pair_content(self):
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        dataloader = [(torch.tensor([1, 2]), torch.tensor([3, 4]))]
+
+        # set up engine
+        evaluator = SupervisedEvaluator(
+            device=device,
+            val_data_loader=dataloader,
+            epoch_length=1,
+            network=torch.nn.Identity(),
             non_blocking=False,
             prepare_batch=PrepareBatchDefault(),
             decollate=False,

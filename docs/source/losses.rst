@@ -91,6 +91,15 @@ Registration Losses
 .. autoclass:: GlobalMutualInformationLoss
     :members:
 
+Reconstruction Losses
+---------------------
+
+`SSIMLoss`
+~~~~~~~~~~
+.. autoclass:: monai.losses.ssim_loss.SSIMLoss
+    :members:
+
+
 Loss Wrappers
 -------------
 

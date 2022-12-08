@@ -12,18 +12,16 @@ Project MONAI
 *Medical Open Network for AI*
 
 MONAI is a `PyTorch <https://pytorch.org/>`_-based, `open-source <https://github.com/Project-MONAI/MONAI/blob/dev/LICENSE>`_ framework
-for deep learning in healthcare imaging, part of `PyTorch Ecosystem <https://pytorch.org/ecosystem/>`_.
+for deep learning in healthcare imaging, part of the `PyTorch Ecosystem <https://pytorch.org/ecosystem/>`_.
 
 Its ambitions are:
 
 - developing a community of academic, industrial and clinical researchers collaborating on a common foundation;
 - creating state-of-the-art, end-to-end training workflows for healthcare imaging;
-- providing researchers with the optimized and standardized way to create and evaluate deep learning models.
+- providing researchers with an optimized and standardized way to create and evaluate deep learning models.
 
 Features
 --------
-
-*The codebase is currently under active development*
 
 - flexible pre-processing for multi-dimensional medical imaging data;
 - compositional & portable APIs for ease of integration in existing workflows;
@@ -71,6 +69,13 @@ Technical documentation is available at `docs.monai.io <https://docs.monai.io>`_
   :caption: Specifications
 
   bundle_intro
+
+Model Zoo
+---------
+
+`The MONAI Model Zoo <https://github.com/Project-MONAI/model-zoo>`_ is a place for researchers and data scientists to share the latest and great models from the community.
+Utilizing `the MONAI Bundle format <https://docs.monai.io/en/latest/bundle_intro.html>`_ makes it easy to `get started <https://github.com/Project-MONAI/tutorials/tree/main/model_zoo>`_ building workflows with MONAI.
+
 
 Links
 -----

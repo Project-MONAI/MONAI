@@ -41,6 +41,12 @@ Mean Dice metrics handler
     :members:
 
 
+Mean IoU metric handler
+-----------------------
+.. autoclass:: MeanIoUHandler
+    :members:
+
+
 ROC AUC metrics handler
 -----------------------
 .. autoclass:: ROCAUC
@@ -62,6 +68,12 @@ Hausdorff distance metrics handler
 Surface distance metrics handler
 --------------------------------
 .. autoclass:: SurfaceDistance
+    :members:
+
+
+Panoptic Quality metrics handler
+--------------------------------
+.. autoclass:: PanopticQuality
     :members:
 
 
@@ -92,6 +104,12 @@ Peak signal to noise ratio metrics handler
 Metric logger
 -------------
 .. autoclass:: MetricLogger
+    :members:
+
+
+Logfile handler
+---------------
+.. autoclass:: LogfileHandler
     :members:
 
 

@@ -27,7 +27,7 @@ import torch
 
 from monai.config import DtypeLike, NdarrayOrTensor, PathLike
 from monai.data import image_writer
-from monai.data.folder_layout import FolderLayout
+from monai.data.folder_layout import FolderLayout, default_name_formatter
 from monai.data.image_reader import (
     ImageReader,
     ITKReader,
@@ -68,7 +68,15 @@ def switch_endianness(data, new="<"):
         data: input to be converted.
         new: the target endianness, currently support "<" or ">".
     """
-    if isinstance(data, np.ndarray):
+    if isinstance(data, torch.Tensor):
+        device = data.device
+        requires_grad: bool = data.requires_grad
+        data = (
+            torch.from_numpy(switch_endianness(data.cpu().detach().numpy(), new))
+            .to(device)
+            .requires_grad_(requires_grad=requires_grad)
+        )
+    elif isinstance(data, np.ndarray):
         # default to system endian
         sys_native = "<" if (sys.byteorder == "little") else ">"
         current_ = sys_native if data.dtype.byteorder not in ("<", ">") else data.dtype.byteorder
@@ -99,6 +107,10 @@ class LoadImage(Transform):
         - Current default readers: (nii, nii.gz -> NibabelReader), (png, jpg, bmp -> PILReader),
           (npz, npy -> NumpyReader), (nrrd -> NrrdReader), (DICOM file -> ITKReader).
 
+    Please note that for png, jpg, bmp, and other 2D formats, readers often swap axis 0 and 1 after
+    loading the array because the `HW` definition for non-medical specific file formats is different
+    from other common medical packages.
+
     See also:
 
         - tutorial: https://github.com/Project-MONAI/tutorials/blob/master/modules/load_medical_images.ipynb
@@ -109,9 +121,11 @@ class LoadImage(Transform):
         self,
         reader=None,
         image_only: bool = False,
-        dtype: DtypeLike = np.float32,
+        dtype: Optional[DtypeLike] = np.float32,
         ensure_channel_first: bool = False,
         simple_keys: bool = False,
+        prune_meta_pattern: Optional[str] = None,
+        prune_meta_sep: str = ".",
         *args,
         **kwargs,
     ) -> None:
@@ -129,6 +143,11 @@ class LoadImage(Transform):
             ensure_channel_first: if `True` and loaded both image array and metadata, automatically convert
                 the image array shape to `channel first`. default to `False`.
             simple_keys: whether to remove redundant metadata keys, default to False for backward compatibility.
+            prune_meta_pattern: combined with `prune_meta_sep`, a regular expression used to match and prune keys
+                in the metadata (nested dictionary), default to None, no key deletion.
+            prune_meta_sep: combined with `prune_meta_pattern`, used to match and prune keys
+                in the metadata (nested dictionary). default is ".", see also :py:class:`monai.transforms.DeleteItemsd`.
+                e.g. ``prune_meta_pattern=".*_code$", prune_meta_sep=" "`` removes meta keys that ends with ``"_code"``.
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
 
@@ -148,6 +167,8 @@ class LoadImage(Transform):
         self.dtype = dtype
         self.ensure_channel_first = ensure_channel_first
         self.simple_keys = simple_keys
+        self.pattern = prune_meta_pattern
+        self.sep = prune_meta_sep
 
         self.readers: List[ImageReader] = []
         for r in SUPPORTED_READERS:  # set predefined readers as default
@@ -258,12 +279,14 @@ class LoadImage(Transform):
         meta_data = switch_endianness(meta_data, "<")
 
         meta_data[Key.FILENAME_OR_OBJ] = f"{ensure_tuple(filename)[0]}"  # Path obj should be strings for data loader
-        img = MetaTensor.ensure_torch_and_prune_meta(img_array, meta_data, self.simple_keys)
+        img = MetaTensor.ensure_torch_and_prune_meta(
+            img_array, meta_data, self.simple_keys, pattern=self.pattern, sep=self.sep
+        )
         if self.ensure_channel_first:
             img = EnsureChannelFirst()(img)
         if self.image_only:
             return img
-        return img, img.meta  # for compatibility purpose
+        return img, img.meta if isinstance(img, MetaTensor) else meta_data
 
 
 class SaveImage(Transform):
@@ -278,7 +301,7 @@ class SaveImage(Transform):
         output_dir: output image directory.
         output_postfix: a string appended to all output file names, default to `trans`.
         output_ext: output file extension name.
-        output_dtype: data type for saving data. Defaults to ``np.float32``.
+        output_dtype: data type (if not None) for saving data. Defaults to ``np.float32``.
         resample: whether to resample image (if needed) before saving the data array,
             based on the `spatial_shape` (and `original_affine`) from metadata.
         mode: This option is used when ``resample=True``. Defaults to ``"nearest"``.
@@ -295,7 +318,7 @@ class SaveImage(Transform):
         scale: {``255``, ``65535``} postprocess data by clipping to [0, 1] and scaling
             [0, 255] (uint8) or [0, 65535] (uint16). Default is `None` (no scaling).
         dtype: data type during resampling computation. Defaults to ``np.float64`` for best precision.
-            if None, use the data type of input data. To be compatible with other modules,
+            if None, use the data type of input data. To set the output data type, use `output_dtype`.
         squeeze_end_dims: if True, any trailing singleton dimensions will be removed (after the channel
             has been moved to the end). So if input is (C,H,W,D), this will be altered to (H,W,D,C), and
             then if C==1, it will be saved as (H,W,D). If D is also 1, it will be saved as (H,W). If `false`,
@@ -325,6 +348,8 @@ class SaveImage(Transform):
             the supported built-in writer classes are ``"NibabelWriter"``, ``"ITKWriter"``, ``"PILWriter"``.
         channel_dim: the index of the channel dimension. Default to `0`.
             `None` to indicate no channel dimension.
+        output_name_formatter: a callable function (returning a kwargs dict) to format the output file name.
+            see also: :py:func:`monai.data.folder_layout.default_name_formatter`.
     """
 
     def __init__(
@@ -332,7 +357,7 @@ class SaveImage(Transform):
         output_dir: PathLike = "./",
         output_postfix: str = "trans",
         output_ext: str = ".nii.gz",
-        output_dtype: DtypeLike = np.float32,
+        output_dtype: Optional[DtypeLike] = np.float32,
         resample: bool = True,
         mode: str = "nearest",
         padding_mode: str = GridSamplePadMode.BORDER,
@@ -345,6 +370,7 @@ class SaveImage(Transform):
         output_format: str = "",
         writer: Union[Type[image_writer.ImageWriter], str, None] = None,
         channel_dim: Optional[int] = 0,
+        output_name_formatter=None,
     ) -> None:
         self.folder_layout = FolderLayout(
             output_dir=output_dir,
@@ -367,14 +393,15 @@ class SaveImage(Transform):
         self.writer_obj = None
 
         _output_dtype = output_dtype
-        if self.output_ext == ".png" and _output_dtype not in (np.uint8, np.uint16):
+        if self.output_ext == ".png" and _output_dtype not in (np.uint8, np.uint16, None):
             _output_dtype = np.uint8
-        if self.output_ext == ".dcm" and _output_dtype not in (np.uint8, np.uint16):
+        if self.output_ext == ".dcm" and _output_dtype not in (np.uint8, np.uint16, None):
             _output_dtype = np.uint8
         self.init_kwargs = {"output_dtype": _output_dtype, "scale": scale}
         self.data_kwargs = {"squeeze_end_dims": squeeze_end_dims, "channel_dim": channel_dim}
         self.meta_kwargs = {"resample": resample, "mode": mode, "padding_mode": padding_mode, "dtype": dtype}
         self.write_kwargs = {"verbose": print_log}
+        self.fname_formatter = default_name_formatter if output_name_formatter is None else output_name_formatter
         self._data_index = 0
 
     def set_options(self, init_kwargs=None, data_kwargs=None, meta_kwargs=None, write_kwargs=None):
@@ -405,9 +432,8 @@ class SaveImage(Transform):
             meta_data: key-value pairs of metadata corresponding to the data.
         """
         meta_data = img.meta if isinstance(img, MetaTensor) else meta_data
-        subject = meta_data[Key.FILENAME_OR_OBJ] if meta_data else str(self._data_index)
-        patch_index = meta_data.get(Key.PATCH_INDEX, None) if meta_data else None
-        filename = self.folder_layout.filename(subject=f"{subject}", idx=patch_index)
+        kw = self.fname_formatter(meta_data, self)
+        filename = self.folder_layout.filename(**kw)
         if meta_data and len(ensure_tuple(meta_data.get("spatial_shape", ()))) == len(img.shape):
             self.data_kwargs["channel_dim"] = None
 

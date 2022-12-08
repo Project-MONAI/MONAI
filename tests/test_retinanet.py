@@ -22,7 +22,6 @@ from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
 
 _, has_torchvision = optional_import("torchvision")
 
-
 device = "cuda" if torch.cuda.is_available() else "cpu"
 num_anchors = 7
 

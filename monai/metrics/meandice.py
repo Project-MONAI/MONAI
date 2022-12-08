@@ -14,7 +14,7 @@ from typing import Union
 import torch
 
 from monai.metrics.utils import do_metric_reduction, ignore_background, is_binary_tensor
-from monai.utils import MetricReduction
+from monai.utils import MetricReduction, deprecated
 
 from .metric import CumulativeIterationMetric
 
@@ -30,6 +30,8 @@ class DiceMetric(CumulativeIterationMetric):
     segmentations are small compared to the total image size they can get overwhelmed by the signal from the
     background.
     `y_preds` and `y` can be a list of channel-first Tensor (CHW[D]) or a batch-first Tensor (BCHW[D]).
+
+    Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
 
     Args:
         include_background: whether to skip Dice computation on the first channel of
@@ -78,11 +80,11 @@ class DiceMetric(CumulativeIterationMetric):
         if dims < 3:
             raise ValueError(f"y_pred should have at least 3 dimensions (batch, channel, spatial), got {dims}.")
         # compute dice (BxC) for each channel for each batch
-        return compute_meandice(
+        return compute_dice(
             y_pred=y_pred, y=y, include_background=self.include_background, ignore_empty=self.ignore_empty
         )
 
-    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):  # type: ignore
+    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):
         """
         Execute reduction logic for the output of `compute_meandice`.
 
@@ -101,10 +103,10 @@ class DiceMetric(CumulativeIterationMetric):
         return (f, not_nans) if self.get_not_nans else f
 
 
-def compute_meandice(
+def compute_dice(
     y_pred: torch.Tensor, y: torch.Tensor, include_background: bool = True, ignore_empty: bool = True
 ) -> torch.Tensor:
-    """Computes Dice score metric from full size Tensor and collects average.
+    """Computes Dice score metric for a batch of predictions.
 
     Args:
         y_pred: input data to compute, typical segmentation model output.
@@ -144,6 +146,11 @@ def compute_meandice(
     y_pred_o = torch.sum(y_pred, dim=reduce_axis)
     denominator = y_o + y_pred_o
 
-    if ignore_empty is True:
+    if ignore_empty:
         return torch.where(y_o > 0, (2.0 * intersection) / denominator, torch.tensor(float("nan"), device=y_o.device))
     return torch.where(denominator > 0, (2.0 * intersection) / denominator, torch.tensor(1.0, device=y_o.device))
+
+
+@deprecated(since="1.0.0", msg_suffix="use `compute_dice` instead.")
+def compute_meandice(*args, **kwargs):
+    return compute_dice(*args, **kwargs)

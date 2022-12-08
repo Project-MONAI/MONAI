@@ -14,8 +14,9 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.transforms import Randomizable, RandTorchVisiond
+from monai.transforms import RandomizableTrait, RandTorchVisiond
 from monai.utils import set_determinism
+from tests.utils import assert_allclose
 
 TEST_CASE_1 = [
     {"keys": "img", "name": "ColorJitter"},
@@ -54,8 +55,8 @@ class TestRandTorchVisiond(unittest.TestCase):
         set_determinism(seed=0)
         transform = RandTorchVisiond(**input_param)
         result = transform(input_data)
-        self.assertTrue(isinstance(transform, Randomizable))
-        torch.testing.assert_allclose(result["img"], expected_value)
+        self.assertTrue(isinstance(transform, RandomizableTrait))
+        assert_allclose(result["img"], expected_value, atol=1e-4, rtol=1e-4)
 
 
 if __name__ == "__main__":

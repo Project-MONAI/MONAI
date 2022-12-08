@@ -59,7 +59,6 @@
 # CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
 """
 The functions in this script are adapted from nnDetection,
 https://github.com/MIC-DKFZ/nnDetection/blob/main/nndet/core/boxes/matcher.py
@@ -74,7 +73,7 @@ These are the changes compared with nndetection:
 """
 
 import logging
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import Callable, Sequence, Tuple, TypeVar
 
 import torch
@@ -139,6 +138,7 @@ class Matcher(ABC):
             num_anchors_per_loc=num_anchors_per_loc,
         )
 
+    @abstractmethod
     def compute_matches(
         self, boxes: torch.Tensor, anchors: torch.Tensor, num_anchors_per_level: Sequence[int], num_anchors_per_loc: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -281,7 +281,6 @@ class ATSSMatcher(Matcher):
 
         matched_vals, matches = ious_inf.to(COMPUTE_DTYPE).max(dim=0)
         matches[matched_vals == -INF] = self.BELOW_LOW_THRESHOLD
-        # print(f"Num matches {(matches >= 0).sum()}, Adapt IoU {iou_thresh_per_gt}")
         return match_quality_matrix, matches
 
 

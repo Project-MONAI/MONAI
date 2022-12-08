@@ -83,10 +83,10 @@ class TestRandGridPatchd(unittest.TestCase):
                 input_dict[k] = in_type(v)
         splitter = RandGridPatchd(keys=image_key, **input_parameters)
         splitter.set_random_state(1234)
-        output = list(splitter(input_dict))
-        self.assertEqual(len(output), len(expected))
-        for output_patch, expected_patch in zip(output, expected):
-            assert_allclose(output_patch[image_key], expected_patch, type_test=False)
+        output = splitter(input_dict)
+        self.assertEqual(len(output[image_key]), len(expected))
+        for output_patch, expected_patch in zip(output[image_key], expected):
+            assert_allclose(output_patch, expected_patch, type_test=False)
 
 
 if __name__ == "__main__":
