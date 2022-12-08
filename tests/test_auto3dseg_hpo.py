@@ -31,7 +31,7 @@ optuna, has_optuna = optional_import("optuna")
 num_gpus = 4 if torch.cuda.device_count() > 4 else torch.cuda.device_count()
 
 override_param = {
-    "CUDA_VISIBLE_DEVICES": list(x for x in range(num_gpus)),
+    "CUDA_VISIBLE_DEVICES": list(range(num_gpus)),
     "num_iterations": int(4 / num_gpus),
     "num_iterations_per_validation": int(4 / num_gpus),
     "num_images_per_batch": 2,
