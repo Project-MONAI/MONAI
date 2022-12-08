@@ -26,7 +26,6 @@ for in_type in TEST_NDARRAYS_ALL + (int, float):
         TESTS.append((in_type(np.array(1.0)), out_type(np.array(1.0)), None, False))  # type: ignore
         if in_type is not float:
             TESTS.append((in_type(np.array(256)), out_type(np.array(255)), np.uint8, True))  # type: ignore
-            TESTS.append((in_type(np.array(256)), out_type(np.array(0)), np.uint8, False))  # type: ignore
 
 TESTS_LIST: List[Tuple] = []
 for in_type in TEST_NDARRAYS_ALL + (int, float):
@@ -48,9 +47,6 @@ for in_type in TEST_NDARRAYS_ALL + (int, float):
                 ([in_type(np.array(257)), in_type(np.array(1))], out_type(np.array([255, 1])), True, np.uint8, True)  # type: ignore
             )
             TESTS_LIST.append(
-                ([in_type(np.array(257)), in_type(np.array(1))], out_type(np.array([1, 1])), True, np.uint8, False)  # type: ignore
-            )
-            TESTS_LIST.append(
                 (
                     [in_type(np.array(257)), in_type(np.array(-12))],  # type: ignore
                     [out_type(np.array(255)), out_type(np.array(0))],
@@ -59,15 +55,7 @@ for in_type in TEST_NDARRAYS_ALL + (int, float):
                     True,
                 )
             )
-            TESTS_LIST.append(
-                (
-                    [in_type(np.array(257)), in_type(np.array(-12))],  # type: ignore
-                    [out_type(np.array(1)), out_type(np.array(244))],
-                    False,
-                    np.uint8,
-                    False,
-                )
-            )
+
 
 UNSUPPORTED_TYPES = {np.dtype("uint16"): torch.int32, np.dtype("uint32"): torch.int64, np.dtype("uint64"): torch.int64}
 
