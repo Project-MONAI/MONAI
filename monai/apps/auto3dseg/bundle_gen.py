@@ -32,7 +32,7 @@ from monai.bundle.config_parser import ConfigParser
 from monai.utils import ensure_tuple
 
 logger = get_logger(module_name=__name__)
-ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "dc68e4d")
+ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "5895e1b")
 
 __all__ = ["BundleAlgo", "BundleGen"]
 
