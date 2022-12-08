@@ -16,6 +16,7 @@ from typing import Dict, List
 
 import nibabel as nib
 import numpy as np
+import torch
 
 from monai.apps.auto3dseg import AutoRunner
 from monai.bundle.config_parser import ConfigParser
@@ -44,13 +45,16 @@ sim_datalist: Dict[str, List[Dict]] = {
     ],
 }
 
+num_gpus = 4 if torch.cuda.device_count() > 4 else torch.cuda.device_count()
 train_param = {
-    "CUDA_VISIBLE_DEVICES": [0],
-    "num_iterations": 8,
-    "num_iterations_per_validation": 4,
+    "CUDA_VISIBLE_DEVICES": [x for x in range(num_gpus)],
+    "num_iterations": int(4 / num_gpus),
+    "num_iterations_per_validation": int(4 / num_gpus),
     "num_images_per_batch": 2,
-    "num_epochs": 2,
-    "num_warmup_iterations": 4,
+    "num_epochs": 1,
+    "num_warmup_iterations": int(4 / num_gpus),
+    "use_pretrain": False,
+    "pretrained_path": "",
 }
 
 pred_param = {"files_slices": slice(0, 1), "mode": "mean", "sigmoid": True}
@@ -70,7 +74,7 @@ class TestAutoRunner(unittest.TestCase):
 
         # Generate a fake dataset
         for d in sim_datalist["testing"] + sim_datalist["training"]:
-            im, seg = create_test_image_3d(64, 64, 64, rad_max=10, num_seg_classes=1)
+            im, seg = create_test_image_3d(24, 24, 24, rad_max=10, num_seg_classes=1)
             nib_image = nib.Nifti1Image(im, affine=np.eye(4))
             image_fpath = os.path.join(sim_dataroot, d["image"])
             nib.save(nib_image, image_fpath)
@@ -123,22 +127,25 @@ class TestAutoRunner(unittest.TestCase):
         work_dir = os.path.join(self.test_path, "work_dir")
         runner = AutoRunner(work_dir=work_dir, input=self.data_src_cfg, hpo=True, ensemble=False)
         hpo_param = {
-            "num_iterations": 8,
-            "num_iterations_per_validation": 4,
-            "num_images_per_batch": 2,
-            "num_epochs": 2,
-            "num_warmup_iterations": 4,
+            "CUDA_VISIBLE_DEVICES": train_param["CUDA_VISIBLE_DEVICES"],
+            "num_iterations": train_param["num_iterations"],
+            "num_iterations_per_validation": train_param["num_iterations_per_validation"],
+            "num_images_per_batch": train_param["num_images_per_batch"],
+            "num_epochs": train_param["num_epochs"],
+            "num_warmup_iterations": train_param["num_warmup_iterations"],
+            "use_pretrain": train_param["use_pretrain"],
+            "pretrained_path": train_param["pretrained_path"],
             # below are to shorten the time for dints
-            "training#num_iterations": 8,
-            "training#num_iterations_per_validation": 4,
-            "training#num_images_per_batch": 2,
-            "training#num_epochs": 2,
-            "training#num_warmup_iterations": 4,
-            "searching#num_iterations": 8,
-            "searching#num_iterations_per_validation": 4,
-            "searching#num_images_per_batch": 2,
-            "searching#num_epochs": 2,
-            "searching#num_warmup_iterations": 4,
+            "training#num_iterations": train_param["num_iterations"],
+            "training#num_iterations_per_validation": train_param["num_iterations_per_validation"],
+            "training#num_images_per_batch": train_param["num_images_per_batch"],
+            "training#num_epochs": train_param["num_epochs"],
+            "training#num_warmup_iterations": train_param["num_warmup_iterations"],
+            "searching#num_iterations": train_param["num_iterations"],
+            "searching#num_iterations_per_validation": train_param["num_iterations_per_validation"],
+            "searching#num_images_per_batch": train_param["num_images_per_batch"],
+            "searching#num_epochs": train_param["num_epochs"],
+            "searching#num_warmup_iterations": train_param["num_warmup_iterations"],
             "nni_dry_run": True,
         }
         search_space = {"learning_rate": {"_type": "choice", "_value": [0.0001, 0.001, 0.01, 0.1]}}
