@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2022-12-19
+### Added
+### Fixed
+
 ## [1.0.1] - 2022-10-24
 ### Fixes
 * DiceCELoss for multichannel targets
@@ -643,7 +647,8 @@ the postprocessing steps should be used before calling the metrics methods
 
 [highlights]: https://github.com/Project-MONAI/MONAI/blob/master/docs/source/highlights.md
 
-[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/1.0.1...HEAD
+[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/1.1.0...HEAD
+[1.1.0]: https://github.com/Project-MONAI/MONAI/compare/1.0.1...1.1.0
 [1.0.1]: https://github.com/Project-MONAI/MONAI/compare/1.0.0...1.0.1
 [1.0.0]: https://github.com/Project-MONAI/MONAI/compare/0.9.1...1.0.0
 [0.9.1]: https://github.com/Project-MONAI/MONAI/compare/0.9.0...0.9.1
