@@ -24,7 +24,7 @@ from monai.transforms import (
     RandAdjustContrast,
     RandCuCIM,
     RandFlip,
-    Randomizable,
+    RandomizableTrait,
     Rotate90,
     ToCupy,
     ToNumpy,
@@ -217,7 +217,7 @@ class TestNVTXRangeDecorator(unittest.TestCase):
 
         # Check if the first randomized is RandAdjustContrast
         for tran in transforms.transforms:
-            if isinstance(tran, Randomizable):
+            if isinstance(tran, RandomizableTrait):
                 self.assertIsInstance(tran, RandAdjustContrast)
                 break
 

@@ -348,6 +348,16 @@ def make_rand_affine(ndim: int = 3, random_state: Optional[np.random.RandomState
     return af
 
 
+def get_arange_img(size, dtype=np.float32, offset=0):
+    """
+    Returns an image as a numpy array (complete with channel as dim 0)
+    with contents that iterate like an arange.
+    """
+    n_elem = np.prod(size)
+    img = np.arange(offset, offset + n_elem, dtype=dtype).reshape(size)
+    return np.expand_dims(img, 0)
+
+
 class DistTestCase(unittest.TestCase):
     """
     testcase without _outcome, so that it's picklable.
@@ -734,7 +744,7 @@ def query_memory(n=2):
         free_memory = np.asarray(free_memory, dtype=float).T
         free_memory[1] += free_memory[0]  # combine 0/1 column measures
         ids = np.lexsort(free_memory)[:n]
-    except (TypeError, IndexError, OSError):
+    except (TypeError, ValueError, IndexError, OSError):
         ids = range(n) if isinstance(n, int) else []
     return ",".join(f"{int(x)}" for x in ids)
 

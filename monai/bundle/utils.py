@@ -19,7 +19,7 @@ from monai.utils import optional_import
 
 yaml, _ = optional_import("yaml")
 
-__all__ = ["ID_REF_KEY", "ID_SEP_KEY", "EXPR_KEY", "MACRO_KEY"]
+__all__ = ["ID_REF_KEY", "ID_SEP_KEY", "EXPR_KEY", "MACRO_KEY", "DEFAULT_MLFLOW_SETTINGS", "DEFAULT_EXP_MGMT_SETTINGS"]
 
 ID_REF_KEY = "@"  # start of a reference to a ConfigItem
 ID_SEP_KEY = "#"  # separator for the ID of a ConfigItem
@@ -104,21 +104,49 @@ DEFAULT_HANDLERS_ID = {
 DEFAULT_MLFLOW_SETTINGS = {
     "handlers_id": DEFAULT_HANDLERS_ID,
     "configs": {
+        "tracking_uri": "$@output_dir + '/mlruns'",
+        "experiment_name": "monai_experiment",
+        "run_name": None,
+        "is_not_rank0": (
+            "$torch.distributed.is_available() \
+                and torch.distributed.is_initialized() and torch.distributed.get_rank() > 0"
+        ),
         # MLFlowHandler config for the trainer
         "trainer": {
             "_target_": "MLFlowHandler",
-            "tracking_uri": "$@output_dir + '/mlflow'",
+            "_disabled_": "@is_not_rank0",
+            "tracking_uri": "@tracking_uri",
+            "experiment_name": "@experiment_name",
+            "run_name": "@run_name",
             "iteration_log": True,
             "epoch_log": True,
             "tag_name": "train_loss",
             "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
+            "close_on_complete": True,
         },
         # MLFlowHandler config for the validator
-        "validator": {"_target_": "MLFlowHandler", "tracking_uri": "$@output_dir + '/mlflow'", "iteration_log": False},
+        "validator": {
+            "_target_": "MLFlowHandler",
+            "_disabled_": "@is_not_rank0",
+            "tracking_uri": "@tracking_uri",
+            "experiment_name": "@experiment_name",
+            "run_name": "@run_name",
+            "iteration_log": False,
+        },
         # MLFlowHandler config for the evaluator
-        "evaluator": {"_target_": "MLFlowHandler", "tracking_uri": "$@output_dir + '/mlflow'", "iteration_log": False},
+        "evaluator": {
+            "_target_": "MLFlowHandler",
+            "_disabled_": "@is_not_rank0",
+            "tracking_uri": "@tracking_uri",
+            "experiment_name": "@experiment_name",
+            "run_name": "@run_name",
+            "iteration_log": False,
+            "close_on_complete": True,
+        },
     },
 }
+
+DEFAULT_EXP_MGMT_SETTINGS = {"mlflow": DEFAULT_MLFLOW_SETTINGS}  # default expriment management settings
 
 
 def load_bundle_config(bundle_path: str, *config_names, **load_kw_args) -> Any:

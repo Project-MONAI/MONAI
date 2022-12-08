@@ -27,7 +27,7 @@ from torch.cuda import is_available
 from monai.apps.utils import _basename, download_url, extractall, get_logger
 from monai.bundle.config_item import ConfigComponent
 from monai.bundle.config_parser import ConfigParser
-from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA, DEFAULT_MLFLOW_SETTINGS
+from monai.bundle.utils import DEFAULT_EXP_MGMT_SETTINGS, DEFAULT_INFERENCE, DEFAULT_METADATA
 from monai.config import IgniteInfo, PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
 from monai.networks import convert_to_torchscript, copy_model_state, get_state_dict, save_state
@@ -384,7 +384,7 @@ def get_all_bundles_list(
 
     bundles_info = _get_all_bundles_info(repo=repo, tag=tag, auth_token=auth_token)
     bundles_list = []
-    for bundle_name in bundles_info.keys():
+    for bundle_name in bundles_info:
         latest_version = sorted(bundles_info[bundle_name].keys())[-1]
         bundles_list.append((bundle_name, latest_version))
 
@@ -478,16 +478,17 @@ def patch_bundle_tracking(parser: ConfigParser, settings: dict):
         settings: settings for the experiment tracking, should follow the pattern of default settings.
 
     """
-    for k, v in settings["handlers_id"].items():
-        engine = parser.get(v["id"])
-        if engine is not None:
-            handlers = parser.get(v["handlers"])
-            handler_config = settings["configs"].get(k, None)
-            if handler_config is not None:
+    for k, v in settings["configs"].items():
+        if k in settings["handlers_id"]:
+            engine = parser.get(settings["handlers_id"][k]["id"])
+            if engine is not None:
+                handlers = parser.get(settings["handlers_id"][k]["handlers"])
                 if handlers is None:
-                    engine["train_handlers" if k == "trainer" else "val_handlers"] = [handler_config]
+                    engine["train_handlers" if k == "trainer" else "val_handlers"] = [v]
                 else:
-                    handlers.append(handler_config)
+                    handlers.append(v)
+        elif k not in parser:
+            parser[k] = v
 
 
 def run(
@@ -533,6 +534,7 @@ def run(
             if "mlflow", will add `MLFlowHandler` to the parsed bundle with default loggging settings,
             if other string, treat it as file path to load the logging settings, if `dict`,
             treat it as logging settings, otherwise, use all the default settings.
+            will patch the target config content with `tracking handlers` and the top-level items of `configs`.
             example of customized settings:
 
             .. code-block:: python
@@ -544,16 +546,42 @@ def run(
                         "evaluator": {"id": "evaluator", "handlers": "handlers"},
                     },
                     "configs": {
+                        "tracking_uri": "<path>",
+                        "experiment_name": "monai_experiment",
+                        "run_name": None,
+                        "is_not_rank0": (
+                            "$torch.distributed.is_available() \
+                                and torch.distributed.is_initialized() and torch.distributed.get_rank() > 0"
+                        ),
                         "trainer": {
                             "_target_": "MLFlowHandler",
-                            "tracking_uri": "<path>",
+                            "_disabled_": "@is_not_rank0",
+                            "tracking_uri": "@tracking_uri",
+                            "experiment_name": "@experiment_name",
+                            "run_name": "@run_name",
                             "iteration_log": True,
                             "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
+                            "close_on_complete": True,
                         },
-                        "validator": {"_target_": "MLFlowHandler", "tracking_uri": "<path>", "iteration_log": False},
-                        "evaluator": {"_target_": "MLFlowHandler", "tracking_uri": "<path>", "iteration_log": False},
-                    }
-                }
+                        "validator": {
+                            "_target_": "MLFlowHandler",
+                            "_disabled_": "@is_not_rank0",
+                            "tracking_uri": "@tracking_uri",
+                            "experiment_name": "@experiment_name",
+                            "run_name": "@run_name",
+                            "iteration_log": False,
+                        },
+                        "evaluator": {
+                            "_target_": "MLFlowHandler",
+                            "_disabled_": "@is_not_rank0",
+                            "tracking_uri": "@tracking_uri",
+                            "experiment_name": "@experiment_name",
+                            "run_name": "@run_name",
+                            "iteration_log": False,
+                            "close_on_complete": True,
+                        },
+                    },
+                },
 
         args_file: a JSON or YAML file to provide default values for `runner_id`, `meta_file`,
             `config_file`, `logging`, and override pairs. so that the command line inputs can be simplified.
@@ -591,10 +619,10 @@ def run(
     # the rest key-values in the _args are to override config content
     parser.update(pairs=_args)
 
-    # patch the bundle with mlflow handler
+    # set tracking configs for experiment management
     if tracking_ is not None:
-        if isinstance(tracking_, str) and tracking_ == "mlflow":
-            settings_ = DEFAULT_MLFLOW_SETTINGS
+        if isinstance(tracking_, str) and tracking_ in DEFAULT_EXP_MGMT_SETTINGS:
+            settings_ = DEFAULT_EXP_MGMT_SETTINGS[tracking_]
         else:
             settings_ = ConfigParser.load_config_files(tracking_)
         patch_bundle_tracking(parser=parser, settings=settings_)
@@ -746,7 +774,16 @@ def verify_net_in_out(
     with torch.no_grad():
         spatial_shape = _get_fake_spatial_shape(input_spatial_shape, p=p_, n=n_, any=any_)
         test_data = torch.rand(*(1, input_channels, *spatial_shape), dtype=input_dtype, device=device_)
-        output = net(test_data)
+        if input_dtype == torch.float16:
+            # fp16 can only be executed in gpu mode
+            net.to("cuda")
+            from torch.cuda.amp import autocast
+
+            with autocast():
+                output = net(test_data.cuda())
+            net.to(device_)
+        else:
+            output = net(test_data)
         if output.shape[1] != output_channels:
             raise ValueError(f"output channel number `{output.shape[1]}` doesn't match: `{output_channels}`.")
         if output.dtype != output_dtype:
@@ -857,8 +894,8 @@ def init_bundle(
     ckpt_file: Optional[PathLike] = None,
     network: Optional[torch.nn.Module] = None,
     dataset_license: bool = False,
-    metadata_str: Union[Dict, str] = DEFAULT_METADATA,
-    inference_str: Union[Dict, str] = DEFAULT_INFERENCE,
+    metadata_str: Union[Dict, str, None] = None,
+    inference_str: Union[Dict, str, None] = None,
 ):
     """
     Initialise a new bundle directory with some default configuration files and optionally network weights.
@@ -876,6 +913,10 @@ def init_bundle(
         dataset_license: if `True`, a default license file called "data_license.txt" will be produced. This
             file is required if there are any license conditions stated for data your bundle uses.
     """
+    if metadata_str is None:
+        metadata_str = DEFAULT_METADATA
+    if inference_str is None:
+        inference_str = DEFAULT_INFERENCE
 
     bundle_dir = Path(bundle_dir).absolute()
 

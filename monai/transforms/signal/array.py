@@ -140,7 +140,7 @@ class SignalRandDrop(RandomizableTransform):
         self.randomize(None)
         self.magnitude = self.R.uniform(low=self.boundaries[0], high=self.boundaries[1])
 
-        length = signal.shape[len(signal.shape) - 1]
+        length = signal.shape[-1]
         mask = torch.zeros(round(self.magnitude * length))
         trange = torch.arange(length)
         loc = trange[torch.randint(0, trange.size(0), (1,))]
@@ -265,7 +265,7 @@ class SignalRandAddSinePartial(RandomizableTransform):
         self.fracs = self.R.uniform(low=self.fraction[0], high=self.fraction[1])
         self.freqs = self.R.uniform(low=self.frequencies[0], high=self.frequencies[1])
 
-        length = signal.shape[len(signal.shape) - 1]
+        length = signal.shape[-1]
 
         time_partial = np.arange(0, round(self.fracs * length), 1)
         data = convert_to_tensor(self.freqs * time_partial)
@@ -347,7 +347,7 @@ class SignalRandAddSquarePulsePartial(RandomizableTransform):
         self.fracs = self.R.uniform(low=self.fraction[0], high=self.fraction[1])
         self.freqs = self.R.uniform(low=self.frequencies[0], high=self.frequencies[1])
 
-        length = signal.shape[len(signal.shape) - 1]
+        length = signal.shape[-1]
 
         time_partial = np.arange(0, round(self.fracs * length), 1)
         squaredpulse_partial = self.magnitude * squarepulse(self.freqs * time_partial)

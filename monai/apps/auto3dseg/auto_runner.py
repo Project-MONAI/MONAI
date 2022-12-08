@@ -14,7 +14,7 @@ import shutil
 import subprocess
 from copy import deepcopy
 from time import sleep
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import torch
@@ -64,7 +64,11 @@ class AutoRunner:
         work_dir: working directory to save the intermediate and final results.
         input: the configuration dictionary or the file path to the configuration in form of YAML.
             The configuration should contain datalist, dataroot, modality, multigpu, and class_names info.
-        algos: optionally specify a list of algorithms to use.
+        algos: optionally specify algorithms to use.  If a dictionary, must be in the form
+            {"algname": dict(_target_="algname.scripts.algo.AlgnameAlgo", template_path="algname"), ...}
+            If a list or a string, defines a subset of names of the algorithms to use, e.g. 'segresnet' or
+            ['segresnet', 'dints'] out of the full set of algorithm templates provided by templates_path_or_url.
+            Defaults to None, to use all available algorithms.
         analyze: on/off switch to run DataAnalyzer and generate a datastats report. Defaults to None, to automatically
             decide based on cache, and run data analysis only if we have not completed this step yet.
         algo_gen: on/off switch to run AlgoGen and generate templated BundleAlgos. Defaults to None, to automatically
@@ -79,6 +83,8 @@ class AutoRunner:
             datasets.
         not_use_cache: if the value is True, it will ignore all cached results in data analysis,
             algorithm generation, or training, and start the pipeline from scratch.
+        templates_path_or_url: the folder with the algorithm templates or a url. If None provided, the default template
+            zip url will be downloaded and extracted into the work_dir.
         kwargs: image writing parameters for the ensemble inference. The kwargs format follows the SaveImage
             transform. For more information, check https://docs.monai.io/en/stable/transforms.html#saveimage.
 
@@ -104,6 +110,27 @@ class AutoRunner:
             work_dir = "./work_dir"
             input = "path_to_yaml_data_cfg"
             runner = AutoRunner(work_dir=work_dir, input=input)
+            runner.run()
+
+        - User can specify a subset of algorithms to use and run AutoRunner:
+
+        .. code-block:: python
+
+            work_dir = "./work_dir"
+            input = "path_to_yaml_data_cfg"
+            algos = ["segresnet", "dints"]
+            runner = AutoRunner(work_dir=work_dir, input=input, algos=algos)
+            runner.run()
+
+        - User can specify a a local folder with algorithms templates and run AutoRunner:
+
+        .. code-block:: python
+
+            work_dir = "./work_dir"
+            input = "path_to_yaml_data_cfg"
+            algos = "segresnet"
+            templates_path_or_url = "./local_path_to/algorithm_templates"
+            runner = AutoRunner(work_dir=work_dir, input=input, algos=algos, templates_path_or_url=templates_path_or_url)
             runner.run()
 
         - User can specify training parameters by:
@@ -181,7 +208,7 @@ class AutoRunner:
         self,
         work_dir: str = "./work_dir",
         input: Union[Dict[str, Any], str, None] = None,
-        algos: Optional[Union[Tuple, List]] = None,
+        algos: Optional[Union[Dict, List, str]] = None,
         analyze: Optional[bool] = None,
         algo_gen: Optional[bool] = None,
         train: Optional[bool] = None,
@@ -189,6 +216,7 @@ class AutoRunner:
         hpo_backend: str = "nni",
         ensemble: bool = True,
         not_use_cache: bool = False,
+        templates_path_or_url: Optional[str] = None,
         **kwargs,
     ):
 
@@ -198,6 +226,7 @@ class AutoRunner:
         self.work_dir = os.path.abspath(work_dir)
         self.data_src_cfg_name = os.path.join(self.work_dir, "input.yaml")
         self.algos = algos
+        self.templates_path_or_url = templates_path_or_url
 
         if input is None and os.path.isfile(self.data_src_cfg_name):
             input = self.data_src_cfg_name
@@ -236,14 +265,16 @@ class AutoRunner:
         self.ensemble = ensemble  # last step, no need to check
 
         # intermediate variables
-        self.set_num_fold(num_fold=5)
+        self.num_fold = 5
+        self.ensemble_method_name = "AlgoEnsembleBestN"
         self.set_training_params()
         self.set_prediction_params()
         self.set_analyze_params()
 
         self.save_image = self.set_image_save_transform(kwargs)
         self.ensemble_method: AlgoEnsemble
-        self.set_ensemble_method()
+        self.set_ensemble_method(self.ensemble_method_name)
+        self.set_num_fold(num_fold=self.num_fold)
 
         # hpo
         if hpo_backend.lower() != "nni":
@@ -305,10 +336,16 @@ class AutoRunner:
 
         Args:
             num_fold: a positive integer to define the number of folds.
+
+        Notes:
+            If the ensemble method is ``AlgoEnsembleBestByFold``, this function automatically updates the ``n_fold``
+            parameter in the ``ensemble_method`` to avoid inconsistency between the training and the ensemble.
         """
         if num_fold <= 0:
             raise ValueError(f"num_fold is expected to be an integer greater than zero. Now it gets {num_fold}")
         self.num_fold = num_fold
+        if self.ensemble_method_name == "AlgoEnsembleBestByFold":
+            self.ensemble_method.n_fold = self.num_fold  # type: ignore
 
     def set_training_params(self, params: Optional[Dict[str, Any]] = None):
         """
@@ -373,9 +410,15 @@ class AutoRunner:
             - "tuner"
             - "trainingService"
 
+        and (3) enable the dry-run mode if the user would generate the NNI configs without starting the NNI service.
+
         Args:
             params: a dict that defines the overriding key-value pairs during instantiation of the algo. For
                 BundleAlgo, it will override the template config filling.
+
+        Notes:
+            Users can set ``nni_dry_run`` to ``True`` in the ``params`` to enable the dry-run mode for the NNI backend.
+
         """
         if params is None:
             self.hpo_params = self.train_params
@@ -501,6 +544,7 @@ class AutoRunner:
         }
 
         last_total_tasks = len(import_bundle_algo_history(self.work_dir, only_trained=True))
+        mode_dry_run = self.hpo_params.pop("nni_dry_run", False)
         for task in history:
             for name, algo in task.items():
                 nni_gen = NNIGen(algo=algo, params=self.hpo_params)
@@ -514,11 +558,16 @@ class AutoRunner:
                 nni_config.update({"search_space": self.search_space})
                 trial_cmd = "python -m monai.apps.auto3dseg NNIGen run_algo " + obj_filename + " " + self.work_dir
                 nni_config.update({"trialCommand": trial_cmd})
-                nni_config_filename = os.path.abspath(os.path.join(self.work_dir, "nni_config.yaml"))
+                nni_config_filename = os.path.abspath(os.path.join(self.work_dir, f"{name}_nni_config.yaml"))
                 ConfigParser.export_config_file(nni_config, nni_config_filename, fmt="yaml", default_flow_style=None)
 
                 max_trial = min(self.hpo_tasks, default_nni_config["maxTrialNumber"])
                 cmd = "nnictl create --config " + nni_config_filename + " --port 8088"
+
+                if mode_dry_run:
+                    logger.info(f"AutoRunner HPO is in dry-run mode. Please manually launch: {cmd}")
+                    continue
+
                 subprocess.run(cmd.split(), check=True)
 
                 n_trainings = len(import_bundle_algo_history(self.work_dir, only_trained=True))
@@ -558,6 +607,7 @@ class AutoRunner:
             bundle_generator = BundleGen(
                 algos=self.algos,
                 algo_path=self.work_dir,
+                templates_path_or_url=self.templates_path_or_url,
                 data_stats_filename=self.datastats_filename,
                 data_src_cfg_name=self.data_src_cfg_name,
             )

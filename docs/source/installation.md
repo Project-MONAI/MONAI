@@ -26,6 +26,11 @@ To install optional features such as handling the NIfTI files using
 Ignite](https://pytorch.org/ignite/), please follow the instructions:
 - [Installing the recommended dependencies](#installing-the-recommended-dependencies)
 
+The installation commands bellow usually end up installing CPU variant of PyTorch. To install GPU-enabled PyTorch:
+1. Install the latest NVIDIA driver.
+1. Check [PyTorch Official Guide](https://pytorch.org/get-started/locally/) for the recommended CUDA versions. For Pip package, the user needs to download the CUDA manually, install it on the system, and ensure CUDA_PATH is set properly.
+1. Continue to follow the guide and install PyTorch.
+1. Install MONAI using one the ways described below.
 ---
 
 
@@ -198,7 +203,8 @@ cd MONAI/
 pip install -r requirements-dev.txt
 ```
 
-To install all optional dependencies with `conda` based on MONAI development environment settings:
+To install all optional dependencies with `conda` based on MONAI development environment settings (`environment-dev.yml`;
+this will install PyTorch as well as `pytorch-cuda`, please follow https://pytorch.org/get-started/locally/#start-locally for more details about installing PyTorch):
 ```bash
 git clone https://github.com/Project-MONAI/MONAI.git
 cd MONAI/

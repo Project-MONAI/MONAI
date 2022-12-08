@@ -166,7 +166,7 @@ class Cumulative:
 
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Initialize the internal buffers.
         `self._buffers` are local buffers, they are not usually used directly.
