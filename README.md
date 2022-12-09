@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![CI Build](https://github.com/Project-MONAI/MONAI/workflows/build/badge.svg?branch=dev)](https://github.com/Project-MONAI/MONAI/commits/dev)
 [![Documentation Status](https://readthedocs.org/projects/monai/badge/?version=latest)](https://docs.monai.io/en/latest/?badge=latest)
-[![codecov](https://codecov.io/gh/Project-MONAI/MONAI/branch/dev/graph/badge.svg)](https://codecov.io/gh/Project-MONAI/MONAI)
+[![codecov](https://codecov.io/gh/Project-MONAI/MONAI/branch/dev/graph/badge.svg?token=6FTC7U1JJ4)](https://codecov.io/gh/Project-MONAI/MONAI)
 [![PyPI version](https://badge.fury.io/py/monai.svg)](https://badge.fury.io/py/monai)
 [![conda](https://img.shields.io/conda/vn/conda-forge/monai)](https://anaconda.org/conda-forge/monai)
 
