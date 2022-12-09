@@ -30,16 +30,20 @@ optuna, has_optuna = optional_import("optuna")
 
 num_gpus = 4 if torch.cuda.device_count() > 4 else torch.cuda.device_count()
 
-override_param = {
-    "CUDA_VISIBLE_DEVICES": list(range(num_gpus)),
-    "num_iterations": int(4 / num_gpus),
-    "num_iterations_per_validation": int(4 / num_gpus),
-    "num_images_per_batch": 2,
-    "num_epochs": 1,
-    "num_warmup_iterations": int(4 / num_gpus),
-    "use_pretrain": False,
-    "pretrained_path": "",
-}
+override_param = (
+    {
+        "CUDA_VISIBLE_DEVICES": list(range(num_gpus)),
+        "num_iterations": int(4 / num_gpus),
+        "num_iterations_per_validation": int(4 / num_gpus),
+        "num_images_per_batch": 2,
+        "num_epochs": 1,
+        "num_warmup_iterations": int(4 / num_gpus),
+        "use_pretrain": False,
+        "pretrained_path": "",
+    }
+    if torch.cuda.is_available()
+    else {}
+)
 
 
 def skip_if_no_optuna(obj):
