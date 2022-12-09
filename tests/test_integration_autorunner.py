@@ -55,7 +55,7 @@ train_param = {
     "num_warmup_iterations": int(4 / num_gpus),
     "use_pretrain": False,
     "pretrained_path": "",
-}
+} if torch.cuda.is_available() else {}
 
 pred_param = {"files_slices": slice(0, 1), "mode": "mean", "sigmoid": True}
 
