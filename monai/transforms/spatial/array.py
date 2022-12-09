@@ -27,7 +27,7 @@ from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import AFFINE_TOL, affine_to_spacing, compute_shape_offset, iter_patch, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
-from monai.networks.utils import meshgrid_ij, normalize_transform
+from monai.networks.utils import linalg_solve, meshgrid_ij, normalize_transform
 from monai.transforms.croppad.array import CenterSpatialCrop, ResizeWithPadOrCrop
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import InvertibleTransform
@@ -61,7 +61,6 @@ from monai.utils import (
     fall_back_tuple,
     issequenceiterable,
     optional_import,
-    pytorch_after,
 )
 from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import GridPatchSort, PytorchPadMode, TraceKeys, TransformBackends, WSIPatchKeys
@@ -274,9 +273,7 @@ class SpatialResample(InvertibleTransform):
         try:
             _s = convert_to_tensor(src_affine_, track_meta=False, device=torch.device("cpu"))
             _d = convert_to_tensor(dst_affine, track_meta=False, device=torch.device("cpu"))
-            xform = (
-                torch.linalg.solve(_s, _d) if pytorch_after(1, 8, 0) else torch.solve(_d, _s).solution  # type: ignore
-            )
+            xform = linalg_solve(_s, _d)
         except (np.linalg.LinAlgError, RuntimeError) as e:
             raise ValueError("src affine is not invertible.") from e
         xform = to_affine_nd(spatial_rank, xform).to(device=img.device, dtype=_dtype)
@@ -298,7 +295,7 @@ class SpatialResample(InvertibleTransform):
                 norm = create_scale(spatial_rank, [(max(d, 2) - 1) / d for d in spatial_size], xform.device, "torch")
                 dst_xform_1 = norm.to(xform.dtype) @ dst_xform_1  # type: ignore  # scaling (num_step - 1) / num_step
             dst_xform_d = normalize_transform(spatial_size, xform.device, xform.dtype, align_corners, False)[0]
-            xform = xform @ torch.inverse(dst_xform_d) @ dst_xform_1
+            xform = xform @ linalg_solve(dst_xform_d, dst_xform_1)
             affine_xform = Affine(
                 affine=xform, spatial_size=spatial_size, normalized=True, image_only=True, dtype=_dtype
             )

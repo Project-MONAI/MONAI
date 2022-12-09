@@ -49,6 +49,7 @@ __all__ = [
     "replace_modules_temp",
     "look_up_named_module",
     "set_named_module",
+    "linalg_solve",
 ]
 
 logger = get_logger(module_name=__name__)
@@ -239,6 +240,11 @@ def normalize_transform(
     return norm  # type: ignore
 
 
+def linalg_solve(a, b) -> torch.Tensor:
+    """handling torch.linalg.solve for pytorch 1.8+"""
+    return torch.linalg.solve(a, b) if pytorch_after(1, 8, 0) else torch.solve(b, a).solution  # type: ignore
+
+
 def to_norm_affine(
     affine: torch.Tensor,
     src_size: Sequence[int],
@@ -276,7 +282,8 @@ def to_norm_affine(
 
     src_xform = normalize_transform(src_size, affine.device, affine.dtype, align_corners, zero_centered)
     dst_xform = normalize_transform(dst_size, affine.device, affine.dtype, align_corners, zero_centered)
-    return src_xform @ affine @ torch.inverse(dst_xform)
+    eye = torch.eye(dst_xform.shape[1], dtype=dst_xform.dtype, device=dst_xform.device)
+    return src_xform @ affine @ linalg_solve(dst_xform, eye.unsqueeze(0).repeat(dst_xform.shape[0], 1, 1))
 
 
 def normal_init(

@@ -15,6 +15,7 @@ from .utils import (
     eval_mode,
     get_state_dict,
     icnr_init,
+    linalg_solve,
     look_up_named_module,
     normal_init,
     normalize_transform,
