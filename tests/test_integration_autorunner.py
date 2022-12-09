@@ -46,16 +46,20 @@ sim_datalist: Dict[str, List[Dict]] = {
 }
 
 num_gpus = 4 if torch.cuda.device_count() > 4 else torch.cuda.device_count()
-train_param = {
-    "CUDA_VISIBLE_DEVICES": list(range(num_gpus)),
-    "num_iterations": int(4 / num_gpus),
-    "num_iterations_per_validation": int(4 / num_gpus),
-    "num_images_per_batch": 2,
-    "num_epochs": 1,
-    "num_warmup_iterations": int(4 / num_gpus),
-    "use_pretrain": False,
-    "pretrained_path": "",
-} if torch.cuda.is_available() else {}
+train_param = (
+    {
+        "CUDA_VISIBLE_DEVICES": list(range(num_gpus)),
+        "num_iterations": int(4 / num_gpus),
+        "num_iterations_per_validation": int(4 / num_gpus),
+        "num_images_per_batch": 2,
+        "num_epochs": 1,
+        "num_warmup_iterations": int(4 / num_gpus),
+        "use_pretrain": False,
+        "pretrained_path": "",
+    }
+    if torch.cuda.is_available()
+    else {}
+)
 
 pred_param = {"files_slices": slice(0, 1), "mode": "mean", "sigmoid": True}
 
