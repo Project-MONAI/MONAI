@@ -399,7 +399,7 @@ class PersistentDataset(Dataset):
                     # On Unix, if target exists and is a file, it will be replaced silently if the user has permission.
                     # for more details: https://docs.python.org/3/library/shutil.html#shutil.move.
                     try:
-                        shutil.move(temp_hash_file, hashfile)
+                        shutil.move(str(temp_hash_file), hashfile)
                     except FileExistsError:
                         pass
         except PermissionError:  # project-monai/monai issue #3613
