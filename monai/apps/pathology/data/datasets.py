@@ -85,8 +85,7 @@ class PatchWSIDataset(Dataset):
         if self.image_reader_name == "openslide":
             img_obj = self.image_reader.read(sample["image"])
         else:
-            assert self.wsi_object_dict is not None
-            img_obj = self.wsi_object_dict[sample["image"]]
+            img_obj = cast(Dict, self.wsi_object_dict)[sample["image"]]
         location = [sample["location"][i] - self.region_size[i] // 2 for i in range(len(self.region_size))]
         images, _ = self.image_reader.get_data(
             img=img_obj,

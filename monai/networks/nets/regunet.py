@@ -97,12 +97,12 @@ class RegUNet(nn.Module):
 
         # init layers
         # all lists start with d = 0
-        self.encode_convs: Optional[nn.ModuleList] = None
-        self.encode_pools: Optional[nn.ModuleList] = None
-        self.bottom_block: Optional[nn.Sequential] = None
-        self.decode_deconvs: Optional[nn.ModuleList] = None
-        self.decode_convs: Optional[nn.ModuleList] = None
-        self.output_block: Optional[nn.Module] = None
+        self.encode_convs: nn.ModuleList
+        self.encode_pools: nn.ModuleList
+        self.bottom_block: nn.Sequential
+        self.decode_deconvs: nn.ModuleList
+        self.decode_convs: nn.ModuleList
+        self.output_block: nn.Module
 
         # build layers
         self.build_layers()
@@ -211,17 +211,14 @@ class RegUNet(nn.Module):
         image_size = x.shape[2:]
         skips = []  # [0, ..., depth - 1]
         encoded = x
-        assert self.encode_convs is not None and self.encode_pools is not None
         for encode_conv, encode_pool in zip(self.encode_convs, self.encode_pools):
             skip = encode_conv(encoded)
             encoded = encode_pool(skip)
             skips.append(skip)
-        assert self.bottom_block is not None
         decoded = self.bottom_block(encoded)
 
         outs = [decoded]
 
-        assert self.decode_deconvs is not None and self.decode_convs is not None
         for i, (decode_deconv, decode_conv) in enumerate(zip(self.decode_deconvs, self.decode_convs)):
             decoded = decode_deconv(decoded)
             if self.concat_skip:
@@ -231,7 +228,6 @@ class RegUNet(nn.Module):
             decoded = decode_conv(decoded)
             outs.append(decoded)
 
-        assert self.output_block is not None
         out = self.output_block(outs, image_size=image_size)
         return out
 

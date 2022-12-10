@@ -123,7 +123,7 @@ class MonaiAlgoStats(ClientAlgoStats):
         self.histogram_only = histogram_only
 
         self.client_name: Optional[str] = None
-        self.app_root: Optional[str] = None
+        self.app_root: str = ""
         self.train_parser: Optional[ConfigParser] = None
         self.filter_parser: Optional[ConfigParser] = None
         self.post_statistics_filters: Any = None
@@ -146,7 +146,6 @@ class MonaiAlgoStats(ClientAlgoStats):
 
         # FL platform needs to provide filepath to configuration files
         self.app_root = extra.get(ExtraItems.APP_ROOT, "")
-        assert self.app_root is not None
 
         # Read bundle config files
         self.bundle_root = os.path.join(self.app_root, self.bundle_root)
@@ -192,7 +191,6 @@ class MonaiAlgoStats(ClientAlgoStats):
         """
         if extra is None:
             raise ValueError("`extra` has to be set")
-        assert self.app_root is not None
 
         if self.dataset_root:
             self.phase = FlPhase.GET_DATA_STATS
@@ -427,7 +425,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         self.data_stats_transform_list = data_stats_transform_list
         self.tracking = tracking
 
-        self.app_root = None
+        self.app_root = ""
         self.train_parser: Optional[ConfigParser] = None
         self.eval_parser: Optional[ConfigParser] = None
         self.filter_parser: Optional[ConfigParser] = None
@@ -474,7 +472,6 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         # FL platform needs to provide filepath to configuration files
         self.app_root = extra.get(ExtraItems.APP_ROOT, "")
 
-        assert self.app_root is not None
         # Read bundle config files
         self.bundle_root = os.path.join(self.app_root, self.bundle_root)
 
@@ -625,7 +622,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
                 if isinstance(weights, dict) and self.save_dict_key in weights:
                     weights = weights.get(self.save_dict_key)
                 weigh_type: Optional[WeightType] = WeightType.WEIGHTS
-                stats: Dict = dict()
+                stats: Dict = {}
                 self.logger.info(f"Returning {model_type} checkpoint weights from {model_path}.")
             else:
                 raise ValueError(
