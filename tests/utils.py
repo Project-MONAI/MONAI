@@ -744,7 +744,7 @@ def query_memory(n=2):
         free_memory = np.asarray(free_memory, dtype=float).T
         free_memory[1] += free_memory[0]  # combine 0/1 column measures
         ids = np.lexsort(free_memory)[:n]
-    except (TypeError, IndexError, OSError):
+    except (TypeError, ValueError, IndexError, OSError):
         ids = range(n) if isinstance(n, int) else []
     return ",".join(f"{int(x)}" for x in ids)
 
