@@ -14,6 +14,7 @@ import unittest
 import numpy as np
 import torch
 import torch.distributed as dist
+from torch.multiprocessing import Manager
 
 from monai.data import CacheDataset, DataLoader, DistributedSampler
 from monai.transforms import ToTensor
@@ -45,12 +46,23 @@ class DistributedSamplerTest(DistTestCase):
         if dist.get_rank() == 1:
             np.testing.assert_allclose(samples, np.array([2, 4]))
 
+    @DistCall(nnodes=1, nproc_per_node=2)
+    def test_uneven_less_data(self):
+        data = [1]
+        with self.assertRaises(ValueError):
+            DistributedSampler(dataset=data, shuffle=False, even_divisible=False)
+
     @DistCall(nnodes=1, nproc_per_node=2, timeout=120)
     def test_cachedataset(self):
         data = [1, 2, 3, 4, 5]
-        dataset = CacheDataset(data=data, transform=ToTensor(track_meta=False), cache_rate=1.0, runtime_cache=True)
+        obj_list = [Manager().list([None] * len(data))]
+        dist.broadcast_object_list(obj_list, src=0)
+        dataset = CacheDataset(
+            data=data, transform=ToTensor(track_meta=False), cache_rate=1.0, runtime_cache=obj_list[0]
+        )
         sampler = DistributedSampler(dataset=dataset, shuffle=False, even_divisible=False)
         dataloader = DataLoader(dataset=dataset, sampler=sampler, batch_size=1, num_workers=2)
+        dist.barrier()
         for i in range(3):
             if i > 0:
                 # verify the runtime cache content is completed after first epoch

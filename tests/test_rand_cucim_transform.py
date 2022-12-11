@@ -90,14 +90,10 @@ class TestRandCuCIM(unittest.TestCase):
     )
     def test_tramsforms_numpy_single(self, params, input, expected):
         input = np.copy(input)
-        output = RandCuCIM(apply_prob=1.0, **params)(input)
+        output = RandCuCIM(**params)(input)
         self.assertTrue(output.dtype == expected.dtype)
         self.assertTrue(isinstance(output, np.ndarray))
         cp.testing.assert_allclose(output, expected)
-        output = RandCuCIM(apply_prob=0.0, **params)(input)
-        self.assertTrue(output.dtype == input.dtype)
-        self.assertTrue(isinstance(output, np.ndarray))
-        cp.testing.assert_allclose(output, input)
 
     @parameterized.expand(
         [
@@ -114,14 +110,10 @@ class TestRandCuCIM(unittest.TestCase):
     def test_tramsforms_numpy_batch(self, params, input, expected):
         input = np.copy(input[cp.newaxis, ...])
         expected = expected[cp.newaxis, ...]
-        output = RandCuCIM(apply_prob=1.0, **params)(input)
+        output = RandCuCIM(**params)(input)
         self.assertTrue(output.dtype == expected.dtype)
         self.assertTrue(isinstance(output, np.ndarray))
         cp.testing.assert_allclose(output, expected)
-        output = RandCuCIM(apply_prob=0.0, **params)(input)
-        self.assertTrue(output.dtype == input.dtype)
-        self.assertTrue(isinstance(output, np.ndarray))
-        cp.testing.assert_allclose(output, input)
 
     @parameterized.expand(
         [
@@ -138,14 +130,10 @@ class TestRandCuCIM(unittest.TestCase):
     def test_tramsforms_cupy_single(self, params, input, expected):
         input = cp.asarray(input)
         expected = cp.asarray(expected)
-        output = RandCuCIM(apply_prob=1.0, **params)(input)
+        output = RandCuCIM(**params)(input)
         self.assertTrue(output.dtype == expected.dtype)
         self.assertTrue(isinstance(output, cp.ndarray))
         cp.testing.assert_allclose(output, expected)
-        output = RandCuCIM(apply_prob=0.0, **params)(input)
-        self.assertTrue(output.dtype == input.dtype)
-        self.assertTrue(isinstance(output, cp.ndarray))
-        cp.testing.assert_allclose(output, input)
 
     @parameterized.expand(
         [
@@ -166,10 +154,6 @@ class TestRandCuCIM(unittest.TestCase):
         self.assertTrue(output.dtype == expected.dtype)
         self.assertTrue(isinstance(output, cp.ndarray))
         cp.testing.assert_allclose(output, expected)
-        output = RandCuCIM(apply_prob=0.0, **params)(input)
-        self.assertTrue(output.dtype == input.dtype)
-        self.assertTrue(isinstance(output, cp.ndarray))
-        cp.testing.assert_allclose(output, input)
 
 
 if __name__ == "__main__":

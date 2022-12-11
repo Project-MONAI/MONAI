@@ -16,6 +16,7 @@ from typing import Dict, List
 
 import nibabel as nib
 import numpy as np
+import torch
 
 from monai.apps.auto3dseg import AlgoEnsembleBestByFold, AlgoEnsembleBestN, AlgoEnsembleBuilder, BundleGen, DataAnalyzer
 from monai.bundle.config_parser import ConfigParser
@@ -44,14 +45,21 @@ fake_datalist: Dict[str, List[Dict]] = {
     ],
 }
 
-train_param = {
-    "CUDA_VISIBLE_DEVICES": [0],
-    "num_iterations": 8,
-    "num_iterations_per_validation": 4,
-    "num_images_per_batch": 2,
-    "num_epochs": 2,
-    "num_warmup_iterations": 4,
-}
+num_gpus = 4 if torch.cuda.device_count() > 4 else torch.cuda.device_count()
+train_param = (
+    {
+        "CUDA_VISIBLE_DEVICES": list(range(num_gpus)),
+        "num_iterations": int(4 / num_gpus),
+        "num_iterations_per_validation": int(4 / num_gpus),
+        "num_images_per_batch": 2,
+        "num_epochs": 1,
+        "num_warmup_iterations": int(4 / num_gpus),
+        "use_pretrain": False,
+        "pretrained_path": "",
+    }
+    if torch.cuda.is_available()
+    else {}
+)
 
 pred_param = {"files_slices": slice(0, 1), "mode": "mean", "sigmoid": True}
 
@@ -81,7 +89,7 @@ class TestEnsembleBuilder(unittest.TestCase):
 
         # Generate a fake dataset
         for d in fake_datalist["testing"] + fake_datalist["training"]:
-            im, seg = create_test_image_3d(64, 64, 64, rad_max=10, num_seg_classes=1)
+            im, seg = create_test_image_3d(24, 24, 24, rad_max=10, num_seg_classes=1)
             nib_image = nib.Nifti1Image(im, affine=np.eye(4))
             image_fpath = os.path.join(dataroot, d["image"])
             nib.save(nib_image, image_fpath)
@@ -114,7 +122,7 @@ class TestEnsembleBuilder(unittest.TestCase):
             bundle_generator = BundleGen(
                 algo_path=work_dir, data_stats_filename=da_output_yaml, data_src_cfg_name=data_src_cfg
             )
-        bundle_generator.generate(work_dir, num_fold=2)
+        bundle_generator.generate(work_dir, num_fold=1)
         history = bundle_generator.get_history()
 
         for h in history:
@@ -126,9 +134,9 @@ class TestEnsembleBuilder(unittest.TestCase):
         builder.set_ensemble_method(AlgoEnsembleBestN(n_best=2))
         ensemble = builder.get_ensemble()
         preds = ensemble(pred_param)
-        self.assertTupleEqual(preds[0].shape, (2, 64, 64, 64))
+        self.assertTupleEqual(preds[0].shape, (2, 24, 24, 24))
 
-        builder.set_ensemble_method(AlgoEnsembleBestByFold(2))
+        builder.set_ensemble_method(AlgoEnsembleBestByFold(1))
         ensemble = builder.get_ensemble()
         for algo in ensemble.get_algo_ensemble():
             print(algo[AlgoEnsembleKeys.ID])

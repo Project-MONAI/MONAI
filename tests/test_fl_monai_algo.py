@@ -13,7 +13,6 @@ import os
 import shutil
 import tempfile
 import unittest
-from pathlib import Path
 
 from parameterized import parameterized
 
@@ -22,6 +21,7 @@ from monai.bundle.utils import DEFAULT_HANDLERS_ID
 from monai.fl.client.monai_algo import MonaiAlgo
 from monai.fl.utils.constants import ExtraItems
 from monai.fl.utils.exchange_object import ExchangeObject
+from monai.utils import path_to_uri
 from tests.utils import SkipIfNoModule
 
 _root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__)))
@@ -151,11 +151,13 @@ class TestFLMonaiAlgo(unittest.TestCase):
         input_params["tracking"] = {
             "handlers_id": DEFAULT_HANDLERS_ID,
             "configs": {
+                "execute_config": f"{data_dir}/config_executed.json",
                 "trainer": {
                     "_target_": "MLFlowHandler",
-                    "tracking_uri": Path(data_dir).as_uri() + "/mlflow_override",
+                    "tracking_uri": path_to_uri(data_dir) + "/mlflow_override",
                     "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
-                }
+                    "close_on_complete": True,
+                },
             },
         }
 
@@ -175,9 +177,8 @@ class TestFLMonaiAlgo(unittest.TestCase):
         # test train
         algo.train(data=data, extra={})
         algo.finalize()
-        # must close it as we are changing different temp dir for cases here
-        algo.train_parser.get_parsed_content("train#handlers")[-1].close()
         self.assertTrue(os.path.exists(f"{data_dir}/mlflow_override"))
+        self.assertTrue(os.path.exists(f"{data_dir}/config_executed.json"))
         shutil.rmtree(data_dir)
 
     @parameterized.expand([TEST_EVALUATE_1, TEST_EVALUATE_2, TEST_EVALUATE_3])

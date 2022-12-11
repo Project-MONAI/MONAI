@@ -13,10 +13,12 @@ import sys
 import unittest
 
 import numpy as np
+from parameterized import parameterized
 
-from monai.data import DataLoader, GridPatchDataset, PatchIter, PatchIterd
+from monai.data import DataLoader, GridPatchDataset, PatchIter, PatchIterd, iter_patch
 from monai.transforms import RandShiftIntensity, RandShiftIntensityd
 from monai.utils import set_determinism
+from tests.utils import assert_allclose, get_arange_img
 
 
 def identity_generator(x):
@@ -31,6 +33,15 @@ class TestGridPatchDataset(unittest.TestCase):
 
     def tearDown(self):
         set_determinism(None)
+
+    @parameterized.expand([[True], [False]])
+    def test_iter_patch(self, cb):
+        shape = (10, 30, 30)
+        input_img = get_arange_img(shape)
+        for p, _ in iter_patch(input_img, patch_size=(None, 10, 30, None), copy_back=cb):
+            p += 1.0
+            assert_allclose(p, get_arange_img(shape) + 1.0)
+        assert_allclose(input_img, get_arange_img(shape) + (1.0 if cb else 0.0))
 
     def test_shape(self):
         # test Iterable input data

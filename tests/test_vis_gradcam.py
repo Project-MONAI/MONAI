@@ -45,12 +45,38 @@ for cam in (GradCAM, GradCAMpp):
             (2, 1, 48, 64),
         ]
     )
+    # 2D binary classification (out_channels=1)
+    TESTS.append(
+        [
+            cam,
+            {
+                "model": "densenet2d_bin",
+                "shape": (2, 1, 48, 64),
+                "feature_shape": (2, 1, 1, 2),
+                "target_layers": "class_layers.relu",
+            },
+            (2, 1, 48, 64),
+        ]
+    )
     # 3D
     TESTS.append(
         [
             cam,
             {
                 "model": "densenet3d",
+                "shape": (2, 1, 6, 6, 6),
+                "feature_shape": (2, 1, 2, 2, 2),
+                "target_layers": "class_layers.relu",
+            },
+            (2, 1, 6, 6, 6),
+        ]
+    )
+    # 3D binary classification (out_channels=1)
+    TESTS.append(
+        [
+            cam,
+            {
+                "model": "densenet3d_bin",
                 "shape": (2, 1, 6, 6, 6),
                 "feature_shape": (2, 1, 2, 2, 2),
                 "target_layers": "class_layers.relu",
@@ -66,6 +92,14 @@ for cam in (GradCAM, GradCAMpp):
             (2, 1, 64, 64),
         ]
     )
+    # 2D binary classification (num_classes=1)
+    TESTS.append(
+        [
+            cam,
+            {"model": "senet2d_bin", "shape": (2, 3, 64, 64), "feature_shape": (2, 1, 2, 2), "target_layers": "layer4"},
+            (2, 1, 64, 64),
+        ]
+    )
 
     # 3D
     TESTS.append(
@@ -73,6 +107,19 @@ for cam in (GradCAM, GradCAMpp):
             cam,
             {
                 "model": "senet3d",
+                "shape": (2, 3, 8, 8, 48),
+                "feature_shape": (2, 1, 1, 1, 2),
+                "target_layers": "layer4",
+            },
+            (2, 1, 8, 8, 48),
+        ]
+    )
+    # 3D binary classification (num_classes=1)
+    TESTS.append(
+        [
+            cam,
+            {
+                "model": "senet3d_bin",
                 "shape": (2, 3, 8, 8, 48),
                 "feature_shape": (2, 1, 1, 1, 2),
                 "target_layers": "layer4",
@@ -103,14 +150,24 @@ class TestGradientClassActivationMap(unittest.TestCase):
     def test_shape(self, cam_class, input_data, expected_shape):
         if input_data["model"] == "densenet2d":
             model = DenseNet121(spatial_dims=2, in_channels=1, out_channels=3)
+        elif input_data["model"] == "densenet2d_bin":
+            model = DenseNet(spatial_dims=2, in_channels=1, out_channels=1)
         elif input_data["model"] == "densenet3d":
             model = DenseNet(
                 spatial_dims=3, in_channels=1, out_channels=3, init_features=2, growth_rate=2, block_config=(6,)
             )
+        elif input_data["model"] == "densenet3d_bin":
+            model = DenseNet(
+                spatial_dims=3, in_channels=1, out_channels=1, init_features=2, growth_rate=2, block_config=(6,)
+            )
         elif input_data["model"] == "senet2d":
             model = SEResNet50(spatial_dims=2, in_channels=3, num_classes=4)
+        elif input_data["model"] == "senet2d_bin":
+            model = SEResNet50(spatial_dims=2, in_channels=3, num_classes=1)
         elif input_data["model"] == "senet3d":
             model = SEResNet50(spatial_dims=3, in_channels=3, num_classes=4)
+        elif input_data["model"] == "senet3d_bin":
+            model = SEResNet50(spatial_dims=3, in_channels=3, num_classes=1)
         elif input_data["model"] == "adjoint":
             model = DenseNetAdjoint(spatial_dims=2, in_channels=1, out_channels=3)
 

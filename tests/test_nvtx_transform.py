@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.transforms import Compose, Flip, RandFlip, RandFlipD, Randomizable, ToTensor, ToTensorD
+from monai.transforms import Compose, Flip, RandFlip, RandFlipD, RandomizableTrait, ToTensor, ToTensorD
 from monai.transforms.nvtx import (
     Mark,
     MarkD,
@@ -59,7 +59,7 @@ class TestNVTXTransforms(unittest.TestCase):
 
         # Check if chain of randomizable/non-randomizable transforms is not broken
         for tran in transforms.transforms:
-            if isinstance(tran, Randomizable):
+            if isinstance(tran, RandomizableTrait):
                 self.assertIsInstance(tran, RangePush)
                 break
 
