@@ -141,7 +141,7 @@ class BundleAlgo(Algo):
     def customize_param_for_gpu(self, num_trials: int=60):
         return {}
 
-    def customize_param_for_alg(self, num_trials: int=60):
+    def customize_param_for_alg(self, output_path, num_trials: int=60):
         self.fill_records = self.customize_param_for_gpu(self.output_path, self.fill_records, num_trials: int=60)
 
     def _create_cmd(self, train_params=None):
@@ -497,4 +497,4 @@ class BundleGen(AlgoGen):
         for algo in self.algos:
             for f_id in ensure_tuple(fold_idx):
                 gen_algo = deepcopy(algo)
-                gen_algo.customize_param_for_alg(output_folder, name, fold=f_id)
+                gen_algo.customize_param_for_alg(output_folder)

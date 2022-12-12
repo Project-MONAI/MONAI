@@ -624,6 +624,7 @@ class AutoRunner:
 
         # step 3: parameter customization for gpu
         if self.gpu_customization:
+            logger.info("Automatically optimizing parameters based on current GPU devices...")
 
             if not os.path.isfile(self.datastats_filename):
                 raise ValueError(
