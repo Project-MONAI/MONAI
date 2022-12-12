@@ -108,10 +108,7 @@ class Range:
 
     def _decorate_method(self, obj, method, append_method_name):
         # Append the method's name to the range's name
-        if append_method_name:
-            name = f"{self.name}.{method}"
-        else:
-            name = self.name
+        name = f"{self.name}.{method}" if append_method_name else self.name
 
         # Get the class for special functions
         if method.startswith("__"):
@@ -133,7 +130,7 @@ class Range:
         # Replace the method with the wrapped version
         if method.startswith("__"):
             # If it is a special method, it requires special attention
-            class NVTXRangeDecoratedClass(owner):
+            class NVTXRangeDecoratedClass(owner):  # type: ignore
                 ...
 
             setattr(NVTXRangeDecoratedClass, method, range_wrapper)

@@ -15,7 +15,7 @@ import tempfile
 import textwrap
 from copy import deepcopy
 from glob import glob
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
@@ -214,17 +214,15 @@ def get_data(keys):
 
     image, label = sorted(glob(os.path.join(out_path, "*.nii")))
 
-    data = {CommonKeys.IMAGE: image, CommonKeys.LABEL: label}
-
     transforms = Compose(
         [
             LoadImaged(keys),
             EnsureChannelFirstd(keys),
             ScaleIntensityd(CommonKeys.IMAGE),
-            Rotate90d(keys, spatial_axes=[0, 2]),
+            Rotate90d(keys, spatial_axes=(0, 2)),
         ]
     )
-    data = transforms(data)
+    data = transforms({CommonKeys.IMAGE: image, CommonKeys.LABEL: label})
     max_size = max(data[keys[0]].shape)
     padder = SpatialPadd(keys, (max_size, max_size, max_size))
     return padder(data)
@@ -279,7 +277,7 @@ def pre_process_data(data, ndim, is_map, is_post):
     return data[CommonKeys.LABEL] if is_post else data[CommonKeys.IMAGE]
 
 
-def get_2d_slice(image, view, is_label):
+def get_2d_slice(image, view: int, is_label):
     """If image is 3d, get the central slice. If is already 2d, return as-is.
     If image is label, set 0 to np.nan.
     """
@@ -290,8 +288,7 @@ def get_2d_slice(image, view, is_label):
         slices = [slice(0, s) for s in shape]
         _slice = shape[view] // 2
         slices[view] = slice(_slice, _slice + 1)
-        slices = tuple(slices)
-        out = np.squeeze(image[slices], view)
+        out = np.squeeze(image[tuple(slices)], view)
     if is_label:
         out[out == 0] = np.nan
     return out
@@ -355,7 +352,7 @@ def save_image(images, labels, filename, transform_name, transform_args, shapes,
             title += "'" + v + "'"
         elif isinstance(v, (np.ndarray, torch.Tensor)):
             title += "[array]"
-        elif isinstance(v, Callable):
+        elif callable(v):
             title += "[callable]"
         else:
             title += str(v)

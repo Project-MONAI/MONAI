@@ -729,6 +729,9 @@ class TopologySearch(TopologyConstruction):
           The return value will exclude path activation of all 0.
     """
 
+    node2out: List[List]
+    node2in: List[List]
+
     def __init__(
         self,
         channel_mul: float = 1.0,

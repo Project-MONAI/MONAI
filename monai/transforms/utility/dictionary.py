@@ -17,7 +17,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 import re
 from copy import deepcopy
-from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
 import torch
@@ -764,7 +764,7 @@ class DeleteItemsd(MapTransform):
             return {k: v for k, v in d.items() if (use_re and not re.search(key, f"{k}")) or (not use_re and k != key)}
 
         d = dict(data)
-        for key, use_re in zip(self.keys, self.use_re):
+        for key, use_re in zip(cast(Sequence[str], self.keys), self.use_re):
             d = _delete_item(key.split(self.sep), d, use_re)
 
         return d

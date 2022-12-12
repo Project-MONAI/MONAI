@@ -1172,11 +1172,11 @@ def get_extreme_points(
         """
         idx = where(indices[dim] == val)[0]
         idx = idx.cpu() if isinstance(idx, torch.Tensor) else idx
-        idx = rand_state.choice(idx)
+        idx = rand_state.choice(idx) if rand_state is not None else idx
         pt = []
         for j in range(img.ndim):
             # add +- pert to each dimension
-            val = int(indices[j][idx] + 2.0 * pert * (rand_state.rand() - 0.5))
+            val = int(indices[j][idx] + 2.0 * pert * (rand_state.rand() if rand_state is not None else 0.5 - 0.5))
             val = max(val, 0)
             val = min(val, img.shape[j] - 1)
             pt.append(val)
@@ -1598,7 +1598,7 @@ def print_transform_backends():
         else:
             color = Colors.red
             n_uncategorized += 1
-        print_table_column(k, *v, color)
+        print_table_column(k, v[0], v[1], color=color)
 
     print("Total number of transforms:", n_total)
     print_color(f"Number transforms allowing both torch and numpy: {n_t_or_np}", Colors.green)
@@ -1631,7 +1631,9 @@ def convert_pad_mode(dst: NdarrayOrTensor, mode: Optional[str]):
     raise ValueError(f"unsupported data type: {type(dst)}.")
 
 
-def convert_to_contiguous(data, **kwargs):
+def convert_to_contiguous(
+    data: Union[NdarrayOrTensor, str, bytes, Mapping, Sequence[Any]], **kwargs
+) -> Union[NdarrayOrTensor, Mapping, Sequence[Any]]:
     """
     Check and ensure the numpy array or PyTorch Tensor in data to be contiguous in memory.
 
@@ -1643,11 +1645,12 @@ def convert_to_contiguous(data, **kwargs):
     """
     if isinstance(data, (np.ndarray, torch.Tensor, str, bytes)):
         return ascontiguousarray(data, **kwargs)
-    if isinstance(data, Mapping):
+    elif isinstance(data, Mapping):
         return {k: convert_to_contiguous(v, **kwargs) for k, v in data.items()}
-    if isinstance(data, Sequence):
-        return [convert_to_contiguous(i, **kwargs) for i in data]
-    return data
+    elif isinstance(data, Sequence) and not isinstance(data, bytes):
+        return [convert_to_contiguous(i, **kwargs) for i in data]  # type: ignore
+    else:
+        return data
 
 
 def scale_affine(affine, spatial_size, new_spatial_size, centered: bool = True):
