@@ -479,9 +479,9 @@ class BundleGen(AlgoGen):
                 algo_to_pickle(gen_algo, template_path=algo.template_path)
                 self.history.append({name: gen_algo})  # track the previous, may create a persistent history
 
-    def customize_param_gpu(self, output_folder=".", num_fold: int = 5):
+    def customize_param(self, output_folder=".", num_fold: int = 5):
         """
-        Generate the bundle scripts/configs for each bundleAlgo
+        Automatically customize parameters of the bundle scripts/configs for each bundleAlgo
 
         Args:
             output_folder: the output folder to save each algorithm.
@@ -490,9 +490,5 @@ class BundleGen(AlgoGen):
         fold_idx = list(range(num_fold))
         for algo in self.algos:
             for f_id in ensure_tuple(fold_idx):
-                data_stats = self.get_data_stats()
-                data_src_cfg = self.get_data_src()
                 gen_algo = deepcopy(algo)
-                gen_algo.set_data_stats(data_stats)
-                gen_algo.set_data_source(data_src_cfg)
-                gen_algo.customize_param_for_gpu(output_folder, name, fold=f_id)
+                gen_algo.customize_param_for_alg(output_folder, name, fold=f_id)

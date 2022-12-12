@@ -639,7 +639,7 @@ class AutoRunner:
                 data_src_cfg_name=self.data_src_cfg_name,
             )
 
-            bundle_generator.customize_param_gpu(self.work_dir, num_fold=self.num_fold)
+            bundle_generator.customize_param(self.work_dir, num_fold=self.num_fold)
         else:
             logger.info("Skipping parameter customization...")
 
