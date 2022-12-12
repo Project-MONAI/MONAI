@@ -73,6 +73,8 @@ class AutoRunner:
             decide based on cache, and run data analysis only if we have not completed this step yet.
         algo_gen: on/off switch to run AlgoGen and generate templated BundleAlgos. Defaults to None, to automatically
             decide based on cache, and run algorithm folders generation only if we have not completed this step yet.
+        gpu_customization: on/off switch to optimize algorithm parameters for current GPU capacities. Defaults to False,
+            decide based on available GPU memory.
         train: on/off switch to run training and generate algorithm checkpoints. Defaults to None, to automatically
             decide based on cache, and run training only if we have not completed this step yet.
         hpo: use hyperparameter optimization (HPO) in the training phase. Users can provide a list of
@@ -211,6 +213,7 @@ class AutoRunner:
         algos: Optional[Union[Dict, List, str]] = None,
         analyze: Optional[bool] = None,
         algo_gen: Optional[bool] = None,
+        gpu_customization: bool = False,
         train: Optional[bool] = None,
         hpo: bool = False,
         hpo_backend: str = "nni",
@@ -619,7 +622,28 @@ class AutoRunner:
         else:
             logger.info("Skipping algorithm generation...")
 
-        # step 3: algo training
+        # step 3: parameter customization for gpu
+        if self.gpu_customization:
+
+            if not os.path.isfile(self.datastats_filename):
+                raise ValueError(
+                    f"Could not find the datastats file {self.datastats_filename}. "
+                    "Possibly the required data analysis step was not completed."
+                )
+
+            bundle_generator = BundleGen(
+                algos=self.algos,
+                algo_path=self.work_dir,
+                templates_path_or_url=self.templates_path_or_url,
+                data_stats_filename=self.datastats_filename,
+                data_src_cfg_name=self.data_src_cfg_name,
+            )
+
+            bundle_generator.customize_param_gpu(self.work_dir, num_fold=self.num_fold)
+        else:
+            logger.info("Skipping parameter customization...")
+
+        # step 4: algo training
         if self.train:
             history = import_bundle_algo_history(self.work_dir, only_trained=False)
 
@@ -637,7 +661,7 @@ class AutoRunner:
         else:
             logger.info("Skipping algorithm training...")
 
-        # step 4: model ensemble and write the prediction to disks.
+        # step 5: model ensemble and write the prediction to disks.
         if self.ensemble:
             history = import_bundle_algo_history(self.work_dir, only_trained=True)
             if len(history) == 0:
