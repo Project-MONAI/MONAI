@@ -15,7 +15,7 @@ from typing import Any, Optional, Tuple, Union
 import numpy as np
 import torch
 
-from monai.config import KeysCollection
+from monai.config import KeysCollection, NdarrayOrTensor
 from monai.networks.layers import GaussianFilter
 from monai.transforms import MapTransform, Randomizable, SpatialPad
 from monai.utils import StrEnum, convert_to_numpy, optional_import
@@ -337,14 +337,15 @@ class AddPointGuidanceSignald(Randomizable, MapTransform):
 
     def _seed_point(self, label):
         if distance_transform_cdt is None or not self.use_distance:
+            indices: NdarrayOrTensor
             if hasattr(torch, "argwhere"):
                 indices = torch.argwhere(label > 0)
             else:
                 indices = np.argwhere(convert_to_numpy(label) > 0)
 
             if len(indices) > 0:
-                idx = self.R.randint(0, len(indices))
-                return indices[idx, 0], indices[idx, 1]
+                index = self.R.randint(0, len(indices))
+                return indices[index, 0], indices[index, 1]
             return None
 
         distance = distance_transform_cdt(label).flatten()

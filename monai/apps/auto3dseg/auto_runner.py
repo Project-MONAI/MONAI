@@ -14,7 +14,7 @@ import shutil
 import subprocess
 from copy import deepcopy
 from time import sleep
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, cast
 
 import numpy as np
 import torch
@@ -205,6 +205,8 @@ class AutoRunner:
             └── swinunetr_0         # network scripts/configs/checkpoints and pickle object of the algo
 
     """
+
+    analyze_params: Optional[Dict]
 
     def __init__(
         self,
@@ -564,7 +566,7 @@ class AutoRunner:
                 nni_config_filename = os.path.abspath(os.path.join(self.work_dir, f"{name}_nni_config.yaml"))
                 ConfigParser.export_config_file(nni_config, nni_config_filename, fmt="yaml", default_flow_style=None)
 
-                max_trial = min(self.hpo_tasks, default_nni_config["maxTrialNumber"])
+                max_trial = min(self.hpo_tasks, cast(int, default_nni_config["maxTrialNumber"]))
                 cmd = "nnictl create --config " + nni_config_filename + " --port 8088"
 
                 if mode_dry_run:
@@ -588,7 +590,7 @@ class AutoRunner:
         Run the AutoRunner pipeline
         """
         # step 1: data analysis
-        if self.analyze:
+        if self.analyze and self.analyze_params is not None:
             logger.info("Running data analysis...")
             da = DataAnalyzer(
                 self.datalist_filename, self.dataroot, output_path=self.datastats_filename, **self.analyze_params

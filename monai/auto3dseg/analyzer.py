@@ -12,7 +12,7 @@
 import time
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, Dict, Hashable, List, Mapping, Optional
+from typing import Any, Dict, Hashable, List, Mapping, Optional, Union
 
 import numpy as np
 import torch
@@ -800,7 +800,7 @@ class FilenameStats(Analyzer):
 
     """
 
-    def __init__(self, key: str, stats_name: str) -> None:
+    def __init__(self, key: Optional[str], stats_name: str) -> None:
         self.key = key
         super().__init__(stats_name, {})
 
@@ -851,14 +851,16 @@ class ImageHistogram(Analyzer):
         self,
         image_key: str,
         stats_name: str = DataStatsKeys.IMAGE_HISTOGRAM,
-        hist_bins: Optional[list] = None,
+        hist_bins: Union[List[int], int, None] = None,
         hist_range: Optional[list] = None,
     ):
 
         self.image_key = image_key
 
         # set defaults
-        self.hist_bins: list = [100] if hist_bins is None else hist_bins
+        self.hist_bins: List[int] = (
+            [100] if hist_bins is None else hist_bins if isinstance(hist_bins, list) else [hist_bins]
+        )
         self.hist_range: list = [-500, 500] if hist_range is None else hist_range
 
         report_format = {"counts": None, "bin_edges": None}
@@ -867,8 +869,6 @@ class ImageHistogram(Analyzer):
         self.update_ops(ImageStatsKeys.HISTOGRAM, SampleOperations())
 
         # check histogram configurations for each channel in list
-        if not isinstance(self.hist_bins, list):
-            self.hist_bins = [self.hist_bins]
         if not all(isinstance(hr, list) for hr in self.hist_range):
             self.hist_range = [self.hist_range]
         if len(self.hist_bins) != len(self.hist_range):

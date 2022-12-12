@@ -21,6 +21,7 @@ from functools import wraps
 from inspect import getframeinfo, stack
 from queue import Empty
 from time import perf_counter, perf_counter_ns
+from typing import Any, Optional, cast
 
 import numpy as np
 import torch
@@ -76,8 +77,8 @@ def torch_profiler_time_cpu_gpu(func):
         cpu_time = prof.self_cpu_time_total
         gpu_time = sum(evt.self_cuda_time_total for evt in prof.function_events)
 
-        cpu_time = torch.autograd.profiler.format_time(cpu_time)
-        gpu_time = torch.autograd.profiler.format_time(gpu_time)
+        cpu_time = torch.autograd.profiler.format_time(cpu_time)  # type: ignore
+        gpu_time = torch.autograd.profiler.format_time(gpu_time)  # type: ignore
 
         print(f"cpu time: {cpu_time}, gpu time: {gpu_time}", flush=True)
 
@@ -105,7 +106,7 @@ def torch_profiler_time_end_to_end(func):
         end = perf_counter()
 
         total_time = (end - start) * 1e6
-        total_time_str = torch.autograd.profiler.format_time(total_time)
+        total_time_str = torch.autograd.profiler.format_time(total_time)  # type: ignore
         print(f"End-to-end time: {total_time_str}", flush=True)
 
         return result
@@ -121,15 +122,16 @@ class PerfContext:
     """
 
     def __init__(self):
-        self.total_time = 0
-        self.start_time = None
+        self.total_time: float = 0
+        self.start_time: Optional[float] = None
 
     def __enter__(self):
         self.start_time = perf_counter()
         return self
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
-        self.total_time += perf_counter() - self.start_time
+        if self.start_time is not None:
+            self.total_time += perf_counter() - self.start_time
         self.start_time = None
 
 
@@ -196,9 +198,9 @@ class WorkflowProfiler:
     def __init__(self, call_selector=select_transform_call):
         self.results = defaultdict(list)
         self.parent_pid = os.getpid()
-        self.read_thread = None
+        self.read_thread: Optional[threading.Thread] = None
         self.lock = threading.RLock()
-        self.queue = multiprocessing.SimpleQueue()
+        self.queue: multiprocessing.SimpleQueue = multiprocessing.SimpleQueue()
         self.queue_timeout = 0.1
         self.call_selector = call_selector
 
@@ -279,13 +281,13 @@ class WorkflowProfiler:
 
         self.queue.put(None)
 
-        read_thread = self.read_thread
+        read_thread = cast(threading.Thread, self.read_thread)
         self.read_thread = None
 
         read_thread.join()
 
         if self.call_selector is not None:
-            threading.settrace(None)
+            threading.settrace(None)  # type: ignore
             sys.settrace(None)
 
     def add_result(self, result: ProfileResult):
@@ -409,7 +411,7 @@ class ProfileHandler:
         self.profiler = profiler
         self.start_event = start_event
         self.end_event = end_event
-        self.ctx = None
+        self.ctx: Any = None
 
     def attach(self, engine):
         engine.add_event_handler(self.start_event, self.start)
