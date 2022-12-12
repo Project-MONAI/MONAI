@@ -1068,8 +1068,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         if self.shuffle:
             data = copy(data)
             self.randomize(data)
-        with self._update_lock:
-            super().set_data(data)
+        super().set_data(data)
 
     def randomize(self, data: Sequence) -> None:
         try:
@@ -1108,8 +1107,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         Restart background thread if killed for some reason.
 
         """
-        with self._update_lock:
-            self._round = 1
+        self._round = 1
         self._replace_mgr = threading.Thread(target=self.manage_replacement, daemon=True)
         self._replace_mgr.start()
 
