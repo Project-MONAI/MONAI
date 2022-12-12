@@ -11,7 +11,7 @@
 
 import logging
 import os
-from typing import Dict, List
+from typing import Dict, List, Union
 
 import numpy as np
 
@@ -144,7 +144,7 @@ def _default_transforms(image_key, label_key, pixdim):
 
 
 def _save_data_2d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
-    data_list = []
+    data_list: List[Dict[str, Union[str, int]]] = []
 
     image_count = 0
     label_count = 0
@@ -211,7 +211,7 @@ def _save_data_2d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
 
 
 def _save_data_3d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
-    data_list = []
+    data_list: List[Dict[str, Union[str, int]]] = []
 
     image_count = 0
     label_count = 0

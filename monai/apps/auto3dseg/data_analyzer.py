@@ -11,7 +11,7 @@
 
 import warnings
 from os import path
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, cast
 
 import numpy as np
 import torch
@@ -227,7 +227,7 @@ class DataAnalyzer:
         files, _ = datafold_read(datalist=self.datalist, basedir=self.dataroot, fold=-1, key=key)
         dataset = Dataset(data=files, transform=transform)
         dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=self.worker, collate_fn=no_collation)
-        result = {DataStatsKeys.SUMMARY: {}, DataStatsKeys.BY_CASE: []}
+        result: Dict[DataStatsKeys, Any] = {DataStatsKeys.SUMMARY: {}, DataStatsKeys.BY_CASE: []}
 
         if not has_tqdm:
             warnings.warn("tqdm is not installed. not displaying the caching progress.")
@@ -261,7 +261,7 @@ class DataAnalyzer:
                 )
             result[DataStatsKeys.BY_CASE].append(stats_by_cases)
 
-        result[DataStatsKeys.SUMMARY] = summarizer.summarize(result[DataStatsKeys.BY_CASE])
+        result[DataStatsKeys.SUMMARY] = summarizer.summarize(cast(List, result[DataStatsKeys.BY_CASE]))
 
         if not self._check_data_uniformity([ImageStatsKeys.SPACING], result):
             print("Data spacing is not completely uniform. MONAI transforms may provide unexpected result")
