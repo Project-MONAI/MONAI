@@ -97,12 +97,12 @@ class RegUNet(nn.Module):
 
         # init layers
         # all lists start with d = 0
-        self.encode_convs = None
-        self.encode_pools = None
-        self.bottom_block = None
-        self.decode_deconvs = None
-        self.decode_convs = None
-        self.output_block = None
+        self.encode_convs: nn.ModuleList
+        self.encode_pools: nn.ModuleList
+        self.bottom_block: nn.Sequential
+        self.decode_deconvs: nn.ModuleList
+        self.decode_convs: nn.ModuleList
+        self.output_block: nn.Module
 
         # build layers
         self.build_layers()

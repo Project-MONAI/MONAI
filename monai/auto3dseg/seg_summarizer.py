@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from monai.auto3dseg.analyzer import (
     FgImageStats,
@@ -80,10 +80,10 @@ class SegSummarizer(Compose):
     def __init__(
         self,
         image_key: str,
-        label_key: str,
+        label_key: Optional[str],
         average=True,
         do_ccp: bool = True,
-        hist_bins: Optional[list] = None,
+        hist_bins: Union[List[int], int, None] = None,
         hist_range: Optional[list] = None,
         histogram_only: bool = False,
     ) -> None:
@@ -91,7 +91,7 @@ class SegSummarizer(Compose):
         self.image_key = image_key
         self.label_key = label_key
         # set defaults
-        self.hist_bins: list = [100] if hist_bins is None else hist_bins
+        self.hist_bins: Union[List[int], int] = [100] if hist_bins is None else hist_bins
         self.hist_range: list = [-500, 500] if hist_range is None else hist_range
         self.histogram_only = histogram_only
 
@@ -113,7 +113,7 @@ class SegSummarizer(Compose):
             )
 
         # compute histograms
-        if self.hist_bins != 0:  # type: ignore
+        if self.hist_bins != 0:
             self.add_analyzer(
                 ImageHistogram(image_key=image_key, hist_bins=hist_bins, hist_range=hist_range), ImageHistogramSumm()
             )

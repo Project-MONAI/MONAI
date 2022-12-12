@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Union
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Sequence, Union
 
 from torch.utils.data import IterableDataset as _TorchIterableDataset
 from torch.utils.data import get_worker_info
@@ -37,7 +37,7 @@ class IterableDataset(_TorchIterableDataset):
 
     """
 
-    def __init__(self, data: Iterable, transform: Optional[Callable] = None) -> None:
+    def __init__(self, data: Iterable[Any], transform: Optional[Callable] = None) -> None:
         """
         Args:
             data: input data source to load and transform to generate dataset for model.
@@ -45,7 +45,7 @@ class IterableDataset(_TorchIterableDataset):
         """
         self.data = data
         self.transform = transform
-        self.source = None
+        self.source: Optional[Iterator[Any]] = None
 
     def __iter__(self):
         info = get_worker_info()
@@ -110,7 +110,7 @@ class ShuffleBuffer(Randomizable, IterableDataset):
 
     def generate_item(self):
         """Fill a `buffer` list up to `self.size`, then generate randomly popped items."""
-        buffer = []
+        buffer: List[Any] = []
         for item in iter(self.data):
             if len(buffer) >= self.size:
                 yield self.randomized_pop(buffer)
@@ -263,7 +263,7 @@ class CSVIterableDataset(IterableDataset):
 
         """
         for i in self.iters:
-            i.close()
+            i.close()  # type: ignore
 
     def _flattened(self):
         for chunks in zip(*self.iters):

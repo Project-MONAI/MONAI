@@ -239,7 +239,7 @@ class SpatialPad(Pad):
 
     def __init__(
         self,
-        spatial_size: Union[Sequence[int], int],
+        spatial_size: Union[Sequence[int], int, Tuple[Union[Tuple[int, ...], int], ...]],
         method: str = Method.SYMMETRIC,
         mode: str = PytorchPadMode.CONSTANT,
         **kwargs,

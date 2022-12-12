@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import json
-from typing import Callable, Dict, Hashable, Optional, Sequence, Union
+from typing import Callable, Dict, Hashable, List, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -437,8 +437,8 @@ class SpatialCropForegroundd(MapTransform):
 
         if np.all(np.less(current_size, self.spatial_size)):
             cropper = SpatialCrop(roi_center=center, roi_size=self.spatial_size)
-            box_start = np.array([s.start for s in cropper.slices])
-            box_end = np.array([s.stop for s in cropper.slices])
+            box_start = np.array([s.start for s in cropper.slices])  # type: ignore
+            box_end = np.array([s.stop for s in cropper.slices])  # type: ignore
         else:
             cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
 
@@ -523,11 +523,10 @@ class AddGuidanceFromPointsd(Transform):
         pos = neg = []
 
         if self.dimensions == 2:
-            points = list(pos_clicks)
+            points: List = list(pos_clicks)
             points.extend(neg_clicks)
-            points = np.array(points)
 
-            slices = list(np.unique(points[:, self.axis]))
+            slices = list(np.unique(np.array(points)[:, self.axis]))
             slice_idx = slices[0] if slice_num is None else next(x for x in slices if x == slice_num)
 
             if len(pos_clicks):
@@ -938,8 +937,7 @@ class Fetch2DSliced(MapTransform):
         for i, size_i in enumerate(image.shape):
             idx.append(slice_idx) if i == self.axis else idx.append(slice(0, size_i))
 
-        idx = tuple(idx)
-        return image[idx], idx
+        return image[tuple(idx)], tuple(idx)
 
     def __call__(self, data):
         d = dict(data)

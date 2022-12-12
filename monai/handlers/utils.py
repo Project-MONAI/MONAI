@@ -185,15 +185,15 @@ def from_engine(keys: KeysCollection, first: bool = False):
 
 
     """
-    keys = ensure_tuple(keys)
+    _keys = ensure_tuple(keys)
 
     def _wrapper(data):
         if isinstance(data, dict):
-            return tuple(data[k] for k in keys)
+            return tuple(data[k] for k in _keys)
         if isinstance(data, list) and isinstance(data[0], dict):
             # if data is a list of dictionaries, extract expected keys and construct lists,
             # if `first=True`, only extract keys from the first item of the list
-            ret = [data[0][k] if first else [i[k] for i in data] for k in keys]
+            ret = [data[0][k] if first else [i[k] for i in data] for k in _keys]
             return tuple(ret) if len(ret) > 1 else ret[0]
 
     return _wrapper

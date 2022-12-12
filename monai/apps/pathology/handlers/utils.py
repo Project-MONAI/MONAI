@@ -8,6 +8,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from typing import Hashable, Tuple
 
 from monai.config import KeysCollection
 from monai.utils import ensure_tuple
@@ -37,14 +38,14 @@ def from_engine_hovernet(keys: KeysCollection, nested_key: str):
         nested_key: specified key to extract nested data from dictionary or decollated list of dictionaries.
 
     """
-    keys = ensure_tuple(keys)
+    _keys: Tuple[Hashable, ...] = ensure_tuple(keys)
 
     def _wrapper(data):
         if isinstance(data, dict):
-            return tuple(data[k][nested_key] for k in keys)
+            return tuple(data[k][nested_key] for k in _keys)
         if isinstance(data, list) and isinstance(data[0], dict):
             # if data is a list of dictionaries, extract expected keys and construct lists,
-            ret = [[i[k][nested_key] for i in data] for k in keys]
+            ret = [[i[k][nested_key] for i in data] for k in _keys]
             return tuple(ret) if len(ret) > 1 else ret[0]
 
     return _wrapper
