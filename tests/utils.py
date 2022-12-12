@@ -129,7 +129,7 @@ def skip_if_downloading_fails():
     except ssl.SSLError as ssl_e:
         if "decryption failed" in str(ssl_e):
             raise unittest.SkipTest(f"SSL error while downloading: {ssl_e}") from ssl_e
-    except RuntimeError as rt_e:
+    except (RuntimeError, OSError) as rt_e:
         if "unexpected EOF" in str(rt_e):
             raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e  # incomplete download
         if "network issue" in str(rt_e):

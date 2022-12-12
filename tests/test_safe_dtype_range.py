@@ -29,7 +29,7 @@ for in_type in TEST_NDARRAYS_ALL + (int, float):
         TESTS.append((in_type(np.array(256)), in_type(np.array(255)), np.uint8))  # type: ignore
         TESTS.append((in_type(np.array(-12)), in_type(np.array(0)), np.uint8))  # type: ignore
 for in_type in TEST_NDARRAYS_ALL:
-    TESTS.append((in_type(np.array([[256, 255], [-12, 0]])), in_type(np.array([[255, 255], [0, 0]])), np.uint8))  # type: ignore
+    TESTS.append((in_type(np.array([[256, 255], [-12, 0]])), in_type(np.array([[255, 255], [0, 0]])), np.uint8))
 
 TESTS_LIST: List[Tuple] = []
 for in_type in TEST_NDARRAYS_ALL + (int, float):
