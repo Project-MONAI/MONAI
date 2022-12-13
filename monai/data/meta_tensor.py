@@ -435,6 +435,8 @@ class MetaTensor(MetaObj, torch.Tensor):
         else:
             mod_str = getattr(dtype, "__module__", "torch")
         mod_str = look_up_option(mod_str, {"torch", "numpy", "np"}, default="numpy")
+
+        out_type: type[torch.Tensor] | type[np.ndarray] | None
         if mod_str == "torch":
             out_type = torch.Tensor
         elif mod_str in ("numpy", "np"):

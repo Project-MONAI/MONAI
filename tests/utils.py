@@ -129,7 +129,7 @@ def skip_if_downloading_fails():
     except ssl.SSLError as ssl_e:
         if "decryption failed" in str(ssl_e):
             raise unittest.SkipTest(f"SSL error while downloading: {ssl_e}") from ssl_e
-    except RuntimeError as rt_e:
+    except (RuntimeError, OSError) as rt_e:
         if "unexpected EOF" in str(rt_e):
             raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e  # incomplete download
         if "network issue" in str(rt_e):
@@ -744,7 +744,7 @@ def query_memory(n=2):
         free_memory = np.asarray(free_memory, dtype=float).T
         free_memory[1] += free_memory[0]  # combine 0/1 column measures
         ids = np.lexsort(free_memory)[:n]
-    except (TypeError, IndexError, OSError):
+    except (TypeError, ValueError, IndexError, OSError):
         ids = range(n) if isinstance(n, int) else []
     return ",".join(f"{int(x)}" for x in ids)
 

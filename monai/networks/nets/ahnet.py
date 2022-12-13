@@ -360,7 +360,7 @@ class AHNet(nn.Module):
         self.pool_type = pool_type
         self.spatial_dims = spatial_dims
         self.psp_block_num = psp_block_num
-        self.psp = None
+        self.psp: PSP
 
         if spatial_dims not in [2, 3]:
             raise AssertionError("spatial_dims can only be 2 or 3.")

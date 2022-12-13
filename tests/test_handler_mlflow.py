@@ -13,12 +13,12 @@ import glob
 import os
 import tempfile
 import unittest
-from pathlib import Path
 
 import numpy as np
 from ignite.engine import Engine, Events
 
 from monai.handlers import MLFlowHandler
+from monai.utils import path_to_uri
 
 
 class TestHandlerMLFlow(unittest.TestCase):
@@ -49,7 +49,7 @@ class TestHandlerMLFlow(unittest.TestCase):
             handler = MLFlowHandler(
                 iteration_log=False,
                 epoch_log=True,
-                tracking_uri=Path(test_path).as_uri(),
+                tracking_uri=path_to_uri(test_path),
                 state_attributes=["test"],
                 experiment_param=experiment_param,
                 artifacts=[artifact_path],

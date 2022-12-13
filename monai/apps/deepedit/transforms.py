@@ -503,8 +503,8 @@ class AddRandomGuidanceDeepEditd(Randomizable, MapTransform):
         self.discrepancy = discrepancy
         self.probability = probability
         self._will_interact = None
-        self.is_pos = None
-        self.is_other = None
+        self.is_pos: Optional[bool] = None
+        self.is_other: Optional[bool] = None
         self.default_guidance = None
         self.guidance: Dict[str, List[List[int]]] = {}
 

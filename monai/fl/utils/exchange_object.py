@@ -31,7 +31,7 @@ class ExchangeObject(dict):
         weights=None,
         optim=None,
         metrics: Optional[Dict] = None,
-        weight_type: Optional[Dict] = None,
+        weight_type: Optional[WeightType] = None,
         statistics: Optional[Dict] = None,
     ):
         super().__init__()

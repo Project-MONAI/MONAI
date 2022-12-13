@@ -35,6 +35,7 @@ from monai.data.utils import SUPPORTED_PICKLE_MOD, convert_tables_to_dicts, pick
 from monai.transforms import (
     Compose,
     Randomizable,
+    RandomizableTrait,
     ThreadUnsafe,
     Transform,
     apply_transform,
@@ -79,7 +80,7 @@ class Dataset(_TorchDataset):
 
         """
         self.data = data
-        self.transform = transform
+        self.transform: Any = transform
 
     def __len__(self) -> int:
         return len(self.data)
@@ -265,30 +266,30 @@ class PersistentDataset(Dataset):
                 self.cache_dir.mkdir(parents=True, exist_ok=True)
             if not self.cache_dir.is_dir():
                 raise ValueError("cache_dir must be a directory.")
-        self.transform_hash = ""
+        self.transform_hash: str = ""
         if hash_transform is not None:
             self.set_transform_hash(hash_transform)
         self.reset_ops_id = reset_ops_id
 
-    def set_transform_hash(self, hash_xform_func):
+    def set_transform_hash(self, hash_xform_func: Callable[..., bytes]):
         """Get hashable transforms, and then hash them. Hashable transforms
         are deterministic transforms that inherit from `Transform`. We stop
         at the first non-deterministic transform, or first that does not
         inherit from MONAI's `Transform` class."""
         hashable_transforms = []
         for _tr in self.transform.flatten().transforms:
-            if isinstance(_tr, Randomizable) or not isinstance(_tr, Transform):
+            if isinstance(_tr, RandomizableTrait) or not isinstance(_tr, Transform):
                 break
             hashable_transforms.append(_tr)
         # Try to hash. Fall back to a hash of their names
         try:
-            self.transform_hash = hash_xform_func(hashable_transforms)
+            transform_hash = hash_xform_func(hashable_transforms)
         except TypeError as te:
             if "is not JSON serializable" not in str(te):
                 raise te
             names = "".join(tr.__class__.__name__ for tr in hashable_transforms)
-            self.transform_hash = hash_xform_func(names)
-        self.transform_hash = self.transform_hash.decode("utf-8")
+            transform_hash = hash_xform_func(names)
+        self.transform_hash = transform_hash.decode("utf-8")
 
     def set_data(self, data: Sequence):
         """
@@ -314,7 +315,7 @@ class PersistentDataset(Dataset):
         """
         for _transform in self.transform.transforms:
             # execute all the deterministic transforms
-            if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
+            if isinstance(_transform, RandomizableTrait) or not isinstance(_transform, Transform):
                 break
             # this is to be consistent with CacheDataset even though it's not in a multi-thread situation.
             _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
@@ -340,7 +341,7 @@ class PersistentDataset(Dataset):
         for _transform in self.transform.transforms:
             if (
                 start_post_randomize_run
-                or isinstance(_transform, Randomizable)
+                or isinstance(_transform, RandomizableTrait)
                 or not isinstance(_transform, Transform)
             ):
                 start_post_randomize_run = True
@@ -398,7 +399,7 @@ class PersistentDataset(Dataset):
                     # On Unix, if target exists and is a file, it will be replaced silently if the user has permission.
                     # for more details: https://docs.python.org/3/library/shutil.html#shutil.move.
                     try:
-                        shutil.move(temp_hash_file, hashfile)
+                        shutil.move(str(temp_hash_file), hashfile)
                     except FileExistsError:
                         pass
         except PermissionError:  # project-monai/monai issue #3613
@@ -588,7 +589,7 @@ class LMDBDataset(PersistentDataset):
             self.lmdb_kwargs["map_size"] = 1024**4  # default map_size
         # lmdb is single-writer multi-reader by default
         # the cache is created without multi-threading
-        self._read_env = None
+        self._read_env: Optional[Any] = None
         # this runs on the primary thread/process
         self._fill_cache_start_reader(show_progress=self.progress)
         print(f"Accessing lmdb file: {self.db_file.absolute()}.")
@@ -875,9 +876,9 @@ class CacheDataset(Dataset):
             idx: the index of the input data sequence.
         """
         item = self.data[idx]
-        for _transform in self.transform.transforms:  # type:ignore
+        for _transform in self.transform.transforms:
             # execute all the deterministic transforms
-            if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
+            if isinstance(_transform, RandomizableTrait) or not isinstance(_transform, Transform):
                 break
             _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
             item = apply_transform(_xform, item)
@@ -911,7 +912,7 @@ class CacheDataset(Dataset):
         if not isinstance(self.transform, Compose):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
         for _transform in self.transform.transforms:
-            if start_run or isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
+            if start_run or isinstance(_transform, RandomizableTrait) or not isinstance(_transform, Transform):
                 # only need to deep copy data on first non-deterministic transform
                 if not start_run:
                     start_run = True
@@ -1170,7 +1171,8 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         # wait until replace mgr is done the current round
         while not self._try_shutdown():
             time.sleep(0.01)
-        self._replace_mgr.join(300)
+        if self._replace_mgr is not None:
+            self._replace_mgr.join(300)
 
     def _replace_cache_thread(self, index: int):
         """
