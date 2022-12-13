@@ -978,10 +978,10 @@ class SmartCacheDataset(Randomizable, CacheDataset):
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         num_init_workers: the number of worker threads to initialize the cache for first epoch.
             If num_init_workers is None then the number returned by os.cpu_count() is used.
-            If a value less than 1 is speficied, 1 will be used instead.
+            If a value less than 1 is specified, 1 will be used instead.
         num_replace_workers: the number of worker threads to prepare the replacement cache for every epoch.
             If num_replace_workers is None then the number returned by os.cpu_count() is used.
-            If a value less than 1 is speficied, 1 will be used instead.
+            If a value less than 1 is specified, 1 will be used instead.
         progress: whether to display a progress bar when caching for the first epoch.
         shuffle: whether to shuffle the whole data list before preparing the cache content for first epoch.
             it will not modify the original input data sequence in-place.

@@ -174,7 +174,7 @@ def compute_generalized_dice(
     # Compute the score
     generalized_dice_score = numer / denom
 
-    # Handle zero deivision. Where denom == 0 and the prediction volume is 0, score is 1.
+    # Handle zero division. Where denom == 0 and the prediction volume is 0, score is 1.
     # Where denom == 0 but the prediction volume is not 0, score is 0
     y_pred_o = y_pred_o.sum(dim=-1)
     denom_zeros = denom == 0
