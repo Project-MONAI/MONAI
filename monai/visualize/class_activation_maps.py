@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import Callable, Dict, Sequence, Union
+from typing import Callable, Dict, Optional, Sequence, Union, cast
 
 import numpy as np
 import torch
@@ -69,8 +69,8 @@ class ModelWithHooks:
 
         self.gradients: Dict[str, torch.Tensor] = {}
         self.activations: Dict[str, torch.Tensor] = {}
-        self.score = None
-        self.class_idx = None
+        self.score: Optional[torch.Tensor] = None
+        self.class_idx: Optional[int] = None
         self.register_backward = register_backward
         self.register_forward = register_forward
 
@@ -122,7 +122,7 @@ class ModelWithHooks:
                     return mod
         raise NotImplementedError(f"Could not find {layer_id}.")
 
-    def class_score(self, logits, class_idx):
+    def class_score(self, logits: torch.Tensor, class_idx: int) -> torch.Tensor:
         return logits[:, class_idx].squeeze()
 
     def __call__(self, x, class_idx=None, retain_graph=False, **kwargs):
@@ -134,7 +134,7 @@ class ModelWithHooks:
         if self.register_forward:
             acti = tuple(self.activations[layer] for layer in self.target_layers)
         if self.register_backward:
-            self.score = self.class_score(logits, self.class_idx)
+            self.score = self.class_score(logits, cast(int, self.class_idx))
             self.model.zero_grad()
             self.score.sum().backward(retain_graph=retain_graph)
             for layer in self.target_layers:
@@ -164,6 +164,7 @@ class CAMBase:
         postprocessing: Callable = default_normalizer,
         register_backward: bool = True,
     ) -> None:
+        self.nn_module: ModelWithHooks
         # Convert to model with hooks if necessary
         if not isinstance(nn_module, ModelWithHooks):
             self.nn_module = ModelWithHooks(
@@ -204,12 +205,9 @@ class CAMBase:
 
     def _upsample_and_post_process(self, acti_map, x):
         # upsampling and postprocessing
-        if self.upsampler:
-            img_spatial = x.shape[2:]
-            acti_map = self.upsampler(img_spatial)(acti_map)
-        if self.postprocessing:
-            acti_map = self.postprocessing(acti_map)
-        return acti_map
+        img_spatial = x.shape[2:]
+        acti_map = self.upsampler(img_spatial)(acti_map)
+        return self.postprocessing(acti_map)
 
     def __call__(self):
         raise NotImplementedError()
@@ -406,7 +404,7 @@ class GradCAMpp(GradCAM):
         alpha_dr = alpha_nr.mul(2) + acti.mul(grad.pow(3)).view(b, c, -1).sum(-1).view(b, c, *[1] * len(spatial))
         alpha_dr = torch.where(alpha_dr != 0.0, alpha_dr, torch.ones_like(alpha_dr))
         alpha = alpha_nr.div(alpha_dr + 1e-7)
-        relu_grad = F.relu(self.nn_module.score.exp() * grad)
+        relu_grad = F.relu(cast(torch.Tensor, self.nn_module.score).exp() * grad)
         weights = (alpha * relu_grad).view(b, c, -1).sum(-1).view(b, c, *[1] * len(spatial))
         acti_map = (weights * acti).sum(1, keepdim=True)
         return F.relu(acti_map)

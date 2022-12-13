@@ -207,7 +207,7 @@ class RandRicianNoise(RandomizableTransform):
                 raise RuntimeError("If channel_wise is False, mean must be a float or int number.")
             if not isinstance(self.std, (int, float)):
                 raise RuntimeError("If channel_wise is False, std must be a float or int number.")
-            std = self.std * img.std() if self.relative else self.std
+            std = self.std * img.std().item() if self.relative else self.std
             if not isinstance(std, (int, float)):
                 raise RuntimeError("std must be a float or int number.")
             img = self._add_noise(img, mean=self.mean, std=std)
@@ -220,12 +220,15 @@ class ShiftIntensity(Transform):
 
     Args:
         offset: offset value to shift the intensity of image.
+        safe: if `True`, then do safe dtype convert when intensity overflow. default to `False`.
+            E.g., `[256, -12]` -> `[array(0), array(244)]`. If `True`, then `[256, -12]` -> `[array(255), array(0)]`.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, offset: float) -> None:
+    def __init__(self, offset: float, safe: bool = False) -> None:
         self.offset = offset
+        self.safe = safe
 
     def __call__(self, img: NdarrayOrTensor, offset: Optional[float] = None) -> NdarrayOrTensor:
         """
@@ -235,7 +238,7 @@ class ShiftIntensity(Transform):
         img = convert_to_tensor(img, track_meta=get_track_meta())
         offset = self.offset if offset is None else offset
         out = img + offset
-        out, *_ = convert_data_type(data=out, dtype=img.dtype)
+        out, *_ = convert_data_type(data=out, dtype=img.dtype, safe=self.safe)
 
         return out
 
@@ -247,11 +250,13 @@ class RandShiftIntensity(RandomizableTransform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, offsets: Union[Tuple[float, float], float], prob: float = 0.1) -> None:
+    def __init__(self, offsets: Union[Tuple[float, float], float], safe: bool = False, prob: float = 0.1) -> None:
         """
         Args:
             offsets: offset range to randomly shift.
                 if single number, offset value is picked from (-offsets, offsets).
+            safe: if `True`, then do safe dtype convert when intensity overflow. default to `False`.
+                E.g., `[256, -12]` -> `[array(0), array(244)]`. If `True`, then `[256, -12]` -> `[array(255), array(0)]`.
             prob: probability of shift.
         """
         RandomizableTransform.__init__(self, prob)
@@ -262,7 +267,7 @@ class RandShiftIntensity(RandomizableTransform):
         else:
             self.offsets = (min(offsets), max(offsets))
         self._offset = self.offsets[0]
-        self._shifter = ShiftIntensity(self._offset)
+        self._shifter = ShiftIntensity(self._offset, safe)
 
     def randomize(self, data: Optional[Any] = None) -> None:
         super().randomize(None)

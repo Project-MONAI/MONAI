@@ -29,7 +29,7 @@ from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import no_collation
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.transform import Randomizable, RandomizableTransform, Transform
+from monai.transforms.transform import Randomizable, RandomizableTrait, RandomizableTransform, Transform
 from monai.transforms.utils import (
     extreme_points_to_image,
     get_extreme_points,
@@ -1330,7 +1330,7 @@ class ToDevice(Transform):
 class CuCIM(Transform):
     """
     Wrap a non-randomized cuCIM transform, defined based on the transform name and args.
-    For randomized transforms (or randomly applying a transform) use :py:class:`monai.transforms.RandCuCIM`.
+    For randomized transforms use :py:class:`monai.transforms.RandCuCIM`.
 
     Args:
         name: the transform name in CuCIM package
@@ -1361,46 +1361,25 @@ class CuCIM(Transform):
         return self.transform(data, *self.args, **self.kwargs)
 
 
-class RandCuCIM(CuCIM, RandomizableTransform):
+class RandCuCIM(CuCIM, RandomizableTrait):
     """
-    Wrap a randomized cuCIM transform, defined based on the transform name and args,
-    or randomly apply a non-randomized transform.
+    Wrap a randomized cuCIM transform, defined based on the transform name and args
     For deterministic non-randomized transforms use :py:class:`monai.transforms.CuCIM`.
 
     Args:
         name: the transform name in CuCIM package.
-        apply_prob: the probability to apply the transform (default=1.0)
         args: parameters for the CuCIM transform.
         kwargs: parameters for the CuCIM transform.
 
     Note:
         - CuCIM transform only work with CuPy arrays, so this transform expects input data to be `cupy.ndarray`.
           Users can call `ToCuPy` transform to convert a numpy array or torch tensor to cupy array.
-        - If the cuCIM transform is already randomized the `apply_prob` argument has nothing to do with
-          the randomness of the underlying cuCIM transform. `apply_prob` defines if the transform (either randomized
-          or non-randomized) being applied randomly, so it can apply non-randomized transforms randomly but be careful
-          with setting `apply_prob` to anything than 1.0 when using along with cuCIM's randomized transforms.
         - If the random factor of the underlying cuCIM transform is not derived from `self.R`,
           the results may not be deterministic. See Also: :py:class:`monai.transforms.Randomizable`.
     """
 
-    def __init__(self, name: str, apply_prob: float = 1.0, *args, **kwargs) -> None:
+    def __init__(self, name: str, *args, **kwargs) -> None:
         CuCIM.__init__(self, name, *args, **kwargs)
-        RandomizableTransform.__init__(self, prob=apply_prob)
-
-    def __call__(self, data):
-        """
-        Args:
-            data: a CuPy array (`cupy.ndarray`) for the cuCIM transform
-
-        Returns:
-            `cupy.ndarray`
-
-        """
-        self.randomize(data)
-        if not self._do_transform:
-            return data
-        return super().__call__(data)
 
 
 class AddCoordinateChannels(Transform):

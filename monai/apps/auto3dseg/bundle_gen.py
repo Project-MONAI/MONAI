@@ -32,7 +32,7 @@ from monai.bundle.config_parser import ConfigParser
 from monai.utils import ensure_tuple
 
 logger = get_logger(module_name=__name__)
-ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "d7bf36c")
+ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "5895e1b")
 
 __all__ = ["BundleAlgo", "BundleGen"]
 
@@ -246,9 +246,9 @@ class BundleAlgo(Algo):
         configs_path = [os.path.join(config_dir, f) for f in os.listdir(config_dir)]
 
         spec = importlib.util.spec_from_file_location("InferClass", infer_py)
-        infer_class = importlib.util.module_from_spec(spec)
+        infer_class = importlib.util.module_from_spec(spec)  # type: ignore
         sys.modules["InferClass"] = infer_class
-        spec.loader.exec_module(infer_class)
+        spec.loader.exec_module(infer_class)  # type: ignore
         return infer_class.InferClass(configs_path, *args, **kwargs)
 
     def predict(self, predict_files: list, predict_params=None):

@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Optional, Sequence, Tuple, Union
+from typing import List, Optional, Sequence, Tuple, Type, Union
 
 import torch
 import torch.nn as nn
@@ -315,11 +315,11 @@ class DynUNet(nn.Module):
 
     def get_module_list(
         self,
-        in_channels: List[int],
-        out_channels: List[int],
+        in_channels: Sequence[int],
+        out_channels: Sequence[int],
         kernel_size: Sequence[Union[Sequence[int], int]],
         strides: Sequence[Union[Sequence[int], int]],
-        conv_block: nn.Module,
+        conv_block: Type[nn.Module],
         upsample_kernel_size: Optional[Sequence[Union[Sequence[int], int]]] = None,
         trans_bias: bool = False,
     ):
