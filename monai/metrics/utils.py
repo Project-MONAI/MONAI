@@ -232,7 +232,7 @@ def remap_instance_id(pred: torch.Tensor, by_size: bool = False):
     Args:
         pred: segmentation predictions in the form of torch tensor. Each
             value of the tensor should be an integer, and represents the prediction of its corresponding instance id.
-        by_size: if True, larget instance will be assigned a smaller id.
+        by_size: if True, largest instance will be assigned a smaller id.
 
     """
     pred_id = list(pred.unique())
