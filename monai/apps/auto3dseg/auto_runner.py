@@ -268,7 +268,7 @@ class AutoRunner:
 
         # intermediate variables
         self.num_fold = 5
-        self.ensemble_method_name = "AlgoEnsembleBestN"
+        self.ensemble_method_name = "AlgoEnsembleBestByFold"
         self.set_training_params()
         self.set_prediction_params()
         self.set_analyze_params()
@@ -473,7 +473,7 @@ class AutoRunner:
             output_dir=output_dir, output_postfix=output_postfix, output_dtype=output_dtype, resample=resample, **kwargs
         )
 
-    def set_ensemble_method(self, ensemble_method_name: str = "AlgoEnsembleBestN", **kwargs):
+    def set_ensemble_method(self, ensemble_method_name: str = "AlgoEnsembleBestByFold", **kwargs):
         """
         Set the bundle ensemble method
 
