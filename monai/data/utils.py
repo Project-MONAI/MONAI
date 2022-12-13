@@ -21,7 +21,7 @@ from copy import deepcopy
 from functools import reduce
 from itertools import product, starmap, zip_longest
 from pathlib import PurePath
-from typing import Any, Dict, Generator, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Generator, Iterable, List, Mapping, Optional, Sequence, Sized, Tuple, Union
 
 import numpy as np
 import torch
@@ -200,7 +200,7 @@ def dense_patch_slices(
 
 def iter_patch_position(
     image_size: Sequence[int],
-    patch_size: Union[Sequence[int], int],
+    patch_size: Union[Sequence[int], int, np.ndarray],
     start_pos: Sequence[int] = (),
     overlap: Union[Sequence[float], float] = 0.0,
     padded: bool = False,
@@ -317,7 +317,9 @@ def iter_patch(
         arr[...] = arrpad[slices]
 
 
-def get_valid_patch_size(image_size: Sequence[int], patch_size: Union[Sequence[int], int]) -> Tuple[int, ...]:
+def get_valid_patch_size(
+    image_size: Sequence[int], patch_size: Union[Sequence[int], int, np.ndarray]
+) -> Tuple[int, ...]:
     """
     Given an image of dimensions `image_size`, return a patch size tuple taking the dimension from `patch_size` if this is
     not 0/None. Otherwise, or if `patch_size` is shorter than `image_size`, the dimension from `image_size` is taken. This ensures
@@ -493,13 +495,14 @@ def list_data_collate(batch: Sequence):
         raise TypeError(re_str) from re
 
 
-def _non_zipping_check(batch_data, detach, pad, fill_value):
+def _non_zipping_check(batch_data: Union[Mapping, Iterable], detach: bool, pad: bool, fill_value):
     """
     Utility function based on `decollate_batch`, to identify the largest batch size from the collated data.
     returns batch_size, the list of non-iterable items, and the dictionary or list with their items decollated.
 
     See `decollate_batch` for more details.
     """
+    _deco: Union[Mapping, Sequence]
     if isinstance(batch_data, Mapping):
         _deco = {key: decollate_batch(batch_data[key], detach, pad=pad, fill_value=fill_value) for key in batch_data}
     elif isinstance(batch_data, Iterable):
@@ -513,7 +516,7 @@ def _non_zipping_check(batch_data, detach, pad, fill_value):
             # don't decollate ['test', 'test'] into [['t', 't'], ['e', 'e'], ['s', 's'], ['t', 't']]
             # torch.tensor(0) is iterable but iter(torch.tensor(0)) raises TypeError: iteration over a 0-d tensor
             non_iterable.append(k)
-        elif hasattr(v, "__len__"):
+        elif isinstance(v, Sized):
             batch_size = max(batch_size, len(v))
     return batch_size, non_iterable, _deco
 

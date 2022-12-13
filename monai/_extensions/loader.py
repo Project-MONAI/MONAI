@@ -30,7 +30,8 @@ def timeout(time, message):
     try:
         timer = Timer(time, interrupt_main)
         timer.daemon = True
-        yield timer.start()
+        timer.start()
+        yield
     except KeyboardInterrupt as e:
         if timer is not None and timer.is_alive():
             raise e  # interrupt from user?

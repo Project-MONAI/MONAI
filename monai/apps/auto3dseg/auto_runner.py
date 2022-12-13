@@ -14,7 +14,7 @@ import shutil
 import subprocess
 from copy import deepcopy
 from time import sleep
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, cast
 
 import numpy as np
 import torch
@@ -203,6 +203,8 @@ class AutoRunner:
             └── swinunetr_0         # network scripts/configs/checkpoints and pickle object of the algo
 
     """
+
+    analyze_params: Optional[Dict]
 
     def __init__(
         self,
@@ -410,9 +412,15 @@ class AutoRunner:
             - "tuner"
             - "trainingService"
 
+        and (3) enable the dry-run mode if the user would generate the NNI configs without starting the NNI service.
+
         Args:
             params: a dict that defines the overriding key-value pairs during instantiation of the algo. For
                 BundleAlgo, it will override the template config filling.
+
+        Notes:
+            Users can set ``nni_dry_run`` to ``True`` in the ``params`` to enable the dry-run mode for the NNI backend.
+
         """
         if params is None:
             self.hpo_params = self.train_params
@@ -538,6 +546,7 @@ class AutoRunner:
         }
 
         last_total_tasks = len(import_bundle_algo_history(self.work_dir, only_trained=True))
+        mode_dry_run = self.hpo_params.pop("nni_dry_run", False)
         for task in history:
             for name, algo in task.items():
                 nni_gen = NNIGen(algo=algo, params=self.hpo_params)
@@ -551,11 +560,16 @@ class AutoRunner:
                 nni_config.update({"search_space": self.search_space})
                 trial_cmd = "python -m monai.apps.auto3dseg NNIGen run_algo " + obj_filename + " " + self.work_dir
                 nni_config.update({"trialCommand": trial_cmd})
-                nni_config_filename = os.path.abspath(os.path.join(self.work_dir, "nni_config.yaml"))
+                nni_config_filename = os.path.abspath(os.path.join(self.work_dir, f"{name}_nni_config.yaml"))
                 ConfigParser.export_config_file(nni_config, nni_config_filename, fmt="yaml", default_flow_style=None)
 
-                max_trial = min(self.hpo_tasks, default_nni_config["maxTrialNumber"])
+                max_trial = min(self.hpo_tasks, cast(int, default_nni_config["maxTrialNumber"]))
                 cmd = "nnictl create --config " + nni_config_filename + " --port 8088"
+
+                if mode_dry_run:
+                    logger.info(f"AutoRunner HPO is in dry-run mode. Please manually launch: {cmd}")
+                    continue
+
                 subprocess.run(cmd.split(), check=True)
 
                 n_trainings = len(import_bundle_algo_history(self.work_dir, only_trained=True))
@@ -573,7 +587,7 @@ class AutoRunner:
         Run the AutoRunner pipeline
         """
         # step 1: data analysis
-        if self.analyze:
+        if self.analyze and self.analyze_params is not None:
             logger.info("Running data analysis...")
             da = DataAnalyzer(
                 self.datalist_filename, self.dataroot, output_path=self.datastats_filename, **self.analyze_params

@@ -17,14 +17,14 @@ from monai.config import IgniteInfo
 from monai.utils import is_scalar, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
-Checkpoint, _ = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Checkpoint")
 
 if TYPE_CHECKING:
     from ignite.engine import Engine
-    from ignite.handlers import DiskSaver
+    from ignite.handlers import Checkpoint, DiskSaver
 else:
     Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
     DiskSaver, _ = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "DiskSaver")
+    Checkpoint, _ = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Checkpoint")
 
 
 class CheckpointSaver:
@@ -111,7 +111,9 @@ class CheckpointSaver:
         self.logger = logging.getLogger(name)
         self.epoch_level = epoch_level
         self.save_interval = save_interval
-        self._final_checkpoint = self._key_metric_checkpoint = self._interval_checkpoint = None
+        self._final_checkpoint: Optional[Checkpoint] = None
+        self._key_metric_checkpoint: Optional[Checkpoint] = None
+        self._interval_checkpoint: Optional[Checkpoint] = None
         self._name = name
 
         class _DiskSaver(DiskSaver):
@@ -243,11 +245,12 @@ class CheckpointSaver:
                 engine.add_event_handler(Events.ITERATION_COMPLETED(every=self.save_interval), self.interval_completed)
 
     def _delete_previous_final_ckpt(self):
-        saved = self._final_checkpoint._saved
-        if len(saved) > 0:
-            item = saved.pop(0)
-            self._final_checkpoint.save_handler.remove(item.filename)
-            self.logger.info(f"Deleted previous saved final checkpoint: {item.filename}")
+        if self._final_checkpoint is not None:
+            saved = self._final_checkpoint._saved
+            if len(saved) > 0:
+                item = saved.pop(0)
+                self._final_checkpoint.save_handler.remove(item.filename)
+                self.logger.info(f"Deleted previous saved final checkpoint: {item.filename}")
 
     def completed(self, engine: Engine) -> None:
         """Callback for train or validation/evaluation completed Event.

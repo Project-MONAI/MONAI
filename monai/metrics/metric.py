@@ -261,9 +261,9 @@ class Cumulative:
         Note that the method will trigger synchronization of the local buffers.
         """
         self._sync()
-        if not self._synced_tensors:
+        if self._synced_tensors is None:
             return 0
-        return max(len(x) for x in self._synced_tensors)
+        return max(len(x) for x in self._synced_tensors if x is not None)
 
     def get_buffer(self):
         """

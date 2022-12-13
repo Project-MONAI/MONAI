@@ -185,7 +185,7 @@ def split_args(args):
         return args, {}
     name_obj, name_args = args
 
-    if not isinstance(name_obj, (str, Callable)) or not isinstance(name_args, dict):
+    if not (isinstance(name_obj, str) or callable(name_obj)) or not isinstance(name_args, dict):
         msg = "Layer specifiers must be single strings or pairs of the form (name/object-types, argument dict)"
         raise TypeError(msg)
 
