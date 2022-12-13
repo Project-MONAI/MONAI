@@ -43,13 +43,13 @@ for p in TEST_NDARRAYS:
 
 class TestGenerateInstanceBorderd(unittest.TestCase):
     @parameterized.expand(EXCEPTION_TESTS)
-    def test_value(self, argments, mask, hover_map, exception_type):
+    def test_value(self, arguments, mask, hover_map, exception_type):
         with self.assertRaises(exception_type):
-            GenerateInstanceBorderd(**argments)({"mask": mask, "hover_map": hover_map})
+            GenerateInstanceBorderd(**arguments)({"mask": mask, "hover_map": hover_map})
 
     @parameterized.expand(TESTS)
-    def test_value2(self, argments, mask, hover_map, expected_shape):
-        result = GenerateInstanceBorderd(**argments)({"mask": mask, "hover_map": hover_map})
+    def test_value2(self, arguments, mask, hover_map, expected_shape):
+        result = GenerateInstanceBorderd(**arguments)({"mask": mask, "hover_map": hover_map})
         self.assertEqual(result["border"].shape, expected_shape)
 
 
