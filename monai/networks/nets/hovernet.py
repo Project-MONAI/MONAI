@@ -498,10 +498,10 @@ class HoVerNet(nn.Module):
             OrderedDict(
                 [
                     (
-                        "conv1",
+                        "conv",
                         conv_type(in_channels, _init_features, kernel_size=7, stride=1, padding=_pad, bias=False),
                     ),
-                    ("bn1", get_norm_layer(name=norm, spatial_dims=2, channels=_init_features)),
+                    ("bn", get_norm_layer(name=norm, spatial_dims=2, channels=_init_features)),
                     ("relu", get_act_layer(name=act)),
                 ]
             )
@@ -532,7 +532,7 @@ class HoVerNet(nn.Module):
                 freeze_dense_layer=freeze_dense_layer,
                 freeze_block=freeze_block,
             )
-            self.res_blocks.add_module(f"d{i+1}", block)
+            self.res_blocks.add_module(f"d{i}", block)
 
             _in_channels = _out_channels
             _out_channels *= 2
@@ -609,7 +609,7 @@ def _load_pretrained_encoder(model: nn.Module, state_dict: OrderedDict):
     state_dict = {
         k: v for k, v in state_dict.items() if (k in model_dict) and (model_dict[k].shape == state_dict[k].shape)
     }
-    print(len(state_dict))
+
     model_dict.update(state_dict)
     model.load_state_dict(model_dict)
 
@@ -662,11 +662,20 @@ def _remap_standard_resnet_model(model_url: str):
     for key in list(state_dict.keys()):
         new_key = None
         if pattern_conv0.match(key):
-            new_key = re.sub(pattern_conv0, r"conv0.conv1.\1", key)
+            new_key = re.sub(pattern_conv0, r"conv0.conv.\1", key)
         elif pattern_bn1.match(key):
-            new_key = re.sub(pattern_bn1, r"conv0.bn1.\1", key)
+            new_key = re.sub(pattern_bn1, r"conv0.bn.\1", key)
         elif pattern_block.match(key):
-            new_key = re.sub(pattern_block, r"res_blocks.d\1.layers.denselayer_\2.layers.\3", key)
+            new_key = re.sub(
+                pattern_block,
+                lambda s: "res_blocks.d"
+                + str(int(s.group(1)) - 1)
+                + ".layers.denselayer_"
+                + s.group(2)
+                + ".layers."
+                + s.group(3),
+                key,
+            )
             if pattern_block_bn3.match(new_key):
                 new_key = re.sub(
                     pattern_block_bn3,
