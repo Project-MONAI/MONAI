@@ -459,7 +459,7 @@ class GenerateSuccinctContour(Transform):
                         corner = 2
                         pixel = (int(coord[0] - 0.5), int(coord[1]))
                     else:
-                        raise ValueError("Invalid coutour generated, may contain boundaries or small holes")
+                        raise ValueError("Invalid coutour is generated, may contain boundaries or small holes")
                     sequence.append(pixel)
                     last_added = pixel
                 elif i == len(group) - 1:
