@@ -39,10 +39,10 @@ class PanopticQuality(IgniteMetric):
             reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
                 available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
                 ``"mean_channel"``, ``"sum_channel"``}, default to `self.reduction`. if "none", will not do reduction.
-            match_iou_threshold: IOU threshould to determine the pairing between `y_pred` and `y`. Usually,
+            match_iou_threshold: IOU threshold to determine the pairing between `y_pred` and `y`. Usually,
                 it should >= 0.5, the pairing between instances of `y_pred` and `y` are identical.
                 If set `match_iou_threshold` < 0.5, this function uses Munkres assignment to find the
-                maximal amout of unique pairing.
+                maximal amount of unique pairing.
             smooth_numerator: a small constant added to the numerator to avoid zero.
             output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
                 construct `(y_pred, y)` pair, where `y_pred` and `y` can be `batch-first` Tensors or

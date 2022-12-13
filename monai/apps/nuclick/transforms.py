@@ -315,13 +315,13 @@ class AddPointGuidanceSignald(Randomizable, MapTransform):
         mask = d[self.label] if isinstance(d[self.label], torch.Tensor) else torch.from_numpy(d[self.label])
 
         inc_sig = self.inclusion_map(mask[0], dtype=image.dtype)
-        inc_sig = self._apply_gaussion(inc_sig)
+        inc_sig = self._apply_gaussian(inc_sig)
         if self.add_exclusion_map:
             others = d[self.others] if isinstance(d[self.others], torch.Tensor) else torch.from_numpy(d[self.others])
             exc_sig = self.exclusion_map(
                 others[0], dtype=image.dtype, drop_rate=self.drop_rate, jitter_range=self.jitter_range
             )
-            exc_sig = self._apply_gaussion(exc_sig)
+            exc_sig = self._apply_gaussian(exc_sig)
             image = torch.cat((image, inc_sig[None], exc_sig[None]), dim=0)
         else:
             image = torch.cat((image, inc_sig[None]), dim=0)
@@ -329,7 +329,7 @@ class AddPointGuidanceSignald(Randomizable, MapTransform):
         d[self.image] = image if isinstance(d[self.image], torch.Tensor) else convert_to_numpy(image)
         return d
 
-    def _apply_gaussion(self, t):
+    def _apply_gaussian(self, t):
         if not self.gaussian or torch.count_nonzero(t) == 0:
             return t
         x = GaussianFilter(spatial_dims=2, truncated=self.truncated, sigma=self.sigma)(t.unsqueeze(0).unsqueeze(0))
@@ -500,19 +500,19 @@ class AddClickSignalsd(MapTransform):
             this_click_map[cx[i], cy[i]] = 1
 
             nuc_points = this_click_map[x_start:x_end, y_start:y_end]
-            nuc_points = self._apply_gaussion(nuc_points)
+            nuc_points = self._apply_gaussian(nuc_points)
 
             if self.add_exclusion_map:
                 others_click_map = ((click_map - this_click_map) > 0).type(img.dtype)
                 other_points = others_click_map[x_start:x_end, y_start:y_end]
-                other_points = self._apply_gaussion(other_points)
+                other_points = self._apply_gaussian(other_points)
                 patches.append(torch.cat([patch, nuc_points[None], other_points[None]]))
             else:
                 patches.append(torch.cat([patch, nuc_points[None]]))
 
         return torch.stack(patches)
 
-    def _apply_gaussion(self, t):
+    def _apply_gaussian(self, t):
         if not self.gaussian or torch.count_nonzero(t) == 0:
             return t
         x = GaussianFilter(spatial_dims=2, truncated=self.truncated, sigma=self.sigma)(t.unsqueeze(0).unsqueeze(0))

@@ -108,7 +108,7 @@ def default_prepare_batch(
     If `CommonKeys.REALS` is present this is returned with None. All returned tensors are moved to the given device
     using the given non-blocking argument before being returned.
 
-    This function implemenets the expected API for a `prepare_batch` callable in Ignite:
+    This function implements the expected API for a `prepare_batch` callable in Ignite:
     https://pytorch.org/ignite/v0.4.8/generated/ignite.engine.create_supervised_trainer.html
 
     Args:
@@ -193,7 +193,7 @@ class PrepareBatchExtraInput(PrepareBatch):
 
     Args:
         extra_keys: If a string or sequence of strings is provided, values from the input dictionary are extracted from
-            those keys and passed to the nework as extra positional arguments. If a dictionary is provided, every pair
+            those keys and passed to the network as extra positional arguments. If a dictionary is provided, every pair
             `(k, v)` in that dictionary will become a new keyword argument assigning to `k` the value in the input
             dictionary keyed to `v`.
     """
