@@ -600,7 +600,7 @@ class HoVerNet(nn.Module):
         return output
 
 
-def _load_pretrained_encoder(model: nn.Module, state_dict: OrderedDict):
+def _load_pretrained_encoder(model: nn.Module, state_dict: Union[OrderedDict, Dict]):
 
     model_dict = model.state_dict()
     state_dict = {
