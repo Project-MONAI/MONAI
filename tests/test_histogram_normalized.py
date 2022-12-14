@@ -47,10 +47,10 @@ for p in TEST_NDARRAYS:
 
 class TestHistogramNormalized(unittest.TestCase):
     @parameterized.expand(TESTS)
-    def test_value(self, argments, image, expected_data):
-        result = HistogramNormalized(**argments)(image)["img"]
+    def test_value(self, arguments, image, expected_data):
+        result = HistogramNormalized(**arguments)(image)["img"]
         assert_allclose(result, expected_data, type_test="tensor")
-        self.assertEqual(get_equivalent_dtype(result.dtype, data_type=np.ndarray), argments.get("dtype", np.float32))
+        self.assertEqual(get_equivalent_dtype(result.dtype, data_type=np.ndarray), arguments.get("dtype", np.float32))
 
 
 if __name__ == "__main__":
