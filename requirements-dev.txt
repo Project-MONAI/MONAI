@@ -52,3 +52,4 @@ pydicom
 h5py
 nni
 optuna
+git+https://github.com/Project-MONAI/MetricsReloaded@monai-support#egg=MetricsReloaded
