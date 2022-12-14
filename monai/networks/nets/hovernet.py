@@ -439,7 +439,7 @@ class HoVerNet(nn.Module):
             https://pytorch.org/vision/main/_modules/torchvision/models/resnet.html#ResNet50_Weights
         adapt_standard_resnet: if the pretrained weights of the encoder follow the original format (preact-resnet50), this
             value should be `False`. If using the pretrained weights that follow torchvision's standard resnet50 format,
-            this value should be false.
+            this value should be `True`.
         freeze_encoder: whether to freeze the encoder of the network.
     """
 
@@ -497,10 +497,7 @@ class HoVerNet(nn.Module):
         self.conv0 = nn.Sequential(
             OrderedDict(
                 [
-                    (
-                        "conv",
-                        conv_type(in_channels, _init_features, kernel_size=7, stride=1, padding=_pad, bias=False),
-                    ),
+                    ("conv", conv_type(in_channels, _init_features, kernel_size=7, stride=1, padding=_pad, bias=False)),
                     ("bn", get_norm_layer(name=norm, spatial_dims=2, channels=_init_features)),
                     ("relu", get_act_layer(name=act)),
                 ]
