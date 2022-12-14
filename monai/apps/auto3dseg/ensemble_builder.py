@@ -197,7 +197,7 @@ class AlgoEnsembleBestN(AlgoEnsemble):
 
         ranks = self.sort_score()
         if len(ranks) < n_best:
-            warn(f"Found {len(ranks)} available algos (pre-defined n_best={n_best}). All {n_available} will be used.")
+            warn(f"Found {len(ranks)} available algos (pre-defined n_best={n_best}). All {len(ranks)} will be used.")
             n_best = len(ranks)
 
         # get the indices that the rank is larger than N
