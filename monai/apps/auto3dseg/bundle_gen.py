@@ -481,7 +481,9 @@ class BundleGen(AlgoGen):
 
     def generate_with_customized_param(self, output_folder=".", num_fold: int = 5, **kwargs):
         """
-        Automatically customize parameters of the bundle scripts/configs for each bundleAlgo based on gpus
+        Automatically customize/optimize bundle script/config parameters for each bundleAlgo based on gpus.
+        Custom parameters are obtained through dummy training to simulate the actual model training process
+        and hyperparameter optimization (HPO) experiments.
 
         Args:
             output_folder: the output folder to save each algorithm.
