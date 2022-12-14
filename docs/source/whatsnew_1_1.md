@@ -11,14 +11,14 @@ In this release, experiment management features are integrated with the MONAI bu
 It provides essential APIs for managing the end-to-end model bundle lifecycle.
 Users can start tracking experiments by, for example, appending `--tracking "mlflow"` to the training or inference bundle commands to enable the MLFlow-based management.
 By default, MLFlow will track the executed bundle config, model quality measurements, and source code versioning of the running experiment.
-For more details about it, please refer to this [tutorial](https://github.com/Project-MONAI/tutorials/blob/main/experiment_management/bundle_integrate_mlflow.ipynb).
+For more details, please refer to the [tutorial](https://github.com/Project-MONAI/tutorials/blob/main/experiment_management/bundle_integrate_mlflow.ipynb).
 
 ## New models in MONAI Model Zoo
 New pretrained models are being created and released [in the Model Zoo](https://monai.io/model-zoo.html).
 Notably,
-- The `mednist_reg` model demonstrate how to build image registration workflow using
-a ResNet and spatial transformer for hand X-ray images in MONAI bundle
-format (based on [the registration_mednist tutorial](https://github.com/Project-MONAI/tutorials/blob/main/2d_registration/registration_mednist.ipynb)).
+- The `mednist_reg` model demonstrates how to build image registration workflows in MONAI bundle
+format. The model uses a ResNet and spatial transformer for hand X-ray image registration based on 
+[the registration_mednist tutorial](https://github.com/Project-MONAI/tutorials/blob/main/2d_registration/registration_mednist.ipynb).
 
 For more details about how to use the models, please see [the tutorials](https://github.com/Project-MONAI/tutorials/tree/main/model_zoo).
 
