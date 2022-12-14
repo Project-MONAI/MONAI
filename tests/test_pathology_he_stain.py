@@ -169,7 +169,7 @@ class TestNormalizeHEStains(unittest.TestCase):
             NORMALIZE_STAINS_TEST_CASE_4,
         ]
     )
-    def test_result_value(self, argments, image, expected_data):
+    def test_result_value(self, arguments, image, expected_data):
         """
         Test that an input image returns an expected normalized image.
 
@@ -218,7 +218,7 @@ class TestNormalizeHEStains(unittest.TestCase):
             with self.assertRaises(TypeError):
                 NormalizeHEStains()(image)
         else:
-            result = NormalizeHEStains(**argments)(image)
+            result = NormalizeHEStains(**arguments)(image)
             np.testing.assert_allclose(result, expected_data)
 
 

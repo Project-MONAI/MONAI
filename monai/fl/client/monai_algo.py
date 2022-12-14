@@ -347,7 +347,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         backend: backend to use for torch.distributed; defaults to "nccl".
         init_method: init_method for torch.distributed; defaults to "env://".
         tracking: enable the experiment tracking feature at runtime with optionally configurable and extensible.
-            if "mlflow", will add `MLFlowHandler` to the parsed bundle with default loggging settings,
+            if "mlflow", will add `MLFlowHandler` to the parsed bundle with default logging settings,
             if other string, treat it as file path to load the logging settings, if `dict`,
             treat it as logging settings, otherwise, use all the default settings.
             will patch the target config content with `tracking handlers` and the top-level items of `configs`.

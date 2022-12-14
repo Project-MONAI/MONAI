@@ -784,7 +784,7 @@ class PILWriter(ImageWriter):
         Args:
             data_array: input data array. This method assumes the 'channel-last' format.
             output_spatial_shape: output spatial shape.
-            mode: interpolation mode, defautl is ``InterpolateMode.BICUBIC``.
+            mode: interpolation mode, default is ``InterpolateMode.BICUBIC``.
         """
 
         data: np.ndarray = convert_data_type(data_array, np.ndarray)[0]

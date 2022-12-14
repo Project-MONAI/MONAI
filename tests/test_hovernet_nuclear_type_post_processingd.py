@@ -30,9 +30,7 @@ y, x = np.ogrid[0:30, 0:30]
 image = (x - 10) ** 2 + (y - 10) ** 2 <= 5**2
 image = image[None, ...].astype("uint8")
 
-
 TEST_CASE_1 = [{}, [{"1": [10, 10]}, np.zeros_like(image), np.zeros_like(image)]]
-
 
 TEST_CASE = []
 for p in TEST_NDARRAYS:
