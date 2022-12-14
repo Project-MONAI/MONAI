@@ -91,10 +91,6 @@ class AlgoGen(Randomizable):
         """Generate new Algo -- based on data_stats, budget, and history of previous algo generations."""
         pass
 
-    def generate_with_customized_param(self):
-        """Customize parameters for gpu -- based on gpu capacities."""
-        pass
-
     def run_algo(self, *args, **kwargs):
         """
         Launch the Algos. This is useful for light-weight Algos where there's no need to distribute the training jobs.

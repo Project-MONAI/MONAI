@@ -458,13 +458,37 @@ class BundleGen(AlgoGen):
         """get the history of the bundleAlgo object with their names/identifiers"""
         return self.history
 
-    def generate(self, output_folder=".", num_fold: int = 5):
+    def generate(
+        self,
+        output_folder=".",
+        num_fold: int = 5,
+        auto_gpu_customization: bool = False,
+        gpu_customization_specs: Optional[dict] = None,
+    ):
         """
         Generate the bundle scripts/configs for each bundleAlgo
 
         Args:
             output_folder: the output folder to save each algorithm.
-            num_fold: the number of cross validation fold
+            num_fold: the number of cross validation fold.
+            auto_gpu_customization: the switch to determine automatically customize/optimize bundle script/config
+                parameters for each bundleAlgo based on gpus. Custom parameters are obtained through dummy
+                training to simulate the actual model training process and hyperparameter optimization (HPO)
+                experiments.
+            gpu_customization_specs (optinal): the dictionary to enable users overwrite the HPO settings. user can
+                overwrite part of variables as follows or all of them. The stucture is as follows.
+                {
+                    'ALOG': {
+                        'num_trials': 6,
+                        'range_num_images_per_batch': [1, 20],
+                        'range_num_sw_batch_size': [1, 20]
+                    }
+                }
+                ALGO: the name of algorithm. It could be one of algorithm names (e.g., 'dints') or 'unversal' which
+                    would apply changes to all algorithms.
+                num_trials: the number of HPO trials/experiments to run.
+                range_num_images_per_batch: the range of number of images per mini-batch.
+                range_num_sw_batch_size: the range of batch size in sliding-window inferer.
         """
         fold_idx = list(range(num_fold))
         for algo in self.algos:
@@ -475,29 +499,15 @@ class BundleGen(AlgoGen):
                 gen_algo.set_data_stats(data_stats)
                 gen_algo.set_data_source(data_src_cfg)
                 name = f"{gen_algo.name}_{f_id}"
-                gen_algo.export_to_disk(output_folder, name, fold=f_id)
-                algo_to_pickle(gen_algo, template_path=algo.template_path)
-                self.history.append({name: gen_algo})  # track the previous, may create a persistent history
-
-    def generate_with_customized_param(self, output_folder=".", num_fold: int = 5, **kwargs):
-        """
-        Automatically customize/optimize bundle script/config parameters for each bundleAlgo based on gpus.
-        Custom parameters are obtained through dummy training to simulate the actual model training process
-        and hyperparameter optimization (HPO) experiments.
-
-        Args:
-            output_folder: the output folder to save each algorithm.
-            num_fold: the number of cross validation fold
-        """
-        fold_idx = list(range(num_fold))
-        for algo in self.algos:
-            for f_id in ensure_tuple(fold_idx):
-                data_stats = self.get_data_stats()
-                data_src_cfg = self.get_data_src()
-                gen_algo = deepcopy(algo)
-                gen_algo.set_data_stats(data_stats)
-                gen_algo.set_data_source(data_src_cfg)
-                name = f"{gen_algo.name}_{f_id}"
-                gen_algo.export_to_disk(output_folder, name, fold=f_id, gpu_customization=True, **kwargs)
+                if auto_gpu_customization:
+                    gen_algo.export_to_disk(
+                        output_folder,
+                        name,
+                        fold=f_id,
+                        gpu_customization=True,
+                        gpu_customization_specs=gpu_customization_specs,
+                    )
+                else:
+                    gen_algo.export_to_disk(output_folder, name, fold=f_id)
                 algo_to_pickle(gen_algo, template_path=algo.template_path)
                 self.history.append({name: gen_algo})  # track the previous, may create a persistent history
