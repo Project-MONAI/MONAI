@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 ## [1.1.0] - 2022-12-19
 ### Added
 * Hover-Net based digital pathology workflows including new network, loss, postprocessing, metric, training, and inference modules
-* Various enhancements for the Auto3dSeg APIs including default transforms for `DataAnalyzer`, local folder and algo subsets for `AutoRunner`
+* Various enhancements for Auto3dSeg including default transforms for `DataAnalyzer`, folder and algo subsets for `AutoRunner`
 * New bundle API and configurations to support experiment management including `MLFlowHandler`
 * New `bundle.script` API to support model zoo query and download
 * `LossMetric` metric to compute loss as cumulative metric measurement
