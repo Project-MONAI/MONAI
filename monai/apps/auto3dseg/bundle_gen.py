@@ -138,12 +138,6 @@ class BundleAlgo(Algo):
             self.fill_records = self.fill_template_config(self.data_stats_files, self.output_path, **kwargs)
         logger.info(self.output_path)
 
-    def customize_param_for_gpu(self):
-        return {}
-
-    def customize_param_for_alg(self, output_path: str, data_stats_file: str, **kwargs):
-        self.fill_records = self.customize_param_for_gpu(output_path, data_stats_file, self.fill_records, **kwargs)
-
     def _create_cmd(self, train_params=None):
         """
         Create the command to execute training.
@@ -485,9 +479,9 @@ class BundleGen(AlgoGen):
                 algo_to_pickle(gen_algo, template_path=algo.template_path)
                 self.history.append({name: gen_algo})  # track the previous, may create a persistent history
 
-    def customize_param(self, output_folder=".", num_fold: int = 5):
+    def generate_with_customized_param(self, output_folder=".", num_fold: int = 5, **kwargs):
         """
-        Automatically customize parameters of the bundle scripts/configs for each bundleAlgo
+        Automatically customize parameters of the bundle scripts/configs for each bundleAlgo based on gpus
 
         Args:
             output_folder: the output folder to save each algorithm.
@@ -496,5 +490,12 @@ class BundleGen(AlgoGen):
         fold_idx = list(range(num_fold))
         for algo in self.algos:
             for f_id in ensure_tuple(fold_idx):
+                data_stats = self.get_data_stats()
+                data_src_cfg = self.get_data_src()
                 gen_algo = deepcopy(algo)
-                gen_algo.customize_param_for_alg(output_folder)
+                gen_algo.set_data_stats(data_stats)
+                gen_algo.set_data_source(data_src_cfg)
+                name = f"{gen_algo.name}_{f_id}"
+                gen_algo.export_to_disk(output_folder, name, fold=f_id, gpu_customization=True, **kwargs)
+                algo_to_pickle(gen_algo, template_path=algo.template_path)
+                self.history.append({name: gen_algo})  # track the previous, may create a persistent history
