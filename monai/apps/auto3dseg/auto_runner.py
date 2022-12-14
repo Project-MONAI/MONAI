@@ -73,8 +73,6 @@ class AutoRunner:
             decide based on cache, and run data analysis only if we have not completed this step yet.
         algo_gen: on/off switch to run AlgoGen and generate templated BundleAlgos. Defaults to None, to automatically
             decide based on cache, and run algorithm folders generation only if we have not completed this step yet.
-        gpu_customization: on/off switch to optimize algorithm parameters for current GPU capacities. Defaults to False,
-            decide based on available GPU memory.
         train: on/off switch to run training and generate algorithm checkpoints. Defaults to None, to automatically
             decide based on cache, and run training only if we have not completed this step yet.
         hpo: use hyperparameter optimization (HPO) in the training phase. Users can provide a list of
@@ -215,7 +213,6 @@ class AutoRunner:
         algos: Optional[Union[Dict, List, str]] = None,
         analyze: Optional[bool] = None,
         algo_gen: Optional[bool] = None,
-        gpu_customization: bool = False,
         train: Optional[bool] = None,
         hpo: bool = False,
         hpo_backend: str = "nni",
