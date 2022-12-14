@@ -732,7 +732,7 @@ class HoVerNetInstanceMapPostProcessing(Transform):
                 :, instance_bbox[0][0] : instance_bbox[0][1], instance_bbox[0][2] : instance_bbox[0][3]
             ]
             offset = [instance_bbox[0][2], instance_bbox[0][0]]
-            instance_contour = self.generate_instance_contour(instance_mask, offset)
+            instance_contour = self.generate_instance_contour(FillHoles()(instance_mask), offset)
             if instance_contour is not None:
                 instance_centroid = self.generate_instance_centroid(instance_mask, offset)
                 instance_info[inst_id] = {
