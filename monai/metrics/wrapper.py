@@ -18,7 +18,6 @@ from monai.utils import MetricReduction, optional_import
 
 from .metric import CumulativeIterationMetric
 
-
 BinaryPairwiseMeasures, _ = optional_import("MetricsReloaded.metrics.pairwise_measures", name="BinaryPairwiseMeasures")
 MultiClassPairwiseMeasures, _ = optional_import(
     "MetricsReloaded.metrics.pairwise_measures", name="MultiClassPairwiseMeasures"
@@ -61,8 +60,7 @@ class MetricsReloadedMetric(CumulativeIterationMetric):
         return (f, not_nans) if self.get_not_nans else f
 
     def prepare_onehot(self, y_pred, y):
-        """Prepares onehot encoded input for metric call.
-        """
+        """Prepares onehot encoded input for metric call."""
         is_binary_tensor(y_pred, "y_pred")
         is_binary_tensor(y, "y")
         y = y.float()
@@ -163,10 +161,7 @@ class MetricsReloadedBinary(MetricsReloadedMetric):
         y = torch2numpy(y)
 
         # Create binary pairwise metric object
-        bpm = BinaryPairwiseMeasures(y_pred, y,
-            axis=tuple(range(2, dims)),
-            smooth_dr=1e-5,
-        )
+        bpm = BinaryPairwiseMeasures(y_pred, y, axis=tuple(range(2, dims)), smooth_dr=1e-5)
 
         # Is requested metric available?
         if self.metric_name not in bpm.metrics:
@@ -281,7 +276,8 @@ class MetricsReloadedCategorical(MetricsReloadedMetric):
 
         # Create categorical pairwise metric object
         bpm = MultiClassPairwiseMeasures(
-            y_pred, y,
+            y_pred,
+            y,
             axis=tuple(range(1, dims)),
             smooth_dr=self.smooth_dr,
             list_values=list(range(num_classes)),
