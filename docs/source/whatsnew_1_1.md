@@ -4,6 +4,8 @@
 
 
 ## Solution of SurgToolLoc Challenge
+![SurgToolLoc](https://rumc-gcorg-p-public.s3.amazonaws.com/i/2022/05/03/problem.png)
+
 [SurgToolLoc](https://surgtoolloc.grand-challenge.org/Home/) is a part of [EndoVis](https://endovis.grand-challenge.org/) challenge at [MICCAI 2022](https://conferences.miccai.org/2022/en/) in Singapore. This challenge is divided into two categories:
 1. Surgical tool classification
 2. Surgical tool classification and localization
