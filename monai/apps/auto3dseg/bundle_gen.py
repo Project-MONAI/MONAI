@@ -138,11 +138,11 @@ class BundleAlgo(Algo):
             self.fill_records = self.fill_template_config(self.data_stats_files, self.output_path, **kwargs)
         logger.info(self.output_path)
 
-    def customize_param_for_gpu(self, num_trials: int=60):
+    def customize_param_for_gpu(self):
         return {}
 
-    def customize_param_for_alg(self, output_path, num_trials: int=60):
-        self.fill_records = self.customize_param_for_gpu(self.output_path, self.fill_records, num_trials: int=60)
+    def customize_param_for_alg(self, output_path: str, data_stats_file: str, **kwargs):
+        self.fill_records = self.customize_param_for_gpu(output_path, data_stats_file, self.fill_records, **kwargs)
 
     def _create_cmd(self, train_params=None):
         """
