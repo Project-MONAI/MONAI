@@ -616,7 +616,7 @@ class OpenSlideWSIReader(BaseWSIReader):
         unit = wsi.properties["tiff.ResolutionUnit"]
         if unit == "centimeter":
             factor = 10000.0
-        elif unit == "milimeter":
+        elif unit == "millimeter":
             factor = 1000.0
         elif unit == "micrometer":
             factor = 1.0

@@ -88,8 +88,8 @@ for p in TEST_NDARRAYS_ALL:
 
 class TestCropForeground(unittest.TestCase):
     @parameterized.expand(TEST_COORDS + TESTS)
-    def test_value(self, argments, image, expected_data):
-        cropper = CropForeground(**argments)
+    def test_value(self, arguments, image, expected_data):
+        cropper = CropForeground(**arguments)
         result = cropper(image)
         assert_allclose(result, expected_data, type_test=False)
         self.assertIsInstance(result, MetaTensor)
@@ -100,10 +100,10 @@ class TestCropForeground(unittest.TestCase):
         self.assertTupleEqual(inv.shape, image.shape)
 
     @parameterized.expand(TEST_COORDS)
-    def test_return_coords(self, argments, image, _):
-        argments["return_coords"] = True
-        _, start_coord, end_coord = CropForeground(**argments)(image)
-        argments["return_coords"] = False
+    def test_return_coords(self, arguments, image, _):
+        arguments["return_coords"] = True
+        _, start_coord, end_coord = CropForeground(**arguments)(image)
+        arguments["return_coords"] = False
         np.testing.assert_allclose(start_coord, np.asarray([1, 1]))
         np.testing.assert_allclose(end_coord, np.asarray([4, 4]))
 

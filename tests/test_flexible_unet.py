@@ -153,8 +153,8 @@ class ResNetEncoder(ResNet, BaseEncoder):
         return feature_list
 
 
-FLEXUNET_BACKBONE.regist_class(ResNetEncoder)
-FLEXUNET_BACKBONE.regist_class(DummyEncoder)
+FLEXUNET_BACKBONE.register_class(ResNetEncoder)
+FLEXUNET_BACKBONE.register_class(DummyEncoder)
 
 
 def get_model_names():
@@ -405,7 +405,7 @@ class TestFlexUNetEncoderRegister(unittest.TestCase):
     @parameterized.expand(CASE_REGISTER_ENCODER)
     def test_regist(self, encoder):
         tmp_backbone = FlexUNetEncoderRegister()
-        tmp_backbone.regist_class(encoder)
+        tmp_backbone.register_class(encoder)
         for backbone in tmp_backbone.register_dict:
             backbone_type = tmp_backbone.register_dict[backbone]["type"]
             feature_number = backbone_type.num_outputs()

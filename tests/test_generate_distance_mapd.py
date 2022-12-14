@@ -54,13 +54,13 @@ for p in TEST_NDARRAYS:
 
 class TestGenerateDistanceMapd(unittest.TestCase):
     @parameterized.expand(EXCEPTION_TESTS)
-    def test_value(self, argments, mask, border_map, exception_type):
+    def test_value(self, arguments, mask, border_map, exception_type):
         with self.assertRaises(exception_type):
-            GenerateDistanceMapd(**argments)({"mask": mask, "border": border_map})
+            GenerateDistanceMapd(**arguments)({"mask": mask, "border": border_map})
 
     @parameterized.expand(TESTS)
-    def test_value2(self, argments, mask, border_map, expected_shape):
-        result = GenerateDistanceMapd(**argments)({"mask": mask, "border": border_map})
+    def test_value2(self, arguments, mask, border_map, expected_shape):
+        result = GenerateDistanceMapd(**arguments)({"mask": mask, "border": border_map})
         self.assertEqual(result["dist_map"].shape, expected_shape)
 
 

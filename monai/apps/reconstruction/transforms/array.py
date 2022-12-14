@@ -50,7 +50,7 @@ class KspaceMask(RandomizableTransform):
                 same length as center_fractions. If multiple values are
                 provided, then one of these is chosen uniformly each time.
             spatial_dims: Number of spatial dims (e.g., it's 2 for a 2D data;
-                it's also 2 for psuedo-3D datasets like the fastMRI dataset).
+                it's also 2 for pseudo-3D datasets like the fastMRI dataset).
                 The last spatial dim is selected for sampling. For the fastMRI
                 dataset, k-space has the form (...,num_slices,num_coils,H,W)
                 and sampling is done along W. For a general 3D data with the

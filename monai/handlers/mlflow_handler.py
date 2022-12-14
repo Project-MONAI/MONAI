@@ -80,7 +80,7 @@ class MLFlowHandler:
         experiment_param: a dict recording parameters which will not change through whole experiment,
             like torch version, cuda version and so on.
         artifacts: paths to images that need to be recorded after a whole run.
-        optimizer_param_names: parameters' name in optimizer that need to be record during runing,
+        optimizer_param_names: parameters' name in optimizer that need to be record during running,
             defaults to "lr".
         close_on_complete: whether to close the mlflow run in `complete` phase in workflow, default to False.
 
