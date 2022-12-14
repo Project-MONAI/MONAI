@@ -61,13 +61,13 @@ class Watershed(Transform):
         connectivity: an array with the same number of dimensions as image whose non-zero elements indicate
             neighbors for connection. Following the scipy convention, default is a one-connected array of
             the dimension of the image.
-        dtype: target data content type to convert, default is np.uint8.
+        dtype: target data content type to convert, default is np.int64.
 
     """
 
     backend = [TransformBackends.NUMPY]
 
-    def __init__(self, connectivity: Optional[int] = 1, dtype: DtypeLike = np.uint8) -> None:
+    def __init__(self, connectivity: Optional[int] = 1, dtype: DtypeLike = np.int64) -> None:
         self.connectivity = connectivity
         self.dtype = dtype
 
@@ -292,7 +292,7 @@ class GenerateWatershedMarkers(Transform):
         min_object_size: objects smaller than this size (in pixel) are removed. Defaults to 10.
         postprocess_fn: additional post-process function on the markers.
             If not provided, :py:class:`monai.transforms.post.FillHoles()` will be used.
-        dtype: target data type to convert to. Defaults to np.uint8.
+        dtype: target data type to convert to. Defaults to np.int64.
 
     """
 
@@ -304,7 +304,7 @@ class GenerateWatershedMarkers(Transform):
         radius: int = 2,
         min_object_size: int = 10,
         postprocess_fn: Optional[Callable] = None,
-        dtype: DtypeLike = np.uint8,
+        dtype: DtypeLike = np.int64,
     ) -> None:
         self.threshold = threshold
         self.radius = radius
