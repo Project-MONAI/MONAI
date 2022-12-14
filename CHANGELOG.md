@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 ## [1.1.0] - 2022-12-19
 ### Added
 * Hover-Net based digital pathology workflows including new network, loss, postprocessing, metric, training, and inference modules
-* Various enhancements for Auto3dSeg `AutoRunner` including template caching, selection, and a dry-run mode for hyperparameter optimization
+* Various enhancements for Auto3dSeg `AutoRunner` including template caching, selection, and a dry-run mode `nni_dry_run`
 * Various enhancements for Auto3dSeg algo templates including new state-of-the-art configurations, optimized GPU memory utilization
 * New bundle API and configurations to support experiment management including `MLFlowHandler`
 * New `bundle.script` API to support model zoo query and download
