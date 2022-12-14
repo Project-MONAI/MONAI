@@ -37,7 +37,7 @@ class AlgoEnsemble(ABC):
 
     def __init__(self):
         self.algos = []
-        self.mode = "mean"
+        self.mode = "vote"
         self.infer_files = []
         self.algo_ensemble = []
 
@@ -107,8 +107,11 @@ class AlgoEnsemble(ABC):
             prob = MeanEnsemble()(preds)
             return prob2class(prob, dim=0, keepdim=True, sigmoid=sigmoid)
         elif self.mode == "vote":
-            classes = [prob2class(p, dim=0, keepdim=True, sigmoid=False) for p in preds]
-            return VoteEnsemble(num_classes=preds[0].shape[0])(classes)
+            classes = [prob2class(p, dim=0, keepdim=True, sigmoid=sigmoid) for p in preds]
+            if sigmoid:
+                return VoteEnsemble()(classes)  # do not specify num_classes for one-hot encoding
+            else:
+                return VoteEnsemble(num_classes=preds[0].shape[0])(classes)
 
     def __call__(self, pred_param: Optional[Dict[str, Any]] = None):
         """
