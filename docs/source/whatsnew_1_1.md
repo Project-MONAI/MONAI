@@ -17,7 +17,7 @@ For more details, please refer to the [tutorial](https://github.com/Project-MONA
 New pretrained models are being created and released [in the Model Zoo](https://monai.io/model-zoo.html).
 Notably,
 - The `mednist_reg` model demonstrates how to build image registration workflows in MONAI bundle
-format. The model uses a ResNet and spatial transformer for hand X-ray image registration based on 
+format. The model uses a ResNet and spatial transformer for hand X-ray image registration based on
 [the registration_mednist tutorial](https://github.com/Project-MONAI/tutorials/blob/main/2d_registration/registration_mednist.ipynb).
 
 For more details about how to use the models, please see [the tutorials](https://github.com/Project-MONAI/tutorials/tree/main/model_zoo).
