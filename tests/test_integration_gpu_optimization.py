@@ -124,16 +124,10 @@ class TestEnsembleBuilder(unittest.TestCase):
             )
 
         gpu_customization_specs = {
-            "universal": {
-                "num_trials": 1,
-                "range_num_images_per_batch": [1, 2],
-                "range_num_sw_batch_size": [1, 2],
-            }
+            "universal": {"num_trials": 1, "range_num_images_per_batch": [1, 2], "range_num_sw_batch_size": [1, 2]}
         }
         bundle_generator.generate_with_customized_param(
-            work_dir,
-            num_fold=1,
-            gpu_customization_specs=gpu_customization_specs,
+            work_dir, num_fold=1, gpu_customization_specs=gpu_customization_specs
         )
         history = bundle_generator.get_history()
 
