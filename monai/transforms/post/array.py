@@ -142,7 +142,7 @@ class AsDiscrete(Transform):
             Defaults to ``False``.
         to_onehot: if not None, convert input data into the one-hot format with specified number of classes.
             Defaults to ``None``.
-        threshold: if not None, threshold the float values to int number 0 or 1 with specified theashold.
+        threshold: if not None, threshold the float values to int number 0 or 1 with specified threshold.
             Defaults to ``None``.
         rounding: if not None, round the data according to the specified option,
             available options: ["torchrounding"].
