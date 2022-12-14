@@ -9,7 +9,8 @@
 
 In this release, experiment management features are integrated with the MONAI bundle.
 It provides essential APIs for managing the end-to-end model bundle lifecycle.
-Users can start tracking experiments by, for example, appending `--tracking "mlflow"` to the training or inference bundle commands to enable the MLFlow-based management. 
+Users can start tracking experiments by, for example, appending `--tracking "mlflow"` to the training or inference bundle commands to enable the MLFlow-based management.
+By default, MLFlow will track the executed bundle config, model quality measurements, and source code versioning of the running experiment.
 For more details about it, please refer to this [tutorial](https://github.com/Project-MONAI/tutorials/blob/main/experiment_management/bundle_integrate_mlflow.ipynb).
 
 ## New models in MONAI Model Zoo
