@@ -624,29 +624,7 @@ class AutoRunner:
         else:
             logger.info("Skipping algorithm generation...")
 
-        # step 3: parameter customization for gpu
-        if self.gpu_customization:
-            logger.info("Automatically optimizing parameters based on current GPU devices...")
-
-            if not os.path.isfile(self.datastats_filename):
-                raise ValueError(
-                    f"Could not find the datastats file {self.datastats_filename}. "
-                    "Possibly the required data analysis step was not completed."
-                )
-
-            bundle_generator = BundleGen(
-                algos=self.algos,
-                algo_path=self.work_dir,
-                templates_path_or_url=self.templates_path_or_url,
-                data_stats_filename=self.datastats_filename,
-                data_src_cfg_name=self.data_src_cfg_name,
-            )
-
-            bundle_generator.customize_param(self.work_dir, num_fold=self.num_fold)
-        else:
-            logger.info("Skipping parameter customization...")
-
-        # step 4: algo training
+        # step 3: algo training
         if self.train:
             history = import_bundle_algo_history(self.work_dir, only_trained=False)
 
@@ -664,7 +642,7 @@ class AutoRunner:
         else:
             logger.info("Skipping algorithm training...")
 
-        # step 5: model ensemble and write the prediction to disks.
+        # step 4: model ensemble and write the prediction to disks.
         if self.ensemble:
             history = import_bundle_algo_history(self.work_dir, only_trained=True)
             if len(history) == 0:
