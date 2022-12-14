@@ -37,7 +37,7 @@ class AlgoEnsemble(ABC):
 
     def __init__(self):
         self.algos = []
-        self.mode = "vote"
+        self.mode = "mean"
         self.infer_files = []
         self.algo_ensemble = []
 
