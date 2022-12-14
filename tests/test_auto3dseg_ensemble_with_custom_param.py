@@ -133,7 +133,7 @@ class TestEnsembleBuilder(unittest.TestCase):
         bundle_generator.generate_with_customized_param(
             work_dir,
             num_fold=1,
-            gpu_customization_specs,
+            gpu_customization_specs=gpu_customization_specs,
         )
         history = bundle_generator.get_history()
 
