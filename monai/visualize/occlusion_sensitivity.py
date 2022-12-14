@@ -327,7 +327,7 @@ class OcclusionSensitivity:
             add, mul = None, None
 
         with eval_mode(self.nn_module):
-            # needs to go here to avoid cirular import
+            # needs to go here to avoid circular import
             from monai.inferers import sliding_window_inference
 
             sensitivity_im: MetaTensor = sliding_window_inference(  # type: ignore

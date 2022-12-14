@@ -57,13 +57,13 @@ for p in TEST_NDARRAYS:
 @unittest.skipUnless(has_scipy, "Requires scipy library.")
 class TestGenerateWatershedMaskd(unittest.TestCase):
     @parameterized.expand(EXCEPTION_TESTS)
-    def test_value(self, argments, exception_type):
+    def test_value(self, arguments, exception_type):
         with self.assertRaises(exception_type):
-            GenerateWatershedMaskd(**argments)
+            GenerateWatershedMaskd(**arguments)
 
     @parameterized.expand(TESTS)
-    def test_value2(self, argments, image, expected_shape, expected_value):
-        result = GenerateWatershedMaskd(**argments)({"img": image})
+    def test_value2(self, arguments, image, expected_shape, expected_value):
+        result = GenerateWatershedMaskd(**arguments)({"img": image})
         self.assertEqual(result["mask"].shape, expected_shape)
 
         if isinstance(result["mask"], torch.Tensor):
