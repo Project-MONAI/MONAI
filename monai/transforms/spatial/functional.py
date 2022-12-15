@@ -14,12 +14,15 @@ from typing import Optional, Sequence, Tuple, Union
 import numpy as np
 
 import torch
+import warnings
+
 from monai.networks.layers import GaussianFilter
 
 
-from monai.transforms import create_grid, create_rotate
+from monai.transforms.utils import create_grid, create_rotate
 from monai.config import DtypeLike
-from monai.data import get_track_meta, MetaTensor
+from monai.data.meta_obj import get_track_meta
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms.lazy.functional import extents_from_shape, shape_from_extents, apply
 from monai.transforms.meta_matrix import MatrixFactory, apply_align_corners, MetaMatrix, is_matrix_shaped
 from monai.utils import (
@@ -35,6 +38,9 @@ from monai.utils import (
     InterpolateMode,
     NumpyPadMode
 )
+
+
+# TODO: overriding of the operation name in the case that the function is being called from a random array / dict transform
 
 
 def lazily_apply_op(
@@ -138,7 +144,7 @@ def identity(
 def spacing(
     img: torch.Tensor,
     pixdim: Union[Sequence[float], float],
-    src_pixdim: Union[Sequence[float], float],
+    src_pixdim: Optional[Union[Sequence[float], float]] = None,
     diagonal: Optional[bool] = False,
     mode: Optional[Union[InterpolateMode, str]] = InterpolateMode.AREA,
     padding_mode: Optional[Union[NumpyPadMode, GridSamplePadMode, str]] = NumpyPadMode.EDGE,
@@ -183,10 +189,12 @@ def spacing(
         else:
             input_shape = img_.shape
 
+    src_pixdim_ = src_pixdim or img_.pixdim
+
     input_ndim = len(input_shape) - 1
 
     pixdim_ = ensure_tuple_rep(pixdim, input_ndim)
-    src_pixdim_ = ensure_tuple_rep(src_pixdim, input_ndim)
+    src_pixdim_ = ensure_tuple_rep(src_pixdim_, input_ndim)
 
     if diagonal is True:
         raise ValueError("'diagonal' value of True is not currently supported")
@@ -215,6 +223,60 @@ def spacing(
     return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
 
 
+def orientation(
+        img: torch.Tensor,
+        axcodes: Optional[str] = None,
+        as_closest_canonical: Optional[bool] = False,
+        labels: Optional[Sequence[Tuple[str, str]]] = (("L", "R"), ("P", "A"), ("I", "S")),
+        src_affine: Optional[torch.Tensor] = None,
+        shape_override: Optional[Sequence] = None,
+        lazy_evaluation: Optional[bool] = True
+):
+    """
+    Change the current transform for the image to the orientation specified by the `axcodes` parameter.
+    The precise operation depending upon the following:
+     - if `src_affine` is set, all other affine sources are ignored
+     - if `src_affine` is not set:
+       - if `img` is a metatensor:
+         - if `img` and has pending transforms, the affine from which to perform the operation is
+         calculated from its `.affine` property followed by the concatenated pending transforms
+         - if `img` does not have any pending transforms, the affine from which to perform the operation
+         is calculated from its `.affine` property
+       - if `img` is not a metatensor, identity is used
+    """
+    img_ = convert_to_tensor(img, track_meta=get_track_meta())
+
+    # if shape_override is set, it always wins
+    input_shape = shape_override
+
+    if input_shape is None:
+        if isinstance(img_, MetaTensor) and len(img_.pending_operations) > 0:
+            input_shape = img_.peek_pending_shape()
+        else:
+            input_shape = img_.shape
+
+    if axcodes is None and not as_closest_canonical:
+        raise ValueError("Incompatible values: axcodes=None and as_closest_canonical=True.")
+    if axcodes is not None and as_closest_canonical:
+        warnings.warn("using as_closest_canonical=True, axcodes ignored.")
+
+    spatial_dims = len(input_shape) - 1
+    if spatial_dims < 1:
+        raise ValueError("'img' must have at least one spatial dimensions")
+
+    # calculating the transform to be applied
+    # A: accumulated transform
+    # C: resulting transform
+    # B: transform to calculate
+    # AB = C
+    # A`AB = A`C  - multiply both sides by A`
+    # IB = A`C    - A'A = I
+    # B = A`C
+    result = torch.linalg.inv(src_affine) @ dest_affine
+
+
+
+
 def flip(
         img: torch.Tensor,
         spatial_axis: Union[Sequence[int], int],
@@ -227,8 +289,8 @@ def flip(
     input_shape = shape_override
 
     if input_shape is None:
-        if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
-            input_shape = img.peek_pending_shape()
+        if isinstance(img_, MetaTensor) and len(img_.pending_operations) > 0:
+            input_shape = img_.peek_pending_shape()
         else:
             input_shape = img_.shape
 

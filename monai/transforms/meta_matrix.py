@@ -118,6 +118,9 @@ def ensure_tensor(data: NdarrayOrTensor):
 
 # this will conflict with PR Replacement Apply and Resample #5436
 def apply_align_corners(matrix, spatial_size, factory):
+    """
+    TODO: ensure that this functionality is correct and produces the same result as the existing ways of handling align corners
+    """
     inflated_spatial_size = tuple(s + 1 for s in spatial_size)
     scale_factors = tuple(s / i for s, i in zip(spatial_size, inflated_spatial_size))
     scale_mat = factory.scale(scale_factors)

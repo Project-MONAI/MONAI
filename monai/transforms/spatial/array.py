@@ -38,7 +38,8 @@ from monai.transforms.spatial.functional import (
     zoom, elastic_3d, identity
 )
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.spatial.randomizers import RotateRandomizer, DiscreteRandomizer
+from monai.transforms.spatial.randomizers import RotateRandomizer, DiscreteRandomizer, BooleanRandomizer, \
+    SpatialAxisRandomizer
 from monai.transforms.transform import (
     LazyTrait,
     LazyTransform,
@@ -122,6 +123,7 @@ RandRange = Optional[Union[Sequence[Union[Tuple[float, float], float]], float]]
 
 class SpatialResample(InvertibleTransform):
     """
+    TODO: determine whether this is still needed
     Resample input image from the orientation/spacing defined by ``src_affine`` affine matrix into
     the ones specified by ``dst_affine`` affine matrix.
 
@@ -352,8 +354,11 @@ class SpatialResample(InvertibleTransform):
 
 
 class ResampleToMatch(SpatialResample):
-    """Resample an image to match given metadata. The affine matrix will be aligned,
-    and the size of the output image will match."""
+    """
+    TODO: determine whether this is still needed
+    Resample an image to match given metadata. The affine matrix will be aligned,
+    and the size of the output image will match.
+    """
 
     def update_meta(self, img: torch.Tensor, dst_affine=None, img_dst=None):
         if dst_affine is not None:
@@ -432,6 +437,7 @@ class ResampleToMatch(SpatialResample):
         self.update_meta(img, dst_affine=dst_affine, img_dst=img_dst)
         return img
 
+
 class Spacing(LazyTransform, InvertibleTransform):
     """
     Resample input image into the specified `pixdim`.
@@ -440,7 +446,7 @@ class Spacing(LazyTransform, InvertibleTransform):
     def __init__(
             self,
             pixdim: Union[Sequence[float], float, np.ndarray],
-            src_pixdim: Optional[Union[Sequence[float], float, np.ndarray]],
+            src_pixdim: Optional[Union[Sequence[float], float, np.ndarray]] = None,
             diagonal: Optional[bool] = False,
             mode: Optional[Union[GridSampleMode, str]] = GridSampleMode.BILINEAR,
             padding_mode: Optional[Union[GridSamplePadMode, str]] = GridSamplePadMode.BORDER,
@@ -571,6 +577,7 @@ class Spacing(LazyTransform, InvertibleTransform):
 
 class Orientation(InvertibleTransform):
     """
+    TODO: update to be a lazy implementation
     Change the input image's orientation into the specified based on `axcodes`.
     """
 
@@ -728,9 +735,10 @@ class Flip(LazyTransform, InvertibleTransform):
             spatial_axis: Optional[Union[Sequence[int], int]] = None,
             shape_override: Optional[Sequence] = None
     ):
-        spatial_axis_ = self.spatial_axis = spatial_axis
+        spatial_axis_ = spatial_axis or self.spatial_axis
 
         img_t = flip(img, spatial_axis_, None, self.lazy_evaluation)
+
         return img_t
 
     def inverse(self, data):
@@ -738,6 +746,9 @@ class Flip(LazyTransform, InvertibleTransform):
 
 
 class Resize(LazyTransform, InvertibleTransform):
+    """
+    TODO: update for unified resampling parameters on general resample/Resample
+    """
 
     def __init__(
             self,
@@ -908,8 +919,8 @@ class Rotate(InvertibleTransform, LazyTransform):
             align_corners: Optional[bool] = None,
             shape_override: Optional[Sequence] = None
     ) -> NdarrayOrTensor:
-        angle_ = self.angle or angle
-        mode_ = mode or self.mode or mode
+        angle_ = angle or self.angle
+        mode_ = mode or self.mode
         padding_mode_ = padding_mode or self.padding_mode
         align_corners_ = align_corners or self.align_corners
         keep_size = self.keep_size
@@ -983,39 +994,37 @@ class Zoom(LazyTransform, InvertibleTransform):
     def __call__(
         self,
         img: NdarrayOrTensor,
-        mode: Optional[Union[InterpolateMode, str]] = None,
-        padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
-        align_corners: Optional[bool] = None,
+        mode_: Optional[Union[InterpolateMode, str]] = None,
+        padding_mode_: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
+        align_corners_: Optional[bool] = None,
         factor: Optional[Union[Sequence[float], float]] = None,
     ) -> NdarrayOrTensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]).
-            mode: {``"nearest"``, ``"nearest-exact"``, ``"linear"``,
+            mode_: {``"nearest"``, ``"nearest-exact"``, ``"linear"``,
                 ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
                 The interpolation mode. Defaults to ``self.mode``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
-            padding_mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+            padding_mode_: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
                 ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
                 available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
                 One of the listed string values or a user supplied function. Defaults to ``"edge"``.
                 The mode to pad data after zooming.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
                 https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
-            align_corners: This only has an effect when mode is
+            align_corners_: This only has an effect when mode is
                 'linear', 'bilinear', 'bicubic' or 'trilinear'. Defaults to ``self.align_corners``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
 
         """
-        factor = self.factor if factor is None else factor
-        mode = self.mode if mode is None else mode
-        padding_mode = self.padding_mode if padding_mode is None else padding_mode
-        align_corners = self.align_corners if align_corners is None else align_corners
-        keep_size = self.keep_size
-        dtype = self.dtype
+        factor_ = factor or self.factor
+        mode_ = self.mode if mode_ is None else mode_
+        padding_mode_ = self.padding_mode if padding_mode_ is None else padding_mode_
+        align_corners_ = self.align_corners if align_corners_ is None else align_corners_
 
-        img_t = zoom(img, factor, mode, padding_mode, align_corners,
-                     keep_size, dtype, None, self.lazy_evaluation)
+        img_t = zoom(img, factor_, mode_, padding_mode_, align_corners_,
+                     self.keep_size, self.dtype, None, self.lazy_evaluation)
 
         return img_t
 
@@ -1099,7 +1108,7 @@ class RandRotate90(InvertibleTransform, LazyTransform, RandomizableTrait):
 
         self.randomizer = DiscreteRandomizer(0, max_k, prob, random_seed, random_state)
 
-        self.op = Rotate90(0, spatial_axes, lazy_evaluation)
+        # self.op = Rotate90(0, spatial_axes, lazy_evaluation)
 
     # def randomize(self, data: Optional[Any] = None) -> None:
     #     super().randomize(None)
@@ -1117,7 +1126,7 @@ class RandRotate90(InvertibleTransform, LazyTransform, RandomizableTrait):
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
             randomize: whether to execute `randomize()` function first, default to True.
         """
-        return self.op(img, self.randomizer.sample())
+        return rotate90(img, self.randomizer.sample(), self.spatial_axes, None, self.lazy_evaluation)
 
     def inverse(
             self,
@@ -1143,7 +1152,9 @@ class RandRotate(InvertibleTransform, LazyTransform, RandomizableTrait):
             padding_mode: Optional[Union[GridSamplePadMode, str]] = GridSamplePadMode.BORDER,
             align_corners: Optional[bool] = False,
             dtype: Optional[Union[DtypeLike, torch.dtype]] = np.float32,
-            lazy_evaluation: Optional[bool] = True
+            lazy_evaluation: Optional[bool] = True,
+            seed: Integer = None,
+            state: np.random.RandomState = None
     ):
         """
         Randomly rotate the input arrays.
@@ -1172,16 +1183,16 @@ class RandRotate(InvertibleTransform, LazyTransform, RandomizableTrait):
                 the output data type is always ``float32``.
         """
         LazyTransform.__init__(self, lazy_evaluation)
-
-        self.randomizer = RotateRandomizer(value_to_tuple_range(range_x),
-                                           value_to_tuple_range(range_y),
-                                           value_to_tuple_range(range_z),
-                                           prob)
         self.keep_size = keep_size
         self.mode = mode
         self.padding_mode = padding_mode
         self.align_corners = align_corners
         self.dtype = dtype
+
+        self.randomizer = RotateRandomizer(value_to_tuple_range(range_x),
+                                           value_to_tuple_range(range_y),
+                                           value_to_tuple_range(range_z),
+                                           prob, seed=seed, state=state)
 
     def __call__(
             self,
@@ -1225,14 +1236,6 @@ class RandRotate(InvertibleTransform, LazyTransform, RandomizableTrait):
                       align_corners_, dtype_,
                       None, self.lazy_evaluation)
 
-    @property
-    def lazy_evaluation(self):
-        return self.op.lazy_evaluation
-
-    @lazy_evaluation.setter
-    def lazy_evaluation(self, value):
-        self.op.lazy_evaluation = value
-
     def inverse(
             self,
             data: NdarrayOrTensor,
@@ -1258,13 +1261,13 @@ class RandFlip(InvertibleTransform, LazyTransform, RandomizableTrait):
             prob: float = 0.1,
             spatial_axis: Optional[Union[Sequence[int], int]] = None,
             lazy_evaluation: Optional[bool] = True,
-            seed=None,
-            state=None
+            seed: Integer = None,
+            state: np.random.RandomState = None
         ) -> None:
         LazyTransform.__init__(self, lazy_evaluation)
         self.spatial_axis = spatial_axis
 
-        self.randomizer = DiscreteRandomizer(0, 2, prob, seed, state)
+        self.randomizer = BooleanRandomizer(1.0, prob, False, seed, state)
 
     def __call__(self, img: torch.Tensor) -> torch.Tensor:
         """
@@ -1281,11 +1284,7 @@ class RandFlip(InvertibleTransform, LazyTransform, RandomizableTrait):
             return identity(img, None, self.lazy_evaluation)
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        transform = self.pop_transform(data)
-        if not transform[TraceKeys.DO_TRANSFORM]:
-            return data
-        data.applied_operations.append(transform[TraceKeys.EXTRA_INFO])  # type: ignore
-        return self.flipper.inverse(data)
+        raise NotImplementedError()
 
 
 class RandAxisFlip(InvertibleTransform, LazyTransform, RandomizableTrait):
@@ -1306,10 +1305,10 @@ class RandAxisFlip(InvertibleTransform, LazyTransform, RandomizableTrait):
             prob: float = 0.1,
             lazy_evaluation: Optional[bool] = True,
             seed: Integer = None,
-            state: np.RandomState = None
+            state: np.random.RandomState = None
     ) -> None:
         LazyTransform.__init__(self, lazy_evaluation)
-        self.randomizer = DiscreteRandomizer(0, 2, prob, None, seed, state)
+        self.randomizer = SpatialAxisRandomizer(prob, None, seed, state)
 
     def __call__(self, img: torch.Tensor) -> torch.Tensor:
         """
@@ -2506,13 +2505,13 @@ class Rand3DElastic(RandomizableTransform, LazyTransform):
         self.sigma = None
         self.magnitude = None
 
-    def randomize(self, spatial_size: Any):
-        super().randomize(None)
-        if self._do_transform:
-            rand_offsets = self.R.uniform(-1.0, 1.0, [3] + list(spatial_size)).astype(np.float32, copy=False)
-            self.rand_offsets = torch.as_tensor(rand_offsets, device=self.device).unsqueeze(0)
-            self.sigma = self.R.uniform(self.sigma_range[0], self.sigma_range[1])
-            self.magnitude = self.R.uniform(self.magnitude_range[0], self.magnitude_range[1])
+    # def randomize(self, spatial_size: Any):
+    #     super().randomize(None)
+    #     if self._do_transform:
+    #         rand_offsets = self.R.uniform(-1.0, 1.0, [3] + list(spatial_size)).astype(np.float32, copy=False)
+    #         self.rand_offsets = torch.as_tensor(rand_offsets, device=self.device).unsqueeze(0)
+    #         self.sigma = self.R.uniform(self.sigma_range[0], self.sigma_range[1])
+    #         self.magnitude = self.R.uniform(self.magnitude_range[0], self.magnitude_range[1])
 
     def __call__(
             self,
@@ -2533,6 +2532,7 @@ class Rand3DElastic(RandomizableTransform, LazyTransform):
         if randomize:
             self.randomize(spatial_size_)
 
+        # TODO: identity transforms should not cause a multiplication in the apply function but instead it can be forwarded
         if self.rand_offsets is None:
             return identity(img, shape_override=shape_override_, lazy_evaluation=self.lazy_evaluation)
         else:
