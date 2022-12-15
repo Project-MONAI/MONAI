@@ -9,8 +9,7 @@
 ## Digital pathology workflows
 
 Hover-Net is a model for simultaneous segmentation and classification of nuclei in multi-tissue histology images (Graham et al. Medical Image Analysis, 2019).
-We have added support for this model in MONAI by implementing several new components, enhancing existing ones and providing several pipelines and
-notebooks for training, validation and inference.
+We have added support for this model in MONAI by implementing several new components, enhancing existing ones and providing pipelines and examples for training, validation and inference.
 
 Along with the modules released in MONAI, new tutorials are made available:
 
@@ -23,33 +22,27 @@ and [inference](https://github.com/Project-MONAI/tutorials/blob/main/pathology/n
 
 ## Experiment management for MONAI bundle
 
-![exp_mgmt](../images/exp_mgmt.png)
-
-In this release, experiment management features are integrated with the MONAI bundle.
+In this release, experiment management features are integrated with MONAI bundle.
 It provides essential APIs for managing the end-to-end model bundle lifecycle.
-Users can start tracking experiments by, for example, appending `--tracking "mlflow"` to the training or inference bundle commands to enable the MLFlow-based management.
-By default, MLFlow will track the executed bundle config, model quality measurements, and source code versioning of the running experiment.
+Users can start tracking experiments by, for example, appending `--tracking "mlflow"` to the training or inference commands to enable the MLFlow-based management.
+By default, MLFlow will track the executed bundle config, model quality measurements, and source code versioning.
 For more details, please refer to the [tutorial](https://github.com/Project-MONAI/tutorials/blob/main/experiment_management/bundle_integrate_mlflow.ipynb).
 
 ## Auto3dSeg enhancements
 
 Multiple improvements have been added in `Auto3DSeg` both in terms of
 usability and performance.
-
-- a new improved version of `Segresnet` Algo
-is now accessible in `AutoRunner`. Multi-modality support is added and applied for
+- Multi-modality support is added and applied for
 automated segmentation of the HECKTOR22 challenge dataset, which includes input 3D
 CT and PET images of various resolutions and sizes. A tutorial example of
 running Auto3DSeg on the HECKTOR22 challenge dataset is available in MONAI
 Tutorials. The tutorial is based on [the HECKTOR22 challenge 1st place solution](https://arxiv.org/abs/2209.10809).
-
-- automatic customization and optimization of the model training configuration
-according to the GPU device used. The feature
+- A new improved version of `Segresnet` Algo is now accessible in `AutoRunner`.
+- Automatic customization and optimization of the model training configuration
+can be achieved according to the GPU device used. The feature
 focuses on determining parameters including batch size of model
 training and sliding-window inference, allocated devices for
-data in sliding-window inference.
-
-For more details about how to enable the feature, please see [the tutorials](https://github.com/Project-MONAI/tutorials/tree/main/auto3dseg).
+data in sliding-window inference. For more details about how to enable the feature, please see [the tutorials](https://github.com/Project-MONAI/tutorials/tree/main/auto3dseg).
 
 ## New models in MONAI Model Zoo
 
@@ -66,7 +59,7 @@ For more details about how to use the models, please see [the tutorials](https:/
 
 ## State-of-the-art SurgToolLoc solution
 
-[SurgToolLoc](https://surgtoolloc.grand-challenge.org/Home/) is a part of
+[SurgToolLoc](https://surgtoolloc.grand-challenge.org/Home/) is a part of the
 [EndoVis](https://endovis.grand-challenge.org/) challenge at [MICCAI 2022](https://conferences.miccai.org/2022/en/).
 The challenge focuses on endoscopic video analysis and is divided into (1) fully supervised tool classification
 and (2) weakly supervised tool classification/localization.
