@@ -95,8 +95,11 @@ class TestHandlerMLFlow(unittest.TestCase):
 
             for _, future in futures.items():
                 res = future.result()
-                self.assertTrue(len(glob.glob(res)) > 0)
-                shutil.rmtree(res)
+                try:
+                    self.assertTrue(len(glob.glob(res)) > 0)
+                finally:
+                    if os.path.exists(res):
+                        shutil.rmtree(res)
 
 
 if __name__ == "__main__":
