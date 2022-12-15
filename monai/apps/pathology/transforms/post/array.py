@@ -216,8 +216,8 @@ class GenerateInstanceBorder(Transform):
             raise ValueError("Not a valid hover map, please check your input")
         hover_h = (hover_h - hover_h_min) / (hover_h_max - hover_h_min)
         hover_v = (hover_v - hover_v_min) / (hover_v_max - hover_v_min)
-        sobelh = self.sobel_gradient(hover_h)[0, ...]
-        sobelv = self.sobel_gradient(hover_v)[1, ...]
+        sobelh = self.sobel_gradient(hover_h)[1, ...]
+        sobelv = self.sobel_gradient(hover_v)[0, ...]
         sobelh_min, sobelh_max = min(sobelh), max(sobelh)
         sobelv_min, sobelv_max = min(sobelv), max(sobelv)
         if (sobelh_max - sobelh_min) == 0 or (sobelv_max - sobelv_min) == 0:
