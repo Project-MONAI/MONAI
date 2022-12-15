@@ -18,24 +18,15 @@ limitations under the License.
 #include "trainable_bilateral.h"
 #include "utils/common_utils.h"
 
-std::tuple<torch::Tensor,
-           torch::Tensor,
-           torch::Tensor,
-           torch::Tensor,
-           torch::Tensor,
-           torch::Tensor,
-           torch::Tensor> TrainableBilateralFilterForward(torch::Tensor inputTensor,
-                                                          float sigma_x,
-                                                          float sigma_y,
-                                                          float sigma_z,
-                                                          float colorSigma) {
-  std::tuple<torch::Tensor,
-      torch::Tensor,
-      torch::Tensor,
-      torch::Tensor,
-      torch::Tensor,
-      torch::Tensor,
-      torch::Tensor> (*filterFunction)(torch::Tensor, float, float, float, float);
+std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
+TrainableBilateralFilterForward(
+    torch::Tensor inputTensor,
+    float sigma_x,
+    float sigma_y,
+    float sigma_z,
+    float colorSigma) {
+  std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor> (
+      *filterFunction)(torch::Tensor, float, float, float, float);
 
 #ifdef WITH_CUDA
 
@@ -64,16 +55,18 @@ std::tuple<torch::Tensor,
   return filterFunction(inputTensor, sigma_x, sigma_y, sigma_z, colorSigma);
 }
 
-torch::Tensor TrainableBilateralFilterBackward(torch::Tensor gradientInputTensor,
-                                               torch::Tensor inputTensor,
-                                               torch::Tensor outputTensor,
-                                               torch::Tensor outputWeightsTensor,
-                                               torch::Tensor dO_dx_ki,
-                                               float sigma_x,
-                                               float sigma_y,
-                                               float sigma_z,
-                                               float colorSigma) {
-  torch::Tensor (*filterFunction)(torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, float, float, float, float);
+torch::Tensor TrainableBilateralFilterBackward(
+    torch::Tensor gradientInputTensor,
+    torch::Tensor inputTensor,
+    torch::Tensor outputTensor,
+    torch::Tensor outputWeightsTensor,
+    torch::Tensor dO_dx_ki,
+    float sigma_x,
+    float sigma_y,
+    float sigma_z,
+    float colorSigma) {
+  torch::Tensor (*filterFunction)(
+      torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, float, float, float, float);
 
 #ifdef WITH_CUDA
 
@@ -99,5 +92,14 @@ torch::Tensor TrainableBilateralFilterBackward(torch::Tensor gradientInputTensor
   filterFunction = &BilateralFilterCpuBackward;
 #endif
 
-  return filterFunction(gradientInputTensor, inputTensor, outputTensor, outputWeightsTensor, dO_dx_ki, sigma_x, sigma_y, sigma_z, colorSigma);
+  return filterFunction(
+      gradientInputTensor,
+      inputTensor,
+      outputTensor,
+      outputWeightsTensor,
+      dO_dx_ki,
+      sigma_x,
+      sigma_y,
+      sigma_z,
+      colorSigma);
 }
