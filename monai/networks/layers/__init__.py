@@ -12,7 +12,7 @@
 from .convutils import calculate_out_shape, gaussian_1d, polyval, same_padding, stride_minus_kernel_padding
 from .drop_path import DropPath
 from .factories import Act, Conv, Dropout, LayerFactory, Norm, Pad, Pool, split_args
-from .filtering import BilateralFilter, PHLFilter
+from .filtering import BilateralFilter, PHLFilter, TrainableBilateralFilter
 from .gmm import GaussianMixtureModel
 from .simplelayers import (
     LLTM,
