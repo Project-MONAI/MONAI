@@ -45,20 +45,21 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 * Randomized transforms such as `RandCuCIM` now inherit `RandomizableTrait`
 * `fg_indices.size` compatibility issue in `generate_pos_neg_label_crop_centers`
 * Issue when inverting `ToTensor`
-* Issue of capital letters in suffixes check in `LoadImage`
-* Minor issues in `apps.nuclick.transforms`
+* Issue of capital letters in filename suffixes check in `LoadImage`
+* Minor tensor compatibility issues in `apps.nuclick.transforms`
 * Issue of float16 in `verify_net_in_out`
 * `std` variable type issue for `RandRicianNoise`
 * `DataAnalyzer` accepts `None` as label key and checks empty labels
+* `iter_patch_position` now has a smaller memory footprint
+* `CumulativeAverage` has been refactored and enhanced to allow for simple tracking of metric running stats.
+* Multi-threading issue for `MLFlowHandler`
 ### Changed
 * Printing a MetaTensor now generates a less verbose representation
 * `DistributedSampler` raises a ValueError if there are too few devices
-* `iter_patch_position` now has a smaller memory footprint
 * OpenCV and `VideoDataset` modules are loaded lazily to avoid dependency issues
 * `device` in `monai.engines.Workflow` supports string values
 * `Activations` and `AsDiscrete` take `kwargs` as additional arguments
-* `DataAnalyzer` is more efficient and writes summary stats before detailed all case stats
-* `CumulativeAverage` has been refactored and enhanced to allow for simple tracking of metric running stats.
+* `DataAnalyzer` is now more efficient and writes summary stats before detailed all case stats
 * Base Docker image upgraded to `nvcr.io/nvidia/pytorch:22.10-py3` from `nvcr.io/nvidia/pytorch:22.09-py3`
 * Simplified Conda environment file `environment-dev.yml`
 * Versioneer dependency upgraded to `0.23` from `0.19`
