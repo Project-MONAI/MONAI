@@ -67,12 +67,12 @@ pred_param = {"files_slices": slice(0, 1), "mode": "mean", "sigmoid": True}
 @skip_if_quick
 @SkipIfBeforePyTorchVersion((1, 9, 1))
 @unittest.skipIf(not has_tb, "no tensorboard summary writer")
-class TestEnsembleBuilder(unittest.TestCase):
+class TestEnsembleGpuCustomization(unittest.TestCase):
     def setUp(self) -> None:
         self.test_dir = tempfile.TemporaryDirectory()
 
     @skip_if_no_cuda
-    def test_ensemble(self) -> None:
+    def test_ensemble_gpu_customization(self) -> None:
         test_path = self.test_dir.name
 
         dataroot = os.path.join(test_path, "dataroot")
