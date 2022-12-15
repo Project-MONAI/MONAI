@@ -278,9 +278,6 @@ class AutoRunner:
         self.set_ensemble_method(self.ensemble_method_name)
         self.set_num_fold(num_fold=self.num_fold)
 
-        self.gpu_customization = kwargs.pop("gpu_customization", False)
-        self.gpu_customization_specs = kwargs.pop("gpu_customization_specs", {})
-
         # hpo
         if hpo_backend.lower() != "nni":
             raise NotImplementedError("HPOGen backend only supports NNI")
@@ -334,6 +331,15 @@ class AutoRunner:
         ConfigParser.export_config_file(
             self.cache, self.cache_filename, fmt="yaml", default_flow_style=None, sort_keys=False
         )
+
+    def set_gpu_customization(
+        self, gpu_customization: bool = False, gpu_customization_specs: Optional[Dict[str, Any]] = None
+    ):
+        """
+        Set options for GPU-based parameter customization/optimization.
+        """
+        self.gpu_customization = gpu_customization
+        self.gpu_customization_specs = gpu_customization_specs
 
     def set_num_fold(self, num_fold: int = 5):
         """
