@@ -278,6 +278,9 @@ class AutoRunner:
         self.set_ensemble_method(self.ensemble_method_name)
         self.set_num_fold(num_fold=self.num_fold)
 
+        self.gpu_customization = False
+        self.gpu_customization_specs = None
+
         # hpo
         if hpo_backend.lower() != "nni":
             raise NotImplementedError("HPOGen backend only supports NNI")
