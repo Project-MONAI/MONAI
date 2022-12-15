@@ -50,7 +50,7 @@ class TestHandlerMLFlow(unittest.TestCase):
     def setUp(self):
         self.tmpdir_list = []
 
-    def tearDown(self) -> None:
+    def tearDown(self):
         for tmpdir in self.tmpdir_list:
             if tmpdir and os.path.exists(tmpdir):
                 shutil.rmtree(tmpdir)
