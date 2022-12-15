@@ -212,7 +212,7 @@ class TrainableBilateralFilter(torch.nn.Module):
     """
 
     def __init__(self, sigma_x, sigma_y, sigma_z, sigma_color):
-        super(TrainableBilateralFilter, self).__init__()
+        super().__init__()
 
         # Register sigmas as trainable parameters.
         self.sigma_x = torch.nn.Parameter(torch.tensor(sigma_x))
