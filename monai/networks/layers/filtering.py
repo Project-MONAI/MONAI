@@ -119,7 +119,7 @@ class TrainableBilateralFilterFunction(torch.autograd.Function):
         sigma z: trainable standard deviation of the spatial filter kernel in z direction.
 
         color sigma: trainable standard deviation of the intensity range kernel. This filter
-        parameter determines the degree of edge preservation.
+            parameter determines the degree of edge preservation.
 
     Returns:
         output (torch.Tensor): filtered tensor.
@@ -204,21 +204,21 @@ class TrainableBilateralFilter(torch.nn.Module):
 
         sigma z: trainable standard deviation of the spatial filter kernel in z direction.
 
-        color sigma: trainable standard deviation of the intensity range kernel. This filter
-        parameter determines the degree of edge preservation.
+        sigma color: trainable standard deviation of the intensity range kernel. This filter
+            parameter determines the degree of edge preservation.
 
     Returns:
         output (torch.Tensor): filtered tensor.
     """
 
-    def __init__(self, sigma_x, sigma_y, sigma_z, color_sigma):
+    def __init__(self, sigma_x, sigma_y, sigma_z, sigma_color):
         super(TrainableBilateralFilter, self).__init__()
 
         # Register sigmas as trainable parameters.
         self.sigma_x = torch.nn.Parameter(torch.tensor(sigma_x))
         self.sigma_y = torch.nn.Parameter(torch.tensor(sigma_y))
         self.sigma_z = torch.nn.Parameter(torch.tensor(sigma_z))
-        self.color_sigma = torch.nn.Parameter(torch.tensor(color_sigma))
+        self.sigma_color = torch.nn.Parameter(torch.tensor(sigma_color))
 
     def forward(self, input_tensor):
         assert input_tensor.shape[1] == 1, (
@@ -236,7 +236,7 @@ class TrainableBilateralFilter(torch.nn.Module):
             input_tensor = input_tensor.unsqueeze(4)
 
         prediction = TrainableBilateralFilterFunction.apply(
-            input_tensor, self.sigma_x, self.sigma_y, self.sigma_z, self.color_sigma
+            input_tensor, self.sigma_x, self.sigma_y, self.sigma_z, self.sigma_color
         )
 
         # Make sure to return tensor of the same shape as the input.
