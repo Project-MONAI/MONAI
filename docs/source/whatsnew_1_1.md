@@ -11,10 +11,10 @@
 Hover-Net is a model for simultaneous segmentation and classification of nuclei in multi-tissue histology images (Graham et al. Medical Image Analysis, 2019).
 We have added support for this model in MONAI by implementing several new components, enhancing existing ones and providing pipelines and examples for training, validation and inference.
 
-Along with the modules released in MONAI, new tutorials are made available:
+Along with the modules release, new digital pathology analysis tutorials are made available:
 
 - [HoVerNet pipelines](https://github.com/Project-MONAI/tutorials/tree/main/pathology/hovernet) based on MONAI workflows for training, validation and inference
-- [HoVerNet tutorial](https://github.com/Project-MONAI/tutorials/blob/main/pathology/hovernet/hovernet_training_torch.ipynb) for training, validation and inference
+- [HoVerNet tutorial](https://github.com/Project-MONAI/tutorials/blob/main/pathology/hovernet/hovernet_torch.ipynb) for training, validation and inference
 - NuClick (Interactive Annotation for Pathology) tutorials for [training](https://github.com/Project-MONAI/tutorials/blob/main/pathology/nuclick/nuclick_training_notebook.ipynb)
 and [inference](https://github.com/Project-MONAI/tutorials/blob/main/pathology/nuclick/nuclick_infer.ipynb)
 - Nuclei classification tutorials for [training](https://github.com/Project-MONAI/tutorials/blob/main/pathology/nuclick/nuclei_classification_training_notebook.ipynb)
@@ -37,12 +37,12 @@ automated segmentation of the HECKTOR22 challenge dataset, which includes input 
 CT and PET images of various resolutions and sizes. A tutorial example of
 running Auto3DSeg on the HECKTOR22 challenge dataset is available in MONAI
 Tutorials. The tutorial is based on [the HECKTOR22 challenge 1st place solution](https://arxiv.org/abs/2209.10809).
-- A new improved version of `Segresnet` Algo is now accessible in `AutoRunner`.
+- A new improved version of `Segresnet` Algo is now available in `AutoRunner`.
 - Automatic customization and optimization of the model training configuration
-can be achieved according to the GPU device used. The feature
+can be achieved according to the GPU devices used. The feature
 focuses on determining parameters including batch size of model
 training and sliding-window inference, allocated devices for
-data in sliding-window inference. For more details about how to enable the feature, please see [the tutorials](https://github.com/Project-MONAI/tutorials/tree/main/auto3dseg).
+data in sliding-window inference. For more details about how to enable it, please see [the tutorials](https://github.com/Project-MONAI/tutorials/tree/main/auto3dseg).
 
 ## New models in MONAI Model Zoo
 
@@ -64,5 +64,4 @@ For more details about how to use the models, please see [the tutorials](https:/
 The challenge focuses on endoscopic video analysis and is divided into (1) fully supervised tool classification
 and (2) weakly supervised tool classification/localization.
 Team NVIDIA won prizes by finishing [third](https://surgtoolloc.grand-challenge.org/results/) in both categories.
-The core components of the solutions are released in MONAI. For more details about the implementation,
-please see [the tutorials](https://github.com/Project-MONAI/tutorials/tree/main/competitions/MICCAI/surgtoolloc).
+The core components of the solutions [are released in MONAI](https://github.com/Project-MONAI/tutorials/tree/main/competitions/MICCAI/surgtoolloc).
