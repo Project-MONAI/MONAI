@@ -461,7 +461,7 @@ class GenerateSuccinctContour(Transform):
                         pixel = (int(coord[0] - 0.5), int(coord[1]))
                     else:
                         warnings.warn(f"Invalid contour coord {coord} is generated, skip this instance.")
-                        return None
+                        return None  # type: ignore
                     sequence.append(pixel)
                     last_added = pixel
                 elif i == len(group) - 1:
