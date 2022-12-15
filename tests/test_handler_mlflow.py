@@ -47,6 +47,14 @@ def dummy_train(tracking_folder):
 
 
 class TestHandlerMLFlow(unittest.TestCase):
+    def setUp(self):
+        self.tmpdir_list = []
+
+    def tearDown(self) -> None:
+        for tmpdir in self.tmpdir_list:
+            if tmpdir and os.path.exists(tmpdir):
+                shutil.rmtree(tmpdir)
+
     def test_metrics_track(self):
         experiment_param = {"backbone": "efficientnet_b0"}
         with tempfile.TemporaryDirectory() as tempdir:
@@ -95,11 +103,8 @@ class TestHandlerMLFlow(unittest.TestCase):
 
             for _, future in futures.items():
                 res = future.result()
-                try:
-                    self.assertTrue(len(glob.glob(res)) > 0)
-                finally:
-                    if os.path.exists(res):
-                        shutil.rmtree(res)
+                self.tmpdir_list.append(res)
+                self.assertTrue(len(glob.glob(res)) > 0)
 
 
 if __name__ == "__main__":
