@@ -58,8 +58,8 @@ for p in TEST_NDARRAYS:
 
 class TestLabelToMask(unittest.TestCase):
     @parameterized.expand(TESTS)
-    def test_value(self, argments, image, expected_data):
-        result = LabelToMask(**argments)(image)
+    def test_value(self, arguments, image, expected_data):
+        result = LabelToMask(**arguments)(image)
         assert_allclose(result, expected_data, type_test="tensor")
 
 

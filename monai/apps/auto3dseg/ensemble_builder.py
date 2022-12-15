@@ -107,8 +107,11 @@ class AlgoEnsemble(ABC):
             prob = MeanEnsemble()(preds)
             return prob2class(prob, dim=0, keepdim=True, sigmoid=sigmoid)
         elif self.mode == "vote":
-            classes = [prob2class(p, dim=0, keepdim=True, sigmoid=False) for p in preds]
-            return VoteEnsemble(num_classes=preds[0].shape[0])(classes)
+            classes = [prob2class(p, dim=0, keepdim=True, sigmoid=sigmoid) for p in preds]
+            if sigmoid:
+                return VoteEnsemble()(classes)  # do not specify num_classes for one-hot encoding
+            else:
+                return VoteEnsemble(num_classes=preds[0].shape[0])(classes)
 
     def __call__(self, pred_param: Optional[Dict[str, Any]] = None):
         """
@@ -194,7 +197,8 @@ class AlgoEnsembleBestN(AlgoEnsemble):
 
         ranks = self.sort_score()
         if len(ranks) < n_best:
-            raise ValueError("Number of available algos is less than user-defined N")
+            warn(f"Found {len(ranks)} available algos (pre-defined n_best={n_best}). All {len(ranks)} will be used.")
+            n_best = len(ranks)
 
         # get the indices that the rank is larger than N
         indices = [i for (i, r) in enumerate(ranks) if r >= n_best]

@@ -532,7 +532,7 @@ def save_obj(
     Args:
         obj: input object data to save.
         path: target file path to save the input object.
-        create_dir: whether to create dictionary of the path if not existng, default to `True`.
+        create_dir: whether to create dictionary of the path if not existing, default to `True`.
         atomic: if `True`, state is serialized to a temporary file first, then move to final destination.
             so that files are guaranteed to not be damaged if exception occurs. default to `True`.
         func: the function to save file, if None, default to `torch.save`.
