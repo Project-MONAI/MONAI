@@ -476,7 +476,7 @@ class BundleGen(AlgoGen):
                 training to simulate the actual model training process and hyperparameter optimization (HPO)
                 experiments.
             gpu_customization_specs (optinal): the dictionary to enable users overwrite the HPO settings. user can
-                overwrite part of variables as follows or all of them. The stucture is as follows.
+                overwrite part of variables as follows or all of them. The structure is as follows.
 
                 .. code-block:: python
 
