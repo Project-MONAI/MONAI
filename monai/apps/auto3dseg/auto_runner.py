@@ -279,7 +279,7 @@ class AutoRunner:
         self.set_num_fold(num_fold=self.num_fold)
 
         self.gpu_customization = False
-        self.gpu_customization_specs = None
+        self.gpu_customization_specs = {}
 
         # hpo
         if hpo_backend.lower() != "nni":
