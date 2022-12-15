@@ -477,18 +477,22 @@ class BundleGen(AlgoGen):
                 experiments.
             gpu_customization_specs (optinal): the dictionary to enable users overwrite the HPO settings. user can
                 overwrite part of variables as follows or all of them. The stucture is as follows.
-                {
-                    'ALOG': {
-                        'num_trials': 6,
-                        'range_num_images_per_batch': [1, 20],
-                        'range_num_sw_batch_size': [1, 20]
+
+                .. code-block:: python
+
+                    gpu_customization_specs = {
+                        'ALOG': {
+                            'num_trials': 6,
+                            'range_num_images_per_batch': [1, 20],
+                            'range_num_sw_batch_size': [1, 20]
+                        }
                     }
-                }
-                ALGO: the name of algorithm. It could be one of algorithm names (e.g., 'dints') or 'unversal' which
-                    would apply changes to all algorithms.
-                num_trials: the number of HPO trials/experiments to run.
-                range_num_images_per_batch: the range of number of images per mini-batch.
-                range_num_sw_batch_size: the range of batch size in sliding-window inferer.
+
+            ALGO: the name of algorithm. It could be one of algorithm names (e.g., 'dints') or 'unversal' which
+                would apply changes to all algorithms.
+            num_trials: the number of HPO trials/experiments to run.
+            range_num_images_per_batch: the range of number of images per mini-batch.
+            range_num_sw_batch_size: the range of batch size in sliding-window inferer.
         """
         fold_idx = list(range(num_fold))
         for algo in self.algos:
