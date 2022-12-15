@@ -340,6 +340,33 @@ class AutoRunner:
     ):
         """
         Set options for GPU-based parameter customization/optimization.
+
+        Args:
+            gpu_customization: the switch to determine automatically customize/optimize bundle script/config
+                parameters for each bundleAlgo based on gpus. Custom parameters are obtained through dummy
+                training to simulate the actual model training process and hyperparameter optimization (HPO)
+                experiments.
+            gpu_customization_specs (optinal): the dictionary to enable users overwrite the HPO settings. user can
+                overwrite part of variables as follows or all of them. The structure is as follows.
+
+                .. code-block:: python
+
+                    gpu_customization_specs = {
+                        'ALOG': {
+                            'num_trials': 6,
+                            'range_num_images_per_batch': [1, 20],
+                            'range_num_sw_batch_size': [1, 20]
+                        }
+                    }
+
+            ALGO: the name of algorithm. It could be one of algorithm names (e.g., 'dints') or 'unversal' which
+                would apply changes to all algorithms. Possible options are
+
+                - {``"unversal"``, ``"dints"``, ``"segresnet"``, ``"segresnet2d"``, ``"swinunetr"``}.
+
+            num_trials: the number of HPO trials/experiments to run.
+            range_num_images_per_batch: the range of number of images per mini-batch.
+            range_num_sw_batch_size: the range of batch size in sliding-window inferer.
         """
         self.gpu_customization = gpu_customization
         self.gpu_customization_specs = gpu_customization_specs

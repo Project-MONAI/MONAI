@@ -463,7 +463,7 @@ class BundleGen(AlgoGen):
         output_folder=".",
         num_fold: int = 5,
         gpu_customization: bool = False,
-        gpu_customization_specs: Optional[dict] = None,
+        gpu_customization_specs: Optional[Dict[str, Any]] = None,
     ):
         """
         Generate the bundle scripts/configs for each bundleAlgo
