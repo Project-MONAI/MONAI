@@ -14,7 +14,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 * New `bundle.script` API to support model zoo query and download
 * `LossMetric` metric to compute loss as cumulative metric measurement
 * Transforms and base transform APIs including `RandomizableTrait` and `MedianSmooth`
-* `runtime_cache` option for `CacheDataset` and the derived classes
+* `runtime_cache` option for `CacheDataset` and the derived classes to allow for shared caching on the fly
 * Flexible name formatter for `SaveImage` transform
 * `pending_operations` MetaTensor property and basic APIs for lazy image resampling
 * Contrastive sensitivity for SSIM metric
@@ -57,7 +57,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 * OpenCV and `VideoDataset` modules are loaded lazily to avoid dependency issues
 * `device` in `monai.engines.Workflow` supports string values
 * `Activations` and `AsDiscrete` take `kwargs` as additional arguments
-* `DataAnalyzer` writes summary stats before detailed all case stats
+* `DataAnalyzer` is more efficient and writes summary stats before detailed all case stats
+* `CumulativeAverage` has been refactored and enhanced to allow for simple tracking of metric running stats.
 * Base Docker image upgraded to `nvcr.io/nvidia/pytorch:22.10-py3` from `nvcr.io/nvidia/pytorch:22.09-py3`
 * Simplified Conda environment file `environment-dev.yml`
 * Versioneer dependency upgraded to `0.23` from `0.19`
