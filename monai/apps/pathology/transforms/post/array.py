@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -458,6 +459,9 @@ class GenerateSuccinctContour(Transform):
                     elif coord[1] == self.width - 1:
                         corner = 2
                         pixel = (int(coord[0] - 0.5), int(coord[1]))
+                    else:
+                        warnings.warn(f"Invalid coutour coord {coord} is generated, skip this instance!!")
+                        return None
                     sequence.append(pixel)
                     last_added = pixel
                 elif i == len(group) - 1:
@@ -555,7 +559,8 @@ class GenerateInstanceContour(Transform):
         inst_contour_cv = find_contours(inst_mask, level=self.contour_level)
         generate_contour = GenerateSuccinctContour(inst_mask.shape[0], inst_mask.shape[1])
         inst_contour = generate_contour(inst_contour_cv)
-
+        if inst_contour is None:
+            return None
         # less than `self.min_num_points` points don't make a contour, so skip.
         # They are likely to be artifacts as the contours obtained via approximation.
         if inst_contour.shape[0] < self.min_num_points:
