@@ -104,6 +104,7 @@ def run_testsuit():
         "test_image_rw",
         "test_img2tensorboard",
         "test_integration_fast_train",
+        "test_integration_gpu_customization",
         "test_integration_segmentation_3d",
         "test_integration_sliding_window",
         "test_integration_unet_2d",
