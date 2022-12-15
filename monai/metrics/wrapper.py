@@ -14,7 +14,7 @@ from typing import Union
 import torch
 
 from monai.metrics.utils import do_metric_reduction, ignore_background, is_binary_tensor
-from monai.utils import MetricReduction, optional_import
+from monai.utils import MetricReduction, convert_to_numpy, convert_to_tensor, optional_import
 
 from .metric import CumulativeIterationMetric
 
@@ -24,14 +24,6 @@ MultiClassPairwiseMeasures, _ = optional_import(
 )
 
 __all__ = ["MetricsReloadedBinary", "MetricsReloadedCategorical"]
-
-
-def torch2numpy(x):
-    return x.cpu().detach().numpy()
-
-
-def numpy2torch(x, device):
-    return torch.as_tensor(x, device=device)
 
 
 class MetricsReloadedMetric(CumulativeIterationMetric):
@@ -157,8 +149,8 @@ class MetricsReloadedBinary(MetricsReloadedMetric):
             raise ValueError(f"y_pred.shape[1]={y_pred.shape[1]} and y.shape[1]={y.shape[1]} should be one.")
 
         # To numpy array
-        y_pred = torch2numpy(y_pred)
-        y = torch2numpy(y)
+        y_pred = convert_to_numpy(y_pred)
+        y = convert_to_numpy(y)
 
         # Create binary pairwise metric object
         bpm = BinaryPairwiseMeasures(y_pred, y, axis=tuple(range(2, dims)), smooth_dr=1e-5)
@@ -171,7 +163,7 @@ class MetricsReloadedBinary(MetricsReloadedMetric):
         metric = bpm.metrics[self.metric_name]()
 
         # Return metric as numpy array
-        return numpy2torch(metric, device)
+        return convert_to_tensor(metric, device=device)
 
 
 class MetricsReloadedCategorical(MetricsReloadedMetric):
@@ -271,8 +263,8 @@ class MetricsReloadedCategorical(MetricsReloadedMetric):
         dims = y_pred.ndimension()
 
         # To numpy array
-        y_pred = torch2numpy(y_pred)
-        y = torch2numpy(y)
+        y_pred = convert_to_numpy(y_pred)
+        y = convert_to_numpy(y)
 
         # Create categorical pairwise metric object
         bpm = MultiClassPairwiseMeasures(
@@ -295,4 +287,4 @@ class MetricsReloadedCategorical(MetricsReloadedMetric):
         metric = metric[..., None]
 
         # Return metric as numpy array
-        return numpy2torch(metric, device)
+        return convert_to_tensor(metric, device=device)
