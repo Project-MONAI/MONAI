@@ -489,7 +489,10 @@ class BundleGen(AlgoGen):
                     }
 
             ALGO: the name of algorithm. It could be one of algorithm names (e.g., 'dints') or 'unversal' which
-                would apply changes to all algorithms.
+                would apply changes to all algorithms. Possible options are
+
+                - {``"unversal"``, ``"dints"``, ``"segresnet"``, ``"segresnet2d"``, ``"swinunetr"``}.
+
             num_trials: the number of HPO trials/experiments to run.
             range_num_images_per_batch: the range of number of images per mini-batch.
             range_num_sw_batch_size: the range of batch size in sliding-window inferer.
