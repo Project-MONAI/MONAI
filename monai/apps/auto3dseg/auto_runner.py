@@ -279,7 +279,7 @@ class AutoRunner:
         self.set_num_fold(num_fold=self.num_fold)
 
         self.gpu_customization = False
-        self.gpu_customization_specs = {}
+        self.gpu_customization_specs: Dict[str, Any] = {}
 
         # hpo
         if hpo_backend.lower() != "nni":
@@ -369,7 +369,8 @@ class AutoRunner:
             range_num_sw_batch_size: the range of batch size in sliding-window inferer.
         """
         self.gpu_customization = gpu_customization
-        self.gpu_customization_specs = gpu_customization_specs
+        if gpu_customization_specs is not None:
+            self.gpu_customization_specs = gpu_customization_specs
 
     def set_num_fold(self, num_fold: int = 5):
         """
