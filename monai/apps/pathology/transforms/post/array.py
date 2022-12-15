@@ -61,13 +61,13 @@ class Watershed(Transform):
         connectivity: an array with the same number of dimensions as image whose non-zero elements indicate
             neighbors for connection. Following the scipy convention, default is a one-connected array of
             the dimension of the image.
-        dtype: target data content type to convert, default is np.uint8.
+        dtype: target data content type to convert, default is np.int64.
 
     """
 
     backend = [TransformBackends.NUMPY]
 
-    def __init__(self, connectivity: Optional[int] = 1, dtype: DtypeLike = np.uint8) -> None:
+    def __init__(self, connectivity: Optional[int] = 1, dtype: DtypeLike = np.int64) -> None:
         self.connectivity = connectivity
         self.dtype = dtype
 
@@ -216,8 +216,8 @@ class GenerateInstanceBorder(Transform):
             raise ValueError("Not a valid hover map, please check your input")
         hover_h = (hover_h - hover_h_min) / (hover_h_max - hover_h_min)
         hover_v = (hover_v - hover_v_min) / (hover_v_max - hover_v_min)
-        sobelh = self.sobel_gradient(hover_h)[0, ...]
-        sobelv = self.sobel_gradient(hover_v)[1, ...]
+        sobelh = self.sobel_gradient(hover_h)[1, ...]
+        sobelv = self.sobel_gradient(hover_v)[0, ...]
         sobelh_min, sobelh_max = min(sobelh), max(sobelh)
         sobelv_min, sobelv_max = min(sobelv), max(sobelv)
         if (sobelh_max - sobelh_min) == 0 or (sobelv_max - sobelv_min) == 0:
@@ -292,7 +292,7 @@ class GenerateWatershedMarkers(Transform):
         min_object_size: objects smaller than this size (in pixel) are removed. Defaults to 10.
         postprocess_fn: additional post-process function on the markers.
             If not provided, :py:class:`monai.transforms.post.FillHoles()` will be used.
-        dtype: target data type to convert to. Defaults to np.uint8.
+        dtype: target data type to convert to. Defaults to np.int64.
 
     """
 
@@ -304,7 +304,7 @@ class GenerateWatershedMarkers(Transform):
         radius: int = 2,
         min_object_size: int = 10,
         postprocess_fn: Optional[Callable] = None,
-        dtype: DtypeLike = np.uint8,
+        dtype: DtypeLike = np.int64,
     ) -> None:
         self.threshold = threshold
         self.radius = radius
@@ -458,10 +458,6 @@ class GenerateSuccinctContour(Transform):
                     elif coord[1] == self.width - 1:
                         corner = 2
                         pixel = (int(coord[0] - 0.5), int(coord[1]))
-                    else:
-                        raise ValueError(
-                            f"Invalid coutour coord {coord} is generated, areas may contain boundaries or small holes"
-                        )
                     sequence.append(pixel)
                     last_added = pixel
                 elif i == len(group) - 1:
@@ -732,7 +728,7 @@ class HoVerNetInstanceMapPostProcessing(Transform):
                 :, instance_bbox[0][0] : instance_bbox[0][1], instance_bbox[0][2] : instance_bbox[0][3]
             ]
             offset = [instance_bbox[0][2], instance_bbox[0][0]]
-            instance_contour = self.generate_instance_contour(instance_mask, offset)
+            instance_contour = self.generate_instance_contour(FillHoles()(instance_mask), offset)
             if instance_contour is not None:
                 instance_centroid = self.generate_instance_centroid(instance_mask, offset)
                 instance_info[inst_id] = {
