@@ -278,6 +278,9 @@ class AutoRunner:
         self.set_ensemble_method(self.ensemble_method_name)
         self.set_num_fold(num_fold=self.num_fold)
 
+        self.gpu_customization = kwargs.pop("gpu_customization", False)
+        self.gpu_customization_specs = kwargs.pop("gpu_customization_specs", {})
+
         # hpo
         if hpo_backend.lower() != "nni":
             raise NotImplementedError("HPOGen backend only supports NNI")
@@ -614,7 +617,15 @@ class AutoRunner:
                 data_src_cfg_name=self.data_src_cfg_name,
             )
 
-            bundle_generator.generate(self.work_dir, num_fold=self.num_fold)
+            if self.gpu_customization:
+                bundle_generator.generate(
+                    self.work_dir,
+                    num_fold=self.num_fold,
+                    gpu_customization=self.gpu_customization,
+                    gpu_customization_specs=self.gpu_customization_specs,
+                )
+            else:
+                bundle_generator.generate(self.work_dir, num_fold=self.num_fold)
             history = bundle_generator.get_history()
             export_bundle_algo_history(history)
             self.export_cache(algo_gen=True)

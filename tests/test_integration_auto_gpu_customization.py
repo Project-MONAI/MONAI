@@ -127,7 +127,7 @@ class TestEnsembleBuilder(unittest.TestCase):
             "universal": {"num_trials": 1, "range_num_images_per_batch": [1, 2], "range_num_sw_batch_size": [1, 2]}
         }
         bundle_generator.generate(
-            work_dir, num_fold=1, auto_gpu_customization=True, gpu_customization_specs=gpu_customization_specs
+            work_dir, num_fold=1, gpu_customization=True, gpu_customization_specs=gpu_customization_specs
         )
         history = bundle_generator.get_history()
 

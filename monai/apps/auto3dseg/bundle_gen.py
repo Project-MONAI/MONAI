@@ -462,7 +462,7 @@ class BundleGen(AlgoGen):
         self,
         output_folder=".",
         num_fold: int = 5,
-        auto_gpu_customization: bool = False,
+        gpu_customization: bool = False,
         gpu_customization_specs: Optional[dict] = None,
     ):
         """
@@ -471,7 +471,7 @@ class BundleGen(AlgoGen):
         Args:
             output_folder: the output folder to save each algorithm.
             num_fold: the number of cross validation fold.
-            auto_gpu_customization: the switch to determine automatically customize/optimize bundle script/config
+            gpu_customization: the switch to determine automatically customize/optimize bundle script/config
                 parameters for each bundleAlgo based on gpus. Custom parameters are obtained through dummy
                 training to simulate the actual model training process and hyperparameter optimization (HPO)
                 experiments.
@@ -506,7 +506,7 @@ class BundleGen(AlgoGen):
                 gen_algo.set_data_stats(data_stats)
                 gen_algo.set_data_source(data_src_cfg)
                 name = f"{gen_algo.name}_{f_id}"
-                if auto_gpu_customization:
+                if gpu_customization:
                     gen_algo.export_to_disk(
                         output_folder,
                         name,
