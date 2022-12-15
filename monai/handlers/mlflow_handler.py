@@ -53,7 +53,7 @@ class MLFlowHandler:
     Args:
         tracking_uri: connects to a tracking URI. can also set the `MLFLOW_TRACKING_URI` environment
             variable to have MLflow find a URI from there. in both cases, the URI can either be
-            a HTTP/HTTPS URI for a remote server, a database connection string, or a local path
+            an HTTP/HTTPS URI for a remote server, a database connection string, or a local path
             to log data to a directory. The URI defaults to path `mlruns`.
             for more details: https://mlflow.org/docs/latest/python_api/mlflow.html#mlflow.set_tracking_uri.
         iteration_log: whether to log data to MLFlow when iteration completed, default to `True`.
@@ -171,7 +171,7 @@ class MLFlowHandler:
         """
         self._set_experiment()
         if not self.experiment:
-            raise ValueError(f"Failed to experiment '{self.experiment_name}' as the active experiment")
+            raise ValueError(f"Failed to set experiment '{self.experiment_name}' as the active experiment")
 
         if not self.cur_run:
             run_name = f"run_{time.strftime('%Y%m%d_%H%M%S')}" if self.run_name is None else self.run_name
