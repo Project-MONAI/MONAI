@@ -9,7 +9,6 @@ on:
       - releasing/*
       - feature/*
       - dev
-      - compatibility-113
 
 concurrency:
   # automatically cancel the previously triggered workflows when there's a newer version
