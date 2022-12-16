@@ -202,6 +202,9 @@ def download(
         # Execute this module as a CLI entry, and download bundle from the model-zoo repo:
         python -m monai.bundle download --name <bundle_name> --version "0.1.0" --bundle_dir "./"
 
+        # Execute this module as a CLI entry, and download bundle from specified github repo:
+        python -m monai.bundle download --name <bundle_name> --source "github" --repo "repo_owner/repo_name/release_tag"
+
         # Execute this module as a CLI entry, and download bundle from ngc with latest version:
         python -m monai.bundle download --name <bundle_name> --source "ngc" --bundle_dir "./"
 
@@ -281,7 +284,7 @@ def download(
             _download_from_ngc(download_path=bundle_dir_, filename=name_, version=version_, progress=progress_)
         else:
             raise NotImplementedError(
-                f"Currently only download from provided URL in `url`, from source 'github' or 'ngc' are implemented, got source: {source_}."
+                f"Currently only download from `url`, source 'github' or 'ngc' are implemented, got source: {source_}."
             )
 
 
