@@ -31,18 +31,16 @@ from tests.utils import (
 
 TEST_CASE_1 = ["test_bundle", None]
 
-TEST_CASE_2 = ["test_bundle_v0.1.1", None]
+TEST_CASE_2 = ["test_bundle", "0.1.1"]
 
-TEST_CASE_3 = ["test_bundle", "0.1.1"]
-
-TEST_CASE_4 = [
+TEST_CASE_3 = [
     ["model.pt", "model.ts", "network.json", "test_output.pt", "test_input.pt"],
     "test_bundle",
     "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/test_bundle.zip",
     "a131d39a0af717af32d19e565b434928",
 ]
 
-TEST_CASE_5 = [
+TEST_CASE_4 = [
     ["model.pt", "model.ts", "network.json", "test_output.pt", "test_input.pt"],
     "test_bundle",
     "Project-MONAI/MONAI-extra-test-data/0.8.1",
@@ -50,7 +48,7 @@ TEST_CASE_5 = [
     "model.pt",
 ]
 
-TEST_CASE_6 = [
+TEST_CASE_5 = [
     ["test_output.pt", "test_input.pt"],
     "test_bundle",
     "0.1.1",
@@ -59,12 +57,14 @@ TEST_CASE_6 = [
     "model.ts",
 ]
 
+TEST_CASE_NGC_1 = ["monai_spleen_ct_segmentation", "0.3.7", "models/model.pt", "b418a2dc8672ce2fd98dc255036e7a3d"]
+
 
 @skip_if_windows
 class TestDownload(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     @skip_if_quick
-    def test_download_bundle(self, bundle_name, version):
+    def test_github_download_bundle(self, bundle_name, version):
         bundle_files = ["model.pt", "model.ts", "network.json", "test_output.pt", "test_input.pt"]
         repo = "Project-MONAI/MONAI-extra-test-data/0.8.1"
         hash_val = "a131d39a0af717af32d19e565b434928"
@@ -82,7 +82,19 @@ class TestDownload(unittest.TestCase):
                     if file == "network.json":
                         self.assertTrue(check_hash(filepath=file_path, val=hash_val))
 
-    @parameterized.expand([TEST_CASE_4])
+    @parameterized.expand([TEST_CASE_NGC_1])
+    @skip_if_quick
+    def test_ngc_download_bundle(self, bundle_name, version, file_path, hash_val):
+        with skip_if_downloading_fails():
+            with tempfile.TemporaryDirectory() as tempdir:
+                cmd = ["coverage", "run", "-m", "monai.bundle", "download", "--name", bundle_name, "--source", "ngc"]
+                cmd += ["--bundle_dir", tempdir, "--progress", "False", "--version", version]
+                command_line_tests(cmd)
+                full_file_path = os.path.join(tempdir, bundle_name, file_path)
+                self.assertTrue(os.path.exists(full_file_path))
+                self.assertTrue(check_hash(filepath=full_file_path, val=hash_val))
+
+    @parameterized.expand([TEST_CASE_3])
     @skip_if_quick
     def test_url_download_bundle(self, bundle_files, bundle_name, url, hash_val):
         with skip_if_downloading_fails():
@@ -103,7 +115,7 @@ class TestDownload(unittest.TestCase):
 
 
 class TestLoad(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_5])
+    @parameterized.expand([TEST_CASE_4])
     @skip_if_quick
     def test_load_weights(self, bundle_files, bundle_name, repo, device, model_file):
         with skip_if_downloading_fails():
@@ -150,7 +162,7 @@ class TestLoad(unittest.TestCase):
                 output_2 = model_2.forward(input_tensor)
                 assert_allclose(output_2, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
 
-    @parameterized.expand([TEST_CASE_6])
+    @parameterized.expand([TEST_CASE_5])
     @skip_if_quick
     @SkipIfBeforePyTorchVersion((1, 7, 1))
     def test_load_ts_module(self, bundle_files, bundle_name, version, repo, device, model_file):

@@ -25,7 +25,7 @@ from typing import Dict, Mapping, Optional, Sequence, Tuple, Union
 import torch
 from torch.cuda import is_available
 
-from monai.apps.mmars.mmars import _get_ngc_url
+from monai.apps.mmars.mmars import _get_all_ngc_models, _get_ngc_url
 from monai.apps.utils import _basename, download_url, extractall, get_logger
 from monai.bundle.config_item import ConfigComponent
 from monai.bundle.config_parser import ConfigParser
@@ -43,7 +43,7 @@ requests_get, has_requests = optional_import("requests", name="get")
 
 logger = get_logger(module_name=__name__)
 
-# set BUNDLE_DOWNLOAD_SRC=1 to use NGC source in default for bundle download
+# set BUNDLE_DOWNLOAD_SRC="ngc" to use NGC source in default for bundle download
 download_source = os.environ.get("BUNDLE_DOWNLOAD_SRC", "github")
 
 
@@ -135,8 +135,6 @@ def _get_git_release_url(repo_owner: str, repo_name: str, tag_name: str, filenam
 
 
 def _download_from_github(repo: str, download_path: Path, filename: str, progress: bool = True):
-    if len(repo.split("/")) != 3:
-        raise ValueError("if source is `github`, repo should be in the form of `repo_owner/repo_name/release_tag`.")
     repo_owner, repo_name, tag_name = repo.split("/")
     if ".zip" not in filename:
         filename += ".zip"
@@ -146,11 +144,29 @@ def _download_from_github(repo: str, download_path: Path, filename: str, progres
     extractall(filepath=filepath, output_dir=download_path, has_base=True)
 
 
-def _download_from_ngc(download_path: Path, filename: str, version: str, progress: bool = True):
-    url = _get_ngc_url(model_name=filename, version=version)
-    filepath = download_path / f"{filename}.zip"
+def _download_from_ngc(
+    download_path: Path, filename: str, version: str, model_prefix: str = "nvidia/monaitoolkit/", progress: bool = True
+):
+    url = _get_ngc_url(model_name=filename, version=version, model_prefix=model_prefix)
+    filepath = download_path / f"{filename}_v{version}.zip"
+    extract_path = download_path / f"{filename}"
     download_url(url=url, filepath=filepath, hash_val=None, progress=progress)
-    extractall(filepath=filepath, output_dir=download_path, has_base=True)
+    extractall(filepath=filepath, output_dir=extract_path, has_base=True)
+
+
+def _get_latest_bundle_version(source: str, name: str, repo: str):
+    # ngc bundle must have version
+    if source == "ngc":
+        model_dict = _get_all_ngc_models(name)
+        for v in model_dict.values():
+            if v["name"] == name:
+                return v["latest"]
+        return None
+    elif source == "github":
+        repo_owner, repo_name, tag_name = repo.split("/")
+        return get_bundle_versions(name, repo=os.path.join(repo_owner, repo_name), tag=tag_name)["latest_version"]
+    else:
+        raise ValueError(f"To get the latest bundle version, source should be 'github' or 'ngc', got {source}.")
 
 
 def _process_bundle_dir(bundle_dir: Optional[PathLike] = None):
@@ -168,7 +184,7 @@ def download(
     version: Optional[str] = None,
     bundle_dir: Optional[PathLike] = None,
     source: str = download_source,
-    repo: str = "Project-MONAI/model-zoo/hosting_storage_v1",
+    repo: Optional[str] = None,
     url: Optional[str] = None,
     progress: bool = True,
     args_file: Optional[str] = None,
@@ -186,11 +202,8 @@ def download(
         # Execute this module as a CLI entry, and download bundle from the model-zoo repo:
         python -m monai.bundle download --name <bundle_name> --version "0.1.0" --bundle_dir "./"
 
-        # Execute this module as a CLI entry, and download bundle from ngc:
-        to be updated
-
-        # Execute this module as a CLI entry, and download bundle:
-        python -m monai.bundle download --name <bundle_name> --source "github" --repo "repo_owner/repo_name/release_tag"
+        # Execute this module as a CLI entry, and download bundle from ngc with latest version:
+        python -m monai.bundle download --name <bundle_name> --source "ngc" --bundle_dir "./"
 
         # Execute this module as a CLI entry, and download bundle via URL:
         python -m monai.bundle download --name <bundle_name> --url <url>
@@ -204,17 +217,20 @@ def download(
 
     Args:
         name: bundle name. If `None` and `url` is `None`, it must be provided in `args_file`.
-            for example: "spleen_ct_segmentation", "prostate_mri_anatomy" in the model-zoo:
+            for example:
+            "spleen_ct_segmentation", "prostate_mri_anatomy" in model-zoo:
             https://github.com/Project-MONAI/model-zoo/releases/tag/hosting_storage_v1.
-        version: version name of the target bundle to download, like: "0.1.0". This value must be provided
-            if source is "ngc".
+            "monai_brats_mri_segmentation" in ngc:
+            https://catalog.ngc.nvidia.com/models?filters=&orderBy=scoreDESC&query=monai.
+        version: version name of the target bundle to download, like: "0.1.0". If `None`, will download
+            the latest version.
         bundle_dir: target directory to store the downloaded data.
             Default is `bundle` subfolder under `torch.hub.get_dir()`.
         source: storage location name. This argument is used when `url` is `None`.
             In default, the value is achieved from the environment variable BUNDLE_DOWNLOAD_SRC, and
             it should be "ngc" or "github".
         repo: repo name. This argument is used when `url` is `None` and `source` is "github".
-            If `source` is "github", it should be in the form of "repo_owner/repo_name/release_tag".
+            If used, it should be in the form of "repo_owner/repo_name/release_tag".
         url: url to download the data. If not `None`, data will be downloaded directly
             and `source` will not be checked.
             If `name` is `None`, filename is determined by `monai.apps.utils._basename(url)`.
@@ -235,13 +251,15 @@ def download(
     )
 
     _log_input_summary(tag="download", args=_args)
-    source_, repo_, progress_, name_, version_, bundle_dir_, url_ = _pop_args(
-        _args, "source", "repo", "progress", name=None, version=None, bundle_dir=None, url=None
+    source_, progress_, repo_, name_, version_, bundle_dir_, url_ = _pop_args(
+        _args, "source", "progress", repo=None, name=None, version=None, bundle_dir=None, url=None
     )
 
     bundle_dir_ = _process_bundle_dir(bundle_dir_)
-    if name_ is not None and version_ is not None and source_ == "github":
-        name_ = "_v".join([name_, version_])
+    if repo_ is None:
+        repo_ = "Project-MONAI/model-zoo/hosting_storage_v1"
+    if len(repo_.split("/")) != 3:
+        raise ValueError("repo should be in the form of `repo_owner/repo_name/release_tag`.")
 
     if url_ is not None:
         if name_ is not None:
@@ -250,20 +268,21 @@ def download(
             filepath = bundle_dir_ / f"{_basename(url_)}"
         download_url(url=url_, filepath=filepath, hash_val=None, progress=progress_)
         extractall(filepath=filepath, output_dir=bundle_dir_, has_base=True)
-    elif source_ == "github":
-        if name_ is None:
-            raise ValueError("To download from source: github, `name` must be provided, got None.")
-        _download_from_github(repo=repo_, download_path=bundle_dir_, filename=name_, progress=progress_)
-    elif source_ == "ngc":
-        if name_ is None:
-            raise ValueError("To download from source: ngc, `name` must be provided, got None.")
-        if version_ is None:
-            raise ValueError("To download from source: ngc, `version` must be provided, got None.")
-        _download_from_ngc(download_path=bundle_dir_, filename=name_, version=version_, progress=progress_)
     else:
-        raise NotImplementedError(
-            f"Currently only download from provided URL in `url`, from source Github or NGC are implemented, got source: {source_}."
-        )
+        if name_ is None:
+            raise ValueError(f"To download from source: {source_}, `name` must be provided.")
+        if version_ is None:
+            version_ = _get_latest_bundle_version(source=source_, name=name_, repo=repo_)
+        if source_ == "github":
+            if version_ is not None:
+                name_ = "_v".join([name_, version_])
+            _download_from_github(repo=repo_, download_path=bundle_dir_, filename=name_, progress=progress_)
+        elif source_ == "ngc":
+            _download_from_ngc(download_path=bundle_dir_, filename=name_, version=version_, progress=progress_)
+        else:
+            raise NotImplementedError(
+                f"Currently only download from provided URL in `url`, from source 'github' or 'ngc' are implemented, got source: {source_}."
+            )
 
 
 def load(
@@ -273,7 +292,7 @@ def load(
     load_ts_module: bool = False,
     bundle_dir: Optional[PathLike] = None,
     source: str = download_source,
-    repo: str = "Project-MONAI/model-zoo/hosting_storage_v1",
+    repo: Optional[str] = None,
     progress: bool = True,
     device: Optional[str] = None,
     key_in_ckpt: Optional[str] = None,
@@ -285,10 +304,14 @@ def load(
     Load model weights or TorchScript module of a bundle.
 
     Args:
-        name: bundle name, for example: "spleen_ct_segmentation", "prostate_mri_anatomy" in the model-zoo:
+        name: bundle name. If `None` and `url` is `None`, it must be provided in `args_file`.
+            for example:
+            "spleen_ct_segmentation", "prostate_mri_anatomy" in model-zoo:
             https://github.com/Project-MONAI/model-zoo/releases/tag/hosting_storage_v1.
-        version: version name of the target bundle to download, like: "0.1.0". This value must be provided
-            if source is "ngc".
+            "monai_brats_mri_segmentation" in ngc:
+            https://catalog.ngc.nvidia.com/models?filters=&orderBy=scoreDESC&query=monai.
+        version: version name of the target bundle to download, like: "0.1.0". If `None`, will download
+            the latest version.
         model_file: the relative path of the model weights or TorchScript module within bundle.
             If `None`, "models/model.pt" or "models/model.ts" will be used.
         load_ts_module: a flag to specify if loading the TorchScript module.
@@ -298,8 +321,8 @@ def load(
             downloaded first.
             In default, the value is achieved from the environment variable BUNDLE_DOWNLOAD_SRC, and
             it should be "ngc" or "github".
-        repo: repo name. This argument is used when `model_file` is not existing locally and need to be
-            downloaded from "github", it should be in the form of "repo_owner/repo_name/release_tag".
+        repo: repo name. This argument is used when `url` is `None` and `source` is "github".
+            If used, it should be in the form of "repo_owner/repo_name/release_tag".
         progress: whether to display a progress bar when downloading.
         device: target device of returned weights or module, if `None`, prefer to "cuda" if existing.
         key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
@@ -446,7 +469,7 @@ def get_bundle_versions(
 
     bundles_info = _get_all_bundles_info(repo=repo, tag=tag, auth_token=auth_token)
     if bundle_name not in bundles_info:
-        raise ValueError(f"bundle: {bundle_name} is not existing.")
+        raise ValueError(f"bundle: {bundle_name} is not existing in repo: {repo}.")
     bundle_info = bundles_info[bundle_name]
     all_versions = sorted(bundle_info.keys())
 
