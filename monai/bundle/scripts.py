@@ -391,7 +391,7 @@ def get_all_bundles_list(
     """
     Get all bundles names (and the latest versions) that are stored in the release of specified repository
     with the provided tag. The default values of arguments correspond to the release of MONAI model zoo.
-    In order to increase the rate limits of calling GIthub APIs, you can input your personal access token.
+    In order to increase the rate limits of calling Github APIs, you can input your personal access token.
     Please check the following link for more details about rate limiting:
     https://docs.github.com/en/rest/overview/resources-in-the-rest-api#rate-limiting
 
@@ -426,7 +426,7 @@ def get_bundle_versions(
     """
     Get the latest version, as well as all existing versions of a bundle that is stored in the release of specified
     repository with the provided tag.
-    In order to increase the rate limits of calling GIthub APIs, you can input your personal access token.
+    In order to increase the rate limits of calling Github APIs, you can input your personal access token.
     Please check the following link for more details about rate limiting:
     https://docs.github.com/en/rest/overview/resources-in-the-rest-api#rate-limiting
 
@@ -464,7 +464,7 @@ def get_bundle_info(
     Get all information
     (include "id", "name", "size", "download_count", "browser_download_url", "created_at", "updated_at") of a bundle
     with the specified bundle name and version.
-    In order to increase the rate limits of calling GIthub APIs, you can input your personal access token.
+    In order to increase the rate limits of calling Github APIs, you can input your personal access token.
     Please check the following link for more details about rate limiting:
     https://docs.github.com/en/rest/overview/resources-in-the-rest-api#rate-limiting
 
@@ -569,7 +569,7 @@ def run(
         logging_file: config file for `logging` module in the program, default to `None`. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
         tracking: enable the experiment tracking feature at runtime with optionally configurable and extensible.
-            if "mlflow", will add `MLFlowHandler` to the parsed bundle with default loggging settings,
+            if "mlflow", will add `MLFlowHandler` to the parsed bundle with default logging settings,
             if other string, treat it as file path to load the logging settings, if `dict`,
             treat it as logging settings, otherwise, use all the default settings.
             will patch the target config content with `tracking handlers` and the top-level items of `configs`.
@@ -950,6 +950,8 @@ def init_bundle(
         network: if given instead of ckpt_file this network's weights will be stored in bundle
         dataset_license: if `True`, a default license file called "data_license.txt" will be produced. This
             file is required if there are any license conditions stated for data your bundle uses.
+        metadata_str: optional metadata string to write to bundle, if not given a default will be used.
+        inference_str: optional inference string to write to bundle, if not given a default will be used.
     """
     if metadata_str is None:
         metadata_str = DEFAULT_METADATA

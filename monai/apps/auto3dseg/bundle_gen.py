@@ -32,7 +32,7 @@ from monai.bundle.config_parser import ConfigParser
 from monai.utils import ensure_tuple
 
 logger = get_logger(module_name=__name__)
-ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "5895e1b")
+ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "c812e5f")
 
 __all__ = ["BundleAlgo", "BundleGen"]
 
@@ -246,9 +246,9 @@ class BundleAlgo(Algo):
         configs_path = [os.path.join(config_dir, f) for f in os.listdir(config_dir)]
 
         spec = importlib.util.spec_from_file_location("InferClass", infer_py)
-        infer_class = importlib.util.module_from_spec(spec)
+        infer_class = importlib.util.module_from_spec(spec)  # type: ignore
         sys.modules["InferClass"] = infer_class
-        spec.loader.exec_module(infer_class)
+        spec.loader.exec_module(infer_class)  # type: ignore
         return infer_class.InferClass(configs_path, *args, **kwargs)
 
     def predict(self, predict_files: list, predict_params=None):
@@ -458,13 +458,44 @@ class BundleGen(AlgoGen):
         """get the history of the bundleAlgo object with their names/identifiers"""
         return self.history
 
-    def generate(self, output_folder=".", num_fold: int = 5):
+    def generate(
+        self,
+        output_folder=".",
+        num_fold: int = 5,
+        gpu_customization: bool = False,
+        gpu_customization_specs: Optional[Dict[str, Any]] = None,
+    ):
         """
         Generate the bundle scripts/configs for each bundleAlgo
 
         Args:
             output_folder: the output folder to save each algorithm.
-            num_fold: the number of cross validation fold
+            num_fold: the number of cross validation fold.
+            gpu_customization: the switch to determine automatically customize/optimize bundle script/config
+                parameters for each bundleAlgo based on gpus. Custom parameters are obtained through dummy
+                training to simulate the actual model training process and hyperparameter optimization (HPO)
+                experiments.
+            gpu_customization_specs (optinal): the dictionary to enable users overwrite the HPO settings. user can
+                overwrite part of variables as follows or all of them. The structure is as follows.
+
+                .. code-block:: python
+
+                    gpu_customization_specs = {
+                        'ALOG': {
+                            'num_trials': 6,
+                            'range_num_images_per_batch': [1, 20],
+                            'range_num_sw_batch_size': [1, 20]
+                        }
+                    }
+
+            ALGO: the name of algorithm. It could be one of algorithm names (e.g., 'dints') or 'unversal' which
+                would apply changes to all algorithms. Possible options are
+
+                - {``"unversal"``, ``"dints"``, ``"segresnet"``, ``"segresnet2d"``, ``"swinunetr"``}.
+
+            num_trials: the number of HPO trials/experiments to run.
+            range_num_images_per_batch: the range of number of images per mini-batch.
+            range_num_sw_batch_size: the range of batch size in sliding-window inferer.
         """
         fold_idx = list(range(num_fold))
         for algo in self.algos:
@@ -475,6 +506,15 @@ class BundleGen(AlgoGen):
                 gen_algo.set_data_stats(data_stats)
                 gen_algo.set_data_source(data_src_cfg)
                 name = f"{gen_algo.name}_{f_id}"
-                gen_algo.export_to_disk(output_folder, name, fold=f_id)
+                if gpu_customization:
+                    gen_algo.export_to_disk(
+                        output_folder,
+                        name,
+                        fold=f_id,
+                        gpu_customization=True,
+                        gpu_customization_specs=gpu_customization_specs,
+                    )
+                else:
+                    gen_algo.export_to_disk(output_folder, name, fold=f_id)
                 algo_to_pickle(gen_algo, template_path=algo.template_path)
                 self.history.append({name: gen_algo})  # track the previous, may create a persistent history

@@ -74,7 +74,7 @@ def switch_endianness(data, new="<"):
         data = (
             torch.from_numpy(switch_endianness(data.cpu().detach().numpy(), new))
             .to(device)
-            .requires_grad_(requires_grad=requires_grad)
+            .requires_grad_(requires_grad=requires_grad)  # type: ignore
         )
     elif isinstance(data, np.ndarray):
         # default to system endian

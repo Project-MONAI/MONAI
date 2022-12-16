@@ -15,7 +15,7 @@ import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Iterator, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
@@ -497,7 +497,7 @@ class PydicomReader(ImageReader):
                 img_.append(ds)
         return img_ if len(filenames) > 1 else img_[0]
 
-    def _combine_dicom_series(self, data):
+    def _combine_dicom_series(self, data: Iterable):
         """
         Combine dicom series (a list of pydicom dataset objects). Their data arrays will be stacked together at a new
         dimension as the last dimension.
@@ -515,14 +515,14 @@ class PydicomReader(ImageReader):
         Returns:
             a tuple that consisted with data array and metadata.
         """
-        slices = []
+        slices: List = []
         # for a dicom series
         for slc_ds in data:
             if hasattr(slc_ds, "InstanceNumber"):
                 slices.append(slc_ds)
             else:
                 warnings.warn(f"slice: {slc_ds.filename} does not have InstanceNumber tag, skip it.")
-        slices = sorted(slices, key=lambda s: s.InstanceNumber)
+        slices = sorted(slices, key=lambda s: s.InstanceNumber)  # type: ignore
 
         if len(slices) == 0:
             raise ValueError("the input does not have valid slices.")
@@ -531,7 +531,7 @@ class PydicomReader(ImageReader):
         average_distance = 0.0
         first_array = self._get_array_data(first_slice)
         shape = first_array.shape
-        spacing = getattr(first_slice, "PixelSpacing", (1.0, 1.0, 1.0))
+        spacing = getattr(first_slice, "PixelSpacing", [1.0, 1.0, 1.0])
         pos = getattr(first_slice, "ImagePositionPatient", (0.0, 0.0, 0.0))[2]
         stack_array = [first_array]
         for idx in range(1, len(slices)):
@@ -647,7 +647,7 @@ class PydicomReader(ImageReader):
 
         """
 
-        metadata = img.to_json_dict()
+        metadata = img.to_json_dict(suppress_invalid_tags=True)
 
         if self.prune_metadata:
             prune_metadata = {}

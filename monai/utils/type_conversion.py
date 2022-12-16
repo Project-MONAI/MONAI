@@ -423,7 +423,10 @@ def safe_dtype_range(data: Any, dtype: Union[DtypeLike, torch.dtype] = None):
         if data.ndim == 0:
             data_bound = (data, data)
         else:
-            data_bound = (min(data), max(data))
+            if isinstance(data, torch.Tensor):
+                data_bound = (torch.min(data), torch.max(data))
+            else:
+                data_bound = (np.min(data), np.max(data))
         if (data_bound[1] > dtype_bound_value[1]) or (data_bound[0] < dtype_bound_value[0]):
             if isinstance(data, torch.Tensor):
                 return torch.clamp(data, dtype_bound_value[0], dtype_bound_value[1])

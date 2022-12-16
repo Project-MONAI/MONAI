@@ -140,6 +140,7 @@ class TestSmartCacheDataset(unittest.TestCase):
 
         dataset.shutdown()
 
+    @unittest.skip("https://github.com/Project-MONAI/MONAI/issues/5660 blocks the ci")
     def test_set_data(self):
         data_list1 = list(range(10))
 

@@ -80,7 +80,7 @@ class Dataset(_TorchDataset):
 
         """
         self.data = data
-        self.transform = transform
+        self.transform: Any = transform
 
     def __len__(self) -> int:
         return len(self.data)
@@ -266,12 +266,12 @@ class PersistentDataset(Dataset):
                 self.cache_dir.mkdir(parents=True, exist_ok=True)
             if not self.cache_dir.is_dir():
                 raise ValueError("cache_dir must be a directory.")
-        self.transform_hash = ""
+        self.transform_hash: str = ""
         if hash_transform is not None:
             self.set_transform_hash(hash_transform)
         self.reset_ops_id = reset_ops_id
 
-    def set_transform_hash(self, hash_xform_func):
+    def set_transform_hash(self, hash_xform_func: Callable[..., bytes]):
         """Get hashable transforms, and then hash them. Hashable transforms
         are deterministic transforms that inherit from `Transform`. We stop
         at the first non-deterministic transform, or first that does not
@@ -283,13 +283,13 @@ class PersistentDataset(Dataset):
             hashable_transforms.append(_tr)
         # Try to hash. Fall back to a hash of their names
         try:
-            self.transform_hash = hash_xform_func(hashable_transforms)
+            transform_hash = hash_xform_func(hashable_transforms)
         except TypeError as te:
             if "is not JSON serializable" not in str(te):
                 raise te
             names = "".join(tr.__class__.__name__ for tr in hashable_transforms)
-            self.transform_hash = hash_xform_func(names)
-        self.transform_hash = self.transform_hash.decode("utf-8")
+            transform_hash = hash_xform_func(names)
+        self.transform_hash = transform_hash.decode("utf-8")
 
     def set_data(self, data: Sequence):
         """
@@ -399,7 +399,7 @@ class PersistentDataset(Dataset):
                     # On Unix, if target exists and is a file, it will be replaced silently if the user has permission.
                     # for more details: https://docs.python.org/3/library/shutil.html#shutil.move.
                     try:
-                        shutil.move(temp_hash_file, hashfile)
+                        shutil.move(str(temp_hash_file), hashfile)
                     except FileExistsError:
                         pass
         except PermissionError:  # project-monai/monai issue #3613
@@ -589,7 +589,7 @@ class LMDBDataset(PersistentDataset):
             self.lmdb_kwargs["map_size"] = 1024**4  # default map_size
         # lmdb is single-writer multi-reader by default
         # the cache is created without multi-threading
-        self._read_env = None
+        self._read_env: Optional[Any] = None
         # this runs on the primary thread/process
         self._fill_cache_start_reader(show_progress=self.progress)
         print(f"Accessing lmdb file: {self.db_file.absolute()}.")
@@ -876,7 +876,7 @@ class CacheDataset(Dataset):
             idx: the index of the input data sequence.
         """
         item = self.data[idx]
-        for _transform in self.transform.transforms:  # type:ignore
+        for _transform in self.transform.transforms:
             # execute all the deterministic transforms
             if isinstance(_transform, RandomizableTrait) or not isinstance(_transform, Transform):
                 break
@@ -978,10 +978,10 @@ class SmartCacheDataset(Randomizable, CacheDataset):
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         num_init_workers: the number of worker threads to initialize the cache for first epoch.
             If num_init_workers is None then the number returned by os.cpu_count() is used.
-            If a value less than 1 is speficied, 1 will be used instead.
+            If a value less than 1 is specified, 1 will be used instead.
         num_replace_workers: the number of worker threads to prepare the replacement cache for every epoch.
             If num_replace_workers is None then the number returned by os.cpu_count() is used.
-            If a value less than 1 is speficied, 1 will be used instead.
+            If a value less than 1 is specified, 1 will be used instead.
         progress: whether to display a progress bar when caching for the first epoch.
         shuffle: whether to shuffle the whole data list before preparing the cache content for first epoch.
             it will not modify the original input data sequence in-place.
@@ -1171,7 +1171,8 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         # wait until replace mgr is done the current round
         while not self._try_shutdown():
             time.sleep(0.01)
-        self._replace_mgr.join(300)
+        if self._replace_mgr is not None:
+            self._replace_mgr.join(300)
 
     def _replace_cache_thread(self, index: int):
         """
