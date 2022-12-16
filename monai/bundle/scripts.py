@@ -155,7 +155,6 @@ def _download_from_ngc(
 
 
 def _get_latest_bundle_version(source: str, name: str, repo: str):
-    # ngc bundle must have version
     if source == "ngc":
         model_dict = _get_all_ngc_models(name)
         for v in model_dict.values():
