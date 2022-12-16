@@ -8,6 +8,8 @@
 
 ## Digital pathology workflows
 
+![hovernet](../images/hovernet_diagram.png)
+
 Hover-Net is a model for simultaneous segmentation and classification of nuclei in multi-tissue histology images (Graham et al. Medical Image Analysis, 2019).
 We have added support for this model in MONAI by implementing several new components, enhancing existing ones and providing pipelines and examples for training, validation and inference.
 
@@ -21,6 +23,8 @@ and [inference](https://github.com/Project-MONAI/tutorials/blob/main/pathology/n
 and [inference](https://github.com/Project-MONAI/tutorials/blob/main/pathology/nuclick/nuclei_classification_infer.ipynb)
 
 ## Experiment management for MONAI bundle
+
+![exp_mgmt](../images/exp_mgmt.png)
 
 In this release, experiment management features are integrated with MONAI bundle.
 It provides essential APIs for managing the end-to-end model bundle lifecycle.
