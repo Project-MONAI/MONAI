@@ -37,7 +37,7 @@ for p in TEST_NDARRAYS_ALL:
 TEST_CASES_3D: List[Tuple] = []
 for p in TEST_NDARRAYS_ALL:
     TEST_CASES_3D.append(
-        (p, np.pi / 2, -np.pi / 6, (0.0, np.pi), False, "bilinear", "border", False, (1, 87, 104, 109))
+        (p, np.pi / 2, -np.pi / 6, (0.0, np.pi), False, "bilinear", "border", False, (1, 81, 110, 112))
     )
     TEST_CASES_3D.append(
         (
@@ -49,7 +49,7 @@ for p in TEST_NDARRAYS_ALL:
             "nearest",
             "border",
             True,
-            (1, 89, 105, 104),
+            (1, 97, 100, 97),
         )
     )
     TEST_CASES_3D.append(
@@ -62,10 +62,10 @@ for p in TEST_NDARRAYS_ALL:
             "nearest",
             "zeros",
             True,
-            (1, 48, 64, 80),
+            (1, 64, 48, 80),
         )
     )
-    TEST_CASES_3D.append((p, (-np.pi / 4, 0), 0, 0, False, "nearest", "zeros", False, (1, 48, 77, 90)))
+    TEST_CASES_3D.append((p, (-np.pi / 4, 0), 0, 0, False, "nearest", "zeros", False, (1, 64, 61, 87)))
 
 
 class TestRandRotate2D(NumpyImageTestCase2D):

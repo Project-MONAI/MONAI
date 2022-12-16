@@ -46,7 +46,7 @@ TEST_CASES_3D = [
     [{"norm": "INSTANCE", "norm_dim": 3, "dropout_dim": 1, "dropout": 0.8, "ordering": "AND"}],
     [
         {
-            "norm": ("layer", {"normalized_shape": (64, 80)}),
+            "norm": ("layer", {"normalized_shape": (48, 80)}),
             "norm_dim": 3,
             "dropout_dim": 1,
             "dropout": 0.8,
@@ -76,7 +76,7 @@ class TestADN3D(TorchImageTestCase3D):
         adn = ADN(**args)
         print(adn)
         out = adn(self.imt)
-        expected_shape = (1, self.input_channels, self.im_shape[1], self.im_shape[0], self.im_shape[2])
+        expected_shape = (1, self.input_channels, self.im_shape[0], self.im_shape[1], self.im_shape[2])
         self.assertEqual(out.shape, expected_shape)
 
 
