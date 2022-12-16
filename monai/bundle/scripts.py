@@ -144,14 +144,19 @@ def _download_from_github(repo: str, download_path: Path, filename: str, progres
     extractall(filepath=filepath, output_dir=download_path, has_base=True)
 
 
-def _download_from_ngc(
-    download_path: Path, filename: str, version: str, model_prefix: str = "nvidia/monaitoolkit/", progress: bool = True
-):
+def _download_from_ngc(download_path: Path, filename: str, version: str, model_prefix: str, progress: bool):
     url = _get_ngc_url(model_name=filename, version=version, model_prefix=model_prefix)
     filepath = download_path / f"{filename}_v{version}.zip"
     extract_path = download_path / f"{filename}"
     download_url(url=url, filepath=filepath, hash_val=None, progress=progress)
     extractall(filepath=filepath, output_dir=extract_path, has_base=True)
+
+
+def _ngc_model_name_check(name: str):
+    # currently, all ngc bundles have names start with "monai_"
+    if name.startswith("monai_"):
+        return name
+    return f"monai_{name}"
 
 
 def _get_latest_bundle_version(source: str, name: str, repo: str):
@@ -280,7 +285,14 @@ def download(
                 name_ = "_v".join([name_, version_])
             _download_from_github(repo=repo_, download_path=bundle_dir_, filename=name_, progress=progress_)
         elif source_ == "ngc":
-            _download_from_ngc(download_path=bundle_dir_, filename=name_, version=version_, progress=progress_)
+            name_ = _ngc_model_name_check(name_)
+            _download_from_ngc(
+                download_path=bundle_dir_,
+                filename=name_,
+                version=version_,
+                model_prefix="nvidia/monaitoolkit/",
+                progress=progress_,
+            )
         else:
             raise NotImplementedError(
                 f"Currently only download from `url`, source 'github' or 'ngc' are implemented, got source: {source_}."
