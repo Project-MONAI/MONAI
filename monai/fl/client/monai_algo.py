@@ -12,7 +12,7 @@
 import logging
 import os
 import sys
-from typing import Optional, Union
+from typing import Any, Dict, Mapping, MutableMapping, Optional, Union, cast
 
 import torch
 import torch.distributed as dist
@@ -20,8 +20,8 @@ import torch.distributed as dist
 import monai
 from monai.apps.auto3dseg.data_analyzer import DataAnalyzer
 from monai.auto3dseg import SegSummarizer
-from monai.bundle import ConfigParser
-from monai.bundle.config_item import ConfigComponent, ConfigItem
+from monai.bundle import DEFAULT_EXP_MGMT_SETTINGS, ConfigComponent, ConfigItem, ConfigParser, patch_bundle_tracking
+from monai.engines import Trainer
 from monai.fl.client import ClientAlgo, ClientAlgoStats
 from monai.fl.utils.constants import (
     BundleKeys,
@@ -41,7 +41,7 @@ from monai.utils.enums import DataStatsKeys
 logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(asctime)s - %(message)s")
 
 
-def convert_global_weights(global_weights, local_var_dict):
+def convert_global_weights(global_weights: Mapping, local_var_dict: MutableMapping):
     """Helper function to convert global weights to local weights format"""
     # Before loading weights, tensors might need to be reshaped to support HE for secure aggregation.
     model_keys = global_weights.keys()
@@ -93,7 +93,7 @@ def disable_ckpt_loaders(parser):
 
 class MonaiAlgoStats(ClientAlgoStats):
     """
-    Implementation of ``ClientAlgo`` to allow federated learning with MONAI bundle configurations.
+    Implementation of ``ClientAlgoStats`` to allow federated learning with MONAI bundle configurations.
 
     Args:
         bundle_root: path of bundle.
@@ -122,13 +122,13 @@ class MonaiAlgoStats(ClientAlgoStats):
         self.data_stats_transform_list = data_stats_transform_list
         self.histogram_only = histogram_only
 
-        self.client_name = None
-        self.app_root = None
-        self.train_parser = None
-        self.filter_parser = None
-        self.post_statistics_filters = None
+        self.client_name: Optional[str] = None
+        self.app_root: str = ""
+        self.train_parser: Optional[ConfigParser] = None
+        self.filter_parser: Optional[ConfigParser] = None
+        self.post_statistics_filters: Any = None
         self.phase = FlPhase.IDLE
-        self.dataset_root = None
+        self.dataset_root: Any = None
 
     def initialize(self, extra=None):
         """
@@ -183,11 +183,14 @@ class MonaiAlgoStats(ClientAlgoStats):
 
         Args:
             extra: Dict with additional information that can be provided by the FL system.
+                    Both FlStatistics.HIST_BINS and FlStatistics.HIST_RANGE must be provided.
 
         Returns:
             stats: ExchangeObject with summary statistics.
 
         """
+        if extra is None:
+            raise ValueError("`extra` has to be set")
 
         if self.dataset_root:
             self.phase = FlPhase.GET_DATA_STATS
@@ -343,6 +346,38 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         multi_gpu: whether to run MonaiAlgo in a multi-GPU setting; defaults to `False`.
         backend: backend to use for torch.distributed; defaults to "nccl".
         init_method: init_method for torch.distributed; defaults to "env://".
+        tracking: enable the experiment tracking feature at runtime with optionally configurable and extensible.
+            if "mlflow", will add `MLFlowHandler` to the parsed bundle with default logging settings,
+            if other string, treat it as file path to load the logging settings, if `dict`,
+            treat it as logging settings, otherwise, use all the default settings.
+            will patch the target config content with `tracking handlers` and the top-level items of `configs`.
+            example of customized settings:
+
+            .. code-block:: python
+
+                tracking = {
+                    "handlers_id": {
+                        "trainer": {"id": "train#trainer", "handlers": "train#handlers"},
+                        "validator": {"id": "evaluate#evaluator", "handlers": "evaluate#handlers"},
+                        "evaluator": {"id": "evaluator", "handlers": "handlers"},
+                    },
+                    "configs": {
+                        "tracking_uri": "<path>",
+                        "trainer": {
+                            "_target_": "MLFlowHandler",
+                            "tracking_uri": "@tracking_uri",
+                            "iteration_log": True,
+                            "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
+                        },
+                        "validator": {
+                            "_target_": "MLFlowHandler", "tracking_uri": "@tracking_uri", "iteration_log": False,
+                        },
+                        "evaluator": {
+                            "_target_": "MLFlowHandler", "tracking_uri": "@tracking_uri", "iteration_log": False,
+                        },
+                    },
+                },
+
     """
 
     def __init__(
@@ -365,6 +400,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         train_data_key: Optional[str] = BundleKeys.TRAIN_DATA,
         eval_data_key: Optional[str] = BundleKeys.VALID_DATA,
         data_stats_transform_list: Optional[list] = None,
+        tracking: Optional[Union[str, dict]] = None,
     ):
         self.logger = logging.getLogger(self.__class__.__name__)
         if config_evaluate_filename == "default":
@@ -387,18 +423,19 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         self.train_data_key = train_data_key
         self.eval_data_key = eval_data_key
         self.data_stats_transform_list = data_stats_transform_list
+        self.tracking = tracking
 
-        self.app_root = None
-        self.train_parser = None
-        self.eval_parser = None
-        self.filter_parser = None
-        self.trainer = None
-        self.evaluator = None
+        self.app_root = ""
+        self.train_parser: Optional[ConfigParser] = None
+        self.eval_parser: Optional[ConfigParser] = None
+        self.filter_parser: Optional[ConfigParser] = None
+        self.trainer: Optional[Trainer] = None
+        self.evaluator: Optional[Any] = None
         self.pre_filters = None
         self.post_weight_filters = None
         self.post_evaluate_filters = None
         self.iter_of_start_time = 0
-        self.global_weights = None
+        self.global_weights: Optional[Mapping] = None
         self.rank = 0
 
         self.phase = FlPhase.IDLE
@@ -466,6 +503,15 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         if self.disable_ckpt_loading:
             disable_ckpt_loaders(self.train_parser)
             disable_ckpt_loaders(self.eval_parser)
+
+        # set tracking configs for experiment management
+        if self.tracking is not None:
+            if isinstance(self.tracking, str) and self.tracking in DEFAULT_EXP_MGMT_SETTINGS:
+                settings_ = DEFAULT_EXP_MGMT_SETTINGS[self.tracking]
+            else:
+                settings_ = ConfigParser.load_config_files(self.tracking)
+            patch_bundle_tracking(parser=self.train_parser, settings=settings_)
+            patch_bundle_tracking(parser=self.eval_parser, settings=settings_)
 
         # Get trainer, evaluator
         self.trainer = self.train_parser.get_parsed_content(
@@ -535,7 +581,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         # get current iteration when a round starts
         self.iter_of_start_time = self.trainer.state.iteration
 
-        _, updated_keys, _ = copy_model_state(src=self.global_weights, dst=self.trainer.network)
+        _, updated_keys, _ = copy_model_state(src=cast(Mapping, self.global_weights), dst=self.trainer.network)
         if len(updated_keys) == 0:
             self.logger.warning("No weights loaded!")
         self.logger.info(f"Start {self.client_name} training...")
@@ -568,15 +614,15 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
                     f"Expected requested model type to be of type `ModelType` but received {type(model_type)}"
                 )
             if model_type in self.model_filepaths:
-                model_path = os.path.join(self.bundle_root, self.model_filepaths[model_type])
+                model_path = os.path.join(self.bundle_root, cast(str, self.model_filepaths[model_type]))
                 if not os.path.isfile(model_path):
                     raise ValueError(f"No best model checkpoint exists at {model_path}")
                 weights = torch.load(model_path, map_location="cpu")
                 # if weights contain several state dicts, use the one defined by `save_dict_key`
                 if isinstance(weights, dict) and self.save_dict_key in weights:
                     weights = weights.get(self.save_dict_key)
-                weigh_type = WeightType.WEIGHTS
-                stats = dict()
+                weigh_type: Optional[WeightType] = WeightType.WEIGHTS
+                stats: Dict = {}
                 self.logger.info(f"Returning {model_type} checkpoint weights from {model_path}.")
             else:
                 raise ValueError(
@@ -655,7 +701,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         if len(updated_keys) == 0:
             self.logger.warning("No weights loaded!")
         self.logger.info(f"Start {self.client_name} evaluating...")
-        if isinstance(self.trainer, monai.engines.Trainer):
+        if isinstance(self.trainer, Trainer):
             self.evaluator.run(self.trainer.state.epoch + 1)
         else:
             self.evaluator.run()
@@ -673,10 +719,10 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             extra: Dict with additional information that can be provided by the FL system.
         """
         self.logger.info(f"Aborting {self.client_name} during {self.phase} phase.")
-        if isinstance(self.trainer, monai.engines.Trainer):
+        if isinstance(self.trainer, Trainer):
             self.logger.info(f"Aborting {self.client_name} trainer...")
             self.trainer.interrupt()
-        if isinstance(self.evaluator, monai.engines.Trainer):
+        if isinstance(self.evaluator, Trainer):
             self.logger.info(f"Aborting {self.client_name} evaluator...")
             self.evaluator.interrupt()
 
@@ -687,10 +733,10 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             extra: Dict with additional information that can be provided by the FL system.
         """
         self.logger.info(f"Terminating {self.client_name} during {self.phase} phase.")
-        if isinstance(self.trainer, monai.engines.Trainer):
+        if isinstance(self.trainer, Trainer):
             self.logger.info(f"Terminating {self.client_name} trainer...")
             self.trainer.terminate()
-        if isinstance(self.evaluator, monai.engines.Trainer):
+        if isinstance(self.evaluator, Trainer):
             self.logger.info(f"Terminating {self.client_name} evaluator...")
             self.evaluator.terminate()
 

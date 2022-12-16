@@ -12,7 +12,7 @@
 import time
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Hashable, List, Mapping, Optional, Union
 
 import numpy as np
 import torch
@@ -323,7 +323,12 @@ class FgImageStats(Analyzer):
 
         ndas = [d[self.image_key][i] for i in range(d[self.image_key].shape[0])]
         ndas_label = d[self.label_key]  # (H,W,D)
+
+        if ndas_label.shape != ndas[0].shape:
+            raise ValueError(f"Label shape {ndas_label.shape} is different from image shape {ndas[0].shape}")
+
         nda_foregrounds = [get_foreground_label(nda, ndas_label) for nda in ndas]
+        nda_foregrounds = [nda if nda.numel() > 0 else MetaTensor([0.0]) for nda in nda_foregrounds]
 
         # perform calculation
         report = deepcopy(self.get_report_format())
@@ -372,7 +377,7 @@ class LabelStats(Analyzer):
         self.label_key = label_key
         self.do_ccp = do_ccp
 
-        report_format: Dict[str, Any] = {
+        report_format: Dict[LabelStatsKeys, Any] = {
             LabelStatsKeys.LABEL_UID: None,
             LabelStatsKeys.IMAGE_INTST: None,
             LabelStatsKeys.LABEL: [{LabelStatsKeys.PIXEL_PCT: None, LabelStatsKeys.IMAGE_INTST: None}],
@@ -389,7 +394,7 @@ class LabelStats(Analyzer):
         id_seq = ID_SEP_KEY.join([LabelStatsKeys.LABEL, "0", LabelStatsKeys.IMAGE_INTST])
         self.update_ops_nested_label(id_seq, SampleOperations())
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, MetaTensor]) -> Dict[Hashable, MetaTensor]:
         """
         Callable to execute the pre-defined functions.
 
@@ -437,7 +442,7 @@ class LabelStats(Analyzer):
             The stats operation uses numpy and torch to compute max, min, and other
             functions. If the input has nan/inf, the stats results will be nan/inf.
         """
-        d = dict(data)
+        d: Dict[Hashable, MetaTensor] = dict(data)
         start = time.time()
         if isinstance(d[self.image_key], (torch.Tensor, MetaTensor)) and d[self.image_key].device.type == "cuda":
             using_cuda = True
@@ -446,9 +451,14 @@ class LabelStats(Analyzer):
         restore_grad_state = torch.is_grad_enabled()
         torch.set_grad_enabled(False)
 
-        ndas = [d[self.image_key][i] for i in range(d[self.image_key].shape[0])]
-        ndas_label = d[self.label_key]  # (H,W,D)
-        nda_foregrounds = [get_foreground_label(nda, ndas_label) for nda in ndas]
+        ndas: List[MetaTensor] = [d[self.image_key][i] for i in range(d[self.image_key].shape[0])]  # type: ignore
+        ndas_label: MetaTensor = d[self.label_key]  # (H,W,D)
+
+        if ndas_label.shape != ndas[0].shape:
+            raise ValueError(f"Label shape {ndas_label.shape} is different from image shape {ndas[0].shape}")
+
+        nda_foregrounds: List[torch.Tensor] = [get_foreground_label(nda, ndas_label) for nda in ndas]
+        nda_foregrounds = [nda if nda.numel() > 0 else torch.Tensor([0]) for nda in nda_foregrounds]
 
         unique_label = unique(ndas_label)
         if isinstance(ndas_label, (MetaTensor, torch.Tensor)):
@@ -790,7 +800,7 @@ class FilenameStats(Analyzer):
 
     """
 
-    def __init__(self, key: str, stats_name: str) -> None:
+    def __init__(self, key: Optional[str], stats_name: str) -> None:
         self.key = key
         super().__init__(stats_name, {})
 
@@ -841,14 +851,16 @@ class ImageHistogram(Analyzer):
         self,
         image_key: str,
         stats_name: str = DataStatsKeys.IMAGE_HISTOGRAM,
-        hist_bins: Optional[list] = None,
+        hist_bins: Union[List[int], int, None] = None,
         hist_range: Optional[list] = None,
     ):
 
         self.image_key = image_key
 
         # set defaults
-        self.hist_bins: list = [100] if hist_bins is None else hist_bins
+        self.hist_bins: List[int] = (
+            [100] if hist_bins is None else hist_bins if isinstance(hist_bins, list) else [hist_bins]
+        )
         self.hist_range: list = [-500, 500] if hist_range is None else hist_range
 
         report_format = {"counts": None, "bin_edges": None}
@@ -857,8 +869,6 @@ class ImageHistogram(Analyzer):
         self.update_ops(ImageStatsKeys.HISTOGRAM, SampleOperations())
 
         # check histogram configurations for each channel in list
-        if not isinstance(self.hist_bins, list):
-            self.hist_bins = [self.hist_bins]
         if not all(isinstance(hr, list) for hr in self.hist_range):
             self.hist_range = [self.hist_range]
         if len(self.hist_bins) != len(self.hist_range):

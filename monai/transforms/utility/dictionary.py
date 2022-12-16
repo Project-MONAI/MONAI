@@ -17,7 +17,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 import re
 from copy import deepcopy
-from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
 import torch
@@ -27,7 +27,7 @@ from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_tensor import MetaObj, MetaTensor
 from monai.data.utils import no_collation
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
+from monai.transforms.transform import MapTransform, Randomizable, RandomizableTrait, RandomizableTransform
 from monai.transforms.utility.array import (
     AddChannel,
     AddCoordinateChannels,
@@ -127,6 +127,9 @@ __all__ = [
     "MapLabelValueD",
     "MapLabelValueDict",
     "MapLabelValued",
+    "FlattenSubKeysd",
+    "FlattenSubKeysD",
+    "FlattenSubKeysDict",
     "RandCuCIMd",
     "RandCuCIMD",
     "RandCuCIMDict",
@@ -761,7 +764,7 @@ class DeleteItemsd(MapTransform):
             return {k: v for k, v in d.items() if (use_re and not re.search(key, f"{k}")) or (not use_re and k != key)}
 
         d = dict(data)
-        for key, use_re in zip(self.keys, self.use_re):
+        for key, use_re in zip(cast(Sequence[str], self.keys), self.use_re):
             d = _delete_item(key.split(self.sep), d, use_re)
 
         return d
@@ -770,13 +773,62 @@ class DeleteItemsd(MapTransform):
 class SelectItemsd(MapTransform):
     """
     Select only specified items from data dictionary to release memory.
-    It will copy the selected key-values and construct and new dictionary.
+    It will copy the selected key-values and construct a new dictionary.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __call__(self, data):
         return {key: data[key] for key in self.key_iterator(data)}
+
+
+class FlattenSubKeysd(MapTransform):
+    """
+    If an item is dictionary, it flatten the item by moving the sub-items (defined by sub-keys) to the top level.
+    {"pred": {"a": ..., "b", ... }} --> {"a": ..., "b", ... }
+
+    Args:
+        keys: keys of the corresponding items to be flatten
+        sub_keys: the sub-keys of items to be flatten. If not provided all the sub-keys are flattened.
+        delete_keys: whether to delete the key of the items that their sub-keys are flattened. Default to True.
+        prefix: optional prefix to be added to the sub-keys when moving to the top level.
+            By default no prefix will be added.
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        sub_keys: Optional[KeysCollection] = None,
+        delete_keys: bool = True,
+        prefix: Optional[str] = None,
+    ) -> None:
+        super().__init__(keys)
+        self.sub_keys = sub_keys
+        self.delete_keys = delete_keys
+        self.prefix = prefix
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.key_iterator(d):
+            # set the sub-keys for the specified key
+            sub_keys = d[key].keys() if self.sub_keys is None else self.sub_keys
+
+            # move all the sub-keys to the top level
+            for sk in sub_keys:
+                # set the top-level key for the sub-key
+                sk_top = f"{self.prefix}_{sk}" if self.prefix else sk
+                if sk_top in d:
+                    raise ValueError(
+                        f"'{sk_top}' already exists in the top-level keys. Please change `prefix` to avoid duplicity."
+                    )
+                d[sk_top] = d[key][sk]
+
+            # delete top level key that is flattened
+            if self.delete_keys:
+                del d[key]
+        return d
 
 
 class SqueezeDimd(MapTransform):
@@ -1032,8 +1084,10 @@ class Lambdad(MapTransform, InvertibleTransform):
             each element corresponds to a key in ``keys``.
         inv_func: Lambda/function of inverse operation if want to invert transforms, default to `lambda x: x`.
             It also can be a sequence of Callable, each element corresponds to a key in ``keys``.
-        overwrite: whether to overwrite the original data in the input dictionary with lamdbda function output.
-            default to True. it also can be a sequence of bool, each element corresponds to a key in ``keys``.
+        overwrite: whether to overwrite the original data in the input dictionary with lambda function output. it
+            can be bool or str, when setting to str, it will create a new key for the output and keep the value of
+            key intact. default to True. it also can be a sequence of bool or str, each element corresponds to a key
+            in ``keys``.
         allow_missing_keys: don't raise exception if key is missing.
 
     Note: The inverse operation doesn't allow to define `extra_info` or access other information, such as the
@@ -1048,7 +1102,7 @@ class Lambdad(MapTransform, InvertibleTransform):
         keys: KeysCollection,
         func: Union[Sequence[Callable], Callable],
         inv_func: Union[Sequence[Callable], Callable] = no_collation,
-        overwrite: Union[Sequence[bool], bool] = True,
+        overwrite: Union[Sequence[bool], bool, Sequence[str], str] = True,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -1061,8 +1115,10 @@ class Lambdad(MapTransform, InvertibleTransform):
         d = dict(data)
         for key, func, overwrite in self.key_iterator(d, self.func, self.overwrite):
             ret = self._lambd(img=d[key], func=func)
-            if overwrite:
+            if overwrite and isinstance(overwrite, bool):
                 d[key] = ret
+            elif isinstance(overwrite, str):
+                d[overwrite] = ret
         return d
 
     def inverse(self, data):
@@ -1086,7 +1142,7 @@ class RandLambdad(Lambdad, RandomizableTransform):
             each element corresponds to a key in ``keys``.
         inv_func: Lambda/function of inverse operation if want to invert transforms, default to `lambda x: x`.
             It also can be a sequence of Callable, each element corresponds to a key in ``keys``.
-        overwrite: whether to overwrite the original data in the input dictionary with lamdbda function output.
+        overwrite: whether to overwrite the original data in the input dictionary with lambda function output.
             default to True. it also can be a sequence of bool, each element corresponds to a key in ``keys``.
         prob: probability of executing the random function, default to 1.0, with 100% probability to execute.
             note that all the data specified by `keys` will share the same random probability to execute or not.
@@ -1401,35 +1457,32 @@ class TorchVisiond(MapTransform):
         return d
 
 
-class RandTorchVisiond(Randomizable, MapTransform):
+class RandTorchVisiond(MapTransform, RandomizableTrait):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.TorchVision` for randomized transforms.
     For deterministic non-randomized transforms of TorchVision use :py:class:`monai.transforms.TorchVisiond`.
 
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        name: The transform name in TorchVision package.
+        allow_missing_keys: don't raise exception if key is missing.
+        args: parameters for the TorchVision transform.
+        kwargs: parameters for the TorchVision transform.
+
     Note:
 
         - As most of the TorchVision transforms only work for PIL image and PyTorch Tensor, this transform expects input
-          data to be dict of PyTorch Tensors, users can easily call `ToTensord` transform to convert Numpy to Tensor.
+          data to be dict of PyTorch Tensors. Users should call `ToTensord` transform first to convert Numpy to Tensor.
         - This class inherits the ``Randomizable`` purely to prevent any dataset caching to skip the transform
           computation. If the random factor of the underlying torchvision transform is not derived from `self.R`,
-          the results may not be deterministic.
-          See Also: :py:class:`monai.transforms.Randomizable`.
+          the results may not be deterministic. See Also: :py:class:`monai.transforms.Randomizable`.
 
     """
 
     backend = TorchVision.backend
 
     def __init__(self, keys: KeysCollection, name: str, allow_missing_keys: bool = False, *args, **kwargs) -> None:
-        """
-        Args:
-            keys: keys of the corresponding items to be transformed.
-                See also: :py:class:`monai.transforms.compose.MapTransform`
-            name: The transform name in TorchVision package.
-            allow_missing_keys: don't raise exception if key is missing.
-            args: parameters for the TorchVision transform.
-            kwargs: parameters for the TorchVision transform.
-
-        """
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.name = name
         self.trans = TorchVision(name, *args, **kwargs)
@@ -1611,7 +1664,7 @@ class CuCIMd(MapTransform):
         return d
 
 
-class RandCuCIMd(CuCIMd, RandomizableTransform):
+class RandCuCIMd(MapTransform, RandomizableTrait):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.CuCIM` for randomized transforms.
     For deterministic non-randomized transforms of CuCIM use :py:class:`monai.transforms.CuCIMd`.
@@ -1620,25 +1673,22 @@ class RandCuCIMd(CuCIMd, RandomizableTransform):
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         name: The transform name in CuCIM package.
-        apply_prob: the probability to apply the transform (default=1.0)
         allow_missing_keys: don't raise exception if key is missing.
         args: parameters for the CuCIM transform.
         kwargs: parameters for the CuCIM transform.
 
     Note:
         - CuCIM transform only work with CuPy arrays, so this transform expects input data to be `cupy.ndarray`.
-          Users can call `ToCuPy` transform to convert a numpy array or torch tensor to cupy array.
-        - If the cuCIM transform is already randomized the `apply_prob` argument has nothing to do with
-          the randomness of the underlying cuCIM transform. `apply_prob` defines if the transform (either randomized
-          or non-randomized) being applied randomly, so it can apply non-randomized transforms randomly but be careful
-          with setting `apply_prob` to anything than 1.0 when using along with cuCIM's randomized transforms.
-        - If the random factor of the underlying cuCIM transform is not derived from `self.R`,
+          Users should call `ToCuPy` transform first to convert a numpy array or torch tensor to cupy array.
+        - This class inherits the ``Randomizable`` purely to prevent any dataset caching to skip the transform
+          computation. If the random factor of the underlying cuCIM transform is not derived from `self.R`,
           the results may not be deterministic. See Also: :py:class:`monai.transforms.Randomizable`.
     """
 
-    def __init__(self, apply_prob: float = 1.0, *args, **kwargs) -> None:
-        CuCIMd.__init__(self, *args, **kwargs)
-        RandomizableTransform.__init__(self, prob=apply_prob)
+    def __init__(self, keys: KeysCollection, name: str, allow_missing_keys: bool = False, *args, **kwargs) -> None:
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        self.name = name
+        self.trans = CuCIM(name, *args, **kwargs)
 
     def __call__(self, data):
         """
@@ -1649,10 +1699,10 @@ class RandCuCIMd(CuCIMd, RandomizableTransform):
             Dict[Hashable, `cupy.ndarray`]
 
         """
-        self.randomize(data)
-        if not self._do_transform:
-            return dict(data)
-        return super().__call__(data)
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.trans(d[key])
+        return d
 
 
 class AddCoordinateChannelsd(MapTransform):
@@ -1728,3 +1778,4 @@ ToDeviceD = ToDeviceDict = ToDeviced
 CuCIMD = CuCIMDict = CuCIMd
 RandCuCIMD = RandCuCIMDict = RandCuCIMd
 AddCoordinateChannelsD = AddCoordinateChannelsDict = AddCoordinateChannelsd
+FlattenSubKeysD = FlattenSubKeysDict = FlattenSubKeysd

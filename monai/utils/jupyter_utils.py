@@ -301,14 +301,14 @@ class ThreadContainer(Thread):
         """Called as an event, updates the internal status dict at the end of iterations."""
         with self.lock:
             state = self.engine.state
-            stats = {
+            stats: Dict[str, Any] = {
                 StatusMembers.EPOCHS.value: 0,
                 StatusMembers.ITERS.value: 0,
                 StatusMembers.LOSS.value: float("nan"),
             }
 
             if state is not None:
-                if state.max_epochs >= 1:
+                if state.max_epochs is not None and state.max_epochs >= 1:
                     epoch = f"{state.epoch}/{state.max_epochs}"
                 else:
                     epoch = str(state.epoch)

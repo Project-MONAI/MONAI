@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import unittest
-from typing import Union
+from typing import Dict, List, Type, Union
 
 import torch
 from parameterized import parameterized
@@ -88,14 +88,14 @@ class ResNetEncoder(ResNet, BaseEncoder):
         return [64, 128, 256, 512]
 
     @classmethod
-    def get_encoder_parameters(cls):
+    def get_encoder_parameters(cls) -> List[Dict]:
         """
         Get parameter list to initialize encoder networks.
         Each parameter dict must have `spatial_dims`, `in_channels`
         and `pretrained` parameters.
         """
         parameter_list = []
-        res_type: Union[ResNetBlock, ResNetBottleneck]
+        res_type: Union[Type[ResNetBlock], Type[ResNetBottleneck]]
         for backbone in range(len(cls.backbone_names)):
             if backbone < 3:
                 res_type = ResNetBlock
@@ -153,8 +153,8 @@ class ResNetEncoder(ResNet, BaseEncoder):
         return feature_list
 
 
-FLEXUNET_BACKBONE.regist_class(ResNetEncoder)
-FLEXUNET_BACKBONE.regist_class(DummyEncoder)
+FLEXUNET_BACKBONE.register_class(ResNetEncoder)
+FLEXUNET_BACKBONE.register_class(DummyEncoder)
 
 
 def get_model_names():
@@ -405,7 +405,7 @@ class TestFlexUNetEncoderRegister(unittest.TestCase):
     @parameterized.expand(CASE_REGISTER_ENCODER)
     def test_regist(self, encoder):
         tmp_backbone = FlexUNetEncoderRegister()
-        tmp_backbone.regist_class(encoder)
+        tmp_backbone.register_class(encoder)
         for backbone in tmp_backbone.register_dict:
             backbone_type = tmp_backbone.register_dict[backbone]["type"]
             feature_number = backbone_type.num_outputs()

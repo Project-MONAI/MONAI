@@ -14,10 +14,13 @@ import os
 import shutil
 import subprocess
 import sys
+import time
+import warnings
 from copy import deepcopy
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Dict, List, Mapping
+from typing import Any, Dict, List, Mapping, Optional, Union
+from urllib.parse import urlparse
 
 import torch
 
@@ -29,7 +32,7 @@ from monai.bundle.config_parser import ConfigParser
 from monai.utils import ensure_tuple
 
 logger = get_logger(module_name=__name__)
-ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "d7bf36c")
+ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "c812e5f")
 
 __all__ = ["BundleAlgo", "BundleGen"]
 
@@ -177,17 +180,13 @@ class BundleAlgo(Algo):
         Execute the training command with target devices information.
 
         """
-        try:
-            logger.info(f"Launching: {cmd}")
-            ps_environ = os.environ.copy()
-            if devices_info:
-                ps_environ["CUDA_VISIBLE_DEVICES"] = devices_info
-            normal_out = subprocess.run(cmd.split(), env=ps_environ, check=True, capture_output=True)
-            logger.info(repr(normal_out).replace("\\n", "\n").replace("\\t", "\t"))
-        except subprocess.CalledProcessError as e:
-            output = repr(e.stdout).replace("\\n", "\n").replace("\\t", "\t")
-            errors = repr(e.stderr).replace("\\n", "\n").replace("\\t", "\t")
-            raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}") from e
+
+        logger.info(f"Launching: {cmd}")
+        ps_environ = os.environ.copy()
+        if devices_info:
+            ps_environ["CUDA_VISIBLE_DEVICES"] = devices_info
+        normal_out = subprocess.run(cmd.split(), env=ps_environ, check=True)
+
         return normal_out
 
     def train(self, train_params=None):
@@ -247,18 +246,17 @@ class BundleAlgo(Algo):
         configs_path = [os.path.join(config_dir, f) for f in os.listdir(config_dir)]
 
         spec = importlib.util.spec_from_file_location("InferClass", infer_py)
-        infer_class = importlib.util.module_from_spec(spec)
+        infer_class = importlib.util.module_from_spec(spec)  # type: ignore
         sys.modules["InferClass"] = infer_class
-        spec.loader.exec_module(infer_class)
+        spec.loader.exec_module(infer_class)  # type: ignore
         return infer_class.InferClass(configs_path, *args, **kwargs)
 
-    def predict(self, predict_params=None):
+    def predict(self, predict_files: list, predict_params=None):
         """
-        Use the trained model to predict the outputs with a given input image. Path to input image is in the params
-        dict in a form of {"files", ["path_to_image_1", "path_to_image_2"]}. If it is not specified, then the
-        prediction will use the test images predefined in the bundle config.
+        Use the trained model to predict the outputs with a given input image.
 
         Args:
+            predict_files: a list of paths to files to run inference on ["path_to_image_1", "path_to_image_2"]
             predict_params: a dict to override the parameters in the bundle config (including the files to predict).
 
         """
@@ -267,9 +265,8 @@ class BundleAlgo(Algo):
         else:
             params = deepcopy(predict_params)
 
-        files = params.pop("files", ".")
         inferer = self.get_inferer(**params)
-        return [inferer.infer(f) for f in ensure_tuple(files)]
+        return [inferer.infer(f) for f in ensure_tuple(predict_files)]
 
     def get_output_path(self):
         """Returns the algo output paths to find the algo scripts and configs."""
@@ -290,15 +287,75 @@ default_algos = {
 }
 
 
+def _download_algos_url(url: str, at_path: str):
+    """
+    Downloads the algorithm templates release archive, and extracts it into a parent directory of the at_path folder.
+    Returns a dictionary of the algorithm templates.
+    """
+    at_path = os.path.abspath(at_path)
+    zip_download_dir = TemporaryDirectory()
+    algo_compressed_file = os.path.join(zip_download_dir.name, "algo_templates.tar.gz")
+
+    download_attempts = 3
+    for i in range(download_attempts):
+        try:
+            download_and_extract(url=url, filepath=algo_compressed_file, output_dir=os.path.dirname(at_path))
+        except Exception as e:
+            msg = f"Download and extract of {url} failed, attempt {i+1}/{download_attempts}."
+            if i < download_attempts - 1:
+                warnings.warn(msg)
+                time.sleep(i)
+            else:
+                zip_download_dir.cleanup()
+                raise ValueError(msg) from e
+        else:
+            break
+
+    zip_download_dir.cleanup()
+
+    algos_all = deepcopy(default_algos)
+    for name in algos_all:
+        algos_all[name]["template_path"] = os.path.join(at_path, algos_all[name]["template_path"])
+
+    return algos_all
+
+
+def _copy_algos_folder(folder, at_path):
+    """
+    Copies the algorithm templates folder to at_path.
+    Returns a dictionary of of algorithm templates.
+    """
+    folder = os.path.abspath(folder)
+    at_path = os.path.abspath(at_path)
+
+    if folder != at_path:
+        if os.path.exists(at_path):
+            shutil.rmtree(at_path)
+        shutil.copytree(folder, at_path)
+
+    algos_all = {}
+    for name in os.listdir(at_path):
+        if os.path.exists(os.path.join(folder, name, "scripts", "algo.py")):
+            algos_all[name] = dict(
+                _target_=f"{name}.scripts.algo.{name.capitalize()}Algo", template_path=os.path.join(at_path, name)
+            )
+    if len(algos_all) == 0:
+        raise ValueError(f"Unable to find any algos in {folder}")
+
+    return algos_all
+
+
 class BundleGen(AlgoGen):
     """
     This class generates a set of bundles according to the cross-validation folds, each of them can run independently.
 
     Args:
         algo_path: the directory path to save the algorithm templates. Default is the current working dir.
-        algos: if dictionary, it outlines the algorithm to use. if None, automatically download the zip file
-            from the default link. if string, it represents the download link.
-            The current default options are released at:
+        algos: If dictionary, it outlines the algorithm to use. If a list or a string, defines a subset of names of
+            the algorithms to use, e.g. ('segresnet', 'dints') out of the full set of algorithm templates provided
+            by templates_path_or_url. Defaults to None - to use all available algorithms.
+        templates_path_or_url: the folder with the algorithm templates or a url. If None provided, the default template
+            zip url will be downloaded and extracted into the algo_path. The current default options are released at:
             https://github.com/Project-MONAI/research-contributions/tree/main/auto3dseg
         data_stats_filename: the path to the data stats file (generated by DataAnalyzer)
         data_src_cfg_name: the path to the data source config YAML file. The config will be in a form of
@@ -309,45 +366,63 @@ class BundleGen(AlgoGen):
         python -m monai.apps.auto3dseg BundleGen generate --data_stats_filename="../algorithms/data_stats.yaml"
     """
 
-    def __init__(self, algo_path: str = ".", algos=None, data_stats_filename=None, data_src_cfg_name=None):
+    def __init__(
+        self,
+        algo_path: str = ".",
+        algos: Optional[Union[Dict, List, str]] = None,
+        templates_path_or_url: Optional[str] = None,
+        data_stats_filename: Optional[str] = None,
+        data_src_cfg_name: Optional[str] = None,
+    ):
+
+        if algos is None or isinstance(algos, (list, tuple, str)):
+
+            if templates_path_or_url is None:
+                templates_path_or_url = default_algo_zip
+
+            at_path = os.path.join(os.path.abspath(algo_path), "algorithm_templates")
+
+            if os.path.isdir(templates_path_or_url):
+                # if a local folder, copy if necessary
+                algos_all = _copy_algos_folder(folder=templates_path_or_url, at_path=at_path)
+            elif urlparse(templates_path_or_url).scheme in ("http", "https"):
+                # if url, trigger the download and extract process
+                algos_all = _download_algos_url(url=templates_path_or_url, at_path=at_path)
+            else:
+                raise ValueError(f"{self.__class__} received invalid templates_path_or_url: {templates_path_or_url}")
+
+            if algos is not None:
+                algos = {k: v for k, v in algos_all.items() if k in ensure_tuple(algos)}  # keep only provided
+                if len(algos) == 0:
+                    raise ValueError(f"Unable to find provided algos in {algos_all}")
+            else:
+                algos = algos_all
+
         self.algos: Any = []
-
-        if algos is None or isinstance(algos, str):
-            # trigger the download process
-            zip_download_dir = TemporaryDirectory()
-            algo_compressed_file = os.path.join(zip_download_dir.name, "algo_templates.tar.gz")
-            download_and_extract(default_algo_zip if algos is None else algos, algo_compressed_file, algo_path)
-            zip_download_dir.cleanup()
-            sys.path.insert(0, os.path.join(algo_path, "algorithm_templates"))
-            algos = deepcopy(default_algos)
-            for name in algos:
-                algos[name]["template_path"] = os.path.join(
-                    algo_path, "algorithm_templates", algos[name]["template_path"]
-                )
-
         if isinstance(algos, dict):
             for algo_name, algo_params in algos.items():
+
+                template_path = os.path.dirname(algo_params.get("template_path", "."))
+                if len(template_path) > 0 and template_path not in sys.path:
+                    sys.path.append(template_path)
+
                 try:
-                    self.algos.append(ConfigParser(algo_params).get_parsed_content())
+                    onealgo = ConfigParser(algo_params).get_parsed_content()
+                    onealgo.name = algo_name
+                    self.algos.append(onealgo)
                 except RuntimeError as e:
-                    if "ModuleNotFoundError" in str(e):
-                        msg = """Please make sure the folder structure of an Algo Template follows
-                            [algo_name]
-                            ├── configs
-                            │   ├── hyperparameters.yaml  # automatically generated yaml from a set of ``template_configs``
-                            │   ├── network.yaml  # automatically generated network yaml from a set of ``template_configs``
-                            │   ├── transforms_train.yaml  # automatically generated yaml to define transforms for training
-                            │   ├── transforms_validate.yaml  # automatically generated yaml to define transforms for validation
-                            │   └── transforms_infer.yaml  # automatically generated yaml to define transforms for inference
-                            └── scripts
-                                ├── test.py
-                                ├── __init__.py
-                                └── validate.py
-                        """
-                        raise RuntimeError(msg) from e
-                self.algos[-1].name = algo_name
+                    msg = """Please make sure the folder structure of an Algo Template follows
+                        [algo_name]
+                        ├── configs
+                        │   ├── hyper_parameters.yaml  # automatically generated yaml from a set of ``template_configs``
+                        └── scripts
+                            ├── test.py
+                            ├── __init__.py
+                            └── validate.py
+                    """
+                    raise RuntimeError(msg) from e
         else:
-            self.algos = ensure_tuple(algos)
+            raise ValueError("Unexpected error algos is not a dict")
 
         self.data_stats_filename = data_stats_filename
         self.data_src_cfg_filename = data_src_cfg_name
@@ -383,13 +458,44 @@ class BundleGen(AlgoGen):
         """get the history of the bundleAlgo object with their names/identifiers"""
         return self.history
 
-    def generate(self, output_folder=".", num_fold: int = 5):
+    def generate(
+        self,
+        output_folder=".",
+        num_fold: int = 5,
+        gpu_customization: bool = False,
+        gpu_customization_specs: Optional[Dict[str, Any]] = None,
+    ):
         """
         Generate the bundle scripts/configs for each bundleAlgo
 
         Args:
             output_folder: the output folder to save each algorithm.
-            num_fold: the number of cross validation fold
+            num_fold: the number of cross validation fold.
+            gpu_customization: the switch to determine automatically customize/optimize bundle script/config
+                parameters for each bundleAlgo based on gpus. Custom parameters are obtained through dummy
+                training to simulate the actual model training process and hyperparameter optimization (HPO)
+                experiments.
+            gpu_customization_specs (optinal): the dictionary to enable users overwrite the HPO settings. user can
+                overwrite part of variables as follows or all of them. The structure is as follows.
+
+                .. code-block:: python
+
+                    gpu_customization_specs = {
+                        'ALOG': {
+                            'num_trials': 6,
+                            'range_num_images_per_batch': [1, 20],
+                            'range_num_sw_batch_size': [1, 20]
+                        }
+                    }
+
+            ALGO: the name of algorithm. It could be one of algorithm names (e.g., 'dints') or 'unversal' which
+                would apply changes to all algorithms. Possible options are
+
+                - {``"unversal"``, ``"dints"``, ``"segresnet"``, ``"segresnet2d"``, ``"swinunetr"``}.
+
+            num_trials: the number of HPO trials/experiments to run.
+            range_num_images_per_batch: the range of number of images per mini-batch.
+            range_num_sw_batch_size: the range of batch size in sliding-window inferer.
         """
         fold_idx = list(range(num_fold))
         for algo in self.algos:
@@ -400,6 +506,15 @@ class BundleGen(AlgoGen):
                 gen_algo.set_data_stats(data_stats)
                 gen_algo.set_data_source(data_src_cfg)
                 name = f"{gen_algo.name}_{f_id}"
-                gen_algo.export_to_disk(output_folder, name, fold=f_id)
+                if gpu_customization:
+                    gen_algo.export_to_disk(
+                        output_folder,
+                        name,
+                        fold=f_id,
+                        gpu_customization=True,
+                        gpu_customization_specs=gpu_customization_specs,
+                    )
+                else:
+                    gen_algo.export_to_disk(output_folder, name, fold=f_id)
                 algo_to_pickle(gen_algo, template_path=algo.template_path)
                 self.history.append({name: gen_algo})  # track the previous, may create a persistent history

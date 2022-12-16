@@ -105,6 +105,7 @@ def convert_to_tensor(
     device: Union[None, str, torch.device] = None,
     wrap_sequence: bool = False,
     track_meta: bool = False,
+    safe: bool = False,
 ):
     """
     Utility to convert the input data to a PyTorch Tensor, if `track_meta` is True, the output will be a `MetaTensor`,
@@ -121,6 +122,9 @@ def convert_to_tensor(
             E.g., `[1, 2]` -> `[tensor(1), tensor(2)]`. If `True`, then `[1, 2]` -> `tensor([1, 2])`.
         track_meta: whether to track the meta information, if `True`, will convert to `MetaTensor`.
             default to `False`.
+        safe: if `True`, then do safe dtype convert when intensity overflow. default to `False`.
+            E.g., `[256, -12]` -> `[tensor(0), tensor(244)]`.
+            If `True`, then `[256, -12]` -> `[tensor(255), tensor(0)]`.
 
     """
 
@@ -138,6 +142,8 @@ def convert_to_tensor(
             return tensor.as_tensor()
         return tensor
 
+    if safe:
+        data = safe_dtype_range(data, dtype)
     dtype = get_equivalent_dtype(dtype, torch.Tensor)
     if isinstance(data, torch.Tensor):
         return _convert_tensor(data).to(dtype=dtype, device=device, memory_format=torch.contiguous_format)
@@ -164,7 +170,7 @@ def convert_to_tensor(
     return data
 
 
-def convert_to_numpy(data, dtype: DtypeLike = None, wrap_sequence: bool = False):
+def convert_to_numpy(data, dtype: DtypeLike = None, wrap_sequence: bool = False, safe: bool = False):
     """
     Utility to convert the input data to a numpy array. If passing a dictionary, list or tuple,
     recursively check every item and convert it to numpy array.
@@ -176,7 +182,11 @@ def convert_to_numpy(data, dtype: DtypeLike = None, wrap_sequence: bool = False)
         dtype: target data type when converting to numpy array.
         wrap_sequence: if `False`, then lists will recursively call this function.
             E.g., `[1, 2]` -> `[array(1), array(2)]`. If `True`, then `[1, 2]` -> `array([1, 2])`.
+        safe: if `True`, then do safe dtype convert when intensity overflow. default to `False`.
+            E.g., `[256, -12]` -> `[array(0), array(244)]`. If `True`, then `[256, -12]` -> `[array(255), array(0)]`.
     """
+    if safe:
+        data = safe_dtype_range(data, dtype)
     if isinstance(data, torch.Tensor):
         data = np.asarray(data.detach().to(device="cpu").numpy(), dtype=get_equivalent_dtype(dtype, np.ndarray))
     elif has_cp and isinstance(data, cp_ndarray):
@@ -205,7 +215,7 @@ def convert_to_numpy(data, dtype: DtypeLike = None, wrap_sequence: bool = False)
     return data
 
 
-def convert_to_cupy(data, dtype: Optional[np.dtype] = None, wrap_sequence: bool = False):
+def convert_to_cupy(data, dtype: Optional[np.dtype] = None, wrap_sequence: bool = False, safe: bool = False):
     """
     Utility to convert the input data to a cupy array. If passing a dictionary, list or tuple,
     recursively check every item and convert it to cupy array.
@@ -218,8 +228,11 @@ def convert_to_cupy(data, dtype: Optional[np.dtype] = None, wrap_sequence: bool 
             for more details: https://docs.cupy.dev/en/stable/reference/generated/cupy.array.html.
         wrap_sequence: if `False`, then lists will recursively call this function.
             E.g., `[1, 2]` -> `[array(1), array(2)]`. If `True`, then `[1, 2]` -> `array([1, 2])`.
+        safe: if `True`, then do safe dtype convert when intensity overflow. default to `False`.
+            E.g., `[256, -12]` -> `[array(0), array(244)]`. If `True`, then `[256, -12]` -> `[array(255), array(0)]`.
     """
-
+    if safe:
+        data = safe_dtype_range(data, dtype)
     # direct calls
     if isinstance(data, (cp_ndarray, np.ndarray, torch.Tensor, float, int, bool)):
         data = cp.asarray(data, dtype)
@@ -246,6 +259,7 @@ def convert_data_type(
     device: Union[None, str, torch.device] = None,
     dtype: Union[DtypeLike, torch.dtype] = None,
     wrap_sequence: bool = False,
+    safe: bool = False,
 ) -> Tuple[NdarrayTensor, type, Optional[torch.device]]:
     """
     Convert to `MetaTensor`, `torch.Tensor` or `np.ndarray` from `MetaTensor`, `torch.Tensor`,
@@ -260,6 +274,8 @@ def convert_data_type(
             If left blank, it remains unchanged.
         wrap_sequence: if `False`, then lists will recursively call this function.
             E.g., `[1, 2]` -> `[array(1), array(2)]`. If `True`, then `[1, 2]` -> `array([1, 2])`.
+        safe: if `True`, then do safe dtype convert when intensity overflow. default to `False`.
+            E.g., `[256, -12]` -> `[array(0), array(244)]`. If `True`, then `[256, -12]` -> `[array(255), array(0)]`.
 
     Returns:
         modified data, orig_type, orig_device
@@ -288,20 +304,20 @@ def convert_data_type(
     orig_device = data.device if isinstance(data, torch.Tensor) else None
 
     output_type = output_type or orig_type
-
     dtype_ = get_equivalent_dtype(dtype, output_type)
 
     data_: NdarrayTensor
-
     if issubclass(output_type, torch.Tensor):
         track_meta = issubclass(output_type, monai.data.MetaTensor)
-        data_ = convert_to_tensor(data, dtype=dtype_, device=device, wrap_sequence=wrap_sequence, track_meta=track_meta)
+        data_ = convert_to_tensor(
+            data, dtype=dtype_, device=device, wrap_sequence=wrap_sequence, track_meta=track_meta, safe=safe
+        )
         return data_, orig_type, orig_device
     if issubclass(output_type, np.ndarray):
-        data_ = convert_to_numpy(data, dtype=dtype_, wrap_sequence=wrap_sequence)
+        data_ = convert_to_numpy(data, dtype=dtype_, wrap_sequence=wrap_sequence, safe=safe)
         return data_, orig_type, orig_device
     elif has_cp and issubclass(output_type, cp.ndarray):
-        data_ = convert_to_cupy(data, dtype=dtype_, wrap_sequence=wrap_sequence)
+        data_ = convert_to_cupy(data, dtype=dtype_, wrap_sequence=wrap_sequence, safe=safe)
         return data_, orig_type, orig_device
     raise ValueError(f"Unsupported output type: {output_type}")
 
@@ -312,6 +328,7 @@ def convert_to_dst_type(
     dtype: Union[DtypeLike, torch.dtype, None] = None,
     wrap_sequence: bool = False,
     device: Union[None, str, torch.device] = None,
+    safe: bool = False,
 ) -> Tuple[NdarrayTensor, type, Optional[torch.device]]:
     """
     Convert source data to the same data type and device as the destination data.
@@ -326,6 +343,8 @@ def convert_to_dst_type(
         wrap_sequence: if `False`, then lists will recursively call this function. E.g., `[1, 2]` -> `[array(1), array(2)]`.
             If `True`, then `[1, 2]` -> `array([1, 2])`.
         device: target device to put the converted Tensor data. If unspecified, `dst.device` will be used if possible.
+        safe: if `True`, then do safe dtype convert when intensity overflow. default to `False`.
+            E.g., `[256, -12]` -> `[array(0), array(244)]`. If `True`, then `[256, -12]` -> `[array(255), array(0)]`.
 
     See Also:
         :func:`convert_data_type`
@@ -349,7 +368,7 @@ def convert_to_dst_type(
         output_type = type(dst)
     output: NdarrayTensor
     output, _type, _device = convert_data_type(
-        data=src, output_type=output_type, device=device, dtype=dtype, wrap_sequence=wrap_sequence
+        data=src, output_type=output_type, device=device, dtype=dtype, wrap_sequence=wrap_sequence, safe=safe
     )
     if copy_meta and isinstance(output, monai.data.MetaTensor):
         output.copy_meta_from(dst)
@@ -366,3 +385,77 @@ def convert_to_list(data: Union[Sequence, torch.Tensor, np.ndarray]) -> list:
 
     """
     return data.tolist() if isinstance(data, (torch.Tensor, np.ndarray)) else list(data)
+
+
+def get_dtype_bound_value(dtype: Union[DtypeLike, torch.dtype]):
+    """
+    Get dtype bound value
+    Args:
+        dtype: dtype to get bound value
+    Returns:
+        (bound_min_value, bound_max_value)
+    """
+    if dtype in UNSUPPORTED_TYPES:
+        is_floating_point = False
+    else:
+        is_floating_point = get_equivalent_dtype(dtype, torch.Tensor).is_floating_point
+    dtype = get_equivalent_dtype(dtype, np.array)
+    if is_floating_point:
+        return (np.finfo(dtype).min, np.finfo(dtype).max)  # type: ignore
+    else:
+        return (np.iinfo(dtype).min, np.iinfo(dtype).max)
+
+
+def safe_dtype_range(data: Any, dtype: Union[DtypeLike, torch.dtype] = None):
+    """
+    Utility to safely convert the input data to target dtype.
+
+    Args:
+        data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
+            will convert to target dtype and keep the original type.
+            for dictionary, list or tuple, convert every item.
+        dtype: target data type to convert.
+    """
+
+    def _safe_dtype_range(data, dtype):
+        output_dtype = dtype if dtype is not None else data.dtype
+        dtype_bound_value = get_dtype_bound_value(output_dtype)
+        if data.ndim == 0:
+            data_bound = (data, data)
+        else:
+            if isinstance(data, torch.Tensor):
+                data_bound = (torch.min(data), torch.max(data))
+            else:
+                data_bound = (np.min(data), np.max(data))
+        if (data_bound[1] > dtype_bound_value[1]) or (data_bound[0] < dtype_bound_value[0]):
+            if isinstance(data, torch.Tensor):
+                return torch.clamp(data, dtype_bound_value[0], dtype_bound_value[1])
+            elif isinstance(data, np.ndarray):
+                return np.clip(data, dtype_bound_value[0], dtype_bound_value[1])
+            elif has_cp and isinstance(data, cp_ndarray):
+                return cp.clip(data, dtype_bound_value[0], dtype_bound_value[1])
+        else:
+            return data
+
+    if has_cp and isinstance(data, cp_ndarray):
+        return cp.asarray(_safe_dtype_range(data, dtype))
+    elif isinstance(data, np.ndarray):
+        return np.asarray(_safe_dtype_range(data, dtype))
+    elif isinstance(data, torch.Tensor):
+        return _safe_dtype_range(data, dtype)
+    elif isinstance(data, (float, int, bool)) and dtype is None:
+        return data
+    elif isinstance(data, (float, int, bool)) and dtype is not None:
+        output_dtype = dtype
+        dtype_bound_value = get_dtype_bound_value(output_dtype)
+        data = dtype_bound_value[1] if data > dtype_bound_value[1] else data
+        data = dtype_bound_value[0] if data < dtype_bound_value[0] else data
+        return data
+
+    elif isinstance(data, list):
+        return [safe_dtype_range(i, dtype=dtype) for i in data]
+    elif isinstance(data, tuple):
+        return tuple(safe_dtype_range(i, dtype=dtype) for i in data)
+    elif isinstance(data, dict):
+        return {k: safe_dtype_range(v, dtype=dtype) for k, v in data.items()}
+    return data

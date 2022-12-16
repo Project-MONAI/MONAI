@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Union
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Sequence, Union
 
 from torch.utils.data import IterableDataset as _TorchIterableDataset
 from torch.utils.data import get_worker_info
@@ -37,7 +37,7 @@ class IterableDataset(_TorchIterableDataset):
 
     """
 
-    def __init__(self, data: Iterable, transform: Optional[Callable] = None) -> None:
+    def __init__(self, data: Iterable[Any], transform: Optional[Callable] = None) -> None:
         """
         Args:
             data: input data source to load and transform to generate dataset for model.
@@ -45,7 +45,7 @@ class IterableDataset(_TorchIterableDataset):
         """
         self.data = data
         self.transform = transform
-        self.source = None
+        self.source: Optional[Iterator[Any]] = None
 
     def __iter__(self):
         info = get_worker_info()
@@ -71,6 +71,7 @@ class ShuffleBuffer(Randomizable, IterableDataset):
         seed: random seed to initialize the random state of all workers, set `seed += 1` in
             every iter() call, refer to the PyTorch idea:
             https://github.com/pytorch/pytorch/blob/v1.10.0/torch/utils/data/distributed.py#L98.
+        epochs: number of epochs to iterate over the dataset, default to 1, -1 means infinite epochs.
 
     Note:
         Both ``monai.data.DataLoader`` and ``torch.utils.data.DataLoader`` do not seed this class (as a subclass of
@@ -93,10 +94,11 @@ class ShuffleBuffer(Randomizable, IterableDataset):
 
     """
 
-    def __init__(self, data, transform=None, buffer_size: int = 512, seed: int = 0) -> None:
+    def __init__(self, data, transform=None, buffer_size: int = 512, seed: int = 0, epochs: int = 1) -> None:
         super().__init__(data=data, transform=transform)
         self.size = buffer_size
         self.seed = seed
+        self.epochs = epochs
         self._idx = 0
 
     def randomized_pop(self, buffer):
@@ -108,7 +110,7 @@ class ShuffleBuffer(Randomizable, IterableDataset):
 
     def generate_item(self):
         """Fill a `buffer` list up to `self.size`, then generate randomly popped items."""
-        buffer = []
+        buffer: List[Any] = []
         for item in iter(self.data):
             if len(buffer) >= self.size:
                 yield self.randomized_pop(buffer)
@@ -123,7 +125,8 @@ class ShuffleBuffer(Randomizable, IterableDataset):
         """
         self.seed += 1
         super().set_random_state(seed=self.seed)  # make all workers in sync
-        yield from IterableDataset(self.generate_item(), transform=self.transform)
+        for _ in range(self.epochs) if self.epochs >= 0 else iter(int, 1):
+            yield from IterableDataset(self.generate_item(), transform=self.transform)
 
     def randomize(self, size: int) -> None:
         self._idx = self.R.randint(size)
@@ -260,7 +263,7 @@ class CSVIterableDataset(IterableDataset):
 
         """
         for i in self.iters:
-            i.close()
+            i.close()  # type: ignore
 
     def _flattened(self):
         for chunks in zip(*self.iters):

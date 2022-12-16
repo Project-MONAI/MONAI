@@ -389,7 +389,7 @@ class TransformBackends(StrEnum):
     ``monai.data.MetaTensor``. Internally, some transforms are made by converting the data into ``numpy.array`` or
     ``cupy.array`` and use the underlying transform backend API to achieve the actual output array and
     converting back to ``Tensor``/``MetaTensor``. Transforms with more than one backend indicate the that they may
-    convert the input data types to accomodate the underlying API.
+    convert the input data types to accommodate the underlying API.
     """
 
     TORCH = "torch"
@@ -630,3 +630,4 @@ class LazyAttr(StrEnum):
     AFFINE = "lazy_affine"
     PADDING_MODE = "lazy_padding_mode"
     INTERP_MODE = "lazy_interpolation_mode"
+    DTYPE = "lazy_dtype"

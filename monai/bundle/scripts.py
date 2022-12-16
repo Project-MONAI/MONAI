@@ -14,6 +14,7 @@ import json
 import os
 import pprint
 import re
+import time
 import warnings
 from logging.config import fileConfig
 from pathlib import Path
@@ -27,7 +28,7 @@ from torch.cuda import is_available
 from monai.apps.utils import _basename, download_url, extractall, get_logger
 from monai.bundle.config_item import ConfigComponent
 from monai.bundle.config_parser import ConfigParser
-from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA
+from monai.bundle.utils import DEFAULT_EXP_MGMT_SETTINGS, DEFAULT_INFERENCE, DEFAULT_METADATA
 from monai.config import IgniteInfo, PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
 from monai.networks import convert_to_torchscript, copy_model_state, get_state_dict, save_state
@@ -365,7 +366,7 @@ def get_all_bundles_list(
     """
     Get all bundles names (and the latest versions) that are stored in the release of specified repository
     with the provided tag. The default values of arguments correspond to the release of MONAI model zoo.
-    In order to increase the rate limits of calling GIthub APIs, you can input your personal access token.
+    In order to increase the rate limits of calling Github APIs, you can input your personal access token.
     Please check the following link for more details about rate limiting:
     https://docs.github.com/en/rest/overview/resources-in-the-rest-api#rate-limiting
 
@@ -384,7 +385,7 @@ def get_all_bundles_list(
 
     bundles_info = _get_all_bundles_info(repo=repo, tag=tag, auth_token=auth_token)
     bundles_list = []
-    for bundle_name in bundles_info.keys():
+    for bundle_name in bundles_info:
         latest_version = sorted(bundles_info[bundle_name].keys())[-1]
         bundles_list.append((bundle_name, latest_version))
 
@@ -400,7 +401,7 @@ def get_bundle_versions(
     """
     Get the latest version, as well as all existing versions of a bundle that is stored in the release of specified
     repository with the provided tag.
-    In order to increase the rate limits of calling GIthub APIs, you can input your personal access token.
+    In order to increase the rate limits of calling Github APIs, you can input your personal access token.
     Please check the following link for more details about rate limiting:
     https://docs.github.com/en/rest/overview/resources-in-the-rest-api#rate-limiting
 
@@ -438,7 +439,7 @@ def get_bundle_info(
     Get all information
     (include "id", "name", "size", "download_count", "browser_download_url", "created_at", "updated_at") of a bundle
     with the specified bundle name and version.
-    In order to increase the rate limits of calling GIthub APIs, you can input your personal access token.
+    In order to increase the rate limits of calling Github APIs, you can input your personal access token.
     Please check the following link for more details about rate limiting:
     https://docs.github.com/en/rest/overview/resources-in-the-rest-api#rate-limiting
 
@@ -469,11 +470,46 @@ def get_bundle_info(
     return bundle_info[version]
 
 
+def patch_bundle_tracking(parser: ConfigParser, settings: dict):
+    """
+    Patch the loaded bundle config with a new handler logic to enable experiment tracking features.
+
+    Args:
+        parser: loaded config content to patch the handler.
+        settings: settings for the experiment tracking, should follow the pattern of default settings.
+
+    """
+    for k, v in settings["configs"].items():
+        if k in settings["handlers_id"]:
+            engine = parser.get(settings["handlers_id"][k]["id"])
+            if engine is not None:
+                handlers = parser.get(settings["handlers_id"][k]["handlers"])
+                if handlers is None:
+                    engine["train_handlers" if k == "trainer" else "val_handlers"] = [v]
+                else:
+                    handlers.append(v)
+        elif k not in parser:
+            parser[k] = v
+    # save the executed config into file
+    default_name = f"config_{time.strftime('%Y%m%d_%H%M%S')}.json"
+    filepath = parser.get("execute_config", None)
+    if filepath is None:
+        if "output_dir" not in parser:
+            # if no "output_dir" in the bundle config, default to "<bundle root>/eval"
+            parser["output_dir"] = "$@bundle_root + '/eval'"
+        # experiment management tools can refer to this config item to track the config info
+        parser["execute_config"] = parser["output_dir"] + f" + '/{default_name}'"
+        filepath = os.path.join(parser.get_parsed_content("output_dir"), default_name)
+    Path(filepath).parent.mkdir(parents=True, exist_ok=True)
+    parser.export_config_file(parser.get(), filepath)
+
+
 def run(
     runner_id: Optional[Union[str, Sequence[str]]] = None,
     meta_file: Optional[Union[str, Sequence[str]]] = None,
     config_file: Optional[Union[str, Sequence[str]]] = None,
     logging_file: Optional[str] = None,
+    tracking: Optional[Union[str, dict]] = None,
     args_file: Optional[str] = None,
     **override,
 ):
@@ -507,6 +543,59 @@ def run(
             if it is a list of file paths, the content of them will be merged.
         logging_file: config file for `logging` module in the program, default to `None`. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
+        tracking: enable the experiment tracking feature at runtime with optionally configurable and extensible.
+            if "mlflow", will add `MLFlowHandler` to the parsed bundle with default logging settings,
+            if other string, treat it as file path to load the logging settings, if `dict`,
+            treat it as logging settings, otherwise, use all the default settings.
+            will patch the target config content with `tracking handlers` and the top-level items of `configs`.
+            example of customized settings:
+
+            .. code-block:: python
+
+                tracking = {
+                    "handlers_id": {
+                        "trainer": {"id": "train#trainer", "handlers": "train#handlers"},
+                        "validator": {"id": "evaluate#evaluator", "handlers": "evaluate#handlers"},
+                        "evaluator": {"id": "evaluator", "handlers": "handlers"},
+                    },
+                    "configs": {
+                        "tracking_uri": "<path>",
+                        "experiment_name": "monai_experiment",
+                        "run_name": None,
+                        "is_not_rank0": (
+                            "$torch.distributed.is_available() \
+                                and torch.distributed.is_initialized() and torch.distributed.get_rank() > 0"
+                        ),
+                        "trainer": {
+                            "_target_": "MLFlowHandler",
+                            "_disabled_": "@is_not_rank0",
+                            "tracking_uri": "@tracking_uri",
+                            "experiment_name": "@experiment_name",
+                            "run_name": "@run_name",
+                            "iteration_log": True,
+                            "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
+                            "close_on_complete": True,
+                        },
+                        "validator": {
+                            "_target_": "MLFlowHandler",
+                            "_disabled_": "@is_not_rank0",
+                            "tracking_uri": "@tracking_uri",
+                            "experiment_name": "@experiment_name",
+                            "run_name": "@run_name",
+                            "iteration_log": False,
+                        },
+                        "evaluator": {
+                            "_target_": "MLFlowHandler",
+                            "_disabled_": "@is_not_rank0",
+                            "tracking_uri": "@tracking_uri",
+                            "experiment_name": "@experiment_name",
+                            "run_name": "@run_name",
+                            "iteration_log": False,
+                            "close_on_complete": True,
+                        },
+                    },
+                },
+
         args_file: a JSON or YAML file to provide default values for `runner_id`, `meta_file`,
             `config_file`, `logging`, and override pairs. so that the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.
@@ -520,13 +609,14 @@ def run(
         meta_file=meta_file,
         config_file=config_file,
         logging_file=logging_file,
+        tracking=tracking,
         **override,
     )
     if "config_file" not in _args:
         warnings.warn("`config_file` not provided for 'monai.bundle run'.")
     _log_input_summary(tag="run", args=_args)
-    config_file_, meta_file_, runner_id_, logging_file_ = _pop_args(
-        _args, config_file=None, meta_file=None, runner_id="", logging_file=None
+    config_file_, meta_file_, runner_id_, logging_file_, tracking_ = _pop_args(
+        _args, config_file=None, meta_file=None, runner_id="", logging_file=None, tracking=None
     )
     if logging_file_ is not None:
         if not os.path.exists(logging_file_):
@@ -541,6 +631,14 @@ def run(
 
     # the rest key-values in the _args are to override config content
     parser.update(pairs=_args)
+
+    # set tracking configs for experiment management
+    if tracking_ is not None:
+        if isinstance(tracking_, str) and tracking_ in DEFAULT_EXP_MGMT_SETTINGS:
+            settings_ = DEFAULT_EXP_MGMT_SETTINGS[tracking_]
+        else:
+            settings_ = ConfigParser.load_config_files(tracking_)
+        patch_bundle_tracking(parser=parser, settings=settings_)
 
     # resolve and execute the specified runner expressions in the config, return the results
     return [parser.get_parsed_content(i, lazy=True, eval_expr=True, instantiate=True) for i in ensure_tuple(runner_id_)]
@@ -689,7 +787,16 @@ def verify_net_in_out(
     with torch.no_grad():
         spatial_shape = _get_fake_spatial_shape(input_spatial_shape, p=p_, n=n_, any=any_)
         test_data = torch.rand(*(1, input_channels, *spatial_shape), dtype=input_dtype, device=device_)
-        output = net(test_data)
+        if input_dtype == torch.float16:
+            # fp16 can only be executed in gpu mode
+            net.to("cuda")
+            from torch.cuda.amp import autocast
+
+            with autocast():
+                output = net(test_data.cuda())
+            net.to(device_)
+        else:
+            output = net(test_data)
         if output.shape[1] != output_channels:
             raise ValueError(f"output channel number `{output.shape[1]}` doesn't match: `{output_channels}`.")
         if output.dtype != output_dtype:
@@ -800,8 +907,8 @@ def init_bundle(
     ckpt_file: Optional[PathLike] = None,
     network: Optional[torch.nn.Module] = None,
     dataset_license: bool = False,
-    metadata_str: Union[Dict, str] = DEFAULT_METADATA,
-    inference_str: Union[Dict, str] = DEFAULT_INFERENCE,
+    metadata_str: Union[Dict, str, None] = None,
+    inference_str: Union[Dict, str, None] = None,
 ):
     """
     Initialise a new bundle directory with some default configuration files and optionally network weights.
@@ -818,7 +925,13 @@ def init_bundle(
         network: if given instead of ckpt_file this network's weights will be stored in bundle
         dataset_license: if `True`, a default license file called "data_license.txt" will be produced. This
             file is required if there are any license conditions stated for data your bundle uses.
+        metadata_str: optional metadata string to write to bundle, if not given a default will be used.
+        inference_str: optional inference string to write to bundle, if not given a default will be used.
     """
+    if metadata_str is None:
+        metadata_str = DEFAULT_METADATA
+    if inference_str is None:
+        inference_str = DEFAULT_INFERENCE
 
     bundle_dir = Path(bundle_dir).absolute()
 

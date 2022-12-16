@@ -86,7 +86,7 @@ class Evaluator(Workflow):
 
     def __init__(
         self,
-        device: torch.device,
+        device: torch.device | str,
         val_data_loader: Iterable | DataLoader,
         epoch_length: int | None = None,
         non_blocking: bool = False,

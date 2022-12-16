@@ -10,14 +10,18 @@
 # limitations under the License.
 
 import os
+import shutil
+import tempfile
 import unittest
 
 from parameterized import parameterized
 
 from monai.bundle import ConfigParser
+from monai.bundle.utils import DEFAULT_HANDLERS_ID
 from monai.fl.client.monai_algo import MonaiAlgo
 from monai.fl.utils.constants import ExtraItems
 from monai.fl.utils.exchange_object import ExchangeObject
+from monai.utils import path_to_uri
 from tests.utils import SkipIfNoModule
 
 _root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__)))
@@ -130,6 +134,7 @@ TEST_GET_WEIGHTS_4 = [
 
 
 @SkipIfNoModule("ignite")
+@SkipIfNoModule("mlflow")
 class TestFLMonaiAlgo(unittest.TestCase):
     @parameterized.expand([TEST_TRAIN_1, TEST_TRAIN_2, TEST_TRAIN_3])
     def test_train(self, input_params):
@@ -140,6 +145,21 @@ class TestFLMonaiAlgo(unittest.TestCase):
             ]
         else:
             config_train_filename = os.path.join(input_params["bundle_root"], input_params["config_train_filename"])
+
+        data_dir = tempfile.mkdtemp()
+        # test experiment management
+        input_params["tracking"] = {
+            "handlers_id": DEFAULT_HANDLERS_ID,
+            "configs": {
+                "execute_config": f"{data_dir}/config_executed.json",
+                "trainer": {
+                    "_target_": "MLFlowHandler",
+                    "tracking_uri": path_to_uri(data_dir) + "/mlflow_override",
+                    "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
+                    "close_on_complete": True,
+                },
+            },
+        }
 
         # initialize algo
         algo = MonaiAlgo(**input_params)
@@ -157,6 +177,9 @@ class TestFLMonaiAlgo(unittest.TestCase):
         # test train
         algo.train(data=data, extra={})
         algo.finalize()
+        self.assertTrue(os.path.exists(f"{data_dir}/mlflow_override"))
+        self.assertTrue(os.path.exists(f"{data_dir}/config_executed.json"))
+        shutil.rmtree(data_dir)
 
     @parameterized.expand([TEST_EVALUATE_1, TEST_EVALUATE_2, TEST_EVALUATE_3])
     def test_evaluate(self, input_params):

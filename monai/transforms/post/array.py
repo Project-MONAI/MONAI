@@ -142,7 +142,7 @@ class AsDiscrete(Transform):
             Defaults to ``False``.
         to_onehot: if not None, convert input data into the one-hot format with specified number of classes.
             Defaults to ``None``.
-        threshold: if not None, threshold the float values to int number 0 or 1 with specified theashold.
+        threshold: if not None, threshold the float values to int number 0 or 1 with specified threshold.
             Defaults to ``None``.
         rounding: if not None, round the data according to the specified option,
             available options: ["torchrounding"].
@@ -360,7 +360,7 @@ class RemoveSmallObjects(Transform):
     Data should be one-hotted.
 
     Args:
-        min_size: objects smaller than this size are removed.
+        min_size: objects smaller than this size (in pixel) are removed.
         connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
             Accepted values are ranging from  1 to input.ndim. If ``None``, a full
             connectivity of ``input.ndim`` is used. For more details refer to linked scikit-image
@@ -832,7 +832,7 @@ class Invert(Transform):
 
 
 class SobelGradients(Transform):
-    """Calculate Sobel gradients of a grayscale image with the shape of (CxH[xWxDx...]).
+    """Calculate Sobel gradients of a grayscale image with the shape of CxH[xWxDx...] or BxH[xWxDx...].
 
     Args:
         kernel_size: the size of the Sobel kernel. Defaults to 3.
@@ -922,7 +922,7 @@ class SobelGradients(Transform):
         grad_list = []
         for ax in spatial_axes:
             kernels = [kernel_smooth] * n_spatial_dims
-            kernels[ax - 1] = kernel_diff
+            kernels[ax] = kernel_diff
             grad = separable_filtering(image_tensor, kernels, mode=self.padding)
             if self.normalize_gradients:
                 grad_min = grad.min()

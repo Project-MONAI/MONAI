@@ -34,6 +34,14 @@ for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cp
     TESTS3D.append((x.to(device), y1.to(device), data_range.to(device), torch.tensor(1.0).unsqueeze(0).to(device)))
     TESTS3D.append((x.to(device), y2.to(device), data_range.to(device), torch.tensor(0.0).unsqueeze(0).to(device)))
 
+x = torch.ones([1, 1, 10, 10]) / 2
+y = torch.ones([1, 1, 10, 10]) / 2
+y.requires_grad_(True)
+data_range = x.max().unsqueeze(0)
+TESTS2D_GRAD = []
+for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cpu"]:
+    TESTS2D_GRAD.append([x.to(device), y.to(device), data_range.to(device)])
+
 
 class TestSSIMLoss(unittest.TestCase):
     @parameterized.expand(TESTS2D)
@@ -41,6 +49,11 @@ class TestSSIMLoss(unittest.TestCase):
         result = 1 - SSIMLoss(spatial_dims=2)(x, y, drange)
         self.assertTrue(isinstance(result, torch.Tensor))
         self.assertTrue(torch.abs(res - result).item() < 0.001)
+
+    @parameterized.expand(TESTS2D_GRAD)
+    def test_grad(self, x, y, drange):
+        result = 1 - SSIMLoss(spatial_dims=2)(x, y, drange)
+        self.assertTrue(result.requires_grad)
 
     @parameterized.expand(TESTS3D)
     def test3d(self, x, y, drange, res):

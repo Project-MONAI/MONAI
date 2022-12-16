@@ -243,6 +243,8 @@ class _ResidualBlock(nn.Module):
         dropout_prob: float = 0.0,
         act: Union[str, tuple] = ("relu", {"inplace": True}),
         norm: Union[str, tuple] = "batch",
+        freeze_dense_layer: bool = False,
+        freeze_block: bool = False,
     ) -> None:
         """Residual block.
 
@@ -259,6 +261,9 @@ class _ResidualBlock(nn.Module):
             dropout_prob: dropout rate after each dense layer.
             act: activation type and arguments. Defaults to relu.
             norm: feature normalization type and arguments. Defaults to batch norm.
+            freeze_dense_layer: whether to freeze all dense layers within the block.
+            freeze_block: whether to freeze the whole block.
+
         """
         super().__init__()
 
@@ -280,6 +285,11 @@ class _ResidualBlock(nn.Module):
             self.layers.add_module(f"denselayer_{i}", layer)
 
         self.bna_block = _Transition(out_channels, act=act, norm=norm)
+
+        if freeze_dense_layer:
+            self.layers.requires_grad_(False)
+        if freeze_block:
+            self.requires_grad_(False)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
 
@@ -404,6 +414,7 @@ class HoVerNet(nn.Module):
       Medical Image Analysis 2019
 
       https://github.com/vqdang/hover_net
+      https://pytorch.org/vision/main/models/generated/torchvision.models.resnet50.html
 
     Args:
         mode: use original implementation (`HoVerNetMODE.ORIGINAL` or "original") or
@@ -419,10 +430,17 @@ class HoVerNet(nn.Module):
             Please note that to get consistent output size, `HoVerNetMode.FAST` mode should be employed.
         dropout_prob: dropout rate after each dense layer.
         pretrained_url: if specifying, will loaded the pretrained weights downloaded from the url.
-            The weights should be ImageNet pretrained preact-resnet50 weights coming from the referred hover_net
+            There are two supported forms of weights:
+            1. preact-resnet50 weights coming from the referred hover_net
             repository, each user is responsible for checking the content of model/datasets and the applicable licenses
             and determining if suitable for the intended use. please check the following link for more details:
             https://github.com/vqdang/hover_net#data-format
+            2. standard resnet50 weights of torchvision. Please check the following link for more details:
+            https://pytorch.org/vision/main/_modules/torchvision/models/resnet.html#ResNet50_Weights
+        adapt_standard_resnet: if the pretrained weights of the encoder follow the original format (preact-resnet50), this
+            value should be `False`. If using the pretrained weights that follow torchvision's standard resnet50 format,
+            this value should be `True`.
+        freeze_encoder: whether to freeze the encoder of the network.
     """
 
     Mode = HoVerNetMode
@@ -439,6 +457,8 @@ class HoVerNet(nn.Module):
         decoder_padding: bool = False,
         dropout_prob: float = 0.0,
         pretrained_url: Optional[str] = None,
+        adapt_standard_resnet: bool = False,
+        freeze_encoder: bool = False,
     ) -> None:
 
         super().__init__()
@@ -491,6 +511,13 @@ class HoVerNet(nn.Module):
         self.res_blocks = nn.Sequential()
 
         for i, num_layers in enumerate(_block_config):
+            freeze_dense_layer = False
+            freeze_block = False
+            if freeze_encoder:
+                if i == 0:
+                    freeze_dense_layer = True
+                else:
+                    freeze_block = True
             block = _ResidualBlock(
                 layers=num_layers,
                 num_features=_num_features,
@@ -499,6 +526,8 @@ class HoVerNet(nn.Module):
                 dropout_prob=dropout_prob,
                 act=act,
                 norm=norm,
+                freeze_dense_layer=freeze_dense_layer,
+                freeze_block=freeze_block,
             )
             self.res_blocks.add_module(f"d{i}", block)
 
@@ -534,10 +563,11 @@ class HoVerNet(nn.Module):
                 nn.init.constant_(torch.as_tensor(m.bias), 0)
 
         if pretrained_url is not None:
-            _load_pretrained_encoder(self, pretrained_url)
-
-    def freeze_encoder(self):
-        self.res_blocks.requires_grad_(False)
+            if adapt_standard_resnet:
+                weights = _remap_standard_resnet_model(pretrained_url)
+            else:
+                weights = _remap_preact_resnet_model(pretrained_url)
+            _load_pretrained_encoder(self, weights)
 
     def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
 
@@ -570,7 +600,18 @@ class HoVerNet(nn.Module):
         return output
 
 
-def _load_pretrained_encoder(model: nn.Module, model_url: str):
+def _load_pretrained_encoder(model: nn.Module, state_dict: Union[OrderedDict, Dict]):
+
+    model_dict = model.state_dict()
+    state_dict = {
+        k: v for k, v in state_dict.items() if (k in model_dict) and (model_dict[k].shape == state_dict[k].shape)
+    }
+
+    model_dict.update(state_dict)
+    model.load_state_dict(model_dict)
+
+
+def _remap_preact_resnet_model(model_url: str):
 
     pattern_conv0 = re.compile(r"^(conv0\.\/)(.+)$")
     pattern_block = re.compile(r"^(d\d+)\.(.+)$")
@@ -596,12 +637,59 @@ def _load_pretrained_encoder(model: nn.Module, model_url: str):
         if "upsample2x" in key:
             del state_dict[key]
 
-    model_dict = model.state_dict()
-    state_dict = {
-        k: v for k, v in state_dict.items() if (k in model_dict) and (model_dict[k].shape == state_dict[k].shape)
-    }
-    model_dict.update(state_dict)
-    model.load_state_dict(model_dict)
+    return state_dict
+
+
+def _remap_standard_resnet_model(model_url: str):
+
+    pattern_conv0 = re.compile(r"^conv1\.(.+)$")
+    pattern_bn1 = re.compile(r"^bn1\.(.+)$")
+    pattern_block = re.compile(r"^layer(\d+)\.(\d+)\.(.+)$")
+    # bn3 to next denselayer's preact/bn
+    pattern_block_bn3 = re.compile(r"^(res_blocks.d\d+\.layers\.denselayer_)(\d+)\.layers\.bn3\.(.+)$")
+    # bn1, bn2 to conv1/bn, conv2/bn
+    pattern_block_bn = re.compile(r"^(res_blocks.d\d+\.layers\.denselayer_\d+\.layers)\.bn(\d+)\.(.+)$")
+    pattern_downsample0 = re.compile(r"^(res_blocks.d\d+).+\.downsample\.0\.(.+)")
+    pattern_downsample1 = re.compile(r"^(res_blocks.d\d+).+\.downsample\.1\.(.+)")
+    # download the pretrained weights into torch hub's default dir
+    weights_dir = os.path.join(torch.hub.get_dir(), "resnet50.pth")
+    download_url(model_url, fuzzy=True, filepath=weights_dir, progress=False)
+    state_dict = torch.load(weights_dir, map_location=None)
+
+    for key in list(state_dict.keys()):
+        new_key = None
+        if pattern_conv0.match(key):
+            new_key = re.sub(pattern_conv0, r"conv0.conv.\1", key)
+        elif pattern_bn1.match(key):
+            new_key = re.sub(pattern_bn1, r"conv0.bn.\1", key)
+        elif pattern_block.match(key):
+            new_key = re.sub(
+                pattern_block,
+                lambda s: "res_blocks.d"
+                + str(int(s.group(1)) - 1)
+                + ".layers.denselayer_"
+                + s.group(2)
+                + ".layers."
+                + s.group(3),
+                key,
+            )
+            if pattern_block_bn3.match(new_key):
+                new_key = re.sub(
+                    pattern_block_bn3,
+                    lambda s: s.group(1) + str(int(s.group(2)) + 1) + ".layers.preact/bn." + s.group(3),
+                    new_key,
+                )
+            elif pattern_block_bn.match(new_key):
+                new_key = re.sub(pattern_block_bn, r"\1.conv\2/bn.\3", new_key)
+            elif pattern_downsample0.match(new_key):
+                new_key = re.sub(pattern_downsample0, r"\1.shortcut.\2", new_key)
+            elif pattern_downsample1.match(new_key):
+                new_key = re.sub(pattern_downsample1, r"\1.bna_block.bn.\2", new_key)
+        if new_key:
+            state_dict[new_key] = state_dict[key]
+            del state_dict[key]
+
+    return state_dict
 
 
 Hovernet = HoVernet = HoverNet = HoVerNet

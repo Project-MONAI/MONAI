@@ -239,6 +239,7 @@ class TestSlidingWindowInference(unittest.TestCase):
             device,
             has_tqdm,
             None,
+            None,
             t1,
             test2=t2,
         )

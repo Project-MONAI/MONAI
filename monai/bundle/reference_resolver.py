@@ -221,21 +221,23 @@ class ReferenceResolver:
         result = cls.id_matcher.findall(value)
         value_is_expr = ConfigExpression.is_expression(value)
         for item in result:
-            ref_id = item[len(cls.ref) :]  # remove the ref prefix "@"
-            if ref_id not in refs:
-                msg = f"can not find expected ID '{ref_id}' in the references."
-                if cls.allow_missing_reference:
-                    warnings.warn(msg)
-                    continue
-                else:
-                    raise KeyError(msg)
-            if value_is_expr:
-                # replace with local code, `{"__local_refs": self.resolved_content}` will be added to
-                # the `globals` argument of python `eval` in the `evaluate`
-                value = value.replace(item, f"{cls._vars}['{ref_id}']")
-            elif value == item:
-                # the whole content is "@XXX", it will avoid the case that regular string contains "@"
-                value = refs[ref_id]
+            # only update reference when string starts with "$" or the whole content is "@XXX"
+            if value_is_expr or value == item:
+                ref_id = item[len(cls.ref) :]  # remove the ref prefix "@"
+                if ref_id not in refs:
+                    msg = f"can not find expected ID '{ref_id}' in the references."
+                    if cls.allow_missing_reference:
+                        warnings.warn(msg)
+                        continue
+                    else:
+                        raise KeyError(msg)
+                if value_is_expr:
+                    # replace with local code, `{"__local_refs": self.resolved_content}` will be added to
+                    # the `globals` argument of python `eval` in the `evaluate`
+                    value = value.replace(item, f"{cls._vars}['{ref_id}']")
+                elif value == item:
+                    # the whole content is "@XXX", it will avoid the case that regular string contains "@"
+                    value = refs[ref_id]
         return value
 
     @classmethod

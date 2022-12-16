@@ -19,7 +19,7 @@ class BaseEncoder(metaclass=ABCMeta):
     """
     Abstract class defines interface of encoders in flexible unet.
     Encoders in flexible unet must derive from this class. Each interface method
-    should return a list containing relative information about a series of newtworks
+    should return a list containing relative information about a series of networks
     defined by encoder. For example, the efficient-net encoder implement 10 basic
     network structures in one encoder. When calling `get_encoder_name_string_list`
     function, a string list like ["efficientnet-b0", "efficientnet-b1" ... "efficientnet-l2"]
@@ -79,6 +79,6 @@ class BaseEncoder(metaclass=ABCMeta):
         given different initialization parameters. And a name string is
         the key to each encoder in flexible unet backbone registry.
         Therefore this method should return every encoder name that needs
-        to be registed in flexible unet.
+        to be registered in flexible unet.
         """
         raise NotImplementedError

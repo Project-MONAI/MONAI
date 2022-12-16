@@ -28,7 +28,7 @@ class PrepareBatchHoVerNet(PrepareBatch):
 
     Args:
         extra_keys: If a sequence of strings is provided, values from the input dictionary are extracted from
-            those keys and passed to the nework as extra positional arguments.
+            those keys and passed to the network as extra positional arguments.
     """
 
     def __init__(self, extra_keys: Sequence[str]) -> None:

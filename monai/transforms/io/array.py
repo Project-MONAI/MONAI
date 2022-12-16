@@ -27,7 +27,7 @@ import torch
 
 from monai.config import DtypeLike, NdarrayOrTensor, PathLike
 from monai.data import image_writer
-from monai.data.folder_layout import FolderLayout
+from monai.data.folder_layout import FolderLayout, default_name_formatter
 from monai.data.image_reader import (
     ImageReader,
     ITKReader,
@@ -68,7 +68,15 @@ def switch_endianness(data, new="<"):
         data: input to be converted.
         new: the target endianness, currently support "<" or ">".
     """
-    if isinstance(data, np.ndarray):
+    if isinstance(data, torch.Tensor):
+        device = data.device
+        requires_grad: bool = data.requires_grad
+        data = (
+            torch.from_numpy(switch_endianness(data.cpu().detach().numpy(), new))
+            .to(device)
+            .requires_grad_(requires_grad=requires_grad)  # type: ignore
+        )
+    elif isinstance(data, np.ndarray):
         # default to system endian
         sys_native = "<" if (sys.byteorder == "little") else ">"
         current_ = sys_native if data.dtype.byteorder not in ("<", ">") else data.dtype.byteorder
@@ -340,6 +348,8 @@ class SaveImage(Transform):
             the supported built-in writer classes are ``"NibabelWriter"``, ``"ITKWriter"``, ``"PILWriter"``.
         channel_dim: the index of the channel dimension. Default to `0`.
             `None` to indicate no channel dimension.
+        output_name_formatter: a callable function (returning a kwargs dict) to format the output file name.
+            see also: :py:func:`monai.data.folder_layout.default_name_formatter`.
     """
 
     def __init__(
@@ -360,6 +370,7 @@ class SaveImage(Transform):
         output_format: str = "",
         writer: Union[Type[image_writer.ImageWriter], str, None] = None,
         channel_dim: Optional[int] = 0,
+        output_name_formatter=None,
     ) -> None:
         self.folder_layout = FolderLayout(
             output_dir=output_dir,
@@ -390,6 +401,7 @@ class SaveImage(Transform):
         self.data_kwargs = {"squeeze_end_dims": squeeze_end_dims, "channel_dim": channel_dim}
         self.meta_kwargs = {"resample": resample, "mode": mode, "padding_mode": padding_mode, "dtype": dtype}
         self.write_kwargs = {"verbose": print_log}
+        self.fname_formatter = default_name_formatter if output_name_formatter is None else output_name_formatter
         self._data_index = 0
 
     def set_options(self, init_kwargs=None, data_kwargs=None, meta_kwargs=None, write_kwargs=None):
@@ -420,9 +432,8 @@ class SaveImage(Transform):
             meta_data: key-value pairs of metadata corresponding to the data.
         """
         meta_data = img.meta if isinstance(img, MetaTensor) else meta_data
-        subject = meta_data[Key.FILENAME_OR_OBJ] if meta_data else str(self._data_index)
-        patch_index = meta_data.get(Key.PATCH_INDEX, None) if meta_data else None
-        filename = self.folder_layout.filename(subject=f"{subject}", idx=patch_index)
+        kw = self.fname_formatter(meta_data, self)
+        filename = self.folder_layout.filename(**kw)
         if meta_data and len(ensure_tuple(meta_data.get("spatial_shape", ()))) == len(img.shape):
             self.data_kwargs["channel_dim"] = None
 

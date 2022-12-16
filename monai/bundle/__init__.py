@@ -20,8 +20,17 @@ from .scripts import (
     get_bundle_versions,
     init_bundle,
     load,
+    patch_bundle_tracking,
     run,
     verify_metadata,
     verify_net_in_out,
 )
-from .utils import EXPR_KEY, ID_REF_KEY, ID_SEP_KEY, MACRO_KEY, load_bundle_config
+from .utils import (
+    DEFAULT_EXP_MGMT_SETTINGS,
+    DEFAULT_MLFLOW_SETTINGS,
+    EXPR_KEY,
+    ID_REF_KEY,
+    ID_SEP_KEY,
+    MACRO_KEY,
+    load_bundle_config,
+)

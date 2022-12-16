@@ -192,7 +192,7 @@ class ThreadUnsafe:
     pass
 
 
-class Randomizable(ThreadUnsafe):
+class Randomizable(ThreadUnsafe, RandomizableTrait):
     """
     An interface for handling random state locally, currently based on a class
     variable `R`, which is an instance of `np.random.RandomState`.  This
@@ -332,7 +332,7 @@ class LazyTransform(Transform, LazyTrait):
         self.lazy_evaluation = lazy_evaluation
 
 
-class RandomizableTransform(Randomizable, Transform, RandomizableTrait):
+class RandomizableTransform(Randomizable, Transform):
     """
     An interface for handling random state locally, currently based on a class variable `R`,
     which is an instance of `np.random.RandomState`.
@@ -404,11 +404,11 @@ class MapTransform(Transform):
     def __new__(cls, *args, **kwargs):
         if config.USE_META_DICT:
             # call_update after MapTransform.__call__
-            cls.__call__ = transforms.attach_hook(cls.__call__, MapTransform.call_update, "post")
+            cls.__call__ = transforms.attach_hook(cls.__call__, MapTransform.call_update, "post")  # type: ignore
 
             if hasattr(cls, "inverse"):
                 # inverse_update before InvertibleTransform.inverse
-                cls.inverse = transforms.attach_hook(cls.inverse, transforms.InvertibleTransform.inverse_update)
+                cls.inverse: Any = transforms.attach_hook(cls.inverse, transforms.InvertibleTransform.inverse_update)
         return Transform.__new__(cls)
 
     def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:

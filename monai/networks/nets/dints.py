@@ -38,7 +38,7 @@ __all__ = ["DiNTS", "TopologyConstruction", "TopologyInstance", "TopologySearch"
 class CellInterface(torch.nn.Module):
     """interface for torchscriptable Cell"""
 
-    def forward(self, x: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:  # type: ignore
         pass
 
 
@@ -46,7 +46,7 @@ class CellInterface(torch.nn.Module):
 class StemInterface(torch.nn.Module):
     """interface for torchscriptable Stem"""
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore
         pass
 
 
@@ -728,6 +728,9 @@ class TopologySearch(TopologyConstruction):
           all_connection has 1024 vectors of length 10 (10 paths).
           The return value will exclude path activation of all 0.
     """
+
+    node2out: List[List]
+    node2in: List[List]
 
     def __init__(
         self,

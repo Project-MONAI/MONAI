@@ -83,6 +83,11 @@ Generic Interfaces
 .. autoclass:: OneOf
     :members:
 
+`RandomOrder`
+^^^^^^^^^^^^^
+.. autoclass:: RandomOrder
+    :members:
+
 Vanilla Transforms
 ------------------
 
@@ -1972,6 +1977,12 @@ Utility (Dict)
 `SelectItemsd`
 """"""""""""""
 .. autoclass:: SelectItemsd
+    :members:
+    :special-members: __call__
+
+`FlattenSubKeysd`
+"""""""""""""""""
+.. autoclass:: FlattenSubKeysd
     :members:
     :special-members: __call__
 

@@ -38,9 +38,9 @@ class FlexUNetEncoderRegister:
     def __init__(self):
         self.register_dict = {}
 
-    def regist_class(self, name: Union[Type, str]):
+    def register_class(self, name: Union[Type, str]):
         """
-        Regist a given class to the encoder dict. Please notice that input class must be a
+        Register a given class to the encoder dict. Please notice that input class must be a
         subclass of BaseEncoder.
         """
         if isinstance(name, str):
@@ -74,7 +74,7 @@ class FlexUNetEncoderRegister:
 
 
 FLEXUNET_BACKBONE = FlexUNetEncoderRegister()
-FLEXUNET_BACKBONE.regist_class(EfficientNetEncoder)
+FLEXUNET_BACKBONE.register_class(EfficientNetEncoder)
 
 
 class UNetDecoder(nn.Module):
@@ -264,7 +264,7 @@ class FlexibleUNet(nn.Module):
             interp_mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``}
                 Only used in the "nontrainable" mode.
             is_pad: whether to pad upsampling features to fit features from encoder. Default to True.
-                If this parameter is set to "True", the spatial dim of network input can be arbitary
+                If this parameter is set to "True", the spatial dim of network input can be arbitrary
                 size, which is not supported by TensorRT. Otherwise, it must be a multiple of 32.
         """
         super().__init__()
