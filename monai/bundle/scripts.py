@@ -152,13 +152,6 @@ def _download_from_ngc(download_path: Path, filename: str, version: str, model_p
     extractall(filepath=filepath, output_dir=extract_path, has_base=True)
 
 
-def _ngc_model_name_check(name: str):
-    # currently, all ngc bundles have names start with "monai_"
-    if name.startswith("monai_"):
-        return name
-    return f"monai_{name}"
-
-
 def _get_latest_bundle_version(source: str, name: str, repo: str):
     if source == "ngc":
         model_dict = _get_all_ngc_models(name)
@@ -285,7 +278,6 @@ def download(
                 name_ = "_v".join([name_, version_])
             _download_from_github(repo=repo_, download_path=bundle_dir_, filename=name_, progress=progress_)
         elif source_ == "ngc":
-            name_ = _ngc_model_name_check(name_)
             _download_from_ngc(
                 download_path=bundle_dir_,
                 filename=name_,
