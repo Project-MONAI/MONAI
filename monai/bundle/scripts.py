@@ -257,7 +257,7 @@ def download(
             and `source` will not be checked.
             If `name` is `None`, filename is determined by `monai.apps.utils._basename(url)`.
         remove_prefix: This argument is used when `source` is "ngc". Currently, all ngc bundles
-            have the "monai_" prefix, which is not existing in their model zoo contrasts. In order to
+            have the ``monai_`` prefix, which is not existing in their model zoo contrasts. In order to
             maintain the consistency between these two sources, remove prefix is necessary.
             Therefore, if specified, downloaded folder name will remove the prefix.
         progress: whether to display a progress bar.
