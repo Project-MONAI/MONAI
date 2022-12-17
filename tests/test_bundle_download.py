@@ -57,8 +57,6 @@ TEST_CASE_5 = [
     "model.ts",
 ]
 
-TEST_CASE_NGC_1 = ["monai_spleen_ct_segmentation", "0.3.7", "models/model.pt", "b418a2dc8672ce2fd98dc255036e7a3d"]
-
 
 @skip_if_windows
 class TestDownload(unittest.TestCase):
@@ -72,7 +70,7 @@ class TestDownload(unittest.TestCase):
             # download a whole bundle from github releases
             with tempfile.TemporaryDirectory() as tempdir:
                 cmd = ["coverage", "run", "-m", "monai.bundle", "download", "--name", bundle_name, "--source", "github"]
-                cmd += ["--bundle_dir", tempdir, "--repo", repo, "--progress", "False"]
+                cmd += ["--bundle_dir", tempdir, "--repo", repo]
                 if version is not None:
                     cmd += ["--version", version]
                 command_line_tests(cmd)
@@ -81,18 +79,6 @@ class TestDownload(unittest.TestCase):
                     self.assertTrue(os.path.exists(file_path))
                     if file == "network.json":
                         self.assertTrue(check_hash(filepath=file_path, val=hash_val))
-
-    @parameterized.expand([TEST_CASE_NGC_1])
-    @skip_if_quick
-    def test_ngc_download_bundle(self, bundle_name, version, file_path, hash_val):
-        with skip_if_downloading_fails():
-            with tempfile.TemporaryDirectory() as tempdir:
-                cmd = ["coverage", "run", "-m", "monai.bundle", "download", "--name", bundle_name, "--source", "ngc"]
-                cmd += ["--bundle_dir", tempdir, "--progress", "False", "--version", version]
-                command_line_tests(cmd)
-                full_file_path = os.path.join(tempdir, bundle_name, file_path)
-                self.assertTrue(os.path.exists(full_file_path))
-                self.assertTrue(check_hash(filepath=full_file_path, val=hash_val))
 
     @parameterized.expand([TEST_CASE_3])
     @skip_if_quick

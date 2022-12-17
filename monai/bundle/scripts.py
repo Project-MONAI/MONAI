@@ -25,7 +25,7 @@ from typing import Dict, Mapping, Optional, Sequence, Tuple, Union
 import torch
 from torch.cuda import is_available
 
-from monai.apps.mmars.mmars import _get_all_ngc_models, _get_ngc_url
+from monai.apps.mmars.mmars import _get_all_ngc_models
 from monai.apps.utils import _basename, download_url, extractall, get_logger
 from monai.bundle.config_item import ConfigComponent
 from monai.bundle.config_parser import ConfigParser
@@ -134,6 +134,10 @@ def _get_git_release_url(repo_owner: str, repo_name: str, tag_name: str, filenam
     return f"https://github.com/{repo_owner}/{repo_name}/releases/download/{tag_name}/{filename}"
 
 
+def _get_ngc_bundle_url(model_name: str, version: str):
+    return f"https://api.ngc.nvidia.com/v2/models/nvidia/monaitoolkit/{model_name}/versions/{version}/zip"
+
+
 def _download_from_github(repo: str, download_path: Path, filename: str, progress: bool = True):
     repo_owner, repo_name, tag_name = repo.split("/")
     if ".zip" not in filename:
@@ -144,9 +148,25 @@ def _download_from_github(repo: str, download_path: Path, filename: str, progres
     extractall(filepath=filepath, output_dir=download_path, has_base=True)
 
 
-def _download_from_ngc(download_path: Path, filename: str, version: str, model_prefix: str, progress: bool):
-    url = _get_ngc_url(model_name=filename, version=version, model_prefix=model_prefix)
+def _add_ngc_prefix(name: str, prefix: str = "monai_"):
+    if name.startswith(prefix):
+        return name
+    return f"{prefix}{name}"
+
+
+def _remove_ngc_prefix(name: str, prefix: str = "monai_"):
+    if name.startswith(prefix):
+        return name[len(prefix) :]
+    return name
+
+
+def _download_from_ngc(download_path: Path, filename: str, version: str, remove_ngc_prefix: bool, progress: bool):
+    # ensure prefix is contained
+    filename = _add_ngc_prefix(filename)
+    url = _get_ngc_bundle_url(model_name=filename, version=version)
     filepath = download_path / f"{filename}_v{version}.zip"
+    if remove_ngc_prefix:
+        filename = _remove_ngc_prefix(filename)
     extract_path = download_path / f"{filename}"
     download_url(url=url, filepath=filepath, hash_val=None, progress=progress)
     extractall(filepath=filepath, output_dir=extract_path, has_base=True)
@@ -154,6 +174,7 @@ def _download_from_ngc(download_path: Path, filename: str, version: str, model_p
 
 def _get_latest_bundle_version(source: str, name: str, repo: str):
     if source == "ngc":
+        name = _add_ngc_prefix(name)
         model_dict = _get_all_ngc_models(name)
         for v in model_dict.values():
             if v["name"] == name:
@@ -183,6 +204,7 @@ def download(
     source: str = download_source,
     repo: Optional[str] = None,
     url: Optional[str] = None,
+    remove_ngc_prefix: bool = True,
     progress: bool = True,
     args_file: Optional[str] = None,
 ):
@@ -234,6 +256,10 @@ def download(
         url: url to download the data. If not `None`, data will be downloaded directly
             and `source` will not be checked.
             If `name` is `None`, filename is determined by `monai.apps.utils._basename(url)`.
+        remove_ngc_prefix: This argument is used when `source` is "ngc". Currently, all ngc bundles
+            have the "monai_" prefix, which is not existing in their model zoo contrasts. In order to
+            maintain the consistency between these two sources, remove prefix is necessary. If `True`,
+            downloaded folder name will not contain the prefix.
         progress: whether to display a progress bar.
         args_file: a JSON or YAML file to provide default values for all the args in this function.
             so that the command line inputs can be simplified.
@@ -247,12 +273,13 @@ def download(
         source=source,
         repo=repo,
         url=url,
+        remove_ngc_prefix=remove_ngc_prefix,
         progress=progress,
     )
 
     _log_input_summary(tag="download", args=_args)
-    source_, progress_, repo_, name_, version_, bundle_dir_, url_ = _pop_args(
-        _args, "source", "progress", repo=None, name=None, version=None, bundle_dir=None, url=None
+    source_, remove_ngc_prefix_, progress_, repo_, name_, version_, bundle_dir_, url_ = _pop_args(
+        _args, "source", "remove_ngc_prefix", "progress", repo=None, name=None, version=None, bundle_dir=None, url=None
     )
 
     bundle_dir_ = _process_bundle_dir(bundle_dir_)
@@ -282,7 +309,7 @@ def download(
                 download_path=bundle_dir_,
                 filename=name_,
                 version=version_,
-                model_prefix="nvidia/monaitoolkit/",
+                remove_ngc_prefix=remove_ngc_prefix_,
                 progress=progress_,
             )
         else:
