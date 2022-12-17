@@ -230,7 +230,7 @@ def deprecated_arg_default(
     old_default: Any,
     new_default: Any,
     since: Optional[str] = None,
-    changed: Optional[str] = None,
+    replaced: Optional[str] = None,
     msg_suffix: str = "",
     version_val: str = __version__,
     warning_category=FutureWarning,
@@ -239,8 +239,8 @@ def deprecated_arg_default(
     Marks a particular arguments default of a callable as deprecated. It is changed from `old_default` to `new_default`
     in version `changed`.
 
-    When the decorated definition is called, a `warning_category` is issued if `since` is given and the current version
-    is at or later than that given.
+    When the decorated definition is called, a `warning_category` is issued if `since` is given,
+    the default is not explicitly set by the caller and the current version is at or later than that given.
     Another warning with the same category is issued if `changed` is given and the current version is at or later.
 
     The relevant docstring of the deprecating function should also be updated accordingly,
@@ -253,11 +253,12 @@ def deprecated_arg_default(
     Args:
         name: name of position or keyword argument where the default is deprecated/changed.
         old_default: name of the old default. This is only for the warning message, it will not be validated.
-        new_default: name of the new default. It is validated that this value is not present before version `changed`.
+        new_default: name of the new default. It is validated that this value is not present as the default before version `changed`.
             This means, that you can also use this if the actual default value is `None` and set later in the function.
-            You can also set this to any string representation, if e.g. the new default is a callable.
+            You can also set this to any string representation, e.g. `"calculate_default_value()"`
+            if the default is calculated from another function.
         since: version at which the argument default was marked deprecated but not changed.
-        changed: version at which the argument default was/will be changed.
+        replaced: version at which the argument default was/will be replaced.
         msg_suffix: message appended to warning/exception detailing reasons for deprecation.
         version_val: (used for testing) version to compare since and removed against, default is MONAI version.
         warning_category: a warning category class, defaults to `FutureWarning`.
@@ -269,45 +270,47 @@ def deprecated_arg_default(
     if version_val.startswith("0+") or not f"{version_val}".strip()[0].isdigit():
         # version unknown, set version_val to a large value (assuming the latest version)
         version_val = f"{sys.maxsize}"
-    if since is not None and changed is not None and not version_leq(since, changed):
-        raise ValueError(f"since must be less or equal to removed, got since={since}, removed={changed}.")
+    if since is not None and replaced is not None and not version_leq(since, replaced):
+        raise ValueError(f"since must be less or equal to replaced, got since={since}, replaced={replaced}.")
     is_not_yet_deprecated = since is not None and version_val != since and version_leq(version_val, since)
     if is_not_yet_deprecated:
         # smaller than `since`, do nothing
         return lambda obj: obj
-    if since is None and changed is None:
+    if since is None and replaced is None:
         # raise a DeprecatedError directly
-        is_changed = True
+        is_replaced = True
         is_deprecated = True
     else:
         # compare the numbers
         is_deprecated = since is not None and version_leq(since, version_val)
-        is_changed = changed is not None and version_leq(changed, version_val)
+        is_replaced = replaced is not None and version_leq(replaced, version_val)
 
     def _decorator(func):
         argname = f"{func.__module__} {func.__qualname__}:{name}"
 
         msg_prefix = f"Default of argument `{name}`"
 
-        if is_changed:
-            msg_infix = f"was changed in version {changed} from `{old_default}` to `{new_default}`."
+        if is_replaced:
+            msg_infix = f"was replaced in version {replaced} from `{old_default}` to `{new_default}`."
         elif is_deprecated:
             msg_infix = f"has been deprecated since version {since} from `{old_default}` to `{new_default}`."
-            if changed is not None:
-                msg_infix += f" It will be changed in version {changed}."
+            if replaced is not None:
+                msg_infix += f" It will be replaced in version {replaced}."
         else:
             msg_infix = f"has been deprecated from `{old_default}` to `{new_default}`."
 
         msg = f"{msg_prefix} {msg_infix} {msg_suffix}".strip()
 
         sig = inspect.signature(func)
+        if name not in sig.parameters:
+            raise ValueError(f"Argument `{name}` not found in signature of {func.__qualname__}.")
         param = sig.parameters[name]
         if param.default is inspect.Parameter.empty:
             raise ValueError(f"Argument `{name}` has no default value.")
 
-        if param.default == new_default and not is_changed:
+        if param.default == new_default and not is_replaced:
             raise ValueError(
-                f"Argument `{name}` was changed to the new default value `{new_default}` before the specified version {changed}."
+                f"Argument `{name}` was replaced to the new default value `{new_default}` before the specified version {replaced}."
             )
 
         @wraps(func)
