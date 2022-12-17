@@ -647,7 +647,7 @@ class PydicomReader(ImageReader):
 
         """
 
-        metadata = img.to_json_dict()
+        metadata = img.to_json_dict(suppress_invalid_tags=True)
 
         if self.prune_metadata:
             prune_metadata = {}

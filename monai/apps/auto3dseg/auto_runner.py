@@ -268,7 +268,7 @@ class AutoRunner:
 
         # intermediate variables
         self.num_fold = 5
-        self.ensemble_method_name = "AlgoEnsembleBestN"
+        self.ensemble_method_name = "AlgoEnsembleBestByFold"
         self.set_training_params()
         self.set_prediction_params()
         self.set_analyze_params()
@@ -277,6 +277,9 @@ class AutoRunner:
         self.ensemble_method: AlgoEnsemble
         self.set_ensemble_method(self.ensemble_method_name)
         self.set_num_fold(num_fold=self.num_fold)
+
+        self.gpu_customization = False
+        self.gpu_customization_specs: Dict[str, Any] = {}
 
         # hpo
         if hpo_backend.lower() != "nni":
@@ -331,6 +334,43 @@ class AutoRunner:
         ConfigParser.export_config_file(
             self.cache, self.cache_filename, fmt="yaml", default_flow_style=None, sort_keys=False
         )
+
+    def set_gpu_customization(
+        self, gpu_customization: bool = False, gpu_customization_specs: Optional[Dict[str, Any]] = None
+    ):
+        """
+        Set options for GPU-based parameter customization/optimization.
+
+        Args:
+            gpu_customization: the switch to determine automatically customize/optimize bundle script/config
+                parameters for each bundleAlgo based on gpus. Custom parameters are obtained through dummy
+                training to simulate the actual model training process and hyperparameter optimization (HPO)
+                experiments.
+            gpu_customization_specs (optinal): the dictionary to enable users overwrite the HPO settings. user can
+                overwrite part of variables as follows or all of them. The structure is as follows.
+
+                .. code-block:: python
+
+                    gpu_customization_specs = {
+                        'ALOG': {
+                            'num_trials': 6,
+                            'range_num_images_per_batch': [1, 20],
+                            'range_num_sw_batch_size': [1, 20]
+                        }
+                    }
+
+            ALGO: the name of algorithm. It could be one of algorithm names (e.g., 'dints') or 'unversal' which
+                would apply changes to all algorithms. Possible options are
+
+                - {``"unversal"``, ``"dints"``, ``"segresnet"``, ``"segresnet2d"``, ``"swinunetr"``}.
+
+            num_trials: the number of HPO trials/experiments to run.
+            range_num_images_per_batch: the range of number of images per mini-batch.
+            range_num_sw_batch_size: the range of batch size in sliding-window inferer.
+        """
+        self.gpu_customization = gpu_customization
+        if gpu_customization_specs is not None:
+            self.gpu_customization_specs = gpu_customization_specs
 
     def set_num_fold(self, num_fold: int = 5):
         """
@@ -473,7 +513,7 @@ class AutoRunner:
             output_dir=output_dir, output_postfix=output_postfix, output_dtype=output_dtype, resample=resample, **kwargs
         )
 
-    def set_ensemble_method(self, ensemble_method_name: str = "AlgoEnsembleBestN", **kwargs):
+    def set_ensemble_method(self, ensemble_method_name: str = "AlgoEnsembleBestByFold", **kwargs):
         """
         Set the bundle ensemble method
 
@@ -614,7 +654,15 @@ class AutoRunner:
                 data_src_cfg_name=self.data_src_cfg_name,
             )
 
-            bundle_generator.generate(self.work_dir, num_fold=self.num_fold)
+            if self.gpu_customization:
+                bundle_generator.generate(
+                    self.work_dir,
+                    num_fold=self.num_fold,
+                    gpu_customization=self.gpu_customization,
+                    gpu_customization_specs=self.gpu_customization_specs,
+                )
+            else:
+                bundle_generator.generate(self.work_dir, num_fold=self.num_fold)
             history = bundle_generator.get_history()
             export_bundle_algo_history(history)
             self.export_cache(algo_gen=True)

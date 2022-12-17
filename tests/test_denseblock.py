@@ -42,8 +42,8 @@ class TestDenseBlock3D(TorchImageTestCase3D):
         expected_shape = (
             1,
             self.output_channels + self.input_channels * 2,
-            self.im_shape[1],
             self.im_shape[0],
+            self.im_shape[1],
             self.im_shape[2],
         )
         self.assertEqual(out.shape, expected_shape)
@@ -87,7 +87,7 @@ class TestConvDenseBlock3D(TorchImageTestCase3D):
         channels = [2, 4]
         conv = ConvDenseBlock(spatial_dims=3, in_channels=self.input_channels, channels=channels)
         out = conv(self.imt)
-        expected_shape = (1, self.input_channels + sum(channels), self.im_shape[1], self.im_shape[0], self.im_shape[2])
+        expected_shape = (1, self.input_channels + sum(channels), self.im_shape[0], self.im_shape[1], self.im_shape[2])
         self.assertEqual(out.shape, expected_shape)
 
     def test_block2(self):
@@ -95,7 +95,7 @@ class TestConvDenseBlock3D(TorchImageTestCase3D):
         dilations = [1, 2]
         conv = ConvDenseBlock(spatial_dims=3, in_channels=self.input_channels, channels=channels, dilations=dilations)
         out = conv(self.imt)
-        expected_shape = (1, self.input_channels + sum(channels), self.im_shape[1], self.im_shape[0], self.im_shape[2])
+        expected_shape = (1, self.input_channels + sum(channels), self.im_shape[0], self.im_shape[1], self.im_shape[2])
         self.assertEqual(out.shape, expected_shape)
 
 

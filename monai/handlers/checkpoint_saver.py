@@ -18,7 +18,6 @@ from monai.utils import is_scalar, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 
-
 if TYPE_CHECKING:
     from ignite.engine import Engine
     from ignite.handlers import Checkpoint, DiskSaver

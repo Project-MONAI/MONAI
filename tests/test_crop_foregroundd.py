@@ -149,8 +149,8 @@ for p in TEST_NDARRAYS_ALL:
 
 class TestCropForegroundd(unittest.TestCase):
     @parameterized.expand(TEST_POSITION + TESTS)
-    def test_value(self, argments, input_data, expected_data):
-        cropper = CropForegroundd(**argments)
+    def test_value(self, arguments, input_data, expected_data):
+        cropper = CropForegroundd(**arguments)
         result = cropper(input_data)
         assert_allclose(result["img"], expected_data, type_test="tensor")
         if "label" in input_data and "img" in input_data:
@@ -161,14 +161,14 @@ class TestCropForegroundd(unittest.TestCase):
             self.assertTupleEqual(inv["label"].shape, input_data["label"].shape)
 
     @parameterized.expand(TEST_POSITION)
-    def test_foreground_position(self, argments, input_data, _):
-        result = CropForegroundd(**argments)(input_data)
+    def test_foreground_position(self, arguments, input_data, _):
+        result = CropForegroundd(**arguments)(input_data)
         np.testing.assert_allclose(result["foreground_start_coord"], np.array([1, 1]))
         np.testing.assert_allclose(result["foreground_end_coord"], np.array([4, 4]))
 
-        argments["start_coord_key"] = "test_start_coord"
-        argments["end_coord_key"] = "test_end_coord"
-        result = CropForegroundd(**argments)(input_data)
+        arguments["start_coord_key"] = "test_start_coord"
+        arguments["end_coord_key"] = "test_end_coord"
+        result = CropForegroundd(**arguments)(input_data)
         np.testing.assert_allclose(result["test_start_coord"], np.array([1, 1]))
         np.testing.assert_allclose(result["test_end_coord"], np.array([4, 4]))
 
