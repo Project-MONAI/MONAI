@@ -253,7 +253,8 @@ def deprecated_arg_default(
     Args:
         name: name of position or keyword argument where the default is deprecated/changed.
         old_default: name of the old default. This is only for the warning message, it will not be validated.
-        new_default: name of the new default. It is validated that this value is not present as the default before version `changed`.
+        new_default: name of the new default.
+            It is validated that this value is not present as the default before version `changed`.
             This means, that you can also use this if the actual default value is `None` and set later in the function.
             You can also set this to any string representation, e.g. `"calculate_default_value()"`
             if the default is calculated from another function.
