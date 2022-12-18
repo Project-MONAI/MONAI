@@ -166,7 +166,7 @@ def _download_from_ngc(download_path: Path, filename: str, version: str, remove_
     url = _get_ngc_bundle_url(model_name=filename, version=version)
     filepath = download_path / f"{filename}_v{version}.zip"
     if remove_prefix:
-        filename = _remove_ngc_prefix(filename)
+        filename = _remove_ngc_prefix(filename, prefix=remove_prefix)
     extract_path = download_path / f"{filename}"
     download_url(url=url, filepath=filepath, hash_val=None, progress=progress)
     extractall(filepath=filepath, output_dir=extract_path, has_base=True)
