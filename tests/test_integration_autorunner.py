@@ -144,24 +144,21 @@ class TestAutoRunner(unittest.TestCase):
         runner = AutoRunner(work_dir=work_dir, input=self.data_src_cfg, hpo=True, ensemble=False)
         hpo_param = {
             "CUDA_VISIBLE_DEVICES": train_param["CUDA_VISIBLE_DEVICES"],
-            "num_iterations": train_param["num_iterations"],
-            "num_iterations_per_validation": train_param["num_iterations_per_validation"],
+            "num_epochs_per_validation": train_param["num_epochs_per_validation"],
             "num_images_per_batch": train_param["num_images_per_batch"],
             "num_epochs": train_param["num_epochs"],
-            "num_warmup_iterations": train_param["num_warmup_iterations"],
+            "num_warmup_epochs": train_param["num_warmup_epochs"],
             "use_pretrain": train_param["use_pretrain"],
             "pretrained_path": train_param["pretrained_path"],
             # below are to shorten the time for dints
-            "training#num_iterations": train_param["num_iterations"],
-            "training#num_iterations_per_validation": train_param["num_iterations_per_validation"],
+            "training#num_epochs_per_validation": train_param["num_epochs_per_validation"],
             "training#num_images_per_batch": train_param["num_images_per_batch"],
             "training#num_epochs": train_param["num_epochs"],
-            "training#num_warmup_iterations": train_param["num_warmup_iterations"],
-            "searching#num_iterations": train_param["num_iterations"],
-            "searching#num_iterations_per_validation": train_param["num_iterations_per_validation"],
+            "training#num_warmup_epochs": train_param["num_warmup_epochs"],
+            "searching#num_epochs_per_validation": train_param["num_epochs_per_validation"],
             "searching#num_images_per_batch": train_param["num_images_per_batch"],
             "searching#num_epochs": train_param["num_epochs"],
-            "searching#num_warmup_iterations": train_param["num_warmup_iterations"],
+            "searching#num_warmup_epochs": train_param["num_warmup_epochs"],
             "nni_dry_run": True,
         }
         search_space = {"learning_rate": {"_type": "choice", "_value": [0.0001, 0.001, 0.01, 0.1]}}
