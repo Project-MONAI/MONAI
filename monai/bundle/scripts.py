@@ -326,6 +326,7 @@ def load(
     bundle_dir: Optional[PathLike] = None,
     source: str = download_source,
     repo: Optional[str] = None,
+    remove_prefix: Optional[str] = "monai_",
     progress: bool = True,
     device: Optional[str] = None,
     key_in_ckpt: Optional[str] = None,
@@ -356,6 +357,10 @@ def load(
             it should be "ngc" or "github".
         repo: repo name. This argument is used when `url` is `None` and `source` is "github".
             If used, it should be in the form of "repo_owner/repo_name/release_tag".
+        remove_prefix: This argument is used when `source` is "ngc". Currently, all ngc bundles
+            have the ``monai_`` prefix, which is not existing in their model zoo contrasts. In order to
+            maintain the consistency between these two sources, remove prefix is necessary.
+            Therefore, if specified, downloaded folder name will remove the prefix.
         progress: whether to display a progress bar when downloading.
         device: target device of returned weights or module, if `None`, prefer to "cuda" if existing.
         key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
@@ -379,9 +384,20 @@ def load(
 
     if model_file is None:
         model_file = os.path.join("models", "model.ts" if load_ts_module is True else "model.pt")
+    name = _add_ngc_prefix(name)
+    if remove_prefix:
+        name = _remove_ngc_prefix(name, prefix=remove_prefix)
     full_path = os.path.join(bundle_dir_, name, model_file)
     if not os.path.exists(full_path):
-        download(name=name, version=version, bundle_dir=bundle_dir_, source=source, repo=repo, progress=progress)
+        download(
+            name=name,
+            version=version,
+            bundle_dir=bundle_dir_,
+            source=source,
+            repo=repo,
+            remove_prefix=remove_prefix,
+            progress=progress,
+        )
 
     if device is None:
         device = "cuda:0" if is_available() else "cpu"
