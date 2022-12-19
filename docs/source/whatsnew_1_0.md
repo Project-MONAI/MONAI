@@ -1,4 +1,4 @@
-# What's new in 1.0 🎉🎉
+# What's new in 1.0
 
 - Model Zoo
 - Auto3DSeg
