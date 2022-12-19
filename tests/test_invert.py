@@ -74,7 +74,7 @@ class TestInvert(unittest.TestCase):
                 self.assertTupleEqual(orig.shape[1:], (100, 100, 100))
                 # check the nearest interpolation mode
                 assert_allclose(i.to(torch.uint8).to(torch.float), i.to(torch.float))
-                self.assertTupleEqual(i.shape[1:], (100, 101, 107))
+                self.assertTupleEqual(i.shape[1:], (101, 100, 107))
         # check labels match
         reverted = i.detach().cpu().numpy().astype(np.int32)
         original = LoadImage(image_only=True)(data[-1])

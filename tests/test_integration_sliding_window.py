@@ -67,7 +67,7 @@ class TestIntegrationSlidingWindow(DistTestCase):
     def setUp(self):
         set_determinism(seed=0)
 
-        im, seg = create_test_image_3d(25, 28, 63, rad_max=10, noise_max=1, num_objs=4, num_seg_classes=1)
+        im, seg = create_test_image_3d(28, 25, 63, rad_max=10, noise_max=1, num_objs=4, num_seg_classes=1)
         self.img_name = make_nifti_image(im)
         self.seg_name = make_nifti_image(seg)
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
