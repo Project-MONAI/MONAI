@@ -254,11 +254,11 @@ def deprecated_arg_default(
         name: name of position or keyword argument where the default is deprecated/changed.
         old_default: name of the old default. This is only for the warning message, it will not be validated.
         new_default: name of the new default.
-            It is validated that this value is not present as the default before version `changed`.
+            It is validated that this value is not present as the default before version `replaced`.
             This means, that you can also use this if the actual default value is `None` and set later in the function.
             You can also set this to any string representation, e.g. `"calculate_default_value()"`
             if the default is calculated from another function.
-        since: version at which the argument default was marked deprecated but not changed.
+        since: version at which the argument default was marked deprecated but not replaced.
         replaced: version at which the argument default was/will be replaced.
         msg_suffix: message appended to warning/exception detailing reasons for deprecation.
         version_val: (used for testing) version to compare since and removed against, default is MONAI version.
