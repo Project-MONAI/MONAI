@@ -68,7 +68,6 @@ class VarAutoEncoder(AutoEncoder):
         - Variational autoencoder network with MedNIST Dataset
           https://github.com/Project-MONAI/tutorials/blob/master/modules/varautoencoder_mednist.ipynb
     """
-    @deprecated_arg(name="dimensions", since="0.6", msg_suffix="Please use `spatial_dims` instead.")
     def __init__(
         self,
         spatial_dims: int,
