@@ -16,10 +16,7 @@ from parameterized import parameterized
 
 from monai.networks.layers import EllipticalFilter, LaplaceFilter, MeanFilter, SharpenFilter
 
-TEST_CASES_MEAN = [
-    (3, 3, torch.ones(3, 3, 3)),
-    (2, 5, torch.ones(5, 5)),
-]
+TEST_CASES_MEAN = [(3, 3, torch.ones(3, 3, 3)), (2, 5, torch.ones(5, 5))]
 
 
 TEST_CASES_LAPLACE = [
@@ -34,13 +31,7 @@ TEST_CASES_LAPLACE = [
             ]
         ),
     ),
-    (
-        2,
-        3,
-        torch.Tensor(
-            [[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]],
-        ),
-    ),
+    (2, 3, torch.Tensor([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]])),
 ]
 
 TEST_CASES_ELLIPTICAL = [
@@ -48,20 +39,10 @@ TEST_CASES_ELLIPTICAL = [
         3,
         3,
         torch.Tensor(
-            [
-                [[0, 0, 0], [0, 1, 0], [0, 0, 0]],
-                [[0, 1, 0], [1, 1, 1], [0, 1, 0]],
-                [[0, 0, 0], [0, 1, 0], [0, 0, 0]],
-            ]
+            [[[0, 0, 0], [0, 1, 0], [0, 0, 0]], [[0, 1, 0], [1, 1, 1], [0, 1, 0]], [[0, 0, 0], [0, 1, 0], [0, 0, 0]]]
         ),
     ),
-    (
-        2,
-        3,
-        torch.Tensor(
-            [[0, 1, 0], [1, 1, 1], [0, 1, 0]],
-        ),
-    ),
+    (2, 3, torch.Tensor([[0, 1, 0], [1, 1, 1], [0, 1, 0]])),
 ]
 
 
@@ -77,13 +58,7 @@ TEST_CASES_SHARPEN = [
             ]
         ),
     ),
-    (
-        2,
-        3,
-        torch.Tensor(
-            [[0, -1, 0], [-1, 5, -1], [0, -1, 0]],
-        ),
-    ),
+    (2, 3, torch.Tensor([[0, -1, 0], [-1, 5, -1], [0, -1, 0]])),
 ]
 
 
@@ -133,6 +108,7 @@ class SharpenTestCase(_TestFilter, unittest.TestCase):
     @parameterized.expand(TEST_CASES_SHARPEN)
     def test_init(self, spatial_dims, size, expected):
         super().test_init(spatial_dims, size, expected)
+
 
 if __name__ == "__main__":
     unittest.main()
