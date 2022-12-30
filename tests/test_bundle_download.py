@@ -26,6 +26,7 @@ from tests.utils import (
     command_line_tests,
     skip_if_downloading_fails,
     skip_if_quick,
+    skip_if_windows,
 )
 
 TEST_CASE_1 = ["test_bundle", None]
@@ -57,6 +58,7 @@ TEST_CASE_5 = [
 ]
 
 
+@skip_if_windows
 class TestDownload(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     @skip_if_quick
