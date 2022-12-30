@@ -1,0 +1,5 @@
+{%- block scripts %}
+    <script src="{{ pathto('jquery.js', resource=True) }}"></script>
+    <script src="{{ pathto('underscore.js', resource=True) }}"></script>
+    {{ super() }}
+{%- endblock %}
