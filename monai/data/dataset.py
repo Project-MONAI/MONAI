@@ -26,7 +26,6 @@ from typing import IO, TYPE_CHECKING, Any, Callable, Dict, List, Optional, Seque
 
 import numpy as np
 import torch
-import torch.distributed as dist
 from torch.multiprocessing import Manager
 from torch.serialization import DEFAULT_PROTOCOL
 from torch.utils.data import Dataset as _TorchDataset
@@ -36,6 +35,7 @@ from monai.data.utils import SUPPORTED_PICKLE_MOD, convert_tables_to_dicts, pick
 from monai.transforms import (
     Compose,
     Randomizable,
+    RandomizableTrait,
     ThreadUnsafe,
     Transform,
     apply_transform,
@@ -80,7 +80,7 @@ class Dataset(_TorchDataset):
 
         """
         self.data = data
-        self.transform = transform
+        self.transform: Any = transform
 
     def __len__(self) -> int:
         return len(self.data)
@@ -266,30 +266,30 @@ class PersistentDataset(Dataset):
                 self.cache_dir.mkdir(parents=True, exist_ok=True)
             if not self.cache_dir.is_dir():
                 raise ValueError("cache_dir must be a directory.")
-        self.transform_hash = ""
+        self.transform_hash: str = ""
         if hash_transform is not None:
             self.set_transform_hash(hash_transform)
         self.reset_ops_id = reset_ops_id
 
-    def set_transform_hash(self, hash_xform_func):
+    def set_transform_hash(self, hash_xform_func: Callable[..., bytes]):
         """Get hashable transforms, and then hash them. Hashable transforms
         are deterministic transforms that inherit from `Transform`. We stop
         at the first non-deterministic transform, or first that does not
         inherit from MONAI's `Transform` class."""
         hashable_transforms = []
         for _tr in self.transform.flatten().transforms:
-            if isinstance(_tr, Randomizable) or not isinstance(_tr, Transform):
+            if isinstance(_tr, RandomizableTrait) or not isinstance(_tr, Transform):
                 break
             hashable_transforms.append(_tr)
         # Try to hash. Fall back to a hash of their names
         try:
-            self.transform_hash = hash_xform_func(hashable_transforms)
+            transform_hash = hash_xform_func(hashable_transforms)
         except TypeError as te:
             if "is not JSON serializable" not in str(te):
                 raise te
             names = "".join(tr.__class__.__name__ for tr in hashable_transforms)
-            self.transform_hash = hash_xform_func(names)
-        self.transform_hash = self.transform_hash.decode("utf-8")
+            transform_hash = hash_xform_func(names)
+        self.transform_hash = transform_hash.decode("utf-8")
 
     def set_data(self, data: Sequence):
         """
@@ -315,7 +315,7 @@ class PersistentDataset(Dataset):
         """
         for _transform in self.transform.transforms:
             # execute all the deterministic transforms
-            if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
+            if isinstance(_transform, RandomizableTrait) or not isinstance(_transform, Transform):
                 break
             # this is to be consistent with CacheDataset even though it's not in a multi-thread situation.
             _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
@@ -341,7 +341,7 @@ class PersistentDataset(Dataset):
         for _transform in self.transform.transforms:
             if (
                 start_post_randomize_run
-                or isinstance(_transform, Randomizable)
+                or isinstance(_transform, RandomizableTrait)
                 or not isinstance(_transform, Transform)
             ):
                 start_post_randomize_run = True
@@ -399,7 +399,7 @@ class PersistentDataset(Dataset):
                     # On Unix, if target exists and is a file, it will be replaced silently if the user has permission.
                     # for more details: https://docs.python.org/3/library/shutil.html#shutil.move.
                     try:
-                        shutil.move(temp_hash_file, hashfile)
+                        shutil.move(str(temp_hash_file), hashfile)
                     except FileExistsError:
                         pass
         except PermissionError:  # project-monai/monai issue #3613
@@ -589,7 +589,7 @@ class LMDBDataset(PersistentDataset):
             self.lmdb_kwargs["map_size"] = 1024**4  # default map_size
         # lmdb is single-writer multi-reader by default
         # the cache is created without multi-threading
-        self._read_env = None
+        self._read_env: Optional[Any] = None
         # this runs on the primary thread/process
         self._fill_cache_start_reader(show_progress=self.progress)
         print(f"Accessing lmdb file: {self.db_file.absolute()}.")
@@ -751,7 +751,7 @@ class CacheDataset(Dataset):
         as_contiguous: bool = True,
         hash_as_key: bool = False,
         hash_func: Callable[..., bytes] = pickle_hashing,
-        runtime_cache: bool = False,
+        runtime_cache: Union[bool, str, List, ListProxy] = False,
     ) -> None:
         """
         Args:
@@ -763,7 +763,7 @@ class CacheDataset(Dataset):
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
             num_workers: the number of worker threads if computing cache in the initialization.
                 If num_workers is None then the number returned by os.cpu_count() is used.
-                If a value less than 1 is speficied, 1 will be used instead.
+                If a value less than 1 is specified, 1 will be used instead.
             progress: whether to display a progress bar.
             copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
                 default to `True`. if the random transforms don't modify the cached content
@@ -777,14 +777,21 @@ class CacheDataset(Dataset):
                 the dataset has duplicated items or augmented dataset.
             hash_func: if `hash_as_key`, a callable to compute hash from data items to be cached.
                 defaults to `monai.data.utils.pickle_hashing`.
-            runtime_cache: whether to compute cache at the runtime, default to `False` to prepare
-                the cache content at initializaiton, if `True`, it will cache during the first epoch
-                of model training, so it can start the first mini-batch earlier. please note that:
-                1. when using this option in multi-gpu distributed training,
-                `torch.cuda.set_device()` must be called before initializing this class.
-                2. to execute `runtime cache` on GPU memory, must co-work with
-                `monai.data.DataLoader`, and can't work with `monai.data.DistributedSampler`
-                as GPU Tensor usually can't be shared in the multiprocessing context.
+            runtime_cache: mode of cache at the runtime. Default to `False` to prepare
+                the cache content for the entire ``data`` during initialization, this potentially largely increase the
+                time required between the constructor called and first mini-batch generated.
+                Three options are provided to compute the cache on the fly after the dataset initialization:
+
+                1. ``"threads"`` or ``True``: use a regular ``list`` to store the cache items.
+                2. ``"processes"``: use a ListProxy to store the cache items, it can be shared among processes.
+                3. A list-like object: a users-provided container to be used to store the cache items.
+
+                For `thread-based` caching (typically for caching cuda tensors), option 1 is recommended.
+                For single process workflows with multiprocessing data loading, option 2 is recommended.
+                For multiprocessing workflows (typically for distributed training),
+                where this class is initialized in subprocesses, option 3 is recommended,
+                and the list-like object should be prepared in the main process and passed to all subprocesses.
+                Not following these recommendations may lead to runtime errors or duplicated cache across processes.
 
         """
         if not isinstance(transform, Compose):
@@ -804,10 +811,9 @@ class CacheDataset(Dataset):
         self.cache_num = 0
         self._cache: Union[List, ListProxy] = []
         self._hash_keys: List = []
-        self._is_dist = dist.is_available() and dist.is_initialized()
         self.set_data(data)
 
-    def set_data(self, data: Sequence):
+    def set_data(self, data: Sequence) -> None:
         """
         Set the input data and run deterministic transforms to generate cache content.
 
@@ -821,21 +827,9 @@ class CacheDataset(Dataset):
         def _compute_cache_num(data_len: int):
             self.cache_num = min(int(self.set_num), int(data_len * self.set_rate), data_len)
 
-        def _compute_cache(indices=None):
-            if self.runtime_cache:
-                cache = Manager().list([None for _ in range(self.cache_num)])
-                if self._is_dist:
-                    obj_list = [cache]
-                    # broadcast the ProxyList to all the ranks, then share the same cache content at runtime
-                    dist.broadcast_object_list(obj_list, src=0)
-                    cache = obj_list[0]
-            else:
-                cache = self._fill_cache(indices)
-            return cache
-
         if self.hash_as_key:
             # only compute cache for the unique items of dataset, and record the last index for duplicated items
-            mapping = {self.hash_func(v): i for i, v in enumerate(data)}
+            mapping = {self.hash_func(v): i for i, v in enumerate(self.data)}
             _compute_cache_num(len(mapping))
             self._hash_keys = list(mapping)[: self.cache_num]
             indices = list(mapping.values())[: self.cache_num]
@@ -843,15 +837,18 @@ class CacheDataset(Dataset):
             _compute_cache_num(len(self.data))
             indices = list(range(self.cache_num))
 
-        self._cache = _compute_cache(indices)
-
-    def disable_share_memory_cache(self):
-        """
-        If the cache content is multiprocessing share memory list, convert it to a regular ptython list.
-        Because multiprocessing ProxyList is not supported for the GPU caching, may need to explicitly diasble it.
-
-        """
-        self._cache = list(self._cache)
+        if self.runtime_cache in (False, None):  # prepare cache content immediately
+            self._cache = self._fill_cache(indices)
+            return
+        if isinstance(self.runtime_cache, str) and "process" in self.runtime_cache:
+            # this must be in the main process, not in dataloader's workers
+            self._cache = Manager().list([None] * self.cache_num)
+            return
+        if (self.runtime_cache is True) or (isinstance(self.runtime_cache, str) and "thread" in self.runtime_cache):
+            self._cache = [None] * self.cache_num
+            return
+        self._cache = self.runtime_cache  # type: ignore
+        return
 
     def _fill_cache(self, indices=None) -> List:
         """
@@ -879,9 +876,9 @@ class CacheDataset(Dataset):
             idx: the index of the input data sequence.
         """
         item = self.data[idx]
-        for _transform in self.transform.transforms:  # type:ignore
+        for _transform in self.transform.transforms:
             # execute all the deterministic transforms
-            if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
+            if isinstance(_transform, RandomizableTrait) or not isinstance(_transform, Transform):
                 break
             _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
             item = apply_transform(_xform, item)
@@ -915,7 +912,7 @@ class CacheDataset(Dataset):
         if not isinstance(self.transform, Compose):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
         for _transform in self.transform.transforms:
-            if start_run or isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
+            if start_run or isinstance(_transform, RandomizableTrait) or not isinstance(_transform, Transform):
                 # only need to deep copy data on first non-deterministic transform
                 if not start_run:
                     start_run = True
@@ -981,10 +978,10 @@ class SmartCacheDataset(Randomizable, CacheDataset):
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         num_init_workers: the number of worker threads to initialize the cache for first epoch.
             If num_init_workers is None then the number returned by os.cpu_count() is used.
-            If a value less than 1 is speficied, 1 will be used instead.
+            If a value less than 1 is specified, 1 will be used instead.
         num_replace_workers: the number of worker threads to prepare the replacement cache for every epoch.
             If num_replace_workers is None then the number returned by os.cpu_count() is used.
-            If a value less than 1 is speficied, 1 will be used instead.
+            If a value less than 1 is specified, 1 will be used instead.
         progress: whether to display a progress bar when caching for the first epoch.
         shuffle: whether to shuffle the whole data list before preparing the cache content for first epoch.
             it will not modify the original input data sequence in-place.
@@ -995,6 +992,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
             may set `copy=False` for better performance.
         as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
             it may help improve the performance of following logic.
+        runtime_cache: Default to `False`, other options are not implemented yet.
 
     """
 
@@ -1012,7 +1010,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         seed: int = 0,
         copy_cache: bool = True,
         as_contiguous: bool = True,
-        runtime_cache: bool = False,
+        runtime_cache=False,
     ) -> None:
         if shuffle:
             self.set_random_state(seed=seed)
@@ -1023,8 +1021,20 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         self._round: int = 1
         self._replace_done: bool = False
         self._replace_mgr: Optional[threading.Thread] = None
+        if runtime_cache is not False:
+            raise NotImplementedError("Options other than `runtime_cache=False` is not implemented yet.")
 
-        super().__init__(data, transform, cache_num, cache_rate, num_init_workers, progress, copy_cache, as_contiguous)
+        super().__init__(
+            data=data,
+            transform=transform,
+            cache_num=cache_num,
+            cache_rate=cache_rate,
+            num_workers=num_init_workers,
+            progress=progress,
+            copy_cache=copy_cache,
+            as_contiguous=as_contiguous,
+            runtime_cache=False,
+        )
         if self._cache is None:
             self._cache = self._fill_cache()
         if self.cache_num >= len(data):
@@ -1066,7 +1076,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         except TypeError as e:
             warnings.warn(f"input data can't be shuffled in SmartCacheDataset with numpy.random.shuffle(): {e}.")
 
-    def _compute_data_idx(self):
+    def _compute_data_idx(self) -> None:
         """
         Update the replacement data position in the total data.
 
@@ -1082,16 +1092,14 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         Check whether the replacement thread is already started.
 
         """
-        if self._replace_mgr is None:
-            return False
-        return self._replace_mgr.is_alive()
+        return False if self._replace_mgr is None else self._replace_mgr.is_alive()
 
     def start(self):
         """
         Start the background thread to replace training items for every epoch.
 
         """
-        if self._replace_mgr is None or not self.is_started():
+        if not self.is_started():
             self._restart()
 
     def _restart(self):
@@ -1132,8 +1140,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         If the cache has been shutdown before, need to restart the `_replace_mgr` thread.
 
         """
-        if not self._replace_mgr.is_alive():
-            self._restart()
+        self.start()
 
         # make sure update is done
         while not self._try_update_cache():
@@ -1164,7 +1171,8 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         # wait until replace mgr is done the current round
         while not self._try_shutdown():
             time.sleep(0.01)
-        self._replace_mgr.join()
+        if self._replace_mgr is not None:
+            self._replace_mgr.join(300)
 
     def _replace_cache_thread(self, index: int):
         """
@@ -1200,7 +1208,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
                 self._compute_replacements()
             return False, self._round
 
-    def manage_replacement(self):
+    def manage_replacement(self) -> None:
         """
         Background thread for replacement.
 

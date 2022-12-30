@@ -377,7 +377,7 @@ class SavitzkyGolayFilter(nn.Module):
         y = torch.zeros(order + 1, dtype=torch.float, device="cpu")
         y[0] = 1.0
         return (
-            torch.lstsq(y, a).solution.squeeze()
+            torch.lstsq(y, a).solution.squeeze()  # type: ignore
             if not pytorch_after(1, 11)
             else torch.linalg.lstsq(a, y).solution.squeeze()
         )

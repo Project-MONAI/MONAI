@@ -183,10 +183,14 @@ class Pad(InvertibleTransform):
                     )
                     out = _pad(img_t, pad_width=to_pad_, mode=mode_, **kwargs_)
                 except (ValueError, TypeError, RuntimeError) as err:
-                    if "supported" in str(err) or "unexpected keyword" in str(err) or "implemented" in str(err):
+                    if isinstance(err, NotImplementedError) or any(
+                        k in str(err) for k in ("supported", "unexpected keyword", "implemented")
+                    ):
                         out = self._np_pad(img_t, pad_width=to_pad_, mode=mode_, **kwargs_)
                     else:
-                        raise ValueError(f"{mode_}, {kwargs_}, {img_t.dtype}, {img_t.device}") from err
+                        raise ValueError(
+                            f"{img_t.shape} {to_pad_} {mode_} {kwargs_} {img_t.dtype} {img_t.device}"
+                        ) from err
         else:
             out = img_t
         if get_track_meta():
@@ -239,7 +243,7 @@ class SpatialPad(Pad):
 
     def __init__(
         self,
-        spatial_size: Union[Sequence[int], int],
+        spatial_size: Union[Sequence[int], int, Tuple[Union[Tuple[int, ...], int], ...]],
         method: str = Method.SYMMETRIC,
         mode: str = PytorchPadMode.CONSTANT,
         **kwargs,

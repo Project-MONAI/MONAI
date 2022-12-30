@@ -1,5 +1,5 @@
-# daily tests for clara mmar models
-name: cron-mmar
+# daily tests for ngc bundles
+name: cron-ngc-bundle
 
 on:
   schedule:
@@ -9,7 +9,7 @@ on:
 
 concurrency:
   # automatically cancel the previously triggered workflows when there's a newer version
-  group: mmar-tests-${{ github.event.pull_request.number || github.ref }}
+  group: bundle-tests-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -33,12 +33,12 @@ jobs:
         key: ${{ runner.os }}-pip-${{ steps.pip-cache.outputs.datew }}
     - name: Install dependencies
       run: |
-        rm -rf /github/home/.cache/torch/hub/mmars/
+        rm -rf /github/home/.cache/torch/hub/bundle/
         python -m pip install --upgrade pip wheel
         python -m pip install -r requirements-dev.txt
-    - name: Loading MMARs
+    - name: Loading Bundles
       run: |
         # clean up temporary files
         $(pwd)/runtests.sh --build --clean
         # run tests
-        python -m tests.ngc_mmar_loading
+        python -m tests.ngc_bundle_download

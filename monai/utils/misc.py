@@ -56,6 +56,7 @@ __all__ = [
     "check_parent_dir",
     "save_obj",
     "label_union",
+    "path_to_uri",
 ]
 
 _seed = None
@@ -531,7 +532,7 @@ def save_obj(
     Args:
         obj: input object data to save.
         path: target file path to save the input object.
-        create_dir: whether to create dictionary of the path if not existng, default to `True`.
+        create_dir: whether to create dictionary of the path if not existing, default to `True`.
         atomic: if `True`, state is serialized to a temporary file first, then move to final destination.
             so that files are guaranteed to not be damaged if exception occurs. default to `True`.
         func: the function to save file, if None, default to `torch.save`.
@@ -584,3 +585,14 @@ def prob2class(x, sigmoid: bool = False, threshold: float = 0.5, **kwargs):
         threshold: threshold value to activate the sigmoid function.
     """
     return torch.argmax(x, **kwargs) if not sigmoid else (x > threshold).int()
+
+
+def path_to_uri(path: PathLike) -> str:
+    """
+    Convert a file path to URI. if not absolute path, will convert to absolute path first.
+
+    Args:
+        path: input file path to convert, can be a string or `Path` object.
+
+    """
+    return Path(path).absolute().as_uri()

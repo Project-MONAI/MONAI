@@ -24,60 +24,32 @@ np.random.RandomState(123)
 
 for p in TEST_NDARRAYS:
     EXCEPTION_TESTS.append(
-        [
-            {"keys": "mask", "kernel_size": 3, "remove_small_objects": True, "min_size": 10},
-            p(np.random.rand(1, 5, 5, 5)),
-            p(np.random.rand(2, 5, 5)),
-            ValueError,
-        ]
+        [{"mask_key": "mask", "kernel_size": 3}, p(np.random.rand(1, 5, 5, 5)), p(np.random.rand(2, 5, 5)), ValueError]
     )
-
     EXCEPTION_TESTS.append(
-        [
-            {"keys": "mask", "kernel_size": 3, "remove_small_objects": True, "min_size": 10},
-            p(np.random.rand(1, 5, 5)),
-            p(np.random.rand(1, 5, 5)),
-            ValueError,
-        ]
+        [{"mask_key": "mask", "kernel_size": 3}, p(np.random.rand(1, 5, 5)), p(np.random.rand(1, 5, 5)), ValueError]
     )
-
     EXCEPTION_TESTS.append(
-        [
-            {"keys": "mask", "kernel_size": 3, "remove_small_objects": True, "min_size": 10},
-            p(np.random.rand(2, 5, 5)),
-            p(np.random.rand(2, 5, 5)),
-            ValueError,
-        ]
+        [{"mask_key": "mask", "kernel_size": 3}, p(np.random.rand(2, 5, 5)), p(np.random.rand(2, 5, 5)), ValueError]
     )
 
-for p in TEST_NDARRAYS:
     TESTS.append(
-        [
-            {"keys": "mask", "kernel_size": 3, "remove_small_objects": False, "min_size": 10},
-            p(np.random.rand(1, 5, 5)),
-            p(np.random.rand(2, 5, 5)),
-            (1, 5, 5),
-        ]
+        [{"mask_key": "mask", "kernel_size": 3}, p(np.random.rand(1, 5, 5)), p(np.random.rand(2, 5, 5)), (1, 5, 5)]
     )
     TESTS.append(
-        [
-            {"keys": "mask", "kernel_size": 3, "remove_small_objects": True, "min_size": 10},
-            p(np.random.rand(1, 5, 5)),
-            p(np.random.rand(2, 5, 5)),
-            (1, 5, 5),
-        ]
+        [{"mask_key": "mask", "kernel_size": 3}, p(np.random.rand(1, 5, 5)), p(np.random.rand(2, 5, 5)), (1, 5, 5)]
     )
 
 
 class TestGenerateInstanceBorderd(unittest.TestCase):
     @parameterized.expand(EXCEPTION_TESTS)
-    def test_value(self, argments, mask, hover_map, exception_type):
+    def test_value(self, arguments, mask, hover_map, exception_type):
         with self.assertRaises(exception_type):
-            GenerateInstanceBorderd(**argments)({"mask": mask, "hover_map": hover_map})
+            GenerateInstanceBorderd(**arguments)({"mask": mask, "hover_map": hover_map})
 
     @parameterized.expand(TESTS)
-    def test_value2(self, argments, mask, hover_map, expected_shape):
-        result = GenerateInstanceBorderd(**argments)({"mask": mask, "hover_map": hover_map})
+    def test_value2(self, arguments, mask, hover_map, expected_shape):
+        result = GenerateInstanceBorderd(**arguments)({"mask": mask, "hover_map": hover_map})
         self.assertEqual(result["border"].shape, expected_shape)
 
 

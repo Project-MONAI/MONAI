@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import Any, Callable, Dict, List, Mapping, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn.functional as F
@@ -47,7 +47,8 @@ def sliding_window_inference(
     sw_device: Union[torch.device, str, None] = None,
     device: Union[torch.device, str, None] = None,
     progress: bool = False,
-    roi_weight_map: Union[torch.Tensor, None] = None,
+    roi_weight_map: Optional[torch.Tensor] = None,
+    process_fn: Optional[Callable] = None,
     *args: Any,
     **kwargs: Any,
 ) -> Union[torch.Tensor, Tuple[torch.Tensor, ...], Dict[Any, torch.Tensor]]:
@@ -108,6 +109,7 @@ def sliding_window_inference(
         progress: whether to print a `tqdm` progress bar.
         roi_weight_map: pre-computed (non-negative) weight map for each ROI.
             If not given, and ``mode`` is not `constant`, this map will be computed on the fly.
+        process_fn: process inference output and adjust the importance map per window
         args: optional args to be passed to ``predictor``.
         kwargs: optional keyword args to be passed to ``predictor``.
 
@@ -149,19 +151,21 @@ def sliding_window_inference(
     # Create window-level importance map
     valid_patch_size = get_valid_patch_size(image_size, roi_size)
     if valid_patch_size == roi_size and (roi_weight_map is not None):
-        importance_map = roi_weight_map
+        importance_map_ = roi_weight_map
     else:
         try:
-            importance_map = compute_importance_map(valid_patch_size, mode=mode, sigma_scale=sigma_scale, device=device)
+            importance_map_ = compute_importance_map(
+                valid_patch_size, mode=mode, sigma_scale=sigma_scale, device=device
+            )
         except BaseException as e:
             raise RuntimeError(
                 "Seems to be OOM. Please try smaller patch size or mode='constant' instead of mode='gaussian'."
             ) from e
-    importance_map = convert_data_type(importance_map, torch.Tensor, device, compute_dtype)[0]
+    importance_map_ = convert_data_type(importance_map_, torch.Tensor, device, compute_dtype)[0]
 
     # handle non-positive weights
-    min_non_zero = max(importance_map[importance_map != 0].min().item(), 1e-3)
-    importance_map = torch.clamp(importance_map.to(torch.float32), min=min_non_zero).to(compute_dtype)
+    min_non_zero = max(importance_map_[importance_map_ != 0].min().item(), 1e-3)
+    importance_map_ = torch.clamp(importance_map_.to(torch.float32), min=min_non_zero).to(compute_dtype)
 
     # Perform predictions
     dict_key, output_image_list, count_map_list = None, [], []
@@ -192,6 +196,11 @@ def sliding_window_inference(
         else:
             seg_prob_tuple = ensure_tuple(seg_prob_out)
             is_tensor_output = False
+
+        if process_fn:
+            seg_prob_tuple, importance_map = process_fn(seg_prob_tuple, window_data, importance_map_)
+        else:
+            importance_map = importance_map_
 
         # for each output in multi-output list
         for ss, seg_prob in enumerate(seg_prob_tuple):

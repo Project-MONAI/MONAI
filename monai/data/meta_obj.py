@@ -79,7 +79,7 @@ class MetaObj:
 
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._meta: dict = MetaObj.get_default_meta()
         self._applied_operations: list = MetaObj.get_default_applied_operations()
         self._pending_operations: list = MetaObj.get_default_applied_operations()  # the same default as applied_ops
@@ -212,6 +212,9 @@ class MetaObj:
 
     def pop_pending_operation(self) -> Any:
         return self._pending_operations.pop()
+
+    def clear_pending_operations(self) -> Any:
+        self._pending_operations = MetaObj.get_default_applied_operations()
 
     @property
     def is_batch(self) -> bool:

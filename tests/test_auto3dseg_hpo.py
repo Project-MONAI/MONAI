@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import os
-import shutil
 import tempfile
 import unittest
 from functools import partial
@@ -18,6 +17,7 @@ from typing import Dict, List
 
 import nibabel as nib
 import numpy as np
+import torch
 
 from monai.apps.auto3dseg import BundleGen, DataAnalyzer, NNIGen, OptunaGen, import_bundle_algo_history
 from monai.bundle.config_parser import ConfigParser
@@ -27,6 +27,22 @@ from tests.utils import SkipIfBeforePyTorchVersion, skip_if_downloading_fails, s
 
 _, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 optuna, has_optuna = optional_import("optuna")
+
+num_gpus = 4 if torch.cuda.device_count() > 4 else torch.cuda.device_count()
+
+override_param = (
+    {
+        "CUDA_VISIBLE_DEVICES": list(range(num_gpus)),
+        "num_images_per_batch": 2,
+        "num_epochs": 2,
+        "num_epochs_per_validation": 1,
+        "num_warmup_epochs": 1,
+        "use_pretrain": False,
+        "pretrained_path": "",
+    }
+    if torch.cuda.is_available()
+    else {}
+)
 
 
 def skip_if_no_optuna(obj):
@@ -76,7 +92,7 @@ class TestHPO(unittest.TestCase):
 
         # Generate a fake dataset
         for d in fake_datalist["testing"] + fake_datalist["training"]:
-            im, seg = create_test_image_3d(64, 64, 64, rad_max=10, num_seg_classes=1)
+            im, seg = create_test_image_3d(24, 24, 24, rad_max=10, num_seg_classes=1)
             nib_image = nib.Nifti1Image(im, affine=np.eye(4))
             image_fpath = os.path.join(dataroot, d["image"])
             nib.save(nib_image, image_fpath)
@@ -108,7 +124,7 @@ class TestHPO(unittest.TestCase):
             bundle_generator = BundleGen(
                 algo_path=work_dir, data_stats_filename=da_output_yaml, data_src_cfg_name=data_src_cfg
             )
-        bundle_generator.generate(work_dir, num_fold=2)
+        bundle_generator.generate(work_dir, num_fold=1)
 
         self.history = bundle_generator.get_history()
         self.work_dir = work_dir
@@ -116,13 +132,6 @@ class TestHPO(unittest.TestCase):
 
     @skip_if_no_cuda
     def test_run_algo(self) -> None:
-        override_param = {
-            "num_iterations": 8,
-            "num_iterations_per_validation": 4,
-            "num_images_per_batch": 2,
-            "num_epochs": 2,
-            "num_warmup_iterations": 4,
-        }
 
         algo_dict = self.history[0]
         algo_name = list(algo_dict.keys())[0]
@@ -135,14 +144,6 @@ class TestHPO(unittest.TestCase):
     @skip_if_no_cuda
     @skip_if_no_optuna
     def test_run_optuna(self) -> None:
-        override_param = {
-            "num_iterations": 8,
-            "num_iterations_per_validation": 4,
-            "num_images_per_batch": 2,
-            "num_epochs": 2,
-            "num_warmup_iterations": 4,
-        }
-
         algo_dict = self.history[0]
         algo_name = list(algo_dict.keys())[0]
         algo = algo_dict[algo_name]
@@ -165,44 +166,7 @@ class TestHPO(unittest.TestCase):
         print(f"Best value: {study.best_value} (params: {study.best_params})\n")
 
     @skip_if_no_cuda
-    def test_run_algo_after_move_files(self) -> None:
-        override_param = {
-            "num_iterations": 8,
-            "num_iterations_per_validation": 4,
-            "num_images_per_batch": 2,
-            "num_epochs": 2,
-            "num_warmup_iterations": 4,
-        }
-
-        algo_dict = self.history[0]
-        algo_name = list(algo_dict.keys())[0]
-        algo = algo_dict[algo_name]
-        nni_gen = NNIGen(algo=algo, params=override_param)
-        obj_filename = nni_gen.get_obj_filename()
-
-        work_dir_2 = os.path.join(self.test_path, "workdir2")
-        os.makedirs(work_dir_2)
-        algorithm_template = os.path.join(self.work_dir, "algorithm_templates")
-        algorithm_templates_2 = os.path.join(work_dir_2, "algorithm_templates")
-        algo_dir = os.path.dirname(obj_filename)
-        algo_dir_2 = os.path.join(work_dir_2, os.path.basename(algo_dir))
-
-        obj_filename_2 = os.path.join(algo_dir_2, "algo_object.pkl")
-        shutil.copytree(algorithm_template, algorithm_templates_2)
-        shutil.copytree(algo_dir, algo_dir_2)
-        # this function will be used in HPO via Python Fire in remote
-        NNIGen().run_algo(obj_filename_2, work_dir_2, template_path=algorithm_templates_2)
-
-    @skip_if_no_cuda
     def test_get_history(self) -> None:
-        override_param = {
-            "num_iterations": 8,
-            "num_iterations_per_validation": 4,
-            "num_images_per_batch": 2,
-            "num_epochs": 2,
-            "num_warmup_iterations": 4,
-        }
-
         algo_dict = self.history[0]
         algo_name = list(algo_dict.keys())[0]
         algo = algo_dict[algo_name]

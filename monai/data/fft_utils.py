@@ -19,7 +19,7 @@ from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 def ifftn_centered(ksp: NdarrayOrTensor, spatial_dims: int, is_complex: bool = True) -> NdarrayOrTensor:
     """
     Pytorch-based ifft for spatial_dims-dim signals. "centered" means this function automatically takes care
-    of the required ifft and fft shifts. This function calls monai.metworks.blocks.fft_utils_t.ifftn_centered_t.
+    of the required ifft and fft shifts. This function calls monai.networks.blocks.fft_utils_t.ifftn_centered_t.
     This is equivalent to do fft in numpy based on numpy.fft.ifftn, numpy.fft.fftshift, and numpy.fft.ifftshift
 
     Args:
@@ -58,7 +58,7 @@ def ifftn_centered(ksp: NdarrayOrTensor, spatial_dims: int, is_complex: bool = T
 def fftn_centered(im: NdarrayOrTensor, spatial_dims: int, is_complex: bool = True) -> NdarrayOrTensor:
     """
     Pytorch-based fft for spatial_dims-dim signals. "centered" means this function automatically takes care
-    of the required ifft and fft shifts. This function calls monai.metworks.blocks.fft_utils_t.fftn_centered_t.
+    of the required ifft and fft shifts. This function calls monai.networks.blocks.fft_utils_t.fftn_centered_t.
     This is equivalent to do ifft in numpy based on numpy.fft.fftn, numpy.fft.fftshift, and numpy.fft.ifftshift
 
     Args:

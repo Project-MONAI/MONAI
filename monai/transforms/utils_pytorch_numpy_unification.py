@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Tuple, Union
+from typing import Optional, Sequence, Tuple, TypeVar, Union
 
 import numpy as np
 import torch
@@ -342,7 +342,10 @@ def isnan(x: NdarrayOrTensor) -> NdarrayOrTensor:
     return torch.isnan(x)
 
 
-def ascontiguousarray(x: NdarrayTensor, **kwargs) -> NdarrayOrTensor:
+T = TypeVar("T")
+
+
+def ascontiguousarray(x: Union[NdarrayTensor, T], **kwargs) -> Union[NdarrayOrTensor, T]:
     """`np.ascontiguousarray` with equivalent implementation for torch (`contiguous`).
 
     Args:

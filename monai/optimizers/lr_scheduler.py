@@ -77,7 +77,7 @@ class WarmupCosineSchedule(LambdaLR):
             t_total: total number of training iterations.
             cycles: cosine cycles parameter.
             last_epoch: the index of last epoch.
-            warmup_multiplier: if provided, starts the linear warmup from this fraction of the intial lr.
+            warmup_multiplier: if provided, starts the linear warmup from this fraction of the initial lr.
                 Must be in 0..1 interval. Defaults to 0
         Returns:
             None

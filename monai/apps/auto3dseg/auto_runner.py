@@ -14,8 +14,9 @@ import shutil
 import subprocess
 from copy import deepcopy
 from time import sleep
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, cast
 
+import numpy as np
 import torch
 
 from monai.apps.auto3dseg.bundle_gen import BundleGen
@@ -63,14 +64,17 @@ class AutoRunner:
         work_dir: working directory to save the intermediate and final results.
         input: the configuration dictionary or the file path to the configuration in form of YAML.
             The configuration should contain datalist, dataroot, modality, multigpu, and class_names info.
-        analyze: on/off switch to run DataAnalyzer and generate a datastats report. If it is set to False,
-            The AutoRunner will attempt to skip datastats analysis and use cached results. If there is no such cache,
-            AutoRunner will report an error and stop.
-        algo_gen: on/off switch to run AlgoGen and generate templated BundleAlgos. If it is set to False,
-            The AutoRunner will attempt to skip the algorithm generation and stop if there is no cache to load.
-        train: on/off switch to run training and generate algorithm checkpoints. If it is set to False,
-            The AutoRunner will attempt to skip the training for all algorithms. If there is zero trained algorithm
-            but ``train`` is set to False, AutoRunner will stop.
+        algos: optionally specify algorithms to use.  If a dictionary, must be in the form
+            {"algname": dict(_target_="algname.scripts.algo.AlgnameAlgo", template_path="algname"), ...}
+            If a list or a string, defines a subset of names of the algorithms to use, e.g. 'segresnet' or
+            ['segresnet', 'dints'] out of the full set of algorithm templates provided by templates_path_or_url.
+            Defaults to None, to use all available algorithms.
+        analyze: on/off switch to run DataAnalyzer and generate a datastats report. Defaults to None, to automatically
+            decide based on cache, and run data analysis only if we have not completed this step yet.
+        algo_gen: on/off switch to run AlgoGen and generate templated BundleAlgos. Defaults to None, to automatically
+            decide based on cache, and run algorithm folders generation only if we have not completed this step yet.
+        train: on/off switch to run training and generate algorithm checkpoints. Defaults to None, to automatically
+            decide based on cache, and run training only if we have not completed this step yet.
         hpo: use hyperparameter optimization (HPO) in the training phase. Users can provide a list of
             hyper-parameter and a search will be performed to investigate the algorithm performances.
         hpo_backend: a string that indicates the backend of the HPO. Currently, only NNI Grid-search mode
@@ -79,6 +83,8 @@ class AutoRunner:
             datasets.
         not_use_cache: if the value is True, it will ignore all cached results in data analysis,
             algorithm generation, or training, and start the pipeline from scratch.
+        templates_path_or_url: the folder with the algorithm templates or a url. If None provided, the default template
+            zip url will be downloaded and extracted into the work_dir.
         kwargs: image writing parameters for the ensemble inference. The kwargs format follows the SaveImage
             transform. For more information, check https://docs.monai.io/en/stable/transforms.html#saveimage.
 
@@ -104,6 +110,27 @@ class AutoRunner:
             work_dir = "./work_dir"
             input = "path_to_yaml_data_cfg"
             runner = AutoRunner(work_dir=work_dir, input=input)
+            runner.run()
+
+        - User can specify a subset of algorithms to use and run AutoRunner:
+
+        .. code-block:: python
+
+            work_dir = "./work_dir"
+            input = "path_to_yaml_data_cfg"
+            algos = ["segresnet", "dints"]
+            runner = AutoRunner(work_dir=work_dir, input=input, algos=algos)
+            runner.run()
+
+        - User can specify a a local folder with algorithms templates and run AutoRunner:
+
+        .. code-block:: python
+
+            work_dir = "./work_dir"
+            input = "path_to_yaml_data_cfg"
+            algos = "segresnet"
+            templates_path_or_url = "./local_path_to/algorithm_templates"
+            runner = AutoRunner(work_dir=work_dir, input=input, algos=algos, templates_path_or_url=templates_path_or_url)
             runner.run()
 
         - User can specify training parameters by:
@@ -177,62 +204,82 @@ class AutoRunner:
 
     """
 
+    analyze_params: Optional[Dict]
+
     def __init__(
         self,
         work_dir: str = "./work_dir",
         input: Union[Dict[str, Any], str, None] = None,
-        analyze: bool = True,
-        algo_gen: bool = True,
-        train: bool = True,
+        algos: Optional[Union[Dict, List, str]] = None,
+        analyze: Optional[bool] = None,
+        algo_gen: Optional[bool] = None,
+        train: Optional[bool] = None,
         hpo: bool = False,
         hpo_backend: str = "nni",
         ensemble: bool = True,
         not_use_cache: bool = False,
+        templates_path_or_url: Optional[str] = None,
         **kwargs,
     ):
-        if not os.path.isdir(work_dir):
-            logger.info(f"{work_dir} does not exists. Creating...")
-            os.makedirs(work_dir)
-            logger.info(f"{work_dir} created to save all results")
-        else:
-            logger.info(f"Work directory {work_dir} is used to save all results")
+
+        logger.info(f"AutoRunner using work directory {work_dir}")
+        os.makedirs(work_dir, exist_ok=True)
 
         self.work_dir = os.path.abspath(work_dir)
         self.data_src_cfg_name = os.path.join(self.work_dir, "input.yaml")
+        self.algos = algos
+        self.templates_path_or_url = templates_path_or_url
 
-        if input is None:
-            input = os.path.join(self.work_dir, "input.yaml")
-        elif isinstance(input, Dict):
-            ConfigParser.export_config_file(input, self.data_src_cfg_name)
+        if input is None and os.path.isfile(self.data_src_cfg_name):
+            input = self.data_src_cfg_name
+            logger.info(f"Input config is not provided, using the default {input}")
+
+        if isinstance(input, Dict):
             self.data_src_cfg = input
+            ConfigParser.export_config_file(
+                config=input, filepath=self.data_src_cfg_name, fmt="yaml", default_flow_style=None, sort_keys=False
+            )
         elif isinstance(input, str) and os.path.isfile(input):
-            shutil.copy(input, self.data_src_cfg_name)
-            logger.info(f"Loading {input} for AutoRunner and making a copy in {self.data_src_cfg_name}")
-            self.data_src_cfg = ConfigParser.load_config_file(self.data_src_cfg_name)
+            self.data_src_cfg = ConfigParser.load_config_file(input)
+            logger.info(f"Loading input config {input}")
+            if input != self.data_src_cfg_name:
+                shutil.copy(input, self.data_src_cfg_name)
         else:
-            raise ValueError(f"{input} is not a valid file")
+            raise ValueError(f"{input} is not a valid file or dict")
 
-        self.not_use_cache = not_use_cache
-        self.cache_filename = os.path.join(self.work_dir, "cache.yaml")
-        self.cache = self.check_cache()
-        self.export_cache()
+        missing_keys = {"dataroot", "datalist", "modality"}.difference(self.data_src_cfg.keys())
+        if len(missing_keys) > 0:
+            raise ValueError(f"Config keys are missing {missing_keys}")
 
-        # Whether we need all the steps or not
-        self.analyze = self.check_analyze(analyze)
-        self.algo_gen = self.check_algo_gen(algo_gen)
-        self.train = self.check_train(train)
-        self.ensemble = ensemble  # last step, no need to check
-
-        # intermediate variables
         self.dataroot = self.data_src_cfg["dataroot"]
         self.datalist_filename = self.data_src_cfg["datalist"]
         self.datastats_filename = os.path.join(self.work_dir, "datastats.yaml")
+
+        self.not_use_cache = not_use_cache
+        self.cache_filename = os.path.join(self.work_dir, "cache.yaml")
+        self.cache = self.read_cache()
+        self.export_cache()
+
+        # determine if we need to analyze, algo_gen or train from cache, unless manually provided
+        self.analyze = not self.cache["analyze"] if analyze is None else analyze
+        self.algo_gen = not self.cache["algo_gen"] if algo_gen is None else algo_gen
+        self.train = not self.cache["train"] if train is None else train
+        self.ensemble = ensemble  # last step, no need to check
+
+        # intermediate variables
+        self.num_fold = 5
+        self.ensemble_method_name = "AlgoEnsembleBestByFold"
         self.set_training_params()
-        self.set_num_fold()
         self.set_prediction_params()
+        self.set_analyze_params()
+
         self.save_image = self.set_image_save_transform(kwargs)
         self.ensemble_method: AlgoEnsemble
-        self.set_ensemble_method()
+        self.set_ensemble_method(self.ensemble_method_name)
+        self.set_num_fold(num_fold=self.num_fold)
+
+        self.gpu_customization = False
+        self.gpu_customization_specs: Dict[str, Any] = {}
 
         # hpo
         if hpo_backend.lower() != "nni":
@@ -242,7 +289,7 @@ class AutoRunner:
         self.search_space: Dict[str, Dict[str, Any]] = {}
         self.hpo_tasks = 0
 
-    def check_cache(self):
+    def read_cache(self):
         """
         Check if the intermediate result is cached after each step in the current working directory
 
@@ -251,84 +298,79 @@ class AutoRunner:
             working directory, the result will be ``empty_cache`` in which all ``has_cache`` keys are
             set to False.
         """
-        empty_cache = {
-            "analyze": {"has_cache": False, "datastats": None},
-            "algo_gen": {"has_cache": False},
-            "train": {"has_cache": False},
-        }
+
+        empty_cache = {"analyze": False, "datastats": None, "algo_gen": False, "train": False}
+
         if self.not_use_cache or not os.path.isfile(self.cache_filename):
             return empty_cache
 
         cache = ConfigParser.load_config_file(self.cache_filename)
 
-        if cache["analyze"]["has_cache"]:
-            # check if the file in the right format and exists.
-            if not isinstance(cache["analyze"]["datastats"], str):
+        for k, v in empty_cache.items():
+            cache.setdefault(k, v)
+
+        if cache["analyze"]:
+            if not (isinstance(cache["datastats"], str) and os.path.isfile(cache["datastats"])):
                 cache["analyze"] = False
-                cache["analyze"]["datastats"] = None
+                cache["datastats"] = None
 
-            if not os.path.isfile(cache["analyze"]["datastats"]):
-                cache["analyze"]["has_cache"] = False
-
-        if cache["algo_gen"]["has_cache"]:
+        if cache["algo_gen"]:
             history = import_bundle_algo_history(self.work_dir, only_trained=False)
             if len(history) == 0:  # no saved algo_objects
-                cache["algo_gen"]["has_cache"] = False
+                cache["algo_gen"] = False
 
-        if cache["train"]["has_cache"]:
+        if cache["train"]:
             trained_history = import_bundle_algo_history(self.work_dir, only_trained=True)
             if len(trained_history) == 0:
-                cache["train"]["has_cache"] = False
+                cache["train"] = False
 
         return cache
 
-    def export_cache(self):
+    def export_cache(self, **kwargs):
         """
         Save the cache state as ``cache.yaml`` in the working directory
         """
-        ConfigParser.export_config_file(self.cache, self.cache_filename, fmt="yaml", default_flow_style=None)
+        self.cache.update(kwargs)
+        ConfigParser.export_config_file(
+            self.cache, self.cache_filename, fmt="yaml", default_flow_style=None, sort_keys=False
+        )
 
-    def check_analyze(self, analyze: bool):
-        """Check if the AutoRunner can skip data analysis."""
+    def set_gpu_customization(
+        self, gpu_customization: bool = False, gpu_customization_specs: Optional[Dict[str, Any]] = None
+    ):
+        """
+        Set options for GPU-based parameter customization/optimization.
 
-        if self.cache["analyze"]["has_cache"]:
-            return False  # we can use cached result
+        Args:
+            gpu_customization: the switch to determine automatically customize/optimize bundle script/config
+                parameters for each bundleAlgo based on gpus. Custom parameters are obtained through dummy
+                training to simulate the actual model training process and hyperparameter optimization (HPO)
+                experiments.
+            gpu_customization_specs (optinal): the dictionary to enable users overwrite the HPO settings. user can
+                overwrite part of variables as follows or all of them. The structure is as follows.
 
-        if analyze:
-            return True  # we need to do analysis
-        else:
-            raise ValueError(
-                f"cache data analysis report is not found in {self.work_dir}"
-                "or the cache.yaml file is missing in the directory"
-            )
+                .. code-block:: python
 
-    def check_algo_gen(self, algo_gen: bool):
-        """Check if the AutoRunner can skip AlgoGen/BundleGen."""
+                    gpu_customization_specs = {
+                        'ALOG': {
+                            'num_trials': 6,
+                            'range_num_images_per_batch': [1, 20],
+                            'range_num_sw_batch_size': [1, 20]
+                        }
+                    }
 
-        if self.cache["algo_gen"]["has_cache"]:
-            return False  # we can use cached result
+            ALGO: the name of algorithm. It could be one of algorithm names (e.g., 'dints') or 'unversal' which
+                would apply changes to all algorithms. Possible options are
 
-        if algo_gen:
-            return True  # we need to do algo_gen
-        else:
-            raise ValueError(
-                f"algo_object.pkl is not found in the task folders under {self.work_dir}"
-                "or the cache.yaml file is missing in the directory"
-            )
+                - {``"unversal"``, ``"dints"``, ``"segresnet"``, ``"segresnet2d"``, ``"swinunetr"``}.
 
-    def check_train(self, train: bool):
-        """Check if the AutoRunner can skip training."""
-
-        if self.cache["train"]["has_cache"]:
-            return False  # we can use cached result
-
-        if train:
-            return True  # we need to do training
-        else:
-            raise ValueError(
-                f"algo_object.pkl in the task folders under {self.work_dir} has no [best_metrics] key"
-                "or the cache.yaml file is missing in the directory"
-            )
+            num_trials: the number of HPO trials/experiments to run.
+            range_num_images_per_batch: the range of number of images per mini-batch.
+            range_num_sw_batch_size: the range of batch size in sliding-window inferer.
+        """
+        self.gpu_customization = gpu_customization
+        if gpu_customization_specs is not None:
+            self.gpu_customization_specs = gpu_customization_specs
 
     def set_num_fold(self, num_fold: int = 5):
         """
@@ -336,10 +378,16 @@ class AutoRunner:
 
         Args:
             num_fold: a positive integer to define the number of folds.
+
+        Notes:
+            If the ensemble method is ``AlgoEnsembleBestByFold``, this function automatically updates the ``n_fold``
+            parameter in the ``ensemble_method`` to avoid inconsistency between the training and the ensemble.
         """
         if num_fold <= 0:
             raise ValueError(f"num_fold is expected to be an integer greater than zero. Now it gets {num_fold}")
         self.num_fold = num_fold
+        if self.ensemble_method_name == "AlgoEnsembleBestByFold":
+            self.ensemble_method.n_fold = self.num_fold  # type: ignore
 
     def set_training_params(self, params: Optional[Dict[str, Any]] = None):
         """
@@ -354,10 +402,7 @@ class AutoRunner:
                 {"num_iterations": 8, "num_iterations_per_validation": 4}
 
         """
-        if params is None:
-            self.train_params = {}
-        else:
-            self.train_params = deepcopy(params)
+        self.train_params = deepcopy(params) if params is not None else {}
 
     def set_prediction_params(self, params: Optional[Dict[str, Any]] = None):
         """
@@ -373,10 +418,25 @@ class AutoRunner:
                 two files in the testing datalist {"file_slices": slice(0, 2)}
 
         """
+        self.pred_params = deepcopy(params) if params is not None else {}
+
+    def set_analyze_params(self, params: Optional[Dict[str, Any]] = None):
+        """
+        Set the data analysis extra params.
+
+        Args:
+            params: a dict that defines the overriding key-value pairs during training. The overriding method
+                is defined by the algo class.
+
+        Examples:
+            For BundleAlgo objects, the training parameter to shorten the training time to a few epochs can be
+                {"num_iterations": 8, "num_iterations_per_validation": 4}
+
+        """
         if params is None:
-            self.pred_params = {"sigmoid": True}  # output will be 0-1
+            self.analyze_params = {"do_ccp": False, "device": "cuda"}
         else:
-            self.pred_params = deepcopy(params)
+            self.analyze_params = deepcopy(params)
 
     def set_hpo_params(self, params: Optional[Dict[str, Any]] = None):
         """
@@ -392,9 +452,15 @@ class AutoRunner:
             - "tuner"
             - "trainingService"
 
+        and (3) enable the dry-run mode if the user would generate the NNI configs without starting the NNI service.
+
         Args:
             params: a dict that defines the overriding key-value pairs during instantiation of the algo. For
                 BundleAlgo, it will override the template config filling.
+
+        Notes:
+            Users can set ``nni_dry_run`` to ``True`` in the ``params`` to enable the dry-run mode for the NNI backend.
+
         """
         if params is None:
             self.hpo_params = self.train_params
@@ -438,15 +504,16 @@ class AutoRunner:
             os.makedirs(output_dir)
             logger.info(f"Directory {output_dir} is created to save ensemble predictions")
 
-        if "output_postfix" in kwargs:
-            output_postfix = kwargs.pop("output_postfix")
-        else:
-            output_postfix = "ensemble"
-
         self.output_dir = output_dir
-        return SaveImage(output_dir=output_dir, output_postfix=output_postfix, **kwargs)
+        output_postfix = kwargs.pop("output_postfix", "ensemble")
+        output_dtype = kwargs.pop("output_dtype", np.uint8)
+        resample = kwargs.pop("resample", False)
 
-    def set_ensemble_method(self, ensemble_method_name: str = "AlgoEnsembleBestN", **kwargs):
+        return SaveImage(
+            output_dir=output_dir, output_postfix=output_postfix, output_dtype=output_dtype, resample=resample, **kwargs
+        )
+
+    def set_ensemble_method(self, ensemble_method_name: str = "AlgoEnsembleBestByFold", **kwargs):
         """
         Set the bundle ensemble method
 
@@ -519,6 +586,7 @@ class AutoRunner:
         }
 
         last_total_tasks = len(import_bundle_algo_history(self.work_dir, only_trained=True))
+        mode_dry_run = self.hpo_params.pop("nni_dry_run", False)
         for task in history:
             for name, algo in task.items():
                 nni_gen = NNIGen(algo=algo, params=self.hpo_params)
@@ -532,11 +600,16 @@ class AutoRunner:
                 nni_config.update({"search_space": self.search_space})
                 trial_cmd = "python -m monai.apps.auto3dseg NNIGen run_algo " + obj_filename + " " + self.work_dir
                 nni_config.update({"trialCommand": trial_cmd})
-                nni_config_filename = os.path.abspath(os.path.join(self.work_dir, "nni_config.yaml"))
+                nni_config_filename = os.path.abspath(os.path.join(self.work_dir, f"{name}_nni_config.yaml"))
                 ConfigParser.export_config_file(nni_config, nni_config_filename, fmt="yaml", default_flow_style=None)
 
-                max_trial = min(self.hpo_tasks, default_nni_config["maxTrialNumber"])
+                max_trial = min(self.hpo_tasks, cast(int, default_nni_config["maxTrialNumber"]))
                 cmd = "nnictl create --config " + nni_config_filename + " --port 8088"
+
+                if mode_dry_run:
+                    logger.info(f"AutoRunner HPO is in dry-run mode. Please manually launch: {cmd}")
+                    continue
+
                 subprocess.run(cmd.split(), check=True)
 
                 n_trainings = len(import_bundle_algo_history(self.work_dir, only_trained=True))
@@ -554,56 +627,87 @@ class AutoRunner:
         Run the AutoRunner pipeline
         """
         # step 1: data analysis
-        if self.analyze:
-            da = DataAnalyzer(self.datalist_filename, self.dataroot, output_path=self.datastats_filename)
+        if self.analyze and self.analyze_params is not None:
+            logger.info("Running data analysis...")
+            da = DataAnalyzer(
+                self.datalist_filename, self.dataroot, output_path=self.datastats_filename, **self.analyze_params
+            )
             da.get_all_case_stats()
-            self.cache["analyze"]["has_cache"] = True
-            self.cache["analyze"]["datastats"] = self.datastats_filename
-            self.export_cache()
+            self.export_cache(analyze=True, datastats=self.datastats_filename)
         else:
-            logger.info("Found cached results and skipping data analysis...")
+            logger.info("Skipping data analysis...")
 
         # step 2: algorithm generation
         if self.algo_gen:
+
+            if not os.path.isfile(self.datastats_filename):
+                raise ValueError(
+                    f"Could not find the datastats file {self.datastats_filename}. "
+                    "Possibly the required data analysis step was not completed."
+                )
+
             bundle_generator = BundleGen(
+                algos=self.algos,
                 algo_path=self.work_dir,
+                templates_path_or_url=self.templates_path_or_url,
                 data_stats_filename=self.datastats_filename,
                 data_src_cfg_name=self.data_src_cfg_name,
             )
 
-            bundle_generator.generate(self.work_dir, num_fold=self.num_fold)
+            if self.gpu_customization:
+                bundle_generator.generate(
+                    self.work_dir,
+                    num_fold=self.num_fold,
+                    gpu_customization=self.gpu_customization,
+                    gpu_customization_specs=self.gpu_customization_specs,
+                )
+            else:
+                bundle_generator.generate(self.work_dir, num_fold=self.num_fold)
             history = bundle_generator.get_history()
             export_bundle_algo_history(history)
-            self.cache["algo_gen"]["has_cache"] = True
-            self.export_cache()
+            self.export_cache(algo_gen=True)
         else:
-            logger.info("Found cached results and skipping algorithm generation...")
+            logger.info("Skipping algorithm generation...")
 
         # step 3: algo training
         if self.train:
             history = import_bundle_algo_history(self.work_dir, only_trained=False)
+
+            if len(history) == 0:
+                raise ValueError(
+                    f"Could not find training scripts in {self.work_dir}. "
+                    "Possibly the required algorithms generation step was not completed."
+                )
+
             if not self.hpo:
                 self._train_algo_in_sequence(history)
             else:
                 self._train_algo_in_nni(history)
-            self.cache["train"]["has_cache"] = True
-            self.export_cache()
+            self.export_cache(train=True)
         else:
-            logger.info("Found cached results and skipping algorithm training...")
+            logger.info("Skipping algorithm training...")
 
         # step 4: model ensemble and write the prediction to disks.
         if self.ensemble:
             history = import_bundle_algo_history(self.work_dir, only_trained=True)
+            if len(history) == 0:
+                raise ValueError(
+                    f"Could not find the trained results in {self.work_dir}. "
+                    "Possibly the required training step was not completed."
+                )
+
             builder = AlgoEnsembleBuilder(history, self.data_src_cfg_name)
             builder.set_ensemble_method(self.ensemble_method)
-            ensembler = builder.get_ensemble()
-            preds = ensembler(pred_param=self.pred_params)  # apply sigmoid to binarize the prediction
-            print("Auto3Dseg picked the following networks to ensemble:")
-            for algo in ensembler.get_algo_ensemble():
-                print(algo[AlgoEnsembleKeys.ID])
 
-            for pred in preds:
-                self.save_image(pred)
-            logger.info(f"Auto3Dseg ensemble prediction outputs are saved in {self.output_dir}.")
+            ensembler = builder.get_ensemble()
+            preds = ensembler(pred_param=self.pred_params)
+            if len(preds) > 0:
+                print("Auto3Dseg picked the following networks to ensemble:")
+                for algo in ensembler.get_algo_ensemble():
+                    print(algo[AlgoEnsembleKeys.ID])
+
+                for pred in preds:
+                    self.save_image(pred)
+                logger.info(f"Auto3Dseg ensemble prediction outputs are saved in {self.output_dir}.")
 
         logger.info("Auto3Dseg pipeline is complete successfully.")

@@ -44,7 +44,7 @@ jobs:
             pytorch: "-h"  # we explicitly set pytorch to -h to avoid pip install error
             base: "nvcr.io/nvidia/pytorch:22.09-py3"
           - environment: PT113+CUDA116
-            pytorch: "torch==1.13.0 torchvision==0.14.0"
+            pytorch: "torch==1.13.1 torchvision==0.14.1"
             base: "nvcr.io/nvidia/cuda:11.6.1-devel-ubuntu18.04"
     container:
       image: ${{ matrix.base }}

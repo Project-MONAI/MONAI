@@ -92,6 +92,10 @@ Applications
 .. autoclass:: ProbMapProducer
     :members:
 
+.. automodule:: monai.apps.pathology.inferers
+.. autoclass:: SlidingWindowHoVerNetInferer
+    :members:
+
 .. automodule:: monai.apps.pathology.losses.hovernet_loss
 .. autoclass:: HoVerNetLoss
     :members:
@@ -149,6 +153,10 @@ Applications
     :members:
 .. autoclass:: GenerateWatershedMarkers
     :members:
+.. autoclass:: HoVerNetNuclearTypePostProcessing
+    :members:
+.. autoclass:: HoVerNetInstanceMapPostProcessing
+    :members:
 
 .. automodule:: monai.apps.pathology.transforms.post.dictionary
 .. autoclass:: GenerateSuccinctContourd
@@ -168,6 +176,10 @@ Applications
 .. autoclass:: GenerateDistanceMapd
     :members:
 .. autoclass:: GenerateWatershedMarkersd
+    :members:
+.. autoclass:: HoVerNetInstanceMapPostProcessingd
+    :members:
+.. autoclass:: HoVerNetNuclearTypePostProcessingd
     :members:
 
 `Detection`

@@ -25,10 +25,8 @@ np.random.RandomState(123)
 
 for p in TEST_NDARRAYS:
     EXCEPTION_TESTS.append([{}, p(np.random.rand(2, 5, 5)), p(np.random.rand(1, 5, 5)), ValueError])
-
     EXCEPTION_TESTS.append([{}, p(np.random.rand(1, 5, 5)), p(np.random.rand(2, 5, 5)), ValueError])
 
-for p in TEST_NDARRAYS:
     TESTS.append([{}, p(np.random.rand(1, 5, 5)), p(np.random.rand(1, 5, 5)), (1, 5, 5)])
     TESTS.append(
         [{"smooth_fn": GaussianSmooth(sigma=0.4)}, p(np.random.rand(1, 5, 5)), p(np.random.rand(1, 5, 5)), (1, 5, 5)]
@@ -37,13 +35,13 @@ for p in TEST_NDARRAYS:
 
 class TestGenerateDistanceMap(unittest.TestCase):
     @parameterized.expand(EXCEPTION_TESTS)
-    def test_value(self, argments, mask, probmap, exception_type):
+    def test_value(self, arguments, mask, probmap, exception_type):
         with self.assertRaises(exception_type):
-            GenerateDistanceMap(**argments)(mask, probmap)
+            GenerateDistanceMap(**arguments)(mask, probmap)
 
     @parameterized.expand(TESTS)
-    def test_value2(self, argments, mask, probmap, expected_shape):
-        result = GenerateDistanceMap(**argments)(mask, probmap)
+    def test_value2(self, arguments, mask, probmap, expected_shape):
+        result = GenerateDistanceMap(**arguments)(mask, probmap)
         self.assertEqual(result.shape, expected_shape)
 
 

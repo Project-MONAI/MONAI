@@ -97,12 +97,12 @@ class RegUNet(nn.Module):
 
         # init layers
         # all lists start with d = 0
-        self.encode_convs = None
-        self.encode_pools = None
-        self.bottom_block = None
-        self.decode_deconvs = None
-        self.decode_convs = None
-        self.output_block = None
+        self.encode_convs: nn.ModuleList
+        self.encode_pools: nn.ModuleList
+        self.bottom_block: nn.Sequential
+        self.decode_deconvs: nn.ModuleList
+        self.decode_convs: nn.ModuleList
+        self.output_block: nn.Module
 
         # build layers
         self.build_layers()
@@ -342,7 +342,7 @@ class AdditiveUpSampleBlock(nn.Module):
         self.deconv = get_deconv_block(spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        output_size = (size * 2 for size in x.shape[2:])
+        output_size = [size * 2 for size in x.shape[2:]]
         deconved = self.deconv(x)
         resized = F.interpolate(x, output_size)
         resized = torch.sum(torch.stack(resized.split(split_size=resized.shape[1] // 2, dim=1), dim=-1), dim=-1)
@@ -372,6 +372,7 @@ class LocalNet(RegUNet):
         out_activation: Optional[str] = None,
         out_channels: int = 3,
         pooling: bool = True,
+        use_addictive_sampling: bool = True,
         concat_skip: bool = False,
     ):
         """
@@ -384,12 +385,15 @@ class LocalNet(RegUNet):
             out_channels: number of channels for the output
             extract_levels: list, which levels from net to extract. The maximum level must equal to ``depth``
             pooling: for down-sampling, use non-parameterized pooling if true, otherwise use conv3d
+            use_addictive_sampling: whether use additive up-sampling layer for decoding.
             concat_skip: when up-sampling, concatenate skipped tensor if true, otherwise use addition
         """
+        self.use_additive_upsampling = use_addictive_sampling
         super().__init__(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
             num_channel_initial=num_channel_initial,
+            extract_levels=extract_levels,
             depth=max(extract_levels),
             out_kernel_initializer=out_kernel_initializer,
             out_activation=out_activation,
@@ -406,7 +410,7 @@ class LocalNet(RegUNet):
         )
 
     def build_up_sampling_block(self, in_channels: int, out_channels: int) -> nn.Module:
-        if self._use_additive_upsampling:
+        if self.use_additive_upsampling:
             return AdditiveUpSampleBlock(
                 spatial_dims=self.spatial_dims, in_channels=in_channels, out_channels=out_channels
             )

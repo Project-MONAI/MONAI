@@ -140,11 +140,27 @@ TEST_CASE_6 = [  # 1D, batch 1, 2 input channels
     (1, 3),
 ]
 
+TEST_CASE_7 = [  # 1D, batch 1, 2 input channels, bias_downsample
+    {
+        "block": "bottleneck",
+        "layers": [3, 4, 6, 3],
+        "block_inplanes": [64, 128, 256, 512],
+        "spatial_dims": 1,
+        "n_input_channels": 2,
+        "num_classes": 3,
+        "conv1_t_size": [3],
+        "conv1_t_stride": 1,
+        "bias_downsample": False,  # set to False if pretrained=True (PR #5477)
+    },
+    (1, 2, 32),
+    (1, 3),
+]
+
 TEST_CASES = []
 for case in [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_2_A, TEST_CASE_3_A]:
     for model in [resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200]:
         TEST_CASES.append([model, *case])
-for case in [TEST_CASE_5, TEST_CASE_5_A, TEST_CASE_6]:
+for case in [TEST_CASE_5, TEST_CASE_5_A, TEST_CASE_6, TEST_CASE_7]:
     TEST_CASES.append([ResNet, *case])
 
 TEST_SCRIPT_CASES = [
