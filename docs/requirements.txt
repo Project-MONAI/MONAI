@@ -9,7 +9,7 @@ scikit-image>=0.14.2
 tensorboard
 commonmark==0.9.1
 recommonmark==0.6.0
-Sphinx
+Sphinx==5.3.0
 pydata-sphinx-theme
 sphinxcontrib-applehelp
 sphinxcontrib-devhelp
