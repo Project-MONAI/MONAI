@@ -1643,6 +1643,7 @@ class ImageFilter(Transform):
             return EllipticalFilter(ndim, size)
         elif filter == "sobel":
             from monai.transforms.post.array import SobelGradients  # cannot import on top because of circular imports
+
             allowed_keys = SobelGradients.__init__.__annotations__.keys()
             kwargs = {k: v for k, v in self.additional_args_for_filter.items() if k in allowed_keys}
             return SobelGradients(size, **kwargs)
