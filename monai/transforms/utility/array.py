@@ -1591,7 +1591,7 @@ class ImageFilter(Transform):
             self.filter = self._create_filter(self.filter, self.filter_size, ndim)
         img_ = self._apply_filter(img_)
         if meta_dict:
-            img_ = MetaTensor(img_, meta = meta_dict)
+            img_ = MetaTensor(img_, meta=meta_dict)
         else:
             img_, *_ = convert_data_type(img_, prev_type, device)
         return img_
@@ -1629,7 +1629,9 @@ class ImageFilter(Transform):
         if filter == "savitzky_golay" and "order" not in kwargs.keys():
             raise KeyError("`filter='savitzky_golay', requires the additonal keyword argument `order`")
 
-    def _create_filter(self, filter: Union[str, NdarrayOrTensor], size: Optional[int], ndim: Optional[int]) -> nn.Module:
+    def _create_filter(
+        self, filter: Union[str, NdarrayOrTensor], size: Optional[int], ndim: Optional[int]
+    ) -> nn.Module:
         """Create an `ndim` filter of size `(size, ) * ndim`."""
         if isinstance(filter, str):
             filter = self._get_filter_from_string(filter, size, ndim)
