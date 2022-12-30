@@ -68,6 +68,7 @@ class VarAutoEncoder(AutoEncoder):
         - Variational autoencoder network with MedNIST Dataset
           https://github.com/Project-MONAI/tutorials/blob/master/modules/varautoencoder_mednist.ipynb
     """
+
     def __init__(
         self,
         spatial_dims: int,
