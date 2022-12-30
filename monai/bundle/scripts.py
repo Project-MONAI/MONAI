@@ -182,7 +182,7 @@ def _get_latest_bundle_version(source: str, name: str, repo: str):
         return None
     elif source == "github":
         repo_owner, repo_name, tag_name = repo.split("/")
-        get_bundle_versions(name, repo=os.path.join(repo_owner, repo_name), tag=tag_name)["latest_version"]
+        return get_bundle_versions(name, repo=os.path.join(repo_owner, repo_name), tag=tag_name)["latest_version"]
     else:
         raise ValueError(f"To get the latest bundle version, source should be 'github' or 'ngc', got {source}.")
 
