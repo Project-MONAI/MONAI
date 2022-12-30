@@ -87,7 +87,6 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.autosectionlabel",
     "sphinx_autodoc_typehints",
-    "sphinxcontrib.jquery",
 ]
 
 autoclass_content = "class"
