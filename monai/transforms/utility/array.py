@@ -1590,7 +1590,7 @@ class ImageFilter(Transform):
 
         if isinstance(self.filter, str):
             self.filter = self._get_filter_from_string(self.filter, self.filter_size, ndim)  # type: ignore
-        elif isinstance(self.filter, (torch.Tensor, np.ndarray)): 
+        elif isinstance(self.filter, (torch.Tensor, np.ndarray)):
             self.filter = ApplyFilter(self.filter)
 
         img_ = self._apply_filter(img_)
@@ -1658,7 +1658,7 @@ class ImageFilter(Transform):
             allowed_keys = SavitzkyGolayFilter.__init__.__annotations__.keys()
             kwargs = {k: v for k, v in self.additional_args_for_filter.items() if k in allowed_keys}
             return SavitzkyGolayFilter(size, **kwargs)
-        else: 
+        else:
             raise NotImplementedError(f"Filter {filter} not implemented")
 
     def _apply_filter(self, img: torch.Tensor) -> torch.Tensor:
