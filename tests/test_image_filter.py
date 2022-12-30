@@ -12,11 +12,11 @@
 
 import unittest
 
-import torch
 import numpy as np
+import torch
 from parameterized import parameterized
-from monai.networks.layers.simplelayers import GaussianFilter
 
+from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms import ImageFilter, ImageFilterd, RandImageFilter, RandImageFilterd
 
 EXPECTED_KERNELS = {
@@ -31,10 +31,8 @@ SAMPLE_IMAGE_2D = torch.randn(1, 10, 10)
 SAMPLE_IMAGE_3D = torch.randn(1, 10, 10, 10)
 SAMPLE_DICT = {"image_2d": SAMPLE_IMAGE_2D, "image_3d": SAMPLE_IMAGE_3D}
 
-ADDITIONAL_ARGUMENTS = {
-    "order": 1,
-    "sigma": 1
-    }
+ADDITIONAL_ARGUMENTS = {"order": 1, "sigma": 1}
+
 
 class TestModule(torch.nn.Module):
     def __init__(self):
@@ -43,8 +41,10 @@ class TestModule(torch.nn.Module):
     def forward(self, x):
         return x + 1
 
+
 class TestNotAModuleOrTransform:
     pass
+
 
 class TestImageFilter(unittest.TestCase):
     @parameterized.expand(SUPPORTED_KERNELS)
@@ -55,19 +55,13 @@ class TestImageFilter(unittest.TestCase):
     def test_init_raises(self):
         with self.assertRaises(Exception) as context:
             _ = ImageFilter("mean")
-            self.assertTrue(
-                "`filter_size` must be specified when specifying filters by string." in str(context.output)
-            )
+            self.assertTrue("`filter_size` must be specified when specifying filters by string." in str(context.output))
         with self.assertRaises(Exception) as context:
             _ = ImageFilter("mean")
-            self.assertTrue(
-                "`filter_size` should be a single uneven integer." in str(context.output)
-            )
+            self.assertTrue("`filter_size` should be a single uneven integer." in str(context.output))
         with self.assertRaises(Exception) as context:
             _ = ImageFilter("gauss", 3)
-            self.assertTrue(
-                "`filter='gauss', requires the additonal keyword argument `sigma`" in str(context.output)
-            )
+            self.assertTrue("`filter='gauss', requires the additonal keyword argument `sigma`" in str(context.output))
         with self.assertRaises(Exception) as context:
             _ = ImageFilter("savitzky_golay", 3)
             self.assertTrue(
@@ -83,24 +77,20 @@ class TestImageFilter(unittest.TestCase):
 
         with self.assertRaises(Exception) as context:
             _ = ImageFilter(torch.ones(3, 3, 3, 3))
-            self.assertTrue(
-                "Only 1D, 2D, and 3D filters are supported." in str(context.output)
-            )
+            self.assertTrue("Only 1D, 2D, and 3D filters are supported." in str(context.output))
 
     def test_init_from_module(self):
         filter = ImageFilter(TestModule())
-        out = filter(torch.zeros(1,3,3,3))
-        torch.testing.assert_allclose(torch.ones(1,3,3,3), out)
+        out = filter(torch.zeros(1, 3, 3, 3))
+        torch.testing.assert_allclose(torch.ones(1, 3, 3, 3), out)
 
     def test_init_from_transform(self):
-        _ = ImageFilter(GaussianFilter(3, sigma = 2))
+        _ = ImageFilter(GaussianFilter(3, sigma=2))
 
     def test_init_from_wrong_type_fails(self):
         with self.assertRaises(Exception) as context:
             _ = ImageFilter(TestNotAModuleOrTransform())
-            self.assertTrue(
-                "<class 'type'> is not supported." in str(context.output)
-            )
+            self.assertTrue("<class 'type'> is not supported." in str(context.output))
 
     @parameterized.expand(EXPECTED_KERNELS.keys())
     def test_2d_kernel_correctness(self, kernel_name):

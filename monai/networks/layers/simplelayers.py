@@ -662,7 +662,7 @@ class LLTM(nn.Module):
 
 
 class ApplyFilter(nn.Module):
-    "Apply a convolutional filter to an image"
+    "Wrapper class to apply a filter to an image."
 
     def __init__(self, filter: NdarrayOrTensor) -> None:
         super().__init__()
@@ -670,11 +670,7 @@ class ApplyFilter(nn.Module):
         filter = convert_to_tensor(filter, dtype=torch.float32)
         self.filter = filter
 
-    def forward(self, x: torch.Tensor):
-        """
-        Args:
-            x: in shape B, C, [H, W, [D]]
-        """
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return apply_filter(x, self.filter)
 
 
@@ -691,6 +687,7 @@ class MeanFilter(ApplyFilter):
             size: edge length of the filter
         """
         filter = torch.ones([size] * spatial_dims)
+        filter = filter
         super().__init__(filter=filter)
 
 
@@ -716,7 +713,7 @@ class LaplaceFilter(ApplyFilter):
 class EllipticalFilter(ApplyFilter):
     """
     Elliptical filter, can be used to dilate labels or label-contours.
-    The ellipical filter used here, is a `torch.Tensor` with shape (size, ) * ndim containing a circle/sphere of `1`
+    The elliptical filter used here, is a `torch.Tensor` with shape (size, ) * ndim containing a circle/sphere of `1`
     """
 
     def __init__(self, spatial_dims: int, size: int) -> None:
@@ -732,11 +729,11 @@ class EllipticalFilter(ApplyFilter):
         super().__init__(filter=filter)
 
 
-class SharpenFilter(ApplyFilter):
+class SharpenFilter(EllipticalFilter):
     """
     Convolutional filter to sharpen a 2D or 3D image.
-    The filter used contains a circle/sphere of `-1`, with the center value beeing
-    the absolut sum of all non-zero elements in the kernel
+    The filter used contains a circle/sphere of `-1`, with the center value being
+    the absolute sum of all non-zero elements in the kernel
     """
 
     def __init__(self, spatial_dims: int, size: int) -> None:
@@ -745,12 +742,8 @@ class SharpenFilter(ApplyFilter):
             spatial_dims: `int` of either 2 for 2D images and 3 for 3D images
             size: edge length of the filter
         """
-        radius = size // 2
-        grid = torch.meshgrid(*[torch.arange(0, size) for _ in range(spatial_dims)])
-        squared_distances = torch.stack([(axis - radius) ** 2 for axis in grid], 0).sum(0)
-        filter = squared_distances <= radius**2
+        super().__init__(spatial_dims=spatial_dims, size=size)
         center_point = tuple([size // 2] * spatial_dims)
-        center_value = filter.sum()
-        filter = filter * -1
-        filter[center_point] = center_value
-        super().__init__(filter=filter)
+        center_value = self.filter.sum()
+        self.filter *= -1
+        self.filter[center_point] = center_value

@@ -13,12 +13,12 @@ A collection of "vanilla" transforms for utility functions
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from functools import partial
 import logging
 import sys
 import time
 import warnings
 from copy import deepcopy
+from functools import partial
 from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -31,7 +31,6 @@ from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import no_collation
 from monai.networks.layers.simplelayers import (
-    ApplyFilter,
     EllipticalFilter,
     GaussianFilter,
     LaplaceFilter,
@@ -1581,7 +1580,9 @@ class ImageFilter(Transform):
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
-    supported_filters = sorted(["mean", "laplace", "elliptical", "sobel", "sharpen", "median", "gauss", "savitzky_golay"])
+    supported_filters = sorted(
+        ["mean", "laplace", "elliptical", "sobel", "sharpen", "median", "gauss", "savitzky_golay"]
+    )
 
     def __init__(
         self, filter: Union[str, NdarrayOrTensor, nn.Module], filter_size: Optional[int] = None, **kwargs
@@ -1657,7 +1658,7 @@ class ImageFilter(Transform):
         return filter
 
     def _get_filter_from_string(self, filter: str, size: int, ndim: int) -> nn.Module:
-        if filter == "mean":  # this would be a great future use for match/case
+        if filter == "mean":
             return MeanFilter(ndim, size)
         elif filter == "laplace":
             return LaplaceFilter(ndim, size)
@@ -1665,20 +1666,21 @@ class ImageFilter(Transform):
             return EllipticalFilter(ndim, size)
         elif filter == "sobel":
             from monai.transforms.post.array import SobelGradients  # cannot import on top because of circular imports
+
             allowed_keys = SobelGradients.__init__.__annotations__.keys()
-            kwargs = {k: v for k,v in self.additional_args_for_filter.items() if k in allowed_keys}
+            kwargs = {k: v for k, v in self.additional_args_for_filter.items() if k in allowed_keys}
             return SobelGradients(size, **kwargs)
         elif filter == "sharpen":
             return SharpenFilter(ndim, size)
         elif filter == "gauss":
             allowed_keys = GaussianFilter.__init__.__annotations__.keys()
-            kwargs = {k: v for k,v in self.additional_args_for_filter.items() if k in allowed_keys}
+            kwargs = {k: v for k, v in self.additional_args_for_filter.items() if k in allowed_keys}
             return GaussianFilter(ndim, **kwargs)
         elif filter == "median":
-            return partial(median_filter, kernel_size = size, spatial_dims = ndim)
+            return partial(median_filter, kernel_size=size, spatial_dims=ndim)
         elif filter == "savitzky_golay":
             allowed_keys = SavitzkyGolayFilter.__init__.__annotations__.keys()
-            kwargs = {k: v for k,v in self.additional_args_for_filter.items() if k in allowed_keys}
+            kwargs = {k: v for k, v in self.additional_args_for_filter.items() if k in allowed_keys}
             return SavitzkyGolayFilter(size, **kwargs)
 
     def _apply_filter(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
