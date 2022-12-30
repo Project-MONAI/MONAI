@@ -1620,7 +1620,8 @@ class ImageFilter(Transform):
         else:
             raise TypeError(
                 f"{type(filter)} is not supported."
-                "Supported types are `class 'str'`, `class 'torch.Tensor'`, `class 'np.ndarray'`, `class 'torch.nn.modules.module.Module'`, `class 'monai.transforms.Transform'`"
+                "Supported types are `class 'str'`, `class 'torch.Tensor'`, `class 'np.ndarray'`, "
+                "`class 'torch.nn.modules.module.Module'`, `class 'monai.transforms.Transform'`"
             )
 
     def _check_kwargs_are_present(self, filter, **kwargs):
