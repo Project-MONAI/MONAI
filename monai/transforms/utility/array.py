@@ -1574,7 +1574,7 @@ class ImageFilter(Transform):
         self.filter_size = filter_size
         self.additional_args_for_filter = kwargs
 
-    def __call__(self, img: NdarrayOrTensor, meta_dict: Optional[Mapping] = None) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, meta_dict: Optional[Dict] = None) -> NdarrayOrTensor:
         """
         Args:
             img: torch tensor data to apply filter to with shape: [channels, height, width[, depth]]
@@ -1587,8 +1587,12 @@ class ImageFilter(Transform):
             meta_dict = img.meta
         img_, prev_type, device = convert_data_type(img, torch.Tensor)
         ndim = img_.ndim - 1  # assumes channel first format
-        if not callable(self.filter):
-            self.filter = self._create_filter(self.filter, self.filter_size, ndim)
+
+        if isinstance(self.filter, str):
+            self.filter = self._get_filter_from_string(self.filter, self.filter_size, ndim)  # type: ignore
+        elif isinstance(self.filter, (torch.Tensor, np.ndarray)): 
+            self.filter = ApplyFilter(self.filter)
+
         img_ = self._apply_filter(img_)
         if meta_dict:
             img_ = MetaTensor(img_, meta=meta_dict)
@@ -1630,17 +1634,7 @@ class ImageFilter(Transform):
         if filter == "savitzky_golay" and "order" not in kwargs.keys():
             raise KeyError("`filter='savitzky_golay', requires the additonal keyword argument `order`")
 
-    def _create_filter(
-        self, filter: Union[str, NdarrayOrTensor], size: Optional[int], ndim: Optional[int]
-    ) -> nn.Module:
-        """Create an `ndim` filter of size `(size, ) * ndim`."""
-        if isinstance(filter, str):
-            filter = self._get_filter_from_string(filter, size, ndim)
-        else:
-            filter = ApplyFilter(filter)
-        return filter
-
-    def _get_filter_from_string(self, filter: str, size: int, ndim: int) -> nn.Module:
+    def _get_filter_from_string(self, filter: str, size: int, ndim: int) -> Union[nn.Module, Callable]:
         if filter == "mean":
             return MeanFilter(ndim, size)
         elif filter == "laplace":
@@ -1649,7 +1643,6 @@ class ImageFilter(Transform):
             return EllipticalFilter(ndim, size)
         elif filter == "sobel":
             from monai.transforms.post.array import SobelGradients  # cannot import on top because of circular imports
-
             allowed_keys = SobelGradients.__init__.__annotations__.keys()
             kwargs = {k: v for k, v in self.additional_args_for_filter.items() if k in allowed_keys}
             return SobelGradients(size, **kwargs)
@@ -1665,12 +1658,16 @@ class ImageFilter(Transform):
             allowed_keys = SavitzkyGolayFilter.__init__.__annotations__.keys()
             kwargs = {k: v for k, v in self.additional_args_for_filter.items() if k in allowed_keys}
             return SavitzkyGolayFilter(size, **kwargs)
+        else: 
+            raise NotImplementedError(f"Filter {filter} not implemented")
 
-    def _apply_filter(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def _apply_filter(self, img: torch.Tensor) -> torch.Tensor:
         if isinstance(self.filter, Transform):
-            return self.filter(img)
+            img = self.filter(img)
         else:
-            return self.filter(img.unsqueeze(0))[0]  # add and remove batch dim
+            img = self.filter(img.unsqueeze(0))  # type: ignore
+            img = img[0]  # add and remove batch dim
+        return img
 
 
 class RandImageFilter(RandomizableTransform):
