@@ -26,7 +26,6 @@ from tests.utils import (
     command_line_tests,
     skip_if_downloading_fails,
     skip_if_quick,
-    skip_if_windows,
 )
 
 TEST_CASE_1 = ["test_bundle", None]
