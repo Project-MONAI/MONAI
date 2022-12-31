@@ -19,14 +19,14 @@ from parameterized import parameterized
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms import ImageFilter, ImageFilterd, RandImageFilter, RandImageFilterd
 
-EXPECTED_KERNELS = {
+EXPECTED_FILTERS = {
     "mean": torch.tensor([[1, 1, 1], [1, 1, 1], [1, 1, 1]]).float(),
-    "laplacian": torch.tensor([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]]).float(),
+    "laplace": torch.tensor([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]]).float(),
     "elliptical": torch.tensor([[0, 1, 0], [1, 1, 1], [0, 1, 0]]).float(),
     "sharpen": torch.tensor([[0, -1, 0], [-1, 5, -1], [0, -1, 0]]).float(),
 }
 
-SUPPORTED_KERNELS = ["mean", "laplace", "elliptical", "sobel", "sharpen", "median", "gauss", "savitzky_golay"]
+SUPPORTED_FILTERS = ["mean", "laplace", "elliptical", "sobel", "sharpen", "median", "gauss", "savitzky_golay"]
 SAMPLE_IMAGE_2D = torch.randn(1, 10, 10)
 SAMPLE_IMAGE_3D = torch.randn(1, 10, 10, 10)
 SAMPLE_DICT = {"image_2d": SAMPLE_IMAGE_2D, "image_3d": SAMPLE_IMAGE_3D}
@@ -47,10 +47,10 @@ class TestNotAModuleOrTransform:
 
 
 class TestImageFilter(unittest.TestCase):
-    @parameterized.expand(SUPPORTED_KERNELS)
-    def test_init_from_string(self, kernel_name):
+    @parameterized.expand(SUPPORTED_FILTERS)
+    def test_init_from_string(self, filter_name):
         "Test init from string"
-        _ = ImageFilter(kernel_name, 3, **ADDITIONAL_ARGUMENTS)
+        _ = ImageFilter(filter_name, 3, **ADDITIONAL_ARGUMENTS)
 
     def test_init_raises(self):
         with self.assertRaises(Exception) as context:
@@ -69,7 +69,7 @@ class TestImageFilter(unittest.TestCase):
             )
 
     def test_init_from_array(self):
-        "Test init with custom kernel and assert wrong kernel shape throws an error"
+        "Test init with custom filter and assert wrong filter shape throws an error"
         _ = ImageFilter(torch.ones(3, 3))
         _ = ImageFilter(torch.ones(3, 3, 3))
         _ = ImageFilter(np.ones((3, 3)))
@@ -92,140 +92,138 @@ class TestImageFilter(unittest.TestCase):
             _ = ImageFilter(TestNotAModuleOrTransform())
             self.assertTrue("<class 'type'> is not supported." in str(context.output))
 
-    @parameterized.expand(EXPECTED_KERNELS.keys())
-    def test_2d_kernel_correctness(self, kernel_name):
-        "Test correctness of kernels (2d only)"
-        tfm = ImageFilter(kernel_name, kernel_size=3)
-        kernel = tfm._create_kernel_from_string(kernel_name, size=3, ndim=2).squeeze()
-        torch.testing.assert_allclose(kernel, EXPECTED_KERNELS[kernel_name])
+    @parameterized.expand(EXPECTED_FILTERS.keys())
+    def test_2d_filter_correctness(self, filter_name):
+        "Test correctness of filters (2d only)"
+        tfm = ImageFilter(filter_name, 3, **ADDITIONAL_ARGUMENTS)
+        filter = tfm._get_filter_from_string(filter_name, size=3, ndim=2).filter.squeeze()
+        torch.testing.assert_allclose(filter, EXPECTED_FILTERS[filter_name])
 
-    @parameterized.expand(SUPPORTED_KERNELS)
-    def test_call_2d(self, kernel_name):
+    @parameterized.expand(SUPPORTED_FILTERS)
+    def test_call_2d(self, filter_name):
         "Text function `__call__` for 2d images"
-        filter = ImageFilter(kernel_name, 3)
-        if kernel_name != "sobel_d":  # sobel_d does not support 2d
-            out_tensor = filter(SAMPLE_IMAGE_2D)
-            self.assertEqual(out_tensor.shape, SAMPLE_IMAGE_2D.shape)
+        filter = ImageFilter(filter_name, 3, **ADDITIONAL_ARGUMENTS)
+        out_tensor = filter(SAMPLE_IMAGE_2D)
+        self.assertEqual(out_tensor.shape[1:], SAMPLE_IMAGE_2D.shape[1:])
 
-    @parameterized.expand(SUPPORTED_KERNELS)
-    def test_call_3d(self, kernel_name):
+    @parameterized.expand(SUPPORTED_FILTERS)
+    def test_call_3d(self, filter_name):
         "Text function `__call__` for 3d images"
-        filter = ImageFilter(kernel_name, 3)
+        filter = ImageFilter(filter_name, 3, **ADDITIONAL_ARGUMENTS)
         out_tensor = filter(SAMPLE_IMAGE_3D)
-        self.assertEqual(out_tensor.shape, SAMPLE_IMAGE_3D.shape)
+        self.assertEqual(out_tensor.shape[1:], SAMPLE_IMAGE_3D.shape[1:])
 
 
 class TestImageFilterDict(unittest.TestCase):
-    @parameterized.expand(SUPPORTED_KERNELS)
-    def test_init_from_string_dict(self, kernel_name):
+    @parameterized.expand(SUPPORTED_FILTERS)
+    def test_init_from_string_dict(self, filter_name):
         "Test init from string and assert an error is thrown if no size is passed"
-        _ = ImageFilterd("image", kernel_name, 3)
-        with self.assertRaises(Exception) as context:  # noqa F841
-            _ = ImageFilterd(self.image_key, kernel_name)
+        _ = ImageFilterd("image", filter_name, 3, **ADDITIONAL_ARGUMENTS)
+        with self.assertRaises(Exception) as _:
+            _ = ImageFilterd(self.image_key, filter_name)
 
     def test_init_from_array_dict(self):
-        "Test init with custom kernel and assert wrong kernel shape throws an error"
+        "Test init with custom filter and assert wrong filter shape throws an error"
         _ = ImageFilterd("image", torch.ones(3, 3))
-        with self.assertRaises(Exception) as context:  # noqa F841
+        with self.assertRaises(Exception) as _:
             _ = ImageFilterd(self.image_key, torch.ones(3, 3, 3, 3))
 
-    @parameterized.expand(SUPPORTED_KERNELS)
-    def test_call_2d(self, kernel_name):
+    @parameterized.expand(SUPPORTED_FILTERS)
+    def test_call_2d(self, filter_name):
         "Text function `__call__` for 2d images"
-        filter = ImageFilterd("image_2d", kernel_name, 3)
-        if kernel_name != "sobel_d":  # sobel_d does not support 2d
-            out_tensor = filter(SAMPLE_DICT)
-            self.assertEqual(out_tensor["image_2d"].shape, SAMPLE_IMAGE_2D.shape)
-
-    @parameterized.expand(SUPPORTED_KERNELS)
-    def test_call_3d(self, kernel_name):
-        "Text function `__call__` for 3d images"
-        filter = ImageFilterd("image_3d", kernel_name, 3)
+        filter = ImageFilterd("image_2d", filter_name, 3, **ADDITIONAL_ARGUMENTS)
         out_tensor = filter(SAMPLE_DICT)
-        self.assertEqual(out_tensor["image_3d"].shape, SAMPLE_IMAGE_3D.shape)
+        self.assertEqual(out_tensor["image_2d"].shape[1:], SAMPLE_IMAGE_2D.shape[1:])
+
+    @parameterized.expand(SUPPORTED_FILTERS)
+    def test_call_3d(self, filter_name):
+        "Text function `__call__` for 3d images"
+        filter = ImageFilterd("image_3d", filter_name, 3, **ADDITIONAL_ARGUMENTS)
+        out_tensor = filter(SAMPLE_DICT)
+        self.assertEqual(out_tensor["image_3d"].shape[1:], SAMPLE_IMAGE_3D.shape[1:])
 
 
 class TestRandImageFilter(unittest.TestCase):
-    @parameterized.expand(SUPPORTED_KERNELS)
-    def test_init_from_string(self, kernel_name):
+    @parameterized.expand(SUPPORTED_FILTERS)
+    def test_init_from_string(self, filter_name):
         "Test init from string and assert an error is thrown if no size is passed"
-        _ = RandImageFilter(kernel_name, 3)
-        with self.assertRaises(Exception) as context:  # noqa F841
-            _ = RandImageFilter(kernel_name)
+        _ = RandImageFilter(filter_name, 3, **ADDITIONAL_ARGUMENTS)
+        with self.assertRaises(Exception) as _:
+            _ = RandImageFilter(filter_name)
 
     def test_init_from_array(self):
-        "Test init with custom kernel and assert wrong kernel shape throws an error"
+        "Test init with custom filter and assert wrong filter shape throws an error"
         _ = RandImageFilter(torch.ones(3, 3))
-        with self.assertRaises(Exception) as context:  # noqa F841
+        with self.assertRaises(Exception) as _:
             _ = RandImageFilter(torch.ones(3, 3, 3, 3))
 
-    @parameterized.expand(SUPPORTED_KERNELS)
-    def test_call_2d_prob_1(self, kernel_name):
+    @parameterized.expand(SUPPORTED_FILTERS)
+    def test_call_2d_prob_1(self, filter_name):
         "Text function `__call__` for 2d images"
-        filter = RandImageFilter(kernel_name, 3, 1)
-        if kernel_name != "sobel_d":  # sobel_d does not support 2d
-            out_tensor = filter(SAMPLE_IMAGE_2D)
-            self.assertEqual(out_tensor.shape, SAMPLE_IMAGE_2D.shape)
+        filter = RandImageFilter(filter_name, 3, 1, **ADDITIONAL_ARGUMENTS)
+        out_tensor = filter(SAMPLE_IMAGE_2D)
+        self.assertEqual(out_tensor.shape[1:], SAMPLE_IMAGE_2D.shape[1:])
 
-    @parameterized.expand(SUPPORTED_KERNELS)
-    def test_call_3d_prob_1(self, kernel_name):
+    @parameterized.expand(SUPPORTED_FILTERS)
+    def test_call_3d_prob_1(self, filter_name):
         "Text function `__call__` for 3d images"
-        filter = RandImageFilter(kernel_name, 3, 1)
+        filter = RandImageFilter(filter_name, 3, 1, **ADDITIONAL_ARGUMENTS)
         out_tensor = filter(SAMPLE_IMAGE_3D)
-        self.assertEqual(out_tensor.shape, SAMPLE_IMAGE_3D.shape)
+        self.assertEqual(out_tensor.shape[1:], SAMPLE_IMAGE_3D.shape[1:])
 
-    @parameterized.expand(SUPPORTED_KERNELS)
-    def test_call_2d_prob_0(self, kernel_name):
+    @parameterized.expand(SUPPORTED_FILTERS)
+    def test_call_2d_prob_0(self, filter_name):
         "Text function `__call__` for 2d images"
-        filter = RandImageFilter(kernel_name, 3, 0)
-        if kernel_name != "sobel_d":  # sobel_d does not support 2d
-            out_tensor = filter(SAMPLE_IMAGE_2D)
-            torch.testing.assert_allclose(out_tensor, SAMPLE_IMAGE_2D)
+        filter = RandImageFilter(filter_name, 3, 0, **ADDITIONAL_ARGUMENTS)
+        out_tensor = filter(SAMPLE_IMAGE_2D)
+        torch.testing.assert_allclose(out_tensor, SAMPLE_IMAGE_2D)
 
-    @parameterized.expand(SUPPORTED_KERNELS)
-    def test_call_3d_prob_0(self, kernel_name):
+    @parameterized.expand(SUPPORTED_FILTERS)
+    def test_call_3d_prob_0(self, filter_name):
         "Text function `__call__` for 3d images"
-        filter = RandImageFilter(kernel_name, 3, 0)
+        filter = RandImageFilter(filter_name, 3, 0, **ADDITIONAL_ARGUMENTS)
         out_tensor = filter(SAMPLE_IMAGE_3D)
         torch.testing.assert_allclose(out_tensor, SAMPLE_IMAGE_3D)
 
 
 class TestRandImageFilterDict(unittest.TestCase):
-    @parameterized.expand(SUPPORTED_KERNELS)
-    def test_init_from_string_dict(self, kernel_name):
+    @parameterized.expand(SUPPORTED_FILTERS)
+    def test_init_from_string_dict(self, filter_name):
         "Test init from string and assert an error is thrown if no size is passed"
-        _ = RandImageFilterd("image", kernel_name, 3)
-        with self.assertRaises(Exception) as context:  # noqa F841
-            _ = RandImageFilterd("image", kernel_name)
+        _ = RandImageFilterd("image", filter_name, 3, **ADDITIONAL_ARGUMENTS)
+        with self.assertRaises(Exception) as _:
+            _ = RandImageFilterd("image", filter_name)
 
     def test_init_from_array_dict(self):
-        "Test init with custom kernel and assert wrong kernel shape throws an error"
+        "Test init with custom filter and assert wrong filter shape throws an error"
         _ = RandImageFilterd("image", torch.ones(3, 3))
-        with self.assertRaises(Exception) as context:  # noqa F841
+        with self.assertRaises(Exception) as _:
             _ = RandImageFilterd("image", torch.ones(3, 3, 3, 3))
 
-    @parameterized.expand(SUPPORTED_KERNELS)
-    def test_call_2d_prob_1(self, kernel_name):
-        filter = RandImageFilterd("image_2d", kernel_name, 3, 1.0)
-        if kernel_name != "sobel_d":  # sobel_d does not support 2d
-            out_tensor = filter(SAMPLE_DICT)
-            self.assertEqual(out_tensor["image_2d"].shape, SAMPLE_IMAGE_2D.shape)
-
-    @parameterized.expand(SUPPORTED_KERNELS)
-    def test_call_3d_prob_1(self, kernel_name):
-        filter = RandImageFilterd("image_3d", kernel_name, 3, 1.0)
+    @parameterized.expand(SUPPORTED_FILTERS)
+    def test_call_2d_prob_1(self, filter_name):
+        filter = RandImageFilterd("image_2d", filter_name, 3, 1.0, **ADDITIONAL_ARGUMENTS)
         out_tensor = filter(SAMPLE_DICT)
-        self.assertEqual(out_tensor["image_3d"].shape, SAMPLE_IMAGE_3D.shape)
+        self.assertEqual(out_tensor["image_2d"].shape[1:], SAMPLE_IMAGE_2D.shape[1:])
 
-    @parameterized.expand(SUPPORTED_KERNELS)
-    def test_call_2d_prob_0(self, kernel_name):
-        filter = RandImageFilterd("image_2d", kernel_name, 3, 0.0)
-        if kernel_name != "sobel_d":  # sobel_d does not support 2d
-            out_tensor = filter(SAMPLE_DICT)
-            torch.testing.assert_allclose(out_tensor["image_2d"].shape, SAMPLE_IMAGE_2D.shape)
-
-    @parameterized.expand(SUPPORTED_KERNELS)
-    def test_call_3d_prob_0(self, kernel_name):
-        filter = RandImageFilterd("image_3d", kernel_name, 3, 0.0)
+    @parameterized.expand(SUPPORTED_FILTERS)
+    def test_call_3d_prob_1(self, filter_name):
+        filter = RandImageFilterd("image_3d", filter_name, 3, 1.0, **ADDITIONAL_ARGUMENTS)
         out_tensor = filter(SAMPLE_DICT)
-        torch.testing.assert_allclose(out_tensor["image_3d"].shape, SAMPLE_IMAGE_3D.shape)
+        self.assertEqual(out_tensor["image_3d"].shape[1:], SAMPLE_IMAGE_3D.shape[1:])
+
+    @parameterized.expand(SUPPORTED_FILTERS)
+    def test_call_2d_prob_0(self, filter_name):
+        filter = RandImageFilterd("image_2d", filter_name, 3, 0.0, **ADDITIONAL_ARGUMENTS)
+        out_tensor = filter(SAMPLE_DICT)
+        torch.testing.assert_allclose(out_tensor["image_2d"].shape[1:], SAMPLE_IMAGE_2D.shape[1:])
+
+    @parameterized.expand(SUPPORTED_FILTERS)
+    def test_call_3d_prob_0(self, filter_name):
+        filter = RandImageFilterd("image_3d", filter_name, 3, 0.0, **ADDITIONAL_ARGUMENTS)
+        out_tensor = filter(SAMPLE_DICT)
+        torch.testing.assert_allclose(out_tensor["image_3d"].shape[1:], SAMPLE_IMAGE_3D.shape[1:])
+
+
+if __name__ == "__main__":
+    unittest.main()

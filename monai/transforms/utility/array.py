@@ -1691,16 +1691,18 @@ class RandImageFilter(RandomizableTransform):
     backend = ImageFilter.backend
 
     def __init__(
-        self, filter: Union[str, NdarrayOrTensor], filter_size: Optional[int] = None, prob: float = 0.1
+        self, filter: Union[str, NdarrayOrTensor], filter_size: Optional[int] = None, prob: float = 0.1, **kwargs
     ) -> None:
         super().__init__(prob)
-        self.filter = ImageFilter(filter, filter_size)
+        self.filter = ImageFilter(filter, filter_size, **kwargs)
 
     def __call__(self, img: NdarrayOrTensor, meta_dict: Optional[Mapping] = None) -> NdarrayOrTensor:
         """
         Args:
             img: torch tensor data to apply filter to with shape: [channels, height, width[, depth]]
             meta_dict: An optional dictionary with metadata
+            kwargs: optional arguments required by specific filters. E.g. `sigma`if filter is `gauss`.
+                see py:func:`monai.transforms.utility.array.ImageFilter` for more details
 
         Returns:
             A MetaTensor with the same shape as `img` and identical metadata

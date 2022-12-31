@@ -1767,9 +1767,10 @@ class ImageFilterd(MapTransform):
         kernel: Union[str, NdarrayOrTensor],
         kernel_size: Optional[int] = None,
         allow_missing_keys: bool = False,
+        **kwargs,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.filter = ImageFilter(kernel, kernel_size)
+        self.filter = ImageFilter(kernel, kernel_size, **kwargs)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -1807,10 +1808,11 @@ class RandImageFilterd(MapTransform, RandomizableTransform):
         kernel_size: Optional[int] = None,
         prob: float = 0.1,
         allow_missing_keys: bool = False,
+        **kwargs,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        self.filter = ImageFilter(kernel, kernel_size)
+        self.filter = ImageFilter(kernel, kernel_size, **kwargs)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
