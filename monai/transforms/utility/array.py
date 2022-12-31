@@ -1506,14 +1506,14 @@ class ImageFilter(Transform):
     This filter allows for additional arguments passed as ``kwargs`` during initialization.
     See also py:func:`monai.transforms.post.SobelGradients`
     ::kwargs::
-        spatial_axes: the axes that define the direction of the gradient to be calculated. It calculate the gradient
-            along each of the provide axis. By default it calculate the gradient for all spatial axes.
-        normalize_kernels: if normalize the Sobel kernel to provide proper gradients. Defaults to True.
-        normalize_gradients: if normalize the output gradient to 0 and 1. Defaults to False.
-        padding_mode: the padding mode of the image when convolving with Sobel kernels. Defaults to `"reflect"`.
-            Acceptable values are ``'zeros'``, ``'reflect'``, ``'replicate'`` or ``'circular'``.
-            See ``torch.nn.Conv1d()`` for more information.
-        dtype: kernel data type (torch.dtype). Defaults to `torch.float32`.
+    spatial_axes: the axes that define the direction of the gradient to be calculated. It calculate the gradient
+        along each of the provide axis. By default it calculate the gradient for all spatial axes.
+    normalize_kernels: if normalize the Sobel kernel to provide proper gradients. Defaults to True.
+    normalize_gradients: if normalize the output gradient to 0 and 1. Defaults to False.
+    padding_mode: the padding mode of the image when convolving with Sobel kernels. Defaults to `"reflect"`.
+        Acceptable values are ``'zeros'``, ``'reflect'``, ``'replicate'`` or ``'circular'``.
+        See ``torch.nn.Conv1d()`` for more information.
+    dtype: kernel data type (torch.dtype). Defaults to `torch.float32`.
 
     **Sharpening:** ``filter='sharpen'``
 
@@ -1532,12 +1532,12 @@ class ImageFilter(Transform):
     This filter requires additional arguments passed as ``kwargs`` during initialization.
     See also py:func:`monai.networks.layers.simplelayers.GaussianFilter`
     ::kwargs::
-        sigma: std. could be a single value, or spatial_dims number of values.
-        truncated: spreads how many stds.
-        approx: discrete Gaussian kernel type, available options are "erf", "sampled", and "scalespace".
-            - `erf` approximation interpolates the error function;
-            - `sampled` uses a sampled Gaussian kernel;
-            - `scalespace` corresponds to
+    sigma: std. could be a single value, or spatial_dims number of values.
+    truncated: spreads how many stds.
+    approx: discrete Gaussian kernel type, available options are "erf", "sampled", and "scalespace".
+        - `erf` approximation interpolates the error function;
+        - `sampled` uses a sampled Gaussian kernel;
+        - `scalespace` corresponds to
 
     **Median Filter:** ``filter='median'``
 
@@ -1552,10 +1552,10 @@ class ImageFilter(Transform):
     This filter requires additional arguments passed as ``kwargs`` during initialization.
     See also py:func:`monai.networks.layers.simplelayers.SavitzkyGolayFilter`
     ::kwargs::
-        order: Order of the polynomial to fit to each window, must be less than ``window_length``.
-        axis (optional): Axis along which to apply the filter kernel. Default 2 (first spatial dimension).
-        mode (string, optional): padding mode passed to convolution class. ``'zeros'``, ``'reflect'``, ``'replicate'`` or
-        ``'circular'``. Default: ``'zeros'``. See torch.nn.Conv1d() for more information.
+    order: Order of the polynomial to fit to each window, must be less than ``window_length``.
+    axis (optional): Axis along which to apply the filter kernel. Default 2 (first spatial dimension).
+    mode (string, optional): padding mode passed to convolution class. ``'zeros'``, ``'reflect'``, ``'replicate'`` or
+    ``'circular'``. Default: ``'zeros'``. See torch.nn.Conv1d() for more information.
 
     """
 
