@@ -1141,7 +1141,7 @@ Utility
     :special-members: __call__
 
 `RandImageFilter`
-"""""""""""""
+"""""""""""""""""
 .. autoclass:: RandImageFilter
     :members:
     :special-members: __call__
@@ -2136,13 +2136,13 @@ Utility (Dict)
     :special-members: __call__
 
 `ImageFilterd`
-""""""""""""""""""""""""
+""""""""""""""
 .. autoclass:: ImageFilterd
     :members:
     :special-members: __call__
 
 `RandImageFilterd`
-""""""""""""""""""""""""
+""""""""""""""""""
 .. autoclass:: RandImageFilterd
     :members:
     :special-members: __call__
