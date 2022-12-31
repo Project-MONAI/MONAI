@@ -667,11 +667,10 @@ class ApplyFilter(nn.Module):
     def __init__(self, filter: NdarrayOrTensor) -> None:
         super().__init__()
 
-        filter = convert_to_tensor(filter, dtype=torch.float32)
-        self.filter = filter
+        self.filter = convert_to_tensor(filter, dtype=torch.float32)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return apply_filter(x, self.filter)
+        return apply_filter(x, self.filter)  # type: ignore
 
 
 class MeanFilter(ApplyFilter):

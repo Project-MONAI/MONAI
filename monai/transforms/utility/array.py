@@ -1444,23 +1444,23 @@ class ImageFilter(Transform):
 
     Args:
         filter:
-            A string specifying the filter, a custom filter as `torch.Tenor` or `np.ndarray` or a `nn.Module`.
-            Available options for string are: `mean`, `laplace`, `elliptical`, `sobel`, `sharpen`, `median`, `gauss`
+            A string specifying the filter, a custom filter as ``torch.Tenor`` or ``np.ndarray`` or a ``nn.Module``.
+            Available options for string are: ``mean``, ``laplace``, ``elliptical``, ``sobel``, ``sharpen``, ``median``, ``gauss``
             See below for short explanations on every filter.
         filter_size:
             A single integer value specifying the size of the quadratic or cubic filter.
             Computational complexity scales to the power of 2 (2D filter) or 3 (3D filter), which
             should be considered when choosing filter size.
         kwargs:
-            Additional arguments passed to filter function, required by `sobel` and `gauss`.
+            Additional arguments passed to filter function, required by ``sobel`` and ``gauss``.
             See below for details.
 
     Raises:
-        ValueError: When `filter_size` is not an uneven integer
-        ValueError: When `filter` is an array and `ndim` is not in [1,2,3]
-        ValueError: When `filter` is an array and any dimension has an even shape
-        NotImplementedError: When `filter` is a string and not in `self.supported_filters`
-        KeyError: When necessary `kwargs` are not passed to a filter that requires additional arguments.
+        ValueError: When ``filter_size`` is not an uneven integer
+        ValueError: When ``filter`` is an array and ``ndim`` is not in [1,2,3]
+        ValueError: When ``filter`` is an array and any dimension has an even shape
+        NotImplementedError: When ``filter`` is a string and not in ``self.supported_filters``
+        KeyError: When necessary ``kwargs`` are not passed to a filter that requires additional arguments.
 
 
     **Mean Filtering:** ``filter='mean'``
@@ -1490,6 +1490,7 @@ class ImageFilter(Transform):
          [-1., -1., -1., -1., -1.],
          [-1., -1., -1., -1., -1.]]
 
+
     **Dilation:** ``filter='elliptical'``
 
     An elliptical filter can be used to dilate labels or label-contours.
@@ -1501,19 +1502,24 @@ class ImageFilter(Transform):
          [1., 1., 1., 1., 1.],
          [0., 0., 1., 0., 0.]]
 
+
     **Edge Detection:** ``filter='sobel'``
 
     This filter allows for additional arguments passed as ``kwargs`` during initialization.
     See also py:func:`monai.transforms.post.SobelGradients`
-    ::kwargs::
-    spatial_axes: the axes that define the direction of the gradient to be calculated. It calculate the gradient
-        along each of the provide axis. By default it calculate the gradient for all spatial axes.
-    normalize_kernels: if normalize the Sobel kernel to provide proper gradients. Defaults to True.
-    normalize_gradients: if normalize the output gradient to 0 and 1. Defaults to False.
-    padding_mode: the padding mode of the image when convolving with Sobel kernels. Defaults to `"reflect"`.
-        Acceptable values are ``'zeros'``, ``'reflect'``, ``'replicate'`` or ``'circular'``.
-        See ``torch.nn.Conv1d()`` for more information.
-    dtype: kernel data type (torch.dtype). Defaults to `torch.float32`.
+
+    *kwargs*
+
+    * ``spatial_axes``: the axes that define the direction of the gradient to be calculated.
+      It calculates the gradient along each of the provide axis.
+      By default it calculate the gradient for all spatial axes.
+    * ``normalize_kernels``: if normalize the Sobel kernel to provide proper gradients. Defaults to True.
+    * ``normalize_gradients``: if normalize the output gradient to 0 and 1. Defaults to False.
+    * ``padding_mode``: the padding mode of the image when convolving with Sobel kernels. Defaults to ``"reflect"``.
+      Acceptable values are ``'zeros'``, ``'reflect'``, ``'replicate'`` or ``'circular'``.
+      See ``torch.nn.Conv1d()`` for more information.
+    * ``dtype``: kernel data type (torch.dtype). Defaults to ``torch.float32``.
+
 
     **Sharpening:** ``filter='sharpen'``
 
@@ -1526,18 +1532,19 @@ class ImageFilter(Transform):
          [-1., -1., -1., -1., -1.],
          [ 0.,  0., -1.,  0.,  0.]]
 
+
     **Gaussian Smooth:** ``filter='gauss'``
 
     Blur/smooth an image with 2D or 3D gaussian filter.
     This filter requires additional arguments passed as ``kwargs`` during initialization.
     See also py:func:`monai.networks.layers.simplelayers.GaussianFilter`
-    ::kwargs::
-    sigma: std. could be a single value, or spatial_dims number of values.
-    truncated: spreads how many stds.
-    approx: discrete Gaussian kernel type, available options are "erf", "sampled", and "scalespace".
-        - `erf` approximation interpolates the error function;
-        - `sampled` uses a sampled Gaussian kernel;
-        - `scalespace` corresponds to
+
+    *kwargs*
+
+    * ``sigma``: std. could be a single value, or spatial_dims number of values.
+    * ``truncated``: spreads how many stds.
+    * ``approx``: discrete Gaussian kernel type, available options are "erf", "sampled", and "scalespace".
+
 
     **Median Filter:** ``filter='median'``
 
@@ -1551,11 +1558,13 @@ class ImageFilter(Transform):
     Convolve a Tensor along a particular axis with a Savitzky-Golay kernel.
     This filter requires additional arguments passed as ``kwargs`` during initialization.
     See also py:func:`monai.networks.layers.simplelayers.SavitzkyGolayFilter`
-    ::kwargs::
-    order: Order of the polynomial to fit to each window, must be less than ``window_length``.
-    axis (optional): Axis along which to apply the filter kernel. Default 2 (first spatial dimension).
-    mode (string, optional): padding mode passed to convolution class. ``'zeros'``, ``'reflect'``, ``'replicate'`` or
-    ``'circular'``. Default: ``'zeros'``. See torch.nn.Conv1d() for more information.
+
+    *kwargs*
+
+    * ``order``: Order of the polynomial to fit to each window, must be less than ``window_length``.
+    * ``axis``: (optional): Axis along which to apply the filter kernel. Default 2 (first spatial dimension).
+    * ``mode``: (string, optional): padding mode passed to convolution class. ``'zeros'``, ``'reflect'``, ``'replicate'`` or
+      ``'circular'``. Default: ``'zeros'``. See torch.nn.Conv1d() for more information.
 
     """
 
