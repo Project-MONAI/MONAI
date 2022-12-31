@@ -1134,6 +1134,17 @@ Utility
     :members:
     :special-members: __call__
 
+`ImageFilter`
+"""""""""""""
+.. autoclass:: ImageFilter
+    :members:
+    :special-members: __call__
+
+`RandImageFilter`
+"""""""""""""
+.. autoclass:: RandImageFilter
+    :members:
+    :special-members: __call__
 
 Dictionary Transforms
 ---------------------
@@ -2123,6 +2134,19 @@ Utility (Dict)
 .. autoclass:: AddCoordinateChannelsd
     :members:
     :special-members: __call__
+
+`ImageFilterd`
+""""""""""""""""""""""""
+.. autoclass:: ImageFilterd
+    :members:
+    :special-members: __call__
+
+`RandImageFilterd`
+""""""""""""""""""""""""
+.. autoclass:: RandImageFilterd
+    :members:
+    :special-members: __call__
+
 
 MetaTensor
 ^^^^^^^^^^
