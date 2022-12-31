@@ -14,7 +14,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.networks.layers import EllipticalFilter, LaplaceFilter, MeanFilter, SharpenFilter
+from monai.networks.layers import ApplyFilter, EllipticalFilter, LaplaceFilter, MeanFilter, SharpenFilter
 
 TEST_CASES_MEAN = [(3, 3, torch.ones(3, 3, 3)), (2, 5, torch.ones(5, 5))]
 
@@ -72,6 +72,22 @@ class _TestFilter:
         test_filter = self.filter_class(spatial_dims=2, size=3)
         input = torch.ones(1, 1, 5, 5)
         _ = test_filter(input)
+
+
+class TestApplyFilter(unittest.TestCase):
+    def test_init_and_forward_2d(self):
+        filter_2d = torch.ones(3, 3)
+        image_2d = torch.ones(1, 3, 3)
+        apply_filter_2d = ApplyFilter(filter_2d)
+        out = apply_filter_2d(image_2d)
+        self.assertEqual(out.shape, image_2d.shape)
+
+    def test_init_and_forward_3d(self):
+        filter_2d = torch.ones(3, 3, 3)
+        image_2d = torch.ones(1, 3, 3, 3)
+        apply_filter_2d = ApplyFilter(filter_2d)
+        out = apply_filter_2d(image_2d)
+        self.assertEqual(out.shape, image_2d.shape)
 
 
 class MeanFilterTestCase(_TestFilter, unittest.TestCase):
