@@ -14,7 +14,6 @@ import unittest
 
 import numpy as np
 import torch
-from packaging import version
 from parameterized import parameterized
 
 from monai.networks.layers.simplelayers import GaussianFilter
@@ -32,11 +31,8 @@ SAMPLE_IMAGE_2D = torch.randn(1, 10, 10)
 SAMPLE_IMAGE_3D = torch.randn(1, 10, 10, 10)
 SAMPLE_DICT = {"image_2d": SAMPLE_IMAGE_2D, "image_3d": SAMPLE_IMAGE_3D}
 
-ADDITIONAL_ARGUMENTS = {"order": 1, "sigma": 1}
-
-if version.parse(torch.__version__) < version.parse("1.10"):
-    # Sobel filter uses reflect as default  which is not implemented for 3d in torch 1.8.1 or 1.9.1
-    ADDITIONAL_ARGUMENTS["padding_mode"] = "zeros"
+# Sobel filter uses reflect pad as default which is not implemented for 3d in torch 1.8.1 or 1.9.1
+ADDITIONAL_ARGUMENTS = {"order": 1, "sigma": 1, "padding_mode": "zeros"}
 
 
 class TestModule(torch.nn.Module):
