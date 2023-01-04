@@ -56,7 +56,7 @@ class VarAutoEncoder(AutoEncoder):
 
         # 3 layer network accepting images with dimensions (1, 32, 32) and using a latent vector with 2 values
         model = VarAutoEncoder(
-            dimensions=2,
+            spatial_dims=2,
             in_shape=(32, 32),  # image spatial shape
             out_channels=1,
             latent_size=2,
