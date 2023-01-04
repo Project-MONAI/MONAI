@@ -12,7 +12,7 @@
 # have to explicitly bring these in here to resolve circular import issues
 from .aliases import alias, resolve_name
 from .decorators import MethodReplacer, RestartGenerator
-from .deprecate_utils import DeprecatedError, deprecated, deprecated_arg
+from .deprecate_utils import DeprecatedError, deprecated, deprecated_arg, deprecated_arg_default
 from .dist import evenly_divisible_all_gather, get_dist_device, string_list_all_gather
 from .enums import (
     Average,
