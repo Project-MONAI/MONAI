@@ -43,6 +43,7 @@ from monai.transforms.utility.array import (
     EnsureType,
     FgBgToIndices,
     Identity,
+    ImageFilter,
     IntensityStats,
     LabelToMask,
     Lambda,
@@ -118,6 +119,7 @@ __all__ = [
     "IntensityStatsd",
     "IntensityStatsD",
     "IntensityStatsDict",
+    "ImageFilterd",
     "LabelToMaskD",
     "LabelToMaskDict",
     "LabelToMaskd",
@@ -133,6 +135,7 @@ __all__ = [
     "RandCuCIMd",
     "RandCuCIMD",
     "RandCuCIMDict",
+    "RandImageFilterd",
     "RandLambdaD",
     "RandLambdaDict",
     "RandLambdad",
@@ -1738,6 +1741,90 @@ class AddCoordinateChannelsd(MapTransform):
         return d
 
 
+class ImageFilterd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.ImageFilter`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: monai.transforms.MapTransform
+        kernel:
+            A string specifying the kernel or a custom kernel as `torch.Tenor` or `np.ndarray`.
+            Available options are: `mean`, `laplacian`, `elliptical`, `sobel_{w,h,d}``
+        kernel_size:
+            A single integer value specifying the size of the quadratic or cubic kernel.
+            Computational complexity increases exponentially with kernel_size, which
+            should be considered when choosing the kernel size.
+        allow_missing_keys:
+            Don't raise exception if key is missing.
+    """
+
+    backend = ImageFilter.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        kernel: Union[str, NdarrayOrTensor],
+        kernel_size: Optional[int] = None,
+        allow_missing_keys: bool = False,
+        **kwargs,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.filter = ImageFilter(kernel, kernel_size, **kwargs)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.filter(d[key])
+        return d
+
+
+class RandImageFilterd(MapTransform, RandomizableTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.RandomFilterKernel`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: monai.transforms.MapTransform
+        kernel:
+            A string specifying the kernel or a custom kernel as `torch.Tenor` or `np.ndarray`.
+            Available options are: `mean`, `laplacian`, `elliptical`, `sobel_{w,h,d}``
+        kernel_size:
+            A single integer value specifying the size of the quadratic or cubic kernel.
+            Computational complexity increases exponentially with kernel_size, which
+            should be considered when choosing the kernel size.
+        prob:
+            Probability the transform is applied to the data
+        allow_missing_keys:
+            Don't raise exception if key is missing.
+    """
+
+    backend = ImageFilter.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        kernel: Union[str, NdarrayOrTensor],
+        kernel_size: Optional[int] = None,
+        prob: float = 0.1,
+        allow_missing_keys: bool = False,
+        **kwargs,
+    ) -> None:
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
+        self.filter = ImageFilter(kernel, kernel_size, **kwargs)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        self.randomize(None)
+        if self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = self.filter(d[key])
+        return d
+
+
+RandImageFilterD = RandImageFilterDict = RandImageFilterd
+ImageFilterD = ImageFilterDict = ImageFilterd
 IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
