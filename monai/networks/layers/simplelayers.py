@@ -18,6 +18,7 @@ import torch.nn.functional as F
 from torch import nn
 from torch.autograd import Function
 
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.networks.layers.convutils import gaussian_1d
 from monai.networks.layers.factories import Conv
 from monai.utils import (
@@ -658,3 +659,90 @@ class LLTM(nn.Module):
 
     def forward(self, input, state):
         return LLTMFunction.apply(input, self.weights, self.bias, *state)
+
+
+class ApplyFilter(nn.Module):
+    "Wrapper class to apply a filter to an image."
+
+    def __init__(self, filter: NdarrayOrTensor) -> None:
+        super().__init__()
+
+        self.filter = convert_to_tensor(filter, dtype=torch.float32)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return apply_filter(x, self.filter)  # type: ignore
+
+
+class MeanFilter(ApplyFilter):
+    """
+    Mean filtering can smooth edges and remove aliasing artifacts in an segmentation image.
+    The mean filter used, is a `torch.Tensor` of all ones.
+    """
+
+    def __init__(self, spatial_dims: int, size: int) -> None:
+        """
+        Args:
+            spatial_dims: `int` of either 2 for 2D images and 3 for 3D images
+            size: edge length of the filter
+        """
+        filter = torch.ones([size] * spatial_dims)
+        filter = filter
+        super().__init__(filter=filter)
+
+
+class LaplaceFilter(ApplyFilter):
+    """
+    Laplacian filtering for outline detection in images. Can be used to transform labels to contours.
+    The laplace filter used, is a `torch.Tensor` where all values are -1, except the center value
+    which is `size` ** `spatial_dims`
+    """
+
+    def __init__(self, spatial_dims: int, size: int) -> None:
+        """
+        Args:
+            spatial_dims: `int` of either 2 for 2D images and 3 for 3D images
+            size: edge length of the filter
+        """
+        filter = torch.zeros([size] * spatial_dims).float() - 1  # make all -1
+        center_point = tuple([size // 2] * spatial_dims)
+        filter[center_point] = (size**spatial_dims) - 1
+        super().__init__(filter=filter)
+
+
+class EllipticalFilter(ApplyFilter):
+    """
+    Elliptical filter, can be used to dilate labels or label-contours.
+    The elliptical filter used here, is a `torch.Tensor` with shape (size, ) * ndim containing a circle/sphere of `1`
+    """
+
+    def __init__(self, spatial_dims: int, size: int) -> None:
+        """
+        Args:
+            spatial_dims: `int` of either 2 for 2D images and 3 for 3D images
+            size: edge length of the filter
+        """
+        radius = size // 2
+        grid = torch.meshgrid(*[torch.arange(0, size) for _ in range(spatial_dims)])
+        squared_distances = torch.stack([(axis - radius) ** 2 for axis in grid], 0).sum(0)
+        filter = squared_distances <= radius**2
+        super().__init__(filter=filter)
+
+
+class SharpenFilter(EllipticalFilter):
+    """
+    Convolutional filter to sharpen a 2D or 3D image.
+    The filter used contains a circle/sphere of `-1`, with the center value being
+    the absolute sum of all non-zero elements in the kernel
+    """
+
+    def __init__(self, spatial_dims: int, size: int) -> None:
+        """
+        Args:
+            spatial_dims: `int` of either 2 for 2D images and 3 for 3D images
+            size: edge length of the filter
+        """
+        super().__init__(spatial_dims=spatial_dims, size=size)
+        center_point = tuple([size // 2] * spatial_dims)
+        center_value = self.filter.sum()
+        self.filter *= -1
+        self.filter[center_point] = center_value
