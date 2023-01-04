@@ -200,6 +200,8 @@ class RegistrationExtractionBlock(nn.Module):
         out_channels: int,
         kernel_initializer: Optional[str] = "kaiming_uniform",
         activation: Optional[str] = None,
+        mode: str = "nearest",
+        align_corners: Optional[bool] = None,
     ):
         """
 
@@ -211,6 +213,8 @@ class RegistrationExtractionBlock(nn.Module):
             out_channels: number of output channels
             kernel_initializer: kernel initializer
             activation: kernel activation function
+            mode: feature map interpolation mode, default to "nearest".
+            align_corners: whether to align corners for feature map interpolation.
         """
         super().__init__()
         self.extract_levels = extract_levels
@@ -228,6 +232,8 @@ class RegistrationExtractionBlock(nn.Module):
                 for d in extract_levels
             ]
         )
+        self.mode = mode
+        self.align_corners = align_corners
 
     def forward(self, x: List[torch.Tensor], image_size: List[int]) -> torch.Tensor:
         """
@@ -240,7 +246,9 @@ class RegistrationExtractionBlock(nn.Module):
             Tensor of shape (batch, `out_channels`, size1, size2, size3), where (size1, size2, size3) = ``image_size``
         """
         feature_list = [
-            F.interpolate(layer(x[self.max_level - level]), size=image_size)
+            F.interpolate(
+                layer(x[self.max_level - level]), size=image_size, mode=self.mode, align_corners=self.align_corners
+            )
             for layer, level in zip(self.layers, self.extract_levels)
         ]
         out: torch.Tensor = torch.mean(torch.stack(feature_list, dim=0), dim=0)
