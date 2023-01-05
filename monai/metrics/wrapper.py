@@ -26,9 +26,8 @@ MultiClassPairwiseMeasures, _ = optional_import(
 __all__ = ["MetricsReloadedBinary", "MetricsReloadedCategorical"]
 
 
-class MetricsReloadedMetric(CumulativeIterationMetric):
-    """Base class for defining MetricsReloaded metrics as a
-    CumulativeIterationMetric in MONAI
+class MetricsReloadedWrapper(CumulativeIterationMetric):
+    """Base class for defining MetricsReloaded metrics as a CumulativeIterationMetric.
 
     Args:
         metric_name: Name of a binary metric from the MetricsReloaded package.
@@ -75,7 +74,7 @@ class MetricsReloadedMetric(CumulativeIterationMetric):
         return y_pred, y, y_pred.device
 
 
-class MetricsReloadedBinary(MetricsReloadedMetric):
+class MetricsReloadedBinary(MetricsReloadedWrapper):
     """
     Wraps the binary pairwise metrics of MetricsReloaded.
 
@@ -179,7 +178,7 @@ class MetricsReloadedBinary(MetricsReloadedMetric):
         return convert_to_tensor(metric, device=device)
 
 
-class MetricsReloadedCategorical(MetricsReloadedMetric):
+class MetricsReloadedCategorical(MetricsReloadedWrapper):
     """
     Wraps the categorical pairwise metrics of MetricsReloaded.
 
