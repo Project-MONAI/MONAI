@@ -18,7 +18,6 @@ from monai.networks.layers import ApplyFilter, EllipticalFilter, LaplaceFilter, 
 
 TEST_CASES_MEAN = [(3, 3, torch.ones(3, 3, 3)), (2, 5, torch.ones(5, 5))]
 
-
 TEST_CASES_LAPLACE = [
     (
         3,
@@ -44,7 +43,6 @@ TEST_CASES_ELLIPTICAL = [
     ),
     (2, 3, torch.Tensor([[0, 1, 0], [1, 1, 1], [0, 1, 0]])),
 ]
-
 
 TEST_CASES_SHARPEN = [
     (
