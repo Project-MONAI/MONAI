@@ -174,7 +174,7 @@ class MetricsReloadedBinary(MetricsReloadedWrapper):
         # Compute metric
         metric = bpm.metrics[self.metric_name]()
 
-        # Return metric as numpy array
+        # Return metric as tensor
         return convert_to_tensor(metric, device=device)
 
 
@@ -298,5 +298,5 @@ class MetricsReloadedCategorical(MetricsReloadedWrapper):
         # Put back singleton channel dimension
         metric = metric[..., None]
 
-        # Return metric as numpy array
+        # Return metric as tensor
         return convert_to_tensor(metric, device=device)
