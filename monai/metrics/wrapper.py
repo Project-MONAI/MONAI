@@ -28,7 +28,20 @@ __all__ = ["MetricsReloadedBinary", "MetricsReloadedCategorical"]
 
 class MetricsReloadedMetric(CumulativeIterationMetric):
     """Base class for defining MetricsReloaded metrics as a
-    CumulativeIterationMetric in MONAI"""
+    CumulativeIterationMetric in MONAI
+
+    Args:
+        metric_name: Name of a binary metric from the MetricsReloaded package.
+        include_background: whether to skip Dice computation on the first channel of
+            the predicted output. Defaults to ``True``.
+        reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
+            available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+            ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction.
+        get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
+            Here `not_nans` count the number of not nans for the metric,
+            thus its shape equals to the shape of the metric.
+
+    """
 
     def __init__(
         self,
