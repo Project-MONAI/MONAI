@@ -26,6 +26,7 @@ MultiClassPairwiseMeasures, _ = optional_import(
 __all__ = ["MetricsReloadedBinary", "MetricsReloadedCategorical"]
 
 
+<<<<<<< HEAD
 class MetricsReloadedWrapper(CumulativeIterationMetric):
     """Base class for defining MetricsReloaded metrics as a CumulativeIterationMetric.
 
@@ -41,6 +42,11 @@ class MetricsReloadedWrapper(CumulativeIterationMetric):
             thus its shape equals to the shape of the metric.
 
     """
+=======
+class MetricsReloadedMetric(CumulativeIterationMetric):
+    """Base class for defining MetricsReloaded metrics as a
+    CumulativeIterationMetric in MONAI"""
+>>>>>>> 5740-metrics-reloaded-support
 
     def __init__(
         self,
@@ -74,7 +80,11 @@ class MetricsReloadedWrapper(CumulativeIterationMetric):
         return y_pred, y, y_pred.device
 
 
+<<<<<<< HEAD
 class MetricsReloadedBinary(MetricsReloadedWrapper):
+=======
+class MetricsReloadedBinary(MetricsReloadedMetric):
+>>>>>>> 5740-metrics-reloaded-support
     """
     Wraps the binary pairwise metrics of MetricsReloaded.
 
@@ -174,11 +184,19 @@ class MetricsReloadedBinary(MetricsReloadedWrapper):
         # Compute metric
         metric = bpm.metrics[self.metric_name]()
 
+<<<<<<< HEAD
         # Return metric as tensor
         return convert_to_tensor(metric, device=device)
 
 
 class MetricsReloadedCategorical(MetricsReloadedWrapper):
+=======
+        # Return metric as numpy array
+        return convert_to_tensor(metric, device=device)
+
+
+class MetricsReloadedCategorical(MetricsReloadedMetric):
+>>>>>>> 5740-metrics-reloaded-support
     """
     Wraps the categorical pairwise metrics of MetricsReloaded.
 
@@ -298,5 +316,9 @@ class MetricsReloadedCategorical(MetricsReloadedWrapper):
         # Put back singleton channel dimension
         metric = metric[..., None]
 
+<<<<<<< HEAD
         # Return metric as tensor
+=======
+        # Return metric as numpy array
+>>>>>>> 5740-metrics-reloaded-support
         return convert_to_tensor(metric, device=device)
