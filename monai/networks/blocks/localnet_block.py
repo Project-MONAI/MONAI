@@ -166,7 +166,7 @@ class LocalNetDownSampleBlock(nn.Module):
 
 class LocalNetUpSampleBlock(nn.Module):
     """
-    A up-sample module that can be used for LocalNet, based on:
+    An up-sample module that can be used for LocalNet, based on:
     `Weakly-supervised convolutional neural networks for multimodal image registration
     <https://doi.org/10.1016/j.media.2018.07.002>`_.
     `Label-driven weakly-supervised learning for multimodal deformable image registration
@@ -176,12 +176,21 @@ class LocalNetUpSampleBlock(nn.Module):
         DeepReg (https://github.com/DeepRegNet/DeepReg)
     """
 
-    def __init__(self, spatial_dims: int, in_channels: int, out_channels: int) -> None:
+    def __init__(
+        self,
+        spatial_dims: int,
+        in_channels: int,
+        out_channels: int,
+        mode: str = "nearest",
+        align_corners: Optional[bool] = None,
+    ) -> None:
         """
         Args:
             spatial_dims: number of spatial dimensions.
             in_channels: number of input channels.
             out_channels: number of output channels.
+            mode: interpolation mode of the additive upsampling, default to 'nearest'.
+            align_corners: whether to align corners for the additive upsampling, default to None.
         Raises:
             ValueError: when ``in_channels != 2 * out_channels``
         """
@@ -199,9 +208,11 @@ class LocalNetUpSampleBlock(nn.Module):
                 f"got in_channels={in_channels}, out_channels={out_channels}"
             )
         self.out_channels = out_channels
+        self.mode = mode
+        self.align_corners = align_corners
 
-    def addictive_upsampling(self, x, mid) -> torch.Tensor:
-        x = F.interpolate(x, mid.shape[2:])
+    def additive_upsampling(self, x, mid) -> torch.Tensor:
+        x = F.interpolate(x, mid.shape[2:], mode=self.mode, align_corners=self.align_corners)
         # [(batch, out_channels, ...), (batch, out_channels, ...)]
         x = x.split(split_size=int(self.out_channels), dim=1)
         # (batch, out_channels, ...)
@@ -226,7 +237,7 @@ class LocalNetUpSampleBlock(nn.Module):
                     "expecting mid spatial dimensions be exactly the double of x spatial dimensions, "
                     f"got x of shape {x.shape}, mid of shape {mid.shape}"
                 )
-        h0 = self.deconv_block(x) + self.addictive_upsampling(x, mid)
+        h0 = self.deconv_block(x) + self.additive_upsampling(x, mid)
         r1 = h0 + mid
         r2 = self.conv_block(h0)
         out: torch.Tensor = self.residual_block(r2, r1)

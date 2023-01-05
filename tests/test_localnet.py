@@ -32,6 +32,8 @@ TEST_CASE_LOCALNET_2D = [
             "extract_levels": (0, 1),
             "pooling": False,
             "concat_skip": True,
+            "mode": "bilinear",
+            "align_corners": True,
         },
         (1, 2, 16, 16),
         (1, 2, 16, 16),
