@@ -116,6 +116,16 @@ class ConfigParser:
     def __repr__(self):
         return f"{self.config}"
 
+    def __getattr__(self, id):
+        """
+        Get the config by id.
+
+        Args:
+            id: id to specify the expected position. See also :py:meth:`__getitem__`.
+
+        """
+        return self[id]
+
     def __getitem__(self, id: Union[str, int]):
         """
         Get the config by id.

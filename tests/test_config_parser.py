@@ -256,6 +256,11 @@ class TestConfigParser(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, ".*bdb.BdbQuit.*"):
             case_pdb()
 
+    def test_get_via_attributes(self):
+        config = {"A": {"B": {"C": 1}}}
+        parser = ConfigParser(config=config)
+        self.assertEqual(parser.A, {"B": {"C": 1}})
+
 
 if __name__ == "__main__":
     unittest.main()
