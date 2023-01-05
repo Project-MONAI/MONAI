@@ -1627,7 +1627,7 @@ class ImageFilter(Transform):
         elif isinstance(filter, torch.Tensor) or isinstance(filter, np.ndarray):
             if filter.ndim not in [1, 2, 3]:
                 raise ValueError("Only 1D, 2D, and 3D filters are supported.")
-            self._check_all_values_uneven(filter.shape)  # type: ignore
+            self._check_all_values_uneven(filter.shape)
         elif isinstance(filter, (nn.Module, Transform)):
             pass
         else:

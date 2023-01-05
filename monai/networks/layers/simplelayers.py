@@ -670,7 +670,7 @@ class ApplyFilter(nn.Module):
         self.filter = convert_to_tensor(filter, dtype=torch.float32)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return apply_filter(x, self.filter)  # type: ignore
+        return apply_filter(x, self.filter)
 
 
 class MeanFilter(ApplyFilter):
