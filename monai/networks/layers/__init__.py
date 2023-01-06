@@ -16,14 +16,21 @@ from .filtering import BilateralFilter, PHLFilter
 from .gmm import GaussianMixtureModel
 from .simplelayers import (
     LLTM,
+    ApplyFilter,
     ChannelPad,
+    EllipticalFilter,
     Flatten,
     GaussianFilter,
     HilbertTransform,
+    LaplaceFilter,
+    MeanFilter,
+    MedianFilter,
     Reshape,
     SavitzkyGolayFilter,
+    SharpenFilter,
     SkipConnection,
     apply_filter,
+    median_filter,
     separable_filtering,
 )
 from .spatial_transforms import AffineTransform, grid_count, grid_grad, grid_pull, grid_push

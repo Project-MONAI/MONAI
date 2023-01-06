@@ -1,0 +1,44 @@
+# daily tests for ngc bundles
+name: cron-ngc-bundle
+
+on:
+  schedule:
+    - cron: "0 2 * * *"  # at 02:00 UTC
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+concurrency:
+  # automatically cancel the previously triggered workflows when there's a newer version
+  group: bundle-tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cron-load:
+    if: github.repository == 'Project-MONAI/MONAI'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+    - name: cache weekly timestamp
+      id: pip-cache
+      run: echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
+    - name: cache for pip
+      uses: actions/cache@v3
+      id: cache
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ steps.pip-cache.outputs.datew }}
+    - name: Install dependencies
+      run: |
+        rm -rf /github/home/.cache/torch/hub/bundle/
+        python -m pip install --upgrade pip wheel
+        python -m pip install -r requirements-dev.txt
+    - name: Loading Bundles
+      run: |
+        # clean up temporary files
+        $(pwd)/runtests.sh --build --clean
+        # run tests
+        python -m tests.ngc_bundle_download

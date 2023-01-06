@@ -129,7 +129,6 @@ for p in TEST_NDARRAYS_ALL:
             ]
         )
 
-
 _rtol = 5e-2 if is_tf32_env() else 1e-4
 
 

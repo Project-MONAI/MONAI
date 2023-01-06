@@ -19,8 +19,8 @@ __all__ = ["create_test_image_2d", "create_test_image_3d"]
 
 
 def create_test_image_2d(
-    width: int,
     height: int,
+    width: int,
     num_objs: int = 12,
     rad_max: int = 30,
     rad_min: int = 5,
@@ -37,8 +37,8 @@ def create_test_image_2d(
     an image without channel dimension, otherwise create an image with channel dimension as first dim or last dim.
 
     Args:
-        width: width of the image. The value should be larger than `2 * rad_max`.
         height: height of the image. The value should be larger than `2 * rad_max`.
+        width: width of the image. The value should be larger than `2 * rad_max`.
         num_objs: number of circles to generate. Defaults to `12`.
         rad_max: maximum circle radius. Defaults to `30`.
         rad_min: minimum circle radius. Defaults to `5`.
@@ -48,24 +48,27 @@ def create_test_image_2d(
         channel_dim: if None, create an image without channel dimension, otherwise create
             an image with channel dimension as first dim or last dim. Defaults to `None`.
         random_state: the random generator to use. Defaults to `np.random`.
+
+    Returns:
+        Randomised Numpy array with shape (`height`, `width`)
     """
 
     if rad_max <= rad_min:
         raise ValueError("`rad_min` should be less than `rad_max`.")
     if rad_min < 1:
         raise ValueError("`rad_min` should be no less than 1.")
-    min_size = min(width, height)
+    min_size = min(height, width)
     if min_size <= 2 * rad_max:
         raise ValueError("the minimal size of the image should be larger than `2 * rad_max`.")
 
-    image = np.zeros((width, height))
+    image = np.zeros((height, width))
     rs: np.random.RandomState = np.random.random.__self__ if random_state is None else random_state  # type: ignore
 
     for _ in range(num_objs):
-        x = rs.randint(rad_max, width - rad_max)
-        y = rs.randint(rad_max, height - rad_max)
+        x = rs.randint(rad_max, height - rad_max)
+        y = rs.randint(rad_max, width - rad_max)
         rad = rs.randint(rad_min, rad_max)
-        spy, spx = np.ogrid[-x : width - x, -y : height - y]
+        spy, spx = np.ogrid[-x : height - x, -y : width - y]
         circle = (spx * spx + spy * spy) <= rad * rad
 
         if num_seg_classes > 1:
@@ -120,6 +123,9 @@ def create_test_image_3d(
             an image with channel dimension as first dim or last dim. Defaults to `None`.
         random_state: the random generator to use. Defaults to `np.random`.
 
+    Returns:
+        Randomised Numpy array with shape (`height`, `width`, `depth`)
+
     See also:
         :py:meth:`~create_test_image_2d`
     """
@@ -128,19 +134,19 @@ def create_test_image_3d(
         raise ValueError("`rad_min` should be less than `rad_max`.")
     if rad_min < 1:
         raise ValueError("`rad_min` should be no less than 1.")
-    min_size = min(width, height, depth)
+    min_size = min(height, width, depth)
     if min_size <= 2 * rad_max:
         raise ValueError("the minimal size of the image should be larger than `2 * rad_max`.")
 
-    image = np.zeros((width, height, depth))
+    image = np.zeros((height, width, depth))
     rs: np.random.RandomState = np.random.random.__self__ if random_state is None else random_state  # type: ignore
 
     for _ in range(num_objs):
-        x = rs.randint(rad_max, width - rad_max)
-        y = rs.randint(rad_max, height - rad_max)
+        x = rs.randint(rad_max, height - rad_max)
+        y = rs.randint(rad_max, width - rad_max)
         z = rs.randint(rad_max, depth - rad_max)
         rad = rs.randint(rad_min, rad_max)
-        spy, spx, spz = np.ogrid[-x : width - x, -y : height - y, -z : depth - z]
+        spy, spx, spz = np.ogrid[-x : height - x, -y : width - y, -z : depth - z]
         circle = (spx * spx + spy * spy + spz * spz) <= rad * rad
 
         if num_seg_classes > 1:

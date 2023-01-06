@@ -9,10 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 from multiprocessing.context import SpawnContext
 from queue import Empty, Full, Queue
 from threading import Thread
+from typing import Optional
 
 import torch
 
@@ -41,7 +41,7 @@ class ThreadBuffer:
         self.buffer_size = buffer_size
         self.timeout = timeout
         self.buffer: Queue = Queue(self.buffer_size)
-        self.gen_thread = None
+        self.gen_thread: Optional[Thread] = None
         self.is_running = False
 
     def enqueue_values(self):
@@ -83,7 +83,7 @@ class ThreadBuffer:
 def buffer_iterator(src, buffer_size: int = 1, timeout: float = 0.01, repeats: int = 1):
     """
     Create a ThreadBuffer object using the `src`, `buffer_size`, and `timeout` parameters given for the constructor
-    aguments of the same names, and yield each generated object `repeats` number of times successively.
+    arguments of the same names, and yield each generated object `repeats` number of times successively.
 
     Args:
         src: Source data iterable

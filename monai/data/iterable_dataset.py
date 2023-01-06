@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Union
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Sequence, Union
 
 from torch.utils.data import IterableDataset as _TorchIterableDataset
 from torch.utils.data import get_worker_info
@@ -37,7 +37,7 @@ class IterableDataset(_TorchIterableDataset):
 
     """
 
-    def __init__(self, data: Iterable, transform: Optional[Callable] = None) -> None:
+    def __init__(self, data: Iterable[Any], transform: Optional[Callable] = None) -> None:
         """
         Args:
             data: input data source to load and transform to generate dataset for model.
@@ -45,7 +45,7 @@ class IterableDataset(_TorchIterableDataset):
         """
         self.data = data
         self.transform = transform
-        self.source = None
+        self.source: Optional[Iterator[Any]] = None
 
     def __iter__(self):
         info = get_worker_info()
@@ -71,45 +71,62 @@ class ShuffleBuffer(Randomizable, IterableDataset):
         seed: random seed to initialize the random state of all workers, set `seed += 1` in
             every iter() call, refer to the PyTorch idea:
             https://github.com/pytorch/pytorch/blob/v1.10.0/torch/utils/data/distributed.py#L98.
+        epochs: number of epochs to iterate over the dataset, default to 1, -1 means infinite epochs.
+
+    Note:
+        Both ``monai.data.DataLoader`` and ``torch.utils.data.DataLoader`` do not seed this class (as a subclass of
+        ``IterableDataset``) at run time. ``persistent_workers=True`` flag (and pytorch>1.8) is therefore required
+        for multiple epochs of loading when ``num_workers>0``. For example::
+
+            import monai
+
+            def run():
+                dss = monai.data.ShuffleBuffer([1, 2, 3, 4], buffer_size=30, seed=42)
+
+                dataloader = monai.data.DataLoader(
+                    dss, batch_size=1, num_workers=2, persistent_workers=True)
+                for epoch in range(3):
+                    for item in dataloader:
+                        print(f"epoch: {epoch} item: {item}.")
+
+            if __name__ == '__main__':
+                run()
 
     """
 
-    def __init__(self, data, transform=None, buffer_size: int = 512, seed: int = 0) -> None:
+    def __init__(self, data, transform=None, buffer_size: int = 512, seed: int = 0, epochs: int = 1) -> None:
         super().__init__(data=data, transform=transform)
         self.size = buffer_size
         self.seed = seed
+        self.epochs = epochs
         self._idx = 0
+
+    def randomized_pop(self, buffer):
+        """Return the item at a randomized location `self._idx` in `buffer`."""
+        self.randomize(len(buffer))
+        ret, buffer[self._idx] = buffer[self._idx], buffer[-1]
+        buffer.pop()
+        return ret
+
+    def generate_item(self):
+        """Fill a `buffer` list up to `self.size`, then generate randomly popped items."""
+        buffer: List[Any] = []
+        for item in iter(self.data):
+            if len(buffer) >= self.size:
+                yield self.randomized_pop(buffer)
+            buffer.append(item)
+        while buffer:
+            yield self.randomized_pop(buffer)
 
     def __iter__(self):
         """
-        Fetch data from the source, if buffer is not full, fill into buffer, otherwise,
-        randomly pop items from the buffer.
-        After loading all the data from source, randomly pop items from the buffer.
-
+        Randomly pop buffered items from `self.data`.
+        Multiple dataloader workers sharing this dataset will generate identical item sequences.
         """
         self.seed += 1
         super().set_random_state(seed=self.seed)  # make all workers in sync
-        buffer = []
-        source = self.data
-
-        def _pop_item():
-            self.randomize(len(buffer))
-            # switch random index data and the last index data
-            ret, buffer[self._idx] = buffer[self._idx], buffer[-1]
-            buffer.pop()
-            return ret
-
-        def _get_item():
-            for item in source:
-                if len(buffer) >= self.size:
-                    yield _pop_item()
-                buffer.append(item)
-
-            while buffer:
-                yield _pop_item()
-
-        self.data = _get_item()
-        return super().__iter__()
+        for _ in range(self.epochs) if self.epochs >= 0 else iter(int, 1):
+            yield from IterableDataset(self.generate_item(), transform=self.transform)
 
     def randomize(self, size: int) -> None:
         self._idx = self.R.randint(size)
@@ -246,7 +263,7 @@ class CSVIterableDataset(IterableDataset):
 
         """
         for i in self.iters:
-            i.close()
+            i.close()  # type: ignore
 
     def _flattened(self):
         for chunks in zip(*self.iters):

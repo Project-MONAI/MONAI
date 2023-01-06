@@ -49,7 +49,6 @@ EXTRACT_STAINS_TEST_CASE_5 = [
     np.array([[0.70710677, 0.18696113], [0.0, 0.0], [0.70710677, 0.98236734]]),
 ]
 
-
 # input pixels all transparent and below the beta absorbance threshold
 NORMALIZE_STAINS_TEST_CASE_1 = [np.full((3, 2, 3), 240)]
 
@@ -170,7 +169,7 @@ class TestNormalizeHEStains(unittest.TestCase):
             NORMALIZE_STAINS_TEST_CASE_4,
         ]
     )
-    def test_result_value(self, argments, image, expected_data):
+    def test_result_value(self, arguments, image, expected_data):
         """
         Test that an input image returns an expected normalized image.
 
@@ -219,7 +218,7 @@ class TestNormalizeHEStains(unittest.TestCase):
             with self.assertRaises(TypeError):
                 NormalizeHEStains()(image)
         else:
-            result = NormalizeHEStains(**argments)(image)
+            result = NormalizeHEStains(**arguments)(image)
             np.testing.assert_allclose(result, expected_data)
 
 

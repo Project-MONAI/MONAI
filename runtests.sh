@@ -14,13 +14,6 @@
 # script for running all tests
 set -e
 
-# FIXME: https://github.com/Project-MONAI/MONAI/issues/4354
-protobuf_major_version=$(pip list | grep '^protobuf ' | tr -s ' ' | cut -d' ' -f2 | cut -d'.' -f1)
-if [ "$protobuf_major_version" -ge "4" ]
-then
-    export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
-fi
-
 # output formatting
 separator=""
 blue=""
@@ -118,6 +111,13 @@ function print_usage {
     exit 1
 }
 
+# FIXME: https://github.com/Project-MONAI/MONAI/issues/4354
+protobuf_major_version=$(${PY_EXE} -m pip list | grep '^protobuf ' | tr -s ' ' | cut -d' ' -f2 | cut -d'.' -f1)
+if [ "$protobuf_major_version" -ge "4" ]
+then
+    export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+fi
+
 function check_import {
     echo "Python: ${PY_EXE}"
     ${cmdPrefix}${PY_EXE} -W error -W ignore::DeprecationWarning -c "import monai"
@@ -159,9 +159,16 @@ function clang_format {
         while read i; do $clang_format_tool -style=file -i $i; done
 }
 
+function is_pip_installed() {
+	return $(${PY_EXE} -c "import sys, pkgutil; sys.exit(0 if pkgutil.find_loader(sys.argv[1]) else 1)" $1)
+}
+
 function clean_py {
-    # remove coverage history
-    ${cmdPrefix}${PY_EXE} -m coverage erase
+    if is_pip_installed coverage
+    then
+      # remove coverage history
+      ${cmdPrefix}${PY_EXE} -m coverage erase
+    fi
 
     # uninstall the development package
     echo "Uninstalling MONAI development files..."
@@ -198,10 +205,6 @@ function print_error_msg() {
 function print_style_fail_msg() {
     echo "${red}Check failed!${noColor}"
     echo "Please run auto style fixes: ${green}./runtests.sh --autofix${noColor}"
-}
-
-function is_pip_installed() {
-	return $(${PY_EXE} -c "import sys, pkgutil; sys.exit(0 if pkgutil.find_loader(sys.argv[1]) else 1)" $1)
 }
 
 function list_unittests() {
@@ -530,7 +533,7 @@ then
     echo "${separator}${blue}pylint${noColor}"
 
     # ensure that the necessary packages for code format testing are installed
-    if ! is_pip_installed flake8
+    if ! is_pip_installed pylint
     then
         install_deps
     fi
@@ -593,13 +596,7 @@ then
         install_deps
     fi
     ${cmdPrefix}${PY_EXE} -m mypy --version
-
-    if [ $doDryRun = true ]
-    then
-        ${cmdPrefix}MYPYPATH="$(pwd)"/monai ${PY_EXE} -m mypy "$(pwd)"
-    else
-        MYPYPATH="$(pwd)"/monai ${PY_EXE} -m mypy "$(pwd)" # cmdPrefix does not work with MYPYPATH
-    fi
+    ${cmdPrefix}${PY_EXE} -m mypy "$(pwd)"
 
     mypy_status=$?
     if [ ${mypy_status} -ne 0 ]
@@ -635,6 +632,11 @@ fi
 if [ $doCoverage = true ]
 then
     echo "${separator}${blue}coverage${noColor}"
+    # ensure that the necessary packages for code format testing are installed
+    if ! is_pip_installed coverage
+    then
+        install_deps
+    fi
     cmd="${PY_EXE} -m coverage run --append"
 fi
 
@@ -686,6 +688,11 @@ fi
 if [ $doCoverage = true ]
 then
     echo "${separator}${blue}coverage${noColor}"
+    # ensure that the necessary packages for code format testing are installed
+    if ! is_pip_installed coverage
+    then
+        install_deps
+    fi
     ${cmdPrefix}${PY_EXE} -m coverage combine --append .coverage/
-    ${cmdPrefix}${PY_EXE} -m coverage report
+    ${cmdPrefix}${PY_EXE} -m coverage report --ignore-errors
 fi

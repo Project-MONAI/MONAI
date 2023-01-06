@@ -24,7 +24,7 @@ from monai.transforms import (
     RandAdjustContrast,
     RandCuCIM,
     RandFlip,
-    Randomizable,
+    RandomizableTrait,
     Rotate90,
     ToCupy,
     ToNumpy,
@@ -38,7 +38,6 @@ from tests.utils import HAS_CUPY
 _, has_nvtx = optional_import("torch._C._nvtx", descriptor="NVTX is not installed. Are you sure you have a CUDA build?")
 _, has_tvt = optional_import("torchvision.transforms")
 _, has_cut = optional_import("cucim.core.operations.expose.transform")
-
 
 TEST_CASE_ARRAY_0 = [np.random.randn(3, 3)]
 TEST_CASE_ARRAY_1 = [np.random.randn(3, 10, 10)]
@@ -218,7 +217,7 @@ class TestNVTXRangeDecorator(unittest.TestCase):
 
         # Check if the first randomized is RandAdjustContrast
         for tran in transforms.transforms:
-            if isinstance(tran, Randomizable):
+            if isinstance(tran, RandomizableTrait):
                 self.assertIsInstance(tran, RandAdjustContrast)
                 break
 

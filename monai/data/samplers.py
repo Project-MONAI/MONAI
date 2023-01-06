@@ -51,6 +51,8 @@ class DistributedSampler(_TorchDistributedSampler):
 
         if not even_divisible:
             data_len = len(dataset)  # type: ignore
+            if data_len < self.num_replicas:
+                raise ValueError("the dataset length is less than the number of participating ranks.")
             extra_size = self.total_size - data_len
             if self.rank + extra_size >= self.num_replicas:
                 self.num_samples -= 1

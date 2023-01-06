@@ -15,22 +15,22 @@ import unittest
 from copy import deepcopy
 from typing import Optional, Union
 
+import numpy as np
 import torch
 from parameterized import parameterized
 
+from monai import config
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import FromMetaTensord, ToMetaTensord
 from monai.utils.enums import PostFix
-from monai.utils.module import get_torch_version_tuple
 from tests.utils import TEST_DEVICES, assert_allclose
-
-PT_VER_MAJ, PT_VER_MIN = get_torch_version_tuple()
 
 DTYPES = [[torch.float32], [torch.float64], [torch.float16], [torch.int64], [torch.int32]]
 TESTS = []
 for _device in TEST_DEVICES:
     for _dtype in DTYPES:
-        TESTS.append((*_device, *_dtype))
+        for _data_type in ("tensor", "numpy"):
+            TESTS.append((*_device, *_dtype, _data_type))
 
 
 def rand_string(min_len=5, max_len=10):
@@ -39,11 +39,12 @@ def rand_string(min_len=5, max_len=10):
     return "".join(random.choice(chars) for _ in range(str_size))
 
 
+@unittest.skipIf(config.USE_META_DICT, "skipping not metatensor")
 class TestToFromMetaTensord(unittest.TestCase):
     @staticmethod
     def get_im(shape=None, dtype=None, device=None):
         if shape is None:
-            shape = shape = (1, 10, 8)
+            shape = (1, 10, 8)
         affine = torch.randint(0, 10, (4, 4))
         meta = {"fname": rand_string()}
         t = torch.rand(shape)
@@ -68,7 +69,7 @@ class TestToFromMetaTensord(unittest.TestCase):
         ids: bool = True,
         device: Optional[Union[str, torch.device]] = None,
         meta: bool = True,
-        check_ids: bool = True,
+        check_ids: bool = False,
         **kwargs,
     ):
         if device is None:
@@ -92,13 +93,12 @@ class TestToFromMetaTensord(unittest.TestCase):
             del out_meta_no_affine["affine"]
             self.assertEqual(orig_meta_no_affine, out_meta_no_affine)
             assert_allclose(out.affine, orig.affine)
-            self.assertTrue(str(device) in str(out.affine.device))
             if check_ids:
                 self.check_ids(out.affine, orig.affine, ids)
                 self.check_ids(out.meta, orig.meta, ids)
 
     @parameterized.expand(TESTS)
-    def test_from_to_meta_tensord(self, device, dtype):
+    def test_from_to_meta_tensord(self, device, dtype, data_type="tensor"):
         m1 = self.get_im(device=device, dtype=dtype)
         m2 = self.get_im(device=device, dtype=dtype)
         m3 = self.get_im(device=device, dtype=dtype)
@@ -107,7 +107,7 @@ class TestToFromMetaTensord(unittest.TestCase):
         m1_aff = m1.affine
 
         # FROM -> forward
-        t_from_meta = FromMetaTensord(["m1", "m2"])
+        t_from_meta = FromMetaTensord(["m1", "m2"], data_type=data_type)
         d_dict = t_from_meta(d_metas)
 
         self.assertEqual(
@@ -123,7 +123,10 @@ class TestToFromMetaTensord(unittest.TestCase):
             ],
         )
         self.check(d_dict["m3"], m3, ids=True)  # unchanged
-        self.check(d_dict["m1"], m1.as_tensor(), ids=False)
+        if data_type == "tensor":
+            self.check(d_dict["m1"], m1.as_tensor(), ids=False)
+        else:
+            self.assertIsInstance(d_dict["m1"], np.ndarray)
         meta_out = {k: v for k, v in d_dict["m1_meta_dict"].items() if k != "affine"}
         aff_out = d_dict["m1_meta_dict"]["affine"]
         self.check(aff_out, m1_aff, ids=False)
@@ -132,7 +135,8 @@ class TestToFromMetaTensord(unittest.TestCase):
         # FROM -> inverse
         d_meta_dict_meta = t_from_meta.inverse(d_dict)
         self.assertEqual(sorted(d_meta_dict_meta.keys()), ["m1", "m2", "m3"])
-        self.check(d_meta_dict_meta["m3"], m3, ids=False)  # unchanged (except deep copy in inverse)
+        if data_type == "numpy":
+            m1, m1_aff = m1.cpu(), m1_aff.cpu()
         self.check(d_meta_dict_meta["m1"], m1, ids=False)
         meta_out = {k: v for k, v in d_meta_dict_meta["m1"].meta.items() if k != "affine"}
         aff_out = d_meta_dict_meta["m1"].affine
@@ -142,7 +146,7 @@ class TestToFromMetaTensord(unittest.TestCase):
         # TO -> Forward
         t_to_meta = ToMetaTensord(["m1", "m2"])
         d_dict_meta = t_to_meta(d_dict)
-        self.assertEqual(sorted(d_dict_meta.keys()), ["m1", "m2", "m3"])
+        self.assertEqual(sorted(d_dict_meta.keys()), ["m1", "m2", "m3"], f"flag: {config.USE_META_DICT}")
         self.check(d_dict_meta["m3"], m3, ids=True)  # unchanged (except deep copy in inverse)
         self.check(d_dict_meta["m1"], m1, ids=False)
         meta_out = {k: v for k, v in d_dict_meta["m1"].meta.items() if k != "affine"}

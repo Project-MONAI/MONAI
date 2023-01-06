@@ -144,7 +144,7 @@ class IntegrationFastTrain(DistTestCase):
 
         # set CacheDataset, ThreadDataLoader and DiceCE loss for MONAI fast training
         train_ds = CacheDataset(data=train_files, transform=train_transforms, cache_rate=1.0, num_workers=8)
-        val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=5)
+        val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, runtime_cache=True)
         # disable multi-workers because `ThreadDataLoader` works with multi-threads
         train_loader = ThreadDataLoader(train_ds, num_workers=0, batch_size=4, shuffle=True)
         val_loader = ThreadDataLoader(val_ds, num_workers=0, batch_size=1)

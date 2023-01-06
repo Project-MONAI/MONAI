@@ -12,17 +12,20 @@
 import json
 import os
 import shutil
-import subprocess
 import sys
 import tempfile
 import unittest
+from glob import glob
 
 import nibabel as nib
 import numpy as np
 from parameterized import parameterized
 
 from monai.bundle import ConfigParser
+from monai.bundle.utils import DEFAULT_HANDLERS_ID
 from monai.transforms import LoadImage
+from monai.utils import path_to_uri
+from tests.utils import command_line_tests
 
 TEST_CASE_1 = [os.path.join(os.path.dirname(__file__), "testing_data", "inference.json"), (128, 128, 128)]
 
@@ -56,7 +59,7 @@ class TestBundleRun(unittest.TestCase):
                 f,
             )
         cmd = ["coverage", "run", "-m", "monai.bundle", "run", "training", "--config_file", config_file]
-        subprocess.check_call(cmd)
+        command_line_tests(cmd)
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_shape(self, config_file, expected_shape):
@@ -71,10 +74,25 @@ class TestBundleRun(unittest.TestCase):
         def_args_file = os.path.join(tempdir, "def_args.json")
         ConfigParser.export_config_file(config=def_args, filepath=def_args_file)
 
-        meta = {"datalist": [{"image": filename}], "output_dir": tempdir, "window": (96, 96, 96)}
+        meta = {"datalist": [{"image": filename}], "window": (96, 96, 96)}
         # test YAML file
         meta_file = os.path.join(tempdir, "meta.yaml")
         ConfigParser.export_config_file(config=meta, filepath=meta_file, fmt="yaml")
+
+        # test MLFlow settings
+        settings = {
+            "handlers_id": DEFAULT_HANDLERS_ID,
+            "configs": {
+                "no_epoch": True,  # test override config in the settings file
+                "evaluator": {
+                    "_target_": "MLFlowHandler",
+                    "tracking_uri": "$monai.utils.path_to_uri(@output_dir) + '/mlflow_override1'",
+                    "iteration_log": "@no_epoch",
+                },
+            },
+        }
+        settings_file = os.path.join(tempdir, "mlflow.json")
+        ConfigParser.export_config_file(config=settings, filepath=settings_file, fmt="json")
 
         # test override with file, up case postfix
         overridefile1 = os.path.join(tempdir, "override1.JSON")
@@ -92,20 +110,26 @@ class TestBundleRun(unittest.TestCase):
         else:
             override = f"--network %{overridefile1}#move_net --dataset#_target_ %{overridefile2}"
         # test with `monai.bundle` as CLI entry directly
-        cmd = f"-m monai.bundle run evaluating --postprocessing#transforms#2#output_postfix seg {override}"
+        cmd = "-m monai.bundle run evaluating --postprocessing#transforms#2#output_postfix seg"
+        cmd += f" {override} --no_epoch False --output_dir {tempdir}"
         la = ["coverage", "run"] + cmd.split(" ") + ["--meta_file", meta_file] + ["--config_file", config_file]
         test_env = os.environ.copy()
         print(f"CUDA_VISIBLE_DEVICES in {__file__}", test_env.get("CUDA_VISIBLE_DEVICES"))
-        subprocess.check_call(la + ["--args_file", def_args_file], env=test_env)
+        command_line_tests(la + ["--args_file", def_args_file] + ["--tracking", settings_file])
         loader = LoadImage(image_only=True)
         self.assertTupleEqual(loader(os.path.join(tempdir, "image", "image_seg.nii.gz")).shape, expected_shape)
+        self.assertTrue(os.path.exists(f"{tempdir}/mlflow_override1"))
 
+        tracking_uri = path_to_uri(tempdir) + "/mlflow_override2"  # test override experiment management configs
         # here test the script with `google fire` tool as CLI
-        cmd = "-m fire monai.bundle.scripts run --runner_id evaluating"
-        cmd += f" --evaluator#amp False {override}"
+        cmd = "-m fire monai.bundle.scripts run --runner_id evaluating --tracking mlflow --evaluator#amp False"
+        cmd += f" --tracking_uri {tracking_uri} {override} --output_dir {tempdir}"
         la = ["coverage", "run"] + cmd.split(" ") + ["--meta_file", meta_file] + ["--config_file", config_file]
-        subprocess.check_call(la, env=test_env)
+        command_line_tests(la)
         self.assertTupleEqual(loader(os.path.join(tempdir, "image", "image_trans.nii.gz")).shape, expected_shape)
+        self.assertTrue(os.path.exists(f"{tempdir}/mlflow_override2"))
+        # test the saved execution configs
+        self.assertTrue(len(glob(f"{tempdir}/config_*.json")), 2)
 
 
 if __name__ == "__main__":

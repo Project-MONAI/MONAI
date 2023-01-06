@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 from typing import Sequence, Union
 
 import torch
@@ -43,6 +42,8 @@ class ViT(nn.Module):
         num_classes: int = 2,
         dropout_rate: float = 0.0,
         spatial_dims: int = 3,
+        post_activation="Tanh",
+        qkv_bias: bool = False,
     ) -> None:
         """
         Args:
@@ -58,6 +59,9 @@ class ViT(nn.Module):
             num_classes: number of classes if classification is used.
             dropout_rate: faction of the input units to drop.
             spatial_dims: number of spatial dimensions.
+            post_activation: add a final acivation function to the classification head when `classification` is True.
+                Default to "Tanh" for `nn.Tanh()`. Set to other values to remove this function.
+            qkv_bias: apply bias to the qkv linear layer in self attention block
 
         Examples::
 
@@ -92,12 +96,15 @@ class ViT(nn.Module):
             spatial_dims=spatial_dims,
         )
         self.blocks = nn.ModuleList(
-            [TransformerBlock(hidden_size, mlp_dim, num_heads, dropout_rate) for i in range(num_layers)]
+            [TransformerBlock(hidden_size, mlp_dim, num_heads, dropout_rate, qkv_bias) for i in range(num_layers)]
         )
         self.norm = nn.LayerNorm(hidden_size)
         if self.classification:
             self.cls_token = nn.Parameter(torch.zeros(1, 1, hidden_size))
-            self.classification_head = nn.Sequential(nn.Linear(hidden_size, num_classes), nn.Tanh())
+            if post_activation == "Tanh":
+                self.classification_head = nn.Sequential(nn.Linear(hidden_size, num_classes), nn.Tanh())
+            else:
+                self.classification_head = nn.Linear(hidden_size, num_classes)  # type: ignore
 
     def forward(self, x):
         x = self.patch_embedding(x)

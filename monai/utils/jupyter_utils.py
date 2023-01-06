@@ -8,12 +8,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """
 This set of utility function is meant to make using Jupyter notebooks easier with MONAI. Plotting functions using
 Matplotlib produce common plots for metrics and images.
 """
 
+import copy
 from enum import Enum
 from threading import RLock, Thread
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
@@ -301,14 +301,14 @@ class ThreadContainer(Thread):
         """Called as an event, updates the internal status dict at the end of iterations."""
         with self.lock:
             state = self.engine.state
-            stats = {
+            stats: Dict[str, Any] = {
                 StatusMembers.EPOCHS.value: 0,
                 StatusMembers.ITERS.value: 0,
                 StatusMembers.LOSS.value: float("nan"),
             }
 
             if state is not None:
-                if state.max_epochs >= 1:
+                if state.max_epochs is not None and state.max_epochs >= 1:
                     epoch = f"{state.epoch}/{state.max_epochs}"
                 else:
                     epoch = str(state.epoch)
@@ -340,7 +340,7 @@ class ThreadContainer(Thread):
 
     def status(self) -> str:
         """Returns a status string for the current state of the engine."""
-        stats = self.status_dict
+        stats = copy.deepcopy(self.status_dict)
 
         msgs = [stats.pop(StatusMembers.STATUS.value), "Iters: " + str(stats.pop(StatusMembers.ITERS.value, 0))]
 

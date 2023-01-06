@@ -85,8 +85,8 @@ for p in TEST_NDARRAYS:
 
 class TestGaussianSmoothd(unittest.TestCase):
     @parameterized.expand(TESTS)
-    def test_value(self, argments, image, expected_data):
-        result = GaussianSmoothd(**argments)(image)
+    def test_value(self, arguments, image, expected_data):
+        result = GaussianSmoothd(**arguments)(image)
         assert_allclose(result["img"], expected_data, rtol=1e-4, type_test="tensor")
 
 

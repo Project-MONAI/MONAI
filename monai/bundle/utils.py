@@ -19,14 +19,12 @@ from monai.utils import optional_import
 
 yaml, _ = optional_import("yaml")
 
-__all__ = ["ID_REF_KEY", "ID_SEP_KEY", "EXPR_KEY", "MACRO_KEY"]
-
+__all__ = ["ID_REF_KEY", "ID_SEP_KEY", "EXPR_KEY", "MACRO_KEY", "DEFAULT_MLFLOW_SETTINGS", "DEFAULT_EXP_MGMT_SETTINGS"]
 
 ID_REF_KEY = "@"  # start of a reference to a ConfigItem
 ID_SEP_KEY = "#"  # separator for the ID of a ConfigItem
 EXPR_KEY = "$"  # start of a ConfigExpression
 MACRO_KEY = "%"  # start of a macro of a config
-
 
 _conf_values = get_config_values()
 
@@ -34,7 +32,7 @@ DEFAULT_METADATA = {
     "version": "0.0.1",
     "changelog": {"0.0.1": "Initial version"},
     "monai_version": _conf_values["MONAI"],
-    "pytorch_version": _conf_values["Pytorch"],
+    "pytorch_version": str(_conf_values["Pytorch"]).split("+")[0].split("a")[0],  # 1.9.0a0+df837d0 or 1.13.0+cu117
     "numpy_version": _conf_values["Numpy"],
     "optional_packages_version": {},
     "task": "Describe what the network predicts",
@@ -56,7 +54,7 @@ DEFAULT_INFERENCE = {
         "_target_": "Compose",
         "transforms": [
             {"_target_": "LoadImaged", "keys": "image"},
-            {"_target_": "AddChanneld", "keys": "image"},
+            {"_target_": "EnsureChannelFirstd", "keys": "image"},
             {"_target_": "ScaleIntensityd", "keys": "image"},
             {"_target_": "EnsureTyped", "keys": "image", "device": "@device"},
         ],
@@ -96,6 +94,66 @@ DEFAULT_INFERENCE = {
     },
     "evaluating": ["$@evaluator.run()"],
 }
+
+DEFAULT_HANDLERS_ID = {
+    "trainer": {"id": "train#trainer", "handlers": "train#handlers"},
+    "validator": {"id": "validate#evaluator", "handlers": "validate#handlers"},
+    "evaluator": {"id": "evaluator", "handlers": "handlers"},
+}
+
+DEFAULT_MLFLOW_SETTINGS = {
+    "handlers_id": DEFAULT_HANDLERS_ID,
+    "configs": {
+        # if no "output_dir" in the bundle config, default to "<bundle root>/eval"
+        "output_dir": "$@bundle_root + '/eval'",
+        # use URI to support linux, mac and windows os
+        "tracking_uri": "$monai.utils.path_to_uri(@output_dir) + '/mlruns'",
+        "experiment_name": "monai_experiment",
+        "run_name": None,
+        # may fill it at runtime
+        "execute_config": None,
+        "is_not_rank0": (
+            "$torch.distributed.is_available() \
+                and torch.distributed.is_initialized() and torch.distributed.get_rank() > 0"
+        ),
+        # MLFlowHandler config for the trainer
+        "trainer": {
+            "_target_": "MLFlowHandler",
+            "_disabled_": "@is_not_rank0",
+            "tracking_uri": "@tracking_uri",
+            "experiment_name": "@experiment_name",
+            "run_name": "@run_name",
+            "artifacts": "@execute_config",
+            "iteration_log": True,
+            "epoch_log": True,
+            "tag_name": "train_loss",
+            "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
+            "close_on_complete": True,
+        },
+        # MLFlowHandler config for the validator
+        "validator": {
+            "_target_": "MLFlowHandler",
+            "_disabled_": "@is_not_rank0",
+            "tracking_uri": "@tracking_uri",
+            "experiment_name": "@experiment_name",
+            "run_name": "@run_name",
+            "iteration_log": False,
+        },
+        # MLFlowHandler config for the evaluator
+        "evaluator": {
+            "_target_": "MLFlowHandler",
+            "_disabled_": "@is_not_rank0",
+            "tracking_uri": "@tracking_uri",
+            "experiment_name": "@experiment_name",
+            "run_name": "@run_name",
+            "artifacts": "@execute_config",
+            "iteration_log": False,
+            "close_on_complete": True,
+        },
+    },
+}
+
+DEFAULT_EXP_MGMT_SETTINGS = {"mlflow": DEFAULT_MLFLOW_SETTINGS}  # default experiment management settings
 
 
 def load_bundle_config(bundle_path: str, *config_names, **load_kw_args) -> Any:

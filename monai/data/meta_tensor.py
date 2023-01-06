@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import functools
 import warnings
 from copy import deepcopy
 from typing import Any, Sequence
@@ -18,14 +19,33 @@ from typing import Any, Sequence
 import numpy as np
 import torch
 
+import monai
 from monai.config.type_definitions import NdarrayTensor
 from monai.data.meta_obj import MetaObj, get_track_meta
 from monai.data.utils import affine_to_spacing, decollate_batch, list_data_collate, remove_extra_metadata
 from monai.utils import look_up_option
-from monai.utils.enums import PostFix
-from monai.utils.type_conversion import convert_data_type, convert_to_tensor
+from monai.utils.enums import LazyAttr, MetaKeys, PostFix, SpaceKeys
+from monai.utils.type_conversion import convert_data_type, convert_to_numpy, convert_to_tensor
 
 __all__ = ["MetaTensor"]
+
+
+@functools.lru_cache(None)
+def _get_named_tuple_like_type(func):
+    if (
+        hasattr(torch, "return_types")
+        and hasattr(func, "__name__")
+        and hasattr(torch.return_types, func.__name__)
+        and isinstance(getattr(torch.return_types, func.__name__), type)
+    ):
+        return getattr(torch.return_types, func.__name__)
+    return None
+
+
+def _not_requiring_metadata(ret):
+    return isinstance(ret, (int, str, bytes, torch.Size, torch.dtype, torch.device, np.ndarray)) or not (
+        isinstance(ret, MetaTensor) or (isinstance(ret, Sequence) and any(isinstance(x, MetaTensor) for x in ret))
+    )
 
 
 class MetaTensor(MetaObj, torch.Tensor):
@@ -42,7 +62,7 @@ class MetaTensor(MetaObj, torch.Tensor):
 
         * For `c = a + b`, then auxiliary data (e.g., metadata) will be copied from the
           first instance of `MetaTensor` if `a.is_batch` is False
-          (For batched data, the metdata will be shallow copied for efficiency purposes).
+          (For batched data, the metadata will be shallow copied for efficiency purposes).
 
     Example:
         .. code-block:: python
@@ -105,49 +125,50 @@ class MetaTensor(MetaObj, torch.Tensor):
         **_kwargs,
     ) -> None:
         """
-        If `meta` is given, use it. Else, if `meta` exists in the input tensor, use it.
-        Else, use the default value. Similar for the affine, except this could come from
-        four places.
-        Priority: `affine`, `meta["affine"]`, `x.affine`, `get_default_affine`.
+        Args:
+            x: initial array for the MetaTensor. Can be a list, tuple, NumPy ndarray, scalar, and other types.
+            affine: optional 4x4 array.
+            meta: dictionary of metadata.
+            applied_operations: list of previously applied operations on the MetaTensor,
+                the list is typically maintained by `monai.transforms.TraceableTransform`.
+                See also: :py:class:`monai.transforms.TraceableTransform`
+            _args: additional args (currently not in use in this constructor).
+            _kwargs: additional kwargs (currently not in use in this constructor).
+
+        Note:
+            If a `meta` dictionary is given, use it. Else, if `meta` exists in the input tensor `x`, use it.
+            Else, use the default value. Similar for the affine, except this could come from
+            four places, priority: `affine`, `meta["affine"]`, `x.affine`, `get_default_affine`.
+
         """
         super().__init__()
         # set meta
         if meta is not None:
             self.meta = meta
         elif isinstance(x, MetaObj):
-            self.meta = x.meta
+            self.__dict__ = deepcopy(x.__dict__)
         # set the affine
         if affine is not None:
-            if "affine" in self.meta:
+            if MetaKeys.AFFINE in self.meta:
                 warnings.warn("Setting affine, but the applied meta contains an affine. This will be overwritten.")
             self.affine = affine
-        elif "affine" in self.meta:
+        elif MetaKeys.AFFINE in self.meta:
             # by using the setter function, we ensure it is converted to torch.Tensor if not already
-            self.affine = self.meta["affine"]
-        elif isinstance(x, MetaTensor):
-            self.affine = x.affine
+            self.affine = self.meta[MetaKeys.AFFINE]
         else:
             self.affine = self.get_default_affine()
         # applied_operations
         if applied_operations is not None:
             self.applied_operations = applied_operations
-        elif isinstance(x, MetaTensor):
-            self.applied_operations = x.applied_operations
         else:
             self.applied_operations = MetaObj.get_default_applied_operations()
 
         # if we are creating a new MetaTensor, then deep copy attributes
         if isinstance(x, torch.Tensor) and not isinstance(x, MetaTensor):
-            self.meta = deepcopy(self.meta)
-            self.applied_operations = deepcopy(self.applied_operations)
-        self.affine = self.affine.to(self.device)
+            self.copy_meta_from(self)
 
-    def _copy_attr(self, attributes: list[str], input_objs, defaults: list, deep_copy: bool) -> None:
-        super()._copy_attr(attributes, input_objs, defaults, deep_copy)
-        for a in attributes:
-            val = getattr(self, a)
-            if isinstance(val, torch.Tensor):
-                setattr(self, a, val.to(self.device))
+        if MetaKeys.SPACE not in self.meta:
+            self.meta[MetaKeys.SPACE] = SpaceKeys.RAS  # defaulting to the right-anterior-superior space
 
     @staticmethod
     def update_meta(rets: Sequence, func, args, kwargs) -> Sequence:
@@ -177,7 +198,7 @@ class MetaTensor(MetaObj, torch.Tensor):
             the input type was not `MetaTensor`, then no modifications will have been
             made. If global parameters have been set to false (e.g.,
             `not get_track_meta()`), then any `MetaTensor` will be converted to
-            `torch.Tensor`. Else, metadata will be propogated as necessary (see
+            `torch.Tensor`. Else, metadata will be propagated as necessary (see
             :py:func:`MetaTensor._copy_meta`).
         """
         out = []
@@ -193,8 +214,8 @@ class MetaTensor(MetaObj, torch.Tensor):
             # else, handle the `MetaTensor` metadata.
             else:
                 meta_args = MetaObj.flatten_meta_objs(args, kwargs.values())
-                ret._copy_meta(meta_args, deep_copy=not is_batch)
                 ret.is_batch = is_batch
+                ret.copy_meta_from(meta_args, copy_attr=not is_batch)
                 # the following is not implemented but the network arch may run into this case:
                 # if func == torch.cat and any(m.is_batch if hasattr(m, "is_batch") else False for m in meta_args):
                 #     raise NotImplementedError("torch.cat is not implemented for batch of MetaTensors.")
@@ -212,20 +233,13 @@ class MetaTensor(MetaObj, torch.Tensor):
                         # if using e.g., `batch[:, -1]` or `batch[..., -1]`, then the
                         # first element will be `slice(None, None, None)` and `Ellipsis`,
                         # respectively. Don't need to do anything with the metadata.
-                        if batch_idx not in (slice(None, None, None), Ellipsis, None):
-                            # only decollate metadata once
-                            if metas is None:
-                                metas = decollate_batch(ret.meta)
-                            meta = metas[batch_idx]
-                            # if using e.g., `batch[0:2]`, then `is_batch` should still be
-                            # `True`. Also re-collate the remaining elements.
-                            if isinstance(meta, list):
-                                ret.meta = list_data_collate(meta)
-                            # if using e.g., `batch[0]` or `batch[0, 1]`, then return single
-                            # element from batch, and set `is_batch` to `False`.
-                            else:
-                                ret.meta = meta
-                                ret.is_batch = False
+                        if batch_idx not in (slice(None, None, None), Ellipsis, None) and idx == 0:
+                            ret_meta = decollate_batch(args[0], detach=False)[batch_idx]
+                            if isinstance(ret_meta, list):  # e.g. batch[0:2], re-collate
+                                ret_meta = list_data_collate(ret_meta)
+                            else:  # e.g. `batch[0]` or `batch[0, 1]`, batch index is an integer
+                                ret_meta.is_batch = False
+                            ret.__dict__ = ret_meta.__dict__.copy()
                     # `unbind` is used for `next(iter(batch))`. Also for `decollate_batch`.
                     # But we only want to split the batch if the `unbind` is along the 0th
                     # dimension.
@@ -238,11 +252,10 @@ class MetaTensor(MetaObj, torch.Tensor):
                             dim = 0
                         if dim == 0:
                             if metas is None:
-                                metas = decollate_batch(ret.meta)
-                            ret.meta = metas[idx]
+                                metas = decollate_batch(args[0], detach=False)
+                            ret.__dict__ = metas[idx].__dict__.copy()
                             ret.is_batch = False
 
-                ret.affine = ret.affine.to(ret.device)
             out.append(ret)
         # if the input was a tuple, then return it as a tuple
         return tuple(out) if isinstance(rets, tuple) else out
@@ -256,23 +269,19 @@ class MetaTensor(MetaObj, torch.Tensor):
         # if `out` has been used as argument, metadata is not copied, nothing to do.
         # if "out" in kwargs:
         #     return ret
-        # we might have 1 or multiple outputs. Might be MetaTensor, might be something
-        # else (e.g., `__repr__` returns a string).
-        # Convert to list (if necessary), process, and at end remove list if one was added.
-        if (
-            hasattr(torch, "return_types")
-            and hasattr(func, "__name__")
-            and hasattr(torch.return_types, func.__name__)
-            and isinstance(getattr(torch.return_types, func.__name__), type)
-            and isinstance(ret, getattr(torch.return_types, func.__name__))
-        ):
+        if _not_requiring_metadata(ret):
+            return ret
+        if _get_named_tuple_like_type(func) is not None and isinstance(ret, _get_named_tuple_like_type(func)):
             # for torch.max(torch.tensor(1.0), dim=0), the return type is named-tuple like
             out_items = MetaTensor.update_meta(ret, func, args, kwargs)
             for idx in range(ret.n_fields):
                 ret[idx].meta = out_items[idx].meta
                 ret[idx].applied_operations = out_items[idx].applied_operations
             return ret
-        if isinstance(ret, (str, bytes)) or not isinstance(ret, Sequence):
+        # we might have 1 or multiple outputs. Might be MetaTensor, might be something
+        # else (e.g., `__repr__` returns a string).
+        # Convert to list (if necessary), process, and at end remove list if one was added.
+        if not isinstance(ret, Sequence):
             ret = [ret]
             unpack = True
         else:
@@ -280,44 +289,142 @@ class MetaTensor(MetaObj, torch.Tensor):
         ret = MetaTensor.update_meta(ret, func, args, kwargs)
         return ret[0] if unpack else ret
 
-    def get_default_affine(self, dtype=torch.float64) -> torch.Tensor:
-        return torch.eye(4, device=self.device, dtype=dtype)
+    @staticmethod
+    def _convert(x):
+        if isinstance(x, (MetaTensor, torch.Tensor, tuple, list)):
+            return convert_data_type(x, output_type=np.ndarray, wrap_sequence=False)[0]
+        return x
+
+    def __array_function__(self, func, types, args, kwargs):
+        """for numpy Interoperability, so that we can compute ``np.sum(MetaTensor([1.0]))``."""
+        try:
+            if not func.__module__.startswith("numpy"):
+                return NotImplemented
+        except AttributeError:
+            return NotImplemented
+        _args = list(map(MetaTensor._convert, args))
+        _kwargs = {k: MetaTensor._convert(v) for k, v in kwargs.items()}
+        return func(*_args, **_kwargs)
+
+    def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+        """
+        For numpy interoperability, so that we can compute ``MetaTensor([1.0]) >= np.asarray([1.0])``.
+        This is for pytorch > 1.8.
+        """
+        try:
+            if not type(ufunc).__module__.startswith("numpy"):
+                return NotImplemented
+        except AttributeError:
+            return NotImplemented
+        if method != "__call__":
+            return NotImplemented
+        _inputs = map(MetaTensor._convert, inputs)
+        _kwargs = {k: MetaTensor._convert(v) for k, v in kwargs.items()}
+        if "out" in _kwargs:
+            return NotImplemented  # not supported
+        try:
+            return getattr(ufunc, method)(*_inputs, **_kwargs)
+        except AttributeError:
+            return NotImplemented
+
+    @staticmethod
+    def get_default_affine(dtype=torch.float64) -> torch.Tensor:
+        return torch.eye(4, device=torch.device("cpu"), dtype=dtype)
 
     def as_tensor(self) -> torch.Tensor:
         """
         Return the `MetaTensor` as a `torch.Tensor`.
         It is OS dependent as to whether this will be a deep copy or not.
         """
-        return self.as_subclass(torch.Tensor)  # type: ignore
+        return self.as_subclass(torch.Tensor)
 
-    def as_dict(self, key: str) -> dict:
+    def get_array(self, output_type=np.ndarray, dtype=None, device=None, *_args, **_kwargs):
         """
-        Get the object as a dictionary for backwards compatibility.
-        This method makes a copy of the objects.
+        Returns a new array in `output_type`, the array shares the same underlying storage when the output is a
+        numpy array. Changes to self tensor will be reflected in the ndarray and vice versa.
 
         Args:
-            key: Base key to store main data. The key for the metadata will be
-                determined using `PostFix.meta`.
+            output_type: output type, see also: :py:func:`monai.utils.convert_data_type`.
+            dtype: dtype of output data. Converted to correct library type (e.g.,
+                `np.float32` is converted to `torch.float32` if output type is `torch.Tensor`).
+                If left blank, it remains unchanged.
+            device: if the output is a `torch.Tensor`, select device (if `None`, unchanged).
+            _args: currently unused parameters.
+            _kwargs: currently unused parameters.
+        """
+        return convert_data_type(self, output_type=output_type, dtype=dtype, device=device, wrap_sequence=True)[0]
+
+    def set_array(self, src, non_blocking: bool = False, *_args, **_kwargs):
+        """
+        Copies the elements from src into self tensor and returns self.
+        The src tensor must be broadcastable with the self tensor.
+        It may be of a different data type or reside on a different device.
+
+        See also: `https://pytorch.org/docs/stable/generated/torch.Tensor.copy_.html`
+
+        Args:
+            src: the source tensor to copy from.
+            non_blocking: if True and this copy is between CPU and GPU, the copy may occur
+                asynchronously with respect to the host. For other cases, this argument has no effect.
+            _args: currently unused parameters.
+            _kwargs:  currently unused parameters.
+        """
+        converted: torch.Tensor = convert_to_tensor(src, track_meta=False, wrap_sequence=True)
+        try:
+            return self.copy_(converted, non_blocking=non_blocking)
+        except RuntimeError:  # skip the shape checking
+            self.data = converted
+            return self
+
+    @property
+    def array(self):
+        """
+        Returns a numpy array of ``self``. The array and ``self`` shares the same underlying storage if self is on cpu.
+        Changes to ``self`` (it's a subclass of torch.Tensor) will be reflected in the ndarray and vice versa.
+        If ``self`` is not on cpu, the call will move the array to cpu and then the storage is not shared.
+
+        :getter: see also: :py:func:`MetaTensor.get_array()`
+        :setter: see also: :py:func:`MetaTensor.set_array()`
+        """
+        return self.get_array()
+
+    @array.setter
+    def array(self, src) -> None:
+        """A default setter using ``self.set_array()``"""
+        self.set_array(src)
+
+    def as_dict(self, key: str, output_type=torch.Tensor, dtype=None) -> dict:
+        """
+        Get the object as a dictionary for backwards compatibility.
+        This method does not make a deep copy of the objects.
+
+        Args:
+            key: Base key to store main data. The key for the metadata will be determined using `PostFix`.
+            output_type: `torch.Tensor` or `np.ndarray` for the main data.
+            dtype: dtype of output data. Converted to correct library type (e.g.,
+                `np.float32` is converted to `torch.float32` if output type is `torch.Tensor`).
+                If left blank, it remains unchanged.
 
         Return:
-            A dictionary consisting of two keys, the main data (stored under `key`) and
-                the metadata.
+            A dictionary consisting of three keys, the main data (stored under `key`) and the metadata.
         """
+        if output_type not in (torch.Tensor, np.ndarray):
+            raise ValueError(f"output_type must be torch.Tensor or np.ndarray, got {output_type}.")
         return {
-            key: self.as_tensor().clone().detach(),
-            PostFix.meta(key): deepcopy(self.meta),
-            PostFix.transforms(key): deepcopy(self.applied_operations),
+            key: self.get_array(output_type=output_type, dtype=dtype),
+            PostFix.meta(key): self.meta,
+            PostFix.transforms(key): self.applied_operations,
         }
 
-    def astype(self, dtype, device=None, *unused_args, **unused_kwargs):
+    def astype(self, dtype, device=None, *_args, **_kwargs):
         """
         Cast to ``dtype``, sharing data whenever possible.
 
         Args:
             dtype: dtypes such as np.float32, torch.float, "np.float32", float.
             device: the device if `dtype` is a torch data type.
-            unused_args: additional args (currently unused).
-            unused_kwargs: additional kwargs (currently unused).
+            _args: additional args (currently unused).
+            _kwargs: additional kwargs (currently unused).
 
         Returns:
             data array instance
@@ -328,28 +435,46 @@ class MetaTensor(MetaObj, torch.Tensor):
         else:
             mod_str = getattr(dtype, "__module__", "torch")
         mod_str = look_up_option(mod_str, {"torch", "numpy", "np"}, default="numpy")
+
+        out_type: type[torch.Tensor] | type[np.ndarray] | None
         if mod_str == "torch":
             out_type = torch.Tensor
         elif mod_str in ("numpy", "np"):
             out_type = np.ndarray
         else:
             out_type = None
-        return convert_data_type(self, output_type=out_type, device=device, dtype=dtype, wrap_sequence=True)[0]
+        return self.get_array(output_type=out_type, dtype=dtype, device=device)
 
     @property
     def affine(self) -> torch.Tensor:
-        """Get the affine."""
-        return self.meta.get("affine", self.get_default_affine())
+        """Get the affine. Defaults to ``torch.eye(4, dtype=torch.float64)``"""
+        return self.meta.get(MetaKeys.AFFINE, self.get_default_affine())
 
     @affine.setter
     def affine(self, d: NdarrayTensor) -> None:
         """Set the affine."""
-        self.meta["affine"] = torch.as_tensor(d, device=self.device)
+        self.meta[MetaKeys.AFFINE] = torch.as_tensor(d, device=torch.device("cpu"))
 
     @property
     def pixdim(self):
         """Get the spacing"""
+        if self.is_batch:
+            return [affine_to_spacing(a) for a in self.affine]
         return affine_to_spacing(self.affine)
+
+    def peek_pending_shape(self):
+        """Get the currently expected spatial shape as if all the pending operations are executed."""
+        res = None
+        if self.pending_operations:
+            res = self.pending_operations[-1].get(LazyAttr.SHAPE, None)
+        # default to spatial shape (assuming channel-first input)
+        return tuple(convert_to_numpy(self.shape, wrap_sequence=True).tolist()[1:]) if res is None else res
+
+    def peek_pending_affine(self):
+        res = None
+        if self.pending_operations:
+            res = self.pending_operations[-1].get(LazyAttr.AFFINE, None)
+        return self.affine if res is None else res
 
     def new_empty(self, size, dtype=None, device=None, requires_grad=False):
         """
@@ -362,8 +487,16 @@ class MetaTensor(MetaObj, torch.Tensor):
             self.as_tensor().new_empty(size=size, dtype=dtype, device=device, requires_grad=requires_grad)
         )
 
+    def clone(self):
+        """returns a copy of the MetaTensor instance."""
+        new_inst = MetaTensor(self.as_tensor().clone())
+        new_inst.__dict__ = deepcopy(self.__dict__)
+        return new_inst
+
     @staticmethod
-    def ensure_torch_and_prune_meta(im: NdarrayTensor, meta: dict, simple_keys: bool = False):
+    def ensure_torch_and_prune_meta(
+        im: NdarrayTensor, meta: dict, simple_keys: bool = False, pattern: str | None = None, sep: str = "."
+    ):
         """
         Convert the image to `torch.Tensor`. If `affine` is in the `meta` dictionary,
         convert that to `torch.Tensor`, too. Remove any superfluous metadata.
@@ -371,6 +504,12 @@ class MetaTensor(MetaObj, torch.Tensor):
         Args:
             im: Input image (`np.ndarray` or `torch.Tensor`)
             meta: Metadata dictionary.
+            simple_keys: whether to keep only a simple subset of metadata keys.
+            pattern: combined with `sep`, a regular expression used to match and prune keys
+                in the metadata (nested dictionary), default to None, no key deletion.
+            sep: combined with `pattern`, used to match and delete keys in the metadata (nested dictionary).
+                default is ".", see also :py:class:`monai.transforms.DeleteItemsd`.
+                e.g. ``pattern=".*_code$", sep=" "`` removes any meta keys that ends with ``"_code"``.
 
         Returns:
             By default, a `MetaTensor` is returned.
@@ -385,12 +524,32 @@ class MetaTensor(MetaObj, torch.Tensor):
         # remove any superfluous metadata.
         if simple_keys:
             # ensure affine is of type `torch.Tensor`
-            if "affine" in meta:
-                meta["affine"] = convert_to_tensor(meta["affine"])  # bc-breaking
+            if MetaKeys.AFFINE in meta:
+                meta[MetaKeys.AFFINE] = convert_to_tensor(meta[MetaKeys.AFFINE])  # bc-breaking
             remove_extra_metadata(meta)  # bc-breaking
+
+        if pattern is not None:
+            meta = monai.transforms.DeleteItemsd(keys=pattern, sep=sep, use_re=True)(meta)
 
         # return the `MetaTensor`
         return MetaTensor(img, meta=meta)
 
-    def __repr__(self, *, tensor_contents=None):
-        return self.as_tensor().__repr__() + super().__repr__()
+    def __repr__(self):
+        """
+        Prints a representation of the tensor identical to ``torch.Tensor.__repr__``.
+        Use ``print_verbose`` for associated metadata.
+        """
+        return self.as_tensor().__repr__()
+
+    def __str__(self):
+        """
+        Prints a representation of the tensor identical to ``torch.Tensor.__str__``.
+        Use ``print_verbose`` for associated metadata.
+        """
+        return str(self.as_tensor())
+
+    def print_verbose(self) -> None:
+        """Verbose print with meta data."""
+        print(self)
+        if self.meta is not None:
+            print(self.meta.__repr__())

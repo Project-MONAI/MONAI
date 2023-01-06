@@ -8,7 +8,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """
 This module is written for configurable workflow, not currently in use.
 """
@@ -85,8 +84,7 @@ def resolve_name(name):
 
         if len(mods) > 0:  # found modules with this declaration or import
             if len(mods) > 1:  # found multiple modules, need to determine if ambiguous or just multiple imports
-                foundmods = {inspect.getmodule(getattr(m, name)) for m in mods}  # resolve imports
-                foundmods = {m for m in foundmods if m is not None}
+                foundmods = set(filter(None, {inspect.getmodule(getattr(m, name)) for m in mods}))  # resolve imports
 
                 if len(foundmods) > 1:  # found multiple declarations with the same name
                     modnames = [m.__name__ for m in foundmods]

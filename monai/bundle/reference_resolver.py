@@ -9,14 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import re
 import warnings
 from typing import Any, Dict, Optional, Sequence, Set
 
 from monai.bundle.config_item import ConfigComponent, ConfigExpression, ConfigItem
 from monai.bundle.utils import ID_REF_KEY, ID_SEP_KEY
-from monai.utils import look_up_option
+from monai.utils import allow_missing_reference, look_up_option
 
 __all__ = ["ReferenceResolver"]
 
@@ -53,7 +52,7 @@ class ReferenceResolver:
     # match a reference string, e.g. "@id#key", "@id#key#0", "@_target_#key"
     id_matcher = re.compile(rf"{ref}(?:\w*)(?:{sep}\w*)*")
     # if `allow_missing_reference` and can't find a reference ID, will just raise a warning and don't update the config
-    allow_missing_reference = not os.environ.get("MONAI_ALLOW_MISSING_REFERENCE", "0") == "0"
+    allow_missing_reference = allow_missing_reference
 
     def __init__(self, items: Optional[Sequence[ConfigItem]] = None):
         # save the items in a dictionary with the `ConfigItem.id` as key
@@ -222,21 +221,23 @@ class ReferenceResolver:
         result = cls.id_matcher.findall(value)
         value_is_expr = ConfigExpression.is_expression(value)
         for item in result:
-            ref_id = item[len(cls.ref) :]  # remove the ref prefix "@"
-            if ref_id not in refs:
-                msg = f"can not find expected ID '{ref_id}' in the references."
-                if cls.allow_missing_reference:
-                    warnings.warn(msg)
-                    continue
-                else:
-                    raise KeyError(msg)
-            if value_is_expr:
-                # replace with local code, `{"__local_refs": self.resolved_content}` will be added to
-                # the `globals` argument of python `eval` in the `evaluate`
-                value = value.replace(item, f"{cls._vars}['{ref_id}']")
-            elif value == item:
-                # the whole content is "@XXX", it will avoid the case that regular string contains "@"
-                value = refs[ref_id]
+            # only update reference when string starts with "$" or the whole content is "@XXX"
+            if value_is_expr or value == item:
+                ref_id = item[len(cls.ref) :]  # remove the ref prefix "@"
+                if ref_id not in refs:
+                    msg = f"can not find expected ID '{ref_id}' in the references."
+                    if cls.allow_missing_reference:
+                        warnings.warn(msg)
+                        continue
+                    else:
+                        raise KeyError(msg)
+                if value_is_expr:
+                    # replace with local code, `{"__local_refs": self.resolved_content}` will be added to
+                    # the `globals` argument of python `eval` in the `evaluate`
+                    value = value.replace(item, f"{cls._vars}['{ref_id}']")
+                elif value == item:
+                    # the whole content is "@XXX", it will avoid the case that regular string contains "@"
+                    value = refs[ref_id]
         return value
 
     @classmethod

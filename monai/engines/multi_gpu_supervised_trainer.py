@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn
@@ -31,8 +31,12 @@ if TYPE_CHECKING:
     from ignite.engine import Engine
     from ignite.metrics import Metric
 else:
-    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
-    Metric, _ = optional_import("ignite.metrics", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Metric")
+    Engine, _ = optional_import(
+        "ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine", as_type="decorator"
+    )
+    Metric, _ = optional_import(
+        "ignite.metrics", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Metric", as_type="decorator"
+    )
 
 __all__ = ["create_multigpu_supervised_trainer", "create_multigpu_supervised_evaluator"]
 
@@ -51,7 +55,7 @@ def create_multigpu_supervised_trainer(
     net: torch.nn.Module,
     optimizer: Optimizer,
     loss_fn: Callable,
-    devices: Optional[Sequence[torch.device]] = None,
+    devices: Optional[Sequence[Union[str, torch.device]]] = None,
     non_blocking: bool = False,
     prepare_batch: Callable = _prepare_batch,
     output_transform: Callable = _default_transform,
@@ -101,7 +105,7 @@ def create_multigpu_supervised_trainer(
 def create_multigpu_supervised_evaluator(
     net: torch.nn.Module,
     metrics: Optional[Dict[str, Metric]] = None,
-    devices: Optional[Sequence[torch.device]] = None,
+    devices: Optional[Sequence[Union[str, torch.device]]] = None,
     non_blocking: bool = False,
     prepare_batch: Callable = _prepare_batch,
     output_transform: Callable = _default_eval_transform,

@@ -55,7 +55,6 @@ TESTS_LIST.append((SpatialPad(150), RandFlip(prob=1.0, spatial_axis=1)))
 TESTS_LIST.append((RandRotate90(prob=0.0, max_k=1),))
 TESTS_LIST.append((RandAffine(prob=0.0, translate_range=10),))
 
-
 TEST_BASIC = [
     [("channel", "channel"), ["channel", "channel"]],
     [torch.Tensor([1, 2, 3]), [torch.tensor(1.0), torch.tensor(2.0), torch.tensor(3.0)]],
@@ -101,7 +100,8 @@ class TestDeCollate(unittest.TestCase):
                 # Transform ids won't match for windows with multiprocessing, so don't check values
                 if k1 == TraceKeys.ID and sys.platform in ["darwin", "win32"]:
                     continue
-                self.check_match(v1, v2)
+                if not (isinstance(k1, str) and k1.endswith("_transforms")):
+                    self.check_match(v1, v2)  # transform stack not necessarily match
         elif isinstance(in1, (list, tuple)):
             for l1, l2 in zip(in1, in2):
                 self.check_match(l1, l2)

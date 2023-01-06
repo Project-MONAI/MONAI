@@ -28,7 +28,6 @@ def get_data(ndim):
 IMT_2D, SEG1_2D, SEGN_2D = get_data(ndim=2)
 IMT_3D, SEG1_3D, SEGN_3D = get_data(ndim=3)
 
-
 TESTS = []
 for p in TEST_NDARRAYS_ALL:
     for q in TEST_NDARRAYS_ALL:
@@ -113,8 +112,8 @@ for p in TEST_NDARRAYS_ALL:
                 dict(spatial_size=(10, -1, -1), num_samples=3),
                 p(im),
                 q(weight),
-                (1, 10, 64, 80),
-                [[14, 32, 40], [41, 32, 40], [20, 32, 40]],
+                (1, 10, 48, 80),
+                [[14, 24, 40], [41, 24, 40], [20, 24, 40]],
             ]
         )
         im = SEGN_3D
@@ -127,8 +126,8 @@ for p in TEST_NDARRAYS_ALL:
                 dict(spatial_size=(10000, 400, 80), num_samples=3),
                 p(im),
                 q(weight),
-                (1, 48, 64, 80),
-                [[24, 32, 40], [24, 32, 40], [24, 32, 40]],
+                (1, 64, 48, 80),
+                [[32, 24, 40], [32, 24, 40], [32, 24, 40]],
             ]
         )
         im = IMT_3D
@@ -139,11 +138,11 @@ for p in TEST_NDARRAYS_ALL:
         TESTS.append(
             [
                 "bad w 3d",
-                dict(spatial_size=(48, 64, 80), num_samples=3),
+                dict(spatial_size=(64, 48, 80), num_samples=3),
                 p(im),
                 q(weight),
-                (1, 48, 64, 80),
-                [[24, 32, 40], [24, 32, 40], [24, 32, 40]],
+                (1, 64, 48, 80),
+                [[32, 24, 40], [32, 24, 40], [32, 24, 40]],
             ]
         )
 

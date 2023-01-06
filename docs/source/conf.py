@@ -40,6 +40,7 @@ exclude_patterns = [
     "engines",
     "data",
     "apps",
+    "fl",
     "bundle",
     "config",
     "handlers",
@@ -48,6 +49,7 @@ exclude_patterns = [
     "utils",
     "inferers",
     "optimizers",
+    "auto3dseg",
 ]
 
 
@@ -116,6 +118,7 @@ html_theme_options = {
     "show_toc_level": 1,
     "footer_items": ["copyright"],
     "navbar_align": "content",
+    "logo": {"image_light": "MONAI-logo-color.png", "image_dark": "MONAI-logo-color.png"},
 }
 html_context = {
     "github_user": "Project-MONAI",
