@@ -101,8 +101,7 @@ jobs:
         python -m pip list
         python setup.py develop  # test no compile installation
       shell: bash
-    - if: runner.os != 'windows'
-      name: Run compiled (${{ runner.os }})
+    - name: Run compiled (${{ runner.os }})
       run: |
         python setup.py develop --uninstall
         BUILD_MONAI=1 python setup.py develop  # compile the cpp extensions
