@@ -34,15 +34,14 @@ jobs:
       run: |
         which python
         python -m pip install --upgrade pip wheel
-        python -m pip uninstall -y torch torchvision
-        python -m pip install torch torchvision --extra-index-url https://download.pytorch.org/whl/cu116
+        python -m pip install --upgrade torch torchvision
         python -m pip install -r requirements-dev.txt
         rm -rf /github/home/.cache/torch/hub/mmars/
     - name: Run integration tests
       run: |
         python -m pip list
         git config --global --add safe.directory /__w/MONAI/MONAI
-        git clean --ffdx
+        git clean -ffdx
         nvidia-smi
         export CUDA_VISIBLE_DEVICES=$(python -m tests.utils | tail -n 1)
         echo $CUDA_VISIBLE_DEVICES
