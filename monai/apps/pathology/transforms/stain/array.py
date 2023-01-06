@@ -12,8 +12,68 @@
 from typing import Union
 
 import numpy as np
+from skimage import color
 
 from monai.transforms.transform import Transform
+
+
+class HEDJitter(Transform):
+    """Randomly perturbe the HED color space value an RGB image.
+    First, it disentangled the hematoxylin and eosin color channels by color deconvolution method using a fixed matrix.
+    Second, it perturbed the hematoxylin, eosin and DAB stains independently.
+    Third, it transformed the resulting stains into regular RGB color space.
+    Args:
+        theta (float): How much to jitter HED color space,
+         alpha is chosen from a uniform distribution [1-theta, 1+theta]
+         betti is chosen from a uniform distribution [-theta, theta]
+         the jitter formula is **s' = \alpha * s + \betti**
+
+    Note:
+        For more information refer to:
+            - the paper benchmarking different stain augmentation and normalization methods including HED: Tellez et al. 2020 https://arxiv.org/abs/1902.06543
+            - the original paper on color deconvolution: Ruifrok et al. 2001 https://helios2.mi.parisdescartes.fr/~lomn/Cours/CV/BME/HistoPatho/Color/PythonColorDeconv/Quantification_of_histochemical_staining.pdf
+            - previous Pytorch implementation: https://github.com/gatsby2016/Augmentation-PyTorch-Transforms
+
+    """
+
+    def __init__(self, theta: float = 0.0) -> None:
+        assert isinstance(theta, numbers.Number), "theta should be a single number."
+        self.theta = theta
+        self.alpha = np.random.uniform(1 - theta, 1 + theta, (1, 3))
+        self.betti = np.random.uniform(-theta, theta, (1, 3))
+
+    def adjust_HED(img, alpha, betti):
+        # img = np.array(img)
+
+        s = np.reshape(color.rgb2hed(img), (-1, 3))
+        ns = alpha * s + betti  # perturbations on HED color space
+        nimg = color.hed2rgb(np.reshape(ns, img.shape))
+
+        imin = nimg.min()
+        imax = nimg.max()
+        rsimg = (255 * (nimg - imin) / (imax - imin)).astype("uint8")  # rescale to [0,255]
+        # transfer to PIL image
+        return rsimg
+
+    def __call__(self, image: np.ndarray) -> np.ndarray:
+        """
+        Args:
+            image: uint8 RGB image to perform HEDJitter on.
+
+        Returns:
+            perturbed_image: uint8 RGB image HED preturbed image.
+        """
+        if not isinstance(image, np.ndarray):
+            raise TypeError("Image must be of type numpy.ndarray.")
+        perturbed_image = self.adjust_HED(image, self.alpha, self.betti)
+        return perturbed_image
+
+    def __repr__(self):
+        format_string = self.__class__.__name__ + "("
+        format_string += "theta={0}".format(self.theta)
+        format_string += ",alpha={0}".format(self.alpha)
+        format_string += ",betti={0}".format(self.betti)
+        return format_string
 
 
 class ExtractHEStains(Transform):
