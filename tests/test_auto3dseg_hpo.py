@@ -28,11 +28,9 @@ from tests.utils import SkipIfBeforePyTorchVersion, skip_if_downloading_fails, s
 _, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 optuna, has_optuna = optional_import("optuna")
 
-num_gpus = 4 if torch.cuda.device_count() > 4 else torch.cuda.device_count()
 
 override_param = (
     {
-        "CUDA_VISIBLE_DEVICES": list(range(num_gpus)),
         "num_images_per_batch": 2,
         "num_epochs": 2,
         "num_epochs_per_validation": 1,

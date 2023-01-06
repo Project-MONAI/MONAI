@@ -45,10 +45,8 @@ sim_datalist: Dict[str, List[Dict]] = {
     ],
 }
 
-num_gpus = 4 if torch.cuda.device_count() > 4 else torch.cuda.device_count()
 train_param = (
     {
-        "CUDA_VISIBLE_DEVICES": list(range(num_gpus)),
         "num_images_per_batch": 2,
         "num_epochs": 2,
         "num_epochs_per_validation": 1,
@@ -143,7 +141,6 @@ class TestAutoRunner(unittest.TestCase):
         work_dir = os.path.join(self.test_path, "work_dir")
         runner = AutoRunner(work_dir=work_dir, input=self.data_src_cfg, hpo=True, ensemble=False)
         hpo_param = {
-            "CUDA_VISIBLE_DEVICES": train_param["CUDA_VISIBLE_DEVICES"],
             "num_epochs_per_validation": train_param["num_epochs_per_validation"],
             "num_images_per_batch": train_param["num_images_per_batch"],
             "num_epochs": train_param["num_epochs"],

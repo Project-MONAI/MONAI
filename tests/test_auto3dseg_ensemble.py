@@ -45,10 +45,8 @@ fake_datalist: Dict[str, List[Dict]] = {
     ],
 }
 
-num_gpus = min(torch.cuda.device_count(), 4)
 train_param = (
     {
-        "CUDA_VISIBLE_DEVICES": list(range(num_gpus)),
         "num_images_per_batch": 2,
         "num_epochs": 2,
         "num_epochs_per_validation": 1,
