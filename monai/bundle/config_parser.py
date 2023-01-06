@@ -123,7 +123,7 @@ class ConfigParser:
 
         Args:
             id: id of the ``ConfigItem``.
-        
+
         See also:
              :py:meth:`get_parsed_content`
         """
