@@ -257,9 +257,20 @@ class TestConfigParser(unittest.TestCase):
             case_pdb()
 
     def test_get_via_attributes(self):
-        config = {"A": {"B": {"C": 1}}}
+        config = {
+            "A": {"B": {"C": 1}},
+            "my_dims": 2,
+            "dims_1": "$@my_dims + 1",
+            "patch_size": [8, 8],
+            "transform": {"_target_": "Lambda", "func": "$lambda x: x.reshape((1, *@patch_size))"},
+        }
         parser = ConfigParser(config=config)
         self.assertEqual(parser.A, {"B": {"C": 1}})
+        self.assertEqual(parser.dims_1, 3)
+
+        trans = parser.transform
+        result = trans(np.ones(64))
+        self.assertTupleEqual(result.shape, (1, 8, 8))
 
 
 if __name__ == "__main__":

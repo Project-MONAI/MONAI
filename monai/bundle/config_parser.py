@@ -124,7 +124,7 @@ class ConfigParser:
             id: id to specify the expected position. See also :py:meth:`__getitem__`.
 
         """
-        return self[id]
+        return self.get_parsed_content(id)
 
     def __getitem__(self, id: Union[str, int]):
         """
