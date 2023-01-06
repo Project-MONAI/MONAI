@@ -55,6 +55,7 @@ train_param = (
         "num_warmup_epochs": 1,
         "use_pretrain": False,
         "pretrained_path": "",
+        "determ": True,
     }
     if torch.cuda.is_available()
     else {}
@@ -139,7 +140,6 @@ class TestEnsembleBuilder(unittest.TestCase):
         builder = AlgoEnsembleBuilder(history, data_src_cfg)
         builder.set_ensemble_method(AlgoEnsembleBestN(n_best=1))
         ensemble = builder.get_ensemble()
-        pred_param["network#init_filters"] = 8  # segresnet
         preds = ensemble(pred_param)
         self.assertTupleEqual(preds[0].shape, (2, 24, 24, 24))
 

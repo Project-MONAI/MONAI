@@ -41,6 +41,8 @@ jobs:
     - name: Run integration tests
       run: |
         python -m pip list
+        git config --global --add safe.directory /__w/MONAI/MONAI
+        git clean --ffdx
         nvidia-smi
         export CUDA_VISIBLE_DEVICES=$(python -m tests.utils | tail -n 1)
         echo $CUDA_VISIBLE_DEVICES
