@@ -416,6 +416,10 @@ class HoVerNet(nn.Module):
       https://github.com/vqdang/hover_net
       https://pytorch.org/vision/main/models/generated/torchvision.models.resnet50.html
 
+    This network is non-deterministic since it uses `torch.nn.Upsample` with ``UpsampleMode.NONTRAINABLE`` mode which
+    is implemented with torch.nn.functional.interpolate(). Please check the link below for more details:
+    https://pytorch.org/docs/stable/generated/torch.use_deterministic_algorithms.html#torch.use_deterministic_algorithms
+
     Args:
         mode: use original implementation (`HoVerNetMODE.ORIGINAL` or "original") or
           a faster implementation (`HoVerNetMODE.FAST` or "fast"). Defaults to `HoVerNetMODE.FAST`.

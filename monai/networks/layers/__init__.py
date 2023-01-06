@@ -16,13 +16,18 @@ from .filtering import BilateralFilter, PHLFilter, TrainableBilateralFilter
 from .gmm import GaussianMixtureModel
 from .simplelayers import (
     LLTM,
+    ApplyFilter,
     ChannelPad,
+    EllipticalFilter,
     Flatten,
     GaussianFilter,
     HilbertTransform,
+    LaplaceFilter,
+    MeanFilter,
     MedianFilter,
     Reshape,
     SavitzkyGolayFilter,
+    SharpenFilter,
     SkipConnection,
     apply_filter,
     median_filter,
