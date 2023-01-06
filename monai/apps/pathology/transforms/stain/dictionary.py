@@ -26,6 +26,7 @@ from .array import ExtractHEStains, HEDJitter, NormalizeHEStains
 
 
 class HEDJitterd(MapTransform):
+    
     """Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.HEDJitter`.
     Class to randomly perturbe HED color space values of image using stain deconvolution.
 

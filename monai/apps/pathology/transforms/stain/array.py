@@ -13,6 +13,9 @@ from typing import Union
 
 import numpy as np
 from skimage import color
+from monai.utils import optional_import
+
+skimage = optional_import('skimage')
 
 from monai.transforms.transform import Transform
 
@@ -45,9 +48,9 @@ class HEDJitter(Transform):
     def adjust_HED(img, alpha, betti):
         # img = np.array(img)
 
-        s = np.reshape(color.rgb2hed(img), (-1, 3))
+        s = np.reshape(skimage.color.rgb2hed(img), (-1, 3))
         ns = alpha * s + betti  # perturbations on HED color space
-        nimg = color.hed2rgb(np.reshape(ns, img.shape))
+        nimg = skimage.color.hed2rgb(np.reshape(ns, img.shape))
 
         imin = nimg.min()
         imax = nimg.max()
