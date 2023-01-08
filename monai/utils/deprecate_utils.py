@@ -124,7 +124,7 @@ def deprecated_arg(
     version_val: str = __version__,
     new_name: Optional[str] = None,
     warning_category=FutureWarning,
-):
+) -> Callable[[T], T]:
     """
     Marks a particular named argument of a callable as deprecated. The same conditions for `since` and `removed` as
     described in the `deprecated` decorator.
