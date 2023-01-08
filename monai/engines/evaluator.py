@@ -237,7 +237,7 @@ class SupervisedEvaluator(Evaluator):
         val_handlers: Sequence | None = None,
         amp: bool = False,
         mode: ForwardMode | str = ForwardMode.EVAL,
-        event_names: list[str | EventEnum  | type[EventEnum]] | None = None,
+        event_names: list[str | EventEnum | type[EventEnum]] | None = None,
         event_to_attr: dict | None = None,
         decollate: bool = True,
         to_kwargs: dict | None = None,
