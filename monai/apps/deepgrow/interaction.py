@@ -85,4 +85,4 @@ class Interaction:
             # collate list into a batch for next round interaction
             batchdata = list_data_collate(batchdata_list)
 
-        return engine._iteration(engine, batchdata)
+        return engine._iteration(engine, batchdata)  # type: ignore[arg-type]

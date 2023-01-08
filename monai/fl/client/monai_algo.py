@@ -21,7 +21,7 @@ import monai
 from monai.apps.auto3dseg.data_analyzer import DataAnalyzer
 from monai.auto3dseg import SegSummarizer
 from monai.bundle import DEFAULT_EXP_MGMT_SETTINGS, ConfigComponent, ConfigItem, ConfigParser, patch_bundle_tracking
-from monai.engines import Trainer
+from monai.engines import Trainer, SupervisedTrainer
 from monai.fl.client import ClientAlgo, ClientAlgoStats
 from monai.fl.utils.constants import (
     BundleKeys,
@@ -429,7 +429,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         self.train_parser: Optional[ConfigParser] = None
         self.eval_parser: Optional[ConfigParser] = None
         self.filter_parser: Optional[ConfigParser] = None
-        self.trainer: Optional[Trainer] = None
+        self.trainer: Optional[SupervisedTrainer] = None
         self.evaluator: Optional[Any] = None
         self.pre_filters = None
         self.post_weight_filters = None

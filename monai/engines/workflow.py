@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Sequence, Union, Type
 
 import torch
 import torch.distributed as dist
@@ -24,7 +24,6 @@ from monai.utils import ensure_tuple, is_scalar, min_version, optional_import
 
 from .utils import engine_apply_transform
 
-IgniteEngine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine", as_type="")
 State, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "State")
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 
@@ -43,7 +42,7 @@ else:
     )
 
 
-class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optional_import
+class Workflow(Engine):
     """
     Workflow defines the core work process inheriting from Ignite engine.
     All trainer, validator and evaluator share this same workflow as base class,
@@ -114,7 +113,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         metric_cmp_fn: Callable = default_metric_cmp_fn,
         handlers: Optional[Sequence] = None,
         amp: bool = False,
-        event_names: Optional[List[Union[str, EventEnum]]] = None,
+        event_names: Optional[List[Union[str, EventEnum, Type[EventEnum]]]] = None,
         event_to_attr: Optional[dict] = None,
         decollate: bool = True,
         to_kwargs: Optional[Dict] = None,
@@ -140,7 +139,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
                 raise ValueError("If data_loader is not PyTorch DataLoader, must specify the epoch_length.")
 
         # set all sharable data for the workflow based on Ignite engine.state
-        self.state = State(
+        self.state: Any = State(
             rank=dist.get_rank() if dist.is_available() and dist.is_initialized() else 0,
             seed=0,
             iteration=0,
@@ -167,18 +166,18 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         self.scaler: Optional[torch.cuda.amp.GradScaler] = None
 
         if event_names is None:
-            event_names = [IterationEvents]  # type: ignore
+            event_names = [IterationEvents]
         else:
             if not isinstance(event_names, list):
-                raise ValueError("`event_names` must be a list or string or EventEnum.")
-            event_names += [IterationEvents]  # type: ignore
+                raise ValueError("`event_names` must be a list of strings or EventEnums.")
+            event_names += [IterationEvents]
         for name in event_names:
-            if isinstance(name, str):
-                self.register_events(name, event_to_attr=event_to_attr)
-            elif issubclass(name, EventEnum):  # type: ignore
+            if isinstance(name, (str, EventEnum)):
+                self.register_events(name, event_to_attr=event_to_attr)  # type: ignore[arg-type]
+            elif issubclass(name, EventEnum):
                 self.register_events(*name, event_to_attr=event_to_attr)
             else:
-                raise ValueError("`event_names` must be a list or string or EventEnum.")
+                raise ValueError("`event_names` must be a list of strings or EventEnums.")
 
         if decollate:
             self._register_decollate()
@@ -267,7 +266,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         for handler in handlers_:
             handler.attach(self)
 
-    def run(self) -> None:
+    def run(self) -> None:  # type: ignore[override]
         """
         Execute training, validation or evaluation based on Ignite Engine.
         """
