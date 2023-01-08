@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import unittest
-from typing import List, Tuple, Mapping
+from typing import List, Tuple
 
 import numpy as np
 import torch

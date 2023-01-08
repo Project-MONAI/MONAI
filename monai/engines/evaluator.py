@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence, Type
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence
 
 import torch
 from torch.utils.data import DataLoader
@@ -99,7 +99,7 @@ class Evaluator(Workflow):
         val_handlers: Sequence | None = None,
         amp: bool = False,
         mode: ForwardMode | str = ForwardMode.EVAL,
-        event_names: list[str | EventEnum | Type[EventEnum]] | None = None,
+        event_names: list[str | EventEnum | type[EventEnum]] | None = None,
         event_to_attr: dict | None = None,
         decollate: bool = True,
         to_kwargs: dict | None = None,
@@ -237,7 +237,7 @@ class SupervisedEvaluator(Evaluator):
         val_handlers: Sequence | None = None,
         amp: bool = False,
         mode: ForwardMode | str = ForwardMode.EVAL,
-        event_names: list[str | EventEnum  | Type[EventEnum]] | None = None,
+        event_names: list[str | EventEnum  | type[EventEnum]] | None = None,
         event_to_attr: dict | None = None,
         decollate: bool = True,
         to_kwargs: dict | None = None,
@@ -380,7 +380,7 @@ class EnsembleEvaluator(Evaluator):
         val_handlers: Sequence | None = None,
         amp: bool = False,
         mode: ForwardMode | str = ForwardMode.EVAL,
-        event_names: list[str | EventEnum | Type[EventEnum]] | None = None,
+        event_names: list[str | EventEnum | type[EventEnum]] | None = None,
         event_to_attr: dict | None = None,
         decollate: bool = True,
         to_kwargs: dict | None = None,
