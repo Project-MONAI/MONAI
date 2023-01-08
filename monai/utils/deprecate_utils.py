@@ -14,14 +14,14 @@ import sys
 import warnings
 from functools import wraps
 from types import FunctionType
-from typing import Any, Optional
+from typing import Any, Optional, Callable, TypeVar
 
 from monai.utils.module import version_leq
 
 from .. import __version__
 
 __all__ = ["deprecated", "deprecated_arg", "DeprecatedError", "deprecated_arg_default"]
-
+T = TypeVar('T', type, Callable)
 
 class DeprecatedError(Exception):
     pass
@@ -40,7 +40,7 @@ def deprecated(
     msg_suffix: str = "",
     version_val: str = __version__,
     warning_category=FutureWarning,
-):
+) -> Callable[[T], T]:
     """
     Marks a function or class as deprecated. If `since` is given this should be a version at or earlier than the
     current version and states at what version of the definition was marked as deprecated. If `removed` is given
