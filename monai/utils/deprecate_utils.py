@@ -14,14 +14,15 @@ import sys
 import warnings
 from functools import wraps
 from types import FunctionType
-from typing import Any, Optional, Callable, TypeVar
+from typing import Any, Callable, Optional, TypeVar
 
 from monai.utils.module import version_leq
 
 from .. import __version__
 
 __all__ = ["deprecated", "deprecated_arg", "DeprecatedError", "deprecated_arg_default"]
-T = TypeVar('T', type, Callable)
+T = TypeVar("T", type, Callable)
+
 
 class DeprecatedError(Exception):
     pass

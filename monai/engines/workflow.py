@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Sequence, Union, Type
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Sequence, Type, Union
 
 import torch
 import torch.distributed as dist

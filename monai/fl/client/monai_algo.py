@@ -21,7 +21,7 @@ import monai
 from monai.apps.auto3dseg.data_analyzer import DataAnalyzer
 from monai.auto3dseg import SegSummarizer
 from monai.bundle import DEFAULT_EXP_MGMT_SETTINGS, ConfigComponent, ConfigItem, ConfigParser, patch_bundle_tracking
-from monai.engines import Trainer, SupervisedTrainer
+from monai.engines import SupervisedTrainer, Trainer
 from monai.fl.client import ClientAlgo, ClientAlgoStats
 from monai.fl.utils.constants import (
     BundleKeys,
