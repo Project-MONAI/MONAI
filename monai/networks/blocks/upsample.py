@@ -31,6 +31,9 @@ class UpSample(nn.Sequential):
         - "nontrainable": uses :py:class:`torch.nn.Upsample`.
         - "pixelshuffle": uses :py:class:`monai.networks.blocks.SubpixelUpsample`.
 
+    This operation will cause non-deterministic when ``mode`` is ``UpsampleMode.NONTRAINABLE``.
+    Please check the link below for more details:
+    https://pytorch.org/docs/stable/generated/torch.use_deterministic_algorithms.html#torch.use_deterministic_algorithms
     This module can optionally take a pre-convolution
     (often used to map the number of features from `in_channels` to `out_channels`).
     """

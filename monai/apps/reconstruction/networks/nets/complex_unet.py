@@ -65,6 +65,7 @@ class ComplexUnet(nn.Module):
         conv_net: Optional[nn.Module] = None,
     ):
         super().__init__()
+        self.unet: nn.Module
         if conv_net is None:
             self.unet = BasicUNet(
                 spatial_dims=spatial_dims,

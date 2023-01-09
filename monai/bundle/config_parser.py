@@ -116,6 +116,19 @@ class ConfigParser:
     def __repr__(self):
         return f"{self.config}"
 
+    def __getattr__(self, id):
+        """
+        Get the parsed result of ``ConfigItem`` with the specified ``id``
+        with default arguments (e.g. ``lazy=True``, ``instantiate=True`` and ``eval_expr=True``).
+
+        Args:
+            id: id of the ``ConfigItem``.
+
+        See also:
+             :py:meth:`get_parsed_content`
+        """
+        return self.get_parsed_content(id)
+
     def __getitem__(self, id: Union[str, int]):
         """
         Get the config by id.
