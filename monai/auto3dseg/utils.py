@@ -15,10 +15,9 @@ import os
 import pickle
 import sys
 import warnings
-from collections.abc import Iterable
 from copy import deepcopy
 from numbers import Number
-from typing import Any, cast
+from typing import Any, Iterable, cast
 
 import numpy as np
 import torch

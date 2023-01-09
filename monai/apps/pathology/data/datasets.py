@@ -14,7 +14,7 @@ from __future__ import annotations
 import os
 import sys
 from collections.abc import Callable, Sequence
-from typing import cast
+from typing import Tuple, cast
 
 import numpy as np
 
@@ -65,9 +65,9 @@ class PatchWSIDataset(Dataset):
     ):
         super().__init__(data, transform)
 
-        self.region_size = cast(tuple[int, int], ensure_tuple_rep(region_size, 2))
-        self.grid_shape = cast(tuple[int, int], ensure_tuple_rep(grid_shape, 2))
-        self.patch_size = cast(tuple[int, int], ensure_tuple_rep(patch_size, 2))
+        self.region_size = cast(Tuple[int, int], ensure_tuple_rep(region_size, 2))
+        self.grid_shape = cast(Tuple[int, int], ensure_tuple_rep(grid_shape, 2))
+        self.patch_size = cast(Tuple[int, int], ensure_tuple_rep(patch_size, 2))
 
         self.image_path_list = list({x["image"] for x in self.data})
         self.image_reader_name = image_reader_name.lower()
@@ -92,7 +92,7 @@ class PatchWSIDataset(Dataset):
         location = [sample["location"][i] - self.region_size[i] // 2 for i in range(len(self.region_size))]
         images, _ = self.image_reader.get_data(
             img=img_obj,
-            location=cast(tuple[int, int], location),
+            location=cast(Tuple[int, int], location),
             size=self.region_size,
             grid_shape=self.grid_shape,
             patch_size=self.patch_size,
@@ -212,7 +212,7 @@ class MaskedInferenceWSIDataset(Dataset):
     ) -> None:
         super().__init__(data, transform)
 
-        self.patch_size = cast(tuple[int, int], ensure_tuple_rep(patch_size, 2))
+        self.patch_size = cast(Tuple[int, int], ensure_tuple_rep(patch_size, 2))
 
         # set up whole slide image reader
         self.image_reader_name = image_reader_name.lower()
