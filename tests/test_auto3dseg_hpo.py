@@ -28,7 +28,6 @@ from tests.utils import SkipIfBeforePyTorchVersion, skip_if_downloading_fails, s
 _, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 optuna, has_optuna = optional_import("optuna")
 
-
 override_param = (
     {
         "num_images_per_batch": 2,

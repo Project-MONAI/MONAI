@@ -20,7 +20,6 @@ from monai.utils import min_version, optional_import
 
 idist, _ = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, min_version, "distributed")
 
-
 if TYPE_CHECKING:
     from ignite.engine import Engine
     from ignite.metrics import Metric
