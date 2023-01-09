@@ -402,7 +402,7 @@ class DistCall:
         self,
         nnodes: int = 1,
         nproc_per_node: int = 1,
-        master_addr: str = "localhost",
+        master_addr: str = "127.0.0.1",
         master_port: Optional[int] = None,
         node_rank: Optional[int] = None,
         timeout=60,
