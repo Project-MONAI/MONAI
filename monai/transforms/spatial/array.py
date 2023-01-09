@@ -16,11 +16,11 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 from __future__ import annotations
 
 import warnings
-from collections.abc import Sequence, Callable
+from collections.abc import Callable
 from copy import deepcopy
 from enum import Enum
 from itertools import zip_longest
-from typing import Any, Optional, Tuple, Union, cast
+from typing import Any, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
 import torch
