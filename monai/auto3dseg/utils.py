@@ -9,13 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import pickle
 import sys
 import warnings
+from collections.abc import Iterable
 from copy import deepcopy
 from numbers import Number
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, cast
+from typing import Any, cast
 
 import numpy as np
 import torch
@@ -80,7 +83,7 @@ def get_foreground_label(image: MetaTensor, label: MetaTensor) -> MetaTensor:
     return label_foreground
 
 
-def get_label_ccp(mask_index: MetaTensor, use_gpu: bool = True) -> Tuple[List[Any], int]:
+def get_label_ccp(mask_index: MetaTensor, use_gpu: bool = True) -> tuple[list[Any], int]:
     """
     Find all connected components and their bounding shape. Backend can be cuPy/cuCIM or Numpy
     depending on the hardware.
@@ -124,10 +127,10 @@ def get_label_ccp(mask_index: MetaTensor, use_gpu: bool = True) -> Tuple[List[An
 
 
 def concat_val_to_np(
-    data_list: List[Dict],
-    fixed_keys: List[Union[str, int]],
-    ragged: Optional[bool] = False,
-    allow_missing: Optional[bool] = False,
+    data_list: list[dict],
+    fixed_keys: list[str | int],
+    ragged: bool | None = False,
+    allow_missing: bool | None = False,
     **kwargs,
 ):
     """
@@ -144,7 +147,7 @@ def concat_val_to_np(
 
     """
 
-    np_list: List[Optional[np.ndarray]] = []
+    np_list: list[np.ndarray | None] = []
     for data in data_list:
         parser = ConfigParser(data)
         for i, key in enumerate(fixed_keys):
@@ -181,7 +184,7 @@ def concat_val_to_np(
 
 
 def concat_multikeys_to_dict(
-    data_list: List[Dict], fixed_keys: List[Union[str, int]], keys: List[str], zero_insert: bool = True, **kwargs
+    data_list: list[dict], fixed_keys: list[str | int], keys: list[str], zero_insert: bool = True, **kwargs
 ):
     """
     Get the nested value in a list of dictionary that shares the same structure iteratively on all keys.
@@ -200,14 +203,14 @@ def concat_multikeys_to_dict(
 
     ret_dict = {}
     for key in keys:
-        addon: List[Union[str, int]] = [0, key] if zero_insert else [key]
+        addon: list[str | int] = [0, key] if zero_insert else [key]
         val = concat_val_to_np(data_list, fixed_keys + addon, **kwargs)
         ret_dict.update({key: val})
 
     return ret_dict
 
 
-def datafold_read(datalist: Union[str, Dict], basedir: str, fold: int = 0, key: str = "training") -> Tuple[List, List]:
+def datafold_read(datalist: str | dict, basedir: str, fold: int = 0, key: str = "training") -> tuple[list, list]:
     """
     Read a list of data dictionary `datalist`
 

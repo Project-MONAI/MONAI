@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import Sequence
 
 import torch
 
@@ -38,8 +40,8 @@ class PrepareBatchHoVerNet(PrepareBatch):
 
     def __call__(
         self,
-        batchdata: Dict[str, torch.Tensor],
-        device: Optional[Union[str, torch.device]] = None,
+        batchdata: dict[str, torch.Tensor],
+        device: str | torch.device | None = None,
         non_blocking: bool = False,
         **kwargs,
     ):

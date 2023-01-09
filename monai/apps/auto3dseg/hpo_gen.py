@@ -9,10 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 from abc import abstractmethod
 from copy import deepcopy
-from typing import Optional, cast
+from typing import cast
 from warnings import warn
 
 from monai.apps.auto3dseg.bundle_gen import BundleAlgo
@@ -106,7 +108,7 @@ class NNIGen(HPOGen):
         NNI command manually.
     """
 
-    def __init__(self, algo: Optional[Algo] = None, params=None):
+    def __init__(self, algo: Algo | None = None, params=None):
         self.algo: Algo
         self.hint = ""
         self.obj_filename = ""
@@ -281,7 +283,7 @@ class OptunaGen(HPOGen):
 
     """
 
-    def __init__(self, algo: Optional[Algo] = None, params=None) -> None:
+    def __init__(self, algo: Algo | None = None, params=None) -> None:
         self.algo: Algo
         self.obj_filename = ""
 

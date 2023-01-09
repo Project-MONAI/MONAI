@@ -9,11 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import enum
 import os
 import re
 import sys
 import warnings
+from collections.abc import Callable, Collection, Hashable, Iterable, Mapping
 from functools import partial, wraps
 from importlib import import_module
 from inspect import isclass, isfunction, ismethod
@@ -21,7 +24,7 @@ from pkgutil import walk_packages
 from pydoc import locate
 from re import match
 from types import FunctionType
-from typing import Any, Callable, Collection, Hashable, Iterable, List, Mapping, Tuple, Union, cast
+from typing import Any, cast
 
 import torch
 
@@ -55,7 +58,7 @@ __all__ = [
 ]
 
 
-def look_up_option(opt_str, supported: Union[Collection, enum.EnumMeta], default="no_default", print_all_options=True):
+def look_up_option(opt_str, supported: Collection | enum.EnumMeta, default="no_default", print_all_options=True):
     """
     Look up the option in the supported collection and return the matched item.
     Raise a value error possibly with a guess of the closest match.
@@ -190,7 +193,7 @@ def load_submodules(basemod, load_all: bool = True, exclude_pattern: str = "(.*[
     `load_all` is True, excluding anything whose name matches `exclude_pattern`.
     """
     submodules = []
-    err_mod: List[str] = []
+    err_mod: list[str] = []
     for importer, name, is_pkg in walk_packages(
         basemod.__path__, prefix=basemod.__name__ + ".", onerror=err_mod.append
     ):
@@ -310,7 +313,7 @@ def optional_import(
     version_args=None,
     allow_namespace_pkg: bool = False,
     as_type: str = "default",
-) -> Tuple[Any, bool]:
+) -> tuple[Any, bool]:
     """
     Imports an optional module specified by `module` string.
     Any importing related exceptions will be stored, and exceptions raise lazily

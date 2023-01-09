@@ -9,10 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import warnings
+from collections.abc import Hashable, Mapping
 from contextlib import contextmanager
-from typing import Any, Hashable, Mapping, Optional, Tuple
+from typing import Any
 
 import torch
 
@@ -70,7 +73,7 @@ class TraceableTransform(Transform):
         return f"{key}{TraceKeys.KEY_SUFFIX}"
 
     def get_transform_info(
-        self, data, key: Hashable = None, extra_info: Optional[dict] = None, orig_size: Optional[Tuple] = None
+        self, data, key: Hashable = None, extra_info: dict | None = None, orig_size: tuple | None = None
     ) -> dict:
         """
         Return a dictionary with the relevant information pertaining to an applied transform.
@@ -104,7 +107,7 @@ class TraceableTransform(Transform):
         return info
 
     def push_transform(
-        self, data, key: Hashable = None, extra_info: Optional[dict] = None, orig_size: Optional[Tuple] = None
+        self, data, key: Hashable = None, extra_info: dict | None = None, orig_size: tuple | None = None
     ) -> None:
         """
         Push to a stack of applied transforms.

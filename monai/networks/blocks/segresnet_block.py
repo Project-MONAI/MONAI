@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Tuple, Union
+from __future__ import annotations
 
 import torch.nn as nn
 
@@ -29,7 +29,7 @@ def get_conv_layer(
 
 
 def get_upsample_layer(
-    spatial_dims: int, in_channels: int, upsample_mode: Union[UpsampleMode, str] = "nontrainable", scale_factor: int = 2
+    spatial_dims: int, in_channels: int, upsample_mode: UpsampleMode | str = "nontrainable", scale_factor: int = 2
 ):
     return UpSample(
         spatial_dims=spatial_dims,
@@ -53,9 +53,9 @@ class ResBlock(nn.Module):
         self,
         spatial_dims: int,
         in_channels: int,
-        norm: Union[Tuple, str],
+        norm: tuple | str,
         kernel_size: int = 3,
-        act: Union[Tuple, str] = ("RELU", {"inplace": True}),
+        act: tuple | str = ("RELU", {"inplace": True}),
     ) -> None:
         """
         Args:

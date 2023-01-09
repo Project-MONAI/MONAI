@@ -9,9 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import logging
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any
 
 import torch
 
@@ -65,12 +68,12 @@ class StatsHandler:
         self,
         iteration_log: bool = True,
         epoch_log: bool = True,
-        epoch_print_logger: Optional[Callable[[Engine], Any]] = None,
-        iteration_print_logger: Optional[Callable[[Engine], Any]] = None,
+        epoch_print_logger: Callable[[Engine], Any] | None = None,
+        iteration_print_logger: Callable[[Engine], Any] | None = None,
         output_transform: Callable = lambda x: x[0],
         global_epoch_transform: Callable = lambda x: x,
-        state_attributes: Optional[Sequence[str]] = None,
-        name: Optional[str] = None,
+        state_attributes: Sequence[str] | None = None,
+        name: str | None = None,
         tag_name: str = DEFAULT_TAG,
         key_var_format: str = DEFAULT_KEY_VAL_FORMAT,
     ) -> None:

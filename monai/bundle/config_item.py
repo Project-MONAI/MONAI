@@ -9,13 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import ast
 import inspect
 import sys
 import warnings
 from abc import ABC, abstractmethod
+from collections.abc import Mapping, Sequence
 from importlib import import_module
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
+from typing import Any
 
 from monai.bundle.utils import EXPR_KEY
 from monai.utils import ensure_tuple, first, instantiate, optional_import, run_debug, run_eval
@@ -55,18 +58,18 @@ class ComponentLocator:
 
     MOD_START = "monai"
 
-    def __init__(self, excludes: Optional[Union[Sequence[str], str]] = None):
+    def __init__(self, excludes: Sequence[str] | str | None = None):
         self.excludes = [] if excludes is None else ensure_tuple(excludes)
-        self._components_table: Optional[Dict[str, List]] = None
+        self._components_table: dict[str, list] | None = None
 
-    def _find_module_names(self) -> List[str]:
+    def _find_module_names(self) -> list[str]:
         """
         Find all the modules start with MOD_START and don't contain any of `excludes`.
 
         """
         return [m for m in sys.modules if m.startswith(self.MOD_START) and all(s not in m for s in self.excludes)]
 
-    def _find_classes_or_functions(self, modnames: Union[Sequence[str], str]) -> Dict[str, List]:
+    def _find_classes_or_functions(self, modnames: Sequence[str] | str) -> dict[str, list]:
         """
         Find all the classes and functions in the modules with specified `modnames`.
 
@@ -74,7 +77,7 @@ class ComponentLocator:
             modnames: names of the target modules to find all the classes and functions.
 
         """
-        table: Dict[str, List] = {}
+        table: dict[str, list] = {}
         # all the MONAI modules are already loaded by `load_submodules`
         for modname in ensure_tuple(modnames):
             try:
@@ -89,7 +92,7 @@ class ComponentLocator:
                 pass
         return table
 
-    def get_component_module_name(self, name: str) -> Optional[Union[List[str], str]]:
+    def get_component_module_name(self, name: str) -> list[str] | str | None:
         """
         Get the full module name of the class or function with specified ``name``.
         If target component name exists in multiple packages or modules, return a list of full module names.
@@ -104,7 +107,7 @@ class ComponentLocator:
             # init component and module mapping table
             self._components_table = self._find_classes_or_functions(self._find_module_names())
 
-        mods: Optional[Union[List[str], str]] = self._components_table.get(name)
+        mods: list[str] | str | None = self._components_table.get(name)
         if isinstance(mods, list) and len(mods) == 1:
             mods = mods[0]
         return mods
@@ -207,8 +210,8 @@ class ConfigComponent(ConfigItem, Instantiable):
         self,
         config: Any,
         id: str = "",
-        locator: Optional[ComponentLocator] = None,
-        excludes: Optional[Union[Sequence[str], str]] = None,
+        locator: ComponentLocator | None = None,
+        excludes: Sequence[str] | str | None = None,
     ) -> None:
         super().__init__(config=config, id=id)
         self.locator = ComponentLocator(excludes=excludes) if locator is None else locator
@@ -315,7 +318,7 @@ class ConfigExpression(ConfigItem):
     prefix = EXPR_KEY
     run_eval = run_eval
 
-    def __init__(self, config: Any, id: str = "", globals: Optional[Dict] = None) -> None:
+    def __init__(self, config: Any, id: str = "", globals: dict | None = None) -> None:
         super().__init__(config=config, id=id)
         self.globals = globals if globals is not None else {}
 
@@ -338,7 +341,7 @@ class ConfigExpression(ConfigItem):
             return self.globals[asname]
         return None
 
-    def evaluate(self, globals: Optional[Dict] = None, locals: Optional[Dict] = None):
+    def evaluate(self, globals: dict | None = None, locals: dict | None = None):
         """
         Execute the current config content and return the result if it is expression, based on Python `eval()`.
         For more details: https://docs.python.org/3/library/functions.html#eval.
@@ -373,7 +376,7 @@ class ConfigExpression(ConfigItem):
         return pdb.run(value[len(self.prefix) :], globals_, locals)
 
     @classmethod
-    def is_expression(cls, config: Union[Dict, List, str]) -> bool:
+    def is_expression(cls, config: dict | list | str) -> bool:
         """
         Check whether the config is an executable expression string.
         Currently, a string starts with ``"$"`` character is interpreted as an expression.
@@ -385,7 +388,7 @@ class ConfigExpression(ConfigItem):
         return isinstance(config, str) and config.startswith(cls.prefix)
 
     @classmethod
-    def is_import_statement(cls, config: Union[Dict, List, str]) -> bool:
+    def is_import_statement(cls, config: dict | list | str) -> bool:
         """
         Check whether the config is an import statement (a special case of expression).
 

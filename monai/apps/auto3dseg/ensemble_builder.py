@@ -9,10 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from copy import deepcopy
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any
 from warnings import warn
 
 import numpy as np
@@ -67,7 +70,7 @@ class AlgoEnsemble(ABC):
         """
         return self.algo_ensemble
 
-    def set_infer_files(self, dataroot: str, data_list_or_path: Union[str, List], data_key: str = "testing"):
+    def set_infer_files(self, dataroot: str, data_list_or_path: str | list, data_key: str = "testing"):
         """
         Set the files to perform model inference.
 
@@ -78,7 +81,7 @@ class AlgoEnsemble(ABC):
 
         self.infer_files = []
 
-        if isinstance(data_list_or_path, List):
+        if isinstance(data_list_or_path, list):
             self.infer_files = data_list_or_path
         elif isinstance(data_list_or_path, str):
             datalist = ConfigParser.load_config_file(data_list_or_path)
@@ -113,7 +116,7 @@ class AlgoEnsemble(ABC):
             else:
                 return VoteEnsemble(num_classes=preds[0].shape[0])(classes)
 
-    def __call__(self, pred_param: Optional[Dict[str, Any]] = None):
+    def __call__(self, pred_param: dict[str, Any] | None = None):
         """
         Use the ensembled model to predict result.
 
@@ -233,7 +236,7 @@ class AlgoEnsembleBestByFold(AlgoEnsemble):
         self.algo_ensemble = []
         for f_idx in range(self.n_fold):
             best_score = -1.0
-            best_model: Optional[BundleAlgo] = None
+            best_model: BundleAlgo | None = None
             for algo in self.algos:
                 # algorithm folder: {net}_{fold_index}_{other}
                 identifier = algo[AlgoEnsembleKeys.ID].split("_")[1]
@@ -264,8 +267,8 @@ class AlgoEnsembleBuilder:
 
     """
 
-    def __init__(self, history: Sequence[Dict], data_src_cfg_filename: Optional[str] = None):
-        self.infer_algos: List[Dict[AlgoEnsembleKeys, Any]] = []
+    def __init__(self, history: Sequence[dict], data_src_cfg_filename: str | None = None):
+        self.infer_algos: list[dict[AlgoEnsembleKeys, Any]] = []
         self.ensemble: AlgoEnsemble
         self.data_src_cfg = ConfigParser(globals=False)
 
@@ -292,7 +295,7 @@ class AlgoEnsembleBuilder:
 
             self.add_inferer(name, gen_algo, best_metric)
 
-    def add_inferer(self, identifier: str, gen_algo: BundleAlgo, best_metric: Optional[float] = None):
+    def add_inferer(self, identifier: str, gen_algo: BundleAlgo, best_metric: float | None = None):
         """
         Add model inferer to the builder.
 

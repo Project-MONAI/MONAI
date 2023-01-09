@@ -9,8 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
-from typing import Optional, Sequence, Tuple, Union
+from collections.abc import Sequence
 
 import torch
 import torch.nn as nn
@@ -117,15 +119,15 @@ class UNet(nn.Module):
         out_channels: int,
         channels: Sequence[int],
         strides: Sequence[int],
-        kernel_size: Union[Sequence[int], int] = 3,
-        up_kernel_size: Union[Sequence[int], int] = 3,
+        kernel_size: Sequence[int] | int = 3,
+        up_kernel_size: Sequence[int] | int = 3,
         num_res_units: int = 0,
-        act: Union[Tuple, str] = Act.PRELU,
-        norm: Union[Tuple, str] = Norm.INSTANCE,
+        act: tuple | str = Act.PRELU,
+        norm: tuple | str = Norm.INSTANCE,
         dropout: float = 0.0,
         bias: bool = True,
         adn_ordering: str = "NDA",
-        dimensions: Optional[int] = None,
+        dimensions: int | None = None,
     ) -> None:
 
         super().__init__()
@@ -271,7 +273,7 @@ class UNet(nn.Module):
             strides: convolution stride.
             is_top: True if this is the top block.
         """
-        conv: Union[Convolution, nn.Sequential]
+        conv: Convolution | nn.Sequential
 
         conv = Convolution(
             self.dimensions,

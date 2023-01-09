@@ -9,9 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
 from os import path
-from typing import Any, Dict, List, Optional, Union, cast
+from typing import Any, cast
 
 import numpy as np
 import torch
@@ -111,18 +113,18 @@ class DataAnalyzer:
 
     def __init__(
         self,
-        datalist: Union[str, Dict],
+        datalist: str | dict,
         dataroot: str = "",
         output_path: str = "./data_stats.yaml",
         average: bool = True,
         do_ccp: bool = False,
-        device: Union[str, torch.device] = "cpu",
+        device: str | torch.device = "cpu",
         worker: int = 2,
         image_key: str = "image",
-        label_key: Optional[str] = "label",
-        hist_bins: Optional[Union[list, int]] = 0,
-        hist_range: Optional[list] = None,
-        fmt: Optional[str] = "yaml",
+        label_key: str | None = "label",
+        hist_bins: list | int | None = 0,
+        hist_range: list | None = None,
+        fmt: str | None = "yaml",
         histogram_only: bool = False,
         **extra_params,
     ):
@@ -146,7 +148,7 @@ class DataAnalyzer:
         self.extra_params = extra_params
 
     @staticmethod
-    def _check_data_uniformity(keys: List[str], result: Dict):
+    def _check_data_uniformity(keys: list[str], result: dict):
         """
         Check data uniformity since DataAnalyzer provides no support to multi-modal images with different
         affine matrices/spacings due to monai transforms.
@@ -227,7 +229,7 @@ class DataAnalyzer:
         files, _ = datafold_read(datalist=self.datalist, basedir=self.dataroot, fold=-1, key=key)
         dataset = Dataset(data=files, transform=transform)
         dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=self.worker, collate_fn=no_collation)
-        result: Dict[DataStatsKeys, Any] = {DataStatsKeys.SUMMARY: {}, DataStatsKeys.BY_CASE: []}
+        result: dict[DataStatsKeys, Any] = {DataStatsKeys.SUMMARY: {}, DataStatsKeys.BY_CASE: []}
 
         if not has_tqdm:
             warnings.warn("tqdm is not installed. not displaying the caching progress.")
@@ -261,7 +263,7 @@ class DataAnalyzer:
                 )
             result[DataStatsKeys.BY_CASE].append(stats_by_cases)
 
-        result[DataStatsKeys.SUMMARY] = summarizer.summarize(cast(List, result[DataStatsKeys.BY_CASE]))
+        result[DataStatsKeys.SUMMARY] = summarizer.summarize(cast(list, result[DataStatsKeys.BY_CASE]))
 
         if not self._check_data_uniformity([ImageStatsKeys.SPACING], result):
             print("Data spacing is not completely uniform. MONAI transforms may provide unexpected result")

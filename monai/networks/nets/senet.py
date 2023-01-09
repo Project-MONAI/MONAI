@@ -9,9 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import re
 from collections import OrderedDict
-from typing import Any, List, Optional, Sequence, Tuple, Type, Union
+from collections.abc import Sequence
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -94,11 +97,11 @@ class SENet(nn.Module):
         self,
         spatial_dims: int,
         in_channels: int,
-        block: Union[Type[Union[SEBottleneck, SEResNetBottleneck, SEResNeXtBottleneck]], str],
+        block: type[SEBottleneck | SEResNetBottleneck | SEResNeXtBottleneck] | str,
         layers: Sequence[int],
         groups: int,
         reduction: int,
-        dropout_prob: Optional[float] = 0.2,
+        dropout_prob: float | None = 0.2,
         dropout_dim: int = 1,
         inplanes: int = 128,
         downsample_kernel_size: int = 3,
@@ -120,19 +123,19 @@ class SENet(nn.Module):
                     "Unknown block '%s', use se_bottleneck, se_resnet_bottleneck or se_resnetxt_bottleneck" % block
                 )
 
-        relu_type: Type[nn.ReLU] = Act[Act.RELU]
-        conv_type: Type[Union[nn.Conv1d, nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
-        pool_type: Type[Union[nn.MaxPool1d, nn.MaxPool2d, nn.MaxPool3d]] = Pool[Pool.MAX, spatial_dims]
-        norm_type: Type[Union[nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
-        dropout_type: Type[Union[nn.Dropout, nn.Dropout2d, nn.Dropout3d]] = Dropout[Dropout.DROPOUT, dropout_dim]
-        avg_pool_type: Type[Union[nn.AdaptiveAvgPool1d, nn.AdaptiveAvgPool2d, nn.AdaptiveAvgPool3d]] = Pool[
+        relu_type: type[nn.ReLU] = Act[Act.RELU]
+        conv_type: type[nn.Conv1d | nn.Conv2d | nn.Conv3d] = Conv[Conv.CONV, spatial_dims]
+        pool_type: type[nn.MaxPool1d | nn.MaxPool2d | nn.MaxPool3d] = Pool[Pool.MAX, spatial_dims]
+        norm_type: type[nn.BatchNorm1d | nn.BatchNorm2d | nn.BatchNorm3d] = Norm[Norm.BATCH, spatial_dims]
+        dropout_type: type[nn.Dropout | nn.Dropout2d | nn.Dropout3d] = Dropout[Dropout.DROPOUT, dropout_dim]
+        avg_pool_type: type[nn.AdaptiveAvgPool1d | nn.AdaptiveAvgPool2d | nn.AdaptiveAvgPool3d] = Pool[
             Pool.ADAPTIVEAVG, spatial_dims
         ]
 
         self.inplanes = inplanes
         self.spatial_dims = spatial_dims
 
-        layer0_modules: List[Tuple[str, Any]]
+        layer0_modules: list[tuple[str, Any]]
 
         if input_3x3:
             layer0_modules = [
@@ -211,7 +214,7 @@ class SENet(nn.Module):
 
     def _make_layer(
         self,
-        block: Type[Union[SEBottleneck, SEResNetBottleneck, SEResNeXtBottleneck]],
+        block: type[SEBottleneck | SEResNetBottleneck | SEResNeXtBottleneck],
         planes: int,
         blocks: int,
         groups: int,
@@ -358,7 +361,7 @@ class SEResNet50(SENet):
         layers: Sequence[int] = (3, 4, 6, 3),
         groups: int = 1,
         reduction: int = 16,
-        dropout_prob: Optional[float] = None,
+        dropout_prob: float | None = None,
         inplanes: int = 64,
         downsample_kernel_size: int = 1,
         input_3x3: bool = False,
@@ -456,7 +459,7 @@ class SEResNext50(SENet):
         layers: Sequence[int] = (3, 4, 6, 3),
         groups: int = 32,
         reduction: int = 16,
-        dropout_prob: Optional[float] = None,
+        dropout_prob: float | None = None,
         inplanes: int = 64,
         downsample_kernel_size: int = 1,
         input_3x3: bool = False,
@@ -490,7 +493,7 @@ class SEResNext101(SENet):
         layers: Sequence[int] = (3, 4, 23, 3),
         groups: int = 32,
         reduction: int = 16,
-        dropout_prob: Optional[float] = None,
+        dropout_prob: float | None = None,
         inplanes: int = 64,
         downsample_kernel_size: int = 1,
         input_3x3: bool = False,

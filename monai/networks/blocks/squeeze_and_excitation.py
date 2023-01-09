@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import math
-from typing import Dict, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -30,8 +31,8 @@ class ChannelSELayer(nn.Module):
         spatial_dims: int,
         in_channels: int,
         r: int = 2,
-        acti_type_1: Union[Tuple[str, Dict], str] = ("relu", {"inplace": True}),
-        acti_type_2: Union[Tuple[str, Dict], str] = "sigmoid",
+        acti_type_1: tuple[str, dict] | str = ("relu", {"inplace": True}),
+        acti_type_2: tuple[str, dict] | str = "sigmoid",
         add_residual: bool = False,
     ) -> None:
         """
@@ -102,8 +103,8 @@ class ResidualSELayer(ChannelSELayer):
         spatial_dims: int,
         in_channels: int,
         r: int = 2,
-        acti_type_1: Union[Tuple[str, Dict], str] = "leakyrelu",
-        acti_type_2: Union[Tuple[str, Dict], str] = "relu",
+        acti_type_1: tuple[str, dict] | str = "leakyrelu",
+        acti_type_2: tuple[str, dict] | str = "relu",
     ) -> None:
         """
         Args:
@@ -145,14 +146,14 @@ class SEBlock(nn.Module):
         n_chns_1: int,
         n_chns_2: int,
         n_chns_3: int,
-        conv_param_1: Optional[Dict] = None,
-        conv_param_2: Optional[Dict] = None,
-        conv_param_3: Optional[Dict] = None,
-        project: Optional[Convolution] = None,
+        conv_param_1: dict | None = None,
+        conv_param_2: dict | None = None,
+        conv_param_3: dict | None = None,
+        project: Convolution | None = None,
         r: int = 2,
-        acti_type_1: Union[Tuple[str, Dict], str] = ("relu", {"inplace": True}),
-        acti_type_2: Union[Tuple[str, Dict], str] = "sigmoid",
-        acti_type_final: Optional[Union[Tuple[str, Dict], str]] = ("relu", {"inplace": True}),
+        acti_type_1: tuple[str, dict] | str = ("relu", {"inplace": True}),
+        acti_type_2: tuple[str, dict] | str = "sigmoid",
+        acti_type_final: tuple[str, dict] | str | None = ("relu", {"inplace": True}),
     ):
         """
         Args:
@@ -244,7 +245,7 @@ class SEBottleneck(SEBlock):
         groups: int,
         reduction: int,
         stride: int = 1,
-        downsample: Optional[Convolution] = None,
+        downsample: Convolution | None = None,
     ) -> None:
 
         conv_param_1 = {
@@ -295,7 +296,7 @@ class SEResNetBottleneck(SEBlock):
         groups: int,
         reduction: int,
         stride: int = 1,
-        downsample: Optional[Convolution] = None,
+        downsample: Convolution | None = None,
     ) -> None:
 
         conv_param_1 = {
@@ -344,7 +345,7 @@ class SEResNeXtBottleneck(SEBlock):
         groups: int,
         reduction: int,
         stride: int = 1,
-        downsample: Optional[Convolution] = None,
+        downsample: Convolution | None = None,
         base_width: int = 4,
     ) -> None:
 

@@ -13,13 +13,16 @@ A collection of "vanilla" transforms for utility functions
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
+from __future__ import annotations
+
 import logging
 import sys
 import time
 import warnings
+from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from functools import partial
-from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Callable
 
 import numpy as np
 import torch
@@ -230,11 +233,11 @@ class EnsureChannelFirst(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, strict_check: bool = True, channel_dim: Union[None, str, int] = None):
+    def __init__(self, strict_check: bool = True, channel_dim: None | str | int = None):
         self.strict_check = strict_check
         self.input_channel_dim = channel_dim
 
-    def __call__(self, img: torch.Tensor, meta_dict: Optional[Mapping] = None) -> torch.Tensor:
+    def __call__(self, img: torch.Tensor, meta_dict: Mapping | None = None) -> torch.Tensor:
         """
         Apply the transform to `img`.
         """
@@ -350,7 +353,7 @@ class SplitDim(Transform):
         self.keepdim = keepdim
         self.update_meta = update_meta
 
-    def __call__(self, img: torch.Tensor) -> List[torch.Tensor]:
+    def __call__(self, img: torch.Tensor) -> list[torch.Tensor]:
         """
         Apply the transform to `img`.
         """
@@ -408,7 +411,7 @@ class CastToType(Transform):
         """
         self.dtype = dtype
 
-    def __call__(self, img: NdarrayOrTensor, dtype: Union[DtypeLike, torch.dtype] = None) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, dtype: DtypeLike | torch.dtype = None) -> NdarrayOrTensor:
         """
         Apply the transform to `img`, assuming `img` is a numpy array or PyTorch Tensor.
 
@@ -443,10 +446,10 @@ class ToTensor(Transform):
 
     def __init__(
         self,
-        dtype: Optional[torch.dtype] = None,
-        device: Optional[torch.device] = None,
+        dtype: torch.dtype | None = None,
+        device: torch.device | None = None,
         wrap_sequence: bool = True,
-        track_meta: Optional[bool] = None,
+        track_meta: bool | None = None,
     ) -> None:
         super().__init__()
         self.dtype = dtype
@@ -488,10 +491,10 @@ class EnsureType(Transform):
     def __init__(
         self,
         data_type: str = "tensor",
-        dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
-        device: Optional[torch.device] = None,
+        dtype: DtypeLike | torch.dtype | None = None,
+        device: torch.device | None = None,
         wrap_sequence: bool = True,
-        track_meta: Optional[bool] = None,
+        track_meta: bool | None = None,
     ) -> None:
         self.data_type = look_up_option(data_type.lower(), {"tensor", "numpy"})
         self.dtype = dtype
@@ -563,7 +566,7 @@ class ToCupy(Transform):
 
     backend = [TransformBackends.CUPY]
 
-    def __init__(self, dtype: Optional[np.dtype] = None, wrap_sequence: bool = True) -> None:
+    def __init__(self, dtype: np.dtype | None = None, wrap_sequence: bool = True) -> None:
         super().__init__()
         self.dtype = dtype
         self.wrap_sequence = wrap_sequence
@@ -600,7 +603,7 @@ class Transpose(Transform):
 
     backend = [TransformBackends.TORCH]
 
-    def __init__(self, indices: Optional[Sequence[int]]) -> None:
+    def __init__(self, indices: Sequence[int] | None) -> None:
         self.indices = None if indices is None else tuple(indices)
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
@@ -618,7 +621,7 @@ class SqueezeDim(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, dim: Optional[int] = 0, update_meta=True) -> None:
+    def __init__(self, dim: int | None = 0, update_meta=True) -> None:
         """
         Args:
             dim: dimension to be squeezed. Default = 0
@@ -684,7 +687,7 @@ class DataStats(Transform):
         data_shape: bool = True,
         value_range: bool = True,
         data_value: bool = False,
-        additional_info: Optional[Callable] = None,
+        additional_info: Callable | None = None,
         name: str = "DataStats",
     ) -> None:
         """
@@ -730,12 +733,12 @@ class DataStats(Transform):
     def __call__(
         self,
         img: NdarrayOrTensor,
-        prefix: Optional[str] = None,
-        data_type: Optional[bool] = None,
-        data_shape: Optional[bool] = None,
-        value_range: Optional[bool] = None,
-        data_value: Optional[bool] = None,
-        additional_info: Optional[Callable] = None,
+        prefix: str | None = None,
+        data_type: bool | None = None,
+        data_shape: bool | None = None,
+        value_range: bool | None = None,
+        data_value: bool | None = None,
+        additional_info: Callable | None = None,
     ) -> NdarrayOrTensor:
         """
         Apply the transform to `img`, optionally take arguments similar to the class constructor.
@@ -787,7 +790,7 @@ class SimulateDelay(Transform):
         super().__init__()
         self.delay_time: float = delay_time
 
-    def __call__(self, img: NdarrayOrTensor, delay_time: Optional[float] = None) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, delay_time: float | None = None) -> NdarrayOrTensor:
         """
         Args:
             img: data remain unchanged throughout this transform.
@@ -823,13 +826,13 @@ class Lambda(InvertibleTransform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, func: Optional[Callable] = None, inv_func: Callable = no_collation) -> None:
+    def __init__(self, func: Callable | None = None, inv_func: Callable = no_collation) -> None:
         if func is not None and not callable(func):
             raise TypeError(f"func must be None or callable but is {type(func).__name__}.")
         self.func = func
         self.inv_func = inv_func
 
-    def __call__(self, img: NdarrayOrTensor, func: Optional[Callable] = None):
+    def __call__(self, img: NdarrayOrTensor, func: Callable | None = None):
         """
         Apply `self.func` to `img`.
 
@@ -872,11 +875,11 @@ class RandLambda(Lambda, RandomizableTransform):
 
     backend = Lambda.backend
 
-    def __init__(self, func: Optional[Callable] = None, prob: float = 1.0, inv_func: Callable = no_collation) -> None:
+    def __init__(self, func: Callable | None = None, prob: float = 1.0, inv_func: Callable = no_collation) -> None:
         Lambda.__init__(self=self, func=func, inv_func=inv_func)
         RandomizableTransform.__init__(self=self, prob=prob)
 
-    def __call__(self, img: NdarrayOrTensor, func: Optional[Callable] = None):
+    def __call__(self, img: NdarrayOrTensor, func: Callable | None = None):
         self.randomize(img)
         out = deepcopy(super().__call__(img, func) if self._do_transform else img)
         # convert to MetaTensor if necessary
@@ -918,16 +921,13 @@ class LabelToMask(Transform):
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(  # pytype: disable=annotation-type-mismatch
-        self, select_labels: Union[Sequence[int], int], merge_channels: bool = False
+        self, select_labels: Sequence[int] | int, merge_channels: bool = False
     ) -> None:  # pytype: disable=annotation-type-mismatch
         self.select_labels = ensure_tuple(select_labels)
         self.merge_channels = merge_channels
 
     def __call__(
-        self,
-        img: NdarrayOrTensor,
-        select_labels: Optional[Union[Sequence[int], int]] = None,
-        merge_channels: bool = False,
+        self, img: NdarrayOrTensor, select_labels: Sequence[int] | int | None = None, merge_channels: bool = False
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -981,16 +981,13 @@ class FgBgToIndices(Transform):
 
     backend = [TransformBackends.NUMPY, TransformBackends.TORCH]
 
-    def __init__(self, image_threshold: float = 0.0, output_shape: Optional[Sequence[int]] = None) -> None:
+    def __init__(self, image_threshold: float = 0.0, output_shape: Sequence[int] | None = None) -> None:
         self.image_threshold = image_threshold
         self.output_shape = output_shape
 
     def __call__(
-        self,
-        label: NdarrayOrTensor,
-        image: Optional[NdarrayOrTensor] = None,
-        output_shape: Optional[Sequence[int]] = None,
-    ) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
+        self, label: NdarrayOrTensor, image: NdarrayOrTensor | None = None, output_shape: Sequence[int] | None = None
+    ) -> tuple[NdarrayOrTensor, NdarrayOrTensor]:
         """
         Args:
             label: input data to compute foreground and background indices.
@@ -1013,10 +1010,7 @@ class ClassesToIndices(Transform):
     backend = [TransformBackends.NUMPY, TransformBackends.TORCH]
 
     def __init__(
-        self,
-        num_classes: Optional[int] = None,
-        image_threshold: float = 0.0,
-        output_shape: Optional[Sequence[int]] = None,
+        self, num_classes: int | None = None, image_threshold: float = 0.0, output_shape: Sequence[int] | None = None
     ) -> None:
         """
         Compute indices of every class of the input label data, return a list of indices.
@@ -1037,11 +1031,8 @@ class ClassesToIndices(Transform):
         self.output_shape = output_shape
 
     def __call__(
-        self,
-        label: NdarrayOrTensor,
-        image: Optional[NdarrayOrTensor] = None,
-        output_shape: Optional[Sequence[int]] = None,
-    ) -> List[NdarrayOrTensor]:
+        self, label: NdarrayOrTensor, image: NdarrayOrTensor | None = None, output_shape: Sequence[int] | None = None
+    ) -> list[NdarrayOrTensor]:
         """
         Args:
             label: input data to compute the indices of every class.
@@ -1053,7 +1044,7 @@ class ClassesToIndices(Transform):
 
         if output_shape is None:
             output_shape = self.output_shape
-        indices: List[NdarrayOrTensor]
+        indices: list[NdarrayOrTensor]
         indices = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
         if output_shape is not None:
             indices = [unravel_indices(cls_indices, output_shape) for cls_indices in indices]
@@ -1109,7 +1100,7 @@ class AddExtremePointsChannel(Randomizable, Transform):
     def __init__(self, background: int = 0, pert: float = 0.0) -> None:
         self._background = background
         self._pert = pert
-        self._points: List[Tuple[int, ...]] = []
+        self._points: list[tuple[int, ...]] = []
 
     def randomize(self, label: NdarrayOrTensor) -> None:
         self._points = get_extreme_points(label, rand_state=self.R, background=self._background, pert=self._pert)
@@ -1117,8 +1108,8 @@ class AddExtremePointsChannel(Randomizable, Transform):
     def __call__(
         self,
         img: NdarrayOrTensor,
-        label: Optional[NdarrayOrTensor] = None,
-        sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor] = 3.0,
+        label: NdarrayOrTensor | None = None,
+        sigma: Sequence[float] | float | Sequence[torch.Tensor] | torch.Tensor = 3.0,
         rescale_min: float = -1.0,
         rescale_max: float = 1.0,
     ) -> NdarrayOrTensor:
@@ -1252,14 +1243,14 @@ class IntensityStats(Transform):
 
     backend = [TransformBackends.NUMPY]
 
-    def __init__(self, ops: Sequence[Union[str, Callable]], key_prefix: str, channel_wise: bool = False) -> None:
+    def __init__(self, ops: Sequence[str | Callable], key_prefix: str, channel_wise: bool = False) -> None:
         self.ops = ensure_tuple(ops)
         self.key_prefix = key_prefix
         self.channel_wise = channel_wise
 
     def __call__(
-        self, img: NdarrayOrTensor, meta_data: Optional[Dict] = None, mask: Optional[np.ndarray] = None
-    ) -> Tuple[NdarrayOrTensor, Dict]:
+        self, img: NdarrayOrTensor, meta_data: dict | None = None, mask: np.ndarray | None = None
+    ) -> tuple[NdarrayOrTensor, dict]:
         """
         Compute statistics for the intensity of input image.
 
@@ -1323,7 +1314,7 @@ class ToDevice(Transform):
 
     backend = [TransformBackends.TORCH]
 
-    def __init__(self, device: Union[torch.device, str], **kwargs) -> None:
+    def __init__(self, device: torch.device | str, **kwargs) -> None:
         """
         Args:
             device: target device to move the Tensor, for example: "cuda:1".
@@ -1573,9 +1564,7 @@ class ImageFilter(Transform):
         ["mean", "laplace", "elliptical", "sobel", "sharpen", "median", "gauss", "savitzky_golay"]
     )
 
-    def __init__(
-        self, filter: Union[str, NdarrayOrTensor, nn.Module], filter_size: Optional[int] = None, **kwargs
-    ) -> None:
+    def __init__(self, filter: str | NdarrayOrTensor | nn.Module, filter_size: int | None = None, **kwargs) -> None:
 
         self._check_filter_format(filter, filter_size)
         self._check_kwargs_are_present(filter, **kwargs)
@@ -1583,7 +1572,7 @@ class ImageFilter(Transform):
         self.filter_size = filter_size
         self.additional_args_for_filter = kwargs
 
-    def __call__(self, img: NdarrayOrTensor, meta_dict: Optional[Dict] = None) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, meta_dict: dict | None = None) -> NdarrayOrTensor:
         """
         Args:
             img: torch tensor data to apply filter to with shape: [channels, height, width[, depth]]
@@ -1614,9 +1603,7 @@ class ImageFilter(Transform):
             if value % 2 == 0:
                 raise ValueError(f"Only uneven filters are supported, but filter size is {x}")
 
-    def _check_filter_format(
-        self, filter: Union[str, NdarrayOrTensor, nn.Module], filter_size: Optional[int] = None
-    ) -> None:
+    def _check_filter_format(self, filter: str | NdarrayOrTensor | nn.Module, filter_size: int | None = None) -> None:
         if isinstance(filter, str):
             if not filter_size:
                 raise ValueError("`filter_size` must be specified when specifying filters by string.")
@@ -1643,7 +1630,7 @@ class ImageFilter(Transform):
         if filter == "savitzky_golay" and "order" not in kwargs.keys():
             raise KeyError("`filter='savitzky_golay', requires the additonal keyword argument `order`")
 
-    def _get_filter_from_string(self, filter: str, size: int, ndim: int) -> Union[nn.Module, Callable]:
+    def _get_filter_from_string(self, filter: str, size: int, ndim: int) -> nn.Module | Callable:
         if filter == "mean":
             return MeanFilter(ndim, size)
         elif filter == "laplace":
@@ -1700,12 +1687,12 @@ class RandImageFilter(RandomizableTransform):
     backend = ImageFilter.backend
 
     def __init__(
-        self, filter: Union[str, NdarrayOrTensor], filter_size: Optional[int] = None, prob: float = 0.1, **kwargs
+        self, filter: str | NdarrayOrTensor, filter_size: int | None = None, prob: float = 0.1, **kwargs
     ) -> None:
         super().__init__(prob)
         self.filter = ImageFilter(filter, filter_size, **kwargs)
 
-    def __call__(self, img: NdarrayOrTensor, meta_dict: Optional[Mapping] = None) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, meta_dict: Mapping | None = None) -> NdarrayOrTensor:
         """
         Args:
             img: torch tensor data to apply filter to with shape: [channels, height, width[, depth]]

@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import torch
 import torch.nn as nn
@@ -433,13 +435,13 @@ def grid_grad(input: torch.Tensor, grid: torch.Tensor, interpolation="linear", b
 class AffineTransform(nn.Module):
     def __init__(
         self,
-        spatial_size: Optional[Union[Sequence[int], int]] = None,
+        spatial_size: Sequence[int] | int | None = None,
         normalized: bool = False,
         mode: str = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.ZEROS,
         align_corners: bool = False,
         reverse_indexing: bool = True,
-        zero_centered: Optional[bool] = None,
+        zero_centered: bool | None = None,
     ) -> None:
         """
         Apply affine transformations with a batch of affine matrices.
@@ -493,7 +495,7 @@ class AffineTransform(nn.Module):
         self.zero_centered = zero_centered if zero_centered is not None else False
 
     def forward(
-        self, src: torch.Tensor, theta: torch.Tensor, spatial_size: Optional[Union[Sequence[int], int]] = None
+        self, src: torch.Tensor, theta: torch.Tensor, spatial_size: Sequence[int] | int | None = None
     ) -> torch.Tensor:
         """
         ``theta`` must be an affine transformation matrix with shape

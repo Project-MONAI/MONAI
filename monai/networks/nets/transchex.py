@@ -9,12 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import math
 import os
 import shutil
 import tarfile
 import tempfile
-from typing import List, Sequence, Tuple, Union
+from collections.abc import Sequence
 
 import torch
 from torch import nn
@@ -115,9 +117,9 @@ class BertPreTrainedModel(nn.Module):
                 new_keys.append(new_key)
         for old_key, new_key in zip(old_keys, new_keys):
             state_dict[new_key] = state_dict.pop(old_key)
-        missing_keys: List = []
-        unexpected_keys: List = []
-        error_msgs: List = []
+        missing_keys: list = []
+        unexpected_keys: list = []
+        error_msgs: list = []
         metadata = getattr(state_dict, "_metadata", None)
         state_dict = state_dict.copy()
         if metadata is not None:
@@ -276,8 +278,8 @@ class Transchex(torch.nn.Module):
     def __init__(
         self,
         in_channels: int,
-        img_size: Union[Sequence[int], int],
-        patch_size: Union[int, Tuple[int, int]],
+        img_size: Sequence[int] | int,
+        patch_size: int | tuple[int, int],
         num_classes: int,
         num_language_layers: int,
         num_vision_layers: int,

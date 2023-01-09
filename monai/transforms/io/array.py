@@ -13,14 +13,16 @@ A collection of "vanilla" transforms for IO functions
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
+from __future__ import annotations
+
 import inspect
 import logging
 import sys
 import traceback
 import warnings
+from collections.abc import Sequence
 from pathlib import Path
 from pydoc import locate
-from typing import Dict, List, Optional, Sequence, Type, Union
 
 import numpy as np
 import torch
@@ -121,10 +123,10 @@ class LoadImage(Transform):
         self,
         reader=None,
         image_only: bool = False,
-        dtype: Optional[DtypeLike] = np.float32,
+        dtype: DtypeLike | None = np.float32,
         ensure_channel_first: bool = False,
         simple_keys: bool = False,
-        prune_meta_pattern: Optional[str] = None,
+        prune_meta_pattern: str | None = None,
         prune_meta_sep: str = ".",
         *args,
         **kwargs,
@@ -170,7 +172,7 @@ class LoadImage(Transform):
         self.pattern = prune_meta_pattern
         self.sep = prune_meta_sep
 
-        self.readers: List[ImageReader] = []
+        self.readers: list[ImageReader] = []
         for r in SUPPORTED_READERS:  # set predefined readers as default
             try:
                 self.register(SUPPORTED_READERS[r](*args, **kwargs))
@@ -220,7 +222,7 @@ class LoadImage(Transform):
             warnings.warn(f"Preferably the reader should inherit ImageReader, but got {type(reader)}.")
         self.readers.append(reader)
 
-    def __call__(self, filename: Union[Sequence[PathLike], PathLike], reader: Optional[ImageReader] = None):
+    def __call__(self, filename: Sequence[PathLike] | PathLike, reader: ImageReader | None = None):
         """
         Load image file and metadata from the given filename(s).
         If `reader` is not specified, this class automatically chooses readers based on the
@@ -357,19 +359,19 @@ class SaveImage(Transform):
         output_dir: PathLike = "./",
         output_postfix: str = "trans",
         output_ext: str = ".nii.gz",
-        output_dtype: Optional[DtypeLike] = np.float32,
+        output_dtype: DtypeLike | None = np.float32,
         resample: bool = True,
         mode: str = "nearest",
         padding_mode: str = GridSamplePadMode.BORDER,
-        scale: Optional[int] = None,
+        scale: int | None = None,
         dtype: DtypeLike = np.float64,
         squeeze_end_dims: bool = True,
         data_root_dir: PathLike = "",
         separate_folder: bool = True,
         print_log: bool = True,
         output_format: str = "",
-        writer: Union[Type[image_writer.ImageWriter], str, None] = None,
-        channel_dim: Optional[int] = 0,
+        writer: type[image_writer.ImageWriter] | str | None = None,
+        channel_dim: int | None = 0,
         output_name_formatter=None,
     ) -> None:
         self.folder_layout = FolderLayout(
@@ -425,7 +427,7 @@ class SaveImage(Transform):
         if write_kwargs is not None:
             self.write_kwargs.update(write_kwargs)
 
-    def __call__(self, img: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None):
+    def __call__(self, img: torch.Tensor | np.ndarray, meta_data: dict | None = None):
         """
         Args:
             img: target data content that save into file. The image should be channel-first, shape: `[C,H,W,[D]]`.

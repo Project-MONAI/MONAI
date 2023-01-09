@@ -9,8 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Sequence, Type, Union
+from collections.abc import Callable, Iterable, Sequence
+from typing import TYPE_CHECKING, Any
 
 import torch
 import torch.distributed as dist
@@ -100,24 +103,24 @@ class Workflow(Engine):
 
     def __init__(
         self,
-        device: Union[torch.device, str],
+        device: torch.device | str,
         max_epochs: int,
-        data_loader: Union[Iterable, DataLoader],
-        epoch_length: Optional[int] = None,
+        data_loader: Iterable | DataLoader,
+        epoch_length: int | None = None,
         non_blocking: bool = False,
         prepare_batch: Callable = default_prepare_batch,
-        iteration_update: Optional[Callable[[Engine, Any], Any]] = None,
-        postprocessing: Optional[Callable] = None,
-        key_metric: Optional[Dict[str, Metric]] = None,
-        additional_metrics: Optional[Dict[str, Metric]] = None,
+        iteration_update: Callable[[Engine, Any], Any] | None = None,
+        postprocessing: Callable | None = None,
+        key_metric: dict[str, Metric] | None = None,
+        additional_metrics: dict[str, Metric] | None = None,
         metric_cmp_fn: Callable = default_metric_cmp_fn,
-        handlers: Optional[Sequence] = None,
+        handlers: Sequence | None = None,
         amp: bool = False,
-        event_names: Optional[List[Union[str, EventEnum, Type[EventEnum]]]] = None,
-        event_to_attr: Optional[dict] = None,
+        event_names: list[str | EventEnum | type[EventEnum]] | None = None,
+        event_to_attr: dict | None = None,
         decollate: bool = True,
-        to_kwargs: Optional[Dict] = None,
-        amp_kwargs: Optional[Dict] = None,
+        to_kwargs: dict | None = None,
+        amp_kwargs: dict | None = None,
     ) -> None:
         if iteration_update is not None:
             super().__init__(iteration_update)
@@ -163,7 +166,7 @@ class Workflow(Engine):
         self.amp = amp
         self.to_kwargs = {} if to_kwargs is None else to_kwargs
         self.amp_kwargs = {} if amp_kwargs is None else amp_kwargs
-        self.scaler: Optional[torch.cuda.amp.GradScaler] = None
+        self.scaler: torch.cuda.amp.GradScaler | None = None
 
         if event_names is None:
             event_names = [IterationEvents]
@@ -222,7 +225,7 @@ class Workflow(Engine):
                 for i, (b, o) in enumerate(zip(engine.state.batch, engine.state.output)):
                     engine.state.batch[i], engine.state.output[i] = engine_apply_transform(b, o, posttrans)
 
-    def _register_metrics(self, k_metric: Dict, add_metrics: Optional[Dict] = None):
+    def _register_metrics(self, k_metric: dict, add_metrics: dict | None = None):
         """
         Register the key metric and additional metrics to the engine, supports ignite Metrics.
 
@@ -279,7 +282,7 @@ class Workflow(Engine):
             return
         super().run(data=self.data_loader, max_epochs=self.state.max_epochs)
 
-    def _iteration(self, engine, batchdata: Dict[str, torch.Tensor]):
+    def _iteration(self, engine, batchdata: dict[str, torch.Tensor]):
         """
         Abstract callback function for the processing logic of 1 iteration in Ignite Engine.
         Need subclass to implement different logics, like SupervisedTrainer/Evaluator, GANTrainer, etc.
