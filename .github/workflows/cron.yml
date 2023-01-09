@@ -17,7 +17,7 @@ jobs:
           - "PT191+CUDA113"
           - "PT110+CUDA113"
           - "PT112+CUDA113"
-          - "PTLATEST+CUDA117"
+          - "PTLATEST+CUDA118"
         include:
           # https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes
           - environment: PT182+CUDA102
