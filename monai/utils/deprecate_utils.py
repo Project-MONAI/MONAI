@@ -14,13 +14,14 @@ import sys
 import warnings
 from functools import wraps
 from types import FunctionType
-from typing import Any, Optional
+from typing import Any, Callable, Optional, TypeVar
 
 from monai.utils.module import version_leq
 
 from .. import __version__
 
 __all__ = ["deprecated", "deprecated_arg", "DeprecatedError", "deprecated_arg_default"]
+T = TypeVar("T", type, Callable)
 
 
 class DeprecatedError(Exception):
@@ -40,7 +41,7 @@ def deprecated(
     msg_suffix: str = "",
     version_val: str = __version__,
     warning_category=FutureWarning,
-):
+) -> Callable[[T], T]:
     """
     Marks a function or class as deprecated. If `since` is given this should be a version at or earlier than the
     current version and states at what version of the definition was marked as deprecated. If `removed` is given
@@ -124,7 +125,7 @@ def deprecated_arg(
     version_val: str = __version__,
     new_name: Optional[str] = None,
     warning_category=FutureWarning,
-):
+) -> Callable[[T], T]:
     """
     Marks a particular named argument of a callable as deprecated. The same conditions for `since` and `removed` as
     described in the `deprecated` decorator.
@@ -137,8 +138,6 @@ def deprecated_arg(
     The relevant docstring of the deprecating function should also be updated accordingly,
     using the Sphinx directives such as `.. versionchanged:: version` and `.. deprecated:: version`.
     https://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#directive-versionadded
-
-    In the current implementation type annotations are not preserved.
 
 
     Args:
@@ -234,7 +233,7 @@ def deprecated_arg_default(
     msg_suffix: str = "",
     version_val: str = __version__,
     warning_category=FutureWarning,
-):
+) -> Callable[[T], T]:
     """
     Marks a particular arguments default of a callable as deprecated. It is changed from `old_default` to `new_default`
     in version `changed`.
@@ -246,8 +245,6 @@ def deprecated_arg_default(
     The relevant docstring of the deprecating function should also be updated accordingly,
     using the Sphinx directives such as `.. versionchanged:: version` and `.. deprecated:: version`.
     https://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#directive-versionadded
-
-    In the current implementation type annotations are not preserved.
 
 
     Args:

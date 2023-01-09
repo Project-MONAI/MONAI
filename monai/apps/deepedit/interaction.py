@@ -96,4 +96,4 @@ class Interaction:
 
         # first item in batch only
         engine.state.batch = batchdata
-        return engine._iteration(engine, batchdata)
+        return engine._iteration(engine, batchdata)  # type: ignore[arg-type]
