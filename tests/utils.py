@@ -467,6 +467,7 @@ class DistCall:
             os.environ["OMP_NUM_THREADS"] = str(1)
             os.environ["WORLD_SIZE"] = str(self.nproc_per_node * self.nnodes)
             os.environ["RANK"] = str(self.nproc_per_node * self.node_rank + local_rank)
+            print(f"{local_rank} using addr {self.master_addr} {self.master_port}")
 
             if torch.cuda.is_available():
                 torch.cuda.set_device(int(local_rank))  # using device ids from CUDA_VISIBILE_DEVICES
