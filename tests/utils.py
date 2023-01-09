@@ -307,7 +307,9 @@ def has_cupy():
 HAS_CUPY = has_cupy()
 
 
-def make_nifti_image(array: NdarrayOrTensor, affine=None, dir=None, fname=None, suffix=".nii.gz", verbose=False):
+def make_nifti_image(
+    array: NdarrayOrTensor, affine=None, dir=None, fname=None, suffix=".nii.gz", verbose=False, dtype=float
+):
     """
     Create a temporary nifti image on the disk and return the image name.
     User is responsible for deleting the temporary file when done with it.
@@ -318,7 +320,7 @@ def make_nifti_image(array: NdarrayOrTensor, affine=None, dir=None, fname=None, 
         affine, *_ = convert_data_type(affine, np.ndarray)
     if affine is None:
         affine = np.eye(4)
-    test_image = nib.Nifti1Image(array, affine)
+    test_image = nib.Nifti1Image(array.astype(dtype), affine)
 
     # if dir not given, create random. Else, make sure it exists.
     if dir is None:
