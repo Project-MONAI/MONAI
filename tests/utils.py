@@ -320,7 +320,7 @@ def make_nifti_image(
         affine, *_ = convert_data_type(affine, np.ndarray)
     if affine is None:
         affine = np.eye(4)
-    test_image = nib.Nifti1Image(array.astype(dtype), affine)
+    test_image = nib.Nifti1Image(array.astype(dtype), affine)  # type: ignore
 
     # if dir not given, create random. Else, make sure it exists.
     if dir is None:
