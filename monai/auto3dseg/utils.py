@@ -17,7 +17,7 @@ import sys
 import warnings
 from copy import deepcopy
 from numbers import Number
-from typing import Any, Iterable, cast
+from typing import Any, cast
 
 import numpy as np
 import torch
@@ -153,7 +153,7 @@ def concat_val_to_np(
             fixed_keys[i] = str(key)
 
         val: Any
-        val = parser.get(ID_SEP_KEY.join(cast(Iterable[str], fixed_keys)))
+        val = parser.get(ID_SEP_KEY.join(fixed_keys))  # type: ignore
 
         if val is None:
             if allow_missing:

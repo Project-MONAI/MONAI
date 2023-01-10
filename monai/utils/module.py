@@ -24,7 +24,7 @@ from pkgutil import walk_packages
 from pydoc import locate
 from re import match
 from types import FunctionType
-from typing import Any, Iterable, cast
+from typing import Any, cast
 
 import torch
 
@@ -95,7 +95,7 @@ def look_up_option(opt_str, supported: Collection | enum.EnumMeta, default="no_d
     if isinstance(opt_str, str):
         opt_str = opt_str.strip()
     if isinstance(supported, enum.EnumMeta):
-        if isinstance(opt_str, str) and opt_str in {item.value for item in cast(Iterable[enum.Enum], supported)}:
+        if isinstance(opt_str, str) and opt_str in set(item.value for item in supported):  # type: ignore
             # such as: "example" in MyEnum
             return supported(opt_str)
         if isinstance(opt_str, enum.Enum) and opt_str in supported:
@@ -113,7 +113,7 @@ def look_up_option(opt_str, supported: Collection | enum.EnumMeta, default="no_d
     # find a close match
     set_to_check: set
     if isinstance(supported, enum.EnumMeta):
-        set_to_check = {item.value for item in cast(Iterable[enum.Enum], supported)}
+        set_to_check = {item.value for item in supported}  # type: ignore
     else:
         set_to_check = set(supported) if supported is not None else set()
     if not set_to_check:
