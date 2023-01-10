@@ -9,12 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import inspect
 import sys
 import warnings
+from collections.abc import Callable
 from functools import wraps
 from types import FunctionType
-from typing import Any, Callable, Optional, TypeVar
+from typing import Any, TypeVar
 
 from monai.utils.module import version_leq
 
@@ -36,8 +39,8 @@ def warn_deprecated(obj, msg, warning_category=FutureWarning):
 
 
 def deprecated(
-    since: Optional[str] = None,
-    removed: Optional[str] = None,
+    since: str | None = None,
+    removed: str | None = None,
     msg_suffix: str = "",
     version_val: str = __version__,
     warning_category=FutureWarning,
@@ -119,11 +122,11 @@ def deprecated(
 
 def deprecated_arg(
     name,
-    since: Optional[str] = None,
-    removed: Optional[str] = None,
+    since: str | None = None,
+    removed: str | None = None,
     msg_suffix: str = "",
     version_val: str = __version__,
-    new_name: Optional[str] = None,
+    new_name: str | None = None,
     warning_category=FutureWarning,
 ) -> Callable[[T], T]:
     """
@@ -228,8 +231,8 @@ def deprecated_arg_default(
     name: str,
     old_default: Any,
     new_default: Any,
-    since: Optional[str] = None,
-    replaced: Optional[str] = None,
+    since: str | None = None,
+    replaced: str | None = None,
     msg_suffix: str = "",
     version_val: str = __version__,
     warning_category=FutureWarning,

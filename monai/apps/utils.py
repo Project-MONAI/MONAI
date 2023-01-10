@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import hashlib
 import logging
 import os
@@ -19,7 +21,7 @@ import tempfile
 import warnings
 import zipfile
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 from urllib.error import ContentTooShortError, HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import urlretrieve
@@ -45,8 +47,8 @@ SUPPORTED_HASH_TYPES = {"md5": hashlib.md5, "sha1": hashlib.sha1, "sha256": hash
 def get_logger(
     module_name: str = "monai.apps",
     fmt: str = DEFAULT_FMT,
-    datefmt: Optional[str] = None,
-    logger_handler: Optional[logging.Handler] = None,
+    datefmt: str | None = None,
+    logger_handler: logging.Handler | None = None,
 ):
     """
     Get a `module_name` logger with the specified format and date format.
@@ -92,7 +94,7 @@ def _download_with_progress(url, filepath, progress: bool = True):
                 Inspired by the example in https://github.com/tqdm/tqdm.
                 """
 
-                def update_to(self, b: int = 1, bsize: int = 1, tsize: Optional[int] = None):
+                def update_to(self, b: int = 1, bsize: int = 1, tsize: int | None = None):
                     """
                     Args:
                         b: number of blocks transferred so far, default: 1.
@@ -114,7 +116,7 @@ def _download_with_progress(url, filepath, progress: bool = True):
         raise e
 
 
-def check_hash(filepath: PathLike, val: Optional[str] = None, hash_type: str = "md5") -> bool:
+def check_hash(filepath: PathLike, val: str | None = None, hash_type: str = "md5") -> bool:
     """
     Verify hash signature of specified file.
 
@@ -149,7 +151,7 @@ def check_hash(filepath: PathLike, val: Optional[str] = None, hash_type: str = "
 def download_url(
     url: str,
     filepath: PathLike = "",
-    hash_val: Optional[str] = None,
+    hash_val: str | None = None,
     hash_type: str = "md5",
     progress: bool = True,
     **gdown_kwargs,
@@ -222,7 +224,7 @@ def download_url(
 def extractall(
     filepath: PathLike,
     output_dir: PathLike = ".",
-    hash_val: Optional[str] = None,
+    hash_val: str | None = None,
     hash_type: str = "md5",
     file_type: str = "",
     has_base: bool = True,
@@ -282,7 +284,7 @@ def download_and_extract(
     url: str,
     filepath: PathLike = "",
     output_dir: PathLike = ".",
-    hash_val: Optional[str] = None,
+    hash_val: str | None = None,
     hash_type: str = "md5",
     file_type: str = "",
     has_base: bool = True,

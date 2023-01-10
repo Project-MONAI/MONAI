@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Tuple, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import numpy as np
 import torch
@@ -98,20 +100,20 @@ class Convolution(nn.Sequential):
         spatial_dims: int,
         in_channels: int,
         out_channels: int,
-        strides: Union[Sequence[int], int] = 1,
-        kernel_size: Union[Sequence[int], int] = 3,
+        strides: Sequence[int] | int = 1,
+        kernel_size: Sequence[int] | int = 3,
         adn_ordering: str = "NDA",
-        act: Optional[Union[Tuple, str]] = "PRELU",
-        norm: Optional[Union[Tuple, str]] = "INSTANCE",
-        dropout: Optional[Union[Tuple, str, float]] = None,
-        dropout_dim: Optional[int] = 1,
-        dilation: Union[Sequence[int], int] = 1,
+        act: tuple | str | None = "PRELU",
+        norm: tuple | str | None = "INSTANCE",
+        dropout: tuple | str | float | None = None,
+        dropout_dim: int | None = 1,
+        dilation: Sequence[int] | int = 1,
         groups: int = 1,
         bias: bool = True,
         conv_only: bool = False,
         is_transposed: bool = False,
-        padding: Optional[Union[Sequence[int], int]] = None,
-        output_padding: Optional[Union[Sequence[int], int]] = None,
+        padding: Sequence[int] | int | None = None,
+        output_padding: Sequence[int] | int | None = None,
     ) -> None:
         super().__init__()
         self.spatial_dims = spatial_dims
@@ -248,18 +250,18 @@ class ResidualUnit(nn.Module):
         spatial_dims: int,
         in_channels: int,
         out_channels: int,
-        strides: Union[Sequence[int], int] = 1,
-        kernel_size: Union[Sequence[int], int] = 3,
+        strides: Sequence[int] | int = 1,
+        kernel_size: Sequence[int] | int = 3,
         subunits: int = 2,
         adn_ordering: str = "NDA",
-        act: Optional[Union[Tuple, str]] = "PRELU",
-        norm: Optional[Union[Tuple, str]] = "INSTANCE",
-        dropout: Optional[Union[Tuple, str, float]] = None,
-        dropout_dim: Optional[int] = 1,
-        dilation: Union[Sequence[int], int] = 1,
+        act: tuple | str | None = "PRELU",
+        norm: tuple | str | None = "INSTANCE",
+        dropout: tuple | str | float | None = None,
+        dropout_dim: int | None = 1,
+        dilation: Sequence[int] | int = 1,
         bias: bool = True,
         last_conv_only: bool = False,
-        padding: Optional[Union[Sequence[int], int]] = None,
+        padding: Sequence[int] | int | None = None,
     ) -> None:
         super().__init__()
         self.spatial_dims = spatial_dims

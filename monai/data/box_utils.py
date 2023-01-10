@@ -18,11 +18,13 @@ We currently define this ordering as `monai.data.box_utils.StandardMode` and
 the rest of the detection pipelines mainly assumes boxes in `StandardMode`.
 """
 
+from __future__ import annotations
+
 import inspect
 import warnings
 from abc import ABC, abstractmethod
+from collections.abc import Callable, Sequence
 from copy import deepcopy
-from typing import Callable, Dict, Sequence, Tuple, Type, Union
 
 import numpy as np
 import torch
@@ -77,7 +79,7 @@ class BoxMode(ABC):
     """
 
     # a dictionary that maps spatial_dims to monai.utils.enums.BoxModeName.
-    name: Dict[int, BoxModeName] = {}
+    name: dict[int, BoxModeName] = {}
 
     @classmethod
     def get_name(cls, spatial_dims: int) -> str:
@@ -93,7 +95,7 @@ class BoxMode(ABC):
         return cls.name[spatial_dims].value
 
     @abstractmethod
-    def boxes_to_corners(self, boxes: torch.Tensor) -> Tuple:
+    def boxes_to_corners(self, boxes: torch.Tensor) -> tuple:
         """
         Convert the bounding boxes of the current mode to corners.
 
@@ -101,7 +103,7 @@ class BoxMode(ABC):
             boxes: bounding boxes, Nx4 or Nx6 torch tensor
 
         Returns:
-            ``Tuple``: corners of boxes, 4-element or 6-element tuple, each element is a Nx1 torch tensor.
+            ``tuple``: corners of boxes, 4-element or 6-element tuple, each element is a Nx1 torch tensor.
             It represents (xmin, ymin, xmax, ymax) or (xmin, ymin, zmin, xmax, ymax, zmax)
 
         Example:
@@ -151,8 +153,8 @@ class CornerCornerModeTypeA(BoxMode):
 
     name = {2: BoxModeName.XYXY, 3: BoxModeName.XYZXYZ}
 
-    def boxes_to_corners(self, boxes: torch.Tensor) -> Tuple:
-        corners: Tuple
+    def boxes_to_corners(self, boxes: torch.Tensor) -> tuple:
+        corners: tuple
         corners = boxes.split(1, dim=-1)
         return corners
 
@@ -178,8 +180,8 @@ class CornerCornerModeTypeB(BoxMode):
 
     name = {2: BoxModeName.XXYY, 3: BoxModeName.XXYYZZ}
 
-    def boxes_to_corners(self, boxes: torch.Tensor) -> Tuple:
-        corners: Tuple
+    def boxes_to_corners(self, boxes: torch.Tensor) -> tuple:
+        corners: tuple
         spatial_dims = get_spatial_dims(boxes=boxes)
         if spatial_dims == 3:
             xmin, xmax, ymin, ymax, zmin, zmax = boxes.split(1, dim=-1)
@@ -215,8 +217,8 @@ class CornerCornerModeTypeC(BoxMode):
 
     name = {2: BoxModeName.XYXY, 3: BoxModeName.XYXYZZ}
 
-    def boxes_to_corners(self, boxes: torch.Tensor) -> Tuple:
-        corners: Tuple
+    def boxes_to_corners(self, boxes: torch.Tensor) -> tuple:
+        corners: tuple
         spatial_dims = get_spatial_dims(boxes=boxes)
         if spatial_dims == 3:
             xmin, ymin, xmax, ymax, zmin, zmax = boxes.split(1, dim=-1)
@@ -251,8 +253,8 @@ class CornerSizeMode(BoxMode):
 
     name = {2: BoxModeName.XYWH, 3: BoxModeName.XYZWHD}
 
-    def boxes_to_corners(self, boxes: torch.Tensor) -> Tuple:
-        corners: Tuple
+    def boxes_to_corners(self, boxes: torch.Tensor) -> tuple:
+        corners: tuple
         # convert to float32 when computing torch.clamp, which does not support float16
         box_dtype = boxes.dtype
 
@@ -300,8 +302,8 @@ class CenterSizeMode(BoxMode):
 
     name = {2: BoxModeName.CCWH, 3: BoxModeName.CCCWHD}
 
-    def boxes_to_corners(self, boxes: torch.Tensor) -> Tuple:
-        corners: Tuple
+    def boxes_to_corners(self, boxes: torch.Tensor) -> tuple:
+        corners: tuple
         # convert to float32 when computing torch.clamp, which does not support float16
         box_dtype = boxes.dtype
 
@@ -361,10 +363,10 @@ StandardMode = CornerCornerModeTypeA
 
 
 def get_spatial_dims(
-    boxes: Union[torch.Tensor, np.ndarray, None] = None,
-    points: Union[torch.Tensor, np.ndarray, None] = None,
-    corners: Union[Sequence, None] = None,
-    spatial_size: Union[Sequence[int], torch.Tensor, np.ndarray, None] = None,
+    boxes: torch.Tensor | np.ndarray | None = None,
+    points: torch.Tensor | np.ndarray | None = None,
+    corners: Sequence | None = None,
+    spatial_size: Sequence[int] | torch.Tensor | np.ndarray | None = None,
 ) -> int:
     """
     Get spatial dimension for the giving setting and check the validity of them.
@@ -430,7 +432,7 @@ def get_spatial_dims(
     raise ValueError("The dimensions of multiple inputs should match with each other.")
 
 
-def get_boxmode(mode: Union[str, BoxMode, Type[BoxMode], None] = None, *args, **kwargs) -> BoxMode:
+def get_boxmode(mode: str | BoxMode | type[BoxMode] | None = None, *args, **kwargs) -> BoxMode:
     """
     This function that return a :class:`~monai.data.box_utils.BoxMode` object giving a representation of box mode
 
@@ -494,8 +496,8 @@ def get_boxmode(mode: Union[str, BoxMode, Type[BoxMode], None] = None, *args, **
 
 def convert_box_mode(
     boxes: NdarrayOrTensor,
-    src_mode: Union[str, BoxMode, Type[BoxMode], None] = None,
-    dst_mode: Union[str, BoxMode, Type[BoxMode], None] = None,
+    src_mode: str | BoxMode | type[BoxMode] | None = None,
+    dst_mode: str | BoxMode | type[BoxMode] | None = None,
 ) -> NdarrayOrTensor:
     """
     This function converts the boxes in src_mode to the dst_mode.
@@ -549,7 +551,7 @@ def convert_box_mode(
 
 
 def convert_box_to_standard_mode(
-    boxes: NdarrayOrTensor, mode: Union[str, BoxMode, Type[BoxMode], None] = None
+    boxes: NdarrayOrTensor, mode: str | BoxMode | type[BoxMode] | None = None
 ) -> NdarrayOrTensor:
     """
     Convert given boxes to standard mode.
@@ -624,7 +626,7 @@ def centers_in_boxes(centers: NdarrayOrTensor, boxes: NdarrayOrTensor, eps: floa
 
 def boxes_center_distance(
     boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor, euclidean: bool = True
-) -> Tuple[NdarrayOrTensor, NdarrayOrTensor, NdarrayOrTensor]:
+) -> tuple[NdarrayOrTensor, NdarrayOrTensor, NdarrayOrTensor]:
     """
     Distance of center points between two sets of boxes
 
@@ -726,7 +728,7 @@ def box_area(boxes: NdarrayOrTensor) -> NdarrayOrTensor:
 
 def _box_inter_union(
     boxes1_t: torch.Tensor, boxes2_t: torch.Tensor, compute_dtype: torch.dtype = torch.float32
-) -> Tuple[torch.Tensor, torch.Tensor]:
+) -> tuple[torch.Tensor, torch.Tensor]:
     """
     This internal function computes the intersection and union area of two set of boxes.
 
@@ -938,10 +940,10 @@ def box_pair_giou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOr
 
 def spatial_crop_boxes(
     boxes: NdarrayOrTensor,
-    roi_start: Union[Sequence[int], NdarrayOrTensor],
-    roi_end: Union[Sequence[int], NdarrayOrTensor],
+    roi_start: Sequence[int] | NdarrayOrTensor,
+    roi_end: Sequence[int] | NdarrayOrTensor,
     remove_empty: bool = True,
-) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
+) -> tuple[NdarrayOrTensor, NdarrayOrTensor]:
     """
     This function generate the new boxes when the corresponding image is cropped to the given ROI.
     When ``remove_empty=True``, it makes sure the bounding boxes are within the new cropped image.
@@ -994,8 +996,8 @@ def spatial_crop_boxes(
 
 
 def clip_boxes_to_image(
-    boxes: NdarrayOrTensor, spatial_size: Union[Sequence[int], NdarrayOrTensor], remove_empty: bool = True
-) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
+    boxes: NdarrayOrTensor, spatial_size: Sequence[int] | NdarrayOrTensor, remove_empty: bool = True
+) -> tuple[NdarrayOrTensor, NdarrayOrTensor]:
     """
     This function clips the ``boxes`` to makes sure the bounding boxes are within the image.
 

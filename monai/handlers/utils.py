@@ -9,9 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Union
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
@@ -52,10 +55,10 @@ def stopping_fn_from_loss():
 
 def write_metrics_reports(
     save_dir: PathLike,
-    images: Optional[Sequence[str]],
-    metrics: Optional[Dict[str, Union[torch.Tensor, np.ndarray]]],
-    metric_details: Optional[Dict[str, Union[torch.Tensor, np.ndarray]]],
-    summary_ops: Optional[Union[str, Sequence[str]]],
+    images: Sequence[str] | None,
+    metrics: dict[str, torch.Tensor | np.ndarray] | None,
+    metric_details: dict[str, torch.Tensor | np.ndarray] | None,
+    summary_ops: str | Sequence[str] | None,
     deli: str = ",",
     output_type: str = "csv",
 ):

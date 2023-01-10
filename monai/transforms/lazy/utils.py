@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional
+from __future__ import annotations
 
 import numpy as np
 import torch
@@ -105,7 +105,7 @@ def is_compatible_apply_kwargs(kwargs_1, kwargs_2):
     return True
 
 
-def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: Optional[dict] = None):
+def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = None):
     """
     This is a minimal implementation of resample that always uses Affine.
     """

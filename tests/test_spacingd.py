@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
-from typing import List, Tuple
 
 import numpy as np
 import torch
@@ -22,7 +23,7 @@ from monai.data.utils import affine_to_spacing
 from monai.transforms import Spacingd
 from tests.utils import TEST_DEVICES, assert_allclose
 
-TESTS: List[Tuple] = []
+TESTS: list[tuple] = []
 for device in TEST_DEVICES:
     TESTS.append(
         (

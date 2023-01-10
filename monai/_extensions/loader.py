@@ -9,13 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import platform
 from _thread import interrupt_main
 from contextlib import contextmanager
 from glob import glob
 from os import path
 from threading import Timer
-from typing import Optional
 
 import torch
 
@@ -44,9 +45,7 @@ def timeout(time, message):
                 pass
 
 
-def load_module(
-    module_name: str, defines: Optional[dict] = None, verbose_build: bool = False, build_timeout: int = 300
-):
+def load_module(module_name: str, defines: dict | None = None, verbose_build: bool = False, build_timeout: int = 300):
     """
     Handles the loading of c++ extension modules.
 

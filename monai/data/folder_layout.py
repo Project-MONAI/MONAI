@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import monai
 from monai.config import PathLike
 from monai.data.utils import create_file_basename

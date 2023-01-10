@@ -9,9 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import logging
 import warnings
-from typing import TYPE_CHECKING, Callable, List, Optional
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import torch
 
@@ -43,9 +46,9 @@ class ClassificationSaver:
         overwrite: bool = True,
         batch_transform: Callable = lambda x: x,
         output_transform: Callable = lambda x: x,
-        name: Optional[str] = None,
+        name: str | None = None,
         save_rank: int = 0,
-        saver: Optional[CSVSaver] = None,
+        saver: CSVSaver | None = None,
     ) -> None:
         """
         Args:
@@ -85,8 +88,8 @@ class ClassificationSaver:
 
         self.logger = logging.getLogger(name)
         self._name = name
-        self._outputs: List[torch.Tensor] = []
-        self._filenames: List[str] = []
+        self._outputs: list[torch.Tensor] = []
+        self._filenames: list[str] = []
 
     def attach(self, engine: Engine) -> None:
         """

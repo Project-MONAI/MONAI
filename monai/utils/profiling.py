@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import csv
 import datetime
 import multiprocessing
@@ -21,7 +23,7 @@ from functools import wraps
 from inspect import getframeinfo, stack
 from queue import Empty
 from time import perf_counter, perf_counter_ns
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 import numpy as np
 import torch
@@ -123,7 +125,7 @@ class PerfContext:
 
     def __init__(self):
         self.total_time: float = 0
-        self.start_time: Optional[float] = None
+        self.start_time: float | None = None
 
     def __enter__(self):
         self.start_time = perf_counter()
@@ -198,7 +200,7 @@ class WorkflowProfiler:
     def __init__(self, call_selector=select_transform_call):
         self.results = defaultdict(list)
         self.parent_pid = os.getpid()
-        self.read_thread: Optional[threading.Thread] = None
+        self.read_thread: threading.Thread | None = None
         self.lock = threading.RLock()
         self.queue: multiprocessing.SimpleQueue = multiprocessing.SimpleQueue()
         self.queue_timeout = 0.1

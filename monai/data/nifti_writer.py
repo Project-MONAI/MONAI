@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import numpy as np
 import torch
@@ -29,10 +31,10 @@ nib, _ = optional_import("nibabel")
 def write_nifti(
     data: NdarrayOrTensor,
     file_name: str,
-    affine: Optional[NdarrayOrTensor] = None,
-    target_affine: Optional[np.ndarray] = None,
+    affine: NdarrayOrTensor | None = None,
+    target_affine: np.ndarray | None = None,
     resample: bool = True,
-    output_spatial_shape: Union[Sequence[int], np.ndarray, None] = None,
+    output_spatial_shape: Sequence[int] | np.ndarray | None = None,
     mode: str = GridSampleMode.BILINEAR,
     padding_mode: str = GridSamplePadMode.BORDER,
     align_corners: bool = False,

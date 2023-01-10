@@ -9,8 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
-from typing import Callable, Dict, Optional, Sequence, Union, cast
+from collections.abc import Callable, Sequence
+from typing import cast
 
 import numpy as np
 import torch
@@ -52,7 +55,7 @@ class ModelWithHooks:
     def __init__(
         self,
         nn_module,
-        target_layer_names: Union[str, Sequence[str]],
+        target_layer_names: str | Sequence[str],
         register_forward: bool = False,
         register_backward: bool = False,
     ):
@@ -67,10 +70,10 @@ class ModelWithHooks:
         self.model = nn_module
         self.target_layers = ensure_tuple(target_layer_names)
 
-        self.gradients: Dict[str, torch.Tensor] = {}
-        self.activations: Dict[str, torch.Tensor] = {}
-        self.score: Optional[torch.Tensor] = None
-        self.class_idx: Optional[int] = None
+        self.gradients: dict[str, torch.Tensor] = {}
+        self.activations: dict[str, torch.Tensor] = {}
+        self.score: torch.Tensor | None = None
+        self.class_idx: int | None = None
         self.register_backward = register_backward
         self.register_forward = register_forward
 
@@ -104,7 +107,7 @@ class ModelWithHooks:
 
         return _hook
 
-    def get_layer(self, layer_id: Union[str, Callable]):
+    def get_layer(self, layer_id: str | Callable):
         """
 
         Args:
@@ -259,7 +262,7 @@ class CAM(CAMBase):
         self,
         nn_module: nn.Module,
         target_layers: str,
-        fc_layers: Union[str, Callable] = "fc",
+        fc_layers: str | Callable = "fc",
         upsampler: Callable = default_upsampler,
         postprocessing: Callable = default_normalizer,
     ) -> None:
