@@ -16,7 +16,7 @@ import warnings
 from copy import deepcopy
 from enum import Enum
 from itertools import zip_longest
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
 import torch
@@ -2730,7 +2730,7 @@ class Rand2DElastic(RandomizableTransform):
             grid = CenterSpatialCrop(roi_size=sp_size)(grid[0])
         else:
             _device = img.device if isinstance(img, torch.Tensor) else self.device
-            grid = create_grid(spatial_size=sp_size, device=_device, backend="torch")
+            grid = cast(torch.Tensor, create_grid(spatial_size=sp_size, device=_device, backend="torch"))
         out: torch.Tensor = self.resampler(
             img,
             grid,
