@@ -763,10 +763,7 @@ class HoVerNetNuclearTypePostProcessing(Transform):
     """
 
     def __init__(
-        self,
-        activation: str | Callable = "softmax",
-        threshold: float | None = None,
-        return_type_map: bool = True,
+        self, activation: str | Callable = "softmax", threshold: float | None = None, return_type_map: bool = True
     ) -> None:
         super().__init__()
         self.return_type_map = return_type_map

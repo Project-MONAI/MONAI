@@ -459,9 +459,7 @@ class LearningRateFinder:
 
         return lrs, losses
 
-    def get_steepest_gradient(
-        self, skip_start: int = 0, skip_end: int = 0
-    ) -> tuple[float, float] | tuple[None, None]:
+    def get_steepest_gradient(self, skip_start: int = 0, skip_end: int = 0) -> tuple[float, float] | tuple[None, None]:
         """Get learning rate which has steepest gradient and its corresponding loss
 
         Args:
