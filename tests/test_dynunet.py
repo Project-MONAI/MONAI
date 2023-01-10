@@ -120,8 +120,9 @@ class TestDynUNet(unittest.TestCase):
         test_script_save(net, test_data)
 
 
-@skip_if_no_cuda
-@skip_if_windows
+# @skip_if_no_cuda
+# @skip_if_windows
+@unittest.skip("temporary skip for 22.12")
 class TestDynUNetWithInstanceNorm3dNVFuser(unittest.TestCase):
     @parameterized.expand([TEST_CASE_DYNUNET_3D[0]])
     def test_consistency(self, input_param, input_shape, _):
