@@ -1544,6 +1544,8 @@ def get_transform_backends():
             not in [
                 "BatchInverseTransform",
                 "Compose",
+                "CuCIM",
+                "CuCIMD",
                 "Decollated",
                 "InvertD",
                 "InvertibleTransform",
@@ -1551,6 +1553,8 @@ def get_transform_backends():
                 "LambdaD",
                 "MapTransform",
                 "OneOf",
+                "RandCuCIM",
+                "RandCuCIMD",
                 "RandomOrder",
                 "PadListDataCollate",
                 "RandLambda",
