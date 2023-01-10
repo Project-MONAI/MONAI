@@ -13,6 +13,8 @@ A collection of "vanilla" transforms for box operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
+from __future__ import annotations
+
 from typing import Callable, Optional, Sequence, Tuple, Type, Union
 
 import numpy as np

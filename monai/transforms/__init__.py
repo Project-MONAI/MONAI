@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from .adaptors import FunctionSignature, adaptor, apply_alias, to_kwargs
 from .compose import Compose, OneOf, RandomOrder
 from .croppad.array import (

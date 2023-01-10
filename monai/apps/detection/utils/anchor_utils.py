@@ -37,6 +37,8 @@ This script is adapted from
 https://github.com/pytorch/vision/blob/release/0.12/torchvision/models/detection/anchor_utils.py
 """
 
+from __future__ import annotations
+
 from typing import List, Sequence, Union
 
 import torch

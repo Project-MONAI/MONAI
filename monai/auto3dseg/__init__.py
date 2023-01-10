@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from .algo_gen import Algo, AlgoGen
 from .analyzer import (
     Analyzer,

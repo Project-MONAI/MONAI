@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from .class_activation_maps import CAM, GradCAM, GradCAMpp, ModelWithHooks, default_normalizer
 from .gradient_based import GuidedBackpropGrad, GuidedBackpropSmoothGrad, SmoothGrad, VanillaGrad
 from .img2tensorboard import add_animated_gif, make_animated_gif_summary, plot_2d_or_3d_image
