@@ -17,7 +17,7 @@ import sys
 import warnings
 from copy import deepcopy
 from numbers import Number
-from typing import Any, cast
+from typing import Any
 
 import numpy as np
 import torch
