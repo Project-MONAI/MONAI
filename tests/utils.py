@@ -30,7 +30,7 @@ import warnings
 from contextlib import contextmanager
 from functools import partial, reduce
 from subprocess import PIPE, Popen
-from typing import Callable, Optional, Tuple, Union
+from typing import Callable
 from urllib.error import ContentTooShortError, HTTPError
 
 import numpy as np
@@ -82,7 +82,7 @@ def clone(data: NdarrayTensor) -> NdarrayTensor:
 def assert_allclose(
     actual: NdarrayOrTensor,
     desired: NdarrayOrTensor,
-    type_test: Union[bool, str] = True,
+    type_test: bool | str = True,
     device_test: bool = False,
     *args,
     **kwargs,
@@ -343,7 +343,7 @@ def make_nifti_image(
     return fname
 
 
-def make_rand_affine(ndim: int = 3, random_state: Optional[np.random.RandomState] = None):
+def make_rand_affine(ndim: int = 3, random_state: np.random.RandomState | None = None):
     """Create random affine transformation (with values == -1, 0 or 1)."""
     rs = np.random.random.__self__ if random_state is None else random_state  # type: ignore
 
@@ -405,13 +405,13 @@ class DistCall:
         nnodes: int = 1,
         nproc_per_node: int = 1,
         master_addr: str = "localhost",
-        master_port: Optional[int] = None,
-        node_rank: Optional[int] = None,
+        master_port: int | None = None,
+        node_rank: int | None = None,
         timeout=60,
         init_method=None,
-        backend: Optional[str] = None,
-        daemon: Optional[bool] = None,
-        method: Optional[str] = "spawn",
+        backend: str | None = None,
+        daemon: bool | None = None,
+        method: str | None = "spawn",
         verbose: bool = False,
     ):
         """
@@ -541,8 +541,8 @@ class TimedCall:
     def __init__(
         self,
         seconds: float = 60.0,
-        daemon: Optional[bool] = None,
-        method: Optional[str] = "spawn",
+        daemon: bool | None = None,
+        method: str | None = "spawn",
         force_quit: bool = True,
         skip_timing=False,
     ):
@@ -784,7 +784,7 @@ def command_line_tests(cmd, copy_env=True):
         raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}") from e
 
 
-TEST_TORCH_TENSORS: Tuple = (torch.as_tensor,)
+TEST_TORCH_TENSORS: tuple = (torch.as_tensor,)
 if torch.cuda.is_available():
     gpu_tensor: Callable = partial(torch.as_tensor, device="cuda")
     TEST_TORCH_TENSORS = TEST_TORCH_TENSORS + (gpu_tensor,)
@@ -793,9 +793,9 @@ DEFAULT_TEST_AFFINE = torch.tensor(
     [[2.0, 0.0, 0.0, 0.0], [0.0, 2.0, 0.0, 0.0], [0.0, 0.0, 2.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
 )
 _metatensor_creator = partial(MetaTensor, meta={"a": "b", "affine": DEFAULT_TEST_AFFINE})
-TEST_NDARRAYS_NO_META_TENSOR: Tuple[Callable] = (np.array,) + TEST_TORCH_TENSORS  # type: ignore
-TEST_NDARRAYS: Tuple[Callable] = TEST_NDARRAYS_NO_META_TENSOR + (_metatensor_creator,)  # type: ignore
-TEST_TORCH_AND_META_TENSORS: Tuple[Callable] = TEST_TORCH_TENSORS + (_metatensor_creator,)  # type: ignore
+TEST_NDARRAYS_NO_META_TENSOR: tuple[Callable] = (np.array,) + TEST_TORCH_TENSORS  # type: ignore
+TEST_NDARRAYS: tuple[Callable] = TEST_NDARRAYS_NO_META_TENSOR + (_metatensor_creator,)  # type: ignore
+TEST_TORCH_AND_META_TENSORS: tuple[Callable] = TEST_TORCH_TENSORS + (_metatensor_creator,)  # type: ignore
 # alias for branch tests
 TEST_NDARRAYS_ALL = TEST_NDARRAYS
 

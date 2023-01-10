@@ -15,7 +15,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 from __future__ import annotations
 
-from typing import Callable, Optional, Sequence, Tuple, Type, Union
+from typing import Callable, Sequence
 
 import numpy as np
 import torch
@@ -110,8 +110,8 @@ class ConvertBoxMode(Transform):
 
     def __init__(
         self,
-        src_mode: Union[str, BoxMode, Type[BoxMode], None] = None,
-        dst_mode: Union[str, BoxMode, Type[BoxMode], None] = None,
+        src_mode: str | BoxMode | type[BoxMode] | None = None,
+        dst_mode: str | BoxMode | type[BoxMode] | None = None,
     ) -> None:
         self.src_mode = src_mode
         self.dst_mode = dst_mode
@@ -150,7 +150,7 @@ class ConvertBoxToStandardMode(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, mode: Union[str, BoxMode, Type[BoxMode], None] = None) -> None:
+    def __init__(self, mode: str | BoxMode | type[BoxMode] | None = None) -> None:
         self.mode = mode
 
     def __call__(self, boxes: NdarrayOrTensor) -> NdarrayOrTensor:
@@ -175,7 +175,7 @@ class AffineBox(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __call__(self, boxes: NdarrayOrTensor, affine: Union[NdarrayOrTensor, None]) -> NdarrayOrTensor:  # type: ignore
+    def __call__(self, boxes: NdarrayOrTensor, affine: NdarrayOrTensor | None) -> NdarrayOrTensor:  # type: ignore
         """
         Args:
             boxes: source bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
@@ -202,12 +202,12 @@ class ZoomBox(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, zoom: Union[Sequence[float], float], keep_size: bool = False, **kwargs) -> None:
+    def __init__(self, zoom: Sequence[float] | float, keep_size: bool = False, **kwargs) -> None:
         self.zoom = zoom
         self.keep_size = keep_size
         self.kwargs = kwargs
 
-    def __call__(self, boxes: torch.Tensor, src_spatial_size: Union[Sequence[int], int, None] = None):
+    def __call__(self, boxes: torch.Tensor, src_spatial_size: Sequence[int] | int | None = None):
         """
         Args:
             boxes: source bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
@@ -262,11 +262,11 @@ class ResizeBox(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, spatial_size: Union[Sequence[int], int], size_mode: str = "all", **kwargs) -> None:
+    def __init__(self, spatial_size: Sequence[int] | int, size_mode: str = "all", **kwargs) -> None:
         self.size_mode = look_up_option(size_mode, ["all", "longest"])
         self.spatial_size = spatial_size
 
-    def __call__(self, boxes: NdarrayOrTensor, src_spatial_size: Union[Sequence[int], int]):  # type: ignore
+    def __call__(self, boxes: NdarrayOrTensor, src_spatial_size: Sequence[int] | int):  # type: ignore
         """
         Args:
             boxes: source bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
@@ -311,10 +311,10 @@ class FlipBox(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, spatial_axis: Optional[Union[Sequence[int], int]] = None) -> None:
+    def __init__(self, spatial_axis: Sequence[int] | int | None = None) -> None:
         self.spatial_axis = spatial_axis
 
-    def __call__(self, boxes: NdarrayOrTensor, spatial_size: Union[Sequence[int], int]):  # type: ignore
+    def __call__(self, boxes: NdarrayOrTensor, spatial_size: Sequence[int] | int):  # type: ignore
         """
         Args:
             boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
@@ -341,9 +341,9 @@ class ClipBoxToImage(Transform):
     def __call__(  # type: ignore
         self,
         boxes: NdarrayOrTensor,
-        labels: Union[Sequence[NdarrayOrTensor], NdarrayOrTensor],
-        spatial_size: Union[Sequence[int], int],
-    ) -> Tuple[NdarrayOrTensor, Union[Tuple, NdarrayOrTensor]]:
+        labels: Sequence[NdarrayOrTensor] | NdarrayOrTensor,
+        spatial_size: Sequence[int] | int,
+    ) -> tuple[NdarrayOrTensor, tuple | NdarrayOrTensor]:
         """
         Args:
             boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
@@ -394,7 +394,7 @@ class BoxToMask(Transform):
         self.ellipse_mask = ellipse_mask
 
     def __call__(  # type: ignore
-        self, boxes: NdarrayOrTensor, labels: NdarrayOrTensor, spatial_size: Union[Sequence[int], int]
+        self, boxes: NdarrayOrTensor, labels: NdarrayOrTensor, spatial_size: Sequence[int] | int
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -429,7 +429,7 @@ class MaskToBox(Transform):
         self.box_dtype = box_dtype
         self.label_dtype = label_dtype
 
-    def __call__(self, boxes_mask: NdarrayOrTensor) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
+    def __call__(self, boxes_mask: NdarrayOrTensor) -> tuple[NdarrayOrTensor, NdarrayOrTensor]:
         """
         Args:
             boxes_mask: int16 array, sized (num_box, H, W). Each channel represents a box.
@@ -472,11 +472,11 @@ class SpatialCropBox(SpatialCrop):
 
     def __init__(
         self,
-        roi_center: Union[Sequence[int], NdarrayOrTensor, None] = None,
-        roi_size: Union[Sequence[int], NdarrayOrTensor, None] = None,
-        roi_start: Union[Sequence[int], NdarrayOrTensor, None] = None,
-        roi_end: Union[Sequence[int], NdarrayOrTensor, None] = None,
-        roi_slices: Optional[Sequence[slice]] = None,
+        roi_center: Sequence[int] | NdarrayOrTensor | None = None,
+        roi_size: Sequence[int] | NdarrayOrTensor | None = None,
+        roi_start: Sequence[int] | NdarrayOrTensor | None = None,
+        roi_end: Sequence[int] | NdarrayOrTensor | None = None,
+        roi_slices: Sequence[slice] | None = None,
     ) -> None:
         super().__init__(roi_center, roi_size, roi_start, roi_end, roi_slices)
         for s in self.slices:
@@ -484,7 +484,7 @@ class SpatialCropBox(SpatialCrop):
                 raise ValueError("Currently negative indexing is not supported for SpatialCropBox.")
 
     def __call__(  # type: ignore
-        self, boxes: NdarrayOrTensor, labels: Union[Sequence[NdarrayOrTensor], NdarrayOrTensor]
+        self, boxes: NdarrayOrTensor, labels: Sequence[NdarrayOrTensor] | NdarrayOrTensor
     ):
         """
         Args:
@@ -528,7 +528,7 @@ class RotateBox90(Rotate90):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __call__(self, boxes: NdarrayOrTensor, spatial_size: Union[Sequence[int], int]):  # type: ignore
+    def __call__(self, boxes: NdarrayOrTensor, spatial_size: Sequence[int] | int):  # type: ignore
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),

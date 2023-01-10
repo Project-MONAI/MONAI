@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 import unittest
-from typing import Any, List
+from typing import Any
 
 import numpy as np
 import torch
@@ -30,8 +30,8 @@ class DenseNetAdjoint(DenseNet121):
         return super().__call__(x)
 
 
-TESTS: List[Any] = []
-TESTS_ILL: List[Any] = []
+TESTS: list[Any] = []
+TESTS_ILL: list[Any] = []
 
 for cam in (GradCAM, GradCAMpp):
     # 2D

@@ -15,7 +15,6 @@ import os
 import tempfile
 import unittest
 from functools import partial
-from typing import Dict, List
 
 import nibabel as nib
 import numpy as np
@@ -51,7 +50,7 @@ def skip_if_no_optuna(obj):
     return unittest.skipUnless(has_optuna, "Skipping optuna tests")(obj)
 
 
-fake_datalist: Dict[str, List[Dict]] = {
+fake_datalist: dict[str, list[dict]] = {
     "testing": [{"image": "val_001.fake.nii.gz"}, {"image": "val_002.fake.nii.gz"}],
     "training": [
         {"fold": 0, "image": "tr_image_001.fake.nii.gz", "label": "tr_label_001.fake.nii.gz"},

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import os
 import unittest
-from typing import Any, Tuple
+from typing import Any
 from unittest import skipUnless
 
 import numpy as np
@@ -257,7 +257,7 @@ class WSIReaderDeprecatedTests:
 
         @parameterized.expand([TEST_CASE_TRANSFORM_0])
         def test_with_dataloader(
-            self, file_path: PathLike, level: int, expected_spatial_shape: Any, expected_shape: Tuple[int, ...]
+            self, file_path: PathLike, level: int, expected_spatial_shape: Any, expected_shape: tuple[int, ...]
         ):
             train_transform = Compose(
                 [
@@ -364,7 +364,7 @@ class WSIReaderTests:
 
         @parameterized.expand([TEST_CASE_TRANSFORM_0])
         def test_with_dataloader(
-            self, file_path: PathLike, level: int, expected_spatial_shape: Any, expected_shape: Tuple[int, ...]
+            self, file_path: PathLike, level: int, expected_spatial_shape: Any, expected_shape: tuple[int, ...]
         ):
             train_transform = Compose(
                 [
@@ -381,7 +381,7 @@ class WSIReaderTests:
 
         @parameterized.expand([TEST_CASE_TRANSFORM_0])
         def test_with_dataloader_batch(
-            self, file_path: PathLike, level: int, expected_spatial_shape: Any, expected_shape: Tuple[int, ...]
+            self, file_path: PathLike, level: int, expected_spatial_shape: Any, expected_shape: tuple[int, ...]
         ):
             train_transform = Compose(
                 [

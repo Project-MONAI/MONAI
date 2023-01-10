@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import unittest
-from typing import List, Tuple
 
 import numpy as np
 import scipy.ndimage
@@ -23,14 +22,14 @@ from monai.transforms import RandRotated
 from monai.utils import GridSampleMode, GridSamplePadMode
 from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, NumpyImageTestCase3D, test_local_inversion
 
-TEST_CASES_2D: List[Tuple] = []
+TEST_CASES_2D: list[tuple] = []
 for p in TEST_NDARRAYS_ALL:
     TEST_CASES_2D.append((p, np.pi / 2, True, "bilinear", "border", False))
     TEST_CASES_2D.append((p, np.pi / 4, True, "nearest", "border", False))
     TEST_CASES_2D.append((p, np.pi, False, "nearest", "zeros", True))
     TEST_CASES_2D.append((p, (-np.pi / 4, 0), False, "nearest", "zeros", True))
 
-TEST_CASES_3D: List[Tuple] = []
+TEST_CASES_3D: list[tuple] = []
 for p in TEST_NDARRAYS_ALL:
     TEST_CASES_3D.append(
         (p, np.pi / 2, -np.pi / 6, (0.0, np.pi), False, "bilinear", "border", False, (1, 81, 110, 112))

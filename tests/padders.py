@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import unittest
-from typing import List
 
 import numpy as np
 import torch
@@ -24,7 +23,7 @@ from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 MODES = []
 # Test modes
-NP_MODES: List = [
+NP_MODES: list = [
     "constant",
     "edge",
     # `reflect` mode is not supported in some PyTorch versions, skip the test

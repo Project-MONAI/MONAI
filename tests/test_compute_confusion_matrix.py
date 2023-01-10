@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 import unittest
-from typing import Any, Dict, List
+from typing import Any
 
 import torch
 from parameterized import parameterized
@@ -27,7 +27,7 @@ from tests.utils import assert_allclose
 
 _device = "cuda:0" if torch.cuda.is_available() else "cpu"
 # input data
-data: Dict[Any, Any] = {
+data: dict[Any, Any] = {
     "y_pred": torch.tensor(
         [
             [[[0.0, 1.0], [0.0, 0.0]], [[0.0, 0.0], [1.0, 1.0]], [[1.0, 0.0], [0.0, 0.0]]],
@@ -44,7 +44,7 @@ data: Dict[Any, Any] = {
     ),
 }
 
-data_nan: Dict[Any, Any] = {
+data_nan: dict[Any, Any] = {
     # confusion matrix:[[[0,1,2,1],[1,1,1,1],[0,1,2,1]],
     #                   [[0,0,0,4],[0,0,4,0],[0,4,0,0]],
     #                   [[0,0,2,2],[0,0,2,2],[0,4,0,0]]]
@@ -64,7 +64,7 @@ data_nan: Dict[Any, Any] = {
     ),
 }
 
-data_clf: Dict[Any, Any] = {
+data_clf: dict[Any, Any] = {
     "y_pred": torch.tensor([[1, 0, 0], [0, 0, 1]]),
     "y": torch.tensor([[1, 0, 0], [0, 1, 0]]),
     "compute_sample": False,
@@ -148,7 +148,7 @@ metric_names = [
 result: Any = None
 for idx, item in enumerate(metric_names):
     for reduction in ["mean", "mean_batch"]:
-        TEST_CASE: List[Any] = [data.copy()]
+        TEST_CASE: list[Any] = [data.copy()]
         TEST_CASE[0]["compute_sample"] = True
         TEST_CASE[0]["include_background"] = True
         TEST_CASE[0]["metric_name"] = item
@@ -163,7 +163,7 @@ for idx, item in enumerate(metric_names):
 
 # one input to compute multiple metrics
 for reduction in ["mean", "mean_batch"]:
-    TEST_CASE_MULTIPLE: List[Any] = [data.copy()]
+    TEST_CASE_MULTIPLE: list[Any] = [data.copy()]
     TEST_CASE_MULTIPLE[0]["compute_sample"] = True
     TEST_CASE_MULTIPLE[0]["include_background"] = True
     TEST_CASE_MULTIPLE[0]["metric_name"] = metric_names

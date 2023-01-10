@@ -14,7 +14,6 @@ from __future__ import annotations
 import os
 import tempfile
 import unittest
-from typing import Dict, List
 
 import nibabel as nib
 import numpy as np
@@ -29,7 +28,7 @@ from tests.utils import SkipIfBeforePyTorchVersion, skip_if_downloading_fails, s
 
 _, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
-fake_datalist: Dict[str, List[Dict]] = {
+fake_datalist: dict[str, list[dict]] = {
     "testing": [{"image": "val_001.fake.nii.gz"}, {"image": "val_002.fake.nii.gz"}],
     "training": [
         {"fold": 0, "image": "tr_image_001.fake.nii.gz", "label": "tr_label_001.fake.nii.gz"},

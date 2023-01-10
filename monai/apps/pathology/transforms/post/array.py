@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Callable, Sequence
 
 import numpy as np
 import torch
@@ -70,12 +70,12 @@ class Watershed(Transform):
 
     backend = [TransformBackends.NUMPY]
 
-    def __init__(self, connectivity: Optional[int] = 1, dtype: DtypeLike = np.int64) -> None:
+    def __init__(self, connectivity: int | None = 1, dtype: DtypeLike = np.int64) -> None:
         self.connectivity = connectivity
         self.dtype = dtype
 
     def __call__(
-        self, image: NdarrayOrTensor, mask: Optional[NdarrayOrTensor] = None, markers: Optional[NdarrayOrTensor] = None
+        self, image: NdarrayOrTensor, mask: NdarrayOrTensor | None = None, markers: NdarrayOrTensor | None = None
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -114,8 +114,8 @@ class GenerateWatershedMask(Transform):
 
     def __init__(
         self,
-        activation: Union[str, Callable] = "softmax",
-        threshold: Optional[float] = None,
+        activation: str | Callable = "softmax",
+        threshold: float | None = None,
         min_object_size: int = 10,
         dtype: DtypeLike = np.uint8,
     ) -> None:
@@ -251,7 +251,7 @@ class GenerateDistanceMap(Transform):
 
     backend = [TransformBackends.NUMPY]
 
-    def __init__(self, smooth_fn: Optional[Callable] = None, dtype: DtypeLike = np.float32) -> None:
+    def __init__(self, smooth_fn: Callable | None = None, dtype: DtypeLike = np.float32) -> None:
 
         self.smooth_fn = smooth_fn if smooth_fn is not None else GaussianSmooth()
         self.dtype = dtype
@@ -306,7 +306,7 @@ class GenerateWatershedMarkers(Transform):
         threshold: float = 0.4,
         radius: int = 2,
         min_object_size: int = 10,
-        postprocess_fn: Optional[Callable] = None,
+        postprocess_fn: Callable | None = None,
         dtype: DtypeLike = np.int64,
     ) -> None:
         self.threshold = threshold
@@ -369,7 +369,7 @@ class GenerateSuccinctContour(Transform):
         self.height = height
         self.width = width
 
-    def _generate_contour_coord(self, current: np.ndarray, previous: np.ndarray) -> Tuple[int, int]:
+    def _generate_contour_coord(self, current: np.ndarray, previous: np.ndarray) -> tuple[int, int]:
         """
         Generate contour coordinates. Given the previous and current coordinates of border positions,
         returns the int pixel that marks the extremity of the segmented pixels.
@@ -396,7 +396,7 @@ class GenerateSuccinctContour(Transform):
 
         return row, col
 
-    def _calculate_distance_from_top_left(self, sequence: Sequence[Tuple[int, int]]) -> int:
+    def _calculate_distance_from_top_left(self, sequence: Sequence[tuple[int, int]]) -> int:
         """
         Each sequence of coordinates describes a boundary between foreground and background starting and ending at two sides
         of the bounding box. To order the sequences correctly, we compute the distance from the top-left of the bounding box
@@ -421,18 +421,18 @@ class GenerateSuccinctContour(Transform):
 
         return distance
 
-    def __call__(self, contours: List[np.ndarray]) -> np.ndarray:
+    def __call__(self, contours: list[np.ndarray]) -> np.ndarray:
         """
         Args:
             contours: list of (n, 2)-ndarrays, scipy-style clockwise line segments, with lines separating foreground/background.
                 Each contour is an ndarray of shape (n, 2), consisting of n (row, column) coordinates along the contour.
         """
-        pixels: List[Tuple[int, int]] = []
+        pixels: list[tuple[int, int]] = []
         sequences = []
         corners = [False, False, False, False]
 
         for group in contours:
-            sequence: List[Tuple[int, int]] = []
+            sequence: list[tuple[int, int]] = []
             last_added = None
             prev = None
             corner = -1
@@ -546,11 +546,11 @@ class GenerateInstanceContour(Transform):
 
     backend = [TransformBackends.NUMPY]
 
-    def __init__(self, min_num_points: int = 3, contour_level: Optional[float] = None) -> None:
+    def __init__(self, min_num_points: int = 3, contour_level: float | None = None) -> None:
         self.contour_level = contour_level
         self.min_num_points = min_num_points
 
-    def __call__(self, inst_mask: NdarrayOrTensor, offset: Optional[Sequence[int]] = (0, 0)) -> Optional[np.ndarray]:
+    def __call__(self, inst_mask: NdarrayOrTensor, offset: Sequence[int] | None = (0, 0)) -> np.ndarray | None:
         """
         Args:
             inst_mask: segmentation mask for a single instance. Shape should be [1, H, W, [D]]
@@ -589,10 +589,10 @@ class GenerateInstanceCentroid(Transform):
 
     backend = [TransformBackends.NUMPY]
 
-    def __init__(self, dtype: Optional[DtypeLike] = int) -> None:
+    def __init__(self, dtype: DtypeLike | None = int) -> None:
         self.dtype = dtype
 
-    def __call__(self, inst_mask: NdarrayOrTensor, offset: Union[Sequence[int], int] = 0) -> NdarrayOrTensor:
+    def __call__(self, inst_mask: NdarrayOrTensor, offset: Sequence[int] | int = 0) -> NdarrayOrTensor:
         """
         Args:
             inst_mask: segmentation mask for a single instance. Shape should be [1, H, W, [D]]
@@ -620,7 +620,7 @@ class GenerateInstanceType(Transform):
 
     def __call__(  # type: ignore
         self, type_pred: NdarrayOrTensor, seg_pred: NdarrayOrTensor, bbox: np.ndarray, instance_id: int
-    ) -> Tuple[int, float]:
+    ) -> tuple[int, float]:
         """
         Args:
             type_pred: pixel-level type prediction map after activation function.
@@ -676,17 +676,17 @@ class HoVerNetInstanceMapPostProcessing(Transform):
 
     def __init__(
         self,
-        activation: Union[str, Callable] = "softmax",
-        mask_threshold: Optional[float] = None,
+        activation: str | Callable = "softmax",
+        mask_threshold: float | None = None,
         min_object_size: int = 10,
         sobel_kernel_size: int = 5,
-        distance_smooth_fn: Optional[Callable] = None,
+        distance_smooth_fn: Callable | None = None,
         marker_threshold: float = 0.4,
         marker_radius: int = 2,
-        marker_postprocess_fn: Optional[Callable] = None,
-        watershed_connectivity: Optional[int] = 1,
+        marker_postprocess_fn: Callable | None = None,
+        watershed_connectivity: int | None = 1,
         min_num_points: int = 3,
-        contour_level: Optional[float] = None,
+        contour_level: float | None = None,
     ) -> None:
         super().__init__()
 
@@ -709,7 +709,7 @@ class HoVerNetInstanceMapPostProcessing(Transform):
 
     def __call__(  # type: ignore
         self, nuclear_prediction: NdarrayOrTensor, hover_map: NdarrayOrTensor
-    ) -> Tuple[Dict, NdarrayOrTensor]:
+    ) -> tuple[dict, NdarrayOrTensor]:
         """post-process instance segmentation branches (NP and HV) to generate instance segmentation map.
 
         Args:
@@ -764,8 +764,8 @@ class HoVerNetNuclearTypePostProcessing(Transform):
 
     def __init__(
         self,
-        activation: Union[str, Callable] = "softmax",
-        threshold: Optional[float] = None,
+        activation: str | Callable = "softmax",
+        threshold: float | None = None,
         return_type_map: bool = True,
     ) -> None:
         super().__init__()
@@ -797,8 +797,8 @@ class HoVerNetNuclearTypePostProcessing(Transform):
         self.as_discrete = AsDiscrete(threshold=threshold, argmax=use_softmax)
 
     def __call__(  # type: ignore
-        self, type_prediction: NdarrayOrTensor, instance_info: Dict[int, Dict], instance_map: NdarrayOrTensor
-    ) -> Tuple[Dict, Optional[NdarrayOrTensor]]:
+        self, type_prediction: NdarrayOrTensor, instance_info: dict[int, dict], instance_map: NdarrayOrTensor
+    ) -> tuple[dict, NdarrayOrTensor | None]:
         """Process NC (type prediction) branch and combine it with instance segmentation
         It updates the instance_info with instance type and associated probability, and generate instance type map.
 

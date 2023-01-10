@@ -14,7 +14,6 @@ from __future__ import annotations
 import sys
 import unittest
 from enum import Enum
-from typing import List, Tuple
 
 import numpy as np
 import torch
@@ -47,12 +46,12 @@ _, has_nib = optional_import("nibabel")
 
 KEYS = ["image"]
 
-TESTS_DICT: List[Tuple] = []
+TESTS_DICT: list[tuple] = []
 TESTS_DICT.append((SpatialPadd(KEYS, 150), RandFlipd(KEYS, prob=1.0, spatial_axis=1)))
 TESTS_DICT.append((RandRotate90d(KEYS, prob=0.0, max_k=1),))
 TESTS_DICT.append((RandAffined(KEYS, prob=0.0, translate_range=10),))
 
-TESTS_LIST: List[Tuple] = []
+TESTS_LIST: list[tuple] = []
 TESTS_LIST.append((SpatialPad(150), RandFlip(prob=1.0, spatial_axis=1)))
 TESTS_LIST.append((RandRotate90(prob=0.0, max_k=1),))
 TESTS_LIST.append((RandAffine(prob=0.0, translate_range=10),))

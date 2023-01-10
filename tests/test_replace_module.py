@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import unittest
-from typing import Optional, Type
 
 import torch
 from parameterized import parameterized
@@ -39,7 +38,7 @@ class TestReplaceModule(unittest.TestCase):
         self.total = self.get_num_modules()
         self.assertGreater(self.num_relus, 0)
 
-    def get_num_modules(self, mod: Optional[Type[torch.nn.Module]] = None) -> int:
+    def get_num_modules(self, mod: type[torch.nn.Module] | None = None) -> int:
         m = [m for _, m in self.net.named_modules()]
         if mod is not None:
             m = [_m for _m in m if isinstance(_m, mod)]

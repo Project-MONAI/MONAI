@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import unittest
-from typing import Optional
 
 import numpy as np
 from parameterized import parameterized
@@ -74,7 +73,7 @@ def make_image(
     tile_size: int,
     step: int = 0,
     random_offset: bool = False,
-    filter_mode: Optional[str] = None,
+    filter_mode: str | None = None,
     seed=123,
     **kwargs,
 ):

@@ -39,7 +39,7 @@ https://github.com/pytorch/vision/blob/release/0.12/torchvision/models/detection
 
 from __future__ import annotations
 
-from typing import List, Sequence, Union
+from typing import List, Sequence
 
 import torch
 from torch import Tensor, nn
@@ -150,7 +150,7 @@ class AnchorGenerator(nn.Module):
         scales: Sequence,
         aspect_ratios: Sequence,
         dtype: torch.dtype = torch.float32,
-        device: Union[torch.device, None] = None,
+        device: torch.device | None = None,
     ) -> torch.Tensor:
         """
         Compute cell anchor shapes at multiple sizes and aspect ratios for the current feature map.
@@ -217,7 +217,7 @@ class AnchorGenerator(nn.Module):
         """
         return [c.shape[0] for c in self.cell_anchors]
 
-    def grid_anchors(self, grid_sizes: List[List[int]], strides: List[List[Tensor]]) -> List[Tensor]:
+    def grid_anchors(self, grid_sizes: list[list[int]], strides: list[list[Tensor]]) -> list[Tensor]:
         """
         Every combination of (a, (g, s), i) in (self.cell_anchors, zip(grid_sizes, strides), 0:spatial_dims)
         corresponds to a feature map.
@@ -281,7 +281,7 @@ class AnchorGenerator(nn.Module):
 
         return anchors
 
-    def forward(self, images: Tensor, feature_maps: List[Tensor]) -> List[Tensor]:
+    def forward(self, images: Tensor, feature_maps: list[Tensor]) -> list[Tensor]:
         """
         Generate anchor boxes for each image.
 
@@ -368,8 +368,8 @@ class AnchorGeneratorWithAnchorShape(AnchorGenerator):
 
     def __init__(
         self,
-        feature_map_scales: Union[Sequence[int], Sequence[float]] = (1, 2, 4, 8),
-        base_anchor_shapes: Union[Sequence[Sequence[int]], Sequence[Sequence[float]]] = (
+        feature_map_scales: Sequence[int] | Sequence[float] = (1, 2, 4, 8),
+        base_anchor_shapes: Sequence[Sequence[int]] | Sequence[Sequence[float]] = (
             (32, 32, 32),
             (48, 20, 20),
             (20, 48, 20),
@@ -391,7 +391,7 @@ class AnchorGeneratorWithAnchorShape(AnchorGenerator):
 
     @staticmethod
     def generate_anchors_using_shape(
-        anchor_shapes: torch.Tensor, dtype: torch.dtype = torch.float32, device: Union[torch.device, None] = None
+        anchor_shapes: torch.Tensor, dtype: torch.dtype = torch.float32, device: torch.device | None = None
     ) -> torch.Tensor:
         """
         Compute cell anchor shapes at multiple sizes and aspect ratios for the current feature map.
