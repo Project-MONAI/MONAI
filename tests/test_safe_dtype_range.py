@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
-from typing import List, Tuple
 
 import numpy as np
 import torch
@@ -22,7 +23,7 @@ from tests.utils import HAS_CUPY, TEST_NDARRAYS_ALL, assert_allclose
 
 cp, _ = optional_import("cupy")
 
-TESTS: List[Tuple] = []
+TESTS: list[tuple] = []
 for in_type in TEST_NDARRAYS_ALL + (int, float):
     TESTS.append((in_type(np.array(1.0)), in_type(np.array(1.0)), None))  # type: ignore
     if in_type is not float:
@@ -31,7 +32,7 @@ for in_type in TEST_NDARRAYS_ALL + (int, float):
 for in_type in TEST_NDARRAYS_ALL:
     TESTS.append((in_type(np.array([[256, 255], [-12, 0]])), in_type(np.array([[255, 255], [0, 0]])), np.uint8))
 
-TESTS_LIST: List[Tuple] = []
+TESTS_LIST: list[tuple] = []
 for in_type in TEST_NDARRAYS_ALL + (int, float):
     TESTS_LIST.append(
         (

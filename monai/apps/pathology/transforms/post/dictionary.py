@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Dict, Hashable, Mapping, Optional, Union
+from __future__ import annotations
+
+from collections.abc import Callable, Hashable, Mapping
 
 import numpy as np
 
@@ -100,9 +102,9 @@ class Watershedd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        mask_key: Optional[str] = "mask",
-        markers_key: Optional[str] = None,
-        connectivity: Optional[int] = 1,
+        mask_key: str | None = "mask",
+        markers_key: str | None = None,
+        connectivity: int | None = 1,
         dtype: DtypeLike = np.uint8,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -111,7 +113,7 @@ class Watershedd(MapTransform):
         self.markers_key = markers_key
         self.transform = Watershed(connectivity=connectivity, dtype=dtype)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         markers = d[self.markers_key] if self.markers_key else None
         mask = d[self.mask_key] if self.mask_key else None
@@ -144,8 +146,8 @@ class GenerateWatershedMaskd(MapTransform):
         self,
         keys: KeysCollection,
         mask_key: str = "mask",
-        activation: Union[str, Callable] = "softmax",
-        threshold: Optional[float] = None,
+        activation: str | Callable = "softmax",
+        threshold: float | None = None,
         min_object_size: int = 10,
         dtype: DtypeLike = np.uint8,
         allow_missing_keys: bool = False,
@@ -156,7 +158,7 @@ class GenerateWatershedMaskd(MapTransform):
             activation=activation, threshold=threshold, min_object_size=min_object_size, dtype=dtype
         )
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             mask = self.transform(d[key])
@@ -199,7 +201,7 @@ class GenerateInstanceBorderd(Transform):
         self.border_key = border_key
         self.transform = GenerateInstanceBorder(kernel_size=kernel_size, dtype=dtype)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         if self.border_key in d:
             raise KeyError(f"The key '{self.border_key}' for instance border map already exists.")
@@ -227,7 +229,7 @@ class GenerateDistanceMapd(Transform):
         mask_key: str = "mask",
         border_key: str = "border",
         dist_map_key: str = "dist_map",
-        smooth_fn: Optional[Callable] = None,
+        smooth_fn: Callable | None = None,
         dtype: DtypeLike = np.float32,
     ) -> None:
         self.mask_key = mask_key
@@ -235,7 +237,7 @@ class GenerateDistanceMapd(Transform):
         self.dist_map_key = dist_map_key
         self.transform = GenerateDistanceMap(smooth_fn=smooth_fn, dtype=dtype)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         if self.dist_map_key in d:
             raise KeyError(f"The key '{self.dist_map_key}' for distance map already exists.")
@@ -270,7 +272,7 @@ class GenerateWatershedMarkersd(Transform):
         threshold: float = 0.4,
         radius: int = 2,
         min_object_size: int = 10,
-        postprocess_fn: Optional[Callable] = None,
+        postprocess_fn: Callable | None = None,
         dtype: DtypeLike = np.uint8,
     ) -> None:
         self.mask_key = mask_key
@@ -284,7 +286,7 @@ class GenerateWatershedMarkersd(Transform):
             dtype=dtype,
         )
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         if self.markers_key in d:
             raise KeyError(f"The key '{self.markers_key}' for markers already exists.")
@@ -345,9 +347,9 @@ class GenerateInstanceContourd(MapTransform):
         self,
         keys: KeysCollection,
         contour_key_postfix: str = "contour",
-        offset_key: Optional[str] = None,
+        offset_key: str | None = None,
         min_num_points: int = 3,
-        level: Optional[float] = None,
+        level: float | None = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -388,8 +390,8 @@ class GenerateInstanceCentroidd(MapTransform):
         self,
         keys: KeysCollection,
         centroid_key_postfix: str = "centroid",
-        offset_key: Optional[str] = None,
-        dtype: Optional[DtypeLike] = int,
+        offset_key: str | None = None,
+        dtype: DtypeLike | None = int,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -494,17 +496,17 @@ class HoVerNetInstanceMapPostProcessingd(Transform):
         hover_map_key: str = HoVerNetBranch.HV.value,
         instance_info_key: str = "instance_info",
         instance_map_key: str = "instance_map",
-        activation: Union[str, Callable] = "softmax",
-        mask_threshold: Optional[float] = None,
+        activation: str | Callable = "softmax",
+        mask_threshold: float | None = None,
         min_object_size: int = 10,
         sobel_kernel_size: int = 5,
-        distance_smooth_fn: Optional[Callable] = None,
+        distance_smooth_fn: Callable | None = None,
         marker_threshold: float = 0.4,
         marker_radius: int = 2,
-        marker_postprocess_fn: Optional[Callable] = None,
-        watershed_connectivity: Optional[int] = 1,
+        marker_postprocess_fn: Callable | None = None,
+        watershed_connectivity: int | None = 1,
         min_num_points: int = 3,
-        contour_level: Optional[float] = None,
+        contour_level: float | None = None,
     ) -> None:
         super().__init__()
         self.instance_map_post_process = HoVerNetInstanceMapPostProcessing(
@@ -561,8 +563,8 @@ class HoVerNetNuclearTypePostProcessingd(Transform):
         instance_info_key: str = "instance_info",
         instance_map_key: str = "instance_map",
         type_map_key: str = "type_map",
-        activation: Union[str, Callable] = "softmax",
-        threshold: Optional[float] = None,
+        activation: str | Callable = "softmax",
+        threshold: float | None = None,
         return_type_map: bool = True,
     ) -> None:
         super().__init__()

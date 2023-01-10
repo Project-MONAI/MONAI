@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
-from typing import Tuple, Union
 
 import numpy as np
 import torch
@@ -26,7 +27,7 @@ distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="di
 __all__ = ["ignore_background", "do_metric_reduction", "get_mask_edges", "get_surface_distance", "is_binary_tensor"]
 
 
-def ignore_background(y_pred: Union[np.ndarray, torch.Tensor], y: Union[np.ndarray, torch.Tensor]):
+def ignore_background(y_pred: np.ndarray | torch.Tensor, y: np.ndarray | torch.Tensor):
     """
     This function is used to remove background (the first channel) for `y_pred` and `y`.
 
@@ -43,7 +44,7 @@ def ignore_background(y_pred: Union[np.ndarray, torch.Tensor], y: Union[np.ndarr
     return y_pred, y
 
 
-def do_metric_reduction(f: torch.Tensor, reduction: Union[MetricReduction, str] = MetricReduction.MEAN):
+def do_metric_reduction(f: torch.Tensor, reduction: MetricReduction | str = MetricReduction.MEAN):
     """
     This function is to do the metric reduction for calculated `not-nan` metrics of each sample's each class.
     The function also returns `not_nans`, which counts the number of not nans for the metric.
@@ -103,7 +104,7 @@ def do_metric_reduction(f: torch.Tensor, reduction: Union[MetricReduction, str] 
     return f, not_nans
 
 
-def get_mask_edges(seg_pred, seg_gt, label_idx: int = 1, crop: bool = True) -> Tuple[np.ndarray, np.ndarray]:
+def get_mask_edges(seg_pred, seg_gt, label_idx: int = 1, crop: bool = True) -> tuple[np.ndarray, np.ndarray]:
     """
     Do binary erosion and use XOR for input to get the edges. This
     function is helpful to further calculate metrics such as Average Surface

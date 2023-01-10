@@ -9,8 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any
 
 import torch
 
@@ -58,9 +61,9 @@ class IgniteMetric(Metric):
         self._is_reduced: bool = False
         self.metric_fn = metric_fn
         self.save_details = save_details
-        self._scores: List = []
-        self._engine: Optional[Engine] = None
-        self._name: Optional[str] = None
+        self._scores: list = []
+        self._engine: Engine | None = None
+        self._name: str | None = None
         super().__init__(output_transform)
 
     @reinit__is_reduced

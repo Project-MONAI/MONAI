@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List
+from __future__ import annotations
 
 import torch
 import torch.distributed as dist
@@ -62,7 +62,7 @@ def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = True):
     ndims = data.ndimension()
     length: int = data.shape[0] if ndims > 0 else 1
 
-    def _torch_all_gather(data: torch.Tensor) -> List[torch.Tensor]:
+    def _torch_all_gather(data: torch.Tensor) -> list[torch.Tensor]:
         """
         Implementation based on native PyTorch distributed data parallel APIs.
 
@@ -76,7 +76,7 @@ def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = True):
         length_tensor = torch.as_tensor([length], device=device)
         all_lens = [torch.zeros_like(length_tensor) for _ in range(dist.get_world_size())]
         dist.all_gather(all_lens, length_tensor)
-        all_lens_: List[int] = [int(i.item()) for i in all_lens]
+        all_lens_: list[int] = [int(i.item()) for i in all_lens]
 
         max_len: int = max(all_lens_)
         if length < max_len:
@@ -88,14 +88,14 @@ def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = True):
         # remove the padding items, if all the input data doesn't have batch dim, squeeze the first dim
         return [(o.squeeze(0) if ndims == 0 else o[:l, ...]).to(orig_device) for o, l in zip(output, all_lens_)]
 
-    def _ignite_all_gather(data: torch.Tensor) -> List[torch.Tensor]:
+    def _ignite_all_gather(data: torch.Tensor) -> list[torch.Tensor]:
         """
         Implementation based on PyTorch ignite package, it can support more kinds of backends.
 
         """
         data = data.unsqueeze(0) if ndims == 0 else data
         # make sure the data is evenly-divisible on multi-GPUs
-        all_lens: List[int] = idist.all_gather(length)
+        all_lens: list[int] = idist.all_gather(length)
         max_len: int = max(all_lens)
         if length < max_len:
             size = [max_len - length] + list(data.shape[1:])
@@ -108,7 +108,7 @@ def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = True):
             return list(torch.unbind(output, dim=0))
         return [output[i * max_len : i * max_len + l, ...] for i, l in enumerate(all_lens)]
 
-    output: List[torch.Tensor]
+    output: list[torch.Tensor]
     if has_ignite:
         if idist.get_world_size() <= 1:
             return data
@@ -123,7 +123,7 @@ def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = True):
     return torch.cat(output, dim=0) if concat else output
 
 
-def string_list_all_gather(strings: List[str], delimiter: str = "\t") -> List[str]:
+def string_list_all_gather(strings: list[str], delimiter: str = "\t") -> list[str]:
     """
     Utility function for distributed data parallel to all gather a list of strings.
     Refer to the idea of ignite `all_gather(string)`:

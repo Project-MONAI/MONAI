@@ -8,7 +8,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Callable, Dict, Sequence, Union
+
+from __future__ import annotations
+
+from collections.abc import Callable, Sequence
 
 import torch
 
@@ -38,7 +41,7 @@ class Interaction:
 
     def __init__(
         self,
-        transforms: Union[Sequence[Callable], Callable],
+        transforms: Sequence[Callable] | Callable,
         max_interactions: int,
         train: bool,
         key_probability: str = "probability",
@@ -52,7 +55,7 @@ class Interaction:
         self.train = train
         self.key_probability = key_probability
 
-    def __call__(self, engine: Union[SupervisedTrainer, SupervisedEvaluator], batchdata: Dict[str, torch.Tensor]):
+    def __call__(self, engine: SupervisedTrainer | SupervisedEvaluator, batchdata: dict[str, torch.Tensor]):
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
 

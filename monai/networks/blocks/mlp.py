@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Tuple, Union
+from __future__ import annotations
 
 import torch.nn as nn
 
@@ -26,12 +26,7 @@ class MLPBlock(nn.Module):
     """
 
     def __init__(
-        self,
-        hidden_size: int,
-        mlp_dim: int,
-        dropout_rate: float = 0.0,
-        act: Union[Tuple, str] = "GELU",
-        dropout_mode="vit",
+        self, hidden_size: int, mlp_dim: int, dropout_rate: float = 0.0, act: tuple | str = "GELU", dropout_mode="vit"
     ) -> None:
         """
         Args:

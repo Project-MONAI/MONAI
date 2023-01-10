@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Sequence, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import torch
 
@@ -59,8 +61,8 @@ class PanopticQualityMetric(CumulativeIterationMetric):
     def __init__(
         self,
         num_classes: int,
-        metric_name: Union[Sequence[str], str] = "pq",
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN_BATCH,
+        metric_name: Sequence[str] | str = "pq",
+        reduction: MetricReduction | str = MetricReduction.MEAN_BATCH,
         match_iou_threshold: float = 0.5,
         smooth_numerator: float = 1e-6,
     ) -> None:
@@ -120,7 +122,7 @@ class PanopticQualityMetric(CumulativeIterationMetric):
 
         return outputs
 
-    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):
+    def aggregate(self, reduction: MetricReduction | str | None = None):
         """
         Execute reduction logic for the output of `compute_panoptic_quality`.
 
@@ -226,13 +228,13 @@ def _get_id_list(gt: torch.Tensor):
     return id_list
 
 
-def _get_pairwise_iou(pred: torch.Tensor, gt: torch.Tensor, device: Union[str, torch.device] = "cpu"):
+def _get_pairwise_iou(pred: torch.Tensor, gt: torch.Tensor, device: str | torch.device = "cpu"):
     pred_id_list = _get_id_list(pred)
     true_id_list = _get_id_list(gt)
 
     pairwise_iou = torch.zeros([len(true_id_list) - 1, len(pred_id_list) - 1], dtype=torch.float, device=device)
-    true_masks: List[torch.Tensor] = []
-    pred_masks: List[torch.Tensor] = []
+    true_masks: list[torch.Tensor] = []
+    pred_masks: list[torch.Tensor] = []
 
     for t in true_id_list[1:]:
         t_mask = torch.as_tensor(gt == t, device=device).int()
@@ -258,9 +260,7 @@ def _get_pairwise_iou(pred: torch.Tensor, gt: torch.Tensor, device: Union[str, t
     return pairwise_iou, true_id_list, pred_id_list
 
 
-def _get_paired_iou(
-    pairwise_iou: torch.Tensor, match_iou_threshold: float = 0.5, device: Union[str, torch.device] = "cpu"
-):
+def _get_paired_iou(pairwise_iou: torch.Tensor, match_iou_threshold: float = 0.5, device: str | torch.device = "cpu"):
     if match_iou_threshold >= 0.5:
         pairwise_iou[pairwise_iou <= match_iou_threshold] = 0.0
         paired_true, paired_pred = torch.nonzero(pairwise_iou)[:, 0], torch.nonzero(pairwise_iou)[:, 1]

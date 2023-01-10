@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union
+from __future__ import annotations
 
 import torch
 
@@ -46,8 +46,8 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
     def __init__(
         self,
         include_background: bool = True,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN_BATCH,
-        weight_type: Union[Weight, str] = Weight.SQUARE,
+        reduction: MetricReduction | str = MetricReduction.MEAN_BATCH,
+        weight_type: Weight | str = Weight.SQUARE,
     ) -> None:
         super().__init__()
         self.include_background = include_background
@@ -80,7 +80,7 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
             y_pred=y_pred, y=y, include_background=self.include_background, weight_type=self.weight_type
         )
 
-    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):
+    def aggregate(self, reduction: MetricReduction | str | None = None):
         """
         Execute reduction logic for the output of `compute_generalized_dice`.
 
@@ -106,10 +106,7 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
 
 
 def compute_generalized_dice(
-    y_pred: torch.Tensor,
-    y: torch.Tensor,
-    include_background: bool = True,
-    weight_type: Union[Weight, str] = Weight.SQUARE,
+    y_pred: torch.Tensor, y: torch.Tensor, include_background: bool = True, weight_type: Weight | str = Weight.SQUARE
 ) -> torch.Tensor:
     """Computes the Generalized Dice Score and returns a tensor with its per image values.
 

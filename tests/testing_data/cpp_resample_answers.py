@@ -9,14 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import csv
 import os
 import warnings
-from typing import List, Optional
 
 
-def _read_testing_data_answers(fname: Optional[str] = None, delimiter=",") -> List:
-    answers: List = []
+def _read_testing_data_answers(fname: str | None = None, delimiter=",") -> list:
+    answers: list = []
     if not fname:
         return answers
     # read answers from directory of the current file
@@ -37,5 +38,5 @@ def _read_testing_data_answers(fname: Optional[str] = None, delimiter=",") -> Li
     return answers
 
 
-Expected_1D_GP_fwd: List = _read_testing_data_answers(fname="1D_BP_fwd.txt")
-Expected_1D_GP_bwd: List = _read_testing_data_answers(fname="1D_BP_bwd.txt")
+Expected_1D_GP_fwd: list = _read_testing_data_answers(fname="1D_BP_fwd.txt")
+Expected_1D_GP_bwd: list = _read_testing_data_answers(fname="1D_BP_bwd.txt")

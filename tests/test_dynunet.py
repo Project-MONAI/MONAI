@@ -9,8 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
-from typing import Any, Sequence, Union
+from typing import Any, Sequence
 
 import torch
 from parameterized import parameterized
@@ -21,7 +23,7 @@ from tests.utils import assert_allclose, skip_if_no_cuda, skip_if_windows, test_
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-strides: Sequence[Union[Sequence[int], int]]
+strides: Sequence[Sequence[int] | int]
 kernel_size: Sequence[Any]
 expected_shape: Sequence[Any]
 

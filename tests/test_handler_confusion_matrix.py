@@ -9,8 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
-from typing import Any, Dict
+from typing import Any
 
 import torch
 from ignite.engine import Engine
@@ -24,7 +26,7 @@ TEST_CASE_2 = [{"include_background": False, "save_details": False, "metric_name
 TEST_CASE_3 = [{"save_details": False, "metric_name": "f1", "reduction": "mean_batch"}, torch.tensor([0.6667, 0.8000])]
 TEST_CASE_SEG_1 = [{"include_background": True, "metric_name": "tpr"}, 0.7]
 
-data_1: Dict[Any, Any] = {
+data_1: dict[Any, Any] = {
     "y_pred": torch.tensor(
         [
             [[[0.0, 1.0], [0.0, 0.0]], [[0.0, 0.0], [1.0, 1.0]], [[1.0, 0.0], [0.0, 0.0]]],
@@ -39,7 +41,7 @@ data_1: Dict[Any, Any] = {
     ),
 }
 
-data_2: Dict[Any, Any] = {
+data_2: dict[Any, Any] = {
     "y_pred": torch.tensor([[[[0.0, 1.0], [1.0, 0.0]], [[1.0, 0.0], [1.0, 1.0]], [[0.0, 1.0], [0.0, 0.0]]]]),
     "y": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]], [[1.0, 1.0], [1.0, 1.0]], [[1.0, 1.0], [1.0, 1.0]]]]),
 }

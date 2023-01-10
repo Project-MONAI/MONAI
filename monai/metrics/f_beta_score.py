@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union
+from __future__ import annotations
 
 import torch
 
@@ -24,7 +24,7 @@ class FBetaScore(CumulativeIterationMetric):
         self,
         beta: float = 1.0,
         include_background: bool = True,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        reduction: MetricReduction | str = MetricReduction.MEAN,
         get_not_nans: bool = False,
     ) -> None:
         super().__init__()
@@ -42,7 +42,7 @@ class FBetaScore(CumulativeIterationMetric):
 
         return get_f_beta_score(y_pred=y_pred, y=y, include_background=self.include_background)
 
-    def aggregate(self, compute_sample: bool = False, reduction: Union[MetricReduction, str, None] = None):
+    def aggregate(self, compute_sample: bool = False, reduction: MetricReduction | str | None = None):
         data = self.get_buffer()
         if not isinstance(data, torch.Tensor):
             raise ValueError("the data to aggregate must be PyTorch Tensor.")

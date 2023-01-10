@@ -9,8 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import re
-from typing import Any, Optional, Sequence, Tuple, Type, Union
+from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 import torch
@@ -101,8 +104,8 @@ def get_dtype(data: Any):
 
 def convert_to_tensor(
     data,
-    dtype: Union[DtypeLike, torch.dtype] = None,
-    device: Union[None, str, torch.device] = None,
+    dtype: DtypeLike | torch.dtype = None,
+    device: None | str | torch.device = None,
     wrap_sequence: bool = False,
     track_meta: bool = False,
     safe: bool = False,
@@ -215,7 +218,7 @@ def convert_to_numpy(data, dtype: DtypeLike = None, wrap_sequence: bool = False,
     return data
 
 
-def convert_to_cupy(data, dtype: Optional[np.dtype] = None, wrap_sequence: bool = False, safe: bool = False):
+def convert_to_cupy(data, dtype: np.dtype | None = None, wrap_sequence: bool = False, safe: bool = False):
     """
     Utility to convert the input data to a cupy array. If passing a dictionary, list or tuple,
     recursively check every item and convert it to cupy array.
@@ -255,12 +258,12 @@ def convert_to_cupy(data, dtype: Optional[np.dtype] = None, wrap_sequence: bool 
 
 def convert_data_type(
     data: Any,
-    output_type: Optional[Type[NdarrayTensor]] = None,
-    device: Union[None, str, torch.device] = None,
-    dtype: Union[DtypeLike, torch.dtype] = None,
+    output_type: type[NdarrayTensor] | None = None,
+    device: None | str | torch.device = None,
+    dtype: DtypeLike | torch.dtype = None,
     wrap_sequence: bool = False,
     safe: bool = False,
-) -> Tuple[NdarrayTensor, type, Optional[torch.device]]:
+) -> tuple[NdarrayTensor, type, torch.device | None]:
     """
     Convert to `MetaTensor`, `torch.Tensor` or `np.ndarray` from `MetaTensor`, `torch.Tensor`,
     `np.ndarray`, `float`, `int`, etc.
@@ -325,11 +328,11 @@ def convert_data_type(
 def convert_to_dst_type(
     src: Any,
     dst: NdarrayTensor,
-    dtype: Union[DtypeLike, torch.dtype, None] = None,
+    dtype: DtypeLike | torch.dtype | None = None,
     wrap_sequence: bool = False,
-    device: Union[None, str, torch.device] = None,
+    device: None | str | torch.device = None,
     safe: bool = False,
-) -> Tuple[NdarrayTensor, type, Optional[torch.device]]:
+) -> tuple[NdarrayTensor, type, torch.device | None]:
     """
     Convert source data to the same data type and device as the destination data.
     If `dst` is an instance of `torch.Tensor` or its subclass, convert `src` to `torch.Tensor` with the same data type as `dst`,
@@ -375,7 +378,7 @@ def convert_to_dst_type(
     return output, _type, _device
 
 
-def convert_to_list(data: Union[Sequence, torch.Tensor, np.ndarray]) -> list:
+def convert_to_list(data: Sequence | torch.Tensor | np.ndarray) -> list:
     """
     Convert to list from `torch.Tensor`/`np.ndarray`/`list`/`tuple` etc.
     Args:
@@ -387,7 +390,7 @@ def convert_to_list(data: Union[Sequence, torch.Tensor, np.ndarray]) -> list:
     return data.tolist() if isinstance(data, (torch.Tensor, np.ndarray)) else list(data)
 
 
-def get_dtype_bound_value(dtype: Union[DtypeLike, torch.dtype]):
+def get_dtype_bound_value(dtype: DtypeLike | torch.dtype):
     """
     Get dtype bound value
     Args:
@@ -406,7 +409,7 @@ def get_dtype_bound_value(dtype: Union[DtypeLike, torch.dtype]):
         return (np.iinfo(dtype).min, np.iinfo(dtype).max)
 
 
-def safe_dtype_range(data: Any, dtype: Union[DtypeLike, torch.dtype] = None):
+def safe_dtype_range(data: Any, dtype: DtypeLike | torch.dtype = None):
     """
     Utility to safely convert the input data to target dtype.
 

@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Union
+from __future__ import annotations
 
 import torch
 
@@ -26,7 +26,7 @@ from monai.transforms.lazy.utils import (
 __all__ = ["apply_transforms"]
 
 
-def apply_transforms(data: Union[torch.Tensor, MetaTensor], pending: Optional[list] = None):
+def apply_transforms(data: torch.Tensor | MetaTensor, pending: list | None = None):
     """
     This method applies pending transforms to `data` tensors.
 

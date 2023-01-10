@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Tuple, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import torch
 import torch.nn as nn
@@ -54,13 +56,13 @@ class CoilSensitivityModel(nn.Module):
         self,
         spatial_dims: int = 2,
         features: Sequence[int] = (32, 32, 64, 128, 256, 32),
-        act: Union[str, tuple] = ("LeakyReLU", {"negative_slope": 0.1, "inplace": True}),
-        norm: Union[str, tuple] = ("instance", {"affine": True}),
+        act: str | tuple = ("LeakyReLU", {"negative_slope": 0.1, "inplace": True}),
+        norm: str | tuple = ("instance", {"affine": True}),
         bias: bool = True,
-        dropout: Union[float, tuple] = 0.0,
+        dropout: float | tuple = 0.0,
         upsample: str = "deconv",
         coil_dim: int = 1,
-        conv_net: Optional[nn.Module] = None,
+        conv_net: nn.Module | None = None,
     ):
         super().__init__()
         if conv_net is None:
@@ -83,7 +85,7 @@ class CoilSensitivityModel(nn.Module):
         self.spatial_dims = spatial_dims
         self.coil_dim = coil_dim
 
-    def get_fully_sampled_region(self, mask: Tensor) -> Tuple[int, int]:
+    def get_fully_sampled_region(self, mask: Tensor) -> tuple[int, int]:
         """
         Extracts the size of the fully-sampled part of the kspace. Note that when a kspace
         is under-sampled, a part of its center is fully sampled. This part is called the Auto
