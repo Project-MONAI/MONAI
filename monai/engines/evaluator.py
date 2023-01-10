@@ -99,7 +99,7 @@ class Evaluator(Workflow):
         val_handlers: Sequence | None = None,
         amp: bool = False,
         mode: ForwardMode | str = ForwardMode.EVAL,
-        event_names: list[str | EventEnum] | None = None,
+        event_names: list[str | EventEnum | type[EventEnum]] | None = None,
         event_to_attr: dict | None = None,
         decollate: bool = True,
         to_kwargs: dict | None = None,
@@ -133,7 +133,7 @@ class Evaluator(Workflow):
         else:
             raise ValueError(f"unsupported mode: {mode}, should be 'eval' or 'train'.")
 
-    def run(self, global_epoch: int = 1) -> None:
+    def run(self, global_epoch: int = 1) -> None:  # type: ignore[override]
         """
         Execute validation/evaluation based on Ignite Engine.
 
@@ -237,7 +237,7 @@ class SupervisedEvaluator(Evaluator):
         val_handlers: Sequence | None = None,
         amp: bool = False,
         mode: ForwardMode | str = ForwardMode.EVAL,
-        event_names: list[str | EventEnum] | None = None,
+        event_names: list[str | EventEnum | type[EventEnum]] | None = None,
         event_to_attr: dict | None = None,
         decollate: bool = True,
         to_kwargs: dict | None = None,
@@ -380,7 +380,7 @@ class EnsembleEvaluator(Evaluator):
         val_handlers: Sequence | None = None,
         amp: bool = False,
         mode: ForwardMode | str = ForwardMode.EVAL,
-        event_names: list[str | EventEnum] | None = None,
+        event_names: list[str | EventEnum | type[EventEnum]] | None = None,
         event_to_attr: dict | None = None,
         decollate: bool = True,
         to_kwargs: dict | None = None,

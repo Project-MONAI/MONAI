@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import unittest
-from typing import Optional
+from typing import Optional, cast
 
 import nibabel as nib
 import numpy as np
@@ -74,7 +74,7 @@ class TestOrientationdCase(unittest.TestCase):
         data = {k: img.clone() for k in ornt.keys}
         res = ornt(data)
         for k in ornt.keys:
-            _im = res[k]
+            _im = cast(MetaTensor, res[k])
             self.assertIsInstance(_im, MetaTensor)
             np.testing.assert_allclose(_im.shape, expected_shape)
             code = nib.aff2axcodes(_im.affine.cpu(), ornt.ornt_transform.labels)
@@ -94,6 +94,7 @@ class TestOrientationdCase(unittest.TestCase):
             np.testing.assert_allclose(_im.shape, expected_shape)
             if track_meta:
                 self.assertIsInstance(_im, MetaTensor)
+                assert isinstance(_im, MetaTensor)  # for mypy type narrowing
                 code = nib.aff2axcodes(_im.affine.cpu(), ornt.ornt_transform.labels)
                 self.assertEqual("".join(code), expected_code)
             else:

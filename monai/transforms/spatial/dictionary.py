@@ -15,7 +15,7 @@ defined in :py:class:`monai.transforms.spatial.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Any, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
 import torch
@@ -426,7 +426,7 @@ class Spacingd(MapTransform, InvertibleTransform):
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
-            d[key] = self.spacing_transform.inverse(d[key])
+            d[key] = self.spacing_transform.inverse(cast(torch.Tensor, d[key]))
         return d
 
 
@@ -1045,7 +1045,7 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
             )
             grid = CenterSpatialCrop(roi_size=sp_size)(grid[0])
         else:
-            grid = create_grid(spatial_size=sp_size, device=device, backend="torch")
+            grid = cast(torch.Tensor, create_grid(spatial_size=sp_size, device=device, backend="torch"))
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             d[key] = self.rand_2d_elastic.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)  # type: ignore

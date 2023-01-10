@@ -104,11 +104,11 @@ class TestSpacingDCase(unittest.TestCase):
     def test_orntd_torch(self, init_param, img: torch.Tensor, track_meta: bool, device):
         set_track_meta(track_meta)
         tr = Spacingd(**init_param)
-        data = {"seg": img.to(device)}
-        res = tr(data)["seg"]
+        res = tr({"seg": img.to(device)})["seg"]
 
         if track_meta:
             self.assertIsInstance(res, MetaTensor)
+            assert isinstance(res, MetaTensor)  # for mypy type narrowing
             new_spacing = affine_to_spacing(res.affine, 3)
             assert_allclose(new_spacing, init_param["pixdim"], type_test=False)
             self.assertNotEqual(img.shape, res.shape)
