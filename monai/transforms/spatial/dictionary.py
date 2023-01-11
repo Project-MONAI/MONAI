@@ -535,9 +535,12 @@ class Rotate90d(MapTransform, InvertibleTransform, LazyTransform):
         self.spatial_axes = spatial_axes
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+
         rd = dict(data)
+
         for key in self.key_iterator(rd):
             rd[key] = rotate90(rd[key], self.k, self.spatial_axes, lazy_evaluation=self.lazy_evaluation)
+
         return rd
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
@@ -594,8 +597,10 @@ class RandRotate90d(MapTransform, InvertibleTransform, LazyTransform, Randomizab
         rd = dict(data)
 
         k = self.randomizer.sample()
+
         for key in self.key_iterator(rd):
-            rd[key] = rotate90(rd[key], k, self.spatial_axes, )
+            rd[key] = rotate90(rd[key], k, self.spatial_axes, self.lazy_evaluation)
+
         return rd
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
