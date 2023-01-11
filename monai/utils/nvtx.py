@@ -12,9 +12,11 @@
 Decorators and context managers for NVIDIA Tools Extension to profile MONAI components
 """
 
+from __future__ import annotations
+
 from collections import defaultdict
 from functools import wraps
-from typing import Any, Optional, Tuple, Union
+from typing import Any
 
 from torch.autograd import Function
 from torch.nn import Module
@@ -52,9 +54,9 @@ class Range:
 
     def __init__(
         self,
-        name: Optional[str] = None,
-        methods: Optional[Union[str, Tuple[str, ...]]] = None,
-        append_method_name: Optional[bool] = None,
+        name: str | None = None,
+        methods: str | tuple[str, ...] | None = None,
+        append_method_name: bool | None = None,
         recursive: bool = False,
     ) -> None:
         self.name = name

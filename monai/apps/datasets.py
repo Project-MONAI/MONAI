@@ -9,12 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import shutil
 import sys
 import warnings
+from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -88,14 +90,14 @@ class MedNISTDataset(Randomizable, CacheDataset):
         self,
         root_dir: PathLike,
         section: str,
-        transform: Union[Sequence[Callable], Callable] = (),
+        transform: Sequence[Callable] | Callable = (),
         download: bool = False,
         seed: int = 0,
         val_frac: float = 0.1,
         test_frac: float = 0.1,
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
-        num_workers: Optional[int] = 1,
+        num_workers: int | None = 1,
         progress: bool = True,
         copy_cache: bool = True,
         as_contiguous: bool = True,
@@ -148,7 +150,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
         """Get number of classes."""
         return self.num_class
 
-    def _generate_data_list(self, dataset_dir: PathLike) -> List[Dict]:
+    def _generate_data_list(self, dataset_dir: PathLike) -> list[dict]:
         """
         Raises:
             ValueError: When ``section`` is not one of ["training", "validation", "test"].
@@ -286,7 +288,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         root_dir: PathLike,
         task: str,
         section: str,
-        transform: Union[Sequence[Callable], Callable] = (),
+        transform: Sequence[Callable] | Callable = (),
         download: bool = False,
         seed: int = 0,
         val_frac: float = 0.2,
@@ -362,7 +364,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
     def randomize(self, data: np.ndarray) -> None:
         self.R.shuffle(data)
 
-    def get_properties(self, keys: Optional[Union[Sequence[str], str]] = None):
+    def get_properties(self, keys: Sequence[str] | str | None = None):
         """
         Get the loaded properties of dataset with specified keys.
         If no keys specified, return all the loaded properties.
@@ -374,14 +376,14 @@ class DecathlonDataset(Randomizable, CacheDataset):
             return {key: self._properties[key] for key in ensure_tuple(keys)}
         return {}
 
-    def _generate_data_list(self, dataset_dir: PathLike) -> List[Dict]:
+    def _generate_data_list(self, dataset_dir: PathLike) -> list[dict]:
         # the types of the item in data list should be compatible with the dataloader
         dataset_dir = Path(dataset_dir)
         section = "training" if self.section in ["training", "validation"] else "test"
         datalist = load_decathlon_datalist(dataset_dir / "dataset.json", True, section)
         return self._split_datalist(datalist)
 
-    def _split_datalist(self, datalist: List[Dict]) -> List[Dict]:
+    def _split_datalist(self, datalist: list[dict]) -> list[dict]:
         if self.section == "test":
             return datalist
         length = len(datalist)
@@ -489,14 +491,14 @@ class TciaDataset(Randomizable, CacheDataset):
         root_dir: PathLike,
         collection: str,
         section: str,
-        transform: Union[Sequence[Callable], Callable] = (),
+        transform: Sequence[Callable] | Callable = (),
         download: bool = False,
         download_len: int = -1,
         seg_type: str = "SEG",
-        modality_tag: Tuple = (0x0008, 0x0060),
-        ref_series_uid_tag: Tuple = (0x0020, 0x000E),
-        ref_sop_uid_tag: Tuple = (0x0008, 0x1155),
-        specific_tags: Tuple = (
+        modality_tag: tuple = (0x0008, 0x0060),
+        ref_series_uid_tag: tuple = (0x0020, 0x000E),
+        ref_sop_uid_tag: tuple = (0x0008, 0x1155),
+        specific_tags: tuple = (
             (0x0008, 0x1115),  # Referenced Series Sequence
             (0x0008, 0x1140),  # Referenced Image Sequence
             (0x3006, 0x0010),  # Referenced Frame of Reference Sequence
@@ -630,7 +632,7 @@ class TciaDataset(Randomizable, CacheDataset):
         if not os.path.exists(seg_dir):
             shutil.copytree(seg_first_dir, seg_dir)
 
-    def _generate_data_list(self, dataset_dir: PathLike) -> List[Dict]:
+    def _generate_data_list(self, dataset_dir: PathLike) -> list[dict]:
         # the types of the item in data list should be compatible with the dataloader
         dataset_dir = Path(dataset_dir)
         datalist = []
@@ -649,7 +651,7 @@ class TciaDataset(Randomizable, CacheDataset):
 
         return self._split_datalist(datalist)
 
-    def _split_datalist(self, datalist: List[Dict]) -> List[Dict]:
+    def _split_datalist(self, datalist: list[dict]) -> list[dict]:
         if self.section == "test":
             return datalist
         length = len(datalist)
@@ -711,7 +713,7 @@ class CrossValidation:
         self.seed = seed
         self.dataset_params = dataset_params
 
-    def get_dataset(self, folds: Union[Sequence[int], int], **dataset_params):
+    def get_dataset(self, folds: Sequence[int] | int, **dataset_params):
         """
         Generate dataset based on the specified fold indices in the cross validation group.
 
@@ -727,7 +729,7 @@ class CrossValidation:
         dataset_params_.update(dataset_params)
 
         class _NsplitsDataset(self.dataset_cls):  # type: ignore
-            def _split_datalist(self, datalist: List[Dict]) -> List[Dict]:
+            def _split_datalist(self, datalist: list[dict]) -> list[dict]:
                 data = partition_dataset(data=datalist, num_partitions=nfolds, shuffle=True, seed=seed)
                 return select_cross_validation_folds(partitions=data, folds=folds)
 

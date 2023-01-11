@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import torch
 import torch.nn as nn
@@ -31,8 +33,8 @@ class ViT(nn.Module):
     def __init__(
         self,
         in_channels: int,
-        img_size: Union[Sequence[int], int],
-        patch_size: Union[Sequence[int], int],
+        img_size: Sequence[int] | int,
+        patch_size: Sequence[int] | int,
         hidden_size: int = 768,
         mlp_dim: int = 3072,
         num_layers: int = 12,

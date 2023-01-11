@@ -9,10 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import time
+from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any
 
 import torch
 
@@ -94,20 +97,20 @@ class MLFlowHandler:
 
     def __init__(
         self,
-        tracking_uri: Optional[str] = None,
+        tracking_uri: str | None = None,
         iteration_log: bool = True,
         epoch_log: bool = True,
-        epoch_logger: Optional[Callable[[Engine], Any]] = None,
-        iteration_logger: Optional[Callable[[Engine], Any]] = None,
+        epoch_logger: Callable[[Engine], Any] | None = None,
+        iteration_logger: Callable[[Engine], Any] | None = None,
         output_transform: Callable = lambda x: x[0],
         global_epoch_transform: Callable = lambda x: x,
-        state_attributes: Optional[Sequence[str]] = None,
+        state_attributes: Sequence[str] | None = None,
         tag_name: str = DEFAULT_TAG,
         experiment_name: str = "monai_experiment",
-        run_name: Optional[str] = None,
-        experiment_param: Optional[Dict] = None,
-        artifacts: Optional[Union[str, Sequence[Path]]] = None,
-        optimizer_param_names: Union[str, Sequence[str]] = "lr",
+        run_name: str | None = None,
+        experiment_param: dict | None = None,
+        artifacts: str | Sequence[Path] | None = None,
+        optimizer_param_names: str | Sequence[str] = "lr",
         close_on_complete: bool = False,
     ) -> None:
         self.iteration_log = iteration_log
@@ -128,7 +131,7 @@ class MLFlowHandler:
         self.experiment = None
         self.cur_run = None
 
-    def _delete_exist_param_in_dict(self, param_dict: Dict) -> None:
+    def _delete_exist_param_in_dict(self, param_dict: dict) -> None:
         """
         Delete parameters in given dict, if they are already logged by current mlflow run.
 
@@ -201,13 +204,13 @@ class MLFlowHandler:
             raise ValueError(f"Cannot set a deleted experiment '{self.experiment_name}' as the active experiment")
         self.experiment = experiment
 
-    def _log_params(self, params: Dict[str, Any]) -> None:
+    def _log_params(self, params: dict[str, Any]) -> None:
         if not self.cur_run:
             raise ValueError("Current Run is not Active to log params")
         params_arr = [mlflow.entities.Param(key, str(value)) for key, value in params.items()]
         self.client.log_batch(run_id=self.cur_run.info.run_id, metrics=[], params=params_arr, tags=[])
 
-    def _log_metrics(self, metrics: Dict[str, Any], step: Optional[int] = None) -> None:
+    def _log_metrics(self, metrics: dict[str, Any], step: int | None = None) -> None:
         if not self.cur_run:
             raise ValueError("Current Run is not Active to log metrics")
 

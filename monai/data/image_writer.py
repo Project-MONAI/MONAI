@@ -9,7 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Any, Dict, Mapping, Optional, Sequence, Union, cast
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 
@@ -58,7 +61,7 @@ __all__ = [
     "logger",
 ]
 
-SUPPORTED_WRITERS: Dict = {}
+SUPPORTED_WRITERS: dict = {}
 
 
 def register_writer(ext_name, *im_writers):
@@ -178,14 +181,14 @@ class ImageWriter:
         The current member in the base class is ``self.data_obj``, the subclasses can add more members,
         so that necessary meta information can be stored in the object and shared among the class methods.
         """
-        self.data_obj: Union[Any, NdarrayOrTensor] = None
+        self.data_obj: Any | NdarrayOrTensor = None
         for k, v in kwargs.items():
             setattr(self, k, v)
 
     def set_data_array(self, data_array, **kwargs):
         raise NotImplementedError(f"Subclasses of {self.__class__.__name__} must implement this method.")
 
-    def set_metadata(self, meta_dict: Optional[Mapping], **options):
+    def set_metadata(self, meta_dict: Mapping | None, **options):
         raise NotImplementedError(f"Subclasses of {self.__class__.__name__} must implement this method.")
 
     def write(self, filename: PathLike, verbose: bool = True, **kwargs):
@@ -205,9 +208,9 @@ class ImageWriter:
     def resample_if_needed(
         cls,
         data_array: NdarrayOrTensor,
-        affine: Optional[NdarrayOrTensor] = None,
-        target_affine: Optional[NdarrayOrTensor] = None,
-        output_spatial_shape: Union[Sequence[int], int, None] = None,
+        affine: NdarrayOrTensor | None = None,
+        target_affine: NdarrayOrTensor | None = None,
+        output_spatial_shape: Sequence[int] | int | None = None,
         mode: str = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.BORDER,
         align_corners: bool = False,
@@ -279,9 +282,9 @@ class ImageWriter:
     def convert_to_channel_last(
         cls,
         data: NdarrayOrTensor,
-        channel_dim: Union[None, int, Sequence[int]] = 0,
+        channel_dim: None | int | Sequence[int] = 0,
         squeeze_end_dims: bool = True,
-        spatial_ndim: Optional[int] = 3,
+        spatial_ndim: int | None = 3,
         contiguous: bool = False,
     ):
         """
@@ -325,7 +328,7 @@ class ImageWriter:
         return data
 
     @classmethod
-    def get_meta_info(cls, metadata: Optional[Mapping] = None):
+    def get_meta_info(cls, metadata: Mapping | None = None):
         """
         Extracts relevant meta information from the metadata object (using ``.get``).
         Optional keys are ``"spatial_shape"``, ``MetaKeys.AFFINE``, ``"original_affine"``.
@@ -366,7 +369,7 @@ class ITKWriter(ImageWriter):
     """
 
     output_dtype: DtypeLike = None
-    channel_dim: Optional[int]
+    channel_dim: int | None
 
     def __init__(self, output_dtype: DtypeLike = np.float32, affine_lps_to_ras: bool = True, **kwargs):
         """
@@ -388,7 +391,7 @@ class ITKWriter(ImageWriter):
         )
 
     def set_data_array(
-        self, data_array: NdarrayOrTensor, channel_dim: Optional[int] = 0, squeeze_end_dims: bool = True, **kwargs
+        self, data_array: NdarrayOrTensor, channel_dim: int | None = 0, squeeze_end_dims: bool = True, **kwargs
     ):
         """
         Convert ``data_array`` into 'channel-last' numpy ndarray.
@@ -413,7 +416,7 @@ class ITKWriter(ImageWriter):
             channel_dim if self.data_obj is not None and len(self.data_obj.shape) >= _r else None
         )  # channel dim is at the end
 
-    def set_metadata(self, meta_dict: Optional[Mapping] = None, resample: bool = True, **options):
+    def set_metadata(self, meta_dict: Mapping | None = None, resample: bool = True, **options):
         """
         Resample ``self.dataobj`` if needed.  This method assumes ``self.data_obj`` is a 'channel-last' ndarray.
 
@@ -470,8 +473,8 @@ class ITKWriter(ImageWriter):
     def create_backend_obj(
         cls,
         data_array: NdarrayOrTensor,
-        channel_dim: Optional[int] = 0,
-        affine: Optional[NdarrayOrTensor] = None,
+        channel_dim: int | None = 0,
+        affine: NdarrayOrTensor | None = None,
         dtype: DtypeLike = np.float32,
         affine_lps_to_ras: bool = True,
         **kwargs,
@@ -551,7 +554,7 @@ class NibabelWriter(ImageWriter):
         super().__init__(output_dtype=output_dtype, affine=None, **kwargs)
 
     def set_data_array(
-        self, data_array: NdarrayOrTensor, channel_dim: Optional[int] = 0, squeeze_end_dims: bool = True, **kwargs
+        self, data_array: NdarrayOrTensor, channel_dim: int | None = 0, squeeze_end_dims: bool = True, **kwargs
     ):
         """
         Convert ``data_array`` into 'channel-last' numpy ndarray.
@@ -571,7 +574,7 @@ class NibabelWriter(ImageWriter):
             spatial_ndim=kwargs.pop("spatial_ndim", 3),
         )
 
-    def set_metadata(self, meta_dict: Optional[Mapping], resample: bool = True, **options):
+    def set_metadata(self, meta_dict: Mapping | None, resample: bool = True, **options):
         """
         Resample ``self.dataobj`` if needed.  This method assumes ``self.data_obj`` is a 'channel-last' ndarray.
 
@@ -626,7 +629,7 @@ class NibabelWriter(ImageWriter):
 
     @classmethod
     def create_backend_obj(
-        cls, data_array: NdarrayOrTensor, affine: Optional[NdarrayOrTensor] = None, dtype: DtypeLike = None, **kwargs
+        cls, data_array: NdarrayOrTensor, affine: NdarrayOrTensor | None = None, dtype: DtypeLike = None, **kwargs
     ):
         """
         Create an Nifti1Image object from ``data_array``. This method assumes a 'channel-last' ``data_array``.
@@ -678,11 +681,11 @@ class PILWriter(ImageWriter):
     """
 
     output_dtype: DtypeLike
-    channel_dim: Optional[int]
-    scale: Optional[int]
+    channel_dim: int | None
+    scale: int | None
 
     def __init__(
-        self, output_dtype: DtypeLike = np.float32, channel_dim: Optional[int] = 0, scale: Optional[int] = 255, **kwargs
+        self, output_dtype: DtypeLike = np.float32, channel_dim: int | None = 0, scale: int | None = 255, **kwargs
     ):
         """
         Args:
@@ -698,7 +701,7 @@ class PILWriter(ImageWriter):
     def set_data_array(
         self,
         data_array: NdarrayOrTensor,
-        channel_dim: Optional[int] = 0,
+        channel_dim: int | None = 0,
         squeeze_end_dims: bool = True,
         contiguous: bool = False,
         **kwargs,
@@ -723,7 +726,7 @@ class PILWriter(ImageWriter):
             contiguous=contiguous,
         )
 
-    def set_metadata(self, meta_dict: Optional[Mapping] = None, resample: bool = True, **options):
+    def set_metadata(self, meta_dict: Mapping | None = None, resample: bool = True, **options):
         """
         Resample ``self.dataobj`` if needed.  This method assumes ``self.data_obj`` is a 'channel-last' ndarray.
 
@@ -769,14 +772,14 @@ class PILWriter(ImageWriter):
         self.data_obj.save(filename, **kwargs)
 
     @classmethod
-    def get_meta_info(cls, metadata: Optional[Mapping] = None):
+    def get_meta_info(cls, metadata: Mapping | None = None):
         return None if not metadata else metadata.get(MetaKeys.SPATIAL_SHAPE)
 
     @classmethod
     def resample_and_clip(
         cls,
         data_array: NdarrayOrTensor,
-        output_spatial_shape: Optional[Sequence[int]] = None,
+        output_spatial_shape: Sequence[int] | None = None,
         mode: str = InterpolateMode.BICUBIC,
     ) -> np.ndarray:
         """
@@ -810,7 +813,7 @@ class PILWriter(ImageWriter):
         cls,
         data_array: NdarrayOrTensor,
         dtype: DtypeLike = None,
-        scale: Optional[int] = 255,
+        scale: int | None = 255,
         reverse_indexing: bool = True,
         **kwargs,
     ):

@@ -9,9 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import inspect
 import warnings
-from typing import Callable, Optional, Union
+from collections.abc import Callable
 
 import torch
 from torch.nn.modules.loss import _Loss
@@ -28,7 +30,7 @@ class MaskedLoss(_Loss):
         - :py:class:`monai.losses.MaskedDiceLoss`
     """
 
-    def __init__(self, loss: Union[Callable, _Loss], *loss_args, **loss_kwargs) -> None:
+    def __init__(self, loss: Callable | _Loss, *loss_args, **loss_kwargs) -> None:
         """
         Args:
             loss: loss function to be wrapped, this could be a loss class or an instance of a loss class.
@@ -40,7 +42,7 @@ class MaskedLoss(_Loss):
         if not callable(self.loss):
             raise ValueError("The loss function is not callable.")
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor, mask: Optional[torch.Tensor] = None):
+    def forward(self, input: torch.Tensor, target: torch.Tensor, mask: torch.Tensor | None = None):
         """
         Args:
             input: the shape should be BNH[WD].

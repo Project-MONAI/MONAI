@@ -9,8 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any
 
 import torch
 
@@ -19,17 +22,20 @@ from monai.metrics import CumulativeIterationMetric
 from monai.utils import min_version, optional_import
 
 idist, _ = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, min_version, "distributed")
-Metric, _ = optional_import("ignite.metrics", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Metric", as_type="base")
-reinit__is_reduced, _ = optional_import(
-    "ignite.metrics.metric", IgniteInfo.OPT_IMPORT_VERSION, min_version, "reinit__is_reduced", as_type="decorator"
-)
+
 if TYPE_CHECKING:
     from ignite.engine import Engine
+    from ignite.metrics import Metric
+    from ignite.metrics.metric import reinit__is_reduced
 else:
     Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
+    Metric, _ = optional_import("ignite.metrics", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Metric", as_type="base")
+    reinit__is_reduced, _ = optional_import(
+        "ignite.metrics.metric", IgniteInfo.OPT_IMPORT_VERSION, min_version, "reinit__is_reduced", as_type="decorator"
+    )
 
 
-class IgniteMetric(Metric):  # type: ignore[valid-type, misc] # due to optional_import
+class IgniteMetric(Metric):
     """
     Base Metric class based on ignite event handler mechanism.
     The input `prediction` or `label` data can be a PyTorch Tensor or numpy array with batch dim and channel dim,
@@ -55,9 +61,9 @@ class IgniteMetric(Metric):  # type: ignore[valid-type, misc] # due to optional_
         self._is_reduced: bool = False
         self.metric_fn = metric_fn
         self.save_details = save_details
-        self._scores: List = []
-        self._engine: Optional[Engine] = None
-        self._name: Optional[str] = None
+        self._scores: list = []
+        self._engine: Engine | None = None
+        self._name: str | None = None
         super().__init__(output_transform)
 
     @reinit__is_reduced
@@ -107,7 +113,7 @@ class IgniteMetric(Metric):  # type: ignore[valid-type, misc] # due to optional_
                 result = result.item()
         return result
 
-    def attach(self, engine: Engine, name: str) -> None:
+    def attach(self, engine: Engine, name: str) -> None:  # type: ignore[override]
         """
         Attaches current metric to provided engine. On the end of engine's run,
         `engine.state.metrics` dictionary will contain computed metric's value under provided name.

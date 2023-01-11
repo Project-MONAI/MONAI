@@ -9,8 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import torch
 
@@ -63,9 +65,9 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
     def __init__(
         self,
         include_background: bool = True,
-        metric_name: Union[Sequence[str], str] = "hit_rate",
+        metric_name: Sequence[str] | str = "hit_rate",
         compute_sample: bool = False,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        reduction: MetricReduction | str = MetricReduction.MEAN,
         get_not_nans: bool = False,
     ) -> None:
         super().__init__()
@@ -100,7 +102,7 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
 
         return get_confusion_matrix(y_pred=y_pred, y=y, include_background=self.include_background)
 
-    def aggregate(self, compute_sample: bool = False, reduction: Union[MetricReduction, str, None] = None):
+    def aggregate(self, compute_sample: bool = False, reduction: MetricReduction | str | None = None):
         """
         Execute reduction for the confusion matrix values.
 
@@ -215,7 +217,7 @@ def compute_confusion_matrix_metric(metric_name: str, confusion_matrix: torch.Te
     n = fp + tn
     # calculate metric
     numerator: torch.Tensor
-    denominator: Union[torch.Tensor, float]
+    denominator: torch.Tensor | float
     nan_tensor = torch.tensor(float("nan"), device=confusion_matrix.device)
     if metric == "tpr":
         numerator, denominator = tp, p

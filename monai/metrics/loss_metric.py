@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union
+from __future__ import annotations
 
 import torch
 from torch.nn.modules.loss import _Loss
@@ -67,14 +67,14 @@ class LossMetric(CumulativeIterationMetric):
     """
 
     def __init__(
-        self, loss_fn: _Loss, reduction: Union[MetricReduction, str] = MetricReduction.MEAN, get_not_nans: bool = False
+        self, loss_fn: _Loss, reduction: MetricReduction | str = MetricReduction.MEAN, get_not_nans: bool = False
     ) -> None:
         super().__init__()
         self.loss_fn = loss_fn
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):
+    def aggregate(self, reduction: MetricReduction | str | None = None):
         """
         Returns the aggregated loss value across multiple iterations.
 

@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Dict, List, Tuple
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -63,10 +65,10 @@ class LesionFROC:
 
     def __init__(
         self,
-        data: List[Dict],
+        data: list[dict],
         grow_distance: int = 75,
         itc_diameter: int = 200,
-        eval_thresholds: Tuple = (0.25, 0.5, 1, 2, 4, 8),
+        eval_thresholds: tuple = (0.25, 0.5, 1, 2, 4, 8),
         nms_sigma: float = 0.0,
         nms_prob_threshold: float = 0.5,
         nms_box_size: int = 48,
@@ -80,7 +82,7 @@ class LesionFROC:
         self.image_reader = WSIReader(image_reader_name)
         self.nms = PathologyProbNMS(sigma=nms_sigma, prob_threshold=nms_prob_threshold, box_size=nms_box_size)
 
-    def prepare_inference_result(self, sample: Dict):
+    def prepare_inference_result(self, sample: dict):
         """
         Prepare the probability map for detection evaluation.
 

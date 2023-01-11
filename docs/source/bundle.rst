@@ -32,6 +32,7 @@ Model Bundle
 ---------------
 .. autoclass:: ConfigParser
     :members:
+    :special-members:
 
 `Scripts`
 ---------

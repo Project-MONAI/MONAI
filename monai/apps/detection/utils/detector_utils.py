@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, List, Sequence, Tuple, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import torch
 import torch.nn.functional as F
@@ -20,7 +22,7 @@ from monai.transforms.utils import compute_divisible_spatial_size, convert_pad_m
 from monai.utils import PytorchPadMode, ensure_tuple_rep
 
 
-def check_input_images(input_images: Union[List[Tensor], Tensor], spatial_dims: int) -> None:
+def check_input_images(input_images: list[Tensor] | Tensor, spatial_dims: int) -> None:
     """
     Validate the input dimensionality (raise a `ValueError` if invalid).
 
@@ -35,7 +37,7 @@ def check_input_images(input_images: Union[List[Tensor], Tensor], spatial_dims: 
                 "When input_images is a Tensor, its need to be (spatial_dims + 2)-D."
                 f"In this case, it should be a {(spatial_dims + 2)}-D Tensor, got Tensor shape {input_images.shape}."
             )
-    elif isinstance(input_images, List):
+    elif isinstance(input_images, list):
         for img in input_images:
             if len(img.shape) != spatial_dims + 1:
                 raise ValueError(
@@ -48,8 +50,8 @@ def check_input_images(input_images: Union[List[Tensor], Tensor], spatial_dims: 
 
 
 def check_training_targets(
-    input_images: Union[List[Tensor], Tensor],
-    targets: Union[List[Dict[str, Tensor]], None],
+    input_images: list[Tensor] | Tensor,
+    targets: list[dict[str, Tensor]] | None,
     spatial_dims: int,
     target_label_key: str,
     target_box_key: str,
@@ -89,12 +91,12 @@ def check_training_targets(
 
 
 def pad_images(
-    input_images: Union[List[Tensor], Tensor],
+    input_images: list[Tensor] | Tensor,
     spatial_dims: int,
-    size_divisible: Union[int, Sequence[int]],
-    mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
+    size_divisible: int | Sequence[int],
+    mode: PytorchPadMode | str = PytorchPadMode.CONSTANT,
     **kwargs,
-) -> Tuple[Tensor, List[List[int]]]:
+) -> tuple[Tensor, list[list[int]]]:
     """
     Pad the input images, so that the output spatial sizes are divisible by `size_divisible`.
     It pads them at the end to create a (B, C, H, W) or (B, C, H, W, D) Tensor.
@@ -157,12 +159,12 @@ def pad_images(
 
 
 def preprocess_images(
-    input_images: Union[List[Tensor], Tensor],
+    input_images: list[Tensor] | Tensor,
     spatial_dims: int,
-    size_divisible: Union[int, Sequence[int]],
-    mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
+    size_divisible: int | Sequence[int],
+    mode: PytorchPadMode | str = PytorchPadMode.CONSTANT,
     **kwargs,
-) -> Tuple[Tensor, List[List[int]]]:
+) -> tuple[Tensor, list[list[int]]]:
     """
     Preprocess the input images, including
 

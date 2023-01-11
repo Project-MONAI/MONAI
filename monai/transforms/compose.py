@@ -12,8 +12,11 @@
 A collection of generic interfaces for MONAI transforms.
 """
 
+from __future__ import annotations
+
 import warnings
-from typing import Any, Callable, Mapping, Optional, Sequence, Union
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any
 
 import numpy as np
 
@@ -116,7 +119,7 @@ class Compose(Randomizable, InvertibleTransform):
 
     def __init__(
         self,
-        transforms: Optional[Union[Sequence[Callable], Callable]] = None,
+        transforms: Sequence[Callable] | Callable | None = None,
         map_items: bool = True,
         unpack_items: bool = False,
         log_stats: bool = False,
@@ -129,7 +132,7 @@ class Compose(Randomizable, InvertibleTransform):
         self.log_stats = log_stats
         self.set_random_state(seed=get_seed())
 
-    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None) -> "Compose":
+    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> Compose:
         super().set_random_state(seed=seed, state=state)
         for _transform in self.transforms:
             if not isinstance(_transform, Randomizable):
@@ -137,7 +140,7 @@ class Compose(Randomizable, InvertibleTransform):
             _transform.set_random_state(seed=self.R.randint(MAX_SEED, dtype="uint32"))
         return self
 
-    def randomize(self, data: Optional[Any] = None) -> None:
+    def randomize(self, data: Any | None = None) -> None:
         for _transform in self.transforms:
             if not isinstance(_transform, Randomizable):
                 continue
@@ -206,8 +209,8 @@ class OneOf(Compose):
 
     def __init__(
         self,
-        transforms: Optional[Union[Sequence[Callable], Callable]] = None,
-        weights: Optional[Union[Sequence[float], float]] = None,
+        transforms: Sequence[Callable] | Callable | None = None,
+        weights: Sequence[float] | float | None = None,
         map_items: bool = True,
         unpack_items: bool = False,
         log_stats: bool = False,
@@ -303,7 +306,7 @@ class RandomOrder(Compose):
 
     def __init__(
         self,
-        transforms: Optional[Union[Sequence[Callable], Callable]] = None,
+        transforms: Sequence[Callable] | Callable | None = None,
         map_items: bool = True,
         unpack_items: bool = False,
         log_stats: bool = False,

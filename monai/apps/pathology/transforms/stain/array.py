@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union
+from __future__ import annotations
 
 import numpy as np
 
@@ -37,11 +37,7 @@ class ExtractHEStains(Transform):
     """
 
     def __init__(
-        self,
-        tli: float = 240,
-        alpha: float = 1,
-        beta: float = 0.15,
-        max_cref: Union[tuple, np.ndarray] = (1.9705, 1.0308),
+        self, tli: float = 240, alpha: float = 1, beta: float = 0.15, max_cref: tuple | np.ndarray = (1.9705, 1.0308)
     ) -> None:
         self.tli = tli
         self.alpha = alpha
@@ -145,8 +141,8 @@ class NormalizeHEStains(Transform):
         tli: float = 240,
         alpha: float = 1,
         beta: float = 0.15,
-        target_he: Union[tuple, np.ndarray] = ((0.5626, 0.2159), (0.7201, 0.8012), (0.4062, 0.5581)),
-        max_cref: Union[tuple, np.ndarray] = (1.9705, 1.0308),
+        target_he: tuple | np.ndarray = ((0.5626, 0.2159), (0.7201, 0.8012), (0.4062, 0.5581)),
+        max_cref: tuple | np.ndarray = (1.9705, 1.0308),
     ) -> None:
         self.tli = tli
         self.target_he = np.array(target_he)

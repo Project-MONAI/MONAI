@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -17,7 +19,6 @@ from parameterized import parameterized
 from monai.networks.layers import ApplyFilter, EllipticalFilter, LaplaceFilter, MeanFilter, SharpenFilter
 
 TEST_CASES_MEAN = [(3, 3, torch.ones(3, 3, 3)), (2, 5, torch.ones(5, 5))]
-
 
 TEST_CASES_LAPLACE = [
     (
@@ -44,7 +45,6 @@ TEST_CASES_ELLIPTICAL = [
     ),
     (2, 3, torch.Tensor([[0, 1, 0], [1, 1, 1], [0, 1, 0]])),
 ]
-
 
 TEST_CASES_SHARPEN = [
     (

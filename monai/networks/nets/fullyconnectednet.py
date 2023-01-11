@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Tuple, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import torch
 import torch.nn as nn
@@ -20,9 +22,7 @@ from monai.networks.layers.factories import Act
 __all__ = ["FullyConnectedNet", "VarFullyConnectedNet"]
 
 
-def _get_adn_layer(
-    act: Optional[Union[Tuple, str]], dropout: Optional[Union[Tuple, str, float]], ordering: Optional[str]
-) -> ADN:
+def _get_adn_layer(act: tuple | str | None, dropout: tuple | str | float | None, ordering: str | None) -> ADN:
     if ordering:
         return ADN(act=act, dropout=dropout, dropout_dim=1, ordering=ordering)
     return ADN(act=act, dropout=dropout, dropout_dim=1)
@@ -55,10 +55,10 @@ class FullyConnectedNet(nn.Sequential):
         in_channels: int,
         out_channels: int,
         hidden_channels: Sequence[int],
-        dropout: Optional[Union[Tuple, str, float]] = None,
-        act: Optional[Union[Tuple, str]] = Act.PRELU,
+        dropout: tuple | str | float | None = None,
+        act: tuple | str | None = Act.PRELU,
         bias: bool = True,
-        adn_ordering: Optional[str] = None,
+        adn_ordering: str | None = None,
     ) -> None:
         """
         Defines a network accept input with `in_channels` channels, output of `out_channels` channels, and hidden layers
@@ -118,10 +118,10 @@ class VarFullyConnectedNet(nn.Module):
         latent_size: int,
         encode_channels: Sequence[int],
         decode_channels: Sequence[int],
-        dropout: Optional[Union[Tuple, str, float]] = None,
-        act: Optional[Union[Tuple, str]] = Act.PRELU,
+        dropout: tuple | str | float | None = None,
+        act: tuple | str | None = Act.PRELU,
         bias: bool = True,
-        adn_ordering: Optional[str] = None,
+        adn_ordering: str | None = None,
     ) -> None:
         super().__init__()
         self.in_channels = in_channels
@@ -154,7 +154,7 @@ class VarFullyConnectedNet(nn.Module):
         seq.add_module("ADN", self.adn_layer)
         return seq
 
-    def encode_forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def encode_forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         x = self.encode(x)
         x = self.flatten(x)
         mu = self.mu(x)
@@ -179,7 +179,7 @@ class VarFullyConnectedNet(nn.Module):
 
         return std.add_(mu)
 
-    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         mu, logvar = self.encode_forward(x)
         z = self.reparameterize(mu, logvar)
         return self.decode_forward(z), mu, logvar, z

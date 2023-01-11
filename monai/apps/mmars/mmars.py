@@ -15,11 +15,13 @@ See Also:
     - https://docs.nvidia.com/clara/clara-train-sdk/pt/mmar.html
 """
 
+from __future__ import annotations
+
 import json
 import os
 import warnings
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Mapping, Optional, Union
 
 import torch
 
@@ -35,7 +37,7 @@ from .model_desc import RemoteMMARKeys as Keys
 __all__ = ["get_model_spec", "download_mmar", "load_from_mmar"]
 
 
-def get_model_spec(idx: Union[int, str]):
+def get_model_spec(idx: int | str):
     """get model specification by `idx`. `idx` could be index of the constant tuple of dict or the actual model ID."""
     if isinstance(idx, int):
         return MODEL_DESC[idx]
@@ -100,9 +102,7 @@ def _get_ngc_doc_url(model_name: str, model_prefix=""):
     return f"https://ngc.nvidia.com/catalog/models/{model_prefix}{model_name}"
 
 
-def download_mmar(
-    item, mmar_dir: Optional[PathLike] = None, progress: bool = True, api: bool = True, version: int = -1
-):
+def download_mmar(item, mmar_dir: PathLike | None = None, progress: bool = True, api: bool = True, version: int = -1):
     """
     Download and extract Medical Model Archive (MMAR) from Nvidia Clara Train.
 
@@ -183,7 +183,7 @@ def download_mmar(
 
 def load_from_mmar(
     item,
-    mmar_dir: Optional[PathLike] = None,
+    mmar_dir: PathLike | None = None,
     progress: bool = True,
     version: int = -1,
     map_location=None,
