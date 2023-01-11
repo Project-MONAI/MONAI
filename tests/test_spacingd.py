@@ -81,7 +81,6 @@ for device in TEST_DEVICES:
         )
     )
 
-
 TESTS_TORCH = []
 for track_meta in (False, True):
     for device in TEST_DEVICES:

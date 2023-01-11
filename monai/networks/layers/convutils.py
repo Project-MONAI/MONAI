@@ -74,7 +74,7 @@ def calculate_out_shape(
     out_shape_np = ((in_shape_np - kernel_size_np + padding_np + padding_np) // stride_np) + 1
     out_shape = tuple(int(s) for s in out_shape_np)
 
-    return out_shape if len(out_shape) > 1 else out_shape[0]
+    return out_shape
 
 
 def gaussian_1d(

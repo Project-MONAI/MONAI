@@ -64,6 +64,7 @@ class TestPNGReader(unittest.TestCase):
                 Image.fromarray(test_image.astype("uint8")).save(filenames[i])
             reader = PILReader(converter=lambda image: image.convert("LA"))
             result = reader.get_data(reader.read(filenames, mode="r"))
+            self.assertEqual(result[1]["format"], "none")  # project-monai/monai issue#5251
             # load image by PIL and compare the result
             test_image = np.asarray(Image.open(filenames[0]).convert("LA"))
 

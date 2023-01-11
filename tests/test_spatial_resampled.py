@@ -15,14 +15,12 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.config import USE_COMPILED
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
 from monai.transforms.spatial.dictionary import SpatialResampled
 from tests.utils import TEST_DEVICES, assert_allclose
 
 TESTS = []
-
 
 destinations_3d = [
     torch.tensor([[1.0, 0.0, 0.0, 0.0], [0.0, -1.0, 0.0, 1.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]),
@@ -37,7 +35,7 @@ for dst, expct in zip(destinations_3d, expected_3d):
     for device in TEST_DEVICES:
         for align in (True, False):
             for dtype in (torch.float32, torch.float64):
-                interp = ("nearest", "bilinear", 0, 1) if align and USE_COMPILED else ("nearest", "bilinear")
+                interp = ("nearest", "bilinear")
                 for interp_mode in interp:
                     for padding_mode in ("zeros", "border", "reflection"):
                         TESTS.append(

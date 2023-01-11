@@ -17,14 +17,14 @@ from monai.config import IgniteInfo
 from monai.utils import is_scalar, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
-Checkpoint, _ = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Checkpoint")
 
 if TYPE_CHECKING:
     from ignite.engine import Engine
-    from ignite.handlers import DiskSaver
+    from ignite.handlers import Checkpoint, DiskSaver
 else:
     Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
     DiskSaver, _ = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "DiskSaver")
+    Checkpoint, _ = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Checkpoint")
 
 
 class CheckpointSaver:
@@ -62,7 +62,7 @@ class CheckpointSaver:
             https://pytorch.org/ignite/v0.4.5/generated/ignite.handlers.checkpoint.Checkpoint.html.
             typically, it's used to resume training and compare current metric with previous N values.
         key_metric_greater_or_equal: if `True`, the latest equally scored model is stored. Otherwise,
-            save the the first equally scored model. default to `False`.
+            save the first equally scored model. default to `False`.
         key_metric_negative_sign: whether adding a negative sign to the metric score to compare metrics,
             because for error-like metrics, smaller is better(objects with larger score are retained).
             default to `False`.
@@ -111,7 +111,9 @@ class CheckpointSaver:
         self.logger = logging.getLogger(name)
         self.epoch_level = epoch_level
         self.save_interval = save_interval
-        self._final_checkpoint = self._key_metric_checkpoint = self._interval_checkpoint = None
+        self._final_checkpoint: Optional[Checkpoint] = None
+        self._key_metric_checkpoint: Optional[Checkpoint] = None
+        self._interval_checkpoint: Optional[Checkpoint] = None
         self._name = name
 
         class _DiskSaver(DiskSaver):
@@ -155,7 +157,7 @@ class CheckpointSaver:
                 if isinstance(key_metric_name, str):
                     metric_name = key_metric_name
                 elif hasattr(engine.state, "key_metric_name"):
-                    metric_name = engine.state.key_metric_name  # type: ignore
+                    metric_name = engine.state.key_metric_name
                 else:
                     raise ValueError(
                         f"Incompatible values: save_key_metric=True and key_metric_name={key_metric_name}."
@@ -165,6 +167,7 @@ class CheckpointSaver:
                     warnings.warn(
                         "key metric is not a scalar value, skip metric comparison and don't save a model."
                         "please use other metrics as key metric, or change the `reduction` mode to 'mean'."
+                        f"got metric: {metric_name}={metric}."
                     )
                     return -1
                 return (-1 if key_metric_negative_sign else 1) * metric
@@ -242,11 +245,12 @@ class CheckpointSaver:
                 engine.add_event_handler(Events.ITERATION_COMPLETED(every=self.save_interval), self.interval_completed)
 
     def _delete_previous_final_ckpt(self):
-        saved = self._final_checkpoint._saved
-        if len(saved) > 0:
-            item = saved.pop(0)
-            self._final_checkpoint.save_handler.remove(item.filename)
-            self.logger.info(f"Deleted previous saved final checkpoint: {item.filename}")
+        if self._final_checkpoint is not None:
+            saved = self._final_checkpoint._saved
+            if len(saved) > 0:
+                item = saved.pop(0)
+                self._final_checkpoint.save_handler.remove(item.filename)
+                self.logger.info(f"Deleted previous saved final checkpoint: {item.filename}")
 
     def completed(self, engine: Engine) -> None:
         """Callback for train or validation/evaluation completed Event.

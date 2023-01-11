@@ -11,17 +11,18 @@
 
 import os
 import sys
-from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
 
 from monai.data import Dataset, SmartCacheDataset
 from monai.data.image_reader import WSIReader
-from monai.utils import ensure_tuple_rep
+from monai.utils import deprecated, ensure_tuple_rep
 
 __all__ = ["PatchWSIDataset", "SmartCachePatchWSIDataset", "MaskedInferenceWSIDataset"]
 
 
+@deprecated(since="0.8", msg_suffix="use `monai.data.PatchWSIDataset` instead.")
 class PatchWSIDataset(Dataset):
     """
     This dataset reads whole slide images, extracts regions, and creates patches.
@@ -44,7 +45,7 @@ class PatchWSIDataset(Dataset):
         This means from "image1.tiff" extract a region centered at the given location `location`
         with the size of `region_size`, and then extract patches with the size of `patch_size`
         from a grid with the shape of `grid_shape`.
-        Be aware the the `grid_shape` should construct a grid with the same number of element as `labels`,
+        Be aware the `grid_shape` should construct a grid with the same number of element as `labels`,
         so for this example the `grid_shape` should be (2, 2).
 
     """
@@ -61,14 +62,14 @@ class PatchWSIDataset(Dataset):
     ):
         super().__init__(data, transform)
 
-        self.region_size = ensure_tuple_rep(region_size, 2)
-        self.grid_shape = ensure_tuple_rep(grid_shape, 2)
-        self.patch_size = ensure_tuple_rep(patch_size, 2)
+        self.region_size = cast(Tuple[int, int], ensure_tuple_rep(region_size, 2))
+        self.grid_shape = cast(Tuple[int, int], ensure_tuple_rep(grid_shape, 2))
+        self.patch_size = cast(Tuple[int, int], ensure_tuple_rep(patch_size, 2))
 
         self.image_path_list = list({x["image"] for x in self.data})
         self.image_reader_name = image_reader_name.lower()
         self.image_reader = WSIReader(backend=image_reader_name, **kwargs)
-        self.wsi_object_dict = None
+        self.wsi_object_dict: Optional[Dict] = None
         if self.image_reader_name != "openslide":
             # OpenSlide causes memory issue if we prefetch image objects
             self._fetch_wsi_objects()
@@ -84,11 +85,11 @@ class PatchWSIDataset(Dataset):
         if self.image_reader_name == "openslide":
             img_obj = self.image_reader.read(sample["image"])
         else:
-            img_obj = self.wsi_object_dict[sample["image"]]
+            img_obj = cast(Dict, self.wsi_object_dict)[sample["image"]]
         location = [sample["location"][i] - self.region_size[i] // 2 for i in range(len(self.region_size))]
         images, _ = self.image_reader.get_data(
             img=img_obj,
-            location=location,
+            location=cast(Tuple[int, int], location),
             size=self.region_size,
             grid_shape=self.grid_shape,
             patch_size=self.patch_size,
@@ -103,6 +104,7 @@ class PatchWSIDataset(Dataset):
         return patches
 
 
+@deprecated(since="0.8", msg_suffix="use `monai.data.SmartCacheDataset` with `monai.data.PatchWSIDataset` instead.")
 class SmartCachePatchWSIDataset(SmartCacheDataset):
     """Add SmartCache functionality to `PatchWSIDataset`.
 
@@ -177,6 +179,7 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
         )
 
 
+@deprecated(since="0.8", msg_suffix="use `monai.data.MaskedPatchWSIDataset` instead.")
 class MaskedInferenceWSIDataset(Dataset):
     """
     This dataset load the provided foreground masks at an arbitrary resolution level,
@@ -206,7 +209,7 @@ class MaskedInferenceWSIDataset(Dataset):
     ) -> None:
         super().__init__(data, transform)
 
-        self.patch_size = ensure_tuple_rep(patch_size, 2)
+        self.patch_size = cast(Tuple[int, int], ensure_tuple_rep(patch_size, 2))
 
         # set up whole slide image reader
         self.image_reader_name = image_reader_name.lower()
@@ -306,7 +309,7 @@ class MaskedInferenceWSIDataset(Dataset):
         this method, first, finds the whole slide image and the patch that should be extracted,
         then it loads the patch and provide it with its image name and the corresponding mask location.
         """
-        sample_num = np.argmax(self.cum_num_patches > index) - 1
+        sample_num = cast(int, np.argmax(self.cum_num_patches > index)) - 1
         sample = self.data[sample_num]
         patch_num = index - self.cum_num_patches[sample_num]
         location_on_image = sample["image_locations"][patch_num]

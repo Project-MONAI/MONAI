@@ -14,6 +14,7 @@ import json
 import os
 import pprint
 import re
+import time
 import warnings
 from logging.config import fileConfig
 from pathlib import Path
@@ -24,10 +25,11 @@ from typing import Dict, Mapping, Optional, Sequence, Tuple, Union
 import torch
 from torch.cuda import is_available
 
+from monai.apps.mmars.mmars import _get_all_ngc_models
 from monai.apps.utils import _basename, download_url, extractall, get_logger
 from monai.bundle.config_item import ConfigComponent
 from monai.bundle.config_parser import ConfigParser
-from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA
+from monai.bundle.utils import DEFAULT_EXP_MGMT_SETTINGS, DEFAULT_INFERENCE, DEFAULT_METADATA
 from monai.config import IgniteInfo, PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
 from monai.networks import convert_to_torchscript, copy_model_state, get_state_dict, save_state
@@ -40,6 +42,9 @@ Checkpoint, has_ignite = optional_import("ignite.handlers", IgniteInfo.OPT_IMPOR
 requests_get, has_requests = optional_import("requests", name="get")
 
 logger = get_logger(module_name=__name__)
+
+# set BUNDLE_DOWNLOAD_SRC="ngc" to use NGC source in default for bundle download
+download_source = os.environ.get("BUNDLE_DOWNLOAD_SRC", "github")
 
 
 def _update_args(args: Optional[Union[str, Dict]] = None, ignore_none: bool = True, **kwargs) -> Dict:
@@ -129,9 +134,11 @@ def _get_git_release_url(repo_owner: str, repo_name: str, tag_name: str, filenam
     return f"https://github.com/{repo_owner}/{repo_name}/releases/download/{tag_name}/{filename}"
 
 
+def _get_ngc_bundle_url(model_name: str, version: str):
+    return f"https://api.ngc.nvidia.com/v2/models/nvidia/monaitoolkit/{model_name}/versions/{version}/zip"
+
+
 def _download_from_github(repo: str, download_path: Path, filename: str, progress: bool = True):
-    if len(repo.split("/")) != 3:
-        raise ValueError("if source is `github`, repo should be in the form of `repo_owner/repo_name/release_tag`.")
     repo_owner, repo_name, tag_name = repo.split("/")
     if ".zip" not in filename:
         filename += ".zip"
@@ -139,6 +146,45 @@ def _download_from_github(repo: str, download_path: Path, filename: str, progres
     filepath = download_path / f"{filename}"
     download_url(url=url, filepath=filepath, hash_val=None, progress=progress)
     extractall(filepath=filepath, output_dir=download_path, has_base=True)
+
+
+def _add_ngc_prefix(name: str, prefix: str = "monai_"):
+    if name.startswith(prefix):
+        return name
+    return f"{prefix}{name}"
+
+
+def _remove_ngc_prefix(name: str, prefix: str = "monai_"):
+    if name.startswith(prefix):
+        return name[len(prefix) :]
+    return name
+
+
+def _download_from_ngc(download_path: Path, filename: str, version: str, remove_prefix: Optional[str], progress: bool):
+    # ensure prefix is contained
+    filename = _add_ngc_prefix(filename)
+    url = _get_ngc_bundle_url(model_name=filename, version=version)
+    filepath = download_path / f"{filename}_v{version}.zip"
+    if remove_prefix:
+        filename = _remove_ngc_prefix(filename, prefix=remove_prefix)
+    extract_path = download_path / f"{filename}"
+    download_url(url=url, filepath=filepath, hash_val=None, progress=progress)
+    extractall(filepath=filepath, output_dir=extract_path, has_base=True)
+
+
+def _get_latest_bundle_version(source: str, name: str, repo: str):
+    if source == "ngc":
+        name = _add_ngc_prefix(name)
+        model_dict = _get_all_ngc_models(name)
+        for v in model_dict.values():
+            if v["name"] == name:
+                return v["latest"]
+        return None
+    elif source == "github":
+        repo_owner, repo_name, tag_name = repo.split("/")
+        return get_bundle_versions(name, repo=os.path.join(repo_owner, repo_name), tag=tag_name)["latest_version"]
+    else:
+        raise ValueError(f"To get the latest bundle version, source should be 'github' or 'ngc', got {source}.")
 
 
 def _process_bundle_dir(bundle_dir: Optional[PathLike] = None):
@@ -153,10 +199,12 @@ def _process_bundle_dir(bundle_dir: Optional[PathLike] = None):
 
 def download(
     name: Optional[str] = None,
+    version: Optional[str] = None,
     bundle_dir: Optional[PathLike] = None,
-    source: str = "github",
-    repo: str = "Project-MONAI/model-zoo/hosting_storage_v1",
+    source: str = download_source,
+    repo: Optional[str] = None,
     url: Optional[str] = None,
+    remove_prefix: Optional[str] = "monai_",
     progress: bool = True,
     args_file: Optional[str] = None,
 ):
@@ -170,11 +218,17 @@ def download(
 
     .. code-block:: bash
 
-        # Execute this module as a CLI entry, and download bundle:
-        python -m monai.bundle download --name "bundle_name" --source "github" --repo "repo_owner/repo_name/release_tag"
+        # Execute this module as a CLI entry, and download bundle from the model-zoo repo:
+        python -m monai.bundle download --name <bundle_name> --version "0.1.0" --bundle_dir "./"
+
+        # Execute this module as a CLI entry, and download bundle from specified github repo:
+        python -m monai.bundle download --name <bundle_name> --source "github" --repo "repo_owner/repo_name/release_tag"
+
+        # Execute this module as a CLI entry, and download bundle from ngc with latest version:
+        python -m monai.bundle download --name <bundle_name> --source "ngc" --bundle_dir "./"
 
         # Execute this module as a CLI entry, and download bundle via URL:
-        python -m monai.bundle download --name "bundle_name" --url <url>
+        python -m monai.bundle download --name <bundle_name> --url <url>
 
         # Set default args of `run` in a JSON / YAML file, help to record and simplify the command line.
         # Other args still can override the default args at runtime.
@@ -185,55 +239,94 @@ def download(
 
     Args:
         name: bundle name. If `None` and `url` is `None`, it must be provided in `args_file`.
+            for example:
+            "spleen_ct_segmentation", "prostate_mri_anatomy" in model-zoo:
+            https://github.com/Project-MONAI/model-zoo/releases/tag/hosting_storage_v1.
+            "monai_brats_mri_segmentation" in ngc:
+            https://catalog.ngc.nvidia.com/models?filters=&orderBy=scoreDESC&query=monai.
+        version: version name of the target bundle to download, like: "0.1.0". If `None`, will download
+            the latest version.
         bundle_dir: target directory to store the downloaded data.
             Default is `bundle` subfolder under `torch.hub.get_dir()`.
         source: storage location name. This argument is used when `url` is `None`.
-            "github" is currently the only supported value.
-        repo: repo name. This argument is used when `url` is `None`.
-            If `source` is "github", it should be in the form of "repo_owner/repo_name/release_tag".
+            In default, the value is achieved from the environment variable BUNDLE_DOWNLOAD_SRC, and
+            it should be "ngc" or "github".
+        repo: repo name. This argument is used when `url` is `None` and `source` is "github".
+            If used, it should be in the form of "repo_owner/repo_name/release_tag".
         url: url to download the data. If not `None`, data will be downloaded directly
             and `source` will not be checked.
             If `name` is `None`, filename is determined by `monai.apps.utils._basename(url)`.
+        remove_prefix: This argument is used when `source` is "ngc". Currently, all ngc bundles
+            have the ``monai_`` prefix, which is not existing in their model zoo contrasts. In order to
+            maintain the consistency between these two sources, remove prefix is necessary.
+            Therefore, if specified, downloaded folder name will remove the prefix.
         progress: whether to display a progress bar.
         args_file: a JSON or YAML file to provide default values for all the args in this function.
             so that the command line inputs can be simplified.
 
     """
     _args = _update_args(
-        args=args_file, name=name, bundle_dir=bundle_dir, source=source, repo=repo, url=url, progress=progress
+        args=args_file,
+        name=name,
+        version=version,
+        bundle_dir=bundle_dir,
+        source=source,
+        repo=repo,
+        url=url,
+        remove_prefix=remove_prefix,
+        progress=progress,
     )
 
     _log_input_summary(tag="download", args=_args)
-    source_, repo_, progress_, name_, bundle_dir_, url_ = _pop_args(
-        _args, "source", "repo", "progress", name=None, bundle_dir=None, url=None
+    source_, progress_, remove_prefix_, repo_, name_, version_, bundle_dir_, url_ = _pop_args(
+        _args, "source", "progress", remove_prefix=None, repo=None, name=None, version=None, bundle_dir=None, url=None
     )
 
     bundle_dir_ = _process_bundle_dir(bundle_dir_)
+    if repo_ is None:
+        repo_ = "Project-MONAI/model-zoo/hosting_storage_v1"
+    if len(repo_.split("/")) != 3:
+        raise ValueError("repo should be in the form of `repo_owner/repo_name/release_tag`.")
 
     if url_ is not None:
-        if name is not None:
-            filepath = bundle_dir_ / f"{name}.zip"
+        if name_ is not None:
+            filepath = bundle_dir_ / f"{name_}.zip"
         else:
             filepath = bundle_dir_ / f"{_basename(url_)}"
         download_url(url=url_, filepath=filepath, hash_val=None, progress=progress_)
         extractall(filepath=filepath, output_dir=bundle_dir_, has_base=True)
-    elif source_ == "github":
-        if name_ is None:
-            raise ValueError(f"To download from source: Github, `name` must be provided, got {name_}.")
-        _download_from_github(repo=repo_, download_path=bundle_dir_, filename=name_, progress=progress_)
     else:
-        raise NotImplementedError(
-            f"Currently only download from provided URL in `url` or Github is implemented, got source: {source_}."
-        )
+        if name_ is None:
+            raise ValueError(f"To download from source: {source_}, `name` must be provided.")
+        if version_ is None:
+            version_ = _get_latest_bundle_version(source=source_, name=name_, repo=repo_)
+        if source_ == "github":
+            if version_ is not None:
+                name_ = "_v".join([name_, version_])
+            _download_from_github(repo=repo_, download_path=bundle_dir_, filename=name_, progress=progress_)
+        elif source_ == "ngc":
+            _download_from_ngc(
+                download_path=bundle_dir_,
+                filename=name_,
+                version=version_,
+                remove_prefix=remove_prefix_,
+                progress=progress_,
+            )
+        else:
+            raise NotImplementedError(
+                f"Currently only download from `url`, source 'github' or 'ngc' are implemented, got source: {source_}."
+            )
 
 
 def load(
     name: str,
+    version: Optional[str] = None,
     model_file: Optional[str] = None,
     load_ts_module: bool = False,
     bundle_dir: Optional[PathLike] = None,
-    source: str = "github",
-    repo: str = "Project-MONAI/model-zoo/hosting_storage_v1",
+    source: str = download_source,
+    repo: Optional[str] = None,
+    remove_prefix: Optional[str] = "monai_",
     progress: bool = True,
     device: Optional[str] = None,
     key_in_ckpt: Optional[str] = None,
@@ -245,16 +338,29 @@ def load(
     Load model weights or TorchScript module of a bundle.
 
     Args:
-        name: bundle name.
+        name: bundle name. If `None` and `url` is `None`, it must be provided in `args_file`.
+            for example:
+            "spleen_ct_segmentation", "prostate_mri_anatomy" in model-zoo:
+            https://github.com/Project-MONAI/model-zoo/releases/tag/hosting_storage_v1.
+            "monai_brats_mri_segmentation" in ngc:
+            https://catalog.ngc.nvidia.com/models?filters=&orderBy=scoreDESC&query=monai.
+        version: version name of the target bundle to download, like: "0.1.0". If `None`, will download
+            the latest version.
         model_file: the relative path of the model weights or TorchScript module within bundle.
             If `None`, "models/model.pt" or "models/model.ts" will be used.
         load_ts_module: a flag to specify if loading the TorchScript module.
         bundle_dir: directory the weights/TorchScript module will be loaded from.
             Default is `bundle` subfolder under `torch.hub.get_dir()`.
         source: storage location name. This argument is used when `model_file` is not existing locally and need to be
-            downloaded first. "github" is currently the only supported value.
-        repo: repo name. This argument is used when `model_file` is not existing locally and need to be
-            downloaded first. If `source` is "github", it should be in the form of "repo_owner/repo_name/release_tag".
+            downloaded first.
+            In default, the value is achieved from the environment variable BUNDLE_DOWNLOAD_SRC, and
+            it should be "ngc" or "github".
+        repo: repo name. This argument is used when `url` is `None` and `source` is "github".
+            If used, it should be in the form of "repo_owner/repo_name/release_tag".
+        remove_prefix: This argument is used when `source` is "ngc". Currently, all ngc bundles
+            have the ``monai_`` prefix, which is not existing in their model zoo contrasts. In order to
+            maintain the consistency between these two sources, remove prefix is necessary.
+            Therefore, if specified, downloaded folder name will remove the prefix.
         progress: whether to display a progress bar when downloading.
         device: target device of returned weights or module, if `None`, prefer to "cuda" if existing.
         key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
@@ -278,9 +384,21 @@ def load(
 
     if model_file is None:
         model_file = os.path.join("models", "model.ts" if load_ts_module is True else "model.pt")
+    if source == "ngc":
+        name = _add_ngc_prefix(name)
+        if remove_prefix:
+            name = _remove_ngc_prefix(name, prefix=remove_prefix)
     full_path = os.path.join(bundle_dir_, name, model_file)
     if not os.path.exists(full_path):
-        download(name=name, bundle_dir=bundle_dir_, source=source, repo=repo, progress=progress)
+        download(
+            name=name,
+            version=version,
+            bundle_dir=bundle_dir_,
+            source=source,
+            repo=repo,
+            remove_prefix=remove_prefix,
+            progress=progress,
+        )
 
     if device is None:
         device = "cuda:0" if is_available() else "cpu"
@@ -303,11 +421,193 @@ def load(
     return model
 
 
+def _get_all_bundles_info(
+    repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1", auth_token: Optional[str] = None
+):
+    if has_requests:
+        request_url = f"https://api.github.com/repos/{repo}/releases"
+        if auth_token is not None:
+            headers = {"Authorization": f"Bearer {auth_token}"}
+            resp = requests_get(request_url, headers=headers)
+        else:
+            resp = requests_get(request_url)
+        resp.raise_for_status()
+    else:
+        raise ValueError("requests package is required, please install it.")
+    releases_list = json.loads(resp.text)
+    bundle_name_pattern = re.compile(r"_v\d*.")
+    bundles_info: Dict = {}
+
+    for release in releases_list:
+        if release["tag_name"] == tag:
+            for asset in release["assets"]:
+                asset_name = bundle_name_pattern.split(asset["name"])[0]
+                if asset_name not in bundles_info:
+                    bundles_info[asset_name] = {}
+                asset_version = asset["name"].split(f"{asset_name}_v")[-1].replace(".zip", "")
+                bundles_info[asset_name][asset_version] = {
+                    "id": asset["id"],
+                    "name": asset["name"],
+                    "size": asset["size"],
+                    "download_count": asset["download_count"],
+                    "browser_download_url": asset["browser_download_url"],
+                    "created_at": asset["created_at"],
+                    "updated_at": asset["updated_at"],
+                }
+            return bundles_info
+    return bundles_info
+
+
+def get_all_bundles_list(
+    repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1", auth_token: Optional[str] = None
+):
+    """
+    Get all bundles names (and the latest versions) that are stored in the release of specified repository
+    with the provided tag. The default values of arguments correspond to the release of MONAI model zoo.
+    In order to increase the rate limits of calling Github APIs, you can input your personal access token.
+    Please check the following link for more details about rate limiting:
+    https://docs.github.com/en/rest/overview/resources-in-the-rest-api#rate-limiting
+
+    The following link shows how to create your personal access token:
+    https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token
+
+    Args:
+        repo: it should be in the form of "repo_owner/repo_name/".
+        tag: the tag name of the release.
+        auth_token: github personal access token.
+
+    Returns:
+        a list of tuple in the form of (bundle name, latest version).
+
+    """
+
+    bundles_info = _get_all_bundles_info(repo=repo, tag=tag, auth_token=auth_token)
+    bundles_list = []
+    for bundle_name in bundles_info:
+        latest_version = sorted(bundles_info[bundle_name].keys())[-1]
+        bundles_list.append((bundle_name, latest_version))
+
+    return bundles_list
+
+
+def get_bundle_versions(
+    bundle_name: str,
+    repo: str = "Project-MONAI/model-zoo",
+    tag: str = "hosting_storage_v1",
+    auth_token: Optional[str] = None,
+):
+    """
+    Get the latest version, as well as all existing versions of a bundle that is stored in the release of specified
+    repository with the provided tag.
+    In order to increase the rate limits of calling Github APIs, you can input your personal access token.
+    Please check the following link for more details about rate limiting:
+    https://docs.github.com/en/rest/overview/resources-in-the-rest-api#rate-limiting
+
+    The following link shows how to create your personal access token:
+    https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token
+
+    Args:
+        bundle_name: bundle name.
+        repo: it should be in the form of "repo_owner/repo_name/".
+        tag: the tag name of the release.
+        auth_token: github personal access token.
+
+    Returns:
+        a dictionary that contains the latest version and all versions of a bundle.
+
+    """
+
+    bundles_info = _get_all_bundles_info(repo=repo, tag=tag, auth_token=auth_token)
+    if bundle_name not in bundles_info:
+        raise ValueError(f"bundle: {bundle_name} is not existing in repo: {repo}.")
+    bundle_info = bundles_info[bundle_name]
+    all_versions = sorted(bundle_info.keys())
+
+    return {"latest_version": all_versions[-1], "all_versions": all_versions}
+
+
+def get_bundle_info(
+    bundle_name: str,
+    version: Optional[str] = None,
+    repo: str = "Project-MONAI/model-zoo",
+    tag: str = "hosting_storage_v1",
+    auth_token: Optional[str] = None,
+):
+    """
+    Get all information
+    (include "id", "name", "size", "download_count", "browser_download_url", "created_at", "updated_at") of a bundle
+    with the specified bundle name and version.
+    In order to increase the rate limits of calling Github APIs, you can input your personal access token.
+    Please check the following link for more details about rate limiting:
+    https://docs.github.com/en/rest/overview/resources-in-the-rest-api#rate-limiting
+
+    The following link shows how to create your personal access token:
+    https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token
+
+    Args:
+        bundle_name: bundle name.
+        version: version name of the target bundle, if None, the latest version will be used.
+        repo: it should be in the form of "repo_owner/repo_name/".
+        tag: the tag name of the release.
+        auth_token: github personal access token.
+
+    Returns:
+        a dictionary that contains the bundle's information.
+
+    """
+
+    bundles_info = _get_all_bundles_info(repo=repo, tag=tag, auth_token=auth_token)
+    if bundle_name not in bundles_info:
+        raise ValueError(f"bundle: {bundle_name} is not existing.")
+    bundle_info = bundles_info[bundle_name]
+    if version is None:
+        version = sorted(bundle_info.keys())[-1]
+    if version not in bundle_info:
+        raise ValueError(f"version: {version} of bundle: {bundle_name} is not existing.")
+
+    return bundle_info[version]
+
+
+def patch_bundle_tracking(parser: ConfigParser, settings: dict):
+    """
+    Patch the loaded bundle config with a new handler logic to enable experiment tracking features.
+
+    Args:
+        parser: loaded config content to patch the handler.
+        settings: settings for the experiment tracking, should follow the pattern of default settings.
+
+    """
+    for k, v in settings["configs"].items():
+        if k in settings["handlers_id"]:
+            engine = parser.get(settings["handlers_id"][k]["id"])
+            if engine is not None:
+                handlers = parser.get(settings["handlers_id"][k]["handlers"])
+                if handlers is None:
+                    engine["train_handlers" if k == "trainer" else "val_handlers"] = [v]
+                else:
+                    handlers.append(v)
+        elif k not in parser:
+            parser[k] = v
+    # save the executed config into file
+    default_name = f"config_{time.strftime('%Y%m%d_%H%M%S')}.json"
+    filepath = parser.get("execute_config", None)
+    if filepath is None:
+        if "output_dir" not in parser:
+            # if no "output_dir" in the bundle config, default to "<bundle root>/eval"
+            parser["output_dir"] = "$@bundle_root + '/eval'"
+        # experiment management tools can refer to this config item to track the config info
+        parser["execute_config"] = parser["output_dir"] + f" + '/{default_name}'"
+        filepath = os.path.join(parser.get_parsed_content("output_dir"), default_name)
+    Path(filepath).parent.mkdir(parents=True, exist_ok=True)
+    parser.export_config_file(parser.get(), filepath)
+
+
 def run(
     runner_id: Optional[Union[str, Sequence[str]]] = None,
     meta_file: Optional[Union[str, Sequence[str]]] = None,
     config_file: Optional[Union[str, Sequence[str]]] = None,
     logging_file: Optional[str] = None,
+    tracking: Optional[Union[str, dict]] = None,
     args_file: Optional[str] = None,
     **override,
 ):
@@ -341,6 +641,59 @@ def run(
             if it is a list of file paths, the content of them will be merged.
         logging_file: config file for `logging` module in the program, default to `None`. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
+        tracking: enable the experiment tracking feature at runtime with optionally configurable and extensible.
+            if "mlflow", will add `MLFlowHandler` to the parsed bundle with default logging settings,
+            if other string, treat it as file path to load the logging settings, if `dict`,
+            treat it as logging settings, otherwise, use all the default settings.
+            will patch the target config content with `tracking handlers` and the top-level items of `configs`.
+            example of customized settings:
+
+            .. code-block:: python
+
+                tracking = {
+                    "handlers_id": {
+                        "trainer": {"id": "train#trainer", "handlers": "train#handlers"},
+                        "validator": {"id": "evaluate#evaluator", "handlers": "evaluate#handlers"},
+                        "evaluator": {"id": "evaluator", "handlers": "handlers"},
+                    },
+                    "configs": {
+                        "tracking_uri": "<path>",
+                        "experiment_name": "monai_experiment",
+                        "run_name": None,
+                        "is_not_rank0": (
+                            "$torch.distributed.is_available() \
+                                and torch.distributed.is_initialized() and torch.distributed.get_rank() > 0"
+                        ),
+                        "trainer": {
+                            "_target_": "MLFlowHandler",
+                            "_disabled_": "@is_not_rank0",
+                            "tracking_uri": "@tracking_uri",
+                            "experiment_name": "@experiment_name",
+                            "run_name": "@run_name",
+                            "iteration_log": True,
+                            "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
+                            "close_on_complete": True,
+                        },
+                        "validator": {
+                            "_target_": "MLFlowHandler",
+                            "_disabled_": "@is_not_rank0",
+                            "tracking_uri": "@tracking_uri",
+                            "experiment_name": "@experiment_name",
+                            "run_name": "@run_name",
+                            "iteration_log": False,
+                        },
+                        "evaluator": {
+                            "_target_": "MLFlowHandler",
+                            "_disabled_": "@is_not_rank0",
+                            "tracking_uri": "@tracking_uri",
+                            "experiment_name": "@experiment_name",
+                            "run_name": "@run_name",
+                            "iteration_log": False,
+                            "close_on_complete": True,
+                        },
+                    },
+                },
+
         args_file: a JSON or YAML file to provide default values for `runner_id`, `meta_file`,
             `config_file`, `logging`, and override pairs. so that the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.
@@ -354,15 +707,18 @@ def run(
         meta_file=meta_file,
         config_file=config_file,
         logging_file=logging_file,
+        tracking=tracking,
         **override,
     )
     if "config_file" not in _args:
-        raise ValueError(f"`config_file` is required for 'monai.bundle run'.\n{run.__doc__}")
+        warnings.warn("`config_file` not provided for 'monai.bundle run'.")
     _log_input_summary(tag="run", args=_args)
-    config_file_, meta_file_, runner_id_, logging_file_ = _pop_args(
-        _args, "config_file", meta_file=None, runner_id="", logging_file=None
+    config_file_, meta_file_, runner_id_, logging_file_, tracking_ = _pop_args(
+        _args, config_file=None, meta_file=None, runner_id="", logging_file=None, tracking=None
     )
     if logging_file_ is not None:
+        if not os.path.exists(logging_file_):
+            raise FileNotFoundError(f"can't find the logging config file: {logging_file_}.")
         logger.info(f"set logging properties based on config: {logging_file_}.")
         fileConfig(logging_file_, disable_existing_loggers=False)
 
@@ -372,8 +728,15 @@ def run(
         parser.read_meta(f=meta_file_)
 
     # the rest key-values in the _args are to override config content
-    for k, v in _args.items():
-        parser[k] = v
+    parser.update(pairs=_args)
+
+    # set tracking configs for experiment management
+    if tracking_ is not None:
+        if isinstance(tracking_, str) and tracking_ in DEFAULT_EXP_MGMT_SETTINGS:
+            settings_ = DEFAULT_EXP_MGMT_SETTINGS[tracking_]
+        else:
+            settings_ = ConfigParser.load_config_files(tracking_)
+        patch_bundle_tracking(parser=parser, settings=settings_)
 
     # resolve and execute the specified runner expressions in the config, return the results
     return [parser.get_parsed_content(i, lazy=True, eval_expr=True, instantiate=True) for i in ensure_tuple(runner_id_)]
@@ -434,8 +797,9 @@ def verify_metadata(
         validate(instance=metadata, schema=schema, **_args)
     except ValidationError as e:  # pylint: disable=E0712
         # as the error message is very long, only extract the key information
-        logger.info(re.compile(r".*Failed validating", re.S).findall(str(e))[0] + f" against schema `{url}`.")
-        return
+        raise ValueError(
+            re.compile(r".*Failed validating", re.S).findall(str(e))[0] + f" against schema `{url}`."
+        ) from e
     logger.info("metadata is verified with no error.")
 
 
@@ -521,7 +885,16 @@ def verify_net_in_out(
     with torch.no_grad():
         spatial_shape = _get_fake_spatial_shape(input_spatial_shape, p=p_, n=n_, any=any_)
         test_data = torch.rand(*(1, input_channels, *spatial_shape), dtype=input_dtype, device=device_)
-        output = net(test_data)
+        if input_dtype == torch.float16:
+            # fp16 can only be executed in gpu mode
+            net.to("cuda")
+            from torch.cuda.amp import autocast
+
+            with autocast():
+                output = net(test_data.cuda())
+            net.to(device_)
+        else:
+            output = net(test_data)
         if output.shape[1] != output_channels:
             raise ValueError(f"output channel number `{output.shape[1]}` doesn't match: `{output_channels}`.")
         if output.dtype != output_dtype:
@@ -631,8 +1004,9 @@ def init_bundle(
     bundle_dir: PathLike,
     ckpt_file: Optional[PathLike] = None,
     network: Optional[torch.nn.Module] = None,
-    metadata_str: Union[Dict, str] = DEFAULT_METADATA,
-    inference_str: Union[Dict, str] = DEFAULT_INFERENCE,
+    dataset_license: bool = False,
+    metadata_str: Union[Dict, str, None] = None,
+    inference_str: Union[Dict, str, None] = None,
 ):
     """
     Initialise a new bundle directory with some default configuration files and optionally network weights.
@@ -647,7 +1021,15 @@ def init_bundle(
         bundle_dir: directory name to create, must not exist but parent direct must exist
         ckpt_file: optional checkpoint file to copy into bundle
         network: if given instead of ckpt_file this network's weights will be stored in bundle
+        dataset_license: if `True`, a default license file called "data_license.txt" will be produced. This
+            file is required if there are any license conditions stated for data your bundle uses.
+        metadata_str: optional metadata string to write to bundle, if not given a default will be used.
+        inference_str: optional inference string to write to bundle, if not given a default will be used.
     """
+    if metadata_str is None:
+        metadata_str = DEFAULT_METADATA
+    if inference_str is None:
+        inference_str = DEFAULT_INFERENCE
 
     bundle_dir = Path(bundle_dir).absolute()
 
@@ -695,8 +1077,12 @@ def init_bundle(
 
         o.write(dedent(readme))
 
-    with open(str(docs_dir / "license.txt"), "w") as o:
+    with open(str(bundle_dir / "LICENSE"), "w") as o:
         o.write("Select a license and place its terms here\n")
+
+    if dataset_license is True:
+        with open(str(docs_dir / "data_license.txt"), "w") as o:
+            o.write("Select a license for dataset and place its terms here\n")
 
     if ckpt_file is not None:
         copyfile(str(ckpt_file), str(models_dir / "model.pt"))

@@ -15,6 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
+from monai import config
 from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import Flipd
@@ -62,6 +63,12 @@ class TestFlipd(NumpyImageTestCase2D):
             self.assertIsInstance(res["image"], torch.Tensor)
             with self.assertRaisesRegex(ValueError, "MetaTensor"):
                 xform.inverse(res)
+
+    @unittest.skipIf(not config.USE_META_DICT, "not using meta dict")
+    def test_meta_dict(self):
+        xform = Flipd("image", [0, 1])
+        res = xform({"image": torch.zeros(1, 3, 4)})
+        self.assertTrue(res["image"].applied_operations == res["image_transforms"])
 
 
 if __name__ == "__main__":

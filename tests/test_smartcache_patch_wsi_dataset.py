@@ -152,8 +152,7 @@ class TestSmartCachePatchWSIDataset(unittest.TestCase):
         dataset.start()
         i = 0
         for _ in range(num_epochs):
-            for j in range(len(dataset)):
-                samples = dataset[j]
+            for samples in dataset:
                 n_patches = len(samples)
                 self.assert_samples_expected(samples, expected[i : i + n_patches])
                 i += n_patches
@@ -161,11 +160,11 @@ class TestSmartCachePatchWSIDataset(unittest.TestCase):
         dataset.shutdown()
 
     def assert_samples_expected(self, samples, expected):
-        for i in range(len(samples)):
-            self.assertTupleEqual(samples[i]["label"].shape, expected[i]["label"].shape)
-            self.assertTupleEqual(samples[i]["image"].shape, expected[i]["image"].shape)
-            self.assertIsNone(assert_array_equal(samples[i]["label"], expected[i]["label"]))
-            self.assertIsNone(assert_array_equal(samples[i]["image"], expected[i]["image"]))
+        for i, item in enumerate(samples):
+            self.assertTupleEqual(item["label"].shape, expected[i]["label"].shape)
+            self.assertTupleEqual(item["image"].shape, expected[i]["image"].shape)
+            self.assertIsNone(assert_array_equal(item["label"], expected[i]["label"]))
+            self.assertIsNone(assert_array_equal(item["image"], expected[i]["image"]))
 
 
 if __name__ == "__main__":

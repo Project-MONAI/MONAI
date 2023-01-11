@@ -64,7 +64,6 @@ class ApplyFilterTestCase(unittest.TestCase):
                 ],
             ]
         )
-        expected = expected
         # testing shapes
         k = torch.tensor([[[1, 1, 1], [1, 1, 1], [1, 1, 1]]])
         for kernel in (k, k[None], k[None][None]):

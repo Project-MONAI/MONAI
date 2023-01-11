@@ -43,7 +43,6 @@
 # CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
 """
 This script is modified from from torchvision to support N-D images,
 by overriding the definition of convolutional layers and pooling layers.
@@ -69,7 +68,7 @@ class ExtraFPNBlock(nn.Module):
     Same code as https://github.com/pytorch/vision/blob/release/0.12/torchvision/ops/feature_pyramid_network.py
     """
 
-    def forward(self, results: List[Tensor], x: List[Tensor], names: List[str]) -> Tuple[List[Tensor], List[str]]:
+    def forward(self, results: List[Tensor], x: List[Tensor], names: List[str]):
         """
         Compute extended set of results of the FPN and their names.
 
@@ -258,6 +257,6 @@ class FeaturePyramidNetwork(nn.Module):
             results, names = self.extra_blocks(results, x_values, names)
 
         # make it back an OrderedDict
-        out = OrderedDict([(k, v) for k, v in zip(names, results)])
+        out = OrderedDict(list(zip(names, results)))
 
         return out

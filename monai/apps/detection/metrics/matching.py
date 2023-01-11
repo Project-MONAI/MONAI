@@ -56,7 +56,6 @@
 # The views and conclusions contained in the software and documentation are those
 # of the authors and should not be interpreted as representing official policies,
 # either expressed or implied, of the FreeBSD Project.
-
 """
 This script is almost same with https://github.com/MIC-DKFZ/nnDetection/blob/main/nndet/evaluator/detection/matching.py
 The changes include 1) code reformatting, 2) docstrings,
@@ -162,7 +161,7 @@ def matching_batch(
         result = {}  # dict contains results for each class in one image
         for c in img_classes:
             pred_mask = pclasses == c  # bool mask predictions with current class
-            gt_mask = gclasses == c  # nool mask ground trtuh with current class
+            gt_mask = gclasses == c  # bool mask ground truth with current class
 
             if not np.any(gt_mask):  # no ground truth
                 result[c] = _matching_no_gt(

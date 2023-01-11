@@ -98,6 +98,8 @@ class PadTest(unittest.TestCase):
                             result = result.cpu()
                         assert_allclose(result[unchanged_slices], im, type_test=False)
                         # we should have the same as the input plus some 2s (if value) or 1s and 2s (if constant_values)
+                        if isinstance(im, torch.Tensor):
+                            im = im.detach().cpu().numpy()
                         expected_vals = np.unique(im).tolist()
                         expected_vals += [2] if "value" in kwargs else [1, 2]
                         assert_allclose(np.unique(result), expected_vals, type_test=False)

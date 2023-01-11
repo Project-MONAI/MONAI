@@ -10,14 +10,30 @@
 # limitations under the License.
 
 import unittest
+from copy import deepcopy
 
 import numpy as np
 import torch
 from parameterized import parameterized
 
 from monai.apps.detection.transforms.box_ops import convert_mask_to_box
-from monai.apps.detection.transforms.dictionary import BoxToMaskd, ConvertBoxModed, MaskToBoxd
-from monai.transforms import CastToTyped
+from monai.apps.detection.transforms.dictionary import (
+    AffineBoxToImageCoordinated,
+    AffineBoxToWorldCoordinated,
+    BoxToMaskd,
+    ClipBoxToImaged,
+    ConvertBoxModed,
+    FlipBoxd,
+    MaskToBoxd,
+    RandCropBoxByPosNegLabeld,
+    RandFlipBoxd,
+    RandRotateBox90d,
+    RandZoomBoxd,
+    RotateBox90d,
+    ZoomBoxd,
+)
+from monai.data.meta_tensor import MetaTensor
+from monai.transforms import CastToTyped, Invertd
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS_3D = []
@@ -135,157 +151,199 @@ class TestBoxTransform(unittest.TestCase):
                 convert_result["boxes"], expected_convert_result, type_test=True, device_test=True, atol=1e-3
             )
 
-            # invert_transform_convert_mode = Invertd(
-            #     keys=["boxes"], transform=transform_convert_mode, orig_keys=["boxes"]
-            # )
-            # data_back = invert_transform_convert_mode(convert_result)
-            # assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
-            #
-            # # test ZoomBoxd
-            # transform_zoom = ZoomBoxd(
-            #     image_keys="image", box_keys="boxes", box_ref_image_keys="image", zoom=[0.5, 3, 1.5], keep_size=False
-            # )
-            # zoom_result = transform_zoom(data)
-            # assert_allclose(zoom_result["boxes"], expected_zoom_result, type_test=True, device_test=True, atol=1e-3)
-            # invert_transform_zoom = Invertd(
-            #     keys=["image", "boxes"], transform=transform_zoom, orig_keys=["image", "boxes"]
-            # )
-            # data_back = invert_transform_zoom(zoom_result)
-            # assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
-            # assert_allclose(data_back["image"], data["image"], type_test=False, device_test=False, atol=1e-3)
-            #
-            # transform_zoom = ZoomBoxd(
-            #     image_keys="image", box_keys="boxes", box_ref_image_keys="image", zoom=[0.5, 3, 1.5], keep_size=True
-            # )
-            # zoom_result = transform_zoom(data)
-            # assert_allclose(
-            #     zoom_result["boxes"], expected_zoom_keepsize_result, type_test=True, device_test=True, atol=1e-3
-            # )
-            #
-            # # test RandZoomBoxd
-            # transform_zoom = RandZoomBoxd(
-            #     image_keys="image",
-            #     box_keys="boxes",
-            #     box_ref_image_keys="image",
-            #     prob=1.0,
-            #     min_zoom=(0.3,) * 3,
-            #     max_zoom=(3.0,) * 3,
-            #     keep_size=False,
-            # )
-            # zoom_result = transform_zoom(data)
-            # invert_transform_zoom = Invertd(
-            #     keys=["image", "boxes"], transform=transform_zoom, orig_keys=["image", "boxes"]
-            # )
-            # data_back = invert_transform_zoom(zoom_result)
-            # assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=0.01)
-            # assert_allclose(data_back["image"], data["image"], type_test=False, device_test=False, atol=1e-3)
-            #
-            # # test AffineBoxToImageCoordinated, AffineBoxToWorldCoordinated
-            # transform_affine = AffineBoxToImageCoordinated(box_keys="boxes", box_ref_image_keys="image")
-            # with self.assertRaises(Exception) as context:
-            #     transform_affine(data)
-            # self.assertTrue("Please check whether it is the correct the image meta key." in str(context.exception))
-            #
-            # data["image_meta_dict"] = {"affine": torch.diag(1.0 / torch.Tensor([0.5, 3, 1.5, 1]))}
-            # affine_result = transform_affine(data)
-            # assert_allclose(affine_result["boxes"], expected_zoom_result, type_test=True, device_test=True, atol=0.01)
-            # invert_transform_affine = Invertd(keys=["boxes"], transform=transform_affine, orig_keys=["boxes"])
-            # data_back = invert_transform_affine(affine_result)
-            # assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=0.01)
-            # invert_transform_affine = AffineBoxToWorldCoordinated(box_keys="boxes", box_ref_image_keys="image")
-            # data_back = invert_transform_affine(affine_result)
-            # assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=0.01)
-            #
-            # # test FlipBoxd
-            # transform_flip = FlipBoxd(
-            #     image_keys="image", box_keys="boxes", box_ref_image_keys="image", spatial_axis=[0, 1, 2]
-            # )
-            # flip_result = transform_flip(data)
-            # assert_allclose(flip_result["boxes"], expected_flip_result, type_test=True, device_test=True, atol=1e-3)
-            # invert_transform_flip = Invertd(
-            #     keys=["image", "boxes"], transform=transform_flip, orig_keys=["image", "boxes"]
-            # )
-            # data_back = invert_transform_flip(flip_result)
-            # assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
-            # assert_allclose(data_back["image"], data["image"], type_test=False, device_test=False, atol=1e-3)
-            #
-            # # test RandFlipBoxd
-            # for spatial_axis in [(0,), (1,), (2,), (0, 1), (1, 2)]:
-            #     transform_flip = RandFlipBoxd(
-            #         image_keys="image",
-            #         box_keys="boxes",
-            #         box_ref_image_keys="image",
-            #         prob=1.0,
-            #         spatial_axis=spatial_axis,
-            #     )
-            #     flip_result = transform_flip(data)
-            #     invert_transform_flip = Invertd(
-            #         keys=["image", "boxes"], transform=transform_flip, orig_keys=["image", "boxes"]
-            #     )
-            #     data_back = invert_transform_flip(flip_result)
-            #     assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
-            #     assert_allclose(data_back["image"], data["image"], type_test=False, device_test=False, atol=1e-3)
-            #
-            # # test ClipBoxToImaged
-            # transform_clip = ClipBoxToImaged(
-            #     box_keys="boxes", box_ref_image_keys="image", label_keys=["labels", "scores"], remove_empty=True
-            # )
-            # clip_result = transform_clip(data)
-            # assert_allclose(clip_result["boxes"], expected_clip_result, type_test=True, device_test=True, atol=1e-3)
-            # assert_allclose(clip_result["labels"], data["labels"][1:], type_test=True, device_test=True, atol=1e-3)
-            # assert_allclose(clip_result["scores"], data["scores"][1:], type_test=True, device_test=True, atol=1e-3)
-            #
-            # transform_clip = ClipBoxToImaged(
-            #     box_keys="boxes", box_ref_image_keys="image", label_keys=[], remove_empty=True
-            # )  # corner case when label_keys is empty
-            # clip_result = transform_clip(data)
-            # assert_allclose(clip_result["boxes"], expected_clip_result, type_test=True, device_test=True, atol=1e-3)
-            #
-            # # test RandCropBoxByPosNegLabeld
-            # transform_crop = RandCropBoxByPosNegLabeld(
-            #     image_keys="image", box_keys="boxes", label_keys=["labels", "scores"], spatial_size=2, num_samples=3
-            # )
-            # crop_result = transform_crop(data)
-            # assert len(crop_result) == 3
-            # for ll in range(3):
-            #     assert_allclose(
-            #         crop_result[ll]["boxes"].shape[0],
-            #         crop_result[ll]["labels"].shape[0],
-            #         type_test=True,
-            #         device_test=True,
-            #         atol=1e-3,
-            #     )
-            #     assert_allclose(
-            #         crop_result[ll]["boxes"].shape[0],
-            #         crop_result[ll]["scores"].shape[0],
-            #         type_test=True,
-            #         device_test=True,
-            #         atol=1e-3,
-            #     )
-            #
-            # # test RotateBox90d
-            # transform_rotate = RotateBox90d(
-            #     image_keys="image", box_keys="boxes", box_ref_image_keys="image", k=1, spatial_axes=[0, 1]
-            # )
-            # rotate_result = transform_rotate(data)
-            # assert_allclose(rotate_result["boxes"], expected_rotate_result, type_test=True, device_test=True, atol=1e-3)
-            # invert_transform_rotate = Invertd(
-            #     keys=["image", "boxes"], transform=transform_rotate, orig_keys=["image", "boxes"]
-            # )
-            # data_back = invert_transform_rotate(rotate_result)
-            # assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
-            # assert_allclose(data_back["image"], data["image"], type_test=False, device_test=False, atol=1e-3)
-            #
-            # transform_rotate = RandRotateBox90d(
-            #     image_keys="image", box_keys="boxes", box_ref_image_keys="image", prob=1.0, max_k=3, spatial_axes=[0, 1]
-            # )
-            # rotate_result = transform_rotate(data)
-            # invert_transform_rotate = Invertd(
-            #     keys=["image", "boxes"], transform=transform_rotate, orig_keys=["image", "boxes"]
-            # )
-            # data_back = invert_transform_rotate(rotate_result)
-            # assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
-            # assert_allclose(data_back["image"], data["image"], type_test=False, device_test=False, atol=1e-3)
+            invert_transform_convert_mode = Invertd(
+                keys=["boxes"], transform=transform_convert_mode, orig_keys=["boxes"]
+            )
+            data_back = invert_transform_convert_mode(convert_result)
+            if "boxes_transforms" in data_back:  # if the transform is tracked in dict:
+                self.assertEqual(data_back["boxes_transforms"], [])  # it should be updated
+            assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
+
+            # test ZoomBoxd
+            transform_zoom = ZoomBoxd(
+                image_keys="image", box_keys="boxes", box_ref_image_keys="image", zoom=[0.5, 3, 1.5], keep_size=False
+            )
+            zoom_result = transform_zoom(data)
+            self.assertEqual(len(zoom_result["image"].applied_operations), 1)
+            assert_allclose(zoom_result["boxes"], expected_zoom_result, type_test=True, device_test=True, atol=1e-3)
+            invert_transform_zoom = Invertd(
+                keys=["image", "boxes"], transform=transform_zoom, orig_keys=["image", "boxes"]
+            )
+            data_back = invert_transform_zoom(zoom_result)
+            self.assertEqual(data_back["image"].applied_operations, [])
+            assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
+            assert_allclose(data_back["image"], data["image"], type_test=False, device_test=False, atol=1e-3)
+
+            transform_zoom = ZoomBoxd(
+                image_keys="image", box_keys="boxes", box_ref_image_keys="image", zoom=[0.5, 3, 1.5], keep_size=True
+            )
+            zoom_result = transform_zoom(data)
+            self.assertEqual(len(zoom_result["image"].applied_operations), 1)
+            assert_allclose(
+                zoom_result["boxes"], expected_zoom_keepsize_result, type_test=True, device_test=True, atol=1e-3
+            )
+
+            # test RandZoomBoxd
+            transform_zoom = RandZoomBoxd(
+                image_keys="image",
+                box_keys="boxes",
+                box_ref_image_keys="image",
+                prob=1.0,
+                min_zoom=(0.3,) * 3,
+                max_zoom=(3.0,) * 3,
+                keep_size=False,
+            )
+            zoom_result = transform_zoom(data)
+            self.assertEqual(len(zoom_result["image"].applied_operations), 1)
+            invert_transform_zoom = Invertd(
+                keys=["image", "boxes"], transform=transform_zoom, orig_keys=["image", "boxes"]
+            )
+            data_back = invert_transform_zoom(zoom_result)
+            self.assertEqual(data_back["image"].applied_operations, [])
+            assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=0.01)
+            assert_allclose(data_back["image"], data["image"], type_test=False, device_test=False, atol=1e-3)
+
+            # test AffineBoxToImageCoordinated, AffineBoxToWorldCoordinated
+            transform_affine = AffineBoxToImageCoordinated(box_keys="boxes", box_ref_image_keys="image")
+            if not isinstance(data["image"], MetaTensor):  # metadict should be undefined and it's an exception
+                with self.assertRaises(Exception) as context:
+                    transform_affine(deepcopy(data))
+                self.assertTrue("Please check whether it is the correct the image meta key." in str(context.exception))
+
+            data["image"] = MetaTensor(data["image"], meta={"affine": torch.diag(1.0 / torch.Tensor([0.5, 3, 1.5, 1]))})
+            affine_result = transform_affine(data)
+            if "boxes_transforms" in affine_result:
+                self.assertEqual(len(affine_result["boxes_transforms"]), 1)
+            assert_allclose(affine_result["boxes"], expected_zoom_result, type_test=True, device_test=True, atol=0.01)
+            invert_transform_affine = Invertd(keys=["boxes"], transform=transform_affine, orig_keys=["boxes"])
+            data_back = invert_transform_affine(affine_result)
+            if "boxes_transforms" in data_back:
+                self.assertEqual(data_back["boxes_transforms"], [])
+            assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=0.01)
+            invert_transform_affine = AffineBoxToWorldCoordinated(box_keys="boxes", box_ref_image_keys="image")
+            data_back = invert_transform_affine(affine_result)
+            assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=0.01)
+
+            # test FlipBoxd
+            transform_flip = FlipBoxd(
+                image_keys="image", box_keys="boxes", box_ref_image_keys="image", spatial_axis=[0, 1, 2]
+            )
+            flip_result = transform_flip(data)
+            if "boxes_transforms" in flip_result:
+                self.assertEqual(len(flip_result["boxes_transforms"]), 1)
+            assert_allclose(flip_result["boxes"], expected_flip_result, type_test=True, device_test=True, atol=1e-3)
+            invert_transform_flip = Invertd(
+                keys=["image", "boxes"], transform=transform_flip, orig_keys=["image", "boxes"]
+            )
+            data_back = invert_transform_flip(flip_result)
+            if "boxes_transforms" in data_back:
+                self.assertEqual(data_back["boxes_transforms"], [])
+            assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
+            assert_allclose(data_back["image"], data["image"], type_test=False, device_test=False, atol=1e-3)
+
+            # test RandFlipBoxd
+            for spatial_axis in [(0,), (1,), (2,), (0, 1), (1, 2)]:
+                transform_flip = RandFlipBoxd(
+                    image_keys="image",
+                    box_keys="boxes",
+                    box_ref_image_keys="image",
+                    prob=1.0,
+                    spatial_axis=spatial_axis,
+                )
+                flip_result = transform_flip(data)
+                if "boxes_transforms" in flip_result:
+                    self.assertEqual(len(flip_result["boxes_transforms"]), 1)
+                invert_transform_flip = Invertd(
+                    keys=["image", "boxes"], transform=transform_flip, orig_keys=["image", "boxes"]
+                )
+                data_back = invert_transform_flip(flip_result)
+                if "boxes_transforms" in data_back:
+                    self.assertEqual(data_back["boxes_transforms"], [])
+                assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
+                assert_allclose(data_back["image"], data["image"], type_test=False, device_test=False, atol=1e-3)
+
+            # test ClipBoxToImaged
+            transform_clip = ClipBoxToImaged(
+                box_keys="boxes", box_ref_image_keys="image", label_keys=["labels", "scores"], remove_empty=True
+            )
+            clip_result = transform_clip(data)
+            assert_allclose(clip_result["boxes"], expected_clip_result, type_test=True, device_test=True, atol=1e-3)
+            assert_allclose(clip_result["labels"], data["labels"][1:], type_test=True, device_test=True, atol=1e-3)
+            assert_allclose(clip_result["scores"], data["scores"][1:], type_test=True, device_test=True, atol=1e-3)
+
+            transform_clip = ClipBoxToImaged(
+                box_keys="boxes", box_ref_image_keys="image", label_keys=[], remove_empty=True
+            )  # corner case when label_keys is empty
+            clip_result = transform_clip(data)
+            assert_allclose(clip_result["boxes"], expected_clip_result, type_test=True, device_test=True, atol=1e-3)
+
+            # test RandCropBoxByPosNegLabeld
+            transform_crop = RandCropBoxByPosNegLabeld(
+                image_keys="image", box_keys="boxes", label_keys=["labels", "scores"], spatial_size=2, num_samples=3
+            )
+            crop_result = transform_crop(data)
+            assert len(crop_result) == 3
+            for ll in range(3):
+                assert_allclose(
+                    crop_result[ll]["boxes"].shape[0],
+                    crop_result[ll]["labels"].shape[0],
+                    type_test=True,
+                    device_test=True,
+                    atol=1e-3,
+                )
+                assert_allclose(
+                    crop_result[ll]["boxes"].shape[0],
+                    crop_result[ll]["scores"].shape[0],
+                    type_test=True,
+                    device_test=True,
+                    atol=1e-3,
+                )
+
+            # test RotateBox90d
+            transform_rotate = RotateBox90d(
+                image_keys="image", box_keys="boxes", box_ref_image_keys="image", k=1, spatial_axes=[0, 1]
+            )
+            rotate_result = transform_rotate(data)
+            self.assertEqual(len(rotate_result["image"].applied_operations), 1)
+            assert_allclose(rotate_result["boxes"], expected_rotate_result, type_test=True, device_test=True, atol=1e-3)
+            invert_transform_rotate = Invertd(
+                keys=["image", "boxes"], transform=transform_rotate, orig_keys=["image", "boxes"]
+            )
+            data_back = invert_transform_rotate(rotate_result)
+            self.assertEqual(data_back["image"].applied_operations, [])
+            assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
+            assert_allclose(data_back["image"], data["image"], type_test=False, device_test=False, atol=1e-3)
+
+            transform_rotate = RandRotateBox90d(
+                image_keys="image", box_keys="boxes", box_ref_image_keys="image", prob=1.0, max_k=3, spatial_axes=[0, 1]
+            )
+            rotate_result = transform_rotate(data)
+            self.assertEqual(len(rotate_result["image"].applied_operations), 1)
+            invert_transform_rotate = Invertd(
+                keys=["image", "boxes"], transform=transform_rotate, orig_keys=["image", "boxes"]
+            )
+            data_back = invert_transform_rotate(rotate_result)
+            self.assertEqual(data_back["image"].applied_operations, [])
+            assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
+            assert_allclose(data_back["image"], data["image"], type_test=False, device_test=False, atol=1e-3)
+
+    def test_crop_shape(self):
+        tt = RandCropBoxByPosNegLabeld(
+            image_keys=["image"],
+            box_keys="box",
+            label_keys="label",
+            spatial_size=[10, 7, -1],
+            whole_box=True,
+            num_samples=1,
+            pos=1,
+            neg=0,
+        )
+        iii = {
+            "image": torch.rand(1, 10, 8, 7),
+            "box": torch.tensor(((1.0, 2.0, 3.0, 4.0, 5.0, 6.0),)),
+            "label": torch.tensor((1,)).long(),
+        }
+        self.assertEqual(tt(iii)[0]["image"].shape, (1, 10, 7, 7))
 
 
 if __name__ == "__main__":

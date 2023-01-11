@@ -29,6 +29,8 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
     The inputs `y_pred` and `y` are expected to be one-hot, binarized channel-first
     or batch-first tensors, i.e., CHW[D] or BCHW[D].
 
+    Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
+
     Args:
         include_background (bool, optional): whether to include the background class (assumed to be in channel 0), in the
             score computation. Defaults to True.
@@ -78,7 +80,7 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
             y_pred=y_pred, y=y, include_background=self.include_background, weight_type=self.weight_type
         )
 
-    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):  # type: ignore
+    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):
         """
         Execute reduction logic for the output of `compute_generalized_dice`.
 
@@ -172,7 +174,7 @@ def compute_generalized_dice(
     # Compute the score
     generalized_dice_score = numer / denom
 
-    # Handle zero deivision. Where denom == 0 and the prediction volume is 0, score is 1.
+    # Handle zero division. Where denom == 0 and the prediction volume is 0, score is 1.
     # Where denom == 0 but the prediction volume is not 0, score is 0
     y_pred_o = y_pred_o.sum(dim=-1)
     denom_zeros = denom == 0
