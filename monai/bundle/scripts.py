@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import ast
 import json
 import os
@@ -16,11 +18,11 @@ import pprint
 import re
 import time
 import warnings
+from collections.abc import Mapping, Sequence
 from logging.config import fileConfig
 from pathlib import Path
 from shutil import copyfile
 from textwrap import dedent
-from typing import Dict, Mapping, Optional, Sequence, Tuple, Union
 
 import torch
 from torch.cuda import is_available
@@ -47,7 +49,7 @@ logger = get_logger(module_name=__name__)
 download_source = os.environ.get("BUNDLE_DOWNLOAD_SRC", "github")
 
 
-def _update_args(args: Optional[Union[str, Dict]] = None, ignore_none: bool = True, **kwargs) -> Dict:
+def _update_args(args: str | dict | None = None, ignore_none: bool = True, **kwargs) -> dict:
     """
     Update the `args` with the input `kwargs`.
     For dict data, recursively update the content based on the keys.
@@ -58,7 +60,7 @@ def _update_args(args: Optional[Union[str, Dict]] = None, ignore_none: bool = Tr
         kwargs: destination args to update.
 
     """
-    args_: Dict = args if isinstance(args, dict) else {}
+    args_: dict = args if isinstance(args, dict) else {}
     if isinstance(args, str):
         # args are defined in a structured file
         args_ = ConfigParser.load_config_file(args)
@@ -74,7 +76,7 @@ def _update_args(args: Optional[Union[str, Dict]] = None, ignore_none: bool = Tr
     return args_
 
 
-def _pop_args(src: Dict, *args, **kwargs):
+def _pop_args(src: dict, *args, **kwargs):
     """
     Pop args from the `src` dictionary based on specified keys in `args` and (key, default value) pairs in `kwargs`.
 
@@ -82,7 +84,7 @@ def _pop_args(src: Dict, *args, **kwargs):
     return tuple([src.pop(i) for i in args] + [src.pop(k, v) for k, v in kwargs.items()])
 
 
-def _log_input_summary(tag, args: Dict):
+def _log_input_summary(tag, args: dict):
     logger.info(f"--- input summary of monai.bundle.scripts.{tag} ---")
     for name, val in args.items():
         logger.info(f"> {name}: {pprint.pformat(val)}")
@@ -101,7 +103,7 @@ def _get_var_names(expr: str):
     return [m.id for m in ast.walk(tree) if isinstance(m, ast.Name)]
 
 
-def _get_fake_spatial_shape(shape: Sequence[Union[str, int]], p: int = 1, n: int = 1, any: int = 1) -> Tuple:
+def _get_fake_spatial_shape(shape: Sequence[str | int], p: int = 1, n: int = 1, any: int = 1) -> tuple:
     """
     Get spatial shape for fake data according to the specified shape pattern.
     It supports `int` number and `string` with formats like: "32", "32 * n", "32 ** p", "32 ** p *n".
@@ -160,7 +162,7 @@ def _remove_ngc_prefix(name: str, prefix: str = "monai_"):
     return name
 
 
-def _download_from_ngc(download_path: Path, filename: str, version: str, remove_prefix: Optional[str], progress: bool):
+def _download_from_ngc(download_path: Path, filename: str, version: str, remove_prefix: str | None, progress: bool):
     # ensure prefix is contained
     filename = _add_ngc_prefix(filename)
     url = _get_ngc_bundle_url(model_name=filename, version=version)
@@ -187,7 +189,7 @@ def _get_latest_bundle_version(source: str, name: str, repo: str):
         raise ValueError(f"To get the latest bundle version, source should be 'github' or 'ngc', got {source}.")
 
 
-def _process_bundle_dir(bundle_dir: Optional[PathLike] = None):
+def _process_bundle_dir(bundle_dir: PathLike | None = None):
     if bundle_dir is None:
         get_dir, has_home = optional_import("torch.hub", name="get_dir")
         if has_home:
@@ -198,15 +200,15 @@ def _process_bundle_dir(bundle_dir: Optional[PathLike] = None):
 
 
 def download(
-    name: Optional[str] = None,
-    version: Optional[str] = None,
-    bundle_dir: Optional[PathLike] = None,
+    name: str | None = None,
+    version: str | None = None,
+    bundle_dir: PathLike | None = None,
     source: str = download_source,
-    repo: Optional[str] = None,
-    url: Optional[str] = None,
-    remove_prefix: Optional[str] = "monai_",
+    repo: str | None = None,
+    url: str | None = None,
+    remove_prefix: str | None = "monai_",
     progress: bool = True,
-    args_file: Optional[str] = None,
+    args_file: str | None = None,
 ):
     """
     download bundle from the specified source or url. The bundle should be a zip file and it
@@ -320,18 +322,18 @@ def download(
 
 def load(
     name: str,
-    version: Optional[str] = None,
-    model_file: Optional[str] = None,
+    version: str | None = None,
+    model_file: str | None = None,
     load_ts_module: bool = False,
-    bundle_dir: Optional[PathLike] = None,
+    bundle_dir: PathLike | None = None,
     source: str = download_source,
-    repo: Optional[str] = None,
-    remove_prefix: Optional[str] = "monai_",
+    repo: str | None = None,
+    remove_prefix: str | None = "monai_",
     progress: bool = True,
-    device: Optional[str] = None,
-    key_in_ckpt: Optional[str] = None,
+    device: str | None = None,
+    key_in_ckpt: str | None = None,
     config_files: Sequence[str] = (),
-    net_name: Optional[str] = None,
+    net_name: str | None = None,
     **net_kwargs,
 ):
     """
@@ -422,7 +424,7 @@ def load(
 
 
 def _get_all_bundles_info(
-    repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1", auth_token: Optional[str] = None
+    repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1", auth_token: str | None = None
 ):
     if has_requests:
         request_url = f"https://api.github.com/repos/{repo}/releases"
@@ -436,7 +438,7 @@ def _get_all_bundles_info(
         raise ValueError("requests package is required, please install it.")
     releases_list = json.loads(resp.text)
     bundle_name_pattern = re.compile(r"_v\d*.")
-    bundles_info: Dict = {}
+    bundles_info: dict = {}
 
     for release in releases_list:
         if release["tag_name"] == tag:
@@ -459,7 +461,7 @@ def _get_all_bundles_info(
 
 
 def get_all_bundles_list(
-    repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1", auth_token: Optional[str] = None
+    repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1", auth_token: str | None = None
 ):
     """
     Get all bundles names (and the latest versions) that are stored in the release of specified repository
@@ -494,7 +496,7 @@ def get_bundle_versions(
     bundle_name: str,
     repo: str = "Project-MONAI/model-zoo",
     tag: str = "hosting_storage_v1",
-    auth_token: Optional[str] = None,
+    auth_token: str | None = None,
 ):
     """
     Get the latest version, as well as all existing versions of a bundle that is stored in the release of specified
@@ -528,10 +530,10 @@ def get_bundle_versions(
 
 def get_bundle_info(
     bundle_name: str,
-    version: Optional[str] = None,
+    version: str | None = None,
     repo: str = "Project-MONAI/model-zoo",
     tag: str = "hosting_storage_v1",
-    auth_token: Optional[str] = None,
+    auth_token: str | None = None,
 ):
     """
     Get all information
@@ -603,12 +605,12 @@ def patch_bundle_tracking(parser: ConfigParser, settings: dict):
 
 
 def run(
-    runner_id: Optional[Union[str, Sequence[str]]] = None,
-    meta_file: Optional[Union[str, Sequence[str]]] = None,
-    config_file: Optional[Union[str, Sequence[str]]] = None,
-    logging_file: Optional[str] = None,
-    tracking: Optional[Union[str, dict]] = None,
-    args_file: Optional[str] = None,
+    runner_id: str | Sequence[str] | None = None,
+    meta_file: str | Sequence[str] | None = None,
+    config_file: str | Sequence[str] | None = None,
+    logging_file: str | None = None,
+    tracking: str | dict | None = None,
+    args_file: str | None = None,
     **override,
 ):
     """
@@ -743,12 +745,12 @@ def run(
 
 
 def verify_metadata(
-    meta_file: Optional[Union[str, Sequence[str]]] = None,
-    filepath: Optional[PathLike] = None,
-    create_dir: Optional[bool] = None,
-    hash_val: Optional[str] = None,
-    hash_type: Optional[str] = None,
-    args_file: Optional[str] = None,
+    meta_file: str | Sequence[str] | None = None,
+    filepath: PathLike | None = None,
+    create_dir: bool | None = None,
+    hash_val: str | None = None,
+    hash_type: str | None = None,
+    args_file: str | None = None,
     **kwargs,
 ):
     """
@@ -804,14 +806,14 @@ def verify_metadata(
 
 
 def verify_net_in_out(
-    net_id: Optional[str] = None,
-    meta_file: Optional[Union[str, Sequence[str]]] = None,
-    config_file: Optional[Union[str, Sequence[str]]] = None,
-    device: Optional[str] = None,
-    p: Optional[int] = None,
-    n: Optional[int] = None,
-    any: Optional[int] = None,
-    args_file: Optional[str] = None,
+    net_id: str | None = None,
+    meta_file: str | Sequence[str] | None = None,
+    config_file: str | Sequence[str] | None = None,
+    device: str | None = None,
+    p: int | None = None,
+    n: int | None = None,
+    any: int | None = None,
+    args_file: str | None = None,
     **override,
 ):
     """
@@ -903,13 +905,13 @@ def verify_net_in_out(
 
 
 def ckpt_export(
-    net_id: Optional[str] = None,
-    filepath: Optional[PathLike] = None,
-    ckpt_file: Optional[str] = None,
-    meta_file: Optional[Union[str, Sequence[str]]] = None,
-    config_file: Optional[Union[str, Sequence[str]]] = None,
-    key_in_ckpt: Optional[str] = None,
-    args_file: Optional[str] = None,
+    net_id: str | None = None,
+    filepath: PathLike | None = None,
+    ckpt_file: str | None = None,
+    meta_file: str | Sequence[str] | None = None,
+    config_file: str | Sequence[str] | None = None,
+    key_in_ckpt: str | None = None,
+    args_file: str | None = None,
     **override,
 ):
     """
@@ -974,7 +976,7 @@ def ckpt_export(
     # convert to TorchScript model and save with metadata, config content
     net = convert_to_torchscript(model=net)
 
-    extra_files: Dict = {}
+    extra_files: dict = {}
     for i in ensure_tuple(config_file_):
         # split the filename and directory
         filename = os.path.basename(i)
@@ -1002,11 +1004,11 @@ def ckpt_export(
 
 def init_bundle(
     bundle_dir: PathLike,
-    ckpt_file: Optional[PathLike] = None,
-    network: Optional[torch.nn.Module] = None,
+    ckpt_file: PathLike | None = None,
+    network: torch.nn.Module | None = None,
     dataset_license: bool = False,
-    metadata_str: Union[Dict, str, None] = None,
-    inference_str: Union[Dict, str, None] = None,
+    metadata_str: dict | str | None = None,
+    inference_str: dict | str | None = None,
 ):
     """
     Initialise a new bundle directory with some default configuration files and optionally network weights.

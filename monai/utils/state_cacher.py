@@ -9,11 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import copy
 import os
 import pickle
 import tempfile
-from typing import Dict, Optional
 
 import torch
 from torch.serialization import DEFAULT_PROTOCOL
@@ -41,7 +42,7 @@ class StateCacher:
     def __init__(
         self,
         in_memory: bool,
-        cache_dir: Optional[PathLike] = None,
+        cache_dir: PathLike | None = None,
         allow_overwrite: bool = True,
         pickle_module=pickle,
         pickle_protocol: int = DEFAULT_PROTOCOL,
@@ -73,9 +74,9 @@ class StateCacher:
         self.allow_overwrite = allow_overwrite
         self.pickle_module = pickle_module
         self.pickle_protocol = pickle_protocol
-        self.cached: Dict = {}
+        self.cached: dict = {}
 
-    def store(self, key, data_obj, pickle_module=None, pickle_protocol: Optional[int] = None):
+    def store(self, key, data_obj, pickle_module=None, pickle_protocol: int | None = None):
         """
         Store a given object with the given key name.
 

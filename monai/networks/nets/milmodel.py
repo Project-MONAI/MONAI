@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, Optional, Union, cast
+from __future__ import annotations
+
+from typing import cast
 
 import torch
 import torch.nn as nn
@@ -54,8 +56,8 @@ class MILModel(nn.Module):
         num_classes: int,
         mil_mode: str = "att",
         pretrained: bool = True,
-        backbone: Optional[Union[str, nn.Module]] = None,
-        backbone_num_features: Optional[int] = None,
+        backbone: str | nn.Module | None = None,
+        backbone_num_features: int | None = None,
         trans_blocks: int = 4,
         trans_dropout: float = 0.0,
     ) -> None:
@@ -70,7 +72,7 @@ class MILModel(nn.Module):
 
         self.mil_mode = mil_mode.lower()
         self.attention = nn.Sequential()
-        self.transformer = None  # type: Optional[nn.Module]
+        self.transformer: nn.Module | None = None
 
         if backbone is None:
 
@@ -78,7 +80,7 @@ class MILModel(nn.Module):
             nfc = net.fc.in_features  # save the number of final features
             net.fc = torch.nn.Identity()  # remove final linear layer
 
-            self.extra_outputs: Dict[str, torch.Tensor] = {}
+            self.extra_outputs: dict[str, torch.Tensor] = {}
 
             if mil_mode == "att_trans_pyramid":
                 # register hooks to capture outputs of intermediate layers

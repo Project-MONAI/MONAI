@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, Optional, Union
+from __future__ import annotations
 
 import numpy as np
 import torch
@@ -110,7 +110,7 @@ class NiftiSaver:
         self.separate_folder = separate_folder
         self.print_log = print_log
 
-    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
+    def save(self, data: torch.Tensor | np.ndarray, meta_data: dict | None = None) -> None:
         """
         Save data into a NIfTI file.
         The meta_data could optionally have the following keys:
@@ -181,7 +181,7 @@ class NiftiSaver:
         if self.print_log:
             print(f"file written: {path}.")
 
-    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
+    def save_batch(self, batch_data: torch.Tensor | np.ndarray, meta_data: dict | None = None) -> None:
         """
         Save a batch of data into NIfTI format files.
 

@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
-from typing import List, Optional
 
 import monai
 from monai.config.type_definitions import PathLike
@@ -24,7 +25,7 @@ __all__ = ["get_tcia_metadata", "download_tcia_series_instance", "get_tcia_ref_u
 BASE_URL = "https://services.cancerimagingarchive.net/nbia-api/services/v1/"
 
 
-def get_tcia_metadata(query: str, attribute: Optional[str] = None):
+def get_tcia_metadata(query: str, attribute: str | None = None):
     """
     Achieve metadata of a public The Cancer Imaging Archive (TCIA) dataset.
 
@@ -51,7 +52,7 @@ def get_tcia_metadata(query: str, attribute: Optional[str] = None):
     full_url = f"{BASE_URL}{query}"
     resp = requests_get(full_url)
     resp.raise_for_status()
-    metadata_list: List = []
+    metadata_list: list = []
     if len(resp.text) == 0:
         return metadata_list
     for d in resp.json():

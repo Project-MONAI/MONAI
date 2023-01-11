@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from .auto_runner import AutoRunner
 from .bundle_gen import BundleAlgo, BundleGen
 from .data_analyzer import DataAnalyzer

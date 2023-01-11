@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Tuple, Type, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import torch
 from torch import nn
@@ -24,9 +26,9 @@ def get_conv_block(
     spatial_dims: int,
     in_channels: int,
     out_channels: int,
-    kernel_size: Union[Sequence[int], int] = 3,
-    act: Optional[Union[Tuple, str]] = "RELU",
-    norm: Optional[Union[Tuple, str]] = "BATCH",
+    kernel_size: Sequence[int] | int = 3,
+    act: tuple | str | None = "RELU",
+    norm: tuple | str | None = "BATCH",
 ) -> nn.Module:
     padding = same_padding(kernel_size)
     mod: nn.Module = Convolution(
@@ -44,7 +46,7 @@ def get_conv_block(
 
 
 def get_conv_layer(
-    spatial_dims: int, in_channels: int, out_channels: int, kernel_size: Union[Sequence[int], int] = 3
+    spatial_dims: int, in_channels: int, out_channels: int, kernel_size: Sequence[int] | int = 3
 ) -> nn.Module:
     padding = same_padding(kernel_size)
     mod: nn.Module = Convolution(
@@ -71,7 +73,7 @@ def get_deconv_block(spatial_dims: int, in_channels: int, out_channels: int) -> 
 
 class ResidualBlock(nn.Module):
     def __init__(
-        self, spatial_dims: int, in_channels: int, out_channels: int, kernel_size: Union[Sequence[int], int]
+        self, spatial_dims: int, in_channels: int, out_channels: int, kernel_size: Sequence[int] | int
     ) -> None:
         super().__init__()
         if in_channels != out_channels:
@@ -121,7 +123,7 @@ class LocalNetDownSampleBlock(nn.Module):
     """
 
     def __init__(
-        self, spatial_dims: int, in_channels: int, out_channels: int, kernel_size: Union[Sequence[int], int]
+        self, spatial_dims: int, in_channels: int, out_channels: int, kernel_size: Sequence[int] | int
     ) -> None:
         """
         Args:
@@ -141,7 +143,7 @@ class LocalNetDownSampleBlock(nn.Module):
         )
         self.max_pool = Pool[Pool.MAX, spatial_dims](kernel_size=2)
 
-    def forward(self, x) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, x) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Halves the spatial dimensions.
         A tuple of (x, mid) is returned:
@@ -182,7 +184,7 @@ class LocalNetUpSampleBlock(nn.Module):
         in_channels: int,
         out_channels: int,
         mode: str = "nearest",
-        align_corners: Optional[bool] = None,
+        align_corners: bool | None = None,
     ) -> None:
         """
         Args:
@@ -261,7 +263,7 @@ class LocalNetFeatureExtractorBlock(nn.Module):
         spatial_dims: int,
         in_channels: int,
         out_channels: int,
-        act: Optional[Union[Tuple, str]] = "RELU",
+        act: tuple | str | None = "RELU",
         initializer: str = "kaiming_uniform",
     ) -> None:
         """
@@ -276,7 +278,7 @@ class LocalNetFeatureExtractorBlock(nn.Module):
         self.conv_block = get_conv_block(
             spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels, act=act, norm=None
         )
-        conv_type: Type[Union[nn.Conv1d, nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
+        conv_type: type[nn.Conv1d | nn.Conv2d | nn.Conv3d] = Conv[Conv.CONV, spatial_dims]
         for m in self.conv_block.modules():
             if isinstance(m, conv_type):
                 if initializer == "kaiming_uniform":

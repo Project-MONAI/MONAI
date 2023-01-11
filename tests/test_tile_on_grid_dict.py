@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
-from typing import Optional
 
 import numpy as np
 import torch
@@ -81,7 +82,7 @@ def make_image(
     tile_size: int,
     step: int = 0,
     random_offset: bool = False,
-    filter_mode: Optional[str] = None,
+    filter_mode: str | None = None,
     seed=123,
     **kwargs,
 ):

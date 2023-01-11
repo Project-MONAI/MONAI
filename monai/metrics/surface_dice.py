@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
-from typing import List, Union
 
 import numpy as np
 import torch
@@ -53,10 +54,10 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
 
     def __init__(
         self,
-        class_thresholds: List[float],
+        class_thresholds: list[float],
         include_background: bool = False,
         distance_metric: str = "euclidean",
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        reduction: MetricReduction | str = MetricReduction.MEAN,
         get_not_nans: bool = False,
     ) -> None:
         super().__init__()
@@ -86,7 +87,7 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
             distance_metric=self.distance_metric,
         )
 
-    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):
+    def aggregate(self, reduction: MetricReduction | str | None = None):
         r"""
         Aggregates the output of `_compute_tensor`.
 
@@ -111,7 +112,7 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
 def compute_surface_dice(
     y_pred: torch.Tensor,
     y: torch.Tensor,
-    class_thresholds: List[float],
+    class_thresholds: list[float],
     include_background: bool = False,
     distance_metric: str = "euclidean",
 ):

@@ -8,7 +8,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import List, Optional, Tuple, Union
+
+from __future__ import annotations
 
 import torch
 from torch import nn
@@ -46,13 +47,13 @@ class RegUNet(nn.Module):
         in_channels: int,
         num_channel_initial: int,
         depth: int,
-        out_kernel_initializer: Optional[str] = "kaiming_uniform",
-        out_activation: Optional[str] = None,
+        out_kernel_initializer: str | None = "kaiming_uniform",
+        out_activation: str | None = None,
         out_channels: int = 3,
-        extract_levels: Optional[Tuple[int]] = None,
+        extract_levels: tuple[int] | None = None,
         pooling: bool = True,
         concat_skip: bool = False,
-        encode_kernel_sizes: Union[int, List[int]] = 3,
+        encode_kernel_sizes: int | list[int] = 3,
     ):
         """
         Args:
@@ -90,7 +91,7 @@ class RegUNet(nn.Module):
             encode_kernel_sizes = [encode_kernel_sizes] * (self.depth + 1)
         if len(encode_kernel_sizes) != self.depth + 1:
             raise AssertionError
-        self.encode_kernel_sizes: List[int] = encode_kernel_sizes
+        self.encode_kernel_sizes: list[int] = encode_kernel_sizes
 
         self.num_channels = [self.num_channel_initial * (2**d) for d in range(self.depth + 1)]
         self.min_extract_level = min(self.extract_levels)
@@ -233,7 +234,7 @@ class RegUNet(nn.Module):
 
 
 class AffineHead(nn.Module):
-    def __init__(self, spatial_dims: int, image_size: List[int], decode_size: List[int], in_channels: int):
+    def __init__(self, spatial_dims: int, image_size: list[int], decode_size: list[int], in_channels: int):
         super().__init__()
         self.spatial_dims = spatial_dims
         if spatial_dims == 2:
@@ -255,7 +256,7 @@ class AffineHead(nn.Module):
         self.fc.bias.data.copy_(out_init)
 
     @staticmethod
-    def get_reference_grid(image_size: Union[Tuple[int], List[int]]) -> torch.Tensor:
+    def get_reference_grid(image_size: tuple[int] | list[int]) -> torch.Tensor:
         mesh_points = [torch.arange(0, dim) for dim in image_size]
         grid = torch.stack(meshgrid_ij(*mesh_points), dim=0)  # (spatial_dims, ...)
         return grid.to(dtype=torch.float)
@@ -273,7 +274,7 @@ class AffineHead(nn.Module):
             raise ValueError(f"do not support spatial_dims={self.spatial_dims}")
         return grid_warped
 
-    def forward(self, x: List[torch.Tensor], image_size: List[int]) -> torch.Tensor:
+    def forward(self, x: list[torch.Tensor], image_size: list[int]) -> torch.Tensor:
         f = x[0]
         self.grid = self.grid.to(device=f.device)
         theta = self.fc(f.reshape(f.shape[0], -1))
@@ -294,16 +295,16 @@ class GlobalNet(RegUNet):
 
     def __init__(
         self,
-        image_size: List[int],
+        image_size: list[int],
         spatial_dims: int,
         in_channels: int,
         num_channel_initial: int,
         depth: int,
-        out_kernel_initializer: Optional[str] = "kaiming_uniform",
-        out_activation: Optional[str] = None,
+        out_kernel_initializer: str | None = "kaiming_uniform",
+        out_activation: str | None = None,
         pooling: bool = True,
         concat_skip: bool = False,
-        encode_kernel_sizes: Union[int, List[int]] = 3,
+        encode_kernel_sizes: int | list[int] = 3,
     ):
         for size in image_size:
             if size % (2**depth) != 0:
@@ -343,7 +344,7 @@ class AdditiveUpSampleBlock(nn.Module):
         in_channels: int,
         out_channels: int,
         mode: str = "nearest",
-        align_corners: Optional[bool] = None,
+        align_corners: bool | None = None,
     ):
         super().__init__()
         self.deconv = get_deconv_block(spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels)
@@ -376,15 +377,15 @@ class LocalNet(RegUNet):
         spatial_dims: int,
         in_channels: int,
         num_channel_initial: int,
-        extract_levels: Tuple[int],
-        out_kernel_initializer: Optional[str] = "kaiming_uniform",
-        out_activation: Optional[str] = None,
+        extract_levels: tuple[int],
+        out_kernel_initializer: str | None = "kaiming_uniform",
+        out_activation: str | None = None,
         out_channels: int = 3,
         pooling: bool = True,
         use_additive_sampling: bool = True,
         concat_skip: bool = False,
         mode: str = "nearest",
-        align_corners: Optional[bool] = None,
+        align_corners: bool | None = None,
     ):
         """
         Args:

@@ -9,9 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
+from collections.abc import Sequence
 from pydoc import locate
-from typing import List, Optional, Sequence, Tuple, Type, Union
+from typing import Any
 
 import torch
 from torch import nn
@@ -38,7 +41,7 @@ class FlexUNetEncoderRegister:
     def __init__(self):
         self.register_dict = {}
 
-    def register_class(self, name: Union[Type, str]):
+    def register_class(self, name: type[Any] | str):
         """
         Register a given class to the encoder dict. Please notice that input class must be a
         subclass of BaseEncoder.
@@ -110,14 +113,14 @@ class UNetDecoder(nn.Module):
         spatial_dims: int,
         encoder_channels: Sequence[int],
         decoder_channels: Sequence[int],
-        act: Union[str, tuple],
-        norm: Union[str, tuple],
-        dropout: Union[float, tuple],
+        act: str | tuple,
+        norm: str | tuple,
+        dropout: float | tuple,
         bias: bool,
         upsample: str,
-        pre_conv: Optional[str],
+        pre_conv: str | None,
         interp_mode: str,
-        align_corners: Optional[bool],
+        align_corners: bool | None,
         is_pad: bool,
     ):
 
@@ -153,7 +156,7 @@ class UNetDecoder(nn.Module):
             )
         self.blocks = nn.ModuleList(blocks)
 
-    def forward(self, features: List[torch.Tensor], skip_connect: int = 4):
+    def forward(self, features: list[torch.Tensor], skip_connect: int = 4):
         skips = features[:-1][::-1]
         features = features[1:][::-1]
 
@@ -190,7 +193,7 @@ class SegmentationHead(nn.Sequential):
         in_channels: int,
         out_channels: int,
         kernel_size: int = 3,
-        act: Optional[Union[Tuple, str]] = None,
+        act: tuple | str | None = None,
         scale_factor: float = 1.0,
     ):
 
@@ -224,11 +227,11 @@ class FlexibleUNet(nn.Module):
         out_channels: int,
         backbone: str,
         pretrained: bool = False,
-        decoder_channels: Tuple = (256, 128, 64, 32, 16),
+        decoder_channels: tuple = (256, 128, 64, 32, 16),
         spatial_dims: int = 2,
-        norm: Union[str, tuple] = ("batch", {"eps": 1e-3, "momentum": 0.1}),
-        act: Union[str, tuple] = ("relu", {"inplace": True}),
-        dropout: Union[float, tuple] = 0.0,
+        norm: str | tuple = ("batch", {"eps": 1e-3, "momentum": 0.1}),
+        act: str | tuple = ("relu", {"inplace": True}),
+        dropout: float | tuple = 0.0,
         decoder_bias: bool = False,
         upsample: str = "nontrainable",
         interp_mode: str = "nearest",

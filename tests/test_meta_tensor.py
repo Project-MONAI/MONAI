@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import io
 import os
 import random
@@ -18,7 +20,6 @@ import unittest
 import warnings
 from copy import deepcopy
 from multiprocessing.reduction import ForkingPickler
-from typing import Optional, Union
 
 import numpy as np
 import torch
@@ -86,7 +87,7 @@ class TestMetaTensor(unittest.TestCase):
         shape: bool = True,
         vals: bool = True,
         ids: bool = True,
-        device: Optional[Union[str, torch.device]] = None,
+        device: str | torch.device | None = None,
         meta: bool = True,
         check_ids: bool = True,
         **kwargs,

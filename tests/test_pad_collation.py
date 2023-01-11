@@ -9,10 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import random
 import unittest
 from functools import wraps
-from typing import List, Tuple
 
 import numpy as np
 import torch
@@ -42,7 +43,7 @@ def _testing_collate(x):
     return pad_list_data_collate(batch=x, method="end", mode="constant")
 
 
-TESTS: List[Tuple] = []
+TESTS: list[tuple] = []
 
 for pad_collate in [_testing_collate, PadListDataCollate(method="end", mode="constant")]:
     TESTS.append((dict, pad_collate, RandSpatialCropd("image", roi_size=[8, 7], random_size=True)))

@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
-from typing import Dict, List
 
 import numpy as np
 import torch
@@ -23,7 +24,7 @@ from monai.transforms import Spacing
 from monai.utils import fall_back_tuple
 from tests.utils import TEST_DEVICES, TEST_NDARRAYS_ALL, assert_allclose, skip_if_quick
 
-TESTS: List[List] = []
+TESTS: list[list] = []
 for device in TEST_DEVICES:
     TESTS.append(
         [
@@ -267,10 +268,10 @@ class TestSpacingCase(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_spacing(
         self,
-        init_param: Dict,
+        init_param: dict,
         img: torch.Tensor,
         affine: torch.Tensor,
-        data_param: Dict,
+        data_param: dict,
         expected_output: torch.Tensor,
         device: torch.device,
     ):

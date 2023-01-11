@@ -12,9 +12,12 @@
 A collection of generic interfaces for MONAI transforms.
 """
 
+from __future__ import annotations
+
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Generator, Hashable, Iterable, List, Mapping, Optional, Tuple, TypeVar, Union
+from collections.abc import Callable, Generator, Hashable, Iterable, Mapping
+from typing import Any, TypeVar
 
 import numpy as np
 import torch
@@ -72,7 +75,7 @@ def apply_transform(
     map_items: bool = True,
     unpack_items: bool = False,
     log_stats: bool = False,
-) -> Union[List[ReturnType], ReturnType]:
+) -> list[ReturnType] | ReturnType:
     """
     Transform `data` with `transform`.
 
@@ -113,7 +116,7 @@ def apply_transform(
             if isinstance(data, (list, tuple)):
                 data = data[0]
 
-            def _log_stats(data, prefix: Optional[str] = "Data"):
+            def _log_stats(data, prefix: str | None = "Data"):
                 if isinstance(data, (np.ndarray, torch.Tensor)):
                     # log data type, shape, range for array
                     datastats(img=data, data_shape=True, value_range=True, prefix=prefix)
@@ -206,9 +209,7 @@ class Randomizable(ThreadUnsafe, RandomizableTrait):
 
     R: np.random.RandomState = np.random.RandomState()
 
-    def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "Randomizable":
+    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> Randomizable:
         """
         Set the random state locally, to control the randomness, the derived
         classes should use :py:attr:`self.R` instead of `np.random` to introduce random
@@ -283,7 +284,7 @@ class Transform(ABC):
     # to other data types during the transformation. Note that not all `dtype` (such as float32, uint8) are supported
     # by all the data types, the `dtype` during the conversion is determined automatically by each transform,
     # please refer to the transform's docstring.
-    backend: List[TransformBackends] = []
+    backend: list[TransformBackends] = []
 
     @abstractmethod
     def __call__(self, data: Any):
@@ -318,7 +319,7 @@ class LazyTransform(Transform, LazyTrait):
     dictionary transforms to simplify implementation of new lazy transforms.
     """
 
-    def __init__(self, lazy_evaluation: Optional[bool] = True):
+    def __init__(self, lazy_evaluation: bool | None = True):
         self.lazy_evaluation = lazy_evaluation
 
     @property
@@ -412,7 +413,7 @@ class MapTransform(Transform):
         return Transform.__new__(cls)
 
     def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
-        self.keys: Tuple[Hashable, ...] = ensure_tuple(keys)
+        self.keys: tuple[Hashable, ...] = ensure_tuple(keys)
         self.allow_missing_keys = allow_missing_keys
         if not self.keys:
             raise ValueError("keys must be non empty.")
@@ -469,7 +470,7 @@ class MapTransform(Transform):
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def key_iterator(self, data: Mapping[Hashable, Any], *extra_iterables: Optional[Iterable]) -> Generator:
+    def key_iterator(self, data: Mapping[Hashable, Any], *extra_iterables: Iterable | None) -> Generator:
         """
         Iterate across keys and optionally extra iterables. If key is missing, exception is raised if
         `allow_missing_keys==False` (default). If `allow_missing_keys==True`, key is skipped.
@@ -482,7 +483,7 @@ class MapTransform(Transform):
         ex_iters = extra_iterables or [[None] * len(self.keys)]
 
         # loop over keys and any extra iterables
-        _ex_iters: List[Any]
+        _ex_iters: list[Any]
         for key, *_ex_iters in zip(self.keys, *ex_iters):
             # all normal, yield (what we yield depends on whether extra iterables were given)
             if key in data:
@@ -493,7 +494,7 @@ class MapTransform(Transform):
                     " and allow_missing_keys==False."
                 )
 
-    def first_key(self, data: Dict[Hashable, Any]):
+    def first_key(self, data: dict[Hashable, Any]):
         """
         Get the first available key of `self.keys` in the input `data` dictionary.
         If no available key, return an empty tuple `()`.

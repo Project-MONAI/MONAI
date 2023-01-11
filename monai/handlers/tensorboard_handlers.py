@@ -9,8 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
@@ -87,13 +90,13 @@ class TensorBoardStatsHandler(TensorBoardHandler):
         log_dir: str = "./runs",
         iteration_log: bool = True,
         epoch_log: bool = True,
-        epoch_event_writer: Optional[Callable[[Engine, Any], Any]] = None,
+        epoch_event_writer: Callable[[Engine, Any], Any] | None = None,
         epoch_interval: int = 1,
-        iteration_event_writer: Optional[Callable[[Engine, Any], Any]] = None,
+        iteration_event_writer: Callable[[Engine, Any], Any] | None = None,
         iteration_interval: int = 1,
         output_transform: Callable = lambda x: x[0],
         global_epoch_transform: Callable = lambda x: x,
-        state_attributes: Optional[Sequence[str]] = None,
+        state_attributes: Sequence[str] | None = None,
         tag_name: str = DEFAULT_TAG,
     ) -> None:
         """

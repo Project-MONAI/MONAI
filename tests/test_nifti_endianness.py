@@ -9,11 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Tuple
+from typing import TYPE_CHECKING
 from unittest.case import skipUnless
 
 import numpy as np
@@ -36,7 +38,7 @@ else:
     nib, has_nib = optional_import("nibabel")
     PILImage, has_pil = optional_import("PIL.Image")
 
-TESTS: List[Tuple] = []
+TESTS: list[tuple] = []
 for endianness in ["<", ">"]:
     for use_array in [True, False]:
         for image_only in [True, False]:

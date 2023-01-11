@@ -9,12 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import random
 import sys
 import unittest
 from copy import deepcopy
 from functools import partial
-from typing import TYPE_CHECKING, List, Tuple
+from typing import TYPE_CHECKING
 from unittest.case import skipUnless
 
 import numpy as np
@@ -77,7 +79,7 @@ else:
 
 KEYS = ["image", "label"]
 
-TESTS: List[Tuple] = []
+TESTS: list[tuple] = []
 
 # For pad, start with odd/even images and add odd/even amounts
 for name in ("1D even", "1D odd"):

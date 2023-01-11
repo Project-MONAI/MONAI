@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Union
+from __future__ import annotations
 
 import numpy as np
 import torch
@@ -30,11 +30,11 @@ __all__ = ["matshow3d", "blend_images"]
 def matshow3d(
     volume,
     fig=None,
-    title: Optional[str] = None,
+    title: str | None = None,
     figsize=(10, 10),
-    frames_per_row: Optional[int] = None,
+    frames_per_row: int | None = None,
     frame_dim: int = -3,
-    channel_dim: Optional[int] = None,
+    channel_dim: int | None = None,
     vmin=None,
     vmax=None,
     every_n: int = 1,
@@ -160,7 +160,7 @@ def matshow3d(
 def blend_images(
     image: NdarrayOrTensor,
     label: NdarrayOrTensor,
-    alpha: Union[float, NdarrayOrTensor] = 0.5,
+    alpha: float | NdarrayOrTensor = 0.5,
     cmap: str = "hsv",
     rescale_arrays: bool = True,
     transparent_background: bool = True,

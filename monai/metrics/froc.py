@@ -9,18 +9,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Optional, Tuple, Union
+from __future__ import annotations
 
 import numpy as np
 import torch
 
 
 def compute_fp_tp_probs(
-    probs: Union[np.ndarray, torch.Tensor],
-    y_coord: Union[np.ndarray, torch.Tensor],
-    x_coord: Union[np.ndarray, torch.Tensor],
-    evaluation_mask: Union[np.ndarray, torch.Tensor],
-    labels_to_exclude: Optional[List] = None,
+    probs: np.ndarray | torch.Tensor,
+    y_coord: np.ndarray | torch.Tensor,
+    x_coord: np.ndarray | torch.Tensor,
+    evaluation_mask: np.ndarray | torch.Tensor,
+    labels_to_exclude: list | None = None,
     resolution_level: int = 0,
 ):
     """
@@ -78,10 +78,7 @@ def compute_fp_tp_probs(
 
 
 def compute_froc_curve_data(
-    fp_probs: Union[np.ndarray, torch.Tensor],
-    tp_probs: Union[np.ndarray, torch.Tensor],
-    num_targets: int,
-    num_images: int,
+    fp_probs: np.ndarray | torch.Tensor, tp_probs: np.ndarray | torch.Tensor, num_targets: int, num_images: int
 ):
     """
     This function is modified from the official evaluation code of
@@ -117,7 +114,7 @@ def compute_froc_curve_data(
 
 
 def compute_froc_score(
-    fps_per_image: np.ndarray, total_sensitivity: np.ndarray, eval_thresholds: Tuple = (0.25, 0.5, 1, 2, 4, 8)
+    fps_per_image: np.ndarray, total_sensitivity: np.ndarray, eval_thresholds: tuple = (0.25, 0.5, 1, 2, 4, 8)
 ):
     """
     This function is modified from the official evaluation code of

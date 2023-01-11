@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Tuple, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import numpy as np
 import torch
@@ -41,9 +43,7 @@ class SplitOnGrid(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(
-        self, grid_size: Union[int, Tuple[int, int]] = (2, 2), patch_size: Optional[Union[int, Tuple[int, int]]] = None
-    ):
+    def __init__(self, grid_size: int | tuple[int, int] = (2, 2), patch_size: int | tuple[int, int] | None = None):
         # Grid size
         if isinstance(grid_size, int):
             self.grid_size = (grid_size, grid_size)
@@ -137,9 +137,9 @@ class TileOnGrid(Randomizable, Transform):
 
     def __init__(
         self,
-        tile_count: Optional[int] = None,
+        tile_count: int | None = None,
         tile_size: int = 256,
-        step: Optional[int] = None,
+        step: int | None = None,
         random_offset: bool = False,
         pad_full: bool = False,
         background_val: int = 255,

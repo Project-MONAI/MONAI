@@ -9,8 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
-from typing import Optional, cast
+from typing import cast
 
 import nibabel as nib
 import numpy as np
@@ -65,7 +67,7 @@ for track_meta in (False, True):
 class TestOrientationdCase(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_orntd(
-        self, init_param, img: torch.Tensor, affine: Optional[torch.Tensor], expected_shape, expected_code, device
+        self, init_param, img: torch.Tensor, affine: torch.Tensor | None, expected_shape, expected_code, device
     ):
         ornt = Orientationd(**init_param)
         if affine is not None:

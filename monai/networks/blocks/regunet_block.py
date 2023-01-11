@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Optional, Sequence, Tuple, Type, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import torch
 from torch import nn
@@ -23,12 +25,12 @@ def get_conv_block(
     spatial_dims: int,
     in_channels: int,
     out_channels: int,
-    kernel_size: Union[Sequence[int], int] = 3,
+    kernel_size: Sequence[int] | int = 3,
     strides: int = 1,
-    padding: Optional[Union[Tuple[int, ...], int]] = None,
-    act: Optional[Union[Tuple, str]] = "RELU",
-    norm: Optional[Union[Tuple, str]] = "BATCH",
-    initializer: Optional[str] = "kaiming_uniform",
+    padding: tuple[int, ...] | int | None = None,
+    act: tuple | str | None = "RELU",
+    norm: tuple | str | None = "BATCH",
+    initializer: str | None = "kaiming_uniform",
 ) -> nn.Module:
     if padding is None:
         padding = same_padding(kernel_size)
@@ -44,7 +46,7 @@ def get_conv_block(
         conv_only=False,
         padding=padding,
     )
-    conv_type: Type[Union[nn.Conv1d, nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
+    conv_type: type[nn.Conv1d | nn.Conv2d | nn.Conv3d] = Conv[Conv.CONV, spatial_dims]
     for m in conv_block.modules():
         if isinstance(m, conv_type):
             if initializer == "kaiming_uniform":
@@ -59,7 +61,7 @@ def get_conv_block(
 
 
 def get_conv_layer(
-    spatial_dims: int, in_channels: int, out_channels: int, kernel_size: Union[Sequence[int], int] = 3
+    spatial_dims: int, in_channels: int, out_channels: int, kernel_size: Sequence[int] | int = 3
 ) -> nn.Module:
     padding = same_padding(kernel_size)
     mod: nn.Module = Convolution(
@@ -195,13 +197,13 @@ class RegistrationExtractionBlock(nn.Module):
     def __init__(
         self,
         spatial_dims: int,
-        extract_levels: Tuple[int],
-        num_channels: Union[Tuple[int], List[int]],
+        extract_levels: tuple[int],
+        num_channels: tuple[int] | list[int],
         out_channels: int,
-        kernel_initializer: Optional[str] = "kaiming_uniform",
-        activation: Optional[str] = None,
+        kernel_initializer: str | None = "kaiming_uniform",
+        activation: str | None = None,
         mode: str = "nearest",
-        align_corners: Optional[bool] = None,
+        align_corners: bool | None = None,
     ):
         """
 
@@ -235,7 +237,7 @@ class RegistrationExtractionBlock(nn.Module):
         self.mode = mode
         self.align_corners = align_corners
 
-    def forward(self, x: List[torch.Tensor], image_size: List[int]) -> torch.Tensor:
+    def forward(self, x: list[torch.Tensor], image_size: list[int]) -> torch.Tensor:
         """
 
         Args:
