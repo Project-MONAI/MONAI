@@ -235,11 +235,18 @@ class MetaTensor(MetaObj, torch.Tensor):
                         # respectively. Don't need to do anything with the metadata.
                         if batch_idx not in (slice(None, None, None), Ellipsis, None) and idx == 0:
                             ret_meta = decollate_batch(args[0], detach=False)[batch_idx]
-                            if isinstance(ret_meta, list):  # e.g. batch[0:2], re-collate
-                                ret_meta = list_data_collate(ret_meta)
-                            else:  # e.g. `batch[0]` or `batch[0, 1]`, batch index is an integer
+                            if isinstance(ret_meta, list) and ret_meta:  # e.g. batch[0:2], re-collate
+                                try:
+                                    ret_meta = list_data_collate(ret_meta)
+                                except (TypeError, ValueError, RuntimeError, IndexError) as e:
+                                    raise ValueError(
+                                        "Inconsistent metadata when slicing a MetaTensor, please convert it into"
+                                        "a torch Tensor using `x.as_tensor()` or a numpy array using `x.array`."
+                                    ) from e
+                            elif isinstance(ret_meta, MetaObj):  # e.g. `batch[0]` or `batch[0, 1]`, batch_idx is int
                                 ret_meta.is_batch = False
-                            ret.__dict__ = ret_meta.__dict__.copy()
+                            if hasattr(ret_meta, "__dict__"):
+                                ret.__dict__ = ret_meta.__dict__.copy()
                     # `unbind` is used for `next(iter(batch))`. Also for `decollate_batch`.
                     # But we only want to split the batch if the `unbind` is along the 0th
                     # dimension.
