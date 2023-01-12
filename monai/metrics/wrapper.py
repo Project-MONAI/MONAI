@@ -11,7 +11,6 @@
 
 from __future__ import annotations
 
-from typing import Union
 
 import torch
 
@@ -48,7 +47,7 @@ class MetricsReloadedWrapper(CumulativeIterationMetric):
         self,
         metric_name: str,
         include_background: bool = True,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        reduction: MetricReduction | str = MetricReduction.MEAN,
         get_not_nans: bool = False,
     ) -> None:
         super().__init__()
@@ -126,7 +125,7 @@ class MetricsReloadedBinary(MetricsReloadedWrapper):
         self,
         metric_name: str,
         include_background: bool = True,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        reduction: MetricReduction | str = MetricReduction.MEAN,
         get_not_nans: bool = False,
     ) -> None:
         super().__init__(
@@ -232,7 +231,7 @@ class MetricsReloadedCategorical(MetricsReloadedWrapper):
         self,
         metric_name: str,
         include_background: bool = True,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        reduction: MetricReduction | str = MetricReduction.MEAN,
         get_not_nans: bool = False,
         smooth_dr: float = 1e-5,
     ) -> None:
