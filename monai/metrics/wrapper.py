@@ -11,7 +11,6 @@
 
 from __future__ import annotations
 
-
 import torch
 
 from monai.metrics.utils import do_metric_reduction, ignore_background, is_binary_tensor
