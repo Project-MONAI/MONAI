@@ -296,6 +296,9 @@ class DenseNet121(DenseNet):
 
     def __init__(
         self,
+        spatial_dims: int,
+        in_channels: int,
+        out_channels: int,
         init_features: int = 64,
         growth_rate: int = 32,
         block_config: Sequence[int] = (6, 12, 24, 16),
@@ -303,7 +306,7 @@ class DenseNet121(DenseNet):
         progress: bool = True,
         **kwargs,
     ) -> None:
-        super().__init__(init_features=init_features, growth_rate=growth_rate, block_config=block_config, **kwargs)
+        super().__init__(spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels, init_features=init_features, growth_rate=growth_rate, block_config=block_config, **kwargs)
         if pretrained:
             if kwargs["spatial_dims"] > 2:
                 raise NotImplementedError(
@@ -318,6 +321,9 @@ class DenseNet169(DenseNet):
 
     def __init__(
         self,
+        spatial_dims: int,
+        in_channels: int,
+        out_channels: int,
         init_features: int = 64,
         growth_rate: int = 32,
         block_config: Sequence[int] = (6, 12, 32, 32),
@@ -325,7 +331,7 @@ class DenseNet169(DenseNet):
         progress: bool = True,
         **kwargs,
     ) -> None:
-        super().__init__(init_features=init_features, growth_rate=growth_rate, block_config=block_config, **kwargs)
+        super().__init__(spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels, init_features=init_features, growth_rate=growth_rate, block_config=block_config, **kwargs)
         if pretrained:
             if kwargs["spatial_dims"] > 2:
                 raise NotImplementedError(
@@ -340,6 +346,9 @@ class DenseNet201(DenseNet):
 
     def __init__(
         self,
+        spatial_dims: int,
+        in_channels: int,
+        out_channels: int,
         init_features: int = 64,
         growth_rate: int = 32,
         block_config: Sequence[int] = (6, 12, 48, 32),
@@ -347,7 +356,7 @@ class DenseNet201(DenseNet):
         progress: bool = True,
         **kwargs,
     ) -> None:
-        super().__init__(init_features=init_features, growth_rate=growth_rate, block_config=block_config, **kwargs)
+        super().__init__(spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels, init_features=init_features, growth_rate=growth_rate, block_config=block_config, **kwargs)
         if pretrained:
             if kwargs["spatial_dims"] > 2:
                 raise NotImplementedError(
@@ -362,6 +371,9 @@ class DenseNet264(DenseNet):
 
     def __init__(
         self,
+        spatial_dims: int,
+        in_channels: int,
+        out_channels: int,
         init_features: int = 64,
         growth_rate: int = 32,
         block_config: Sequence[int] = (6, 12, 64, 48),
@@ -369,7 +381,7 @@ class DenseNet264(DenseNet):
         progress: bool = True,
         **kwargs,
     ) -> None:
-        super().__init__(init_features=init_features, growth_rate=growth_rate, block_config=block_config, **kwargs)
+        super().__init__(spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels, init_features=init_features, growth_rate=growth_rate, block_config=block_config, **kwargs)
         if pretrained:
             raise NotImplementedError("Currently PyTorch Hub does not provide densenet264 pretrained models.")
 
