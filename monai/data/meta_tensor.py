@@ -240,8 +240,9 @@ class MetaTensor(MetaObj, torch.Tensor):
                                     ret_meta = list_data_collate(ret_meta)
                                 except (TypeError, ValueError, RuntimeError, IndexError) as e:
                                     raise ValueError(
-                                        "Inconsistent metadata when slicing a MetaTensor, please convert it into"
-                                        "a torch Tensor using `x.as_tensor()` or a numpy array using `x.array`."
+                                        "Inconsistent batched metadata dicts when slicing a batch of MetaTensors, "
+                                        "please convert it into a torch Tensor using `x.as_tensor()` or "
+                                        "a numpy array using `x.array`."
                                     ) from e
                             elif isinstance(ret_meta, MetaObj):  # e.g. `batch[0]` or `batch[0, 1]`, batch_idx is int
                                 ret_meta.is_batch = False
