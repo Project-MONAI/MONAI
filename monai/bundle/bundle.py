@@ -9,15 +9,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+import time
 from abc import ABC, abstractmethod
-from typing import Any
+from logging.config import fileConfig
+from pathlib import Path
+from typing import Any, Sequence
+from monai.apps.utils import get_logger
+from monai.bundle.config_parser import ConfigParser
+from monai.bundle.utils import DEFAULT_EXP_MGMT_SETTINGS
 
-__all__ = ["Bundle"]
+__all__ = ["BundleWorkflow", "ZooWorkflow"]
+
+logger = get_logger(module_name=__name__)
 
 
-class Bundle(ABC):
+class BundleWorkflow(ABC):
     """
-    Base class for the bundle specification.
+    Base class for the workflow specification in bundle.
     """
 
     @abstractmethod
@@ -31,3 +40,93 @@ class Bundle(ABC):
     @abstractmethod
     def finalize(self, *args: Any, **kwargs: Any) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+
+
+class ZooWorkflow(BundleWorkflow):
+    required_keys = []
+    init_key = "initialize"
+    run_key = "run"
+    final_key = "finalize"
+
+    def __init__(
+        self,
+        meta_file: str | Sequence[str] | None = None,
+        config_file: str | Sequence[str] | None = None,
+        logging_file: str | None = None,
+        tracking: str | dict | None = None,
+        **override,
+    ) -> None:
+        if logging_file is not None:
+            if not os.path.exists(logging_file):
+                raise FileNotFoundError(f"can't find the logging config file: {logging_file}.")
+            logger.info(f"set logging properties based on config: {logging_file}.")
+            fileConfig(logging_file, disable_existing_loggers=False)
+
+        self.parser = ConfigParser()
+        self.parser.read_config(f=config_file)
+        if meta_file is not None:
+            self.parser.read_meta(f=meta_file)
+
+        # the rest key-values in the _args are to override config content
+        self.parser.update(pairs=override)
+
+        # set tracking configs for experiment management
+        if tracking is not None:
+            if isinstance(tracking, str) and tracking in DEFAULT_EXP_MGMT_SETTINGS:
+                settings_ = DEFAULT_EXP_MGMT_SETTINGS[tracking]
+            else:
+                settings_ = ConfigParser.load_config_files(tracking)
+            self.patch_bundle_tracking(parser=self.parser, settings=settings_)
+
+    def check_required_keys(self) -> bool:
+        for i in self.required_keys:
+            if i not in self.parser:
+                logger.info(f"did not find the required key '{i}' in the config.")
+                return False
+        return True
+
+    def initialize(self) -> bool:
+        return self._run_expr(key=self.init_key)
+
+    def run(self) -> bool:
+        return self._run_expr(key=self.run_key)
+
+    def finalize(self) -> bool:
+        return self._run_expr(key=self.final_key)
+
+    def _run_expr(self, key: str):
+        return self.parser.get_parsed_content(key, lazy=True, eval_expr=True, instantiate=True)
+
+    @staticmethod
+    def patch_bundle_tracking(parser: ConfigParser, settings: dict):
+        """
+        Patch the loaded bundle config with a new handler logic to enable experiment tracking features.
+
+        Args:
+            parser: loaded config content to patch the handler.
+            settings: settings for the experiment tracking, should follow the pattern of default settings.
+
+        """
+        for k, v in settings["configs"].items():
+            if k in settings["handlers_id"]:
+                engine = parser.get(settings["handlers_id"][k]["id"])
+                if engine is not None:
+                    handlers = parser.get(settings["handlers_id"][k]["handlers"])
+                    if handlers is None:
+                        engine["train_handlers" if k == "trainer" else "val_handlers"] = [v]
+                    else:
+                        handlers.append(v)
+            elif k not in parser:
+                parser[k] = v
+        # save the executed config into file
+        default_name = f"config_{time.strftime('%Y%m%d_%H%M%S')}.json"
+        filepath = parser.get("execute_config", None)
+        if filepath is None:
+            if "output_dir" not in parser:
+                # if no "output_dir" in the bundle config, default to "<bundle root>/eval"
+                parser["output_dir"] = "$@bundle_root + '/eval'"
+            # experiment management tools can refer to this config item to track the config info
+            parser["execute_config"] = parser["output_dir"] + f" + '/{default_name}'"
+            filepath = os.path.join(parser.get_parsed_content("output_dir"), default_name)
+        Path(filepath).parent.mkdir(parents=True, exist_ok=True)
+        parser.export_config_file(parser.get(), filepath)
