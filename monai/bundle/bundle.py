@@ -43,7 +43,6 @@ class BundleWorkflow(ABC):
 
 
 class ZooWorkflow(BundleWorkflow):
-    required_keys = []
     init_key = "initialize"
     run_key = "run"
     final_key = "finalize"
@@ -78,13 +77,6 @@ class ZooWorkflow(BundleWorkflow):
                 settings_ = ConfigParser.load_config_files(tracking)
             self.patch_bundle_tracking(parser=self.parser, settings=settings_)
 
-    def check_required_keys(self) -> bool:
-        for i in self.required_keys:
-            if i not in self.parser:
-                logger.info(f"did not find the required key '{i}' in the config.")
-                return False
-        return True
-
     def initialize(self) -> bool:
         return self._run_expr(key=self.init_key)
 
@@ -94,8 +86,19 @@ class ZooWorkflow(BundleWorkflow):
     def finalize(self) -> bool:
         return self._run_expr(key=self.final_key)
 
-    def _run_expr(self, key: str):
+    def _run_expr(self, key: str) -> bool:
         return self.parser.get_parsed_content(key, lazy=True, eval_expr=True, instantiate=True)
+
+    def check(self) -> bool:
+        pass
+
+    @staticmethod
+    def check_required_keys(keys: Sequence[str], parser: ConfigParser) -> bool:
+        for i in keys:
+            if i not in parser:
+                logger.info(f"did not find the required key '{i}' in the config.")
+                return False
+        return True
 
     @staticmethod
     def patch_bundle_tracking(parser: ConfigParser, settings: dict):
@@ -130,3 +133,33 @@ class ZooWorkflow(BundleWorkflow):
             filepath = os.path.join(parser.get_parsed_content("output_dir"), default_name)
         Path(filepath).parent.mkdir(parents=True, exist_ok=True)
         parser.export_config_file(parser.get(), filepath)
+
+
+class ZooTrainWorkflow(ZooWorkflow):
+    train_keys = [
+        "bundle_root",
+        "device",
+        "dataset_dir",
+        "train#trainer",
+        "train#trainer#max_epochs",
+        "train#dataset",
+        "train#dataset#data",
+        "train#handlers",
+    ]
+    val_keys = [
+        "validate#evaluator",
+        "validate#handlers",
+        "validate#dataset",
+        "validate#dataset#data",
+    ]
+
+    def check(self) -> bool:
+        return self.check_required_keys(self.train_keys, self.parser) & \
+            self.check_required_keys(self.val_keys, self.parser)
+
+
+class ZooInferWorkflow(ZooWorkflow):
+    infer_keys = ["bundle_root", "device", "network_def", "inferer"]
+
+    def check(self) -> bool:
+        return self.check_required_keys(self.infer_keys, self.parser)
