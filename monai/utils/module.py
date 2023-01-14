@@ -19,7 +19,7 @@ import warnings
 from collections.abc import Callable, Collection, Hashable, Mapping
 from functools import partial, wraps
 from importlib import import_module
-from inspect import isclass, isfunction, ismethod
+from inspect import isclass
 from pkgutil import walk_packages
 from pydoc import locate
 from re import match
@@ -241,8 +241,7 @@ def instantiate(path: str, **kwargs):
             pdb.set_trace()
         if isclass(component):
             return component(**kwargs)
-        # support regular function, static method and class method
-        if isfunction(component) or (ismethod(component) and isclass(getattr(component, "__self__", None))):
+        if callable(component):  # support regular function, static method and class method
             return partial(component, **kwargs)
     except Exception as e:
         raise RuntimeError(f"Failed to instantiate '{path}' with kwargs: {kwargs}") from e

@@ -274,6 +274,10 @@ class TestConfigParser(unittest.TestCase):
         result = trans(np.ones(64))
         self.assertTupleEqual(result.shape, (1, 8, 8))
 
+    def test_builtin(self):
+        config = {"import statements": "$import math", "calc": {"_target_": "math.isclose", "a": 0.001, "b": 0.001}}
+        self.assertEqual(ConfigParser(config).calc(), True)
+
 
 if __name__ == "__main__":
     unittest.main()
