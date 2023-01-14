@@ -308,7 +308,7 @@ class DenseNet121(DenseNet):
     ) -> None:
         super().__init__(spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels, init_features=init_features, growth_rate=growth_rate, block_config=block_config, **kwargs)
         if pretrained:
-            if kwargs["spatial_dims"] > 2:
+            if spatial_dims > 2:
                 raise NotImplementedError(
                     "Parameter `spatial_dims` is > 2 ; currently PyTorch Hub does not"
                     "provide pretrained models for more than two spatial dimensions."
@@ -333,7 +333,7 @@ class DenseNet169(DenseNet):
     ) -> None:
         super().__init__(spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels, init_features=init_features, growth_rate=growth_rate, block_config=block_config, **kwargs)
         if pretrained:
-            if kwargs["spatial_dims"] > 2:
+            if spatial_dims > 2:
                 raise NotImplementedError(
                     "Parameter `spatial_dims` is > 2 ; currently PyTorch Hub does not"
                     "provide pretrained models for more than two spatial dimensions."
@@ -358,7 +358,7 @@ class DenseNet201(DenseNet):
     ) -> None:
         super().__init__(spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels, init_features=init_features, growth_rate=growth_rate, block_config=block_config, **kwargs)
         if pretrained:
-            if kwargs["spatial_dims"] > 2:
+            if spatial_dims > 2:
                 raise NotImplementedError(
                     "Parameter `spatial_dims` is > 2 ; currently PyTorch Hub does not"
                     "provide pretrained models for more than two spatial dimensions."
