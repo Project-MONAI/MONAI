@@ -226,8 +226,7 @@ def instantiate(path: str, **kwargs):
             for `partial` function.
 
     """
-
-    component = locate(path)
+    component = locate(path) if isinstance(path, str) else path
     if component is None:
         raise ModuleNotFoundError(f"Cannot locate class or function path: '{path}'.")
     try:
