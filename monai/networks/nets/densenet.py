@@ -306,7 +306,15 @@ class DenseNet121(DenseNet):
         progress: bool = True,
         **kwargs,
     ) -> None:
-        super().__init__(spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels, init_features=init_features, growth_rate=growth_rate, block_config=block_config, **kwargs)
+        super().__init__(
+            spatial_dims=spatial_dims,
+            in_channels=in_channels,
+            out_channels=out_channels,
+            init_features=init_features,
+            growth_rate=growth_rate,
+            block_config=block_config,
+            **kwargs,
+        )
         if pretrained:
             if spatial_dims > 2:
                 raise NotImplementedError(
@@ -331,7 +339,15 @@ class DenseNet169(DenseNet):
         progress: bool = True,
         **kwargs,
     ) -> None:
-        super().__init__(spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels, init_features=init_features, growth_rate=growth_rate, block_config=block_config, **kwargs)
+        super().__init__(
+            spatial_dims=spatial_dims,
+            in_channels=in_channels,
+            out_channels=out_channels,
+            init_features=init_features,
+            growth_rate=growth_rate,
+            block_config=block_config,
+            **kwargs,
+        )
         if pretrained:
             if spatial_dims > 2:
                 raise NotImplementedError(
@@ -356,7 +372,15 @@ class DenseNet201(DenseNet):
         progress: bool = True,
         **kwargs,
     ) -> None:
-        super().__init__(spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels, init_features=init_features, growth_rate=growth_rate, block_config=block_config, **kwargs)
+        super().__init__(
+            spatial_dims=spatial_dims,
+            in_channels=in_channels,
+            out_channels=out_channels,
+            init_features=init_features,
+            growth_rate=growth_rate,
+            block_config=block_config,
+            **kwargs,
+        )
         if pretrained:
             if spatial_dims > 2:
                 raise NotImplementedError(
@@ -381,7 +405,15 @@ class DenseNet264(DenseNet):
         progress: bool = True,
         **kwargs,
     ) -> None:
-        super().__init__(spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels, init_features=init_features, growth_rate=growth_rate, block_config=block_config, **kwargs)
+        super().__init__(
+            spatial_dims=spatial_dims,
+            in_channels=in_channels,
+            out_channels=out_channels,
+            init_features=init_features,
+            growth_rate=growth_rate,
+            block_config=block_config,
+            **kwargs,
+        )
         if pretrained:
             raise NotImplementedError("Currently PyTorch Hub does not provide densenet264 pretrained models.")
 
