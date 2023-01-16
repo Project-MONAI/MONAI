@@ -67,6 +67,7 @@ def get_optional_config_values():
     output = OrderedDict()
 
     output["Pytorch Ignite"] = get_package_version("ignite")
+    output["ITK"] = get_package_version("itk")
     output["Nibabel"] = get_package_version("nibabel")
     output["scikit-image"] = get_package_version("skimage")
     output["Pillow"] = get_package_version("PIL")
