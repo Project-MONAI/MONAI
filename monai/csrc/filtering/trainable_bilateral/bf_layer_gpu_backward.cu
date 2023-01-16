@@ -59,6 +59,7 @@ __global__ void BilateralFilterCudaKernel3DBackward(
 
   // Zero kernel aggregates.
   scalar_t valueSum = 0;
+  scalar_t weightSum = 0;
 
   for (int kernelX = 0; kernelX < cKernelSizesBack[0]; kernelX++) {
     int neighbourX = max(0, min(homeX + (kernelX - cHalfWindowSize_arrBack[0]), cSizesBack[0] - 1));
@@ -130,6 +131,7 @@ __global__ void BilateralFilterCudaKernel3DBackward(
             valueSum += gradientInputTensor[batchOffset + neighbourOffset + c * cColorStrideBack] * filter_kernel_back;
           }
 
+          weightSum += totalWeight;
         }
       }
     }
