@@ -48,7 +48,7 @@ class MLPBlock(nn.Module):
         if not (0 <= dropout_rate <= 1):
             raise ValueError("dropout_rate should be between 0 and 1.")
         mlp_dim = mlp_dim or hidden_size
-        self.linear1 = nn.Linear(hidden_size, mlp_dim)
+        self.linear1 = nn.Linear(hidden_size, mlp_dim) if act != "GEGLU" else nn.Linear(hidden_size, mlp_dim * 2)
         self.linear2 = nn.Linear(mlp_dim, hidden_size)
         self.fn = get_act_layer(act)
         self.drop1 = nn.Dropout(dropout_rate)
