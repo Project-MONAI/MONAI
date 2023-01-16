@@ -53,7 +53,7 @@ from monai.transforms.spatial.array import (
     SpatialResample,
     Zoom,
 )
-from monai.transforms.transform import MapTransform, RandomizableTransform
+from monai.transforms.transform import LazyTransform, MapTransform, RandomizableTransform
 from monai.transforms.utils import create_grid
 from monai.utils import (
     GridSampleMode,
@@ -142,7 +142,7 @@ __all__ = [
 ]
 
 
-class SpatialResampled(MapTransform, InvertibleTransform):
+class SpatialResampled(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SpatialResample`.
 
@@ -210,6 +210,11 @@ class SpatialResampled(MapTransform, InvertibleTransform):
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.dst_keys = ensure_tuple_rep(dst_keys, len(self.keys))
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool) -> None:
+        self._lazy_evaluation = val
+        self.sp_transform.lazy_evaluation = val
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d: dict = dict(data)
         for (key, mode, padding_mode, align_corners, dtype, dst_key) in self.key_iterator(
@@ -233,7 +238,7 @@ class SpatialResampled(MapTransform, InvertibleTransform):
         return d
 
 
-class ResampleToMatchd(MapTransform, InvertibleTransform):
+class ResampleToMatchd(MapTransform, InvertibleTransform, LazyTransform):
     """Dictionary-based wrapper of :py:class:`monai.transforms.ResampleToMatch`."""
 
     backend = ResampleToMatch.backend
@@ -285,6 +290,11 @@ class ResampleToMatchd(MapTransform, InvertibleTransform):
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.resampler = ResampleToMatch()
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool) -> None:
+        self._lazy_evaluation = val
+        self.resampler.lazy_evaluation = val
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for (key, mode, padding_mode, align_corners, dtype) in self.key_iterator(
@@ -307,7 +317,7 @@ class ResampleToMatchd(MapTransform, InvertibleTransform):
         return d
 
 
-class Spacingd(MapTransform, InvertibleTransform):
+class Spacingd(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Spacing`.
 
@@ -410,6 +420,11 @@ class Spacingd(MapTransform, InvertibleTransform):
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.scale_extent = ensure_tuple_rep(scale_extent, len(self.keys))
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool) -> None:
+        self._lazy_evaluation = val
+        self.spacing_transform.lazy_evaluation = val
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d: dict = dict(data)
         for key, mode, padding_mode, align_corners, dtype, scale_extent in self.key_iterator(
@@ -433,7 +448,7 @@ class Spacingd(MapTransform, InvertibleTransform):
         return d
 
 
-class Orientationd(MapTransform, InvertibleTransform):
+class Orientationd(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Orientation`.
 
@@ -476,6 +491,11 @@ class Orientationd(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.ornt_transform = Orientation(axcodes=axcodes, as_closest_canonical=as_closest_canonical, labels=labels)
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool) -> None:
+        self._lazy_evaluation = val
+        self.ornt_transform.lazy_evaluation = val
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d: dict = dict(data)
         for key in self.key_iterator(d):
@@ -489,7 +509,7 @@ class Orientationd(MapTransform, InvertibleTransform):
         return d
 
 
-class Rotate90d(MapTransform, InvertibleTransform):
+class Rotate90d(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Rotate90`.
     """
@@ -509,6 +529,11 @@ class Rotate90d(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.rotator = Rotate90(k, spatial_axes)
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool) -> None:
+        self._lazy_evaluation = val
+        self.rotator.lazy_evaluation = val
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
@@ -522,7 +547,7 @@ class Rotate90d(MapTransform, InvertibleTransform):
         return d
 
 
-class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
+class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandRotate90`.
     With probability `prob`, input arrays are rotated by 90 degrees
@@ -570,6 +595,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
         # FIXME: here we didn't use array version `RandRotate90` transform as others, because we need
         # to be compatible with the random status of some previous integration tests
         rotator = Rotate90(self._rand_k, self.spatial_axes)
+        rotator.lazy_evaluation = self.lazy_evaluation
         for key in self.key_iterator(d):
             d[key] = rotator(d[key]) if self._do_transform else convert_to_tensor(d[key], track_meta=get_track_meta())
             if get_track_meta():
@@ -588,7 +614,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
 
-class Resized(MapTransform, InvertibleTransform):
+class Resized(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Resize`.
 
@@ -644,6 +670,11 @@ class Resized(MapTransform, InvertibleTransform):
         self.anti_aliasing_sigma = ensure_tuple_rep(anti_aliasing_sigma, len(self.keys))
         self.resizer = Resize(spatial_size=spatial_size, size_mode=size_mode)
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool) -> None:
+        self._lazy_evaluation = val
+        self.resizer.lazy_evaluation = val
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key, mode, align_corners, anti_aliasing, anti_aliasing_sigma in self.key_iterator(
@@ -665,7 +696,7 @@ class Resized(MapTransform, InvertibleTransform):
         return d
 
 
-class Affined(MapTransform, InvertibleTransform):
+class Affined(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Affine`.
     """
@@ -754,6 +785,11 @@ class Affined(MapTransform, InvertibleTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool) -> None:
+        self._lazy_evaluation = val
+        self.affine.lazy_evaluation = val
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
@@ -767,7 +803,7 @@ class Affined(MapTransform, InvertibleTransform):
         return d
 
 
-class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
+class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.RandAffine`.
     """
@@ -862,6 +898,11 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool) -> None:
+        self._lazy_evaluation = val
+        self.rand_affine.lazy_evaluation = val
+
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandAffined:
         self.rand_affine.set_random_state(seed, state)
         super().set_random_state(seed, state)
@@ -878,7 +919,8 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         # all the keys share the same random Affine factor
         self.rand_affine.randomize()
 
-        spatial_size = d[first_key].shape[1:]
+        item = d[first_key]
+        spatial_size = item.peek_pending_shape() if isinstance(item, MetaTensor) else item.shape[1:]  # type: ignore
 
         sp_size = fall_back_tuple(self.rand_affine.spatial_size, spatial_size)
         # change image size or do random transform
@@ -888,7 +930,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         if do_resampling:  # need to prepare grid
             grid = self.rand_affine.get_identity_grid(sp_size)
             if self._do_transform:  # add some random factors
-                grid = self.rand_affine.rand_affine_grid(grid=grid)
+                grid = self.rand_affine.rand_affine_grid(sp_size, grid=grid)
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             # do the transform
@@ -1185,7 +1227,7 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
         return d
 
 
-class Flipd(MapTransform, InvertibleTransform):
+class Flipd(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Flip`.
 
@@ -1206,6 +1248,11 @@ class Flipd(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.flipper = Flip(spatial_axis=spatial_axis)
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool):
+        self.flipper.lazy_evaluation = val
+        self._lazy_evaluation = val
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
@@ -1219,7 +1266,7 @@ class Flipd(MapTransform, InvertibleTransform):
         return d
 
 
-class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
+class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandFlip`.
 
@@ -1245,6 +1292,11 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
         self.flipper = Flip(spatial_axis=spatial_axis)
+
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool):
+        self.flipper.lazy_evaluation = val
+        self._lazy_evaluation = val
 
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandFlipd:
         super().set_random_state(seed, state)
@@ -1275,7 +1327,7 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
 
-class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
+class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandAxisFlip`.
 
@@ -1295,6 +1347,11 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
         self.flipper = RandAxisFlip(prob=1.0)
+
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool):
+        self.flipper.lazy_evaluation = val
+        self._lazy_evaluation = val
 
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandAxisFlipd:
         super().set_random_state(seed, state)
@@ -1332,7 +1389,7 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
 
-class Rotated(MapTransform, InvertibleTransform):
+class Rotated(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Rotate`.
 
@@ -1381,6 +1438,11 @@ class Rotated(MapTransform, InvertibleTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool):
+        self.rotator.lazy_evaluation = val
+        self._lazy_evaluation = val
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
@@ -1398,7 +1460,7 @@ class Rotated(MapTransform, InvertibleTransform):
         return d
 
 
-class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
+class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandRotate`
     Randomly rotates the input arrays.
@@ -1457,6 +1519,11 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool):
+        self.rand_rotate.lazy_evaluation = val
+        self._lazy_evaluation = val
+
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandRotated:
         super().set_random_state(seed, state)
         self.rand_rotate.set_random_state(seed, state)
@@ -1483,8 +1550,18 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
             else:
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta(), dtype=torch.float32)
             if get_track_meta():
-                rot_info = self.pop_transform(d[key], check=False) if self._do_transform else {}
-                self.push_transform(d[key], extra_info=rot_info)
+                if not self.lazy_evaluation:
+                    rot_info = self.pop_transform(d[key], check=False) if self._do_transform else {}
+                    self.push_transform(d[key], extra_info=rot_info)
+                elif self._do_transform:
+                    p = d[key].pending_operations.pop()  # type: ignore
+                    self.push_pending_transform(
+                        d[key],
+                        orig_size=p["orig_size"],
+                        extra_info=p["extra_info"],
+                        lazy_shape=p["lazy_shape"],
+                        lazy_affine=p["lazy_affine"],
+                    )
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
@@ -1497,7 +1574,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
 
-class Zoomd(MapTransform, InvertibleTransform):
+class Zoomd(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Zoom`.
 
@@ -1547,6 +1624,11 @@ class Zoomd(MapTransform, InvertibleTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.zoomer = Zoom(zoom=zoom, keep_size=keep_size, **kwargs)
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool):
+        self.zoomer.lazy_evaluation = val
+        self._lazy_evaluation = val
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key, mode, padding_mode, align_corners in self.key_iterator(
@@ -1562,7 +1644,7 @@ class Zoomd(MapTransform, InvertibleTransform):
         return d
 
 
-class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
+class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTransform):
     """
     Dict-based version :py:class:`monai.transforms.RandZoom`.
 
@@ -1622,6 +1704,11 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
+
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool):
+        self.rand_zoom.lazy_evaluation = val
+        self._lazy_evaluation = val
 
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandZoomd:
         super().set_random_state(seed, state)

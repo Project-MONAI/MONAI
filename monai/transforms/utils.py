@@ -1659,7 +1659,7 @@ def convert_to_contiguous(
 def scale_affine(affine, spatial_size, new_spatial_size, centered: bool = True):
     """
     Scale the affine matrix according to the new spatial size.
-
+    TODO: update the docstring
     Args:
         affine: affine matrix to scale.
         spatial_size: original spatial size.
@@ -1671,14 +1671,14 @@ def scale_affine(affine, spatial_size, new_spatial_size, centered: bool = True):
         Scaled affine matrix.
 
     """
-    if spatial_size == new_spatial_size:
-        return affine
     r = len(affine) - 1
+    if spatial_size == new_spatial_size:
+        return convert_to_dst_type(np.eye(r + 1), affine)[0]
     s = np.array([float(o) / float(max(n, 1)) for o, n in zip(spatial_size, new_spatial_size)])
     scale = create_scale(r, s.tolist())
     if centered:
         scale[:r, -1] = (np.diag(scale)[:r] - 1) / 2  # type: ignore
-    return affine @ convert_to_dst_type(scale, affine)[0]
+    return convert_to_dst_type(scale, affine)[0]
 
 
 def attach_hook(func, hook, mode="pre"):

@@ -112,14 +112,15 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = 
     if not Affine.is_affine_shaped(matrix):
         raise NotImplementedError("calling dense grid resample API not implemented")
     kwargs = {} if kwargs is None else kwargs
-    init_kwargs = {
-        "spatial_size": kwargs.pop(LazyAttr.SHAPE, data.shape)[1:],
-        "dtype": kwargs.pop(LazyAttr.DTYPE, data.dtype),
-    }
+    init_kwargs = {"dtype": kwargs.pop(LazyAttr.DTYPE, data.dtype)}
+    img = convert_to_tensor(data=data, track_meta=monai.data.get_track_meta())
+    init_affine = img.affine
     call_kwargs = {
+        "spatial_size": kwargs.pop(LazyAttr.SHAPE, img.peek_pending_shape()),
+        "dst_affine": init_affine @ monai.utils.convert_to_dst_type(matrix, init_affine)[0],
         "mode": kwargs.pop(LazyAttr.INTERP_MODE, None),
         "padding_mode": kwargs.pop(LazyAttr.PADDING_MODE, None),
     }
-    resampler = monai.transforms.Affine(affine=matrix, image_only=True, **init_kwargs)
+    resampler = monai.transforms.SpatialResample(**init_kwargs)
     with resampler.trace_transform(False):  # don't track this transform in `data`
         return resampler(img=data, **call_kwargs)

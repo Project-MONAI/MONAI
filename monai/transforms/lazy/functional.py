@@ -11,10 +11,10 @@
 
 from __future__ import annotations
 
+import numpy as np
 import torch
 
 from monai.data.meta_tensor import MetaTensor
-from monai.data.utils import to_affine_nd
 from monai.transforms.lazy.utils import (
     affine_from_pending,
     combine_transforms,
@@ -22,13 +22,17 @@ from monai.transforms.lazy.utils import (
     kwargs_from_pending,
     resample,
 )
+from monai.utils.enums import LazyAttr
 
 __all__ = ["apply_transforms"]
 
 
-def apply_transforms(data: torch.Tensor | MetaTensor, pending: list | None = None):
+def apply_transforms(
+    data: torch.Tensor | MetaTensor, pending: list | None = None, mode=None, padding_mode=None, dtype=np.float64
+):
     """
     This method applies pending transforms to `data` tensors.
+    TODO: docstring mode/padding mode overriding
 
     Args:
         data: A torch Tensor or a monai MetaTensor.
@@ -39,23 +43,30 @@ def apply_transforms(data: torch.Tensor | MetaTensor, pending: list | None = Non
     pending = [] if pending is None else pending
 
     if not pending:
-        return data
-
+        return data, []
     cumulative_xform = affine_from_pending(pending[0])
     cur_kwargs = kwargs_from_pending(pending[0])
+    overriding = {}
+    if mode is not None:
+        overriding[LazyAttr.INTERP_MODE] = mode
+    if padding_mode is not None:
+        overriding[LazyAttr.PADDING_MODE] = padding_mode
+    overriding[LazyAttr.DTYPE] = dtype if dtype is not None else data.dtype
 
     for p in pending[1:]:
         new_kwargs = kwargs_from_pending(p)
         if not is_compatible_apply_kwargs(cur_kwargs, new_kwargs):
             # carry out an intermediate resample here due to incompatibility between arguments
-            data = resample(data, cumulative_xform, cur_kwargs)
+            _cur_kwargs = cur_kwargs.copy()
+            _cur_kwargs.update(overriding)
+            data = resample(data, cumulative_xform, _cur_kwargs)
         next_matrix = affine_from_pending(p)
         cumulative_xform = combine_transforms(cumulative_xform, next_matrix)
         cur_kwargs.update(new_kwargs)
+    cur_kwargs.update(overriding)
     data = resample(data, cumulative_xform, cur_kwargs)
     if isinstance(data, MetaTensor):
         data.clear_pending_operations()
-        data.affine = data.affine @ to_affine_nd(3, cumulative_xform)
         for p in pending:
             data.push_applied_operation(p)
 

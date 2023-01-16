@@ -21,10 +21,12 @@ from typing import Any
 import numpy as np
 
 import monai
+import monai.transforms as mt
 from monai.transforms.inverse import InvertibleTransform
 
 # For backwards compatibility (so this still works: from monai.transforms.compose import MapTransform)
 from monai.transforms.transform import (  # noqa: F401
+    LazyTransform,
     MapTransform,
     Randomizable,
     RandomizableTransform,
@@ -32,9 +34,34 @@ from monai.transforms.transform import (  # noqa: F401
     apply_transform,
 )
 from monai.utils import MAX_SEED, ensure_tuple, get_seed
-from monai.utils.enums import TraceKeys
+from monai.utils.enums import GridSampleMode, GridSamplePadMode, TraceKeys
 
 __all__ = ["Compose", "OneOf", "RandomOrder"]
+
+
+def eval_lazy_stack(
+    data, upcoming, lazy_evaluation: bool = False, mode=GridSampleMode.BILINEAR, padding_mode=GridSamplePadMode.BORDER
+):
+    """
+    Given the upcoming transform ``upcoming``, if lazy_resample is True, go through the Metatensors and
+    evaluate the lazy applied operations. The returned `data` will then be ready for the ``upcoming`` transform.
+    """
+    if not lazy_evaluation:
+        return data  # eager evaluation
+    if isinstance(data, monai.data.MetaTensor):
+        if not isinstance(upcoming, LazyTransform):
+            data, _ = mt.apply_transforms(data, mode=mode, padding_mode=padding_mode)
+        return data
+    if isinstance(data, Mapping):
+        if isinstance(upcoming, MapTransform):
+            return {
+                k: eval_lazy_stack(v, upcoming, lazy_evaluation, mode, padding_mode) if k in upcoming.keys else v
+                for k, v in data.items()
+            }
+        return {k: eval_lazy_stack(v, upcoming, lazy_evaluation, mode, padding_mode) for k, v in data.items()}
+    if isinstance(data, (list, tuple)):
+        return [eval_lazy_stack(v, upcoming, lazy_evaluation, mode, padding_mode) for v in data]
+    return data
 
 
 class Compose(Randomizable, InvertibleTransform):
@@ -123,6 +150,9 @@ class Compose(Randomizable, InvertibleTransform):
         map_items: bool = True,
         unpack_items: bool = False,
         log_stats: bool = False,
+        lazy_evaluation: bool = False,
+        mode=GridSampleMode.BILINEAR,
+        padding_mode=GridSamplePadMode.BORDER,
     ) -> None:
         if transforms is None:
             transforms = []
@@ -131,6 +161,14 @@ class Compose(Randomizable, InvertibleTransform):
         self.unpack_items = unpack_items
         self.log_stats = log_stats
         self.set_random_state(seed=get_seed())
+
+        self.lazy_evaluation = lazy_evaluation
+        self.mode = mode
+        self.padding_mode = padding_mode
+        if self.lazy_evaluation:
+            for t in self.flatten().transforms:  # TODO: test Compose of Compose/OneOf
+                if isinstance(t, LazyTransform):
+                    t.lazy_evaluation = True
 
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> Compose:
         super().set_random_state(seed=seed, state=state)
@@ -174,7 +212,9 @@ class Compose(Randomizable, InvertibleTransform):
 
     def __call__(self, input_):
         for _transform in self.transforms:
+            input_ = eval_lazy_stack(input_, _transform, self.lazy_evaluation, self.mode, self.padding_mode)
             input_ = apply_transform(_transform, input_, self.map_items, self.unpack_items, self.log_stats)
+        input_ = eval_lazy_stack(input_, None, self.lazy_evaluation, self.mode, self.padding_mode)
         return input_
 
     def inverse(self, data):

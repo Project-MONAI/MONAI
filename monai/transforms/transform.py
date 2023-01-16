@@ -319,18 +319,17 @@ class LazyTransform(Transform, LazyTrait):
     dictionary transforms to simplify implementation of new lazy transforms.
     """
 
-    def __init__(self, lazy_evaluation: bool | None = True):
-        self.lazy_evaluation = lazy_evaluation
+    _lazy_evaluation: bool = False
 
     @property
     def lazy_evaluation(self):
-        return self.lazy_evaluation
+        return self._lazy_evaluation
 
     @lazy_evaluation.setter
     def lazy_evaluation(self, lazy_evaluation: bool):
         if not isinstance(lazy_evaluation, bool):
-            raise TypeError("'lazy_evaluation must be a bool but is of " f"type {type(lazy_evaluation)}'")
-        self.lazy_evaluation = lazy_evaluation
+            raise TypeError(f"lazy_evaluation must be a bool but is of type {type(lazy_evaluation)}")
+        self._lazy_evaluation = lazy_evaluation
 
 
 class RandomizableTransform(Randomizable, Transform):

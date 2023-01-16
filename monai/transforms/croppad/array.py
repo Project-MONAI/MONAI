@@ -30,7 +30,7 @@ from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.inverse import InvertibleTransform, TraceableTransform
-from monai.transforms.transform import Randomizable, Transform
+from monai.transforms.transform import LazyTransform, Randomizable, Transform
 from monai.transforms.utils import (
     compute_divisible_spatial_size,
     convert_pad_mode,
@@ -51,6 +51,7 @@ from monai.utils import (
     TransformBackends,
     convert_data_type,
     convert_to_dst_type,
+    convert_to_numpy,
     convert_to_tensor,
     ensure_tuple,
     ensure_tuple_rep,
@@ -80,7 +81,7 @@ __all__ = [
 ]
 
 
-class Pad(InvertibleTransform):
+class Pad(InvertibleTransform, LazyTransform):
     """
     Perform padding for a given an amount of padding in each dimension.
 
@@ -140,6 +141,17 @@ class Pad(InvertibleTransform):
         # torch.pad expects `[B, C, H, W, [D]]` shape
         return pad_pt(img.unsqueeze(0), pt_pad_width, mode=mode, **kwargs).squeeze(0)
 
+    def lazy_call(self, img: MetaTensor, to_pad) -> torch.Tensor:
+        if not (get_track_meta() and isinstance(img, MetaTensor)):
+            return img
+        current_shape = img.peek_pending_shape()
+        _affine = self.update_meta(img, to_pad=to_pad)
+        _shape = [d + s + e for d, (s, e) in zip(current_shape, to_pad[1:])]
+        self.push_pending_transform(
+            img, orig_size=current_shape, lazy_affine=_affine, lazy_shape=_shape, extra_info={"padded": to_pad}
+        )
+        return img
+
     def __call__(  # type: ignore
         self, img: torch.Tensor, to_pad: list[tuple[int, int]] | None = None, mode: str | None = None, **kwargs
     ) -> torch.Tensor:
@@ -160,19 +172,22 @@ class Pad(InvertibleTransform):
         """
         to_pad_ = self.to_pad if to_pad is None else to_pad
         if to_pad_ is None:
-            to_pad_ = self.compute_pad_width(img.shape[1:])
+            spatial_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
+            to_pad_ = self.compute_pad_width(spatial_shape)
         mode_ = self.mode if mode is None else mode
         kwargs_ = dict(self.kwargs)
         kwargs_.update(kwargs)
 
         img_t = convert_to_tensor(data=img, track_meta=get_track_meta())
-        _orig_size = img_t.shape[1:]
+        _orig_size = img_t.peek_pending_shape() if isinstance(img_t, MetaTensor) else img_t.shape[1:]
 
         # all zeros, skip padding
         if np.asarray(to_pad_).any():
             to_pad_ = list(to_pad_)
             if len(to_pad_) < len(img_t.shape):
                 to_pad_ = list(to_pad_) + [(0, 0)] * (len(img_t.shape) - len(to_pad_))
+            if self.lazy_evaluation:
+                return self.lazy_call(img_t, to_pad_)
             if mode_ in {"linear_ramp", "maximum", "mean", "median", "minimum", "symmetric", "empty"}:
                 out = self._np_pad(img_t, pad_width=to_pad_, mode=mode_, **kwargs_)
             else:
@@ -197,15 +212,16 @@ class Pad(InvertibleTransform):
         else:
             out = img_t
         if get_track_meta():
-            self.update_meta(tensor=out, to_pad=to_pad_)  # type: ignore
+            out.affine @= self.update_meta(tensor=out, to_pad=to_pad_)  # type: ignore
             self.push_transform(out, orig_size=_orig_size, extra_info={"padded": to_pad_})
         return out
 
     def update_meta(self, tensor: MetaTensor, to_pad: list[tuple[int, int]]):
-        spatial_rank = max(len(tensor.affine) - 1, 1)
+        _affine = tensor.peek_pending_affine()
+        spatial_rank = max(len(_affine) - 1, 1)
         to_shift = [-s[0] for s in to_pad[1:]]  # skipping the channel pad
         mat = create_translate(spatial_rank, to_shift)
-        tensor.affine = tensor.affine @ convert_to_dst_type(mat, tensor.affine)[0]
+        return convert_to_dst_type(mat, _affine)[0]
 
     def inverse(self, data: MetaTensor) -> MetaTensor:
         transform = self.pop_transform(data)
@@ -362,7 +378,7 @@ class DivisiblePad(Pad):
         return spatial_pad.compute_pad_width(spatial_shape)
 
 
-class Crop(InvertibleTransform):
+class Crop(InvertibleTransform, LazyTransform):
     """
     Perform crop operations on the input image.
 
@@ -422,36 +438,47 @@ class Crop(InvertibleTransform):
             else:
                 return [slice(int(s), int(e)) for s, e in zip(roi_start_t.tolist(), roi_end_t.tolist())]
 
+    def lazy_call(self, img: torch.Tensor, slices, cropped) -> torch.Tensor:
+        if not (get_track_meta() and isinstance(img, MetaTensor)):
+            return img
+        current_shape = img.peek_pending_shape()
+        _affine = self.update_meta(img, slices)
+        _shape = [s.indices(o)[1] - s.indices(o)[0] for s, o in zip(slices[1:], current_shape)]
+        self.push_pending_transform(
+            img, orig_size=current_shape, lazy_shape=_shape, lazy_affine=_affine, extra_info={"cropped": cropped}
+        )
+        return img
+
     def __call__(self, img: torch.Tensor, slices: tuple[slice, ...]) -> torch.Tensor:  # type: ignore
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
 
         """
-        orig_size = img.shape[1:]
+        orig_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
         slices_ = list(slices)
-        sd = len(img.shape[1:])  # spatial dims
+        sd = len(orig_size)  # spatial dims
         if len(slices_) < sd:
             slices_ += [slice(None)] * (sd - len(slices_))
         # Add in the channel (no cropping)
         slices = tuple([slice(None)] + slices_[:sd])
-
+        cropped = np.asarray([[s.indices(o)[0], o - s.indices(o)[1]] for s, o in zip(slices[1:], orig_size)])
+        cropped = cropped.flatten().tolist()
         img_t: MetaTensor = convert_to_tensor(data=img, track_meta=get_track_meta())
-        _orig_size = img_t.shape[1:]
+        if self.lazy_evaluation:
+            return self.lazy_call(img_t, slices, cropped)
         img_t = img_t[slices]  # type: ignore
         if get_track_meta():
-            self.update_meta(tensor=img_t, slices=slices)
-            cropped_from_start = np.asarray([s.indices(o)[0] for s, o in zip(slices[1:], orig_size)])
-            cropped_from_end = np.asarray(orig_size) - img_t.shape[1:] - cropped_from_start
-            cropped = list(chain(*zip(cropped_from_start.tolist(), cropped_from_end.tolist())))
-            self.push_transform(img_t, orig_size=_orig_size, extra_info={"cropped": cropped})
+            img_t.affine @= self.update_meta(tensor=img_t, slices=slices)
+            self.push_transform(img_t, orig_size=orig_size, extra_info={"cropped": cropped})
         return img_t
 
     def update_meta(self, tensor: MetaTensor, slices: tuple[slice, ...]):
-        spatial_rank = max(len(tensor.affine) - 1, 1)
+        _affine = tensor.peek_pending_affine()
+        spatial_rank = max(len(_affine) - 1, 1)
         to_shift = [s.start if s.start is not None else 0 for s in ensure_tuple(slices)[1:]]
         mat = create_translate(spatial_rank, to_shift)
-        tensor.affine = tensor.affine @ convert_to_dst_type(mat, tensor.affine)[0]
+        return convert_to_dst_type(mat, _affine)[0]
 
     def inverse(self, img: MetaTensor) -> MetaTensor:
         transform = self.pop_transform(img)
@@ -527,7 +554,7 @@ class CenterSpatialCrop(Crop):
         self.roi_size = roi_size
 
     def compute_slices(self, spatial_size: Sequence[int]):  # type: ignore
-        roi_size = fall_back_tuple(self.roi_size, spatial_size)
+        roi_size = fall_back_tuple(self.roi_size, convert_to_numpy(spatial_size, wrap_sequence=True))
         roi_center = [i // 2 for i in spatial_size]
         return super().compute_slices(roi_center=roi_center, roi_size=roi_size)
 
@@ -537,7 +564,10 @@ class CenterSpatialCrop(Crop):
         slicing doesn't apply to the channel dim.
 
         """
-        return super().__call__(img=img, slices=self.compute_slices(img.shape[1:]))
+        return super().__call__(
+            img=img,
+            slices=self.compute_slices(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]),
+        )
 
 
 class CenterScaleCrop(Crop):
@@ -551,14 +581,18 @@ class CenterScaleCrop(Crop):
     """
 
     def __init__(self, roi_scale: Sequence[float] | float):
+        super().__init__()
         self.roi_scale = roi_scale
 
     def __call__(self, img: torch.Tensor) -> torch.Tensor:  # type: ignore
-        img_size = img.shape[1:]
+        img_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
         ndim = len(img_size)
         roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
         cropper = CenterSpatialCrop(roi_size=roi_size)
-        return super().__call__(img=img, slices=cropper.compute_slices(img.shape[1:]))
+        return super().__call__(
+            img=img,
+            slices=cropper.compute_slices(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]),
+        )
 
 
 class RandSpatialCrop(Randomizable, Crop):
@@ -617,13 +651,16 @@ class RandSpatialCrop(Randomizable, Crop):
 
         """
         if randomize:
-            self.randomize(img.shape[1:])
+            self.randomize(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:])
         if self._size is None:
             raise RuntimeError("self._size not specified.")
         if self.random_center:
             return super().__call__(img=img, slices=self._slices)
         cropper = CenterSpatialCrop(self._size)
-        return super().__call__(img=img, slices=cropper.compute_slices(img.shape[1:]))
+        return super().__call__(
+            img=img,
+            slices=cropper.compute_slices(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]),
+        )
 
 
 class RandScaleCrop(RandSpatialCrop):
@@ -676,7 +713,7 @@ class RandScaleCrop(RandSpatialCrop):
         slicing doesn't apply to the channel dim.
 
         """
-        self.get_max_roi_size(img.shape[1:])
+        self.get_max_roi_size(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:])
         return super().__call__(img=img, randomize=randomize)
 
 
@@ -825,6 +862,11 @@ class CropForeground(Crop):
         self.k_divisible = k_divisible
         self.padder = Pad(mode=mode, **pad_kwargs)
 
+    @Crop.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool):
+        self.lazy_evaluation = val
+        self.padder.lazy_evaluation = val
+
     def compute_bounding_box(self, img: torch.Tensor):
         """
         Compute the start points and end points of bounding box to crop.
@@ -942,7 +984,7 @@ class RandWeightedCrop(Randomizable, TraceableTransform):
             self.randomize(weight_map)
         _spatial_size = fall_back_tuple(self.spatial_size, weight_map.shape[1:])
         results: list[torch.Tensor] = []
-        orig_size = img.shape[1:]
+        orig_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
         for i, center in enumerate(self.centers):
             cropped = SpatialCrop(roi_center=center, roi_size=_spatial_size)(img)
             if get_track_meta():
@@ -1100,7 +1142,7 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform):
         if randomize:
             self.randomize(label, fg_indices, bg_indices, image)
         results: list[torch.Tensor] = []
-        orig_size = img.shape[1:]
+        orig_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
         if self.centers is not None:
             for i, center in enumerate(self.centers):
                 roi_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
@@ -1247,7 +1289,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform):
         if randomize:
             self.randomize(label, indices, image)
         results: list[torch.Tensor] = []
-        orig_size = img.shape[1:]
+        orig_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
         if self.centers is not None:
             for i, center in enumerate(self.centers):
                 roi_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
@@ -1262,9 +1304,9 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform):
         return results
 
 
-class ResizeWithPadOrCrop(InvertibleTransform):
+class ResizeWithPadOrCrop(InvertibleTransform, LazyTransform):
     """
-    Resize an image to a target spatial size by either centrally cropping the image or
+    Resize an image to a target spatial size by either centrally crpopping the image or
     padding it evenly with a user-specified mode.
     When the dimension is smaller than the target size, do symmetric padding along that dim.
     When the dimension is larger than the target size, do central cropping along that dim.
@@ -1297,6 +1339,12 @@ class ResizeWithPadOrCrop(InvertibleTransform):
         self.padder = SpatialPad(spatial_size=spatial_size, method=method, mode=mode, **pad_kwargs)
         self.cropper = CenterSpatialCrop(roi_size=spatial_size)
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool):
+        self.padder.lazy_evaluation = val
+        self.cropper.lazy_evaluation = val
+        self._lazy_evaluation = val
+
     def __call__(self, img: torch.Tensor, mode: str | None = None, **pad_kwargs) -> torch.Tensor:  # type: ignore
         """
         Args:
@@ -1312,7 +1360,7 @@ class ResizeWithPadOrCrop(InvertibleTransform):
                 note that `np.pad` treats channel dimension as the first dimension.
 
         """
-        orig_size = img.shape[1:]
+        orig_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
         ret = self.padder(self.cropper(img), mode=mode, **pad_kwargs)
         # remove the individual info and combine
         if get_track_meta():

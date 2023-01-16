@@ -22,7 +22,8 @@ import torch
 from monai import transforms
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.transform import Transform
-from monai.utils.enums import TraceKeys
+from monai.utils.enums import LazyAttr, TraceKeys
+from monai.utils.type_conversion import convert_to_numpy, convert_to_tensor
 
 __all__ = ["TraceableTransform", "InvertibleTransform"]
 
@@ -140,6 +141,38 @@ class TraceableTransform(Transform):
                         data = dict(data)
                     data[self.trace_key(key)] = []
                 data[self.trace_key(key)].append(info)
+        else:
+            warnings.warn(f"`data` should be either `MetaTensor` or dictionary, got {type(data)}. {info} not tracked.")
+
+    def push_pending_transform(
+        self,
+        data,
+        key: Hashable = None,
+        lazy_shape=None,
+        lazy_affine=None,
+        extra_info: dict | None = None,
+        orig_size: tuple | None = None,
+    ) -> None:
+        """
+        Push to MetaTensor's pending operations for later execution.
+        Args:
+            data:
+            key:
+            lazy_shape:
+            lazy_affine:
+            extra_info:
+            orig_size:
+
+        Returns:
+
+        """
+        info = self.get_transform_info(data, key, extra_info, orig_size)
+        info[LazyAttr.SHAPE] = tuple(convert_to_numpy(lazy_shape, wrap_sequence=True).tolist())
+        info[LazyAttr.AFFINE] = convert_to_tensor(lazy_affine, device=torch.device("cpu"))
+        if isinstance(data, MetaTensor):
+            data.push_pending_operation(info)
+        elif isinstance(data, Mapping) and key in data and isinstance(data[key], MetaTensor):
+            data[key].push_pending_operation(info)
         else:
             warnings.warn(f"`data` should be either `MetaTensor` or dictionary, got {type(data)}. {info} not tracked.")
 
