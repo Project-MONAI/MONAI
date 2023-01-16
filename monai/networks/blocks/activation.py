@@ -163,8 +163,8 @@ class Mish(nn.Module):
     def forward(self, input: torch.Tensor):
         return monai_mish(input, self.inplace)
 
-class GEGLU(nn.Module):
 
+class GEGLU(nn.Module):
     def forward(self, input: torch.Tensor):
         x, gate = input.chunk(2, dim=-1)
         return x * nn.functional.gelu(gate)
