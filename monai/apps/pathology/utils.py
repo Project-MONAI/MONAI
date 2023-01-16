@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Union
+from __future__ import annotations
 
 import numpy as np
 import torch
@@ -40,7 +40,7 @@ def compute_multi_instance_mask(mask: np.ndarray, threshold: float):
     return multi_instance_mask
 
 
-def compute_isolated_tumor_cells(tumor_mask: np.ndarray, threshold: float) -> List[int]:
+def compute_isolated_tumor_cells(tumor_mask: np.ndarray, threshold: float) -> list[int]:
     """
     This method computes identifies Isolated Tumor Cells (ITC) and return their labels.
 
@@ -62,7 +62,7 @@ class PathologyProbNMS(ProbNMS):
     Pathology.
     """
 
-    def __call__(self, probs_map: Union[np.ndarray, torch.Tensor], resolution_level: int = 0):
+    def __call__(self, probs_map: np.ndarray | torch.Tensor, resolution_level: int = 0):
         """
         probs_map: the input probabilities map, it must have shape (H[, W, ...]).
         resolution_level: the level at which the probabilities map is made.

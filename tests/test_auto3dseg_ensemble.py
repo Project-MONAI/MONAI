@@ -9,10 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
-from typing import Dict, List
 
 import nibabel as nib
 import numpy as np
@@ -27,7 +28,7 @@ from tests.utils import SkipIfBeforePyTorchVersion, skip_if_downloading_fails, s
 
 _, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
-fake_datalist: Dict[str, List[Dict]] = {
+fake_datalist: dict[str, list[dict]] = {
     "testing": [{"image": "val_001.fake.nii.gz"}, {"image": "val_002.fake.nii.gz"}],
     "training": [
         {"fold": 0, "image": "tr_image_001.fake.nii.gz", "label": "tr_label_001.fake.nii.gz"},
@@ -45,16 +46,15 @@ fake_datalist: Dict[str, List[Dict]] = {
     ],
 }
 
-num_gpus = 4 if torch.cuda.device_count() > 4 else torch.cuda.device_count()
 train_param = (
     {
-        "CUDA_VISIBLE_DEVICES": list(range(num_gpus)),
         "num_images_per_batch": 2,
         "num_epochs": 2,
         "num_epochs_per_validation": 1,
         "num_warmup_epochs": 1,
         "use_pretrain": False,
         "pretrained_path": "",
+        "determ": True,
     }
     if torch.cuda.is_available()
     else {}
@@ -64,7 +64,7 @@ pred_param = {"files_slices": slice(0, 1), "mode": "mean", "sigmoid": True}
 
 
 @skip_if_quick
-@SkipIfBeforePyTorchVersion((1, 9, 1))
+@SkipIfBeforePyTorchVersion((1, 10, 0))
 @unittest.skipIf(not has_tb, "no tensorboard summary writer")
 class TestEnsembleBuilder(unittest.TestCase):
     def setUp(self) -> None:
@@ -139,7 +139,11 @@ class TestEnsembleBuilder(unittest.TestCase):
         builder = AlgoEnsembleBuilder(history, data_src_cfg)
         builder.set_ensemble_method(AlgoEnsembleBestN(n_best=1))
         ensemble = builder.get_ensemble()
-        pred_param["network#init_filter"] = 8  # segresnet
+        name = ensemble.get_algo_ensemble()[0][AlgoEnsembleKeys.ID]
+        if name.startswith("segresnet"):
+            pred_param["network#init_filters"] = 8
+        elif name.startswith("swinunetr"):
+            pred_param["network#feature_size"] = 12
         preds = ensemble(pred_param)
         self.assertTupleEqual(preds[0].shape, (2, 24, 24, 24))
 

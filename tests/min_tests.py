@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import glob
 import os
 import sys
@@ -190,6 +192,7 @@ def run_testsuit():
         "test_bundle_utils",
         "test_bundle_init_bundle",
         "test_fastmri_reader",
+        "test_metrics_reloaded",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 

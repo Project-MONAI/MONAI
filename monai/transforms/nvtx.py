@@ -12,6 +12,8 @@
 Wrapper around NVIDIA Tools Extension for profiling MONAI transformations
 """
 
+from __future__ import annotations
+
 from monai.transforms.transform import RandomizableTrait, Transform
 from monai.utils import optional_import
 

@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
-from typing import Optional, Union
 
 import numpy as np
 import torch
@@ -62,9 +63,9 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
         self,
         include_background: bool = False,
         distance_metric: str = "euclidean",
-        percentile: Optional[float] = None,
+        percentile: float | None = None,
         directed: bool = False,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        reduction: MetricReduction | str = MetricReduction.MEAN,
         get_not_nans: bool = False,
     ) -> None:
         super().__init__()
@@ -104,7 +105,7 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
             directed=self.directed,
         )
 
-    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):
+    def aggregate(self, reduction: MetricReduction | str | None = None):
         """
         Execute reduction logic for the output of `compute_hausdorff_distance`.
 
@@ -124,11 +125,11 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
 
 
 def compute_hausdorff_distance(
-    y_pred: Union[np.ndarray, torch.Tensor],
-    y: Union[np.ndarray, torch.Tensor],
+    y_pred: np.ndarray | torch.Tensor,
+    y: np.ndarray | torch.Tensor,
     include_background: bool = False,
     distance_metric: str = "euclidean",
-    percentile: Optional[float] = None,
+    percentile: float | None = None,
     directed: bool = False,
 ):
     """
@@ -179,7 +180,7 @@ def compute_hausdorff_distance(
 
 
 def compute_percent_hausdorff_distance(
-    edges_pred: np.ndarray, edges_gt: np.ndarray, distance_metric: str = "euclidean", percentile: Optional[float] = None
+    edges_pred: np.ndarray, edges_gt: np.ndarray, distance_metric: str = "euclidean", percentile: float | None = None
 ):
     """
     This function is used to compute the directed Hausdorff distance.

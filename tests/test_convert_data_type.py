@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
-from typing import List, Tuple
 
 import numpy as np
 import torch
@@ -20,14 +21,14 @@ from monai.data import MetaTensor
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, get_equivalent_dtype
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
-TESTS: List[Tuple] = []
+TESTS: list[tuple] = []
 for in_type in TEST_NDARRAYS_ALL + (int, float):
     for out_type in TEST_NDARRAYS_ALL:
         TESTS.append((in_type(np.array(1.0)), out_type(np.array(1.0)), None, False))  # type: ignore
         if in_type is not float:
             TESTS.append((in_type(np.array(256)), out_type(np.array(255)), np.uint8, True))  # type: ignore
 
-TESTS_LIST: List[Tuple] = []
+TESTS_LIST: list[tuple] = []
 for in_type in TEST_NDARRAYS_ALL + (int, float):
     for out_type in TEST_NDARRAYS_ALL:
         TESTS_LIST.append(

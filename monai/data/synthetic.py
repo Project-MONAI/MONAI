@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Tuple
+from __future__ import annotations
 
 import numpy as np
 
@@ -26,9 +26,9 @@ def create_test_image_2d(
     rad_min: int = 5,
     noise_max: float = 0.0,
     num_seg_classes: int = 5,
-    channel_dim: Optional[int] = None,
-    random_state: Optional[np.random.RandomState] = None,
-) -> Tuple[np.ndarray, np.ndarray]:
+    channel_dim: int | None = None,
+    random_state: np.random.RandomState | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Return a noisy 2D image with `num_objs` circles and a 2D mask image. The maximum and minimum radii of the circles
     are given as `rad_max` and `rad_min`. The mask will have `num_seg_classes` number of classes for segmentations labeled
@@ -103,9 +103,9 @@ def create_test_image_3d(
     rad_min: int = 5,
     noise_max: float = 0.0,
     num_seg_classes: int = 5,
-    channel_dim: Optional[int] = None,
-    random_state: Optional[np.random.RandomState] = None,
-) -> Tuple[np.ndarray, np.ndarray]:
+    channel_dim: int | None = None,
+    random_state: np.random.RandomState | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Return a noisy 3D image and segmentation.
 

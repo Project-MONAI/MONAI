@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
-from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -103,8 +104,8 @@ class _ActiConvNormBlockWithRAMCost(ActiConvNormBlock):
         kernel_size: int,
         padding: int,
         spatial_dims: int = 3,
-        act_name: Union[Tuple, str] = "RELU",
-        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
+        act_name: tuple | str = "RELU",
+        norm_name: tuple | str = ("INSTANCE", {"affine": True}),
     ):
         super().__init__(in_channel, out_channel, kernel_size, padding, spatial_dims, act_name, norm_name)
         self.ram_cost = 1 + in_channel / out_channel * 2
@@ -118,8 +119,8 @@ class _P3DActiConvNormBlockWithRAMCost(P3DActiConvNormBlock):
         kernel_size: int,
         padding: int,
         p3dmode: int = 0,
-        act_name: Union[Tuple, str] = "RELU",
-        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
+        act_name: tuple | str = "RELU",
+        norm_name: tuple | str = ("INSTANCE", {"affine": True}),
     ):
         super().__init__(in_channel, out_channel, kernel_size, padding, p3dmode, act_name, norm_name)
         # 1 in_channel (activation) + 1 in_channel (convolution) +
@@ -133,8 +134,8 @@ class _FactorizedIncreaseBlockWithRAMCost(FactorizedIncreaseBlock):
         in_channel: int,
         out_channel: int,
         spatial_dims: int = 3,
-        act_name: Union[Tuple, str] = "RELU",
-        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
+        act_name: tuple | str = "RELU",
+        norm_name: tuple | str = ("INSTANCE", {"affine": True}),
     ):
         super().__init__(in_channel, out_channel, spatial_dims, act_name, norm_name)
         # s0 is upsampled 2x from s1, representing feature sizes at two resolutions.
@@ -149,8 +150,8 @@ class _FactorizedReduceBlockWithRAMCost(FactorizedReduceBlock):
         in_channel: int,
         out_channel: int,
         spatial_dims: int = 3,
-        act_name: Union[Tuple, str] = "RELU",
-        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
+        act_name: tuple | str = "RELU",
+        norm_name: tuple | str = ("INSTANCE", {"affine": True}),
     ):
         super().__init__(in_channel, out_channel, spatial_dims, act_name, norm_name)
         # s0 is upsampled 2x from s1, representing feature sizes at two resolutions.
@@ -244,8 +245,8 @@ class Cell(CellInterface):
         rate: int,
         arch_code_c=None,
         spatial_dims: int = 3,
-        act_name: Union[Tuple, str] = "RELU",
-        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
+        act_name: tuple | str = "RELU",
+        norm_name: tuple | str = ("INSTANCE", {"affine": True}),
     ):
         super().__init__()
         self._spatial_dims = spatial_dims
@@ -357,8 +358,8 @@ class DiNTS(nn.Module):
         dints_space,
         in_channels: int,
         num_classes: int,
-        act_name: Union[Tuple, str] = "RELU",
-        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
+        act_name: tuple | str = "RELU",
+        norm_name: tuple | str = ("INSTANCE", {"affine": True}),
         spatial_dims: int = 3,
         use_downsample: bool = True,
         node_a=None,
@@ -555,14 +556,14 @@ class TopologyConstruction(nn.Module):
 
     def __init__(
         self,
-        arch_code: Optional[list] = None,
+        arch_code: list | None = None,
         channel_mul: float = 1.0,
         cell=Cell,
         num_blocks: int = 6,
         num_depths: int = 3,
         spatial_dims: int = 3,
-        act_name: Union[Tuple, str] = "RELU",
-        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
+        act_name: tuple | str = "RELU",
+        norm_name: tuple | str = ("INSTANCE", {"affine": True}),
         use_downsample: bool = True,
         device: str = "cpu",
     ):
@@ -638,8 +639,8 @@ class TopologyInstance(TopologyConstruction):
         num_blocks: int = 6,
         num_depths: int = 3,
         spatial_dims: int = 3,
-        act_name: Union[Tuple, str] = "RELU",
-        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
+        act_name: tuple | str = "RELU",
+        norm_name: tuple | str = ("INSTANCE", {"affine": True}),
         use_downsample: bool = True,
         device: str = "cpu",
     ):
@@ -662,7 +663,7 @@ class TopologyInstance(TopologyConstruction):
             device=device,
         )
 
-    def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
+    def forward(self, x: list[torch.Tensor]) -> list[torch.Tensor]:
         """
         Args:
             x: input tensor.
@@ -729,19 +730,19 @@ class TopologySearch(TopologyConstruction):
           The return value will exclude path activation of all 0.
     """
 
-    node2out: List[List]
-    node2in: List[List]
+    node2out: list[list]
+    node2in: list[list]
 
     def __init__(
         self,
         channel_mul: float = 1.0,
         cell=Cell,
-        arch_code: Optional[list] = None,
+        arch_code: list | None = None,
         num_blocks: int = 6,
         num_depths: int = 3,
         spatial_dims: int = 3,
-        act_name: Union[Tuple, str] = "RELU",
-        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
+        act_name: tuple | str = "RELU",
+        norm_name: tuple | str = ("INSTANCE", {"affine": True}),
         use_downsample: bool = True,
         device: str = "cpu",
     ):

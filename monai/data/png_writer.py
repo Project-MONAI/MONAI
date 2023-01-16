@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import numpy as np
 
@@ -30,9 +32,9 @@ Image, _ = optional_import("PIL", name="Image")
 def write_png(
     data: np.ndarray,
     file_name: str,
-    output_spatial_shape: Optional[Sequence[int]] = None,
+    output_spatial_shape: Sequence[int] | None = None,
     mode: str = InterpolateMode.BICUBIC,
-    scale: Optional[int] = None,
+    scale: int | None = None,
 ) -> None:
     """
     Write numpy data into png files to disk.

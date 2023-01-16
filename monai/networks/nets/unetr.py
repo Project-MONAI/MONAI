@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Tuple, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import torch.nn as nn
 
@@ -29,13 +31,13 @@ class UNETR(nn.Module):
         self,
         in_channels: int,
         out_channels: int,
-        img_size: Union[Sequence[int], int],
+        img_size: Sequence[int] | int,
         feature_size: int = 16,
         hidden_size: int = 768,
         mlp_dim: int = 3072,
         num_heads: int = 12,
         pos_embed: str = "conv",
-        norm_name: Union[Tuple, str] = "instance",
+        norm_name: tuple | str = "instance",
         conv_block: bool = True,
         res_block: bool = True,
         dropout_rate: float = 0.0,

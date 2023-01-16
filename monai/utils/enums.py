@@ -9,9 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import random
 from enum import Enum
-from typing import Optional
 
 from monai.utils.deprecate_utils import deprecated
 
@@ -371,15 +372,15 @@ class PostFix(StrEnum):
         return suffix if prefix is None else f"{prefix}_{suffix}"
 
     @staticmethod
-    def meta(key: Optional[str] = None):
+    def meta(key: str | None = None):
         return PostFix._get_str(key, "meta_dict")
 
     @staticmethod
-    def orig_meta(key: Optional[str] = None):
+    def orig_meta(key: str | None = None):
         return PostFix._get_str(key, "orig_meta_dict")
 
     @staticmethod
-    def transforms(key: Optional[str] = None):
+    def transforms(key: str | None = None):
         return PostFix._get_str(key, TraceKeys.KEY_SUFFIX[1:])
 
 

@@ -9,8 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
-from typing import Union, cast
+from typing import cast
 
 import numpy as np
 import torch
@@ -44,14 +46,14 @@ class ROCAUCMetric(CumulativeIterationMetric):
 
     """
 
-    def __init__(self, average: Union[Average, str] = Average.MACRO) -> None:
+    def __init__(self, average: Average | str = Average.MACRO) -> None:
         super().__init__()
         self.average = average
 
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
         return y_pred, y
 
-    def aggregate(self, average: Union[Average, str, None] = None):
+    def aggregate(self, average: Average | str | None = None):
         """
         Typically `y_pred` and `y` are stored in the cumulative buffers at each iteration,
         This function reads the buffers and computes the area under the ROC.
@@ -106,7 +108,7 @@ def _calculate(y_pred: torch.Tensor, y: torch.Tensor) -> float:
     return auc / (nneg * (n - nneg))
 
 
-def compute_roc_auc(y_pred: torch.Tensor, y: torch.Tensor, average: Union[Average, str] = Average.MACRO):
+def compute_roc_auc(y_pred: torch.Tensor, y: torch.Tensor, average: Average | str = Average.MACRO):
     """Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC). Referring to:
     `sklearn.metrics.roc_auc_score <https://scikit-learn.org/stable/modules/generated/
     sklearn.metrics.roc_auc_score.html#sklearn.metrics.roc_auc_score>`_.

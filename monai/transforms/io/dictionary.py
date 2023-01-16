@@ -15,8 +15,9 @@ defined in :py:class:`monai.transforms.io.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Optional, Type, Union
 
 import numpy as np
 
@@ -71,15 +72,15 @@ class LoadImaged(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        reader: Union[Type[ImageReader], str, None] = None,
+        reader: type[ImageReader] | str | None = None,
         dtype: DtypeLike = np.float32,
-        meta_keys: Optional[KeysCollection] = None,
+        meta_keys: KeysCollection | None = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
         overwriting: bool = False,
         image_only: bool = False,
         ensure_channel_first: bool = False,
         simple_keys: bool = False,
-        prune_meta_pattern: Optional[str] = None,
+        prune_meta_pattern: str | None = None,
         prune_meta_sep: str = ".",
         allow_missing_keys: bool = False,
         *args,
@@ -143,7 +144,7 @@ class LoadImaged(MapTransform):
     def register(self, reader: ImageReader):
         self._loader.register(reader)
 
-    def __call__(self, data, reader: Optional[ImageReader] = None):
+    def __call__(self, data, reader: ImageReader | None = None):
         """
         Raises:
             KeyError: When not ``self.overwriting`` and key already exists in ``data``.
@@ -241,24 +242,24 @@ class SaveImaged(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        meta_keys: Optional[KeysCollection] = None,
+        meta_keys: KeysCollection | None = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
-        output_dir: Union[Path, str] = "./",
+        output_dir: Path | str = "./",
         output_postfix: str = "trans",
         output_ext: str = ".nii.gz",
         resample: bool = True,
         mode: str = "nearest",
         padding_mode: str = GridSamplePadMode.BORDER,
-        scale: Optional[int] = None,
+        scale: int | None = None,
         dtype: DtypeLike = np.float64,
-        output_dtype: Optional[DtypeLike] = np.float32,
+        output_dtype: DtypeLike | None = np.float32,
         allow_missing_keys: bool = False,
         squeeze_end_dims: bool = True,
         data_root_dir: str = "",
         separate_folder: bool = True,
         print_log: bool = True,
         output_format: str = "",
-        writer: Union[Type[image_writer.ImageWriter], str, None] = None,
+        writer: type[image_writer.ImageWriter] | str | None = None,
         output_name_formatter=None,
     ) -> None:
         super().__init__(keys, allow_missing_keys)

@@ -13,10 +13,12 @@ A collection of "vanilla" transforms for intensity adjustment
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
+from __future__ import annotations
+
 from abc import abstractmethod
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable, Sequence
 from functools import partial
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any
 from warnings import warn
 
 import numpy as np
@@ -96,9 +98,9 @@ class RandGaussianNoise(RandomizableTransform):
         self.mean = mean
         self.std = std
         self.dtype = dtype
-        self.noise: Optional[np.ndarray] = None
+        self.noise: np.ndarray | None = None
 
-    def randomize(self, img: NdarrayOrTensor, mean: Optional[float] = None) -> None:
+    def randomize(self, img: NdarrayOrTensor, mean: float | None = None) -> None:
         super().randomize(None)
         if not self._do_transform:
             return None
@@ -107,7 +109,7 @@ class RandGaussianNoise(RandomizableTransform):
         # noise is float64 array, convert to the output dtype to save memory
         self.noise, *_ = convert_data_type(noise, dtype=self.dtype)
 
-    def __call__(self, img: NdarrayOrTensor, mean: Optional[float] = None, randomize: bool = True) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, mean: float | None = None, randomize: bool = True) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
@@ -155,8 +157,8 @@ class RandRicianNoise(RandomizableTransform):
     def __init__(
         self,
         prob: float = 0.1,
-        mean: Union[Sequence[float], float] = 0.0,
-        std: Union[Sequence[float], float] = 1.0,
+        mean: Sequence[float] | float = 0.0,
+        std: Sequence[float] | float = 1.0,
         channel_wise: bool = False,
         relative: bool = False,
         sample_std: bool = True,
@@ -230,7 +232,7 @@ class ShiftIntensity(Transform):
         self.offset = offset
         self.safe = safe
 
-    def __call__(self, img: NdarrayOrTensor, offset: Optional[float] = None) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, offset: float | None = None) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
@@ -250,7 +252,7 @@ class RandShiftIntensity(RandomizableTransform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, offsets: Union[Tuple[float, float], float], safe: bool = False, prob: float = 0.1) -> None:
+    def __init__(self, offsets: tuple[float, float] | float, safe: bool = False, prob: float = 0.1) -> None:
         """
         Args:
             offsets: offset range to randomly shift.
@@ -269,13 +271,13 @@ class RandShiftIntensity(RandomizableTransform):
         self._offset = self.offsets[0]
         self._shifter = ShiftIntensity(self._offset, safe)
 
-    def randomize(self, data: Optional[Any] = None) -> None:
+    def randomize(self, data: Any | None = None) -> None:
         super().randomize(None)
         if not self._do_transform:
             return None
         self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
 
-    def __call__(self, img: NdarrayOrTensor, factor: Optional[float] = None, randomize: bool = True) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, factor: float | None = None, randomize: bool = True) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
 
@@ -359,7 +361,7 @@ class RandStdShiftIntensity(RandomizableTransform):
 
     def __init__(
         self,
-        factors: Union[Tuple[float, float], float],
+        factors: tuple[float, float] | float,
         prob: float = 0.1,
         nonzero: bool = False,
         channel_wise: bool = False,
@@ -387,7 +389,7 @@ class RandStdShiftIntensity(RandomizableTransform):
         self.channel_wise = channel_wise
         self.dtype = dtype
 
-    def randomize(self, data: Optional[Any] = None) -> None:
+    def randomize(self, data: Any | None = None) -> None:
         super().randomize(None)
         if not self._do_transform:
             return None
@@ -420,9 +422,9 @@ class ScaleIntensity(Transform):
 
     def __init__(
         self,
-        minv: Optional[float] = 0.0,
-        maxv: Optional[float] = 1.0,
-        factor: Optional[float] = None,
+        minv: float | None = 0.0,
+        maxv: float | None = 1.0,
+        factor: float | None = None,
         channel_wise: bool = False,
         dtype: DtypeLike = np.float32,
     ) -> None:
@@ -473,9 +475,7 @@ class RandScaleIntensity(RandomizableTransform):
 
     backend = ScaleIntensity.backend
 
-    def __init__(
-        self, factors: Union[Tuple[float, float], float], prob: float = 0.1, dtype: DtypeLike = np.float32
-    ) -> None:
+    def __init__(self, factors: tuple[float, float] | float, prob: float = 0.1, dtype: DtypeLike = np.float32) -> None:
         """
         Args:
             factors: factor range to randomly scale by ``v = v * (1 + factor)``.
@@ -494,7 +494,7 @@ class RandScaleIntensity(RandomizableTransform):
         self.factor = self.factors[0]
         self.dtype = dtype
 
-    def randomize(self, data: Optional[Any] = None) -> None:
+    def randomize(self, data: Any | None = None) -> None:
         super().randomize(None)
         if not self._do_transform:
             return None
@@ -539,7 +539,7 @@ class RandBiasField(RandomizableTransform):
     def __init__(
         self,
         degree: int = 3,
-        coeff_range: Tuple[float, float] = (0.0, 0.1),
+        coeff_range: tuple[float, float] = (0.0, 0.1),
         dtype: DtypeLike = np.float32,
         prob: float = 0.1,
     ) -> None:
@@ -563,7 +563,7 @@ class RandBiasField(RandomizableTransform):
             coeff_mat[np.tril_indices(degree + 1)] = coeff
             return np.polynomial.legendre.leggrid2d(coords[0], coords[1], coeff_mat)
         if rank == 3:
-            pts: List[List[int]] = [[0, 0, 0]]
+            pts: list[list[int]] = [[0, 0, 0]]
             for i in range(degree + 1):
                 for j in range(degree + 1 - i):
                     for k in range(degree + 1 - i - j):
@@ -629,8 +629,8 @@ class NormalizeIntensity(Transform):
 
     def __init__(
         self,
-        subtrahend: Union[Sequence, NdarrayOrTensor, None] = None,
-        divisor: Union[Sequence, NdarrayOrTensor, None] = None,
+        subtrahend: Sequence | NdarrayOrTensor | None = None,
+        divisor: Sequence | NdarrayOrTensor | None = None,
         nonzero: bool = False,
         channel_wise: bool = False,
         dtype: DtypeLike = np.float32,
@@ -764,8 +764,8 @@ class ScaleIntensityRange(Transform):
         self,
         a_min: float,
         a_max: float,
-        b_min: Optional[float] = None,
-        b_max: Optional[float] = None,
+        b_min: float | None = None,
+        b_max: float | None = None,
         clip: bool = False,
         dtype: DtypeLike = np.float32,
     ) -> None:
@@ -841,7 +841,7 @@ class RandAdjustContrast(RandomizableTransform):
 
     backend = AdjustContrast.backend
 
-    def __init__(self, prob: float = 0.1, gamma: Union[Sequence[float], float] = (0.5, 4.5)) -> None:
+    def __init__(self, prob: float = 0.1, gamma: Sequence[float] | float = (0.5, 4.5)) -> None:
         RandomizableTransform.__init__(self, prob)
 
         if isinstance(gamma, (int, float)):
@@ -855,9 +855,9 @@ class RandAdjustContrast(RandomizableTransform):
         else:
             self.gamma = (min(gamma), max(gamma))
 
-        self.gamma_value: Optional[float] = None
+        self.gamma_value: float | None = None
 
-    def randomize(self, data: Optional[Any] = None) -> None:
+    def randomize(self, data: Any | None = None) -> None:
         super().randomize(None)
         if not self._do_transform:
             return None
@@ -947,8 +947,8 @@ class ScaleIntensityRangePercentiles(Transform):
         self,
         lower: float,
         upper: float,
-        b_min: Optional[float],
-        b_max: Optional[float],
+        b_min: float | None,
+        b_max: float | None,
         clip: bool = False,
         relative: bool = False,
         channel_wise: bool = False,
@@ -1020,11 +1020,11 @@ class MaskIntensity(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, mask_data: Optional[NdarrayOrTensor] = None, select_fn: Callable = is_positive) -> None:
+    def __init__(self, mask_data: NdarrayOrTensor | None = None, select_fn: Callable = is_positive) -> None:
         self.mask_data = mask_data
         self.select_fn = select_fn
 
-    def __call__(self, img: NdarrayOrTensor, mask_data: Optional[NdarrayOrTensor] = None) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, mask_data: NdarrayOrTensor | None = None) -> NdarrayOrTensor:
         """
         Args:
             mask_data: if mask data is single channel, apply to every channel
@@ -1113,7 +1113,7 @@ class DetectEnvelope(Transform):
 
     backend = [TransformBackends.TORCH]
 
-    def __init__(self, axis: int = 1, n: Union[int, None] = None) -> None:
+    def __init__(self, axis: int = 1, n: int | None = None) -> None:
 
         if axis < 0:
             raise ValueError("axis must be zero or positive.")
@@ -1157,7 +1157,7 @@ class MedianSmooth(Transform):
 
     backend = [TransformBackends.TORCH]
 
-    def __init__(self, radius: Union[Sequence[int], int] = 1) -> None:
+    def __init__(self, radius: Sequence[int] | int = 1) -> None:
         self.radius = radius
 
     def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
@@ -1187,14 +1187,14 @@ class GaussianSmooth(Transform):
 
     backend = [TransformBackends.TORCH]
 
-    def __init__(self, sigma: Union[Sequence[float], float] = 1.0, approx: str = "erf") -> None:
+    def __init__(self, sigma: Sequence[float] | float = 1.0, approx: str = "erf") -> None:
         self.sigma = sigma
         self.approx = approx
 
     def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
         img = convert_to_tensor(img, track_meta=get_track_meta())
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)
-        sigma: Union[Sequence[torch.Tensor], torch.Tensor]
+        sigma: Sequence[torch.Tensor] | torch.Tensor
         if isinstance(self.sigma, Sequence):
             sigma = [torch.as_tensor(s, device=img_t.device) for s in self.sigma]
         else:
@@ -1224,9 +1224,9 @@ class RandGaussianSmooth(RandomizableTransform):
 
     def __init__(
         self,
-        sigma_x: Tuple[float, float] = (0.25, 1.5),
-        sigma_y: Tuple[float, float] = (0.25, 1.5),
-        sigma_z: Tuple[float, float] = (0.25, 1.5),
+        sigma_x: tuple[float, float] = (0.25, 1.5),
+        sigma_y: tuple[float, float] = (0.25, 1.5),
+        sigma_z: tuple[float, float] = (0.25, 1.5),
         prob: float = 0.1,
         approx: str = "erf",
     ) -> None:
@@ -1240,7 +1240,7 @@ class RandGaussianSmooth(RandomizableTransform):
         self.y = self.sigma_y[0]
         self.z = self.sigma_z[0]
 
-    def randomize(self, data: Optional[Any] = None) -> None:
+    def randomize(self, data: Any | None = None) -> None:
         super().randomize(None)
         if not self._do_transform:
             return None
@@ -1291,8 +1291,8 @@ class GaussianSharpen(Transform):
 
     def __init__(
         self,
-        sigma1: Union[Sequence[float], float] = 3.0,
-        sigma2: Union[Sequence[float], float] = 1.0,
+        sigma1: Sequence[float] | float = 3.0,
+        sigma2: Sequence[float] | float = 1.0,
         alpha: float = 30.0,
         approx: str = "erf",
     ) -> None:
@@ -1342,13 +1342,13 @@ class RandGaussianSharpen(RandomizableTransform):
 
     def __init__(
         self,
-        sigma1_x: Tuple[float, float] = (0.5, 1.0),
-        sigma1_y: Tuple[float, float] = (0.5, 1.0),
-        sigma1_z: Tuple[float, float] = (0.5, 1.0),
-        sigma2_x: Union[Tuple[float, float], float] = 0.5,
-        sigma2_y: Union[Tuple[float, float], float] = 0.5,
-        sigma2_z: Union[Tuple[float, float], float] = 0.5,
-        alpha: Tuple[float, float] = (10.0, 30.0),
+        sigma1_x: tuple[float, float] = (0.5, 1.0),
+        sigma1_y: tuple[float, float] = (0.5, 1.0),
+        sigma1_z: tuple[float, float] = (0.5, 1.0),
+        sigma2_x: tuple[float, float] | float = 0.5,
+        sigma2_y: tuple[float, float] | float = 0.5,
+        sigma2_z: tuple[float, float] | float = 0.5,
+        alpha: tuple[float, float] = (10.0, 30.0),
         approx: str = "erf",
         prob: float = 0.1,
     ) -> None:
@@ -1361,15 +1361,15 @@ class RandGaussianSharpen(RandomizableTransform):
         self.sigma2_z = sigma2_z
         self.alpha = alpha
         self.approx = approx
-        self.x1: Optional[float] = None
-        self.y1: Optional[float] = None
-        self.z1: Optional[float] = None
-        self.x2: Optional[float] = None
-        self.y2: Optional[float] = None
-        self.z2: Optional[float] = None
-        self.a: Optional[float] = None
+        self.x1: float | None = None
+        self.y1: float | None = None
+        self.z1: float | None = None
+        self.x2: float | None = None
+        self.y2: float | None = None
+        self.z2: float | None = None
+        self.a: float | None = None
 
-    def randomize(self, data: Optional[Any] = None) -> None:
+    def randomize(self, data: Any | None = None) -> None:
         super().randomize(None)
         if not self._do_transform:
             return None
@@ -1412,7 +1412,7 @@ class RandHistogramShift(RandomizableTransform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, num_control_points: Union[Tuple[int, int], int] = 10, prob: float = 0.1) -> None:
+    def __init__(self, num_control_points: tuple[int, int] | int = 10, prob: float = 0.1) -> None:
         RandomizableTransform.__init__(self, prob)
 
         if isinstance(num_control_points, int):
@@ -1445,7 +1445,7 @@ class RandHistogramShift(RandomizableTransform):
         f[x > xp[-1]] = fp[-1]
         return f
 
-    def randomize(self, data: Optional[Any] = None) -> None:
+    def randomize(self, data: Any | None = None) -> None:
         super().randomize(None)
         if not self._do_transform:
             return None
@@ -1649,7 +1649,7 @@ class KSpaceSpikeNoise(Transform, Fourier):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, loc: Union[Tuple, Sequence[Tuple]], k_intensity: Optional[Union[Sequence[float], float]] = None):
+    def __init__(self, loc: tuple | Sequence[tuple], k_intensity: Sequence[float] | float | None = None):
 
         self.loc = ensure_tuple(loc)
         self.k_intensity = k_intensity
@@ -1724,7 +1724,7 @@ class KSpaceSpikeNoise(Transform, Fourier):
                     f"The index value at position {i} of one of the tuples in loc = {self.loc} is out of bounds for current image."
                 )
 
-    def _set_spike(self, k: NdarrayOrTensor, idx: Tuple, val: Union[Sequence[float], float]):
+    def _set_spike(self, k: NdarrayOrTensor, idx: tuple, val: Sequence[float] | float):
         """
         Helper function to introduce a given intensity at given location.
 
@@ -1781,14 +1781,14 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
     def __init__(
         self,
         prob: float = 0.1,
-        intensity_range: Optional[Sequence[Union[Sequence[float], float]]] = None,
+        intensity_range: Sequence[Sequence[float] | float] | None = None,
         channel_wise: bool = True,
     ):
 
         self.intensity_range = intensity_range
         self.channel_wise = channel_wise
-        self.sampled_k_intensity: List = []
-        self.sampled_locs: List[Tuple] = []
+        self.sampled_k_intensity: list = []
+        self.sampled_locs: list[tuple] = []
 
         if intensity_range is not None and isinstance(intensity_range[0], Sequence) and not channel_wise:
             raise ValueError("When channel_wise = False, intensity_range should be a 2-tuple (low, high) or None.")
@@ -1909,9 +1909,9 @@ class RandCoarseTransform(RandomizableTransform):
     def __init__(
         self,
         holes: int,
-        spatial_size: Union[Sequence[int], int],
-        max_holes: Optional[int] = None,
-        max_spatial_size: Optional[Union[Sequence[int], int]] = None,
+        spatial_size: Sequence[int] | int,
+        max_holes: int | None = None,
+        max_spatial_size: Sequence[int] | int | None = None,
         prob: float = 0.1,
     ) -> None:
         RandomizableTransform.__init__(self, prob)
@@ -1921,7 +1921,7 @@ class RandCoarseTransform(RandomizableTransform):
         self.spatial_size = spatial_size
         self.max_holes = max_holes
         self.max_spatial_size = max_spatial_size
-        self.hole_coords: List = []
+        self.hole_coords: list = []
 
     def randomize(self, img_size: Sequence[int]) -> None:
         super().randomize(None)
@@ -1993,11 +1993,11 @@ class RandCoarseDropout(RandCoarseTransform):
     def __init__(
         self,
         holes: int,
-        spatial_size: Union[Sequence[int], int],
+        spatial_size: Sequence[int] | int,
         dropout_holes: bool = True,
-        fill_value: Optional[Union[Tuple[float, float], float]] = None,
-        max_holes: Optional[int] = None,
-        max_spatial_size: Optional[Union[Sequence[int], int]] = None,
+        fill_value: tuple[float, float] | float | None = None,
+        max_holes: int | None = None,
+        max_spatial_size: Sequence[int] | int | None = None,
         prob: float = 0.1,
     ) -> None:
         super().__init__(
@@ -2098,7 +2098,7 @@ class HistogramNormalize(Transform):
         num_bins: int = 256,
         min: int = 0,
         max: int = 255,
-        mask: Optional[NdarrayOrTensor] = None,
+        mask: NdarrayOrTensor | None = None,
         dtype: DtypeLike = np.float32,
     ) -> None:
         self.num_bins = num_bins
@@ -2107,11 +2107,11 @@ class HistogramNormalize(Transform):
         self.mask = mask
         self.dtype = dtype
 
-    def __call__(self, img: NdarrayOrTensor, mask: Optional[NdarrayOrTensor] = None) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, mask: NdarrayOrTensor | None = None) -> NdarrayOrTensor:
         img = convert_to_tensor(img, track_meta=get_track_meta())
         img_np, *_ = convert_data_type(img, np.ndarray)
         mask = mask if mask is not None else self.mask
-        mask_np: Optional[np.ndarray] = None
+        mask_np: np.ndarray | None = None
         if mask is not None:
             mask_np, *_ = convert_data_type(mask, np.ndarray)
 
@@ -2252,11 +2252,11 @@ class ForegroundMask(Transform):
 
     def __init__(
         self,
-        threshold: Union[Dict, Callable, str, float, int] = "otsu",
-        hsv_threshold: Optional[Union[Dict, Callable, str, float, int]] = None,
+        threshold: dict | Callable | str | float | int = "otsu",
+        hsv_threshold: dict | Callable | str | float | int | None = None,
         invert: bool = False,
     ) -> None:
-        self.thresholds: Dict[str, Union[Callable, float]] = {}
+        self.thresholds: dict[str, Callable | float] = {}
         if threshold is not None:
             if isinstance(threshold, dict):
                 for mode, th in threshold.items():

@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
-from typing import Union
 
 import numpy as np
 import torch
@@ -58,7 +59,7 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
         include_background: bool = False,
         symmetric: bool = False,
         distance_metric: str = "euclidean",
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        reduction: MetricReduction | str = MetricReduction.MEAN,
         get_not_nans: bool = False,
     ) -> None:
         super().__init__()
@@ -94,7 +95,7 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
             distance_metric=self.distance_metric,
         )
 
-    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):
+    def aggregate(self, reduction: MetricReduction | str | None = None):
         """
         Execute reduction logic for the output of `compute_average_surface_distance`.
 
@@ -114,8 +115,8 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
 
 
 def compute_average_surface_distance(
-    y_pred: Union[np.ndarray, torch.Tensor],
-    y: Union[np.ndarray, torch.Tensor],
+    y_pred: np.ndarray | torch.Tensor,
+    y: np.ndarray | torch.Tensor,
     include_background: bool = False,
     symmetric: bool = False,
     distance_metric: str = "euclidean",
