@@ -136,8 +136,6 @@ void BilateralFilterCpuBackward_3d(
           scalar_t filter_kernel = 0;
           scalar_t valueSum = 0;
 
-          scalar_t weightSum = 0.0f;
-
           // Looping over all dimensions for the neighbour element
           Indexer kernelIndex = Indexer(desc.dimensions, kernelSizes);
           do // while(kernelIndex++)
@@ -200,7 +198,6 @@ void BilateralFilterCpuBackward_3d(
                 valueSum += gradientInputTensorData[neighbourOffset + i * desc.channelStride] * filter_kernel;
               }
 
-              weightSum += totalWeight;
             }
           } while (kernelIndex++);
 
