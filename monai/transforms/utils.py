@@ -1660,6 +1660,7 @@ def scale_affine(affine, spatial_size, new_spatial_size, centered: bool = True):
     """
     Scale the affine matrix according to the new spatial size.
     TODO: update the docstring
+
     Args:
         affine: affine matrix to scale.
         spatial_size: original spatial size.

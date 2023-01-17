@@ -114,7 +114,7 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = 
     kwargs = {} if kwargs is None else kwargs
     init_kwargs = {"dtype": kwargs.pop(LazyAttr.DTYPE, data.dtype)}
     img = convert_to_tensor(data=data, track_meta=monai.data.get_track_meta())
-    init_affine = img.affine
+    init_affine = monai.data.to_affine_nd(len(matrix) - 1, img.affine)
     call_kwargs = {
         "spatial_size": kwargs.pop(LazyAttr.SHAPE, img.peek_pending_shape()),
         "dst_affine": init_affine @ monai.utils.convert_to_dst_type(matrix, init_affine)[0],

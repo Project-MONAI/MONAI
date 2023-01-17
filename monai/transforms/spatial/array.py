@@ -2530,7 +2530,7 @@ class Affine(InvertibleTransform, LazyTransform):
         if not isinstance(out, MetaTensor):
             out = MetaTensor(out)
         out.meta = data.meta  # type: ignore
-        self.update_meta(out, inv_affine, data.shape[1:], orig_size)
+        out.affine @= self.update_meta(out, inv_affine, data.shape[1:], orig_size)
         return out
 
 

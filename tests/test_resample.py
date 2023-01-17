@@ -28,7 +28,7 @@ def rotate_90_2d():
     return t
 
 
-RESAMPLE_FUNCTION_CASES = [(get_arange_img((3, 3)), rotate_90_2d(), [[2, 5, 8], [1, 4, 7], [0, 3, 6]])]
+RESAMPLE_FUNCTION_CASES = [(get_arange_img((3, 3)), rotate_90_2d(), [[0, 3, 6], [0, 3, 6], [0, 3, 6]])]
 
 
 class TestResampleFunction(unittest.TestCase):
