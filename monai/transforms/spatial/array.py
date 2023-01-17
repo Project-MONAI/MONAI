@@ -1224,7 +1224,7 @@ class Rotate(InvertibleTransform, LazyTransform):
         out: torch.Tensor = xform(img_t.unsqueeze(0), transform_t, spatial_size=sp_size).float().squeeze(0)
         out = convert_to_dst_type(out, dst=data, dtype=out.dtype)[0]
         if isinstance(data, MetaTensor):
-            self.update_meta(out, transform_t)
+            out.affine @= self.update_meta(out, transform_t)  # type: ignore
         return out
 
 
@@ -2756,7 +2756,7 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
                     "do_resampling": do_resampling,
                 },
             )
-            out.affine = self.update_meta(out, mat, img.shape[1:], sp_size)  # type: ignore
+            out.affine @= self.update_meta(out, mat, img.shape[1:], sp_size)  # type: ignore
         return out
 
     def lazy_call(self, img, affine, output_size, mode, padding_mode, do_resampling) -> torch.Tensor:
@@ -2798,7 +2798,7 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
         if not isinstance(out, MetaTensor):
             out = MetaTensor(out)
         out.meta = data.meta  # type: ignore
-        self.update_meta(out, inv_affine, data.shape[1:], orig_size)
+        out.affine @= self.update_meta(out, inv_affine, data.shape[1:], orig_size)
         return out
 
 
