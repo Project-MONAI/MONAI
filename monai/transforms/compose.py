@@ -43,7 +43,7 @@ def eval_lazy_stack(
     data, upcoming, lazy_evaluation: bool = False, mode=GridSampleMode.BILINEAR, padding_mode=GridSamplePadMode.BORDER
 ):
     """
-    Given the upcoming transform ``upcoming``, if lazy_resample is True, go through the Metatensors and
+    Given the upcoming transform ``upcoming``, if lazy_resample is True, go through the MetaTensors and
     evaluate the lazy applied operations. The returned `data` will then be ready for the ``upcoming`` transform.
     """
     if not lazy_evaluation:

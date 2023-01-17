@@ -920,7 +920,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
         self.rand_affine.randomize()
 
         item = d[first_key]
-        spatial_size = item.peek_pending_shape() if isinstance(item, MetaTensor) else item.shape[1:]  # type: ignore
+        spatial_size = item.peek_pending_shape() if isinstance(item, MetaTensor) else item.shape[1:]
 
         sp_size = fall_back_tuple(self.rand_affine.spatial_size, spatial_size)
         # change image size or do random transform

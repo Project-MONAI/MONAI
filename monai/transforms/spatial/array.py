@@ -839,7 +839,7 @@ class Flip(InvertibleTransform, LazyTransform):
         spatial_chn_shape = [1, *convert_to_numpy(_shape, wrap_sequence=True).tolist()]
         _affine = self.update_meta(img, spatial_chn_shape, axes)
         self.push_pending_transform(img, lazy_shape=_shape, lazy_affine=_affine)
-        return img  # type: ignore
+        return img
 
     def __call__(self, img: torch.Tensor) -> torch.Tensor:
         """
@@ -970,7 +970,7 @@ class Resize(InvertibleTransform, LazyTransform):
 
         _mode = look_up_option(self.mode if mode is None else mode, InterpolateMode)
         _align_corners = self.align_corners if align_corners is None else align_corners
-        img = convert_to_tensor(img, track_meta=get_track_meta())  # type: ignore
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         original_sp_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
         if self.lazy_evaluation:
             if anti_aliasing:
@@ -1192,7 +1192,7 @@ class Rotate(InvertibleTransform, LazyTransform):
                 "dtype": str(dtype)[6:],
             },
         )
-        return img  # type: ignore
+        return img
 
     def update_meta(self, img, rotate_mat):
         affine = convert_to_tensor(img.peek_pending_affine(), track_meta=False)
@@ -1370,7 +1370,7 @@ class Zoom(InvertibleTransform, LazyTransform):
                 "padcrop": {},
             },
         )
-        return img  # type: ignore
+        return img
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(data)
