@@ -406,6 +406,13 @@ class TestMetaTensor(unittest.TestCase):
         for _d in d:
             self.check_meta(_d, data)
 
+    def test_slicing(self):
+        x = MetaTensor(np.zeros((10, 3, 4)))
+        self.assertEqual(x[slice(4, 1)].shape[0], 0)
+        x.is_batch = True
+        with self.assertRaises(ValueError):
+            x[slice(0, 8)]
+
     @parameterized.expand(DTYPES)
     @SkipIfBeforePyTorchVersion((1, 8))
     def test_decollate(self, dtype):
