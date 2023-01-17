@@ -248,6 +248,14 @@ class TestConfigParser(unittest.TestCase):
         result = trans(np.ones(64))
         self.assertTupleEqual(result.shape, (1, 8, 8))
 
+    def test_non_str_target(self):
+        configs = {
+            "fwd": {"_target_": "$@model().forward", "x": "$torch.rand(1, 3, 256, 256)"},
+            "model": {"_target_": "monai.networks.nets.resnet.resnet18", "pretrained": False, "spatial_dims": 2},
+        }
+        self.assertTrue(callable(ConfigParser(config=configs).fwd))
+        self.assertTupleEqual(tuple(ConfigParser(config=configs).fwd().shape), (1, 400))
+
     def test_error_instance(self):
         config = {"transform": {"_target_": "Compose", "transforms_wrong_key": []}}
         parser = ConfigParser(config=config)
@@ -273,6 +281,10 @@ class TestConfigParser(unittest.TestCase):
         trans = parser.transform
         result = trans(np.ones(64))
         self.assertTupleEqual(result.shape, (1, 8, 8))
+
+    def test_builtin(self):
+        config = {"import statements": "$import math", "calc": {"_target_": "math.isclose", "a": 0.001, "b": 0.001}}
+        self.assertEqual(ConfigParser(config).calc(), True)
 
 
 if __name__ == "__main__":
