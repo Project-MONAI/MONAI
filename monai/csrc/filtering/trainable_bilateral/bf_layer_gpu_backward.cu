@@ -129,7 +129,6 @@ __global__ void BilateralFilterCudaKernel3DBackward(
 
             valueSum += gradientInputTensor[batchOffset + neighbourOffset + c * cColorStrideBack] * filter_kernel_back;
           }
-
         }
       }
     }

@@ -197,7 +197,6 @@ void BilateralFilterCpuBackward_3d(
 
                 valueSum += gradientInputTensorData[neighbourOffset + i * desc.channelStride] * filter_kernel;
               }
-
             }
           } while (kernelIndex++);
 
