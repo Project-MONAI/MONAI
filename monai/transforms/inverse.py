@@ -152,6 +152,7 @@ class TraceableTransform(Transform):
         lazy_affine=None,
         extra_info: dict | None = None,
         orig_size: tuple | None = None,
+        pending=None,
     ) -> None:
         """
         Push to MetaTensor's pending operations for later execution.
@@ -162,13 +163,20 @@ class TraceableTransform(Transform):
             lazy_affine:
             extra_info:
             orig_size:
+            pending
 
         Returns:
 
         """
         info = self.get_transform_info(data, key, extra_info, orig_size)
-        info[LazyAttr.SHAPE] = tuple(convert_to_numpy(lazy_shape, wrap_sequence=True).tolist())
-        info[LazyAttr.AFFINE] = convert_to_tensor(lazy_affine, device=torch.device("cpu"))
+        if pending is not None:
+            pending.pop(TraceKeys.CLASS_NAME, None)
+            pending.pop(TraceKeys.ID, None)
+            info.update(pending)
+        if lazy_shape is not None:
+            info[LazyAttr.SHAPE] = tuple(convert_to_numpy(lazy_shape, wrap_sequence=True).tolist())
+        if lazy_affine is not None:
+            info[LazyAttr.AFFINE] = convert_to_tensor(lazy_affine, device=torch.device("cpu"))
         if isinstance(data, MetaTensor):
             data.push_pending_operation(info)
         elif isinstance(data, Mapping) and key in data and isinstance(data[key], MetaTensor):
