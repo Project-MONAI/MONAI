@@ -236,7 +236,7 @@ class ConfigComponent(ConfigItem, Instantiable):
         config = dict(self.get_config())
         target = config.get("_target_")
         if not isinstance(target, str):
-            return target
+            return target  # for feature discussed in project-monai/monai#5852
 
         module = self.locator.get_component_module_name(target)
         if module is None:
