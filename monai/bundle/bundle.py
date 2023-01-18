@@ -27,8 +27,8 @@ logger = get_logger(module_name=__name__)
 class BundleWorkflow(ABC):
     """
     Base class for the workflow specification in bundle.
-    """
 
+    """
     @abstractmethod
     def initialize(self, *args: Any, **kwargs: Any) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
@@ -42,16 +42,49 @@ class BundleWorkflow(ABC):
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
 
-class ZooWorkflow(BundleWorkflow):
-    init_key = "initialize"
-    run_key = "run"
-    final_key = "finalize"
+class TrainAttributes(ABC):
+    """
+    Interface to get / set required atrributes for the training process in bundle.
 
+    """
+    @abstractmethod
+    @property
+    def bundle_root(self) -> bool:
+        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+
+    @abstractmethod
+    @bundle_root.setter
+    def bundle_root(self, str) -> bool:
+        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+    # FIXME: need to define all the other required attributes
+
+
+class InferAttributes(ABC):
+    """
+    Interface to get / set required atrributes for the inference process in bundle.
+
+    """
+    @abstractmethod
+    @property
+    def bundle_root(self) -> bool:
+        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+
+    @abstractmethod
+    @bundle_root.setter
+    def bundle_root(self, str) -> bool:
+        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+    # FIXME: need to define all the other required attributes
+
+
+class ZooWorkflow(BundleWorkflow):
     def __init__(
         self,
         meta_file: str | Sequence[str] | None = None,
         config_file: str | Sequence[str] | None = None,
         logging_file: str | None = None,
+        init_id: str = "initialize",
+        run_id: str = "run",
+        final_id: str = "finalize",
         tracking: str | dict | None = None,
         **override,
     ) -> None:
@@ -68,7 +101,9 @@ class ZooWorkflow(BundleWorkflow):
 
         # the rest key-values in the _args are to override config content
         self.parser.update(pairs=override)
-
+        self.init_id = init_id
+        self.run_id = run_id
+        self.final_id = final_id
         # set tracking configs for experiment management
         if tracking is not None:
             if isinstance(tracking, str) and tracking in DEFAULT_EXP_MGMT_SETTINGS:
@@ -78,25 +113,27 @@ class ZooWorkflow(BundleWorkflow):
             self.patch_bundle_tracking(parser=self.parser, settings=settings_)
 
     def initialize(self) -> bool:
-        return self._run_expr(key=self.init_key)
+        # reset the "reference_resolver" buffer at initialization stage
+        self.parser.parse(reset=True)
+        return self._run_expr(id=self.init_id)
 
     def run(self) -> bool:
-        return self._run_expr(key=self.run_key)
+        return self._run_expr(id=self.run_id)
 
     def finalize(self) -> bool:
-        return self._run_expr(key=self.final_key)
+        return self._run_expr(id=self.final_id)
 
-    def _run_expr(self, key: str) -> bool:
-        return self.parser.get_parsed_content(key, lazy=True, eval_expr=True, instantiate=True)
+    def _run_expr(self, id: str, **kwargs) -> bool:
+        return self.parser.get_parsed_content(id, **kwargs) if id in self.parser else None
 
     def check(self) -> bool:
         pass
 
     @staticmethod
-    def check_required_keys(keys: Sequence[str], parser: ConfigParser) -> bool:
-        for i in keys:
+    def check_required_ids(ids: Sequence[str], parser: ConfigParser) -> bool:
+        for i in ids:
             if i not in parser:
-                logger.info(f"did not find the required key '{i}' in the config.")
+                logger.info(f"did not find the required id '{i}' in the config.")
                 return False
         return True
 
@@ -135,8 +172,8 @@ class ZooWorkflow(BundleWorkflow):
         parser.export_config_file(parser.get(), filepath)
 
 
-class ZooTrainWorkflow(ZooWorkflow):
-    train_keys = [
+class ZooTrainWorkflow(ZooWorkflow, TrainAttributes):
+    train_ids = [
         "bundle_root",
         "device",
         "dataset_dir",
@@ -146,7 +183,7 @@ class ZooTrainWorkflow(ZooWorkflow):
         "train#dataset#data",
         "train#handlers",
     ]
-    val_keys = [
+    val_ids = [
         "validate#evaluator",
         "validate#handlers",
         "validate#dataset",
@@ -154,12 +191,28 @@ class ZooTrainWorkflow(ZooWorkflow):
     ]
 
     def check(self) -> bool:
-        return self.check_required_keys(self.train_keys, self.parser) & \
-            self.check_required_keys(self.val_keys, self.parser)
+        return self.check_required_ids(self.train_ids, self.parser) & \
+            self.check_required_ids(self.val_ids, self.parser)
+
+    @property
+    def bundle_root(self) -> bool:
+        return self.parser.bundle_root
+
+    @bundle_root.setter
+    def bundle_root(self, path: str) -> bool:
+        self.parser["bundle_root"] = path
 
 
-class ZooInferWorkflow(ZooWorkflow):
-    infer_keys = ["bundle_root", "device", "network_def", "inferer"]
+class ZooInferWorkflow(ZooWorkflow, InferAttributes):
+    infer_ids = ["bundle_root", "device", "network_def", "inferer"]
 
     def check(self) -> bool:
-        return self.check_required_keys(self.infer_keys, self.parser)
+        return self.check_required_keys(self.infer_ids, self.parser)
+
+    @property
+    def bundle_root(self) -> bool:
+        return self.parser.bundle_root
+
+    @bundle_root.setter
+    def bundle_root(self, path: str) -> bool:
+        self.parser["bundle_root"] = path
