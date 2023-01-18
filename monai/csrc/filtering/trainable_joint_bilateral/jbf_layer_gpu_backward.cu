@@ -11,9 +11,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 =========================================================================
-Adapted from https://github.com/faebstn96/trainable-bilateral-filter-source
+Adapted from https://github.com/faebstn96/trainable-joint-bilateral-filter-source
 which has the following license...
-https://github.com/faebstn96/trainable-bilateral-filter-source/blob/main/LICENSE.md
+https://github.com/faebstn96/trainable-joint-bilateral-filter-source/blob/main/LICENSE
 
 Copyright 2022 Fabian Wagner, Pattern Recognition Lab, FAU Erlangen-Nuernberg, Erlangen, Germany
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,7 +30,7 @@ limitations under the License.
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-#include "trainable_bilateral.h"
+#include "trainable_joint_bilateral.h"
 //#include "../utils/cuda_error_check.h"
 #include "utils/meta_macros.h"
 #include "utils/tensor_description.h"
@@ -55,14 +55,16 @@ __constant__ float cSigma_yBack;
 __constant__ float cSigma_zBack;
 __constant__ float cColorSigmaBack;
 
+
 template <typename scalar_t, int C>
-__global__ void BilateralFilterCudaKernel3DBackward(
-    scalar_t* gradientInputTensor,
-    scalar_t* gradientOutputTensor,
-    scalar_t* inputTensor,
-    scalar_t* outputTensor,
-    scalar_t* outputWeightsTensor,
-    scalar_t* dO_dx_ki) {
+__global__ void JointBilateralFilterCudaKernel3DBackward(scalar_t* gradientInputTensor,
+                                                         scalar_t* gradientGuidanceTensor,
+                                                         scalar_t* gradientOutputTensor,
+                                                         scalar_t* inputTensor,
+                                                         scalar_t* guidanceTensor,
+                                                         scalar_t* outputTensor,
+                                                         scalar_t* outputWeightsTensor,
+                                                         scalar_t* dO_dz_ki) {
   int homeOffset = blockIdx.x * blockDim.x + threadIdx.x;
   int batchOffset = blockIdx.y * cBatchStrideBack;
 
@@ -75,7 +77,8 @@ __global__ void BilateralFilterCudaKernel3DBackward(
   int homeIndex[] = {homeX, homeY, homeZ};
 
   // Zero kernel aggregates.
-  scalar_t valueSum = 0;
+  scalar_t valueSumGuidance = 0;
+  scalar_t valueSumInput = 0;
 
   for (int kernelX = 0; kernelX < cKernelSizesBack[0]; kernelX++) {
     int neighbourX = max(0, min(homeX + (kernelX - cHalfWindowSize_arrBack[0]), cSizesBack[0] - 1));
@@ -93,16 +96,13 @@ __global__ void BilateralFilterCudaKernel3DBackward(
 
         bool flagNotClamped = true;
         int kernelIndex[] = {kernelX, kernelY, kernelZ};
-        int dimensions = 3; // Must equal the number of spatial dimensions.
+        int dimensions = 3;  // Must equal the number of spatial dimensions.
 
         for (int i = 0; i < dimensions; i++) {
-          int HalfWindowSizeBack = cHalfWindowSize_arrBack[i]; // Define constant memory as new variable here (!!),
-                                                               // otherwise: cudaErrorMisalignedAddress
-          int neighbourIndex = homeIndex[i] + kernelIndex[i] - HalfWindowSizeBack;
-          int neighbourIndexClamped = min(cSizesBack[i] - 1, max(0, neighbourIndex));
-          if (neighbourIndex != neighbourIndexClamped) {
-            flagNotClamped = false;
-          }
+            int HalfWindowSizeBack = cHalfWindowSize_arrBack[i];  // Define constant memory as new variable here (!!), otherwise: cudaErrorMisalignedAddress
+            int neighbourIndex = homeIndex[i] + kernelIndex[i] - HalfWindowSizeBack;
+            int neighbourIndexClamped = min(cSizesBack[i] - 1, max(0, neighbourIndex));
+            if (neighbourIndex != neighbourIndexClamped) { flagNotClamped = false; }
         }
 
         scalar_t colorDistance = 0;
@@ -110,9 +110,8 @@ __global__ void BilateralFilterCudaKernel3DBackward(
 
 #pragma unroll
         for (int c = 0; c < C; c++) {
-          scalar_t a = inputTensor[batchOffset + neighbourOffset + c * cColorStrideBack];
-          scalar_t b = inputTensor[batchOffset + homeOffset + c * cColorStrideBack]; // Be careful: Here it is (X_k -
-                                                                                     // X_i) and not (X_i - X_q)
+          scalar_t a = guidanceTensor[batchOffset + neighbourOffset + c * cColorStrideBack];
+          scalar_t b = guidanceTensor[batchOffset + homeOffset + c * cColorStrideBack];  // Be careful: Here it is (Z_k - Z_i) and not (Z_i - Z_q)
           scalar_t diff = a - b;
           colorDistance += diff; // Do not take the absolute value here. Be careful with the signs.
           colorDistanceSquared += diff * diff;
@@ -124,28 +123,42 @@ __global__ void BilateralFilterCudaKernel3DBackward(
 
         // Aggregating values. Only do this if flagNotClamped: Pixels outside the image are disregarded.
         if (flagNotClamped) {
-          scalar_t filter_kernel_back;
+            scalar_t filter_kernel_guidance_back;
 
 #pragma unroll
-          for (int c = 0; c < C; c++) {
-            // Distinguish cases for k!=i (calculation is done here)
-            // and k==i (partial derivatives are precalculated).
-            // If statement replaces center element of neighborhood/kernel.
-            if (kernelX != cHalfWindowSize_arrBack[0] || kernelY != cHalfWindowSize_arrBack[1] ||
-                kernelZ != cHalfWindowSize_arrBack[2]) {
-              filter_kernel_back = -(1 / outputWeightsTensor[batchOffset + neighbourOffset + c * cColorStrideBack]) *
-                      outputTensor[batchOffset + neighbourOffset + c * cColorStrideBack] * totalWeight * colorDistance /
-                      (cColorSigmaBack * cColorSigmaBack) +
-                  (1 / outputWeightsTensor[batchOffset + neighbourOffset + c * cColorStrideBack]) * totalWeight *
-                      (1 +
-                       inputTensor[batchOffset + homeOffset + c * cColorStrideBack] * colorDistance /
-                           (cColorSigmaBack * cColorSigmaBack)); // inputTensorData[homeOffset] !!
-            } else {
-              filter_kernel_back = dO_dx_ki[batchOffset + homeOffset + c * cColorStrideBack];
+            for (int c = 0; c < C; c++) {
+                // Distinguish cases for k!=i (calculation is done here)
+                // and k==i (partial derivatives are precalculated).
+                // If statement replaces center element of neighborhood/kernel.
+                if (kernelX != cHalfWindowSize_arrBack[0] || kernelY != cHalfWindowSize_arrBack[1] ||
+                    kernelZ != cHalfWindowSize_arrBack[2]) {
+
+                    filter_kernel_guidance_back =
+                            -(1 /
+                              outputWeightsTensor[batchOffset + neighbourOffset + c * cColorStrideBack]) *
+                            outputTensor[batchOffset + neighbourOffset + c * cColorStrideBack] *
+                            totalWeight *
+                            colorDistance / (cColorSigmaBack * cColorSigmaBack) +
+                            (1 /
+                             outputWeightsTensor[batchOffset + neighbourOffset + c * cColorStrideBack]) *
+                            totalWeight *
+                            (inputTensor[batchOffset + homeOffset + c * cColorStrideBack] * colorDistance /
+                             (cColorSigmaBack * cColorSigmaBack));  // inputTensorData[homeOffset] !!, no +1!!
+                } else {
+
+                    filter_kernel_guidance_back = dO_dz_ki[batchOffset + homeOffset + c * cColorStrideBack];
+                }
+
+                valueSumGuidance +=
+                        gradientInputTensor[batchOffset + neighbourOffset + c * cColorStrideBack] *
+                                filter_kernel_guidance_back;
+                valueSumInput +=
+                        gradientInputTensor[batchOffset + neighbourOffset + c * cColorStrideBack] *
+                                (1 / outputWeightsTensor[batchOffset + neighbourOffset + c * cColorStrideBack]) *
+                                totalWeight;
+
             }
 
-            valueSum += gradientInputTensor[batchOffset + neighbourOffset + c * cColorStrideBack] * filter_kernel_back;
-          }
         }
       }
     }
@@ -153,22 +166,25 @@ __global__ void BilateralFilterCudaKernel3DBackward(
 
 #pragma unroll
   for (int c = 0; c < C; c++) {
-    gradientOutputTensor[batchOffset + homeOffset + c * cColorStrideBack] = valueSum;
+    gradientGuidanceTensor[batchOffset + homeOffset + c * cColorStrideBack] = valueSumGuidance;
+    gradientOutputTensor[batchOffset + homeOffset + c * cColorStrideBack] = valueSumInput;
+
   }
 }
 
 template <int C, int D>
-void BilateralFilterCudaBackwardFunction(
-    torch::Tensor gradientInputTensor,
-    torch::Tensor gradientOutputTensor,
-    torch::Tensor inputTensor,
-    torch::Tensor outputTensor,
-    torch::Tensor outputWeightsTensor,
-    torch::Tensor dO_dx_ki,
-    float sigma_x,
-    float sigma_y,
-    float sigma_z,
-    float colorSigma) {
+void JointBilateralFilterCudaBackwardFunction(torch::Tensor gradientInputTensor,
+                                              torch::Tensor gradientGuidanceTensor,
+                                              torch::Tensor gradientOutputTensor,
+                                              torch::Tensor inputTensor,
+                                              torch::Tensor guidanceTensor,
+                                              torch::Tensor outputTensor,
+                                              torch::Tensor outputWeightsTensor,
+                                              torch::Tensor dO_dz_ki,
+                                              float sigma_x,
+                                              float sigma_y,
+                                              float sigma_z,
+                                              float colorSigma) {
   // Getting tensor description.
   TensorDescription desc = TensorDescription(inputTensor);
 
@@ -198,19 +214,19 @@ void BilateralFilterCudaBackwardFunction(
   auto* zDistanceSquared = new float[windowSize_z];
 
   for (int i = 0; i < windowSize_x; i++) {
-    int distance = i - halfWindowSize_x;
-    gaussianKernel_x[i] = exp(distance * distance * spatialExpConstant_x);
-    xDistanceSquared[i] = distance * distance;
+      int distance = i - halfWindowSize_x;
+      gaussianKernel_x[i] = exp(distance * distance * spatialExpConstant_x);
+      xDistanceSquared[i] = distance * distance;
   }
   for (int i = 0; i < windowSize_y; i++) {
-    int distance = i - halfWindowSize_y;
-    gaussianKernel_y[i] = exp(distance * distance * spatialExpConstant_y);
-    yDistanceSquared[i] = distance * distance;
+      int distance = i - halfWindowSize_y;
+      gaussianKernel_y[i] = exp(distance * distance * spatialExpConstant_y);
+      yDistanceSquared[i] = distance * distance;
   }
   for (int i = 0; i < windowSize_z; i++) {
-    int distance = i - halfWindowSize_z;
-    gaussianKernel_z[i] = exp(distance * distance * spatialExpConstant_z);
-    zDistanceSquared[i] = distance * distance;
+      int distance = i - halfWindowSize_z;
+      gaussianKernel_z[i] = exp(distance * distance * spatialExpConstant_z);
+      zDistanceSquared[i] = distance * distance;
   }
 
   // Writing constant memory.
@@ -232,24 +248,26 @@ void BilateralFilterCudaBackwardFunction(
   cudaMemcpyToSymbol(cSigma_zBack, &sigma_z, sizeof(float));
   cudaMemcpyToSymbol(cColorSigmaBack, &colorSigma, sizeof(float));
 
-  //  cuda_error_check("Cuda check before kernel call.");
+//  cuda_error_check("Cuda check before kernel call.");
 
 #define BLOCK_SIZE 32
 
   AT_DISPATCH_FLOATING_TYPES_AND_HALF(
-      inputTensor.scalar_type(), "BilateralFilterCudaKernel3DBackward", ([&] {
-        BilateralFilterCudaKernel3DBackward<scalar_t, C>
-            <<<dim3(int(desc.channelStride / BLOCK_SIZE) + 1, desc.batchCount), dim3(BLOCK_SIZE, 1)>>>(
-                gradientInputTensor.data_ptr<scalar_t>(),
-                gradientOutputTensor.data_ptr<scalar_t>(),
-                inputTensor.data_ptr<scalar_t>(),
-                outputTensor.data_ptr<scalar_t>(),
-                outputWeightsTensor.data_ptr<scalar_t>(),
-                dO_dx_ki.data_ptr<scalar_t>());
+      inputTensor.scalar_type(), "JointBilateralFilterCudaKernel3DBackward", ([&] {
+            JointBilateralFilterCudaKernel3DBackward<scalar_t, C>
+                <<<dim3(int(desc.channelStride / BLOCK_SIZE) + 1, desc.batchCount), dim3(BLOCK_SIZE, 1)>>>(
+                    gradientInputTensor.data_ptr<scalar_t>(),
+                    gradientGuidanceTensor.data_ptr<scalar_t>(),
+                    gradientOutputTensor.data_ptr<scalar_t>(),
+                    inputTensor.data_ptr<scalar_t>(),
+                    guidanceTensor.data_ptr<scalar_t>(),
+                    outputTensor.data_ptr<scalar_t>(),
+                    outputWeightsTensor.data_ptr<scalar_t>(),
+                    dO_dz_ki.data_ptr<scalar_t>());
       }));
 
-  //  cuda_error_check("Cuda check after kernel call.");
-  //  delete[] kernel;
+//  cuda_error_check("Cuda check after kernel call.");
+//  delete[] kernel;
   delete[] kernelSizes;
   delete[] gaussianKernel_x;
   delete[] gaussianKernel_y;
@@ -260,37 +278,22 @@ void BilateralFilterCudaBackwardFunction(
 }
 
 // Function to choose template implementation based on dynamic, channels and dimensions
-torch::Tensor BilateralFilterCudaBackward(
-    torch::Tensor gradientInputTensor,
-    torch::Tensor inputTensor,
-    torch::Tensor outputTensor,
-    torch::Tensor outputWeightsTensor,
-    torch::Tensor dO_dx_ki,
-    float sigma_x,
-    float sigma_y,
-    float sigma_z,
-    float colorSigma) {
+std::tuple<torch::Tensor, torch::Tensor> JointBilateralFilterCudaBackward(torch::Tensor gradientInputTensor,
+                                                                          torch::Tensor inputTensor,
+                                                                          torch::Tensor guidanceTensor,
+                                                                          torch::Tensor outputTensor,
+                                                                          torch::Tensor outputWeightsTensor,
+                                                                          torch::Tensor dO_dz_ki,
+                                                                          float sigma_x,
+                                                                          float sigma_y,
+                                                                          float sigma_z,
+                                                                          float colorSigma) {
   torch::Tensor gradientOutputTensor = torch::zeros_like(gradientInputTensor);
-  //  cuda_error_check("beginning");
+  torch::Tensor gradientGuidanceTensor = torch::zeros_like(gradientInputTensor);
+//  cuda_error_check("beginning");
 
-#define CASE(c, d)                           \
-  BilateralFilterCudaBackwardFunction<c, d>( \
-      gradientInputTensor,                   \
-      gradientOutputTensor,                  \
-      inputTensor,                           \
-      outputTensor,                          \
-      outputWeightsTensor,                   \
-      dO_dx_ki,                              \
-      sigma_x,                               \
-      sigma_y,                               \
-      sigma_z,                               \
-      colorSigma);
-  SWITCH_AB(
-      CASE,
-      BF_CUDA_MAX_CHANNELS,
-      BF_CUDA_MAX_SPATIAL_DIMENSION,
-      gradientInputTensor.size(1),
-      gradientInputTensor.dim() - 2);
+#define CASE(c, d) JointBilateralFilterCudaBackwardFunction<c, d>(gradientInputTensor, gradientGuidanceTensor, gradientOutputTensor, inputTensor, guidanceTensor, outputTensor, outputWeightsTensor, dO_dz_ki, sigma_x, sigma_y, sigma_z, colorSigma);
+  SWITCH_AB(CASE, BF_CUDA_MAX_CHANNELS, BF_CUDA_MAX_SPATIAL_DIMENSION, gradientInputTensor.size(1), gradientInputTensor.dim() - 2);
 
-  return gradientOutputTensor;
+  return {gradientOutputTensor, gradientGuidanceTensor};
 }

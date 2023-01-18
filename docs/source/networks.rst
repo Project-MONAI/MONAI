@@ -354,6 +354,11 @@ Layers
 .. autoclass:: TrainableBilateralFilter
     :members:
 
+`TrainableJointBilateralFilter`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TrainableJointBilateralFilter
+    :members:
+
 `PHLFilter`
 ~~~~~~~~~~~
 .. autoclass:: PHLFilter
