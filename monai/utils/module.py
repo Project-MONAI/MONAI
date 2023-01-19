@@ -214,7 +214,7 @@ def load_submodules(basemod, load_all: bool = True, exclude_pattern: str = "(.*[
     return submodules, err_mod
 
 
-def instantiate(path: str, **kwargs):
+def instantiate(__path: str, **kwargs):
     """
     Create an object instance or partial function from a class or function represented by string.
     `kwargs` will be part of the input arguments to the class constructor or function.
@@ -226,9 +226,9 @@ def instantiate(path: str, **kwargs):
             for `partial` function.
 
     """
-    component = locate(path) if isinstance(path, str) else path
+    component = locate(__path) if isinstance(__path, str) else __path
     if component is None:
-        raise ModuleNotFoundError(f"Cannot locate class or function path: '{path}'.")
+        raise ModuleNotFoundError(f"Cannot locate class or function path: '{__path}'.")
     try:
         if kwargs.pop("_debug_", False) or run_debug:
             warnings.warn(
@@ -243,9 +243,9 @@ def instantiate(path: str, **kwargs):
         if callable(component):  # support regular function, static method and class method
             return partial(component, **kwargs)
     except Exception as e:
-        raise RuntimeError(f"Failed to instantiate '{path}' with kwargs: {kwargs}") from e
+        raise RuntimeError(f"Failed to instantiate '{__path}' with kwargs: {kwargs}") from e
 
-    warnings.warn(f"Component to instantiate must represent a valid class or function, but got {path}.")
+    warnings.warn(f"Component to instantiate must represent a valid class or function, but got {__path}.")
     return component
 
 
