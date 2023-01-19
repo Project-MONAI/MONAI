@@ -173,7 +173,7 @@ class SpatialResample(InvertibleTransform, LazyTransform):
         dtype = img.dtype
         img = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)
         if get_track_meta():
-            self.update_meta(img, dst_affine)
+            img.affine = dst_affine
             self.push_transform(
                 img,
                 extra_info={
@@ -186,9 +186,6 @@ class SpatialResample(InvertibleTransform, LazyTransform):
                 orig_size=original_spatial_shape,
             )
         return img
-
-    def update_meta(self, img, dst_affine):
-        img.affine = dst_affine
 
     def lazy_call(
         self, img, src_affine, xform, spatial_size, mode, padding_mode, align_corners, original_shape
@@ -377,7 +374,7 @@ class ResampleToMatch(SpatialResample):
 
     def update_meta(self, img: torch.Tensor, dst_affine=None, img_dst=None):
         if dst_affine is not None:
-            super().update_meta(img, dst_affine)
+            img.affine = dst_affine
         if isinstance(img_dst, MetaTensor) and isinstance(img, MetaTensor):
             original_fname = img.meta[Key.FILENAME_OR_OBJ]
             img.meta = deepcopy(img_dst.meta)
