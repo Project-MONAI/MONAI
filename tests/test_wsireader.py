@@ -38,9 +38,7 @@ has_tiff = has_tiff and has_codec
 
 FILE_KEY = "wsi_img"
 FILE_URL = testing_data_config("images", FILE_KEY, "url")
-base_name, extension = os.path.basename(f"{FILE_URL}"), ".tiff"
-FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + base_name + extension)
-
+FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", f"temp_{FILE_KEY}.tiff")
 HEIGHT = 32914
 WIDTH = 46000
 

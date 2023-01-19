@@ -29,9 +29,8 @@ _, has_osl = optional_import("openslide")
 
 FILE_KEY = "wsi_img"
 FILE_URL = testing_data_config("images", FILE_KEY, "url")
-base_name, extension = os.path.basename(f"{FILE_URL}"), ".tiff"
-FILE_NAME = f"temp_{base_name}"
-FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", FILE_NAME + extension)
+FILE_NAME = f"temp_{FILE_KEY}.tiff"
+FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", FILE_NAME)
 
 MASK1, MASK2, MASK4 = "mask1.npy", "mask2.npy", "mask4.npy"
 
