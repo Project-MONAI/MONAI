@@ -178,6 +178,7 @@ class GEGLU(nn.Module):
         - Input: :math:`(N, *, 2 * D)`
         - Output: :math:`(N, *, D)`, where `*` means, any number of additional dimensions
     """
+
     def forward(self, input: torch.Tensor):
         x, gate = input.chunk(2, dim=-1)
         return x * nn.functional.gelu(gate)
