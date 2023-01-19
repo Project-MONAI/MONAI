@@ -1471,8 +1471,8 @@ class RandHistogramShift(RandomizableTransform):
         img_min, img_max = img_t.min(), img_t.max()
         if img_min == img_max:
             warn(
-                f"The intensity of the image has only one value {img_min}. "
-                "No histogram shift is done, just return the original image."
+                f"The image's intensity is a single value {img_min}. "
+                "The original image is simply returned, no histogram shift is done."
             )
             return img
         xp, *_ = convert_to_dst_type(self.reference_control_points, dst=img_t)
