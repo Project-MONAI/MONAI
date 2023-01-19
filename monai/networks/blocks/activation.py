@@ -162,3 +162,23 @@ class Mish(nn.Module):
 
     def forward(self, input: torch.Tensor):
         return monai_mish(input, self.inplace)
+
+
+class GEGLU(nn.Module):
+    r"""Applies the element-wise function:
+
+    .. math::
+        \text{GEGLU}(x) = x_1 * \text{Sigmoid}(x_2)
+
+    where :math:`x_1` and :math:`x_2` are split from the input tensor along the last dimension.
+
+    Citation: GLU Variants Improve Transformer, Noam Shazeer, 2020, https://arxiv.org/abs/2002.05202.
+
+    Shape:
+        - Input: :math:`(N, *, 2 * D)`
+        - Output: :math:`(N, *, D)`, where `*` means, any number of additional dimensions
+    """
+
+    def forward(self, input: torch.Tensor):
+        x, gate = input.chunk(2, dim=-1)
+        return x * nn.functional.gelu(gate)
