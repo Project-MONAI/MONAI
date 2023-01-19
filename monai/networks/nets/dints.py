@@ -558,7 +558,7 @@ class TopologyConstruction(nn.Module):
         self,
         arch_code: list | None = None,
         channel_mul: float = 1.0,
-        cell=Cell,
+        cell = Cell,
         num_blocks: int = 6,
         num_depths: int = 3,
         spatial_dims: int = 3,
@@ -570,9 +570,17 @@ class TopologyConstruction(nn.Module):
 
         super().__init__()
 
-        self.filter_nums = [int(n_feat * channel_mul) for n_feat in (32, 64, 128, 256, 512)]
+        n_feats = tuple([32 * (2 ** _i) for _i in range(num_depths + 1)])
+        self.filter_nums = [int(n_feat * channel_mul) for n_feat in n_feats]
+
         self.num_blocks = num_blocks
         self.num_depths = num_depths
+        print(
+            "Length of input patch is recommended to be a multiple of {0:d}.".format(
+                2 ** (num_depths + int(use_downsample))
+            )
+        )
+
         self._spatial_dims = spatial_dims
         self._act_name = act_name
         self._norm_name = norm_name
