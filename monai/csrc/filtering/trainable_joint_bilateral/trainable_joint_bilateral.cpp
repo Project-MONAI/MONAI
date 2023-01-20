@@ -11,9 +11,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 =========================================================================
-Adapted from https://github.com/faebstn96/trainable-bilateral-filter-source
+Adapted from https://github.com/faebstn96/trainable-joint-bilateral-filter-source
 which has the following license...
-https://github.com/faebstn96/trainable-bilateral-filter-source/blob/main/LICENSE.md
+https://github.com/faebstn96/trainable-joint-bilateral-filter-source/blob/main/LICENSE
 
 Copyright 2022 Fabian Wagner, Pattern Recognition Lab, FAU Erlangen-Nuernberg, Erlangen, Germany
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,18 +31,19 @@ limitations under the License.
 #include <stdexcept>
 #include <string>
 
-#include "trainable_bilateral.h"
+#include "trainable_joint_bilateral.h"
 #include "utils/common_utils.h"
 
 std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
-TrainableBilateralFilterForward(
+TrainableJointBilateralFilterForward(
     torch::Tensor inputTensor,
+    torch::Tensor guidanceTensor,
     float sigma_x,
     float sigma_y,
     float sigma_z,
     float colorSigma) {
   std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor> (
-      *filterFunction)(torch::Tensor, float, float, float, float);
+      *filterFunction)(torch::Tensor, torch::Tensor, float, float, float, float);
 
 #ifdef WITH_CUDA
 
@@ -60,20 +61,21 @@ TrainableBilateralFilterForward(
           std::to_string(BF_CUDA_MAX_SPATIAL_DIMENSION));
     }
 
-    filterFunction = &BilateralFilterCudaForward;
+    filterFunction = &JointBilateralFilterCudaForward;
   } else {
-    filterFunction = &BilateralFilterCpuForward;
+    filterFunction = &JointBilateralFilterCpuForward;
   }
 #else
-  filterFunction = &BilateralFilterCpuForward;
+  filterFunction = &JointBilateralFilterCpuForward;
 #endif
 
-  return filterFunction(inputTensor, sigma_x, sigma_y, sigma_z, colorSigma);
+  return filterFunction(inputTensor, guidanceTensor, sigma_x, sigma_y, sigma_z, colorSigma);
 }
 
-torch::Tensor TrainableBilateralFilterBackward(
+std::tuple<torch::Tensor, torch::Tensor> TrainableJointBilateralFilterBackward(
     torch::Tensor gradientInputTensor,
     torch::Tensor inputTensor,
+    torch::Tensor guidanceTensor,
     torch::Tensor outputTensor,
     torch::Tensor outputWeightsTensor,
     torch::Tensor dO_dx_ki,
@@ -81,8 +83,17 @@ torch::Tensor TrainableBilateralFilterBackward(
     float sigma_y,
     float sigma_z,
     float colorSigma) {
-  torch::Tensor (*filterFunction)(
-      torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, float, float, float, float);
+  std::tuple<torch::Tensor, torch::Tensor> (*filterFunction)(
+      torch::Tensor,
+      torch::Tensor,
+      torch::Tensor,
+      torch::Tensor,
+      torch::Tensor,
+      torch::Tensor,
+      float,
+      float,
+      float,
+      float);
 
 #ifdef WITH_CUDA
 
@@ -100,17 +111,18 @@ torch::Tensor TrainableBilateralFilterBackward(
           std::to_string(BF_CUDA_MAX_SPATIAL_DIMENSION));
     }
 
-    filterFunction = &BilateralFilterCudaBackward;
+    filterFunction = &JointBilateralFilterCudaBackward;
   } else {
-    filterFunction = &BilateralFilterCpuBackward;
+    filterFunction = &JointBilateralFilterCpuBackward;
   }
 #else
-  filterFunction = &BilateralFilterCpuBackward;
+  filterFunction = &JointBilateralFilterCpuBackward;
 #endif
 
   return filterFunction(
       gradientInputTensor,
       inputTensor,
+      guidanceTensor,
       outputTensor,
       outputWeightsTensor,
       dO_dx_ki,
