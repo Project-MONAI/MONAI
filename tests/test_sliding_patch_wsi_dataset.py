@@ -32,9 +32,9 @@ imwrite, has_tiff = optional_import("tifffile", name="imwrite")
 _, has_codec = optional_import("imagecodecs")
 has_tiff = has_tiff and has_codec
 
-FILE_KEY = "wsi_img"
+FILE_KEY = "wsi_img.tiff"
 FILE_URL = testing_data_config("images", FILE_KEY, "url")
-FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", f"temp_{FILE_KEY}.tiff")
+FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", f"temp_{FILE_KEY}")
 
 FILE_PATH_SMALL_0 = os.path.join(os.path.dirname(__file__), "testing_data", "temp_wsi_inference_0.tiff")
 FILE_PATH_SMALL_1 = os.path.join(os.path.dirname(__file__), "testing_data", "temp_wsi_inference_1.tiff")

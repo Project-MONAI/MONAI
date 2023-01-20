@@ -1,6 +1,6 @@
 {
     "images": {
-        "wsi_img": {
+        "wsi_img.tiff": {
             "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/CMU-1.tiff",
             "hash_type": "sha256",
             "hash_val": "73a7e89bc15576587c3d68e55d9bf92f09690280166240b48ff4b48230b13bcd"

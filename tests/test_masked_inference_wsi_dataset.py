@@ -27,9 +27,9 @@ from tests.utils import download_url_or_skip_test, skip_if_quick, testing_data_c
 _, has_cim = optional_import("cucim", name="CuImage")
 _, has_osl = optional_import("openslide")
 
-FILE_KEY = "wsi_img"
+FILE_KEY = "wsi_img.tiff"
 FILE_URL = testing_data_config("images", FILE_KEY, "url")
-FILE_NAME = f"temp_{FILE_KEY}.tiff"
+FILE_NAME = f"temp_{FILE_KEY}"
 FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", FILE_NAME)
 
 MASK1, MASK2, MASK4 = "mask1.npy", "mask2.npy", "mask4.npy"

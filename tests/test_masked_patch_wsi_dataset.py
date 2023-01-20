@@ -32,9 +32,9 @@ _, has_tiff = optional_import("tifffile", name="imwrite")
 _, has_codec = optional_import("imagecodecs")
 has_tiff = has_tiff and has_codec
 
-FILE_KEY = "wsi_img"
+FILE_KEY = "wsi_img.tiff"
 FILE_URL = testing_data_config("images", FILE_KEY, "url")
-FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", f"temp_{FILE_KEY}.tiff")
+FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", f"temp_{FILE_KEY}")
 
 TEST_CASE_0 = [
     {"data": [{"image": FILE_PATH, WSIPatchKeys.LEVEL: 8, WSIPatchKeys.SIZE: (2, 2)}], "mask_level": 8},

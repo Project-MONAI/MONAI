@@ -26,9 +26,9 @@ from tests.utils import download_url_or_skip_test, testing_data_config
 _cucim, has_cim = optional_import("cucim")
 has_cim = has_cim and hasattr(_cucim, "CuImage")
 
-FILE_KEY = "wsi_img"
+FILE_KEY = "wsi_img.tiff"
 FILE_URL = testing_data_config("images", FILE_KEY, "url")
-FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", f"temp_{FILE_KEY}.tiff")
+FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", f"temp_{FILE_KEY}")
 
 TEST_CASE_0 = [
     {
