@@ -114,6 +114,7 @@ class TraceableTransform(Transform):
                 computing the inverse transformation.
             orig_size: sometimes during the inverse it is useful to know what the size
                 of the original image was, in which case it can be supplied here.
+            transform_info: the information pertaining to the applied transform.
 
         Returns:
             None, but data has been updated to store the applied transformation.
@@ -163,6 +164,8 @@ class TraceableTransform(Transform):
     ):
         """
         Push to MetaTensor's pending operations for later execution.
+
+        See also: `track_transform`.
         """
         if not get_track_meta() or not transform_info or not transform_info.get(TraceKeys.TRACING):
             return data

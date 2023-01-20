@@ -33,9 +33,8 @@ from monai.data.utils import AFFINE_TOL, affine_to_spacing, compute_shape_offset
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.networks.utils import meshgrid_ij
 from monai.transforms.croppad.array import CenterSpatialCrop, ResizeWithPadOrCrop
-from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.spatial.functional import spatial_resample
+from monai.transforms.spatial.functional import flip, orientation, resize, spatial_resample
 from monai.transforms.transform import LazyTransform, Randomizable, RandomizableTransform, Transform
 from monai.transforms.utils import (
     convert_pad_mode,
@@ -204,12 +203,12 @@ class SpatialResample(InvertibleTransform, LazyTransform):
         Set `dst_affine` and `spatial_size` to `None` to turn off the resampling step.
         """
         # get dtype as torch (e.g., torch.float64)
-        _dtype = get_equivalent_dtype(dtype or self.dtype or img.dtype, torch.Tensor)
+        dtype_pt = get_equivalent_dtype(dtype or self.dtype or img.dtype, torch.Tensor)
         align_corners = self.align_corners if align_corners is None else align_corners
         mode = mode if mode is not None else self.mode
         padding_mode = padding_mode if padding_mode is not None else self.padding_mode
         return spatial_resample(
-            img, dst_affine, spatial_size, mode, padding_mode, align_corners, _dtype, self.get_transform_info()
+            img, dst_affine, spatial_size, mode, padding_mode, align_corners, dtype_pt, self.get_transform_info()
         )
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
@@ -561,9 +560,7 @@ class Orientation(InvertibleTransform, LazyTransform):
         if not (get_track_meta() and isinstance(img, MetaTensor)):
             return img  # type: ignore
         _shape = convert_to_numpy(img.peek_pending_shape(), wrap_sequence=True)[[i - 1 for i in ordering if i != 0]]
-        self.push_transform(
-            img, lazy_shape=_shape, lazy_affine=xform, extra_info={"original_affine": original_affine}
-        )
+        self.push_transform(img, lazy_shape=_shape, lazy_affine=xform, extra_info={"original_affine": original_affine})
         return img
 
     def __call__(self, data_array: torch.Tensor) -> torch.Tensor:
@@ -584,7 +581,7 @@ class Orientation(InvertibleTransform, LazyTransform):
                 `torch.Tensor`.
 
         """
-        spatial_shape = data_array.shape[1:]
+        spatial_shape = data_array.peek_pending_shape() if isinstance(data_array, MetaTensor) else data_array.shape[1:]
         sr = len(spatial_shape)
         if sr <= 0:
             raise ValueError("data_array must have at least one spatial dimension.")
@@ -607,8 +604,8 @@ class Orientation(InvertibleTransform, LazyTransform):
                 raise ValueError("Incompatible values: axcodes=None and as_closest_canonical=True.")
             if sr < len(self.axcodes):
                 warnings.warn(
-                    f"axcodes ('{self.axcodes}') length is smaller than the number of input spatial dimensions D={sr}.\n"
-                    f"{self.__class__.__name__}: input spatial shape is {spatial_shape}, num. channels is {data_array.shape[0]},"
+                    f"axcodes ('{self.axcodes}') length is smaller than number of input spatial dimensions D={sr}.\n"
+                    f"{self.__class__.__name__}: spatial shape = {spatial_shape}, channels = {data_array.shape[0]},"
                     "please make sure the input is in the channel-first format."
                 )
             dst = nib.orientations.axcodes2ornt(self.axcodes[:sr], labels=self.labels)
@@ -617,33 +614,7 @@ class Orientation(InvertibleTransform, LazyTransform):
                     f"axcodes must match data_array spatially, got axcodes={len(self.axcodes)}D data_array={sr}D"
                 )
             spatial_ornt = nib.orientations.ornt_transform(src, dst)
-        affine_x = nib.orientations.inv_ornt_aff(spatial_ornt, spatial_shape)
-        new_affine = affine_ @ affine_x
-
-        # convert to MetaTensor if necessary
-        data_array = convert_to_tensor(data_array, track_meta=get_track_meta())
-
-        spatial_ornt[:, 0] += 1  # skip channel dim
-        spatial_ornt = np.concatenate([np.array([[0, 1]]), spatial_ornt])
-        axes = [ax for ax, flip in enumerate(spatial_ornt[:, 1]) if flip == -1]
-        full_transpose = np.arange(len(data_array.shape))
-        full_transpose[: len(spatial_ornt)] = np.argsort(spatial_ornt[:, 0])
-        new_affine = to_affine_nd(affine_np, new_affine)
-        new_affine, *_ = convert_data_type(new_affine, torch.Tensor, dtype=torch.float32, device=data_array.device)
-        if self.lazy_evaluation:
-            return self.lazy_call(data_array, affine_x, affine_np, full_transpose)
-        if axes:
-            data_array = torch.flip(data_array, dims=axes)
-        if not np.all(full_transpose == np.arange(len(data_array.shape))):
-            data_array = data_array.permute(full_transpose.tolist())
-
-        if get_track_meta():
-            self.update_meta(data_array, new_affine)
-            self.push_transform(data_array, extra_info={"original_affine": affine_np})
-        return data_array
-
-    def update_meta(self, img, new_affine):
-        img.affine = new_affine
+        return orientation(data_array, affine_np, spatial_ornt, self.get_transform_info())
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(data)
@@ -678,27 +649,6 @@ class Flip(InvertibleTransform, LazyTransform):
     def __init__(self, spatial_axis: Sequence[int] | int | None = None) -> None:
         self.spatial_axis = spatial_axis
 
-    def update_meta(self, img, shape, axes):
-        # shape and axes include the channel dim
-        affine = img.peek_pending_affine()
-        mat = convert_to_dst_type(torch.eye(len(affine)), affine)[0]
-        for axis in axes:
-            sp = axis - 1
-            mat[sp, sp], mat[sp, -1] = mat[sp, sp] * -1, shape[axis] - 1
-        return mat
-
-    def forward_image(self, img, axes) -> torch.Tensor:
-        return torch.flip(img, axes)
-
-    def lazy_call(self, img, axes) -> torch.Tensor:
-        if not (get_track_meta() and isinstance(img, MetaTensor)):
-            return img  # type: ignore
-        _shape = img.peek_pending_shape()
-        spatial_chn_shape = [1, *convert_to_numpy(_shape, wrap_sequence=True).tolist()]
-        _affine = self.update_meta(img, spatial_chn_shape, axes)
-        self.push_transform(img, lazy_shape=_shape, lazy_affine=_affine)
-        return img
-
     def __call__(self, img: torch.Tensor) -> torch.Tensor:
         """
         Args:
@@ -706,13 +656,9 @@ class Flip(InvertibleTransform, LazyTransform):
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         axes = map_spatial_axes(img.ndim, self.spatial_axis)
-        if self.lazy_evaluation:
-            return self.lazy_call(img, axes)
-        out = self.forward_image(img, axes)
-        if get_track_meta():
-            out.affine @= self.update_meta(out, out.shape, axes)  # type: ignore
-            self.push_transform(out)
-        return out
+        spatial_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
+        spatial_chn_shape = [1, *convert_to_numpy(spatial_shape, wrap_sequence=True).tolist()]
+        return flip(img, spatial_chn_shape, axes, transform_info=self.get_transform_info())
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         self.pop_transform(data)
@@ -818,80 +764,26 @@ class Resize(InvertibleTransform, LazyTransform):
                     f"got spatial_size={output_ndim} img={input_ndim}."
                 )
             _sp = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
-            spatial_size_ = fall_back_tuple(self.spatial_size, _sp)
+            sp_size = fall_back_tuple(self.spatial_size, _sp)
         else:  # for the "longest" mode
             img_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
             if not isinstance(self.spatial_size, int):
                 raise ValueError("spatial_size must be an int number if size_mode is 'longest'.")
             scale = self.spatial_size / max(img_size)
-            spatial_size_ = tuple(int(round(s * scale)) for s in img_size)
+            sp_size = tuple(int(round(s * scale)) for s in img_size)
 
         _mode = look_up_option(self.mode if mode is None else mode, InterpolateMode)
         _align_corners = self.align_corners if align_corners is None else align_corners
-        img = convert_to_tensor(img, track_meta=get_track_meta())
-        original_sp_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
-        if self.lazy_evaluation:
-            if anti_aliasing:
-                raise ValueError("anti-aliasing is not compatible with lazy evaluation.")
-            return self.lazy_call(img, original_sp_size, spatial_size_, _mode, _align_corners, input_ndim)
-        if tuple(convert_to_numpy(original_sp_size)) == spatial_size_:  # spatial shape is already the desired
-            return self._post_process(img, original_sp_size, spatial_size_, _mode, _align_corners, input_ndim)
-        img_ = convert_to_tensor(img, dtype=torch.float, track_meta=False)
-
-        if anti_aliasing and any(x < y for x, y in zip(spatial_size_, img_.shape[1:])):
-            factors = torch.div(torch.Tensor(list(img_.shape[1:])), torch.Tensor(spatial_size_))
-            if anti_aliasing_sigma is None:
-                # if sigma is not given, use the default sigma in skimage.transform.resize
-                anti_aliasing_sigma = torch.maximum(torch.zeros(factors.shape), (factors - 1) / 2).tolist()
-            else:
-                # if sigma is given, use the given value for downsampling axis
-                anti_aliasing_sigma = list(ensure_tuple_rep(anti_aliasing_sigma, len(spatial_size_)))
-                for axis in range(len(spatial_size_)):
-                    anti_aliasing_sigma[axis] = anti_aliasing_sigma[axis] * int(factors[axis] > 1)
-            anti_aliasing_filter = GaussianSmooth(sigma=anti_aliasing_sigma)
-            img_ = convert_to_tensor(anti_aliasing_filter(img_), track_meta=False)
-
-        img = convert_to_tensor(img, track_meta=get_track_meta())
-        resized = torch.nn.functional.interpolate(
-            input=img_.unsqueeze(0), size=spatial_size_, mode=_mode, align_corners=_align_corners
-        )
-        out, *_ = convert_to_dst_type(resized.squeeze(0), img)
-        return self._post_process(out, original_sp_size, spatial_size_, _mode, _align_corners, input_ndim)
-
-    def _post_process(self, img: torch.Tensor, orig_size, sp_size, mode, align_corners, ndim) -> torch.Tensor:
-        if get_track_meta():
-            img.affine @= self.update_meta(img, orig_size, sp_size)  # type: ignore
-            self.push_transform(
-                img,
-                orig_size=orig_size,
-                extra_info={
-                    "mode": mode,
-                    "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
-                    "new_dim": len(orig_size) - ndim,  # additional dims appended
-                },
-            )
-        return img
-
-    def lazy_call(self, img, orig_size, sp_size, mode, align_corners, ndim) -> torch.Tensor:
-        if not (get_track_meta() and isinstance(img, MetaTensor)):
-            return img  # type: ignore
-        _affine = self.update_meta(img, orig_size, sp_size)
-        self.push_transform(
+        return resize(
             img,
-            lazy_shape=sp_size,
-            lazy_affine=_affine,
-            orig_size=orig_size,
-            extra_info={
-                "mode": mode,
-                "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
-                "new_dim": len(orig_size) - ndim,
-            },
+            sp_size,
+            _mode,
+            _align_corners,
+            input_ndim,
+            anti_aliasing,
+            anti_aliasing_sigma,
+            self.get_transform_info(),
         )
-        return img
-
-    def update_meta(self, img, spatial_size, new_spatial_size):
-        affine = convert_to_tensor(img.peek_pending_affine(), track_meta=False)
-        return scale_affine(affine, spatial_size, new_spatial_size)
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(data)
