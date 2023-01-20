@@ -58,6 +58,11 @@ Blocks
 .. autoclass:: Mish
     :members:
 
+`GEGLU`
+~~~~~~~
+.. autoclass:: GEGLU
+    :members:
+
 `GCN Module`
 ~~~~~~~~~~~~
 .. autoclass:: GCN

@@ -320,6 +320,13 @@ def mish_factory():
     return Mish
 
 
+@Act.factory_function("geglu")
+def geglu_factory():
+    from monai.networks.blocks.activation import GEGLU
+
+    return GEGLU
+
+
 @Conv.factory_function("conv")
 def conv_factory(dim: int) -> type[nn.Conv1d | nn.Conv2d | nn.Conv3d]:
     types = (nn.Conv1d, nn.Conv2d, nn.Conv3d)
