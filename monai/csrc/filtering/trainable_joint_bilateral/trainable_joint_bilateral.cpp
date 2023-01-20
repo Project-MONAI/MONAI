@@ -84,7 +84,16 @@ std::tuple<torch::Tensor, torch::Tensor> TrainableJointBilateralFilterBackward(
     float sigma_z,
     float colorSigma) {
   std::tuple<torch::Tensor, torch::Tensor> (*filterFunction)(
-      torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, float, float, float, float);
+      torch::Tensor,
+      torch::Tensor,
+      torch::Tensor,
+      torch::Tensor,
+      torch::Tensor,
+      torch::Tensor,
+      float,
+      float,
+      float,
+      float);
 
 #ifdef WITH_CUDA
 

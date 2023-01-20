@@ -40,41 +40,47 @@ limitations under the License.
 #define BF_CUDA_MAX_SPATIAL_DIMENSION 3
 
 #ifdef WITH_CUDA
-std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor> JointBilateralFilterCudaForward(torch::Tensor inputTensor,
-                                                                                                                                                    torch::Tensor guidanceTensor,
-                                                                                                                                                    float sigma_x,
-                                                                                                                                                    float sigma_y,
-                                                                                                                                                    float sigma_z,
-                                                                                                                                                    float colorSigma);
-std::tuple<torch::Tensor, torch::Tensor> JointBilateralFilterCudaBackward(torch::Tensor gradientInputTensor,
-                                                                          torch::Tensor inputTensor,
-                                                                          torch::Tensor guidanceTensor,
-                                                                          torch::Tensor outputTensor,
-                                                                          torch::Tensor outputWeightsTensor,
-                                                                          torch::Tensor dO_dz_ki,
-                                                                          float sigma_x,
-                                                                          float sigma_y,
-                                                                          float sigma_z,
-                                                                          float colorSigma);
+std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
+JointBilateralFilterCudaForward(
+    torch::Tensor inputTensor,
+    torch::Tensor guidanceTensor,
+    float sigma_x,
+    float sigma_y,
+    float sigma_z,
+    float colorSigma);
+std::tuple<torch::Tensor, torch::Tensor> JointBilateralFilterCudaBackward(
+    torch::Tensor gradientInputTensor,
+    torch::Tensor inputTensor,
+    torch::Tensor guidanceTensor,
+    torch::Tensor outputTensor,
+    torch::Tensor outputWeightsTensor,
+    torch::Tensor dO_dz_ki,
+    float sigma_x,
+    float sigma_y,
+    float sigma_z,
+    float colorSigma);
 #endif
 
-std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor> JointBilateralFilterCpuForward(torch::Tensor inputTensor,
-                                                                                                                                                   torch::Tensor guidanceTensor,
-                                                                                                                                                   float sigma_x,
-                                                                                                                                                   float sigma_y,
-                                                                                                                                                   float sigma_z,
-                                                                                                                                                   float colorSigma);
+std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
+JointBilateralFilterCpuForward(
+    torch::Tensor inputTensor,
+    torch::Tensor guidanceTensor,
+    float sigma_x,
+    float sigma_y,
+    float sigma_z,
+    float colorSigma);
 
-std::tuple<torch::Tensor, torch::Tensor> JointBilateralFilterCpuBackward(torch::Tensor gradientInputTensor,
-                                                                         torch::Tensor inputTensor,
-                                                                         torch::Tensor guidanceTensor,
-                                                                         torch::Tensor outputTensor,
-                                                                         torch::Tensor outputWeightsTensor,
-                                                                         torch::Tensor dO_dz_ki,
-                                                                         float sigma_x,
-                                                                         float sigma_y,
-                                                                         float sigma_z,
-                                                                         float colorSigma);
+std::tuple<torch::Tensor, torch::Tensor> JointBilateralFilterCpuBackward(
+    torch::Tensor gradientInputTensor,
+    torch::Tensor inputTensor,
+    torch::Tensor guidanceTensor,
+    torch::Tensor outputTensor,
+    torch::Tensor outputWeightsTensor,
+    torch::Tensor dO_dz_ki,
+    float sigma_x,
+    float sigma_y,
+    float sigma_z,
+    float colorSigma);
 
 std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
 TrainableJointBilateralFilterForward(
