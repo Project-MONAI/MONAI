@@ -11,9 +11,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 =========================================================================
-Adapted from https://github.com/faebstn96/trainable-bilateral-filter-source
+Adapted from https://github.com/faebstn96/trainable-joint-bilateral-filter-source
 which has the following license...
-https://github.com/faebstn96/trainable-bilateral-filter-source/blob/main/LICENSE.md
+https://github.com/faebstn96/trainable-joint-bilateral-filter-source/blob/main/LICENSE
 
 Copyright 2022 Fabian Wagner, Pattern Recognition Lab, FAU Erlangen-Nuernberg, Erlangen, Germany
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,18 +27,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#include "trainable_bilateral.h"
+#include "trainable_joint_bilateral.h"
 #include "utils/tensor_description.h"
 #include "utils/tensor_indexing.h"
 
 template <typename scalar_t>
-void BilateralFilterCpuBackward_3d(
+void JointBilateralFilterCpuBackward_3d(
     torch::Tensor gradientInputTensor,
+    torch::Tensor gradientGuidanceTensor,
     torch::Tensor gradientOutputTensor,
     torch::Tensor inputTensor,
+    torch::Tensor guidanceTensor,
     torch::Tensor outputTensor,
     torch::Tensor outputWeightsTensor,
-    torch::Tensor dO_dx_ki,
+    torch::Tensor dO_dz_ki,
     float sigma_x,
     float sigma_y,
     float sigma_z,
@@ -48,11 +50,15 @@ void BilateralFilterCpuBackward_3d(
 
   // Raw tensor data pointers.
   scalar_t* gradientInputTensorData = gradientInputTensor.data_ptr<scalar_t>();
+  scalar_t* gradientGuidanceTensorData = gradientGuidanceTensor.data_ptr<scalar_t>();
   scalar_t* gradientOutputTensorData = gradientOutputTensor.data_ptr<scalar_t>();
   scalar_t* inputTensorData = inputTensor.data_ptr<scalar_t>();
+  scalar_t* guidanceTensorData = guidanceTensor.data_ptr<scalar_t>();
   scalar_t* outputTensorData = outputTensor.data_ptr<scalar_t>();
   scalar_t* outputWeightsTensorData = outputWeightsTensor.data_ptr<scalar_t>();
-  scalar_t* dO_dx_kiData = dO_dx_ki.data_ptr<scalar_t>();
+  scalar_t* dO_dz_kiData = dO_dz_ki.data_ptr<scalar_t>();
+  //    scalar_t* dw_dx_kiData = dw_dx_ki_Tensor.data_ptr<scalar_t>();
+  //    scalar_t* dfilter_dx_kiData = dfilter_dx_ki_Tensor.data_ptr<scalar_t>();
 
   // Pre-calculate common values
   int windowSize_x = std::max(((int)ceil(5.0f * sigma_x) | 1), 5); // ORing last bit to ensure odd window size
@@ -116,8 +122,9 @@ void BilateralFilterCpuBackward_3d(
           homeOffset += z * desc.strides[2];
 
           // Zero kernel aggregates.
-          scalar_t filter_kernel = 0;
-          scalar_t valueSum = 0;
+          scalar_t filter_kernel_guidance = 0;
+          scalar_t valueSumGuidance = 0;
+          scalar_t valueSumInput = 0;
 
           // Looping over all dimensions for the neighbour element
           Indexer kernelIndex = Indexer(desc.dimensions, kernelSizes);
@@ -142,9 +149,9 @@ void BilateralFilterCpuBackward_3d(
             scalar_t colorDistanceSquared = 0;
 
             for (int i = 0; i < desc.channelCount; i++) {
-              scalar_t diff = inputTensorData[neighbourOffset + i * desc.channelStride] -
-                  inputTensorData[homeOffset +
-                                  i * desc.channelStride]; // Be careful: Here it is (X_k - X_i) and not (X_i - X_q)
+              scalar_t diff = guidanceTensorData[neighbourOffset + i * desc.channelStride] -
+                  guidanceTensorData[homeOffset + i * desc.channelStride]; // Be careful: Here it is (Z_k - Z_i) and not
+                                                                           // (Z_i - Z_q)
               colorDistance += diff; // Do not take the absolute value here. Be careful with the signs.
               colorDistanceSquared += diff * diff;
             }
@@ -167,18 +174,20 @@ void BilateralFilterCpuBackward_3d(
                 // If statement replaces center element of neighborhood/kernel.
                 if (kernelIndex[0] != halfWindowSize_x || kernelIndex[1] != halfWindowSize_y ||
                     kernelIndex[2] != halfWindowSize_z) {
-                  filter_kernel = -(1 / outputWeightsTensorData[neighbourOffset + i * desc.channelStride]) *
+                  filter_kernel_guidance = -(1 / outputWeightsTensorData[neighbourOffset + i * desc.channelStride]) *
                           outputTensorData[neighbourOffset + i * desc.channelStride] * totalWeight * colorDistance /
                           (colorSigma * colorSigma) +
                       (1 / outputWeightsTensorData[neighbourOffset + i * desc.channelStride]) * totalWeight *
-                          (1 +
-                           inputTensorData[homeOffset + i * desc.channelStride] * colorDistance /
-                               (colorSigma * colorSigma)); // inputTensorData[homeOffset] !!
+                          (inputTensorData[homeOffset + i * desc.channelStride] * colorDistance /
+                           (colorSigma * colorSigma)); // inputTensorData[homeOffset] !!, no +1!!
                 } else {
-                  filter_kernel = dO_dx_kiData[homeOffset + i * desc.channelStride];
+                  filter_kernel_guidance = dO_dz_kiData[homeOffset + i * desc.channelStride];
                 }
 
-                valueSum += gradientInputTensorData[neighbourOffset + i * desc.channelStride] * filter_kernel;
+                valueSumGuidance +=
+                    gradientInputTensorData[neighbourOffset + i * desc.channelStride] * filter_kernel_guidance;
+                valueSumInput += gradientInputTensorData[neighbourOffset + i * desc.channelStride] *
+                    (1 / outputWeightsTensorData[neighbourOffset + i * desc.channelStride]) * totalWeight;
               }
             }
           } while (kernelIndex++);
@@ -186,7 +195,8 @@ void BilateralFilterCpuBackward_3d(
           // Do the filtering and calculate the values for the backward pass.
           for (int i = 0; i < desc.channelCount; i++) {
             // Filtering:
-            gradientOutputTensorData[homeOffset + i * desc.channelStride] = valueSum;
+            gradientGuidanceTensorData[homeOffset + i * desc.channelStride] = valueSumGuidance;
+            gradientOutputTensorData[homeOffset + i * desc.channelStride] = valueSumInput;
           }
         }
       }
@@ -201,32 +211,36 @@ void BilateralFilterCpuBackward_3d(
   delete[] zDistanceSquared;
 }
 
-torch::Tensor BilateralFilterCpuBackward(
+std::tuple<torch::Tensor, torch::Tensor> JointBilateralFilterCpuBackward(
     torch::Tensor gradientInputTensor,
     torch::Tensor inputTensor,
+    torch::Tensor guidanceTensor,
     torch::Tensor outputTensor,
     torch::Tensor outputWeightsTensor,
-    torch::Tensor dO_dx_ki,
+    torch::Tensor dO_dz_ki,
     float sigma_x,
     float sigma_y,
     float sigma_z,
     float colorSigma) {
   // Preparing output tensor.
   torch::Tensor gradientOutputTensor = torch::zeros_like(gradientInputTensor);
+  torch::Tensor gradientGuidanceTensor = torch::zeros_like(gradientInputTensor);
 
-  AT_DISPATCH_FLOATING_TYPES_AND_HALF(gradientInputTensor.scalar_type(), "BilateralFilterCpuBackward_3d", ([&] {
-                                        BilateralFilterCpuBackward_3d<scalar_t>(
+  AT_DISPATCH_FLOATING_TYPES_AND_HALF(gradientInputTensor.scalar_type(), "JointBilateralFilterCpuBackward_3d", ([&] {
+                                        JointBilateralFilterCpuBackward_3d<scalar_t>(
                                             gradientInputTensor,
+                                            gradientGuidanceTensor,
                                             gradientOutputTensor,
                                             inputTensor,
+                                            guidanceTensor,
                                             outputTensor,
                                             outputWeightsTensor,
-                                            dO_dx_ki,
+                                            dO_dz_ki,
                                             sigma_x,
                                             sigma_y,
                                             sigma_z,
                                             colorSigma);
                                       }));
 
-  return gradientOutputTensor;
+  return {gradientOutputTensor, gradientGuidanceTensor};
 }

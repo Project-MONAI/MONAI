@@ -11,9 +11,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 =========================================================================
-Adapted from https://github.com/faebstn96/trainable-bilateral-filter-source
+Adapted from https://github.com/faebstn96/trainable-joint-bilateral-filter-source
 which has the following license...
-https://github.com/faebstn96/trainable-bilateral-filter-source/blob/main/LICENSE.md
+https://github.com/faebstn96/trainable-joint-bilateral-filter-source/blob/main/LICENSE
 
 Copyright 2022 Fabian Wagner, Pattern Recognition Lab, FAU Erlangen-Nuernberg, Erlangen, Germany
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -41,13 +41,20 @@ limitations under the License.
 
 #ifdef WITH_CUDA
 std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
-BilateralFilterCudaForward(torch::Tensor inputTensor, float sigma_x, float sigma_y, float sigma_z, float colorSigma);
-torch::Tensor BilateralFilterCudaBackward(
+JointBilateralFilterCudaForward(
+    torch::Tensor inputTensor,
+    torch::Tensor guidanceTensor,
+    float sigma_x,
+    float sigma_y,
+    float sigma_z,
+    float colorSigma);
+std::tuple<torch::Tensor, torch::Tensor> JointBilateralFilterCudaBackward(
     torch::Tensor gradientInputTensor,
     torch::Tensor inputTensor,
+    torch::Tensor guidanceTensor,
     torch::Tensor outputTensor,
     torch::Tensor outputWeightsTensor,
-    torch::Tensor dO_dx_ki,
+    torch::Tensor dO_dz_ki,
     float sigma_x,
     float sigma_y,
     float sigma_z,
@@ -55,30 +62,39 @@ torch::Tensor BilateralFilterCudaBackward(
 #endif
 
 std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
-BilateralFilterCpuForward(torch::Tensor inputTensor, float sigma_x, float sigma_y, float sigma_z, float colorSigma);
+JointBilateralFilterCpuForward(
+    torch::Tensor inputTensor,
+    torch::Tensor guidanceTensor,
+    float sigma_x,
+    float sigma_y,
+    float sigma_z,
+    float colorSigma);
 
-torch::Tensor BilateralFilterCpuBackward(
+std::tuple<torch::Tensor, torch::Tensor> JointBilateralFilterCpuBackward(
     torch::Tensor gradientInputTensor,
     torch::Tensor inputTensor,
+    torch::Tensor guidanceTensor,
     torch::Tensor outputTensor,
     torch::Tensor outputWeightsTensor,
-    torch::Tensor dO_dx_ki,
+    torch::Tensor dO_dz_ki,
     float sigma_x,
     float sigma_y,
     float sigma_z,
     float colorSigma);
 
 std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
-TrainableBilateralFilterForward(
+TrainableJointBilateralFilterForward(
     torch::Tensor inputTensor,
+    torch::Tensor guidanceTensor,
     float sigma_x,
     float sigma_y,
     float sigma_z,
     float colorSigma);
 
-torch::Tensor TrainableBilateralFilterBackward(
+std::tuple<torch::Tensor, torch::Tensor> TrainableJointBilateralFilterBackward(
     torch::Tensor gradientInputTensor,
     torch::Tensor inputTensor,
+    torch::Tensor guidanceTensor,
     torch::Tensor outputTensor,
     torch::Tensor outputWeightsTensor,
     torch::Tensor dO_dx_ki,
