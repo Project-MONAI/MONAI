@@ -42,6 +42,7 @@ __all__ = [
     "PostFix",
     "ForwardMode",
     "TransformBackends",
+    "CompInitMode",
     "BoxModeName",
     "GridPatchSort",
     "FastMRIKeys",
@@ -402,7 +403,7 @@ class CompInitMode(StrEnum):
     """
     Mode names for instantiating a class or calling a callable.
 
-    See also: py:func:`monai.utils.module.instantiate`
+    See also: :py:func:`monai.utils.module.instantiate`
     """
 
     DEFAULT = "default"
