@@ -29,41 +29,7 @@ limitations under the License.
 
 #include "trainable_bilateral.h"
 #include "utils/tensor_description.h"
-
-struct Indexer {
- public:
-  Indexer(int dimensions, int* sizes) {
-    m_dimensions = dimensions;
-    m_sizes = sizes;
-    m_index = new int[dimensions]{0};
-  }
-  ~Indexer() {
-    delete[] m_index;
-  }
-
-  bool operator++(int) {
-    for (int i = 0; i < m_dimensions; i++) {
-      m_index[i] += 1;
-
-      if (m_index[i] < m_sizes[i]) {
-        return true;
-      } else {
-        m_index[i] = 0;
-      }
-    }
-
-    return false;
-  }
-
-  int& operator[](int dimensionIndex) {
-    return m_index[dimensionIndex];
-  }
-
- private:
-  int m_dimensions;
-  int* m_sizes;
-  int* m_index;
-};
+#include "utils/tensor_indexing.h"
 
 template <typename scalar_t>
 void BilateralFilterCpuForward_3d(
