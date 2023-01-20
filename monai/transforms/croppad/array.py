@@ -147,7 +147,7 @@ class Pad(InvertibleTransform, LazyTransform):
         current_shape = img.peek_pending_shape()
         _affine = self.update_meta(img, to_pad=to_pad)
         _shape = [d + s + e for d, (s, e) in zip(current_shape, to_pad[1:])]
-        self.push_pending_transform(
+        self.push_transform(
             img, orig_size=current_shape, lazy_affine=_affine, lazy_shape=_shape, extra_info={"padded": to_pad}
         )
         return img
@@ -444,7 +444,7 @@ class Crop(InvertibleTransform, LazyTransform):
         current_shape = img.peek_pending_shape()
         _affine = self.update_meta(img, slices)
         _shape = [s.indices(o)[1] - s.indices(o)[0] for s, o in zip(slices[1:], current_shape)]
-        self.push_pending_transform(
+        self.push_transform(
             img, orig_size=current_shape, lazy_shape=_shape, lazy_affine=_affine, extra_info={"cropped": cropped}
         )
         return img
@@ -1374,7 +1374,7 @@ class ResizeWithPadOrCrop(InvertibleTransform, LazyTransform):
             else:
                 pad_info = ret_.pending_operations.pop()
                 crop_info = ret_.pending_operations.pop()
-                self.push_pending_transform(
+                self.push_transform(
                     ret_,
                     orig_size=orig_size,
                     lazy_shape=pad_info["lazy_shape"],

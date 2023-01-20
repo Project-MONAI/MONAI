@@ -313,6 +313,8 @@ class TraceKeys(StrEnum):
     DO_TRANSFORM: str = "do_transforms"
     KEY_SUFFIX: str = "_transforms"
     NONE: str = "none"
+    TRACING: str = "tracing"
+    LAZY_EVALUATION: str = "lazy_evaluation"
 
 
 @deprecated(since="0.8.0", msg_suffix="use monai.utils.enums.TraceKeys instead.")

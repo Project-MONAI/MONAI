@@ -943,7 +943,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
                     xform = self.pop_transform(d[key], check=False) if do_resampling else {}
                     self.push_transform(d[key], extra_info={"do_resampling": do_resampling, "rand_affine_info": xform})
                 elif do_resampling and isinstance(d[key], MetaTensor):
-                    self.push_pending_transform(d[key], pending=d[key].pending_operations.pop())  # type: ignore
+                    self.push_transform(d[key], pending=d[key].pending_operations.pop())  # type: ignore
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
@@ -1319,7 +1319,7 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
                     xform_info = self.pop_transform(d[key], check=False) if self._do_transform else {}
                     self.push_transform(d[key], extra_info=xform_info)
                 elif self._do_transform:
-                    self.push_pending_transform(d[key], pending=d[key].pending_operations.pop())  # type: ignore
+                    self.push_transform(d[key], pending=d[key].pending_operations.pop())  # type: ignore
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
@@ -1385,7 +1385,7 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform, La
                     xform = self.pop_transform(d[key], check=False) if self._do_transform else {}
                     self.push_transform(d[key], extra_info=xform)
                 elif self._do_transform:
-                    self.push_pending_transform(d[key], pending=d[key].pending_operations.pop())  # type: ignore
+                    self.push_transform(d[key], pending=d[key].pending_operations.pop())  # type: ignore
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
@@ -1563,7 +1563,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
                     rot_info = self.pop_transform(d[key], check=False) if self._do_transform else {}
                     self.push_transform(d[key], extra_info=rot_info)
                 elif self._do_transform:
-                    self.push_pending_transform(d[key], pending=d[key].pending_operations.pop())  # type: ignore
+                    self.push_transform(d[key], pending=d[key].pending_operations.pop())  # type: ignore
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
@@ -1743,7 +1743,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
                     xform = self.pop_transform(d[key], check=False) if self._do_transform else {}
                     self.push_transform(d[key], extra_info=xform)
                 elif self._do_transform:
-                    self.push_pending_transform(d[key], pending=d[key].pending_operations.pop())  # type: ignore
+                    self.push_transform(d[key], pending=d[key].pending_operations.pop())  # type: ignore
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:

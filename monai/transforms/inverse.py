@@ -20,8 +20,9 @@ from typing import Any
 import torch
 
 from monai import transforms
+from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
-from monai.transforms.transform import Transform
+from monai.transforms.transform import LazyTransform, Transform
 from monai.utils.enums import LazyAttr, TraceKeys
 from monai.utils.type_conversion import convert_to_numpy, convert_to_tensor
 
@@ -73,43 +74,35 @@ class TraceableTransform(Transform):
             return f"{TraceKeys.KEY_SUFFIX}"
         return f"{key}{TraceKeys.KEY_SUFFIX}"
 
-    def get_transform_info(
-        self, data, key: Hashable = None, extra_info: dict | None = None, orig_size: tuple | None = None
-    ) -> dict:
+    def get_transform_info(self) -> dict:
         """
         Return a dictionary with the relevant information pertaining to an applied transform.
-
-        Args:
-            data: input data. Can be dictionary or MetaTensor. We can use `shape` to
-                determine the original size of the object (unless that has been given
-                explicitly, see `orig_size`).
-            key: if data is a dictionary, data[key] will be modified.
-            extra_info: if desired, any extra information pertaining to the applied
-                transform can be stored in this dictionary. These are often needed for
-                computing the inverse transformation.
-            orig_size: sometimes during the inverse it is useful to know what the size
-                of the original image was, in which case it can be supplied here.
-
-        Returns:
-            Dictionary of data pertaining to the applied transformation.
         """
-        info = {TraceKeys.CLASS_NAME: self.__class__.__name__, TraceKeys.ID: id(self)}
-        if orig_size is not None:
-            info[TraceKeys.ORIG_SIZE] = orig_size
-        elif isinstance(data, Mapping) and key in data and hasattr(data[key], "shape"):
-            info[TraceKeys.ORIG_SIZE] = data[key].shape[1:]
-        elif hasattr(data, "shape"):
-            info[TraceKeys.ORIG_SIZE] = data.shape[1:]
-        if extra_info is not None:
-            info[TraceKeys.EXTRA_INFO] = extra_info
-        # If class is randomizable transform, store whether the transform was actually performed (based on `prob`)
-        if hasattr(self, "_do_transform"):  # RandomizableTransform
-            info[TraceKeys.DO_TRANSFORM] = self._do_transform
-        return info
+        return {
+            TraceKeys.CLASS_NAME: self.__class__.__name__,
+            TraceKeys.ID: id(self),
+            TraceKeys.TRACING: self.tracing,
+            TraceKeys.LAZY_EVALUATION: self.lazy_evaluation if isinstance(self, LazyTransform) else False,
+        }
 
-    def push_transform(
-        self, data, key: Hashable = None, extra_info: dict | None = None, orig_size: tuple | None = None
-    ) -> None:
+    def push_transform(self, *args, **kwargs):
+        transform_info = self.get_transform_info()
+        if not kwargs:
+            kwargs = {}
+        kwargs["transform_info"] = transform_info
+        if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
+            return TraceableTransform.track_pending_transform(*args, **kwargs)
+        return TraceableTransform.track_transform(*args, **kwargs)
+
+    @classmethod
+    def track_transform(
+        cls,
+        data,
+        key: Hashable = None,
+        extra_info: dict | None = None,
+        orig_size: tuple | None = None,
+        transform_info=None,
+    ):
         """
         Push to a stack of applied transforms.
 
@@ -125,9 +118,20 @@ class TraceableTransform(Transform):
         Returns:
             None, but data has been updated to store the applied transformation.
         """
-        if not self.tracing:
-            return
-        info = self.get_transform_info(data, key, extra_info, orig_size)
+        if not get_track_meta() or not transform_info or not transform_info.get(TraceKeys.TRACING):
+            return data
+        info = transform_info
+        if orig_size is not None:
+            info[TraceKeys.ORIG_SIZE] = orig_size
+        elif isinstance(data, Mapping) and key in data and hasattr(data[key], "shape"):
+            info[TraceKeys.ORIG_SIZE] = data[key].shape[1:]
+        elif hasattr(data, "shape"):
+            info[TraceKeys.ORIG_SIZE] = data.shape[1:]
+        if extra_info is not None:
+            info[TraceKeys.EXTRA_INFO] = extra_info
+        # If class is randomizable transform, store whether the transform was actually performed (based on `prob`)
+        if hasattr(cls, "_do_transform"):  # RandomizableTransform
+            info[TraceKeys.DO_TRANSFORM] = cls._do_transform
 
         if isinstance(data, MetaTensor):
             data.push_applied_operation(info)
@@ -136,16 +140,18 @@ class TraceableTransform(Transform):
                 data[key].push_applied_operation(info)
             else:
                 # If this is the first, create list
-                if self.trace_key(key) not in data:
+                if TraceableTransform.trace_key(key) not in data:
                     if not isinstance(data, dict):
                         data = dict(data)
-                    data[self.trace_key(key)] = []
-                data[self.trace_key(key)].append(info)
+                    data[TraceableTransform.trace_key(key)] = []
+                data[TraceableTransform.trace_key(key)].append(info)
         else:
             warnings.warn(f"`data` should be either `MetaTensor` or dictionary, got {type(data)}. {info} not tracked.")
+        return data
 
-    def push_pending_transform(
-        self,
+    @classmethod
+    def track_pending_transform(
+        cls,
         data,
         key: Hashable = None,
         lazy_shape=None,
@@ -153,23 +159,25 @@ class TraceableTransform(Transform):
         extra_info: dict | None = None,
         orig_size: tuple | None = None,
         pending=None,
-    ) -> None:
+        transform_info=None,
+    ):
         """
         Push to MetaTensor's pending operations for later execution.
-
-        Args:
-            data:
-            key:
-            lazy_shape:
-            lazy_affine:
-            extra_info:
-            orig_size:
-            pending
-
-        Returns:
-
         """
-        info = self.get_transform_info(data, key, extra_info, orig_size)
+        if not get_track_meta() or not transform_info or not transform_info.get(TraceKeys.TRACING):
+            return data
+        info = transform_info
+        if orig_size is not None:
+            info[TraceKeys.ORIG_SIZE] = orig_size
+        elif isinstance(data, Mapping) and key in data and hasattr(data[key], "shape"):
+            info[TraceKeys.ORIG_SIZE] = data[key].shape[1:]
+        elif hasattr(data, "shape"):
+            info[TraceKeys.ORIG_SIZE] = data.shape[1:]
+        if extra_info is not None:
+            info[TraceKeys.EXTRA_INFO] = extra_info
+        # If class is randomizable transform, store whether the transform was actually performed (based on `prob`)
+        if hasattr(cls, "_do_transform"):  # RandomizableTransform
+            info[TraceKeys.DO_TRANSFORM] = cls._do_transform
         if pending is not None:
             pending.pop(TraceKeys.CLASS_NAME, None)
             pending.pop(TraceKeys.ID, None)
@@ -184,6 +192,7 @@ class TraceableTransform(Transform):
             data[key].push_pending_operation(info)
         else:
             warnings.warn(f"`data` should be either `MetaTensor` or dictionary, got {type(data)}. {info} not tracked.")
+        return data
 
     def check_transforms_match(self, transform: Mapping) -> None:
         """Check transforms are of same instance."""
