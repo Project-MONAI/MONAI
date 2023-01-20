@@ -227,7 +227,9 @@ class TrainableBilateralFilter(torch.nn.Module):
             spatial_sigma = [spatial_sigma[0], spatial_sigma[1], spatial_sigma[2]]
             self.len_spatial_sigma = 3
         else:
-            assert False, "Please provide a tuple spatial_sigma that matches your number of spatial dimensions."
+            raise ValueError(
+                f"len(spatial_sigma) {spatial_sigma} must match number of spatial dims {self.ken_spatial_sigma}."
+            )
 
         # Register sigmas as trainable parameters.
         self.sigma_x = torch.nn.Parameter(torch.tensor(spatial_sigma[0]))
@@ -236,11 +238,12 @@ class TrainableBilateralFilter(torch.nn.Module):
         self.sigma_color = torch.nn.Parameter(torch.tensor(color_sigma))
 
     def forward(self, input_tensor):
-        assert input_tensor.shape[1] == 1, (
-            "Currently channel dimensions >1 are not supported. "
-            "Please use multiple parallel filter layers if you want "
-            "to filter multiple channels."
-        )
+        if input_tensor.shape[1] != 1:
+            raise ValueError(
+                f"Currently channel dimensions >1 ({input_tensor.shape[1]}) are not supported. "
+                "Please use multiple parallel filter layers if you want "
+                "to filter multiple channels."
+            )
 
         len_input = len(input_tensor.shape)
 
@@ -250,9 +253,8 @@ class TrainableBilateralFilter(torch.nn.Module):
         elif len_input == 4:
             input_tensor = input_tensor.unsqueeze(4)
 
-        assert self.len_spatial_sigma == len_input, (
-            "Spatial dimension mismatch. " "len(input.shape) must match initialized len(spatial_sigma)."
-        )
+        if self.len_spatial_sigma != len_input:
+            raise ValueError(f"Spatial dimension ({len_input}) must match initialized len(spatial_sigma).")
 
         prediction = TrainableBilateralFilterFunction.apply(
             input_tensor, self.sigma_x, self.sigma_y, self.sigma_z, self.sigma_color
@@ -400,7 +402,9 @@ class TrainableJointBilateralFilter(torch.nn.Module):
             spatial_sigma = [spatial_sigma[0], spatial_sigma[1], spatial_sigma[2]]
             self.len_spatial_sigma = 3
         else:
-            assert False, "Please provide a tuple spatial_sigma that matches your number of spatial dimensions."
+            raise ValueError(
+                f"len(spatial_sigma) {spatial_sigma} must match number of spatial dims {self.ken_spatial_sigma}."
+            )
 
         # Register sigmas as trainable parameters.
         self.sigma_x = torch.nn.Parameter(torch.tensor(spatial_sigma[0]))
@@ -409,12 +413,17 @@ class TrainableJointBilateralFilter(torch.nn.Module):
         self.sigma_color = torch.nn.Parameter(torch.tensor(color_sigma))
 
     def forward(self, input_tensor, guidance_tensor):
-        assert input_tensor.shape[1] == 1, (
-            "Currently channel dimensions >1 are not supported. "
-            "Please use multiple parallel filter layers if you want "
-            "to filter multiple channels."
-        )
-        assert input_tensor.shape == guidance_tensor.shape, "Shape of input image must equal shape of guidance image."
+        if input_tensor.shape[1] != 1:
+            raise ValueError(
+                f"Currently channel dimensions >1 ({input_tensor.shape[1]}) are not supported. "
+                "Please use multiple parallel filter layers if you want "
+                "to filter multiple channels."
+            )
+        if input_tensor.shape != guidance_tensor.shape:
+            raise ValueError(
+                "Shape of input image must equal shape of guidance image."
+                f"Got {input_tensor.shape} and {guidance_tensor.shape}."
+            )
 
         len_input = len(input_tensor.shape)
 
@@ -426,9 +435,8 @@ class TrainableJointBilateralFilter(torch.nn.Module):
             input_tensor = input_tensor.unsqueeze(4)
             guidance_tensor = guidance_tensor.unsqueeze(4)
 
-        assert self.len_spatial_sigma == len_input, (
-            "Spatial dimension mismatch. " "len(input.shape) must match initialized len(spatial_sigma)."
-        )
+        if self.len_spatial_sigma != len_input:
+            raise ValueError(f"Spatial dimension ({len_input}) must match initialized len(spatial_sigma).")
 
         prediction = TrainableJointBilateralFilterFunction.apply(
             input_tensor, guidance_tensor, self.sigma_x, self.sigma_y, self.sigma_z, self.sigma_color
