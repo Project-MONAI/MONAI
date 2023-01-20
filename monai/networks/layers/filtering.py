@@ -251,8 +251,7 @@ class TrainableBilateralFilter(torch.nn.Module):
             input_tensor = input_tensor.unsqueeze(4)
 
         assert self.len_spatial_sigma == len_input, (
-            "Spatial dimension mismatch. "
-            "len(input.shape) must match initialized len(spatial_sigma)."
+            "Spatial dimension mismatch. " "len(input.shape) must match initialized len(spatial_sigma)."
         )
 
         prediction = TrainableBilateralFilterFunction.apply(
@@ -428,8 +427,7 @@ class TrainableJointBilateralFilter(torch.nn.Module):
             guidance_tensor = guidance_tensor.unsqueeze(4)
 
         assert self.len_spatial_sigma == len_input, (
-            "Spatial dimension mismatch. "
-            "len(input.shape) must match initialized len(spatial_sigma)."
+            "Spatial dimension mismatch. " "len(input.shape) must match initialized len(spatial_sigma)."
         )
 
         prediction = TrainableJointBilateralFilterFunction.apply(
