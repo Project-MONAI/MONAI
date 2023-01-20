@@ -33,10 +33,10 @@ class BilateralFilter(torch.autograd.Function):
     Args:
         input: input tensor.
 
-        spatial sigma: the standard deviation of the spatial blur. Higher values can
+        spatial_sigma: the standard deviation of the spatial blur. Higher values can
             hurt performance when not using the approximate method (see fast approx).
 
-        color sigma: the standard deviation of the color blur. Lower values preserve
+        color_sigma: the standard deviation of the color blur. Lower values preserve
             edges better whilst higher values tend to a simple gaussian spatial blur.
 
         fast approx: This flag chooses between two implementations. The approximate method may
@@ -200,27 +200,40 @@ class TrainableBilateralFilter(torch.nn.Module):
     Args:
         input: input tensor to be filtered.
 
-        sigma x: trainable standard deviation of the spatial filter kernel in x direction.
+        spatial_sigma: tuple (sigma_x, sigma_y, sigma_z) initializing the trainable standard
+            deviations of the spatial filter kernels. Tuple length must equal the number of
+            spatial input dimensions.
 
-        sigma y: trainable standard deviation of the spatial filter kernel in y direction.
-
-        sigma z: trainable standard deviation of the spatial filter kernel in z direction.
-
-        sigma color: trainable standard deviation of the intensity range kernel. This filter
+        color_sigma: trainable standard deviation of the intensity range kernel. This filter
             parameter determines the degree of edge preservation.
 
     Returns:
         output (torch.Tensor): filtered tensor.
     """
 
-    def __init__(self, sigma_x, sigma_y, sigma_z, sigma_color):
+    def __init__(self, spatial_sigma, color_sigma):
         super().__init__()
 
+        if isinstance(spatial_sigma, float):
+            spatial_sigma = [spatial_sigma, spatial_sigma, spatial_sigma]
+            self.len_spatial_sigma = 3
+        elif len(spatial_sigma) == 1:
+            spatial_sigma = [spatial_sigma[0], 0.01, 0.01]
+            self.len_spatial_sigma = 1
+        elif len(spatial_sigma) == 2:
+            spatial_sigma = [spatial_sigma[0], spatial_sigma[1], 0.01]
+            self.len_spatial_sigma = 2
+        elif len(spatial_sigma) == 3:
+            spatial_sigma = [spatial_sigma[0], spatial_sigma[1], spatial_sigma[2]]
+            self.len_spatial_sigma = 3
+        else:
+            assert False, "Please provide a tuple spatial_sigma that matches your number of spatial dimensions."
+
         # Register sigmas as trainable parameters.
-        self.sigma_x = torch.nn.Parameter(torch.tensor(sigma_x))
-        self.sigma_y = torch.nn.Parameter(torch.tensor(sigma_y))
-        self.sigma_z = torch.nn.Parameter(torch.tensor(sigma_z))
-        self.sigma_color = torch.nn.Parameter(torch.tensor(sigma_color))
+        self.sigma_x = torch.nn.Parameter(torch.tensor(spatial_sigma[0]))
+        self.sigma_y = torch.nn.Parameter(torch.tensor(spatial_sigma[1]))
+        self.sigma_z = torch.nn.Parameter(torch.tensor(spatial_sigma[2]))
+        self.sigma_color = torch.nn.Parameter(torch.tensor(color_sigma))
 
     def forward(self, input_tensor):
         assert input_tensor.shape[1] == 1, (
@@ -236,6 +249,11 @@ class TrainableBilateralFilter(torch.nn.Module):
             input_tensor = input_tensor.unsqueeze(3).unsqueeze(4)
         elif len_input == 4:
             input_tensor = input_tensor.unsqueeze(4)
+
+        assert self.len_spatial_sigma == len_input, (
+            "Spatial dimension mismatch. "
+            "len(input.shape) must match initialized len(spatial_sigma)."
+        )
 
         prediction = TrainableBilateralFilterFunction.apply(
             input_tensor, self.sigma_x, self.sigma_y, self.sigma_z, self.sigma_color
@@ -356,27 +374,40 @@ class TrainableJointBilateralFilter(torch.nn.Module):
 
         guide: guidance image tensor to be used during filtering.
 
-        sigma x: trainable standard deviation of the spatial filter kernel in x direction.
+        spatial_sigma: tuple (sigma_x, sigma_y, sigma_z) initializing the trainable standard
+            deviations of the spatial filter kernels. Tuple length must equal the number of
+            spatial input dimensions.
 
-        sigma y: trainable standard deviation of the spatial filter kernel in y direction.
-
-        sigma z: trainable standard deviation of the spatial filter kernel in z direction.
-
-        sigma color: trainable standard deviation of the intensity range kernel. This filter
+        color_sigma: trainable standard deviation of the intensity range kernel. This filter
             parameter determines the degree of edge preservation.
 
     Returns:
         output (torch.Tensor): filtered tensor.
     """
 
-    def __init__(self, sigma_x, sigma_y, sigma_z, sigma_color):
+    def __init__(self, spatial_sigma, color_sigma):
         super().__init__()
 
+        if isinstance(spatial_sigma, float):
+            spatial_sigma = [spatial_sigma, spatial_sigma, spatial_sigma]
+            self.len_spatial_sigma = 3
+        elif len(spatial_sigma) == 1:
+            spatial_sigma = [spatial_sigma[0], 0.01, 0.01]
+            self.len_spatial_sigma = 1
+        elif len(spatial_sigma) == 2:
+            spatial_sigma = [spatial_sigma[0], spatial_sigma[1], 0.01]
+            self.len_spatial_sigma = 2
+        elif len(spatial_sigma) == 3:
+            spatial_sigma = [spatial_sigma[0], spatial_sigma[1], spatial_sigma[2]]
+            self.len_spatial_sigma = 3
+        else:
+            assert False, "Please provide a tuple spatial_sigma that matches your number of spatial dimensions."
+
         # Register sigmas as trainable parameters.
-        self.sigma_x = torch.nn.Parameter(torch.tensor(sigma_x))
-        self.sigma_y = torch.nn.Parameter(torch.tensor(sigma_y))
-        self.sigma_z = torch.nn.Parameter(torch.tensor(sigma_z))
-        self.sigma_color = torch.nn.Parameter(torch.tensor(sigma_color))
+        self.sigma_x = torch.nn.Parameter(torch.tensor(spatial_sigma[0]))
+        self.sigma_y = torch.nn.Parameter(torch.tensor(spatial_sigma[1]))
+        self.sigma_z = torch.nn.Parameter(torch.tensor(spatial_sigma[2]))
+        self.sigma_color = torch.nn.Parameter(torch.tensor(color_sigma))
 
     def forward(self, input_tensor, guidance_tensor):
         assert input_tensor.shape[1] == 1, (
@@ -395,6 +426,11 @@ class TrainableJointBilateralFilter(torch.nn.Module):
         elif len_input == 4:
             input_tensor = input_tensor.unsqueeze(4)
             guidance_tensor = guidance_tensor.unsqueeze(4)
+
+        assert self.len_spatial_sigma == len_input, (
+            "Spatial dimension mismatch. "
+            "len(input.shape) must match initialized len(spatial_sigma)."
+        )
 
         prediction = TrainableJointBilateralFilterFunction.apply(
             input_tensor, guidance_tensor, self.sigma_x, self.sigma_y, self.sigma_z, self.sigma_color
