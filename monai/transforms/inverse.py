@@ -83,6 +83,8 @@ class TraceableTransform(Transform):
             TraceKeys.ID: id(self),
             TraceKeys.TRACING: self.tracing,
             TraceKeys.LAZY_EVALUATION: self.lazy_evaluation if isinstance(self, LazyTransform) else False,
+            # If class is randomizable transform, store whether the transform was actually performed (based on `prob`)
+            TraceKeys.DO_TRANSFORM: self._do_transform if hasattr(self, "_do_transform") else False,
         }
 
     def push_transform(self, *args, **kwargs):
@@ -124,15 +126,16 @@ class TraceableTransform(Transform):
         info = transform_info
         if orig_size is not None:
             info[TraceKeys.ORIG_SIZE] = orig_size
+        elif isinstance(data, Mapping) and key in data and isinstance(data[key], MetaTensor):
+            info[TraceKeys.ORIG_SIZE] = data[key].peek_pending_shape()
         elif isinstance(data, Mapping) and key in data and hasattr(data[key], "shape"):
             info[TraceKeys.ORIG_SIZE] = data[key].shape[1:]
+        elif isinstance(data, MetaTensor):
+            info[TraceKeys.ORIG_SIZE] = data.peek_pending_shape()
         elif hasattr(data, "shape"):
             info[TraceKeys.ORIG_SIZE] = data.shape[1:]
         if extra_info is not None:
             info[TraceKeys.EXTRA_INFO] = extra_info
-        # If class is randomizable transform, store whether the transform was actually performed (based on `prob`)
-        if hasattr(cls, "_do_transform"):  # RandomizableTransform
-            info[TraceKeys.DO_TRANSFORM] = cls._do_transform
 
         if isinstance(data, MetaTensor):
             data.push_applied_operation(info)
@@ -172,15 +175,17 @@ class TraceableTransform(Transform):
         info = transform_info
         if orig_size is not None:
             info[TraceKeys.ORIG_SIZE] = orig_size
+        elif isinstance(data, Mapping) and key in data and isinstance(data[key], MetaTensor):
+            info[TraceKeys.ORIG_SIZE] = data[key].peek_pending_shape()
         elif isinstance(data, Mapping) and key in data and hasattr(data[key], "shape"):
             info[TraceKeys.ORIG_SIZE] = data[key].shape[1:]
+        elif isinstance(data, MetaTensor):
+            info[TraceKeys.ORIG_SIZE] = data.peek_pending_shape()
         elif hasattr(data, "shape"):
             info[TraceKeys.ORIG_SIZE] = data.shape[1:]
         if extra_info is not None:
             info[TraceKeys.EXTRA_INFO] = extra_info
-        # If class is randomizable transform, store whether the transform was actually performed (based on `prob`)
-        if hasattr(cls, "_do_transform"):  # RandomizableTransform
-            info[TraceKeys.DO_TRANSFORM] = cls._do_transform
+
         if pending is not None:
             pending.pop(TraceKeys.CLASS_NAME, None)
             pending.pop(TraceKeys.ID, None)

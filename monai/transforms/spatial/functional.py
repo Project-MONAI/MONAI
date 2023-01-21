@@ -49,14 +49,14 @@ nib, has_nib = optional_import("nibabel")
 cupy, _ = optional_import("cupy")
 cupy_ndi, _ = optional_import("cupyx.scipy.ndimage")
 np_ndi, _ = optional_import("scipy.ndimage")
-__all__ = ["spatial_resample", "orientation", "flip", "resize", "rotate", "zoom", "rotate90"]
+
+__all__ = ["spatial_resample", "orientation", "flip", "resize", "rotate", "zoom", "rotate90", "affine_func"]
 
 
 def spatial_resample(
     img, dst_affine, spatial_size, mode, padding_mode, align_corners, dtype, transform_info
 ) -> torch.Tensor:
-    original_spatial_shape = img.shape[1:]
-
+    original_spatial_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
     src_affine_: torch.Tensor = img.affine if isinstance(img, MetaTensor) else torch.eye(4)
     img = convert_to_tensor(data=img, track_meta=get_track_meta(), dtype=dtype)
     spatial_rank = min(len(img.shape) - 1, src_affine_.shape[0] - 1, 3)
@@ -410,3 +410,38 @@ def rotate90(img, axes, k, transform_info):
     if get_track_meta():
         out.affine @= update_meta(out, ori_shape, out.shape[1:], axes, k)  # type: ignore
     return TraceableTransform.track_transform(out, extra_info=extra_info, transform_info=transform_info)
+
+
+def affine_func(img, affine, grid, resampler, sp_size, _mode, _padding_mode, do_resampling, image_only, transform_info):
+    extra_info = {"affine": affine, "mode": _mode, "padding_mode": _padding_mode, "do_resampling": do_resampling}
+    img_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
+    if transform_info.get(TraceKeys.LAZY_EVALUATION):
+        if not get_track_meta():
+            return img  # type: ignore
+        orig_affine = convert_data_type(img.peek_pending_affine(), torch.Tensor)[0]
+        _affine = monai.transforms.Affine.compute_w_affine(orig_affine, affine, img_size, sp_size)
+        img = TraceableTransform.track_pending_transform(
+            img,
+            orig_size=img_size,
+            lazy_shape=sp_size,
+            lazy_affine=_affine,
+            extra_info=extra_info,
+            transform_info=transform_info,
+        )
+        return img if image_only else (img, affine)
+    if do_resampling:
+        out = resampler(img=img, grid=grid, mode=_mode, padding_mode=_padding_mode)
+    else:
+        out = convert_data_type(img, dtype=torch.float32, device=resampler.device)[0]
+
+    out = convert_to_tensor(out, track_meta=get_track_meta())
+    if not isinstance(out, MetaTensor):
+        return out if image_only else (out, affine)
+    if get_track_meta():
+        out.meta = img.meta
+        orig_affine = convert_data_type(out.peek_pending_affine(), torch.Tensor)[0]
+        out.affine @= monai.transforms.Affine.compute_w_affine(orig_affine, affine, img_size, sp_size)
+    out = TraceableTransform.track_transform(
+        out, orig_size=img_size, extra_info=extra_info, transform_info=transform_info
+    )
+    return out if image_only else (out, affine)
