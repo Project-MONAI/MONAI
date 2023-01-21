@@ -21,14 +21,16 @@ import numpy as np
 import torch
 
 import monai
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import AFFINE_TOL, compute_shape_offset, to_affine_nd
 from monai.networks.layers import AffineTransform
 from monai.networks.utils import normalize_transform
+from monai.transforms.croppad.array import ResizeWithPadOrCrop
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import TraceableTransform
-from monai.transforms.utils import create_scale, scale_affine
+from monai.transforms.utils import create_rotate, create_scale, create_translate, scale_affine
 from monai.transforms.utils_pytorch_numpy_unification import allclose
 from monai.utils import (
     convert_to_dst_type,
@@ -47,8 +49,7 @@ nib, has_nib = optional_import("nibabel")
 cupy, _ = optional_import("cupy")
 cupy_ndi, _ = optional_import("cupyx.scipy.ndimage")
 np_ndi, _ = optional_import("scipy.ndimage")
-
-__all__ = ["spatial_resample", "orientation", "flip", "resize"]
+__all__ = ["spatial_resample", "orientation", "flip", "resize", "rotate", "zoom", "rotate90"]
 
 
 def spatial_resample(
@@ -91,7 +92,7 @@ def spatial_resample(
         img = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)
         if get_track_meta():
             img.affine = dst_affine
-        return TraceableTransform.track_transform(
+        return TraceableTransform.track_transform(  # type: ignore
             img, extra_info=extra_info, orig_size=original_spatial_shape, transform_info=transform_info
         )
     try:
@@ -103,7 +104,7 @@ def spatial_resample(
     xform = to_affine_nd(spatial_rank, xform).to(device=img.device, dtype=dtype)
     if transform_info.get(TraceKeys.LAZY_EVALUATION):
         img = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)
-        return TraceableTransform.track_pending_transform(
+        return TraceableTransform.track_pending_transform(  # type: ignore
             img,
             lazy_shape=spatial_size,
             lazy_affine=xform,
@@ -117,7 +118,7 @@ def spatial_resample(
         img = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)
         if get_track_meta():
             img.affine = dst_affine
-        return TraceableTransform.track_transform(
+        return TraceableTransform.track_transform(  # type: ignore
             img, extra_info=extra_info, orig_size=original_spatial_shape, transform_info=transform_info
         )
 
@@ -151,7 +152,7 @@ def spatial_resample(
     img = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)
     if get_track_meta():
         img.affine = dst_affine
-    return TraceableTransform.track_transform(
+    return TraceableTransform.track_transform(  # type: ignore
         img, extra_info=extra_info, orig_size=original_spatial_shape, transform_info=transform_info
     )
 
@@ -264,9 +265,148 @@ def resize(img, out_size, mode, align_corners, input_ndim, anti_aliasing, anti_a
     )
     out, *_ = convert_to_dst_type(resized.squeeze(0), img)
     if not get_track_meta():
-        return img
-    affine = convert_to_tensor(img.peek_pending_affine(), track_meta=False)
-    img.affine @= scale_affine(affine, orig_size, out_size)
+        return out
+    affine = convert_to_tensor(out.peek_pending_affine(), track_meta=False)
+    out.affine @= scale_affine(affine, orig_size, out_size)
     return TraceableTransform.track_transform(
-        img, orig_size=orig_size, extra_info=extra_info, transform_info=transform_info
+        out, orig_size=orig_size, extra_info=extra_info, transform_info=transform_info
     )
+
+
+def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, transform_info):
+    im_shape = np.asarray(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:])
+    input_ndim = len(im_shape)
+    if input_ndim not in (2, 3):
+        raise ValueError(f"Unsupported image dimension: {input_ndim}, available options are [2, 3].")
+    _angle = ensure_tuple_rep(angle, 1 if input_ndim == 2 else 3)
+    transform = create_rotate(input_ndim, _angle)
+    if output_shape is None:
+        corners = np.asarray(np.meshgrid(*[(0, dim) for dim in im_shape], indexing="ij")).reshape((len(im_shape), -1))
+        corners = transform[:-1, :-1] @ corners  # type: ignore
+        output_shape = np.asarray(corners.ptp(axis=1) + 0.5, dtype=int)
+    shift = create_translate(input_ndim, ((im_shape - 1) / 2).tolist())
+    shift_1 = create_translate(input_ndim, (-(output_shape - 1) / 2).tolist())
+    transform = shift @ transform @ shift_1
+
+    img_t = img.to(dtype)
+    transform_t, *_ = convert_to_dst_type(transform, img_t)
+    extra_info = {
+        "rot_mat": transform,
+        "mode": mode,
+        "padding_mode": padding_mode,
+        "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
+        "dtype": str(dtype)[6:],  # dtype as string; remove "torch": torch.float32 -> float32
+    }
+
+    if transform_info.get(TraceKeys.LAZY_EVALUATION):
+        if not get_track_meta():
+            return img  # type: ignore
+        affine = convert_to_tensor(img.peek_pending_affine(), track_meta=False)
+        mat = to_affine_nd(len(affine) - 1, transform_t)
+        _affine = convert_to_dst_type(mat, affine)[0]
+        _shape = img.peek_pending_shape()
+        return TraceableTransform.track_pending_transform(
+            img,
+            orig_size=_shape,
+            lazy_affine=_affine,
+            lazy_shape=output_shape,
+            extra_info=extra_info,
+            transform_info=transform_info,
+        )
+    xform = AffineTransform(
+        normalized=False, mode=mode, padding_mode=padding_mode, align_corners=align_corners, reverse_indexing=True
+    )
+    output: torch.Tensor = xform(img_t.unsqueeze(0), transform_t, spatial_size=output_shape).float().squeeze(0)
+    out, *_ = convert_to_dst_type(output, dst=img, dtype=output.dtype)
+    if get_track_meta():
+        affine = convert_to_tensor(img.peek_pending_affine(), track_meta=False)
+        mat = to_affine_nd(len(affine) - 1, transform_t)
+        out.affine @= convert_to_dst_type(mat, affine)[0]
+    return TraceableTransform.track_transform(
+        out, orig_size=img_t.shape[1:], extra_info=extra_info, transform_info=transform_info
+    )
+
+
+def zoom(img, scale_factor, output_size, mode, padding_mode, align_corners, transform_info):
+    extra_info = {
+        "mode": mode,
+        "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
+        "do_padcrop": False,
+        "padcrop": {},
+    }
+    if transform_info.get(TraceKeys.LAZY_EVALUATION):
+        if not get_track_meta():
+            return img  # type: ignore
+        _shape = img.peek_pending_shape()
+        affine = convert_to_tensor(img.peek_pending_affine(), track_meta=False)
+        _affine = scale_affine(affine, _shape, output_size)
+        return TraceableTransform.track_pending_transform(
+            img,
+            orig_size=_shape,
+            lazy_shape=output_size,
+            lazy_affine=_affine,
+            extra_info=extra_info,
+            transform_info=transform_info,
+        )
+    img_t = img.to(torch.float32)
+    zoomed: NdarrayOrTensor = torch.nn.functional.interpolate(
+        recompute_scale_factor=True,
+        input=img_t.unsqueeze(0),
+        scale_factor=list(scale_factor),
+        mode=mode,
+        align_corners=align_corners,
+    )
+    zoomed = zoomed.squeeze(0)
+    orig_size, z_size = img_t.shape, zoomed.shape
+    out, *_ = convert_to_dst_type(zoomed, dst=img)
+    if get_track_meta():
+        affine = convert_to_tensor(out.peek_pending_affine(), track_meta=False)
+        out.affine @= scale_affine(affine, orig_size[1:], z_size[1:])
+    do_pad_crop = not np.allclose(output_size, z_size[1:])
+    if do_pad_crop:
+        _pad_crop = ResizeWithPadOrCrop(spatial_size=img_t.shape[1:], mode=padding_mode)
+        out = _pad_crop(out)
+    if get_track_meta() and do_pad_crop:
+        extra_info["do_padcrop"] = True
+        extra_info["padcrop"] = out.applied_operations.pop()  # TODO: using applied_operations?
+    return TraceableTransform.track_transform(
+        out, orig_size=orig_size[1:], extra_info=extra_info, transform_info=transform_info
+    )
+
+
+def rotate90(img, axes, k, transform_info):
+    def update_meta(img, spatial_size, new_spatial_size, axes, k):
+        affine = convert_data_type(img.peek_pending_affine(), torch.Tensor)[0]
+        r, sp_r = len(affine) - 1, len(spatial_size)
+        mat = to_affine_nd(r, create_translate(sp_r, [-float(d - 1) / 2 for d in new_spatial_size]))
+        s = -1.0 if int(axes[0]) - int(axes[1]) in (-1, 2) else 1.0
+        if sp_r == 2:
+            rot90 = to_affine_nd(r, create_rotate(sp_r, [s * np.pi / 2]))
+        else:
+            idx = {1, 2, 3} - set(axes)
+            angle: list[float] = [0, 0, 0]
+            angle[idx.pop() - 1] = s * np.pi / 2
+            rot90 = to_affine_nd(r, create_rotate(sp_r, angle))
+        for _ in range(k):
+            mat = rot90 @ mat
+        mat = to_affine_nd(r, create_translate(sp_r, [float(d - 1) / 2 for d in spatial_size])) @ mat
+        return convert_to_dst_type(mat, affine)[0]
+
+    extra_info = {"axes": [d - 1 for d in axes], "k": k}
+    ori_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
+    if transform_info.get(TraceKeys.LAZY_EVALUATION):
+        if not get_track_meta():
+            return img  # type: ignore
+        output_shape = list(img.peek_pending_shape())
+        if k in (1, 3):
+            a_0, a_1 = axes[0] - 1, axes[1] - 1
+            output_shape[a_0], output_shape[a_1] = ori_shape[a_1], ori_shape[a_0]
+        _affine = update_meta(img, ori_shape, output_shape, axes, k)
+        return TraceableTransform.track_pending_transform(
+            img, lazy_shape=output_shape, lazy_affine=_affine, extra_info=extra_info, transform_info=transform_info
+        )
+    out: NdarrayOrTensor = torch.rot90(img, k, axes)
+    out = convert_to_dst_type(out, img)[0]
+    if get_track_meta():
+        out.affine @= update_meta(out, ori_shape, out.shape[1:], axes, k)  # type: ignore
+    return TraceableTransform.track_transform(out, extra_info=extra_info, transform_info=transform_info)
