@@ -128,6 +128,7 @@ class Identity(Transform):
         """
         return img
 
+
 class RandIdentity(RandomizableTransform):
     """
     Do nothing to the data. This transform is random, so can be used to stop the caching of any

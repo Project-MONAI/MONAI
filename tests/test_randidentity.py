@@ -44,5 +44,6 @@ class TestIdentity(NumpyImageTestCase2D):
         # check that the cached value is correct
         self.assertEqual(ds._cache[0], expect_pre_cache)
 
+
 if __name__ == "__main__":
     unittest.main()
