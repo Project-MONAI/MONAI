@@ -11,7 +11,12 @@
 
 from __future__ import annotations
 
-from typing import Literal, overload
+import sys
+
+if sys.version_info >= (3, 8):
+    from typing import Literal
+
+from typing import overload
 
 import torch
 import torch.distributed as dist
