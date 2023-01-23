@@ -577,7 +577,7 @@ class TopologyConstruction(nn.Module):
         self.num_blocks = num_blocks
         self.num_depths = num_depths
         print(
-            "{0} - Length of input patch is recommended to be a multiple of {1:d}.".format(
+            "{} - Length of input patch is recommended to be a multiple of {:d}.".format(
                 datetime.datetime.now(), 2 ** (num_depths + int(use_downsample))
             )
         )
