@@ -36,8 +36,6 @@ except ImportError:
 
 if TYPE_CHECKING:
     from ignite.engine import Engine, Events
-
-    from monai.handlers import MetricLogger
 else:
     Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
     Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
@@ -159,7 +157,7 @@ def tensor_to_images(name: str, tensor: torch.Tensor) -> np.ndarray | None:
 
 def plot_engine_status(
     engine: Engine,
-    logger: MetricLogger,
+    logger: Any,
     title: str = "Training Log",
     yscale: str = "log",
     avg_keys: tuple[str] = (LOSS_NAME,),
@@ -359,7 +357,7 @@ class ThreadContainer(Thread):
 
         return ", ".join(msgs)
 
-    def plot_status(self, logger: MetricLogger, plot_func: Callable = plot_engine_status) -> plt.Figure:
+    def plot_status(self, logger: Any, plot_func: Callable = plot_engine_status) -> plt.Figure:
         """
         Generate a plot of the current status of the contained engine whose loss and metrics were tracked by `logger`.
         The function `plot_func` must accept arguments `title`, `engine`, `logger`, and `fig` which are the plot title,
