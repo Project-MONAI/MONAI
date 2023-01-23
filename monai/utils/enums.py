@@ -469,15 +469,25 @@ class GridPatchSort(StrEnum):
             )
 
 
+class PatchKeys(StrEnum):
+    """
+    The keys to be used for metadata of patches extracted from any kind of image
+    """
+
+    LOCATION = "location"
+    SIZE = "size"
+    COUNT = "count"
+
+
 class WSIPatchKeys(StrEnum):
     """
     The keys to be used for metadata of patches extracted from whole slide images
     """
 
-    LOCATION = "location"
+    LOCATION = PatchKeys.LOCATION
+    SIZE = PatchKeys.SIZE
+    COUNT = PatchKeys.COUNT
     LEVEL = "level"
-    SIZE = "size"
-    COUNT = "count"
     PATH = "path"
 
 
