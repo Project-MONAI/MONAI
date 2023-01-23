@@ -486,6 +486,7 @@ from .utility.array import (
     Lambda,
     MapLabelValue,
     RandCuCIM,
+    RandIdentity,
     RandImageFilter,
     RandLambda,
     RemoveRepeatedChannel,

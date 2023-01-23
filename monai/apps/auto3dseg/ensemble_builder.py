@@ -15,10 +15,11 @@ import os
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from copy import deepcopy
-from typing import Any
+from typing import Any, cast
 from warnings import warn
 
 import numpy as np
+import torch
 
 from monai.apps.auto3dseg.bundle_gen import BundleAlgo
 from monai.apps.utils import get_logger
@@ -108,7 +109,7 @@ class AlgoEnsemble(ABC):
 
         if self.mode == "mean":
             prob = MeanEnsemble()(preds)
-            return prob2class(prob, dim=0, keepdim=True, sigmoid=sigmoid)
+            return prob2class(cast(torch.Tensor, prob), dim=0, keepdim=True, sigmoid=sigmoid)
         elif self.mode == "vote":
             classes = [prob2class(p, dim=0, keepdim=True, sigmoid=sigmoid) for p in preds]
             if sigmoid:

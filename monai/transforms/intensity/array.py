@@ -1468,9 +1468,15 @@ class RandHistogramShift(RandomizableTransform):
         if self.reference_control_points is None or self.floating_control_points is None:
             raise RuntimeError("please call the `randomize()` function first.")
         img_t = convert_to_tensor(img, track_meta=False)
+        img_min, img_max = img_t.min(), img_t.max()
+        if img_min == img_max:
+            warn(
+                f"The image's intensity is a single value {img_min}. "
+                "The original image is simply returned, no histogram shift is done."
+            )
+            return img
         xp, *_ = convert_to_dst_type(self.reference_control_points, dst=img_t)
         yp, *_ = convert_to_dst_type(self.floating_control_points, dst=img_t)
-        img_min, img_max = img_t.min(), img_t.max()
         reference_control_points_scaled = xp * (img_max - img_min) + img_min
         floating_control_points_scaled = yp * (img_max - img_min) + img_min
         img_t = self.interp(img_t, reference_control_points_scaled, floating_control_points_scaled)
