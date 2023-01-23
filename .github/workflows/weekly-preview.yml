@@ -3,8 +3,6 @@ name: weekly-preview
 on:
   schedule:
   - cron: "0 2 * * 0"  # 02:00 of every Sunday
-  push:
-    branches: workaround-5882
 
 jobs:
   packaging:
@@ -13,7 +11,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
       with:
-        ref: workaround-5882
+        ref: dev
         fetch-depth: 0
     - name: Set up Python 3.8
       uses: actions/setup-python@v4
@@ -44,6 +42,4 @@ jobs:
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         user: __token__
-        password: ${{ secrets.TEST_PYPI_TOKEN }}
-        repository_url: https://test.pypi.org/legacy/
-        # password: ${{ secrets.PYPI_TOKEN }}
+        password: ${{ secrets.PYPI_TOKEN }}
