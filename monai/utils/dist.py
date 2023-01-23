@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+from typing import Literal, overload
+
 import torch
 import torch.distributed as dist
 
@@ -39,7 +41,22 @@ def get_dist_device():
     return None
 
 
-def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = True):
+@overload
+def evenly_divisible_all_gather(data: torch.Tensor, concat: Literal[True]) -> torch.Tensor:
+    ...
+
+
+@overload
+def evenly_divisible_all_gather(data: torch.Tensor, concat: Literal[False]) -> list[torch.Tensor]:
+    ...
+
+
+@overload
+def evenly_divisible_all_gather(data: torch.Tensor, concat: bool) -> torch.Tensor | list[torch.Tensor]:
+    ...
+
+
+def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = True) -> torch.Tensor | list[torch.Tensor]:
     """
     Utility function for distributed data parallel to pad at first dim to make it evenly divisible and all_gather.
     The input data of every rank should have the same number of dimensions, only the first dim can be different.
@@ -149,6 +166,6 @@ def string_list_all_gather(strings: list[str], delimiter: str = "\t") -> list[st
 
     joined = delimiter.join(strings)
     gathered = evenly_divisible_all_gather(torch.tensor(bytearray(joined, "utf-8"), dtype=torch.long), concat=False)
-    gathered = [bytearray(g.tolist()).decode("utf-8").split(delimiter) for g in gathered]
+    _gathered = [bytearray(g.tolist()).decode("utf-8").split(delimiter) for g in gathered]
 
-    return [i for k in gathered for i in k]
+    return [i for k in _gathered for i in k]

@@ -16,7 +16,7 @@ Matplotlib produce common plots for metrics and images.
 from __future__ import annotations
 
 import copy
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from enum import Enum
 from threading import RLock, Thread
 from typing import TYPE_CHECKING, Any
@@ -36,6 +36,8 @@ except ImportError:
 
 if TYPE_CHECKING:
     from ignite.engine import Engine, Events
+
+    from monai.handlers import MetricLogger
 else:
     Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
     Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
@@ -44,13 +46,13 @@ LOSS_NAME = "loss"
 
 
 def plot_metric_graph(
-    ax,
+    ax: plt.Axes,
     title: str,
-    graphmap: dict[str, list[float] | tuple[list[float], list[float]]],
+    graphmap: Mapping[str, list[float] | tuple[list[float], list[float]]],
     yscale: str = "log",
     avg_keys: tuple[str] = (LOSS_NAME,),
     window_fraction: int = 20,
-):
+) -> None:
     """
     Plot metrics on a single graph with running averages plotted for selected keys. The values in `graphmap`
     should be lists of (timepoint, value) pairs as stored in MetricLogger objects.
@@ -91,9 +93,9 @@ def plot_metric_graph(
 
 
 def plot_metric_images(
-    fig,
+    fig: plt.Figure,
     title: str,
-    graphmap: dict[str, list[float] | tuple[list[float], list[float]]],
+    graphmap: Mapping[str, list[float] | tuple[list[float], list[float]]],
     imagemap: dict[str, np.ndarray],
     yscale: str = "log",
     avg_keys: tuple[str] = (LOSS_NAME,),
@@ -138,7 +140,7 @@ def plot_metric_images(
     return axes
 
 
-def tensor_to_images(name: str, tensor: torch.Tensor):
+def tensor_to_images(name: str, tensor: torch.Tensor) -> np.ndarray | None:
     """
     Return an tuple of images derived from the given tensor. The `name` value indices which key from the
     output or batch value the tensor was stored as, or is "Batch" or "Output" if these were single tensors
@@ -147,25 +149,25 @@ def tensor_to_images(name: str, tensor: torch.Tensor):
     each channel separately.
     """
     if tensor.ndim == 3 and tensor.shape[1] > 2 and tensor.shape[2] > 2:
-        return tensor.cpu().data.numpy()
+        return tensor.cpu().data.numpy()  # type: ignore[no-any-return]
     if tensor.ndim == 4 and tensor.shape[2] > 2 and tensor.shape[3] > 2:
         dmid = tensor.shape[1] // 2
-        return tensor[:, dmid].cpu().data.numpy()
+        return tensor[:, dmid].cpu().data.numpy()  # type: ignore[no-any-return]
 
     return None
 
 
 def plot_engine_status(
     engine: Engine,
-    logger,
+    logger: MetricLogger,
     title: str = "Training Log",
     yscale: str = "log",
     avg_keys: tuple[str] = (LOSS_NAME,),
     window_fraction: int = 20,
-    image_fn: Callable | None = tensor_to_images,
-    fig=None,
+    image_fn: Callable[[str, torch.Tensor], Any] | None = tensor_to_images,
+    fig: plt.Figure = None,
     selected_inst: int = 0,
-) -> tuple:
+) -> tuple[plt.Figure, list]:
     """
     Plot the status of the given Engine with its logger. The plot will consist of a graph of loss values and metrics
     taken from the logger, and images taken from the `output` and `batch` members of `engine.state`. The images are
@@ -191,7 +193,7 @@ def plot_engine_status(
     else:
         fig = plt.Figure(figsize=(20, 10), tight_layout=True, facecolor="white")
 
-    graphmap = {LOSS_NAME: logger.loss}
+    graphmap: dict[str, list[float]] = {LOSS_NAME: logger.loss}
     graphmap.update(logger.metrics)
 
     imagemap: dict = {}
@@ -233,10 +235,10 @@ def plot_engine_status(
     return fig, axes
 
 
-def _get_loss_from_output(output: dict[str, torch.Tensor] | torch.Tensor):
+def _get_loss_from_output(output: list[torch.Tensor | dict[str, torch.Tensor]] | dict[str, torch.Tensor] | torch.Tensor) -> torch.Tensor:
     """Returns a single value from the network output, which is a dict or tensor."""
 
-    def _get_loss(data):
+    def _get_loss(data: torch.Tensor | dict[str, torch.Tensor]) -> torch.Tensor:
         if isinstance(data, dict):
             return data["loss"]
         return data
@@ -286,7 +288,7 @@ class ThreadContainer(Thread):
         self._status_dict: dict[str, Any] = {}
         self.loss_transform = loss_transform
         self.metric_transform = metric_transform
-        self.fig = None
+        self.fig: plt.Figure | None = None
         self.status_format = status_format
 
         self.engine.add_event_handler(Events.ITERATION_COMPLETED, self._update_status)
@@ -357,7 +359,7 @@ class ThreadContainer(Thread):
 
         return ", ".join(msgs)
 
-    def plot_status(self, logger, plot_func: Callable = plot_engine_status):
+    def plot_status(self, logger: MetricLogger, plot_func: Callable = plot_engine_status) -> plt.Figure:
         """
         Generate a plot of the current status of the contained engine whose loss and metrics were tracked by `logger`.
         The function `plot_func` must accept arguments `title`, `engine`, `logger`, and `fig` which are the plot title,
