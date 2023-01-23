@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import datetime
 import warnings
 
 import numpy as np
@@ -576,8 +577,8 @@ class TopologyConstruction(nn.Module):
         self.num_blocks = num_blocks
         self.num_depths = num_depths
         print(
-            "Length of input patch is recommended to be a multiple of {:d}.".format(
-                2 ** (num_depths + int(use_downsample))
+            "{0} - Length of input patch is recommended to be a multiple of {1:d}.".format(
+                datetime.datetime.now(), 2 ** (num_depths + int(use_downsample))
             )
         )
 
