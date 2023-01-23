@@ -168,8 +168,8 @@ class ConfigComponent(ConfigItem, Instantiable):
     Currently, three special keys (strings surrounded by ``_``) are defined and interpreted beyond the regular literals:
 
         - class or function identifier of the python module, specified by ``"_target_"``,
-          indicating a build-in python class or function such as ``"LoadImageDict"``,
-          or a full module name, such as ``"monai.transforms.LoadImageDict"``.
+          indicating a monai built-in Python class or function such as ``"LoadImageDict"``,
+          or a full module name, e.g. ``"monai.transforms.LoadImageDict"``, or a callable, e.g. ``"$@model.forward"``.
         - ``"_requires_"`` (optional): specifies reference IDs (string starts with ``"@"``) or ``ConfigExpression``
           of the dependencies for this ``ConfigComponent`` object. These dependencies will be
           evaluated/instantiated before this object is instantiated.  It is useful when the
@@ -177,7 +177,7 @@ class ConfigComponent(ConfigItem, Instantiable):
           but requires the dependencies to be instantiated/evaluated beforehand.
         - ``"_disabled_"`` (optional): a flag to indicate whether to skip the instantiation.
         - ``"_desc_"`` (optional): free text descriptions of the component for code readability.
-        - ``"_mode_"`` (optional): the operating mode for invoking the ``component``:
+        - ``"_mode_"`` (optional): operating mode for invoking the callable ``component`` defined by ``"_target_"``:
 
             - ``"default"``: returns ``component(**kwargs)``
             - ``"partial"``: returns ``functools.partial(component, **kwargs)``

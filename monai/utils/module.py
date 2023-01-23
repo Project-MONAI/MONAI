@@ -223,7 +223,7 @@ def instantiate(__path: str, __mode: str, **kwargs):
     Args:
         __path: if a string is provided, it's interpreted as the full path of the target class or function component.
             If a callable is provided, ``__path(**kwargs)`` or ``functools.partial(__path, **kwargs)`` will be returned.
-        __mode: the operating mode for invoking the ``component`` represented by ``__path``:
+        __mode: the operating mode for invoking the (callable) ``component`` represented by ``__path``:
 
             - ``"default"``: returns ``component(**kwargs)``
             - ``"partial"``: returns ``functools.partial(component, **kwargs)``
@@ -241,7 +241,7 @@ def instantiate(__path: str, __mode: str, **kwargs):
     try:
         if kwargs.pop("_debug_", False) or run_debug:
             warnings.warn(
-                f"\n\npdb: instantiating component={component} mode={m}\n"
+                f"\n\npdb: instantiating component={component}, mode={m}\n"
                 f"See also Debugger commands documentation: https://docs.python.org/3/library/pdb.html\n"
             )
             breakpoint()
@@ -254,7 +254,7 @@ def instantiate(__path: str, __mode: str, **kwargs):
             return partial(component, **kwargs)
         if m == CompInitMode.DEBUG:
             warnings.warn(
-                f"\n\npdb: instantiating component={component} mode={m}\n"
+                f"\n\npdb: instantiating component={component}, mode={m}\n"
                 f"See also Debugger commands documentation: https://docs.python.org/3/library/pdb.html\n"
             )
             return pdb.runcall(component, **kwargs)

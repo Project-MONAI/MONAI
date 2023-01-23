@@ -40,7 +40,7 @@ def case_pdb(sarg=None):
 def case_pdb_inst(sarg=None):
     config = {"transform": {"_target_": "Compose", "transforms": [], "_mode_": "debug"}}
     parser = ConfigParser(config=config)
-    parser.get_parsed_content()
+    return parser.transform
 
 
 # test the resolved and parsed instances
@@ -274,7 +274,7 @@ class TestConfigParser(unittest.TestCase):
     def test_pdb(self):
         with self.assertRaisesRegex(RuntimeError, ".*bdb.BdbQuit.*"):
             case_pdb()
-        case_pdb_inst()
+        self.assertEqual(case_pdb_inst(), None)  # pdb.runcall without input is None
 
     def test_get_via_attributes(self):
         config = {
