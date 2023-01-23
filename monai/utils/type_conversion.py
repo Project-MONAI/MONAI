@@ -88,13 +88,13 @@ def get_equivalent_dtype(dtype, data_type):
     return dtype_torch_to_numpy(dtype)
 
 
-def get_dtype(data: Any):
+def get_dtype(data: Any) -> DtypeLike | torch.dtype:
     """Get the dtype of an image, or if there is a sequence, recursively call the method on the 0th element.
 
     This therefore assumes that in a `Sequence`, all types are the same.
     """
     if hasattr(data, "dtype"):
-        return data.dtype
+        return data.dtype  # type: ignore
     # need recursion
     if isinstance(data, Sequence):
         return get_dtype(data[0])
@@ -103,13 +103,13 @@ def get_dtype(data: Any):
 
 
 def convert_to_tensor(
-    data,
+    data: Any,
     dtype: DtypeLike | torch.dtype = None,
     device: None | str | torch.device = None,
     wrap_sequence: bool = False,
     track_meta: bool = False,
     safe: bool = False,
-):
+) -> Any:
     """
     Utility to convert the input data to a PyTorch Tensor, if `track_meta` is True, the output will be a `MetaTensor`,
     otherwise, the output will be a regular torch Tensor.
@@ -131,7 +131,7 @@ def convert_to_tensor(
 
     """
 
-    def _convert_tensor(tensor, **kwargs):
+    def _convert_tensor(tensor: Any, **kwargs: Any) -> Any:
         if not isinstance(tensor, torch.Tensor):
             # certain numpy types are not supported as being directly convertible to Pytorch tensors
             if isinstance(tensor, np.ndarray) and tensor.dtype in UNSUPPORTED_TYPES:
@@ -173,7 +173,7 @@ def convert_to_tensor(
     return data
 
 
-def convert_to_numpy(data, dtype: DtypeLike = None, wrap_sequence: bool = False, safe: bool = False):
+def convert_to_numpy(data: Any, dtype: DtypeLike = None, wrap_sequence: bool = False, safe: bool = False) -> Any:
     """
     Utility to convert the input data to a numpy array. If passing a dictionary, list or tuple,
     recursively check every item and convert it to numpy array.
@@ -218,7 +218,7 @@ def convert_to_numpy(data, dtype: DtypeLike = None, wrap_sequence: bool = False,
     return data
 
 
-def convert_to_cupy(data, dtype: np.dtype | None = None, wrap_sequence: bool = False, safe: bool = False):
+def convert_to_cupy(data: Any, dtype: np.dtype | None = None, wrap_sequence: bool = False, safe: bool = False) -> Any:
     """
     Utility to convert the input data to a cupy array. If passing a dictionary, list or tuple,
     recursively check every item and convert it to cupy array.
@@ -390,7 +390,7 @@ def convert_to_list(data: Sequence | torch.Tensor | np.ndarray) -> list:
     return data.tolist() if isinstance(data, (torch.Tensor, np.ndarray)) else list(data)
 
 
-def get_dtype_bound_value(dtype: DtypeLike | torch.dtype):
+def get_dtype_bound_value(dtype: DtypeLike | torch.dtype) -> tuple[float, float]:
     """
     Get dtype bound value
     Args:
@@ -409,7 +409,7 @@ def get_dtype_bound_value(dtype: DtypeLike | torch.dtype):
         return (np.iinfo(dtype).min, np.iinfo(dtype).max)
 
 
-def safe_dtype_range(data: Any, dtype: DtypeLike | torch.dtype = None):
+def safe_dtype_range(data: Any, dtype: DtypeLike | torch.dtype = None) -> Any:
     """
     Utility to safely convert the input data to target dtype.
 

@@ -267,7 +267,7 @@ class WSIReaderDeprecatedTests:
             )
             dataset = Dataset([{"image": file_path}], transform=train_transform)
             data_loader = DataLoader(dataset)
-            data: dict = first(data_loader)
+            data: dict = first(data_loader, {})
             for s in data[PostFix.meta("image")]["spatial_shape"]:
                 assert_allclose(s, expected_spatial_shape, type_test=False)
             self.assertTupleEqual(data["image"].shape, expected_shape)
@@ -374,7 +374,7 @@ class WSIReaderTests:
             )
             dataset = Dataset([{"image": file_path}], transform=train_transform)
             data_loader = DataLoader(dataset)
-            data: dict = first(data_loader)
+            data: dict = first(data_loader, {})
             for s in data[PostFix.meta("image")]["spatial_shape"]:
                 assert_allclose(s, expected_spatial_shape, type_test=False)
             self.assertTupleEqual(data["image"].shape, expected_shape)
@@ -392,7 +392,7 @@ class WSIReaderTests:
             dataset = Dataset([{"image": file_path}, {"image": file_path}], transform=train_transform)
             batch_size = 2
             data_loader = DataLoader(dataset, batch_size=batch_size)
-            data: dict = first(data_loader)
+            data: dict = first(data_loader, {})
             for s in data[PostFix.meta("image")]["spatial_shape"]:
                 assert_allclose(s, expected_spatial_shape, type_test=False)
             self.assertTupleEqual(data["image"].shape, (batch_size, *expected_shape[1:]))

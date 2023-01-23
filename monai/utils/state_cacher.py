@@ -15,6 +15,8 @@ import copy
 import os
 import pickle
 import tempfile
+from types import ModuleType
+from typing import Any, Hashable
 
 import torch
 from torch.serialization import DEFAULT_PROTOCOL
@@ -44,7 +46,7 @@ class StateCacher:
         in_memory: bool,
         cache_dir: PathLike | None = None,
         allow_overwrite: bool = True,
-        pickle_module=pickle,
+        pickle_module: ModuleType = pickle,
         pickle_protocol: int = DEFAULT_PROTOCOL,
     ) -> None:
         """Constructor.
@@ -76,7 +78,9 @@ class StateCacher:
         self.pickle_protocol = pickle_protocol
         self.cached: dict = {}
 
-    def store(self, key, data_obj, pickle_module=None, pickle_protocol: int | None = None):
+    def store(
+        self, key: Hashable, data_obj: Any, pickle_module: ModuleType | None = None, pickle_protocol: int | None = None
+    ) -> None:
         """
         Store a given object with the given key name.
 
@@ -108,7 +112,7 @@ class StateCacher:
             if hasattr(data_obj, "device"):
                 self.cached[key]["device"] = data_obj.device
 
-    def retrieve(self, key):
+    def retrieve(self, key: Hashable) -> Any:
         """Retrieve the object stored under a given key name."""
         if key not in self.cached:
             raise KeyError(f"Target {key} was not cached.")

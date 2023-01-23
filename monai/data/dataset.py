@@ -25,7 +25,7 @@ from copy import copy, deepcopy
 from multiprocessing.managers import ListProxy
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Any
+from typing import IO, TYPE_CHECKING, Any, cast
 
 import numpy as np
 import torch
@@ -1403,7 +1403,7 @@ class NPZDictItemDataset(Dataset):
         dat = np.load(npzfile)
 
         self.arrays = {storedk: dat[datak] for datak, storedk in self.keys.items()}
-        self.length = self.arrays[first(self.keys.values())].shape[0]
+        self.length = self.arrays[cast(str, first(self.keys.values()))].shape[0]
 
         self.other_keys = {} if other_keys is None else {k: dat[k] for k in other_keys}
 
