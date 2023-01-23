@@ -945,7 +945,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
             if get_track_meta():
                 if not self.lazy_evaluation:
                     xform = self.pop_transform(d[key], check=False) if do_resampling else {}
-                    self.push_transform(d[key], extra_info={"do_resampling": do_resampling, "rand_affine_info": xform})
+                    self.push_transform(d[key], extra_info=xform)
                 elif do_resampling and isinstance(d[key], MetaTensor):
                     self.push_transform(d[key], pending=d[key].pending_operations.pop())  # type: ignore
         return d
@@ -954,9 +954,11 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
         d = dict(data)
         for key in self.key_iterator(d):
             tr = self.pop_transform(d[key])
-            do_resampling = tr[TraceKeys.EXTRA_INFO]["do_resampling"]
+            if TraceKeys.EXTRA_INFO not in tr[TraceKeys.EXTRA_INFO]:
+                continue
+            do_resampling = tr[TraceKeys.EXTRA_INFO][TraceKeys.EXTRA_INFO]["do_resampling"]
             if do_resampling:
-                d[key].applied_operations.append(tr[TraceKeys.EXTRA_INFO]["rand_affine_info"])  # type: ignore
+                d[key].applied_operations.append(tr[TraceKeys.EXTRA_INFO])  # type: ignore
                 d[key] = self.rand_affine.inverse(d[key])  # type: ignore
 
         return d
