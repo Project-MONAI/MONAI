@@ -87,14 +87,25 @@ class TraceableTransform(Transform):
             TraceKeys.DO_TRANSFORM: self._do_transform if hasattr(self, "_do_transform") else False,
         }
 
-    def push_transform(self, *args, **kwargs):
+    def push_transform(self, data, *args, **kwargs):
         transform_info = self.get_transform_info()
+        lazy_eval = transform_info.get(TraceKeys.LAZY_EVALUATION, False)
+        do_transform = transform_info.get(TraceKeys.DO_TRANSFORM, False)
         if not kwargs:
             kwargs = {}
         kwargs["transform_info"] = transform_info
+        replace = kwargs.pop("replace", False)
+        if replace and isinstance(data, MetaTensor) and get_track_meta():
+            if not lazy_eval:
+                xform = self.pop_transform(data, check=False) if do_transform else {}
+                return self.push_transform(data, extra_info=xform)
+            elif do_transform:
+                return self.push_transform(data, pending=data.pending_operations.pop())  # type: ignore
+            else:
+                return data
         if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
-            return TraceableTransform.track_pending_transform(*args, **kwargs)
-        return TraceableTransform.track_transform(*args, **kwargs)
+            return TraceableTransform.track_pending_transform(data, *args, **kwargs)
+        return TraceableTransform.track_transform(data, *args, **kwargs)
 
     @classmethod
     def track_transform(

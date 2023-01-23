@@ -1131,12 +1131,7 @@ class RandRotate90(RandomizableTransform, InvertibleTransform, LazyTransform):
         else:
             out = convert_to_tensor(img, track_meta=get_track_meta())
 
-        if get_track_meta():
-            if not self.lazy_evaluation:
-                maybe_rot90_info = self.pop_transform(out, check=False) if self._do_transform else {}
-                self.push_transform(out, extra_info=maybe_rot90_info)
-            elif self._do_transform:
-                self.push_transform(out, pending=out.pending_operations.pop())  # type: ignore
+        self.push_transform(out, replace=True)
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
@@ -1261,13 +1256,7 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
             out = rotator(img)
         else:
             out = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)
-        if get_track_meta():
-            if not self.lazy_evaluation:
-                rot_info = self.pop_transform(out, check=False) if self._do_transform else {}
-                self.push_transform(out, extra_info=rot_info)
-            elif self._do_transform:
-                p = out.pending_operations.pop()  # type: ignore
-                self.push_transform(out, pending=p)
+        self.push_transform(out, replace=True)
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
@@ -1309,13 +1298,7 @@ class RandFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
             self.randomize(None)
         out = self.flipper(img) if self._do_transform else img
         out = convert_to_tensor(out, track_meta=get_track_meta())
-        if get_track_meta():
-            if not self.lazy_evaluation:
-                xform_info = self.pop_transform(out, check=False) if self._do_transform else {}
-                self.push_transform(out, extra_info=xform_info)
-            elif self._do_transform:
-                p = out.pending_operations.pop()  # type: ignore
-                self.push_transform(out, pending=p)
+        self.push_transform(out, replace=True)
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
@@ -1369,12 +1352,7 @@ class RandAxisFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
             out = self.flipper(img)
         else:
             out = convert_to_tensor(img, track_meta=get_track_meta())
-        if get_track_meta():
-            if not self.lazy_evaluation:
-                xform = self.pop_transform(out, check=False) if self._do_transform else {}
-                self.push_transform(out, extra_info=xform)
-            elif self._do_transform:
-                self.push_transform(out, pending=out.pending_operations.pop())  # type: ignore
+        self.push_transform(out, replace=True)
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
@@ -1503,13 +1481,7 @@ class RandZoom(RandomizableTransform, InvertibleTransform, LazyTransform):
             )
             xform.lazy_evaluation = self.lazy_evaluation
             out = xform(img)
-        if get_track_meta():
-            if not self.lazy_evaluation:
-                z_info = self.pop_transform(out, check=False) if self._do_transform else {}
-                self.push_transform(out, extra_info=z_info)
-            elif self._do_transform:
-                p = out.pending_operations.pop()
-                self.push_transform(out, pending=p)
+        self.push_transform(out, replace=True)
         return out  # type: ignore
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
