@@ -233,7 +233,9 @@ def plot_engine_status(
     return fig, axes
 
 
-def _get_loss_from_output(output: list[torch.Tensor | dict[str, torch.Tensor]] | dict[str, torch.Tensor] | torch.Tensor) -> torch.Tensor:
+def _get_loss_from_output(
+    output: list[torch.Tensor | dict[str, torch.Tensor]] | dict[str, torch.Tensor] | torch.Tensor
+) -> torch.Tensor:
     """Returns a single value from the network output, which is a dict or tensor."""
 
     def _get_loss(data: torch.Tensor | dict[str, torch.Tensor]) -> torch.Tensor:
