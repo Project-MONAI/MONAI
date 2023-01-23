@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
@@ -22,21 +22,30 @@ from monai.utils import convert_data_type, optional_import
 
 PIL, _ = optional_import("PIL")
 GifImage, _ = optional_import("PIL.GifImagePlugin", name="Image")
-SummaryX, _ = optional_import("tensorboardX.proto.summary_pb2", name="Summary")
-SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
-SummaryWriterX, has_tensorboardx = optional_import("tensorboardX", name="SummaryWriter")
 
 if TYPE_CHECKING:
     from tensorboard.compat.proto.summary_pb2 import Summary
+    from tensorboardX import SummaryWriter as SummaryWriterX
+    from tensorboardX.proto.summary_pb2 import Summary as SummaryX
+    from torch.utils.tensorboard import SummaryWriter
+
+    has_tensorboardx = True
 else:
     Summary, _ = optional_import("tensorboard.compat.proto.summary_pb2", name="Summary")
+    SummaryX, _ = optional_import("tensorboardX.proto.summary_pb2", name="Summary")
+    SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
+    SummaryWriterX, has_tensorboardx = optional_import("tensorboardX", name="SummaryWriter")
 
 __all__ = ["make_animated_gif_summary", "add_animated_gif", "plot_2d_or_3d_image"]
 
 
 def _image3_animated_gif(
-    tag: str, image: np.ndarray | torch.Tensor, writer, frame_dim: int = 0, scale_factor: float = 1.0
-):
+    tag: str,
+    image: np.ndarray | torch.Tensor,
+    writer: SummaryWriter | SummaryWriterX | None,
+    frame_dim: int = 0,
+    scale_factor: float = 1.0,
+) -> Any:
     """Function to actually create the animated gif.
 
     Args:
@@ -71,7 +80,7 @@ def _image3_animated_gif(
 def make_animated_gif_summary(
     tag: str,
     image: np.ndarray | torch.Tensor,
-    writer=None,
+    writer: SummaryWriter | SummaryWriterX | None = None,
     max_out: int = 3,
     frame_dim: int = -3,
     scale_factor: float = 1.0,
@@ -105,7 +114,7 @@ def make_animated_gif_summary(
 
 
 def add_animated_gif(
-    writer,
+    writer: SummaryWriter | SummaryWriterX,
     tag: str,
     image_tensor: np.ndarray | torch.Tensor,
     max_out: int = 3,
@@ -137,7 +146,7 @@ def add_animated_gif(
 def plot_2d_or_3d_image(
     data: NdarrayTensor | list[NdarrayTensor],
     step: int,
-    writer,
+    writer: SummaryWriter | SummaryWriterX,
     index: int = 0,
     max_channels: int = 1,
     frame_dim: int = -3,

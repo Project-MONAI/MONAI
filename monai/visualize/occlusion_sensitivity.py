@@ -11,7 +11,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any
 
 import numpy as np
 import torch
@@ -139,7 +140,7 @@ class OcclusionSensitivity:
         return 0, ones * val
 
     @staticmethod
-    def gaussian_occlusion(x: torch.Tensor, mask_size, sigma=0.25) -> tuple[torch.Tensor, float]:
+    def gaussian_occlusion(x: torch.Tensor, mask_size: Sequence, sigma: float = 0.25) -> tuple[torch.Tensor, float]:
         """
         For Gaussian occlusion, Multiplicative is 1-Gaussian, additive is zero.
         Default sigma of 0.25 empirically shown to give reasonable kernel, see here:
@@ -171,7 +172,7 @@ class OcclusionSensitivity:
         mask_size: Sequence,
         occ_mode: str,
         activate: bool | Callable,
-        module_kwargs,
+        module_kwargs: Mapping[str, Any],
     ) -> torch.Tensor:
         """
         Predictor function to be passed to the sliding window inferer. Takes a cropped meshgrid,
@@ -264,7 +265,9 @@ class OcclusionSensitivity:
             mask_size[i] = min(s, mask_size[i])
         return cropped, cropper, mask_size
 
-    def __call__(self, x: torch.Tensor, b_box: Sequence | None = None, **kwargs) -> tuple[torch.Tensor, torch.Tensor]:
+    def __call__(
+        self, x: torch.Tensor, b_box: Sequence | None = None, **kwargs: Any
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Args:
             x: Image to use for inference. Should be a tensor consisting of 1 batch.
