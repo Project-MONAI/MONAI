@@ -664,10 +664,9 @@ class Flip(InvertibleTransform, LazyTransform):
             img: channel first array, must have shape: (num_channels, H[, W, ..., ])
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
-        axes = map_spatial_axes(img.ndim, self.spatial_axis)
         spatial_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
         spatial_chn_shape = [1, *convert_to_numpy(spatial_shape, wrap_sequence=True).tolist()]
-        return flip(img, spatial_chn_shape, axes, transform_info=self.get_transform_info())  # type: ignore
+        return flip(img, spatial_chn_shape, self.spatial_axis, transform_info=self.get_transform_info())  # type: ignore
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         self.pop_transform(data)
@@ -1373,19 +1372,16 @@ class RandAxisFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
         if get_track_meta():
             if not self.lazy_evaluation:
                 xform = self.pop_transform(out, check=False) if self._do_transform else {}
-                xform["axes"] = self._axis
                 self.push_transform(out, extra_info=xform)
             elif self._do_transform:
-                p = out.pending_operations.pop()  # type: ignore
-                p["axes"] = self._axis
-                self.push_transform(out, pending=p)
+                self.push_transform(out, pending=out.pending_operations.pop())  # type: ignore
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(data)
         if not transform[TraceKeys.DO_TRANSFORM]:
             return data
-        flipper = Flip(spatial_axis=transform[TraceKeys.EXTRA_INFO]["axes"])
+        flipper = Flip(spatial_axis=transform[TraceKeys.EXTRA_INFO][TraceKeys.EXTRA_INFO]["axes"])
         with flipper.trace_transform(False):
             return flipper(data)
 

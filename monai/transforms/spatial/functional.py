@@ -189,28 +189,34 @@ def orientation(data_array, original_affine, spatial_ornt, transform_info):
     return TraceableTransform.track_transform(data_array, extra_info=extra_info, transform_info=transform_info)
 
 
-def flip(img, shape, axes, transform_info):
-    def update_meta(img, shape, axes):
+def flip(img, shape, sp_axes, transform_info):
+    def update_meta(affine, shape, axes):
         # shape and axes include the channel dim
-        affine = img.peek_pending_affine()
         mat = convert_to_dst_type(torch.eye(len(affine)), affine)[0]
         for axis in axes:
             sp = axis - 1
             mat[sp, sp], mat[sp, -1] = mat[sp, sp] * -1, shape[axis] - 1
         return mat
 
+    extra_info = {"axes": sp_axes}  # track the spatial axes
+    axes = monai.transforms.utils.map_spatial_axes(img.ndim, sp_axes)  # use the axes with channel dim
+    _affine = (
+        img.peek_pending_affine()
+        if isinstance(img, MetaTensor)
+        else torch.eye(4, device=torch.device("cpu"), dtype=torch.float64)
+    )
     if transform_info.get(TraceKeys.LAZY_EVALUATION):
         if not get_track_meta():
             return img
-        _affine = update_meta(img, shape, axes)
+        _affine = update_meta(_affine, shape, axes)
         return TraceableTransform.track_pending_transform(
-            img, lazy_shape=shape[1:], lazy_affine=_affine, transform_info=transform_info
+            img, lazy_shape=shape[1:], lazy_affine=_affine, extra_info=extra_info, transform_info=transform_info
         )
 
     out = torch.flip(img, axes)
     if get_track_meta():
-        out.affine @= update_meta(out, shape, axes)  # type: ignore
-    return TraceableTransform.track_transform(out, transform_info=transform_info)
+        out.affine @= update_meta(_affine, shape, axes)  # type: ignore
+    return TraceableTransform.track_transform(out, extra_info=extra_info, transform_info=transform_info)
 
 
 def resize(img, out_size, mode, align_corners, input_ndim, anti_aliasing, anti_aliasing_sigma, transform_info):
