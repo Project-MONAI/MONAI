@@ -22,7 +22,7 @@ import warnings
 from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from functools import partial
-from typing import Callable
+from typing import Any, Callable
 
 import numpy as np
 import torch
@@ -75,6 +75,7 @@ cp, has_cp = optional_import("cupy")
 
 __all__ = [
     "Identity",
+    "RandIdentity",
     "AsChannelFirst",
     "AsChannelLast",
     "AddChannel",
@@ -126,6 +127,17 @@ class Identity(Transform):
         Apply the transform to `img`.
         """
         return img
+
+class RandIdentity(RandomizableTransform):
+    """
+    Do nothing to the data. This transform is random, so can be used to stop the caching of any
+    subsequent transforms.
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __call__(self, data: Any) -> Any:
+        return data
 
 
 @deprecated(since="0.8", msg_suffix="please use MetaTensor data type and monai.transforms.EnsureChannelFirst instead.")
