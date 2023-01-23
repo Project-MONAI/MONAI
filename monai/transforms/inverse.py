@@ -189,6 +189,9 @@ class TraceableTransform(Transform):
         if pending is not None:
             pending.pop(TraceKeys.CLASS_NAME, None)
             pending.pop(TraceKeys.ID, None)
+            pending.pop(TraceKeys.DO_TRANSFORM, None)
+            pending.pop(TraceKeys.TRACING, None)
+            pending.pop(TraceKeys.LAZY_EVALUATION, None)
             info.update(pending)
         if lazy_shape is not None:
             info[LazyAttr.SHAPE] = tuple(convert_to_numpy(lazy_shape, wrap_sequence=True).tolist())

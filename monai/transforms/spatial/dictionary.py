@@ -599,8 +599,12 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform, La
         for key in self.key_iterator(d):
             d[key] = rotator(d[key]) if self._do_transform else convert_to_tensor(d[key], track_meta=get_track_meta())
             if get_track_meta():
-                xform = self.pop_transform(d[key], check=False) if self._do_transform else {}
-                self.push_transform(d[key], extra_info=xform)
+                if not self.lazy_evaluation:
+                    xform = self.pop_transform(d[key], check=False) if self._do_transform else {}
+                    self.push_transform(d[key], extra_info=xform)
+                elif self._do_transform:
+                    self.push_transform(d[key], pending=d[key].pending_operations.pop())  # type: ignore
+
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
