@@ -28,7 +28,7 @@ from monai.utils import TraceKeys, convert_to_dst_type, ensure_tuple
 __all__ = ["pad_func", "crop_func"]
 
 
-def pad_func(img_t, to_pad_, mode_, kwargs_, transform_info):
+def pad_func(img_t, to_pad_, mode, kwargs, transform_info):
     extra_info = {"padded": to_pad_}
     img_size = img_t.peek_pending_shape() if isinstance(img_t, MetaTensor) else img_t.shape[1:]
     _affine = (
@@ -55,25 +55,25 @@ def pad_func(img_t, to_pad_, mode_, kwargs_, transform_info):
                 extra_info=extra_info,
                 transform_info=transform_info,
             )
-        if mode_ in {"linear_ramp", "maximum", "mean", "median", "minimum", "symmetric", "empty"}:
-            out = monai.transforms.Pad._np_pad(img_t, pad_width=to_pad_, mode=mode_, **kwargs_)
+        if mode in {"linear_ramp", "maximum", "mean", "median", "minimum", "symmetric", "empty"}:
+            out = monai.transforms.Pad._np_pad(img_t, pad_width=to_pad_, mode=mode, **kwargs)
         else:
-            mode_ = convert_pad_mode(dst=img_t, mode=mode_).value
+            mode = convert_pad_mode(dst=img_t, mode=mode).value
             try:
                 _pad = (
                     monai.transforms.Pad._pt_pad
-                    if mode_ in {"reflect", "replicate"}
+                    if mode in {"reflect", "replicate"}
                     and img_t.dtype not in {torch.int16, torch.int64, torch.bool, torch.uint8}
                     else monai.transforms.Pad._np_pad
                 )
-                out = _pad(img_t, pad_width=to_pad_, mode=mode_, **kwargs_)
+                out = _pad(img_t, pad_width=to_pad_, mode=mode, **kwargs)
             except (ValueError, TypeError, RuntimeError) as err:
                 if isinstance(err, NotImplementedError) or any(
                     k in str(err) for k in ("supported", "unexpected keyword", "implemented")
                 ):
-                    out = monai.transforms.Pad._np_pad(img_t, pad_width=to_pad_, mode=mode_, **kwargs_)
+                    out = monai.transforms.Pad._np_pad(img_t, pad_width=to_pad_, mode=mode, **kwargs)
                 else:
-                    raise ValueError(f"{img_t.shape} {to_pad_} {mode_} {kwargs_} {img_t.dtype} {img_t.device}") from err
+                    raise ValueError(f"{img_t.shape} {to_pad_} {mode} {kwargs} {img_t.dtype} {img_t.device}") from err
     else:
         out = img_t
     if get_track_meta():

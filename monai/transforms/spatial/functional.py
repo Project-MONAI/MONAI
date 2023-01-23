@@ -184,7 +184,7 @@ def orientation(data_array, original_affine, spatial_ornt, transform_info):
     if get_track_meta():
         new_affine = to_affine_nd(len(spatial_shape), original_affine) @ affine_x
         new_affine = to_affine_nd(original_affine, new_affine)
-        new_affine, *_ = convert_data_type(new_affine, torch.Tensor, dtype=torch.float32, device=data_array.device)
+        new_affine, *_ = convert_data_type(new_affine, torch.Tensor, dtype=torch.float64, device=data_array.device)
         data_array.affine = new_affine
     return TraceableTransform.track_transform(data_array, extra_info=extra_info, transform_info=transform_info)
 
@@ -418,8 +418,8 @@ def rotate90(img, axes, k, transform_info):
     return TraceableTransform.track_transform(out, extra_info=extra_info, transform_info=transform_info)
 
 
-def affine_func(img, affine, grid, resampler, sp_size, _mode, _padding_mode, do_resampling, image_only, transform_info):
-    extra_info = {"affine": affine, "mode": _mode, "padding_mode": _padding_mode, "do_resampling": do_resampling}
+def affine_func(img, affine, grid, resampler, sp_size, mode, padding_mode, do_resampling, image_only, transform_info):
+    extra_info = {"affine": affine, "mode": mode, "padding_mode": padding_mode, "do_resampling": do_resampling}
     img_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
     if transform_info.get(TraceKeys.LAZY_EVALUATION):
         if not get_track_meta():
@@ -436,7 +436,7 @@ def affine_func(img, affine, grid, resampler, sp_size, _mode, _padding_mode, do_
         )
         return img if image_only else (img, affine)
     if do_resampling:
-        out = resampler(img=img, grid=grid, mode=_mode, padding_mode=_padding_mode)
+        out = resampler(img=img, grid=grid, mode=mode, padding_mode=padding_mode)
     else:
         out = convert_data_type(img, dtype=torch.float32, device=resampler.device)[0]
 
