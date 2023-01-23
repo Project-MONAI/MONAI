@@ -23,6 +23,7 @@ from .enums import (
     ChannelMatching,
     ColorOrder,
     CommonKeys,
+    CompInitMode,
     DiceCEReduction,
     EngineStatsKeys,
     FastMRIKeys,

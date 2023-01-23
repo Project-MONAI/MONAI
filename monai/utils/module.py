@@ -13,13 +13,13 @@ from __future__ import annotations
 
 import enum
 import os
+import pdb
 import re
 import sys
 import warnings
 from collections.abc import Callable, Collection, Hashable, Mapping
 from functools import partial, wraps
 from importlib import import_module
-from inspect import isclass
 from pkgutil import walk_packages
 from pydoc import locate
 from re import match
@@ -221,36 +221,55 @@ def load_submodules(
     return submodules, err_mod
 
 
-def instantiate(__path: str, **kwargs: Any) -> Any:
+def instantiate(__path: str, __mode: str, **kwargs: Any) -> Any:
     """
-    Create an object instance or partial function from a class or function represented by string.
+    Create an object instance or call a callable object from a class or function represented by ``_path``.
     `kwargs` will be part of the input arguments to the class constructor or function.
     The target component must be a class or a function, if not, return the component directly.
 
     Args:
-        path: full path of the target class or function component.
-        kwargs: arguments to initialize the class instance or set default args
-            for `partial` function.
+        __path: if a string is provided, it's interpreted as the full path of the target class or function component.
+            If a callable is provided, ``__path(**kwargs)`` or ``functools.partial(__path, **kwargs)`` will be returned.
+        __mode: the operating mode for invoking the (callable) ``component`` represented by ``__path``:
+
+            - ``"default"``: returns ``component(**kwargs)``
+            - ``"partial"``: returns ``functools.partial(component, **kwargs)``
+            - ``"debug"``: returns ``pdb.runcall(component, **kwargs)``
+
+        kwargs: keyword arguments to the callable represented by ``__path``.
 
     """
+    from monai.utils.enums import CompInitMode
+
     component = locate(__path) if isinstance(__path, str) else __path
     if component is None:
         raise ModuleNotFoundError(f"Cannot locate class or function path: '{__path}'.")
+    m = look_up_option(__mode, CompInitMode)
     try:
         if kwargs.pop("_debug_", False) or run_debug:
             warnings.warn(
-                f"\n\npdb: instantiating component={component}\n"
+                f"\n\npdb: instantiating component={component}, mode={m}\n"
                 f"See also Debugger commands documentation: https://docs.python.org/3/library/pdb.html\n"
             )
-            import pdb
-
-            pdb.set_trace()
-        if isclass(component):
+            breakpoint()
+        if not callable(component):
+            warnings.warn(f"Component {component} is not callable when mode={m}.")
+            return component
+        if m == CompInitMode.DEFAULT:
             return component(**kwargs)
-        if callable(component):  # support regular function, static method and class method
+        if m == CompInitMode.PARTIAL:
             return partial(component, **kwargs)
+        if m == CompInitMode.DEBUG:
+            warnings.warn(
+                f"\n\npdb: instantiating component={component}, mode={m}\n"
+                f"See also Debugger commands documentation: https://docs.python.org/3/library/pdb.html\n"
+            )
+            return pdb.runcall(component, **kwargs)
     except Exception as e:
-        raise RuntimeError(f"Failed to instantiate '{__path}' with kwargs: {kwargs}") from e
+        raise RuntimeError(
+            f"Failed to instantiate component '{__path}' with kwargs: {kwargs}"
+            f"\n set '_mode_={CompInitMode.DEBUG}' to enter the debugging mode."
+        ) from e
 
     warnings.warn(f"Component to instantiate must represent a valid class or function, but got {__path}.")
     return component
