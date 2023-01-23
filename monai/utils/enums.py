@@ -42,6 +42,7 @@ __all__ = [
     "PostFix",
     "ForwardMode",
     "TransformBackends",
+    "CompInitMode",
     "BoxModeName",
     "GridPatchSort",
     "FastMRIKeys",
@@ -396,6 +397,18 @@ class TransformBackends(StrEnum):
     TORCH = "torch"
     NUMPY = "numpy"
     CUPY = "cupy"
+
+
+class CompInitMode(StrEnum):
+    """
+    Mode names for instantiating a class or calling a callable.
+
+    See also: :py:func:`monai.utils.module.instantiate`
+    """
+
+    DEFAULT = "default"
+    PARTIAL = "partial"
+    DEBUG = "debug"
 
 
 class JITMetadataKeys(StrEnum):
