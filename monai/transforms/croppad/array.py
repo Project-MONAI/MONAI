@@ -141,6 +141,26 @@ class Pad(InvertibleTransform, LazyTransform):
         # torch.pad expects `[B, C, H, W, [D]]` shape
         return pad_pt(img.unsqueeze(0), pt_pad_width, mode=mode, **kwargs).squeeze(0)
 
+    @staticmethod
+    def pad_nd(img_t, to_pad_, mode, **kwargs):
+        if mode in {"linear_ramp", "maximum", "mean", "median", "minimum", "symmetric", "empty"}:
+            return Pad._np_pad(img_t, pad_width=to_pad_, mode=mode, **kwargs)
+        mode = convert_pad_mode(dst=img_t, mode=mode).value
+        try:
+            _pad = (
+                Pad._pt_pad
+                if mode in {"reflect", "replicate"}
+                and img_t.dtype not in {torch.int16, torch.int64, torch.bool, torch.uint8}
+                else Pad._np_pad
+            )
+            return _pad(img_t, pad_width=to_pad_, mode=mode, **kwargs)
+        except (ValueError, TypeError, RuntimeError) as err:
+            if isinstance(err, NotImplementedError) or any(
+                k in str(err) for k in ("supported", "unexpected keyword", "implemented")
+            ):
+                return Pad._np_pad(img_t, pad_width=to_pad_, mode=mode, **kwargs)
+            raise ValueError(f"{img_t.shape} {to_pad_} {mode} {kwargs} {img_t.dtype} {img_t.device}") from err
+
     def __call__(  # type: ignore
         self, img: torch.Tensor, to_pad: list[tuple[int, int]] | None = None, mode: str | None = None, **kwargs
     ) -> torch.Tensor:

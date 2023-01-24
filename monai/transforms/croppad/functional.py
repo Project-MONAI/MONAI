@@ -22,7 +22,7 @@ import monai
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.inverse import TraceableTransform
-from monai.transforms.utils import convert_pad_mode, create_translate
+from monai.transforms.utils import create_translate
 from monai.utils import TraceKeys, convert_to_dst_type, ensure_tuple
 
 __all__ = ["pad_func", "crop_func"]
@@ -37,7 +37,9 @@ def pad_func(img_t, to_pad_, mode, kwargs, transform_info):
         else torch.eye(4, device=torch.device("cpu"), dtype=torch.float64)
     )
     spatial_rank = max(len(_affine) - 1, 1)
-    if np.asarray(to_pad_).any():
+    if not np.asarray(to_pad_).any():
+        out = img_t
+    else:
         to_pad_ = list(to_pad_)
         if len(to_pad_) < len(img_t.shape):
             to_pad_ = list(to_pad_) + [(0, 0)] * (len(img_t.shape) - len(to_pad_))
@@ -55,27 +57,7 @@ def pad_func(img_t, to_pad_, mode, kwargs, transform_info):
                 extra_info=extra_info,
                 transform_info=transform_info,
             )
-        if mode in {"linear_ramp", "maximum", "mean", "median", "minimum", "symmetric", "empty"}:
-            out = monai.transforms.Pad._np_pad(img_t, pad_width=to_pad_, mode=mode, **kwargs)
-        else:
-            mode = convert_pad_mode(dst=img_t, mode=mode).value
-            try:
-                _pad = (
-                    monai.transforms.Pad._pt_pad
-                    if mode in {"reflect", "replicate"}
-                    and img_t.dtype not in {torch.int16, torch.int64, torch.bool, torch.uint8}
-                    else monai.transforms.Pad._np_pad
-                )
-                out = _pad(img_t, pad_width=to_pad_, mode=mode, **kwargs)
-            except (ValueError, TypeError, RuntimeError) as err:
-                if isinstance(err, NotImplementedError) or any(
-                    k in str(err) for k in ("supported", "unexpected keyword", "implemented")
-                ):
-                    out = monai.transforms.Pad._np_pad(img_t, pad_width=to_pad_, mode=mode, **kwargs)
-                else:
-                    raise ValueError(f"{img_t.shape} {to_pad_} {mode} {kwargs} {img_t.dtype} {img_t.device}") from err
-    else:
-        out = img_t
+        out = monai.transforms.Pad.pad_nd(img_t, to_pad_, mode, **kwargs)
     if get_track_meta():
         to_shift = [-s[0] for s in to_pad_[1:]]  # skipping the channel pad
         out.affine @= convert_to_dst_type(create_translate(spatial_rank, to_shift), _affine)[0]  # type: ignore

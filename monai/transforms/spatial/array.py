@@ -470,7 +470,7 @@ class Spacing(InvertibleTransform, LazyTransform):
         affine_: np.ndarray
         if affine is not None:
             warnings.warn("arg `affine` is deprecated, the affine of MetaTensor in data_array has higher priority.")
-        input_affine = data_array.affine if isinstance(data_array, MetaTensor) else affine
+        input_affine = data_array.peek_pending_affine() if isinstance(data_array, MetaTensor) else affine
         if input_affine is None:
             warnings.warn("`data_array` is not of type MetaTensor, assuming affine to be identity.")
             # default to identity
@@ -517,7 +517,10 @@ class Spacing(InvertibleTransform, LazyTransform):
             dtype=dtype,
         )
         if self.recompute_affine and isinstance(data_array, MetaTensor):
-            data_array.affine = scale_affine(affine_, original_spatial_shape, actual_shape)
+            if not self.lazy_evaluation:
+                data_array.affine = scale_affine(affine_, original_spatial_shape, actual_shape)
+            else:
+                raise NotImplementedError("recompute_affine is not supported with lazy evaluation.")
         return data_array
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
