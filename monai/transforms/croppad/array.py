@@ -1242,7 +1242,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform):
 
 class ResizeWithPadOrCrop(InvertibleTransform, LazyTransform):
     """
-    Resize an image to a target spatial size by either centrally crpopping the image or
+    Resize an image to a target spatial size by either centrally cropping the image or
     padding it evenly with a user-specified mode.
     When the dimension is smaller than the target size, do symmetric padding along that dim.
     When the dimension is larger than the target size, do central cropping along that dim.
