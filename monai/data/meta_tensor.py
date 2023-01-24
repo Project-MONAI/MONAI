@@ -480,8 +480,8 @@ class MetaTensor(MetaObj, torch.Tensor):
 
     def peek_pending_affine(self):
         res = self.affine
-        if self.pending_operations:
-            next_matrix = self.pending_operations[-1].get(LazyAttr.AFFINE, None)
+        for p in self.pending_operations:
+            next_matrix = p.get(LazyAttr.AFFINE)
             res = monai.transforms.lazy.utils.combine_transforms(res, next_matrix)
         return res
 
