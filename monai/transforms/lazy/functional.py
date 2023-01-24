@@ -69,5 +69,4 @@ def apply_transforms(
         data.clear_pending_operations()
         for p in pending:
             data.push_applied_operation(p)
-
     return data, pending

@@ -46,6 +46,7 @@ from monai.utils import (
     ensure_tuple_size,
     fall_back_tuple,
     first,
+    get_equivalent_dtype,
     issequenceiterable,
     look_up_option,
     optional_import,
@@ -924,21 +925,22 @@ def to_affine_nd(r: np.ndarray | int, affine: NdarrayTensor, dtype=np.float64) -
         an (r+1) x (r+1) matrix (tensor or ndarray depends on the input ``affine`` data type)
 
     """
-    affine_np = convert_data_type(affine, output_type=np.ndarray, dtype=dtype, wrap_sequence=True)[0]
+    _dtype = get_equivalent_dtype(dtype, np.ndarray)
+    affine_np = convert_data_type(affine, output_type=np.ndarray, dtype=_dtype, wrap_sequence=True)[0]
     affine_np = affine_np.copy()
     if affine_np.ndim != 2:
         raise ValueError(f"affine must have 2 dimensions, got {affine_np.ndim}.")
-    new_affine = np.array(r, dtype=dtype, copy=True)
+    new_affine = np.array(r, dtype=_dtype, copy=True)
     if new_affine.ndim == 0:
         sr: int = int(new_affine.astype(np.uint))
         if not np.isfinite(sr) or sr < 0:
             raise ValueError(f"r must be positive, got {sr}.")
-        new_affine = np.eye(sr + 1, dtype=dtype)
+        new_affine = np.eye(sr + 1, dtype=_dtype)
     d = max(min(len(new_affine) - 1, len(affine_np) - 1), 1)
     new_affine[:d, :d] = affine_np[:d, :d]
     if d > 1:
         new_affine[:d, -1] = affine_np[:d, -1]
-    output, *_ = convert_to_dst_type(new_affine, affine, dtype=dtype)
+    output, *_ = convert_to_dst_type(new_affine, affine, dtype=_dtype)
     return output
 
 

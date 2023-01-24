@@ -25,7 +25,7 @@ from monai.data.meta_obj import MetaObj, get_track_meta
 from monai.data.utils import affine_to_spacing, decollate_batch, list_data_collate, remove_extra_metadata
 from monai.utils import look_up_option
 from monai.utils.enums import LazyAttr, MetaKeys, PostFix, SpaceKeys
-from monai.utils.type_conversion import convert_data_type, convert_to_numpy, convert_to_tensor
+from monai.utils.type_conversion import convert_data_type, convert_to_numpy, convert_to_tensor, convert_to_dst_type
 
 __all__ = ["MetaTensor"]
 
@@ -479,10 +479,17 @@ class MetaTensor(MetaObj, torch.Tensor):
         return tuple(convert_to_numpy(self.shape, wrap_sequence=True).tolist()[1:]) if res is None else res
 
     def peek_pending_affine(self):
-        res = None
+        res = self.affine
         if self.pending_operations:
-            res = self.pending_operations[-1].get(LazyAttr.AFFINE, None)
-        return self.affine if res is None else res
+            next_matrix = self.pending_operations[-1].get(LazyAttr.AFFINE, None)
+            res = monai.transforms.lazy.utils.combine_transforms(res, next_matrix)
+        return res
+
+    def peek_pending_rank(self):
+        r = len(self.affine) - 1
+        if self.pending_operations:
+            r = len(self.pending_operations[-1].get(LazyAttr.AFFINE, None)) - 1
+        return convert_to_dst_type(r, self.affine)[0]
 
     def new_empty(self, size, dtype=None, device=None, requires_grad=False):
         """
