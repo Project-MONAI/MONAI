@@ -128,8 +128,7 @@ class Pad(InvertibleTransform, LazyTransform):
         img_np = img.detach().cpu().numpy() if isinstance(img, torch.Tensor) else img
         mode = convert_pad_mode(dst=img_np, mode=mode).value
         if mode == "constant" and "value" in kwargs:
-            val = kwargs.pop("value")
-            kwargs["constant_values"] = val
+            kwargs["constant_values"] = kwargs.pop("value")
         out = torch.as_tensor(np.pad(img, pad_width, mode=mode, **kwargs))
         if isinstance(img, MetaTensor):
             out = convert_to_dst_type(out, dst=img)[0]
@@ -143,6 +142,7 @@ class Pad(InvertibleTransform, LazyTransform):
 
     @staticmethod
     def pad_nd(img_t, to_pad_, mode, **kwargs):
+        """pad with torch or numpy function"""
         if mode in {"linear_ramp", "maximum", "mean", "median", "minimum", "symmetric", "empty"}:
             return Pad._np_pad(img_t, pad_width=to_pad_, mode=mode, **kwargs)
         mode = convert_pad_mode(dst=img_t, mode=mode).value
