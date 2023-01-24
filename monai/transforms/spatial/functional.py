@@ -33,6 +33,8 @@ from monai.transforms.inverse import TraceableTransform
 from monai.transforms.utils import create_rotate, create_scale, create_translate, scale_affine
 from monai.transforms.utils_pytorch_numpy_unification import allclose
 from monai.utils import (
+    TraceKeys,
+    convert_data_type,
     convert_to_dst_type,
     convert_to_numpy,
     convert_to_tensor,
@@ -42,8 +44,6 @@ from monai.utils import (
     optional_import,
     pytorch_after,
 )
-from monai.utils.enums import TraceKeys
-from monai.utils.type_conversion import convert_data_type
 
 nib, has_nib = optional_import("nibabel")
 cupy, _ = optional_import("cupy")
