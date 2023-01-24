@@ -568,13 +568,6 @@ class Orientation(InvertibleTransform, LazyTransform):
         self.as_closest_canonical = as_closest_canonical
         self.labels = labels
 
-    def lazy_call(self, img, xform, original_affine, ordering) -> torch.Tensor:
-        if not (get_track_meta() and isinstance(img, MetaTensor)):
-            return img  # type: ignore
-        _shape = convert_to_numpy(img.peek_pending_shape(), wrap_sequence=True)[[i - 1 for i in ordering if i != 0]]
-        self.push_transform(img, lazy_shape=_shape, lazy_affine=xform, extra_info={"original_affine": original_affine})
-        return img
-
     def __call__(self, data_array: torch.Tensor) -> torch.Tensor:
         """
         If input type is `MetaTensor`, original affine is extracted with `data_array.affine`.

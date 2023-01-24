@@ -530,10 +530,7 @@ class CenterScaleCrop(Crop):
         ndim = len(img_size)
         roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
         cropper = CenterSpatialCrop(roi_size=roi_size)
-        return super().__call__(
-            img=img,
-            slices=cropper.compute_slices(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]),
-        )
+        return super().__call__(img=img, slices=cropper.compute_slices(img_size))
 
 
 class RandSpatialCrop(Randomizable, Crop):
@@ -591,17 +588,15 @@ class RandSpatialCrop(Randomizable, Crop):
         slicing doesn't apply to the channel dim.
 
         """
+        img_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
         if randomize:
-            self.randomize(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:])
+            self.randomize(img_size)
         if self._size is None:
             raise RuntimeError("self._size not specified.")
         if self.random_center:
             return super().__call__(img=img, slices=self._slices)
         cropper = CenterSpatialCrop(self._size)
-        return super().__call__(
-            img=img,
-            slices=cropper.compute_slices(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]),
-        )
+        return super().__call__(img=img, slices=cropper.compute_slices(img_size))
 
 
 class RandScaleCrop(RandSpatialCrop):
