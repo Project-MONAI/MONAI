@@ -20,6 +20,7 @@ from parameterized import parameterized
 
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import Resize
+from monai.transforms.spatial.functional import resize
 from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose, is_tf32_env, pytorch_after
 
 TEST_CASE_0 = [{"spatial_size": 15}, (6, 10, 15)]
@@ -31,6 +32,41 @@ TEST_CASE_2 = [{"spatial_size": 6, "mode": "trilinear", "align_corners": True}, 
 TEST_CASE_3 = [{"spatial_size": 15, "anti_aliasing": True}, (6, 10, 15)]
 
 TEST_CASE_4 = [{"spatial_size": 6, "anti_aliasing": True, "anti_aliasing_sigma": 2.0}, (2, 4, 6)]
+
+ext_keys = ['spatial_size', 'size_mode', 'mode', 'align_corners', 'anti_aliasing',
+            'anti_aliasing_sigma', 'dtype', 'shape_override']
+
+
+
+
+TEST_CASES_EXT = [
+    [(1, 32, 32), {"spatial_size": 15},
+     dict(zip(ext_keys, [15, 'all', 'area', False, None, None, torch.int64, (1, 15, 15)]))],
+    [(1, 32, 32), {"spatial_size": 15, 'mode': 'nearest'},
+     dict(zip(ext_keys, [15, 'all', 'nearest', False, None, None, torch.int64, (1, 15, 15)]))],
+    [(1, 32, 32), {"spatial_size": 15, 'mode': 'nearest-exact'},
+     dict(zip(ext_keys, [15, 'all', 'nearest-exact', False, None, None, torch.int64, (1, 15, 15)]))],
+    [(1, 32, 32), {"spatial_size": 15, 'mode': 'linear'},
+     dict(zip(ext_keys, [15, 'all', 'linear', False, None, None, torch.int64, (1, 15, 15)]))],
+    [(1, 32, 32), {"spatial_size": 15, 'mode': 'bilinear'},
+     dict(zip(ext_keys, [15, 'all', 'bilinear', False, None, None, torch.int64, (1, 15, 15)]))],
+    [(1, 32, 32), {"spatial_size": 15, 'mode': 'bicubic'},
+     dict(zip(ext_keys, [15, 'all', 'bicubic', False, None, None, torch.int64, (1, 15, 15)]))],
+    [(1, 32, 32), {"spatial_size": 15, 'mode': 'trilinear'},
+     dict(zip(ext_keys, [15, 'all', 'trilinear', False, None, None, torch.int64, (1, 15, 15)]))],
+    [(1, 32, 32), {"spatial_size": 15, "mode": "area"},
+     dict(zip(ext_keys, [15, 'all', 'area', False, None, None, torch.int64, (1, 15, 15)]))],
+    [(1, 32, 32), {"spatial_size": (15, 15), "mode": "area"},
+     dict(zip(ext_keys, [(15, 15), 'all', 'area', False, None, None, torch.int64, (1, 15, 15)]))],
+    [(1, 32, 32, 16), {"spatial_size": (15, 15, 12), "mode": "bilinear"},
+     dict(zip(ext_keys, [(15, 15, 12), 'all', 'bilinear', False, None, None, torch.int64, (1, 15, 15, 12)]))],
+    [(1, 32, 32), {"spatial_size": 6, "mode": "trilinear", "align_corners": True},
+     dict(zip(ext_keys, [6, 'all', 'trilinear', True, None, None, torch.int64, (1, 6, 6)]))],
+    [(1, 32, 32), {"spatial_size": 15, "anti_aliasing": True},
+     dict(zip(ext_keys, [15, 'all', 'area', False, True, None, torch.int64, (1, 15, 15)]))],
+    [(1, 32, 32), {"spatial_size": 6, "anti_aliasing": True, "anti_aliasing_sigma": 2.0},
+     dict(zip(ext_keys, [6, 'all', 'area', False, True, 2.0, torch.int64, (1, 6, 6)]))]
+]
 
 diff_t = 0.3 if is_tf32_env() else 0.2
 
@@ -44,6 +80,23 @@ class TestResize(NumpyImageTestCase2D):
         with self.assertRaises(ValueError):
             resize = Resize(spatial_size=(128,), mode="order")
             resize(self.imt[0])
+
+    @parameterized.expand(TEST_CASES_EXT)
+    def test_functional_resize(self, img_size, kwargs, expected):
+        self._test_functional_resize(img_size, kwargs, expected)
+
+    def test_functional_resize_cases(self):
+        for t in TEST_CASES_EXT:
+            with self.subTest(t):
+                self._test_functional_resize(t[0], t[1], t[2])
+
+    def _test_functional_resize(self, img_size, kwargs, expected):
+        print(kwargs)
+        img = np.random.randint(0, 1, size=img_size)
+        result = resize(img, **kwargs)
+        self.assertDictEqual(result.pending_operations[-1].metadata, expected)
+
+
 
     @parameterized.expand(
         [

@@ -63,8 +63,8 @@ class SpatialAxisRandomizer(Randomizer):
             self,
             prob: float = 1.0,
             default: Any = 0,
-            seed: int | None = None,
-            state: np.random.RandomState | None = None
+            seed: int = None,
+            state: np.random.RandomState = None
     ):
         super().__init__(prob, state, seed)
         self.default = default
@@ -92,8 +92,8 @@ class Elastic3DRandomizer(Randomizer):
         magnitude_range,
         prob=1.0,
         grid_size=None,
-        seed: int | None = None,
-        state: np.random.RandomState | None = None
+        seed: int = None,
+        state: np.random.RandomState = None
     ):
         super().__init__(prob, seed, state)
         self.grid_size = grid_size

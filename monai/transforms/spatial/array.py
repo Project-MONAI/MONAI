@@ -601,9 +601,6 @@ class Spacing(LazyTransform, InvertibleTransform):
 
         return img_t
 
-    def inverse(self, data):
-        raise NotImplementedError()
-
 
 class Orientation(InvertibleTransform):
     """
@@ -724,17 +721,17 @@ class Orientation(InvertibleTransform):
     def update_meta(self, img, new_affine):
         img.affine = new_affine
 
-    def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        transform = self.pop_transform(data)
-        # Create inverse transform
-        orig_affine = transform[TraceKeys.EXTRA_INFO]["original_affine"]
-        orig_axcodes = nib.orientations.aff2axcodes(orig_affine)
-        inverse_transform = Orientation(axcodes=orig_axcodes, as_closest_canonical=False, labels=self.labels)
-        # Apply inverse
-        with inverse_transform.trace_transform(False):
-            data = inverse_transform(data)
-
-        return data
+    # def inverse(self, data: torch.Tensor) -> torch.Tensor:
+    #     transform = self.pop_transform(data)
+    #     # Create inverse transform
+    #     orig_affine = transform[TraceKeys.EXTRA_INFO]["original_affine"]
+    #     orig_axcodes = nib.orientations.aff2axcodes(orig_affine)
+    #     inverse_transform = Orientation(axcodes=orig_axcodes, as_closest_canonical=False, labels=self.labels)
+    #     # Apply inverse
+    #     with inverse_transform.trace_transform(False):
+    #         data = inverse_transform(data)
+    #
+    #     return data
 
 
 class Flip(LazyTransform, InvertibleTransform):
@@ -755,9 +752,9 @@ class Flip(LazyTransform, InvertibleTransform):
     backend = [TransformBackends.TORCH]
 
     def __init__(
-	        self,
-			spatial_axis: Sequence[int] | int | None = None,
-			lazy_evaluation: bool | None = True
+            self,
+            spatial_axis: Sequence[int] | int | None = None,
+            lazy_evaluation: bool | None = True
 	) -> None:
         LazyTransform.__init__(self, lazy_evaluation)
         self.spatial_axis = spatial_axis
@@ -773,9 +770,6 @@ class Flip(LazyTransform, InvertibleTransform):
         img_t = flip(img, spatial_axis_, None, self.lazy_evaluation)
 
         return img_t
-
-    def inverse(self, data):
-        raise NotImplementedError()
 
 
 class Resize(LazyTransform, InvertibleTransform):
@@ -879,9 +873,6 @@ class Resize(LazyTransform, InvertibleTransform):
 
         return img_t
 
-    def inverse(self, data):
-        raise NotImplementedError()
-
 
 class Rotate(InvertibleTransform, LazyTransform):
     backend = [TransformBackends.TORCH]
@@ -964,9 +955,6 @@ class Rotate(InvertibleTransform, LazyTransform):
                        align_corners_, dtype_, None, self.lazy_evaluation)
 
         return img_t
-
-    def inverse(self, data):
-        raise NotImplementedError()
 
 
 class Zoom(LazyTransform, InvertibleTransform):
@@ -1055,10 +1043,6 @@ class Zoom(LazyTransform, InvertibleTransform):
 
         return img_t
 
-    def inverse(self, data):
-        raise NotImplementedError()
-
-
 
 class Rotate90(InvertibleTransform, LazyTransform):
     """
@@ -1103,9 +1087,6 @@ class Rotate90(InvertibleTransform, LazyTransform):
 
         return img_t
 
-    def inverse(self, data):
-        raise NotImplementedError()
-
 
 class RandRotate90(InvertibleTransform, LazyTransform, RandomizableTrait):
     """
@@ -1149,12 +1130,6 @@ class RandRotate90(InvertibleTransform, LazyTransform, RandomizableTrait):
             randomize: whether to execute `randomize()` function first, default to True.
         """
         return rotate90(img, self.randomizer.sample(), self.spatial_axes, None, self.lazy_evaluation)
-
-    def inverse(
-            self,
-            data: NdarrayOrTensor,
-    ):
-        raise NotImplementedError()
 
 
 class RandRotate(InvertibleTransform, LazyTransform, RandomizableTrait):
@@ -1260,12 +1235,6 @@ class RandRotate(InvertibleTransform, LazyTransform, RandomizableTrait):
                       align_corners_, dtype_,
                       None, self.lazy_evaluation)
 
-    def inverse(
-            self,
-            data: NdarrayOrTensor
-    ):
-        raise NotImplementedError()
-
 
 class RandFlip(InvertibleTransform, LazyTransform, RandomizableTrait):
     """
@@ -1311,9 +1280,6 @@ class RandFlip(InvertibleTransform, LazyTransform, RandomizableTrait):
         else:
             return identity(img, None, self.lazy_evaluation)
 
-    def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError()
-
 
 class RandAxisFlip(InvertibleTransform, LazyTransform, RandomizableTrait):
     """
@@ -1352,9 +1318,6 @@ class RandAxisFlip(InvertibleTransform, LazyTransform, RandomizableTrait):
 
         flip_axis = self.randomizer.do_random()
         return flip(img, flip_axis, None, self.lazy_evaluation)
-
-    def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError()
 
 
 class RandZoom(RandomizableTransform, InvertibleTransform):
@@ -1479,12 +1442,6 @@ class RandZoom(RandomizableTransform, InvertibleTransform):
             z_info = self.pop_transform(out, check=False) if self._do_transform else {}
             self.push_transform(out, extra_info=z_info)
         return out  # type: ignore
-
-    def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        xform_info = self.pop_transform(data)
-        if not xform_info[TraceKeys.DO_TRANSFORM]:
-            return data
-        return Zoom(self._zoom).inverse_transform(data, xform_info[TraceKeys.EXTRA_INFO])
 
 
 class AffineGrid(Transform):
@@ -2658,8 +2615,6 @@ class Rand3DElastic(RandomizableTransform, LazyTransform):
 
             return img_t
 
-    def inverse(self, data):
-        raise NotImplementedError()
 
 class GridDistortion(Transform):
 

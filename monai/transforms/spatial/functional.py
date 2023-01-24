@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from typing import Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -140,7 +142,6 @@ def identity(
     padding_mode_ = None if padding_mode is None else look_up_option(padding_mode, GridSamplePadMode)
     dtype_ = get_equivalent_dtype(dtype or img_.dtype, torch.Tensor)
 
-    # transform = MatrixFactory.from_tensor(img_).identity().matrix.matrix
     transform = compatible_identity(img_)
 
     metadata = {
@@ -219,8 +220,6 @@ def spacing(
     dtype_ = get_equivalent_dtype(dtype or img.dtype, torch.Tensor)
     zoom_factors = [i / j for i, j in zip(src_pixdim_, pixdim_)]
 
-    # TODO: decide whether we are consistently returning MetaMatrix or concrete transforms
-    # transform = MatrixFactory.from_tensor(img).scale(zoom_factors).matrix.data
     transform = compatible_scale(img_, zoom_factors)
 
     output_shape = transform_shape(input_shape, transform)
@@ -311,7 +310,7 @@ def flip(
     spatial_axis_ = spatial_axis
     if spatial_axis_ is None:
         spatial_axis_ = tuple(i for i in range(len(input_shape[1:])))
-    # transform = MatrixFactory.from_tensor(img).flip(spatial_axis_).matrix.data
+
     transform = compatible_flip(img_, spatial_axis_)
 
     im_extents = extents_from_shape(input_shape)
@@ -377,7 +376,8 @@ def resize(
     input_ndim = len(input_shape) - 1
 
     if size_mode == "all":
-        output_ndim = len(ensure_tuple(spatial_size))
+        spatial_size_ = fall_back_tuple(spatial_size, input_shape[1:])
+        output_ndim = len(ensure_tuple(spatial_size_))
         if output_ndim > input_ndim:
             input_shape = ensure_tuple_size(input_shape, output_ndim + 1, 1)
             img = img.reshape(input_shape)
@@ -386,7 +386,6 @@ def resize(
                 "len(spatial_size) must be greater or equal to img spatial dimensions, "
                 f"got spatial_size={output_ndim} img={input_ndim}."
             )
-        spatial_size_ = fall_back_tuple(spatial_size, input_shape[1:])
     else:  # for the "longest" mode
         img_size = input_shape[1:]
         if not isinstance(spatial_size, int):
@@ -394,10 +393,10 @@ def resize(
         scale = spatial_size / max(img_size)
         spatial_size_ = tuple(int(round(s * scale)) for s in img_size)
 
-    mode_ = look_up_option(mode, GridSampleMode)
+    mode_ = look_up_option(mode, InterpolateMode)
     dtype_ = get_equivalent_dtype(dtype or img.dtype, torch.Tensor)
     zoom_factors = [i / j for i, j in zip(spatial_size_, input_shape[1:])]
-    # transform = MatrixFactory.from_tensor(img).scale(zoom_factors).matrix.data
+
     transform = compatible_scale(img_, zoom_factors)
 
     output_shape = transform_shape(input_shape, transform)
@@ -471,7 +470,7 @@ def rotate(
         raise ValueError(f"Unsupported image dimension: {input_ndim}, available options are [2, 3].")
 
     angle_ = ensure_tuple_rep(angle, 1 if input_ndim == 2 else 3)
-    # rotate_tx = torch.from_numpy(create_rotate(input_ndim, angle_).astype(np.float32))
+
     rotate_tx = compatible_rotate(img, angle_)
     output_shape = input_shape if keep_size is False else transform_shape(input_shape, rotate_tx)
 
@@ -540,7 +539,6 @@ def zoom(
     padding_mode_ = look_up_option(padding_mode, GridSamplePadMode)
     dtype_ = get_equivalent_dtype(dtype or img_.dtype, torch.Tensor)
 
-    # transform = MatrixFactory.from_tensor(img_).scale(zoom_factors).matrix.matrix
     transform = compatible_scale(img_, zoom_factors)
 
     output_shape = input_shape if keep_size is False else transform_shape(input_shape, transform)
@@ -601,7 +599,6 @@ def rotate90(
         else:
             input_shape = img_.shape
 
-    # transform = MatrixFactory.from_tensor(img_).rotate_90(k, )
     transform = compatible_rotate_90(img_, spatial_axes, k)
 
     metadata = {
@@ -724,7 +721,6 @@ def translate(
         raise ValueError(f"'translate' length {len(translation)} must be equal to 'img' "
                          f"spatial dimensions of {input_ndim}")
 
-    # transform = MatrixFactory.from_tensor(img).translate(translation).matrix.matrix
     transform = compatible_translate(img, translation)
 
     metadata = {
