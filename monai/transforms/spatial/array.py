@@ -2078,7 +2078,10 @@ class Affine(InvertibleTransform, LazyTransform):
             out = MetaTensor(out)
         out.meta = data.meta  # type: ignore
         affine = convert_data_type(out.peek_pending_affine(), torch.Tensor)[0]
-        out.affine @= Affine.compute_w_affine(len(affine) - 1, inv_affine, data.shape[1:], orig_size)
+        xform, *_ = convert_to_dst_type(
+            Affine.compute_w_affine(len(affine) - 1, inv_affine, data.shape[1:], orig_size), affine
+        )
+        out.affine @= xform
         return out
 
 
@@ -2322,9 +2325,11 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
         if not isinstance(out, MetaTensor):
             out = MetaTensor(out)
         out.meta = data.meta  # type: ignore
-
         affine = convert_data_type(out.peek_pending_affine(), torch.Tensor)[0]
-        out.affine @= Affine.compute_w_affine(affine, inv_affine, data.shape[1:], orig_size)
+        xform, *_ = convert_to_dst_type(
+            Affine.compute_w_affine(len(affine) - 1, inv_affine, data.shape[1:], orig_size), affine
+        )
+        out.affine @= xform
         return out
 
 
