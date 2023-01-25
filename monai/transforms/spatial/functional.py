@@ -15,6 +15,8 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 from __future__ import annotations
 
+import math
+import warnings
 from enum import Enum
 
 import numpy as np
@@ -170,7 +172,7 @@ def orientation(data_array, original_affine, spatial_ornt, transform_info):
         data_array = torch.flip(data_array, dims=axes)
     if not np.all(full_transpose == np.arange(len(data_array.shape))):
         data_array = data_array.permute(full_transpose.tolist())
-    return data_array.copy_meta_from(meta_info) if get_track_meta() else data_array
+    return data_array.copy_meta_from(meta_info) if isinstance(data_array, MetaTensor) else data_array
 
 
 def flip(img, shape, sp_axes, transform_info):
@@ -198,7 +200,7 @@ def flip(img, shape, sp_axes, transform_info):
         out = convert_to_tensor(img, track_meta=get_track_meta())
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
     img = torch.flip(img, axes)
-    return img.copy_meta_from(meta_info) if get_track_meta() else img
+    return img.copy_meta_from(meta_info) if isinstance(img, MetaTensor) else img
 
 
 def resize(img, out_size, mode, align_corners, input_ndim, anti_aliasing, anti_aliasing_sigma, transform_info):
@@ -209,31 +211,28 @@ def resize(img, out_size, mode, align_corners, input_ndim, anti_aliasing, anti_a
         "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
         "new_dim": len(orig_size) - input_ndim,
     }
-    if transform_info.get(TraceKeys.LAZY_EVALUATION):
+    affine = convert_to_tensor(
+        img.peek_pending_affine()
+        if isinstance(img, MetaTensor)
+        else torch.eye(4, device=torch.device("cpu"), dtype=torch.float64),
+        track_meta=False,
+    )
+    affine = scale_affine(affine, orig_size, out_size)
+    meta_info = TraceableTransform.track_transform_tensor(
+        img,
+        sp_size=out_size,
+        affine=affine,
+        extra_info=extra_info,
+        orig_size=orig_size,
+        transform_info=transform_info,
+        lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
+    )
+    img = convert_to_tensor(img, track_meta=get_track_meta())
+    if transform_info.get(TraceKeys.LAZY_EVALUATION, False) or tuple(convert_to_numpy(orig_size)) == out_size:
         if anti_aliasing:
-            raise ValueError("anti-aliasing is not compatible with lazy evaluation.")
-        if not get_track_meta():
-            return img  # type: ignore
-        affine = convert_to_tensor(img.peek_pending_affine(), track_meta=False)
-        _affine = scale_affine(affine, orig_size, out_size)
-        return TraceableTransform.track_pending_transform(
-            img,
-            lazy_shape=out_size,
-            lazy_affine=_affine,
-            orig_size=orig_size,
-            extra_info=extra_info,
-            transform_info=transform_info,
-        )
-    if tuple(convert_to_numpy(orig_size)) == out_size:  # spatial shape is already the desired
-        if not get_track_meta():
-            return img
-        affine = convert_to_tensor(img.peek_pending_affine(), track_meta=False)
-        img.affine @= scale_affine(affine, orig_size, out_size)
-        return TraceableTransform.track_transform(
-            img, orig_size=orig_size, extra_info=extra_info, transform_info=transform_info
-        )
-    img_ = convert_to_tensor(img, dtype=torch.float, track_meta=False)
-
+            warnings.warn("anti-aliasing is not compatible with lazy evaluation.")
+        return img.copy_meta_from(meta_info) if isinstance(img, MetaTensor) else img
+    img_ = convert_to_tensor(img, dtype=torch.float, track_meta=False)  # convert to a regular tensor
     if anti_aliasing and any(x < y for x, y in zip(out_size, img_.shape[1:])):
         factors = torch.div(torch.Tensor(list(img_.shape[1:])), torch.Tensor(out_size))
         if anti_aliasing_sigma is None:
@@ -246,23 +245,15 @@ def resize(img, out_size, mode, align_corners, input_ndim, anti_aliasing, anti_a
                 anti_aliasing_sigma[axis] = anti_aliasing_sigma[axis] * int(factors[axis] > 1)
         anti_aliasing_filter = GaussianSmooth(sigma=anti_aliasing_sigma)
         img_ = convert_to_tensor(anti_aliasing_filter(img_), track_meta=False)
-
-    img = convert_to_tensor(img, track_meta=get_track_meta())
     resized = torch.nn.functional.interpolate(
         input=img_.unsqueeze(0), size=out_size, mode=mode, align_corners=align_corners
     )
     out, *_ = convert_to_dst_type(resized.squeeze(0), img)
-    if not get_track_meta():
-        return out
-    affine = convert_to_tensor(out.peek_pending_affine(), track_meta=False)
-    out.affine @= scale_affine(affine, orig_size, out_size)
-    return TraceableTransform.track_transform(
-        out, orig_size=orig_size, extra_info=extra_info, transform_info=transform_info
-    )
+    return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 
 def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, transform_info):
-    im_shape = np.asarray(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:])
+    im_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
     input_ndim = len(im_shape)
     if input_ndim not in (2, 3):
         raise ValueError(f"Unsupported image dimension: {input_ndim}, available options are [2, 3].")
@@ -271,13 +262,10 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, t
     if output_shape is None:
         corners = np.asarray(np.meshgrid(*[(0, dim) for dim in im_shape], indexing="ij")).reshape((len(im_shape), -1))
         corners = transform[:-1, :-1] @ corners  # type: ignore
-        output_shape = np.asarray(corners.ptp(axis=1) + 0.5, dtype=int)
-    shift = create_translate(input_ndim, ((im_shape - 1) / 2).tolist())
-    shift_1 = create_translate(input_ndim, (-(output_shape - 1) / 2).tolist())
+        output_shape = corners.ptp(axis=1) + 0.5
+    shift = create_translate(input_ndim, ((np.array(im_shape) - 1) / 2).tolist())
+    shift_1 = create_translate(input_ndim, (-(np.asarray(output_shape, dtype=int) - 1) / 2).tolist())
     transform = shift @ transform @ shift_1
-
-    img_t = img.to(dtype)
-    transform_t, *_ = convert_to_dst_type(transform, img_t)
     extra_info = {
         "rot_mat": transform,
         "mode": mode,
@@ -285,57 +273,62 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, t
         "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
         "dtype": str(dtype)[6:],  # dtype as string; remove "torch": torch.float32 -> float32
     }
-
-    if transform_info.get(TraceKeys.LAZY_EVALUATION):
-        if not get_track_meta():
-            return img  # type: ignore
-        affine = convert_to_tensor(img.peek_pending_affine(), track_meta=False)
-        mat = to_affine_nd(len(affine) - 1, transform_t)
-        _affine = convert_to_dst_type(mat, affine)[0]
-        _shape = img.peek_pending_shape()
-        return TraceableTransform.track_pending_transform(
-            img,
-            orig_size=_shape,
-            lazy_affine=_affine,
-            lazy_shape=output_shape,
-            extra_info=extra_info,
-            transform_info=transform_info,
-        )
+    meta_info = TraceableTransform.track_transform_tensor(
+        img,
+        sp_size=output_shape,
+        affine=transform,
+        extra_info=extra_info,
+        orig_size=im_shape,
+        transform_info=transform_info,
+        lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
+    )
+    if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
+        return img.copy_meta_from(meta_info) if isinstance(img, MetaTensor) else img
     xform = AffineTransform(
         normalized=False, mode=mode, padding_mode=padding_mode, align_corners=align_corners, reverse_indexing=True
     )
-    output: torch.Tensor = xform(img_t.unsqueeze(0), transform_t, spatial_size=output_shape).float().squeeze(0)
+    img_t = img.to(dtype)
+    transform_t, *_ = convert_to_dst_type(transform, img_t)
+    output: torch.Tensor = xform(img_t.unsqueeze(0), transform_t, spatial_size=tuple(int(i) for i in output_shape))
+    output = output.float().squeeze(0)
     out, *_ = convert_to_dst_type(output, dst=img, dtype=output.dtype)
-    if get_track_meta():
-        affine = convert_to_tensor(img.peek_pending_affine(), track_meta=False)
-        mat = to_affine_nd(len(affine) - 1, transform_t)
-        out.affine @= convert_to_dst_type(mat, affine)[0]
-    return TraceableTransform.track_transform(
-        out, orig_size=img_t.shape[1:], extra_info=extra_info, transform_info=transform_info
+    return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+
+def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, transform_info):
+    im_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
+    affine = convert_to_tensor(
+        img.peek_pending_affine()
+        if isinstance(img, MetaTensor)
+        else torch.eye(4, device=torch.device("cpu"), dtype=torch.float64),
+        track_meta=False,
     )
-
-
-def zoom(img, scale_factor, output_size, mode, padding_mode, align_corners, transform_info):
+    output_size = [
+        int(math.floor(float(i) * z))
+        for i, z in zip(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:], scale_factor)
+    ]
+    affine = scale_affine(affine, im_shape, output_size)
     extra_info = {
         "mode": mode,
         "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
         "do_padcrop": False,
         "padcrop": {},
     }
+    if keep_size:
+        if transform_info.get(TraceKeys.LAZY_EVALUATION):
+            raise NotImplementedError("keep_size=True is not supported for lazy evaluation.")
+        output_size = [int(i) for i in img.shape[1:]]
+    meta_info = TraceableTransform.track_transform_tensor(
+        img,
+        sp_size=output_size,
+        affine=affine,
+        extra_info=extra_info,
+        orig_size=im_shape,
+        transform_info=transform_info,
+        lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
+    )
     if transform_info.get(TraceKeys.LAZY_EVALUATION):
-        if not get_track_meta():
-            return img  # type: ignore
-        _shape = img.peek_pending_shape()
-        affine = convert_to_tensor(img.peek_pending_affine(), track_meta=False)
-        _affine = scale_affine(affine, _shape, output_size)
-        return TraceableTransform.track_pending_transform(
-            img,
-            orig_size=_shape,
-            lazy_shape=output_size,
-            lazy_affine=_affine,
-            extra_info=extra_info,
-            transform_info=transform_info,
-        )
+        return img.copy_meta_from(meta_info) if isinstance(img, MetaTensor) else img
     img_t = img.to(torch.float32)
     zoomed: NdarrayOrTensor = torch.nn.functional.interpolate(
         recompute_scale_factor=True,
@@ -343,23 +336,18 @@ def zoom(img, scale_factor, output_size, mode, padding_mode, align_corners, tran
         scale_factor=list(scale_factor),
         mode=mode,
         align_corners=align_corners,
-    )
-    zoomed = zoomed.squeeze(0)
-    orig_size, z_size = img_t.shape, zoomed.shape
+    ).squeeze(0)
     out, *_ = convert_to_dst_type(zoomed, dst=img)
-    if get_track_meta():
-        affine = convert_to_tensor(out.peek_pending_affine(), track_meta=False)
-        out.affine @= scale_affine(affine, orig_size[1:], z_size[1:])
-    do_pad_crop = not np.allclose(output_size, z_size[1:])
+    if isinstance(out, MetaTensor):
+        out = out.copy_meta_from(meta_info)
+    do_pad_crop = not np.allclose(output_size, zoomed.shape[1:])
     if do_pad_crop:
         _pad_crop = ResizeWithPadOrCrop(spatial_size=img_t.shape[1:], mode=padding_mode)
         out = _pad_crop(out)
     if get_track_meta() and do_pad_crop:
         extra_info["do_padcrop"] = True
         extra_info["padcrop"] = out.applied_operations.pop()  # TODO: using applied_operations?
-    return TraceableTransform.track_transform(
-        out, orig_size=orig_size[1:], extra_info=extra_info, transform_info=transform_info
-    )
+    return out
 
 
 def rotate90(img, axes, k, transform_info):

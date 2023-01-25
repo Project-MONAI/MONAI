@@ -15,7 +15,6 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 from __future__ import annotations
 
-import math
 import warnings
 from collections.abc import Callable
 from copy import deepcopy
@@ -993,17 +992,8 @@ class Zoom(InvertibleTransform, LazyTransform):
         _mode = look_up_option(self.mode if mode is None else mode, InterpolateMode).value
         _padding_mode = padding_mode or self.padding_mode
         _align_corners = self.align_corners if align_corners is None else align_corners
-        if self.keep_size:
-            if self.lazy_evaluation:
-                raise NotImplementedError("keep_size=True is not supported for lazy evaluation.")
-            output_size = [int(i) for i in img.shape[1:]]
-        else:
-            output_size = [
-                int(math.floor(float(i) * z))
-                for i, z in zip(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:], _zoom)
-            ]
         return zoom(  # type: ignore
-            img, _zoom, output_size, _mode, _padding_mode, _align_corners, self.get_transform_info()
+            img, _zoom, self.keep_size, _mode, _padding_mode, _align_corners, self.get_transform_info()
         )
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
