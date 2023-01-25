@@ -43,9 +43,9 @@ from monai.transforms.utils import (
     map_classes_to_indices,
     weighted_patch_samples,
 )
-from monai.utils import ImageMetaKey as Key
 from monai.utils import (
     Method,
+    LazyAttr,
     PytorchPadMode,
     TraceKeys,
     TransformBackends,
@@ -58,6 +58,7 @@ from monai.utils import (
     fall_back_tuple,
     look_up_option,
     pytorch_after,
+    ImageMetaKey as Key,
 )
 
 __all__ = [
@@ -1313,8 +1314,8 @@ class ResizeWithPadOrCrop(InvertibleTransform, LazyTransform):
                 self.push_transform(
                     ret_,
                     orig_size=orig_size,
-                    lazy_shape=pad_info["lazy_shape"],
-                    lazy_affine=crop_info["lazy_affine"] @ pad_info["lazy_affine"],
+                    sp_size=pad_info[LazyAttr.SHAPE],
+                    affine=crop_info[LazyAttr.AFFINE] @ pad_info[LazyAttr.AFFINE],
                     extra_info={"pad_info": pad_info, "crop_info": crop_info},
                 )
 

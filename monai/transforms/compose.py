@@ -299,11 +299,11 @@ class OneOf(Compose):
         data = apply_transform(_transform, data, self.map_items, self.unpack_items, self.log_stats)
         # if the data is a mapping (dictionary), append the OneOf transform to the end
         if isinstance(data, monai.data.MetaTensor):
-            self.push_transform_tensor(data, extra_info={"index": index})
+            self.push_transform(data, extra_info={"index": index})
         elif isinstance(data, Mapping):
             for key in data:  # dictionary not change size during iteration
                 if isinstance(data[key], monai.data.MetaTensor):
-                    self.push_transform_tensor(data[key], extra_info={"index": index})
+                    self.push_transform(data[key], extra_info={"index": index})
         return data
 
     def inverse(self, data):
@@ -363,11 +363,11 @@ class RandomOrder(Compose):
             input_ = apply_transform(self.transforms[index], input_, self.map_items, self.unpack_items, self.log_stats)
         # if the data is a mapping (dictionary), append the RandomOrder transform to the end
         if isinstance(input_, monai.data.MetaTensor):
-            self.push_transform_tensor(input_, extra_info={"applied_order": applied_order})
+            self.push_transform(input_, extra_info={"applied_order": applied_order})
         elif isinstance(input_, Mapping):
             for key in input_:  # dictionary not change size during iteration
                 if isinstance(input_[key], monai.data.MetaTensor):
-                    self.push_transform_tensor(input_[key], extra_info={"applied_order": applied_order})
+                    self.push_transform(input_[key], extra_info={"applied_order": applied_order})
         return input_
 
     def inverse(self, data):
@@ -390,5 +390,7 @@ class RandomOrder(Compose):
         # loop backwards over transforms
         for o in reversed(applied_order):
             if isinstance(self.transforms[o], InvertibleTransform):
-                data = apply_transform(self.transforms[o].inverse, data, self.map_items, self.unpack_items, self.log_stats)
+                data = apply_transform(
+                    self.transforms[o].inverse, data, self.map_items, self.unpack_items, self.log_stats
+                )
         return data
