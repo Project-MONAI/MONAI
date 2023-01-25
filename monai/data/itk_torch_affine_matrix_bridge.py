@@ -18,7 +18,19 @@ if TYPE_CHECKING:
 else:
     itk, has_itk = optional_import("itk")
 
-def metatensor_to_array(metatensor):
+__all__ = [
+    "metatensor_to_array",
+    "image_to_metatensor",
+    "remove_border",
+    "itk_to_monai_affine",
+    "monai_to_itk_affine",
+    "create_itk_affine_from_parameters",
+    "itk_affine_resample",
+    "monai_affine_resample",
+]
+
+
+def metatensor_to_array(metatensor: MetaTensor):
     metatensor = metatensor.squeeze()
     metatensor = metatensor.permute(*torch.arange(metatensor.ndim - 1, -1, -1))
 
