@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import itk
-import torch
 import numpy as np
-from monai.transforms import Affine
+import torch
+
 from monai.data import ITKReader
 from monai.data.meta_tensor import MetaTensor
-from monai.transforms import EnsureChannelFirst
+from monai.transforms import Affine, EnsureChannelFirst
 from monai.utils import convert_to_dst_type
 
 
@@ -49,8 +51,7 @@ def remove_border(image):
     Returns:
         The padded array of data.
     """
-    return np.pad(image[1:-1, 1:-1, 1:-1] if image.ndim == 3 else image[1:-1, 1:-1],
-                  pad_width=1)
+    return np.pad(image[1:-1, 1:-1, 1:-1] if image.ndim == 3 else image[1:-1, 1:-1], pad_width=1)
 
 
 def compute_offset_matrix(image, center_of_rotation):
@@ -186,9 +187,9 @@ def get_itk_image_center(image):
     return center.tolist()
 
 
-def create_itk_affine_from_parameters(image, translation=None, rotation=None,
-                                      scale=None, shear=None,
-                                      center_of_rotation=None):
+def create_itk_affine_from_parameters(
+    image, translation=None, rotation=None, scale=None, shear=None, center_of_rotation=None
+):
     """
     Creates an affine transformation for an ITK image based on the provided parameters.
 
@@ -257,16 +258,15 @@ def itk_affine_resample(image, matrix, translation, center_of_rotation=None):
     interpolator = itk.LinearInterpolateImageFunction.New(image)
 
     # Resample with ITK
-    output_image = itk.resample_image_filter(image,
-                                             interpolator=interpolator,
-                                             transform=itk_transform,
-                                             output_parameters_from_image=image)
+    output_image = itk.resample_image_filter(
+        image, interpolator=interpolator, transform=itk_transform, output_parameters_from_image=image
+    )
 
     return np.asarray(output_image, dtype=np.float32)
 
 
 def monai_affine_resample(metatensor, affine_matrix):
     monai_transform = Affine(affine=affine_matrix, padding_mode="zeros", dtype=torch.float64)
-    output_tensor, output_affine = monai_transform(metatensor, mode='bilinear')
+    output_tensor, output_affine = monai_transform(metatensor, mode="bilinear")
 
     return metatensor_to_array(output_tensor)

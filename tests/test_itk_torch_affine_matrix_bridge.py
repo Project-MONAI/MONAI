@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import unittest
 
@@ -11,20 +13,27 @@ itk, has_itk = optional_import("itk")
 import numpy as np
 import torch
 
-from monai.data.itk_torch_affine_matrix_bridge import create_itk_affine_from_parameters, image_to_metatensor, \
-    itk_affine_resample, itk_to_monai_affine, \
-    metatensor_to_array, \
-    monai_affine_resample, monai_to_itk_affine, \
-    remove_border
+from monai.data.itk_torch_affine_matrix_bridge import (
+    create_itk_affine_from_parameters,
+    image_to_metatensor,
+    itk_affine_resample,
+    itk_to_monai_affine,
+    metatensor_to_array,
+    monai_affine_resample,
+    monai_to_itk_affine,
+    remove_border,
+)
 
-TEST_CASE_2D = {'filepath': 'CT_2D_head_fixed.mha'}
-TEST_CASE_3D = {'filepath': 'copd1_highres_INSP_STD_COPD_img.nii.gz'}
+TEST_CASE_2D = {"filepath": "CT_2D_head_fixed.mha"}
+# Download URL: https://data.kitware.com/api/v1/file/62a0f067bddec9d0c4175c5a/download
+# SHA-521: 60193cd6ef0cf055c623046446b74f969a2be838444801bd32ad5bedc8a7eeecb343e8a1208769c9c7a711e101c806a3133eccdda7790c551a69a64b9b3701e9
+TEST_CASE_3D = {"filepath": "copd1_highres_INSP_STD_COPD_img.nii.gz"}
+
 
 @unittest.skipUnless(has_itk, "Requires `itk` package.")
 class TestITKTorchAffineMatrixBridge(unittest.TestCase):
-
     def setUp(self):
-        #TODO: which data should be used
+        # TODO: which data should be used
         self.data_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
         data_dir = os.path.join(self.data_dir, "MedNIST")
         dataset_file = os.path.join(self.data_dir, "MedNIST.tar.gz")
@@ -59,8 +68,9 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         image.SetSpacing(spacing)
 
         # ITK
-        matrix, translation = create_itk_affine_from_parameters(image, translation=translation, rotation=rotation,
-                                                                scale=scale, shear=shear)
+        matrix, translation = create_itk_affine_from_parameters(
+            image, translation=translation, rotation=rotation, scale=scale, shear=shear
+        )
         output_array_itk = itk_affine_resample(image, matrix=matrix, translation=translation)
 
         # MONAI
@@ -71,7 +81,7 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         ###########################################################################
         # Make sure that the array conversion of the inputs is the same
         input_array_monai = metatensor_to_array(metatensor)
-        assert (np.array_equal(input_array_monai, np.asarray(image)))
+        assert np.array_equal(input_array_monai, np.asarray(image))
 
         # Compare outputs
         print("MONAI-ITK: ", np.allclose(output_array_monai, output_array_itk))
@@ -96,9 +106,13 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         ndim = image.ndim
 
         # ITK matrix (3x3 affine matrix)
-        matrix = np.array([[0.55915995, 0.50344867, 0.43208387],
-                           [0.01133669, 0.82088571, 0.86841365],
-                           [0.30478496, 0.94998986, 0.32742505]])[:ndim, :ndim]
+        matrix = np.array(
+            [
+                [0.55915995, 0.50344867, 0.43208387],
+                [0.01133669, 0.82088571, 0.86841365],
+                [0.30478496, 0.94998986, 0.32742505],
+            ]
+        )[:ndim, :ndim]
         translation = [54.0, 2.7, -11.9][:ndim]
 
         # Spatial properties
@@ -110,18 +124,20 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         image.SetOrigin(origin)
 
         # ITK
-        output_array_itk = itk_affine_resample(image, matrix=matrix, translation=translation,
-                                               center_of_rotation=center_of_rotation)
+        output_array_itk = itk_affine_resample(
+            image, matrix=matrix, translation=translation, center_of_rotation=center_of_rotation
+        )
 
         # MONAI
         metatensor = image_to_metatensor(image)
-        affine_matrix_for_monai = itk_to_monai_affine(image, matrix=matrix, translation=translation,
-                                                      center_of_rotation=center_of_rotation)
+        affine_matrix_for_monai = itk_to_monai_affine(
+            image, matrix=matrix, translation=translation, center_of_rotation=center_of_rotation
+        )
         output_array_monai = monai_affine_resample(metatensor, affine_matrix=affine_matrix_for_monai)
 
         # Make sure that the array conversion of the inputs is the same
         input_array_monai = metatensor_to_array(metatensor)
-        assert (np.array_equal(input_array_monai, np.asarray(image)))
+        assert np.array_equal(input_array_monai, np.asarray(image))
 
         ###########################################################################
         # Compare outputs
@@ -144,13 +160,16 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
 
         # MONAI affine matrix
         affine_matrix = torch.eye(ndim + 1, dtype=torch.float64)
-        affine_matrix[:ndim, :ndim] = torch.tensor([[0.55915995, 0.50344867, 0.43208387],
-                                                    [0.01133669, 0.82088571, 0.86841365],
-                                                    [0.30478496, 0.94998986, 0.32742505]],
-                                                   dtype=torch.float64)[:ndim, :ndim]
+        affine_matrix[:ndim, :ndim] = torch.tensor(
+            [
+                [0.55915995, 0.50344867, 0.43208387],
+                [0.01133669, 0.82088571, 0.86841365],
+                [0.30478496, 0.94998986, 0.32742505],
+            ],
+            dtype=torch.float64,
+        )[:ndim, :ndim]
 
-        affine_matrix[:ndim, ndim] = torch.tensor([54.0, 2.7, -11.9],
-                                                  dtype=torch.float64)[:ndim]
+        affine_matrix[:ndim, ndim] = torch.tensor([54.0, 2.7, -11.9], dtype=torch.float64)[:ndim]
 
         # Spatial properties
         center_of_rotation = [-32.3, 125.1, 0.7][:ndim]
@@ -161,10 +180,12 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         image.SetOrigin(origin)
 
         # ITK
-        matrix, translation = monai_to_itk_affine(image, affine_matrix=affine_matrix,
-                                                  center_of_rotation=center_of_rotation)
-        output_array_itk = itk_affine_resample(image, matrix=matrix, translation=translation,
-                                               center_of_rotation=center_of_rotation)
+        matrix, translation = monai_to_itk_affine(
+            image, affine_matrix=affine_matrix, center_of_rotation=center_of_rotation
+        )
+        output_array_itk = itk_affine_resample(
+            image, matrix=matrix, translation=translation, center_of_rotation=center_of_rotation
+        )
 
         # MONAI
         metatensor = image_to_metatensor(image)
@@ -172,7 +193,7 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
 
         # Make sure that the array conversion of the inputs is the same
         input_array_monai = metatensor_to_array(metatensor)
-        assert (np.array_equal(input_array_monai, np.asarray(image)))
+        assert np.array_equal(input_array_monai, np.asarray(image))
 
         ###########################################################################
         # Compare outputs
@@ -192,9 +213,13 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         ndim = image.ndim
 
         # ITK matrix (3x3 affine matrix)
-        matrix = np.array([[2.90971094, 1.18297296, 2.60008784],
-                           [0.29416137, 0.10294283, 2.82302616],
-                           [1.70578374, 1.39706003, 2.54652029]])[:ndim, :ndim]
+        matrix = np.array(
+            [
+                [2.90971094, 1.18297296, 2.60008784],
+                [0.29416137, 0.10294283, 2.82302616],
+                [1.70578374, 1.39706003, 2.54652029],
+            ]
+        )[:ndim, :ndim]
 
         translation = [-29.05463245, 35.27116398, 48.58759597][:ndim]
 
@@ -206,36 +231,38 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         image.SetSpacing(spacing)
         image.SetOrigin(origin)
 
-        affine_matrix = itk_to_monai_affine(image, matrix=matrix, translation=translation,
-                                            center_of_rotation=center_of_rotation)
+        affine_matrix = itk_to_monai_affine(
+            image, matrix=matrix, translation=translation, center_of_rotation=center_of_rotation
+        )
 
-        matrix_result, translation_result = monai_to_itk_affine(image, affine_matrix=affine_matrix,
-                                                                center_of_rotation=center_of_rotation)
+        matrix_result, translation_result = monai_to_itk_affine(
+            image, affine_matrix=affine_matrix, center_of_rotation=center_of_rotation
+        )
 
         print("Matrix cyclic conversion: ", np.allclose(matrix, matrix_result))
         print("Translation cyclic conversion: ", np.allclose(translation, translation_result))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
-    #test_utils.download_test_data()
+    # test_utils.download_test_data()
 
     ## 2D cases
-    #filepath0 = str(test_utils.TEST_DATA_DIR / 'CT_2D_head_fixed.mha')
-    #filepath1 = str(test_utils.TEST_DATA_DIR / 'CT_2D_head_moving.mha')
+    # filepath0 = str(test_utils.TEST_DATA_DIR / 'CT_2D_head_fixed.mha')
+    # filepath1 = str(test_utils.TEST_DATA_DIR / 'CT_2D_head_moving.mha')
     #
-    #test_setting_affine_parameters(filepath=filepath0)
-    #test_arbitary_center_of_rotation(filepath=filepath0)
-    #test_monai_to_itk(filepath=filepath0)
-    #test_cyclic_conversion(filepath=filepath0)
+    # test_setting_affine_parameters(filepath=filepath0)
+    # test_arbitary_center_of_rotation(filepath=filepath0)
+    # test_monai_to_itk(filepath=filepath0)
+    # test_cyclic_conversion(filepath=filepath0)
     #
     ## 3D cases
-    #filepath2 = str(test_utils.TEST_DATA_DIR / 'copd1_highres_INSP_STD_COPD_img.nii.gz')
-    #filepath3 = str(test_utils.TEST_DATA_DIR / 'copd1_highres_EXP_STD_COPD_img.nii.gz')
+    # filepath2 = str(test_utils.TEST_DATA_DIR / 'copd1_highres_INSP_STD_COPD_img.nii.gz')
+    # filepath3 = str(test_utils.TEST_DATA_DIR / 'copd1_highres_EXP_STD_COPD_img.nii.gz')
     #
-    #test_setting_affine_parameters(filepath=filepath2)
-    #test_arbitary_center_of_rotation(filepath=filepath2)
-    #test_monai_to_itk(filepath=filepath2)
-    #test_cyclic_conversion(filepath=filepath2)
+    # test_setting_affine_parameters(filepath=filepath2)
+    # test_arbitary_center_of_rotation(filepath=filepath2)
+    # test_monai_to_itk(filepath=filepath2)
+    # test_cyclic_conversion(filepath=filepath2)
 
     unittest.main()
