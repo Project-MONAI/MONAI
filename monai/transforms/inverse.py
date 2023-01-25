@@ -94,14 +94,14 @@ class TraceableTransform(Transform):
             id(self),
             self.tracing,
             self.lazy_evaluation if isinstance(self, LazyTransform) else False,
-            self._do_transform if hasattr(self, "_do_transform") else False,
+            self._do_transform if hasattr(self, "_do_transform") else True,
         )
         return dict(zip(self.unique_keys(), vals))
 
     def push_transform(self, data, *args, **kwargs):
         transform_info = self.get_transform_info()
         lazy_eval = transform_info.get(TraceKeys.LAZY_EVALUATION, False)
-        do_transform = transform_info.get(TraceKeys.DO_TRANSFORM, False)
+        do_transform = transform_info.get(TraceKeys.DO_TRANSFORM, True)
         if not kwargs:
             kwargs = {}
         kwargs["transform_info"] = transform_info
@@ -304,7 +304,7 @@ class TraceableTransform(Transform):
         """replace bool, whether to rewrite applied_operation (default False)"""
         transform_info = self.get_transform_info()
         lazy_eval = transform_info.get(TraceKeys.LAZY_EVALUATION, False)
-        do_transform = transform_info.get(TraceKeys.DO_TRANSFORM, False)
+        do_transform = transform_info.get(TraceKeys.DO_TRANSFORM, True)
         kwargs = kwargs or {}
         replace = kwargs.pop("replace", False)  # whether to rewrite the most recently pushed transform info
         if replace and get_track_meta() and isinstance(data, MetaTensor):
