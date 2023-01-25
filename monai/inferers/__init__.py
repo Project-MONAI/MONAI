@@ -11,5 +11,7 @@
 
 from __future__ import annotations
 
-from .inferer import Inferer, SaliencyInferer, SimpleInferer, SliceInferer, SlidingWindowInferer
+from .inferer import Inferer, PatchInferer, SaliencyInferer, SimpleInferer, SliceInferer, SlidingWindowInferer
+from .merger import Merger, AvgMerger
+from .splitter import Splitter, SlidingWindowSplitter
 from .utils import sliding_window_inference
