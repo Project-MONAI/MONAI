@@ -42,7 +42,7 @@ def pad_func(img, to_pad_, mode, kwargs, transform_info):
         shape = [d + s + e for d, (s, e) in zip(img_size, to_pad_[1:])]
     else:
         shape = img_size
-        affine = torch.eye(int(spatial_rank), device=torch.device("cpu"), dtype=torch.float64)
+        affine = torch.eye(int(spatial_rank) + 1, device=torch.device("cpu"), dtype=torch.float64)
         affine = convert_to_dst_type(affine, spatial_rank)[0]
     meta_info = TraceableTransform.track_transform_tensor(
         img,
