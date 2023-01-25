@@ -113,9 +113,9 @@ TESTS = [((X(), Y(), X()), (1, 2, 1), (0.25, 0.5, 0.25))]
 KEYS = ["x", "y"]
 TEST_INVERSES = [
     (OneOf((InvA(KEYS), InvB(KEYS))), True, True),
-    (OneOf((OneOf((InvA(KEYS), InvB(KEYS))), OneOf((InvB(KEYS), InvA(KEYS))))), True, False),
-    (OneOf((Compose((InvA(KEYS), InvB(KEYS))), Compose((InvB(KEYS), InvA(KEYS))))), True, False),
-    (OneOf((NonInv(KEYS), NonInv(KEYS))), False, False),
+    (OneOf((OneOf((InvA(KEYS), InvB(KEYS))), OneOf((InvB(KEYS), InvA(KEYS))))), True, True),
+    (OneOf((Compose((InvA(KEYS), InvB(KEYS))), Compose((InvB(KEYS), InvA(KEYS))))), True, True),
+    (OneOf((NonInv(KEYS), NonInv(KEYS))), False, True),
 ]
 
 

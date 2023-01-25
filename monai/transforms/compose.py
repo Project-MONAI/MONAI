@@ -302,8 +302,8 @@ class OneOf(Compose):
             self.push_transform_tensor(data, extra_info={"index": index})
         elif isinstance(data, Mapping):
             for key in data:  # dictionary not change size during iteration
-                if isinstance(data[key], monai.data.MetaTensor) or self.trace_key(key) in data:
-                    self.push_transform(data, key, extra_info={"index": index})
+                if isinstance(data[key], monai.data.MetaTensor):
+                    self.push_transform(data[key], extra_info={"index": index})
         return data
 
     def inverse(self, data):
