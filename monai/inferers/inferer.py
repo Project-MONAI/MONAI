@@ -14,11 +14,15 @@ from __future__ import annotations
 import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping, Sequence
+from inspect import isclass
 from typing import Any
 
 import torch
 import torch.nn as nn
+from torch.utils.data import Sampler, BatchSampler
 
+from monai.inferers.merger import Merger, AvgMerger
+from monai.inferers.splitter import Splitter
 from monai.inferers.utils import compute_importance_map, sliding_window_inference
 from monai.utils import BlendMode, PytorchPadMode, ensure_tuple
 from monai.visualize import CAM, GradCAM, GradCAMpp
@@ -86,6 +90,107 @@ class SimpleInferer(Inferer):
 
         """
         return network(inputs, *args, **kwargs)
+
+
+class PatchInferer(Inferer):
+    """
+    SimpleInferer is the normal inference method that run model forward() directly.
+
+    Args:
+        splitter: a `Splitter` object that split the inputs into patches
+        merger: a `Merger` object that merges patch outputs
+        pre_processor: a callable that process patches before the being fed to the network
+        post_processor: a callable that process the output of the network
+    """
+
+    def __init__(
+        self,
+        splitter: Splitter,
+        merger: Merger | Sequence[Merger] = AvgMerger,
+        batch_size: int | None = None,
+        pre_processor: Callable | None = None,
+        post_processor: Callable | None = None,
+        patch_filter_fn: Callable | None = None,
+    ) -> None:
+        Inferer.__init__(self)
+
+        # splitter
+        self.splitter = splitter
+        if not isinstance(self.splitter, Splitter):
+            raise TypeError(f"'splitter' should be a callable object, {type(self.splitter)} is given.")
+
+        # mergers
+        self.mergers = ensure_tuple(merger)
+        for m in self.mergers:
+            if not isinstance(m, Merger):
+                raise TypeError(f"'merger' should be a `Merger` object, {type(m)} is given.")
+
+        # pre-processor (process patch before the network)
+        self.pre_processor = pre_processor
+        if not callable(self.pre_processor):
+            raise TypeError(f"'pre_processor' should be a callable object, {type(self.pre_processor)} is given.")
+
+        # post-processor (process the output of the network)
+        self.post_processor = post_processor
+        if not callable(self.post_processor):
+            raise TypeError(f"'post_processor' should be a callable object, {type(self.post_processor)} is given.")
+
+        # function to filter patches for inference
+        self.patch_filter_fn = patch_filter_fn
+        if not callable(self.patch_filter_fn):
+            raise TypeError(f"'patch_filter_fn' should be a callable object, {type(self.patch_filter_fn)} is given.")
+
+        # batch size for patches
+        self.batch_size = batch_size
+
+    def __call__(self, inputs: torch.Tensor | str, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any):
+        """
+        Args:
+            inputs: model input data for inference.
+            network: target model to execute inference.
+                supports callables such as ``lambda x: my_torch_model(x, additional_config)``
+            args: optional args to be passed to ``network``.
+            kwargs: optional keyword args to be passed to ``network``.
+
+        """
+        patches = self.splitter(inputs)
+        output_keys = None
+        for i, batch_of_patch in BatchSampler(patches, batch_size=self.batch_size, drop_last=False):
+            # __________________________________________________________________
+            # concatenate each batch of patches [PBxBxCxHxW] = [PB*BxCxHxW]
+            patch = torch.cat(batch_of_patch)
+            # __________________________________________________________________
+            # pre-process
+            if self.pre_processor:
+                patch = self.pre_processor(patch)
+            # inference
+            out = network(patch, *args, **kwargs)
+            # post-process
+            if self.post_processor:
+                out = self.post_processor(out)
+            # __________________________________________________________________
+            # ensure we have a tuple of prob maps
+            if isinstance(out, dict):
+                if output_keys is None:
+                    output_keys = out.keys()  # predictor's output keys
+                pred_tuple = tuple(out[k] for k in output_keys)
+            else:
+                pred_tuple = ensure_tuple(out)
+            # __________________________________________________________________
+            # initialize mergers
+            if i == 0:
+                for merger in self.mergers:
+                    merger.initialize(inputs, patch, pred)
+            # __________________________________________________________________
+            # aggregate outputs
+            for merger, pred in zip(self.mergers, pred_tuple):
+                # split output into individual patches and then aggregate
+                for single_pred in torch.chunk(pred, self.batch_size):
+                    merger.aggregate(single_pred)
+        # finalize the mergers
+        merged_maps = tuple(merger.finalize() for merger in self.mergers)
+
+        return merged_maps if len(merged_maps) > 1 else merged_maps[0]
 
 
 class SlidingWindowInferer(Inferer):
