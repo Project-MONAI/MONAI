@@ -126,6 +126,8 @@ class MetaObj:
         return self with the updated ``__dict__``.
         """
         first_meta = input_objs if isinstance(input_objs, MetaObj) else first(input_objs, default=self)
+        if not hasattr(first_meta, "__dict__"):
+            return self
         first_meta = first_meta.__dict__
         keys = first_meta.keys() if keys is None else keys
         if not copy_attr:

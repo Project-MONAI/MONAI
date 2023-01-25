@@ -43,9 +43,10 @@ from monai.transforms.utils import (
     map_classes_to_indices,
     weighted_patch_samples,
 )
+from monai.utils import ImageMetaKey as Key
 from monai.utils import (
-    Method,
     LazyAttr,
+    Method,
     PytorchPadMode,
     TraceKeys,
     TransformBackends,
@@ -58,7 +59,6 @@ from monai.utils import (
     fall_back_tuple,
     look_up_option,
     pytorch_after,
-    ImageMetaKey as Key,
 )
 
 __all__ = [

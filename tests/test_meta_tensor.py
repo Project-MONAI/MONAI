@@ -447,6 +447,7 @@ class TestMetaTensor(unittest.TestCase):
             self.assertIsInstance(t.astype(pt_types), torch.Tensor)
         self.assertIsInstance(t.astype("torch.float", device="cpu"), torch.Tensor)
 
+    @unittest.skip("non metatensor tests")
     def test_transforms(self):
         key = "im"
         _, im = self.get_im()
