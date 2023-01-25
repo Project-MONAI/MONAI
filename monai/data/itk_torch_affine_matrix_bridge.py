@@ -1,14 +1,22 @@
 from __future__ import annotations
 
-import itk
+from typing import TYPE_CHECKING, cast
+
 import numpy as np
 import torch
 
+from monai.config import NdarrayOrTensor
 from monai.data import ITKReader
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import Affine, EnsureChannelFirst
-from monai.utils import convert_to_dst_type
+from monai.utils import convert_to_dst_type, optional_import
 
+if TYPE_CHECKING:
+    import itk
+
+    has_itk = True
+else:
+    itk, has_itk = optional_import("itk")
 
 def metatensor_to_array(metatensor):
     metatensor = metatensor.squeeze()
@@ -51,12 +59,13 @@ def remove_border(image):
     Returns:
         The padded array of data.
     """
+    # TODO rewrite documentation
     return np.pad(image[1:-1, 1:-1, 1:-1] if image.ndim == 3 else image[1:-1, 1:-1], pad_width=1)
 
 
-def compute_offset_matrix(image, center_of_rotation):
+def _compute_offset_matrix(image, center_of_rotation) -> tuple[torch.Tensor, torch.Tensor]:
     ndim = image.ndim
-    offset = np.asarray(get_itk_image_center(image)) - np.asarray(center_of_rotation)
+    offset = np.asarray(_get_itk_image_center(image)) - np.asarray(center_of_rotation)
     offset_matrix = torch.eye(ndim + 1, dtype=torch.float64)
     offset_matrix[:ndim, ndim] = torch.tensor(offset, dtype=torch.float64)
     inverse_offset_matrix = torch.eye(ndim + 1, dtype=torch.float64)
@@ -65,7 +74,7 @@ def compute_offset_matrix(image, center_of_rotation):
     return offset_matrix, inverse_offset_matrix
 
 
-def compute_spacing_matrix(image):
+def _compute_spacing_matrix(image):
     ndim = image.ndim
     spacing = np.asarray(image.GetSpacing(), dtype=np.float64)
     spacing_matrix = torch.eye(ndim + 1, dtype=torch.float64)
@@ -77,7 +86,7 @@ def compute_spacing_matrix(image):
     return spacing_matrix, inverse_spacing_matrix
 
 
-def compute_direction_matrix(image):
+def _compute_direction_matrix(image):
     ndim = image.ndim
     direction = itk.array_from_matrix(image.GetDirection())
     direction_matrix = torch.eye(ndim + 1, dtype=torch.float64)
@@ -89,10 +98,9 @@ def compute_direction_matrix(image):
     return direction_matrix, inverse_direction_matrix
 
 
-def itk_to_monai_affine(image, matrix, translation, center_of_rotation=None):
+def itk_to_monai_affine(image, matrix, translation, center_of_rotation=None) -> torch.Tensor:
     """
-    Converts an ITK affine matrix (2x2 for 2D or 3x3 for 3D matrix and translation
-    vector) to a MONAI affine matrix.
+    Converts an ITK affine matrix (2x2 for 2D or 3x3 for 3D matrix and translation vector) to a MONAI affine matrix.
 
     Args:
         image: The ITK image object. This is used to extract the spacing and
@@ -115,18 +123,19 @@ def itk_to_monai_affine(image, matrix, translation, center_of_rotation=None):
 
     # Adjust offset when center of rotation is different from center of the image
     if center_of_rotation:
-        offset_matrix, inverse_offset_matrix = compute_offset_matrix(image, center_of_rotation)
+        offset_matrix, inverse_offset_matrix = _compute_offset_matrix(image, center_of_rotation)
         affine_matrix = inverse_offset_matrix @ affine_matrix @ offset_matrix
 
     # Adjust based on spacing. It is required because MONAI does not update the
     # pixel array according to the spacing after a transformation. For example,
     # a rotation of 90deg for an image with different spacing along the two axis
     # will just rotate the image array by 90deg without also scaling accordingly.
-    spacing_matrix, inverse_spacing_matrix = compute_spacing_matrix(image)
+    # TODO rewrite comment
+    spacing_matrix, inverse_spacing_matrix = _compute_spacing_matrix(image)
     affine_matrix = inverse_spacing_matrix @ affine_matrix @ spacing_matrix
 
     # Adjust direction
-    direction_matrix, inverse_direction_matrix = compute_direction_matrix(image)
+    direction_matrix, inverse_direction_matrix = _compute_direction_matrix(image)
     affine_matrix = inverse_direction_matrix @ affine_matrix @ direction_matrix
 
     return affine_matrix
@@ -134,7 +143,7 @@ def itk_to_monai_affine(image, matrix, translation, center_of_rotation=None):
 
 def monai_to_itk_affine(image, affine_matrix, center_of_rotation=None):
     """
-    Converts a MONAI affine matrix an to ITK affine matrix (2x2 for 2D or 3x3 for
+    Converts a MONAI affine matrix to an ITK affine matrix (2x2 for 2D or 3x3 for
     3D matrix and translation vector). See also 'itk_to_monai_affine'.
 
     Args:
@@ -149,16 +158,16 @@ def monai_to_itk_affine(image, affine_matrix, center_of_rotation=None):
         The ITK matrix and the translation vector.
     """
     # Adjust direction
-    direction_matrix, inverse_direction_matrix = compute_direction_matrix(image)
+    direction_matrix, inverse_direction_matrix = _compute_direction_matrix(image)
     affine_matrix = direction_matrix @ affine_matrix @ inverse_direction_matrix
 
     # Adjust spacing
-    spacing_matrix, inverse_spacing_matrix = compute_spacing_matrix(image)
+    spacing_matrix, inverse_spacing_matrix = _compute_spacing_matrix(image)
     affine_matrix = spacing_matrix @ affine_matrix @ inverse_spacing_matrix
 
     # Adjust offset when center of rotation is different from center of the image
     if center_of_rotation:
-        offset_matrix, inverse_offset_matrix = compute_offset_matrix(image, center_of_rotation)
+        offset_matrix, inverse_offset_matrix = _compute_offset_matrix(image, center_of_rotation)
         affine_matrix = offset_matrix @ affine_matrix @ inverse_offset_matrix
 
     ndim = image.ndim
@@ -168,7 +177,7 @@ def monai_to_itk_affine(image, affine_matrix, center_of_rotation=None):
     return matrix, translation
 
 
-def get_itk_image_center(image):
+def _get_itk_image_center(image):
     """
     Calculates the center of the ITK image based on its origin, size, and spacing.
     This center is equivalent to the implicit image center that MONAI uses.
@@ -212,7 +221,7 @@ def create_itk_affine_from_parameters(
     if center_of_rotation:
         itk_transform.SetCenter(center_of_rotation)
     else:
-        itk_transform.SetCenter(get_itk_image_center(image))
+        itk_transform.SetCenter(_get_itk_image_center(image))
 
     # Set parameters
     if rotation:
@@ -240,6 +249,7 @@ def create_itk_affine_from_parameters(
 
 
 def itk_affine_resample(image, matrix, translation, center_of_rotation=None):
+    # TODO documentation
     # Translation transform
     itk_transform = itk.AffineTransform[itk.D, image.ndim].New()
 
@@ -247,7 +257,7 @@ def itk_affine_resample(image, matrix, translation, center_of_rotation=None):
     if center_of_rotation:
         itk_transform.SetCenter(center_of_rotation)
     else:
-        itk_transform.SetCenter(get_itk_image_center(image))
+        itk_transform.SetCenter(_get_itk_image_center(image))
 
     # Set matrix and translation
     itk_transform.SetMatrix(itk.matrix_from_array(matrix))
@@ -265,8 +275,9 @@ def itk_affine_resample(image, matrix, translation, center_of_rotation=None):
     return np.asarray(output_image, dtype=np.float32)
 
 
-def monai_affine_resample(metatensor, affine_matrix):
-    monai_transform = Affine(affine=affine_matrix, padding_mode="zeros", dtype=torch.float64)
-    output_tensor, output_affine = monai_transform(metatensor, mode="bilinear")
+def monai_affine_resample(metatensor: MetaTensor, affine_matrix: NdarrayOrTensor):
+    # TODO documentation
+    affine = Affine(affine=affine_matrix, padding_mode="zeros", dtype=torch.float64, image_only=True)
+    output_tensor = cast(MetaTensor, affine(metatensor, mode="bilinear"))
 
     return metatensor_to_array(output_tensor)
