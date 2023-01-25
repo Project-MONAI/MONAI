@@ -31,25 +31,19 @@ __all__ = ["pad_func", "crop_func"]
 def pad_func(img, to_pad_, mode, kwargs, transform_info):
     extra_info = {"padded": to_pad_}
     img_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
-    affine = (
-        img.peek_pending_affine()
-        if isinstance(img, MetaTensor)
-        else torch.eye(4, device=torch.device("cpu"), dtype=torch.float64)
-    )
-    spatial_rank = max(len(affine) - 1, 1)
+    spatial_rank = img.peek_pending_rank() if isinstance(img, MetaTensor) else torch.tensor(3.0, dtype=torch.double)
     do_pad = np.asarray(to_pad_).any()
     if do_pad:
         to_pad_ = list(to_pad_)
         if len(to_pad_) < len(img.shape):
             to_pad_ = list(to_pad_) + [(0, 0)] * (len(img.shape) - len(to_pad_))
         to_shift = [-s[0] for s in to_pad_[1:]]  # skipping the channel pad
-        affine = convert_to_dst_type(create_translate(spatial_rank, to_shift), affine)[0]
+        affine = convert_to_dst_type(create_translate(spatial_rank, to_shift), spatial_rank)[0]
         shape = [d + s + e for d, (s, e) in zip(img_size, to_pad_[1:])]
     else:
         shape = img_size
-        affine = convert_to_dst_type(torch.eye(spatial_rank, device=torch.device("cpu"), dtype=torch.float64), affine)[
-            0
-        ]
+        affine = torch.eye(int(spatial_rank), device=torch.device("cpu"), dtype=torch.float64)
+        affine = convert_to_dst_type(affine, spatial_rank)[0]
     meta_info = TraceableTransform.track_transform_tensor(
         img,
         sp_size=shape,
@@ -69,16 +63,11 @@ def pad_func(img, to_pad_, mode, kwargs, transform_info):
 
 def crop_func(img, slices, transform_info):
     img_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
-    affine = (
-        img.peek_pending_affine()
-        if isinstance(img, MetaTensor)
-        else torch.eye(4, device=torch.device("cpu"), dtype=torch.float64)
-    )
-    spatial_rank = max(len(affine) - 1, 1)
+    spatial_rank = img.peek_pending_rank() if isinstance(img, MetaTensor) else torch.tensor(3.0, dtype=torch.double)
     cropped = np.asarray([[s.indices(o)[0], o - s.indices(o)[1]] for s, o in zip(slices[1:], img_size)])
     extra_info = {"cropped": cropped.flatten().tolist()}
     to_shift = [s.start if s.start is not None else 0 for s in ensure_tuple(slices)[1:]]
-    affine = convert_to_dst_type(create_translate(spatial_rank, to_shift), affine)[0]
+    affine = convert_to_dst_type(create_translate(spatial_rank, to_shift), spatial_rank)[0]
     shape = [s.indices(o)[1] - s.indices(o)[0] for s, o in zip(slices[1:], img_size)]
     meta_info = TraceableTransform.track_transform_tensor(
         img,

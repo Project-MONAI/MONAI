@@ -487,9 +487,8 @@ class MetaTensor(MetaObj, torch.Tensor):
         return res
 
     def peek_pending_rank(self):
-        r = len(self.affine) - 1
-        if self.pending_operations:
-            r = len(self.pending_operations[-1].get(LazyAttr.AFFINE, None)) - 1
+        a = self.pending_operations[-1].get(LazyAttr.AFFINE, None) if self.pending_operations else self.affine
+        r = max(1, len(a) - 1)
         return convert_to_dst_type(r, self.affine)[0]
 
     def new_empty(self, size, dtype=None, device=None, requires_grad=False):

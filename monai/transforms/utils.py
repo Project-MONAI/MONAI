@@ -868,6 +868,7 @@ def create_translate(
         backend: APIs to use, ``numpy`` or ``torch``.
     """
     _backend = look_up_option(backend, TransformBackends)
+    spatial_dims = int(spatial_dims)
     if _backend == TransformBackends.NUMPY:
         return _create_translate(spatial_dims=spatial_dims, shift=shift, eye_func=np.eye, array_func=np.asarray)
     if _backend == TransformBackends.TORCH:
@@ -1656,13 +1657,12 @@ def convert_to_contiguous(
         return data
 
 
-def scale_affine(affine, spatial_size, new_spatial_size, centered: bool = True):
+def scale_affine(spatial_rank, spatial_size, new_spatial_size, centered: bool = True):
     """
     Scale the affine matrix according to the new spatial size.
-    TODO: update the docstring
 
     Args:
-        affine: affine matrix to scale.
+        spatial_rank: the expected spatial rank.
         spatial_size: original spatial size.
         new_spatial_size: new spatial size.
         centered: whether the scaling is with respect to
@@ -1672,14 +1672,14 @@ def scale_affine(affine, spatial_size, new_spatial_size, centered: bool = True):
         Scaled affine matrix.
 
     """
-    r = len(affine) - 1
+    r = int(spatial_rank)
     if spatial_size == new_spatial_size:
-        return convert_to_dst_type(np.eye(r + 1), affine)[0]
+        return np.eye(r + 1)
     s = np.array([float(o) / float(max(n, 1)) for o, n in zip(spatial_size, new_spatial_size)])
     scale = create_scale(r, s.tolist())
     if centered:
         scale[:r, -1] = (np.diag(scale)[:r] - 1) / 2  # type: ignore
-    return convert_to_dst_type(scale, affine)[0]
+    return scale
 
 
 def attach_hook(func, hook, mode="pre"):

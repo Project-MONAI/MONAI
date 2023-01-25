@@ -511,10 +511,10 @@ class Spacing(InvertibleTransform, LazyTransform):
             dtype=dtype,
         )
         if self.recompute_affine and isinstance(data_array, MetaTensor):
-            if not self.lazy_evaluation:
-                data_array.affine = scale_affine(affine_, original_spatial_shape, actual_shape)
-            else:
+            if self.lazy_evaluation:
                 raise NotImplementedError("recompute_affine is not supported with lazy evaluation.")
+            a = scale_affine(len(affine_) - 1, original_spatial_shape, actual_shape)
+            data_array.affine = convert_to_dst_type(a, affine_)[0]
         return data_array
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
@@ -2052,13 +2052,13 @@ class Affine(InvertibleTransform, LazyTransform):
         )
 
     @classmethod
-    def compute_w_affine(cls, affine, mat, img_size, sp_size):
-        r = len(affine) - 1
+    def compute_w_affine(cls, spatial_rank, mat, img_size, sp_size):
+        r = int(spatial_rank)
         mat = to_affine_nd(r, mat)
         shift_1 = create_translate(r, [float(d - 1) / 2 for d in img_size[:r]])
         shift_2 = create_translate(r, [-float(d - 1) / 2 for d in sp_size[:r]])
         mat = shift_1 @ convert_data_type(mat, np.ndarray)[0] @ shift_2
-        return convert_to_dst_type(mat, affine)[0]
+        return mat
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(data)

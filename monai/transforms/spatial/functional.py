@@ -178,13 +178,9 @@ def orientation(img, original_affine, spatial_ornt, transform_info):
 def flip(img, shape, sp_axes, transform_info):
     extra_info = {"axes": sp_axes}  # track the spatial axes
     axes = monai.transforms.utils.map_spatial_axes(img.ndim, sp_axes)  # use the axes with channel dim
-    _affine = (
-        img.peek_pending_affine()
-        if isinstance(img, MetaTensor)
-        else torch.eye(4, device=torch.device("cpu"), dtype=torch.float64)
-    )
+    rank = img.peek_pending_rank() if isinstance(img, MetaTensor) else torch.tensor(3.0, dtype=torch.double)
     # shape and axes include the channel dim
-    mat = convert_to_dst_type(torch.eye(len(_affine)), _affine)[0]
+    mat = convert_to_dst_type(torch.eye(int(rank) + 1), rank)[0]
     for axis in axes:
         sp = axis - 1
         mat[sp, sp], mat[sp, -1] = mat[sp, sp] * -1, shape[axis] - 1
@@ -206,18 +202,13 @@ def flip(img, shape, sp_axes, transform_info):
 def resize(img, out_size, mode, align_corners, input_ndim, anti_aliasing, anti_aliasing_sigma, transform_info):
     img = convert_to_tensor(img, track_meta=get_track_meta())
     orig_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
+    rank = img.peek_pending_rank() if isinstance(img, MetaTensor) else torch.tensor(3.0, dtype=torch.double)
     extra_info = {
         "mode": mode,
         "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
         "new_dim": len(orig_size) - input_ndim,
     }
-    affine = convert_to_tensor(
-        img.peek_pending_affine()
-        if isinstance(img, MetaTensor)
-        else torch.eye(4, device=torch.device("cpu"), dtype=torch.float64),
-        track_meta=False,
-    )
-    affine = scale_affine(affine, orig_size, out_size)
+    affine = convert_to_dst_type(scale_affine(rank, orig_size, out_size), rank)[0]
     meta_info = TraceableTransform.track_transform_tensor(
         img,
         sp_size=out_size,
@@ -298,17 +289,12 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, t
 
 def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, transform_info):
     im_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
-    affine = convert_to_tensor(
-        img.peek_pending_affine()
-        if isinstance(img, MetaTensor)
-        else torch.eye(4, device=torch.device("cpu"), dtype=torch.float64),
-        track_meta=False,
-    )
+    rank = img.peek_pending_rank() if isinstance(img, MetaTensor) else torch.tensor(3.0, dtype=torch.double)
     output_size = [
         int(math.floor(float(i) * z))
         for i, z in zip(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:], scale_factor)
     ]
-    affine = scale_affine(affine, im_shape, output_size)
+    affine = convert_to_dst_type(scale_affine(rank, im_shape, output_size), rank)[0]
     extra_info = {
         "mode": mode,
         "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
@@ -359,13 +345,8 @@ def rotate90(img, axes, k, transform_info):
     if k in (1, 3):
         a_0, a_1 = axes[0] - 1, axes[1] - 1
         sp_shape[a_0], sp_shape[a_1] = ori_shape[a_1], ori_shape[a_0]
-    affine = convert_to_tensor(
-        img.peek_pending_affine()
-        if isinstance(img, MetaTensor)
-        else torch.eye(4, device=torch.device("cpu"), dtype=torch.float64),
-        track_meta=False,
-    )
-    r, sp_r = len(affine) - 1, len(ori_shape)
+    rank = img.peek_pending_rank() if isinstance(img, MetaTensor) else torch.tensor(3.0, dtype=torch.double)
+    r, sp_r = int(rank), len(ori_shape)
     mat = to_affine_nd(r, create_translate(sp_r, [-float(d - 1) / 2 for d in sp_shape]))
     s = -1.0 if int(axes[0]) - int(axes[1]) in (-1, 2) else 1.0
     if sp_r == 2:
@@ -397,13 +378,8 @@ def rotate90(img, axes, k, transform_info):
 def affine_func(img, affine, grid, resampler, sp_size, mode, padding_mode, do_resampling, image_only, transform_info):
     extra_info = {"affine": affine, "mode": mode, "padding_mode": padding_mode, "do_resampling": do_resampling}
     img_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
-    orig_affine = convert_to_tensor(
-        img.peek_pending_affine()
-        if isinstance(img, MetaTensor)
-        else torch.eye(4, device=torch.device("cpu"), dtype=torch.float64),
-        track_meta=False,
-    )
-    affine = monai.transforms.Affine.compute_w_affine(orig_affine, affine, img_size, sp_size)
+    rank = img.peek_pending_rank() if isinstance(img, MetaTensor) else torch.tensor(3.0, dtype=torch.double)
+    affine = convert_to_dst_type(monai.transforms.Affine.compute_w_affine(rank, affine, img_size, sp_size), rank)[0]
     meta_info = TraceableTransform.track_transform_tensor(
         img,
         sp_size=sp_size,
