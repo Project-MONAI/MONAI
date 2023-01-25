@@ -318,7 +318,8 @@ class TraceableTransform(Transform):
             return data
         kwargs["lazy_evaluation"] = lazy_eval
         kwargs["transform_info"] = transform_info
-        return TraceableTransform.track_transform_tensor(data, *args, **kwargs)
+        meta_obj = TraceableTransform.track_transform_tensor(data, *args, **kwargs)
+        return data.copy_meta_from(meta_obj)
 
     @classmethod
     def track_transform_tensor(

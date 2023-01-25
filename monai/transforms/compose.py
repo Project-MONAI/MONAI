@@ -299,7 +299,7 @@ class OneOf(Compose):
         data = apply_transform(_transform, data, self.map_items, self.unpack_items, self.log_stats)
         # if the data is a mapping (dictionary), append the OneOf transform to the end
         if isinstance(data, monai.data.MetaTensor):
-            self.push_transform(data, extra_info={"index": index})
+            self.push_transform_tensor(data, extra_info={"index": index})
         elif isinstance(data, Mapping):
             for key in data:  # dictionary not change size during iteration
                 if isinstance(data[key], monai.data.MetaTensor) or self.trace_key(key) in data:

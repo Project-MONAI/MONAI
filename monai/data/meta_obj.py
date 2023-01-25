@@ -129,9 +129,9 @@ class MetaObj:
         first_meta = first_meta.__dict__
         keys = first_meta.keys() if keys is None else keys
         if not copy_attr:
-            self.__dict__ = {a: first_meta[a] for a in keys}  # shallow copy for performance
+            self.__dict__ = {a: first_meta[a] for a in keys if a in first_meta}  # shallow copy for performance
         else:
-            self.__dict__.update({a: MetaObj.copy_items(first_meta[a]) for a in keys})
+            self.__dict__.update({a: MetaObj.copy_items(first_meta[a]) for a in keys if a in first_meta})
         return self
 
     @staticmethod
