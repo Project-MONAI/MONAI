@@ -482,6 +482,8 @@ class MetaTensor(MetaObj, torch.Tensor):
         res = self.affine
         for p in self.pending_operations:
             next_matrix = convert_to_tensor(p.get(LazyAttr.AFFINE))
+            if next_matrix is None:
+                continue
             res = convert_to_dst_type(res, next_matrix)[0]
             res = monai.transforms.lazy.utils.combine_transforms(res, next_matrix)
         return res

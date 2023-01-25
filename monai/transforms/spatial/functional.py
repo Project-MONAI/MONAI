@@ -59,14 +59,14 @@ def spatial_resample(
     img, dst_affine, spatial_size, mode, padding_mode, align_corners, dtype, transform_info
 ) -> torch.Tensor:
     original_spatial_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
-    src_affine_: torch.Tensor = img.peek_pending_affine() if isinstance(img, MetaTensor) else torch.eye(4)
+    src_affine: torch.Tensor = img.peek_pending_affine() if isinstance(img, MetaTensor) else torch.eye(4)
     img = convert_to_tensor(data=img, track_meta=get_track_meta(), dtype=dtype)
-    spatial_rank = min(len(img.shape) - 1, src_affine_.shape[0] - 1, 3)
+    spatial_rank = min(len(img.shape) - 1, src_affine.shape[0] - 1, 3)
     if (not isinstance(spatial_size, int) or spatial_size != -1) and spatial_size is not None:
         spatial_rank = min(len(ensure_tuple(spatial_size)), 3)  # infer spatial rank based on spatial_size
-    src_affine_ = to_affine_nd(spatial_rank, src_affine_).to(dtype)
-    dst_affine = to_affine_nd(spatial_rank, dst_affine) if dst_affine is not None else src_affine_
-    dst_affine = convert_to_dst_type(dst_affine, src_affine_)[0]
+    src_affine = to_affine_nd(spatial_rank, src_affine).to(dtype)
+    dst_affine = to_affine_nd(spatial_rank, dst_affine) if dst_affine is not None else src_affine
+    dst_affine = convert_to_dst_type(dst_affine, src_affine)[0]
     if not isinstance(dst_affine, torch.Tensor):
         raise ValueError(f"dst_affine should be a torch.Tensor, got {type(dst_affine)}")
 
@@ -74,17 +74,17 @@ def spatial_resample(
     if isinstance(spatial_size, int) and (spatial_size == -1):  # using the input spatial size
         spatial_size = in_spatial_size
     elif spatial_size is None and spatial_rank > 1:  # auto spatial size
-        spatial_size, _ = compute_shape_offset(in_spatial_size, src_affine_, dst_affine)  # type: ignore
+        spatial_size, _ = compute_shape_offset(in_spatial_size, src_affine, dst_affine)  # type: ignore
     spatial_size = torch.tensor(fall_back_tuple(ensure_tuple(spatial_size)[:spatial_rank], in_spatial_size))
     extra_info = {
         "dtype": str(img.dtype)[6:],  # dtype as string; remove "torch": torch.float32 -> float32
         "mode": mode.value if isinstance(mode, Enum) else mode,
         "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
         "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
-        "src_affine": src_affine_,
+        "src_affine": src_affine,
     }
     try:
-        _s = convert_to_tensor(src_affine_, track_meta=False, device=torch.device("cpu"))
+        _s = convert_to_tensor(src_affine, track_meta=False, device=torch.device("cpu"))
         _d = convert_to_tensor(dst_affine, track_meta=False, device=torch.device("cpu"))
         if spatial_rank < 2:
             xform = torch.eye(spatial_rank + 1, device=torch.device("cpu"))
@@ -96,7 +96,7 @@ def spatial_resample(
         raise ValueError("src affine is not invertible.") from e
     xform = to_affine_nd(spatial_rank, xform).to(device=img.device, dtype=dtype)
     affine_unchanged = (
-        allclose(src_affine_, dst_affine, atol=AFFINE_TOL) and allclose(spatial_size, in_spatial_size)
+        allclose(src_affine, dst_affine, atol=AFFINE_TOL) and allclose(spatial_size, in_spatial_size)
     ) or (allclose(xform, torch.eye(len(xform)), atol=AFFINE_TOL) and allclose(spatial_size, in_spatial_size))
     lazy_evaluation = transform_info.get(TraceKeys.LAZY_EVALUATION, False)
     meta_info = TraceableTransform.track_transform_tensor(
@@ -144,7 +144,7 @@ def spatial_resample(
 
 def orientation(img, original_affine, spatial_ornt, transform_info):
     spatial_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
-    affine_x = nib.orientations.inv_ornt_aff(spatial_ornt, spatial_shape)
+    xform = nib.orientations.inv_ornt_aff(spatial_ornt, spatial_shape)
     img = convert_to_tensor(img, track_meta=get_track_meta())
 
     spatial_ornt[:, 0] += 1  # skip channel dim
@@ -159,7 +159,7 @@ def orientation(img, original_affine, spatial_ornt, transform_info):
     meta_info = TraceableTransform.track_transform_tensor(
         img,
         sp_size=shape_np,
-        affine=affine_x,
+        affine=xform,
         extra_info=extra_info,
         orig_size=spatial_shape,
         transform_info=transform_info,
@@ -180,14 +180,14 @@ def flip(img, shape, sp_axes, transform_info):
     axes = monai.transforms.utils.map_spatial_axes(img.ndim, sp_axes)  # use the axes with channel dim
     rank = img.peek_pending_rank() if isinstance(img, MetaTensor) else torch.tensor(3.0, dtype=torch.double)
     # shape and axes include the channel dim
-    mat = convert_to_dst_type(torch.eye(int(rank) + 1), rank)[0]
+    xform = convert_to_dst_type(torch.eye(int(rank) + 1), rank)[0]
     for axis in axes:
         sp = axis - 1
-        mat[sp, sp], mat[sp, -1] = mat[sp, sp] * -1, shape[axis] - 1
+        xform[sp, sp], xform[sp, -1] = xform[sp, sp] * -1, shape[axis] - 1
     meta_info = TraceableTransform.track_transform_tensor(
         img,
         sp_size=shape[1:],
-        affine=mat,
+        affine=xform,
         extra_info=extra_info,
         transform_info=transform_info,
         lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
@@ -208,11 +208,10 @@ def resize(img, out_size, mode, align_corners, input_ndim, anti_aliasing, anti_a
         "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
         "new_dim": len(orig_size) - input_ndim,
     }
-    affine = convert_to_dst_type(scale_affine(rank, orig_size, out_size), rank)[0]
     meta_info = TraceableTransform.track_transform_tensor(
         img,
         sp_size=out_size,
-        affine=affine,
+        affine=convert_to_dst_type(scale_affine(rank, orig_size, out_size), rank)[0],
         extra_info=extra_info,
         orig_size=orig_size,
         transform_info=transform_info,
@@ -294,7 +293,7 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, transf
         int(math.floor(float(i) * z))
         for i, z in zip(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:], scale_factor)
     ]
-    affine = convert_to_dst_type(scale_affine(rank, im_shape, output_size), rank)[0]
+    xform = convert_to_dst_type(scale_affine(rank, im_shape, output_size), rank)[0]
     extra_info = {
         "mode": mode,
         "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
@@ -308,7 +307,7 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, transf
     meta_info = TraceableTransform.track_transform_tensor(
         img,
         sp_size=output_size,
-        affine=affine,
+        affine=xform,
         extra_info=extra_info,
         orig_size=im_shape,
         transform_info=transform_info,
@@ -347,7 +346,7 @@ def rotate90(img, axes, k, transform_info):
         sp_shape[a_0], sp_shape[a_1] = ori_shape[a_1], ori_shape[a_0]
     rank = img.peek_pending_rank() if isinstance(img, MetaTensor) else torch.tensor(3.0, dtype=torch.double)
     r, sp_r = int(rank), len(ori_shape)
-    mat = to_affine_nd(r, create_translate(sp_r, [-float(d - 1) / 2 for d in sp_shape]))
+    xform = to_affine_nd(r, create_translate(sp_r, [-float(d - 1) / 2 for d in sp_shape]))
     s = -1.0 if int(axes[0]) - int(axes[1]) in (-1, 2) else 1.0
     if sp_r == 2:
         rot90 = to_affine_nd(r, create_rotate(sp_r, [s * np.pi / 2]))
@@ -357,12 +356,12 @@ def rotate90(img, axes, k, transform_info):
         angle[idx.pop() - 1] = s * np.pi / 2
         rot90 = to_affine_nd(r, create_rotate(sp_r, angle))
     for _ in range(k):
-        mat = rot90 @ mat
-    mat = to_affine_nd(r, create_translate(sp_r, [float(d - 1) / 2 for d in ori_shape])) @ mat
+        xform = rot90 @ xform
+    xform = to_affine_nd(r, create_translate(sp_r, [float(d - 1) / 2 for d in ori_shape])) @ xform
     meta_info = TraceableTransform.track_transform_tensor(
         img,
         sp_size=sp_shape,
-        affine=mat,
+        affine=xform,
         extra_info=extra_info,
         orig_size=ori_shape,
         transform_info=transform_info,

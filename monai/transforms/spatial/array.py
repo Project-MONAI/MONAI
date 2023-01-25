@@ -2078,7 +2078,7 @@ class Affine(InvertibleTransform, LazyTransform):
             out = MetaTensor(out)
         out.meta = data.meta  # type: ignore
         affine = convert_data_type(out.peek_pending_affine(), torch.Tensor)[0]
-        out.affine @= Affine.compute_w_affine(affine, inv_affine, data.shape[1:], orig_size)
+        out.affine @= Affine.compute_w_affine(len(affine) - 1, inv_affine, data.shape[1:], orig_size)
         return out
 
 

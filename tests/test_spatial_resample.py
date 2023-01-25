@@ -142,7 +142,7 @@ class TestSpatialResample(unittest.TestCase):
                 img = img.to(device)
             out = SpatialResample()(img=img, **data_param)
             assert_allclose(out, expected_output, rtol=1e-2, atol=1e-2)
-            assert_allclose(out.affine, data_param["dst_affine"])
+            assert_allclose(to_affine_nd(len(out.shape) - 1, out.affine), data_param["dst_affine"])
 
     @parameterized.expand(TEST_4_5_D)
     def test_4d_5d(self, new_shape, tile, device, dtype, expected_data):
@@ -198,7 +198,7 @@ class TestSpatialResample(unittest.TestCase):
         tr = SpatialResample()
         out = tr(img=img, **data_param)
         assert_allclose(out, expected_output, rtol=1e-2, atol=1e-2)
-        assert_allclose(out.affine, data_param["dst_affine"])
+        assert_allclose(to_affine_nd(len(out.shape) - 1, out.affine), data_param["dst_affine"])
 
         # inverse
         out = tr.inverse(out)

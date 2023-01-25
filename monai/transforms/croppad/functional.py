@@ -38,16 +38,16 @@ def pad_func(img, to_pad_, mode, kwargs, transform_info):
         if len(to_pad_) < len(img.shape):
             to_pad_ = list(to_pad_) + [(0, 0)] * (len(img.shape) - len(to_pad_))
         to_shift = [-s[0] for s in to_pad_[1:]]  # skipping the channel pad
-        affine = convert_to_dst_type(create_translate(spatial_rank, to_shift), spatial_rank)[0]
+        xform = convert_to_dst_type(create_translate(spatial_rank, to_shift), spatial_rank)[0]
         shape = [d + s + e for d, (s, e) in zip(img_size, to_pad_[1:])]
     else:
         shape = img_size
-        affine = torch.eye(int(spatial_rank) + 1, device=torch.device("cpu"), dtype=torch.float64)
-        affine = convert_to_dst_type(affine, spatial_rank)[0]
+        xform = torch.eye(int(spatial_rank) + 1, device=torch.device("cpu"), dtype=torch.float64)
+        xform = convert_to_dst_type(xform, spatial_rank)[0]
     meta_info = TraceableTransform.track_transform_tensor(
         img,
         sp_size=shape,
-        affine=affine,
+        affine=xform,
         extra_info=extra_info,
         orig_size=img_size,
         transform_info=transform_info,
@@ -67,12 +67,11 @@ def crop_func(img, slices, transform_info):
     cropped = np.asarray([[s.indices(o)[0], o - s.indices(o)[1]] for s, o in zip(slices[1:], img_size)])
     extra_info = {"cropped": cropped.flatten().tolist()}
     to_shift = [s.start if s.start is not None else 0 for s in ensure_tuple(slices)[1:]]
-    affine = convert_to_dst_type(create_translate(spatial_rank, to_shift), spatial_rank)[0]
     shape = [s.indices(o)[1] - s.indices(o)[0] for s, o in zip(slices[1:], img_size)]
     meta_info = TraceableTransform.track_transform_tensor(
         img,
         sp_size=shape,
-        affine=affine,
+        affine=convert_to_dst_type(create_translate(spatial_rank, to_shift), spatial_rank)[0],
         extra_info=extra_info,
         orig_size=img_size,
         transform_info=transform_info,
