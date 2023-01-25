@@ -41,10 +41,10 @@ set_determinism(seed=123)
 KEYS = ["x", "y"]
 TEST_INVERSES = [
     (RandomOrder((InvC(KEYS), InvD(KEYS))), True, True),
-    (Compose((RandomOrder((InvC(KEYS), InvD(KEYS))), RandomOrder((InvD(KEYS), InvC(KEYS))))), True, False),
-    (RandomOrder((RandomOrder((InvC(KEYS), InvD(KEYS))), RandomOrder((InvD(KEYS), InvC(KEYS))))), True, False),
-    (RandomOrder((Compose((InvC(KEYS), InvD(KEYS))), Compose((InvD(KEYS), InvC(KEYS))))), True, False),
-    (RandomOrder((NonInv(KEYS), NonInv(KEYS))), False, False),
+    (Compose((RandomOrder((InvC(KEYS), InvD(KEYS))), RandomOrder((InvD(KEYS), InvC(KEYS))))), True, True),
+    (RandomOrder((RandomOrder((InvC(KEYS), InvD(KEYS))), RandomOrder((InvD(KEYS), InvC(KEYS))))), True, True),
+    (RandomOrder((Compose((InvC(KEYS), InvD(KEYS))), Compose((InvD(KEYS), InvC(KEYS))))), True, True),
+    (RandomOrder((NonInv(KEYS), NonInv(KEYS))), False, True),
 ]
 
 
