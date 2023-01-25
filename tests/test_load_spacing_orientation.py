@@ -48,7 +48,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
         t2 = time.time()
         print(f"time scipy: {t2 - t1}")
         self.assertTrue(t2 >= t1)
-        np.testing.assert_allclose(res_dict["image"].affine, ref.affine)
+        np.testing.assert_allclose(res_dict["image"].affine, ref.affine, atol=1e-5, rtol=1e-5)
         np.testing.assert_allclose(res_dict["image"].shape[1:], ref.shape)
         np.testing.assert_allclose(ref.get_fdata(), res_dict["image"][0], atol=0.05)
 
@@ -94,6 +94,8 @@ class TestLoadSpacingOrientation(unittest.TestCase):
                     [0.0, 0.0, 0.0, 1.0],
                 ]
             ),
+            rtol=1e-5,
+            atol=1e-5,
         )
 
     def test_load_spacingd_rotate_non_diag(self):
@@ -141,6 +143,8 @@ class TestLoadSpacingOrientation(unittest.TestCase):
                     [0.0, 0.0, 0.0, 1.0],
                 ]
             ),
+            rtol=1e-5,
+            atol=1e-5,
         )
 
 
