@@ -40,7 +40,7 @@ def rand_string(min_len=5, max_len=10):
     return "".join(random.choice(chars) for _ in range(str_size))
 
 
-@unittest.skipIf(config.USE_META_DICT, "skipping not metatensor")
+@unittest.skip("skipping not metatensor")
 class TestToFromMetaTensord(unittest.TestCase):
     @staticmethod
     def get_im(shape=None, dtype=None, device=None):

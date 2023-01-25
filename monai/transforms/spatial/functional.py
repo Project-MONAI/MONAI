@@ -301,7 +301,7 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, transf
         "padcrop": {},
     }
     if keep_size:
-        if transform_info.get(TraceKeys.LAZY_EVALUATION):
+        if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
             raise NotImplementedError("keep_size=True is not supported for lazy evaluation.")
         output_size = [int(i) for i in img.shape[1:]]
     meta_info = TraceableTransform.track_transform_tensor(
@@ -314,7 +314,7 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, transf
         lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
     )
     out = convert_to_tensor(img, track_meta=get_track_meta())
-    if transform_info.get(TraceKeys.LAZY_EVALUATION):
+    if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
     img_t = out.to(torch.float32)
     zoomed: NdarrayOrTensor = torch.nn.functional.interpolate(
@@ -389,7 +389,7 @@ def affine_func(img, affine, grid, resampler, sp_size, mode, padding_mode, do_re
         lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
     )
     out = convert_to_tensor(img, track_meta=get_track_meta())
-    if transform_info.get(TraceKeys.LAZY_EVALUATION):
+    if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
         out = out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
         return out if image_only else (out, affine)
     if do_resampling:
