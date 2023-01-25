@@ -20,11 +20,11 @@ from typing import Any
 import torch
 
 from monai import transforms
-from monai.data.meta_obj import get_track_meta
+from monai.data.meta_obj import MetaObj, get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
 from monai.transforms.transform import LazyTransform, Transform
-from monai.utils.enums import LazyAttr, TraceKeys
+from monai.utils.enums import LazyAttr, MetaKeys, TraceKeys
 from monai.utils.type_conversion import convert_to_dst_type, convert_to_numpy, convert_to_tensor
 
 __all__ = ["TraceableTransform", "InvertibleTransform"]
@@ -353,12 +353,14 @@ class TraceableTransform(Transform):
         """
         data_t = data[key] if key is not None else data  # compatible with the dict data representation
         data_t = convert_to_tensor(data=data_t, track_meta=get_track_meta())
+        out_obj = MetaObj().copy_meta_from(data_t)
 
         # not lazy evaluation, directly update the affine but don't push the stacks
         if not lazy_evaluation and affine is not None and isinstance(data_t, MetaTensor):
             orig_affine = data_t.peek_pending_affine()
-            affine = convert_to_dst_type(affine, orig_affine)[0]
-            data_t.affine = orig_affine @ to_affine_nd(len(orig_affine) - 1, affine, dtype=orig_affine.dtype)
+            orig_affine = convert_to_dst_type(orig_affine, affine)[0]
+            affine = orig_affine @ to_affine_nd(len(orig_affine) - 1, affine, dtype=affine.dtype)
+            out_obj.meta[MetaKeys.AFFINE] = convert_to_tensor(affine, device=torch.device("cpu"))
         if (
             not isinstance(data_t, MetaTensor)
             or not get_track_meta()
@@ -366,8 +368,9 @@ class TraceableTransform(Transform):
             or not transform_info.get(TraceKeys.TRACING)
         ):
             if key is not None:
-                data[key] = data_t
-            return data  # return with data_t as tensor if get_track_meta() is False
+                data[key] = data_t.copy_meta_from(out_obj)
+                return data
+            return out_obj  # return with data_t as tensor if get_track_meta() is False
 
         info = transform_info
         # track the current spatial shape
@@ -382,19 +385,22 @@ class TraceableTransform(Transform):
         # push the transform info to the applied_operation or pending_operation stack
         if lazy_evaluation:
             if sp_size is None:
-                warnings.warn("spatial size is None in push transform.")
+                if LazyAttr.SHAPE not in info:
+                    warnings.warn("spatial size is None in push transform.")
             else:
                 info[LazyAttr.SHAPE] = tuple(convert_to_numpy(sp_size, wrap_sequence=True).tolist())
             if affine is None:
-                warnings.warn("affine is None in push transform.")
+                if LazyAttr.AFFINE not in info:
+                    warnings.warn("affine is None in push transform.")
             else:
                 info[LazyAttr.AFFINE] = convert_to_tensor(affine, device=torch.device("cpu"))
-            data_t.push_pending_operation(info)
+            out_obj.push_pending_operation(info)
         else:
-            data_t.push_applied_operation(info)
+            out_obj.push_applied_operation(info)
         if key is not None:
-            data[key] = data_t
-        return data
+            data[key] = data_t.copy_meta_from(out_obj)
+            return data
+        return out_obj
 
 
 class InvertibleTransform(TraceableTransform):

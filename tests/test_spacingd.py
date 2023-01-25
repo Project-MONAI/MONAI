@@ -51,7 +51,7 @@ for device in TEST_DEVICES:
             {"image": MetaTensor(torch.ones((2, 10, 20)))},
             dict(keys="image", pixdim=(1, 2)),
             (2, 10, 10),
-            torch.as_tensor(np.diag((1, 2, 1))),
+            torch.as_tensor(np.diag((1, 2, 1, 1))),
             *device,
         )
     )
@@ -64,7 +64,7 @@ for device in TEST_DEVICES:
             },
             dict(keys=("image", "seg"), mode="nearest", pixdim=(1, 0.2)),
             (2, 1, 46),
-            torch.as_tensor(np.diag((1, 0.2, 1))),
+            torch.as_tensor(np.diag((1, 0.2, 1, 1))),
             *device,
         )
     )
@@ -77,7 +77,7 @@ for device in TEST_DEVICES:
             },
             dict(keys=("image", "seg"), mode=("bilinear", "nearest"), pixdim=(1, 0.2)),
             (2, 1, 46),
-            torch.as_tensor(np.diag((1, 0.2, 1))),
+            torch.as_tensor(np.diag((1, 0.2, 1, 1))),
             *device,
         )
     )

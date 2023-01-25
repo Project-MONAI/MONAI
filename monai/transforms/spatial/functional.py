@@ -22,7 +22,7 @@ import torch
 
 import monai
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.meta_obj import MetaObj, get_track_meta
+from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import AFFINE_TOL, compute_shape_offset, to_affine_nd
 from monai.networks.layers import AffineTransform
@@ -97,7 +97,7 @@ def spatial_resample(
         allclose(src_affine_, dst_affine, atol=AFFINE_TOL) and allclose(spatial_size, in_spatial_size)
     ) or (allclose(xform, torch.eye(len(xform)), atol=AFFINE_TOL) and allclose(spatial_size, in_spatial_size))
     lazy_evaluation = transform_info.get(TraceKeys.LAZY_EVALUATION, False)
-    img = TraceableTransform.track_transform_tensor(
+    meta_info = TraceableTransform.track_transform_tensor(
         img,
         sp_size=spatial_size,
         affine=None if affine_unchanged and not lazy_evaluation else xform,
@@ -106,15 +106,15 @@ def spatial_resample(
         transform_info=transform_info,
         lazy_evaluation=lazy_evaluation,
     )
-    meta_info = MetaObj().copy_meta_from(img)
     if affine_unchanged or lazy_evaluation:
         # no significant change or lazy change, return original image
-        return convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)  # type: ignore
-    in_spatial_size = torch.tensor(img.shape[1 : spatial_rank + 1]).tolist()
-    chns, additional_dims = img.shape[0], img.shape[spatial_rank + 1 :]  # beyond three spatial dims
+        img = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)  # type: ignore
+        return img.copy_meta_from(meta_info) if isinstance(img, MetaTensor) else img  # type: ignore
+    im_size = torch.tensor(img.shape).tolist()
+    chns, in_sp_size, additional_dims = im_size[0], im_size[1 : spatial_rank + 1], im_size[spatial_rank + 1 :]
 
     if additional_dims:
-        xform_shape = [-1] + in_spatial_size
+        xform_shape = [-1] + in_sp_size
         img = img.reshape(xform_shape)  # type: ignore
     if isinstance(mode, int):
         dst_xform_1 = normalize_transform(spatial_size, xform.device, xform.dtype, True, True)[0]  # to (-1, 1)
@@ -136,9 +136,8 @@ def spatial_resample(
     if additional_dims:
         full_shape = (chns, *spatial_size, *additional_dims)
         img = img.reshape(full_shape)
-
     img = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)
-    return img.copy_meta_from(meta_info) if get_track_meta() else img  # type: ignore
+    return img.copy_meta_from(meta_info) if isinstance(img, MetaTensor) else img  # type: ignore
 
 
 def orientation(data_array, original_affine, spatial_ornt, transform_info):
@@ -155,35 +154,26 @@ def orientation(data_array, original_affine, spatial_ornt, transform_info):
 
     shape_np = convert_to_numpy(spatial_shape, wrap_sequence=True)
     shape_np = shape_np[[i - 1 for i in full_transpose if i > 0]]
-    data_array = TraceableTransform.track_transform_tensor(
+    meta_info = TraceableTransform.track_transform_tensor(
         data_array,
         sp_size=shape_np,
         affine=affine_x,
         extra_info=extra_info,
+        orig_size=spatial_shape,
         transform_info=transform_info,
         lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
     )
     if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
-        return convert_to_tensor(data_array, track_meta=get_track_meta())
-
-    meta_info = MetaObj().copy_meta_from(data_array)
+        out = convert_to_tensor(data_array, track_meta=get_track_meta())
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
     if axes:
         data_array = torch.flip(data_array, dims=axes)
     if not np.all(full_transpose == np.arange(len(data_array.shape))):
         data_array = data_array.permute(full_transpose.tolist())
-    data_array = convert_to_tensor(data_array, track_meta=get_track_meta())
     return data_array.copy_meta_from(meta_info) if get_track_meta() else data_array
 
 
 def flip(img, shape, sp_axes, transform_info):
-    def update_meta(affine, shape, axes):
-        # shape and axes include the channel dim
-        mat = convert_to_dst_type(torch.eye(len(affine)), affine)[0]
-        for axis in axes:
-            sp = axis - 1
-            mat[sp, sp], mat[sp, -1] = mat[sp, sp] * -1, shape[axis] - 1
-        return mat
-
     extra_info = {"axes": sp_axes}  # track the spatial axes
     axes = monai.transforms.utils.map_spatial_axes(img.ndim, sp_axes)  # use the axes with channel dim
     _affine = (
@@ -191,18 +181,24 @@ def flip(img, shape, sp_axes, transform_info):
         if isinstance(img, MetaTensor)
         else torch.eye(4, device=torch.device("cpu"), dtype=torch.float64)
     )
-    if transform_info.get(TraceKeys.LAZY_EVALUATION):
-        if not get_track_meta():
-            return img
-        _affine = update_meta(_affine, shape, axes)
-        return TraceableTransform.track_pending_transform(
-            img, lazy_shape=shape[1:], lazy_affine=_affine, extra_info=extra_info, transform_info=transform_info
-        )
-
-    out = torch.flip(img, axes)
-    if get_track_meta():
-        out.affine @= update_meta(_affine, shape, axes)  # type: ignore
-    return TraceableTransform.track_transform(out, extra_info=extra_info, transform_info=transform_info)
+    # shape and axes include the channel dim
+    mat = convert_to_dst_type(torch.eye(len(_affine)), _affine)[0]
+    for axis in axes:
+        sp = axis - 1
+        mat[sp, sp], mat[sp, -1] = mat[sp, sp] * -1, shape[axis] - 1
+    meta_info = TraceableTransform.track_transform_tensor(
+        img,
+        sp_size=shape[1:],
+        affine=mat,
+        extra_info=extra_info,
+        transform_info=transform_info,
+        lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
+    )
+    if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
+        out = convert_to_tensor(img, track_meta=get_track_meta())
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+    img = torch.flip(img, axes)
+    return img.copy_meta_from(meta_info) if get_track_meta() else img
 
 
 def resize(img, out_size, mode, align_corners, input_ndim, anti_aliasing, anti_aliasing_sigma, transform_info):

@@ -210,6 +210,15 @@ class MetaObj:
             return self._pending_operations
         return MetaObj.get_default_applied_operations()  # the same default as applied_ops
 
+    @pending_operations.setter
+    def pending_operations(self, t) -> None:
+        """Set the pending operations."""
+        if t == TraceKeys.NONE:
+            # received no operations when decollating a batch
+            self._pending_operations = MetaObj.get_default_applied_operations()
+            return
+        self._pending_operations = t
+
     def push_pending_operation(self, t: Any) -> None:
         self._pending_operations.append(t)
 

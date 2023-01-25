@@ -500,12 +500,7 @@ class Spacing(InvertibleTransform, LazyTransform):
         scale_extent = self.scale_extent if scale_extent is None else scale_extent
         output_shape, offset = compute_shape_offset(data_array.shape[1:], affine_, new_affine, scale_extent)
         new_affine[:sr, -1] = offset[:sr]
-        # convert to MetaTensor if necessary
-        data_array = convert_to_tensor(data_array, track_meta=get_track_meta())
-        if isinstance(data_array, MetaTensor):
-            data_array.affine = torch.as_tensor(affine_)
 
-        # we don't want to track the nested transform otherwise two will be appended
         actual_shape = list(output_shape) if output_spatial_shape is None else output_spatial_shape
         data_array = self.sp_resample(
             data_array,
@@ -593,7 +588,7 @@ class Orientation(InvertibleTransform, LazyTransform):
         affine_: np.ndarray
         affine_np: np.ndarray
         if isinstance(data_array, MetaTensor):
-            affine_np, *_ = convert_data_type(data_array.affine, np.ndarray)
+            affine_np, *_ = convert_data_type(data_array.peek_pending_affine(), np.ndarray)
             affine_ = to_affine_nd(sr, affine_np)
         else:
             warnings.warn("`data_array` is not of type `MetaTensor, assuming affine to be identity.")

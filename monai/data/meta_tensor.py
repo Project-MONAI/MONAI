@@ -25,7 +25,7 @@ from monai.data.meta_obj import MetaObj, get_track_meta
 from monai.data.utils import affine_to_spacing, decollate_batch, list_data_collate, remove_extra_metadata
 from monai.utils import look_up_option
 from monai.utils.enums import LazyAttr, MetaKeys, PostFix, SpaceKeys
-from monai.utils.type_conversion import convert_data_type, convert_to_numpy, convert_to_tensor, convert_to_dst_type
+from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, convert_to_numpy, convert_to_tensor
 
 __all__ = ["MetaTensor"]
 
@@ -481,7 +481,8 @@ class MetaTensor(MetaObj, torch.Tensor):
     def peek_pending_affine(self):
         res = self.affine
         for p in self.pending_operations:
-            next_matrix = p.get(LazyAttr.AFFINE)
+            next_matrix = convert_to_tensor(p.get(LazyAttr.AFFINE))
+            res = convert_to_dst_type(res, next_matrix)[0]
             res = monai.transforms.lazy.utils.combine_transforms(res, next_matrix)
         return res
 

@@ -39,7 +39,8 @@ def apply_transforms(
         pending: pending transforms. This must be set if data is a Tensor, but is optional if data is a MetaTensor.
     """
     if isinstance(data, MetaTensor) and pending is None:
-        pending = data.pending_operations
+        pending = data.pending_operations.copy()
+        data.clear_pending_operations()
     pending = [] if pending is None else pending
 
     if not pending:
@@ -54,19 +55,21 @@ def apply_transforms(
     overriding[LazyAttr.DTYPE] = dtype if dtype is not None else data.dtype
 
     for p in pending[1:]:
+        print(p["class"])
         new_kwargs = kwargs_from_pending(p)
         if not is_compatible_apply_kwargs(cur_kwargs, new_kwargs):
             # carry out an intermediate resample here due to incompatibility between arguments
             _cur_kwargs = cur_kwargs.copy()
             _cur_kwargs.update(overriding)
-            data = resample(data, cumulative_xform, _cur_kwargs)
+            sp_size = _cur_kwargs.pop(LazyAttr.SHAPE, None)
+            data = resample(data, cumulative_xform, sp_size, _cur_kwargs)
         next_matrix = affine_from_pending(p)
         cumulative_xform = combine_transforms(cumulative_xform, next_matrix)
         cur_kwargs.update(new_kwargs)
     cur_kwargs.update(overriding)
-    data = resample(data, cumulative_xform, cur_kwargs)
+    sp_size = cur_kwargs.pop(LazyAttr.SHAPE, None)
+    data = resample(data, cumulative_xform, sp_size, cur_kwargs)
     if isinstance(data, MetaTensor):
-        data.clear_pending_operations()
         for p in pending:
             data.push_applied_operation(p)
     return data, pending
