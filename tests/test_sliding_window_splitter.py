@@ -19,10 +19,7 @@ from torch.testing import assert_close
 from parameterized import parameterized
 
 from monai.inferers import SlidingWindowSplitter
-from monai.utils import PatchKeys, set_determinism
-
-
-set_determinism(0)
+from monai.utils import PatchKeys
 
 TENSOR_4x4 = torch.randint(low=0, high=255, size=(2, 3, 4, 4), dtype=torch.float32)
 
