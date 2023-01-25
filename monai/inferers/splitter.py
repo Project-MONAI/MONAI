@@ -15,13 +15,13 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from typing import Sequence
 
-from monai.data.meta_tensor import MetaTensor
-from monai.data.utils import get_valid_patch_size, iter_patch_position
-from monai.utils.enums import PatchKeys, PytorchPadMode
-from monai.utils.misc import ensure_tuple, ensure_tuple_size, ensure_tuple_rep
-from monai.utils.module import look_up_option
-
 import torch
+
+from monai.data.meta_tensor import MetaTensor
+from monai.data.utils import iter_patch_position
+from monai.utils.enums import PatchKeys, PytorchPadMode
+from monai.utils.misc import ensure_tuple, ensure_tuple_rep
+from monai.utils.module import look_up_option
 
 __all__ = ["Splitter"]
 
@@ -36,17 +36,13 @@ class Splitter(ABC):
     def __init__(
         self,
         patch_size: Sequence[int] | int,
-        offset: Sequence[int] | int = 0,
-        pad_mode: str | None = None,
-        **pad_kwargs,
+        device: torch.device | str | None = None,
     ) -> None:
         self.patch_size = patch_size
-        self.offset = offset
-        self.pad_mode = pad_mode
-        self.pad_kwargs = pad_kwargs
+        self.device = device
 
     @abstractmethod
-    def __call__(self, inputs: torch.Tensor | str | list[str]) -> Iterable[MetaTensor]:
+    def get_patches_tensor(self, inputs: torch._tensor) -> Iterable[MetaTensor]:
         """
         Split the image, represented by an input tensor or a filename, into patches.
 
@@ -60,25 +56,21 @@ class Splitter(ABC):
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
+    @abstractmethod
+    def get_patches_str(self, inputs: str) -> Iterable[MetaTensor]:
+        """
+        Split the image, represented by a filename.
 
-class SlidingWindowSplitter(Splitter):
-    def __init__(
-        self,
-        patch_size: Sequence[int] | int,
-        offset: Sequence[int] | int = 0,
-        batch_size: int = 1,
-        overlap: Sequence[float] | float = 0.0,
-        pad_mode: str = PytorchPadMode.CONSTANT,
-        **pad_kwargs,
-    ):
-        super().__init__(patch_size=patch_size, offset=offset, pad_mode=pad_mode, **pad_kwargs)
-        self.batch_size = batch_size
+        Args:
+            inputs: a string representing file path to the image
 
-        if any(ov < 0 or ov >= 1 for ov in ensure_tuple(overlap)):
-            raise ValueError("Overlap must be between 0 and 1.")
-        self.overlap = overlap
+        Raises:
+            NotImplementedError: When the subclass does not override this method.
 
-    def __call__(self, inputs: torch.Tensor):
+        """
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+
+    def __call__(self, inputs: torch.Tensor | str) -> Iterable[MetaTensor]:
         """
         Split the batched input tensor into patches using sliding window strategy.
 
@@ -86,7 +78,39 @@ class SlidingWindowSplitter(Splitter):
             inputs: a tensor of shape BxCxHxW[xD], representing a batch of images
 
         """
+        if isinstance(inputs, torch.Tensor):
+            return self.get_patches_tensor(inputs)
+        elif isinstance(inputs, str, Iterable):
+            return self.get_patches_tensor(ensure_tuple(inputs))
+        elif isinstance(inputs, Iterable):
+            for item in inputs:
+                if not isinstance(item, str):
+                    raise TypeError(f"`inputs should be list of str, list of {type(item)} is given.")
+        else:
+            raise TypeError(f"`inputs should be Tensor, str or list of str, {type(input)} is given.")
 
+
+class SlidingWindowSplitter(Splitter):
+    def __init__(
+        self,
+        patch_size: Sequence[int] | int,
+        offset: Sequence[int] | int = 0,
+        device: torch.device | str | None = None,
+        overlap: Sequence[float] | float = 0.0,
+        pad_mode: str = PytorchPadMode.CONSTANT,
+        **pad_kwargs,
+    ):
+        super().__init__(patch_size=patch_size, device=device)
+        self.offset = offset
+        self.pad_mode = pad_mode
+        self.pad_kwargs = pad_kwargs
+        if any(ov < 0 or ov >= 1 for ov in ensure_tuple(overlap)):
+            raise ValueError("Overlap must be between 0 and 1.")
+        self.overlap = overlap
+
+    def get_patches_tensor(self, inputs: torch.Tensor) -> Iterable[MetaTensor]:
+        if self.device:
+            inputs.to(self.device)
         spatial_ndim = inputs.ndim - 2
         patch_size = ensure_tuple_rep(self.patch_size, spatial_ndim)
         overlap = ensure_tuple_rep(self.overlap, spatial_ndim)
@@ -108,21 +132,20 @@ class SlidingWindowSplitter(Splitter):
                 0 if ps == 0 else (off - ins + ps) % round(ps * (1.0 - ov))
                 for ins, off, ps, ov in zip(inputs.shape[2:], offset, patch_size, overlap)
             )
-
             # pad the inputs
             inputs = torch.nn.functional.pad(
                 inputs, _pad_size[::-1], look_up_option(self.pad_mode, PytorchPadMode).value, **self.pad_kwargs
             )
-
             # correct the offset with regard to the padded image
             offset = tuple(off + p for off, p in zip(offset, _pad_size[1::2]))
 
         for location in iter_patch_position(inputs.shape[2:], patch_size, offset, overlap, False):
-            slices = (slice(None, None),) * 2 + tuple(slice(loc, loc + ps) for loc, ps in zip(location, patch_size))
+            slices = (slice(None),) * 2 + tuple(slice(loc, loc + ps) for loc, ps in zip(location, patch_size))
             patch = inputs[slices]
             if padded:
                 # correct the location for original inputs (remove padding)
                 location = tuple(loc - p for loc, p in zip(location, _pad_size[1::2]))
             metadata = patch.meta if isinstance(patch, MetaTensor) else MetaTensor.get_default_meta()
             metadata[PatchKeys.LOCATION] = torch.tensor(location)
+            metadata[PatchKeys.SIZE] = torch.tensor(patch_size)
             yield MetaTensor(x=patch, meta=metadata)
