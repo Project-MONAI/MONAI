@@ -55,7 +55,6 @@ def apply_transforms(
     overriding[LazyAttr.DTYPE] = dtype if dtype is not None else data.dtype
 
     for p in pending[1:]:
-        print(p["class"])
         new_kwargs = kwargs_from_pending(p)
         if not is_compatible_apply_kwargs(cur_kwargs, new_kwargs):
             # carry out an intermediate resample here due to incompatibility between arguments
