@@ -27,7 +27,6 @@ from monai.transforms import (
     RandShiftIntensityd,
     Resize,
     Resized,
-    TraceableTransform,
     Transform,
 )
 from monai.transforms.compose import Compose
@@ -113,9 +112,9 @@ TESTS = [((X(), Y(), X()), (1, 2, 1), (0.25, 0.5, 0.25))]
 KEYS = ["x", "y"]
 TEST_INVERSES = [
     (OneOf((InvA(KEYS), InvB(KEYS))), True, True),
-    (OneOf((OneOf((InvA(KEYS), InvB(KEYS))), OneOf((InvB(KEYS), InvA(KEYS))))), True, True),
-    (OneOf((Compose((InvA(KEYS), InvB(KEYS))), Compose((InvB(KEYS), InvA(KEYS))))), True, True),
-    (OneOf((NonInv(KEYS), NonInv(KEYS))), False, True),
+    (OneOf((OneOf((InvA(KEYS), InvB(KEYS))), OneOf((InvB(KEYS), InvA(KEYS))))), True, False),
+    (OneOf((Compose((InvA(KEYS), InvB(KEYS))), Compose((InvB(KEYS), InvA(KEYS))))), True, False),
+    (OneOf((NonInv(KEYS), NonInv(KEYS))), False, False),
 ]
 
 
@@ -161,11 +160,7 @@ class TestOneOf(unittest.TestCase):
 
         if invertible:
             for k in KEYS:
-                t = (
-                    fwd_data[TraceableTransform.trace_key(k)][-1]
-                    if not use_metatensor
-                    else fwd_data[k].applied_operations[-1]
-                )
+                t = fwd_data[k].applied_operations[-1]
                 # make sure the OneOf index was stored
                 self.assertEqual(t[TraceKeys.CLASS_NAME], OneOf.__name__)
                 # make sure index exists and is in bounds
@@ -176,12 +171,6 @@ class TestOneOf(unittest.TestCase):
 
         if invertible:
             for k in KEYS:
-                # check transform was removed
-                if not use_metatensor:
-                    self.assertTrue(
-                        len(fwd_inv_data[TraceableTransform.trace_key(k)])
-                        < len(fwd_data[TraceableTransform.trace_key(k)])
-                    )
                 # check data is same as original (and different from forward)
                 self.assertEqual(fwd_inv_data[k], data[k])
                 self.assertNotEqual(fwd_inv_data[k], fwd_data[k])
