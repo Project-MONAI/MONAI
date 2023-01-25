@@ -1,8 +1,11 @@
+import os
 import unittest
 
 from parameterized import parameterized
 
+from monai.apps import download_and_extract
 from monai.utils import optional_import
+from tests.utils import skip_if_downloading_fails, testing_data_config
 
 itk, has_itk = optional_import("itk")
 import numpy as np
@@ -19,6 +22,23 @@ TEST_CASE_3D = {'filepath': 'copd1_highres_INSP_STD_COPD_img.nii.gz'}
 
 @unittest.skipUnless(has_itk, "Requires `itk` package.")
 class TestITKTorchAffineMatrixBridge(unittest.TestCase):
+
+    def setUp(self):
+        #TODO: which data should be used
+        self.data_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
+        data_dir = os.path.join(self.data_dir, "MedNIST")
+        dataset_file = os.path.join(self.data_dir, "MedNIST.tar.gz")
+
+        if not os.path.exists(data_dir):
+            with skip_if_downloading_fails():
+                data_spec = testing_data_config("images", "mednist")
+                download_and_extract(
+                    data_spec["url"],
+                    dataset_file,
+                    self.data_dir,
+                    hash_val=data_spec["hash_val"],
+                    hash_type=data_spec["hash_type"],
+                )
 
     @parameterized.expand([TEST_CASE_2D, TEST_CASE_3D])
     def test_setting_affine_parameters(self, filepath):
