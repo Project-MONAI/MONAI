@@ -113,7 +113,7 @@ class MetaObj:
             return data.detach().clone()
         return deepcopy(data)
 
-    def copy_meta_from(self, input_objs, copy_attr=True):
+    def copy_meta_from(self, input_objs, copy_attr=True, keys=None):
         """
         Copy metadata from a `MetaObj` or an iterable of `MetaObj` instances.
 
@@ -121,15 +121,17 @@ class MetaObj:
             input_objs: list of `MetaObj` to copy data from.
             copy_attr: whether to copy each attribute with `MetaObj.copy_item`.
                 note that if the attribute is a nested list or dict, only a shallow copy will be done.
+            keys: the keys to copy from the input. If None, all keys will be copied.
 
         return self with the updated ``__dict__``.
         """
         first_meta = input_objs if isinstance(input_objs, MetaObj) else first(input_objs, default=self)
         first_meta = first_meta.__dict__
+        keys = first_meta.keys() if keys is None else keys
         if not copy_attr:
-            self.__dict__ = first_meta.copy()  # shallow copy for performance
+            self.__dict__ = {a: first_meta[a] for a in keys}  # shallow copy for performance
         else:
-            self.__dict__.update({a: MetaObj.copy_items(first_meta[a]) for a in first_meta})
+            self.__dict__.update({a: MetaObj.copy_items(first_meta[a]) for a in keys})
         return self
 
     @staticmethod
