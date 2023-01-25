@@ -51,7 +51,6 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_2D, TEST_CASE_3D])
     def test_setting_affine_parameters(self, filepath):
-        print("\nTEST: Setting affine parameters, center of rotation is center of the image")
         # Read image
         image = itk.imread(filepath, itk.F)
         image[:] = remove_border(image)
@@ -99,7 +98,6 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_2D, TEST_CASE_3D])
     def test_arbitary_center_of_rotation(self, filepath):
-        print("\nTEST: affine matrix with arbitary center of rotation")
         # Read image
         image = itk.imread(filepath, itk.F)
         image[:] = remove_border(image)
@@ -207,7 +205,6 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_2D, TEST_CASE_3D])
     def test_cyclic_conversion(self, filepath):
-        print("\nTEST: matrix + translation -> affine_matrix -> matrix + translation")
         image = itk.imread(filepath, itk.F)
         image[:] = remove_border(image)
         ndim = image.ndim
