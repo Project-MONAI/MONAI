@@ -741,7 +741,7 @@ class Affined(MapTransform, InvertibleTransform):
 
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
-        self.affine = Affine(
+        self.affine = Affine(  # type: ignore
             rotate_params=rotate_params,
             shear_params=shear_params,
             translate_params=translate_params,
@@ -749,7 +749,7 @@ class Affined(MapTransform, InvertibleTransform):
             affine=affine,
             spatial_size=spatial_size,
             device=device,
-            dtype=dtype,
+            dtype=dtype,  # type: ignore
         )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
