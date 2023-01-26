@@ -14,8 +14,6 @@ from __future__ import annotations
 import random
 from enum import Enum
 
-from monai.utils.deprecate_utils import deprecated
-
 __all__ = [
     "StrEnum",
     "NumpyPadMode",
@@ -36,7 +34,6 @@ __all__ = [
     "SkipMode",
     "Method",
     "TraceKeys",
-    "InverseKeys",
     "CommonKeys",
     "GanKeys",
     "PostFix",
@@ -315,25 +312,6 @@ class TraceKeys(StrEnum):
     NONE: str = "none"
     TRACING: str = "tracing"
     LAZY_EVALUATION: str = "lazy_evaluation"
-
-
-@deprecated(since="0.8.0", msg_suffix="use monai.utils.enums.TraceKeys instead.")
-class InverseKeys:
-    """
-    Extra metadata keys used for inverse transforms.
-
-    .. deprecated:: 0.8.0
-        Use :class:`monai.utils.enums.TraceKeys` instead.
-
-    """
-
-    CLASS_NAME = "class"
-    ID = "id"
-    ORIG_SIZE = "orig_size"
-    EXTRA_INFO = "extra_info"
-    DO_TRANSFORM = "do_transforms"
-    KEY_SUFFIX = "_transforms"
-    NONE = "none"
 
 
 class CommonKeys(StrEnum):

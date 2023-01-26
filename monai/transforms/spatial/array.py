@@ -325,7 +325,6 @@ class Spacing(InvertibleTransform, LazyTransform):
 
     backend = SpatialResample.backend
 
-    @deprecated_arg(name="image_only", since="0.9")
     def __init__(
         self,
         pixdim: Sequence[float] | float | np.ndarray,
@@ -338,7 +337,6 @@ class Spacing(InvertibleTransform, LazyTransform):
         recompute_affine: bool = False,
         min_pixdim: Sequence[float] | float | np.ndarray | None = None,
         max_pixdim: Sequence[float] | float | np.ndarray | None = None,
-        image_only: bool = False,
     ) -> None:
         """
         Args:
@@ -528,13 +526,11 @@ class Orientation(InvertibleTransform, LazyTransform):
 
     backend = [TransformBackends.NUMPY, TransformBackends.TORCH]
 
-    @deprecated_arg(name="image_only", since="0.9")
     def __init__(
         self,
         axcodes: str | None = None,
         as_closest_canonical: bool = False,
         labels: Sequence[tuple[str, str]] | None = (("L", "R"), ("P", "A"), ("I", "S")),
-        image_only: bool = False,
     ) -> None:
         """
         Args:
@@ -1194,7 +1190,6 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
         self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
         self.z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
 
-    @deprecated_arg(name="get_matrix", since="0.9", msg_suffix="please use `img.meta` instead.")
     def __call__(
         self,
         img: torch.Tensor,
@@ -1203,7 +1198,6 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
         align_corners: bool | None = None,
         dtype: DtypeLike | torch.dtype = None,
         randomize: bool = True,
-        get_matrix: bool = False,
     ):
         """
         Args:
@@ -1699,13 +1693,8 @@ class RandDeformGrid(Randomizable, Transform):
 
     backend = [TransformBackends.TORCH]
 
-    @deprecated_arg(name="as_tensor_output", since="0.8")
     def __init__(
-        self,
-        spacing: Sequence[float] | float,
-        magnitude_range: tuple[float, float],
-        as_tensor_output: bool = True,
-        device: torch.device | None = None,
+        self, spacing: Sequence[float] | float, magnitude_range: tuple[float, float], device: torch.device | None = None
     ) -> None:
         """
         Args:
@@ -1908,7 +1897,6 @@ class Affine(InvertibleTransform, LazyTransform):
 
     backend = list(set(AffineGrid.backend) & set(Resample.backend))
 
-    @deprecated_arg(name="norm_coords", since="0.8")
     def __init__(
         self,
         rotate_params: Sequence[float] | float | None = None,
@@ -1920,7 +1908,6 @@ class Affine(InvertibleTransform, LazyTransform):
         mode: str | int = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.REFLECTION,
         normalized: bool = False,
-        norm_coords: bool = True,
         device: torch.device | None = None,
         dtype: DtypeLike = np.float32,
         image_only: bool = False,
@@ -1976,10 +1963,6 @@ class Affine(InvertibleTransform, LazyTransform):
                 If ``None``, use the data type of input data. To be compatible with other modules,
                 the output data type is always `float32`.
             image_only: if True return only the image volume, otherwise return (image, affine).
-
-        .. deprecated:: 0.8.1
-            ``norm_coords`` is deprecated, please use ``normalized`` instead
-            (the new flag is a negation, i.e., ``norm_coords == not normalized``).
 
         """
         self.affine_grid = AffineGrid(
