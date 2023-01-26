@@ -42,7 +42,7 @@ class Splitter(ABC):
         self.device = device
 
     @abstractmethod
-    def get_patches_tensor(self, inputs: torch._tensor) -> Iterable[MetaTensor]:
+    def get_patches_tensor(self, inputs: torch.Tensor) -> Iterable[MetaTensor]:
         """
         Split the image, represented by an input tensor or a filename, into patches.
 
@@ -80,8 +80,8 @@ class Splitter(ABC):
         """
         if isinstance(inputs, torch.Tensor):
             return self.get_patches_tensor(inputs)
-        elif isinstance(inputs, str, Iterable):
-            return self.get_patches_tensor(ensure_tuple(inputs))
+        elif isinstance(inputs, str):
+            return self.get_patches_str(inputs)
         elif isinstance(inputs, Iterable):
             for item in inputs:
                 if not isinstance(item, str):

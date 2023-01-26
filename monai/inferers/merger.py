@@ -38,9 +38,9 @@ class Merger(ABC):
         Initialize the merger.
 
         Args:
-            inputs: a tensor of shape BxCxHxW[xD], representing a batch of input images
-            in_patch: a tensor of shape BxCxH'xW'[xD'], representing a batch of input patches
-            out_patch: a tensor of shape BxC"xH"xW"[xD"], representing a batch of input patches
+            inputs: a tensor of shape BCHW[D], representing a batch of input images
+            in_patch: a tensor of shape BCH'W'[D'], representing a batch of input patches
+            out_patch: a tensor of shape BC"H"W"[D"], representing a batch of input patches
 
         Raises:
             NotImplementedError: When the subclass does not override this method.
@@ -54,7 +54,7 @@ class Merger(ABC):
         Aggregate values for merging.
 
         Args:
-            values: a tensor of shape BxCxHxW[xD], representing the values of inference output
+            values: a tensor of shape BCHW[D], representing the values of inference output
 
         Raises:
             NotImplementedError: When the subclass does not override this method.
@@ -91,9 +91,9 @@ class AvgMerger(Merger):
         Initialize the merger by creating tensors for aggregation (`values` and `counts`).
 
         Args:
-            inputs: a tensor of shape BxCxHxW[xD], representing a batch of input images
-            in_patch: a tensor of shape BxCxH'xW'[xD'], representing a batch of input patches
-            out_patch: a tensor of shape BxC"xH"xW"[xD"], representing a batch of input patches
+            inputs: a tensor of shape BCHW[D], representing a batch of input images
+            in_patch: a tensor of shape BCH'W'[D'], representing a batch of input patches
+            out_patch: a tensor of shape BC"H"W"[D"], representing a batch of input patches
         """
         super().__init__()
         in_spatial_shape = torch.tensor(inputs.shape[2:])
@@ -101,7 +101,7 @@ class AvgMerger(Merger):
         out_patch_shape = torch.tensor(out_patch.shape[2:])
         batch_channel_shape = out_patch.shape[:2]
         spatial_shape = torch.round(in_spatial_shape * out_patch_shape / in_patch_shape).to(int).tolist()
-        output_shape = batch_channel_shape + tuple(spatial_shape.tolist())
+        output_shape = batch_channel_shape + tuple(spatial_shape)
         # decide on the device for aggregators
         if self.device is None:
             device = inputs.device
@@ -123,13 +123,15 @@ class AvgMerger(Merger):
         Aggregate values for merging.
 
         Args:
-            values: a tensor of shape BxCxHxW[xD], representing the values of inference output.
+            values: a tensor of shape BCHW[D], representing the values of inference output.
 
         Raises:
             NotImplementedError: When the subclass does not override this method.
 
         """
-        map_slice = [slice(loc, loc + size) for loc, size in zip(values[PatchKeys.LOCATION], values[PatchKeys.SIZE])]
+        map_slice = tuple(
+            slice(loc, loc + size) for loc, size in zip(values.meta[PatchKeys.LOCATION], values.meta[PatchKeys.SIZE])
+        )
         map_slice = ensure_tuple_size(map_slice, values.ndim, pad_val=slice(None), pad_from_start=True)
         self.values[map_slice] += values
         self.counts[map_slice] += 1
