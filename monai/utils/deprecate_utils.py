@@ -43,7 +43,7 @@ def deprecated(
     removed: str | None = None,
     msg_suffix: str = "",
     version_val: str = __version__,
-    warning_category=FutureWarning,
+    warning_category: type[FutureWarning] = FutureWarning,
 ) -> Callable[[T], T]:
     """
     Marks a function or class as deprecated. If `since` is given this should be a version at or earlier than the
@@ -121,13 +121,13 @@ def deprecated(
 
 
 def deprecated_arg(
-    name,
+    name: str,
     since: str | None = None,
     removed: str | None = None,
     msg_suffix: str = "",
     version_val: str = __version__,
     new_name: str | None = None,
-    warning_category=FutureWarning,
+    warning_category: type[FutureWarning] = FutureWarning,
 ) -> Callable[[T], T]:
     """
     Marks a particular named argument of a callable as deprecated. The same conditions for `since` and `removed` as
@@ -235,7 +235,7 @@ def deprecated_arg_default(
     replaced: str | None = None,
     msg_suffix: str = "",
     version_val: str = __version__,
-    warning_category=FutureWarning,
+    warning_category: type[FutureWarning] = FutureWarning,
 ) -> Callable[[T], T]:
     """
     Marks a particular arguments default of a callable as deprecated. It is changed from `old_default` to `new_default`

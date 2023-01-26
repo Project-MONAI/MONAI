@@ -21,7 +21,7 @@ from importlib import import_module
 from typing import Any
 
 from monai.bundle.utils import EXPR_KEY
-from monai.utils import ensure_tuple, first, instantiate, optional_import, run_debug, run_eval
+from monai.utils import CompInitMode, ensure_tuple, first, instantiate, optional_import, run_debug, run_eval
 
 __all__ = ["ComponentLocator", "ConfigItem", "ConfigExpression", "ConfigComponent", "Instantiable"]
 
@@ -168,8 +168,8 @@ class ConfigComponent(ConfigItem, Instantiable):
     Currently, three special keys (strings surrounded by ``_``) are defined and interpreted beyond the regular literals:
 
         - class or function identifier of the python module, specified by ``"_target_"``,
-          indicating a build-in python class or function such as ``"LoadImageDict"``,
-          or a full module name, such as ``"monai.transforms.LoadImageDict"``.
+          indicating a monai built-in Python class or function such as ``"LoadImageDict"``,
+          or a full module name, e.g. ``"monai.transforms.LoadImageDict"``, or a callable, e.g. ``"$@model.forward"``.
         - ``"_requires_"`` (optional): specifies reference IDs (string starts with ``"@"``) or ``ConfigExpression``
           of the dependencies for this ``ConfigComponent`` object. These dependencies will be
           evaluated/instantiated before this object is instantiated.  It is useful when the
@@ -177,6 +177,11 @@ class ConfigComponent(ConfigItem, Instantiable):
           but requires the dependencies to be instantiated/evaluated beforehand.
         - ``"_disabled_"`` (optional): a flag to indicate whether to skip the instantiation.
         - ``"_desc_"`` (optional): free text descriptions of the component for code readability.
+        - ``"_mode_"`` (optional): operating mode for invoking the callable ``component`` defined by ``"_target_"``:
+
+            - ``"default"``: returns ``component(**kwargs)``
+            - ``"partial"``: returns ``functools.partial(component, **kwargs)``
+            - ``"debug"``: returns ``pdb.runcall(component, **kwargs)``
 
     Other fields in the config content are input arguments to the python module.
 
@@ -204,7 +209,7 @@ class ConfigComponent(ConfigItem, Instantiable):
 
     """
 
-    non_arg_keys = {"_target_", "_disabled_", "_requires_", "_desc_"}
+    non_arg_keys = {"_target_", "_disabled_", "_requires_", "_desc_", "_mode_"}
 
     def __init__(
         self,
@@ -280,10 +285,11 @@ class ConfigComponent(ConfigItem, Instantiable):
             return None
 
         modname = self.resolve_module_name()
+        mode = self.get_config().get("_mode_", CompInitMode.DEFAULT)
         args = self.resolve_args()
         args.update(kwargs)
         try:
-            return instantiate(modname, **args)
+            return instantiate(modname, mode, **args)
         except Exception as e:
             raise RuntimeError(f"Failed to instantiate {self}.") from e
 
