@@ -289,16 +289,16 @@ def deprecated_arg_default(
     def _decorator(func):
         argname = f"{func.__module__} {func.__qualname__}:{name}"
 
-        msg_prefix = f"Default of argument `{name}`"
+        msg_prefix = f" Current default value of argument `{name}={old_default}`"
 
         if is_replaced:
-            msg_infix = f"was replaced in version {replaced} from `{old_default}` to `{new_default}`."
+            msg_infix = f"was changed in version {replaced} from `{name}={old_default}` to `{name}={new_default}`."
         elif is_deprecated:
-            msg_infix = f"has been deprecated since version {since} from `{old_default}` to `{new_default}`."
+            msg_infix = f"has been deprecated since {since}."
             if replaced is not None:
-                msg_infix += f" It will be replaced in version {replaced}."
+                msg_infix += f" It will be changed to `{name}={new_default}` in version {replaced}."
         else:
-            msg_infix = f"has been deprecated from `{old_default}` to `{new_default}`."
+            msg_infix = f"has been deprecated from `{name}={old_default}` to `{name}={new_default}`."
 
         msg = f"{msg_prefix} {msg_infix} {msg_suffix}".strip()
 
