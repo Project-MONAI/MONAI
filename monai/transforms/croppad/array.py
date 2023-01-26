@@ -654,7 +654,7 @@ class RandScaleCrop(RandSpatialCrop):
         return super().__call__(img=img, randomize=randomize)
 
 
-class RandSpatialCropSamples(Randomizable, TraceableTransform):
+class RandSpatialCropSamples(Randomizable, TraceableTransform, LazyTransform):
     """
     Crop image with random size or specific size ROI to generate a list of N samples.
     It can crop at a random position as center or at the image center. And allows to set
@@ -707,6 +707,11 @@ class RandSpatialCropSamples(Randomizable, TraceableTransform):
         self.cropper.set_random_state(seed, state)
         return self
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, value: bool) -> None:
+        self._lazy_evaluation = value
+        self.cropper.lazy_evaluation = value
+
     def randomize(self, data: Any | None = None) -> None:
         pass
 
@@ -716,12 +721,11 @@ class RandSpatialCropSamples(Randomizable, TraceableTransform):
         cropping doesn't change the channel dim.
         """
         ret = []
-        orig_size = img.shape[1:]
         for i in range(self.num_samples):
             cropped = self.cropper(img)
             if get_track_meta():
                 cropped.meta[Key.PATCH_INDEX] = i  # type: ignore
-                self.push_transform(cropped, orig_size=orig_size, extra_info=self.pop_transform(cropped, check=False))
+                self.push_transform(cropped, replace=True)
             ret.append(cropped)
         return ret
 
@@ -919,14 +923,13 @@ class RandWeightedCrop(Randomizable, TraceableTransform):
             self.randomize(weight_map)
         _spatial_size = fall_back_tuple(self.spatial_size, weight_map.shape[1:])
         results: list[torch.Tensor] = []
-        orig_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
         for i, center in enumerate(self.centers):
             cropped = SpatialCrop(roi_center=center, roi_size=_spatial_size)(img)
             if get_track_meta():
                 ret_: MetaTensor = cropped  # type: ignore
                 ret_.meta[Key.PATCH_INDEX] = i
                 ret_.meta["crop_center"] = center
-                self.push_transform(ret_, orig_size=orig_size, extra_info=self.pop_transform(ret_, check=False))
+                self.push_transform(ret_, replace=True)
             results.append(cropped)
         return results
 

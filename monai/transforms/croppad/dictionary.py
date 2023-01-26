@@ -540,7 +540,7 @@ class RandScaleCropd(RandCropd):
         super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys)
 
 
-class RandSpatialCropSamplesd(Randomizable, MapTransform):
+class RandSpatialCropSamplesd(Randomizable, MapTransform, LazyTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandSpatialCropSamples`.
     Crop image with random size or specific size ROI to generate a list of N samples.
@@ -594,6 +594,11 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.cropper = RandSpatialCropSamples(roi_size, num_samples, max_roi_size, random_center, random_size)
+
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, value: bool) -> None:
+        self._lazy_evaluation = value
+        self.cropper.lazy_evaluation = value
 
     def randomize(self, data: Any | None = None) -> None:
         self.sub_seed = self.R.randint(MAX_SEED, dtype="uint32")
