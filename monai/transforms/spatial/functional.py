@@ -110,7 +110,7 @@ def spatial_resample(
     )
     if affine_unchanged or lazy_evaluation:
         # no significant change or lazy change, return original image
-        img = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)  # type: ignore
+        img = convert_to_tensor(img, track_meta=get_track_meta())  # type: ignore
         return img.copy_meta_from(meta_info) if isinstance(img, MetaTensor) else img  # type: ignore
     im_size = torch.tensor(img.shape).tolist()
     chns, in_sp_size, additional_dims = im_size[0], im_size[1 : spatial_rank + 1], im_size[spatial_rank + 1 :]
@@ -138,8 +138,8 @@ def spatial_resample(
     if additional_dims:
         full_shape = (chns, *spatial_size, *additional_dims)
         img = img.reshape(full_shape)
-    img = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)
-    return img.copy_meta_from(meta_info) if isinstance(img, MetaTensor) else img  # type: ignore
+    out = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)
+    return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out  # type: ignore
 
 
 def orientation(img, original_affine, spatial_ornt, transform_info):
