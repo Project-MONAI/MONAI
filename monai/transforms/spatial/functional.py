@@ -132,10 +132,10 @@ def spatial_resample(
         with affine_xform.trace_transform(False):
             img = affine_xform(img, mode=mode, padding_mode=padding_mode)
     else:
-        affine_xform = AffineTransform(
+        affine_xform = AffineTransform(  # type: ignore
             normalized=False, mode=mode, padding_mode=padding_mode, align_corners=align_corners, reverse_indexing=True
         )
-        img = affine_xform(img.unsqueeze(0), theta=xform, spatial_size=spatial_size).squeeze(0)
+        img = affine_xform(img.unsqueeze(0), theta=xform, spatial_size=spatial_size).squeeze(0)  # type: ignore
     if additional_dims:
         full_shape = (chns, *spatial_size, *additional_dims)
         img = img.reshape(full_shape)
