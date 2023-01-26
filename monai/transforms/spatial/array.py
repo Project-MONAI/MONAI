@@ -189,13 +189,9 @@ class SpatialResample(InvertibleTransform):
     def update_meta(self, img, dst_affine):
         img.affine = dst_affine
 
-    @deprecated_arg(
-        name="src_affine", since="0.9", msg_suffix="img should be `MetaTensor`, so affine can be extracted directly."
-    )
     def __call__(
         self,
         img: torch.Tensor,
-        src_affine: NdarrayOrTensor | None = None,
         dst_affine: torch.Tensor | None = None,
         spatial_size: Sequence[int] | torch.Tensor | int | None = None,
         mode: str | int | None = None,
@@ -354,18 +350,10 @@ class ResampleToMatch(SpatialResample):
             img.meta = deepcopy(img_dst.meta)
             img.meta[Key.FILENAME_OR_OBJ] = original_fname  # keep the original name, the others are overwritten
 
-    @deprecated_arg(
-        name="src_meta", since="0.9", msg_suffix="img should be `MetaTensor`, so affine can be extracted directly."
-    )
-    @deprecated_arg(
-        name="dst_meta", since="0.9", msg_suffix="img_dst should be `MetaTensor`, so affine can be extracted directly."
-    )
-    def __call__(
+    def __call__(  # type: ignore
         self,
         img: torch.Tensor,
         img_dst: torch.Tensor,
-        src_meta: dict | None = None,
-        dst_meta: dict | None = None,
         mode: str | int | None = None,
         padding_mode: str | None = None,
         align_corners: bool | None = None,
@@ -373,16 +361,8 @@ class ResampleToMatch(SpatialResample):
     ) -> torch.Tensor:
         """
         Args:
-            img: input image to be resampled to match ``dst_meta``. It currently supports channel-first arrays with
+            img: input image to be resampled to match ``img_dst``. It currently supports channel-first arrays with
                 at most three spatial dimensions.
-            src_meta: Dictionary containing the source affine matrix in the form ``{'affine':src_affine}``.
-                If ``affine`` is not specified, an identity matrix is assumed.  Defaults to ``None``.
-                See also:  https://docs.monai.io/en/stable/transforms.html#spatialresample
-            dst_meta: Dictionary containing the target affine matrix and target spatial shape in the form
-                ``{'affine':src_affine, 'spatial_shape':spatial_size}``. If ``affine`` is  not
-                specified, ``src_affine`` is assumed. If ``spatial_shape`` is not specified, spatial size is
-                automatically computed, containing the previous field of view.  Defaults to ``None``.
-                See also: https://docs.monai.io/en/stable/transforms.html#spatialresample
             mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
@@ -402,8 +382,6 @@ class ResampleToMatch(SpatialResample):
                 ``np.float64`` (for best precision). If ``None``, use the data type of input data.
                 To be compatible with other modules, the output data type is always `float32`.
         Raises:
-            RuntimeError: When ``src_meta`` is missing.
-            RuntimeError: When ``dst_meta`` is missing.
             ValueError: When the affine matrix of the source image is not invertible.
         Returns:
             Resampled input tensor or MetaTensor.
@@ -608,7 +586,7 @@ class Spacing(InvertibleTransform):
         data_array = self.sp_resample(
             data_array,
             dst_affine=torch.as_tensor(new_affine),
-            spatial_size=actual_shape,
+            spatial_size=actual_shape,  # type: ignore
             mode=mode,
             padding_mode=padding_mode,
             align_corners=align_corners,
