@@ -294,7 +294,7 @@ def deprecated_arg_default(
         if is_replaced:
             msg_infix = f"was changed in version {replaced} from `{name}={old_default}` to `{name}={new_default}`."
         elif is_deprecated:
-            msg_infix = f"has been deprecated since {since}."
+            msg_infix = f"has been deprecated since version {since}."
             if replaced is not None:
                 msg_infix += f" It will be changed to `{name}={new_default}` in version {replaced}."
         else:
