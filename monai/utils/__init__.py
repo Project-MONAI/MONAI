@@ -35,7 +35,6 @@ from .enums import (
     HoVerNetBranch,
     HoVerNetMode,
     InterpolateMode,
-    InverseKeys,
     JITMetadataKeys,
     LazyAttr,
     LossReduction,
