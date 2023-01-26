@@ -333,8 +333,9 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, transf
         _pad_crop = ResizeWithPadOrCrop(spatial_size=img_t.shape[1:], mode=padding_mode)
         out = _pad_crop(out)
     if get_track_meta() and do_pad_crop:
-        extra_info["do_padcrop"] = True
-        extra_info["padcrop"] = out.applied_operations.pop()  # TODO: using applied_operations?
+        padcrop_xform = out.applied_operations.pop()
+        out.applied_operations[-1]['extra_info']["do_padcrop"] = True
+        out.applied_operations[-1]['extra_info']["padcrop"] = padcrop_xform
     return out
 
 
