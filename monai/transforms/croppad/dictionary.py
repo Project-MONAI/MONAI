@@ -50,7 +50,6 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable
 from monai.transforms.utils import is_positive
 from monai.utils import MAX_SEED, Method, PytorchPadMode, ensure_tuple_rep
-from monai.utils.deprecate_utils import deprecated_arg
 
 __all__ = [
     "Padd",
@@ -565,8 +564,6 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
 
     backend = RandSpatialCropSamples.backend
 
-    @deprecated_arg(name="meta_keys", since="0.9")
-    @deprecated_arg(name="meta_key_postfix", since="0.9")
     def __init__(
         self,
         keys: KeysCollection,
@@ -575,8 +572,6 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
         max_roi_size: Sequence[int] | int | None = None,
         random_center: bool = True,
         random_size: bool = True,
-        meta_keys: KeysCollection | None = None,
-        meta_key_postfix: str = "meta_dict",
         allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -704,18 +699,12 @@ class RandWeightedCropd(Randomizable, MapTransform):
 
     backend = SpatialCrop.backend
 
-    @deprecated_arg(name="meta_keys", since="0.9")
-    @deprecated_arg(name="meta_key_postfix", since="0.9")
-    @deprecated_arg(name="center_coord_key", since="0.9", msg_suffix="coords stored in img.meta['crop_center']")
     def __init__(
         self,
         keys: KeysCollection,
         w_key: str,
         spatial_size: Sequence[int] | int,
         num_samples: int = 1,
-        center_coord_key: str | None = None,
-        meta_keys: KeysCollection | None = None,
-        meta_key_postfix: str = "meta_dict",
         allow_missing_keys: bool = False,
     ):
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -801,8 +790,6 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
 
     backend = RandCropByPosNegLabel.backend
 
-    @deprecated_arg(name="meta_keys", since="0.9")
-    @deprecated_arg(name="meta_key_postfix", since="0.9")
     def __init__(
         self,
         keys: KeysCollection,
@@ -815,8 +802,6 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         image_threshold: float = 0.0,
         fg_indices_key: str | None = None,
         bg_indices_key: str | None = None,
-        meta_keys: KeysCollection | None = None,
-        meta_key_postfix: str = "meta_dict",
         allow_smaller: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -946,8 +931,6 @@ class RandCropByLabelClassesd(Randomizable, MapTransform):
 
     backend = RandCropByLabelClasses.backend
 
-    @deprecated_arg(name="meta_keys", since="0.9")
-    @deprecated_arg(name="meta_key_postfix", since="0.9")
     def __init__(
         self,
         keys: KeysCollection,
@@ -959,8 +942,6 @@ class RandCropByLabelClassesd(Randomizable, MapTransform):
         image_key: str | None = None,
         image_threshold: float = 0.0,
         indices_key: str | None = None,
-        meta_keys: KeysCollection | None = None,
-        meta_key_postfix: str = "meta_dict",
         allow_smaller: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
