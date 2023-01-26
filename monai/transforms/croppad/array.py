@@ -800,9 +800,9 @@ class CropForeground(Crop):
         self.padder = Pad(mode=mode, **pad_kwargs)
 
     @Crop.lazy_evaluation.setter  # type: ignore
-    def lazy_evaluation(self, val: bool):
-        self.lazy_evaluation = val
-        self.padder.lazy_evaluation = val
+    def lazy_evaluation(self, _val: bool):
+        self._lazy_evaluation = False  # foreground can't be computed lazily
+        self.padder.lazy_evaluation = False
 
     def compute_bounding_box(self, img: torch.Tensor):
         """
@@ -839,10 +839,8 @@ class CropForeground(Crop):
         ret = self.padder.__call__(img=cropped, to_pad=pad_width, mode=mode, **pad_kwargs)
         # combine the traced cropping and padding into one transformation
         # by taking the padded info and placing it in a key inside the crop info.
-        if get_track_meta():
-            ret_: MetaTensor = ret  # type: ignore
-            app_op = ret_.applied_operations.pop(-1)
-            ret_.applied_operations[-1][TraceKeys.EXTRA_INFO]["pad_info"] = app_op
+        if get_track_meta() and isinstance(ret, MetaTensor):
+            ret.applied_operations[-1][TraceKeys.EXTRA_INFO]["pad_info"] = ret.applied_operations.pop()
         return ret
 
     def __call__(self, img: torch.Tensor, mode: str | None = None, **pad_kwargs):  # type: ignore

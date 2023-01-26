@@ -49,7 +49,7 @@ def eval_lazy_stack(
     if not lazy_evaluation:
         return data  # eager evaluation
     if isinstance(data, monai.data.MetaTensor):
-        if not isinstance(upcoming, LazyTransform):
+        if not (isinstance(upcoming, LazyTransform) and upcoming.lazy_evaluation):
             data, _ = mt.apply_transforms(data, mode=mode, padding_mode=padding_mode)
         return data
     if isinstance(data, Mapping):

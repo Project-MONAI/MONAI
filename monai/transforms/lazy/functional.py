@@ -70,5 +70,7 @@ def apply_transforms(
     data = resample(data, cumulative_xform, sp_size, cur_kwargs)
     if isinstance(data, MetaTensor):
         for p in pending:
+            for attr in LazyAttr:
+                p.pop(attr, None)
             data.push_applied_operation(p)
     return data, pending

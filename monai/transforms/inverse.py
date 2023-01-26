@@ -163,11 +163,11 @@ class TraceableTransform(Transform):
             orig_affine = convert_to_dst_type(orig_affine, affine)[0]
             affine = orig_affine @ to_affine_nd(len(orig_affine) - 1, affine, dtype=affine.dtype)
             out_obj.meta[MetaKeys.AFFINE] = convert_to_tensor(affine, device=torch.device("cpu"))
-        if (
-            not isinstance(data_t, MetaTensor)
-            or not get_track_meta()
-            or not transform_info
-            or not transform_info.get(TraceKeys.TRACING)
+        if not (
+            isinstance(data_t, MetaTensor)
+            and get_track_meta()
+            and transform_info
+            and transform_info.get(TraceKeys.TRACING)
         ):
             if key is not None:
                 data[key] = data_t.copy_meta_from(out_obj) if isinstance(data_t, MetaTensor) else data_t
