@@ -40,7 +40,11 @@ __all__ = ["Compose", "OneOf", "RandomOrder"]
 
 
 def eval_lazy_stack(
-    data, upcoming, lazy_evaluation: bool = False, mode=GridSampleMode.BILINEAR, padding_mode=GridSamplePadMode.BORDER
+    data,
+    upcoming,
+    lazy_evaluation: bool | None = False,
+    mode=GridSampleMode.BILINEAR,
+    padding_mode=GridSamplePadMode.BORDER,
 ):
     """
     Given the upcoming transform ``upcoming``, if lazy_resample is True, go through the MetaTensors and
@@ -150,7 +154,7 @@ class Compose(Randomizable, InvertibleTransform):
         map_items: bool = True,
         unpack_items: bool = False,
         log_stats: bool = False,
-        lazy_evaluation: bool = False,
+        lazy_evaluation: bool | None = None,
         mode=GridSampleMode.BILINEAR,
         padding_mode=GridSamplePadMode.BORDER,
     ) -> None:
@@ -165,10 +169,10 @@ class Compose(Randomizable, InvertibleTransform):
         self.lazy_evaluation = lazy_evaluation
         self.mode = mode
         self.padding_mode = padding_mode
-        if self.lazy_evaluation:
+        if self.lazy_evaluation is not None:
             for t in self.flatten().transforms:  # TODO: test Compose of Compose/OneOf
                 if isinstance(t, LazyTransform):
-                    t.lazy_evaluation = True
+                    t.lazy_evaluation = self.lazy_evaluation
 
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> Compose:
         super().set_random_state(seed=seed, state=state)

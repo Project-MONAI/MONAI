@@ -132,8 +132,10 @@ class MetaObj:
         keys = first_meta.keys() if keys is None else keys
         if not copy_attr:
             self.__dict__ = {a: first_meta[a] for a in keys if a in first_meta}  # shallow copy for performance
-        else:
+        elif copy_attr != "deep":
             self.__dict__.update({a: MetaObj.copy_items(first_meta[a]) for a in keys if a in first_meta})
+        else:
+            self.__dict__ = deepcopy({a: first_meta[a] for a in keys if a in first_meta})
         return self
 
     @staticmethod
@@ -221,7 +223,7 @@ class MetaObj:
             # received no operations when decollating a batch
             self._pending_operations = MetaObj.get_default_applied_operations()
             return
-        self._pending_operations = t
+        self._pending_operations = t.copy()
 
     def push_pending_operation(self, t: Any) -> None:
         self._pending_operations.append(t)

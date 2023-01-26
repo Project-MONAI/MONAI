@@ -155,7 +155,7 @@ class TraceableTransform(Transform):
         data_t = data[key] if key is not None else data  # compatible with the dict data representation
         out_obj = MetaObj()
         data_t = convert_to_tensor(data=data_t, track_meta=get_track_meta())
-        out_obj.copy_meta_from(data_t, keys=out_obj.__dict__.keys())
+        out_obj.copy_meta_from(data_t, keys=out_obj.__dict__.keys(), copy_attr="deep")
 
         # not lazy evaluation, directly update the affine but don't push the stacks
         if not lazy_evaluation and affine is not None and isinstance(data_t, MetaTensor):
