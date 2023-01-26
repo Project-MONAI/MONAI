@@ -184,28 +184,6 @@ PILWriter
 .. autoclass:: PILWriter
   :members:
 
-Nifti format handling
----------------------
-
-Writing Nifti
-~~~~~~~~~~~~~
-.. autoclass:: monai.data.NiftiSaver
-  :members:
-
-.. autofunction:: monai.data.write_nifti
-
-
-PNG format handling
--------------------
-
-Writing PNG
-~~~~~~~~~~~
-.. autoclass:: monai.data.PNGSaver
-  :members:
-
-.. autofunction:: monai.data.write_png
-
-
 Synthetic
 ---------
 .. automodule:: monai.data.synthetic
