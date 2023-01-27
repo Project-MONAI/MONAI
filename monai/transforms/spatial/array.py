@@ -299,7 +299,7 @@ class SpatialResample(InvertibleTransform):
                 dst_xform_1 = norm.to(xform.dtype) @ dst_xform_1  # type: ignore  # scaling (num_step - 1) / num_step
             dst_xform_d = normalize_transform(spatial_size, xform.device, xform.dtype, align_corners, False)[0]
             xform = xform @ torch.inverse(dst_xform_d) @ dst_xform_1
-            affine_xform = Affine(  # type: ignore
+            affine_xform = Affine(
                 affine=xform, spatial_size=spatial_size, normalized=True, image_only=True, dtype=_dtype  # type: ignore
             )
             with affine_xform.trace_transform(False):
