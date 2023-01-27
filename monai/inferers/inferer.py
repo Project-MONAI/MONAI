@@ -24,7 +24,7 @@ from torch.utils.data import Sampler, BatchSampler
 from monai.inferers.merger import Merger, AvgMerger
 from monai.inferers.splitter import Splitter
 from monai.inferers.utils import compute_importance_map, sliding_window_inference
-from monai.utils import BlendMode, PytorchPadMode, ensure_tuple
+from monai.utils import BlendMode, PytorchPadMode, ensure_tuple, PatchKeys
 from monai.visualize import CAM, GradCAM, GradCAMpp
 
 __all__ = ["Inferer", "SimpleInferer", "SlidingWindowInferer", "SaliencyInferer", "SliceInferer"]
@@ -107,7 +107,7 @@ class PatchInferer(Inferer):
         self,
         splitter: Splitter,
         merger: Merger | Sequence[Merger] = AvgMerger,
-        batch_size: int | None = None,
+        batch_size: int = 1,
         pre_processor: Callable | None = None,
         post_processor: Callable | None = None,
         patch_filter_fn: Callable | None = None,
@@ -115,9 +115,9 @@ class PatchInferer(Inferer):
         Inferer.__init__(self)
 
         # splitter
+        if not isinstance(splitter, Splitter):
+            raise TypeError(f"'splitter' should be a callable object, {type(splitter)} is given.")
         self.splitter = splitter
-        if not isinstance(self.splitter, Splitter):
-            raise TypeError(f"'splitter' should be a callable object, {type(self.splitter)} is given.")
 
         # mergers
         self.mergers = ensure_tuple(merger)
@@ -126,19 +126,21 @@ class PatchInferer(Inferer):
                 raise TypeError(f"'merger' should be a `Merger` object, {type(m)} is given.")
 
         # pre-processor (process patch before the network)
+        if pre_processor is not None and not callable(pre_processor):
+            raise TypeError(
+                f"'pre_processor' should be a callable object, not None and {type(pre_processor)} is given."
+            )
         self.pre_processor = pre_processor
-        if not callable(self.pre_processor):
-            raise TypeError(f"'pre_processor' should be a callable object, {type(self.pre_processor)} is given.")
 
         # post-processor (process the output of the network)
+        if post_processor is not None and not callable(post_processor):
+            raise TypeError(f"'post_processor' should be a callable object, {type(post_processor)} is given.")
         self.post_processor = post_processor
-        if not callable(self.post_processor):
-            raise TypeError(f"'post_processor' should be a callable object, {type(self.post_processor)} is given.")
 
         # function to filter patches for inference
+        if patch_filter_fn is not None and not callable(patch_filter_fn):
+            raise TypeError(f"'patch_filter_fn' should be a callable object, {type(patch_filter_fn)} is given.")
         self.patch_filter_fn = patch_filter_fn
-        if not callable(self.patch_filter_fn):
-            raise TypeError(f"'patch_filter_fn' should be a callable object, {type(self.patch_filter_fn)} is given.")
 
         # batch size for patches
         self.batch_size = batch_size
@@ -155,38 +157,42 @@ class PatchInferer(Inferer):
         """
         patches = self.splitter(inputs)
         output_keys = None
-        for i, batch_of_patch in BatchSampler(patches, batch_size=self.batch_size, drop_last=False):
+        is_first = True
+        for batch_of_patches in BatchSampler(patches, batch_size=self.batch_size, drop_last=False):
             # __________________________________________________________________
-            # concatenate each batch of patches [PBxBxCxHxW] = [PB*BxCxHxW]
-            patch = torch.cat(batch_of_patch)
+            # concatenate each batch of patches [PBxBxCxHxWxD] -> [PB*BxCxHxWxD]
+            patch_cat = torch.cat(batch_of_patches)
             # __________________________________________________________________
             # pre-process
             if self.pre_processor:
-                patch = self.pre_processor(patch)
+                patch_cat = self.pre_processor(patch_cat)
             # inference
-            out = network(patch, *args, **kwargs)
+            model_output = network(patch_cat, *args, **kwargs)
             # post-process
             if self.post_processor:
-                out = self.post_processor(out)
+                model_output = self.post_processor(model_output)
             # __________________________________________________________________
-            # ensure we have a tuple of prob maps
-            if isinstance(out, dict):
+            # ensure we have a tuple of prob maps to support multiple outputs
+            if isinstance(model_output, dict):
                 if output_keys is None:
-                    output_keys = out.keys()  # predictor's output keys
-                pred_tuple = tuple(out[k] for k in output_keys)
+                    output_keys = model_output.keys()  # predictor's output keys
+                output_tuple = tuple(model_output[k] for k in output_keys)
             else:
-                pred_tuple = ensure_tuple(out)
+                output_tuple = ensure_tuple(model_output, wrap_array=True)
             # __________________________________________________________________
-            # initialize mergers
-            if i == 0:
-                for merger in self.mergers:
-                    merger.initialize(inputs, patch, pred)
+            # initialize mergers and aggregate
+            if is_first:
+                for merger, out_cat in zip(self.mergers, output_tuple):
+                    for pred in torch.chunk(out_cat, self.batch_size):
+                        merger.initialize(inputs, batch_of_patches[0], pred)
+                        break
+                is_first = False
             # __________________________________________________________________
             # aggregate outputs
-            for merger, pred in zip(self.mergers, pred_tuple):
+            for merger, out_cat in zip(self.mergers, output_tuple):
                 # split output into individual patches and then aggregate
-                for single_pred in torch.chunk(pred, self.batch_size):
-                    merger.aggregate(single_pred)
+                for pred, patch in zip(torch.chunk(out_cat, self.batch_size), batch_of_patches):
+                    merger.aggregate(pred, patch.meta[PatchKeys.LOCATION])
         # finalize the mergers
         merged_maps = tuple(merger.finalize() for merger in self.mergers)
 

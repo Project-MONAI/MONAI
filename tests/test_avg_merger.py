@@ -14,7 +14,6 @@ from __future__ import annotations
 import unittest
 
 import torch
-from torch.nn.functional import pad
 from torch.testing import assert_close
 from parameterized import parameterized
 
@@ -26,64 +25,56 @@ from monai.utils import PatchKeys
 TENSOR_4x4 = torch.randint(low=0, high=255, size=(2, 3, 4, 4), dtype=torch.float32)
 
 # no-overlapping 2x2
-TEST_CASE_1 = [
+TEST_CASE_0 = [
     TENSOR_4x4,
     [
-        TENSOR_4x4[..., :2, :2],
-        TENSOR_4x4[..., :2, 2:],
-        TENSOR_4x4[..., 2:, :2],
-        TENSOR_4x4[..., 2:, 2:],
+        (TENSOR_4x4[..., :2, :2], (0, 0)),
+        (TENSOR_4x4[..., :2, 2:], (0, 2)),
+        (TENSOR_4x4[..., 2:, :2], (2, 0)),
+        (TENSOR_4x4[..., 2:, 2:], (2, 2)),
     ],
-    [(0, 0), (0, 2), (2, 0), (2, 2)],
-    (2, 2),
     TENSOR_4x4,
 ]
 
 # overlapping 2x2
-TEST_CASE_2 = [
+TEST_CASE_1 = [
     TENSOR_4x4,
     [
-        TENSOR_4x4[..., 0:2, 0:2],
-        TENSOR_4x4[..., 0:2, 1:3],
-        TENSOR_4x4[..., 0:2, 2:4],
-        TENSOR_4x4[..., 1:3, 0:2],
-        TENSOR_4x4[..., 1:3, 1:3],
-        TENSOR_4x4[..., 1:3, 2:4],
-        TENSOR_4x4[..., 2:4, 0:2],
-        TENSOR_4x4[..., 2:4, 1:3],
-        TENSOR_4x4[..., 2:4, 2:4],
+        (TENSOR_4x4[..., 0:2, 0:2], (0, 0)),
+        (TENSOR_4x4[..., 0:2, 1:3], (0, 1)),
+        (TENSOR_4x4[..., 0:2, 2:4], (0, 2)),
+        (TENSOR_4x4[..., 1:3, 0:2], (1, 0)),
+        (TENSOR_4x4[..., 1:3, 1:3], (1, 1)),
+        (TENSOR_4x4[..., 1:3, 2:4], (1, 2)),
+        (TENSOR_4x4[..., 2:4, 0:2], (2, 0)),
+        (TENSOR_4x4[..., 2:4, 1:3], (2, 1)),
+        (TENSOR_4x4[..., 2:4, 2:4], (2, 2)),
     ],
-    [(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2), (2, 0), (2, 1), (2, 2)],
-    (2, 2),
     TENSOR_4x4,
 ]
 
 # overlapping 3x3 (non-divisible)
-TEST_CASE_3 = [
+TEST_CASE_2 = [
     TENSOR_4x4,
     [
-        TENSOR_4x4[..., :3, :3],
-        TENSOR_4x4[..., :3, 1:],
-        TENSOR_4x4[..., 1:, :3],
-        TENSOR_4x4[..., 1:, 1:],
+        (TENSOR_4x4[..., :3, :3], (0, 0)),
+        (TENSOR_4x4[..., :3, 1:], (0, 1)),
+        (TENSOR_4x4[..., 1:, :3], (1, 0)),
+        (TENSOR_4x4[..., 1:, 1:], (1, 1)),
     ],
-    [(0, 0), (0, 1), (1, 0), (1, 1)],
-    (3, 3),
     TENSOR_4x4,
 ]
 
 # non-overlapping 2x2 with missing patch
 WITH_NAN = TENSOR_4x4.clone()
 WITH_NAN[..., 2:, 2:] = torch.nan
-TEST_CASE_4 = [
+TEST_CASE_3 = [
     TENSOR_4x4,
     [
-        TENSOR_4x4[..., :2, :2],
-        TENSOR_4x4[..., :2, 2:],
-        TENSOR_4x4[..., 2:, :2],
+        (TENSOR_4x4[..., :2, :2], (0, 0)),
+        (TENSOR_4x4[..., :2, 2:], (0, 2)),
+        (TENSOR_4x4[..., 2:, :2], (2, 0)),
     ],
-    [(0, 0), (0, 2), (2, 0)],
-    (2, 2),
     WITH_NAN,
 ]
 
@@ -91,22 +82,17 @@ TEST_CASE_4 = [
 class AvgMergerTests(unittest.TestCase):
     @parameterized.expand(
         [
+            TEST_CASE_0,
             TEST_CASE_1,
             TEST_CASE_2,
             TEST_CASE_3,
-            TEST_CASE_4,
         ]
     )
-    def test_split_patches(self, image, patches, locations, patch_size, expected):
-        # add metadata to patches
-        meta_patches = [
-            MetaTensor(x=p, meta={PatchKeys.LOCATION.value: l, PatchKeys.SIZE.value: patch_size})
-            for p, l in zip(patches, locations)
-        ]
+    def test_merge_patches(self, image, patch_locations, expected):
         merger = AvgMerger()
-        merger.initialize(inputs=image, in_patch=meta_patches[0], out_patch=meta_patches[0])
-        for p in meta_patches:
-            merger.aggregate(p)
+        merger.initialize(inputs=image, in_patch=patch_locations[0][0], out_patch=patch_locations[0][0])
+        for pl in patch_locations:
+            merger.aggregate(pl[0], pl[1])
         output = merger.finalize()
         assert_close(output, expected, equal_nan=True)
 

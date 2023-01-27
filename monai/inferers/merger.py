@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import Sequence, Any
 
 import torch
 from monai.utils.enums import PatchKeys
@@ -49,12 +50,13 @@ class Merger(ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def aggregate(self, values: torch.Tensor):
+    def aggregate(self, values: torch.Tensor, location: Sequence[int]):
         """
         Aggregate values for merging.
 
         Args:
             values: a tensor of shape BCHW[D], representing the values of inference output
+            location: a tuple/list giving the top left location of the patch in the original image.
 
         Raises:
             NotImplementedError: When the subclass does not override this method.
@@ -63,7 +65,7 @@ class Merger(ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def finalize(self):
+    def finalize(self) -> Any:
         """
         Perform final operations for merging patches.
 
@@ -100,9 +102,10 @@ class AvgMerger(Merger):
         in_patch_shape = torch.tensor(in_patch.shape[2:])
         out_patch_shape = torch.tensor(out_patch.shape[2:])
         batch_channel_shape = out_patch.shape[:2]
-        spatial_shape = torch.round(in_spatial_shape * out_patch_shape / in_patch_shape).to(int).tolist()
+        spatial_shape = torch.round(in_spatial_shape * out_patch_shape / in_patch_shape).to(torch.int).tolist()
         output_shape = batch_channel_shape + tuple(spatial_shape)
         # decide on the device for aggregators
+        device: torch.device | str
         if self.device is None:
             device = inputs.device
         elif isinstance(self.device, str):
@@ -118,25 +121,25 @@ class AvgMerger(Merger):
         self.values = torch.zeros(output_shape, dtype=self.dtype, device=device)
         self.counts = torch.zeros(output_shape, dtype=torch.uint8, device=device)
 
-    def aggregate(self, values: torch.Tensor):
+    def aggregate(self, values: torch.Tensor, location: Sequence[int]):
         """
         Aggregate values for merging.
 
         Args:
             values: a tensor of shape BCHW[D], representing the values of inference output.
+            location: a tuple/list giving the top left location of the patch in the original image.
 
         Raises:
             NotImplementedError: When the subclass does not override this method.
 
         """
-        map_slice = tuple(
-            slice(loc, loc + size) for loc, size in zip(values.meta[PatchKeys.LOCATION], values.meta[PatchKeys.SIZE])
-        )
+        patch_size = values.shape[2:]
+        map_slice = tuple(slice(loc, loc + size) for loc, size in zip(location.tolist(), patch_size))
         map_slice = ensure_tuple_size(map_slice, values.ndim, pad_val=slice(None), pad_from_start=True)
         self.values[map_slice] += values
         self.counts[map_slice] += 1
 
-    def finalize(self):
+    def finalize(self) -> torch.Tensor:
         """
         Finalize the merging by dividing values by counts.
         Note that after finalize, `values` tensor represents the average and not the aggregated values.

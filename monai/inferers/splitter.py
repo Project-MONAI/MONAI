@@ -13,12 +13,13 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
-from typing import Sequence
+from typing import Sequence, Any
 
 import torch
 
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import iter_patch_position
+from monai.transforms import LoadImage, EnsureChannelFirst
 from monai.utils.enums import PatchKeys, PytorchPadMode
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep
 from monai.utils.module import look_up_option
@@ -42,7 +43,7 @@ class Splitter(ABC):
         self.device = device
 
     @abstractmethod
-    def get_patches_tensor(self, inputs: torch.Tensor) -> Iterable[MetaTensor]:
+    def __call__(self, inputs: Any) -> Iterable[MetaTensor]:
         """
         Split the image, represented by an input tensor or a filename, into patches.
 
@@ -55,39 +56,6 @@ class Splitter(ABC):
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
-
-    @abstractmethod
-    def get_patches_str(self, inputs: str) -> Iterable[MetaTensor]:
-        """
-        Split the image, represented by a filename.
-
-        Args:
-            inputs: a string representing file path to the image
-
-        Raises:
-            NotImplementedError: When the subclass does not override this method.
-
-        """
-        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
-
-    def __call__(self, inputs: torch.Tensor | str) -> Iterable[MetaTensor]:
-        """
-        Split the batched input tensor into patches using sliding window strategy.
-
-        Args:
-            inputs: a tensor of shape BxCxHxW[xD], representing a batch of images
-
-        """
-        if isinstance(inputs, torch.Tensor):
-            return self.get_patches_tensor(inputs)
-        elif isinstance(inputs, str):
-            return self.get_patches_str(inputs)
-        elif isinstance(inputs, Iterable):
-            for item in inputs:
-                if not isinstance(item, str):
-                    raise TypeError(f"`inputs should be list of str, list of {type(item)} is given.")
-        else:
-            raise TypeError(f"`inputs should be Tensor, str or list of str, {type(input)} is given.")
 
 
 class SlidingWindowSplitter(Splitter):
@@ -108,7 +76,7 @@ class SlidingWindowSplitter(Splitter):
             raise ValueError("Overlap must be between 0 and 1.")
         self.overlap = overlap
 
-    def get_patches_tensor(self, inputs: torch.Tensor) -> Iterable[MetaTensor]:
+    def __call__(self, inputs: torch.Tensor) -> Iterable[MetaTensor]:
         if self.device:
             inputs.to(self.device)
         spatial_ndim = inputs.ndim - 2

@@ -11,83 +11,81 @@
 
 from __future__ import annotations
 
-import unittest
 
+import unittest
 import torch
 from torch.nn.functional import pad
 from torch.testing import assert_close
 from parameterized import parameterized
 
 from monai.inferers import SlidingWindowSplitter
-from monai.utils import PatchKeys
+from monai.utils.enums import PatchKeys
 
 TENSOR_4x4 = torch.randint(low=0, high=255, size=(2, 3, 4, 4), dtype=torch.float32)
 
+# no-overlapping 2x2
 TEST_CASE_0 = [
     TENSOR_4x4,
-    {"patch_size": (2, 2), "batch_size": 1, "overlap": 0.0},
+    {"patch_size": (2, 2), "overlap": 0.0},
     [
-        TENSOR_4x4[..., :2, :2],
-        TENSOR_4x4[..., :2, 2:],
-        TENSOR_4x4[..., 2:, :2],
-        TENSOR_4x4[..., 2:, 2:],
+        (TENSOR_4x4[..., :2, :2], (0, 0)),
+        (TENSOR_4x4[..., :2, 2:], (0, 2)),
+        (TENSOR_4x4[..., 2:, :2], (2, 0)),
+        (TENSOR_4x4[..., 2:, 2:], (2, 2)),
     ],
 ]
 
+# no-overlapping 3x3 with pad
 TEST_CASE_1 = [
     TENSOR_4x4,
-    {"patch_size": (3, 3), "batch_size": 1, "overlap": 0.0},
+    {"patch_size": (3, 3), "overlap": 0.0},
     [
-        TENSOR_4x4[..., :3, :3],
-        pad(TENSOR_4x4[..., :3, 3:], (0, 2)),
-        pad(TENSOR_4x4[..., 3:, :3], (0, 0, 0, 2)),
-        pad(TENSOR_4x4[..., 3:, 3:], (0, 2, 0, 2)),
+        (TENSOR_4x4[..., :3, :3], (0, 0)),
+        (pad(TENSOR_4x4[..., :3, 3:], (0, 2)), (0, 3)),
+        (pad(TENSOR_4x4[..., 3:, :3], (0, 0, 0, 2)), (3, 0)),
+        (pad(TENSOR_4x4[..., 3:, 3:], (0, 2, 0, 2)), (3, 3)),
     ],
 ]
 
+# overlapping 2x2
 TEST_CASE_2 = [
     TENSOR_4x4,
-    {"patch_size": (2, 2), "batch_size": 1, "overlap": (0.5, 0.5)},
+    {"patch_size": (2, 2), "overlap": (0.5, 0.5)},
     [
-        TENSOR_4x4[..., 0:2, 0:2],
-        TENSOR_4x4[..., 0:2, 1:3],
-        TENSOR_4x4[..., 0:2, 2:4],
-        TENSOR_4x4[..., 1:3, 0:2],
-        TENSOR_4x4[..., 1:3, 1:3],
-        TENSOR_4x4[..., 1:3, 2:4],
-        TENSOR_4x4[..., 2:4, 0:2],
-        TENSOR_4x4[..., 2:4, 1:3],
-        TENSOR_4x4[..., 2:4, 2:4],
+        (TENSOR_4x4[..., 0:2, 0:2], (0, 0)),
+        (TENSOR_4x4[..., 0:2, 1:3], (0, 1)),
+        (TENSOR_4x4[..., 0:2, 2:4], (0, 2)),
+        (TENSOR_4x4[..., 1:3, 0:2], (1, 0)),
+        (TENSOR_4x4[..., 1:3, 1:3], (1, 1)),
+        (TENSOR_4x4[..., 1:3, 2:4], (1, 2)),
+        (TENSOR_4x4[..., 2:4, 0:2], (2, 0)),
+        (TENSOR_4x4[..., 2:4, 1:3], (2, 1)),
+        (TENSOR_4x4[..., 2:4, 2:4], (2, 2)),
     ],
 ]
 
+# overlapping 3x3 (non-divisible)
 TEST_CASE_3 = [
     TENSOR_4x4,
-    {"patch_size": (3, 3), "batch_size": 1, "overlap": 2.0 / 3.0},
+    {"patch_size": (3, 3), "overlap": 2.0 / 3.0},
     [
-        TENSOR_4x4[..., :3, :3],
-        TENSOR_4x4[..., :3, 1:],
-        TENSOR_4x4[..., 1:, :3],
-        TENSOR_4x4[..., 1:, 1:],
+        (TENSOR_4x4[..., :3, :3], (0, 0)),
+        (TENSOR_4x4[..., :3, 1:], (0, 1)),
+        (TENSOR_4x4[..., 1:, :3], (1, 0)),
+        (TENSOR_4x4[..., 1:, 1:], (1, 1)),
     ],
 ]
 
 
 class SlidingWindowSplitterTests(unittest.TestCase):
-    @parameterized.expand(
-        [
-            TEST_CASE_0,
-            TEST_CASE_1,
-            TEST_CASE_2,
-            TEST_CASE_3,
-        ]
-    )
-    def test_split_patches(self, image, arguments, expected):
+    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+    def test_split_patches_tensor(self, image, arguments, expected):
         patches = SlidingWindowSplitter(**arguments)(image)
         patches = list(patches)
         self.assertEqual(len(patches), len(expected))
         for p, e in zip(patches, expected):
-            assert_close(p, e)
+            assert_close(p, e[0])
+            assert_close(p.meta[PatchKeys.LOCATION], torch.tensor(e[1]))
 
 
 if __name__ == "__main__":
