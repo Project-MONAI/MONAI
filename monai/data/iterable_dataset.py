@@ -20,7 +20,7 @@ from torch.utils.data import get_worker_info
 from monai.data.utils import convert_tables_to_dicts
 from monai.transforms import apply_transform
 from monai.transforms.transform import Randomizable
-from monai.utils import deprecated_arg, optional_import
+from monai.utils import optional_import
 
 pd, _ = optional_import("pandas")
 
@@ -200,7 +200,6 @@ class CSVIterableDataset(IterableDataset):
 
     """
 
-    @deprecated_arg(name="filename", new_name="src", since="0.8", msg_suffix="please use `src` instead.")
     def __init__(
         self,
         src: str | Sequence[str] | Iterable | Sequence[Iterable],
@@ -231,7 +230,6 @@ class CSVIterableDataset(IterableDataset):
         self.iters: list[Iterable] = self.reset()
         super().__init__(data=None, transform=transform)  # type: ignore
 
-    @deprecated_arg(name="filename", new_name="src", since="0.8", msg_suffix="please use `src` instead.")
     def reset(self, src: str | Sequence[str] | Iterable | Sequence[Iterable] | None = None):
         """
         Reset the pandas `TextFileReader` iterable object to read data. For more details, please check:
