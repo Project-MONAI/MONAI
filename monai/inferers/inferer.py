@@ -14,8 +14,7 @@ from __future__ import annotations
 import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping, Sequence
-from inspect import isclass
-from typing import Any
+from typing import Any, Iterator
 
 import torch
 import torch.nn as nn
@@ -105,12 +104,13 @@ class PatchInferer(Inferer):
 
     def __init__(
         self,
-        splitter: Splitter,
+        splitter: Splitter | None = None,
         merger: Merger | Sequence[Merger] = AvgMerger,
         batch_size: int = 1,
         pre_processor: Callable | None = None,
         post_processor: Callable | None = None,
         patch_filter_fn: Callable | None = None,
+        output_keys: Sequence | None = None,
     ) -> None:
         Inferer.__init__(self)
 
@@ -145,6 +145,76 @@ class PatchInferer(Inferer):
         # batch size for patches
         self.batch_size = batch_size
 
+        # model output keys
+        self.output_keys = output_keys
+
+        # check if merger is initialized
+        self.is_merger_initialized = False
+
+    def _batch_sampler(self, patches) -> Iterator[tuple[torch.Tensor, int]]:
+        """Yield a batch of patches and the effective batch size
+
+        Args:
+            patches: a tensor or list of tensors
+
+        Yields:
+            Iterator[tuple[torch.Tensor, int]]: a batch of patches, concatenated into a single torch.Tensor
+        """
+        if isinstance(patches, torch.Tensor):
+            total_size = len(patches)
+            for i in range(0, total_size, self.batch_size):
+                batch_size = min(self.batch_size, total_size - i)
+                yield patches[i : i + batch_size], batch_size
+        else:
+            batch = [0] * self.batch_size
+            idx_in_batch = 0
+            for sample in patches:
+                batch[idx_in_batch] = sample
+                idx_in_batch += 1
+                if idx_in_batch == self.batch_size:
+                    # concatenate batch of patches to create a tensor
+                    patch_batch = torch.cat(batch)
+                    yield patch_batch, idx_in_batch
+                    batch = [0] * self.batch_size
+                    idx_in_batch = 0
+            if idx_in_batch > 0:
+                # concatenate batch of patches to create a tensor
+                patch_batch = torch.cat(batch[:idx_in_batch])
+                yield patch_batch, idx_in_batch
+
+    def _ensure_tuple_outputs(self, outputs):
+        if isinstance(outputs, dict):
+            if self.output_keys is None:
+                self.output_keys = outputs.keys()  # model's output keys
+            return tuple(outputs[k] for k in self.output_keys)
+        return ensure_tuple(outputs, wrap_array=True)
+
+    def _run_inference(self, network, patch, *args, **kwargs):
+        # pre-process
+        if self.pre_processor:
+            patch = self.pre_processor(patch)
+        # inference
+        outputs = network(patch, *args, **kwargs)
+        # post-process
+        if self.post_processor:
+            outputs = self.post_processor(outputs)
+        # ensure we have a tuple of model outputs to support multiple outputs
+        return self._ensure_tuple_outputs(outputs)
+
+    def _merge_outputs(self, inputs, patch_batch, outputs, batch_size):
+        # initialize mergers
+        if not self.is_merger_initialized:
+            for merger, output_batch in zip(self.mergers, outputs):
+                for patch, out in zip(torch.chunk(patch_batch, batch_size), torch.chunk(output_batch, batch_size)):
+                    merger.initialize(inputs, patch, out)
+                    break
+            self.is_merger_initialized = True
+        # aggregate outputs
+        for merger, output_batch in zip(self.mergers, outputs):
+            # split output into individual patches and then aggregate
+            for patch, out in zip(torch.chunk(patch_batch, batch_size), torch.chunk(output_batch, batch_size)):
+                merger.aggregate(out, patch.meta[PatchKeys.LOCATION])
+
     def __call__(self, inputs: torch.Tensor | str, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any):
         """
         Args:
@@ -155,48 +225,16 @@ class PatchInferer(Inferer):
             kwargs: optional keyword args to be passed to ``network``.
 
         """
-        patches = self.splitter(inputs)
-        output_keys = None
-        is_first = True
-        for batch_of_patches in BatchSampler(patches, batch_size=self.batch_size, drop_last=False):
-            # __________________________________________________________________
-            # concatenate each batch of patches [PBxBxCxHxWxD] -> [PB*BxCxHxWxD]
-            patch_cat = torch.cat(batch_of_patches)
-            # __________________________________________________________________
-            # pre-process
-            if self.pre_processor:
-                patch_cat = self.pre_processor(patch_cat)
-            # inference
-            model_output = network(patch_cat, *args, **kwargs)
-            # post-process
-            if self.post_processor:
-                model_output = self.post_processor(model_output)
-            # __________________________________________________________________
-            # ensure we have a tuple of prob maps to support multiple outputs
-            if isinstance(model_output, dict):
-                if output_keys is None:
-                    output_keys = model_output.keys()  # predictor's output keys
-                output_tuple = tuple(model_output[k] for k in output_keys)
-            else:
-                output_tuple = ensure_tuple(model_output, wrap_array=True)
-            # __________________________________________________________________
-            # initialize mergers and aggregate
-            if is_first:
-                for merger, out_cat in zip(self.mergers, output_tuple):
-                    for pred in torch.chunk(out_cat, self.batch_size):
-                        merger.initialize(inputs, batch_of_patches[0], pred)
-                        break
-                is_first = False
-            # __________________________________________________________________
-            # aggregate outputs
-            for merger, out_cat in zip(self.mergers, output_tuple):
-                # split output into individual patches and then aggregate
-                for pred, patch in zip(torch.chunk(out_cat, self.batch_size), batch_of_patches):
-                    merger.aggregate(pred, patch.meta[PatchKeys.LOCATION])
+        patches = self.splitter(inputs) if self.splitter else inputs
+        for patch_batch, batch_size in self._batch_sampler(patches):
+            # run inference
+            outputs = self._run_inference(network, patch_batch, *args, **kwargs)
+            # merge outputs
+            self._merge_outputs(inputs, patch_batch, outputs, batch_size)
         # finalize the mergers
-        merged_maps = tuple(merger.finalize() for merger in self.mergers)
+        merged_outputs = tuple(merger.finalize() for merger in self.mergers)
 
-        return merged_maps if len(merged_maps) > 1 else merged_maps[0]
+        return merged_outputs if len(merged_outputs) > 1 else merged_outputs[0]
 
 
 class SlidingWindowInferer(Inferer):
