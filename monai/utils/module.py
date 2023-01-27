@@ -606,7 +606,7 @@ def pytorch_after(major: int, minor: int, patch: int = 0, current_ver_string: st
         is_prerelease = True
     patch = int(patch)
     if c_p != patch:
-        return c_p > patch  # type: ignore
+        return c_p > patch
     if is_prerelease:
         return False
     return True
