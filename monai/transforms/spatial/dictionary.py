@@ -65,7 +65,6 @@ from monai.utils import (
     ensure_tuple_rep,
     fall_back_tuple,
 )
-from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import PytorchPadMode, TraceKeys
 from monai.utils.module import optional_import
 
@@ -159,9 +158,6 @@ class SpatialResampled(MapTransform, InvertibleTransform, LazyTransform):
 
     backend = SpatialResample.backend
 
-    @deprecated_arg(name="meta_keys", since="0.9")
-    @deprecated_arg(name="meta_key_postfix", since="0.9")
-    @deprecated_arg(name="meta_src_keys", since="0.9")
     def __init__(
         self,
         keys: KeysCollection,
@@ -169,9 +165,6 @@ class SpatialResampled(MapTransform, InvertibleTransform, LazyTransform):
         padding_mode: SequenceStr = GridSamplePadMode.BORDER,
         align_corners: Sequence[bool] | bool = False,
         dtype: Sequence[DtypeLike] | DtypeLike = np.float64,
-        meta_keys: KeysCollection | None = None,
-        meta_key_postfix: str = "meta_dict",
-        meta_src_keys: KeysCollection | None = "src_affine",
         dst_keys: KeysCollection | None = "dst_affine",
         allow_missing_keys: bool = False,
     ) -> None:
@@ -243,12 +236,10 @@ class ResampleToMatchd(MapTransform, InvertibleTransform, LazyTransform):
 
     backend = ResampleToMatch.backend
 
-    @deprecated_arg(name="template_key", since="0.9")
     def __init__(
         self,
         keys: KeysCollection,
         key_dst: str,
-        template_key: str | None = None,
         mode: SequenceStr = GridSampleMode.BILINEAR,
         padding_mode: SequenceStr = GridSamplePadMode.BORDER,
         align_corners: Sequence[bool] | bool = False,
@@ -333,8 +324,6 @@ class Spacingd(MapTransform, InvertibleTransform, LazyTransform):
 
     backend = Spacing.backend
 
-    @deprecated_arg(name="meta_keys", since="0.9")
-    @deprecated_arg(name="meta_key_postfix", since="0.9")
     def __init__(
         self,
         keys: KeysCollection,
@@ -346,8 +335,6 @@ class Spacingd(MapTransform, InvertibleTransform, LazyTransform):
         dtype: Sequence[DtypeLike] | DtypeLike = np.float64,
         scale_extent: bool = False,
         recompute_affine: bool = False,
-        meta_keys: KeysCollection | None = None,
-        meta_key_postfix: str = "meta_dict",
         min_pixdim: Sequence[float] | float | None = None,
         max_pixdim: Sequence[float] | float | None = None,
         allow_missing_keys: bool = False,
@@ -459,16 +446,12 @@ class Orientationd(MapTransform, InvertibleTransform, LazyTransform):
 
     backend = Orientation.backend
 
-    @deprecated_arg(name="meta_keys", since="0.9")
-    @deprecated_arg(name="meta_key_postfix", since="0.9")
     def __init__(
         self,
         keys: KeysCollection,
         axcodes: str | None = None,
         as_closest_canonical: bool = False,
         labels: Sequence[tuple[str, str]] | None = (("L", "R"), ("P", "A"), ("I", "S")),
-        meta_keys: KeysCollection | None = None,
-        meta_key_postfix: str = "meta_dict",
         allow_missing_keys: bool = False,
     ) -> None:
         """

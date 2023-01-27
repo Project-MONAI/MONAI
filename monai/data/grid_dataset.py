@@ -21,7 +21,7 @@ from monai.data.dataset import Dataset
 from monai.data.iterable_dataset import IterableDataset
 from monai.data.utils import iter_patch
 from monai.transforms import apply_transform
-from monai.utils import NumpyPadMode, deprecated_arg, ensure_tuple, first, look_up_option
+from monai.utils import NumpyPadMode, ensure_tuple, first, look_up_option
 
 __all__ = ["PatchDataset", "GridPatchDataset", "PatchIter", "PatchIterd"]
 
@@ -175,7 +175,6 @@ class GridPatchDataset(IterableDataset):
 
     """
 
-    @deprecated_arg(name="dataset", new_name="data", since="0.8", msg_suffix="please use `data` instead.")
     def __init__(
         self,
         data: Iterable | Sequence,
@@ -244,7 +243,6 @@ class PatchDataset(Dataset):
 
     """
 
-    @deprecated_arg(name="dataset", new_name="data", since="0.8", msg_suffix="please use `data` instead.")
     def __init__(
         self, data: Sequence, patch_func: Callable, samples_per_image: int = 1, transform: Callable | None = None
     ) -> None:
