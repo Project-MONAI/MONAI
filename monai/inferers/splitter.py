@@ -12,14 +12,13 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Iterable
-from typing import Sequence, Any
+from collections.abc import Callable, Iterable, Sequence
+from typing import Any
 
 import torch
 
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import iter_patch_position
-from monai.transforms import LoadImage, EnsureChannelFirst
 from monai.utils.enums import PatchKeys, PytorchPadMode
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep
 from monai.utils.module import look_up_option
@@ -34,11 +33,7 @@ class Splitter(ABC):
 
     """
 
-    def __init__(
-        self,
-        patch_size: Sequence[int] | int,
-        device: torch.device | str | None = None,
-    ) -> None:
+    def __init__(self, patch_size: Sequence[int] | int, device: torch.device | str | None = None) -> None:
         self.patch_size = patch_size
         self.device = device
 
@@ -65,6 +60,7 @@ class SlidingWindowSplitter(Splitter):
         offset: Sequence[int] | int = 0,
         device: torch.device | str | None = None,
         overlap: Sequence[float] | float = 0.0,
+        patch_filter_fn: Callable | None = None,
         pad_mode: str = PytorchPadMode.CONSTANT,
         **pad_kwargs,
     ):
@@ -113,7 +109,8 @@ class SlidingWindowSplitter(Splitter):
             if padded:
                 # correct the location for original inputs (remove padding)
                 location = tuple(loc - p for loc, p in zip(location, _pad_size[1::2]))
-            metadata = patch.meta if isinstance(patch, MetaTensor) else MetaTensor.get_default_meta()
-            metadata[PatchKeys.LOCATION] = torch.tensor(location)
-            metadata[PatchKeys.SIZE] = torch.tensor(patch_size)
-            yield MetaTensor(x=patch, meta=metadata)
+            # metadata = patch.meta if isinstance(patch, MetaTensor) else MetaTensor.get_default_meta()
+            # metadata[PatchKeys.LOCATION] = torch.tensor(location)
+            # metadata[PatchKeys.SIZE] = torch.tensor(patch_size)
+            # yield MetaTensor(x=patch, meta=metadata)
+            yield patch, location

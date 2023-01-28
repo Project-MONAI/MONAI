@@ -12,10 +12,11 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Sequence, Any
+from collections.abc import Sequence
+from typing import Any
 
 import torch
-from monai.utils.enums import PatchKeys
+
 from monai.utils import ensure_tuple_size
 
 __all__ = ["Merger"]
@@ -84,11 +85,19 @@ class AvgMerger(Merger):
         dtype: the dtype of `values` tensor aggregator.
     """
 
-    def __init__(self, device: torch.device | str | None = None, dtype=torch.float32) -> None:
+    def __init__(
+        self, output_shape: tuple | None = None, device: torch.device | str = "cpu", dtype=torch.float32
+    ) -> None:
         super().__init__(device)
+        self.output_shape = output_shape
         self.dtype = dtype
 
-    def initialize(self, inputs: torch.Tensor, in_patch: torch.Tensor, out_patch: torch.Tensor):
+    def initialize(
+        self,
+        inputs: torch.Tensor | None = None,
+        in_patch: torch.Tensor | None = None,
+        out_patch: torch.Tensor | None = None,
+    ):
         """
         Initialize the merger by creating tensors for aggregation (`values` and `counts`).
 
@@ -97,20 +106,21 @@ class AvgMerger(Merger):
             in_patch: a tensor of shape BCH'W'[D'], representing a batch of input patches
             out_patch: a tensor of shape BC"H"W"[D"], representing a batch of input patches
         """
-        super().__init__()
-        in_spatial_shape = torch.tensor(inputs.shape[2:])
-        in_patch_shape = torch.tensor(in_patch.shape[2:])
-        out_patch_shape = torch.tensor(out_patch.shape[2:])
-        batch_channel_shape = out_patch.shape[:2]
-        spatial_shape = torch.round(in_spatial_shape * out_patch_shape / in_patch_shape).to(torch.int).tolist()
-        output_shape = batch_channel_shape + tuple(spatial_shape)
-        # decide on the device for aggregators
+        # set the output shape
+        if self.output_shape is None:
+            in_spatial_shape = torch.tensor(inputs.shape[2:])
+            in_patch_shape = torch.tensor(in_patch.shape[2:])
+            out_patch_shape = torch.tensor(out_patch.shape[2:])
+            batch_channel_shape = out_patch.shape[:2]
+            spatial_shape = torch.round(in_spatial_shape * out_patch_shape / in_patch_shape).to(torch.int).tolist()
+            output_shape = batch_channel_shape + tuple(spatial_shape)
+        else:
+            output_shape = self.output_shape
+        # set the device for aggregator tensors
         device: torch.device | str
-        if self.device is None:
-            device = inputs.device
-        elif isinstance(self.device, str):
+        if isinstance(self.device, str):
             if self.device.lower() == "input":
-                device = inputs.device
+                device = in_patch.device
             elif self.device.lower() == "output":
                 device = out_patch.device
             else:
@@ -134,7 +144,7 @@ class AvgMerger(Merger):
 
         """
         patch_size = values.shape[2:]
-        map_slice = tuple(slice(loc, loc + size) for loc, size in zip(location.tolist(), patch_size))
+        map_slice = tuple(slice(loc, loc + size) for loc, size in zip(location, patch_size))
         map_slice = ensure_tuple_size(map_slice, values.ndim, pad_val=slice(None), pad_from_start=True)
         self.values[map_slice] += values
         self.counts[map_slice] += 1
@@ -150,8 +160,12 @@ class AvgMerger(Merger):
         """
         return self.values.div_(self.counts)
 
-    def get_values(self):
+    def get_values(self) -> torch.Tensor:
+        """Get the aggregator tensor for values.
+        Note that after calling  self.finalize(), this will represent the final average merged values.
+        """
         return self.values
 
-    def get_counts(self):
+    def get_counts(self) -> torch.Tensor:
+        """Get the aggregator tensor for number of samples."""
         return self.counts

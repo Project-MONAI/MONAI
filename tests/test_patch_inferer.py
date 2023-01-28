@@ -33,11 +33,28 @@ TEST_CASE_1 = [
     TENSOR_4x4,
 ]
 
+# no-overlapping 2x2
+TEST_CASE_2 = [
+    [
+        (TENSOR_4x4[..., :2, :2], (0, 0)),
+        (TENSOR_4x4[..., :2, 2:], (0, 2)),
+        (TENSOR_4x4[..., 2:, :2], (2, 0)),
+        (TENSOR_4x4[..., 2:, 2:], (2, 2)),
+    ],
+    dict(
+        splitter=lambda x: x,
+        merger=AvgMerger(output_shape=(2, 3, 4, 4)),
+    ),
+    lambda x: x,
+    TENSOR_4x4,
+]
+
 
 class PatchInfererTests(unittest.TestCase):
     @parameterized.expand(
         [
             TEST_CASE_1,
+            TEST_CASE_2,
         ]
     )
     def test_inference(self, inputs, arguments, network, expected):
