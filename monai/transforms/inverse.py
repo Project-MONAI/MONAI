@@ -108,7 +108,7 @@ class TraceableTransform(Transform):
         if replace and get_track_meta() and isinstance(data, MetaTensor):
             if not lazy_eval:
                 xform = self.pop_transform(data, check=False) if do_transform else {}
-                meta_obj = self.push_transform(data, extra_info=xform)
+                meta_obj = self.push_transform(data, orig_size=xform.get(TraceKeys.ORIG_SIZE), extra_info=xform)
                 return data.copy_meta_from(meta_obj)
             if do_transform:
                 meta_obj = self.push_transform(data, pending_info=data.pending_operations.pop())  # type: ignore
