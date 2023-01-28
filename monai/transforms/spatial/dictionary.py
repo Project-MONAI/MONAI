@@ -753,7 +753,7 @@ class Affined(MapTransform, InvertibleTransform, LazyTransform):
 
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
-        self.affine = Affine(  # type: ignore
+        self.affine = Affine(
             rotate_params=rotate_params,
             shear_params=shear_params,
             translate_params=translate_params,
