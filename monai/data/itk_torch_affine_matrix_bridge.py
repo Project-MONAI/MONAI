@@ -32,7 +32,6 @@ else:
 __all__ = [
     "metatensor_to_array",
     "image_to_metatensor",
-    "remove_border",
     "itk_to_monai_affine",
     "monai_to_itk_affine",
     "create_itk_affine_from_parameters",
@@ -65,25 +64,6 @@ def image_to_metatensor(image):
     metatensor = EnsureChannelFirst()(metatensor)
 
     return metatensor
-
-
-def remove_border(image):
-    """
-    MONAI seems to have different behavior in the borders of the image than ITK.
-    This helper function sets the border of the ITK image as 0 (padding but keeping
-    the same image size) in order to allow numerical comparison between the
-    result from resampling with ITK/Elastix and resampling with MONAI.
-
-    To use: image[:] = remove_border(image)
-
-    Args:
-        image: The ITK image to be padded.
-
-    Returns:
-        The padded array of data.
-    """
-    # TODO rewrite documentation
-    return np.pad(image[1:-1, 1:-1, 1:-1] if image.ndim == 3 else image[1:-1, 1:-1], pad_width=1)
 
 
 def _compute_offset_matrix(image, center_of_rotation) -> tuple[torch.Tensor, torch.Tensor]:

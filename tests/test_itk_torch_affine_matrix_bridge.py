@@ -16,9 +16,8 @@ import unittest
 
 from parameterized import parameterized
 
-from monai.apps import download_and_extract
+from monai.data import ITKReader
 from monai.utils import optional_import
-from tests.utils import skip_if_downloading_fails, testing_data_config
 
 itk, has_itk = optional_import("itk")
 import numpy as np
@@ -32,13 +31,16 @@ from monai.data.itk_torch_affine_matrix_bridge import (
     metatensor_to_array,
     monai_affine_resample,
     monai_to_itk_affine,
-    remove_border,
 )
 
-TEST_CASE_2D = {"filepath": "CT_2D_head_fixed.mha"}
+TEST_CASES = [
+    "CT_2D_head_fixed.mha",
+    "CT_2D_head_moving.mha",
+    #"copd1_highres_INSP_STD_COPD_img.nii.gz"
+]
 # Download URL: https://data.kitware.com/api/v1/file/62a0f067bddec9d0c4175c5a/download
 # SHA-521: 60193cd6ef0cf055c623046446b74f969a2be838444801bd32ad5bedc8a7eeecb343e8a1208769c9c7a711e101c806a3133eccdda7790c551a69a64b9b3701e9
-TEST_CASE_3D = {"filepath": "copd1_highres_INSP_STD_COPD_img.nii.gz"}
+#TEST_CASE_3D = {"filepath": "copd1_highres_INSP_STD_COPD_img.nii.gz"}
 
 
 @unittest.skipUnless(has_itk, "Requires `itk` package.")
@@ -46,25 +48,25 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
     def setUp(self):
         # TODO: which data should be used
         self.data_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
-        data_dir = os.path.join(self.data_dir, "MedNIST")
-        dataset_file = os.path.join(self.data_dir, "MedNIST.tar.gz")
+        self.reader = ITKReader(pixel_type=itk.F)
+        #data_dir = os.path.join(self.data_dir, "MedNIST")
+        #dataset_file = os.path.join(self.data_dir, "MedNIST.tar.gz")
+#
+        #if not os.path.exists(data_dir):
+        #    with skip_if_downloading_fails():
+        #        data_spec = testing_data_config("images", "mednist")
+        #        download_and_extract(
+        #            data_spec["url"],
+        #            dataset_file,
+        #            self.data_dir,
+        #            hash_val=data_spec["hash_val"],
+        #            hash_type=data_spec["hash_type"],
+        #        )
 
-        if not os.path.exists(data_dir):
-            with skip_if_downloading_fails():
-                data_spec = testing_data_config("images", "mednist")
-                download_and_extract(
-                    data_spec["url"],
-                    dataset_file,
-                    self.data_dir,
-                    hash_val=data_spec["hash_val"],
-                    hash_type=data_spec["hash_type"],
-                )
-
-    @parameterized.expand([TEST_CASE_2D, TEST_CASE_3D])
+    @parameterized.expand(TEST_CASES)
     def test_setting_affine_parameters(self, filepath):
         # Read image
-        image = itk.imread(filepath, itk.F)
-        image[:] = remove_border(image)
+        image = self.reader.read(os.path.join(self.data_dir, filepath))
         ndim = image.ndim
 
         # Affine parameters
@@ -78,14 +80,12 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         image.SetSpacing(spacing)
 
         # ITK
-        matrix, translation = create_itk_affine_from_parameters(
-            image, translation=translation, rotation=rotation, scale=scale, shear=shear
-        )
+        matrix, translation = create_itk_affine_from_parameters(image, translation, rotation, scale, shear)
         output_array_itk = itk_affine_resample(image, matrix=matrix, translation=translation)
 
         # MONAI
         metatensor = image_to_metatensor(image)
-        affine_matrix_for_monai = itk_to_monai_affine(image, matrix=matrix, translation=translation)
+        affine_matrix_for_monai = itk_to_monai_affine(image, matrix, translation)
         output_array_monai = monai_affine_resample(metatensor, affine_matrix=affine_matrix_for_monai)
 
         ###########################################################################
@@ -107,11 +107,10 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         # itk.imwrite(itk.GetImageFromArray(output_array_itk), "./output/output_itk.tif")
         ###########################################################################
 
-    @parameterized.expand([TEST_CASE_2D, TEST_CASE_3D])
+    @parameterized.expand(TEST_CASES)
     def test_arbitary_center_of_rotation(self, filepath):
         # Read image
-        image = itk.imread(filepath, itk.F)
-        image[:] = remove_border(image)
+        image = self.reader.read(os.path.join(self.data_dir, filepath))
         ndim = image.ndim
 
         # ITK matrix (3x3 affine matrix)
@@ -133,15 +132,11 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         image.SetOrigin(origin)
 
         # ITK
-        output_array_itk = itk_affine_resample(
-            image, matrix=matrix, translation=translation, center_of_rotation=center_of_rotation
-        )
+        output_array_itk = itk_affine_resample(image, matrix, translation, center_of_rotation)
 
         # MONAI
         metatensor = image_to_metatensor(image)
-        affine_matrix_for_monai = itk_to_monai_affine(
-            image, matrix=matrix, translation=translation, center_of_rotation=center_of_rotation
-        )
+        affine_matrix_for_monai = itk_to_monai_affine(image, matrix, translation, center_of_rotation)
         output_array_monai = monai_affine_resample(metatensor, affine_matrix=affine_matrix_for_monai)
 
         # Make sure that the array conversion of the inputs is the same
@@ -158,13 +153,12 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         print(f"[Min, Max] diff: [{diff_output.min()}, {diff_output.max()}]")
         ###########################################################################
 
-    @parameterized.expand([TEST_CASE_2D, TEST_CASE_3D])
+    @parameterized.expand(TEST_CASES)
     def test_monai_to_itk(self, filepath):
         print("\nTEST: MONAI affine matrix -> ITK matrix + translation vector -> transform")
         # Read image
-        image = itk.imread(filepath, itk.F)
+        image = self.reader.read(os.path.join(self.data_dir, filepath))
 
-        image[:] = remove_border(image)
         ndim = image.ndim
 
         # MONAI affine matrix
@@ -189,16 +183,12 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         image.SetOrigin(origin)
 
         # ITK
-        matrix, translation = monai_to_itk_affine(
-            image, affine_matrix=affine_matrix, center_of_rotation=center_of_rotation
-        )
-        output_array_itk = itk_affine_resample(
-            image, matrix=matrix, translation=translation, center_of_rotation=center_of_rotation
-        )
+        matrix, translation = monai_to_itk_affine(image, affine_matrix, center_of_rotation)
+        output_array_itk = itk_affine_resample(image, matrix, translation, center_of_rotation)
 
         # MONAI
         metatensor = image_to_metatensor(image)
-        output_array_monai = monai_affine_resample(metatensor, affine_matrix=affine_matrix)
+        output_array_monai = monai_affine_resample(metatensor, affine_matrix)
 
         # Make sure that the array conversion of the inputs is the same
         input_array_monai = metatensor_to_array(metatensor)
@@ -214,10 +204,9 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         print(f"[Min, Max] diff: [{diff_output.min()}, {diff_output.max()}]")
         ###########################################################################
 
-    @parameterized.expand([TEST_CASE_2D, TEST_CASE_3D])
+    @parameterized.expand(TEST_CASES)
     def test_cyclic_conversion(self, filepath):
-        image = itk.imread(filepath, itk.F)
-        image[:] = remove_border(image)
+        image = self.reader.read(os.path.join(self.data_dir, filepath))
         ndim = image.ndim
 
         # ITK matrix (3x3 affine matrix)
@@ -239,13 +228,9 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         image.SetSpacing(spacing)
         image.SetOrigin(origin)
 
-        affine_matrix = itk_to_monai_affine(
-            image, matrix=matrix, translation=translation, center_of_rotation=center_of_rotation
-        )
+        affine_matrix = itk_to_monai_affine(image, matrix, translation, center_of_rotation)
 
-        matrix_result, translation_result = monai_to_itk_affine(
-            image, affine_matrix=affine_matrix, center_of_rotation=center_of_rotation
-        )
+        matrix_result, translation_result = monai_to_itk_affine(image, affine_matrix, center_of_rotation)
 
         print("Matrix cyclic conversion: ", np.allclose(matrix, matrix_result))
         print("Translation cyclic conversion: ", np.allclose(translation, translation_result))
