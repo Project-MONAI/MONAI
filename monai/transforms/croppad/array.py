@@ -725,7 +725,7 @@ class RandSpatialCropSamples(Randomizable, TraceableTransform, LazyTransform):
             cropped = self.cropper(img)
             if get_track_meta():
                 cropped.meta[Key.PATCH_INDEX] = i  # type: ignore
-                self.push_transform(cropped, replace=True)
+                self.push_transform(cropped, replace=True)  # track as this class instead of RandSpatialCrop
             ret.append(cropped)
         return ret
 
@@ -1080,7 +1080,6 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform):
         if randomize:
             self.randomize(label, fg_indices, bg_indices, image)
         results: list[torch.Tensor] = []
-        orig_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
         if self.centers is not None:
             for i, center in enumerate(self.centers):
                 roi_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
@@ -1089,7 +1088,7 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform):
                     ret_: MetaTensor = cropped  # type: ignore
                     ret_.meta[Key.PATCH_INDEX] = i
                     ret_.meta["crop_center"] = center
-                    self.push_transform(ret_, orig_size=orig_size, extra_info=self.pop_transform(ret_, check=False))
+                    self.push_transform(ret_, replace=True)
                 results.append(cropped)
         return results
 
@@ -1227,7 +1226,6 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform):
         if randomize:
             self.randomize(label, indices, image)
         results: list[torch.Tensor] = []
-        orig_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
         if self.centers is not None:
             for i, center in enumerate(self.centers):
                 roi_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
@@ -1236,7 +1234,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform):
                     ret_: MetaTensor = cropped  # type: ignore
                     ret_.meta[Key.PATCH_INDEX] = i
                     ret_.meta["crop_center"] = center
-                    self.push_transform(ret_, orig_size=orig_size, extra_info=self.pop_transform(ret_, check=False))
+                    self.push_transform(ret_, replace=True)
                 results.append(cropped)
 
         return results
