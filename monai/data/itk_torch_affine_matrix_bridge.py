@@ -40,6 +40,7 @@ __all__ = [
 ]
 
 
+# TODO remove
 def metatensor_to_array(metatensor: MetaTensor):
     metatensor = metatensor.squeeze()
     metatensor = metatensor.permute(*torch.arange(metatensor.ndim - 1, -1, -1))
@@ -106,8 +107,7 @@ def itk_to_monai_affine(image, matrix, translation, center_of_rotation=None) -> 
     Converts an ITK affine matrix (2x2 for 2D or 3x3 for 3D matrix and translation vector) to a MONAI affine matrix.
 
     Args:
-        image: The ITK image object. This is used to extract the spacing and
-               direction information.
+        image: The ITK image object. This is used to extract the spacing and direction information.
         matrix: The 2x2 or 3x3 ITK affine matrix.
         translation: The 2-element or 3-element ITK affine translation vector.
         center_of_rotation: The center of rotation. If provided, the affine
@@ -150,8 +150,7 @@ def monai_to_itk_affine(image, affine_matrix, center_of_rotation=None):
     3D matrix and translation vector). See also 'itk_to_monai_affine'.
 
     Args:
-        image: The ITK image object. This is used to extract the spacing and
-               direction information.
+        image: The ITK image object. This is used to extract the spacing and direction information.
         affine_matrix: The 3x3 for 2D or 4x4 for 3D MONAI affine matrix.
         center_of_rotation: The center of rotation. If provided, the affine
                             matrix will be adjusted to account for the difference
@@ -208,8 +207,7 @@ def create_itk_affine_from_parameters(
     Args:
         image: The ITK image.
         translation: The translation (shift) to apply to the image.
-        rotation: The rotation to apply to the image, specified as angles in radians
-                around the x, y, and z axes.
+        rotation: The rotation to apply to the image, specified as angles in radians around the x, y, and z axes.
         scale: The scaling factor to apply to the image.
         shear: The shear to apply to the image.
         center_of_rotation: The center of rotation for the image. If not specified,
@@ -279,7 +277,9 @@ def itk_affine_resample(image, matrix, translation, center_of_rotation=None):
 
 
 def monai_affine_resample(metatensor: MetaTensor, affine_matrix: NdarrayOrTensor):
-    # TODO documentation
+    # TODO documentation, change to mode=3
+    #affine = Affine(affine=affine_matrix, mode=3, padding_mode='mirror', dtype=torch.float64, image_only=True)
+    #output_tensor = cast(MetaTensor, affine(metatensor))
     affine = Affine(affine=affine_matrix, padding_mode="zeros", dtype=torch.float64, image_only=True)
     output_tensor = cast(MetaTensor, affine(metatensor, mode="bilinear"))
 

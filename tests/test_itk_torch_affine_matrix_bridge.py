@@ -33,14 +33,18 @@ from monai.data.itk_torch_affine_matrix_bridge import (
     monai_to_itk_affine,
 )
 
-TEST_CASES = [
+TESTS = [
     "CT_2D_head_fixed.mha",
     "CT_2D_head_moving.mha",
     #"copd1_highres_INSP_STD_COPD_img.nii.gz"
 ]
-# Download URL: https://data.kitware.com/api/v1/file/62a0f067bddec9d0c4175c5a/download
+# Download URL:
 # SHA-521: 60193cd6ef0cf055c623046446b74f969a2be838444801bd32ad5bedc8a7eeecb343e8a1208769c9c7a711e101c806a3133eccdda7790c551a69a64b9b3701e9
-#TEST_CASE_3D = {"filepath": "copd1_highres_INSP_STD_COPD_img.nii.gz"}
+#TEST_CASE_3D_1 = [
+# "copd1_highres_INSP_STD_COPD_img.nii.gz" # https://data.kitware.com/api/v1/file/62a0f067bddec9d0c4175c5a/download
+# "copd1_highres_INSP_STD_COPD_img.nii.gz" # https://data.kitware.com/api/v1/item/62a0f045bddec9d0c4175c44/download
+# ]
+
 
 
 @unittest.skipUnless(has_itk, "Requires `itk` package.")
@@ -48,22 +52,21 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
     def setUp(self):
         # TODO: which data should be used
         self.data_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
-        self.reader = ITKReader(pixel_type=itk.F)
-        #data_dir = os.path.join(self.data_dir, "MedNIST")
-        #dataset_file = os.path.join(self.data_dir, "MedNIST.tar.gz")
-#
-        #if not os.path.exists(data_dir):
-        #    with skip_if_downloading_fails():
-        #        data_spec = testing_data_config("images", "mednist")
-        #        download_and_extract(
-        #            data_spec["url"],
-        #            dataset_file,
-        #            self.data_dir,
-        #            hash_val=data_spec["hash_val"],
-        #            hash_type=data_spec["hash_type"],
-        #        )
+        self.reader = ITKReader()
 
-    @parameterized.expand(TEST_CASES)
+        #for filepath in TEST_CASES:
+        #    if not os.path.exists(os.path.join(self.data_dir, filepath)):
+        #        with skip_if_downloading_fails():
+        #            data_spec = testing_data_config("images", filepath)
+        #            download_and_extract(
+        #                data_spec["url"],
+        #                filepath,
+        #                self.data_dir,
+        #                #hash_val=data_spec["hash_val"],
+        #                #hash_type=data_spec["hash_type"],
+        #            )
+
+    @parameterized.expand(TESTS)
     def test_setting_affine_parameters(self, filepath):
         # Read image
         image = self.reader.read(os.path.join(self.data_dir, filepath))
@@ -91,10 +94,18 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         ###########################################################################
         # Make sure that the array conversion of the inputs is the same
         input_array_monai = metatensor_to_array(metatensor)
-        assert np.array_equal(input_array_monai, np.asarray(image))
+        #output_array_monai = ITKWriter.create_backend_obj(
+        #    metatensor.array,
+        #    channel_dim=None,
+        #    affine=affine_matrix_for_monai,
+        #    affine_lps_to_ras=False,  # False if the affine is in itk convention
+        #)
+        np.testing.assert_array_equal(input_array_monai, np.asarray(image))
 
         # Compare outputs
-        print("MONAI-ITK: ", np.allclose(output_array_monai, output_array_itk))
+        percentage = 100 * np.isclose(output_array_monai, output_array_itk).sum() / output_array_itk.size
+        print("MONAI equals result: ", percentage, "%")
+        self.assertGreaterEqual(percentage, 99.0)
 
         diff_output = output_array_monai - output_array_itk
         print(f"[Min, Max] MONAI: [{output_array_monai.min()}, {output_array_monai.max()}]")
@@ -107,7 +118,7 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         # itk.imwrite(itk.GetImageFromArray(output_array_itk), "./output/output_itk.tif")
         ###########################################################################
 
-    @parameterized.expand(TEST_CASES)
+    @parameterized.expand(TESTS)
     def test_arbitary_center_of_rotation(self, filepath):
         # Read image
         image = self.reader.read(os.path.join(self.data_dir, filepath))
@@ -141,11 +152,13 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
 
         # Make sure that the array conversion of the inputs is the same
         input_array_monai = metatensor_to_array(metatensor)
-        assert np.array_equal(input_array_monai, np.asarray(image))
+        np.testing.assert_array_equal(input_array_monai, np.asarray(image))
 
         ###########################################################################
         # Compare outputs
-        print("MONAI-ITK: ", np.allclose(output_array_monai, output_array_itk))
+        percentage = 100 * np.isclose(output_array_monai, output_array_itk).sum() / output_array_itk.size
+        print("MONAI equals result: ", percentage, "%")
+        self.assertGreaterEqual(percentage, 99.0)
 
         diff_output = output_array_monai - output_array_itk
         print(f"[Min, Max] MONAI: [{output_array_monai.min()}, {output_array_monai.max()}]")
@@ -153,7 +166,7 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         print(f"[Min, Max] diff: [{diff_output.min()}, {diff_output.max()}]")
         ###########################################################################
 
-    @parameterized.expand(TEST_CASES)
+    @parameterized.expand(TESTS)
     def test_monai_to_itk(self, filepath):
         print("\nTEST: MONAI affine matrix -> ITK matrix + translation vector -> transform")
         # Read image
@@ -192,11 +205,13 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
 
         # Make sure that the array conversion of the inputs is the same
         input_array_monai = metatensor_to_array(metatensor)
-        assert np.array_equal(input_array_monai, np.asarray(image))
+        np.testing.assert_array_equal(input_array_monai, np.asarray(image))
 
         ###########################################################################
         # Compare outputs
-        print("MONAI-ITK: ", np.allclose(output_array_monai, output_array_itk))
+        percentage = 100 * np.isclose(output_array_monai, output_array_itk).sum() / output_array_itk.size
+        print("MONAI equals result: ", percentage, "%")
+        self.assertGreaterEqual(percentage, 99.0)
 
         diff_output = output_array_monai - output_array_itk
         print(f"[Min, Max] MONAI: [{output_array_monai.min()}, {output_array_monai.max()}]")
@@ -204,7 +219,7 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         print(f"[Min, Max] diff: [{diff_output.min()}, {diff_output.max()}]")
         ###########################################################################
 
-    @parameterized.expand(TEST_CASES)
+    @parameterized.expand(TESTS)
     def test_cyclic_conversion(self, filepath):
         image = self.reader.read(os.path.join(self.data_dir, filepath))
         ndim = image.ndim
@@ -232,30 +247,9 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
 
         matrix_result, translation_result = monai_to_itk_affine(image, affine_matrix, center_of_rotation)
 
-        print("Matrix cyclic conversion: ", np.allclose(matrix, matrix_result))
-        print("Translation cyclic conversion: ", np.allclose(translation, translation_result))
+        np.testing.assert_allclose(matrix, matrix_result)
+        np.testing.assert_allclose(translation, translation_result)
 
 
 if __name__ == "__main__":
-
-    # test_utils.download_test_data()
-
-    ## 2D cases
-    # filepath0 = str(test_utils.TEST_DATA_DIR / 'CT_2D_head_fixed.mha')
-    # filepath1 = str(test_utils.TEST_DATA_DIR / 'CT_2D_head_moving.mha')
-    #
-    # test_setting_affine_parameters(filepath=filepath0)
-    # test_arbitary_center_of_rotation(filepath=filepath0)
-    # test_monai_to_itk(filepath=filepath0)
-    # test_cyclic_conversion(filepath=filepath0)
-    #
-    ## 3D cases
-    # filepath2 = str(test_utils.TEST_DATA_DIR / 'copd1_highres_INSP_STD_COPD_img.nii.gz')
-    # filepath3 = str(test_utils.TEST_DATA_DIR / 'copd1_highres_EXP_STD_COPD_img.nii.gz')
-    #
-    # test_setting_affine_parameters(filepath=filepath2)
-    # test_arbitary_center_of_rotation(filepath=filepath2)
-    # test_monai_to_itk(filepath=filepath2)
-    # test_cyclic_conversion(filepath=filepath2)
-
     unittest.main()
