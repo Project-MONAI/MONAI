@@ -14,15 +14,11 @@ from __future__ import annotations
 import os
 import unittest
 
+import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.data import ITKReader
-from monai.utils import optional_import
-
-itk, has_itk = optional_import("itk")
-import numpy as np
-import torch
-
 from monai.data.itk_torch_affine_matrix_bridge import (
     create_itk_affine_from_parameters,
     image_to_metatensor,
@@ -32,6 +28,9 @@ from monai.data.itk_torch_affine_matrix_bridge import (
     monai_affine_resample,
     monai_to_itk_affine,
 )
+from monai.utils import optional_import
+
+itk, has_itk = optional_import("itk")
 
 TESTS = [
     "CT_2D_head_fixed.mha",
@@ -39,7 +38,8 @@ TESTS = [
     # "copd1_highres_INSP_STD_COPD_img.nii.gz"
 ]
 # Download URL:
-# SHA-521: 60193cd6ef0cf055c623046446b74f969a2be838444801bd32ad5bedc8a7eeecb343e8a1208769c9c7a711e101c806a3133eccdda7790c551a69a64b9b3701e9
+# SHA-521: 60193cd6ef0cf055c623046446b74f969a2be838444801bd32ad5bedc8a7eeec
+#          b343e8a1208769c9c7a711e101c806a3133eccdda7790c551a69a64b9b3701e9
 # TEST_CASE_3D_1 = [
 # "copd1_highres_INSP_STD_COPD_img.nii.gz" # https://data.kitware.com/api/v1/file/62a0f067bddec9d0c4175c5a/download
 # "copd1_highres_INSP_STD_COPD_img.nii.gz" # https://data.kitware.com/api/v1/item/62a0f045bddec9d0c4175c44/download
