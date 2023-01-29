@@ -1345,19 +1345,23 @@ class ResizeWithPadOrCrop(InvertibleTransform, LazyTransform):
         # remove the individual info and combine
         if get_track_meta():
             ret_: MetaTensor = ret  # type: ignore
-            pad_info = ret_.applied_operations.pop()
-            crop_info = ret_.applied_operations.pop()
-            orig_size = crop_info.get(TraceKeys.ORIG_SIZE)
-            extra_info = {"pad_info": pad_info, "crop_info": crop_info}
             if not self.lazy_evaluation:
-                self.push_transform(ret_, orig_size=orig_size, extra_info=extra_info)
+                pad_info = ret_.applied_operations.pop()
+                crop_info = ret_.applied_operations.pop()
+                orig_size = crop_info.get(TraceKeys.ORIG_SIZE)
+                self.push_transform(
+                    ret_, orig_size=orig_size, extra_info={"pad_info": pad_info, "crop_info": crop_info}
+                )
             else:
+                pad_info = ret_.pending_operations.pop()
+                crop_info = ret_.pending_operations.pop()
+                orig_size = crop_info.get(TraceKeys.ORIG_SIZE)
                 self.push_transform(
                     ret_,
                     orig_size=orig_size,
                     sp_size=pad_info[LazyAttr.SHAPE],
                     affine=crop_info[LazyAttr.AFFINE] @ pad_info[LazyAttr.AFFINE],
-                    extra_info=extra_info,
+                    extra_info={"pad_info": pad_info, "crop_info": crop_info},
                 )
 
         return ret
