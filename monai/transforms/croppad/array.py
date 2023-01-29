@@ -15,6 +15,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Callable, Sequence
 from itertools import chain
 from math import ceil
@@ -805,8 +806,8 @@ class CropForeground(Crop):
 
     @Crop.lazy_evaluation.setter  # type: ignore
     def lazy_evaluation(self, _val: bool):
-        self._lazy_evaluation = False  # foreground can't be computed lazily
-        self.padder.lazy_evaluation = False
+        self._lazy_evaluation = _val
+        self.padder.lazy_evaluation = _val
 
     def compute_bounding_box(self, img: torch.Tensor):
         """
@@ -814,6 +815,8 @@ class CropForeground(Crop):
         And adjust bounding box coords to be divisible by `k`.
 
         """
+        if isinstance(img, MetaTensor) and img.pending_operations:
+            warnings.warn("foreground computation may not be accurate if the image has pending operations.")
         box_start, box_end = generate_spatial_bounding_box(
             img, self.select_fn, self.channel_indices, self.margin, self.allow_smaller
         )
@@ -837,7 +840,9 @@ class CropForeground(Crop):
         slices = self.compute_slices(roi_start=box_start, roi_end=box_end)
         cropped = super().__call__(img=img, slices=slices)
         pad_to_start = np.maximum(-box_start, 0)
-        pad_to_end = np.maximum(box_end - np.asarray(img.shape[1:]), 0)
+        pad_to_end = np.maximum(
+            box_end - np.asarray(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]), 0
+        )
         pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
         pad_width = BorderPad(spatial_border=pad).compute_pad_width(cropped.shape[1:])
         ret = self.padder.__call__(img=cropped, to_pad=pad_width, mode=mode, **pad_kwargs)
@@ -870,7 +875,7 @@ class CropForeground(Crop):
         return super().inverse(inv)
 
 
-class RandWeightedCrop(Randomizable, TraceableTransform):
+class RandWeightedCrop(Randomizable, TraceableTransform, LazyTransform):
     """
     Samples a list of `num_samples` image patches according to the provided `weight_map`.
 
@@ -894,9 +899,15 @@ class RandWeightedCrop(Randomizable, TraceableTransform):
         self.centers: list[np.ndarray] = []
 
     def randomize(self, weight_map: NdarrayOrTensor) -> None:
+        if isinstance(weight_map, MetaTensor) and weight_map.pending_operations:
+            warnings.warn("weight map has pending operations, the sampling may not be correct.")
         self.centers = weighted_patch_samples(
             spatial_size=self.spatial_size, w=weight_map[0], n_samples=self.num_samples, r_state=self.R
         )  # using only the first channel as weight map
+
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, _val: bool):
+        self._lazy_evaluation = _val
 
     def __call__(
         self, img: torch.Tensor, weight_map: NdarrayOrTensor | None = None, randomize: bool = True
@@ -916,15 +927,22 @@ class RandWeightedCrop(Randomizable, TraceableTransform):
             weight_map = self.weight_map
         if weight_map is None:
             raise ValueError("weight map must be provided for weighted patch sampling.")
-        if img.shape[1:] != weight_map.shape[1:]:
-            raise ValueError(f"image and weight map spatial shape mismatch: {img.shape[1:]} vs {weight_map.shape[1:]}.")
+        img_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape
+        w_shape = weight_map.peek_pending_shape() if isinstance(weight_map, MetaTensor) else weight_map.shape
+        if img_shape != w_shape:
+            warnings.warn(f"image and weight map spatial shape mismatch: {img_shape} vs {w_shape}.")
 
         if randomize:
             self.randomize(weight_map)
-        _spatial_size = fall_back_tuple(self.spatial_size, weight_map.shape[1:])
+        _spatial_size = fall_back_tuple(
+            self.spatial_size,
+            weight_map.peek_pending_shape() if isinstance(weight_map, MetaTensor) else weight_map.shape[1:],
+        )
         results: list[torch.Tensor] = []
         for i, center in enumerate(self.centers):
-            cropped = SpatialCrop(roi_center=center, roi_size=_spatial_size)(img)
+            cropper = SpatialCrop(roi_center=center, roi_size=_spatial_size)
+            cropper.lazy_evaluation = self.lazy_evaluation
+            cropped = cropper(img)
             if get_track_meta():
                 ret_: MetaTensor = cropped  # type: ignore
                 ret_.meta[Key.PATCH_INDEX] = i
@@ -934,7 +952,7 @@ class RandWeightedCrop(Randomizable, TraceableTransform):
         return results
 
 
-class RandCropByPosNegLabel(Randomizable, TraceableTransform):
+class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform):
     """
     Crop random fixed sized regions with the center being a foreground or background voxel
     based on the Pos Neg Ratio.
@@ -1031,6 +1049,8 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform):
                 fg_indices_ = self.fg_indices
                 bg_indices_ = self.bg_indices
             else:
+                if isinstance(image, MetaTensor) and image.pending_operations:
+                    warnings.warn("image has pending operations, the fg/bg indices may be incorrect.")
                 fg_indices_, bg_indices_ = map_binary_to_indices(label, image, self.image_threshold)
         else:
             fg_indices_ = fg_indices
@@ -1039,12 +1059,16 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform):
             self.spatial_size,
             self.num_samples,
             self.pos_ratio,
-            label.shape[1:],
+            label.peek_pending_shape() if isinstance(label, MetaTensor) else label.shape[1:],
             fg_indices_,
             bg_indices_,
             self.R,
             self.allow_smaller,
         )
+
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, _val: bool):
+        self._lazy_evaluation = _val
 
     def __call__(
         self,
@@ -1074,16 +1098,22 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform):
             label = self.label
         if label is None:
             raise ValueError("label should be provided.")
+        if isinstance(label, MetaTensor) and label.pending_operations:
+            warnings.warn("label has pending operations, the sampling may not be correct.")
         if image is None:
             image = self.image
-
         if randomize:
             self.randomize(label, fg_indices, bg_indices, image)
         results: list[torch.Tensor] = []
         if self.centers is not None:
             for i, center in enumerate(self.centers):
-                roi_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
-                cropped = SpatialCrop(roi_center=center, roi_size=roi_size)(img)
+                roi_size = fall_back_tuple(
+                    self.spatial_size,
+                    default=label.peek_pending_shape() if isinstance(label, MetaTensor) else label.shape[1:],
+                )
+                cropper = SpatialCrop(roi_center=center, roi_size=roi_size)
+                cropper.lazy_evaluation = self.lazy_evaluation
+                cropped = cropper(img)
                 if get_track_meta():
                     ret_: MetaTensor = cropped  # type: ignore
                     ret_.meta[Key.PATCH_INDEX] = i
@@ -1093,7 +1123,7 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform):
         return results
 
 
-class RandCropByLabelClasses(Randomizable, TraceableTransform):
+class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform):
     """
     Crop random fixed sized regions with the center being a class based on the specified ratios of every class.
     The label data can be One-Hot format array or Argmax data. And will return a list of arrays for all the
@@ -1140,7 +1170,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform):
             the spatial size of output data will be [32, 40, 40].
         ratios: specified ratios of every class in the label to generate crop centers, including background class.
             if None, every class will have the same ratio to generate crop centers.
-        label: the label image that is used for finding every classes, if None, must set at `self.__call__`.
+        label: the label image that is used for finding every class, if None, must set at `self.__call__`.
         num_classes: number of classes for argmax label, not necessary for One-Hot label.
         num_samples: number of samples (crop regions) to take in each list.
         image: if image is not None, only return the indices of every class that are within the valid
@@ -1194,8 +1224,18 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform):
         else:
             indices_ = indices
         self.centers = generate_label_classes_crop_centers(
-            self.spatial_size, self.num_samples, label.shape[1:], indices_, self.ratios, self.R, self.allow_smaller
+            self.spatial_size,
+            self.num_samples,
+            label.peek_pending_shape() if isinstance(label, MetaTensor) else label.shape[1:],
+            indices_,
+            self.ratios,
+            self.R,
+            self.allow_smaller,
         )
+
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, _val: bool):
+        self._lazy_evaluation = _val
 
     def __call__(
         self,
@@ -1220,6 +1260,8 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform):
             label = self.label
         if label is None:
             raise ValueError("label should be provided.")
+        if isinstance(label, MetaTensor) and label.pending_operations:
+            warnings.warn("label has pending operations, the sampling may not be correct.")
         if image is None:
             image = self.image
 
@@ -1229,7 +1271,9 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform):
         if self.centers is not None:
             for i, center in enumerate(self.centers):
                 roi_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
-                cropped = SpatialCrop(roi_center=tuple(center), roi_size=roi_size)(img)
+                cropper = SpatialCrop(roi_center=tuple(center), roi_size=roi_size)
+                cropper.lazy_evaluation = self.lazy_evaluation
+                cropped = cropper(img)
                 if get_track_meta():
                     ret_: MetaTensor = cropped  # type: ignore
                     ret_.meta[Key.PATCH_INDEX] = i

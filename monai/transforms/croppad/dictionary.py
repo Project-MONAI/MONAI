@@ -144,10 +144,10 @@ class Padd(MapTransform, InvertibleTransform, LazyTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
 
     @LazyTransform.lazy_evaluation.setter  # type: ignore
-    def lazy_evaluation(self, val: bool):
-        self._lazy_evaluation = val
+    def lazy_evaluation(self, value: bool) -> None:
+        self._lazy_evaluation = value
         if isinstance(self.padder, LazyTransform):
-            self.padder.lazy_evaluation = val
+            self.padder.lazy_evaluation = value
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
@@ -315,10 +315,10 @@ class Cropd(MapTransform, InvertibleTransform, LazyTransform):
         self.cropper = cropper
 
     @LazyTransform.lazy_evaluation.setter  # type: ignore
-    def lazy_evaluation(self, val: bool):
-        self._lazy_evaluation = val
+    def lazy_evaluation(self, value: bool) -> None:
+        self._lazy_evaluation = value
         if isinstance(self.cropper, LazyTransform):
-            self.cropper.lazy_evaluation = val
+            self.cropper.lazy_evaluation = value
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
@@ -685,9 +685,9 @@ class CropForegroundd(Cropd):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
 
     @LazyTransform.lazy_evaluation.setter  # type: ignore
-    def lazy_evaluation(self, val: bool):
-        self._lazy_evaluation = False  # foreground can't be computed lazily
-        self.cropper.lazy_evaluation = False
+    def lazy_evaluation(self, value: bool) -> None:
+        self._lazy_evaluation = value
+        self.cropper.lazy_evaluation = value
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
@@ -702,7 +702,7 @@ class CropForegroundd(Cropd):
         return d
 
 
-class RandWeightedCropd(Randomizable, MapTransform):
+class RandWeightedCropd(Randomizable, MapTransform, LazyTransform):
     """
     Samples a list of `num_samples` image patches according to the provided `weight_map`.
 
@@ -744,6 +744,11 @@ class RandWeightedCropd(Randomizable, MapTransform):
     def randomize(self, weight_map: NdarrayOrTensor) -> None:
         self.cropper.randomize(weight_map)
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, value: bool) -> None:
+        self._lazy_evaluation = value
+        self.cropper.lazy_evaluation = value
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> list[dict[Hashable, torch.Tensor]]:
         # output starts as empty list of dictionaries
         ret: list = [dict(data) for _ in range(self.cropper.num_samples)]
@@ -759,7 +764,7 @@ class RandWeightedCropd(Randomizable, MapTransform):
         return ret
 
 
-class RandCropByPosNegLabeld(Randomizable, MapTransform):
+class RandCropByPosNegLabeld(Randomizable, MapTransform, LazyTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandCropByPosNegLabel`.
     Crop random fixed sized regions with the center being a foreground or background voxel
@@ -858,6 +863,11 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
     ) -> None:
         self.cropper.randomize(label=label, fg_indices=fg_indices, bg_indices=bg_indices, image=image)
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, value: bool) -> None:
+        self._lazy_evaluation = value
+        self.cropper.lazy_evaluation = value
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> list[dict[Hashable, torch.Tensor]]:
         d = dict(data)
         label = d[self.label_key]
@@ -880,7 +890,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         return ret
 
 
-class RandCropByLabelClassesd(Randomizable, MapTransform):
+class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandCropByLabelClasses`.
     Crop random fixed sized regions with the center being a class based on the specified ratios of every class.
@@ -992,6 +1002,11 @@ class RandCropByLabelClassesd(Randomizable, MapTransform):
         self, label: torch.Tensor, indices: list[NdarrayOrTensor] | None = None, image: torch.Tensor | None = None
     ) -> None:
         self.cropper.randomize(label=label, indices=indices, image=image)
+
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, value: bool) -> None:
+        self._lazy_evaluation = value
+        self.cropper.lazy_evaluation = value
 
     def __call__(self, data: Mapping[Hashable, Any]) -> list[dict[Hashable, torch.Tensor]]:
         d = dict(data)
