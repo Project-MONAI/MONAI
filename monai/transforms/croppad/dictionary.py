@@ -856,7 +856,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, LazyTransform):
 
     def randomize(
         self,
-        label: torch.Tensor,
+        label: torch.Tensor | None = None,
         fg_indices: NdarrayOrTensor | None = None,
         bg_indices: NdarrayOrTensor | None = None,
         image: torch.Tensor | None = None,
@@ -870,12 +870,11 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, LazyTransform):
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> list[dict[Hashable, torch.Tensor]]:
         d = dict(data)
-        label = d[self.label_key]
-        image = d[self.image_key] if self.image_key else None
-        fg_indices = d.pop(self.fg_indices_key, None) if self.fg_indices_key is not None else None
-        bg_indices = d.pop(self.bg_indices_key, None) if self.bg_indices_key is not None else None
+        label = d.get(self.label_key)
+        fg_indices = d.pop(self.fg_indices_key, None)
+        bg_indices = d.pop(self.bg_indices_key, None)
 
-        self.randomize(label, fg_indices, bg_indices, image)
+        self.randomize(label, fg_indices, bg_indices, d.get(self.image_key))
 
         # initialize returned list with shallow copy to preserve key ordering
         ret: list = [dict(d) for _ in range(self.cropper.num_samples)]
@@ -1010,11 +1009,8 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform):
 
     def __call__(self, data: Mapping[Hashable, Any]) -> list[dict[Hashable, torch.Tensor]]:
         d = dict(data)
-        label = d[self.label_key]
-        image = d[self.image_key] if self.image_key else None
-        indices = d.pop(self.indices_key, None) if self.indices_key is not None else None
-
-        self.randomize(label, indices, image)
+        label = d.get(self.label_key)
+        self.randomize(label, d.pop(self.indices_key, None), d.get(self.image_key))  # type: ignore
 
         # initialize returned list with shallow copy to preserve key ordering
         ret: list = [dict(d) for _ in range(self.cropper.num_samples)]

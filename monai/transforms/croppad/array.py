@@ -925,18 +925,19 @@ class RandWeightedCrop(Randomizable, TraceableTransform, LazyTransform):
         Returns:
             A list of image patches
         """
-        if weight_map is None:
-            weight_map = self.weight_map
-        if weight_map is None:
-            raise ValueError("weight map must be provided for weighted patch sampling.")
         img_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
-        w_shape = weight_map.peek_pending_shape() if isinstance(weight_map, MetaTensor) else weight_map.shape[1:]
-        if img_shape != w_shape:
-            warnings.warn(f"image and weight map spatial shape mismatch: {img_shape} vs {w_shape}.")
 
         if randomize:
+            if weight_map is None:
+                weight_map = self.weight_map
+            if weight_map is None:
+                raise ValueError("weight map must be provided for weighted patch sampling.")
+            w_shape = weight_map.peek_pending_shape() if isinstance(weight_map, MetaTensor) else weight_map.shape[1:]
+            if img_shape != w_shape:
+                warnings.warn(f"image and weight map spatial shape mismatch: {img_shape} vs {w_shape}.")
             self.randomize(weight_map)
-        _spatial_size = fall_back_tuple(self.spatial_size, w_shape)
+
+        _spatial_size = fall_back_tuple(self.spatial_size, img_shape)
         results: list[torch.Tensor] = []
         for i, center in enumerate(self.centers):
             cropper = SpatialCrop(roi_center=center, roi_size=_spatial_size)
@@ -1038,28 +1039,33 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform):
 
     def randomize(
         self,
-        label: torch.Tensor,
+        label: torch.Tensor | None = None,
         fg_indices: NdarrayOrTensor | None = None,
         bg_indices: NdarrayOrTensor | None = None,
         image: torch.Tensor | None = None,
     ) -> None:
-        if fg_indices is None or bg_indices is None:
-            if self.fg_indices is not None and self.bg_indices is not None:
-                fg_indices_ = self.fg_indices
-                bg_indices_ = self.bg_indices
-            else:
-                if isinstance(image, MetaTensor) and image.pending_operations:
-                    warnings.warn("image has pending operations, the fg/bg indices may be incorrect.")
-                fg_indices_, bg_indices_ = map_binary_to_indices(label, image, self.image_threshold)
-        else:
-            fg_indices_ = fg_indices
-            bg_indices_ = bg_indices
-        label_shape = label.peek_pending_shape() if isinstance(label, MetaTensor) else label.shape[1:]
+        fg_indices_ = self.fg_indices if fg_indices is None else fg_indices
+        bg_indices_ = self.bg_indices if bg_indices is None else bg_indices
+        if fg_indices_ is None or bg_indices_ is None:
+            if isinstance(label, MetaTensor) and label.pending_operations:
+                warnings.warn("label has pending operations, the fg/bg indices may be incorrect.")
+            if isinstance(image, MetaTensor) and image.pending_operations:
+                warnings.warn("image has pending operations, the fg/bg indices may be incorrect.")
+            if label is None:
+                raise ValueError("label must be provided.")
+            fg_indices_, bg_indices_ = map_binary_to_indices(label, image, self.image_threshold)
+        _shape = None
+        if label is not None:
+            _shape = label.peek_pending_shape() if isinstance(label, MetaTensor) else label.shape[1:]
+        elif image is not None:
+            _shape = image.peek_pending_shape() if isinstance(image, MetaTensor) else image.shape[1:]
+        if _shape is None:
+            raise ValueError("label or image must be provided to get the spatial shape.")
         self.centers = generate_pos_neg_label_crop_centers(
             self.spatial_size,
             self.num_samples,
             self.pos_ratio,
-            label_shape,
+            _shape,
             fg_indices_,
             bg_indices_,
             self.R,
@@ -1096,18 +1102,14 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform):
         """
         if label is None:
             label = self.label
-        if label is None:
-            raise ValueError("label should be provided.")
-        if isinstance(label, MetaTensor) and label.pending_operations:
-            warnings.warn("label has pending operations, the sampling may not be correct.")
         if image is None:
             image = self.image
         if randomize:
             self.randomize(label, fg_indices, bg_indices, image)
         results: list[torch.Tensor] = []
         if self.centers is not None:
-            label_shape = label.peek_pending_shape() if isinstance(label, MetaTensor) else label.shape[1:]
-            roi_size = fall_back_tuple(self.spatial_size, default=label_shape)
+            img_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
+            roi_size = fall_back_tuple(self.spatial_size, default=img_shape)
             for i, center in enumerate(self.centers):
                 cropper = SpatialCrop(roi_center=center, roi_size=roi_size)
                 cropper.lazy_evaluation = self.lazy_evaluation
@@ -1211,19 +1213,29 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform):
         self.allow_smaller = allow_smaller
 
     def randomize(
-        self, label: torch.Tensor, indices: list[NdarrayOrTensor] | None = None, image: torch.Tensor | None = None
+        self,
+        label: torch.Tensor | None = None,
+        indices: list[NdarrayOrTensor] | None = None,
+        image: torch.Tensor | None = None,
     ) -> None:
-        indices_: Sequence[NdarrayOrTensor]
-        if indices is None:
-            if self.indices is not None:
-                indices_ = self.indices
-            else:
-                indices_ = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
-        else:
-            indices_ = indices
-        label_shape = label.peek_pending_shape() if isinstance(label, MetaTensor) else label.shape[1:]
+        indices_ = self.indices if indices is None else indices
+        if indices_ is None:
+            if isinstance(label, MetaTensor) and label.pending_operations:
+                warnings.warn("label has pending operations, the fg/bg indices may be incorrect.")
+            if isinstance(image, MetaTensor) and image.pending_operations:
+                warnings.warn("image has pending operations, the fg/bg indices may be incorrect.")
+            if label is None:
+                raise ValueError("label must not be None.")
+            indices_ = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
+        _shape = None
+        if label is not None:
+            _shape = label.peek_pending_shape() if isinstance(label, MetaTensor) else label.shape[1:]
+        elif image is not None:
+            _shape = image.peek_pending_shape() if isinstance(image, MetaTensor) else image.shape[1:]
+        if _shape is None:
+            raise ValueError("label or image must be provided to infer the output spatial shape.")
         self.centers = generate_label_classes_crop_centers(
-            self.spatial_size, self.num_samples, label_shape, indices_, self.ratios, self.R, self.allow_smaller
+            self.spatial_size, self.num_samples, _shape, indices_, self.ratios, self.R, self.allow_smaller
         )
 
     @LazyTransform.lazy_evaluation.setter  # type: ignore
@@ -1251,19 +1263,15 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform):
         """
         if label is None:
             label = self.label
-        if label is None:
-            raise ValueError("label should be provided.")
-        if isinstance(label, MetaTensor) and label.pending_operations:
-            warnings.warn("label has pending operations, the sampling may not be correct.")
         if image is None:
             image = self.image
 
         if randomize:
-            self.randomize(label, indices, image)
+            self.randomize(label, indices, image)  # type: ignore
         results: list[torch.Tensor] = []
         if self.centers is not None:
-            label_shape = label.peek_pending_shape() if isinstance(label, MetaTensor) else label.shape[1:]
-            roi_size = fall_back_tuple(self.spatial_size, default=label_shape)
+            img_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
+            roi_size = fall_back_tuple(self.spatial_size, default=img_shape)
             for i, center in enumerate(self.centers):
                 cropper = SpatialCrop(roi_center=tuple(center), roi_size=roi_size)
                 cropper.lazy_evaluation = self.lazy_evaluation
