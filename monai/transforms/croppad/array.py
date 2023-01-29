@@ -1100,11 +1100,11 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform):
             randomize: whether to execute the random operations, default to `True`.
 
         """
-        if label is None:
-            label = self.label
         if image is None:
             image = self.image
         if randomize:
+            if label is None:
+                label = self.label
             self.randomize(label, fg_indices, bg_indices, image)
         results: list[torch.Tensor] = []
         if self.centers is not None:
@@ -1261,12 +1261,11 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform):
             randomize: whether to execute the random operations, default to `True`.
 
         """
-        if label is None:
-            label = self.label
         if image is None:
             image = self.image
-
         if randomize:
+            if label is None:
+                label = self.label
             self.randomize(label, indices, image)  # type: ignore
         results: list[torch.Tensor] = []
         if self.centers is not None:

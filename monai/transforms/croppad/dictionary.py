@@ -759,7 +759,7 @@ class RandWeightedCropd(Randomizable, MapTransform, LazyTransform):
 
         self.randomize(weight_map=data[self.w_key])
         for key in self.key_iterator(data):
-            for i, im in enumerate(self.cropper(data[key], weight_map=data[self.w_key], randomize=False)):
+            for i, im in enumerate(self.cropper(data[key], randomize=False)):
                 ret[i][key] = im
         return ret
 
@@ -870,11 +870,10 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, LazyTransform):
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> list[dict[Hashable, torch.Tensor]]:
         d = dict(data)
-        label = d.get(self.label_key)
         fg_indices = d.pop(self.fg_indices_key, None)
         bg_indices = d.pop(self.bg_indices_key, None)
 
-        self.randomize(label, fg_indices, bg_indices, d.get(self.image_key))
+        self.randomize(d.get(self.label_key), fg_indices, bg_indices, d.get(self.image_key))
 
         # initialize returned list with shallow copy to preserve key ordering
         ret: list = [dict(d) for _ in range(self.cropper.num_samples)]
@@ -884,7 +883,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, LazyTransform):
                 ret[i][key] = deepcopy(d[key])
 
         for key in self.key_iterator(d):
-            for i, im in enumerate(self.cropper(d[key], label=label, randomize=False)):
+            for i, im in enumerate(self.cropper(d[key], randomize=False)):
                 ret[i][key] = im
         return ret
 
@@ -1009,8 +1008,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform):
 
     def __call__(self, data: Mapping[Hashable, Any]) -> list[dict[Hashable, torch.Tensor]]:
         d = dict(data)
-        label = d.get(self.label_key)
-        self.randomize(label, d.pop(self.indices_key, None), d.get(self.image_key))  # type: ignore
+        self.randomize(d.get(self.label_key), d.pop(self.indices_key, None), d.get(self.image_key))  # type: ignore
 
         # initialize returned list with shallow copy to preserve key ordering
         ret: list = [dict(d) for _ in range(self.cropper.num_samples)]
@@ -1020,7 +1018,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform):
                 ret[i][key] = deepcopy(d[key])
 
         for key in self.key_iterator(d):
-            for i, im in enumerate(self.cropper(d[key], label=label, randomize=False)):
+            for i, im in enumerate(self.cropper(d[key], randomize=False)):
                 ret[i][key] = im
         return ret
 
