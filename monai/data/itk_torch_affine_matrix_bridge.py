@@ -278,8 +278,8 @@ def itk_affine_resample(image, matrix, translation, center_of_rotation=None):
 
 def monai_affine_resample(metatensor: MetaTensor, affine_matrix: NdarrayOrTensor):
     # TODO documentation, change to mode=3
-    #affine = Affine(affine=affine_matrix, mode=3, padding_mode='mirror', dtype=torch.float64, image_only=True)
-    #output_tensor = cast(MetaTensor, affine(metatensor))
+    # affine = Affine(affine=affine_matrix, mode=3, padding_mode='mirror', dtype=torch.float64, image_only=True)
+    # output_tensor = cast(MetaTensor, affine(metatensor))
     affine = Affine(affine=affine_matrix, padding_mode="zeros", dtype=torch.float64, image_only=True)
     output_tensor = cast(MetaTensor, affine(metatensor, mode="bilinear"))
 

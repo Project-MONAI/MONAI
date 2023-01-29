@@ -36,15 +36,14 @@ from monai.data.itk_torch_affine_matrix_bridge import (
 TESTS = [
     "CT_2D_head_fixed.mha",
     "CT_2D_head_moving.mha",
-    #"copd1_highres_INSP_STD_COPD_img.nii.gz"
+    # "copd1_highres_INSP_STD_COPD_img.nii.gz"
 ]
 # Download URL:
 # SHA-521: 60193cd6ef0cf055c623046446b74f969a2be838444801bd32ad5bedc8a7eeecb343e8a1208769c9c7a711e101c806a3133eccdda7790c551a69a64b9b3701e9
-#TEST_CASE_3D_1 = [
+# TEST_CASE_3D_1 = [
 # "copd1_highres_INSP_STD_COPD_img.nii.gz" # https://data.kitware.com/api/v1/file/62a0f067bddec9d0c4175c5a/download
 # "copd1_highres_INSP_STD_COPD_img.nii.gz" # https://data.kitware.com/api/v1/item/62a0f045bddec9d0c4175c44/download
 # ]
-
 
 
 @unittest.skipUnless(has_itk, "Requires `itk` package.")
@@ -54,7 +53,7 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         self.data_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
         self.reader = ITKReader()
 
-        #for filepath in TEST_CASES:
+        # for filepath in TEST_CASES:
         #    if not os.path.exists(os.path.join(self.data_dir, filepath)):
         #        with skip_if_downloading_fails():
         #            data_spec = testing_data_config("images", filepath)
@@ -94,12 +93,12 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         ###########################################################################
         # Make sure that the array conversion of the inputs is the same
         input_array_monai = metatensor_to_array(metatensor)
-        #output_array_monai = ITKWriter.create_backend_obj(
+        # output_array_monai = ITKWriter.create_backend_obj(
         #    metatensor.array,
         #    channel_dim=None,
         #    affine=affine_matrix_for_monai,
         #    affine_lps_to_ras=False,  # False if the affine is in itk convention
-        #)
+        # )
         np.testing.assert_array_equal(input_array_monai, np.asarray(image))
 
         # Compare outputs
