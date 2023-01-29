@@ -844,7 +844,9 @@ class CropForeground(Crop):
             box_end - np.asarray(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]), 0
         )
         pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
-        pad_width = BorderPad(spatial_border=pad).compute_pad_width(cropped.shape[1:])
+        pad_width = BorderPad(spatial_border=pad).compute_pad_width(
+            cropped.peek_pending_shape() if isinstance(cropped, MetaTensor) else cropped.shape[1:]
+        )
         ret = self.padder.__call__(img=cropped, to_pad=pad_width, mode=mode, **pad_kwargs)
         # combine the traced cropping and padding into one transformation
         # by taking the padded info and placing it in a key inside the crop info.
@@ -927,17 +929,14 @@ class RandWeightedCrop(Randomizable, TraceableTransform, LazyTransform):
             weight_map = self.weight_map
         if weight_map is None:
             raise ValueError("weight map must be provided for weighted patch sampling.")
-        img_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape
-        w_shape = weight_map.peek_pending_shape() if isinstance(weight_map, MetaTensor) else weight_map.shape
+        img_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
+        w_shape = weight_map.peek_pending_shape() if isinstance(weight_map, MetaTensor) else weight_map.shape[1:]
         if img_shape != w_shape:
             warnings.warn(f"image and weight map spatial shape mismatch: {img_shape} vs {w_shape}.")
 
         if randomize:
             self.randomize(weight_map)
-        _spatial_size = fall_back_tuple(
-            self.spatial_size,
-            weight_map.peek_pending_shape() if isinstance(weight_map, MetaTensor) else weight_map.shape[1:],
-        )
+        _spatial_size = fall_back_tuple(self.spatial_size, w_shape)
         results: list[torch.Tensor] = []
         for i, center in enumerate(self.centers):
             cropper = SpatialCrop(roi_center=center, roi_size=_spatial_size)
@@ -1055,11 +1054,12 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform):
         else:
             fg_indices_ = fg_indices
             bg_indices_ = bg_indices
+        label_shape = label.peek_pending_shape() if isinstance(label, MetaTensor) else label.shape[1:]
         self.centers = generate_pos_neg_label_crop_centers(
             self.spatial_size,
             self.num_samples,
             self.pos_ratio,
-            label.peek_pending_shape() if isinstance(label, MetaTensor) else label.shape[1:],
+            label_shape,
             fg_indices_,
             bg_indices_,
             self.R,
@@ -1106,11 +1106,9 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform):
             self.randomize(label, fg_indices, bg_indices, image)
         results: list[torch.Tensor] = []
         if self.centers is not None:
+            label_shape = label.peek_pending_shape() if isinstance(label, MetaTensor) else label.shape[1:]
+            roi_size = fall_back_tuple(self.spatial_size, default=label_shape)
             for i, center in enumerate(self.centers):
-                roi_size = fall_back_tuple(
-                    self.spatial_size,
-                    default=label.peek_pending_shape() if isinstance(label, MetaTensor) else label.shape[1:],
-                )
                 cropper = SpatialCrop(roi_center=center, roi_size=roi_size)
                 cropper.lazy_evaluation = self.lazy_evaluation
                 cropped = cropper(img)
@@ -1223,14 +1221,9 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform):
                 indices_ = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
         else:
             indices_ = indices
+        label_shape = label.peek_pending_shape() if isinstance(label, MetaTensor) else label.shape[1:]
         self.centers = generate_label_classes_crop_centers(
-            self.spatial_size,
-            self.num_samples,
-            label.peek_pending_shape() if isinstance(label, MetaTensor) else label.shape[1:],
-            indices_,
-            self.ratios,
-            self.R,
-            self.allow_smaller,
+            self.spatial_size, self.num_samples, label_shape, indices_, self.ratios, self.R, self.allow_smaller
         )
 
     @LazyTransform.lazy_evaluation.setter  # type: ignore
@@ -1269,8 +1262,9 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform):
             self.randomize(label, indices, image)
         results: list[torch.Tensor] = []
         if self.centers is not None:
+            label_shape = label.peek_pending_shape() if isinstance(label, MetaTensor) else label.shape[1:]
+            roi_size = fall_back_tuple(self.spatial_size, default=label_shape)
             for i, center in enumerate(self.centers):
-                roi_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
                 cropper = SpatialCrop(roi_center=tuple(center), roi_size=roi_size)
                 cropper.lazy_evaluation = self.lazy_evaluation
                 cropped = cropper(img)
@@ -1340,26 +1334,23 @@ class ResizeWithPadOrCrop(InvertibleTransform, LazyTransform):
                 note that `np.pad` treats channel dimension as the first dimension.
 
         """
-        orig_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
         ret = self.padder(self.cropper(img), mode=mode, **pad_kwargs)
         # remove the individual info and combine
         if get_track_meta():
             ret_: MetaTensor = ret  # type: ignore
+            pad_info = ret_.applied_operations.pop()
+            crop_info = ret_.applied_operations.pop()
+            orig_size = crop_info.get(TraceKeys.ORIG_SIZE)
+            extra_info = {"pad_info": pad_info, "crop_info": crop_info}
             if not self.lazy_evaluation:
-                pad_info = ret_.applied_operations.pop(-1)
-                crop_info = ret_.applied_operations.pop(-1)
-                self.push_transform(
-                    ret_, orig_size=orig_size, extra_info={"pad_info": pad_info, "crop_info": crop_info}
-                )
+                self.push_transform(ret_, orig_size=orig_size, extra_info=extra_info)
             else:
-                pad_info = ret_.pending_operations.pop()
-                crop_info = ret_.pending_operations.pop()
                 self.push_transform(
                     ret_,
                     orig_size=orig_size,
                     sp_size=pad_info[LazyAttr.SHAPE],
                     affine=crop_info[LazyAttr.AFFINE] @ pad_info[LazyAttr.AFFINE],
-                    extra_info={"pad_info": pad_info, "crop_info": crop_info},
+                    extra_info=extra_info,
                 )
 
         return ret
