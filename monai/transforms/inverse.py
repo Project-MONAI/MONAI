@@ -149,34 +149,39 @@ class TraceableTransform(Transform):
                 of the original image was, in which case it can be supplied here.
             transform_info: info from self.get_transform_info().
             lazy_evaluation: whether to push the transform to pending_operations or applied_operations.
+
         Returns:
             None, but data has been updated to store the applied transformation.
         """
         data_t = data[key] if key is not None else data  # compatible with the dict data representation
         out_obj = MetaObj()
-        data_t = convert_to_tensor(data=data_t, track_meta=get_track_meta())
-        out_obj.copy_meta_from(data_t, keys=out_obj.__dict__.keys())
+        # after deprecating metadict, we should always convert data_t to metatensor here
+        if isinstance(data_t, MetaTensor):
+            out_obj.copy_meta_from(data_t, keys=out_obj.__dict__.keys())
+        else:
+            warnings.warn("data_t is not a MetaTensor.")
 
-        # not lazy evaluation, directly update the affine but don't push the stacks
         if not lazy_evaluation and affine is not None and isinstance(data_t, MetaTensor):
+            # not lazy evaluation, directly update the metatensor affine (don't push to the stack)
             orig_affine = data_t.peek_pending_affine()
             orig_affine = convert_to_dst_type(orig_affine, affine)[0]
             affine = orig_affine @ to_affine_nd(len(orig_affine) - 1, affine, dtype=affine.dtype)
             out_obj.meta[MetaKeys.AFFINE] = convert_to_tensor(affine, device=torch.device("cpu"))
-        if not (
-            isinstance(data_t, MetaTensor)
-            and get_track_meta()
-            and transform_info
-            and transform_info.get(TraceKeys.TRACING)
-        ):
-            if key is not None:
+
+        if not (get_track_meta() and transform_info and transform_info.get(TraceKeys.TRACING)):
+            if isinstance(data, Mapping):
                 data[key] = data_t.copy_meta_from(out_obj) if isinstance(data_t, MetaTensor) else data_t
                 return data
             return out_obj  # return with data_t as tensor if get_track_meta() is False
 
         info = transform_info
         # track the current spatial shape
-        info[TraceKeys.ORIG_SIZE] = data_t.peek_pending_shape() if orig_size is None else orig_size
+        if orig_size is not None:
+            info[TraceKeys.ORIG_SIZE] = orig_size
+        elif isinstance(data_t, MetaTensor):
+            info[TraceKeys.ORIG_SIZE] = data_t.peek_pending_shape()
+        elif hasattr(data_t, "shape"):
+            info[TraceKeys.ORIG_SIZE] = data_t.shape[1:]
         # include extra_info
         if extra_info is not None:
             info[TraceKeys.EXTRA_INFO] = extra_info
@@ -196,7 +201,7 @@ class TraceableTransform(Transform):
             out_obj.push_pending_operation(info)
         else:
             out_obj.push_applied_operation(info)
-        if key is not None:
+        if isinstance(data, Mapping):
             if isinstance(data_t, MetaTensor):
                 data[key] = data_t.copy_meta_from(out_obj)
             else:
