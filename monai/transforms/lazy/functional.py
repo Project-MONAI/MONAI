@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import numpy as np
 import torch
 
 from monai.data.meta_tensor import MetaTensor
@@ -22,37 +23,70 @@ from monai.transforms.lazy.utils import (
     kwargs_from_pending,
     resample,
 )
+from monai.utils import LazyAttr
 
 __all__ = ["apply_transforms"]
 
 
-def apply_transforms(data: torch.Tensor | MetaTensor, pending: list | None = None):
+def apply_transforms(
+    data: torch.Tensor | MetaTensor,
+    pending: list | None = None,
+    mode: str | None = None,
+    padding_mode: str | None = None,
+    dtype=np.float64,
+):
     """
     This method applies pending transforms to `data` tensors.
 
     Args:
         data: A torch Tensor or a monai MetaTensor.
         pending: pending transforms. This must be set if data is a Tensor, but is optional if data is a MetaTensor.
+        mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
+            Interpolation mode to calculate output values. Defaults to None.
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+            When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
+            and the value represents the order of the spline interpolation.
+            See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+        padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+            Padding mode for outside grid values. Defaults to None.
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+            When `mode` is an integer, using numpy/cupy backends, this argument accepts
+            {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
+            See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+        dtype: data type for resampling computation. Defaults to ``float64``.
+            If ``None``, use the data type of input data`.
     """
     if isinstance(data, MetaTensor) and pending is None:
-        pending = data.pending_operations
+        pending = data.pending_operations.copy()
+        data.clear_pending_operations()
     pending = [] if pending is None else pending
 
     if not pending:
-        return data
+        return data, []
 
     cumulative_xform = affine_from_pending(pending[0])
     cur_kwargs = kwargs_from_pending(pending[0])
+    override_kwargs = {}
+    if mode is not None:
+        override_kwargs[LazyAttr.INTERP_MODE] = mode
+    if padding_mode is not None:
+        override_kwargs[LazyAttr.PADDING_MODE] = padding_mode
+    override_kwargs[LazyAttr.DTYPE] = data.dtype if dtype is None else dtype
 
     for p in pending[1:]:
         new_kwargs = kwargs_from_pending(p)
         if not is_compatible_apply_kwargs(cur_kwargs, new_kwargs):
             # carry out an intermediate resample here due to incompatibility between arguments
-            data = resample(data, cumulative_xform, cur_kwargs)
+            _cur_kwargs = cur_kwargs.copy()
+            _cur_kwargs.update(override_kwargs)
+            sp_size = _cur_kwargs.pop(LazyAttr.SHAPE, None)
+            data = resample(data, cumulative_xform, sp_size, _cur_kwargs)
         next_matrix = affine_from_pending(p)
         cumulative_xform = combine_transforms(cumulative_xform, next_matrix)
         cur_kwargs.update(new_kwargs)
-    data = resample(data, cumulative_xform, cur_kwargs)
+    cur_kwargs.update(override_kwargs)
+    sp_size = cur_kwargs.pop(LazyAttr.SHAPE, None)
+    data = resample(data, cumulative_xform, sp_size, cur_kwargs)
     if isinstance(data, MetaTensor):
         data.clear_pending_operations()
         data.affine = data.affine @ to_affine_nd(3, cumulative_xform)
