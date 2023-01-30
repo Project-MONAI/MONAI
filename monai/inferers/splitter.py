@@ -37,7 +37,7 @@ class Splitter(ABC):
         self.device = device
 
     @abstractmethod
-    def __call__(self, data: Any) -> Iterable[tuple[torch.Tensor, Sequence[int]]]:
+    def __call__(self, inputs: Any) -> Iterable[tuple[torch.Tensor, Sequence[int]]]:
         """
         Split the image, represented by an input tensor or a filename, into patches.
 

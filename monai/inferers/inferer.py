@@ -26,7 +26,7 @@ from monai.inferers.utils import compute_importance_map, sliding_window_inferenc
 from monai.utils import BlendMode, PatchKeys, PytorchPadMode, ensure_tuple
 from monai.visualize import CAM, GradCAM, GradCAMpp
 
-__all__ = ["Inferer", "SimpleInferer", "SlidingWindowInferer", "SaliencyInferer", "SliceInferer"]
+__all__ = ["Inferer", "PatchInferer" "SimpleInferer", "SlidingWindowInferer", "SaliencyInferer", "SliceInferer"]
 
 
 class Inferer(ABC):
@@ -65,30 +65,6 @@ class Inferer(ABC):
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
-
-
-class SimpleInferer(Inferer):
-    """
-    SimpleInferer is the normal inference method that run model forward() directly.
-    Usage example can be found in the :py:class:`monai.inferers.Inferer` base class.
-
-    """
-
-    def __init__(self) -> None:
-        Inferer.__init__(self)
-
-    def __call__(self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any):
-        """Unified callable function API of Inferers.
-
-        Args:
-            inputs: model input data for inference.
-            network: target model to execute inference.
-                supports callables such as ``lambda x: my_torch_model(x, additional_config)``
-            args: optional args to be passed to ``network``.
-            kwargs: optional keyword args to be passed to ``network``.
-
-        """
-        return network(inputs, *args, **kwargs)
 
 
 class PatchInferer(Inferer):
@@ -249,6 +225,30 @@ class PatchInferer(Inferer):
         self.is_initialized = False
 
         return merged_outputs if len(merged_outputs) > 1 else merged_outputs[0]
+
+
+class SimpleInferer(Inferer):
+    """
+    SimpleInferer is the normal inference method that run model forward() directly.
+    Usage example can be found in the :py:class:`monai.inferers.Inferer` base class.
+
+    """
+
+    def __init__(self) -> None:
+        Inferer.__init__(self)
+
+    def __call__(self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any):
+        """Unified callable function API of Inferers.
+
+        Args:
+            inputs: model input data for inference.
+            network: target model to execute inference.
+                supports callables such as ``lambda x: my_torch_model(x, additional_config)``
+            args: optional args to be passed to ``network``.
+            kwargs: optional keyword args to be passed to ``network``.
+
+        """
+        return network(inputs, *args, **kwargs)
 
 
 class SlidingWindowInferer(Inferer):
