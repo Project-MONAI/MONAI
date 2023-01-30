@@ -40,6 +40,7 @@ TESTS = ["CT_2D_head_fixed.mha", "CT_2D_head_moving.mha", "copd1_highres_INSP_ST
 key = "copd1_highres_INSP_STD_COPD_img"
 FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", f"{key}.nii.gz")
 
+
 def remove_border(image):
     """
     MONAI seems to have different behavior in the borders of the image than ITK.
@@ -67,12 +68,7 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
             if not os.path.exists(n):
                 with skip_if_downloading_fails():
                     data_spec = testing_data_config("images", f"{k}")
-                    download_url(
-                        data_spec["url"],
-                        n,
-                        hash_val=data_spec["hash_val"],
-                        hash_type=data_spec["hash_type"],
-                    )
+                    download_url(data_spec["url"], n, hash_val=data_spec["hash_val"], hash_type=data_spec["hash_type"])
 
     @parameterized.expand(TESTS)
     def test_setting_affine_parameters(self, filepath):
