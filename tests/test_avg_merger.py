@@ -14,11 +14,10 @@ from __future__ import annotations
 import unittest
 
 import torch
-from torch.testing import assert_close
 from parameterized import parameterized
+from torch.testing import assert_close
 
 from monai.inferers import AvgMerger
-
 
 TENSOR_4x4 = torch.randint(low=0, high=255, size=(2, 3, 4, 4), dtype=torch.float32)
 
@@ -68,24 +67,13 @@ WITH_NAN = TENSOR_4x4.clone()
 WITH_NAN[..., 2:, 2:] = torch.nan
 TEST_CASE_3 = [
     TENSOR_4x4,
-    [
-        (TENSOR_4x4[..., :2, :2], (0, 0)),
-        (TENSOR_4x4[..., :2, 2:], (0, 2)),
-        (TENSOR_4x4[..., 2:, :2], (2, 0)),
-    ],
+    [(TENSOR_4x4[..., :2, :2], (0, 0)), (TENSOR_4x4[..., :2, 2:], (0, 2)), (TENSOR_4x4[..., 2:, :2], (2, 0))],
     WITH_NAN,
 ]
 
 
 class AvgMergerTests(unittest.TestCase):
-    @parameterized.expand(
-        [
-            TEST_CASE_0,
-            TEST_CASE_1,
-            TEST_CASE_2,
-            TEST_CASE_3,
-        ]
-    )
+    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_merge_patches(self, image, patch_locations, expected):
         merger = AvgMerger()
         merger.initialize(inputs=image, in_patch=patch_locations[0][0], out_patch=patch_locations[0][0])

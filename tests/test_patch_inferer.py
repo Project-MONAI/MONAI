@@ -14,21 +14,17 @@ from __future__ import annotations
 import unittest
 
 import torch
-from torch.testing import assert_close
 from parameterized import parameterized
+from torch.testing import assert_close
 
 from monai.inferers import AvgMerger, PatchInferer, SlidingWindowSplitter
-
 
 TENSOR_4x4 = torch.randint(low=0, high=255, size=(2, 3, 4, 4), dtype=torch.float32)
 
 # no-overlapping 2x2
 TEST_CASE_1 = [
     TENSOR_4x4,
-    dict(
-        splitter=SlidingWindowSplitter(patch_size=(2, 2)),
-        merger=AvgMerger(),
-    ),
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger=AvgMerger()),
     lambda x: x,
     TENSOR_4x4,
 ]
@@ -41,22 +37,14 @@ TEST_CASE_2 = [
         (TENSOR_4x4[..., 2:, :2], (2, 0)),
         (TENSOR_4x4[..., 2:, 2:], (2, 2)),
     ],
-    dict(
-        splitter=lambda x: x,
-        merger=AvgMerger(output_shape=(2, 3, 4, 4)),
-    ),
+    dict(splitter=lambda x: x, merger=AvgMerger(output_shape=(2, 3, 4, 4))),
     lambda x: x,
     TENSOR_4x4,
 ]
 
 
 class PatchInfererTests(unittest.TestCase):
-    @parameterized.expand(
-        [
-            TEST_CASE_1,
-            TEST_CASE_2,
-        ]
-    )
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_inference(self, inputs, arguments, network, expected):
         inferer = PatchInferer(**arguments)
         output = inferer(inputs=inputs, network=network)

@@ -11,12 +11,12 @@
 
 from __future__ import annotations
 
-
 import unittest
+
 import torch
+from parameterized import parameterized
 from torch.nn.functional import pad
 from torch.testing import assert_close
-from parameterized import parameterized
 
 from monai.inferers import SlidingWindowSplitter
 from monai.utils.enums import PatchKeys
