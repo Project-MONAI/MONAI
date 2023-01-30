@@ -107,6 +107,8 @@ class MetaObj:
     @staticmethod
     def copy_items(data):
         """returns a copy of the data. list and dict are shallow copied for efficiency purposes."""
+        if isinstance(data, (bool, int, float, str, type(None))):
+            return data
         if isinstance(data, (list, dict, np.ndarray)):
             return data.copy()
         if isinstance(data, torch.Tensor):
@@ -132,10 +134,8 @@ class MetaObj:
         keys = first_meta.keys() if keys is None else keys
         if not copy_attr:
             self.__dict__ = {a: first_meta[a] for a in keys if a in first_meta}  # shallow copy for performance
-        elif copy_attr != "deep":
-            self.__dict__.update({a: MetaObj.copy_items(first_meta[a]) for a in keys if a in first_meta})
         else:
-            self.__dict__ = deepcopy({a: first_meta[a] for a in keys if a in first_meta})
+            self.__dict__.update({a: MetaObj.copy_items(first_meta[a]) for a in keys if a in first_meta})
         return self
 
     @staticmethod
