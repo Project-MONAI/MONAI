@@ -30,8 +30,7 @@ else:
     itk, has_itk = optional_import("itk")
 
 __all__ = [
-    "metatensor_to_array",
-    "image_to_metatensor",
+    "itk_image_to_metatensor",
     "itk_to_monai_affine",
     "monai_to_itk_affine",
     "create_itk_affine_from_parameters",
@@ -40,15 +39,7 @@ __all__ = [
 ]
 
 
-# TODO remove
-def metatensor_to_array(metatensor: MetaTensor):
-    metatensor = metatensor.squeeze()
-    metatensor = metatensor.permute(*torch.arange(metatensor.ndim - 1, -1, -1))
-
-    return metatensor.get_array()
-
-
-def image_to_metatensor(image):
+def itk_image_to_metatensor(image):
     """
     Converts an ITK image to a MetaTensor object.
 
@@ -60,7 +51,7 @@ def image_to_metatensor(image):
     """
     reader = ITKReader(affine_lps_to_ras=False)
     image_array, meta_data = reader.get_data(image)
-    image_array = convert_to_dst_type(image_array, dst=image_array, dtype=itk.D)[0]
+    image_array = convert_to_dst_type(image_array, dst=image_array, dtype=np.dtype(itk.D))[0]
     metatensor = MetaTensor.ensure_torch_and_prune_meta(image_array, meta_data)
     metatensor = EnsureChannelFirst()(metatensor)
 
@@ -277,10 +268,8 @@ def itk_affine_resample(image, matrix, translation, center_of_rotation=None):
 
 
 def monai_affine_resample(metatensor: MetaTensor, affine_matrix: NdarrayOrTensor):
-    # TODO documentation, change to mode=3
-    # affine = Affine(affine=affine_matrix, mode=3, padding_mode='mirror', dtype=torch.float64, image_only=True)
-    # output_tensor = cast(MetaTensor, affine(metatensor))
-    affine = Affine(affine=affine_matrix, padding_mode="zeros", dtype=torch.float64, image_only=True)
-    output_tensor = cast(MetaTensor, affine(metatensor, mode="bilinear"))
+    # TODO documentation
+    affine = Affine(affine=affine_matrix, padding_mode="zeros", mode="bilinear", dtype=torch.float64, image_only=True)
+    output_tensor = cast(MetaTensor, affine(metatensor))
 
-    return metatensor_to_array(output_tensor)
+    return output_tensor.squeeze().permute(*torch.arange(output_tensor.ndim - 2, -1, -1)).array

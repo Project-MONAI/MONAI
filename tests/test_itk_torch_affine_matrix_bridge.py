@@ -21,10 +21,9 @@ from parameterized import parameterized
 from monai.data import ITKReader
 from monai.data.itk_torch_affine_matrix_bridge import (
     create_itk_affine_from_parameters,
-    image_to_metatensor,
+    itk_image_to_metatensor,
     itk_affine_resample,
     itk_to_monai_affine,
-    metatensor_to_array,
     monai_affine_resample,
     monai_to_itk_affine,
 )
@@ -32,11 +31,7 @@ from monai.utils import optional_import
 
 itk, has_itk = optional_import("itk")
 
-TESTS = [
-    "CT_2D_head_fixed.mha",
-    "CT_2D_head_moving.mha",
-    # "copd1_highres_INSP_STD_COPD_img.nii.gz"
-]
+TESTS = ["CT_2D_head_fixed.mha", "CT_2D_head_moving.mha", "copd1_highres_INSP_STD_COPD_img.nii.gz"]
 # Download URL:
 # SHA-521: 60193cd6ef0cf055c623046446b74f969a2be838444801bd32ad5bedc8a7eeec
 #          b343e8a1208769c9c7a711e101c806a3133eccdda7790c551a69a64b9b3701e9
@@ -86,23 +81,19 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         output_array_itk = itk_affine_resample(image, matrix=matrix, translation=translation)
 
         # MONAI
-        metatensor = image_to_metatensor(image)
+        metatensor = itk_image_to_metatensor(image)
         affine_matrix_for_monai = itk_to_monai_affine(image, matrix, translation)
         output_array_monai = monai_affine_resample(metatensor, affine_matrix=affine_matrix_for_monai)
 
         ###########################################################################
         # Make sure that the array conversion of the inputs is the same
-        input_array_monai = metatensor_to_array(metatensor)
-        # output_array_monai = ITKWriter.create_backend_obj(
-        #    metatensor.array,
-        #    channel_dim=None,
-        #    affine=affine_matrix_for_monai,
-        #    affine_lps_to_ras=False,  # False if the affine is in itk convention
-        # )
+        input_array_monai = metatensor.squeeze().permute(*torch.arange(metatensor.ndim - 2, -1, -1)).array
         np.testing.assert_array_equal(input_array_monai, np.asarray(image))
 
         # Compare outputs
-        percentage = 100 * np.isclose(output_array_monai, output_array_itk).sum() / output_array_itk.size
+        percentage = (
+            100 * np.isclose(output_array_monai, output_array_itk).sum(dtype=np.float64) / output_array_itk.size
+        )
         print("MONAI equals result: ", percentage, "%")
         self.assertGreaterEqual(percentage, 99.0)
 
@@ -145,17 +136,19 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         output_array_itk = itk_affine_resample(image, matrix, translation, center_of_rotation)
 
         # MONAI
-        metatensor = image_to_metatensor(image)
+        metatensor = itk_image_to_metatensor(image)
         affine_matrix_for_monai = itk_to_monai_affine(image, matrix, translation, center_of_rotation)
         output_array_monai = monai_affine_resample(metatensor, affine_matrix=affine_matrix_for_monai)
 
         # Make sure that the array conversion of the inputs is the same
-        input_array_monai = metatensor_to_array(metatensor)
+        input_array_monai = metatensor.squeeze().permute(*torch.arange(metatensor.ndim - 2, -1, -1)).array
         np.testing.assert_array_equal(input_array_monai, np.asarray(image))
 
         ###########################################################################
         # Compare outputs
-        percentage = 100 * np.isclose(output_array_monai, output_array_itk).sum() / output_array_itk.size
+        percentage = (
+            100 * np.isclose(output_array_monai, output_array_itk).sum(dtype=np.float64) / output_array_itk.size
+        )
         print("MONAI equals result: ", percentage, "%")
         self.assertGreaterEqual(percentage, 99.0)
 
@@ -199,16 +192,18 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         output_array_itk = itk_affine_resample(image, matrix, translation, center_of_rotation)
 
         # MONAI
-        metatensor = image_to_metatensor(image)
+        metatensor = itk_image_to_metatensor(image)
         output_array_monai = monai_affine_resample(metatensor, affine_matrix)
 
         # Make sure that the array conversion of the inputs is the same
-        input_array_monai = metatensor_to_array(metatensor)
+        input_array_monai = metatensor.squeeze().permute(*torch.arange(metatensor.ndim - 2, -1, -1)).array
         np.testing.assert_array_equal(input_array_monai, np.asarray(image))
 
         ###########################################################################
         # Compare outputs
-        percentage = 100 * np.isclose(output_array_monai, output_array_itk).sum() / output_array_itk.size
+        percentage = (
+            100 * np.isclose(output_array_monai, output_array_itk).sum(dtype=np.float64) / output_array_itk.size
+        )
         print("MONAI equals result: ", percentage, "%")
         self.assertGreaterEqual(percentage, 99.0)
 
