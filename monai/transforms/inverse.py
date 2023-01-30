@@ -99,7 +99,16 @@ class TraceableTransform(Transform):
         return dict(zip(self.transform_keys(), vals))
 
     def push_transform(self, data, *args, **kwargs):
-        """replace bool, whether to rewrite applied_operation (default False)"""
+        """
+        Push to a stack of applied transforms of ``data``.
+
+        Args:
+            data: dictionary of data or `MetaTensor`.
+            args: additional positional arguments to track_transform_meta.
+            kwargs: additional keyword arguments to track_transform_meta,
+                set ``replace=True`` (default False) to rewrite the last transform infor in
+                applied_operation/pending_operation based on ``self.get_transform_info()``.
+        """
         transform_info = self.get_transform_info()
         lazy_eval = transform_info.get(TraceKeys.LAZY_EVALUATION, False)
         do_transform = transform_info.get(TraceKeys.DO_TRANSFORM, True)
@@ -118,11 +127,11 @@ class TraceableTransform(Transform):
             return data
         kwargs["lazy_evaluation"] = lazy_eval
         kwargs["transform_info"] = transform_info
-        meta_obj = TraceableTransform.track_transform_tensor(data, *args, **kwargs)
+        meta_obj = TraceableTransform.track_transform_meta(data, *args, **kwargs)
         return data.copy_meta_from(meta_obj) if isinstance(data, MetaTensor) else data
 
     @classmethod
-    def track_transform_tensor(
+    def track_transform_meta(
         cls,
         data,
         key: Hashable = None,
@@ -134,7 +143,8 @@ class TraceableTransform(Transform):
         lazy_evaluation=False,
     ):
         """
-        Push to a stack of applied transforms.
+        Update a stack of applied/pending transforms metadata of ``data``.
+
         Args:
             data: dictionary of data or `MetaTensor`.
             key: if data is a dictionary, data[key] will be modified.
@@ -151,7 +161,9 @@ class TraceableTransform(Transform):
             lazy_evaluation: whether to push the transform to pending_operations or applied_operations.
 
         Returns:
-            None, but data has been updated to store the applied transformation.
+
+            For backward compatibility, if ``data`` is a dictionary, it returns the dictionary with
+            updated ``data[key]``. Otherwise, this function returns a MetaObj with updated transform metadata.
         """
         data_t = data[key] if key is not None else data  # compatible with the dict data representation
         out_obj = MetaObj()
