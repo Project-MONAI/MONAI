@@ -26,7 +26,7 @@ from monai.inferers.utils import compute_importance_map, sliding_window_inferenc
 from monai.utils import BlendMode, PatchKeys, PytorchPadMode, ensure_tuple
 from monai.visualize import CAM, GradCAM, GradCAMpp
 
-__all__ = ["Inferer", "PatchInferer" "SimpleInferer", "SlidingWindowInferer", "SaliencyInferer", "SliceInferer"]
+__all__ = ["Inferer", "PatchInferer", "SimpleInferer", "SlidingWindowInferer", "SaliencyInferer", "SliceInferer"]
 
 
 class Inferer(ABC):

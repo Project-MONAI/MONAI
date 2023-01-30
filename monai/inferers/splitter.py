@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Sequence
-from inspect import signature, _empty
+from inspect import _empty, signature
 from typing import Any
 
 import torch
@@ -43,11 +43,11 @@ class Splitter(ABC):
     @abstractmethod
     def __call__(self, inputs: Any) -> Iterable[tuple[torch.Tensor, Sequence[int]]]:
         """
-        Split the image, represented by an input tensor or a filename, into patches.
+        Split the image into patches.
 
         Args:
             inputs: either a tensor of shape BxCxHxW[xD], representing a batch of images,
-                or a filename (str) or list of filenames to the image(s)
+                or a filename (str) or list of filenames to the image(s).
 
         Raises:
             NotImplementedError: When the subclass does not override this method.
@@ -67,7 +67,7 @@ class SlidingWindowSplitter(Splitter):
         pad_mode: str | None = PytorchPadMode.CONSTANT,
         **pad_kwargs,
     ):
-        """Split the input into patches with sliding window strategy and possible overlap.
+        """Split the input into patches with sliding window strategy and a possible overlap.
         If also allows to offset the starting position and filter the patches.
 
         Args:
@@ -77,10 +77,9 @@ class SlidingWindowSplitter(Splitter):
             filter_fn: a callable to filter patches. It should accepts exactly two parameters (patch, location), and
                 return True for a patch to keep. Defaults to no filtering.
             device: the device where the patches are generated. Defaults to the device of inputs.
-            pad_mode: the pad mode when the patches are extracted from outside of the image.
-                Either if offset is negative or the image is non-divisible by the patch_size.
-                If None provided, the last incomplete patch will be dropped.
-                Defaults to PytorchPadMode.CONSTANT.
+            pad_mode: the pad mode when the patches are extracted from outside of the image
+                (either when the offset is negative or the image is non-divisible by the patch_size).
+                If set to `None`, the last incomplete patch will be dropped. Defaults to PytorchPadMode.CONSTANT.
 
         Note: for `patch_size`, `offset`, and `overlap` if only one scaler value is provided,
                 it will be broadcasted to all the spatial dimensions.
@@ -117,6 +116,9 @@ class SlidingWindowSplitter(Splitter):
             f"{type(filter_fn)} is given."
         )
 
+    def _get_valid_patch_size(self, spatial_ndim):
+        return ensure_tuple_rep(self.patch_size, spatial_ndim)
+
     def _get_valid_overlap(self, spatial_ndim, patch_size):
         # broadcast overlap is possible
         overlap = ensure_tuple_rep(self.overlap, spatial_ndim)
@@ -137,42 +139,48 @@ class SlidingWindowSplitter(Splitter):
                 raise ValueError(f"`offset` ({off}) cannot be larger than inputs size ({ins}).")
         return offset
 
-    def _get_valid_patch_size(self, spatial_ndim, patch_size):
-        return ensure_tuple_rep(self.patch_size, spatial_ndim)
+    def _calculate_pad_size(self, spatial_shape, spatial_ndim, patch_size, offset, overlap):
+        if not self.pad_mode:
+            return [], False
+
+        # initialize with zero
+        pad_size = [0] * 2 * spatial_ndim
+        # set the starting pad size only if the offset is negative
+        pad_size[1::2] = (-min(off, 0) for off in offset)
+        # set the ending pad size only if it is not divisible by the patch size
+        pad_size[::2] = (
+            0 if ps == 0 else (off - ins + ps) % round(ps * (1.0 - ov))
+            for ins, off, ps, ov in zip(spatial_shape, offset, patch_size, overlap)
+        )
+        return pad_size, any(pad_size[1::2])
 
     def __call__(self, inputs: torch.Tensor) -> Iterable[tuple[torch.Tensor, Sequence[int]]]:
-        spatial_ndim = inputs.ndim - 2
-        spatial_shape = inputs.shape[-spatial_ndim:]
-        patch_size = self._get_valid_patch_size(spatial_ndim, self.patch_size)
+        n_non_spatial_dims = 2
+        spatial_ndim = inputs.ndim - n_non_spatial_dims
+        spatial_shape = inputs.shape[n_non_spatial_dims:]
+        patch_size = self._get_valid_patch_size(spatial_ndim)
         overlap = self._get_valid_overlap(spatial_ndim, patch_size)
         offset = self._get_valid_offset(spatial_shape, spatial_ndim, patch_size)
+        pad_size, is_start_padded = self._calculate_pad_size(spatial_shape, spatial_ndim, patch_size, offset, overlap)
 
-        padded = bool(self.pad_mode)
-        pad_size = [0] * 2 * spatial_ndim
-        if padded:
-            # set the starting pad size only if the offset is negative
-            pad_size[1::2] = (-min(off, 0) for off in offset)
-            # set the ending pad size only if it is not divisible by the patch size
-            pad_size[::2] = (
-                0 if ps == 0 else (off - ins + ps) % round(ps * (1.0 - ov))
-                for ins, off, ps, ov in zip(spatial_shape, offset, patch_size, overlap)
-            )
+        if any(pad_size):
             # pad the inputs
             inputs = torch.nn.functional.pad(
                 inputs, pad_size[::-1], look_up_option(self.pad_mode, PytorchPadMode).value, **self.pad_kwargs
             )
             # update spatial shape
-            spatial_shape = inputs.shape[-spatial_ndim:]
+            spatial_shape = inputs.shape[n_non_spatial_dims:]
             # correct the offset with regard to the padded image
-            offset = tuple(off + p for off, p in zip(offset, pad_size[1::2]))
+            if is_start_padded:
+                offset = tuple(off + p for off, p in zip(offset, pad_size[1::2]))
 
         for location in iter_patch_position(spatial_shape, patch_size, offset, overlap, False):
             slices = (slice(None),) * 2 + tuple(slice(loc, loc + ps) for loc, ps in zip(location, patch_size))
             patch = inputs[slices]
             if self.device:
                 patch.to(self.device)
-            if padded:
-                # correct the location for original inputs (remove padding)
+            if is_start_padded:
+                # correct the location with respect to original inputs (remove starting pads)
                 location = tuple(loc - p for loc, p in zip(location, pad_size[1::2]))
             if self.filter_fn(patch, location):
                 yield patch, location
