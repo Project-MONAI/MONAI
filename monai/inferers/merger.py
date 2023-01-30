@@ -128,7 +128,7 @@ class AvgMerger(Merger):
         device = self._get_device(in_patch, out_patch)
         self.values = torch.zeros(output_shape, dtype=self.dtype, device=device)
         self.counts = torch.zeros(output_shape, dtype=torch.uint8, device=device)
-        self.is_initialize = True
+        self.is_initialized = True
         self.is_finalized = False
 
     def aggregate(self, values: torch.Tensor, location: Sequence[int]):

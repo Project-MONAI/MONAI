@@ -16,9 +16,9 @@ import unittest
 import torch
 from parameterized import parameterized
 from torch.nn.functional import pad
-from torch.testing import assert_close
 
 from monai.inferers import SlidingWindowSplitter
+from tests.utils import assert_allclose
 
 TENSOR_4x4 = torch.randint(low=0, high=255, size=(2, 3, 4, 4), dtype=torch.float32)
 
@@ -83,7 +83,7 @@ class SlidingWindowSplitterTests(unittest.TestCase):
         patches = list(patches)
         self.assertEqual(len(patches), len(expected))
         for p, e in zip(patches, expected):
-            assert_close(p[0], e[0])
+            assert_allclose(p[0], e[0])
             self.assertTupleEqual(p[1], e[1])
 
 

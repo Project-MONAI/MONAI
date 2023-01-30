@@ -15,9 +15,9 @@ import unittest
 
 import torch
 from parameterized import parameterized
-from torch.testing import assert_close
 
 from monai.inferers import AvgMerger, PatchInferer, SlidingWindowSplitter
+from tests.utils import assert_allclose
 
 TENSOR_4x4 = torch.randint(low=0, high=255, size=(2, 3, 4, 4), dtype=torch.float32)
 
@@ -48,7 +48,7 @@ class PatchInfererTests(unittest.TestCase):
     def test_inference(self, inputs, arguments, network, expected):
         inferer = PatchInferer(**arguments)
         output = inferer(inputs=inputs, network=network)
-        assert_close(output, expected, equal_nan=True)
+        assert_allclose(output, expected)
 
 
 if __name__ == "__main__":

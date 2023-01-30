@@ -15,9 +15,9 @@ import unittest
 
 import torch
 from parameterized import parameterized
-from torch.testing import assert_close
 
 from monai.inferers import AvgMerger
+from tests.utils import assert_allclose
 
 TENSOR_4x4 = torch.randint(low=0, high=255, size=(2, 3, 4, 4), dtype=torch.float32)
 
@@ -80,7 +80,7 @@ class AvgMergerTests(unittest.TestCase):
         for pl in patch_locations:
             merger.aggregate(pl[0], pl[1])
         output = merger.finalize()
-        assert_close(output, expected, equal_nan=True)
+        assert_allclose(output, expected)
 
 
 if __name__ == "__main__":
