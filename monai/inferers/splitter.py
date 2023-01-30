@@ -43,7 +43,7 @@ class Splitter(ABC):
     @abstractmethod
     def __call__(self, inputs: Any) -> Iterable[tuple[torch.Tensor, Sequence[int]]]:
         """
-        Split the image into patches.
+        Split the input image (or batch of images) into patches.
 
         Args:
             inputs: either a tensor of shape BCHW[D], representing a batch of images,
@@ -96,7 +96,6 @@ class SlidingWindowSplitter(Splitter):
     def _get_valid_filter_fn(self, filter_fn):
         if filter_fn is None:
             return
-
         if callable(filter_fn):
             sig = signature(filter_fn)
             n_params = len(sig.parameters)
@@ -112,7 +111,6 @@ class SlidingWindowSplitter(Splitter):
                     f"The provided callable ({filter_fn}) has {n_pos_params} positional parameters."
                 )
             return filter_fn
-
         raise ValueError(
             "`patch_filter_fn` should be a callable with two input parameters (patch, location). "
             f"{type(filter_fn)} is given."
@@ -144,7 +142,6 @@ class SlidingWindowSplitter(Splitter):
     def _calculate_pad_size(self, spatial_shape, spatial_ndim, patch_size, offset, overlap):
         if not self.pad_mode:
             return [], False
-
         # initialize with zero
         pad_size = [0] * 2 * spatial_ndim
         # set the starting pad size only if the offset is negative
@@ -157,10 +154,10 @@ class SlidingWindowSplitter(Splitter):
         return pad_size, any(pad_size[1::2])
 
     def __call__(self, inputs: torch.Tensor) -> Iterable[tuple[torch.Tensor, Sequence[int]]]:
-        """Split the input tensor into patches and return patches and locations
+        """Split the input tensor into patches and return patches and locations.
 
         Args:
-            inputs: a torch.Tensor with BCHW[D] dimension, representing an image or batch of images
+            inputs: a torch.Tensor with BCHW[D] dimensions, representing an image or a batch of images.
 
         Yields:
             tuple[torch.Tensor, Sequence[int]]: yields tuple of patch and location
@@ -180,18 +177,20 @@ class SlidingWindowSplitter(Splitter):
             )
             # update spatial shape
             spatial_shape = inputs.shape[n_non_spatial_dims:]
-            # correct the offset with regard to the padded image
+            # correct the offset with respect to the padded image
             if is_start_padded:
                 offset = tuple(off + p for off, p in zip(offset, pad_size[1::2]))
 
         for location in iter_patch_position(spatial_shape, patch_size, offset, overlap, False):
             slices = (slice(None),) * 2 + tuple(slice(loc, loc + ps) for loc, ps in zip(location, patch_size))
             patch = inputs[slices]
+            # send the patch to target device
             if self.device:
                 patch.to(self.device)
+            # correct the location with respect to original inputs (remove starting pads)
             if is_start_padded:
-                # correct the location with respect to original inputs (remove starting pads)
                 location = tuple(loc - p for loc, p in zip(location, pad_size[1::2]))
+            # filter patches and yield
             if self.filter_fn is None:
                 yield patch, location
             elif self.filter_fn(patch, location):

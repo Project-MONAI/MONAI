@@ -19,7 +19,7 @@ import torch
 
 from monai.utils import ensure_tuple_size
 
-__all__ = ["Merger"]
+__all__ = ["Merger", "AvgMerger"]
 
 
 class Merger(ABC):
@@ -34,6 +34,8 @@ class Merger(ABC):
     def __init__(self, device: torch.device | str | None = None, dtype: torch.dtype = torch.float32) -> None:
         self.device = device
         self.dtype = dtype
+        self.is_initialized = False
+        self.is_finalized = False
 
     @abstractmethod
     def initialize(self, inputs: torch.Tensor, in_patch: torch.Tensor, out_patch: torch.Tensor):
@@ -126,6 +128,8 @@ class AvgMerger(Merger):
         device = self._get_device(in_patch, out_patch)
         self.values = torch.zeros(output_shape, dtype=self.dtype, device=device)
         self.counts = torch.zeros(output_shape, dtype=torch.uint8, device=device)
+        self.is_initialize = True
+        self.is_finalized = False
 
     def aggregate(self, values: torch.Tensor, location: Sequence[int]):
         """
@@ -139,6 +143,8 @@ class AvgMerger(Merger):
             NotImplementedError: When the subclass does not override this method.
 
         """
+        if not self.is_initialized:
+            raise ValueError("`AvgMerger` needs to be initialized before aggregation.")
         patch_size = values.shape[2:]
         map_slice = tuple(slice(loc, loc + size) for loc, size in zip(location, patch_size))
         map_slice = ensure_tuple_size(map_slice, values.ndim, pad_val=slice(None), pad_from_start=True)
@@ -148,17 +154,28 @@ class AvgMerger(Merger):
     def finalize(self) -> torch.Tensor:
         """
         Finalize the merging by dividing values by counts.
-        Note that after finalize, `values` tensor represents the average and not the aggregated values.
-        This avoid creating a new tensor for the final results and save memory.
+
+        Note:
+            After calling this method, to avoid creating a new tensor for the final results to save memory,
+            `self.get_values` returns the "final" averaged values and not the accumulating values.
+            Also calling `self.finalize` multiple times does not have any effect unless it is initialized again.
 
         Returns:
             torch.tensor: a tensor of merged patches
         """
+        if self.is_finalized:
+            return self.values
+        self.is_initialized = False
+        self.is_finalized = True
         return self.values.div_(self.counts)
 
     def get_values(self) -> torch.Tensor:
-        """Get the aggregator tensor for values.
-        Note that after calling  self.finalize(), this will represent the final average merged values.
+        """Get the accumulating values during aggregation or final averaged values after it is finalized.
+
+        Note:
+            - If called before finalizing, this method returns the accumulating values.
+            - If called after finalizing,  this method returns the final merged [and averaged] values.
+            - Call self.finalize() for finalize.
         """
         return self.values
 
