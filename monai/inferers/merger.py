@@ -15,7 +15,6 @@ from abc import ABC, abstractmethod
 from typing import Sequence, Any
 
 import torch
-from monai.utils.enums import PatchKeys
 from monai.utils import ensure_tuple_size
 
 __all__ = ["Merger"]

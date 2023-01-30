@@ -19,7 +19,6 @@ import torch
 
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import iter_patch_position
-from monai.transforms import LoadImage, EnsureChannelFirst
 from monai.utils.enums import PatchKeys, PytorchPadMode
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep
 from monai.utils.module import look_up_option

@@ -14,12 +14,11 @@ from __future__ import annotations
 import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping, Sequence
-from inspect import isclass
 from typing import Any
 
 import torch
 import torch.nn as nn
-from torch.utils.data import Sampler, BatchSampler
+from torch.utils.data import BatchSampler
 
 from monai.inferers.merger import Merger, AvgMerger
 from monai.inferers.splitter import Splitter
