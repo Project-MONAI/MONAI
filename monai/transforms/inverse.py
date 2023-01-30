@@ -170,6 +170,8 @@ class TraceableTransform(Transform):
 
         if not (get_track_meta() and transform_info and transform_info.get(TraceKeys.TRACING)):
             if isinstance(data, Mapping):
+                if not isinstance(data, dict):
+                    data = dict(data)
                 data[key] = data_t.copy_meta_from(out_obj) if isinstance(data_t, MetaTensor) else data_t
                 return data
             return out_obj  # return with data_t as tensor if get_track_meta() is False
@@ -202,15 +204,14 @@ class TraceableTransform(Transform):
         else:
             out_obj.push_applied_operation(info)
         if isinstance(data, Mapping):
+            if not isinstance(data, dict):
+                data = dict(data)
             if isinstance(data_t, MetaTensor):
                 data[key] = data_t.copy_meta_from(out_obj)
             else:
-                # If this is the first, create list
                 x_k = TraceableTransform.trace_key(key)
                 if x_k not in data:
-                    if not isinstance(data, dict):
-                        data = dict(data)
-                    data[x_k] = []
+                    data[x_k] = []  # If this is the first, create list
                 data[x_k].append(info)
             return data
         return out_obj
