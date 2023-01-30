@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Sequence
+from inspect import signature, _empty
 from typing import Any
 
 import torch
@@ -30,6 +31,9 @@ class Splitter(ABC):
     A base class for splitting the inputs into iterable tuple of patches and locations
     Extend this class to support operations for `PatchInference`, e.g. SlidingPatchSplitter.
 
+    Args:
+        patch_size: the size of patches to be generated.
+        device: the device where the patches are generated.
     """
 
     def __init__(self, patch_size: Sequence[int] | int, device: torch.device | str | None = None) -> None:
@@ -58,58 +62,117 @@ class SlidingWindowSplitter(Splitter):
         patch_size: Sequence[int] | int,
         offset: Sequence[int] | int = 0,
         overlap: Sequence[float] | float = 0.0,
-        patch_filter_fn: Callable | None = None,
+        filter_fn: Callable | None = None,
         device: torch.device | str | None = None,
-        pad_mode: str = PytorchPadMode.CONSTANT,
+        pad_mode: str | None = PytorchPadMode.CONSTANT,
         **pad_kwargs,
     ):
+        """Split the input into patches with sliding window strategy and possible overlap.
+        If also allows to offset the starting position and filter the patches.
+
+        Args:
+            patch_size : the size of the patch to be generated.
+            offset: the amount of offset for the patches with respect to the original input.  Defaults to 0.
+            overlap: the amount of overlap between patches in each dimension [0, 1). Defaults to 0.0.
+            filter_fn: a callable to filter patches. It should accepts exactly two parameters (patch, location), and
+                return True for a patch to keep. Defaults to no filtering.
+            device: the device where the patches are generated. Defaults to the device of inputs.
+            pad_mode: the pad mode when the patches are extracted from outside of the image.
+                Either if offset is negative or the image is non-divisible by the patch_size.
+                If None provided, the last incomplete patch will be dropped.
+                Defaults to PytorchPadMode.CONSTANT.
+
+        Note: for `patch_size`, `offset`, and `overlap` if only one scaler value is provided,
+                it will be broadcasted to all the spatial dimensions.
+        """
         super().__init__(patch_size=patch_size, device=device)
         self.offset = offset
-        self.pad_mode = pad_mode
-        self.pad_kwargs = pad_kwargs
         if any(ov < 0 or ov >= 1 for ov in ensure_tuple(overlap)):
             raise ValueError("Overlap must be between 0 and 1.")
         self.overlap = overlap
+        self.filter_fn = self._get_valid_filter_fn(filter_fn)
+        self.pad_mode = pad_mode
+        self.pad_kwargs = pad_kwargs
 
-    def __call__(self, data: torch.Tensor) -> Iterable[tuple[torch.Tensor, Sequence[int]]]:
-        if self.device:
-            data.to(self.device)
-        spatial_ndim = data.ndim - 2
-        patch_size = ensure_tuple_rep(self.patch_size, spatial_ndim)
+    def _get_valid_filter_fn(self, filter_fn):
+        if filter_fn is None:
+            return lambda x, y: True
+        elif callable(filter_fn):
+            sig = signature(filter_fn)
+            n_params = len(sig.parameters)
+            n_pos_params = len([v for v in sig.parameters.values() if v.default is _empty])
+            if n_params < 2:
+                raise ValueError(
+                    f"`patch_filter_fn` requires to accept at least two parameters (patch, location)."
+                    f"The provided callable ({filter_fn}) has {n_params} parameters."
+                )
+            elif n_pos_params > 2:
+                raise ValueError(
+                    f"`patch_filter_fn` can have at most two positional parameters (patch, location)."
+                    f"The provided callable ({filter_fn}) has {n_pos_params} positional parameters."
+                )
+            return filter_fn
+        raise ValueError(
+            "`patch_filter_fn` should be a callable with two input parameters (patch, location). "
+            f"{type(filter_fn)} is given."
+        )
+
+    def _get_valid_overlap(self, spatial_ndim, patch_size):
+        # broadcast overlap is possible
         overlap = ensure_tuple_rep(self.overlap, spatial_ndim)
-        overlap = tuple(o if p else 0.0 for o, p in zip(overlap, patch_size))  # overlap only in patching dimensions
+        # keep overlap only in patching dimensions
+        return tuple(o if p else 0.0 for o, p in zip(overlap, patch_size))
+
+    def _get_valid_offset(self, spatial_shape, spatial_ndim, patch_size):
         offset = ensure_tuple_rep(self.offset, spatial_ndim)
-        for off, ps, ins in zip(offset, patch_size, data.shape[2:]):
+        for off, ps, ins in zip(offset, patch_size, spatial_shape):
+            if off < 0 and not self.pad_mode:
+                raise ValueError(
+                    f"Negative `offset` ({off}) requires a valid padding mode, "
+                    f"but `pad_mod` is set to {self.pad_mode}."
+                )
             if off < -ps:
                 raise ValueError(f"Negative `offset` ({off}) cannot be larger than `patch_size` ({ps}) in magnitude.")
             if off >= ins:
                 raise ValueError(f"`offset` ({off}) cannot be larger than inputs size ({ins}).")
+        return offset
+
+    def _get_valid_patch_size(self, spatial_ndim, patch_size):
+        return ensure_tuple_rep(self.patch_size, spatial_ndim)
+
+    def __call__(self, inputs: torch.Tensor) -> Iterable[tuple[torch.Tensor, Sequence[int]]]:
+        spatial_ndim = inputs.ndim - 2
+        spatial_shape = inputs.shape[-spatial_ndim:]
+        patch_size = self._get_valid_patch_size(spatial_ndim, self.patch_size)
+        overlap = self._get_valid_overlap(spatial_ndim, patch_size)
+        offset = self._get_valid_offset(spatial_shape, spatial_ndim, patch_size)
 
         padded = bool(self.pad_mode)
-        _pad_size = [0] * 2 * spatial_ndim
+        pad_size = [0] * 2 * spatial_ndim
         if padded:
             # set the starting pad size only if the offset is negative
-            _pad_size[1::2] = (-min(off, 0) for off in offset)
+            pad_size[1::2] = (-min(off, 0) for off in offset)
             # set the ending pad size only if it is not divisible by the patch size
-            _pad_size[::2] = (
+            pad_size[::2] = (
                 0 if ps == 0 else (off - ins + ps) % round(ps * (1.0 - ov))
-                for ins, off, ps, ov in zip(data.shape[2:], offset, patch_size, overlap)
+                for ins, off, ps, ov in zip(spatial_shape, offset, patch_size, overlap)
             )
             # pad the inputs
-            data = torch.nn.functional.pad(
-                data, _pad_size[::-1], look_up_option(self.pad_mode, PytorchPadMode).value, **self.pad_kwargs
+            inputs = torch.nn.functional.pad(
+                inputs, pad_size[::-1], look_up_option(self.pad_mode, PytorchPadMode).value, **self.pad_kwargs
             )
+            # update spatial shape
+            spatial_shape = inputs.shape[-spatial_ndim:]
             # correct the offset with regard to the padded image
-            offset = tuple(off + p for off, p in zip(offset, _pad_size[1::2]))
+            offset = tuple(off + p for off, p in zip(offset, pad_size[1::2]))
 
-        for location in iter_patch_position(data.shape[2:], patch_size, offset, overlap, False):
+        for location in iter_patch_position(spatial_shape, patch_size, offset, overlap, False):
             slices = (slice(None),) * 2 + tuple(slice(loc, loc + ps) for loc, ps in zip(location, patch_size))
-            patch = data[slices]
+            patch = inputs[slices]
+            if self.device:
+                patch.to(self.device)
             if padded:
                 # correct the location for original inputs (remove padding)
-                location = tuple(loc - p for loc, p in zip(location, _pad_size[1::2]))
-            # metadata = patch.meta if isinstance(patch, MetaTensor) else MetaTensor.get_default_meta()
-            # metadata[PatchKeys.LOCATION] = torch.tensor(location)
-            # metadata[PatchKeys.SIZE] = torch.tensor(patch_size)
-            # yield MetaTensor(x=patch, meta=metadata)
-            yield patch, location
+                location = tuple(loc - p for loc, p in zip(location, pad_size[1::2]))
+            if self.filter_fn(patch, location):
+                yield patch, location

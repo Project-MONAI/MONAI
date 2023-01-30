@@ -84,8 +84,8 @@ class SlidingWindowSplitterTests(unittest.TestCase):
         patches = list(patches)
         self.assertEqual(len(patches), len(expected))
         for p, e in zip(patches, expected):
-            assert_close(p, e[0])
-            assert_close(p.meta[PatchKeys.LOCATION], torch.tensor(e[1]))
+            assert_close(p[0], e[0])
+            self.assertTupleEqual(p[1], e[1])
 
 
 if __name__ == "__main__":
