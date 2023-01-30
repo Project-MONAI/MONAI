@@ -13,16 +13,18 @@ from __future__ import annotations
 
 import unittest
 
+import torch
+
 from monai.transforms.inverse import TraceableTransform
 
 
 class _TraceTest(TraceableTransform):
     def __call__(self, data):
-        self.push_transform(data)
+        self.push_transform(data, "image")
         return data
 
     def pop(self, data):
-        self.pop_transform(data)
+        self.pop_transform(data, "image")
         return data
 
 
@@ -34,21 +36,11 @@ class TestTraceable(unittest.TestCase):
 
         data = {"image": "test"}
         data = a(data)  # adds to the stack
-        self.assertTrue(isinstance(data[expected_key], list))
-        self.assertEqual(data[expected_key][0]["class"], "_TraceTest")
+        self.assertEqual(data["image"], "test")
 
+        data = {"image": torch.tensor(1.0)}
         data = a(data)  # adds to the stack
-        self.assertEqual(len(data[expected_key]), 2)
-        self.assertEqual(data[expected_key][-1]["class"], "_TraceTest")
-
-        with self.assertRaises(IndexError):
-            a.pop({"test": "test"})  # no stack in the data
-        data = a.pop(data)
-        data = a.pop(data)
-        self.assertEqual(data[expected_key], [])
-
-        with self.assertRaises(IndexError):  # no more items
-            a.pop(data)
+        self.assertEqual(data["image"].applied_operations[0]["class"], "_TraceTest")
 
 
 if __name__ == "__main__":
