@@ -1956,6 +1956,10 @@ class Affine(InvertibleTransform, LazyTransform):
         self.mode = mode
         self.padding_mode: str = padding_mode
 
+        self._grid = None
+        self._affine = None
+        self._sp_size = None
+
     @LazyTransform.lazy_evaluation.setter  # type: ignore
     def lazy_evaluation(self, val: bool) -> None:
         self.affine_grid.lazy_evaluation = val
@@ -1994,7 +1998,10 @@ class Affine(InvertibleTransform, LazyTransform):
         sp_size = fall_back_tuple(self.spatial_size if spatial_size is None else spatial_size, img_size)
         _mode = mode if mode is not None else self.mode
         _padding_mode = padding_mode if padding_mode is not None else self.padding_mode
-        grid, affine = self.affine_grid(spatial_size=sp_size)
+        if self._sp_size != sp_size:
+            self._grid, self._affine = self.affine_grid(spatial_size=sp_size)  # type: ignore
+            self._sp_size = sp_size  # type: ignore
+        grid, affine = self._grid, self._affine
 
         return affine_func(  # type: ignore
             img,
