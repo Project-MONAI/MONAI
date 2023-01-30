@@ -18,27 +18,42 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
+from monai.apps import download_url
 from monai.data import ITKReader
 from monai.data.itk_torch_affine_matrix_bridge import (
     create_itk_affine_from_parameters,
-    itk_image_to_metatensor,
     itk_affine_resample,
+    itk_image_to_metatensor,
     itk_to_monai_affine,
+    itk_warp,
     monai_affine_resample,
     monai_to_itk_affine,
+    monai_wrap,
 )
 from monai.utils import optional_import
+from tests.utils import skip_if_downloading_fails, testing_data_config
 
 itk, has_itk = optional_import("itk")
 
 TESTS = ["CT_2D_head_fixed.mha", "CT_2D_head_moving.mha", "copd1_highres_INSP_STD_COPD_img.nii.gz"]
-# Download URL:
-# SHA-521: 60193cd6ef0cf055c623046446b74f969a2be838444801bd32ad5bedc8a7eeec
-#          b343e8a1208769c9c7a711e101c806a3133eccdda7790c551a69a64b9b3701e9
-# TEST_CASE_3D_1 = [
-# "copd1_highres_INSP_STD_COPD_img.nii.gz" # https://data.kitware.com/api/v1/file/62a0f067bddec9d0c4175c5a/download
-# "copd1_highres_INSP_STD_COPD_img.nii.gz" # https://data.kitware.com/api/v1/item/62a0f045bddec9d0c4175c44/download
-# ]
+
+key = "copd1_highres_INSP_STD_COPD_img"
+FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", f"{key}.nii.gz")
+
+def remove_border(image):
+    """
+    MONAI seems to have different behavior in the borders of the image than ITK.
+    This helper function sets the border of the ITK image as 0 (padding but keeping
+    the same image size) in order to allow numerical comparison between the
+    result from resampling with ITK/Elastix and resampling with MONAI.
+    To use: image[:] = remove_border(image)
+    Args:
+        image: The ITK image to be padded.
+
+    Returns:
+        The padded array of data.
+    """
+    return np.pad(image[1:-1, 1:-1, 1:-1] if image.ndim == 3 else image[1:-1, 1:-1], pad_width=1)
 
 
 @unittest.skipUnless(has_itk, "Requires `itk` package.")
@@ -48,17 +63,16 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         self.data_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
         self.reader = ITKReader()
 
-        # for filepath in TEST_CASES:
-        #    if not os.path.exists(os.path.join(self.data_dir, filepath)):
-        #        with skip_if_downloading_fails():
-        #            data_spec = testing_data_config("images", filepath)
-        #            download_and_extract(
-        #                data_spec["url"],
-        #                filepath,
-        #                self.data_dir,
-        #                #hash_val=data_spec["hash_val"],
-        #                #hash_type=data_spec["hash_type"],
-        #            )
+        for k, n in ((key, FILE_PATH),):
+            if not os.path.exists(n):
+                with skip_if_downloading_fails():
+                    data_spec = testing_data_config("images", f"{k}")
+                    download_url(
+                        data_spec["url"],
+                        n,
+                        hash_val=data_spec["hash_val"],
+                        hash_type=data_spec["hash_type"],
+                    )
 
     @parameterized.expand(TESTS)
     def test_setting_affine_parameters(self, filepath):
@@ -160,7 +174,6 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
 
     @parameterized.expand(TESTS)
     def test_monai_to_itk(self, filepath):
-        print("\nTEST: MONAI affine matrix -> ITK matrix + translation vector -> transform")
         # Read image
         image = self.reader.read(os.path.join(self.data_dir, filepath))
 
@@ -243,6 +256,66 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
 
         np.testing.assert_allclose(matrix, matrix_result)
         np.testing.assert_allclose(translation, translation_result)
+
+    @parameterized.expand([(2,), (3,)])
+    def test_random_array(self, ndim):
+        # Create image/array with random size and pixel intensities
+        s = torch.randint(low=2, high=20, size=(ndim,))
+        img = 100 * torch.rand((1, 1, *s.tolist()), dtype=torch.float32)
+
+        # Pad at the edges because ITK and MONAI have different behavior there
+        # during resampling
+        img = torch.nn.functional.pad(img, pad=ndim * (1, 1))
+        ddf = 5 * torch.rand((1, ndim, *img.shape[-ndim:]), dtype=torch.float32) - 2.5
+
+        # Warp with MONAI
+        img_resampled = monai_wrap(img, ddf)
+
+        # Create ITK image
+        itk_img = itk.GetImageFromArray(img.squeeze().numpy())
+
+        # Set random spacing
+        spacing = 3 * np.random.rand(ndim)
+        itk_img.SetSpacing(spacing)
+
+        # Set random direction
+        direction = 5 * np.random.rand(ndim, ndim) - 5
+        direction = itk.matrix_from_array(direction)
+        itk_img.SetDirection(direction)
+
+        # Set random origin
+        origin = 100 * np.random.rand(ndim) - 100
+        itk_img.SetOrigin(origin)
+
+        # Warp with ITK
+        itk_img_resampled = itk_warp(itk_img, ddf.squeeze().numpy())
+
+        # Compare
+        np.testing.assert_allclose(img_resampled, itk_img_resampled, rtol=1e-3, atol=1e-3)
+        diff_output = img_resampled - itk_img_resampled
+        print(f"[Min, Max] diff: [{diff_output.min()}, {diff_output.max()}]")
+
+    @parameterized.expand(TESTS)
+    def test_real_data(self, filepath):
+        # Read image
+        image = itk.imread(os.path.join(self.data_dir, filepath), itk.F)
+        image[:] = remove_border(image)
+        ndim = image.ndim
+
+        # Random ddf
+        ddf = 10 * torch.rand((1, ndim, *image.shape), dtype=torch.float32) - 10
+
+        # Warp with MONAI
+        image_tensor = torch.tensor(itk.GetArrayFromImage(image), dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+        img_resampled = monai_wrap(image_tensor, ddf)
+
+        # Warp with ITK
+        itk_img_resampled = itk_warp(image, ddf.squeeze().numpy())
+
+        # Compare
+        np.testing.assert_allclose(img_resampled, itk_img_resampled, rtol=1e-3, atol=1e-3)
+        diff_output = img_resampled - itk_img_resampled
+        print(f"[Min, Max] diff: [{diff_output.min()}, {diff_output.max()}]")
 
 
 if __name__ == "__main__":
