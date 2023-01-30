@@ -46,7 +46,7 @@ class Splitter(ABC):
         Split the image into patches.
 
         Args:
-            inputs: either a tensor of shape BxCxHxW[xD], representing a batch of images,
+            inputs: either a tensor of shape BCHW[D], representing a batch of images,
                 or a filename (str) or list of filenames to the image(s).
 
         Raises:
@@ -155,6 +155,14 @@ class SlidingWindowSplitter(Splitter):
         return pad_size, any(pad_size[1::2])
 
     def __call__(self, inputs: torch.Tensor) -> Iterable[tuple[torch.Tensor, Sequence[int]]]:
+        """Split the input tensor into patches and return patches and locations
+
+        Args:
+            inputs: a torch.Tensor with BCHW[D] dimension, representing an image or batch of images
+
+        Yields:
+            tuple[torch.Tensor, Sequence[int]]: yields tuple of patch and location
+        """
         n_non_spatial_dims = 2
         spatial_ndim = inputs.ndim - n_non_spatial_dims
         spatial_shape = inputs.shape[n_non_spatial_dims:]
