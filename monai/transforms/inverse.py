@@ -111,7 +111,9 @@ class TraceableTransform(Transform):
                 meta_obj = self.push_transform(data, orig_size=xform.get(TraceKeys.ORIG_SIZE), extra_info=xform)
                 return data.copy_meta_from(meta_obj)
             if do_transform:
-                meta_obj = self.push_transform(data, pending_info=data.pending_operations.pop())  # type: ignore
+                xform = data.pending_operations.pop()  # type: ignore
+                xform.update(transform_info)
+                meta_obj = self.push_transform(data, transform_info=xform, lazy_evaluation=lazy_eval)
                 return data.copy_meta_from(meta_obj)
             return data
         kwargs["lazy_evaluation"] = lazy_eval
@@ -129,7 +131,6 @@ class TraceableTransform(Transform):
         extra_info: dict | None = None,
         orig_size: tuple | None = None,
         transform_info=None,
-        pending_info=None,
         lazy_evaluation=False,
     ):
         """
@@ -137,16 +138,17 @@ class TraceableTransform(Transform):
         Args:
             data: dictionary of data or `MetaTensor`.
             key: if data is a dictionary, data[key] will be modified.
-            sp_size: can be tensor or numpy, but will be converted to a list of ints.
-            affine:
+            sp_size: the expected output spatial size when the transform is applied.
+                it can be tensor or numpy, but will be converted to a list of integers.
+            affine: the affine representation of the (spatial) transform in the image space.
+                When the transform is applied, meta_tensor.affine will be updated to ``meta_tensor.affine @ affine``.
             extra_info: if desired, any extra information pertaining to the applied
                 transform can be stored in this dictionary. These are often needed for
                 computing the inverse transformation.
             orig_size: sometimes during the inverse it is useful to know what the size
                 of the original image was, in which case it can be supplied here.
             transform_info: info from self.get_transform_info().
-            pending_info: info from self.get_transform_info() and previously pushed to pending_operations
-            lazy_evaluation:
+            lazy_evaluation: whether to push the transform to pending_operations or applied_operations.
         Returns:
             None, but data has been updated to store the applied transformation.
         """
@@ -175,12 +177,9 @@ class TraceableTransform(Transform):
         info = transform_info
         # track the current spatial shape
         info[TraceKeys.ORIG_SIZE] = data_t.peek_pending_shape() if orig_size is None else orig_size
+        # include extra_info
         if extra_info is not None:
             info[TraceKeys.EXTRA_INFO] = extra_info
-        if isinstance(pending_info, dict):
-            for k in TraceableTransform.transform_keys():
-                pending_info.pop(k, None)
-            info.update(pending_info)
 
         # push the transform info to the applied_operation or pending_operation stack
         if lazy_evaluation:
@@ -198,7 +197,16 @@ class TraceableTransform(Transform):
         else:
             out_obj.push_applied_operation(info)
         if key is not None:
-            data[key] = data_t.copy_meta_from(out_obj) if isinstance(data_t, MetaTensor) else data_t
+            if isinstance(data_t, MetaTensor):
+                data[key] = data_t.copy_meta_from(out_obj)
+            else:
+                # If this is the first, create list
+                x_k = TraceableTransform.trace_key(key)
+                if x_k not in data:
+                    if not isinstance(data, dict):
+                        data = dict(data)
+                    data[x_k] = []
+                data[x_k].append(info)
             return data
         return out_obj
 

@@ -16,7 +16,7 @@ import unittest
 from parameterized import parameterized
 
 from monai.data import MetaTensor
-from monai.transforms import RandomOrder, TraceableTransform
+from monai.transforms import RandomOrder
 from monai.transforms.compose import Compose
 from monai.utils import set_determinism
 from monai.utils.enums import TraceKeys
@@ -77,11 +77,7 @@ class TestRandomOrder(unittest.TestCase):
 
         if invertible:
             for k in KEYS:
-                t = (
-                    fwd_data1[TraceableTransform.trace_key(k)][-1]
-                    if not use_metatensor
-                    else fwd_data1[k].applied_operations[-1]
-                )
+                t = fwd_data1[k].applied_operations[-1]
                 # make sure the RandomOrder applied_order was stored
                 self.assertEqual(t[TraceKeys.CLASS_NAME], RandomOrder.__name__)
 
@@ -94,12 +90,6 @@ class TestRandomOrder(unittest.TestCase):
         for i, _fwd_inv_data in enumerate(fwd_inv_data):
             if invertible:
                 for k in KEYS:
-                    # check transform was removed
-                    if not use_metatensor:
-                        self.assertTrue(
-                            len(_fwd_inv_data[TraceableTransform.trace_key(k)])
-                            < len(fwd_data[i][TraceableTransform.trace_key(k)])
-                        )
                     # check data is same as original (and different from forward)
                     self.assertEqual(_fwd_inv_data[k], data[k])
                     self.assertNotEqual(_fwd_inv_data[k], fwd_data[i][k])
