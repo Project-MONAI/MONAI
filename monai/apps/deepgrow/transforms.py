@@ -22,7 +22,7 @@ from monai.networks.layers import GaussianFilter
 from monai.transforms import Resize, SpatialCrop
 from monai.transforms.transform import MapTransform, Randomizable, Transform
 from monai.transforms.utils import generate_spatial_bounding_box, is_positive
-from monai.utils import InterpolateMode, deprecated_arg, ensure_tuple, ensure_tuple_rep, min_version, optional_import
+from monai.utils import InterpolateMode, ensure_tuple, ensure_tuple_rep, min_version, optional_import
 from monai.utils.enums import PostFix
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
@@ -496,7 +496,6 @@ class AddGuidanceFromPointsd(Transform):
 
     """
 
-    @deprecated_arg(name="dimensions", since="0.6", msg_suffix="Please use `spatial_dims` instead.")
     def __init__(
         self,
         ref_image,
@@ -509,7 +508,6 @@ class AddGuidanceFromPointsd(Transform):
         slice_key: str = "slice",
         meta_keys: str | None = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
-        dimensions: int | None = None,
     ):
         self.ref_image = ref_image
         self.guidance = guidance
@@ -517,7 +515,7 @@ class AddGuidanceFromPointsd(Transform):
         self.background = background
         self.axis = axis
         self.depth_first = depth_first
-        self.dimensions = spatial_dims if dimensions is None else dimensions
+        self.dimensions = spatial_dims
         self.slice = slice_key
         self.meta_keys = meta_keys
         self.meta_key_postfix = meta_key_postfix

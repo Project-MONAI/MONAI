@@ -18,7 +18,7 @@ import torch.nn as nn
 
 from monai.networks.blocks import Convolution, UpSample
 from monai.networks.layers.factories import Conv, Pool
-from monai.utils import deprecated_arg, ensure_tuple_rep
+from monai.utils import ensure_tuple_rep
 
 __all__ = ["BasicUnet", "Basicunet", "basicunet", "BasicUNet"]
 
@@ -175,9 +175,6 @@ class UpCat(nn.Module):
 
 
 class BasicUNet(nn.Module):
-    @deprecated_arg(
-        name="dimensions", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
-    )
     def __init__(
         self,
         spatial_dims: int = 3,
@@ -189,7 +186,6 @@ class BasicUNet(nn.Module):
         bias: bool = True,
         dropout: float | tuple = 0.0,
         upsample: str = "deconv",
-        dimensions: int | None = None,
     ):
         """
         A UNet implementation with 1D/2D/3D supports.
@@ -219,9 +215,6 @@ class BasicUNet(nn.Module):
             upsample: upsampling mode, available options are
                 ``"deconv"``, ``"pixelshuffle"``, ``"nontrainable"``.
 
-        .. deprecated:: 0.6.0
-            ``dimensions`` is deprecated, use ``spatial_dims`` instead.
-
         Examples::
 
             # for spatial 2D
@@ -240,8 +233,6 @@ class BasicUNet(nn.Module):
 
         """
         super().__init__()
-        if dimensions is not None:
-            spatial_dims = dimensions
         fea = ensure_tuple_rep(features, 6)
         print(f"BasicUNet features: {fea}.")
 

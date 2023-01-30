@@ -27,6 +27,7 @@ from monai.data.image_reader import ImageReader
 from monai.transforms.io.array import LoadImage, SaveImage
 from monai.transforms.transform import MapTransform
 from monai.utils import GridSamplePadMode, ensure_tuple, ensure_tuple_rep
+from monai.utils.deprecate_utils import deprecated_arg_default
 from monai.utils.enums import PostFix
 
 __all__ = ["LoadImaged", "LoadImageD", "LoadImageDict", "SaveImaged", "SaveImageD", "SaveImageDict"]
@@ -69,6 +70,7 @@ class LoadImaged(MapTransform):
 
     """
 
+    @deprecated_arg_default("image_only", False, True, since="1.1", replaced="1.3")
     def __init__(
         self,
         keys: KeysCollection,

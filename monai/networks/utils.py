@@ -27,14 +27,12 @@ import torch.nn as nn
 
 from monai.apps.utils import get_logger
 from monai.config import PathLike
-from monai.utils.deprecate_utils import deprecated
 from monai.utils.misc import ensure_tuple, save_obj, set_determinism
 from monai.utils.module import look_up_option, pytorch_after
 from monai.utils.type_conversion import convert_to_tensor
 
 __all__ = [
     "one_hot",
-    "slice_channels",
     "predict_segmentation",
     "normalize_transform",
     "to_norm_affine",
@@ -163,19 +161,6 @@ def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.f
     labels = o.scatter_(dim=dim, index=labels.long(), value=1)
 
     return labels
-
-
-@deprecated(since="0.8.0", msg_suffix="use `monai.utils.misc.sample_slices` instead.")
-def slice_channels(tensor: torch.Tensor, *slicevals: int | None) -> torch.Tensor:
-    """
-    .. deprecated:: 0.8.0
-        Use `monai.utils.misc.sample_slices` instead.
-
-    """
-    slices = [slice(None)] * len(tensor.shape)
-    slices[1] = slice(*slicevals)
-
-    return tensor[slices]
 
 
 def predict_segmentation(logits: torch.Tensor, mutually_exclusive: bool = False, threshold: float = 0.0) -> Any:

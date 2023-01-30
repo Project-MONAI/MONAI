@@ -59,7 +59,6 @@ from monai.utils import (
     convert_to_numpy,
     convert_to_tensor,
     deprecated,
-    deprecated_arg,
     ensure_tuple,
     look_up_option,
     min_version,
@@ -1421,9 +1420,6 @@ class AddCoordinateChannels(Transform):
 
     backend = [TransformBackends.NUMPY]
 
-    @deprecated_arg(
-        name="spatial_channels", new_name="spatial_dims", since="0.8", msg_suffix="please use `spatial_dims` instead."
-    )
     def __init__(self, spatial_dims: Sequence[int]) -> None:
         self.spatial_dims = spatial_dims
 
