@@ -23,7 +23,7 @@ from monai.utils.enums import PytorchPadMode
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep
 from monai.utils.module import look_up_option
 
-__all__ = ["Splitter"]
+__all__ = ["Splitter", "SlidingWindowSplitter"]
 
 
 class Splitter(ABC):
@@ -95,8 +95,9 @@ class SlidingWindowSplitter(Splitter):
 
     def _get_valid_filter_fn(self, filter_fn):
         if filter_fn is None:
-            return lambda x, y: True
-        elif callable(filter_fn):
+            return
+
+        if callable(filter_fn):
             sig = signature(filter_fn)
             n_params = len(sig.parameters)
             n_pos_params = len([v for v in sig.parameters.values() if v.default is _empty])
@@ -111,6 +112,7 @@ class SlidingWindowSplitter(Splitter):
                     f"The provided callable ({filter_fn}) has {n_pos_params} positional parameters."
                 )
             return filter_fn
+
         raise ValueError(
             "`patch_filter_fn` should be a callable with two input parameters (patch, location). "
             f"{type(filter_fn)} is given."
@@ -190,5 +192,7 @@ class SlidingWindowSplitter(Splitter):
             if is_start_padded:
                 # correct the location with respect to original inputs (remove starting pads)
                 location = tuple(loc - p for loc, p in zip(location, pad_size[1::2]))
-            if self.filter_fn(patch, location):
+            if self.filter_fn is None:
+                yield patch, location
+            elif self.filter_fn(patch, location):
                 yield patch, location
