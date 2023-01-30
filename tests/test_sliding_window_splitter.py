@@ -19,7 +19,6 @@ from torch.nn.functional import pad
 from torch.testing import assert_close
 
 from monai.inferers import SlidingWindowSplitter
-from monai.utils.enums import PatchKeys
 
 TENSOR_4x4 = torch.randint(low=0, high=255, size=(2, 3, 4, 4), dtype=torch.float32)
 
