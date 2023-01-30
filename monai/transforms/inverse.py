@@ -24,8 +24,7 @@ from monai.data.meta_obj import MetaObj, get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
 from monai.transforms.transform import LazyTransform, Transform
-from monai.utils.enums import LazyAttr, MetaKeys, TraceKeys
-from monai.utils.type_conversion import convert_to_dst_type, convert_to_numpy, convert_to_tensor
+from monai.utils import LazyAttr, MetaKeys, TraceKeys, convert_to_dst_type, convert_to_numpy, convert_to_tensor
 
 __all__ = ["TraceableTransform", "InvertibleTransform"]
 
@@ -76,7 +75,8 @@ class TraceableTransform(Transform):
         return f"{key}{TraceKeys.KEY_SUFFIX}"
 
     @staticmethod
-    def unique_keys():
+    def transform_keys():
+        """The keys to store necessary info of an applied transform."""
         return (
             TraceKeys.CLASS_NAME,
             TraceKeys.ID,
@@ -96,10 +96,19 @@ class TraceableTransform(Transform):
             self.lazy_evaluation if isinstance(self, LazyTransform) else False,
             self._do_transform if hasattr(self, "_do_transform") else True,
         )
-        return dict(zip(self.unique_keys(), vals))
+        return dict(zip(self.transform_keys(), vals))
 
     def push_transform(self, data, *args, **kwargs):
-        """replace bool, whether to rewrite applied_operation (default False)"""
+        """
+        Push to a stack of applied transforms of ``data``.
+
+        Args:
+            data: dictionary of data or `MetaTensor`.
+            args: additional positional arguments to track_transform_meta.
+            kwargs: additional keyword arguments to track_transform_meta,
+                set ``replace=True`` (default False) to rewrite the last transform infor in
+                applied_operation/pending_operation based on ``self.get_transform_info()``.
+        """
         transform_info = self.get_transform_info()
         lazy_eval = transform_info.get(TraceKeys.LAZY_EVALUATION, False)
         do_transform = transform_info.get(TraceKeys.DO_TRANSFORM, True)
@@ -111,16 +120,18 @@ class TraceableTransform(Transform):
                 meta_obj = self.push_transform(data, orig_size=xform.get(TraceKeys.ORIG_SIZE), extra_info=xform)
                 return data.copy_meta_from(meta_obj)
             if do_transform:
-                meta_obj = self.push_transform(data, pending_info=data.pending_operations.pop())  # type: ignore
+                xform = data.pending_operations.pop()  # type: ignore
+                xform.update(transform_info)
+                meta_obj = self.push_transform(data, transform_info=xform, lazy_evaluation=lazy_eval)
                 return data.copy_meta_from(meta_obj)
             return data
         kwargs["lazy_evaluation"] = lazy_eval
         kwargs["transform_info"] = transform_info
-        meta_obj = TraceableTransform.track_transform_tensor(data, *args, **kwargs)
+        meta_obj = TraceableTransform.track_transform_meta(data, *args, **kwargs)
         return data.copy_meta_from(meta_obj) if isinstance(data, MetaTensor) else data
 
     @classmethod
-    def track_transform_tensor(
+    def track_transform_meta(
         cls,
         data,
         key: Hashable = None,
@@ -129,60 +140,65 @@ class TraceableTransform(Transform):
         extra_info: dict | None = None,
         orig_size: tuple | None = None,
         transform_info=None,
-        pending_info=None,
         lazy_evaluation=False,
     ):
         """
-        Push to a stack of applied transforms.
+        Update a stack of applied/pending transforms metadata of ``data``.
 
         Args:
             data: dictionary of data or `MetaTensor`.
             key: if data is a dictionary, data[key] will be modified.
-            sp_size: can be tensor or numpy, but will be converted to a list of ints.
-            affine:
+            sp_size: the expected output spatial size when the transform is applied.
+                it can be tensor or numpy, but will be converted to a list of integers.
+            affine: the affine representation of the (spatial) transform in the image space.
+                When the transform is applied, meta_tensor.affine will be updated to ``meta_tensor.affine @ affine``.
             extra_info: if desired, any extra information pertaining to the applied
                 transform can be stored in this dictionary. These are often needed for
                 computing the inverse transformation.
             orig_size: sometimes during the inverse it is useful to know what the size
                 of the original image was, in which case it can be supplied here.
             transform_info: info from self.get_transform_info().
-            pending_info: info from self.get_transform_info() and previously pushed to pending_operations
-            lazy_evaluation:
+            lazy_evaluation: whether to push the transform to pending_operations or applied_operations.
 
         Returns:
-            None, but data has been updated to store the applied transformation.
+
+            For backward compatibility, if ``data`` is a dictionary, it returns the dictionary with
+            updated ``data[key]``. Otherwise, this function returns a MetaObj with updated transform metadata.
         """
         data_t = data[key] if key is not None else data  # compatible with the dict data representation
         out_obj = MetaObj()
-        data_t = convert_to_tensor(data=data_t, track_meta=get_track_meta())
-        out_obj.copy_meta_from(data_t, keys=out_obj.__dict__.keys())
+        # after deprecating metadict, we should always convert data_t to metatensor here
+        if isinstance(data_t, MetaTensor):
+            out_obj.copy_meta_from(data_t, keys=out_obj.__dict__.keys())
+        else:
+            warnings.warn("data_t is not a MetaTensor.")
 
-        # not lazy evaluation, directly update the affine but don't push the stacks
         if not lazy_evaluation and affine is not None and isinstance(data_t, MetaTensor):
+            # not lazy evaluation, directly update the metatensor affine (don't push to the stack)
             orig_affine = data_t.peek_pending_affine()
             orig_affine = convert_to_dst_type(orig_affine, affine)[0]
             affine = orig_affine @ to_affine_nd(len(orig_affine) - 1, affine, dtype=affine.dtype)
             out_obj.meta[MetaKeys.AFFINE] = convert_to_tensor(affine, device=torch.device("cpu"))
-        if not (
-            isinstance(data_t, MetaTensor)
-            and get_track_meta()
-            and transform_info
-            and transform_info.get(TraceKeys.TRACING)
-        ):
-            if key is not None:
+
+        if not (get_track_meta() and transform_info and transform_info.get(TraceKeys.TRACING)):
+            if isinstance(data, Mapping):
+                if not isinstance(data, dict):
+                    data = dict(data)
                 data[key] = data_t.copy_meta_from(out_obj) if isinstance(data_t, MetaTensor) else data_t
                 return data
             return out_obj  # return with data_t as tensor if get_track_meta() is False
 
         info = transform_info
         # track the current spatial shape
-        info[TraceKeys.ORIG_SIZE] = data_t.peek_pending_shape() if orig_size is None else orig_size
+        if orig_size is not None:
+            info[TraceKeys.ORIG_SIZE] = orig_size
+        elif isinstance(data_t, MetaTensor):
+            info[TraceKeys.ORIG_SIZE] = data_t.peek_pending_shape()
+        elif hasattr(data_t, "shape"):
+            info[TraceKeys.ORIG_SIZE] = data_t.shape[1:]
+        # include extra_info
         if extra_info is not None:
             info[TraceKeys.EXTRA_INFO] = extra_info
-        if isinstance(pending_info, dict):
-            for k in TraceableTransform.unique_keys():
-                pending_info.pop(k, None)
-            info.update(pending_info)
 
         # push the transform info to the applied_operation or pending_operation stack
         if lazy_evaluation:
@@ -199,8 +215,16 @@ class TraceableTransform(Transform):
             out_obj.push_pending_operation(info)
         else:
             out_obj.push_applied_operation(info)
-        if key is not None:
-            data[key] = data_t.copy_meta_from(out_obj) if isinstance(data_t, MetaTensor) else data_t
+        if isinstance(data, Mapping):
+            if not isinstance(data, dict):
+                data = dict(data)
+            if isinstance(data_t, MetaTensor):
+                data[key] = data_t.copy_meta_from(out_obj)
+            else:
+                x_k = TraceableTransform.trace_key(key)
+                if x_k not in data:
+                    data[x_k] = []  # If this is the first, create list
+                data[x_k].append(info)
             return data
         return out_obj
 

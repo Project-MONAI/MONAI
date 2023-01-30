@@ -532,10 +532,10 @@ class MetaTensor(MetaObj, torch.Tensor):
             By default, a `MetaTensor` is returned.
             However, if `get_track_meta()` is `False`, a `torch.Tensor` is returned.
         """
-        img = convert_to_tensor(im)  # potentially ascontiguousarray
+        img = convert_to_tensor(im, track_meta=get_track_meta() and meta is not None)  # potentially ascontiguousarray
 
         # if not tracking metadata, return `torch.Tensor`
-        if not get_track_meta() or meta is None:
+        if not isinstance(img, MetaTensor):
             return img
 
         # remove any superfluous metadata.
@@ -549,7 +549,8 @@ class MetaTensor(MetaObj, torch.Tensor):
             meta = monai.transforms.DeleteItemsd(keys=pattern, sep=sep, use_re=True)(meta)
 
         # return the `MetaTensor`
-        return MetaTensor(img, meta=meta)
+        img.meta = meta
+        return img
 
     def __repr__(self):
         """

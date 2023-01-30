@@ -44,7 +44,7 @@ def pad_func(img, to_pad_, mode, kwargs, transform_info):
         shape = img_size
         xform = torch.eye(int(spatial_rank) + 1, device=torch.device("cpu"), dtype=torch.float64)
         xform = convert_to_dst_type(xform, spatial_rank)[0]
-    meta_info = TraceableTransform.track_transform_tensor(
+    meta_info = TraceableTransform.track_transform_meta(
         img,
         sp_size=shape,
         affine=xform,
@@ -68,7 +68,7 @@ def crop_func(img, slices, transform_info):
     extra_info = {"cropped": cropped.flatten().tolist()}
     to_shift = [s.start if s.start is not None else 0 for s in ensure_tuple(slices)[1:]]
     shape = [s.indices(o)[1] - s.indices(o)[0] for s, o in zip(slices[1:], img_size)]
-    meta_info = TraceableTransform.track_transform_tensor(
+    meta_info = TraceableTransform.track_transform_meta(
         img,
         sp_size=shape,
         affine=convert_to_dst_type(create_translate(spatial_rank, to_shift), spatial_rank)[0],

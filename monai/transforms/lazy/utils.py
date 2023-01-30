@@ -107,12 +107,19 @@ def is_compatible_apply_kwargs(kwargs_1, kwargs_2):
 
 def resample(data: torch.Tensor, matrix: NdarrayOrTensor, spatial_size, kwargs: dict | None = None):
     """
-    This is a minimal implementation of resample that always uses Affine.
+    This is a minimal implementation of resample that always uses SpatialResample.
+    `kwargs` supports "lazy_dtype", "lazy_padding_mode", "lazy_interpolation_mode", "lazy_dtype", "lazy_align_corners".
+
+    See Also:
+        :py:class:`monai.transforms.SpatialResample`
     """
     if not Affine.is_affine_shaped(matrix):
         raise NotImplementedError("calling dense grid resample API not implemented")
     kwargs = {} if kwargs is None else kwargs
-    init_kwargs = {"dtype": kwargs.pop(LazyAttr.DTYPE, data.dtype)}
+    init_kwargs = {
+        "dtype": kwargs.pop(LazyAttr.DTYPE, data.dtype),
+        "align_corners": kwargs.pop(LazyAttr.ALIGN_CORNERS, None),
+    }
     img = convert_to_tensor(data=data, track_meta=monai.data.get_track_meta())
     init_affine = monai.data.to_affine_nd(len(matrix) - 1, img.affine)
     call_kwargs = {
@@ -122,6 +129,6 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, spatial_size, kwargs: 
         "padding_mode": kwargs.pop(LazyAttr.PADDING_MODE, None),
     }
     resampler = monai.transforms.SpatialResample(**init_kwargs)
-    resampler.lazy_evaluation = False
+    # resampler.lazy_evaluation = False
     with resampler.trace_transform(False):  # don't track this transform in `data`
         return resampler(img=img, **call_kwargs)

@@ -123,9 +123,8 @@ class MetaObj:
             input_objs: list of `MetaObj` to copy data from.
             copy_attr: whether to copy each attribute with `MetaObj.copy_item`.
                 note that if the attribute is a nested list or dict, only a shallow copy will be done.
-            keys: the keys to copy from the input. If None, all keys will be copied.
-
-        return self with the updated ``__dict__``.
+            keys: the keys of attributes to copy from the ``input_objs``.
+                If None, all keys from the input_objs will be copied.
         """
         first_meta = input_objs if isinstance(input_objs, MetaObj) else first(input_objs, default=self)
         if not hasattr(first_meta, "__dict__"):
