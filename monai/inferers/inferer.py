@@ -154,7 +154,9 @@ class PatchInferer(Inferer):
         # check if merger is initialized
         self.is_merger_initialized = False
 
-    def _batch_sampler(self, patches: Iterable[MetaTensor] | MetaTensor) -> Iterator[tuple[MetaTensor, Sequence, int]]:
+    def _batch_sampler(
+        self, patches: Iterable[tuple[torch.Tensor, Sequence[int]]] | MetaTensor
+    ) -> Iterator[tuple[torch.Tensor, Sequence, int]]:
         """Yield a batch of patches and the effective batch size
 
         Args:
@@ -169,8 +171,8 @@ class PatchInferer(Inferer):
                 batch_size = min(self.batch_size, total_size - i)
                 yield patches[i : i + batch_size], patches[i : i + batch_size].meta[PatchKeys.LOCATION], batch_size  # type: ignore
         else:
-            patch_batch = [0] * self.batch_size
-            location_batch = [0] * self.batch_size
+            patch_batch: list[Any] = [None] * self.batch_size
+            location_batch: list[Any] = [None] * self.batch_size
             idx_in_batch = 0
             for sample in patches:
                 patch_batch[idx_in_batch] = sample[0]
@@ -179,8 +181,8 @@ class PatchInferer(Inferer):
                 if idx_in_batch == self.batch_size:
                     # concatenate batch of patches to create a tensor
                     yield torch.cat(patch_batch), location_batch, idx_in_batch
-                    patch_batch = [0] * self.batch_size
-                    location_batch = [0] * self.batch_size
+                    patch_batch = [None] * self.batch_size
+                    location_batch = [None] * self.batch_size
                     idx_in_batch = 0
             if idx_in_batch > 0:
                 # concatenate batch of patches to create a tensor
@@ -193,7 +195,7 @@ class PatchInferer(Inferer):
             return tuple(outputs[k] for k in self.output_keys)
         return ensure_tuple(outputs, wrap_array=True)
 
-    def _run_inference(self, network: Callable, patch: MetaTensor, *args, **kwargs):
+    def _run_inference(self, network: Callable, patch: torch.Tensor, *args, **kwargs):
         # pre-process
         if self.pre_processor:
             patch = self.pre_processor(patch)
@@ -208,7 +210,7 @@ class PatchInferer(Inferer):
     def _merge_outputs(
         self,
         inputs: torch.Tensor,
-        patch_batch: MetaTensor,
+        patch_batch: torch.Tensor,
         location_patch: Sequence,
         outputs: tuple[torch.Tensor],
         batch_size: int,

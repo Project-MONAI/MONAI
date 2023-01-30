@@ -17,9 +17,8 @@ from typing import Any
 
 import torch
 
-from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import iter_patch_position
-from monai.utils.enums import PatchKeys, PytorchPadMode
+from monai.utils.enums import PytorchPadMode
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep
 from monai.utils.module import look_up_option
 
@@ -28,7 +27,7 @@ __all__ = ["Splitter"]
 
 class Splitter(ABC):
     """
-    A base class for splitting the inputs into iterable patches (MetaTensor with PatchKeys metadata).
+    A base class for splitting the inputs into iterable tuple of patches and locations
     Extend this class to support operations for `PatchInference`, e.g. SlidingPatchSplitter.
 
     """
@@ -38,7 +37,7 @@ class Splitter(ABC):
         self.device = device
 
     @abstractmethod
-    def __call__(self, inputs: Any) -> Iterable[MetaTensor]:
+    def __call__(self, data: Any) -> Iterable[tuple[torch.Tensor, Sequence[int]]]:
         """
         Split the image, represented by an input tensor or a filename, into patches.
 
@@ -58,9 +57,9 @@ class SlidingWindowSplitter(Splitter):
         self,
         patch_size: Sequence[int] | int,
         offset: Sequence[int] | int = 0,
-        device: torch.device | str | None = None,
         overlap: Sequence[float] | float = 0.0,
         patch_filter_fn: Callable | None = None,
+        device: torch.device | str | None = None,
         pad_mode: str = PytorchPadMode.CONSTANT,
         **pad_kwargs,
     ):
@@ -72,15 +71,15 @@ class SlidingWindowSplitter(Splitter):
             raise ValueError("Overlap must be between 0 and 1.")
         self.overlap = overlap
 
-    def __call__(self, inputs: torch.Tensor) -> Iterable[MetaTensor]:
+    def __call__(self, data: torch.Tensor) -> Iterable[tuple[torch.Tensor, Sequence[int]]]:
         if self.device:
-            inputs.to(self.device)
-        spatial_ndim = inputs.ndim - 2
+            data.to(self.device)
+        spatial_ndim = data.ndim - 2
         patch_size = ensure_tuple_rep(self.patch_size, spatial_ndim)
         overlap = ensure_tuple_rep(self.overlap, spatial_ndim)
         overlap = tuple(o if p else 0.0 for o, p in zip(overlap, patch_size))  # overlap only in patching dimensions
         offset = ensure_tuple_rep(self.offset, spatial_ndim)
-        for off, ps, ins in zip(offset, patch_size, inputs.shape[2:]):
+        for off, ps, ins in zip(offset, patch_size, data.shape[2:]):
             if off < -ps:
                 raise ValueError(f"Negative `offset` ({off}) cannot be larger than `patch_size` ({ps}) in magnitude.")
             if off >= ins:
@@ -94,18 +93,18 @@ class SlidingWindowSplitter(Splitter):
             # set the ending pad size only if it is not divisible by the patch size
             _pad_size[::2] = (
                 0 if ps == 0 else (off - ins + ps) % round(ps * (1.0 - ov))
-                for ins, off, ps, ov in zip(inputs.shape[2:], offset, patch_size, overlap)
+                for ins, off, ps, ov in zip(data.shape[2:], offset, patch_size, overlap)
             )
             # pad the inputs
-            inputs = torch.nn.functional.pad(
-                inputs, _pad_size[::-1], look_up_option(self.pad_mode, PytorchPadMode).value, **self.pad_kwargs
+            data = torch.nn.functional.pad(
+                data, _pad_size[::-1], look_up_option(self.pad_mode, PytorchPadMode).value, **self.pad_kwargs
             )
             # correct the offset with regard to the padded image
             offset = tuple(off + p for off, p in zip(offset, _pad_size[1::2]))
 
-        for location in iter_patch_position(inputs.shape[2:], patch_size, offset, overlap, False):
+        for location in iter_patch_position(data.shape[2:], patch_size, offset, overlap, False):
             slices = (slice(None),) * 2 + tuple(slice(loc, loc + ps) for loc, ps in zip(location, patch_size))
-            patch = inputs[slices]
+            patch = data[slices]
             if padded:
                 # correct the location for original inputs (remove padding)
                 location = tuple(loc - p for loc, p in zip(location, _pad_size[1::2]))

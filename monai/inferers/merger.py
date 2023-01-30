@@ -31,8 +31,9 @@ class Merger(ABC):
         device: the device where Merger tensors should reside.
     """
 
-    def __init__(self, device: torch.device | str | None = None) -> None:
+    def __init__(self, device: torch.device | str | None = None, dtype: torch.dtype = torch.float32) -> None:
         self.device = device
+        self.dtype = dtype
 
     @abstractmethod
     def initialize(self, inputs: torch.Tensor, in_patch: torch.Tensor, out_patch: torch.Tensor):
@@ -81,23 +82,38 @@ class AvgMerger(Merger):
     """Merge patches by taking average of the overlapping area
 
     Args:
-        device: the device for `values` and `count` tensor aggregator.
-        dtype: the dtype of `values` tensor aggregator.
+        device: the device for aggregator tensors and final results.
+        dtype: the dtype for aggregation and final result and .
     """
 
     def __init__(
-        self, output_shape: tuple | None = None, device: torch.device | str = "cpu", dtype=torch.float32
+        self, output_shape: tuple | None = None, device: torch.device | str = "cpu", dtype: torch.dtype = torch.float32
     ) -> None:
-        super().__init__(device)
+        super().__init__(device, dtype)
         self.output_shape = output_shape
-        self.dtype = dtype
 
-    def initialize(
-        self,
-        inputs: torch.Tensor | None = None,
-        in_patch: torch.Tensor | None = None,
-        out_patch: torch.Tensor | None = None,
-    ):
+    def _get_device(self, in_patch, out_patch):
+        """Define the device for value-aggregator/output tensor"""
+        if isinstance(self.device, str):
+            if self.device.lower() == "input":
+                return in_patch.device
+            if self.device.lower() == "output":
+                return out_patch.device
+        return self.device
+
+    def _get_output_shape(self, inputs, in_patch, out_patch):
+        """Define the shape for aggregator tensors"""
+        if self.output_shape is None:
+            in_spatial_shape = torch.tensor(inputs.shape[2:])
+            in_patch_shape = torch.tensor(in_patch.shape[2:])
+            out_patch_shape = torch.tensor(out_patch.shape[2:])
+            batch_channel_shape = out_patch.shape[:2]
+            spatial_shape = torch.round(in_spatial_shape * out_patch_shape / in_patch_shape).to(torch.int).tolist()
+            return batch_channel_shape + tuple(spatial_shape)
+
+        return self.output_shape
+
+    def initialize(self, inputs: torch.Tensor, in_patch: torch.Tensor, out_patch: torch.Tensor):
         """
         Initialize the merger by creating tensors for aggregation (`values` and `counts`).
 
@@ -106,28 +122,8 @@ class AvgMerger(Merger):
             in_patch: a tensor of shape BCH'W'[D'], representing a batch of input patches
             out_patch: a tensor of shape BC"H"W"[D"], representing a batch of input patches
         """
-        # set the output shape
-        if self.output_shape is None:
-            in_spatial_shape = torch.tensor(inputs.shape[2:])
-            in_patch_shape = torch.tensor(in_patch.shape[2:])
-            out_patch_shape = torch.tensor(out_patch.shape[2:])
-            batch_channel_shape = out_patch.shape[:2]
-            spatial_shape = torch.round(in_spatial_shape * out_patch_shape / in_patch_shape).to(torch.int).tolist()
-            output_shape = batch_channel_shape + tuple(spatial_shape)
-        else:
-            output_shape = self.output_shape
-        # set the device for aggregator tensors
-        device: torch.device | str
-        if isinstance(self.device, str):
-            if self.device.lower() == "input":
-                device = in_patch.device
-            elif self.device.lower() == "output":
-                device = out_patch.device
-            else:
-                device = self.device
-        else:
-            device = self.device
-        # initialize values and counts tensors for aggregation
+        output_shape = self._get_output_shape(inputs, in_patch, out_patch)
+        device = self._get_device(in_patch, out_patch)
         self.values = torch.zeros(output_shape, dtype=self.dtype, device=device)
         self.counts = torch.zeros(output_shape, dtype=torch.uint8, device=device)
 
