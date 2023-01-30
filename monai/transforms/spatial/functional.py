@@ -112,7 +112,7 @@ def spatial_resample(
     if affine_unchanged or lazy_evaluation:
         # no significant change or lazy change, return original image
         out = convert_to_tensor(img, track_meta=get_track_meta())  # type: ignore
-        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out  # type: ignore
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info  # type: ignore
     im_size = torch.tensor(img.shape).tolist()
     chns, in_sp_size, additional_dims = im_size[0], im_size[1 : spatial_rank + 1], im_size[spatial_rank + 1 :]
 
@@ -168,7 +168,7 @@ def orientation(img, original_affine, spatial_ornt, transform_info):
     )
     out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
     if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
-        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     if axes:
         out = torch.flip(out, dims=axes)
     if not np.all(full_transpose == np.arange(len(out.shape))):
@@ -195,7 +195,7 @@ def flip(img, shape, sp_axes, transform_info):
     )
     out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
     if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
-        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     out = torch.flip(out, axes)
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
@@ -222,7 +222,7 @@ def resize(img, out_size, mode, align_corners, input_ndim, anti_aliasing, anti_a
     if transform_info.get(TraceKeys.LAZY_EVALUATION, False) or tuple(convert_to_numpy(orig_size)) == out_size:
         if anti_aliasing:
             warnings.warn("anti-aliasing is not compatible with lazy evaluation.")
-        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     img_ = convert_to_tensor(out, dtype=torch.float, track_meta=False)  # convert to a regular tensor
     if anti_aliasing and any(x < y for x, y in zip(out_size, img_.shape[1:])):
         factors = torch.div(torch.Tensor(list(img_.shape[1:])), torch.Tensor(out_size))
@@ -275,7 +275,7 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, t
     )
     out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
     if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
-        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     xform = AffineTransform(
         normalized=False, mode=mode, padding_mode=padding_mode, align_corners=align_corners, reverse_indexing=True
     )
@@ -316,7 +316,7 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, transf
     )
     out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
     if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
-        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     img_t = out.to(torch.float32)
     zoomed: NdarrayOrTensor = torch.nn.functional.interpolate(
         recompute_scale_factor=True,
@@ -371,7 +371,7 @@ def rotate90(img, axes, k, transform_info):
     )
     out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
     if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
-        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     out = torch.rot90(out, k, axes)
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
@@ -392,7 +392,7 @@ def affine_func(img, affine, grid, resampler, sp_size, mode, padding_mode, do_re
     )
     out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
     if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
-        out = out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+        out = out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
         return out if image_only else (out, affine)
     if do_resampling:
         out = resampler(img=out, grid=grid, mode=mode, padding_mode=padding_mode)

@@ -55,7 +55,7 @@ def pad_func(img, to_pad_, mode, kwargs, transform_info):
     )
     out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
     if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
-        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     out = monai.transforms.Pad.pad_nd(out, to_pad_, mode, **kwargs) if do_pad else out
     out = convert_to_tensor(out, track_meta=get_track_meta())
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
@@ -79,6 +79,6 @@ def crop_func(img, slices, transform_info):
     )
     out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
     if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
-        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     out = out[slices]
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
