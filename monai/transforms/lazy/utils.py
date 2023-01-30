@@ -129,6 +129,7 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, spatial_size, kwargs: 
         "padding_mode": kwargs.pop(LazyAttr.PADDING_MODE, None),
     }
     resampler = monai.transforms.SpatialResample(**init_kwargs)
-    # resampler.lazy_evaluation = False
+    if isinstance(resampler, monai.transforms.LazyTransform):
+        resampler.lazy_evaluation = False
     with resampler.trace_transform(False):  # don't track this transform in `data`
         return resampler(img=img, **call_kwargs)

@@ -96,8 +96,6 @@ def apply_transforms(
     sp_size = cur_kwargs.pop(LazyAttr.SHAPE, None)
     data = resample(data, cumulative_xform, sp_size, cur_kwargs)
     if isinstance(data, MetaTensor):
-        data.clear_pending_operations()
-        data.affine = data.affine @ to_affine_nd(len(data.affine) - 1, cumulative_xform)
         for p in pending:
             data.push_applied_operation(p)
     return data, pending
