@@ -72,6 +72,17 @@ class TraceableTransform(Transform):
             return f"{TraceKeys.KEY_SUFFIX}"
         return f"{key}{TraceKeys.KEY_SUFFIX}"
 
+    @staticmethod
+    def transform_keys():
+        """The keys to store necessary info of an applied transform."""
+        return (
+            TraceKeys.CLASS_NAME,
+            TraceKeys.ID,
+            TraceKeys.TRACING,
+            TraceKeys.LAZY_EVALUATION,
+            TraceKeys.DO_TRANSFORM,
+        )
+
     def get_transform_info(
         self, data, key: Hashable = None, extra_info: dict | None = None, orig_size: tuple | None = None
     ) -> dict:
