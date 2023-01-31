@@ -287,7 +287,8 @@ class LoadImage(Transform):
 
         img_array: NdarrayOrTensor
         img_array, meta_data = reader.get_data(img)
-        img_array = convert_to_dst_type(img_array, dst=img_array, dtype=self.dtype)[0]
+        if self.dtype is not None:
+            img_array = convert_to_dst_type(img_array, dst=img_array, dtype=self.dtype)[0]
         if not isinstance(meta_data, dict):
             raise ValueError("`meta_data` must be a dict.")
         # make sure all elements in metadata are little endian
