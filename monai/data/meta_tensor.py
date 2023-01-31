@@ -512,15 +512,15 @@ class MetaTensor(MetaObj, torch.Tensor):
 
     @staticmethod
     def ensure_torch_and_prune_meta(
-        im: NdarrayTensor, meta: dict, simple_keys: bool = False, pattern: str | None = None, sep: str = "."
+        im: NdarrayTensor, meta: dict | None, simple_keys: bool = False, pattern: str | None = None, sep: str = "."
     ):
         """
-        Convert the image to `torch.Tensor`. If `affine` is in the `meta` dictionary,
+        Convert the image to MetaTensor (when meta is not None). If `affine` is in the `meta` dictionary,
         convert that to `torch.Tensor`, too. Remove any superfluous metadata.
 
         Args:
             im: Input image (`np.ndarray` or `torch.Tensor`)
-            meta: Metadata dictionary.
+            meta: Metadata dictionary. When it's None, the metadata is not tracked, this method returns a torch.Tensor.
             simple_keys: whether to keep only a simple subset of metadata keys.
             pattern: combined with `sep`, a regular expression used to match and prune keys
                 in the metadata (nested dictionary), default to None, no key deletion.
@@ -530,7 +530,7 @@ class MetaTensor(MetaObj, torch.Tensor):
 
         Returns:
             By default, a `MetaTensor` is returned.
-            However, if `get_track_meta()` is `False`, a `torch.Tensor` is returned.
+            However, if `get_track_meta()` is `False` or meta=None, a `torch.Tensor` is returned.
         """
         img = convert_to_tensor(im, track_meta=get_track_meta() and meta is not None)  # potentially ascontiguousarray
 

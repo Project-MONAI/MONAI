@@ -75,7 +75,7 @@ class TraceableTransform(Transform):
         return f"{key}{TraceKeys.KEY_SUFFIX}"
 
     @staticmethod
-    def transform_keys():
+    def transform_info_keys():
         """The keys to store necessary info of an applied transform."""
         return (
             TraceKeys.CLASS_NAME,
@@ -96,7 +96,7 @@ class TraceableTransform(Transform):
             self.lazy_evaluation if isinstance(self, LazyTransform) else False,
             self._do_transform if hasattr(self, "_do_transform") else True,
         )
-        return dict(zip(self.transform_keys(), vals))
+        return dict(zip(self.transform_info_keys(), vals))
 
     def push_transform(self, data, *args, **kwargs):
         """
