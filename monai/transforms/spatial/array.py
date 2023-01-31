@@ -1489,7 +1489,7 @@ class AffineGrid(LazyTransform):
         self.scale_params = scale_params
         self.device = device
         _dtype = get_equivalent_dtype(dtype, torch.Tensor)
-        self.dtype = _dtype if _dtype in (torch.float16, torch.float32, torch.float64, None) else torch.float32
+        self.dtype = _dtype if _dtype in (torch.float16, torch.float64, None) else torch.float32
         self.affine = affine
 
     def __call__(
@@ -1527,13 +1527,13 @@ class AffineGrid(LazyTransform):
         if self.affine is None:
             affine = torch.eye(spatial_dims + 1, device=_device)
             if self.rotate_params:
-                affine = affine @ create_rotate(spatial_dims, self.rotate_params, device=_device, backend=_b)
+                affine @= create_rotate(spatial_dims, self.rotate_params, device=_device, backend=_b)
             if self.shear_params:
-                affine = affine @ create_shear(spatial_dims, self.shear_params, device=_device, backend=_b)
+                affine @= create_shear(spatial_dims, self.shear_params, device=_device, backend=_b)
             if self.translate_params:
-                affine = affine @ create_translate(spatial_dims, self.translate_params, device=_device, backend=_b)
+                affine @= create_translate(spatial_dims, self.translate_params, device=_device, backend=_b)
             if self.scale_params:
-                affine = affine @ create_scale(spatial_dims, self.scale_params, device=_device, backend=_b)
+                affine @= create_scale(spatial_dims, self.scale_params, device=_device, backend=_b)
         else:
             affine = self.affine
         if self.lazy_evaluation:
@@ -1541,7 +1541,7 @@ class AffineGrid(LazyTransform):
 
         affine = to_affine_nd(len(grid_) - 1, affine)
         affine = convert_to_tensor(affine, device=grid_.device, dtype=grid_.dtype, track_meta=False)  # type: ignore
-        grid_ = (affine @ grid_.reshape((grid_.shape[0], -1))).reshape([-1] + list(grid_.shape[1:]))
+        grid_ = (affine @ grid_.view((grid_.shape[0], -1))).view([-1] + list(grid_.shape[1:]))
         return grid_, affine  # type: ignore
 
 
