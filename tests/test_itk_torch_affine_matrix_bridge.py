@@ -20,7 +20,7 @@ from parameterized import parameterized
 
 from monai.apps import download_url
 from monai.data import ITKReader
-from monai.data.itk_torch_affine_matrix_bridge import (
+from monai.data.itk_torch_bridge import (
     create_itk_affine_from_parameters,
     itk_affine_resample,
     itk_image_to_metatensor,
