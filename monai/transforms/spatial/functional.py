@@ -135,7 +135,7 @@ def spatial_resample(
         affine_xform = AffineTransform(  # type: ignore
             normalized=False, mode=mode, padding_mode=padding_mode, align_corners=align_corners, reverse_indexing=True
         )
-        img = affine_xform(img.unsqueeze(0), theta=xform, spatial_size=spatial_size).squeeze(0)  # type: ignore
+        img = affine_xform(img.unsqueeze(0), theta=xform.to(img), spatial_size=spatial_size).squeeze(0)  # type: ignore
     if additional_dims:
         full_shape = (chns, *spatial_size, *additional_dims)
         img = img.reshape(full_shape)
