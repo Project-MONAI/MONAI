@@ -61,7 +61,7 @@ from .image_writer import (
     resolve_writer,
 )
 from .iterable_dataset import CSVIterableDataset, IterableDataset, ShuffleBuffer
-from itk_torch_bridge import (
+from .itk_torch_bridge import (
     create_itk_affine_from_parameters,
     itk_affine_resample,
     itk_image_to_metatensor,
