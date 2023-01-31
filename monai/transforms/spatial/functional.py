@@ -56,11 +56,11 @@ __all__ = ["spatial_resample", "orientation", "flip", "resize", "rotate", "zoom"
 
 
 def spatial_resample(
-    img, dst_affine, spatial_size, mode, padding_mode, align_corners, dtype, transform_info
+    img, dst_affine, spatial_size, mode, padding_mode, align_corners, dtype_pt, transform_info
 ) -> torch.Tensor:
     original_spatial_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
     src_affine: torch.Tensor = img.peek_pending_affine() if isinstance(img, MetaTensor) else torch.eye(4)
-    img = convert_to_tensor(data=img, track_meta=get_track_meta(), dtype=dtype)
+    img = convert_to_tensor(data=img, track_meta=get_track_meta())
     spatial_rank = min(len(img.shape) - 1, src_affine.shape[0] - 1, 3)
     if (not isinstance(spatial_size, int) or spatial_size != -1) and spatial_size is not None:
         spatial_rank = min(len(ensure_tuple(spatial_size)), 3)  # infer spatial rank based on spatial_size
@@ -77,7 +77,7 @@ def spatial_resample(
         spatial_size, _ = compute_shape_offset(in_spatial_size, src_affine, dst_affine)  # type: ignore
     spatial_size = torch.tensor(fall_back_tuple(ensure_tuple(spatial_size)[:spatial_rank], in_spatial_size))
     extra_info = {
-        "dtype": str(img.dtype)[6:],  # dtype as string; remove "torch": torch.float32 -> float32
+        "dtype": str(dtype_pt)[6:],  # remove "torch": torch.float32 -> float32
         "mode": mode.value if isinstance(mode, Enum) else mode,
         "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
         "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
@@ -119,6 +119,7 @@ def spatial_resample(
     if additional_dims:
         xform_shape = [-1] + in_sp_size
         img = img.reshape(xform_shape)  # type: ignore
+    img = img.to(dtype_pt)
     if isinstance(mode, int):
         dst_xform_1 = normalize_transform(spatial_size, xform.device, xform.dtype, True, True)[0]  # to (-1, 1)
         if not align_corners:
@@ -127,7 +128,7 @@ def spatial_resample(
         dst_xform_d = normalize_transform(spatial_size, xform.device, xform.dtype, align_corners, False)[0]
         xform = xform @ torch.inverse(dst_xform_d) @ dst_xform_1
         affine_xform = monai.transforms.Affine(
-            affine=xform, spatial_size=spatial_size, normalized=True, image_only=True, dtype=dtype
+            affine=xform, spatial_size=spatial_size, normalized=True, image_only=True, dtype=dtype_pt
         )
         with affine_xform.trace_transform(False):
             img = affine_xform(img, mode=mode, padding_mode=padding_mode)
