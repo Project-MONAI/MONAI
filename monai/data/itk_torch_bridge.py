@@ -28,12 +28,7 @@ if TYPE_CHECKING:
 else:
     itk, has_itk = optional_import("itk")
 
-__all__ = [
-    "itk_image_to_metatensor",
-    "itk_to_monai_affine",
-    "monai_to_itk_affine",
-    "monai_to_itk_ddf"
-]
+__all__ = ["itk_image_to_metatensor", "itk_to_monai_affine", "monai_to_itk_affine", "monai_to_itk_ddf"]
 
 
 def itk_image_to_metatensor(image):

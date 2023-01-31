@@ -20,13 +20,13 @@ from parameterized import parameterized
 
 from monai.apps import download_url
 from monai.data import ITKReader
-from monai.data.meta_tensor import MetaTensor
 from monai.data.itk_torch_bridge import (
     itk_image_to_metatensor,
     itk_to_monai_affine,
     monai_to_itk_affine,
-    monai_to_itk_ddf
+    monai_to_itk_ddf,
 )
+from monai.data.meta_tensor import MetaTensor
 from monai.networks.blocks import Warp
 from monai.transforms import Affine
 from monai.utils import optional_import
