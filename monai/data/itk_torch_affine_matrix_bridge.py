@@ -37,6 +37,10 @@ __all__ = [
     "create_itk_affine_from_parameters",
     "itk_affine_resample",
     "monai_affine_resample",
+    "remove_border",
+    "monai_to_itk_ddf",
+    "itk_warp",
+    "monai_warp",
 ]
 
 
@@ -276,6 +280,22 @@ def monai_affine_resample(metatensor: MetaTensor, affine_matrix: NdarrayOrTensor
     return cast(MetaTensor, output_tensor.squeeze().permute(*torch.arange(output_tensor.ndim - 2, -1, -1))).array
 
 
+def remove_border(image):
+    """
+    MONAI seems to have different behavior in the borders of the image than ITK.
+    This helper function sets the border of the ITK image as 0 (padding but keeping
+    the same image size) in order to allow numerical comparison between the
+    result from resampling with ITK/Elastix and resampling with MONAI.
+    To use: image[:] = remove_border(image)
+    Args:
+        image: The ITK image to be padded.
+
+    Returns:
+        The padded array of data.
+    """
+    return np.pad(image[1:-1, 1:-1, 1:-1] if image.ndim == 3 else image[1:-1, 1:-1], pad_width=1)
+
+
 def monai_to_itk_ddf(image, ddf):
     """
     converting the dense displacement field from the MONAI space to the ITK
@@ -335,7 +355,7 @@ def itk_warp(image, ddf):
     return np.asarray(warped_image)
 
 
-def monai_wrap(image_tensor, ddf_tensor):
+def monai_warp(image_tensor, ddf_tensor):
     """
     warping with MONAI
     Args:

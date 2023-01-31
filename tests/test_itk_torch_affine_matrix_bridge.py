@@ -28,7 +28,8 @@ from monai.data.itk_torch_affine_matrix_bridge import (
     itk_warp,
     monai_affine_resample,
     monai_to_itk_affine,
-    monai_wrap,
+    monai_warp,
+    remove_border,
 )
 from monai.utils import optional_import
 from tests.utils import skip_if_downloading_fails, testing_data_config
@@ -39,22 +40,6 @@ TESTS = ["CT_2D_head_fixed.mha", "CT_2D_head_moving.mha", "copd1_highres_INSP_ST
 
 key = "copd1_highres_INSP_STD_COPD_img"
 FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", f"{key}.nii.gz")
-
-
-def remove_border(image):
-    """
-    MONAI seems to have different behavior in the borders of the image than ITK.
-    This helper function sets the border of the ITK image as 0 (padding but keeping
-    the same image size) in order to allow numerical comparison between the
-    result from resampling with ITK/Elastix and resampling with MONAI.
-    To use: image[:] = remove_border(image)
-    Args:
-        image: The ITK image to be padded.
-
-    Returns:
-        The padded array of data.
-    """
-    return np.pad(image[1:-1, 1:-1, 1:-1] if image.ndim == 3 else image[1:-1, 1:-1], pad_width=1)
 
 
 @unittest.skipUnless(has_itk, "Requires `itk` package.")
@@ -74,6 +59,7 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
     def test_setting_affine_parameters(self, filepath):
         # Read image
         image = self.reader.read(os.path.join(self.data_dir, filepath))
+        image[:] = remove_border(image)
         ndim = image.ndim
 
         # Affine parameters
@@ -122,6 +108,7 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
     def test_arbitary_center_of_rotation(self, filepath):
         # Read image
         image = self.reader.read(os.path.join(self.data_dir, filepath))
+        image[:] = remove_border(image)
         ndim = image.ndim
 
         # ITK matrix (3x3 affine matrix)
@@ -172,7 +159,7 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
     def test_monai_to_itk(self, filepath):
         # Read image
         image = self.reader.read(os.path.join(self.data_dir, filepath))
-
+        image[:] = remove_border(image)
         ndim = image.ndim
 
         # MONAI affine matrix
@@ -225,6 +212,7 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_cyclic_conversion(self, filepath):
         image = self.reader.read(os.path.join(self.data_dir, filepath))
+        image[:] = remove_border(image)
         ndim = image.ndim
 
         # ITK matrix (3x3 affine matrix)
@@ -265,7 +253,7 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         ddf = 5 * torch.rand((1, ndim, *img.shape[-ndim:]), dtype=torch.float32) - 2.5
 
         # Warp with MONAI
-        img_resampled = monai_wrap(img, ddf)
+        img_resampled = monai_warp(img, ddf)
 
         # Create ITK image
         itk_img = itk.GetImageFromArray(img.squeeze().numpy())
@@ -303,7 +291,7 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
 
         # Warp with MONAI
         image_tensor = torch.tensor(itk.GetArrayFromImage(image), dtype=torch.float32).unsqueeze(0).unsqueeze(0)
-        img_resampled = monai_wrap(image_tensor, ddf)
+        img_resampled = monai_warp(image_tensor, ddf)
 
         # Warp with ITK
         itk_img_resampled = itk_warp(image, ddf.squeeze().numpy())
