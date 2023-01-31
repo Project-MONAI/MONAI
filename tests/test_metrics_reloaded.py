@@ -18,6 +18,9 @@ import torch
 from parameterized import parameterized
 
 from monai.metrics import MetricsReloadedBinary, MetricsReloadedCategorical
+from monai.utils import optional_import
+
+_, has_metrics = optional_import("MetricsReloaded")
 
 # shape: (1, 1, 2, 2)
 y_pred = torch.tensor([[[[1.0, 0.0], [0.0, 1.0]]]])
@@ -71,6 +74,7 @@ TEST_CASES_CATEGORICAL = [
 ]
 
 
+@unittest.skipIf(not has_metrics, "MetricsReloaded not available.")
 class TestMetricsReloaded(unittest.TestCase):
     @parameterized.expand(TEST_CASES_BINARY)
     def test_binary(self, input_param, input_data, expected_val):

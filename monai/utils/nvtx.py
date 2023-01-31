@@ -64,7 +64,7 @@ class Range:
         self.append_method_name = append_method_name
         self.recursive = recursive
 
-    def __call__(self, obj: Any):
+    def __call__(self, obj: Any) -> Any:
         if self.recursive is True:
             if isinstance(obj, (list, tuple)):
                 return type(obj)(Range(recursive=True)(t) for t in obj)

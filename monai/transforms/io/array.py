@@ -44,7 +44,14 @@ from monai.transforms.transform import Transform
 from monai.transforms.utility.array import EnsureChannelFirst
 from monai.utils import GridSamplePadMode
 from monai.utils import ImageMetaKey as Key
-from monai.utils import OptionalImportError, convert_to_dst_type, ensure_tuple, look_up_option, optional_import
+from monai.utils import (
+    OptionalImportError,
+    convert_to_dst_type,
+    deprecated_arg_default,
+    ensure_tuple,
+    look_up_option,
+    optional_import,
+)
 
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
@@ -119,6 +126,7 @@ class LoadImage(Transform):
 
     """
 
+    @deprecated_arg_default("image_only", False, True, since="1.1", replaced="1.3")
     def __init__(
         self,
         reader=None,
@@ -128,6 +136,7 @@ class LoadImage(Transform):
         simple_keys: bool = False,
         prune_meta_pattern: str | None = None,
         prune_meta_sep: str = ".",
+        expanduser: bool = True,
         *args,
         **kwargs,
     ) -> None:
@@ -150,6 +159,7 @@ class LoadImage(Transform):
             prune_meta_sep: combined with `prune_meta_pattern`, used to match and prune keys
                 in the metadata (nested dictionary). default is ".", see also :py:class:`monai.transforms.DeleteItemsd`.
                 e.g. ``prune_meta_pattern=".*_code$", prune_meta_sep=" "`` removes meta keys that ends with ``"_code"``.
+            expanduser: if True cast filename to Path and call .expanduser on it, otherwise keep filename as is.
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
 
@@ -171,6 +181,7 @@ class LoadImage(Transform):
         self.simple_keys = simple_keys
         self.pattern = prune_meta_pattern
         self.sep = prune_meta_sep
+        self.expanduser = expanduser
 
         self.readers: list[ImageReader] = []
         for r in SUPPORTED_READERS:  # set predefined readers as default
@@ -238,7 +249,9 @@ class LoadImage(Transform):
             reader: runtime reader to load image file and metadata.
 
         """
-        filename = tuple(f"{Path(s).expanduser()}" for s in ensure_tuple(filename))  # allow Path objects
+        filename = tuple(
+            f"{Path(s).expanduser()}" if self.expanduser else s for s in ensure_tuple(filename)  # allow Path objects
+        )
         img, err = None, []
         if reader is not None:
             img = reader.read(filename)  # runtime specified reader

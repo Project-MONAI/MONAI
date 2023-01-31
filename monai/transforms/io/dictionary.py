@@ -27,6 +27,7 @@ from monai.data.image_reader import ImageReader
 from monai.transforms.io.array import LoadImage, SaveImage
 from monai.transforms.transform import MapTransform
 from monai.utils import GridSamplePadMode, ensure_tuple, ensure_tuple_rep
+from monai.utils.deprecate_utils import deprecated_arg_default
 from monai.utils.enums import PostFix
 
 __all__ = ["LoadImaged", "LoadImageD", "LoadImageDict", "SaveImaged", "SaveImageD", "SaveImageDict"]
@@ -69,6 +70,7 @@ class LoadImaged(MapTransform):
 
     """
 
+    @deprecated_arg_default("image_only", False, True, since="1.1", replaced="1.3")
     def __init__(
         self,
         keys: KeysCollection,
@@ -83,6 +85,7 @@ class LoadImaged(MapTransform):
         prune_meta_pattern: str | None = None,
         prune_meta_sep: str = ".",
         allow_missing_keys: bool = False,
+        expanduser: bool = True,
         *args,
         **kwargs,
     ) -> None:
@@ -118,6 +121,7 @@ class LoadImaged(MapTransform):
                 in the metadata (nested dictionary). default is ".", see also :py:class:`monai.transforms.DeleteItemsd`.
                 e.g. ``prune_meta_pattern=".*_code$", prune_meta_sep=" "`` removes meta keys that ends with ``"_code"``.
             allow_missing_keys: don't raise exception if key is missing.
+            expanduser: if True cast filename to Path and call .expanduser on it, otherwise keep filename as is.
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
         """
@@ -130,6 +134,7 @@ class LoadImaged(MapTransform):
             simple_keys,
             prune_meta_pattern,
             prune_meta_sep,
+            expanduser,
             *args,
             **kwargs,
         )

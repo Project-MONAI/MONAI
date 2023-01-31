@@ -54,7 +54,7 @@ class ModelWithHooks:
 
     def __init__(
         self,
-        nn_module,
+        nn_module: nn.Module,
         target_layer_names: str | Sequence[str],
         register_forward: bool = False,
         register_backward: bool = False,
@@ -107,7 +107,7 @@ class ModelWithHooks:
 
         return _hook
 
-    def get_layer(self, layer_id: str | Callable):
+    def get_layer(self, layer_id: str | Callable[[nn.Module], nn.Module]) -> nn.Module:
         """
 
         Args:
@@ -122,7 +122,7 @@ class ModelWithHooks:
         if isinstance(layer_id, str):
             for name, mod in self.model.named_modules():
                 if name == layer_id:
-                    return mod
+                    return cast(nn.Module, mod)
         raise NotImplementedError(f"Could not find {layer_id}.")
 
     def class_score(self, logits: torch.Tensor, class_idx: int) -> torch.Tensor:
