@@ -70,7 +70,7 @@ class TestRandomOrder(unittest.TestCase):
 
     @parameterized.expand(TEST_INVERSES)
     def test_inverse(self, transform, invertible, use_metatensor):
-        data = {k: (i + 1) * 10.0 if not use_metatensor else MetaTensor((i + 1) * 10.0) for i, k in enumerate(KEYS)}
+        data = {k: MetaTensor((i + 1) * 10.0) for i, k in enumerate(KEYS)}
         fwd_data1 = transform(data)
         # test call twice won't affect inverse
         fwd_data2 = transform(data)

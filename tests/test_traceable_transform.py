@@ -13,8 +13,7 @@ from __future__ import annotations
 
 import unittest
 
-import torch
-
+from monai.data import MetaTensor
 from monai.transforms.inverse import TraceableTransform
 
 
@@ -40,7 +39,7 @@ class TestTraceable(unittest.TestCase):
         data = a(data)  # adds to the stack
         self.assertEqual(data["image"], "test")
 
-        data = {"image": torch.tensor(1.0)}
+        data = {"image": MetaTensor(1.0)}
         data = a(data)  # adds to the stack
         self.assertEqual(data["image"].applied_operations[0]["class"], "_TraceTest")
 

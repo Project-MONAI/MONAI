@@ -155,7 +155,7 @@ class TestOneOf(unittest.TestCase):
 
     @parameterized.expand(TEST_INVERSES)
     def test_inverse(self, transform, invertible, use_metatensor):
-        data = {k: (i + 1) * 10.0 if not use_metatensor else MetaTensor((i + 1) * 10.0) for i, k in enumerate(KEYS)}
+        data = {k: MetaTensor((i + 1) * 10.0) for i, k in enumerate(KEYS)}
         fwd_data = transform(data)
 
         if invertible:

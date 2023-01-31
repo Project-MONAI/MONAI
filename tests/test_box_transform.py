@@ -150,7 +150,7 @@ class TestBoxTransform(unittest.TestCase):
             transform_convert_mode = ConvertBoxModed(**keys)
             convert_result = transform_convert_mode(data)
             assert_allclose(
-                convert_result["boxes"], expected_convert_result, type_test=False, device_test=False, atol=1e-3
+                convert_result["boxes"], expected_convert_result, type_test=True, device_test=True, atol=1e-3
             )
 
             invert_transform_convert_mode = Invertd(
@@ -159,7 +159,7 @@ class TestBoxTransform(unittest.TestCase):
             data_back = invert_transform_convert_mode(convert_result)
             if "boxes_transforms" in data_back:  # if the transform is tracked in dict:
                 self.assertEqual(data_back["boxes_transforms"], [])  # it should be updated
-            assert_allclose(data_back["boxes"], data["boxes"], type_test=False, atol=1e-3)
+            assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
 
             # test ZoomBoxd
             transform_zoom = ZoomBoxd(
@@ -167,7 +167,7 @@ class TestBoxTransform(unittest.TestCase):
             )
             zoom_result = transform_zoom(data)
             self.assertEqual(len(zoom_result["image"].applied_operations), 1)
-            assert_allclose(zoom_result["boxes"], expected_zoom_result, type_test=False, atol=1e-3)
+            assert_allclose(zoom_result["boxes"], expected_zoom_result, type_test=True, device_test=True, atol=1e-3)
             invert_transform_zoom = Invertd(
                 keys=["image", "boxes"], transform=transform_zoom, orig_keys=["image", "boxes"]
             )
@@ -181,7 +181,9 @@ class TestBoxTransform(unittest.TestCase):
             )
             zoom_result = transform_zoom(data)
             self.assertEqual(len(zoom_result["image"].applied_operations), 1)
-            assert_allclose(zoom_result["boxes"], expected_zoom_keepsize_result, type_test=False, atol=1e-3)
+            assert_allclose(
+                zoom_result["boxes"], expected_zoom_keepsize_result, type_test=True, device_test=True, atol=1e-3
+            )
 
             # test RandZoomBoxd
             transform_zoom = RandZoomBoxd(
@@ -214,7 +216,7 @@ class TestBoxTransform(unittest.TestCase):
             affine_result = transform_affine(data)
             if "boxes_transforms" in affine_result:
                 self.assertEqual(len(affine_result["boxes_transforms"]), 1)
-            assert_allclose(affine_result["boxes"], expected_zoom_result, type_test=False, atol=0.01)
+            assert_allclose(affine_result["boxes"], expected_zoom_result, type_test=True, device_test=True, atol=0.01)
             invert_transform_affine = Invertd(keys=["boxes"], transform=transform_affine, orig_keys=["boxes"])
             data_back = invert_transform_affine(affine_result)
             if "boxes_transforms" in data_back:
@@ -231,7 +233,7 @@ class TestBoxTransform(unittest.TestCase):
             flip_result = transform_flip(data)
             if "boxes_transforms" in flip_result:
                 self.assertEqual(len(flip_result["boxes_transforms"]), 1)
-            assert_allclose(flip_result["boxes"], expected_flip_result, type_test=False, atol=1e-3)
+            assert_allclose(flip_result["boxes"], expected_flip_result, type_test=True, device_test=True, atol=1e-3)
             invert_transform_flip = Invertd(
                 keys=["image", "boxes"], transform=transform_flip, orig_keys=["image", "boxes"]
             )
@@ -305,7 +307,7 @@ class TestBoxTransform(unittest.TestCase):
             )
             rotate_result = transform_rotate(data)
             self.assertEqual(len(rotate_result["image"].applied_operations), 1)
-            assert_allclose(rotate_result["boxes"], expected_rotate_result, type_test=False, atol=1e-3)
+            assert_allclose(rotate_result["boxes"], expected_rotate_result, type_test=True, device_test=True, atol=1e-3)
             invert_transform_rotate = Invertd(
                 keys=["image", "boxes"], transform=transform_rotate, orig_keys=["image", "boxes"]
             )
