@@ -61,6 +61,17 @@ from .image_writer import (
     resolve_writer,
 )
 from .iterable_dataset import CSVIterableDataset, IterableDataset, ShuffleBuffer
+from itk_torch_affine_matrix_bridge import (
+    create_itk_affine_from_parameters,
+    itk_affine_resample,
+    itk_image_to_metatensor,
+    itk_to_monai_affine,
+    itk_warp,
+    monai_affine_resample,
+    monai_to_itk_affine,
+    monai_warp,
+    remove_border,
+)
 from .meta_obj import MetaObj, get_track_meta, set_track_meta
 from .meta_tensor import MetaTensor
 from .samplers import DistributedSampler, DistributedWeightedRandomSampler
