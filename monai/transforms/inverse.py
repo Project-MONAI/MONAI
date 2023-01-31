@@ -173,8 +173,6 @@ class TraceableTransform(Transform):
         # after deprecating metadict, we should always convert data_t to metatensor here
         if isinstance(data_t, MetaTensor):
             out_obj.copy_meta_from(data_t, keys=out_obj.__dict__.keys())
-        else:
-            warnings.warn("data_t is not a MetaTensor.")
 
         if not lazy_evaluation and affine is not None and isinstance(data_t, MetaTensor):
             # not lazy evaluation, directly update the metatensor affine (don't push to the stack)
