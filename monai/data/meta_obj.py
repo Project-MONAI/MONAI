@@ -19,8 +19,7 @@ from typing import Any, Iterable
 import numpy as np
 import torch
 
-from monai.utils.enums import TraceKeys
-from monai.utils.misc import first
+from monai.utils import TraceKeys, first, is_immutable
 
 _TRACK_META = True
 
@@ -107,7 +106,7 @@ class MetaObj:
     @staticmethod
     def copy_items(data):
         """returns a copy of the data. list and dict are shallow copied for efficiency purposes."""
-        if isinstance(data, (type(None), int, float, bool, complex, str, tuple, bytes, type, range, slice)):
+        if is_immutable(data):
             return data
         if isinstance(data, (list, dict, np.ndarray)):
             return data.copy()

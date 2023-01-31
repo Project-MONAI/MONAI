@@ -73,6 +73,7 @@ from .misc import (
     is_module_ver_at_least,
     is_scalar,
     is_scalar_tensor,
+    is_immutable,
     issequenceiterable,
     list_to_dict,
     path_to_uri,
