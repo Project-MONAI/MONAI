@@ -1488,7 +1488,8 @@ class AffineGrid(LazyTransform):
         self.translate_params = translate_params
         self.scale_params = scale_params
         self.device = device
-        self.dtype = dtype
+        _dtype = get_equivalent_dtype(dtype, torch.Tensor)
+        self.dtype = _dtype if _dtype in (torch.float16, torch.float32, torch.float64, None) else torch.float32
         self.affine = affine
 
     def __call__(
@@ -1837,7 +1838,7 @@ class Resample(Transform):
             elif self._backend == TransformBackends.NUMPY:
                 is_cuda = img_t.is_cuda
                 img_np = (convert_to_cupy if is_cuda else convert_to_numpy)(img_t, wrap_sequence=True)
-                grid_np, *_ = convert_to_dst_type(grid_t, img_np, wrap_sequence=True)
+                grid_np, *_ = convert_to_dst_type(grid_t, img_np, dtype=grid_t.dtype, wrap_sequence=True)
                 _map_coord = (cupy_ndi if is_cuda else np_ndi).map_coordinates
                 out = (cupy if is_cuda else np).stack(
                     [

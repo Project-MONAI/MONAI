@@ -64,7 +64,7 @@ def spatial_resample(
     spatial_rank = min(len(img.shape) - 1, src_affine.shape[0] - 1, 3)
     if (not isinstance(spatial_size, int) or spatial_size != -1) and spatial_size is not None:
         spatial_rank = min(len(ensure_tuple(spatial_size)), 3)  # infer spatial rank based on spatial_size
-    src_affine = to_affine_nd(spatial_rank, src_affine).to(dtype)
+    src_affine = to_affine_nd(spatial_rank, src_affine).to(torch.float64)
     dst_affine = to_affine_nd(spatial_rank, dst_affine) if dst_affine is not None else src_affine
     dst_affine = convert_to_dst_type(dst_affine, src_affine)[0]
     if not isinstance(dst_affine, torch.Tensor):
@@ -94,7 +94,7 @@ def spatial_resample(
             xform = torch.solve(_d, _s).solution  # type: ignore
     except (np.linalg.LinAlgError, RuntimeError) as e:
         raise ValueError("src affine is not invertible.") from e
-    xform = to_affine_nd(spatial_rank, xform).to(device=img.device, dtype=dtype)
+    xform = to_affine_nd(spatial_rank, xform).to(device=img.device, dtype=torch.float64)
     affine_unchanged = (
         allclose(src_affine, dst_affine, atol=AFFINE_TOL) and allclose(spatial_size, in_spatial_size)
     ) or (allclose(xform, torch.eye(len(xform)), atol=AFFINE_TOL) and allclose(spatial_size, in_spatial_size))
