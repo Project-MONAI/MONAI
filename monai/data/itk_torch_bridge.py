@@ -11,12 +11,11 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
 
-from monai.config import NdarrayOrTensor
 from monai.data import ITKReader
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import EnsureChannelFirst
