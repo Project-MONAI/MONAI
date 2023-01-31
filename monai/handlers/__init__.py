@@ -25,6 +25,7 @@ from .lr_schedule_handler import LrScheduleHandler
 from .mean_dice import MeanDice
 from .mean_iou import MeanIoUHandler
 from .metric_logger import MetricLogger, MetricLoggerKeys
+from .metrics_reloaded_handler import MetricsReloadedBinaryHandler, MetricsReloadedCategoricalHandler
 from .metrics_saver import MetricsSaver
 from .mlflow_handler import MLFlowHandler
 from .nvtx_handlers import MarkHandler, RangeHandler, RangePopHandler, RangePushHandler

@@ -36,6 +36,7 @@ __all__ = [
     "star_zip_with",
     "first",
     "issequenceiterable",
+    "is_immutable",
     "ensure_tuple",
     "ensure_tuple_size",
     "ensure_tuple_rep",
@@ -114,6 +115,15 @@ def issequenceiterable(obj: Any) -> bool:
     except Exception:
         return False
     return isinstance(obj, Iterable) and not isinstance(obj, (str, bytes))
+
+
+def is_immutable(obj: Any) -> bool:
+    """
+    Determine if the object is an immutable object.
+
+    see also https://github.com/python/cpython/blob/740050af0493030b1f6ebf0b9ac39a356e2e74b6/Lib/copy.py#L109
+    """
+    return isinstance(obj, (type(None), int, float, bool, complex, str, tuple, bytes, type, range, slice))
 
 
 def ensure_tuple(vals: Any, wrap_array: bool = False) -> tuple[Any, ...]:
