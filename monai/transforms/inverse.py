@@ -126,7 +126,10 @@ class TraceableTransform(Transform):
                 return data.copy_meta_from(meta_obj)
             return data
         kwargs["lazy_evaluation"] = lazy_eval
-        kwargs["transform_info"] = transform_info
+        if "transform_info" in kwargs and isinstance(kwargs["transform_info"], dict):
+            kwargs["transform_info"].update(transform_info)
+        else:
+            kwargs["transform_info"] = transform_info
         meta_obj = TraceableTransform.track_transform_meta(data, *args, **kwargs)
         return data.copy_meta_from(meta_obj) if isinstance(data, MetaTensor) else data
 
@@ -170,8 +173,6 @@ class TraceableTransform(Transform):
         # after deprecating metadict, we should always convert data_t to metatensor here
         if isinstance(data_t, MetaTensor):
             out_obj.copy_meta_from(data_t, keys=out_obj.__dict__.keys())
-        else:
-            warnings.warn("data_t is not a MetaTensor.")
 
         if not lazy_evaluation and affine is not None and isinstance(data_t, MetaTensor):
             # not lazy evaluation, directly update the metatensor affine (don't push to the stack)

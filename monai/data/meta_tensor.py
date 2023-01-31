@@ -541,6 +541,8 @@ class MetaTensor(MetaObj, torch.Tensor):
 
         # return the `MetaTensor`
         img.meta = meta
+        if MetaKeys.AFFINE in meta:
+            img.affine = meta[MetaKeys.AFFINE]  # this uses the affine property setter
         return img
 
     def __repr__(self):
