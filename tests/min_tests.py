@@ -67,6 +67,7 @@ def run_testsuit():
         "test_global_mutual_information_loss",
         "test_grid_patch",
         "test_gmm",
+        "test_handler_metrics_reloaded",
         "test_handler_checkpoint_loader",
         "test_handler_checkpoint_saver",
         "test_handler_classification_saver",
