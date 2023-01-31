@@ -552,6 +552,8 @@ class MetaTensor(MetaObj, torch.Tensor):
         img.meta = meta
         if MetaKeys.AFFINE in meta:
             img.affine = meta[MetaKeys.AFFINE]  # this uses the affine property setter
+        else:
+            img.affine = MetaTensor.get_default_affine()
         return img
 
     def __repr__(self):
