@@ -529,6 +529,9 @@ class MetaTensor(MetaObj, torch.Tensor):
         if not isinstance(img, MetaTensor):
             return img
 
+        if meta is None:
+            meta = {}
+
         # remove any superfluous metadata.
         if simple_keys:
             # ensure affine is of type `torch.Tensor`
@@ -540,6 +543,8 @@ class MetaTensor(MetaObj, torch.Tensor):
             meta = monai.transforms.DeleteItemsd(keys=pattern, sep=sep, use_re=True)(meta)
 
         # return the `MetaTensor`
+        if meta is None:
+            meta = {}
         img.meta = meta
         if MetaKeys.AFFINE in meta:
             img.affine = meta[MetaKeys.AFFINE]  # this uses the affine property setter
