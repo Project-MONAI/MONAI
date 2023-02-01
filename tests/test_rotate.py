@@ -22,8 +22,11 @@ from monai.data import MetaTensor, set_track_meta
 from monai.transforms import Rotate
 from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, NumpyImageTestCase3D, test_local_inversion
 
+import matplotlib.pyplot as plt
+
 TEST_CASES_2D: list[tuple] = []
 for p in TEST_NDARRAYS_ALL:
+    TEST_CASES_2D.append((p, np.pi / 2, False, "bilinear", "zeros", False))
     TEST_CASES_2D.append((p, np.pi / 6, False, "bilinear", "border", False))
     TEST_CASES_2D.append((p, np.pi / 4, True, "bilinear", "border", False))
     TEST_CASES_2D.append((p, -np.pi / 4.5, True, "nearest", "reflection", False))
@@ -48,10 +51,24 @@ for p in TEST_NDARRAYS_ALL:
 class TestRotate2D(NumpyImageTestCase2D):
     @parameterized.expand(TEST_CASES_2D)
     def test_correct_results(self, im_type, angle, keep_size, mode, padding_mode, align_corners):
-        rotate_fn = Rotate(angle, keep_size, mode, padding_mode, align_corners, dtype=np.float64)
-        rotated = rotate_fn(im_type(self.imt[0]))
+        self._test_correct_results(im_type, angle, keep_size, mode, padding_mode, align_corners)
+
+    def test_correct_results_cases(self):
+        for t in TEST_CASES_2D:
+            with self.subTest(t[1:]):
+                self._test_correct_results(*t)
+
+    def _test_correct_results(self, im_type, angle, keep_size, mode, padding_mode, align_corners):
+        import monai.transforms.spatial.old_array as old
+        rotate_fn = Rotate(angle, keep_size, mode, padding_mode, align_corners, dtype=np.float64,
+                           lazy_evaluation=False)
+        o_rotate_fn = old.Rotate(angle, keep_size, mode, padding_mode, align_corners, dtype=np.float64)
+
+        src_im = im_type(self.imt[0])
+        o_dest_im = o_rotate_fn(src_im)
+        dest_im = rotate_fn(src_im)
         if keep_size:
-            np.testing.assert_allclose(self.imt[0].shape, rotated.shape)
+            np.testing.assert_allclose(self.imt[0].shape, dest_im.shape)
         _order = 0 if mode == "nearest" else 1
         if padding_mode == "border":
             _mode = "nearest"
@@ -68,9 +85,11 @@ class TestRotate2D(NumpyImageTestCase2D):
                 )
             )
         expected = np.stack(expected).astype(np.float32)
-        rotated = rotated.cpu() if isinstance(rotated, torch.Tensor) else rotated
-        good = np.sum(np.isclose(expected, rotated, atol=1e-3))
+        dest_im = dest_im.cpu() if isinstance(dest_im, torch.Tensor) else dest_im
+        good = np.sum(np.isclose(expected, dest_im, atol=1e-3))
         self.assertLessEqual(np.abs(good - expected.size), 5, "diff at most 5 pixels")
+
+    # def _test_functional(self):
 
 
 class TestRotate3D(NumpyImageTestCase3D):

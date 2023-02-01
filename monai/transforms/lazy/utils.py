@@ -11,17 +11,19 @@
 
 from __future__ import annotations
 
+from typing import Union
+
 import numpy as np
 import torch
 
-import monai
-from monai.config import NdarrayOrTensor
+# import monai
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.utils import LazyAttr, convert_to_tensor
 
-__all__ = ["resample", "combine_transforms"]
+__all__ = ["combine_transforms"]
 
 
-class Affine:
+class AffineMatrix:
     """A class to represent an affine transform matrix."""
 
     __slots__ = ("data",)
@@ -32,7 +34,7 @@ class Affine:
     @staticmethod
     def is_affine_shaped(data):
         """Check if the data is an affine matrix."""
-        if isinstance(data, Affine):
+        if isinstance(data, AffineMatrix):
             return True
         if isinstance(data, DisplacementField):
             return False
@@ -54,18 +56,18 @@ class DisplacementField:
         """Check if the data is a DDF."""
         if isinstance(data, DisplacementField):
             return True
-        if isinstance(data, Affine):
+        if isinstance(data, AffineMatrix):
             return False
         if not hasattr(data, "shape") or len(data.shape) < 3:
             return False
-        return not Affine.is_affine_shaped(data)
+        return not AffineMatrix.is_affine_shaped(data)
 
 
 def combine_transforms(left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
     """Given transforms A and B to be applied to x, return the combined transform (AB), so that A(B(x)) becomes AB(x)"""
-    if Affine.is_affine_shaped(left) and Affine.is_affine_shaped(right):  # linear transforms
-        left = convert_to_tensor(left.data if isinstance(left, Affine) else left, wrap_sequence=True)
-        right = convert_to_tensor(right.data if isinstance(right, Affine) else right, wrap_sequence=True)
+    if AffineMatrix.is_affine_shaped(left) and AffineMatrix.is_affine_shaped(right):  # linear transforms
+        left = convert_to_tensor(left.data if isinstance(left, AffineMatrix) else left, wrap_sequence=True)
+        right = convert_to_tensor(right.data if isinstance(right, AffineMatrix) else right, wrap_sequence=True)
         return torch.matmul(left, right)
     if DisplacementField.is_ddf_shaped(left) and DisplacementField.is_ddf_shaped(
         right
@@ -78,6 +80,8 @@ def combine_transforms(left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
 
 def affine_from_pending(pending_item):
     """Extract the affine matrix from a pending transform item."""
+    if isinstance(pending_item, MetaMatrix):
+        return pending_item.matrix.data
     if isinstance(pending_item, (torch.Tensor, np.ndarray)):
         return pending_item
     if isinstance(pending_item, dict):
@@ -95,6 +99,8 @@ def kwargs_from_pending(pending_item):
     }
     if LazyAttr.SHAPE in pending_item:
         ret[LazyAttr.SHAPE] = pending_item[LazyAttr.SHAPE]
+    elif "shape_override" in pending_item:
+        ret[LazyAttr.SHAPE] = pending_item["shape_override"]
     if LazyAttr.DTYPE in pending_item:
         ret[LazyAttr.DTYPE] = pending_item[LazyAttr.DTYPE]
     return ret
@@ -105,21 +111,80 @@ def is_compatible_apply_kwargs(kwargs_1, kwargs_2):
     return True
 
 
-def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = None):
-    """
-    This is a minimal implementation of resample that always uses Affine.
-    """
-    if not Affine.is_affine_shaped(matrix):
-        raise NotImplementedError("calling dense grid resample API not implemented")
-    kwargs = {} if kwargs is None else kwargs
-    init_kwargs = {
-        "spatial_size": kwargs.pop(LazyAttr.SHAPE, data.shape)[1:],
-        "dtype": kwargs.pop(LazyAttr.DTYPE, data.dtype),
-    }
-    call_kwargs = {
-        "mode": kwargs.pop(LazyAttr.INTERP_MODE, None),
-        "padding_mode": kwargs.pop(LazyAttr.PADDING_MODE, None),
-    }
-    resampler = monai.transforms.Affine(affine=matrix, image_only=True, **init_kwargs)
-    with resampler.trace_transform(False):  # don't track this transform in `data`
-        return resampler(img=data, **call_kwargs)
+def ensure_tensor(data: NdarrayOrTensor):
+    if isinstance(data, torch.Tensor):
+        return data
+
+    return torch.as_tensor(data)
+
+
+def is_matrix_shaped(data):
+
+    return (
+        len(data.shape) == 2 and data.shape[0] in (3, 4) and data.shape[1] in (3, 4) and data.shape[0] == data.shape[1]
+    )
+
+
+# this will conflict with PR Replacement Apply and Resample #5436
+def is_grid_shaped(data):
+
+    return len(data.shape) == 3 and data.shape[0] == 3 or len(data.shape) == 4 and data.shape[0] == 4
+
+
+class Matrix:
+    def __init__(self, matrix: NdarrayOrTensor):
+        self.data = ensure_tensor(matrix)
+
+    # def __matmul__(self, other):
+    #     if isinstance(other, Matrix):
+    #         other_matrix = other.data
+    #     else:
+    #         other_matrix = other
+    #     return self.data @ other_matrix
+    #
+    # def __rmatmul__(self, other):
+    #     return other.__matmul__(self.data)
+
+
+# this will conflict with PR Replacement Apply and Resample #5436
+class Grid:
+    def __init__(self, grid):
+        self.data = ensure_tensor(grid)
+
+    # def __matmul__(self, other):
+    #     raise NotImplementedError()
+
+
+# this will conflict with PR Replacement Apply and Resample #5436
+class MetaMatrix:
+    def __init__(
+            self, matrix: Union[NdarrayOrTensor, Matrix, Grid],
+            metadata: dict | None = None
+    ):
+        if not isinstance(matrix, (Matrix, Grid)):
+            if matrix.shape == 2:
+                if matrix.shape[0] != matrix.shape[1] or matrix.shape[0] not in (3, 4):
+                    raise ValueError(
+                        "If 'matrix' is passed a numpy ndarray/torch Tensor, it must"
+                        f" be 3x3 or 4x4 ('matrix' has has shape {matrix.shape})"
+                    )
+            matrix_ = Matrix(matrix)
+        else:
+            matrix_ = matrix
+        self.matrix = matrix_
+
+        self.metadata = metadata or {}
+
+    def __matmul__(self, other):
+        if isinstance(other, MetaMatrix):
+            other_ = other.matrix
+        else:
+            other_ = other
+        return MetaMatrix(self.matrix @ other_)
+
+    def __rmatmul__(self, other):
+        if isinstance(other, MetaMatrix):
+            other_ = other.matrix
+        else:
+            other_ = other
+        return MetaMatrix(other_ @ self.matrix)

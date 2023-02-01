@@ -28,7 +28,7 @@ from monai.transforms.utils import (
     compatible_rotate,
     compatible_rotate_90,
     compatible_scale,
-    compatible_translate,
+    compatible_translate, create_scale, create_rotate, create_identity,
 )
 from monai.config import DtypeLike
 from monai.data.meta_obj import get_track_meta
@@ -51,7 +51,7 @@ from monai.utils import (
     GridSampleMode,
     GridSamplePadMode,
     InterpolateMode,
-    NumpyPadMode,
+    NumpyPadMode, LazyAttr,
 )
 
 
@@ -83,16 +83,16 @@ def lazily_apply_op(
     if isinstance(tensor, MetaTensor):
         tensor.push_pending_operation(op)
         if lazy_evaluation is False:
-            result = apply_transforms(tensor)
+            result, pending = apply_transforms(tensor)
             return result
         else:
             return tensor
     else:
         if lazy_evaluation is False:
-            result = apply_transforms(tensor, [op])
-            return result, None
+            result, pending = apply_transforms(tensor, [op])
+            return (result, op) if get_track_meta() is True else result
         else:
-            return tensor, op
+            return (tensor, op) if get_track_meta() is True else tensor
 
 
 def transform_shape(input_shape: Sequence[int], matrix: torch.Tensor):
@@ -113,7 +113,7 @@ def transform_shape(input_shape: Sequence[int], matrix: torch.Tensor):
     if not is_matrix_shaped(matrix):
         raise ValueError("'matrix' must have a valid 2d or 3d homogenous matrix shape but has shape "
                          f"{matrix.shape}")
-    im_extents = extents_from_shape(input_shape)
+    im_extents = extents_from_shape(input_shape, matrix.dtype)
     im_extents = [matrix @ e for e in im_extents]
     output_shape = shape_from_extents(input_shape, im_extents)
     return output_shape
@@ -145,13 +145,13 @@ def identity(
     transform = compatible_identity(img_)
 
     metadata = {
-        "shape_override": input_shape
+        LazyAttr.SHAPE: input_shape
     }
     if mode_ is not None:
-        metadata["mode"] = mode_
+        metadata[LazyAttr.INTERP_MODE] = mode_
     if padding_mode_ is not None:
-        metadata["padding_mode"] = padding_mode_
-    metadata["dtype"] = dtype_
+        metadata[LazyAttr.PADDING_MODE] = padding_mode_
+    metadata[LazyAttr.DTYPE] = dtype_
 
     return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
 
@@ -210,7 +210,7 @@ def spacing(
     input_ndim = len(input_shape) - 1
 
     pixdim_ = ensure_tuple_rep(pixdim, input_ndim)
-    src_pixdim_ = ensure_tuple_rep(src_pixdim_, input_ndim)
+    src_pixdim_ = ensure_tuple_rep(src_pixdim_[:input_ndim], input_ndim)
 
     if diagonal is True:
         raise ValueError("'diagonal' value of True is not currently supported")
@@ -218,23 +218,25 @@ def spacing(
     mode_ = look_up_option(mode, GridSampleMode)
     padding_mode_ = look_up_option(padding_mode, GridSamplePadMode)
     dtype_ = get_equivalent_dtype(dtype or img.dtype, torch.Tensor)
-    zoom_factors = [i / j for i, j in zip(src_pixdim_, pixdim_)]
+    zoom_factors = [j / i for i, j in zip(src_pixdim_, pixdim_)]
+    shape_zoom_factors = [i / j for i, j in zip(src_pixdim_, pixdim_)]
 
-    transform = compatible_scale(img_, zoom_factors)
+    transform = create_scale(input_ndim, zoom_factors)
+    shape_transform = create_scale(input_ndim, shape_zoom_factors)
 
-    output_shape = transform_shape(input_shape, transform)
+    output_shape = transform_shape(input_shape, shape_transform)
+
 
     metadata = {
         "pixdim": pixdim_,
         "src_pixdim": src_pixdim_,
         "diagonal": diagonal,
-        "mode": mode_,
-        "padding_mode": padding_mode_,
-        "align_corners": align_corners,
-        "dtype": dtype_,
-        "shape_override": output_shape
+        LazyAttr.INTERP_MODE: mode_,
+        LazyAttr.PADDING_MODE: padding_mode_,
+        LazyAttr.ALIGN_CORNERS: align_corners,
+        LazyAttr.DTYPE: dtype_,
+        LazyAttr.SHAPE: output_shape
     }
-
     return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
 
 
@@ -320,7 +322,7 @@ def flip(
 
     metadata = {
         "spatial_axis": spatial_axis_,
-        "shape_override": output_shape
+        LazyAttr.SHAPE: output_shape
     }
     return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
 
@@ -395,23 +397,28 @@ def resize(
 
     mode_ = look_up_option(mode, InterpolateMode)
     dtype_ = get_equivalent_dtype(dtype or img.dtype, torch.Tensor)
-    zoom_factors = [i / j for i, j in zip(spatial_size_, input_shape[1:])]
+    shape_zoom_factors = [i / j for i, j in zip(spatial_size_, input_shape[1:])]
+    pixel_zoom_factors = [j / i for i, j in zip(spatial_size_, input_shape[1:])]
+    print("zoom_factors:", shape_zoom_factors)
 
-    transform = compatible_scale(img_, zoom_factors)
+    shape_transform = create_scale(input_ndim, shape_zoom_factors)
+    pixel_transform = create_scale(input_ndim, pixel_zoom_factors)
+    print("transform:", shape_transform)
 
-    output_shape = transform_shape(input_shape, transform)
+    output_shape = transform_shape(input_shape, shape_transform)
+    print("output_shape:", output_shape)
 
     metadata = {
         "spatial_size": spatial_size,
         "size_mode": size_mode,
-        "mode": mode_,
-        "align_corners": align_corners,
+        LazyAttr.INTERP_MODE: mode_,
+        LazyAttr.ALIGN_CORNERS: align_corners,
         "anti_aliasing": anti_aliasing,
         "anti_aliasing_sigma": anti_aliasing_sigma,
-        "dtype": dtype_,
-        "shape_override": output_shape
+        LazyAttr.DTYPE: dtype_,
+        LazyAttr.SHAPE: output_shape
     }
-    return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
+    return lazily_apply_op(img_, MetaMatrix(pixel_transform, metadata), lazy_evaluation)
 
 
 def rotate(
@@ -454,14 +461,15 @@ def rotate(
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
     mode_ = look_up_option(mode, GridSampleMode)
     padding_mode_ = look_up_option(padding_mode, GridSamplePadMode)
-    dtype_ = get_equivalent_dtype(dtype or img.dtype, torch.Tensor)
+    dtype_ = get_equivalent_dtype(dtype or img_.dtype, torch.Tensor)
+    # img_ = img_.to(dtype_)
 
     # if shape_override is set, it always wins
     input_shape = shape_override
 
     if input_shape is None:
-        if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
-            input_shape = img.peek_pending_shape()
+        if isinstance(img_, MetaTensor) and len(img_.pending_operations) > 0:
+            input_shape = img_.peek_pending_shape()
         else:
             input_shape = img_.shape
 
@@ -471,23 +479,25 @@ def rotate(
 
     angle_ = ensure_tuple_rep(angle, 1 if input_ndim == 2 else 3)
 
-    rotate_tx = compatible_rotate(img, angle_)
-    output_shape = input_shape if keep_size is False else transform_shape(input_shape, rotate_tx)
+    # rotate_tx = compatible_rotate(img_, angle_)
+    rotate_tx = create_rotate(input_ndim, angle_).astype(np.float64)
+    output_shape = input_shape if keep_size is True else transform_shape(input_shape, rotate_tx)
 
     if align_corners is True:
-        transform = apply_align_corners(rotate_tx, output_shape[1:],
-                                        lambda scale_factors: compatible_scale(img_, scale_factors))
+        # op = lambda scale_factors: compatible_scale(img_, scale_factors)
+        op = lambda scale_factors: create_scale(input_ndim, scale_factors).astype(np.float64)
+        transform = apply_align_corners(rotate_tx, output_shape[1:], op)
     else:
         transform = rotate_tx
 
     metadata = {
         "angle": angle,
         "keep_size": keep_size,
-        "mode": mode_,
-        "padding_mode": padding_mode_,
-        "align_corners": align_corners,
-        "dtype": dtype_,
-        "shape_override": output_shape
+        LazyAttr.INTERP_MODE: mode_,
+        LazyAttr.PADDING_MODE: padding_mode_,
+        LazyAttr.ALIGN_CORNERS: align_corners,
+        LazyAttr.DTYPE: dtype_,
+        LazyAttr.SHAPE: output_shape
     }
     return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
 
@@ -534,18 +544,21 @@ def zoom(
 
     zoom_factors = ensure_tuple_rep(factor, input_ndim)
     zoom_factors = [1 / f for f in zoom_factors]
+    shape_zoom_factors = [1 / z for z in zoom_factors]
 
     mode_ = look_up_option(mode, GridSampleMode)
     padding_mode_ = look_up_option(padding_mode, GridSamplePadMode)
     dtype_ = get_equivalent_dtype(dtype or img_.dtype, torch.Tensor)
 
-    transform = compatible_scale(img_, zoom_factors)
+    transform = create_scale(input_ndim, zoom_factors)
+    shape_transform = create_scale(input_ndim, shape_zoom_factors)
 
-    output_shape = input_shape if keep_size is False else transform_shape(input_shape, transform)
+    output_shape = input_shape if keep_size is True else transform_shape(input_shape,
+                                                                         shape_transform)
 
     if align_corners is True:
         transform_ = apply_align_corners(transform, output_shape[1:],
-                                         lambda scale_factors: compatible_scale(img_, scale_factors))
+                                         lambda scale_factors: create_scale(input_ndim, scale_factors))
         # TODO: confirm whether a second transform shape is required or not
         output_shape = transform_shape(output_shape, transform)
     else:
@@ -554,12 +567,11 @@ def zoom(
 
     metadata = {
         "factor": zoom_factors,
-        "mode": mode_,
-        "padding_mode": padding_mode_,
-        "align_corners": align_corners,
+        LazyAttr.INTERP_MODE: mode_,
+        LazyAttr.PADDING_MODE: padding_mode_,
+        LazyAttr.ALIGN_CORNERS: align_corners,
         "keep_size": keep_size,
-        "dtype": dtype_,
-        "shape_override": output_shape
+        LazyAttr.SHAPE: output_shape
     }
 
     return lazily_apply_op(img_, MetaMatrix(transform_, metadata), lazy_evaluation)
@@ -593,18 +605,27 @@ def rotate90(
     # if shape_override is set, it always wins
     input_shape = shape_override
 
+    input_ndim = len(input_shape) - 1
+
     if input_shape is None:
         if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
             input_shape = img.peek_pending_shape()
         else:
             input_shape = img_.shape
 
-    transform = compatible_rotate_90(img_, spatial_axes, k)
+    transform = create_rotate(input_shape, spatial_axes, k)
+    output_shape_order = [i for i in range(input_ndim)]
+    for i in range(input_ndim):
+        if i == spatial_axes[0]:
+            output_shape_order[i] = spatial_axes[1]
+        elif i == spatial_axes[1]:
+            output_shape_order[i] = spatial_axes[0]
+    output_shape = tuple(input_shape[output_shape_order[i]] for i in input_ndim)
 
     metadata = {
         "k": k,
         "spatial_axes": spatial_axes,
-        "shape_override": input_shape
+        LazyAttr.SHAPE: output_shape
     }
     return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
 
@@ -683,14 +704,14 @@ def elastic_3d(
         "sigma": sigma,
         "magnitude": magnitude,
         "offsets": offsets,
-        "shape_override": input_shape
+        LazyAttr.SHAPE: input_shape
     }
     if spatial_size is not None:
         metadata["spatial_size"] = spatial_size
     if mode is not None:
-        metadata["mode"] = mode
+        metadata[LazyAttr.INTERP_MODE] = mode
     if padding_mode is not None:
-        metadata["padding_mode"] = padding_mode
+        metadata[LazyAttr.PADDING_MODE] = padding_mode
 
     return lazily_apply_op(img_, MetaMatrix(grid, metadata), lazy_evaluation)
 
@@ -725,10 +746,10 @@ def translate(
 
     metadata = {
         "translation": translation,
-        "mode": mode,
-        "padding_mode": padding_mode,
-        "dtype": dtype_,
-        "shape_override": input_shape
+        LazyAttr.INTERP_MODE: mode,
+        LazyAttr.PADDING_MODE: padding_mode,
+        LazyAttr.DTYPE: dtype_,
+        LazyAttr.SHAPE: input_shape
     }
 
     return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)

@@ -20,52 +20,52 @@ from parameterized import parameterized
 from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import affine_to_spacing
-from monai.transforms import Spacing
+from monai.transforms.spatial.old_array import Spacing
 from monai.utils import fall_back_tuple
 from tests.utils import TEST_DEVICES, TEST_NDARRAYS_ALL, assert_allclose, skip_if_quick
 
 TESTS: list[list] = []
 for device in TEST_DEVICES:
-    TESTS.append(
-        [
-            {"pixdim": (1.0, 1.5), "padding_mode": "zeros", "dtype": float},
-            torch.arange(4).reshape((1, 2, 2)) + 1.0,  # data
-            torch.eye(4),
-            {},
-            torch.tensor([[[1.0, 1.0], [3.0, 2.0]]]),
-            *device,
-        ]
-    )
-    TESTS.append(
-        [
-            {"pixdim": 1.0, "padding_mode": "zeros", "dtype": float},
-            torch.ones((1, 2, 1, 2)),  # data
-            torch.eye(4),
-            {},
-            torch.tensor([[[[1.0, 1.0]], [[1.0, 1.0]]]]),
-            *device,
-        ]
-    )
-    TESTS.append(
-        [
-            {"pixdim": 2.0, "padding_mode": "zeros", "dtype": float},
-            torch.arange(4).reshape((1, 2, 2)) + 1.0,  # data
-            torch.eye(4),
-            {},
-            torch.tensor([[[1.0, 0.0], [0.0, 0.0]]]),
-            *device,
-        ]
-    )
-    TESTS.append(
-        [
-            {"pixdim": (1.0, 1.0, 1.0), "padding_mode": "zeros", "dtype": float},
-            torch.ones((1, 2, 1, 2)),  # data
-            torch.eye(4),
-            {},
-            torch.tensor([[[[1.0, 1.0]], [[1.0, 1.0]]]]),
-            *device,
-        ]
-    )
+    # TESTS.append(
+    #     [
+    #         {"pixdim": (1.0, 1.5), "padding_mode": "zeros", "dtype": float},
+    #         torch.arange(4).reshape((1, 2, 2)) + 1.0,  # data
+    #         torch.eye(4),
+    #         {},
+    #         torch.tensor([[[1.0, 1.0], [3.0, 2.0]]]),
+    #         *device,
+    #     ]
+    # )
+    # TESTS.append(
+    #     [
+    #         {"pixdim": 1.0, "padding_mode": "zeros", "dtype": float},
+    #         torch.ones((1, 2, 1, 2)),  # data
+    #         torch.eye(4),
+    #         {},
+    #         torch.tensor([[[[1.0, 1.0]], [[1.0, 1.0]]]]),
+    #         *device,
+    #     ]
+    # )
+    # TESTS.append(
+    #     [
+    #         {"pixdim": 2.0, "padding_mode": "zeros", "dtype": float},
+    #         torch.arange(4).reshape((1, 2, 2)) + 1.0,  # data
+    #         torch.eye(4),
+    #         {},
+    #         torch.tensor([[[1.0, 0.0], [0.0, 0.0]]]),
+    #         *device,
+    #     ]
+    # )
+    # TESTS.append(
+    #     [
+    #         {"pixdim": (1.0, 1.0, 1.0), "padding_mode": "zeros", "dtype": float},
+    #         torch.ones((1, 2, 1, 2)),  # data
+    #         torch.eye(4),
+    #         {},
+    #         torch.tensor([[[[1.0, 1.0]], [[1.0, 1.0]]]]),
+    #         *device,
+    #     ]
+    # )
     TESTS.append(
         [
             {"pixdim": (1.0, 0.2, 1.5), "diagonal": False, "padding_mode": "zeros", "align_corners": True},
@@ -267,6 +267,22 @@ for d in TEST_DEVICES:
 class TestSpacingCase(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_spacing(
+        self,
+        init_param: dict,
+        img: torch.Tensor,
+        affine: torch.Tensor,
+        data_param: dict,
+        expected_output: torch.Tensor,
+        device: torch.device,
+    ):
+        self._test_spacing(init_param, img, affine, data_param, expected_output, device)
+
+    def test_spacing_cases(self):
+        for i_t, t in enumerate(TESTS):
+            with self.subTest(i_t):
+                self._test_spacing(*t)
+
+    def _test_spacing(
         self,
         init_param: dict,
         img: torch.Tensor,

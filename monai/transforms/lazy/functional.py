@@ -17,20 +17,24 @@ import itertools as it
 
 import numpy as np
 import torch
-from monai.config import NdarrayOrTensor
+
+from monai.config.type_definitions import NdarrayOrTensor
 
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
+from monai.transforms.lazy.resampler import resample
 from monai.transforms.lazy.utils import (
     affine_from_pending,
     combine_transforms,
     is_compatible_apply_kwargs,
     kwargs_from_pending,
-    resample,
+    MetaMatrix, Grid, Matrix, is_matrix_shaped, is_grid_shaped, AffineMatrix,
 )
 
 __all__ = ["apply_transforms", "extents_from_shape", "shape_from_extents", "is_matrix_shaped",
            "is_grid_shaped", "MetaMatrix"]
+
+from monai.utils import LazyAttr
 
 
 def apply_transforms(data: torch.Tensor | MetaTensor, pending: list | None = None):
@@ -49,7 +53,7 @@ def apply_transforms(data: torch.Tensor | MetaTensor, pending: list | None = Non
         return data
 
     cumulative_xform = affine_from_pending(pending[0])
-    cur_kwargs = kwargs_from_pending(pending[0])
+    cur_kwargs = kwargs_from_pending(pending[0].metadata)
 
     for p in pending[1:]:
         new_kwargs = kwargs_from_pending(p)
@@ -62,16 +66,19 @@ def apply_transforms(data: torch.Tensor | MetaTensor, pending: list | None = Non
     data = resample(data, cumulative_xform, cur_kwargs)
     if isinstance(data, MetaTensor):
         data.clear_pending_operations()
-        data.affine = data.affine @ to_affine_nd(3, cumulative_xform)
+        # TODO: at present, the resample and the modified Affine that it calls update .affine
+        # on the MetaTensor. Is this the right approach or should we do it here?
+        # data.affine = data.affine @ to_affine_nd(3, cumulative_xform)
         for p in pending:
             data.push_applied_operation(p)
+        return data, None
 
     return data, pending
 
 
 def extents_from_shape(
         shape: Sequence[int],
-        dtype=np.float32
+        dtype=torch.float32
 ):
     """
     This method calculates a set of extents given a shape. Each extent is a point in a coordinate
@@ -95,6 +102,7 @@ def extents_from_shape(
     extents = [[0, shape[i]] for i in range(1, len(shape))]
 
     extents = it.product(*extents)
+    # return [torch.as_tensor(e + (1,), dtype=dtype) for e in extents]
     return [np.asarray(e + (1,), dtype=dtype) for e in extents]
 
 
@@ -133,93 +141,15 @@ def shape_from_extents(
     return (src_shape[0],) + tuple(values)
 
 
-def apply_align_corners(matrix, spatial_size, factory):
+def apply_align_corners(matrix, spatial_size, op):
     """
     TODO: ensure that this functionality is correct and produces the same result as the existing ways of handling align corners
     """
     inflated_spatial_size = tuple(s + 1 for s in spatial_size)
     scale_factors = tuple(s / i for s, i in zip(spatial_size, inflated_spatial_size))
-    scale_mat = factory.scale(scale_factors)
+    scale_mat = op(scale_factors)
+    # scale_mat = scale_mat.double()
     return matmul(scale_mat, matrix)
-
-
-def ensure_tensor(data: NdarrayOrTensor):
-    if isinstance(data, torch.Tensor):
-        return data
-
-    return torch.as_tensor(data)
-
-
-def is_matrix_shaped(data):
-
-    return (
-        len(data.shape) == 2 and data.shape[0] in (3, 4) and data.shape[1] in (3, 4) and data.shape[0] == data.shape[1]
-    )
-
-
-# this will conflict with PR Replacement Apply and Resample #5436
-def is_grid_shaped(data):
-
-    return len(data.shape) == 3 and data.shape[0] == 3 or len(data.shape) == 4 and data.shape[0] == 4
-
-
-class Matrix:
-    def __init__(self, matrix: NdarrayOrTensor):
-        self.data = ensure_tensor(matrix)
-
-    # def __matmul__(self, other):
-    #     if isinstance(other, Matrix):
-    #         other_matrix = other.data
-    #     else:
-    #         other_matrix = other
-    #     return self.data @ other_matrix
-    #
-    # def __rmatmul__(self, other):
-    #     return other.__matmul__(self.data)
-
-
-# this will conflict with PR Replacement Apply and Resample #5436
-class Grid:
-    def __init__(self, grid):
-        self.data = ensure_tensor(grid)
-
-    # def __matmul__(self, other):
-    #     raise NotImplementedError()
-
-
-# this will conflict with PR Replacement Apply and Resample #5436
-class MetaMatrix:
-    def __init__(
-            self, matrix: Union[NdarrayOrTensor, Matrix, Grid],
-            metadata: dict | None = None
-    ):
-        if not isinstance(matrix, (Matrix, Grid)):
-            if matrix.shape == 2:
-                if matrix.shape[0] != matrix.shape[1] or matrix.shape[0] not in (3, 4):
-                    raise ValueError(
-                        "If 'matrix' is passed a numpy ndarray/torch Tensor, it must"
-                        f" be 3x3 or 4x4 ('matrix' has has shape {matrix.shape})"
-                    )
-            matrix_ = Matrix(matrix)
-        else:
-            matrix_ = matrix
-        self.matrix = matrix_
-
-        self.metadata = metadata or {}
-
-    def __matmul__(self, other):
-        if isinstance(other, MetaMatrix):
-            other_ = other.matrix
-        else:
-            other_ = other
-        return MetaMatrix(self.matrix @ other_)
-
-    def __rmatmul__(self, other):
-        if isinstance(other, MetaMatrix):
-            other_ = other.matrix
-        else:
-            other_ = other
-        return MetaMatrix(other_ @ self.matrix)
 
 
 # this will conflict with PR Replacement Apply and Resample #5436

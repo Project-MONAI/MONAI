@@ -980,6 +980,7 @@ def _create_shear(spatial_dims: int, coefs: Sequence[float] | float, eye_func=np
 def compatible_scale(
         image: NdarrayOrTensor,
         scaling_factor: Sequence[float] | float,
+        dtype = torch.float64
 ) -> NdarrayOrTensor:
     """
     Create a scaling matrix that is compatible with the `image` parameter. Compatible means that is is
@@ -1004,7 +1005,7 @@ def create_scale(
     spatial_dims: int,
     scaling_factor: Sequence[float] | float,
     device: torch.device | None = None,
-    backend=TransformBackends.NUMPY,
+    backend=TransformBackends.NUMPY
 ) -> NdarrayOrTensor:
     """
     create a scaling matrix
