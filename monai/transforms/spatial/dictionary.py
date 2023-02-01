@@ -628,6 +628,8 @@ class Resized(MapTransform, InvertibleTransform, LazyTransform):
             By default, this value is chosen as (s - 1) / 2 where s is the
             downsampling factor, where s > 1. For the up-size case, s < 1, no
             anti-aliasing is performed prior to rescaling.
+        dtype: data type for resampling computation. Defaults to ``float32``.
+            If None, use the data type of input data.
         allow_missing_keys: don't raise exception if key is missing.
     """
 
@@ -642,11 +644,13 @@ class Resized(MapTransform, InvertibleTransform, LazyTransform):
         align_corners: Sequence[bool | None] | bool | None = None,
         anti_aliasing: Sequence[bool] | bool = False,
         anti_aliasing_sigma: Sequence[Sequence[float] | float | None] | Sequence[float] | float | None = None,
+        dtype: Sequence[DtypeLike | torch.dtype] | DtypeLike | torch.dtype = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
+        self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.anti_aliasing = ensure_tuple_rep(anti_aliasing, len(self.keys))
         self.anti_aliasing_sigma = ensure_tuple_rep(anti_aliasing_sigma, len(self.keys))
         self.resizer = Resize(spatial_size=spatial_size, size_mode=size_mode)
@@ -658,8 +662,8 @@ class Resized(MapTransform, InvertibleTransform, LazyTransform):
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
-        for key, mode, align_corners, anti_aliasing, anti_aliasing_sigma in self.key_iterator(
-            d, self.mode, self.align_corners, self.anti_aliasing, self.anti_aliasing_sigma
+        for key, mode, align_corners, anti_aliasing, anti_aliasing_sigma, dtype in self.key_iterator(
+            d, self.mode, self.align_corners, self.anti_aliasing, self.anti_aliasing_sigma, self.dtype
         ):
             d[key] = self.resizer(
                 d[key],
@@ -667,6 +671,7 @@ class Resized(MapTransform, InvertibleTransform, LazyTransform):
                 align_corners=align_corners,
                 anti_aliasing=anti_aliasing,
                 anti_aliasing_sigma=anti_aliasing_sigma,
+                dtype=dtype,
             )
         return d
 
@@ -1564,6 +1569,8 @@ class Zoomd(MapTransform, InvertibleTransform, LazyTransform):
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
             It also can be a sequence of bool or None, each element corresponds to a key in ``keys``.
+        dtype: data type for resampling computation. Defaults to ``float32``.
+            If None, use the data type of input data.
         keep_size: Should keep original size (pad if needed), default is True.
         allow_missing_keys: don't raise exception if key is missing.
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
@@ -1580,6 +1587,7 @@ class Zoomd(MapTransform, InvertibleTransform, LazyTransform):
         mode: SequenceStr = InterpolateMode.AREA,
         padding_mode: SequenceStr = NumpyPadMode.EDGE,
         align_corners: Sequence[bool | None] | bool | None = None,
+        dtype: Sequence[DtypeLike | torch.dtype] | DtypeLike | torch.dtype = np.float32,
         keep_size: bool = True,
         allow_missing_keys: bool = False,
         **kwargs,
@@ -1588,6 +1596,7 @@ class Zoomd(MapTransform, InvertibleTransform, LazyTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
+        self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.zoomer = Zoom(zoom=zoom, keep_size=keep_size, **kwargs)
 
     @LazyTransform.lazy_evaluation.setter  # type: ignore
@@ -1597,10 +1606,10 @@ class Zoomd(MapTransform, InvertibleTransform, LazyTransform):
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
-        for key, mode, padding_mode, align_corners in self.key_iterator(
-            d, self.mode, self.padding_mode, self.align_corners
+        for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
+            d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
-            d[key] = self.zoomer(d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners)
+            d[key] = self.zoomer(d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype)
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
