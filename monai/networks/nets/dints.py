@@ -568,7 +568,6 @@ class TopologyConstruction(nn.Module):
         use_downsample: bool = True,
         device: str = "cpu",
     ):
-
         super().__init__()
 
         n_feats = tuple([32 * (2**_i) for _i in range(num_depths + 1)])

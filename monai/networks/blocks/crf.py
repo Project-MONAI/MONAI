@@ -92,7 +92,6 @@ class CRF(torch.nn.Module):
 
         # mean field loop
         for _ in range(self.iterations):
-
             # message passing step for both kernels
             bilateral_output = PHLFilter.apply(output_tensor, bilateral_features)
             gaussian_output = PHLFilter.apply(output_tensor, gaussian_features)

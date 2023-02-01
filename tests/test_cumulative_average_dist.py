@@ -25,7 +25,6 @@ from tests.utils import DistCall, DistTestCase, SkipIfBeforePyTorchVersion
 class DistributedCumulativeAverage(DistTestCase):
     @DistCall(nnodes=1, nproc_per_node=2)
     def test_value(self):
-
         rank = dist.get_rank()
         nprocs = dist.get_world_size()
         is_cuda = dist.get_backend() == dist.Backend.NCCL

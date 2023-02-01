@@ -77,7 +77,6 @@ class ConvDenseBlock(DenseBlock):
         dropout: int | None = None,
         bias: bool = True,
     ):
-
         self.spatial_dims = spatial_dims
         self.kernel_size = kernel_size
         self.num_res_units = num_res_units

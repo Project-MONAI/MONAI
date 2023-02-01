@@ -46,6 +46,7 @@ from monai.utils import (
     ensure_tuple_size,
     fall_back_tuple,
     first,
+    get_equivalent_dtype,
     issequenceiterable,
     look_up_option,
     optional_import,
@@ -924,6 +925,7 @@ def to_affine_nd(r: np.ndarray | int, affine: NdarrayTensor, dtype=np.float64) -
         an (r+1) x (r+1) matrix (tensor or ndarray depends on the input ``affine`` data type)
 
     """
+    dtype = get_equivalent_dtype(dtype, np.ndarray)
     affine_np = convert_data_type(affine, output_type=np.ndarray, dtype=dtype, wrap_sequence=True)[0]
     affine_np = affine_np.copy()
     if affine_np.ndim != 2:
@@ -1073,7 +1075,6 @@ def compute_importance_map(
     if mode == BlendMode.CONSTANT:
         importance_map = torch.ones(patch_size, device=device, dtype=torch.float)
     elif mode == BlendMode.GAUSSIAN:
-
         sigma_scale = ensure_tuple_rep(sigma_scale, len(patch_size))
         sigmas = [i * sigma_s for i, sigma_s in zip(patch_size, sigma_scale)]
 

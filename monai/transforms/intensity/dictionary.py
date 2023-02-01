@@ -1316,7 +1316,6 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
         alpha: Sequence[float] = (0.0, 1.0),
         allow_missing_keys: bool = False,
     ) -> None:
-
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob=prob)
         self.rand_gibbs_noise = RandGibbsNoise(alpha=alpha, prob=1.0)
@@ -1363,12 +1362,10 @@ class GibbsNoised(MapTransform):
     backend = GibbsNoise.backend
 
     def __init__(self, keys: KeysCollection, alpha: float = 0.5, allow_missing_keys: bool = False) -> None:
-
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.transform = GibbsNoise(alpha)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
-
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.transform(d[key])
@@ -1425,7 +1422,6 @@ class KSpaceSpikeNoised(MapTransform):
         k_intensity: Sequence[float] | float | None = None,
         allow_missing_keys: bool = False,
     ) -> None:
-
         super().__init__(keys, allow_missing_keys)
         self.transform = KSpaceSpikeNoise(loc, k_intensity)
 

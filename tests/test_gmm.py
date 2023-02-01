@@ -275,7 +275,6 @@ class GMMTestCase(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     @skip_if_no_cuda
     def test_cuda(self, test_case_description, mixture_count, class_count, features, labels, expected):
-
         # Device to run on
         device = torch.device("cuda")
 

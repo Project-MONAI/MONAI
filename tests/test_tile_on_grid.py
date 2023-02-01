@@ -77,7 +77,6 @@ def make_image(
     seed=123,
     **kwargs,
 ):
-
     tile_count = int(np.sqrt(tile_count))
     pad = 0
     if random_offset:
@@ -117,7 +116,6 @@ def make_image(
 class TestTileOnGrid(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_tile_patch_single_call(self, in_type, input_parameters):
-
         img, tiles = make_image(**input_parameters)
         input_img = in_type(img)
 
@@ -127,7 +125,6 @@ class TestTileOnGrid(unittest.TestCase):
 
     @parameterized.expand(TESTS2)
     def test_tile_patch_random_call(self, in_type, input_parameters):
-
         img, tiles = make_image(**input_parameters, seed=123)
         input_img = in_type(img)
 

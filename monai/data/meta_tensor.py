@@ -503,15 +503,15 @@ class MetaTensor(MetaObj, torch.Tensor):
 
     @staticmethod
     def ensure_torch_and_prune_meta(
-        im: NdarrayTensor, meta: dict, simple_keys: bool = False, pattern: str | None = None, sep: str = "."
+        im: NdarrayTensor, meta: dict | None, simple_keys: bool = False, pattern: str | None = None, sep: str = "."
     ):
         """
-        Convert the image to `torch.Tensor`. If `affine` is in the `meta` dictionary,
+        Convert the image to MetaTensor (when meta is not None). If `affine` is in the `meta` dictionary,
         convert that to `torch.Tensor`, too. Remove any superfluous metadata.
 
         Args:
             im: Input image (`np.ndarray` or `torch.Tensor`)
-            meta: Metadata dictionary.
+            meta: Metadata dictionary. When it's None, the metadata is not tracked, this method returns a torch.Tensor.
             simple_keys: whether to keep only a simple subset of metadata keys.
             pattern: combined with `sep`, a regular expression used to match and prune keys
                 in the metadata (nested dictionary), default to None, no key deletion.
@@ -521,13 +521,16 @@ class MetaTensor(MetaObj, torch.Tensor):
 
         Returns:
             By default, a `MetaTensor` is returned.
-            However, if `get_track_meta()` is `False`, a `torch.Tensor` is returned.
+            However, if `get_track_meta()` is `False` or meta=None, a `torch.Tensor` is returned.
         """
-        img = convert_to_tensor(im)  # potentially ascontiguousarray
+        img = convert_to_tensor(im, track_meta=get_track_meta() and meta is not None)  # potentially ascontiguousarray
 
         # if not tracking metadata, return `torch.Tensor`
-        if not get_track_meta() or meta is None:
+        if not isinstance(img, MetaTensor):
             return img
+
+        if meta is None:
+            meta = {}
 
         # remove any superfluous metadata.
         if simple_keys:
@@ -540,7 +543,14 @@ class MetaTensor(MetaObj, torch.Tensor):
             meta = monai.transforms.DeleteItemsd(keys=pattern, sep=sep, use_re=True)(meta)
 
         # return the `MetaTensor`
-        return MetaTensor(img, meta=meta)
+        if meta is None:
+            meta = {}
+        img.meta = meta
+        if MetaKeys.AFFINE in meta:
+            img.affine = meta[MetaKeys.AFFINE]  # this uses the affine property setter
+        else:
+            img.affine = MetaTensor.get_default_affine()
+        return img
 
     def __repr__(self):
         """

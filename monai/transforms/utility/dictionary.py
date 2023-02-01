@@ -386,7 +386,6 @@ class RemoveRepeatedChanneld(MapTransform):
 
 
 class SplitDimd(MapTransform):
-
     backend = SplitDim.backend
 
     def __init__(
