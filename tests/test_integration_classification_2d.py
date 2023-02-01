@@ -58,7 +58,6 @@ class MedNISTDataset(torch.utils.data.Dataset):
 
 
 def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0", num_workers=10):
-
     monai.config.print_config()
     # define transforms for image and classification
     train_transforms = Compose(

@@ -321,7 +321,6 @@ class SavitzkyGolayFilter(nn.Module):
     """
 
     def __init__(self, window_length: int, order: int, axis: int = 2, mode: str = "zeros"):
-
         super().__init__()
         if order >= window_length:
             raise ValueError("order must be less than window_length.")
@@ -365,7 +364,6 @@ class SavitzkyGolayFilter(nn.Module):
 
     @staticmethod
     def _make_coeffs(window_length, order):
-
         half_length, rem = divmod(window_length, 2)
         if rem == 0:
             raise ValueError("window_length must be odd.")
@@ -391,7 +389,6 @@ class HilbertTransform(nn.Module):
     """
 
     def __init__(self, axis: int = 2, n: int | None = None) -> None:
-
         super().__init__()
         self.axis = axis
         self.n = n

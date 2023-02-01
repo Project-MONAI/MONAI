@@ -125,7 +125,6 @@ class UNet(nn.Module):
         bias: bool = True,
         adn_ordering: str = "NDA",
     ) -> None:
-
         super().__init__()
 
         if len(channels) < 2:
@@ -215,7 +214,6 @@ class UNet(nn.Module):
         """
         mod: nn.Module
         if self.num_res_units > 0:
-
             mod = ResidualUnit(
                 self.dimensions,
                 in_channels,

@@ -151,7 +151,6 @@ class SplitLabeld(MapTransform):
         others_value: int = 0,
         to_binary_mask: bool = True,
     ):
-
         super().__init__(keys, allow_missing_keys=False)
         self.others = others
         self.mask_value = mask_value

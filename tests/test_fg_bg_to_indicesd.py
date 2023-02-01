@@ -20,7 +20,6 @@ from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TEST_CASES = []
 for p in TEST_NDARRAYS:
-
     TEST_CASES.append(
         [
             {"keys": "label", "image_key": None, "image_threshold": 0.0, "output_shape": None},
