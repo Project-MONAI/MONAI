@@ -19,7 +19,6 @@ import torch
 from parameterized import parameterized
 
 from monai.apps import download_url
-from monai.config import NdarrayOrTensor
 from monai.data import ITKReader
 from monai.data.itk_torch_bridge import (
     get_itk_image_center,
@@ -28,7 +27,6 @@ from monai.data.itk_torch_bridge import (
     monai_to_itk_affine,
     monai_to_itk_ddf,
 )
-from monai.data.meta_tensor import MetaTensor
 from monai.networks.blocks import Warp
 from monai.transforms import Affine
 from monai.utils import optional_import
@@ -119,7 +117,7 @@ def itk_affine_resample(image, matrix, translation, center_of_rotation=None):
     return np.asarray(output_image, dtype=np.float32)
 
 
-def monai_affine_resample(metatensor: MetaTensor, affine_matrix: NdarrayOrTensor):
+def monai_affine_resample(metatensor, affine_matrix):
     affine = Affine(affine=affine_matrix, padding_mode="zeros", mode="bilinear", dtype=torch.float64, image_only=True)
     output_tensor = affine(metatensor)
 
