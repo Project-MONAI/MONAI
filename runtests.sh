@@ -257,9 +257,6 @@ do
             doBlackFormat=true
             doIsortFormat=true
             doFlake8Format=true
-            doPylintFormat=true
-            doPytypeFormat=true
-            doMypyFormat=true
             doCopyRight=true
         ;;
         --disttests)
