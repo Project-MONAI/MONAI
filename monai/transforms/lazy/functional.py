@@ -32,7 +32,7 @@ __all__ = ["apply_transforms"]
 def apply_transforms(
     data: torch.Tensor | MetaTensor,
     pending: list | None = None,
-    mode: str | None = None,
+    mode: str | int | None = None,
     padding_mode: str | None = None,
     dtype=np.float64,
     align_corners: bool | None = None,
