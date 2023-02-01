@@ -97,4 +97,5 @@ def apply_transforms(
     if isinstance(data, MetaTensor):
         for p in pending:
             data.push_applied_operation(p)
+
     return data, pending
