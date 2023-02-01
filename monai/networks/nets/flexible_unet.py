@@ -123,7 +123,6 @@ class UNetDecoder(nn.Module):
         align_corners: bool | None,
         is_pad: bool,
     ):
-
         super().__init__()
         if len(encoder_channels) < 2:
             raise ValueError("the length of `encoder_channels` should be no less than 2.")
@@ -196,7 +195,6 @@ class SegmentationHead(nn.Sequential):
         act: tuple | str | None = None,
         scale_factor: float = 1.0,
     ):
-
         conv_layer = Conv[Conv.CONV, spatial_dims](
             in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, padding=kernel_size // 2
         )

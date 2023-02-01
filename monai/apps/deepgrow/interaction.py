@@ -46,7 +46,6 @@ class Interaction:
         train: bool,
         key_probability: str = "probability",
     ) -> None:
-
         if not isinstance(transforms, Compose):
             transforms = Compose(transforms)
 

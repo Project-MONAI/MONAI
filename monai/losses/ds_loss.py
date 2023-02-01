@@ -71,7 +71,6 @@ class DeepSupervisionLoss(_Loss):
         return self.loss(input, target)
 
     def forward(self, input: torch.Tensor | list[torch.Tensor], target: torch.Tensor):
-
         if isinstance(input, (list, tuple)):
             weights = self.get_weights(levels=len(input))
             loss = torch.tensor(0, dtype=torch.float, device=target.device)

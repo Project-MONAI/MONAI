@@ -91,7 +91,6 @@ class VarAutoEncoder(AutoEncoder):
         bias: bool = True,
         use_sigmoid: bool = True,
     ) -> None:
-
         self.in_channels, *self.in_shape = in_shape
         self.use_sigmoid = use_sigmoid
 

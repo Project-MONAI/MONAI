@@ -152,7 +152,6 @@ TEST_CASES = [
 class PHLFilterTestCaseCuda(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_cuda(self, test_case_description, sigmas, input, features, expected):
-
         # Create input tensors
         input_tensor = torch.from_numpy(np.array(input)).to(dtype=torch.float, device=torch.device("cuda"))
         feature_tensor = torch.from_numpy(np.array(features)).to(dtype=torch.float, device=torch.device("cuda"))

@@ -121,7 +121,7 @@ def is_immutable(obj: Any) -> bool:
     """
     Determine if the object is an immutable object.
 
-    see also https://github.com/python/cpython/blob/740050af0493030b1f6ebf0b9ac39a356e2e74b6/Lib/copy.py#L109
+    see also https://github.com/python/cpython/blob/3.11/Lib/copy.py#L109
     """
     return isinstance(obj, (type(None), int, float, bool, complex, str, tuple, bytes, type, range, slice))
 

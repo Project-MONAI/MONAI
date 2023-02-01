@@ -214,7 +214,6 @@ class DataAnalyzer:
                 Orientationd(keys=keys, axcodes="RAS"),
             ]
             if self.label_key is not None:
-
                 allowed_shape_difference = self.extra_params.pop("allowed_shape_difference", 5)
                 transform_list.append(
                     EnsureSameShaped(
@@ -235,7 +234,6 @@ class DataAnalyzer:
             warnings.warn("tqdm is not installed. not displaying the caching progress.")
 
         for batch_data in tqdm(dataloader) if has_tqdm else dataloader:
-
             batch_data = batch_data[0]
             batch_data[self.image_key] = batch_data[self.image_key].to(self.device)
 

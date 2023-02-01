@@ -46,7 +46,6 @@ class TestKSpaceSpikeNoised(unittest.TestCase):
 
     @parameterized.expand(TESTS)
     def test_same_result(self, im_shape, im_type):
-
         data = self.get_data(im_shape, im_type)
 
         t = RandKSpaceSpikeNoised(KEYS, prob=1.0, intensity_range=(13, 15), channel_wise=True)

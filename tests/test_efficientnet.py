@@ -321,7 +321,6 @@ class TestEFFICIENTNET(unittest.TestCase):
 
         # testing 1D, 2D and 3D shape
         for rand_tensor_shape in [(512, 16, 4), (384, 16, 4, 4), (256, 16, 4, 4, 4)]:
-
             # test validation mode, out tensor == in tensor
             training = False
             for p in p_list:

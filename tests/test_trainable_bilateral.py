@@ -275,7 +275,6 @@ TEST_CASES = [
 class BilateralFilterTestCaseCpuPrecise(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_cpu_precise(self, test_case_description, sigmas, input, expected):
-
         # Params to determine the implementation to test
         device = torch.device("cpu")
 
@@ -302,7 +301,6 @@ class BilateralFilterTestCaseCpuPrecise(unittest.TestCase):
 
     @parameterized.expand(TEST_CASES)
     def test_cpu_precise_backwards(self, test_case_description, sigmas, input, expected):
-
         # Params to determine the implementation to test
         device = torch.device("cpu")
 
@@ -375,7 +373,6 @@ class BilateralFilterTestCaseCpuPrecise(unittest.TestCase):
 class BilateralFilterTestCaseCudaPrecise(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_cuda_precise(self, test_case_description, sigmas, input, expected):
-
         # Skip this test
         if not torch.cuda.is_available():
             return
@@ -406,7 +403,6 @@ class BilateralFilterTestCaseCudaPrecise(unittest.TestCase):
 
     @parameterized.expand(TEST_CASES)
     def test_cuda_precise_backwards(self, test_case_description, sigmas, input, expected):
-
         # Params to determine the implementation to test
         device = torch.device("cuda")
 

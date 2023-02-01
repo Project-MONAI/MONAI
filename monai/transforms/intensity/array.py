@@ -1069,7 +1069,6 @@ class SavitzkyGolaySmooth(Transform):
     backend = [TransformBackends.TORCH]
 
     def __init__(self, window_length: int, order: int, axis: int = 1, mode: str = "zeros"):
-
         if axis < 0:
             raise ValueError("axis must be zero or positive.")
 
@@ -1114,7 +1113,6 @@ class DetectEnvelope(Transform):
     backend = [TransformBackends.TORCH]
 
     def __init__(self, axis: int = 1, n: int | None = None) -> None:
-
         if axis < 0:
             raise ValueError("axis must be zero or positive.")
 
@@ -1506,7 +1504,6 @@ class GibbsNoise(Transform, Fourier):
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(self, alpha: float = 0.1) -> None:
-
         if alpha > 1 or alpha < 0:
             raise ValueError("alpha must take values in the interval [0, 1].")
         self.alpha = alpha
@@ -1656,7 +1653,6 @@ class KSpaceSpikeNoise(Transform, Fourier):
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(self, loc: tuple | Sequence[tuple], k_intensity: Sequence[float] | float | None = None):
-
         self.loc = ensure_tuple(loc)
         self.k_intensity = k_intensity
 
@@ -1790,7 +1786,6 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
         intensity_range: Sequence[Sequence[float] | float] | None = None,
         channel_wise: bool = True,
     ):
-
         self.intensity_range = intensity_range
         self.channel_wise = channel_wise
         self.sampled_k_intensity: list = []
@@ -2152,7 +2147,6 @@ class IntensityRemap(RandomizableTransform):
     """
 
     def __init__(self, kernel_size: int = 30, slope: float = 0.7):
-
         super().__init__()
 
         self.kernel_size = kernel_size
@@ -2207,7 +2201,6 @@ class RandIntensityRemap(RandomizableTransform):
     """
 
     def __init__(self, prob: float = 0.1, kernel_size: int = 30, slope: float = 0.7, channel_wise: bool = True):
-
         RandomizableTransform.__init__(self, prob=prob)
         self.kernel_size = kernel_size
         self.slope = slope

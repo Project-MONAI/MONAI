@@ -210,7 +210,7 @@ class SpatialResampled(MapTransform, InvertibleTransform, LazyTransform):
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d: dict = dict(data)
-        for (key, mode, padding_mode, align_corners, dtype, dst_key) in self.key_iterator(
+        for key, mode, padding_mode, align_corners, dtype, dst_key in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype, self.dst_keys
         ):
             d[key] = self.sp_transform(
@@ -288,7 +288,7 @@ class ResampleToMatchd(MapTransform, InvertibleTransform, LazyTransform):
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
-        for (key, mode, padding_mode, align_corners, dtype) in self.key_iterator(
+        for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
             d[key] = self.resampler(
