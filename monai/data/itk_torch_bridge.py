@@ -28,7 +28,32 @@ if TYPE_CHECKING:
 else:
     itk, has_itk = optional_import("itk")
 
-__all__ = ["itk_image_to_metatensor", "itk_to_monai_affine", "monai_to_itk_affine", "monai_to_itk_ddf"]
+__all__ = [
+    "get_itk_image_center",
+    "itk_image_to_metatensor",
+    "itk_to_monai_affine",
+    "monai_to_itk_affine",
+    "monai_to_itk_ddf",
+]
+
+
+def get_itk_image_center(image):
+    """
+    Calculates the center of the ITK image based on its origin, size, and spacing.
+    This center is equivalent to the implicit image center that MONAI uses.
+
+    Args:
+        image: The ITK image.
+
+    Returns:
+        The center of the image as a list of coordinates.
+    """
+    image_size = np.asarray(image.GetLargestPossibleRegion().GetSize(), np.float32)
+    spacing = np.asarray(image.GetSpacing())
+    origin = np.asarray(image.GetOrigin())
+    center = image.GetDirection() @ ((image_size / 2 - 0.5) * spacing) + origin
+
+    return center.tolist()
 
 
 def itk_image_to_metatensor(image):
@@ -52,7 +77,7 @@ def itk_image_to_metatensor(image):
 
 def _compute_offset_matrix(image, center_of_rotation) -> tuple[torch.Tensor, torch.Tensor]:
     ndim = image.ndim
-    offset = np.asarray(_get_itk_image_center(image)) - np.asarray(center_of_rotation)
+    offset = np.asarray(get_itk_image_center(image)) - np.asarray(center_of_rotation)
     offset_matrix = torch.eye(ndim + 1, dtype=torch.float64)
     offset_matrix[:ndim, ndim] = torch.tensor(offset, dtype=torch.float64)
     inverse_offset_matrix = torch.eye(ndim + 1, dtype=torch.float64)
@@ -160,25 +185,6 @@ def monai_to_itk_affine(image, affine_matrix, center_of_rotation=None):
     translation = affine_matrix[:ndim, ndim].tolist()
 
     return matrix, translation
-
-
-def _get_itk_image_center(image):
-    """
-    Calculates the center of the ITK image based on its origin, size, and spacing.
-    This center is equivalent to the implicit image center that MONAI uses.
-
-    Args:
-        image: The ITK image.
-
-    Returns:
-        The center of the image as a list of coordinates.
-    """
-    image_size = np.asarray(image.GetLargestPossibleRegion().GetSize(), np.float32)
-    spacing = np.asarray(image.GetSpacing())
-    origin = np.asarray(image.GetOrigin())
-    center = image.GetDirection() @ ((image_size / 2 - 0.5) * spacing) + origin
-
-    return center.tolist()
 
 
 def monai_to_itk_ddf(image, ddf):

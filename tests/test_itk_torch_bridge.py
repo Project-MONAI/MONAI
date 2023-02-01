@@ -19,8 +19,10 @@ import torch
 from parameterized import parameterized
 
 from monai.apps import download_url
+from monai.config import NdarrayOrTensor
 from monai.data import ITKReader
 from monai.data.itk_torch_bridge import (
+    get_itk_image_center,
     itk_image_to_metatensor,
     itk_to_monai_affine,
     monai_to_itk_affine,
@@ -64,7 +66,7 @@ def create_itk_affine_from_parameters(
     if center_of_rotation:
         itk_transform.SetCenter(center_of_rotation)
     else:
-        itk_transform.SetCenter(_get_itk_image_center(image))
+        itk_transform.SetCenter(get_itk_image_center(image))
 
     # Set parameters
     if rotation:
@@ -99,7 +101,7 @@ def itk_affine_resample(image, matrix, translation, center_of_rotation=None):
     if center_of_rotation:
         itk_transform.SetCenter(center_of_rotation)
     else:
-        itk_transform.SetCenter(_get_itk_image_center(image))
+        itk_transform.SetCenter(get_itk_image_center(image))
 
     # Set matrix and translation
     itk_transform.SetMatrix(itk.matrix_from_array(matrix))
