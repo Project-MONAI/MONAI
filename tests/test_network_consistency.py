@@ -49,7 +49,6 @@ class TestNetworkConsistency(unittest.TestCase):
     )
     @parameterized.expand(TESTS, skip_on_empty=True)
     def test_network_consistency(self, net_name, data_path, json_path):
-
         print("Net name: " + net_name)
         print("Data path: " + data_path)
         print("JSON path: " + json_path)

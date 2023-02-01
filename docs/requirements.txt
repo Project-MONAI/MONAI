@@ -21,7 +21,7 @@ sphinx-autodoc-typehints==1.11.1
 pandas
 einops
 transformers<4.22  # https://github.com/Project-MONAI/MONAI/issues/5157
-mlflow
+mlflow>=1.28.0
 tensorboardX
 imagecodecs; platform_system == "Linux" or platform_system == "Darwin"
 tifffile; platform_system == "Linux" or platform_system == "Darwin"

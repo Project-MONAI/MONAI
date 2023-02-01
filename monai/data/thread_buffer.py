@@ -66,7 +66,6 @@ class ThreadBuffer:
         self.gen_thread = None
 
     def __iter__(self):
-
         self.is_running = True
         self.gen_thread = Thread(target=self.enqueue_values, daemon=True)
         self.gen_thread.start()

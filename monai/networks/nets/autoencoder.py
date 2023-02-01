@@ -105,7 +105,6 @@ class AutoEncoder(nn.Module):
         dropout: tuple | str | float | None = None,
         bias: bool = True,
     ) -> None:
-
         super().__init__()
         self.dimensions = spatial_dims
         self.in_channels = in_channels

@@ -373,7 +373,6 @@ class AnchorGeneratorWithAnchorShape(AnchorGenerator):
         | Sequence[Sequence[float]] = ((32, 32, 32), (48, 20, 20), (20, 48, 20), (20, 20, 48)),
         indexing: str = "ij",
     ) -> None:
-
         nn.Module.__init__(self)
 
         spatial_dims = len(base_anchor_shapes[0])

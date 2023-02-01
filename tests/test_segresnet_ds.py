@@ -81,7 +81,6 @@ class TestResNetDS(unittest.TestCase):
 
     @parameterized.expand(TEST_CASE_SEGRESNET_DS2)
     def test_shape2(self, input_param, input_shape, expected_shape):
-
         dsdepth = input_param.get("dsdepth", 1)
         net = SegResNetDS(**input_param).to(device)
 
@@ -107,7 +106,6 @@ class TestResNetDS(unittest.TestCase):
 
     @parameterized.expand(TEST_CASE_SEGRESNET_DS3)
     def test_shape3(self, input_param, input_shape, expected_shapes):
-
         dsdepth = input_param.get("dsdepth", 1)
         net = SegResNetDS(**input_param).to(device)
 
