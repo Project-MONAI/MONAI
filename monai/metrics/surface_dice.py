@@ -238,4 +238,4 @@ def compute_surface_dice(
         else:
             nsd[b, c] = boundary_correct / boundary_complete
 
-    return convert_data_type(nsd, torch.Tensor)[0]
+    return convert_data_type(nsd, output_type=torch.Tensor, device=y_pred.device, dtype=torch.float)[0]

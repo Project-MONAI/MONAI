@@ -145,10 +145,8 @@ def compute_average_surface_distance(
     if not include_background:
         y_pred, y = ignore_background(y_pred=y_pred, y=y)
 
-    if isinstance(y, torch.Tensor):
-        y = y.float()
-    if isinstance(y_pred, torch.Tensor):
-        y_pred = y_pred.float()
+    y_pred = convert_data_type(y_pred, output_type=torch.Tensor, dtype=torch.float)[0]
+    y = convert_data_type(y, output_type=torch.Tensor, dtype=torch.float)[0]
 
     if y.shape != y_pred.shape:
         raise ValueError(f"y_pred and y should have same shapes, got {y_pred.shape} and {y.shape}.")
@@ -168,4 +166,4 @@ def compute_average_surface_distance(
             surface_distance = np.concatenate([surface_distance, surface_distance_2])
         asd[b, c] = np.nan if surface_distance.shape == (0,) else surface_distance.mean()
 
-    return convert_data_type(asd, torch.Tensor)[0]
+    return convert_data_type(asd, output_type=torch.Tensor, device=y_pred.device, dtype=torch.float)[0]
