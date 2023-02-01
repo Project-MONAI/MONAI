@@ -23,7 +23,7 @@ from monai.metrics.utils import (
     ignore_background,
     is_binary_tensor,
 )
-from monai.utils import MetricReduction
+from monai.utils import MetricReduction, convert_data_type
 
 from .metric import CumulativeIterationMetric
 
@@ -153,10 +153,8 @@ def compute_hausdorff_distance(
 
     if not include_background:
         y_pred, y = ignore_background(y_pred=y_pred, y=y)
-    if isinstance(y, torch.Tensor):
-        y = y.float()
-    if isinstance(y_pred, torch.Tensor):
-        y_pred = y_pred.float()
+    y_pred = convert_data_type(y_pred, output_type=torch.Tensor, dtype=torch.float)[0]
+    y = convert_data_type(y, output_type=torch.Tensor, dtype=torch.float)[0]
 
     if y.shape != y_pred.shape:
         raise ValueError(f"y_pred and y should have same shapes, got {y_pred.shape} and {y.shape}.")
@@ -176,7 +174,7 @@ def compute_hausdorff_distance(
         else:
             distance_2 = compute_percent_hausdorff_distance(edges_gt, edges_pred, distance_metric, percentile)
             hd[b, c] = max(distance_1, distance_2)
-    return torch.from_numpy(hd)
+    return convert_data_type(hd, output_type=torch.Tensor, device=y_pred.device, dtype=torch.float)[0]
 
 
 def compute_percent_hausdorff_distance(

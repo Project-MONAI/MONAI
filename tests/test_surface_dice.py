@@ -277,17 +277,17 @@ class TestAllSurfaceDiceMetrics(unittest.TestCase):
 
         # test aggregation
         res_bgr = sur_metric_bgr.aggregate(reduction="mean")
-        np.testing.assert_equal(res_bgr, torch.tensor([1 / 3], dtype=torch.float64))
+        np.testing.assert_equal(res_bgr, torch.tensor([1 / 3], dtype=torch.float))
         res = sur_metric.aggregate()
-        np.testing.assert_equal(res, torch.tensor([0], dtype=torch.float64))
+        np.testing.assert_equal(res, torch.tensor([0], dtype=torch.float))
 
         predictions_empty = torch.zeros((2, 3, 1, 1))
         sur_metric_nans = SurfaceDiceMetric(class_thresholds=[1, 1, 1], include_background=True, get_not_nans=True)
         res_classes = sur_metric_nans(predictions_empty, predictions_empty)
         res, not_nans = sur_metric_nans.aggregate()
         np.testing.assert_array_equal(res_classes, [[np.nan, np.nan, np.nan], [np.nan, np.nan, np.nan]])
-        np.testing.assert_equal(res, torch.tensor([0], dtype=torch.float64))
-        np.testing.assert_equal(not_nans, torch.tensor([0], dtype=torch.float64))
+        np.testing.assert_equal(res, torch.tensor([0], dtype=torch.float))
+        np.testing.assert_equal(not_nans, torch.tensor([0], dtype=torch.float))
 
 
 if __name__ == "__main__":
