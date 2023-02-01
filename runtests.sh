@@ -257,6 +257,7 @@ do
             doBlackFormat=true
             doIsortFormat=true
             doFlake8Format=true
+            doPylintFormat=true
             doCopyRight=true
         ;;
         --disttests)

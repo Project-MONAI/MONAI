@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        opt: ["codeformat", "pylint", "pytype", "mypy"]
+        opt: ["codeformat", "pytype", "mypy"]
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python 3.8
