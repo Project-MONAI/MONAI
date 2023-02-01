@@ -1031,7 +1031,7 @@ class NibabelReader(ImageReader):
             img: a Nibabel image object loaded from an image file.
 
         """
-        return np.asanyarray(img.dataobj)
+        return np.asanyarray(img.dataobj, order="C")
 
 
 class NumpyReader(ImageReader):
