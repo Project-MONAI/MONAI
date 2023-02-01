@@ -298,7 +298,6 @@ class SupervisedEvaluator(Evaluator):
 
         # execute forward computation
         with engine.mode(engine.network):
-
             if engine.amp:
                 with torch.cuda.amp.autocast(**engine.amp_kwargs):
                     engine.state.output[Keys.PRED] = engine.inferer(inputs, engine.network, *args, **kwargs)

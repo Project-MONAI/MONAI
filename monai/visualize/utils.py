@@ -199,7 +199,6 @@ def blend_images(
         raise ValueError("image and label should have matching spatial sizes.")
     if isinstance(alpha, (np.ndarray, torch.Tensor)):
         if image.shape[1:] != alpha.shape[1:]:  # pytype: disable=attribute-error,invalid-directive
-
             raise ValueError("if alpha is image, size should match input image and label.")
 
     # rescale arrays to [0, 1] if desired

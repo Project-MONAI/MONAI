@@ -51,7 +51,6 @@ class Interaction:
         click_probability_key: str = "probability",
         max_interactions: int = 1,
     ) -> None:
-
         self.deepgrow_probability = deepgrow_probability
         self.transforms = Compose(transforms) if not isinstance(transforms, Compose) else transforms
         self.train = train

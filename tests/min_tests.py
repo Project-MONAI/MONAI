@@ -211,7 +211,6 @@ def run_testsuit():
 
 
 if __name__ == "__main__":
-
     # testing import submodules
     from monai.utils.module import load_submodules
 

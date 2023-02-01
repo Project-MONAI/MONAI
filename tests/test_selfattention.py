@@ -28,7 +28,6 @@ TEST_CASE_SABLOCK = []
 for dropout_rate in np.linspace(0, 1, 4):
     for hidden_size in [360, 480, 600, 768]:
         for num_heads in [4, 6, 8, 12]:
-
             test_case = [
                 {"hidden_size": hidden_size, "num_heads": num_heads, "dropout_rate": dropout_rate},
                 (2, 512, hidden_size),

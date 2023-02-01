@@ -60,7 +60,6 @@ class TestHandlerLogfile(unittest.TestCase):
         filename = "something_else.txt"
 
         with tempfile.TemporaryDirectory() as tempdir:
-
             handler = LogfileHandler(output_dir=tempdir, filename=filename)
             handler.attach(self.engine)
 

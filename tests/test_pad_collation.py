@@ -87,7 +87,6 @@ class TestPadCollation(unittest.TestCase):
 
     @parameterized.expand(TESTS)
     def test_pad_collation(self, t_type, collate_method, transform):
-
         if t_type == dict:
             dataset = CacheDataset(self.dict_data, transform, progress=False)
         else:

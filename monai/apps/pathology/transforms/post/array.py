@@ -252,7 +252,6 @@ class GenerateDistanceMap(Transform):
     backend = [TransformBackends.NUMPY]
 
     def __init__(self, smooth_fn: Callable | None = None, dtype: DtypeLike = np.float32) -> None:
-
         self.smooth_fn = smooth_fn if smooth_fn is not None else GaussianSmooth()
         self.dtype = dtype
 

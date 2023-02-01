@@ -25,7 +25,6 @@ __all__ = ["AHnet", "Ahnet", "AHNet"]
 
 
 class Bottleneck3x3x1(nn.Module):
-
     expansion = 4
 
     def __init__(
@@ -36,7 +35,6 @@ class Bottleneck3x3x1(nn.Module):
         stride: Sequence[int] | int = 1,
         downsample: nn.Sequential | None = None,
     ) -> None:
-
         super().__init__()
 
         conv_type = Conv[Conv.CONV, spatial_dims]
@@ -275,13 +273,11 @@ class PSP(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         outputs = []
         if self.upsample_mode == "transpose":
-            for (project_module, pool_module, up_module) in zip(
-                self.project_modules, self.pool_modules, self.up_modules
-            ):
+            for project_module, pool_module, up_module in zip(self.project_modules, self.pool_modules, self.up_modules):
                 output = up_module(project_module(pool_module(x)))
                 outputs.append(output)
         else:
-            for (project_module, pool_module) in zip(self.project_modules, self.pool_modules):
+            for project_module, pool_module in zip(self.project_modules, self.pool_modules):
                 interpolate_size = x.shape[2:]
                 align_corners: bool | None = None
                 if self.upsample_mode in ["trilinear", "bilinear"]:

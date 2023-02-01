@@ -180,7 +180,6 @@ class AlgoEnsembleBestN(AlgoEnsemble):
     """
 
     def __init__(self, n_best: int = 5):
-
         super().__init__()
         self.n_best = n_best
 
@@ -225,7 +224,6 @@ class AlgoEnsembleBestByFold(AlgoEnsemble):
     """
 
     def __init__(self, n_fold: int = 5):
-
         super().__init__()
         self.n_fold = n_fold
 
