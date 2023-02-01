@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import pickle
+import types
 import warnings
 from functools import partial
 from typing import TYPE_CHECKING, Any, Callable
@@ -187,7 +188,7 @@ class LearningRateFinder:
         memory_cache: bool = True,
         cache_dir: str | None = None,
         amp: bool = False,
-        pickle_module=pickle,
+        pickle_module: types.ModuleType = pickle,
         pickle_protocol: int = DEFAULT_PROTOCOL,
         verbose: bool = True,
     ) -> None:
@@ -389,7 +390,9 @@ class LearningRateFinder:
             if "initial_lr" in param_group:
                 raise RuntimeError("Optimizer already has a scheduler attached to it")
 
-    def _train_batch(self, train_iter, accumulation_steps: int, non_blocking_transfer: bool = True) -> float:
+    def _train_batch(
+        self, train_iter: TrainDataLoaderIter, accumulation_steps: int, non_blocking_transfer: bool = True
+    ) -> float:
         self.model.train()
         total_loss = 0
 
@@ -478,7 +481,14 @@ class LearningRateFinder:
             print("Failed to compute the gradients, there might not be enough points.")
             return None, None
 
-    def plot(self, skip_start: int = 0, skip_end: int = 0, log_lr: bool = True, ax=None, steepest_lr: bool = True):
+    def plot(
+        self,
+        skip_start: int = 0,
+        skip_end: int = 0,
+        log_lr: bool = True,
+        ax: Any | None = None,
+        steepest_lr: bool = True,
+    ) -> Any | None:
         """Plots the learning rate range test.
 
         Args:

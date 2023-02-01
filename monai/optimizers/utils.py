@@ -26,7 +26,7 @@ def generate_param_groups(
     match_types: Sequence[str],
     lr_values: Sequence[float],
     include_others: bool = True,
-):
+) -> list[dict]:
     """
     Utility function to generate parameter groups with different LR values for optimizer.
     The output parameter groups have the same order as `layer_match` functions.
