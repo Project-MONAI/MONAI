@@ -96,6 +96,7 @@ class TestPanopticQualityMetric(unittest.TestCase):
     def test_value(self, input_params, expected_value):
         result = compute_panoptic_quality(**input_params)
         np.testing.assert_allclose(result.cpu().detach().item(), expected_value, atol=1e-4)
+        np.testing.assert_equal(result.device, input_params["pred"].device)
 
     @parameterized.expand([TEST_CLS_CASE_1, TEST_CLS_CASE_2, TEST_CLS_CASE_3, TEST_CLS_CASE_4, TEST_CLS_CASE_5])
     def test_value_class(self, input_params, y_pred, y_gt, expected_value):
