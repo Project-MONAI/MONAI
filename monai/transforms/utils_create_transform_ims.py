@@ -466,7 +466,6 @@ def create_transform_im(
 
 
 if __name__ == "__main__":
-
     keys = [CommonKeys.IMAGE, CommonKeys.LABEL]
     data = get_data(keys)
     create_transform_im(RandFlip, dict(prob=1, spatial_axis=1), data)

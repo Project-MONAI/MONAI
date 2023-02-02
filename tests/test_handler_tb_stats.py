@@ -27,7 +27,6 @@ SummaryWriter, has_tb = optional_import("torch.utils.tensorboard", name="Summary
 class TestHandlerTBStats(unittest.TestCase):
     def test_metrics_print(self):
         with tempfile.TemporaryDirectory() as tempdir:
-
             # set up engine
             def _train_func(engine, batch):
                 return [batch + 1.0]
@@ -50,7 +49,6 @@ class TestHandlerTBStats(unittest.TestCase):
 
     def test_metrics_writer(self):
         with tempfile.TemporaryDirectory() as tempdir:
-
             # set up engine
             def _train_func(engine, batch):
                 return [batch + 1.0]

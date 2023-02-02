@@ -72,7 +72,6 @@ from monai.utils import first, get_seed, optional_import, set_determinism
 from tests.utils import make_nifti_image, make_rand_affine
 
 if TYPE_CHECKING:
-
     has_nib = True
 else:
     _, has_nib = optional_import("nibabel")
@@ -454,7 +453,6 @@ class TestInverse(unittest.TestCase):
     # skip this test if multiprocessing uses 'spawn', as the check is only basic anyway
     @skipUnless(torch.multiprocessing.get_start_method() == "spawn", "requires spawn")
     def test_fail(self):
-
         t1 = SpatialPadd("image", [10, 5])
         data = t1(self.all_data["2D"])
 
@@ -465,7 +463,6 @@ class TestInverse(unittest.TestCase):
 
     @parameterized.expand(N_SAMPLES_TESTS)
     def test_inverse_inferred_seg(self, extra_transform):
-
         test_data = []
         for _ in range(20):
             image, label = create_test_image_2d(100, 101)

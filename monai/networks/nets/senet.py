@@ -108,7 +108,6 @@ class SENet(nn.Module):
         input_3x3: bool = True,
         num_classes: int = 1000,
     ) -> None:
-
         super().__init__()
 
         if isinstance(block, str):
@@ -222,7 +221,6 @@ class SENet(nn.Module):
         stride: int = 1,
         downsample_kernel_size: int = 1,
     ) -> nn.Sequential:
-
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = Convolution(

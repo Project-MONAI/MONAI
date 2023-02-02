@@ -223,7 +223,6 @@ class AutoRunner:
         templates_path_or_url: str | None = None,
         **kwargs,
     ):
-
         logger.info(f"AutoRunner using work directory {work_dir}")
         os.makedirs(work_dir, exist_ok=True)
 
@@ -641,7 +640,6 @@ class AutoRunner:
 
         # step 2: algorithm generation
         if self.algo_gen:
-
             if not os.path.isfile(self.datastats_filename):
                 raise ValueError(
                     f"Could not find the datastats file {self.datastats_filename}. "

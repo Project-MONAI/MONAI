@@ -114,7 +114,6 @@ def get_default_pattern(loader):
 
 
 if __name__ == "__main__":
-
     # Parse input arguments
     args = parse_args()
 

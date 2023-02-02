@@ -22,7 +22,6 @@ from monai.utils import InterpolateMode, UpsampleMode
 def get_conv_layer(
     spatial_dims: int, in_channels: int, out_channels: int, kernel_size: int = 3, stride: int = 1, bias: bool = False
 ):
-
     return Convolution(
         spatial_dims, in_channels, out_channels, strides=stride, kernel_size=kernel_size, bias=bias, conv_only=True
     )
@@ -78,7 +77,6 @@ class ResBlock(nn.Module):
         self.conv2 = get_conv_layer(spatial_dims, in_channels=in_channels, out_channels=in_channels)
 
     def forward(self, x):
-
         identity = x
 
         x = self.norm1(x)

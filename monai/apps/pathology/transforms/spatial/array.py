@@ -165,7 +165,6 @@ class TileOnGrid(Randomizable, Transform):
             raise ValueError("Unsupported filter_mode, must be [min, max or random]: " + str(self.filter_mode))
 
     def randomize(self, img_size: Sequence[int]) -> None:
-
         c, h, w = img_size
 
         self.offset = (0, 0)
@@ -239,7 +238,6 @@ class TileOnGrid(Randomizable, Transform):
 
         else:
             if len(img_np) > self.tile_count:
-
                 if self.filter_mode == "min":
                     # default, keep non-background tiles (smallest values)
                     idxs = np.argsort(img_np.sum(axis=(1, 2, 3)))[: self.tile_count]
