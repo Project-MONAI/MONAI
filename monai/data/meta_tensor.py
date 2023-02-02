@@ -235,11 +235,19 @@ class MetaTensor(MetaObj, torch.Tensor):
                         # respectively. Don't need to do anything with the metadata.
                         if batch_idx not in (slice(None, None, None), Ellipsis, None) and idx == 0:
                             ret_meta = decollate_batch(args[0], detach=False)[batch_idx]
-                            if isinstance(ret_meta, list):  # e.g. batch[0:2], re-collate
-                                ret_meta = list_data_collate(ret_meta)
-                            else:  # e.g. `batch[0]` or `batch[0, 1]`, batch index is an integer
+                            if isinstance(ret_meta, list) and ret_meta:  # e.g. batch[0:2], re-collate
+                                try:
+                                    ret_meta = list_data_collate(ret_meta)
+                                except (TypeError, ValueError, RuntimeError, IndexError) as e:
+                                    raise ValueError(
+                                        "Inconsistent batched metadata dicts when slicing a batch of MetaTensors, "
+                                        "please convert it into a torch Tensor using `x.as_tensor()` or "
+                                        "a numpy array using `x.array`."
+                                    ) from e
+                            elif isinstance(ret_meta, MetaObj):  # e.g. `batch[0]` or `batch[0, 1]`, batch_idx is int
                                 ret_meta.is_batch = False
-                            ret.__dict__ = ret_meta.__dict__.copy()
+                            if hasattr(ret_meta, "__dict__"):
+                                ret.__dict__ = ret_meta.__dict__.copy()
                     # `unbind` is used for `next(iter(batch))`. Also for `decollate_batch`.
                     # But we only want to split the batch if the `unbind` is along the 0th
                     # dimension.
@@ -495,15 +503,15 @@ class MetaTensor(MetaObj, torch.Tensor):
 
     @staticmethod
     def ensure_torch_and_prune_meta(
-        im: NdarrayTensor, meta: dict, simple_keys: bool = False, pattern: str | None = None, sep: str = "."
+        im: NdarrayTensor, meta: dict | None, simple_keys: bool = False, pattern: str | None = None, sep: str = "."
     ):
         """
-        Convert the image to `torch.Tensor`. If `affine` is in the `meta` dictionary,
+        Convert the image to MetaTensor (when meta is not None). If `affine` is in the `meta` dictionary,
         convert that to `torch.Tensor`, too. Remove any superfluous metadata.
 
         Args:
             im: Input image (`np.ndarray` or `torch.Tensor`)
-            meta: Metadata dictionary.
+            meta: Metadata dictionary. When it's None, the metadata is not tracked, this method returns a torch.Tensor.
             simple_keys: whether to keep only a simple subset of metadata keys.
             pattern: combined with `sep`, a regular expression used to match and prune keys
                 in the metadata (nested dictionary), default to None, no key deletion.
@@ -513,13 +521,16 @@ class MetaTensor(MetaObj, torch.Tensor):
 
         Returns:
             By default, a `MetaTensor` is returned.
-            However, if `get_track_meta()` is `False`, a `torch.Tensor` is returned.
+            However, if `get_track_meta()` is `False` or meta=None, a `torch.Tensor` is returned.
         """
-        img = convert_to_tensor(im)  # potentially ascontiguousarray
+        img = convert_to_tensor(im, track_meta=get_track_meta() and meta is not None)  # potentially ascontiguousarray
 
         # if not tracking metadata, return `torch.Tensor`
-        if not get_track_meta() or meta is None:
+        if not isinstance(img, MetaTensor):
             return img
+
+        if meta is None:
+            meta = {}
 
         # remove any superfluous metadata.
         if simple_keys:
@@ -532,7 +543,14 @@ class MetaTensor(MetaObj, torch.Tensor):
             meta = monai.transforms.DeleteItemsd(keys=pattern, sep=sep, use_re=True)(meta)
 
         # return the `MetaTensor`
-        return MetaTensor(img, meta=meta)
+        if meta is None:
+            meta = {}
+        img.meta = meta
+        if MetaKeys.AFFINE in meta:
+            img.affine = meta[MetaKeys.AFFINE]  # this uses the affine property setter
+        else:
+            img.affine = MetaTensor.get_default_affine()
+        return img
 
     def __repr__(self):
         """

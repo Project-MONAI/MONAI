@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -25,7 +27,17 @@ TEST_CASE_DOWN_SAMPLE = [
     [{"spatial_dims": spatial_dims, "in_channels": 2, "out_channels": 4, "kernel_size": 3}] for spatial_dims in [2, 3]
 ]
 
-TEST_CASE_UP_SAMPLE = [[{"spatial_dims": spatial_dims, "in_channels": 4, "out_channels": 2}] for spatial_dims in [2, 3]]
+TEST_CASE_UP_SAMPLE = [
+    [
+        {
+            "spatial_dims": spatial_dims,
+            "in_channels": 4,
+            "out_channels": 2,
+            "mode": "bilinear" if spatial_dims == 2 else "trilinear",
+        }
+    ]
+    for spatial_dims in [2, 3]
+]
 
 TEST_CASE_EXTRACT = [
     [{"spatial_dims": spatial_dims, "in_channels": 2, "out_channels": 3, "act": act, "initializer": initializer}]

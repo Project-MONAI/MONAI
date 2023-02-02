@@ -37,7 +37,9 @@ Part of this script is adapted from
 https://github.com/pytorch/vision/blob/main/torchvision/models/detection/retinanet.py
 """
 
-from typing import Callable, List, Tuple, Union
+from __future__ import annotations
+
+from collections.abc import Callable
 
 import torch
 from torch import Tensor
@@ -100,7 +102,7 @@ class BoxSelector:
         self.nms_thresh = nms_thresh
         self.detections_per_img = detections_per_img
 
-    def select_top_score_idx_per_level(self, logits: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+    def select_top_score_idx_per_level(self, logits: Tensor) -> tuple[Tensor, Tensor, Tensor]:
         """
         Select indices with highest scores.
 
@@ -144,8 +146,8 @@ class BoxSelector:
         return topk_idxs, selected_scores, selected_labels  # type: ignore
 
     def select_boxes_per_image(
-        self, boxes_list: List[Tensor], logits_list: List[Tensor], spatial_size: Union[List[int], Tuple[int]]
-    ) -> Tuple[Tensor, Tensor, Tensor]:
+        self, boxes_list: list[Tensor], logits_list: list[Tensor], spatial_size: list[int] | tuple[int]
+    ) -> tuple[Tensor, Tensor, Tensor]:
         """
         Postprocessing to generate detection result from classification logits and boxes.
 

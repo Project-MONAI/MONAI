@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -130,7 +132,6 @@ class TestComputeMeanDice(unittest.TestCase):
     # Samplewise tests
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_value_class(self, input_data, expected_value):
-
         # same test as for compute_meandice
         vals = {}
         vals["y_pred"] = input_data.pop("y_pred")
@@ -143,7 +144,6 @@ class TestComputeMeanDice(unittest.TestCase):
     # Aggregation tests
     @parameterized.expand([TEST_CASE_4, TEST_CASE_5])
     def test_nans_class(self, params, input_data, expected_value):
-
         generalized_dice_score = GeneralizedDiceScore(**params)
         generalized_dice_score(**input_data)
         result = generalized_dice_score.aggregate()

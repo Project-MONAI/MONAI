@@ -11,26 +11,28 @@
 """
 Utilities and types for defining networks, these depend on PyTorch.
 """
+
+from __future__ import annotations
+
 import re
 import warnings
 from collections import OrderedDict
+from collections.abc import Callable, Mapping, Sequence
 from contextlib import contextmanager
 from copy import deepcopy
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any
 
 import torch
 import torch.nn as nn
 
 from monai.apps.utils import get_logger
 from monai.config import PathLike
-from monai.utils.deprecate_utils import deprecated
 from monai.utils.misc import ensure_tuple, save_obj, set_determinism
 from monai.utils.module import look_up_option, pytorch_after
 from monai.utils.type_conversion import convert_to_tensor
 
 __all__ = [
     "one_hot",
-    "slice_channels",
     "predict_segmentation",
     "normalize_transform",
     "to_norm_affine",
@@ -161,19 +163,6 @@ def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.f
     return labels
 
 
-@deprecated(since="0.8.0", msg_suffix="use `monai.utils.misc.sample_slices` instead.")
-def slice_channels(tensor: torch.Tensor, *slicevals: Optional[int]) -> torch.Tensor:
-    """
-    .. deprecated:: 0.8.0
-        Use `monai.utils.misc.sample_slices` instead.
-
-    """
-    slices = [slice(None)] * len(tensor.shape)
-    slices[1] = slice(*slicevals)
-
-    return tensor[slices]
-
-
 def predict_segmentation(logits: torch.Tensor, mutually_exclusive: bool = False, threshold: float = 0.0) -> Any:
     """
     Given the logits from a network, computing the segmentation by thresholding all values above 0
@@ -196,8 +185,8 @@ def predict_segmentation(logits: torch.Tensor, mutually_exclusive: bool = False,
 
 def normalize_transform(
     shape,
-    device: Optional[torch.device] = None,
-    dtype: Optional[torch.dtype] = None,
+    device: torch.device | None = None,
+    dtype: torch.dtype | None = None,
     align_corners: bool = False,
     zero_centered: bool = False,
 ) -> torch.Tensor:
@@ -432,7 +421,7 @@ def train_mode(*nets: nn.Module):
             n.eval()
 
 
-def get_state_dict(obj: Union[torch.nn.Module, Mapping]):
+def get_state_dict(obj: torch.nn.Module | Mapping):
     """
     Get the state dict of input object if has `state_dict`, otherwise, return object directly.
     For data parallel model, automatically convert it to regular model first.
@@ -447,8 +436,8 @@ def get_state_dict(obj: Union[torch.nn.Module, Mapping]):
 
 
 def copy_model_state(
-    dst: Union[torch.nn.Module, Mapping],
-    src: Union[torch.nn.Module, Mapping],
+    dst: torch.nn.Module | Mapping,
+    src: torch.nn.Module | Mapping,
     dst_prefix="",
     mapping=None,
     exclude_vars=None,
@@ -522,7 +511,7 @@ def copy_model_state(
     return dst_dict, updated_keys, unchanged_keys
 
 
-def save_state(src: Union[torch.nn.Module, Dict], path: PathLike, **kwargs):
+def save_state(src: torch.nn.Module | dict, path: PathLike, **kwargs):
     """
     Save the state dict of input source data with PyTorch `save`.
     It can save `nn.Module`, `state_dict`, a dictionary of `nn.Module` or `state_dict`.
@@ -546,7 +535,7 @@ def save_state(src: Union[torch.nn.Module, Dict], path: PathLike, **kwargs):
 
     """
 
-    ckpt: Dict = {}
+    ckpt: dict = {}
     if isinstance(src, dict):
         for k, v in src.items():
             ckpt[k] = get_state_dict(v)
@@ -558,11 +547,11 @@ def save_state(src: Union[torch.nn.Module, Dict], path: PathLike, **kwargs):
 
 def convert_to_torchscript(
     model: nn.Module,
-    filename_or_obj: Optional[Any] = None,
-    extra_files: Optional[Dict] = None,
+    filename_or_obj: Any | None = None,
+    extra_files: dict | None = None,
     verify: bool = False,
-    inputs: Optional[Sequence[Any]] = None,
-    device: Optional[torch.device] = None,
+    inputs: Sequence[Any] | None = None,
+    device: torch.device | None = None,
     rtol: float = 1e-4,
     atol: float = 0.0,
     **kwargs,
@@ -638,7 +627,7 @@ def _replace_modules(
     parent: torch.nn.Module,
     name: str,
     new_module: torch.nn.Module,
-    out: List[Tuple[str, torch.nn.Module]],
+    out: list[tuple[str, torch.nn.Module]],
     strict_match: bool = True,
     match_device: bool = True,
 ) -> None:
@@ -656,7 +645,7 @@ def _replace_modules(
         parent_name = name[:idx]
         parent = getattr(parent, parent_name)
         name = name[idx + 1 :]
-        _out: List[Tuple[str, torch.nn.Module]] = []
+        _out: list[tuple[str, torch.nn.Module]] = []
         _replace_modules(parent, name, new_module, _out)
         # prepend the parent name
         out += [(f"{parent_name}.{r[0]}", r[1]) for r in _out]
@@ -678,7 +667,7 @@ def replace_modules(
     new_module: torch.nn.Module,
     strict_match: bool = True,
     match_device: bool = True,
-) -> List[Tuple[str, torch.nn.Module]]:
+) -> list[tuple[str, torch.nn.Module]]:
     """
     Replace sub-module(s) in a parent module.
 
@@ -704,7 +693,7 @@ def replace_modules(
     Raises:
         AttributeError: if `strict_match` is `True` and `name` is not a named module in `parent`.
     """
-    out: List[Tuple[str, torch.nn.Module]] = []
+    out: list[tuple[str, torch.nn.Module]] = []
     _replace_modules(parent, name, new_module, out, strict_match, match_device)
     return out
 
@@ -722,7 +711,7 @@ def replace_modules_temp(
 
     See :py:class:`monai.networks.utils.replace_modules`.
     """
-    replaced: List[Tuple[str, torch.nn.Module]] = []
+    replaced: list[tuple[str, torch.nn.Module]] = []
     try:
         # replace
         _replace_modules(parent, name, new_module, replaced, strict_match, match_device)

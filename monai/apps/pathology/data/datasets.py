@@ -9,9 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import sys
-from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
+from collections.abc import Callable, Sequence
+from typing import Tuple, cast
 
 import numpy as np
 
@@ -52,11 +55,11 @@ class PatchWSIDataset(Dataset):
 
     def __init__(
         self,
-        data: List,
-        region_size: Union[int, Tuple[int, int]],
-        grid_shape: Union[int, Tuple[int, int]],
-        patch_size: Union[int, Tuple[int, int]],
-        transform: Optional[Callable] = None,
+        data: list,
+        region_size: int | tuple[int, int],
+        grid_shape: int | tuple[int, int],
+        patch_size: int | tuple[int, int],
+        transform: Callable | None = None,
         image_reader_name: str = "cuCIM",
         **kwargs,
     ):
@@ -69,7 +72,7 @@ class PatchWSIDataset(Dataset):
         self.image_path_list = list({x["image"] for x in self.data})
         self.image_reader_name = image_reader_name.lower()
         self.image_reader = WSIReader(backend=image_reader_name, **kwargs)
-        self.wsi_object_dict: Optional[Dict] = None
+        self.wsi_object_dict: dict | None = None
         if self.image_reader_name != "openslide":
             # OpenSlide causes memory issue if we prefetch image objects
             self._fetch_wsi_objects()
@@ -85,7 +88,7 @@ class PatchWSIDataset(Dataset):
         if self.image_reader_name == "openslide":
             img_obj = self.image_reader.read(sample["image"])
         else:
-            img_obj = cast(Dict, self.wsi_object_dict)[sample["image"]]
+            img_obj = cast(dict, self.wsi_object_dict)[sample["image"]]
         location = [sample["location"][i] - self.region_size[i] // 2 for i in range(len(self.region_size))]
         images, _ = self.image_reader.get_data(
             img=img_obj,
@@ -140,17 +143,17 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
 
     def __init__(
         self,
-        data: List,
-        region_size: Union[int, Tuple[int, int]],
-        grid_shape: Union[int, Tuple[int, int]],
-        patch_size: Union[int, Tuple[int, int]],
-        transform: Union[Sequence[Callable], Callable],
+        data: list,
+        region_size: int | tuple[int, int],
+        grid_shape: int | tuple[int, int],
+        patch_size: int | tuple[int, int],
+        transform: Sequence[Callable] | Callable,
         image_reader_name: str = "cuCIM",
         replace_rate: float = 0.5,
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
-        num_init_workers: Optional[int] = 1,
-        num_replace_workers: Optional[int] = 1,
+        num_init_workers: int | None = 1,
+        num_replace_workers: int | None = 1,
         progress: bool = True,
         copy_cache: bool = True,
         as_contiguous: bool = True,
@@ -201,9 +204,9 @@ class MaskedInferenceWSIDataset(Dataset):
 
     def __init__(
         self,
-        data: List[Dict["str", "str"]],
-        patch_size: Union[int, Tuple[int, int]],
-        transform: Optional[Callable] = None,
+        data: list[dict[str, str]],
+        patch_size: int | tuple[int, int],
+        transform: Callable | None = None,
         image_reader_name: str = "cuCIM",
         **kwargs,
     ) -> None:
@@ -223,14 +226,14 @@ class MaskedInferenceWSIDataset(Dataset):
         self.num_patches = sum(self.num_patches_per_sample)
         self.cum_num_patches = np.cumsum([0] + self.num_patches_per_sample[:-1])
 
-    def _prepare_data(self, input_data: List[Dict["str", "str"]]) -> List[Dict]:
+    def _prepare_data(self, input_data: list[dict[str, str]]) -> list[dict]:
         prepared_data = []
         for sample in input_data:
             prepared_sample = self._prepare_a_sample(sample)
             prepared_data.append(prepared_sample)
         return prepared_data
 
-    def _prepare_a_sample(self, sample: Dict["str", "str"]) -> Dict:
+    def _prepare_a_sample(self, sample: dict[str, str]) -> dict:
         """
         Preprocess input data to load WSIReader object and the foreground mask,
         and define the locations where patches need to be extracted.
@@ -272,7 +275,7 @@ class MaskedInferenceWSIDataset(Dataset):
             "level": level,
         }
 
-    def _calculate_mask_level(self, image: np.ndarray, mask: np.ndarray) -> Tuple[int, float]:
+    def _calculate_mask_level(self, image: np.ndarray, mask: np.ndarray) -> tuple[int, float]:
         """
         Calculate level of the mask and its ratio with respect to the whole slide image
 

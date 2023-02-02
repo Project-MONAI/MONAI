@@ -9,14 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import torch
 import torch.nn as nn
 
 from monai.networks.blocks import Convolution, UpSample
 from monai.networks.layers.factories import Conv, Pool
-from monai.utils import deprecated_arg, ensure_tuple_rep
+from monai.utils import ensure_tuple_rep
 
 __all__ = ["BasicUnet", "Basicunet", "basicunet", "BasicUNet"]
 
@@ -29,10 +31,10 @@ class TwoConv(nn.Sequential):
         spatial_dims: int,
         in_chns: int,
         out_chns: int,
-        act: Union[str, tuple],
-        norm: Union[str, tuple],
+        act: str | tuple,
+        norm: str | tuple,
         bias: bool,
-        dropout: Union[float, tuple] = 0.0,
+        dropout: float | tuple = 0.0,
     ):
         """
         Args:
@@ -63,10 +65,10 @@ class Down(nn.Sequential):
         spatial_dims: int,
         in_chns: int,
         out_chns: int,
-        act: Union[str, tuple],
-        norm: Union[str, tuple],
+        act: str | tuple,
+        norm: str | tuple,
         bias: bool,
-        dropout: Union[float, tuple] = 0.0,
+        dropout: float | tuple = 0.0,
     ):
         """
         Args:
@@ -95,14 +97,14 @@ class UpCat(nn.Module):
         in_chns: int,
         cat_chns: int,
         out_chns: int,
-        act: Union[str, tuple],
-        norm: Union[str, tuple],
+        act: str | tuple,
+        norm: str | tuple,
         bias: bool,
-        dropout: Union[float, tuple] = 0.0,
+        dropout: float | tuple = 0.0,
         upsample: str = "deconv",
-        pre_conv: Optional[Union[nn.Module, str]] = "default",
+        pre_conv: nn.Module | str | None = "default",
         interp_mode: str = "linear",
-        align_corners: Optional[bool] = True,
+        align_corners: bool | None = True,
         halves: bool = True,
         is_pad: bool = True,
     ):
@@ -147,7 +149,7 @@ class UpCat(nn.Module):
         self.convs = TwoConv(spatial_dims, cat_chns + up_chns, out_chns, act, norm, bias, dropout)
         self.is_pad = is_pad
 
-    def forward(self, x: torch.Tensor, x_e: Optional[torch.Tensor]):
+    def forward(self, x: torch.Tensor, x_e: torch.Tensor | None):
         """
 
         Args:
@@ -173,21 +175,17 @@ class UpCat(nn.Module):
 
 
 class BasicUNet(nn.Module):
-    @deprecated_arg(
-        name="dimensions", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
-    )
     def __init__(
         self,
         spatial_dims: int = 3,
         in_channels: int = 1,
         out_channels: int = 2,
         features: Sequence[int] = (32, 32, 64, 128, 256, 32),
-        act: Union[str, tuple] = ("LeakyReLU", {"negative_slope": 0.1, "inplace": True}),
-        norm: Union[str, tuple] = ("instance", {"affine": True}),
+        act: str | tuple = ("LeakyReLU", {"negative_slope": 0.1, "inplace": True}),
+        norm: str | tuple = ("instance", {"affine": True}),
         bias: bool = True,
-        dropout: Union[float, tuple] = 0.0,
+        dropout: float | tuple = 0.0,
         upsample: str = "deconv",
-        dimensions: Optional[int] = None,
     ):
         """
         A UNet implementation with 1D/2D/3D supports.
@@ -217,9 +215,6 @@ class BasicUNet(nn.Module):
             upsample: upsampling mode, available options are
                 ``"deconv"``, ``"pixelshuffle"``, ``"nontrainable"``.
 
-        .. deprecated:: 0.6.0
-            ``dimensions`` is deprecated, use ``spatial_dims`` instead.
-
         Examples::
 
             # for spatial 2D
@@ -238,8 +233,6 @@ class BasicUNet(nn.Module):
 
         """
         super().__init__()
-        if dimensions is not None:
-            spatial_dims = dimensions
         fea = ensure_tuple_rep(features, 6)
         print(f"BasicUNet features: {fea}.")
 

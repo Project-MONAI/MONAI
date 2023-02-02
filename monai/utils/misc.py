@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import inspect
 import itertools
 import os
@@ -18,10 +20,10 @@ import tempfile
 import types
 import warnings
 from ast import literal_eval
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable, Sequence
 from distutils.util import strtobool
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Sequence, Tuple, Union, cast
+from typing import Any, TypeVar, cast, overload
 
 import numpy as np
 import torch
@@ -34,6 +36,7 @@ __all__ = [
     "star_zip_with",
     "first",
     "issequenceiterable",
+    "is_immutable",
     "ensure_tuple",
     "ensure_tuple_size",
     "ensure_tuple_rep",
@@ -80,7 +83,20 @@ def star_zip_with(op, *vals):
     return zip_with(op, *vals, mapfunc=itertools.starmap)
 
 
-def first(iterable, default=None):
+T = TypeVar("T")
+
+
+@overload
+def first(iterable: Iterable[T], default: T) -> T:
+    ...
+
+
+@overload
+def first(iterable: Iterable[T]) -> T | None:
+    ...
+
+
+def first(iterable: Iterable[T], default: T | None = None) -> T | None:
     """
     Returns the first item in the given iterable or `default` if empty, meaningful mostly with 'for' expressions.
     """
@@ -101,7 +117,16 @@ def issequenceiterable(obj: Any) -> bool:
     return isinstance(obj, Iterable) and not isinstance(obj, (str, bytes))
 
 
-def ensure_tuple(vals: Any, wrap_array: bool = False) -> Tuple[Any, ...]:
+def is_immutable(obj: Any) -> bool:
+    """
+    Determine if the object is an immutable object.
+
+    see also https://github.com/python/cpython/blob/3.11/Lib/copy.py#L109
+    """
+    return isinstance(obj, (type(None), int, float, bool, complex, str, tuple, bytes, type, range, slice))
+
+
+def ensure_tuple(vals: Any, wrap_array: bool = False) -> tuple[Any, ...]:
     """
     Returns a tuple of `vals`.
 
@@ -116,7 +141,7 @@ def ensure_tuple(vals: Any, wrap_array: bool = False) -> Tuple[Any, ...]:
     return tuple(vals) if issequenceiterable(vals) else (vals,)
 
 
-def ensure_tuple_size(tup: Any, dim: int, pad_val: Any = 0) -> Tuple[Any, ...]:
+def ensure_tuple_size(tup: Any, dim: int, pad_val: Any = 0) -> tuple[Any, ...]:
     """
     Returns a copy of `tup` with `dim` values by either shortened or padded with `pad_val` as necessary.
     """
@@ -124,7 +149,7 @@ def ensure_tuple_size(tup: Any, dim: int, pad_val: Any = 0) -> Tuple[Any, ...]:
     return new_tup[:dim]
 
 
-def ensure_tuple_rep(tup: Any, dim: int) -> Tuple[Any, ...]:
+def ensure_tuple_rep(tup: Any, dim: int) -> tuple[Any, ...]:
     """
     Returns a copy of `tup` with `dim` values by either shortened or duplicated input.
 
@@ -160,8 +185,8 @@ def ensure_tuple_rep(tup: Any, dim: int) -> Tuple[Any, ...]:
 
 
 def fall_back_tuple(
-    user_provided: Any, default: Union[Sequence, NdarrayTensor], func: Callable = lambda x: x and x > 0
-) -> Tuple[Any, ...]:
+    user_provided: Any, default: Sequence | NdarrayTensor, func: Callable = lambda x: x and x > 0
+) -> tuple[Any, ...]:
     """
     Refine `user_provided` according to the `default`, and returns as a validated tuple.
 
@@ -215,7 +240,7 @@ def is_scalar(val: Any) -> bool:
     return bool(np.isscalar(val))
 
 
-def progress_bar(index: int, count: int, desc: Optional[str] = None, bar_len: int = 30, newline: bool = False) -> None:
+def progress_bar(index: int, count: int, desc: str | None = None, bar_len: int = 30, newline: bool = False) -> None:
     """print a progress bar to track some time consuming task.
 
     Args:
@@ -234,14 +259,14 @@ def progress_bar(index: int, count: int, desc: Optional[str] = None, bar_len: in
         print("")
 
 
-def get_seed() -> Optional[int]:
+def get_seed() -> int | None:
     return _seed
 
 
 def set_determinism(
-    seed: Optional[int] = NP_MAX,
-    use_deterministic_algorithms: Optional[bool] = None,
-    additional_settings: Optional[Union[Sequence[Callable[[int], Any]], Callable[[int], Any]]] = None,
+    seed: int | None = NP_MAX,
+    use_deterministic_algorithms: bool | None = None,
+    additional_settings: Sequence[Callable[[int], Any]] | Callable[[int], Any] | None = None,
 ) -> None:
     """
     Set random seed for modules to enable or disable deterministic training.
@@ -332,7 +357,7 @@ def list_to_dict(items):
 
 
 def copy_to_device(
-    obj: Any, device: Optional[Union[str, torch.device]], non_blocking: bool = True, verbose: bool = False
+    obj: Any, device: str | torch.device | None, non_blocking: bool = True, verbose: bool = False
 ) -> Any:
     """
     Copy object or tuple/list/dictionary of objects to ``device``.
@@ -365,7 +390,7 @@ def copy_to_device(
     return obj
 
 
-def str2bool(value: Union[str, bool], default: bool = False, raise_exc: bool = True) -> bool:
+def str2bool(value: str | bool, default: bool = False, raise_exc: bool = True) -> bool:
     """
     Convert a string to a boolean. Case insensitive.
     True: yes, true, t, y, 1. False: no, false, f, n, 0.
@@ -400,7 +425,7 @@ def str2bool(value: Union[str, bool], default: bool = False, raise_exc: bool = T
     return default
 
 
-def str2list(value: Optional[Union[str, list]], raise_exc: bool = True) -> Optional[list]:
+def str2list(value: str | list | None, raise_exc: bool = True) -> list | None:
     """
     Convert a string to a list.  Useful with argparse commandline arguments:
         parser.add_argument("--blocks", default=[1,2,3], type=str2list)
@@ -438,7 +463,7 @@ class MONAIEnvVars:
     """
 
     @staticmethod
-    def data_dir() -> Optional[str]:
+    def data_dir() -> str | None:
         return os.environ.get("MONAI_DATA_DIRECTORY")
 
     @staticmethod
@@ -447,7 +472,7 @@ class MONAIEnvVars:
         return val if isinstance(val, bool) else str2bool(val)
 
     @staticmethod
-    def doc_images() -> Optional[str]:
+    def doc_images() -> str | None:
         return os.environ.get("MONAI_DOC_IMAGES")
 
 
@@ -461,7 +486,7 @@ class ImageMetaKey:
     SPATIAL_SHAPE = "spatial_shape"
 
 
-def has_option(obj, keywords: Union[str, Sequence[str]]) -> bool:
+def has_option(obj: Callable, keywords: str | Sequence[str]) -> bool:
     """
     Return a boolean indicating whether the given callable `obj` has the `keywords` in its signature.
     """
@@ -502,7 +527,7 @@ def sample_slices(data: NdarrayOrTensor, dim: int = 1, as_indices: bool = True, 
     return data[tuple(slices)]
 
 
-def check_parent_dir(path: PathLike, create_dir: bool = True):
+def check_parent_dir(path: PathLike, create_dir: bool = True) -> None:
     """
     Utility to check whether the parent directory of the `path` exists.
 
@@ -522,8 +547,13 @@ def check_parent_dir(path: PathLike, create_dir: bool = True):
 
 
 def save_obj(
-    obj, path: PathLike, create_dir: bool = True, atomic: bool = True, func: Optional[Callable] = None, **kwargs
-):
+    obj: object,
+    path: PathLike,
+    create_dir: bool = True,
+    atomic: bool = True,
+    func: Callable | None = None,
+    **kwargs: Any,
+) -> None:
     """
     Save an object to file with specified path.
     Support to serialize to a temporary file first, then move to final destination,
@@ -564,7 +594,7 @@ def save_obj(
         pass
 
 
-def label_union(x: List) -> List:
+def label_union(x: list) -> list:
     """
     Compute the union of class IDs in label and generate a list to include all class IDs
     Args:
@@ -576,7 +606,7 @@ def label_union(x: List) -> List:
     return list(set.union(set(np.array(x).tolist())))
 
 
-def prob2class(x, sigmoid: bool = False, threshold: float = 0.5, **kwargs):
+def prob2class(x: torch.Tensor, sigmoid: bool = False, threshold: float = 0.5, **kwargs: Any) -> torch.Tensor:
     """
     Compute the lab from the probability of predicted feature maps
 

@@ -9,8 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import math
-from typing import Any, Optional, Tuple, Union
+from typing import Any
 
 import numpy as np
 import torch
@@ -87,7 +89,7 @@ class ExtractPatchd(MapTransform):
         self,
         keys: KeysCollection,
         centroid_key: str = NuclickKeys.CENTROID,
-        patch_size: Union[Tuple[int, int], int] = 128,
+        patch_size: tuple[int, int] | int = 128,
         allow_missing_keys: bool = False,
         **kwargs: Any,
     ):
@@ -144,12 +146,11 @@ class SplitLabeld(MapTransform):
         self,
         keys: KeysCollection,
         others: str = NuclickKeys.OTHERS,
-        mask_value: Optional[str] = NuclickKeys.MASK_VALUE,
+        mask_value: str | None = NuclickKeys.MASK_VALUE,
         min_area: int = 5,
         others_value: int = 0,
         to_binary_mask: bool = True,
     ):
-
         super().__init__(keys, allow_missing_keys=False)
         self.others = others
         self.mask_value = mask_value

@@ -9,9 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from functools import wraps
 
 __all__ = ["RestartGenerator", "MethodReplacer"]
+
+from typing import Callable, Generator
 
 
 class RestartGenerator:
@@ -20,10 +24,10 @@ class RestartGenerator:
     used to create an iterator which can start iteration over the given generator multiple times.
     """
 
-    def __init__(self, create_gen) -> None:
+    def __init__(self, create_gen: Callable[[], Generator]) -> None:
         self.create_gen = create_gen
 
-    def __iter__(self):
+    def __iter__(self) -> Generator:
         return self.create_gen()
 
 
@@ -34,7 +38,7 @@ class MethodReplacer:
 
     replace_list_name = "__replacemethods__"
 
-    def __init__(self, meth) -> None:
+    def __init__(self, meth: Callable) -> None:
         self.meth = meth
 
     def replace_method(self, meth):

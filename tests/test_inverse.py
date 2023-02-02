@@ -9,12 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import random
 import sys
 import unittest
 from copy import deepcopy
 from functools import partial
-from typing import TYPE_CHECKING, List, Tuple
+from typing import TYPE_CHECKING
 from unittest.case import skipUnless
 
 import numpy as np
@@ -70,14 +72,13 @@ from monai.utils import first, get_seed, optional_import, set_determinism
 from tests.utils import make_nifti_image, make_rand_affine
 
 if TYPE_CHECKING:
-
     has_nib = True
 else:
     _, has_nib = optional_import("nibabel")
 
 KEYS = ["image", "label"]
 
-TESTS: List[Tuple] = []
+TESTS: list[tuple] = []
 
 # For pad, start with odd/even images and add odd/even amounts
 for name in ("1D even", "1D odd"):
@@ -452,7 +453,6 @@ class TestInverse(unittest.TestCase):
     # skip this test if multiprocessing uses 'spawn', as the check is only basic anyway
     @skipUnless(torch.multiprocessing.get_start_method() == "spawn", "requires spawn")
     def test_fail(self):
-
         t1 = SpatialPadd("image", [10, 5])
         data = t1(self.all_data["2D"])
 
@@ -463,7 +463,6 @@ class TestInverse(unittest.TestCase):
 
     @parameterized.expand(N_SAMPLES_TESTS)
     def test_inverse_inferred_seg(self, extra_transform):
-
         test_data = []
         for _ in range(20):
             image, label = create_test_image_2d(100, 101)

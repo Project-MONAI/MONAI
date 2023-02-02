@@ -101,6 +101,18 @@ Peak signal to noise ratio metrics handler
     :members:
 
 
+Metrics reloaded binary handler
+-------------------------------
+.. autoclass:: MetricsReloadedBinaryHandler
+    :members:
+
+
+Metrics reloaded categorical handler
+------------------------------------
+.. autoclass:: MetricsReloadedCategoricalHandler
+    :members:
+
+
 Metric logger
 -------------
 .. autoclass:: MetricLogger

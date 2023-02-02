@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional
+from __future__ import annotations
 
 import numpy as np
 import torch
@@ -105,21 +105,30 @@ def is_compatible_apply_kwargs(kwargs_1, kwargs_2):
     return True
 
 
-def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: Optional[dict] = None):
+def resample(data: torch.Tensor, matrix: NdarrayOrTensor, spatial_size, kwargs: dict | None = None):
     """
-    This is a minimal implementation of resample that always uses Affine.
+    This is a minimal implementation of resample that always uses SpatialResample.
+    `kwargs` supports "lazy_dtype", "lazy_padding_mode", "lazy_interpolation_mode", "lazy_dtype", "lazy_align_corners".
+
+    See Also:
+        :py:class:`monai.transforms.SpatialResample`
     """
     if not Affine.is_affine_shaped(matrix):
         raise NotImplementedError("calling dense grid resample API not implemented")
     kwargs = {} if kwargs is None else kwargs
     init_kwargs = {
-        "spatial_size": kwargs.pop(LazyAttr.SHAPE, data.shape)[1:],
         "dtype": kwargs.pop(LazyAttr.DTYPE, data.dtype),
+        "align_corners": kwargs.pop(LazyAttr.ALIGN_CORNERS, None),
     }
+    img = convert_to_tensor(data=data, track_meta=monai.data.get_track_meta())
+    init_affine = monai.data.to_affine_nd(len(matrix) - 1, img.affine)
     call_kwargs = {
+        "spatial_size": img.peek_pending_shape() if spatial_size is None else spatial_size,
+        "dst_affine": init_affine @ monai.utils.convert_to_dst_type(matrix, init_affine)[0],
         "mode": kwargs.pop(LazyAttr.INTERP_MODE, None),
         "padding_mode": kwargs.pop(LazyAttr.PADDING_MODE, None),
     }
-    resampler = monai.transforms.Affine(affine=matrix, image_only=True, **init_kwargs)
+    resampler = monai.transforms.SpatialResample(**init_kwargs)
+    # resampler.lazy_evaluation = False
     with resampler.trace_transform(False):  # don't track this transform in `data`
-        return resampler(img=data, **call_kwargs)
+        return resampler(img=img, **call_kwargs)

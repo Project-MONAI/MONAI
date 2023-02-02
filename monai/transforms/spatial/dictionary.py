@@ -15,7 +15,10 @@ defined in :py:class:`monai.transforms.spatial.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Any, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
+from __future__ import annotations
+
+from collections.abc import Hashable, Mapping, Sequence
+from typing import Any, cast
 
 import numpy as np
 import torch
@@ -62,7 +65,6 @@ from monai.utils import (
     ensure_tuple_rep,
     fall_back_tuple,
 )
-from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import PytorchPadMode, TraceKeys
 from monai.utils.module import optional_import
 
@@ -156,20 +158,14 @@ class SpatialResampled(MapTransform, InvertibleTransform):
 
     backend = SpatialResample.backend
 
-    @deprecated_arg(name="meta_keys", since="0.9")
-    @deprecated_arg(name="meta_key_postfix", since="0.9")
-    @deprecated_arg(name="meta_src_keys", since="0.9")
     def __init__(
         self,
         keys: KeysCollection,
         mode: SequenceStr = GridSampleMode.BILINEAR,
         padding_mode: SequenceStr = GridSamplePadMode.BORDER,
-        align_corners: Union[Sequence[bool], bool] = False,
-        dtype: Union[Sequence[DtypeLike], DtypeLike] = np.float64,
-        meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
-        meta_src_keys: Optional[KeysCollection] = "src_affine",
-        dst_keys: Optional[KeysCollection] = "dst_affine",
+        align_corners: Sequence[bool] | bool = False,
+        dtype: Sequence[DtypeLike] | DtypeLike = np.float64,
+        dst_keys: KeysCollection | None = "dst_affine",
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -207,9 +203,9 @@ class SpatialResampled(MapTransform, InvertibleTransform):
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.dst_keys = ensure_tuple_rep(dst_keys, len(self.keys))
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d: Dict = dict(data)
-        for (key, mode, padding_mode, align_corners, dtype, dst_key) in self.key_iterator(
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
+        d: dict = dict(data)
+        for key, mode, padding_mode, align_corners, dtype, dst_key in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype, self.dst_keys
         ):
             d[key] = self.sp_transform(
@@ -223,7 +219,7 @@ class SpatialResampled(MapTransform, InvertibleTransform):
             )
         return d
 
-    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.sp_transform.inverse(d[key])
@@ -235,16 +231,14 @@ class ResampleToMatchd(MapTransform, InvertibleTransform):
 
     backend = ResampleToMatch.backend
 
-    @deprecated_arg(name="template_key", since="0.9")
     def __init__(
         self,
         keys: KeysCollection,
         key_dst: str,
-        template_key: Optional[str] = None,
         mode: SequenceStr = GridSampleMode.BILINEAR,
         padding_mode: SequenceStr = GridSamplePadMode.BORDER,
-        align_corners: Union[Sequence[bool], bool] = False,
-        dtype: Union[Sequence[DtypeLike], DtypeLike] = np.float64,
+        align_corners: Sequence[bool] | bool = False,
+        dtype: Sequence[DtypeLike] | DtypeLike = np.float64,
         allow_missing_keys: bool = False,
     ):
         """
@@ -282,9 +276,9 @@ class ResampleToMatchd(MapTransform, InvertibleTransform):
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.resampler = ResampleToMatch()
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
-        for (key, mode, padding_mode, align_corners, dtype) in self.key_iterator(
+        for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
             d[key] = self.resampler(
@@ -297,7 +291,7 @@ class ResampleToMatchd(MapTransform, InvertibleTransform):
             )
         return d
 
-    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.resampler.inverse(d[key])
@@ -320,23 +314,19 @@ class Spacingd(MapTransform, InvertibleTransform):
 
     backend = Spacing.backend
 
-    @deprecated_arg(name="meta_keys", since="0.9")
-    @deprecated_arg(name="meta_key_postfix", since="0.9")
     def __init__(
         self,
         keys: KeysCollection,
-        pixdim: Union[Sequence[float], float],
+        pixdim: Sequence[float] | float,
         diagonal: bool = False,
         mode: SequenceStr = GridSampleMode.BILINEAR,
         padding_mode: SequenceStr = GridSamplePadMode.BORDER,
-        align_corners: Union[Sequence[bool], bool] = False,
-        dtype: Union[Sequence[DtypeLike], DtypeLike] = np.float64,
+        align_corners: Sequence[bool] | bool = False,
+        dtype: Sequence[DtypeLike] | DtypeLike = np.float64,
         scale_extent: bool = False,
         recompute_affine: bool = False,
-        meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
-        min_pixdim: Union[Sequence[float], float, None] = None,
-        max_pixdim: Union[Sequence[float], float, None] = None,
+        min_pixdim: Sequence[float] | float | None = None,
+        max_pixdim: Sequence[float] | float | None = None,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -407,8 +397,8 @@ class Spacingd(MapTransform, InvertibleTransform):
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.scale_extent = ensure_tuple_rep(scale_extent, len(self.keys))
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d: Dict = dict(data)
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
+        d: dict = dict(data)
         for key, mode, padding_mode, align_corners, dtype, scale_extent in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype, self.scale_extent
         ):
@@ -423,10 +413,10 @@ class Spacingd(MapTransform, InvertibleTransform):
             )
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
-            d[key] = self.spacing_transform.inverse(d[key])
+            d[key] = self.spacing_transform.inverse(cast(torch.Tensor, d[key]))
         return d
 
 
@@ -441,16 +431,12 @@ class Orientationd(MapTransform, InvertibleTransform):
 
     backend = Orientation.backend
 
-    @deprecated_arg(name="meta_keys", since="0.9")
-    @deprecated_arg(name="meta_key_postfix", since="0.9")
     def __init__(
         self,
         keys: KeysCollection,
-        axcodes: Optional[str] = None,
+        axcodes: str | None = None,
         as_closest_canonical: bool = False,
-        labels: Optional[Sequence[Tuple[str, str]]] = (("L", "R"), ("P", "A"), ("I", "S")),
-        meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
+        labels: Sequence[tuple[str, str]] | None = (("L", "R"), ("P", "A"), ("I", "S")),
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -473,13 +459,13 @@ class Orientationd(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.ornt_transform = Orientation(axcodes=axcodes, as_closest_canonical=as_closest_canonical, labels=labels)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d: Dict = dict(data)
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
+        d: dict = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.ornt_transform(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.ornt_transform.inverse(d[key])
@@ -494,7 +480,7 @@ class Rotate90d(MapTransform, InvertibleTransform):
     backend = Rotate90.backend
 
     def __init__(
-        self, keys: KeysCollection, k: int = 1, spatial_axes: Tuple[int, int] = (0, 1), allow_missing_keys: bool = False
+        self, keys: KeysCollection, k: int = 1, spatial_axes: tuple[int, int] = (0, 1), allow_missing_keys: bool = False
     ) -> None:
         """
         Args:
@@ -506,13 +492,13 @@ class Rotate90d(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.rotator = Rotate90(k, spatial_axes)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.rotator(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.rotator.inverse(d[key])
@@ -533,7 +519,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
         keys: KeysCollection,
         prob: float = 0.1,
         max_k: int = 3,
-        spatial_axes: Tuple[int, int] = (0, 1),
+        spatial_axes: tuple[int, int] = (0, 1),
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -556,7 +542,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
 
         self._rand_k = 0
 
-    def randomize(self, data: Optional[Any] = None) -> None:
+    def randomize(self, data: Any | None = None) -> None:
         self._rand_k = self.R.randint(self.max_k) + 1
         super().randomize(None)
 
@@ -574,7 +560,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
                 self.push_transform(d[key], extra_info=xform)
         return d
 
-    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             if not isinstance(d[key], MetaTensor):
@@ -626,12 +612,12 @@ class Resized(MapTransform, InvertibleTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        spatial_size: Union[Sequence[int], int],
+        spatial_size: Sequence[int] | int,
         size_mode: str = "all",
         mode: SequenceStr = InterpolateMode.AREA,
-        align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
-        anti_aliasing: Union[Sequence[bool], bool] = False,
-        anti_aliasing_sigma: Union[Sequence[Union[Sequence[float], float, None]], Sequence[float], float, None] = None,
+        align_corners: Sequence[bool | None] | bool | None = None,
+        anti_aliasing: Sequence[bool] | bool = False,
+        anti_aliasing_sigma: Sequence[Sequence[float] | float | None] | Sequence[float] | float | None = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -641,7 +627,7 @@ class Resized(MapTransform, InvertibleTransform):
         self.anti_aliasing_sigma = ensure_tuple_rep(anti_aliasing_sigma, len(self.keys))
         self.resizer = Resize(spatial_size=spatial_size, size_mode=size_mode)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key, mode, align_corners, anti_aliasing, anti_aliasing_sigma in self.key_iterator(
             d, self.mode, self.align_corners, self.anti_aliasing, self.anti_aliasing_sigma
@@ -655,7 +641,7 @@ class Resized(MapTransform, InvertibleTransform):
             )
         return d
 
-    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.resizer.inverse(d[key])
@@ -672,16 +658,16 @@ class Affined(MapTransform, InvertibleTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        rotate_params: Optional[Union[Sequence[float], float]] = None,
-        shear_params: Optional[Union[Sequence[float], float]] = None,
-        translate_params: Optional[Union[Sequence[float], float]] = None,
-        scale_params: Optional[Union[Sequence[float], float]] = None,
-        affine: Optional[NdarrayOrTensor] = None,
-        spatial_size: Optional[Union[Sequence[int], int]] = None,
+        rotate_params: Sequence[float] | float | None = None,
+        shear_params: Sequence[float] | float | None = None,
+        translate_params: Sequence[float] | float | None = None,
+        scale_params: Sequence[float] | float | None = None,
+        affine: NdarrayOrTensor | None = None,
+        spatial_size: Sequence[int] | int | None = None,
         mode: SequenceStr = GridSampleMode.BILINEAR,
         padding_mode: SequenceStr = GridSamplePadMode.REFLECTION,
-        device: Optional[torch.device] = None,
-        dtype: Union[DtypeLike, torch.dtype] = np.float32,
+        device: torch.device | None = None,
+        dtype: DtypeLike | torch.dtype = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -746,18 +732,18 @@ class Affined(MapTransform, InvertibleTransform):
             affine=affine,
             spatial_size=spatial_size,
             device=device,
-            dtype=dtype,
+            dtype=dtype,  # type: ignore
         )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             d[key], _ = self.affine(d[key], mode=mode, padding_mode=padding_mode)
         return d
 
-    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.affine.inverse(d[key])
@@ -774,16 +760,16 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        spatial_size: Optional[Union[Sequence[int], int]] = None,
+        spatial_size: Sequence[int] | int | None = None,
         prob: float = 0.1,
-        rotate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-        shear_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-        translate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-        scale_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        rotate_range: Sequence[tuple[float, float] | float] | float | None = None,
+        shear_range: Sequence[tuple[float, float] | float] | float | None = None,
+        translate_range: Sequence[tuple[float, float] | float] | float | None = None,
+        scale_range: Sequence[tuple[float, float] | float] | float | None = None,
         mode: SequenceStr = GridSampleMode.BILINEAR,
         padding_mode: SequenceStr = GridSamplePadMode.REFLECTION,
         cache_grid: bool = False,
-        device: Optional[torch.device] = None,
+        device: torch.device | None = None,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -859,18 +845,16 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
-    def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandAffined":
+    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandAffined:
         self.rand_affine.set_random_state(seed, state)
         super().set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         first_key: Hashable = self.first_key(d)
         if first_key == ():
-            out: Dict[Hashable, NdarrayOrTensor] = convert_to_tensor(d, track_meta=get_track_meta())
+            out: dict[Hashable, NdarrayOrTensor] = convert_to_tensor(d, track_meta=get_track_meta())
             return out
 
         self.randomize(None)
@@ -900,7 +884,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
                 self.push_transform(d[key], extra_info={"do_resampling": do_resampling, "rand_affine_info": xform})
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             tr = self.pop_transform(d[key])
@@ -922,17 +906,17 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        spacing: Union[Tuple[float, float], float],
-        magnitude_range: Tuple[float, float],
-        spatial_size: Optional[Union[Tuple[int, int], int]] = None,
+        spacing: tuple[float, float] | float,
+        magnitude_range: tuple[float, float],
+        spatial_size: tuple[int, int] | int | None = None,
         prob: float = 0.1,
-        rotate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-        shear_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-        translate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-        scale_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        rotate_range: Sequence[tuple[float, float] | float] | float | None = None,
+        shear_range: Sequence[tuple[float, float] | float] | float | None = None,
+        translate_range: Sequence[tuple[float, float] | float] | float | None = None,
+        scale_range: Sequence[tuple[float, float] | float] | float | None = None,
         mode: SequenceStr = GridSampleMode.BILINEAR,
         padding_mode: SequenceStr = GridSamplePadMode.REFLECTION,
-        device: Optional[torch.device] = None,
+        device: torch.device | None = None,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -1008,19 +992,17 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
-    def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "Rand2DElasticd":
+    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> Rand2DElasticd:
         self.rand_2d_elastic.set_random_state(seed, state)
         super().set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         first_key: Hashable = self.first_key(d)
 
         if first_key == ():
-            out: Dict[Hashable, NdarrayOrTensor] = convert_to_tensor(d, track_meta=get_track_meta())
+            out: dict[Hashable, NdarrayOrTensor] = convert_to_tensor(d, track_meta=get_track_meta())
             return out
 
         self.randomize(None)
@@ -1045,7 +1027,7 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
             )
             grid = CenterSpatialCrop(roi_size=sp_size)(grid[0])
         else:
-            grid = create_grid(spatial_size=sp_size, device=device, backend="torch")
+            grid = cast(torch.Tensor, create_grid(spatial_size=sp_size, device=device, backend="torch"))
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             d[key] = self.rand_2d_elastic.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)  # type: ignore
@@ -1062,17 +1044,17 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        sigma_range: Tuple[float, float],
-        magnitude_range: Tuple[float, float],
-        spatial_size: Optional[Union[Tuple[int, int, int], int]] = None,
+        sigma_range: tuple[float, float],
+        magnitude_range: tuple[float, float],
+        spatial_size: tuple[int, int, int] | int | None = None,
         prob: float = 0.1,
-        rotate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-        shear_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-        translate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-        scale_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        rotate_range: Sequence[tuple[float, float] | float] | float | None = None,
+        shear_range: Sequence[tuple[float, float] | float] | float | None = None,
+        translate_range: Sequence[tuple[float, float] | float] | float | None = None,
+        scale_range: Sequence[tuple[float, float] | float] | float | None = None,
         mode: SequenceStr = GridSampleMode.BILINEAR,
         padding_mode: SequenceStr = GridSamplePadMode.REFLECTION,
-        device: Optional[torch.device] = None,
+        device: torch.device | None = None,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -1150,19 +1132,17 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
-    def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "Rand3DElasticd":
+    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> Rand3DElasticd:
         self.rand_3d_elastic.set_random_state(seed, state)
         super().set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         first_key: Hashable = self.first_key(d)
 
         if first_key == ():
-            out: Dict[Hashable, torch.Tensor] = convert_to_tensor(d, track_meta=get_track_meta())
+            out: dict[Hashable, torch.Tensor] = convert_to_tensor(d, track_meta=get_track_meta())
             return out
 
         self.randomize(None)
@@ -1204,21 +1184,18 @@ class Flipd(MapTransform, InvertibleTransform):
     backend = Flip.backend
 
     def __init__(
-        self,
-        keys: KeysCollection,
-        spatial_axis: Optional[Union[Sequence[int], int]] = None,
-        allow_missing_keys: bool = False,
+        self, keys: KeysCollection, spatial_axis: Sequence[int] | int | None = None, allow_missing_keys: bool = False
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.flipper = Flip(spatial_axis=spatial_axis)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.flipper(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.flipper.inverse(d[key])
@@ -1245,20 +1222,18 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         self,
         keys: KeysCollection,
         prob: float = 0.1,
-        spatial_axis: Optional[Union[Sequence[int], int]] = None,
+        spatial_axis: Sequence[int] | int | None = None,
         allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
         self.flipper = Flip(spatial_axis=spatial_axis)
 
-    def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandFlipd":
+    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandFlipd:
         super().set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         self.randomize(None)
 
@@ -1272,7 +1247,7 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
                 self.push_transform(d[key], extra_info=xform_info)
         return d
 
-    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             xform = self.pop_transform(d[key])
@@ -1304,14 +1279,12 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         RandomizableTransform.__init__(self, prob)
         self.flipper = RandAxisFlip(prob=1.0)
 
-    def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandAxisFlipd":
+    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandAxisFlipd:
         super().set_random_state(seed, state)
         self.flipper.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         first_key: Hashable = self.first_key(d)
         if first_key == ():
@@ -1332,7 +1305,7 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
                 self.push_transform(d[key], extra_info=xform)
         return d
 
-    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             xform = self.pop_transform(d[key])
@@ -1375,12 +1348,12 @@ class Rotated(MapTransform, InvertibleTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        angle: Union[Sequence[float], float],
+        angle: Sequence[float] | float,
         keep_size: bool = True,
         mode: SequenceStr = GridSampleMode.BILINEAR,
         padding_mode: SequenceStr = GridSamplePadMode.BORDER,
-        align_corners: Union[Sequence[bool], bool] = False,
-        dtype: Union[Sequence[Union[DtypeLike, torch.dtype]], DtypeLike, torch.dtype] = np.float32,
+        align_corners: Sequence[bool] | bool = False,
+        dtype: Sequence[DtypeLike | torch.dtype] | DtypeLike | torch.dtype = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -1391,7 +1364,7 @@ class Rotated(MapTransform, InvertibleTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype
@@ -1401,7 +1374,7 @@ class Rotated(MapTransform, InvertibleTransform):
             )
         return d
 
-    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.rotator.inverse(d[key])
@@ -1448,15 +1421,15 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        range_x: Union[Tuple[float, float], float] = 0.0,
-        range_y: Union[Tuple[float, float], float] = 0.0,
-        range_z: Union[Tuple[float, float], float] = 0.0,
+        range_x: tuple[float, float] | float = 0.0,
+        range_y: tuple[float, float] | float = 0.0,
+        range_z: tuple[float, float] | float = 0.0,
         prob: float = 0.1,
         keep_size: bool = True,
         mode: SequenceStr = GridSampleMode.BILINEAR,
         padding_mode: SequenceStr = GridSamplePadMode.BORDER,
-        align_corners: Union[Sequence[bool], bool] = False,
-        dtype: Union[Sequence[Union[DtypeLike, torch.dtype]], DtypeLike, torch.dtype] = np.float32,
+        align_corners: Sequence[bool] | bool = False,
+        dtype: Sequence[DtypeLike | torch.dtype] | DtypeLike | torch.dtype = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -1467,14 +1440,12 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
 
-    def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandRotated":
+    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandRotated:
         super().set_random_state(seed, state)
         self.rand_rotate.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         self.randomize(None)
 
@@ -1499,7 +1470,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
                 self.push_transform(d[key], extra_info=rot_info)
         return d
 
-    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             xform = self.pop_transform(d[key])
@@ -1545,10 +1516,10 @@ class Zoomd(MapTransform, InvertibleTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        zoom: Union[Sequence[float], float],
+        zoom: Sequence[float] | float,
         mode: SequenceStr = InterpolateMode.AREA,
         padding_mode: SequenceStr = NumpyPadMode.EDGE,
-        align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
+        align_corners: Sequence[bool | None] | bool | None = None,
         keep_size: bool = True,
         allow_missing_keys: bool = False,
         **kwargs,
@@ -1559,7 +1530,7 @@ class Zoomd(MapTransform, InvertibleTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.zoomer = Zoom(zoom=zoom, keep_size=keep_size, **kwargs)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key, mode, padding_mode, align_corners in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners
@@ -1567,7 +1538,7 @@ class Zoomd(MapTransform, InvertibleTransform):
             d[key] = self.zoomer(d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners)
         return d
 
-    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.zoomer.inverse(d[key])
@@ -1619,11 +1590,11 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         self,
         keys: KeysCollection,
         prob: float = 0.1,
-        min_zoom: Union[Sequence[float], float] = 0.9,
-        max_zoom: Union[Sequence[float], float] = 1.1,
+        min_zoom: Sequence[float] | float = 0.9,
+        max_zoom: Sequence[float] | float = 1.1,
         mode: SequenceStr = InterpolateMode.AREA,
         padding_mode: SequenceStr = NumpyPadMode.EDGE,
-        align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
+        align_corners: Sequence[bool | None] | bool | None = None,
         keep_size: bool = True,
         allow_missing_keys: bool = False,
         **kwargs,
@@ -1635,18 +1606,16 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
 
-    def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandZoomd":
+    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandZoomd:
         super().set_random_state(seed, state)
         self.rand_zoom.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         first_key: Hashable = self.first_key(d)
         if first_key == ():
-            out: Dict[Hashable, torch.Tensor] = convert_to_tensor(d, track_meta=get_track_meta())
+            out: dict[Hashable, torch.Tensor] = convert_to_tensor(d, track_meta=get_track_meta())
             return out
 
         self.randomize(None)
@@ -1668,7 +1637,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
                 self.push_transform(d[key], extra_info=xform)
         return d
 
-    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             xform = self.pop_transform(d[key])
@@ -1688,11 +1657,11 @@ class GridDistortiond(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        num_cells: Union[Tuple[int], int],
-        distort_steps: List[Tuple],
+        num_cells: tuple[int] | int,
+        distort_steps: list[tuple],
         mode: str = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.BORDER,
-        device: Optional[torch.device] = None,
+        device: torch.device | None = None,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -1725,7 +1694,7 @@ class GridDistortiond(MapTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             d[key] = self.grid_distortion(d[key], mode=mode, padding_mode=padding_mode)
@@ -1742,12 +1711,12 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        num_cells: Union[Tuple[int], int] = 5,
+        num_cells: tuple[int] | int = 5,
         prob: float = 0.1,
-        distort_limit: Union[Tuple[float, float], float] = (-0.03, 0.03),
+        distort_limit: tuple[float, float] | float = (-0.03, 0.03),
         mode: str = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.BORDER,
-        device: Optional[torch.device] = None,
+        device: torch.device | None = None,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -1785,17 +1754,17 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
     def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandGridDistortiond":
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandGridDistortiond:
         super().set_random_state(seed, state)
         self.rand_grid_distortion.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
-            out: Dict[Hashable, torch.Tensor] = convert_to_tensor(d, track_meta=get_track_meta())
+            out: dict[Hashable, torch.Tensor] = convert_to_tensor(d, track_meta=get_track_meta())
             return out
 
         first_key: Hashable = self.first_key(d)
@@ -1831,8 +1800,8 @@ class GridSplitd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        grid: Tuple[int, int] = (2, 2),
-        size: Optional[Union[int, Tuple[int, int], Dict[Hashable, Union[int, Tuple[int, int], None]]]] = None,
+        grid: tuple[int, int] = (2, 2),
+        size: int | tuple[int, int] | dict[Hashable, int | tuple[int, int] | None] | None = None,
         allow_missing_keys: bool = False,
     ):
         super().__init__(keys, allow_missing_keys)
@@ -1840,10 +1809,10 @@ class GridSplitd(MapTransform):
         self.size = size if isinstance(size, dict) else {key: size for key in self.keys}
         self.splitter = GridSplit(grid=grid)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict[Hashable, NdarrayOrTensor]]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> list[dict[Hashable, NdarrayOrTensor]]:
         d = dict(data)
         n_outputs = np.prod(self.grid)
-        output: List[Dict[Hashable, NdarrayOrTensor]] = [dict(d) for _ in range(n_outputs)]
+        output: list[dict[Hashable, NdarrayOrTensor]] = [dict(d) for _ in range(n_outputs)]
         for key in self.key_iterator(d):
             result = self.splitter(d[key], self.size[key])
             for i in range(n_outputs):
@@ -1887,11 +1856,11 @@ class GridPatchd(MapTransform):
         self,
         keys: KeysCollection,
         patch_size: Sequence[int],
-        offset: Optional[Sequence[int]] = None,
-        num_patches: Optional[int] = None,
+        offset: Sequence[int] | None = None,
+        num_patches: int | None = None,
         overlap: float = 0.0,
-        sort_fn: Optional[str] = None,
-        threshold: Optional[float] = None,
+        sort_fn: str | None = None,
+        threshold: float | None = None,
         pad_mode: str = PytorchPadMode.CONSTANT,
         allow_missing_keys: bool = False,
         **pad_kwargs,
@@ -1908,7 +1877,7 @@ class GridPatchd(MapTransform):
             **pad_kwargs,
         )
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.patcher(d[key])
@@ -1955,12 +1924,12 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
         self,
         keys: KeysCollection,
         patch_size: Sequence[int],
-        min_offset: Optional[Union[Sequence[int], int]] = None,
-        max_offset: Optional[Union[Sequence[int], int]] = None,
-        num_patches: Optional[int] = None,
+        min_offset: Sequence[int] | int | None = None,
+        max_offset: Sequence[int] | int | None = None,
+        num_patches: int | None = None,
         overlap: float = 0.0,
-        sort_fn: Optional[str] = None,
-        threshold: Optional[float] = None,
+        sort_fn: str | None = None,
+        threshold: float | None = None,
         pad_mode: str = PytorchPadMode.CONSTANT,
         allow_missing_keys: bool = False,
         **pad_kwargs,
@@ -1978,14 +1947,12 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
             **pad_kwargs,
         )
 
-    def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandGridPatchd":
+    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandGridPatchd:
         super().set_random_state(seed, state)
         self.patcher.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         # All the keys share the same random noise
         for key in self.key_iterator(d):

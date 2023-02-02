@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import importlib
 import os
 import shutil
@@ -16,10 +18,11 @@ import subprocess
 import sys
 import time
 import warnings
+from collections.abc import Mapping
 from copy import deepcopy
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Dict, List, Mapping, Optional, Union
+from typing import Any
 from urllib.parse import urlparse
 
 import torch
@@ -369,14 +372,12 @@ class BundleGen(AlgoGen):
     def __init__(
         self,
         algo_path: str = ".",
-        algos: Optional[Union[Dict, List, str]] = None,
-        templates_path_or_url: Optional[str] = None,
-        data_stats_filename: Optional[str] = None,
-        data_src_cfg_name: Optional[str] = None,
+        algos: dict | list | str | None = None,
+        templates_path_or_url: str | None = None,
+        data_stats_filename: str | None = None,
+        data_src_cfg_name: str | None = None,
     ):
-
         if algos is None or isinstance(algos, (list, tuple, str)):
-
             if templates_path_or_url is None:
                 templates_path_or_url = default_algo_zip
 
@@ -401,7 +402,6 @@ class BundleGen(AlgoGen):
         self.algos: Any = []
         if isinstance(algos, dict):
             for algo_name, algo_params in algos.items():
-
                 template_path = os.path.dirname(algo_params.get("template_path", "."))
                 if len(template_path) > 0 and template_path not in sys.path:
                     sys.path.append(template_path)
@@ -426,7 +426,7 @@ class BundleGen(AlgoGen):
 
         self.data_stats_filename = data_stats_filename
         self.data_src_cfg_filename = data_src_cfg_name
-        self.history: List[Dict] = []
+        self.history: list[dict] = []
 
     def set_data_stats(self, data_stats_filename: str):
         """
@@ -454,7 +454,7 @@ class BundleGen(AlgoGen):
         """Get the data source filename"""
         return self.data_src_cfg_filename
 
-    def get_history(self) -> List:
+    def get_history(self) -> list:
         """get the history of the bundleAlgo object with their names/identifiers"""
         return self.history
 
@@ -463,7 +463,7 @@ class BundleGen(AlgoGen):
         output_folder=".",
         num_fold: int = 5,
         gpu_customization: bool = False,
-        gpu_customization_specs: Optional[Dict[str, Any]] = None,
+        gpu_customization_specs: dict[str, Any] | None = None,
     ):
         """
         Generate the bundle scripts/configs for each bundleAlgo

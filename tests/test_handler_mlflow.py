@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import glob
 import os
 import shutil
@@ -58,7 +60,6 @@ class TestHandlerMLFlow(unittest.TestCase):
     def test_metrics_track(self):
         experiment_param = {"backbone": "efficientnet_b0"}
         with tempfile.TemporaryDirectory() as tempdir:
-
             # set up engine
             def _train_func(engine, batch):
                 return [batch + 1.0]

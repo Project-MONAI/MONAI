@@ -22,6 +22,9 @@ jobs:
   #   - os-latest-pip- (shared)
   flake8-py3:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        opt: ["codeformat", "pytype", "mypy"]
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python 3.8
@@ -46,8 +49,8 @@ jobs:
       run: |
         # clean up temporary files
         $(pwd)/runtests.sh --build --clean
-        # Git hub actions have 2 cores, so parallize pytype
-        $(pwd)/runtests.sh --build --codeformat -j 2
+        # Github actions have 2 cores, so parallelize pytype
+        $(pwd)/runtests.sh --build --${{ matrix.opt }} -j 2
 
   quick-py3:  # full dependencies installed tests for different OS
     runs-on: ${{ matrix.os }}
@@ -101,8 +104,7 @@ jobs:
         python -m pip list
         python setup.py develop  # test no compile installation
       shell: bash
-    - if: runner.os != 'windows'
-      name: Run compiled (${{ runner.os }})
+    - name: Run compiled (${{ runner.os }})
       run: |
         python setup.py develop --uninstall
         BUILD_MONAI=1 python setup.py develop  # compile the cpp extensions

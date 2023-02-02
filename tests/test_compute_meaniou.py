@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -198,7 +200,6 @@ class TestComputeMeanIoU(unittest.TestCase):
     # MeanIoU class tests
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_10])
     def test_value_class(self, input_data, expected_value):
-
         # same test as for compute_meaniou
         vals = {}
         vals["y_pred"] = input_data.pop("y_pred")
@@ -210,7 +211,6 @@ class TestComputeMeanIoU(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8])
     def test_nans_class(self, params, input_data, expected_value):
-
         iou_metric = MeanIoU(**params)
         iou_metric(**input_data)
         result, _ = iou_metric.aggregate()

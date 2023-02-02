@@ -37,8 +37,11 @@ Part of this script is adapted from
 https://github.com/pytorch/vision/blob/main/torchvision/models/detection/retinanet.py
 """
 
+from __future__ import annotations
+
 import warnings
-from typing import Any, Callable, Dict, List, Sequence, Tuple, Union
+from collections.abc import Callable, Sequence
+from typing import Any
 
 import torch
 from torch import Tensor, nn
@@ -209,14 +212,14 @@ class RetinaNetDetector(nn.Module):
             )
         # if new coming input images has same shape with
         # self.previous_image_shape, there is no need to generate new anchors.
-        self.anchors: Union[List[Tensor], None] = None
-        self.previous_image_shape: Union[Any, None] = None
+        self.anchors: list[Tensor] | None = None
+        self.previous_image_shape: Any | None = None
 
         self.box_overlap_metric = box_overlap_metric
         self.debug = debug
 
         # default setting for training
-        self.fg_bg_sampler: Union[Any, None] = None
+        self.fg_bg_sampler: Any | None = None
         self.set_cls_loss(torch.nn.BCEWithLogitsLoss(reduction="mean"))  # classification loss
         self.set_box_regression_loss(
             torch.nn.SmoothL1Loss(beta=1.0 / 9, reduction="mean"), encode_gt=True, decode_pred=False
@@ -234,7 +237,7 @@ class RetinaNetDetector(nn.Module):
 
         # default setting for inference,
         # can be updated by self.set_sliding_window_inferer(*)
-        self.inferer: Union[SlidingWindowInferer, None] = None
+        self.inferer: SlidingWindowInferer | None = None
         # can be updated by self.set_box_selector_parameters(*),
         self.box_selector = BoxSelector(
             box_overlap_metric=self.box_overlap_metric,
@@ -245,7 +248,7 @@ class RetinaNetDetector(nn.Module):
             apply_sigmoid=True,
         )
 
-    def set_box_coder_weights(self, weights: Tuple[float]):
+    def set_box_coder_weights(self, weights: tuple[float]):
         """
         Set the weights for box coder.
 
@@ -382,15 +385,15 @@ class RetinaNetDetector(nn.Module):
 
     def set_sliding_window_inferer(
         self,
-        roi_size: Union[Sequence[int], int],
+        roi_size: Sequence[int] | int,
         sw_batch_size: int = 1,
         overlap: float = 0.5,
-        mode: Union[BlendMode, str] = BlendMode.CONSTANT,
-        sigma_scale: Union[Sequence[float], float] = 0.125,
-        padding_mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
+        mode: BlendMode | str = BlendMode.CONSTANT,
+        sigma_scale: Sequence[float] | float = 0.125,
+        padding_mode: PytorchPadMode | str = PytorchPadMode.CONSTANT,
         cval: float = 0.0,
-        sw_device: Union[torch.device, str, None] = None,
-        device: Union[torch.device, str, None] = None,
+        sw_device: torch.device | str | None = None,
+        device: torch.device | str | None = None,
         progress: bool = False,
         cache_roi_weight_map: bool = False,
     ):
@@ -446,10 +449,10 @@ class RetinaNetDetector(nn.Module):
 
     def forward(
         self,
-        input_images: Union[List[Tensor], Tensor],
-        targets: Union[List[Dict[str, Tensor]], None] = None,
+        input_images: list[Tensor] | Tensor,
+        targets: list[dict[str, Tensor]] | None = None,
         use_inferer: bool = False,
-    ) -> Union[Dict[str, Tensor], List[Dict[str, Tensor]]]:
+    ) -> dict[str, Tensor] | list[dict[str, Tensor]]:
         """
         Returns a dict of losses during training, or a list predicted dict of boxes and labels during inference.
 
@@ -536,7 +539,7 @@ class RetinaNetDetector(nn.Module):
                 "or set classification loss function as Focal loss with self.set_cls_loss(*)"
             )
 
-    def generate_anchors(self, images: Tensor, head_outputs: Dict[str, List[Tensor]]):
+    def generate_anchors(self, images: Tensor, head_outputs: dict[str, list[Tensor]]):
         """
         Generate anchors and store it in self.anchors: List[Tensor].
         We generate anchors only when there is no stored anchors,
@@ -552,7 +555,7 @@ class RetinaNetDetector(nn.Module):
             self.anchors = self.anchor_generator(images, head_outputs[self.cls_key])  # List[Tensor], len = batchsize
             self.previous_image_shape = images.shape
 
-    def _reshape_maps(self, result_maps: List[Tensor]) -> Tensor:
+    def _reshape_maps(self, result_maps: list[Tensor]) -> Tensor:
         """
         Concat network output map list to a single Tensor.
         This function is used in both training and inference.
@@ -596,12 +599,12 @@ class RetinaNetDetector(nn.Module):
 
     def postprocess_detections(
         self,
-        head_outputs_reshape: Dict[str, Tensor],
-        anchors: List[Tensor],
-        image_sizes: List[List[int]],
+        head_outputs_reshape: dict[str, Tensor],
+        anchors: list[Tensor],
+        image_sizes: list[list[int]],
         num_anchor_locs_per_level: Sequence[int],
         need_sigmoid: bool = True,
-    ) -> List[Dict[str, Tensor]]:
+    ) -> list[dict[str, Tensor]]:
         """
         Postprocessing to generate detection result from classification logits and box regression.
         Use self.box_selector to select the final output boxes for each image.
@@ -626,7 +629,7 @@ class RetinaNetDetector(nn.Module):
         ]
 
         # split outputs per level
-        split_head_outputs: Dict[str, List[Tensor]] = {}
+        split_head_outputs: dict[str, list[Tensor]] = {}
         for k in head_outputs_reshape:
             split_head_outputs[k] = list(head_outputs_reshape[k].split(num_anchors_per_level, dim=1))
         split_anchors = [list(a.split(num_anchors_per_level)) for a in anchors]  # List[List[Tensor]]
@@ -637,7 +640,7 @@ class RetinaNetDetector(nn.Module):
 
         num_images = len(image_sizes)  # B
 
-        detections: List[Dict[str, Tensor]] = []
+        detections: list[dict[str, Tensor]] = []
 
         for index in range(num_images):
             box_regression_per_image = [
@@ -667,11 +670,11 @@ class RetinaNetDetector(nn.Module):
 
     def compute_loss(
         self,
-        head_outputs_reshape: Dict[str, Tensor],
-        targets: List[Dict[str, Tensor]],
-        anchors: List[Tensor],
+        head_outputs_reshape: dict[str, Tensor],
+        targets: list[dict[str, Tensor]],
+        anchors: list[Tensor],
         num_anchor_locs_per_level: Sequence[int],
-    ) -> Dict[str, Tensor]:
+    ) -> dict[str, Tensor]:
         """
         Compute losses.
 
@@ -696,8 +699,8 @@ class RetinaNetDetector(nn.Module):
         return {self.cls_key: losses_cls, self.box_reg_key: losses_box_regression}
 
     def compute_anchor_matched_idxs(
-        self, anchors: List[Tensor], targets: List[Dict[str, Tensor]], num_anchor_locs_per_level: Sequence[int]
-    ) -> List[Tensor]:
+        self, anchors: list[Tensor], targets: list[dict[str, Tensor]], num_anchor_locs_per_level: Sequence[int]
+    ) -> list[Tensor]:
         """
         Compute the matched indices between anchors and ground truth (gt) boxes in targets.
         output[k][i] represents the matched gt index for anchor[i] in image k.
@@ -768,7 +771,7 @@ class RetinaNetDetector(nn.Module):
         return matched_idxs
 
     def compute_cls_loss(
-        self, cls_logits: Tensor, targets: List[Dict[str, Tensor]], matched_idxs: List[Tensor]
+        self, cls_logits: Tensor, targets: list[dict[str, Tensor]], matched_idxs: list[Tensor]
     ) -> Tensor:
         """
         Compute classification losses.
@@ -800,9 +803,9 @@ class RetinaNetDetector(nn.Module):
     def compute_box_loss(
         self,
         box_regression: Tensor,
-        targets: List[Dict[str, Tensor]],
-        anchors: List[Tensor],
-        matched_idxs: List[Tensor],
+        targets: list[dict[str, Tensor]],
+        anchors: list[Tensor],
+        matched_idxs: list[Tensor],
     ) -> Tensor:
         """
         Compute box regression losses.
@@ -845,8 +848,8 @@ class RetinaNetDetector(nn.Module):
         return losses
 
     def get_cls_train_sample_per_image(
-        self, cls_logits_per_image: Tensor, targets_per_image: Dict[str, Tensor], matched_idxs_per_image: Tensor
-    ) -> Tuple[Tensor, Tensor]:
+        self, cls_logits_per_image: Tensor, targets_per_image: dict[str, Tensor], matched_idxs_per_image: Tensor
+    ) -> tuple[Tensor, Tensor]:
         """
         Get samples from one image for classification losses computation.
 
@@ -923,10 +926,10 @@ class RetinaNetDetector(nn.Module):
     def get_box_train_sample_per_image(
         self,
         box_regression_per_image: Tensor,
-        targets_per_image: Dict[str, Tensor],
+        targets_per_image: dict[str, Tensor],
         anchors_per_image: Tensor,
         matched_idxs_per_image: Tensor,
-    ) -> Tuple[Tensor, Tensor]:
+    ) -> tuple[Tensor, Tensor]:
         """
         Get samples from one image for box regression losses computation.
 

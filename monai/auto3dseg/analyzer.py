@@ -9,10 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import time
 from abc import ABC, abstractmethod
+from collections.abc import Hashable, Mapping
 from copy import deepcopy
-from typing import Any, Dict, Hashable, List, Mapping, Optional, Union
+from typing import Any
 
 import numpy as np
 import torch
@@ -196,7 +199,6 @@ class ImageStats(Analyzer):
     """
 
     def __init__(self, image_key: str, stats_name: str = "image_stats") -> None:
-
         if not isinstance(image_key, str):
             raise ValueError("image_key input must be str")
 
@@ -289,7 +291,6 @@ class FgImageStats(Analyzer):
     """
 
     def __init__(self, image_key: str, label_key: str, stats_name: str = "image_foreground_stats"):
-
         self.image_key = image_key
         self.label_key = label_key
 
@@ -371,13 +372,12 @@ class LabelStats(Analyzer):
 
     """
 
-    def __init__(self, image_key: str, label_key: str, stats_name: str = "label_stats", do_ccp: Optional[bool] = True):
-
+    def __init__(self, image_key: str, label_key: str, stats_name: str = "label_stats", do_ccp: bool | None = True):
         self.image_key = image_key
         self.label_key = label_key
         self.do_ccp = do_ccp
 
-        report_format: Dict[LabelStatsKeys, Any] = {
+        report_format: dict[LabelStatsKeys, Any] = {
             LabelStatsKeys.LABEL_UID: None,
             LabelStatsKeys.IMAGE_INTST: None,
             LabelStatsKeys.LABEL: [{LabelStatsKeys.PIXEL_PCT: None, LabelStatsKeys.IMAGE_INTST: None}],
@@ -394,7 +394,7 @@ class LabelStats(Analyzer):
         id_seq = ID_SEP_KEY.join([LabelStatsKeys.LABEL, "0", LabelStatsKeys.IMAGE_INTST])
         self.update_ops_nested_label(id_seq, SampleOperations())
 
-    def __call__(self, data: Mapping[Hashable, MetaTensor]) -> Dict[Hashable, MetaTensor]:
+    def __call__(self, data: Mapping[Hashable, MetaTensor]) -> dict[Hashable, MetaTensor]:
         """
         Callable to execute the pre-defined functions.
 
@@ -442,7 +442,7 @@ class LabelStats(Analyzer):
             The stats operation uses numpy and torch to compute max, min, and other
             functions. If the input has nan/inf, the stats results will be nan/inf.
         """
-        d: Dict[Hashable, MetaTensor] = dict(data)
+        d: dict[Hashable, MetaTensor] = dict(data)
         start = time.time()
         if isinstance(d[self.image_key], (torch.Tensor, MetaTensor)) and d[self.image_key].device.type == "cuda":
             using_cuda = True
@@ -451,13 +451,13 @@ class LabelStats(Analyzer):
         restore_grad_state = torch.is_grad_enabled()
         torch.set_grad_enabled(False)
 
-        ndas: List[MetaTensor] = [d[self.image_key][i] for i in range(d[self.image_key].shape[0])]  # type: ignore
+        ndas: list[MetaTensor] = [d[self.image_key][i] for i in range(d[self.image_key].shape[0])]  # type: ignore
         ndas_label: MetaTensor = d[self.label_key]  # (H,W,D)
 
         if ndas_label.shape != ndas[0].shape:
             raise ValueError(f"Label shape {ndas_label.shape} is different from image shape {ndas[0].shape}")
 
-        nda_foregrounds: List[torch.Tensor] = [get_foreground_label(nda, ndas_label) for nda in ndas]
+        nda_foregrounds: list[torch.Tensor] = [get_foreground_label(nda, ndas_label) for nda in ndas]
         nda_foregrounds = [nda if nda.numel() > 0 else torch.Tensor([0]) for nda in nda_foregrounds]
 
         unique_label = unique(ndas_label)
@@ -471,7 +471,7 @@ class LabelStats(Analyzer):
         pixel_arr = []
         for index in unique_label:
             start_label = time.time()
-            label_dict: Dict[str, Any] = {}
+            label_dict: dict[str, Any] = {}
             mask_index = ndas_label == index
 
             nda_masks = [nda[mask_index] for nda in ndas]
@@ -527,7 +527,7 @@ class ImageStatsSumm(Analyzer):
 
     """
 
-    def __init__(self, stats_name: str = "image_stats", average: Optional[bool] = True):
+    def __init__(self, stats_name: str = "image_stats", average: bool | None = True):
         self.summary_average = average
         report_format = {
             ImageStatsKeys.SHAPE: None,
@@ -544,7 +544,7 @@ class ImageStatsSumm(Analyzer):
         self.update_ops(ImageStatsKeys.SPACING, SampleOperations())
         self.update_ops(ImageStatsKeys.INTENSITY, SummaryOperations())
 
-    def __call__(self, data: List[Dict]):
+    def __call__(self, data: list[dict]):
         """
         Callable to execute the pre-defined functions
 
@@ -608,14 +608,14 @@ class FgImageStatsSumm(Analyzer):
 
     """
 
-    def __init__(self, stats_name: str = "image_foreground_stats", average: Optional[bool] = True):
+    def __init__(self, stats_name: str = "image_foreground_stats", average: bool | None = True):
         self.summary_average = average
 
         report_format = {ImageStatsKeys.INTENSITY: None}
         super().__init__(stats_name, report_format)
         self.update_ops(ImageStatsKeys.INTENSITY, SummaryOperations())
 
-    def __call__(self, data: List[Dict]):
+    def __call__(self, data: list[dict]):
         """
         Callable to execute the pre-defined functions.
 
@@ -672,11 +672,11 @@ class LabelStatsSumm(Analyzer):
 
     """
 
-    def __init__(self, stats_name: str = "label_stats", average: Optional[bool] = True, do_ccp: Optional[bool] = True):
+    def __init__(self, stats_name: str = "label_stats", average: bool | None = True, do_ccp: bool | None = True):
         self.summary_average = average
         self.do_ccp = do_ccp
 
-        report_format: Dict[str, Any] = {
+        report_format: dict[str, Any] = {
             LabelStatsKeys.LABEL_UID: None,
             LabelStatsKeys.IMAGE_INTST: None,
             LabelStatsKeys.LABEL: [{LabelStatsKeys.PIXEL_PCT: None, LabelStatsKeys.IMAGE_INTST: None}],
@@ -702,7 +702,7 @@ class LabelStatsSumm(Analyzer):
         id_seq = ID_SEP_KEY.join([LabelStatsKeys.LABEL, "0", LabelStatsKeys.LABEL_NCOMP])
         self.update_ops_nested_label(id_seq, SampleOperations())
 
-    def __call__(self, data: List[Dict]):
+    def __call__(self, data: list[dict]):
         """
         Callable to execute the pre-defined functions
 
@@ -800,7 +800,7 @@ class FilenameStats(Analyzer):
 
     """
 
-    def __init__(self, key: Optional[str], stats_name: str) -> None:
+    def __init__(self, key: str | None, stats_name: str) -> None:
         self.key = key
         super().__init__(stats_name, {})
 
@@ -851,14 +851,13 @@ class ImageHistogram(Analyzer):
         self,
         image_key: str,
         stats_name: str = DataStatsKeys.IMAGE_HISTOGRAM,
-        hist_bins: Union[List[int], int, None] = None,
-        hist_range: Optional[list] = None,
+        hist_bins: list[int] | int | None = None,
+        hist_range: list | None = None,
     ):
-
         self.image_key = image_key
 
         # set defaults
-        self.hist_bins: List[int] = (
+        self.hist_bins: list[int] = (
             [100] if hist_bins is None else hist_bins if isinstance(hist_bins, list) else [hist_bins]
         )
         self.hist_range: list = [-500, 500] if hist_range is None else hist_range
@@ -949,14 +948,14 @@ class ImageHistogramSumm(Analyzer):
 
     """
 
-    def __init__(self, stats_name: str = DataStatsKeys.IMAGE_HISTOGRAM, average: Optional[bool] = True):
+    def __init__(self, stats_name: str = DataStatsKeys.IMAGE_HISTOGRAM, average: bool | None = True):
         self.summary_average = average
         report_format = {ImageStatsKeys.HISTOGRAM: None}
         super().__init__(stats_name, report_format)
 
         self.update_ops(ImageStatsKeys.HISTOGRAM, SummaryOperations())
 
-    def __call__(self, data: List[Dict]):
+    def __call__(self, data: list[dict]):
         """
         Callable to execute the pre-defined functions
 
@@ -991,7 +990,7 @@ class ImageHistogramSumm(Analyzer):
         if self.stats_name not in data[0]:
             return KeyError(f"{self.stats_name} is not in input data")
 
-        summ_histogram: Dict = {}
+        summ_histogram: dict = {}
 
         for d in data:
             if not summ_histogram:

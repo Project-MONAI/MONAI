@@ -9,9 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import unittest
-from typing import Any, Tuple
+from typing import Any
 from unittest import skipUnless
 
 import numpy as np
@@ -255,7 +257,7 @@ class WSIReaderDeprecatedTests:
 
         @parameterized.expand([TEST_CASE_TRANSFORM_0])
         def test_with_dataloader(
-            self, file_path: PathLike, level: int, expected_spatial_shape: Any, expected_shape: Tuple[int, ...]
+            self, file_path: PathLike, level: int, expected_spatial_shape: Any, expected_shape: tuple[int, ...]
         ):
             train_transform = Compose(
                 [
@@ -265,7 +267,7 @@ class WSIReaderDeprecatedTests:
             )
             dataset = Dataset([{"image": file_path}], transform=train_transform)
             data_loader = DataLoader(dataset)
-            data: dict = first(data_loader)
+            data: dict = first(data_loader, {})
             for s in data[PostFix.meta("image")]["spatial_shape"]:
                 assert_allclose(s, expected_spatial_shape, type_test=False)
             self.assertTupleEqual(data["image"].shape, expected_shape)
@@ -362,7 +364,7 @@ class WSIReaderTests:
 
         @parameterized.expand([TEST_CASE_TRANSFORM_0])
         def test_with_dataloader(
-            self, file_path: PathLike, level: int, expected_spatial_shape: Any, expected_shape: Tuple[int, ...]
+            self, file_path: PathLike, level: int, expected_spatial_shape: Any, expected_shape: tuple[int, ...]
         ):
             train_transform = Compose(
                 [
@@ -372,14 +374,14 @@ class WSIReaderTests:
             )
             dataset = Dataset([{"image": file_path}], transform=train_transform)
             data_loader = DataLoader(dataset)
-            data: dict = first(data_loader)
+            data: dict = first(data_loader, {})
             for s in data[PostFix.meta("image")]["spatial_shape"]:
                 assert_allclose(s, expected_spatial_shape, type_test=False)
             self.assertTupleEqual(data["image"].shape, expected_shape)
 
         @parameterized.expand([TEST_CASE_TRANSFORM_0])
         def test_with_dataloader_batch(
-            self, file_path: PathLike, level: int, expected_spatial_shape: Any, expected_shape: Tuple[int, ...]
+            self, file_path: PathLike, level: int, expected_spatial_shape: Any, expected_shape: tuple[int, ...]
         ):
             train_transform = Compose(
                 [
@@ -390,7 +392,7 @@ class WSIReaderTests:
             dataset = Dataset([{"image": file_path}, {"image": file_path}], transform=train_transform)
             batch_size = 2
             data_loader = DataLoader(dataset, batch_size=batch_size)
-            data: dict = first(data_loader)
+            data: dict = first(data_loader, {})
             for s in data[PostFix.meta("image")]["spatial_shape"]:
                 assert_allclose(s, expected_spatial_shape, type_test=False)
             self.assertTupleEqual(data["image"].shape, (batch_size, *expected_shape[1:]))

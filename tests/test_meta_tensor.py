@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import io
 import os
 import random
@@ -18,7 +20,6 @@ import unittest
 import warnings
 from copy import deepcopy
 from multiprocessing.reduction import ForkingPickler
-from typing import Optional, Union
 
 import numpy as np
 import torch
@@ -86,7 +87,7 @@ class TestMetaTensor(unittest.TestCase):
         shape: bool = True,
         vals: bool = True,
         ids: bool = True,
-        device: Optional[Union[str, torch.device]] = None,
+        device: str | torch.device | None = None,
         meta: bool = True,
         check_ids: bool = True,
         **kwargs,
@@ -404,6 +405,13 @@ class TestMetaTensor(unittest.TestCase):
         self.assertEqual(len(d), ims[0].shape[-1])
         for _d in d:
             self.check_meta(_d, data)
+
+    def test_slicing(self):
+        x = MetaTensor(np.zeros((10, 3, 4)))
+        self.assertEqual(x[slice(4, 1)].shape[0], 0)
+        x.is_batch = True
+        with self.assertRaises(ValueError):
+            x[slice(0, 8)]
 
     @parameterized.expand(DTYPES)
     @SkipIfBeforePyTorchVersion((1, 8))

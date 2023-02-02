@@ -9,8 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import itertools
-from typing import Optional, Sequence, Tuple, Type, Union
+from collections.abc import Sequence
 
 import numpy as np
 import torch
@@ -49,13 +51,13 @@ class SwinUNETR(nn.Module):
 
     def __init__(
         self,
-        img_size: Union[Sequence[int], int],
+        img_size: Sequence[int] | int,
         in_channels: int,
         out_channels: int,
         depths: Sequence[int] = (2, 2, 2, 2),
         num_heads: Sequence[int] = (3, 6, 12, 24),
         feature_size: int = 24,
-        norm_name: Union[Tuple, str] = "instance",
+        norm_name: tuple | str = "instance",
         drop_rate: float = 0.0,
         attn_drop_rate: float = 0.0,
         dropout_path_rate: float = 0.0,
@@ -244,7 +246,6 @@ class SwinUNETR(nn.Module):
         self.out = UnetOutBlock(spatial_dims=spatial_dims, in_channels=feature_size, out_channels=out_channels)
 
     def load_from(self, weights):
-
         with torch.no_grad():
             self.swinViT.patch_embed.proj.weight.copy_(weights["state_dict"]["module.patch_embed.proj.weight"])
             self.swinViT.patch_embed.proj.bias.copy_(weights["state_dict"]["module.patch_embed.proj.bias"])
@@ -530,7 +531,7 @@ class SwinTransformerBlock(nn.Module):
         attn_drop: float = 0.0,
         drop_path: float = 0.0,
         act_layer: str = "GELU",
-        norm_layer: Type[LayerNorm] = nn.LayerNorm,
+        norm_layer: type[LayerNorm] = nn.LayerNorm,
         use_checkpoint: bool = False,
     ) -> None:
         """
@@ -684,7 +685,7 @@ class PatchMergingV2(nn.Module):
     https://github.com/microsoft/Swin-Transformer
     """
 
-    def __init__(self, dim: int, norm_layer: Type[LayerNorm] = nn.LayerNorm, spatial_dims: int = 3) -> None:
+    def __init__(self, dim: int, norm_layer: type[LayerNorm] = nn.LayerNorm, spatial_dims: int = 3) -> None:
         """
         Args:
             dim: number of feature channels.
@@ -702,7 +703,6 @@ class PatchMergingV2(nn.Module):
             self.norm = norm_layer(4 * dim)
 
     def forward(self, x):
-
         x_shape = x.size()
         if len(x_shape) == 5:
             b, d, h, w, c = x_shape
@@ -814,8 +814,8 @@ class BasicLayer(nn.Module):
         qkv_bias: bool = False,
         drop: float = 0.0,
         attn_drop: float = 0.0,
-        norm_layer: Type[LayerNorm] = nn.LayerNorm,
-        downsample: Optional[nn.Module] = None,
+        norm_layer: type[LayerNorm] = nn.LayerNorm,
+        downsample: nn.Module | None = None,
         use_checkpoint: bool = False,
     ) -> None:
         """
@@ -916,7 +916,7 @@ class SwinTransformer(nn.Module):
         drop_rate: float = 0.0,
         attn_drop_rate: float = 0.0,
         drop_path_rate: float = 0.0,
-        norm_layer: Type[LayerNorm] = nn.LayerNorm,
+        norm_layer: type[LayerNorm] = nn.LayerNorm,
         patch_norm: bool = False,
         use_checkpoint: bool = False,
         spatial_dims: int = 3,

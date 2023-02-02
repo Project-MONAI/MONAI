@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
-from typing import List, Tuple
 
 import numpy as np
 from parameterized import parameterized
@@ -30,7 +31,7 @@ TEST_INPUT1 = np.array([[[0, 0, 2, 1, 0], [1, 1, 1, 2, 0], [1, 1, 1, 0, 1]]])
 
 TEST_OUTPUT1 = np.array([[[0, 0, 2, 1, 0], [1, 1, 1, 2, 0], [1, 1, 1, 0, 0]]])
 
-TESTS: List[Tuple] = []
+TESTS: list[tuple] = []
 for dtype in (int, float):
     for p in TEST_NDARRAYS:
         TESTS.append((dtype, p, TEST_ZEROS, None))

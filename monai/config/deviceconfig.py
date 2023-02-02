@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import platform
 import re
@@ -65,6 +67,7 @@ def get_optional_config_values():
     output = OrderedDict()
 
     output["Pytorch Ignite"] = get_package_version("ignite")
+    output["ITK"] = get_package_version("itk")
     output["Nibabel"] = get_package_version("nibabel")
     output["scikit-image"] = get_package_version("skimage")
     output["Pillow"] = get_package_version("PIL")
@@ -188,7 +191,6 @@ def print_system_info(file=sys.stdout) -> None:
 
 
 def get_gpu_info() -> OrderedDict:
-
     output: OrderedDict = OrderedDict()
 
     num_gpus = torch.cuda.device_count()

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import pickle
 import random
@@ -47,7 +49,6 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 @unittest.skipUnless(has_pil, "requires PIL")
 class TestLRFinder(unittest.TestCase):
     def setUp(self):
-
         self.root_dir = MONAIEnvVars.data_dir()
         if not self.root_dir:
             self.root_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
