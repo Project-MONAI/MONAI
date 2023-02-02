@@ -36,3 +36,5 @@ from .utils import (
     MACRO_KEY,
     load_bundle_config,
 )
+from .workflow import BundleWorkflow, ZooWorkflow, ZooTrainWorkflow, ZooInferWorkflow
+

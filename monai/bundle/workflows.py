@@ -19,7 +19,7 @@ from monai.apps.utils import get_logger
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import DEFAULT_EXP_MGMT_SETTINGS
 
-__all__ = ["BundleWorkflow", "ZooWorkflow"]
+__all__ = ["BundleWorkflow", "ZooWorkflow", "ZooTrainWorkflow", "ZooInferWorkflow"]
 
 logger = get_logger(module_name=__name__)
 
