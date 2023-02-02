@@ -354,105 +354,85 @@ class ZooTrainWorkflow(ZooWorkflow, TrainProperties):
     def device(self, name: str) -> bool:
         self.parser[self.train_ids[1]] = name
 
-    @abstractmethod
     @property
     def dataset_dir(self) -> bool:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+        return self.parser[self.train_ids[2]]
 
-    @abstractmethod
     @dataset_dir.setter
     def dataset_dir(self, path: str) -> bool:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+        self.parser[self.train_ids[2]] = path
 
-    @abstractmethod
     @property
     def trainer(self) -> bool:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+        return self.parser[self.train_ids[3]]
 
-    @abstractmethod
     @trainer.setter
     def trainer(self, trainer: Trainer | dict) -> bool:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+        self.parser[self.train_ids[3]] = trainer
 
-    @abstractmethod
     @property
     def max_epochs(self) -> bool:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+        return self.parser[self.train_ids[4]]
 
-    @abstractmethod
     @max_epochs.setter
     def max_epochs(self, max_epochs: int) -> bool:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+        self.parser[self.train_ids[4]] = max_epochs
 
-    @abstractmethod
     @property
     def train_dataset(self) -> bool:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+        return self.parser[self.train_ids[5]]
 
-    @abstractmethod
     @train_dataset.setter
     def train_dataset(self, dataset: Any) -> bool:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+        self.parser[self.train_ids[5]] = dataset
 
-    @abstractmethod
     @property
     def train_dataset_data(self) -> bool:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+        return self.parser[self.train_ids[6]]
 
-    @abstractmethod
     @train_dataset_data.setter
     def train_dataset_data(self, data: Any) -> bool:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+        self.parser[self.train_ids[6]] = data
 
-    @abstractmethod
     @property
     def train_handlers(self) -> bool:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+        return self.parser[self.train_ids[7]]
 
-    @abstractmethod
     @train_handlers.setter
     def train_handlers(self, handlers: list) -> bool:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+        self.parser[self.train_ids[7]] = handlers
 
-    @abstractmethod
     @property
     def evaluator(self) -> bool:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+        return self.parser[self.val_ids[0]]
 
-    @abstractmethod
     @evaluator.setter
     def evaluator(self, evaluator: Evaluator | dict) -> bool:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+        self.parser[self.val_ids[0]] = evaluator
 
-    @abstractmethod
     @property
     def val_handlers(self) -> bool:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+        return self.parser[self.val_ids[1]]
 
-    @abstractmethod
     @val_handlers.setter
     def val_handlers(self, handlers: list) -> bool:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+        self.parser[self.val_ids[1]] = handlers
 
-    @abstractmethod
     @property
     def val_dataset(self) -> bool:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+        return self.parser[self.val_ids[2]]
 
-    @abstractmethod
     @val_dataset.setter
     def val_dataset(self, dataset: Any) -> bool:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+        self.parser[self.val_ids[2]] = dataset
 
-    @abstractmethod
     @property
     def val_dataset_data(self) -> bool:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+        return self.parser[self.val_ids[3]]
 
-    @abstractmethod
     @val_dataset_data.setter
     def val_dataset_data(self, data: Any) -> bool:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+        self.parser[self.val_ids[3]] = data
 
 
 class ZooInferWorkflow(ZooWorkflow, InferProperties):
@@ -463,32 +443,32 @@ class ZooInferWorkflow(ZooWorkflow, InferProperties):
 
     @property
     def bundle_root(self) -> bool:
-        return self.parser.bundle_root
+        return self.parser[self.infer_ids[0]]
 
     @bundle_root.setter
     def bundle_root(self, path: str) -> bool:
-        self.parser["bundle_root"] = path
+        self.parser[self.infer_ids[0]] = path
 
     @property
     def device(self) -> bool:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+        return self.parser[self.infer_ids[1]]
 
     @device.setter
     def device(self, name: str) -> bool:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+        self.parser[self.infer_ids[1]] = name
 
     @property
     def network_def(self) -> bool:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+        return self.parser[self.infer_ids[2]]
 
     @network_def.setter
     def network_def(self, net: dict) -> bool:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+        self.parser[self.infer_ids[2]] = net
 
     @property
     def inferer(self) -> bool:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+        return self.parser[self.infer_ids[3]]
 
     @inferer.setter
     def inferer(self, inferer: Inferer | dict) -> bool:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+        self.parser[self.infer_ids[3]] = inferer

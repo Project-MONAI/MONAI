@@ -10,7 +10,6 @@
 # limitations under the License.
 
 from __future__ import annotations
-from .bundle import Bundle
 from .config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem, Instantiable
 from .config_parser import ConfigParser
 from .reference_resolver import ReferenceResolver
