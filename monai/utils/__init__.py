@@ -53,6 +53,7 @@ from .enums import (
     TraceKeys,
     TransformBackends,
     UpsampleMode,
+    DataCollateMode,
     Weight,
     WSIPatchKeys,
 )
