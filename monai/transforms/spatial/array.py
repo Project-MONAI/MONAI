@@ -1576,10 +1576,10 @@ class AffineGrid(LazyTransform):
         affine = to_affine_nd(len(grid_) - 1, affine)
         affine = convert_to_tensor(affine, device=grid_.device, dtype=grid_.dtype, track_meta=False)  # type: ignore
         if not self.align_corners:
-            dst_xform_1 = normalize_transform(spatial_size, grid_.device, grid_.dtype, True, True)[0]  # to (-1, 1)
-            norm = create_scale(spatial_dims, [(max(d, 2) - 1) / d for d in spatial_size], grid_.device, "torch")
-            dst_xform_1 = norm.to(grid_.dtype) @ dst_xform_1  # type: ignore  # scaling (num_step - 1) / num_step
-            dst_xform_d = normalize_transform(spatial_size, grid_.device, grid_.dtype, False, True)[0]
+            dst_xform_1 = normalize_transform(spatial_size, affine.device, affine.dtype, True, True)[0]  # to (-1, 1)
+            norm = create_scale(spatial_dims, [(max(d, 2) - 1) / d for d in spatial_size], affine.device, "torch")
+            dst_xform_1 = norm.to(affine.dtype) @ dst_xform_1  # type: ignore  # scaling (num_step - 1) / num_step
+            dst_xform_d = normalize_transform(spatial_size, affine.device, affine.dtype, False, True)[0]
             affine = affine @ torch.inverse(dst_xform_d) @ dst_xform_1
         grid_ = (affine @ grid_.view((grid_.shape[0], -1))).view([-1] + list(spatial_size))
         return grid_, affine  # type: ignore
