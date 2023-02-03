@@ -39,7 +39,6 @@ class TestDatasetSummary(unittest.TestCase):
     def test_spacing_intensity(self):
         set_determinism(seed=0)
         with tempfile.TemporaryDirectory() as tempdir:
-
             for i in range(5):
                 im, seg = create_test_image_3d(32, 32, 32, num_seg_classes=1, num_objs=3, rad_max=6, channel_dim=0)
                 n = nib.Nifti1Image(im, np.eye(4))
@@ -75,7 +74,6 @@ class TestDatasetSummary(unittest.TestCase):
 
     def test_anisotropic_spacing(self):
         with tempfile.TemporaryDirectory() as tempdir:
-
             pixdims = [[1.0, 1.0, 5.0], [1.0, 1.0, 4.0], [1.0, 1.0, 4.5], [1.0, 1.0, 2.0], [1.0, 1.0, 1.0]]
             for i in range(5):
                 im, seg = create_test_image_3d(32, 32, 32, num_seg_classes=1, num_objs=3, rad_max=6, channel_dim=0)

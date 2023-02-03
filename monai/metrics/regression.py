@@ -278,7 +278,6 @@ class SSIMMetric(RegressionMetric):
         self.w = torch.ones([1, 1] + [win_size for _ in range(spatial_dims)]) / win_size**spatial_dims
 
     def _compute_intermediate_statistics(self, x: torch.Tensor, y: torch.Tensor) -> tuple[torch.Tensor, ...]:
-
         data_range = self.data_range[(None,) * (self.spatial_dims + 2)]
         # determine whether to work with 2D convolution or 3D
         conv = getattr(F, f"conv{self.spatial_dims}d")

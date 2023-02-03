@@ -39,7 +39,6 @@ WIDTH = 46000
 
 
 def prepare_data(*masks):
-
     mask = np.zeros((HEIGHT // 2, WIDTH // 2))
     mask[100, 100] = 1
     np.save(masks[0], mask)

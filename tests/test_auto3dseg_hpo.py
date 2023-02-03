@@ -130,7 +130,6 @@ class TestHPO(unittest.TestCase):
 
     @skip_if_no_cuda
     def test_run_algo(self) -> None:
-
         algo_dict = self.history[0]
         algo_name = list(algo_dict.keys())[0]
         algo = algo_dict[algo_name]

@@ -191,6 +191,7 @@ class TestComputeMeanIoU(unittest.TestCase):
     def test_value(self, input_data, expected_value):
         result = compute_meaniou(**input_data)
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
+        np.testing.assert_equal(result.device, input_data["y_pred"].device)
 
     @parameterized.expand([TEST_CASE_3])
     def test_nans(self, input_data, expected_value):
@@ -200,7 +201,6 @@ class TestComputeMeanIoU(unittest.TestCase):
     # MeanIoU class tests
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_10])
     def test_value_class(self, input_data, expected_value):
-
         # same test as for compute_meaniou
         vals = {}
         vals["y_pred"] = input_data.pop("y_pred")
@@ -212,7 +212,6 @@ class TestComputeMeanIoU(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8])
     def test_nans_class(self, params, input_data, expected_value):
-
         iou_metric = MeanIoU(**params)
         iou_metric(**input_data)
         result, _ = iou_metric.aggregate()

@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import datetime
 import warnings
 
 import numpy as np
@@ -567,12 +568,19 @@ class TopologyConstruction(nn.Module):
         use_downsample: bool = True,
         device: str = "cpu",
     ):
-
         super().__init__()
 
-        self.filter_nums = [int(n_feat * channel_mul) for n_feat in (32, 64, 128, 256, 512)]
+        n_feats = tuple([32 * (2**_i) for _i in range(num_depths + 1)])
+        self.filter_nums = [int(n_feat * channel_mul) for n_feat in n_feats]
+
         self.num_blocks = num_blocks
         self.num_depths = num_depths
+        print(
+            "{} - Length of input patch is recommended to be a multiple of {:d}.".format(
+                datetime.datetime.now(), 2 ** (num_depths + int(use_downsample))
+            )
+        )
+
         self._spatial_dims = spatial_dims
         self._act_name = act_name
         self._norm_name = norm_name

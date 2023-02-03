@@ -377,9 +377,7 @@ class BundleGen(AlgoGen):
         data_stats_filename: str | None = None,
         data_src_cfg_name: str | None = None,
     ):
-
         if algos is None or isinstance(algos, (list, tuple, str)):
-
             if templates_path_or_url is None:
                 templates_path_or_url = default_algo_zip
 
@@ -404,7 +402,6 @@ class BundleGen(AlgoGen):
         self.algos: Any = []
         if isinstance(algos, dict):
             for algo_name, algo_params in algos.items():
-
                 template_path = os.path.dirname(algo_params.get("template_path", "."))
                 if len(template_path) > 0 and template_path not in sys.path:
                     sys.path.append(template_path)

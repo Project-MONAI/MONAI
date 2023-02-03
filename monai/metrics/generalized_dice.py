@@ -176,7 +176,9 @@ def compute_generalized_dice(
     y_pred_o = y_pred_o.sum(dim=-1)
     denom_zeros = denom == 0
     generalized_dice_score[denom_zeros] = torch.where(
-        (y_pred_o == 0)[denom_zeros], torch.tensor(1.0), torch.tensor(0.0)
+        (y_pred_o == 0)[denom_zeros],
+        torch.tensor(1.0, device=generalized_dice_score.device),
+        torch.tensor(0.0, device=generalized_dice_score.device),
     )
 
     return generalized_dice_score

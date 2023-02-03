@@ -14,8 +14,6 @@ from __future__ import annotations
 import random
 from enum import Enum
 
-from monai.utils.deprecate_utils import deprecated
-
 __all__ = [
     "StrEnum",
     "NumpyPadMode",
@@ -36,12 +34,12 @@ __all__ = [
     "SkipMode",
     "Method",
     "TraceKeys",
-    "InverseKeys",
     "CommonKeys",
     "GanKeys",
     "PostFix",
     "ForwardMode",
     "TransformBackends",
+    "CompInitMode",
     "BoxModeName",
     "GridPatchSort",
     "FastMRIKeys",
@@ -312,25 +310,8 @@ class TraceKeys(StrEnum):
     DO_TRANSFORM: str = "do_transforms"
     KEY_SUFFIX: str = "_transforms"
     NONE: str = "none"
-
-
-@deprecated(since="0.8.0", msg_suffix="use monai.utils.enums.TraceKeys instead.")
-class InverseKeys:
-    """
-    Extra metadata keys used for inverse transforms.
-
-    .. deprecated:: 0.8.0
-        Use :class:`monai.utils.enums.TraceKeys` instead.
-
-    """
-
-    CLASS_NAME = "class"
-    ID = "id"
-    ORIG_SIZE = "orig_size"
-    EXTRA_INFO = "extra_info"
-    DO_TRANSFORM = "do_transforms"
-    KEY_SUFFIX = "_transforms"
-    NONE = "none"
+    TRACING: str = "tracing"
+    LAZY_EVALUATION: str = "lazy_evaluation"
 
 
 class CommonKeys(StrEnum):
@@ -368,19 +349,19 @@ class PostFix(StrEnum):
     """Post-fixes."""
 
     @staticmethod
-    def _get_str(prefix, suffix):
+    def _get_str(prefix: str | None, suffix: str) -> str:
         return suffix if prefix is None else f"{prefix}_{suffix}"
 
     @staticmethod
-    def meta(key: str | None = None):
+    def meta(key: str | None = None) -> str:
         return PostFix._get_str(key, "meta_dict")
 
     @staticmethod
-    def orig_meta(key: str | None = None):
+    def orig_meta(key: str | None = None) -> str:
         return PostFix._get_str(key, "orig_meta_dict")
 
     @staticmethod
-    def transforms(key: str | None = None):
+    def transforms(key: str | None = None) -> str:
         return PostFix._get_str(key, TraceKeys.KEY_SUFFIX[1:])
 
 
@@ -396,6 +377,18 @@ class TransformBackends(StrEnum):
     TORCH = "torch"
     NUMPY = "numpy"
     CUPY = "cupy"
+
+
+class CompInitMode(StrEnum):
+    """
+    Mode names for instantiating a class or calling a callable.
+
+    See also: :py:func:`monai.utils.module.instantiate`
+    """
+
+    DEFAULT = "default"
+    PARTIAL = "partial"
+    DEBUG = "debug"
 
 
 class JITMetadataKeys(StrEnum):
@@ -632,3 +625,4 @@ class LazyAttr(StrEnum):
     PADDING_MODE = "lazy_padding_mode"
     INTERP_MODE = "lazy_interpolation_mode"
     DTYPE = "lazy_dtype"
+    ALIGN_CORNERS = "lazy_align_corners"

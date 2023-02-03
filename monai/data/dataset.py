@@ -25,7 +25,7 @@ from copy import copy, deepcopy
 from multiprocessing.managers import ListProxy
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Any
+from typing import IO, TYPE_CHECKING, Any, cast
 
 import numpy as np
 import torch
@@ -45,7 +45,7 @@ from monai.transforms import (
     convert_to_contiguous,
     reset_ops_id,
 )
-from monai.utils import MAX_SEED, deprecated_arg, get_seed, look_up_option, min_version, optional_import
+from monai.utils import MAX_SEED, get_seed, look_up_option, min_version, optional_import
 from monai.utils.misc import first
 
 if TYPE_CHECKING:
@@ -1403,7 +1403,7 @@ class NPZDictItemDataset(Dataset):
         dat = np.load(npzfile)
 
         self.arrays = {storedk: dat[datak] for datak, storedk in self.keys.items()}
-        self.length = self.arrays[first(self.keys.values())].shape[0]
+        self.length = self.arrays[cast(str, first(self.keys.values()))].shape[0]
 
         self.other_keys = {} if other_keys is None else {k: dat[k] for k in other_keys}
 
@@ -1483,7 +1483,6 @@ class CSVDataset(Dataset):
 
     """
 
-    @deprecated_arg(name="filename", new_name="src", since="0.8", msg_suffix="please use `src` instead.")
     def __init__(
         self,
         src: str | Sequence[str] | None = None,  # also can be `DataFrame` or a sequence of `DataFrame`
@@ -1504,9 +1503,6 @@ class CSVDataset(Dataset):
                 dfs.append(i)
             else:
                 raise ValueError("`src` must be file path or pandas `DataFrame`.")
-
-        # in case treating deprecated arg `filename` as kwargs, remove it from `kwargs`
-        kwargs.pop("filename", None)
 
         data = convert_tables_to_dicts(
             dfs=dfs, row_indices=row_indices, col_names=col_names, col_types=col_types, col_groups=col_groups, **kwargs

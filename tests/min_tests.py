@@ -67,6 +67,7 @@ def run_testsuit():
         "test_global_mutual_information_loss",
         "test_grid_patch",
         "test_gmm",
+        "test_handler_metrics_reloaded",
         "test_handler_checkpoint_loader",
         "test_handler_checkpoint_saver",
         "test_handler_classification_saver",
@@ -131,7 +132,6 @@ def run_testsuit():
         "test_mlp",
         "test_nifti_header_revise",
         "test_nifti_rw",
-        "test_nifti_saver",
         "test_nuclick_transforms",
         "test_nrrd_reader",
         "test_occlusion_sensitivity",
@@ -143,7 +143,6 @@ def run_testsuit():
         "test_pil_reader",
         "test_plot_2d_or_3d_image",
         "test_png_rw",
-        "test_png_saver",
         "test_prepare_batch_default",
         "test_prepare_batch_extra_input",
         "test_prepare_batch_hovernet",
@@ -212,7 +211,6 @@ def run_testsuit():
 
 
 if __name__ == "__main__":
-
     # testing import submodules
     from monai.utils.module import load_submodules
 

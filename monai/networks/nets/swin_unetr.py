@@ -246,7 +246,6 @@ class SwinUNETR(nn.Module):
         self.out = UnetOutBlock(spatial_dims=spatial_dims, in_channels=feature_size, out_channels=out_channels)
 
     def load_from(self, weights):
-
         with torch.no_grad():
             self.swinViT.patch_embed.proj.weight.copy_(weights["state_dict"]["module.patch_embed.proj.weight"])
             self.swinViT.patch_embed.proj.bias.copy_(weights["state_dict"]["module.patch_embed.proj.bias"])
@@ -704,7 +703,6 @@ class PatchMergingV2(nn.Module):
             self.norm = norm_layer(4 * dim)
 
     def forward(self, x):
-
         x_shape = x.size()
         if len(x_shape) == 5:
             b, d, h, w, c = x_shape

@@ -11,10 +11,13 @@
 
 from __future__ import annotations
 
-from typing import Callable, Iterable
+from collections.abc import Callable, Iterable
+from typing import TypeVar
 
 import torch
 from torch.optim import Optimizer
+
+T = TypeVar("T")
 
 
 class Novograd(Optimizer):
@@ -67,7 +70,7 @@ class Novograd(Optimizer):
         for group in self.param_groups:
             group.setdefault("amsgrad", False)
 
-    def step(self, closure: Callable | None = None):
+    def step(self, closure: Callable[[], T] | None = None) -> T | None:
         """Performs a single optimization step.
 
         Arguments:

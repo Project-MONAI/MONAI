@@ -34,7 +34,6 @@ class TestHandlerTBImage(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_tb_image_shape(self, shape):
         with tempfile.TemporaryDirectory() as tempdir:
-
             # set up engine
             def _train_func(engine, batch):
                 engine.state.batch = decollate_batch(list(batch))

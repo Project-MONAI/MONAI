@@ -386,7 +386,6 @@ class RemoveRepeatedChanneld(MapTransform):
 
 
 class SplitDimd(MapTransform):
-
     backend = SplitDim.backend
 
     def __init__(
@@ -1728,9 +1727,6 @@ class AddCoordinateChannelsd(MapTransform):
 
     backend = AddCoordinateChannels.backend
 
-    @deprecated_arg(
-        name="spatial_channels", new_name="spatial_dims", since="0.8", msg_suffix="please use `spatial_dims` instead."
-    )
     def __init__(self, keys: KeysCollection, spatial_dims: Sequence[int], allow_missing_keys: bool = False) -> None:
         super().__init__(keys, allow_missing_keys)
         self.add_coordinate_channels = AddCoordinateChannels(spatial_dims=spatial_dims)

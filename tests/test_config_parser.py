@@ -36,6 +36,13 @@ def case_pdb(sarg=None):
     parser.get_parsed_content()
 
 
+@TimedCall(seconds=100, force_quit=True)
+def case_pdb_inst(sarg=None):
+    config = {"transform": {"_target_": "Compose", "transforms": [], "_mode_": "debug"}}
+    parser = ConfigParser(config=config)
+    return parser.transform
+
+
 # test the resolved and parsed instances
 TEST_CASE_1 = [
     {
@@ -100,6 +107,8 @@ TEST_CASE_3 = [
 
 TEST_CASE_4 = [{"A": 1, "B": "@A", "C": "@D", "E": "$'test' + '@F'"}]
 
+TEST_CASE_5 = [{"training": {"A": 1, "A_B": 2}, "total": "$@training#A + @training#A_B + 1"}, 4]
+
 
 class TestConfigParser(unittest.TestCase):
     def test_config_content(self):
@@ -155,6 +164,8 @@ class TestConfigParser(unittest.TestCase):
     def test_function(self, config):
         parser = ConfigParser(config=config, globals={"TestClass": TestClass})
         for id in config:
+            if id in ("compute", "cls_compute"):
+                parser[f"{id}#_mode_"] = "partial"
             func = parser.get_parsed_content(id=id)
             self.assertTrue(id in parser.ref_resolver.resolved_content)
             if id == "error_func":
@@ -250,7 +261,7 @@ class TestConfigParser(unittest.TestCase):
 
     def test_non_str_target(self):
         configs = {
-            "fwd": {"_target_": "$@model().forward", "x": "$torch.rand(1, 3, 256, 256)"},
+            "fwd": {"_target_": "$@model.forward", "x": "$torch.rand(1, 3, 256, 256)", "_mode_": "partial"},
             "model": {"_target_": "monai.networks.nets.resnet.resnet18", "pretrained": False, "spatial_dims": 2},
         }
         self.assertTrue(callable(ConfigParser(config=configs).fwd))
@@ -265,6 +276,7 @@ class TestConfigParser(unittest.TestCase):
     def test_pdb(self):
         with self.assertRaisesRegex(RuntimeError, ".*bdb.BdbQuit.*"):
             case_pdb()
+        self.assertEqual(case_pdb_inst(), None)  # pdb.runcall without input is None
 
     def test_get_via_attributes(self):
         config = {
@@ -284,7 +296,12 @@ class TestConfigParser(unittest.TestCase):
 
     def test_builtin(self):
         config = {"import statements": "$import math", "calc": {"_target_": "math.isclose", "a": 0.001, "b": 0.001}}
-        self.assertEqual(ConfigParser(config).calc(), True)
+        self.assertEqual(ConfigParser(config).calc, True)
+
+    @parameterized.expand([TEST_CASE_5])
+    def test_substring_reference(self, config, expected):
+        parser = ConfigParser(config=config)
+        self.assertEqual(parser.get_parsed_content("total"), expected)
 
 
 if __name__ == "__main__":

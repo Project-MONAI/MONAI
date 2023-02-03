@@ -189,13 +189,9 @@ class SpatialResample(InvertibleTransform):
     def update_meta(self, img, dst_affine):
         img.affine = dst_affine
 
-    @deprecated_arg(
-        name="src_affine", since="0.9", msg_suffix="img should be `MetaTensor`, so affine can be extracted directly."
-    )
     def __call__(
         self,
         img: torch.Tensor,
-        src_affine: NdarrayOrTensor | None = None,
         dst_affine: torch.Tensor | None = None,
         spatial_size: Sequence[int] | torch.Tensor | int | None = None,
         mode: str | int | None = None,
@@ -304,19 +300,19 @@ class SpatialResample(InvertibleTransform):
             dst_xform_d = normalize_transform(spatial_size, xform.device, xform.dtype, align_corners, False)[0]
             xform = xform @ torch.inverse(dst_xform_d) @ dst_xform_1
             affine_xform = Affine(
-                affine=xform, spatial_size=spatial_size, normalized=True, image_only=True, dtype=_dtype
+                affine=xform, spatial_size=spatial_size, normalized=True, image_only=True, dtype=_dtype  # type: ignore
             )
             with affine_xform.trace_transform(False):
-                img = affine_xform(img, mode=mode, padding_mode=padding_mode)
+                img = affine_xform(img, mode=mode, padding_mode=padding_mode)  # type: ignore
         else:
-            affine_xform = AffineTransform(
+            affine_xform = AffineTransform(  # type: ignore
                 normalized=False,
                 mode=mode,
                 padding_mode=padding_mode,
                 align_corners=align_corners,
                 reverse_indexing=True,
             )
-            img = affine_xform(img.unsqueeze(0), theta=xform, spatial_size=spatial_size).squeeze(0)
+            img = affine_xform(img.unsqueeze(0), theta=xform, spatial_size=spatial_size).squeeze(0)  # type: ignore
         if additional_dims:
             full_shape = (chns, *spatial_size, *additional_dims)
             img = img.reshape(full_shape)
@@ -354,18 +350,10 @@ class ResampleToMatch(SpatialResample):
             img.meta = deepcopy(img_dst.meta)
             img.meta[Key.FILENAME_OR_OBJ] = original_fname  # keep the original name, the others are overwritten
 
-    @deprecated_arg(
-        name="src_meta", since="0.9", msg_suffix="img should be `MetaTensor`, so affine can be extracted directly."
-    )
-    @deprecated_arg(
-        name="dst_meta", since="0.9", msg_suffix="img_dst should be `MetaTensor`, so affine can be extracted directly."
-    )
-    def __call__(
+    def __call__(  # type: ignore
         self,
         img: torch.Tensor,
         img_dst: torch.Tensor,
-        src_meta: dict | None = None,
-        dst_meta: dict | None = None,
         mode: str | int | None = None,
         padding_mode: str | None = None,
         align_corners: bool | None = None,
@@ -373,16 +361,8 @@ class ResampleToMatch(SpatialResample):
     ) -> torch.Tensor:
         """
         Args:
-            img: input image to be resampled to match ``dst_meta``. It currently supports channel-first arrays with
+            img: input image to be resampled to match ``img_dst``. It currently supports channel-first arrays with
                 at most three spatial dimensions.
-            src_meta: Dictionary containing the source affine matrix in the form ``{'affine':src_affine}``.
-                If ``affine`` is not specified, an identity matrix is assumed.  Defaults to ``None``.
-                See also:  https://docs.monai.io/en/stable/transforms.html#spatialresample
-            dst_meta: Dictionary containing the target affine matrix and target spatial shape in the form
-                ``{'affine':src_affine, 'spatial_shape':spatial_size}``. If ``affine`` is  not
-                specified, ``src_affine`` is assumed. If ``spatial_shape`` is not specified, spatial size is
-                automatically computed, containing the previous field of view.  Defaults to ``None``.
-                See also: https://docs.monai.io/en/stable/transforms.html#spatialresample
             mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
@@ -402,8 +382,6 @@ class ResampleToMatch(SpatialResample):
                 ``np.float64`` (for best precision). If ``None``, use the data type of input data.
                 To be compatible with other modules, the output data type is always `float32`.
         Raises:
-            RuntimeError: When ``src_meta`` is missing.
-            RuntimeError: When ``dst_meta`` is missing.
             ValueError: When the affine matrix of the source image is not invertible.
         Returns:
             Resampled input tensor or MetaTensor.
@@ -431,7 +409,6 @@ class Spacing(InvertibleTransform):
 
     backend = SpatialResample.backend
 
-    @deprecated_arg(name="image_only", since="0.9")
     def __init__(
         self,
         pixdim: Sequence[float] | float | np.ndarray,
@@ -444,7 +421,6 @@ class Spacing(InvertibleTransform):
         recompute_affine: bool = False,
         min_pixdim: Sequence[float] | float | np.ndarray | None = None,
         max_pixdim: Sequence[float] | float | np.ndarray | None = None,
-        image_only: bool = False,
     ) -> None:
         """
         Args:
@@ -610,7 +586,7 @@ class Spacing(InvertibleTransform):
         data_array = self.sp_resample(
             data_array,
             dst_affine=torch.as_tensor(new_affine),
-            spatial_size=actual_shape,
+            spatial_size=actual_shape,  # type: ignore
             mode=mode,
             padding_mode=padding_mode,
             align_corners=align_corners,
@@ -631,13 +607,11 @@ class Orientation(InvertibleTransform):
 
     backend = [TransformBackends.NUMPY, TransformBackends.TORCH]
 
-    @deprecated_arg(name="image_only", since="0.9")
     def __init__(
         self,
         axcodes: str | None = None,
         as_closest_canonical: bool = False,
         labels: Sequence[tuple[str, str]] | None = (("L", "R"), ("P", "A"), ("I", "S")),
-        image_only: bool = False,
     ) -> None:
         """
         Args:
@@ -1468,7 +1442,6 @@ class RandRotate(RandomizableTransform, InvertibleTransform):
         self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
         self.z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
 
-    @deprecated_arg(name="get_matrix", since="0.9", msg_suffix="please use `img.meta` instead.")
     def __call__(
         self,
         img: torch.Tensor,
@@ -1477,7 +1450,6 @@ class RandRotate(RandomizableTransform, InvertibleTransform):
         align_corners: bool | None = None,
         dtype: DtypeLike | torch.dtype = None,
         randomize: bool = True,
-        get_matrix: bool = False,
     ):
         """
         Args:
@@ -1955,13 +1927,8 @@ class RandDeformGrid(Randomizable, Transform):
 
     backend = [TransformBackends.TORCH]
 
-    @deprecated_arg(name="as_tensor_output", since="0.8")
     def __init__(
-        self,
-        spacing: Sequence[float] | float,
-        magnitude_range: tuple[float, float],
-        as_tensor_output: bool = True,
-        device: torch.device | None = None,
+        self, spacing: Sequence[float] | float, magnitude_range: tuple[float, float], device: torch.device | None = None
     ) -> None:
         """
         Args:
@@ -1998,7 +1965,6 @@ class RandDeformGrid(Randomizable, Transform):
 
 
 class Resample(Transform):
-
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
@@ -2164,7 +2130,6 @@ class Affine(InvertibleTransform):
 
     backend = list(set(AffineGrid.backend) & set(Resample.backend))
 
-    @deprecated_arg(name="norm_coords", since="0.8")
     def __init__(
         self,
         rotate_params: Sequence[float] | float | None = None,
@@ -2176,7 +2141,6 @@ class Affine(InvertibleTransform):
         mode: str | int = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.REFLECTION,
         normalized: bool = False,
-        norm_coords: bool = True,
         device: torch.device | None = None,
         dtype: DtypeLike = np.float32,
         image_only: bool = False,
@@ -2232,10 +2196,6 @@ class Affine(InvertibleTransform):
                 If ``None``, use the data type of input data. To be compatible with other modules,
                 the output data type is always `float32`.
             image_only: if True return only the image volume, otherwise return (image, affine).
-
-        .. deprecated:: 0.8.1
-            ``norm_coords`` is deprecated, please use ``normalized`` instead
-            (the new flag is a negation, i.e., ``norm_coords == not normalized``).
 
         """
         self.affine_grid = AffineGrid(
@@ -2906,7 +2866,6 @@ class Rand3DElastic(RandomizableTransform):
 
 
 class GridDistortion(Transform):
-
     backend = [TransformBackends.TORCH]
 
     def __init__(
@@ -3004,7 +2963,6 @@ class GridDistortion(Transform):
 
 
 class RandGridDistortion(RandomizableTransform):
-
     backend = [TransformBackends.TORCH]
 
     def __init__(

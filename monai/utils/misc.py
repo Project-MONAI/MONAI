@@ -23,7 +23,7 @@ from ast import literal_eval
 from collections.abc import Callable, Iterable, Sequence
 from distutils.util import strtobool
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, TypeVar, cast, overload
 
 import numpy as np
 import torch
@@ -36,6 +36,7 @@ __all__ = [
     "star_zip_with",
     "first",
     "issequenceiterable",
+    "is_immutable",
     "ensure_tuple",
     "ensure_tuple_size",
     "ensure_tuple_rep",
@@ -82,7 +83,20 @@ def star_zip_with(op, *vals):
     return zip_with(op, *vals, mapfunc=itertools.starmap)
 
 
-def first(iterable, default=None):
+T = TypeVar("T")
+
+
+@overload
+def first(iterable: Iterable[T], default: T) -> T:
+    ...
+
+
+@overload
+def first(iterable: Iterable[T]) -> T | None:
+    ...
+
+
+def first(iterable: Iterable[T], default: T | None = None) -> T | None:
     """
     Returns the first item in the given iterable or `default` if empty, meaningful mostly with 'for' expressions.
     """
@@ -101,6 +115,15 @@ def issequenceiterable(obj: Any) -> bool:
     except Exception:
         return False
     return isinstance(obj, Iterable) and not isinstance(obj, (str, bytes))
+
+
+def is_immutable(obj: Any) -> bool:
+    """
+    Determine if the object is an immutable object.
+
+    see also https://github.com/python/cpython/blob/3.11/Lib/copy.py#L109
+    """
+    return isinstance(obj, (type(None), int, float, bool, complex, str, tuple, bytes, type, range, slice))
 
 
 def ensure_tuple(vals: Any, wrap_array: bool = False) -> tuple[Any, ...]:
@@ -463,7 +486,7 @@ class ImageMetaKey:
     SPATIAL_SHAPE = "spatial_shape"
 
 
-def has_option(obj, keywords: str | Sequence[str]) -> bool:
+def has_option(obj: Callable, keywords: str | Sequence[str]) -> bool:
     """
     Return a boolean indicating whether the given callable `obj` has the `keywords` in its signature.
     """
@@ -504,7 +527,7 @@ def sample_slices(data: NdarrayOrTensor, dim: int = 1, as_indices: bool = True, 
     return data[tuple(slices)]
 
 
-def check_parent_dir(path: PathLike, create_dir: bool = True):
+def check_parent_dir(path: PathLike, create_dir: bool = True) -> None:
     """
     Utility to check whether the parent directory of the `path` exists.
 
@@ -523,7 +546,14 @@ def check_parent_dir(path: PathLike, create_dir: bool = True):
             raise ValueError(f"the directory of specified path does not exist: `{path_dir}`.")
 
 
-def save_obj(obj, path: PathLike, create_dir: bool = True, atomic: bool = True, func: Callable | None = None, **kwargs):
+def save_obj(
+    obj: object,
+    path: PathLike,
+    create_dir: bool = True,
+    atomic: bool = True,
+    func: Callable | None = None,
+    **kwargs: Any,
+) -> None:
     """
     Save an object to file with specified path.
     Support to serialize to a temporary file first, then move to final destination,
@@ -576,7 +606,7 @@ def label_union(x: list) -> list:
     return list(set.union(set(np.array(x).tolist())))
 
 
-def prob2class(x, sigmoid: bool = False, threshold: float = 0.5, **kwargs):
+def prob2class(x: torch.Tensor, sigmoid: bool = False, threshold: float = 0.5, **kwargs: Any) -> torch.Tensor:
     """
     Compute the lab from the probability of predicted feature maps
 

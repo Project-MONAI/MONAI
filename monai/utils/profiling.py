@@ -23,12 +23,17 @@ from functools import wraps
 from inspect import getframeinfo, stack
 from queue import Empty
 from time import perf_counter, perf_counter_ns
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 import torch
 
 from monai.utils import optional_import
+
+if TYPE_CHECKING:
+    from ignite.engine import Events
+else:
+    Events = optional_import("ignite.engine", name="Events")
 
 pd, has_pandas = optional_import("pandas")
 
@@ -52,7 +57,6 @@ def torch_profiler_full(func):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-
         with torch.autograd.profiler.profile(use_cuda=True) as prof:
             result = func(*args, **kwargs)
 
@@ -72,7 +76,6 @@ def torch_profiler_time_cpu_gpu(func):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-
         with torch.autograd.profiler.profile(use_cuda=True) as prof:
             result = func(*args, **kwargs)
 
@@ -98,7 +101,6 @@ def torch_profiler_time_end_to_end(func):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-
         torch.cuda.synchronize()
         start = perf_counter()
 
@@ -292,7 +294,7 @@ class WorkflowProfiler:
             threading.settrace(None)  # type: ignore
             sys.settrace(None)
 
-    def add_result(self, result: ProfileResult):
+    def add_result(self, result: ProfileResult) -> None:
         """Add a result in a thread-safe manner to the internal results dictionary."""
         with self.lock:
             self.results[result.name].append(result)
@@ -408,7 +410,7 @@ class ProfileHandler:
         end_event: item in `ignite.engine.Events` stating event at which to stop timing
     """
 
-    def __init__(self, name: str, profiler: WorkflowProfiler, start_event, end_event):
+    def __init__(self, name: str, profiler: WorkflowProfiler, start_event: Events, end_event: Events):
         self.name = name
         self.profiler = profiler
         self.start_event = start_event

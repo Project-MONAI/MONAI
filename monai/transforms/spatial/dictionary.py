@@ -65,7 +65,6 @@ from monai.utils import (
     ensure_tuple_rep,
     fall_back_tuple,
 )
-from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import PytorchPadMode, TraceKeys
 from monai.utils.module import optional_import
 
@@ -159,9 +158,6 @@ class SpatialResampled(MapTransform, InvertibleTransform):
 
     backend = SpatialResample.backend
 
-    @deprecated_arg(name="meta_keys", since="0.9")
-    @deprecated_arg(name="meta_key_postfix", since="0.9")
-    @deprecated_arg(name="meta_src_keys", since="0.9")
     def __init__(
         self,
         keys: KeysCollection,
@@ -169,9 +165,6 @@ class SpatialResampled(MapTransform, InvertibleTransform):
         padding_mode: SequenceStr = GridSamplePadMode.BORDER,
         align_corners: Sequence[bool] | bool = False,
         dtype: Sequence[DtypeLike] | DtypeLike = np.float64,
-        meta_keys: KeysCollection | None = None,
-        meta_key_postfix: str = "meta_dict",
-        meta_src_keys: KeysCollection | None = "src_affine",
         dst_keys: KeysCollection | None = "dst_affine",
         allow_missing_keys: bool = False,
     ) -> None:
@@ -212,7 +205,7 @@ class SpatialResampled(MapTransform, InvertibleTransform):
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d: dict = dict(data)
-        for (key, mode, padding_mode, align_corners, dtype, dst_key) in self.key_iterator(
+        for key, mode, padding_mode, align_corners, dtype, dst_key in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype, self.dst_keys
         ):
             d[key] = self.sp_transform(
@@ -238,12 +231,10 @@ class ResampleToMatchd(MapTransform, InvertibleTransform):
 
     backend = ResampleToMatch.backend
 
-    @deprecated_arg(name="template_key", since="0.9")
     def __init__(
         self,
         keys: KeysCollection,
         key_dst: str,
-        template_key: str | None = None,
         mode: SequenceStr = GridSampleMode.BILINEAR,
         padding_mode: SequenceStr = GridSamplePadMode.BORDER,
         align_corners: Sequence[bool] | bool = False,
@@ -287,7 +278,7 @@ class ResampleToMatchd(MapTransform, InvertibleTransform):
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
-        for (key, mode, padding_mode, align_corners, dtype) in self.key_iterator(
+        for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
             d[key] = self.resampler(
@@ -323,8 +314,6 @@ class Spacingd(MapTransform, InvertibleTransform):
 
     backend = Spacing.backend
 
-    @deprecated_arg(name="meta_keys", since="0.9")
-    @deprecated_arg(name="meta_key_postfix", since="0.9")
     def __init__(
         self,
         keys: KeysCollection,
@@ -336,8 +325,6 @@ class Spacingd(MapTransform, InvertibleTransform):
         dtype: Sequence[DtypeLike] | DtypeLike = np.float64,
         scale_extent: bool = False,
         recompute_affine: bool = False,
-        meta_keys: KeysCollection | None = None,
-        meta_key_postfix: str = "meta_dict",
         min_pixdim: Sequence[float] | float | None = None,
         max_pixdim: Sequence[float] | float | None = None,
         allow_missing_keys: bool = False,
@@ -444,16 +431,12 @@ class Orientationd(MapTransform, InvertibleTransform):
 
     backend = Orientation.backend
 
-    @deprecated_arg(name="meta_keys", since="0.9")
-    @deprecated_arg(name="meta_key_postfix", since="0.9")
     def __init__(
         self,
         keys: KeysCollection,
         axcodes: str | None = None,
         as_closest_canonical: bool = False,
         labels: Sequence[tuple[str, str]] | None = (("L", "R"), ("P", "A"), ("I", "S")),
-        meta_keys: KeysCollection | None = None,
-        meta_key_postfix: str = "meta_dict",
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -749,7 +732,7 @@ class Affined(MapTransform, InvertibleTransform):
             affine=affine,
             spatial_size=spatial_size,
             device=device,
-            dtype=dtype,
+            dtype=dtype,  # type: ignore
         )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))

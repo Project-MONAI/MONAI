@@ -20,7 +20,7 @@ import torch.nn as nn
 from monai.networks.blocks.convolutions import Convolution, ResidualUnit
 from monai.networks.layers.factories import Act, Norm
 from monai.networks.layers.simplelayers import SkipConnection
-from monai.utils import alias, deprecated_arg, export
+from monai.utils import alias, export
 
 __all__ = ["UNet", "Unet"]
 
@@ -109,9 +109,6 @@ class UNet(nn.Module):
 
     """
 
-    @deprecated_arg(
-        name="dimensions", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
-    )
     def __init__(
         self,
         spatial_dims: int,
@@ -127,9 +124,7 @@ class UNet(nn.Module):
         dropout: float = 0.0,
         bias: bool = True,
         adn_ordering: str = "NDA",
-        dimensions: int | None = None,
     ) -> None:
-
         super().__init__()
 
         if len(channels) < 2:
@@ -139,14 +134,10 @@ class UNet(nn.Module):
             raise ValueError("the length of `strides` should equal to `len(channels) - 1`.")
         if delta > 0:
             warnings.warn(f"`len(strides) > len(channels) - 1`, the last {delta} values of strides will not be used.")
-        if dimensions is not None:
-            spatial_dims = dimensions
-        if isinstance(kernel_size, Sequence):
-            if len(kernel_size) != spatial_dims:
-                raise ValueError("the length of `kernel_size` should equal to `dimensions`.")
-        if isinstance(up_kernel_size, Sequence):
-            if len(up_kernel_size) != spatial_dims:
-                raise ValueError("the length of `up_kernel_size` should equal to `dimensions`.")
+        if isinstance(kernel_size, Sequence) and len(kernel_size) != spatial_dims:
+            raise ValueError("the length of `kernel_size` should equal to `dimensions`.")
+        if isinstance(up_kernel_size, Sequence) and len(up_kernel_size) != spatial_dims:
+            raise ValueError("the length of `up_kernel_size` should equal to `dimensions`.")
 
         self.dimensions = spatial_dims
         self.in_channels = in_channels
@@ -223,7 +214,6 @@ class UNet(nn.Module):
         """
         mod: nn.Module
         if self.num_res_units > 0:
-
             mod = ResidualUnit(
                 self.dimensions,
                 in_channels,

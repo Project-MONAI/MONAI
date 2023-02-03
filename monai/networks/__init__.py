@@ -27,7 +27,6 @@ from .utils import (
     replace_modules_temp,
     save_state,
     set_named_module,
-    slice_channels,
     to_norm_affine,
     train_mode,
 )
