@@ -121,8 +121,9 @@ class TraceableTransform(Transform):
                 return data.copy_meta_from(meta_obj)
             if do_transform:
                 xform = data.pending_operations.pop()  # type: ignore
+                extra = xform.copy()
                 xform.update(transform_info)
-                meta_obj = self.push_transform(data, transform_info=xform, lazy_evaluation=lazy_eval)
+                meta_obj = self.push_transform(data, transform_info=xform, lazy_evaluation=lazy_eval, extra_info=extra)
                 return data.copy_meta_from(meta_obj)
             return data
         kwargs["lazy_evaluation"] = lazy_eval
@@ -199,6 +200,8 @@ class TraceableTransform(Transform):
             info[TraceKeys.ORIG_SIZE] = data_t.shape[1:]
         # include extra_info
         if extra_info is not None:
+            extra_info.pop(LazyAttr.SHAPE, None)
+            extra_info.pop(LazyAttr.AFFINE, None)
             info[TraceKeys.EXTRA_INFO] = extra_info
 
         # push the transform info to the applied_operation or pending_operation stack
