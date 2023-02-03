@@ -702,6 +702,7 @@ class Affined(MapTransform, InvertibleTransform, LazyTransform):
         padding_mode: SequenceStr = GridSamplePadMode.REFLECTION,
         device: torch.device | None = None,
         dtype: DtypeLike | torch.dtype = np.float32,
+        align_corners: bool = True,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -750,6 +751,8 @@ class Affined(MapTransform, InvertibleTransform, LazyTransform):
             dtype: data type for resampling computation. Defaults to ``float32``.
                 If ``None``, use the data type of input data. To be compatible with other modules,
                 the output data type is always `float32`.
+            align_corners: Defaults to True.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             allow_missing_keys: don't raise exception if key is missing.
 
         See also:

@@ -30,7 +30,7 @@ from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import AFFINE_TOL, affine_to_spacing, compute_shape_offset, iter_patch, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
-from monai.networks.utils import meshgrid_ij
+from monai.networks.utils import meshgrid_ij, normalize_transform
 from monai.transforms.croppad.array import CenterSpatialCrop, ResizeWithPadOrCrop
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.spatial.functional import (
@@ -1495,6 +1495,8 @@ class AffineGrid(LazyTransform):
         dtype: data type for the grid computation. Defaults to ``float32``.
             If ``None``, use the data type of input data (if `grid` is provided).
         device: device on which the tensor will be allocated, if a new grid is generated.
+        align_corners: Defaults to True.
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
         affine: If applied, ignore the params (`rotate_params`, etc.) and use the
             supplied matrix. Should be square with each side = num of image spatial
             dimensions + 1.
@@ -1511,6 +1513,7 @@ class AffineGrid(LazyTransform):
         scale_params: Sequence[float] | float | None = None,
         device: torch.device | None = None,
         dtype: DtypeLike = np.float32,
+        align_corners: bool = True,
         affine: NdarrayOrTensor | None = None,
     ) -> None:
         self.rotate_params = rotate_params
@@ -1520,6 +1523,7 @@ class AffineGrid(LazyTransform):
         self.device = device
         _dtype = get_equivalent_dtype(dtype, torch.Tensor)
         self.dtype = _dtype if _dtype in (torch.float16, torch.float64, None) else torch.float32
+        self.align_corners = align_corners
         self.affine = affine
 
     def __call__(
@@ -1571,7 +1575,13 @@ class AffineGrid(LazyTransform):
 
         affine = to_affine_nd(len(grid_) - 1, affine)
         affine = convert_to_tensor(affine, device=grid_.device, dtype=grid_.dtype, track_meta=False)  # type: ignore
-        grid_ = (affine @ grid_.view((grid_.shape[0], -1))).view([-1] + list(grid_.shape[1:]))
+        if not self.align_corners:
+            dst_xform_1 = normalize_transform(spatial_size, grid_.device, grid_.dtype, True, True)[0]  # to (-1, 1)
+            norm = create_scale(spatial_dims, [(max(d, 2) - 1) / d for d in spatial_size], grid_.device, "torch")
+            dst_xform_1 = norm.to(grid_.dtype) @ dst_xform_1  # type: ignore  # scaling (num_step - 1) / num_step
+            dst_xform_d = normalize_transform(spatial_size, grid_.device, grid_.dtype, False, True)[0]
+            affine = affine @ torch.inverse(dst_xform_d) @ dst_xform_1
+        grid_ = (affine @ grid_.view((grid_.shape[0], -1))).view([-1] + list(spatial_size))
         return grid_, affine  # type: ignore
 
 
@@ -1745,6 +1755,7 @@ class Resample(Transform):
         padding_mode: str = GridSamplePadMode.BORDER,
         norm_coords: bool = True,
         device: torch.device | None = None,
+        align_corners: bool = True,
         dtype: DtypeLike = np.float64,
     ) -> None:
         """
@@ -1774,6 +1785,8 @@ class Resample(Transform):
                 `[-1, 1]` (for torch ``grid_sample`` implementation) to be compatible with the underlying
                 resampling API.
             device: device on which the tensor will be allocated.
+            align_corners: Defaults to True.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             dtype: data type for resampling computation. Defaults to ``float64`` for best precision.
                 If ``None``, use the data type of input data. To be compatible with other modules,
                 the output data type is always `float32`.
@@ -1783,6 +1796,7 @@ class Resample(Transform):
         self.padding_mode = padding_mode
         self.norm_coords = norm_coords
         self.device = device
+        self.align_corners = align_corners
         self.dtype = dtype
 
     def __call__(
@@ -1792,6 +1806,7 @@ class Resample(Transform):
         mode: str | int | None = None,
         padding_mode: str | None = None,
         dtype: DtypeLike = None,
+        align_corners: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -1819,6 +1834,8 @@ class Resample(Transform):
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             dtype: data type for resampling computation. Defaults to ``self.dtype``.
                 To be compatible with other modules, the output data type is always `float32`.
+            align_corners: Defaults to ``self.align_corners``.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
 
         See also:
             :py:const:`monai.config.USE_COMPILED`
@@ -1828,6 +1845,7 @@ class Resample(Transform):
             return img
         _device = img.device if isinstance(img, torch.Tensor) else self.device
         _dtype = dtype or self.dtype or img.dtype
+        _align_corners = self.align_corners if align_corners is None else align_corners
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=_dtype, device=_device)
         grid_t, *_ = convert_to_dst_type(grid, img_t, dtype=grid.dtype, wrap_sequence=True)
         grid_t = grid_t.clone(memory_format=torch.contiguous_format)
@@ -1846,7 +1864,7 @@ class Resample(Transform):
         if USE_COMPILED or self._backend == TransformBackends.NUMPY:
             if self.norm_coords:
                 for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
-                    grid_t[i] = (max(dim, 2) / 2.0 - 0.5 + grid_t[i]) / grid_t[-1:]
+                    grid_t[i] += max(dim, 2) / 2.0 - 0.5 if _align_corners else max(dim, 2) / 2.0
             grid_t = grid_t[:sr]
             if USE_COMPILED and self._backend == TransformBackends.TORCH:  # compiled is using torch backend param name
                 grid_t = moveaxis(grid_t, 0, -1)  # type: ignore
@@ -1879,7 +1897,10 @@ class Resample(Transform):
         else:
             if self.norm_coords:
                 for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
-                    grid_t[i] = 2.0 / (max(2, dim) - 1.0) * grid_t[i] / grid_t[-1:]
+                    if _align_corners:
+                        grid_t[i] *= 2.0 / (max(2, dim) - 1.0)
+                    else:
+                        grid_t[i] = (2.0 / max(2, dim)) * grid_t[i] + (1 / max(2, dim))
             index_ordering: list[int] = list(range(sr - 1, -1, -1))
             grid_t = moveaxis(grid_t[index_ordering], 0, -1)  # type: ignore
             out = torch.nn.functional.grid_sample(
@@ -1887,7 +1908,7 @@ class Resample(Transform):
                 grid_t.unsqueeze(0).to(img_t),
                 mode=GridSampleMode(_interp_mode),
                 padding_mode=GridSamplePadMode(_padding_mode),
-                align_corners=True,
+                align_corners=self.align_corners,
             )[0]
         out_val, *_ = convert_to_dst_type(out, dst=img, dtype=np.float32)
         return out_val
@@ -1915,6 +1936,7 @@ class Affine(InvertibleTransform, LazyTransform):
         normalized: bool = False,
         device: torch.device | None = None,
         dtype: DtypeLike = np.float32,
+        align_corners: bool = True,
         image_only: bool = False,
     ) -> None:
         """
@@ -1967,6 +1989,8 @@ class Affine(InvertibleTransform, LazyTransform):
             dtype: data type for resampling computation. Defaults to ``float32``.
                 If ``None``, use the data type of input data. To be compatible with other modules,
                 the output data type is always `float32`.
+            align_corners: Defaults to True.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             image_only: if True return only the image volume, otherwise return (image, affine).
 
         """
@@ -1977,11 +2001,12 @@ class Affine(InvertibleTransform, LazyTransform):
             scale_params=scale_params,
             affine=affine,
             dtype=dtype,
+            align_corners=align_corners,
             device=device,
         )
         self.image_only = image_only
         self.norm_coord = not normalized
-        self.resampler = Resample(norm_coords=self.norm_coord, device=device, dtype=dtype)
+        self.resampler = Resample(norm_coords=self.norm_coord, device=device, dtype=dtype, align_corners=align_corners)
         self.spatial_size = spatial_size
         self.mode = mode
         self.padding_mode: str = padding_mode

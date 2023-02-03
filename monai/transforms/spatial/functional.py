@@ -381,7 +381,13 @@ def rotate90(img, axes, k, transform_info):
 
 def affine_func(img, affine, grid, resampler, sp_size, mode, padding_mode, do_resampling, image_only, transform_info):
     """resampler should carry the align_corners and type info."""
-    extra_info = {"affine": affine, "mode": mode, "padding_mode": padding_mode, "do_resampling": do_resampling}
+    extra_info = {
+        "affine": affine,
+        "mode": mode,
+        "padding_mode": padding_mode,
+        "do_resampling": do_resampling,
+        "align_corners": resampler.align_corners,
+    }
     img_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
     rank = img.peek_pending_rank() if isinstance(img, MetaTensor) else torch.tensor(3.0, dtype=torch.double)
     affine = convert_to_dst_type(monai.transforms.Affine.compute_w_affine(rank, affine, img_size, sp_size), rank)[0]
