@@ -191,6 +191,7 @@ class TestComputeMeanIoU(unittest.TestCase):
     def test_value(self, input_data, expected_value):
         result = compute_meaniou(**input_data)
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
+        np.testing.assert_equal(result.device, input_data["y_pred"].device)
 
     @parameterized.expand([TEST_CASE_3])
     def test_nans(self, input_data, expected_value):

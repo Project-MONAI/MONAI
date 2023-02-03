@@ -19,6 +19,8 @@ from parameterized import parameterized
 
 from monai.metrics import HausdorffDistanceMetric
 
+_device = "cuda:0" if torch.cuda.is_available() else "cpu"
+
 
 def create_spherical_seg_3d(
     radius: float = 20.0, centre: tuple[int, int, int] = (49, 49, 49), im_shape: tuple[int, int, int] = (99, 99, 99)
@@ -116,8 +118,8 @@ class TestHausdorffDistance(unittest.TestCase):
         else:
             [seg_1, seg_2] = input_data
         ct = 0
-        seg_1 = torch.tensor(seg_1)
-        seg_2 = torch.tensor(seg_2)
+        seg_1 = torch.tensor(seg_1, device=_device)
+        seg_2 = torch.tensor(seg_2, device=_device)
         for metric in ["euclidean", "chessboard", "taxicab"]:
             for directed in [True, False]:
                 hd_metric = HausdorffDistanceMetric(
@@ -130,7 +132,8 @@ class TestHausdorffDistance(unittest.TestCase):
                 hd_metric(batch_seg_1, batch_seg_2)
                 result = hd_metric.aggregate(reduction="mean")
                 expected_value_curr = expected_value[ct]
-                np.testing.assert_allclose(expected_value_curr, result, rtol=1e-7)
+                np.testing.assert_allclose(expected_value_curr, result.cpu(), rtol=1e-7)
+                np.testing.assert_equal(result.device, seg_1.device)
                 ct += 1
 
     @parameterized.expand(TEST_CASES_NANS)
