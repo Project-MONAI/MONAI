@@ -19,11 +19,13 @@ from parameterized import parameterized
 
 from monai.metrics import GeneralizedDiceScore, compute_generalized_dice
 
+_device = "cuda:0" if torch.cuda.is_available() else "cpu"
+
 # keep background
 TEST_CASE_1 = [  # y (1, 1, 2, 2), y_pred (1, 1, 2, 2), expected out (1)
     {
-        "y_pred": torch.tensor([[[[1.0, 0.0], [0.0, 1.0]]]]),
-        "y": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
+        "y_pred": torch.tensor([[[[1.0, 0.0], [0.0, 1.0]]]], device=_device),
+        "y": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]], device=_device),
         "include_background": True,
     },
     [0.8],
@@ -116,7 +118,12 @@ TEST_CASE_8 = [{"y": torch.ones((2, 2, 3, 3)), "y_pred": torch.zeros((2, 2, 3, 3
 TEST_CASE_9 = [{"y": torch.zeros((2, 2, 3, 3)), "y_pred": torch.zeros((2, 2, 3, 3))}, [1.0000, 1.0000]]
 
 
-class TestComputeMeanDice(unittest.TestCase):
+class TestComputeGeneralizedDiceScore(unittest.TestCase):
+    @parameterized.expand([TEST_CASE_1])
+    def test_device(self, input_data, _expected_value):
+        result = compute_generalized_dice(**input_data)
+        np.testing.assert_equal(result.device, input_data["y_pred"].device)
+
     # Functional part tests
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8, TEST_CASE_9])
     def test_value(self, input_data, expected_value):
