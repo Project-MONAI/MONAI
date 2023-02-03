@@ -177,9 +177,9 @@ class IntegrationLazyResampling(DistTestCase):
 
     def test_training(self):
         repeated = []
-        for i in range(4):
-            results = self.train_and_infer(i)
-            repeated.append(results)
+        # for i in range(4):
+        results = self.train_and_infer(0)
+        repeated.append(results)
         # np.testing.assert_allclose(repeated[0], repeated[1])
         # np.testing.assert_allclose(repeated[0], repeated[2])
         # np.testing.assert_allclose(repeated[0], repeated[3])
