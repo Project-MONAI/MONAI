@@ -223,7 +223,7 @@ class ReferenceResolver:
         # regular expression pattern to match "@XXX" or "@XXX#YYY"
         result = cls.id_matcher.findall(value)
         # reversely sort the matched references by length
-        # and handle the longer first in case some reference item is a substring of another longer item
+        # and handle the longer first in case a reference item is substring of another longer item
         result.sort(key=len, reverse=True)
         value_is_expr = ConfigExpression.is_expression(value)
         for item in result:
