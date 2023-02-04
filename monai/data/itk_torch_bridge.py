@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 import torch
@@ -219,7 +219,7 @@ def itk_to_monai_affine(image, matrix, translation, center_of_rotation=None, ref
     spacing_matrix, inverse_spacing_matrix = _compute_spacing_matrix(image)
     affine_matrix = inverse_spacing_matrix @ affine_matrix @ spacing_matrix
 
-    return affine_matrix @ reference_affine_matrix
+    return cast(torch.Tensor, affine_matrix @ reference_affine_matrix)
 
 
 def monai_to_itk_affine(image, affine_matrix, center_of_rotation=None):
