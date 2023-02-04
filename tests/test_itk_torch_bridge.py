@@ -36,9 +36,6 @@ itk, has_itk = optional_import("itk")
 
 TESTS = ["CT_2D_head_fixed.mha", "CT_2D_head_moving.mha", "copd1_highres_INSP_STD_COPD_img.nii.gz"]
 
-key = "copd1_highres_INSP_STD_COPD_img"
-FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", f"{key}.nii.gz")
-
 
 def create_itk_affine_from_parameters(
     image, translation=None, rotation=None, scale=None, shear=None, center_of_rotation=None
@@ -179,15 +176,15 @@ def monai_warp(image_tensor, ddf_tensor):
 @unittest.skipUnless(has_itk, "Requires `itk` package.")
 class TestITKTorchAffineMatrixBridge(unittest.TestCase):
     def setUp(self):
-        # TODO: which data should be used
         self.data_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
         self.reader = ITKReader()
 
-        for k, n in ((key, FILE_PATH),):
-            if not os.path.exists(n):
+        for file_name in TESTS:
+            path = os.path.join(self.data_dir, file_name)
+            if not os.path.exists(path):
                 with skip_if_downloading_fails():
-                    data_spec = testing_data_config("images", f"{k}")
-                    download_url(data_spec["url"], n, hash_val=data_spec["hash_val"], hash_type=data_spec["hash_type"])
+                    data_spec = testing_data_config("images", f"{file_name.split('.', 1)[0]}")
+                    download_url(data_spec["url"], path, hash_val=data_spec["hash_val"], hash_type=data_spec["hash_type"])
 
     @parameterized.expand(TESTS)
     def test_setting_affine_parameters(self, filepath):

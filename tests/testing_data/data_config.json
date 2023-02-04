@@ -59,6 +59,16 @@
             "url": "https://data.kitware.com/api/v1/file/62a0f067bddec9d0c4175c5a/download",
             "hash_type": "sha512",
             "hash_val": "60193cd6ef0cf055c623046446b74f969a2be838444801bd32ad5bedc8a7eeecb343e8a1208769c9c7a711e101c806a3133eccdda7790c551a69a64b9b3701e9"
+        },
+        "CT_2D_head_fixed": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/CT_2D_head_fixed.mha",
+            "hash_type": "sha256",
+            "hash_val": "06f2ce6fbf6a59f0874c735555fcf71717f631156b1b0697c1752442f7fc1cc5"
+        },
+        "CT_2D_head_moving": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/CT_2D_head_moving.mha",
+            "hash_type": "sha256",
+            "hash_val": "a37c5fe388c38b3f4ac564f456277d09d3982eda58c4da05ead8ee2332360f47"
         }
     },
     "videos": {
