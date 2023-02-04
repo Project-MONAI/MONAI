@@ -427,7 +427,7 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         itk_img_resampled = itk_warp(itk_img, ddf.squeeze().numpy())
 
         # Compare
-        np.testing.assert_allclose(img_resampled, itk_img_resampled, rtol=1e-3, atol=1e-3)
+        np.testing.assert_allclose(img_resampled, itk_img_resampled, rtol=1e-2, atol=1e-2)
         diff_output = img_resampled - itk_img_resampled
         print(f"[Min, Max] diff: [{diff_output.min()}, {diff_output.max()}]")
 

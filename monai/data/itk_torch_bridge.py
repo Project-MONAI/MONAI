@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
@@ -115,7 +115,7 @@ def _compute_offset_matrix(image, center_of_rotation) -> tuple[torch.Tensor, tor
     return offset_matrix, inverse_offset_matrix
 
 
-def _compute_spacing_matrix(image):
+def _compute_spacing_matrix(image) -> tuple[torch.Tensor, torch.Tensor]:
     ndim = image.ndim
     spacing = np.asarray(image.GetSpacing(), dtype=np.float64)
     spacing_matrix = torch.eye(ndim + 1, dtype=torch.float64)
@@ -127,7 +127,7 @@ def _compute_spacing_matrix(image):
     return spacing_matrix, inverse_spacing_matrix
 
 
-def _compute_direction_matrix(image):
+def _compute_direction_matrix(image) -> tuple[torch.Tensor, torch.Tensor]:
     ndim = image.ndim
     direction = itk.array_from_matrix(image.GetDirection())
     direction_matrix = torch.eye(ndim + 1, dtype=torch.float64)
@@ -139,7 +139,7 @@ def _compute_direction_matrix(image):
     return direction_matrix, inverse_direction_matrix
 
 
-def _compute_reference_space_affine_matrix(image, ref_image):
+def _compute_reference_space_affine_matrix(image, ref_image) -> torch.Tensor:
     ndim = ref_image.ndim
 
     # Spacing and direction as matrices
@@ -219,7 +219,7 @@ def itk_to_monai_affine(image, matrix, translation, center_of_rotation=None, ref
     spacing_matrix, inverse_spacing_matrix = _compute_spacing_matrix(image)
     affine_matrix = inverse_spacing_matrix @ affine_matrix @ spacing_matrix
 
-    return cast(torch.Tensor, affine_matrix @ reference_affine_matrix)
+    return affine_matrix @ reference_affine_matrix
 
 
 def monai_to_itk_affine(image, affine_matrix, center_of_rotation=None):
