@@ -37,6 +37,35 @@ __all__ = [
 ]
 
 
+def _assert_itk_regions_match_array(image):
+    # Note: Make it more compact? Also, are there redundant checks?
+    largest_region = image.GetLargestPossibleRegion()
+    buffered_region = image.GetBufferedRegion()
+    requested_region = image.GetRequestedRegion()
+
+    largest_region_size = np.array(largest_region.GetSize())
+    buffered_region_size = np.array(buffered_region.GetSize())
+    requested_region_size = np.array(requested_region.GetSize())
+    array_size = np.array(image.shape)[::-1]
+
+    largest_region_index = np.array(largest_region.GetIndex())
+    buffered_region_index = np.array(buffered_region.GetIndex())
+    requested_region_index = np.array(requested_region.GetIndex())
+
+    indices_are_zeros = (
+        np.all(largest_region_index == 0) and np.all(buffered_region_index == 0) and np.all(requested_region_index == 0)
+    )
+
+    sizes_match = (
+        np.array_equal(array_size, largest_region_size)
+        and np.array_equal(largest_region_size, buffered_region_size)
+        and np.array_equal(buffered_region_size, requested_region_size)
+    )
+
+    assert indices_are_zeros, "ITK-MONAI bridge: non-zero ITK region indices encountered"
+    assert sizes_match, "ITK-MONAI bridge: ITK regions should be of the same shape"
+
+
 def get_itk_image_center(image):
     """
     Calculates the center of the ITK image based on its origin, size, and spacing.
@@ -110,7 +139,38 @@ def _compute_direction_matrix(image):
     return direction_matrix, inverse_direction_matrix
 
 
-def itk_to_monai_affine(image, matrix, translation, center_of_rotation=None) -> torch.Tensor:
+def _compute_reference_space_affine_matrix(image, ref_image):
+    ndim = ref_image.ndim
+
+    # Spacing and direction as matrices
+    spacing_matrix, inv_spacing_matrix = (m[:ndim, :ndim].numpy() for m in _compute_spacing_matrix(image))
+    ref_spacing_matrix, ref_inv_spacing_matrix = (m[:ndim, :ndim].numpy() for m in _compute_spacing_matrix(ref_image))
+
+    direction_matrix, inv_direction_matrix = (m[:ndim, :ndim].numpy() for m in _compute_direction_matrix(image))
+    ref_direction_matrix, ref_inv_direction_matrix = (
+        m[:ndim, :ndim].numpy() for m in _compute_direction_matrix(ref_image)
+    )
+
+    # Matrix calculation
+    matrix = ref_direction_matrix @ ref_spacing_matrix @ inv_spacing_matrix @ inv_direction_matrix
+
+    # Offset calculation
+    pixel_offset = -1
+    image_size = np.asarray(ref_image.GetLargestPossibleRegion().GetSize(), np.float32)
+    translation = (
+        (ref_direction_matrix @ ref_spacing_matrix - direction_matrix @ spacing_matrix)
+        @ (image_size + pixel_offset)
+        / 2
+    )
+    translation += np.asarray(ref_image.GetOrigin()) - np.asarray(image.GetOrigin())
+
+    # Convert matrix ITK matrix and translation to MONAI affine matrix
+    ref_affine_matrix = itk_to_monai_affine(image, matrix=matrix, translation=translation)
+
+    return ref_affine_matrix
+
+
+def itk_to_monai_affine(image, matrix, translation, center_of_rotation=None, reference_image=None) -> torch.Tensor:
     """
     Converts an ITK affine matrix (2x2 for 2D or 3x3 for 3D matrix and translation vector) to a MONAI affine matrix.
 
@@ -121,13 +181,24 @@ def itk_to_monai_affine(image, matrix, translation, center_of_rotation=None) -> 
         center_of_rotation: The center of rotation. If provided, the affine
                             matrix will be adjusted to account for the difference
                             between the center of the image and the center of rotation.
+        reference_image: The coordinate space that matrix and translation were defined
+                         in respect to. If not supplied, the coordinate space of image
+                         is used.
 
     Returns:
         A 4x4 MONAI affine matrix.
     """
 
-    # Create affine matrix that includes translation
+    _assert_itk_regions_match_array(image)
     ndim = image.ndim
+    # If there is a reference image, compute an affine matrix that maps the image space to the
+    # reference image space.
+    if reference_image:
+        reference_affine_matrix = _compute_reference_space_affine_matrix(image, reference_image)
+    else:
+        reference_affine_matrix = torch.eye(ndim + 1, dtype=torch.float64)
+
+    # Create affine matrix that includes translation
     affine_matrix = torch.eye(ndim + 1, dtype=torch.float64)
     affine_matrix[:ndim, :ndim] = torch.tensor(matrix, dtype=torch.float64)
     affine_matrix[:ndim, ndim] = torch.tensor(translation, dtype=torch.float64)
@@ -137,19 +208,18 @@ def itk_to_monai_affine(image, matrix, translation, center_of_rotation=None) -> 
         offset_matrix, inverse_offset_matrix = _compute_offset_matrix(image, center_of_rotation)
         affine_matrix = inverse_offset_matrix @ affine_matrix @ offset_matrix
 
-    # Adjust based on spacing. It is required because MONAI does not update the
-    # pixel array according to the spacing after a transformation. For example,
-    # a rotation of 90deg for an image with different spacing along the two axis
-    # will just rotate the image array by 90deg without also scaling accordingly.
-    # TODO rewrite comment
-    spacing_matrix, inverse_spacing_matrix = _compute_spacing_matrix(image)
-    affine_matrix = inverse_spacing_matrix @ affine_matrix @ spacing_matrix
-
     # Adjust direction
     direction_matrix, inverse_direction_matrix = _compute_direction_matrix(image)
     affine_matrix = inverse_direction_matrix @ affine_matrix @ direction_matrix
 
-    return affine_matrix
+    # Adjust based on spacing. It is required because MONAI does not update the
+    # pixel array according to the spacing after a transformation. For example,
+    # a rotation of 90deg for an image with different spacing along the two axis
+    # will just rotate the image array by 90deg without also scaling accordingly.
+    spacing_matrix, inverse_spacing_matrix = _compute_spacing_matrix(image)
+    affine_matrix = inverse_spacing_matrix @ affine_matrix @ spacing_matrix
+
+    return affine_matrix @ reference_affine_matrix
 
 
 def monai_to_itk_affine(image, affine_matrix, center_of_rotation=None):
@@ -167,13 +237,15 @@ def monai_to_itk_affine(image, affine_matrix, center_of_rotation=None):
     Returns:
         The ITK matrix and the translation vector.
     """
-    # Adjust direction
-    direction_matrix, inverse_direction_matrix = _compute_direction_matrix(image)
-    affine_matrix = direction_matrix @ affine_matrix @ inverse_direction_matrix
+    _assert_itk_regions_match_array(image)
 
     # Adjust spacing
     spacing_matrix, inverse_spacing_matrix = _compute_spacing_matrix(image)
     affine_matrix = spacing_matrix @ affine_matrix @ inverse_spacing_matrix
+
+    # Adjust direction
+    direction_matrix, inverse_direction_matrix = _compute_direction_matrix(image)
+    affine_matrix = direction_matrix @ affine_matrix @ inverse_direction_matrix
 
     # Adjust offset when center of rotation is different from center of the image
     if center_of_rotation:

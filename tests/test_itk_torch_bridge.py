@@ -34,7 +34,12 @@ from tests.utils import skip_if_downloading_fails, testing_data_config
 
 itk, has_itk = optional_import("itk")
 
-TESTS = ["CT_2D_head_fixed.mha", "CT_2D_head_moving.mha", "copd1_highres_INSP_STD_COPD_img.nii.gz"]
+TESTS = [
+    "CT_2D_head_fixed.mha",
+    "CT_2D_head_moving.mha",
+    "copd1_highres_INSP_STD_COPD_img.nii.gz",
+    "copd1_highres_EXP_STD_COPD_img.nii.gz",
+]
 
 
 def create_itk_affine_from_parameters(
@@ -88,7 +93,7 @@ def create_itk_affine_from_parameters(
     return matrix, translation
 
 
-def itk_affine_resample(image, matrix, translation, center_of_rotation=None):
+def itk_affine_resample(image, matrix, translation, center_of_rotation=None, reference_image=None):
     # Translation transform
     itk_transform = itk.AffineTransform[itk.D, image.ndim].New()
 
@@ -106,9 +111,12 @@ def itk_affine_resample(image, matrix, translation, center_of_rotation=None):
     image = image.astype(itk.D)
     interpolator = itk.LinearInterpolateImageFunction.New(image)
 
+    if not reference_image:
+        reference_image = image
+
     # Resample with ITK
     output_image = itk.resample_image_filter(
-        image, interpolator=interpolator, transform=itk_transform, output_parameters_from_image=image
+        image, interpolator=interpolator, transform=itk_transform, output_parameters_from_image=reference_image
     )
 
     return np.asarray(output_image, dtype=np.float32)
@@ -177,14 +185,16 @@ def monai_warp(image_tensor, ddf_tensor):
 class TestITKTorchAffineMatrixBridge(unittest.TestCase):
     def setUp(self):
         self.data_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
-        self.reader = ITKReader()
+        self.reader = ITKReader(pixel_type=itk.F)
 
         for file_name in TESTS:
             path = os.path.join(self.data_dir, file_name)
             if not os.path.exists(path):
                 with skip_if_downloading_fails():
                     data_spec = testing_data_config("images", f"{file_name.split('.', 1)[0]}")
-                    download_url(data_spec["url"], path, hash_val=data_spec["hash_val"], hash_type=data_spec["hash_type"])
+                    download_url(
+                        data_spec["url"], path, hash_val=data_spec["hash_val"], hash_type=data_spec["hash_type"]
+                    )
 
     @parameterized.expand(TESTS)
     def test_setting_affine_parameters(self, filepath):
@@ -362,6 +372,16 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         origin = [8.10416794, 5.4831944, 0.49211025][:ndim]
         spacing = np.array([0.7, 3.2, 1.3])[:ndim]
 
+        direction = np.array(
+            [
+                [1.02895588, 0.22791448, 0.02429561],
+                [0.21927512, 1.28632268, -0.14932226],
+                [0.47455613, 0.38534345, 0.98505633],
+            ],
+            dtype=np.float64,
+        )
+        image.SetDirection(direction[:ndim, :ndim])
+
         image.SetSpacing(spacing)
         image.SetOrigin(origin)
 
@@ -374,6 +394,7 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
 
     @parameterized.expand([(2,), (3,)])
     def test_random_array(self, ndim):
+        # TODO is flaky
         # Create image/array with random size and pixel intensities
         s = torch.randint(low=2, high=20, size=(ndim,))
         img = 100 * torch.rand((1, 1, *s.tolist()), dtype=torch.float32)
@@ -413,7 +434,7 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_real_data(self, filepath):
         # Read image
-        image = itk.imread(os.path.join(self.data_dir, filepath), itk.F)
+        image = self.reader.read(os.path.join(self.data_dir, filepath))
         image[:] = remove_border(image)
         ndim = image.ndim
 
@@ -430,6 +451,69 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         # Compare
         np.testing.assert_allclose(img_resampled, itk_img_resampled, rtol=1e-3, atol=1e-3)
         diff_output = img_resampled - itk_img_resampled
+        print(f"[Min, Max] diff: [{diff_output.min()}, {diff_output.max()}]")
+
+    @parameterized.expand(zip(TESTS[::2], TESTS[1::2]))
+    def test_use_reference_space(self, ref_filepath, filepath):
+        # Read the images
+        image = self.reader.read(os.path.join(self.data_dir, filepath))
+        image[:] = remove_border(image)
+        ndim = image.ndim
+
+        ref_image = self.reader.read(os.path.join(self.data_dir, ref_filepath))
+
+        # Set arbitary origin, spacing, direction for both of the images
+        image.SetSpacing([1.2, 2.0, 1.7][:ndim])
+        ref_image.SetSpacing([1.9, 1.5, 1.3][:ndim])
+
+        direction = np.array(
+            [
+                [1.02895588, 0.22791448, 0.02429561],
+                [0.21927512, 1.28632268, -0.14932226],
+                [0.47455613, 0.38534345, 0.98505633],
+            ],
+            dtype=np.float64,
+        )
+        image.SetDirection(direction[:ndim, :ndim])
+
+        ref_direction = np.array(
+            [
+                [1.26032417, -0.19243174, 0.54877414],
+                [0.31958275, 0.9543068, 0.2720827],
+                [-0.24106769, -0.22344502, 0.9143302],
+            ],
+            dtype=np.float64,
+        )
+        ref_image.SetDirection(ref_direction[:ndim, :ndim])
+
+        image.SetOrigin([57.3, 102.0, -20.9][:ndim])
+        ref_image.SetOrigin([23.3, -0.5, 23.7][:ndim])
+
+        # Set affine parameters
+        matrix = np.array(
+            [
+                [0.55915995, 0.50344867, 0.43208387],
+                [0.01133669, 0.82088571, 0.86841365],
+                [0.30478496, 0.94998986, 0.32742505],
+            ]
+        )[:ndim, :ndim]
+        translation = [54.0, 2.7, -11.9][:ndim]
+        center_of_rotation = [-32.3, 125.1, 0.7][:ndim]
+
+        # Resample using ITK
+        output_array_itk = itk_affine_resample(image, matrix, translation, center_of_rotation, ref_image)
+
+        # MONAI
+        metatensor = itk_image_to_metatensor(image)
+        affine_matrix_for_monai = itk_to_monai_affine(image, matrix, translation, center_of_rotation, ref_image)
+        output_array_monai = monai_affine_resample(metatensor, affine_matrix_for_monai)
+
+        # Compare outputs
+        np.testing.assert_allclose(output_array_monai, output_array_itk, rtol=1e-3, atol=1e-3)
+
+        diff_output = output_array_monai - output_array_itk
+        print(f"[Min, Max] MONAI: [{output_array_monai.min()}, {output_array_monai.max()}]")
+        print(f"[Min, Max] ITK: [{output_array_itk.min()}, {output_array_itk.max()}]")
         print(f"[Min, Max] diff: [{diff_output.min()}, {diff_output.max()}]")
 
 

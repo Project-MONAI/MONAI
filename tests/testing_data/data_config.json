@@ -60,6 +60,11 @@
             "hash_type": "sha512",
             "hash_val": "60193cd6ef0cf055c623046446b74f969a2be838444801bd32ad5bedc8a7eeecb343e8a1208769c9c7a711e101c806a3133eccdda7790c551a69a64b9b3701e9"
         },
+        "copd1_highres_EXP_STD_COPD_img": {
+            "url": "https://data.kitware.com/api/v1/item/62a0f045bddec9d0c4175c44/download",
+            "hash_type": "sha512",
+            "hash_val": "841ef303958541474e66c2d1ccdc8b7ed17ba2f2681101307766b979a07979f2ec818ddf13791c3f1ac5a8ec3258d6ea45b692b4b4a838de9188602618972b6d"
+        },
         "CT_2D_head_fixed": {
             "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/CT_2D_head_fixed.mha",
             "hash_type": "sha256",
