@@ -16,10 +16,8 @@ import json
 import os
 import pprint
 import re
-import time
 import warnings
 from collections.abc import Mapping, Sequence
-from logging.config import fileConfig
 from pathlib import Path
 from shutil import copyfile
 from textwrap import dedent
@@ -31,7 +29,7 @@ from monai.apps.mmars.mmars import _get_all_ngc_models
 from monai.apps.utils import _basename, download_url, extractall, get_logger
 from monai.bundle.config_item import ConfigComponent
 from monai.bundle.config_parser import ConfigParser
-from monai.bundle.utils import DEFAULT_EXP_MGMT_SETTINGS, DEFAULT_INFERENCE, DEFAULT_METADATA
+from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA
 from monai.bundle.workflows import ConfigWorkflow
 from monai.config import IgniteInfo, PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
