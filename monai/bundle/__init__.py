@@ -21,7 +21,6 @@ from .scripts import (
     get_bundle_versions,
     init_bundle,
     load,
-    patch_bundle_tracking,
     run,
     verify_metadata,
     verify_net_in_out,
@@ -35,4 +34,4 @@ from .utils import (
     MACRO_KEY,
     load_bundle_config,
 )
-from .workflows import BundleWorkflow, ZooWorkflow, ZooTrainWorkflow, ZooInferWorkflow
+from .workflows import BundleWorkflow, ConfigWorkflow, ConfigTrainWorkflow, ConfigInferWorkflow

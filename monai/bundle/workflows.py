@@ -21,7 +21,7 @@ from monai.bundle.utils import DEFAULT_EXP_MGMT_SETTINGS
 from monai.engines import Trainer, Evaluator
 from monai.inferers import Inferer
 
-__all__ = ["BundleWorkflow", "ZooWorkflow", "ZooTrainWorkflow", "ZooInferWorkflow"]
+__all__ = ["BundleWorkflow", "ConfigWorkflow", "ConfigTrainWorkflow", "ConfigInferWorkflow"]
 
 logger = get_logger(module_name=__name__)
 
@@ -220,7 +220,7 @@ class InferProperties(ABC):
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
 
-class ZooWorkflow(BundleWorkflow):
+class ConfigWorkflow(BundleWorkflow):
     def __init__(
         self,
         meta_file: str | Sequence[str] | None = None,
@@ -316,7 +316,7 @@ class ZooWorkflow(BundleWorkflow):
         parser.export_config_file(parser.get(), filepath)
 
 
-class ZooTrainWorkflow(ZooWorkflow, TrainProperties):
+class ConfigTrainWorkflow(ConfigWorkflow, TrainProperties):
     train_ids = [
         "bundle_root",
         "device",
@@ -435,7 +435,7 @@ class ZooTrainWorkflow(ZooWorkflow, TrainProperties):
         self.parser[self.val_ids[3]] = data
 
 
-class ZooInferWorkflow(ZooWorkflow, InferProperties):
+class ConfigInferWorkflow(ConfigWorkflow, InferProperties):
     infer_ids = ["bundle_root", "device", "network_def", "inferer"]
 
     def check(self) -> bool:

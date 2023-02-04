@@ -23,7 +23,7 @@ import torch.distributed as dist
 import monai
 from monai.apps.auto3dseg.data_analyzer import DataAnalyzer
 from monai.auto3dseg import SegSummarizer
-from monai.bundle import DEFAULT_EXP_MGMT_SETTINGS, ConfigComponent, ConfigItem, ConfigParser, patch_bundle_tracking
+from monai.bundle import DEFAULT_EXP_MGMT_SETTINGS, ConfigComponent, ConfigItem, ConfigParser, ConfigWorkflow
 from monai.engines import SupervisedTrainer, Trainer
 from monai.fl.client import ClientAlgo, ClientAlgoStats
 from monai.fl.utils.constants import (
@@ -325,6 +325,7 @@ class MonaiAlgoStats(ClientAlgoStats):
 class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
     """
     Implementation of ``ClientAlgo`` to allow federated learning with MONAI bundle configurations.
+    FIXME: reimplement this class based on the bundle "ConfigWorkflow".
 
     Args:
         bundle_root: path of bundle.
@@ -513,8 +514,8 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
                 settings_ = DEFAULT_EXP_MGMT_SETTINGS[self.tracking]
             else:
                 settings_ = ConfigParser.load_config_files(self.tracking)
-            patch_bundle_tracking(parser=self.train_parser, settings=settings_)
-            patch_bundle_tracking(parser=self.eval_parser, settings=settings_)
+            ConfigWorkflow.patch_bundle_tracking(parser=self.train_parser, settings=settings_)
+            ConfigWorkflow.patch_bundle_tracking(parser=self.eval_parser, settings=settings_)
 
         # Get trainer, evaluator
         self.trainer = self.train_parser.get_parsed_content(
