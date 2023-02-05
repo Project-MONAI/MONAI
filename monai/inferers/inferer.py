@@ -13,8 +13,7 @@ from __future__ import annotations
 
 import warnings
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Mapping, Sequence
-from typing import Any, Generic, TypeVar, Union
+from typing import Any, Callable, Dict, Generic, Mapping, Sequence, TypeVar, Union
 
 import torch
 import torch.nn as nn
@@ -92,7 +91,7 @@ class SimpleInferer(Inferer[torch.Tensor]):
         return network(inputs, *args, **kwargs)
 
 
-class SlidingWindowInferer(Inferer[Union[torch.Tensor, Sequence[torch.Tensor], dict[Any, torch.Tensor]]]):
+class SlidingWindowInferer(Inferer[Union[torch.Tensor, Sequence[torch.Tensor], Dict[Any, torch.Tensor]]]):
     """
     Sliding window method for model inference,
     with `sw_batch_size` windows for every model.forward().
