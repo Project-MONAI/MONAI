@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 import warnings
 from collections.abc import Mapping
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from monai.config import IgniteInfo
 from monai.utils import is_scalar, min_version, optional_import

@@ -27,8 +27,8 @@ Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_
 
 if TYPE_CHECKING:
     from ignite.engine import Engine
-    from torch.utils.tensorboard import SummaryWriter
     from tensorboardX import SummaryWriter as SummaryWriterX
+    from torch.utils.tensorboard import SummaryWriter
 else:
     Engine, _ = optional_import(
         "ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine", as_type="decorator"
@@ -186,7 +186,9 @@ class TensorBoardStatsHandler(TensorBoardHandler):
         else:
             self._default_iteration_writer(engine, self._writer)
 
-    def _write_scalar(self, _engine: Engine, writer: SummaryWriter | SummaryWriterX, tag: str, value: Any, step: int) -> None:
+    def _write_scalar(
+        self, _engine: Engine, writer: SummaryWriter | SummaryWriterX, tag: str, value: Any, step: int
+    ) -> None:
         """
         Write scale value into TensorBoard.
         Default to call `SummaryWriter.add_scalar()`.

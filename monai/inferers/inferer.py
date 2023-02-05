@@ -27,6 +27,7 @@ __all__ = ["Inferer", "SimpleInferer", "SlidingWindowInferer", "SaliencyInferer"
 
 T = TypeVar("T")
 
+
 class Inferer(ABC, Generic[T]):
     """
     A base class for model inference.
@@ -75,7 +76,9 @@ class SimpleInferer(Inferer[torch.Tensor]):
     def __init__(self) -> None:
         Inferer.__init__(self)
 
-    def __call__(self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any) -> torch.Tensor:
+    def __call__(
+        self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any
+    ) -> torch.Tensor:
         """Unified callable function API of Inferers.
 
         Args:
@@ -236,7 +239,9 @@ class SaliencyInferer(Inferer):
 
     """
 
-    def __init__(self, cam_name: str, target_layers: str, class_idx: int | None = None, *args: Any, **kwargs: Any) -> None:
+    def __init__(
+        self, cam_name: str, target_layers: str, class_idx: int | None = None, *args: Any, **kwargs: Any
+    ) -> None:
         Inferer.__init__(self)
         if cam_name.lower() not in ("cam", "gradcam", "gradcampp"):
             raise ValueError("cam_name should be: 'CAM', 'GradCAM' or 'GradCAMpp'.")

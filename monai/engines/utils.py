@@ -239,7 +239,11 @@ class PrepareBatchExtraInput(PrepareBatch):
 
 
 def default_make_latent(
-    num_latents: int, latent_size: int, device: str | torch.device | None = None, non_blocking: bool = False, **kwargs: Any
+    num_latents: int,
+    latent_size: int,
+    device: str | torch.device | None = None,
+    non_blocking: bool = False,
+    **kwargs: Any,
 ) -> torch.Tensor:
     return torch.randn(num_latents, latent_size).to(device=device, non_blocking=non_blocking, **kwargs)
 

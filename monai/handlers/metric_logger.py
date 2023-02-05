@@ -15,7 +15,7 @@ from collections import defaultdict
 from collections.abc import Callable, Mapping, Sequence
 from enum import Enum
 from threading import RLock
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from monai.config import IgniteInfo
 from monai.utils import min_version, optional_import

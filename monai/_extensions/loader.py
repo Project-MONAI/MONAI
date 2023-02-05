@@ -18,6 +18,7 @@ from glob import glob
 from os import path
 from threading import Timer
 from types import ModuleType
+
 import torch
 
 from monai.utils.module import get_torch_version_tuple, optional_import
@@ -45,7 +46,9 @@ def timeout(time, message):
                 pass
 
 
-def load_module(module_name: str, defines: dict | None = None, verbose_build: bool = False, build_timeout: int = 300) -> ModuleType:
+def load_module(
+    module_name: str, defines: dict | None = None, verbose_build: bool = False, build_timeout: int = 300
+) -> ModuleType:
     """
     Handles the loading of c++ extension modules.
 

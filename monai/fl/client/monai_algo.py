@@ -697,7 +697,9 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         self.phase = FlPhase.EVALUATE
         self.logger.info(f"Load {self.client_name} weights...")
         local_var_dict = get_state_dict(self.evaluator.network)
-        global_weights, n_converted = convert_global_weights(global_weights=cast(dict, data.weights), local_var_dict=local_var_dict)
+        global_weights, n_converted = convert_global_weights(
+            global_weights=cast(dict, data.weights), local_var_dict=local_var_dict
+        )
         self._check_converted(data.weights, local_var_dict, n_converted)
 
         _, updated_keys, _ = copy_model_state(src=global_weights, dst=self.evaluator.network)
