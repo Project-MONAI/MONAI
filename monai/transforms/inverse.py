@@ -120,7 +120,7 @@ class TraceableTransform(Transform):
                 meta_obj = self.push_transform(data, orig_size=xform.get(TraceKeys.ORIG_SIZE), extra_info=xform)
                 return data.copy_meta_from(meta_obj)
             if do_transform:
-                xform = data.pending_operations.pop()  # type: ignore
+                xform = data.pending_operations.pop()
                 xform.update(transform_info)
                 meta_obj = self.push_transform(data, transform_info=xform, lazy_evaluation=lazy_eval)
                 return data.copy_meta_from(meta_obj)

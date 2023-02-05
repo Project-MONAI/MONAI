@@ -267,7 +267,7 @@ class SupervisedEvaluator(Evaluator):
         self.network = network
         self.inferer = SimpleInferer() if inferer is None else inferer
 
-    def _iteration(self, engine: SupervisedEvaluator, batchdata: dict[str, torch.Tensor]):
+    def _iteration(self, engine: SupervisedEvaluator, batchdata: dict[str, torch.Tensor]) -> dict:
         """
         callback function for the Supervised Evaluation processing logic of 1 iteration in Ignite Engine.
         Return below items in a dictionary:
@@ -414,7 +414,7 @@ class EnsembleEvaluator(Evaluator):
             raise ValueError("length of `pred_keys` must be same as the length of `networks`.")
         self.inferer = SimpleInferer() if inferer is None else inferer
 
-    def _iteration(self, engine: EnsembleEvaluator, batchdata: dict[str, torch.Tensor]):
+    def _iteration(self, engine: EnsembleEvaluator, batchdata: dict[str, torch.Tensor]) -> dict:
         """
         callback function for the Supervised Evaluation processing logic of 1 iteration in Ignite Engine.
         Return below items in a dictionary:
