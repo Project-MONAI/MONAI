@@ -34,6 +34,7 @@ else:
         "ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine", as_type="decorator"
     )
     SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
+    SummaryWriterX, _ = optional_import("tensorboardX", name="SummaryWriter")
 
 DEFAULT_TAG = "Loss"
 

@@ -152,4 +152,6 @@ def create_multigpu_supervised_evaluator(
     elif len(devices_) > 1:
         net = DataParallel(net)
 
-    return create_supervised_evaluator(net, metrics, devices_[0], non_blocking, prepare_batch, output_transform)  # type: ignore[no-any-return]
+    return create_supervised_evaluator(  # type: ignore[no-any-return]
+        net, metrics, devices_[0], non_blocking, prepare_batch, output_transform
+    )
