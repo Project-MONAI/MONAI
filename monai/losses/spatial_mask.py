@@ -14,6 +14,7 @@ from __future__ import annotations
 import inspect
 import warnings
 from collections.abc import Callable
+from typing import Any
 
 import torch
 from torch.nn.modules.loss import _Loss
@@ -30,7 +31,7 @@ class MaskedLoss(_Loss):
         - :py:class:`monai.losses.MaskedDiceLoss`
     """
 
-    def __init__(self, loss: Callable | _Loss, *loss_args, **loss_kwargs) -> None:
+    def __init__(self, loss: Callable[[torch.Tensor, torch.Tensor],  torch.Tensor] | _Loss, *loss_args: Any, **loss_kwargs: Any) -> None:
         """
         Args:
             loss: loss function to be wrapped, this could be a loss class or an instance of a loss class.
@@ -38,11 +39,11 @@ class MaskedLoss(_Loss):
             loss_kwargs: keyword arguments to the loss function's constructor if `loss` is a class.
         """
         super().__init__()
-        self.loss = loss(*loss_args, **loss_kwargs) if inspect.isclass(loss) else loss
+        self.loss: Callable[[torch.Tensor, torch.Tensor],  torch.Tensor] = loss(*loss_args, **loss_kwargs) if inspect.isclass(loss) else loss
         if not callable(self.loss):
             raise ValueError("The loss function is not callable.")
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor, mask: torch.Tensor | None = None):
+    def forward(self, input: torch.Tensor, target: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
         """
         Args:
             input: the shape should be BNH[WD].
