@@ -199,7 +199,6 @@ class ImageStats(Analyzer):
     """
 
     def __init__(self, image_key: str, stats_name: str = "image_stats") -> None:
-
         if not isinstance(image_key, str):
             raise ValueError("image_key input must be str")
 
@@ -292,7 +291,6 @@ class FgImageStats(Analyzer):
     """
 
     def __init__(self, image_key: str, label_key: str, stats_name: str = "image_foreground_stats"):
-
         self.image_key = image_key
         self.label_key = label_key
 
@@ -375,7 +373,6 @@ class LabelStats(Analyzer):
     """
 
     def __init__(self, image_key: str, label_key: str, stats_name: str = "label_stats", do_ccp: bool | None = True):
-
         self.image_key = image_key
         self.label_key = label_key
         self.do_ccp = do_ccp
@@ -857,7 +854,6 @@ class ImageHistogram(Analyzer):
         hist_bins: list[int] | int | None = None,
         hist_range: list | None = None,
     ):
-
         self.image_key = image_key
 
         # set defaults

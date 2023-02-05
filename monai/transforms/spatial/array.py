@@ -1965,7 +1965,6 @@ class RandDeformGrid(Randomizable, Transform):
 
 
 class Resample(Transform):
-
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
@@ -2867,7 +2866,6 @@ class Rand3DElastic(RandomizableTransform):
 
 
 class GridDistortion(Transform):
-
     backend = [TransformBackends.TORCH]
 
     def __init__(
@@ -2965,7 +2963,6 @@ class GridDistortion(Transform):
 
 
 class RandGridDistortion(RandomizableTransform):
-
     backend = [TransformBackends.TORCH]
 
     def __init__(

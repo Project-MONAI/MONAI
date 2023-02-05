@@ -1018,7 +1018,6 @@ class FgBgToIndices(Transform):
 
 
 class ClassesToIndices(Transform):
-
     backend = [TransformBackends.NUMPY, TransformBackends.TORCH]
 
     def __init__(
@@ -1574,7 +1573,6 @@ class ImageFilter(Transform):
     )
 
     def __init__(self, filter: str | NdarrayOrTensor | nn.Module, filter_size: int | None = None, **kwargs) -> None:
-
         self._check_filter_format(filter, filter_size)
         self._check_kwargs_are_present(filter, **kwargs)
         self.filter = filter

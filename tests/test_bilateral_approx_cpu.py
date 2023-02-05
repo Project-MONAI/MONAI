@@ -367,7 +367,6 @@ TEST_CASES = [
 class BilateralFilterTestCaseCpuApprox(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_cpu_approx(self, test_case_description, sigmas, input, expected):
-
         # Params to determine the implementation to test
         device = torch.device("cpu")
         fast_approx = True
@@ -381,7 +380,6 @@ class BilateralFilterTestCaseCpuApprox(unittest.TestCase):
 
     @parameterized.expand(TEST_CASES)
     def test_cpu_approx_backwards(self, test_case_description, sigmas, input, expected):
-
         # Params to determine the implementation to test
         device = torch.device("cpu")
         fast_approx = True

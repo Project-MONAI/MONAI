@@ -616,7 +616,7 @@ class PydicomReader(ImageReader):
         img_array: list[np.ndarray] = []
         compatible_meta: dict = {}
 
-        for (data_array, metadata) in ensure_tuple(dicom_data):
+        for data_array, metadata in ensure_tuple(dicom_data):
             img_array.append(np.ascontiguousarray(np.swapaxes(data_array, 0, 1) if self.swap_ij else data_array))
             affine = self._get_affine(metadata, self.affine_lps_to_ras)
             metadata[MetaKeys.SPACE] = SpaceKeys.RAS if self.affine_lps_to_ras else SpaceKeys.LPS

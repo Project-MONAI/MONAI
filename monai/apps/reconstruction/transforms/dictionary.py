@@ -213,7 +213,6 @@ class ReferenceBasedSpatialCropd(Cropd):
     """
 
     def __init__(self, keys: KeysCollection, ref_key: str, allow_missing_keys: bool = False) -> None:
-
         super().__init__(keys, cropper=None, allow_missing_keys=allow_missing_keys)  # type: ignore
         self.ref_key = ref_key
 

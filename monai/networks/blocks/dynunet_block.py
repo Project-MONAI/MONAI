@@ -301,7 +301,6 @@ def get_conv_layer(
 
 
 def get_padding(kernel_size: Sequence[int] | int, stride: Sequence[int] | int) -> tuple[int, ...] | int:
-
     kernel_size_np = np.atleast_1d(kernel_size)
     stride_np = np.atleast_1d(stride)
     padding_np = (kernel_size_np - stride_np + 1) / 2

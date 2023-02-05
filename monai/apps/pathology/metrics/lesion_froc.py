@@ -74,7 +74,6 @@ class LesionFROC:
         nms_box_size: int = 48,
         image_reader_name: str = "cuCIM",
     ) -> None:
-
         self.data = data
         self.grow_distance = grow_distance
         self.itc_diameter = itc_diameter

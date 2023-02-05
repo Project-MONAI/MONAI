@@ -644,7 +644,7 @@ EXPECTED_ANSWERS = [
 
 
 def test_integration_value(test_name, key, data, rtol=1e-2):
-    for (idx, expected) in enumerate(EXPECTED_ANSWERS):
+    for idx, expected in enumerate(EXPECTED_ANSWERS):
         if test_name not in expected:
             continue
         if key not in expected[test_name]:
