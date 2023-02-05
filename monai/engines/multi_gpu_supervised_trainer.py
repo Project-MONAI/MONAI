@@ -62,7 +62,7 @@ def create_multigpu_supervised_trainer(
     prepare_batch: Callable = _prepare_batch,
     output_transform: Callable = _default_transform,
     distributed: bool = False,
-):
+) -> Engine:
     """
     Derived from `create_supervised_trainer` in Ignite.
 
@@ -99,7 +99,7 @@ def create_multigpu_supervised_trainer(
     elif len(devices_) > 1:
         net = DataParallel(net)
 
-    return create_supervised_trainer(
+    return create_supervised_trainer(  # type: ignore[no-any-return]
         net, optimizer, loss_fn, devices_[0], non_blocking, prepare_batch, output_transform
     )
 
@@ -112,7 +112,7 @@ def create_multigpu_supervised_evaluator(
     prepare_batch: Callable = _prepare_batch,
     output_transform: Callable = _default_eval_transform,
     distributed: bool = False,
-):
+) -> Engine:
     """
     Derived from `create_supervised_evaluator` in Ignite.
 
@@ -152,4 +152,4 @@ def create_multigpu_supervised_evaluator(
     elif len(devices_) > 1:
         net = DataParallel(net)
 
-    return create_supervised_evaluator(net, metrics, devices_[0], non_blocking, prepare_batch, output_transform)
+    return create_supervised_evaluator(net, metrics, devices_[0], non_blocking, prepare_batch, output_transform)  # type: ignore[no-any-return]
