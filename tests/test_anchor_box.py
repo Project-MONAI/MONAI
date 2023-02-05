@@ -44,7 +44,6 @@ TEST_CASES_SHAPE_3D = [
 class TestAnchorGenerator(unittest.TestCase):
     @parameterized.expand(TEST_CASES_2D)
     def test_anchor_2d(self, input_param, image_shape, feature_maps_shapes):
-
         torch_anchor_utils, _ = optional_import("torchvision.models.detection.anchor_utils")
         image_list, _ = optional_import("torchvision.models.detection.image_list")
 

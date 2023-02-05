@@ -198,7 +198,6 @@ class ResNet(nn.Module):
         feed_forward: bool = True,
         bias_downsample: bool = True,  # for backwards compatibility (also see PR #5477)
     ) -> None:
-
         super().__init__()
 
         if isinstance(block, str):
@@ -268,7 +267,6 @@ class ResNet(nn.Module):
         shortcut_type: str,
         stride: int = 1,
     ) -> nn.Sequential:
-
         conv_type: Callable = Conv[Conv.CONV, spatial_dims]
         norm_type: Callable = Norm[Norm.BATCH, spatial_dims]
 

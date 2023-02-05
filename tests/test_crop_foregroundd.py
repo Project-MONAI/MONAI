@@ -21,7 +21,6 @@ from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TEST_POSITION, TESTS = [], []
 for p in TEST_NDARRAYS_ALL:
-
     TEST_POSITION.append(
         [
             {

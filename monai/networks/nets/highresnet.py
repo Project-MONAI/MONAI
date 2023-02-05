@@ -147,7 +147,6 @@ class HighResNet(nn.Module):
         layer_params: Sequence[dict] = DEFAULT_LAYER_PARAMS_3D,
         channel_matching: ChannelMatching | str = ChannelMatching.PAD,
     ) -> None:
-
         super().__init__()
         blocks = nn.ModuleList()
 
@@ -168,7 +167,7 @@ class HighResNet(nn.Module):
         )
 
         # residual blocks
-        for (idx, params) in enumerate(layer_params[1:-2]):  # res blocks except the 1st and last two conv layers.
+        for idx, params in enumerate(layer_params[1:-2]):  # res blocks except the 1st and last two conv layers.
             _in_chns, _out_chns = _out_chns, params["n_features"]
             _dilation = 2**idx
             for _ in range(params["repeat"]):

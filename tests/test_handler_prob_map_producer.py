@@ -51,7 +51,6 @@ class TestDataset(Dataset):
         ]
 
     def __getitem__(self, index):
-
         image = np.ones((3, 2, 2)) * index
         metadata = {
             ProbMapKeys.COUNT.value: self.data[index][ProbMapKeys.COUNT.value],

@@ -92,7 +92,6 @@ class _DenseLayerDecoder(nn.Module):
             self.layers.add_module("dropout", dropout_type(dropout_prob))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-
         x1 = self.layers(x)
         if x1.shape[-1] != x.shape[-1]:
             trim = (x.shape[-1] - x1.shape[-1]) // 2
@@ -294,7 +293,6 @@ class _ResidualBlock(nn.Module):
             self.requires_grad_(False)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-
         sc = self.shortcut(x)
 
         if self.shortcut.stride == (2, 2):
@@ -388,7 +386,6 @@ class _DecoderBranch(nn.ModuleList):
         )
 
     def forward(self, xin: torch.Tensor, short_cuts: list[torch.Tensor]) -> torch.Tensor:
-
         block_number = len(short_cuts) - 1
         x = xin + short_cuts[block_number]
 
@@ -466,7 +463,6 @@ class HoVerNet(nn.Module):
         adapt_standard_resnet: bool = False,
         freeze_encoder: bool = False,
     ) -> None:
-
         super().__init__()
 
         if isinstance(mode, str):
@@ -576,7 +572,6 @@ class HoVerNet(nn.Module):
             _load_pretrained_encoder(self, weights)
 
     def forward(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
-
         if self.mode == HoVerNetMode.ORIGINAL.value:
             if x.shape[-1] != 270 or x.shape[-2] != 270:
                 raise ValueError("Input size should be 270 x 270 when using HoVerNetMode.ORIGINAL")
@@ -607,7 +602,6 @@ class HoVerNet(nn.Module):
 
 
 def _load_pretrained_encoder(model: nn.Module, state_dict: OrderedDict | dict):
-
     model_dict = model.state_dict()
     state_dict = {
         k: v for k, v in state_dict.items() if (k in model_dict) and (model_dict[k].shape == state_dict[k].shape)
@@ -618,7 +612,6 @@ def _load_pretrained_encoder(model: nn.Module, state_dict: OrderedDict | dict):
 
 
 def _remap_preact_resnet_model(model_url: str):
-
     pattern_conv0 = re.compile(r"^(conv0\.\/)(.+)$")
     pattern_block = re.compile(r"^(d\d+)\.(.+)$")
     pattern_layer = re.compile(r"^(.+\.d\d+)\.units\.(\d+)(.+)$")
@@ -647,7 +640,6 @@ def _remap_preact_resnet_model(model_url: str):
 
 
 def _remap_standard_resnet_model(model_url: str):
-
     pattern_conv0 = re.compile(r"^conv1\.(.+)$")
     pattern_bn1 = re.compile(r"^bn1\.(.+)$")
     pattern_block = re.compile(r"^layer(\d+)\.(\d+)\.(.+)$")

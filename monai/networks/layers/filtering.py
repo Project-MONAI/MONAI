@@ -85,7 +85,6 @@ class PHLFilter(torch.autograd.Function):
 
     @staticmethod
     def forward(ctx, input, features, sigmas=None):
-
         scaled_features = features
         if sigmas is not None:
             for i in range(features.size(1)):

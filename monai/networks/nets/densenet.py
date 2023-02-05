@@ -181,7 +181,6 @@ class DenseNet(nn.Module):
         norm: str | tuple = "batch",
         dropout_prob: float = 0.0,
     ) -> None:
-
         super().__init__()
 
         conv_type: type[nn.Conv1d | nn.Conv2d | nn.Conv3d] = Conv[Conv.CONV, spatial_dims]

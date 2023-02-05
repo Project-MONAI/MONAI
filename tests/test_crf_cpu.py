@@ -497,7 +497,6 @@ TEST_CASES = [
 class CRFTestCaseCpu(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test(self, test_case_description, params, input, features, expected):
-
         # Create input tensors
         input_tensor = torch.from_numpy(np.array(input)).to(dtype=torch.float, device=torch.device("cpu"))
         feature_tensor = torch.from_numpy(np.array(features)).to(dtype=torch.float, device=torch.device("cpu"))
