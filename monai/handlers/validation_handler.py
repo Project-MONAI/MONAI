@@ -50,7 +50,7 @@ class ValidationHandler:
         self.interval = interval
         self.epoch_level = epoch_level
 
-    def set_validator(self, validator: Evaluator):
+    def set_validator(self, validator: Evaluator) -> None:
         """
         Set validator if not setting in the __init__().
         """
