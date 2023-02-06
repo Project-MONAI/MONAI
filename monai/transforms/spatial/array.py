@@ -30,7 +30,7 @@ from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import AFFINE_TOL, affine_to_spacing, compute_shape_offset, iter_patch, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
-from monai.networks.utils import meshgrid_ij, normalize_transform
+from monai.networks.utils import meshgrid_ij
 from monai.transforms.croppad.array import CenterSpatialCrop, ResizeWithPadOrCrop
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.spatial.functional import (
@@ -1576,12 +1576,9 @@ class AffineGrid(LazyTransform):
         affine = to_affine_nd(len(grid_) - 1, affine)
         affine = convert_to_tensor(affine, device=grid_.device, dtype=grid_.dtype, track_meta=False)  # type: ignore
         if not self.align_corners:
-            dst_xform_1 = normalize_transform(spatial_size, affine.device, affine.dtype, True, True)[0]  # to (-1, 1)
-            s = [(max(d, 2) - 1) / d for d in (grid_.shape[1:] if spatial_size is None else spatial_size)]
-            norm = create_scale(spatial_dims, s, affine.device, "torch")
-            dst_xform_1 = norm.to(affine.dtype) @ dst_xform_1  # type: ignore  # scaling (num_step - 1) / num_step
-            dst_xform_d = normalize_transform(spatial_size, affine.device, affine.dtype, False, True)[0]
-            affine = affine @ torch.inverse(dst_xform_d) @ dst_xform_1
+            affine @= convert_to_dst_type(
+                create_translate(spatial_dims, [-0.5] * spatial_dims, device=_device, backend=_b), affine
+            )[0]
         grid_ = (affine @ grid_.view((grid_.shape[0], -1))).view([-1] + list(grid_.shape[1:]))
         return grid_, affine  # type: ignore
 
