@@ -82,7 +82,7 @@ class LesionFROC:
         self.image_reader = WSIReader(image_reader_name)
         self.nms = PathologyProbNMS(sigma=nms_sigma, prob_threshold=nms_prob_threshold, box_size=nms_box_size)
 
-    def prepare_inference_result(self, sample: dict):
+    def prepare_inference_result(self, sample: dict) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Prepare the probability map for detection evaluation.
 

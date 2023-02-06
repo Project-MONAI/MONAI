@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import Sequence
+from typing import Any, Sequence
 
 import torch
 
@@ -43,8 +43,8 @@ class PrepareBatchHoVerNet(PrepareBatch):
         batchdata: dict[str, torch.Tensor],
         device: str | torch.device | None = None,
         non_blocking: bool = False,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> tuple[torch.Tensor, dict[HoVerNetBranch, torch.Tensor]]:
         """
         Args `batchdata`, `device`, `non_blocking` refer to the ignite API:
         https://pytorch.org/ignite/v0.4.8/generated/ignite.engine.create_supervised_trainer.html.
