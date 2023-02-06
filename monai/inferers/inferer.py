@@ -127,9 +127,6 @@ class PatchInferer(Inferer):
         # model output keys
         self.output_keys = output_keys
 
-        # check if merger is initialized
-        self.is_merger_initialized = False
-
     def _batch_sampler(
         self, patches: Iterable[tuple[torch.Tensor, Sequence[int]]] | MetaTensor
     ) -> Iterator[tuple[torch.Tensor, Sequence, int]]:
@@ -183,27 +180,6 @@ class PatchInferer(Inferer):
         # ensure we have a tuple of model outputs to support multiple outputs
         return self._ensure_tuple_outputs(outputs)
 
-    def _merge_outputs(
-        self,
-        inputs: torch.Tensor,
-        patch_batch: torch.Tensor,
-        location_patch: Sequence,
-        outputs: tuple[torch.Tensor],
-        batch_size: int,
-    ):
-        # initialize mergers
-        if not self.is_merger_initialized:
-            for merger, output_batch in zip(self.mergers, outputs):
-                for patch, out in zip(torch.chunk(patch_batch, batch_size), torch.chunk(output_batch, batch_size)):
-                    merger.initialize(inputs, patch, out)
-                    break
-            self.is_merger_initialized = True
-        # aggregate outputs
-        for merger, output_batch in zip(self.mergers, outputs):
-            # split output into individual patches and then aggregate
-            for loc, out in zip(location_patch, torch.chunk(output_batch, batch_size)):
-                merger.aggregate(out, loc)  # type: ignore
-
     def __call__(self, inputs: torch.Tensor, network: Callable, *args: Any, **kwargs: Any):
         """
         Args:
@@ -214,15 +190,25 @@ class PatchInferer(Inferer):
             kwargs: optional keyword args to be passed to ``network``.
 
         """
+        is_merger_initialized = False
         patches = self.splitter(inputs)
-        for patch_batch, loc_patch, batch_size in self._batch_sampler(patches):
+        for patch_batch, location_batch, batch_size in self._batch_sampler(patches):
             # run inference
             outputs = self._run_inference(network, patch_batch, *args, **kwargs)
-            # merge outputs
-            self._merge_outputs(inputs, patch_batch, loc_patch, outputs, batch_size)
+            # initialize the mergers
+            if not is_merger_initialized:
+                for merger, output_batch in zip(self.mergers, outputs):
+                    patch = torch.chunk(patch_batch, batch_size)[0]
+                    out = torch.chunk(output_batch, batch_size)[0]
+                    merger.initialize(inputs, patch, out)
+                is_merger_initialized = True
+            # aggregate outputs
+            for merger, output_batch in zip(self.mergers, outputs):
+                # split output into individual patches and then aggregate
+                for loc, out in zip(location_batch, torch.chunk(output_batch, batch_size)):
+                    merger.aggregate(out, loc)  # type: ignore
         # finalize the mergers
         merged_outputs = tuple(merger.finalize() for merger in self.mergers)
-        self.is_initialized = False
 
         return merged_outputs if len(merged_outputs) > 1 else merged_outputs[0]
 
