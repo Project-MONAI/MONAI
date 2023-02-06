@@ -126,7 +126,7 @@ class DataAnalyzer:
         hist_range: list | None = None,
         fmt: str = "yaml",
         histogram_only: bool = False,
-        **extra_params,
+        **extra_params: Any,
     ):
         if path.isfile(output_path):
             warnings.warn(f"File {output_path} already exists and will be overwritten.")
@@ -148,7 +148,7 @@ class DataAnalyzer:
         self.extra_params = extra_params
 
     @staticmethod
-    def _check_data_uniformity(keys: list[str], result: dict):
+    def _check_data_uniformity(keys: list[str], result: dict) -> bool:
         """
         Check data uniformity since DataAnalyzer provides no support to multi-modal images with different
         affine matrices/spacings due to monai transforms.

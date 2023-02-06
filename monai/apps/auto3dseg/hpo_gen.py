@@ -14,13 +14,14 @@ from __future__ import annotations
 import os
 from abc import abstractmethod
 from copy import deepcopy
-from typing import cast
+from typing import Any, cast
 from warnings import warn
 
 from monai.apps.auto3dseg.bundle_gen import BundleAlgo
 from monai.apps.utils import get_logger
 from monai.auto3dseg import Algo, AlgoGen, algo_from_pickle, algo_to_pickle
 from monai.bundle.config_parser import ConfigParser
+from monai.config import PathLike
 from monai.utils import optional_import
 
 nni, has_nni = optional_import("nni")
@@ -108,7 +109,7 @@ class NNIGen(HPOGen):
         NNI command manually.
     """
 
-    def __init__(self, algo: Algo | None = None, params=None):
+    def __init__(self, algo: Algo | None = None, params: dict | None = None):
         self.algo: Algo
         self.hint = ""
         self.obj_filename = ""
@@ -166,7 +167,7 @@ class NNIGen(HPOGen):
         warn("NNI is not detected. The code will continue to run without NNI.")
         return {}
 
-    def update_params(self, params: dict):
+    def update_params(self, params: dict) -> None:
         """
         Translate the parameter from monai bundle to meet NNI requirements.
 
@@ -209,7 +210,7 @@ class NNIGen(HPOGen):
         else:
             warn("NNI is not detected. The code will continue to run without NNI.")
 
-    def run_algo(self, obj_filename: str, output_folder: str = ".", template_path=None) -> None:
+    def run_algo(self, obj_filename: str, output_folder: str = ".", template_path: PathLike | None = None) -> None:
         """
         The python interface for NNI to run.
 
@@ -282,7 +283,7 @@ class OptunaGen(HPOGen):
 
     """
 
-    def __init__(self, algo: Algo | None = None, params=None) -> None:
+    def __init__(self, algo: Algo | None = None, params: dict | None = None) -> None:
         self.algo: Algo
         self.obj_filename = ""
 
@@ -330,7 +331,7 @@ class OptunaGen(HPOGen):
         """Set the Optuna trial"""
         self.trial = trial
 
-    def __call__(self, trial, obj_filename: str, output_folder: str = ".", template_path=None):
+    def __call__(self, trial: Any, obj_filename: str, output_folder: str = ".", template_path: PathLike | None = None) -> Any:
         """
         Callabe that Optuna will use to optimize the hyper-parameters
 
@@ -344,7 +345,7 @@ class OptunaGen(HPOGen):
         self.run_algo(obj_filename, output_folder, template_path)
         return self.acc
 
-    def update_params(self, params: dict):
+    def update_params(self, params: dict) -> None:
         """
         Translate the parameter from monai bundle.
 
@@ -378,7 +379,7 @@ class OptunaGen(HPOGen):
             ConfigParser.export_config_file(self.params, write_path)
             logger.info(write_path)
 
-    def run_algo(self, obj_filename: str, output_folder: str = ".", template_path=None) -> None:
+    def run_algo(self, obj_filename: str, output_folder: str = ".", template_path: PathLike | None = None) -> None:
         """
         The python interface for NNI to run.
 
