@@ -124,9 +124,9 @@ class DataAnalyzer:
         label_key: str | None = "label",
         hist_bins: list | int | None = 0,
         hist_range: list | None = None,
-        fmt: str | None = "yaml",
+        fmt: str = "yaml",
         histogram_only: bool = False,
-        **extra_params,
+        **extra_params: Any,
     ):
         if path.isfile(output_path):
             warnings.warn(f"File {output_path} already exists and will be overwritten.")
@@ -148,7 +148,7 @@ class DataAnalyzer:
         self.extra_params = extra_params
 
     @staticmethod
-    def _check_data_uniformity(keys: list[str], result: dict):
+    def _check_data_uniformity(keys: list[str], result: dict) -> bool:
         """
         Check data uniformity since DataAnalyzer provides no support to multi-modal images with different
         affine matrices/spacings due to monai transforms.
@@ -214,7 +214,6 @@ class DataAnalyzer:
                 Orientationd(keys=keys, axcodes="RAS"),
             ]
             if self.label_key is not None:
-
                 allowed_shape_difference = self.extra_params.pop("allowed_shape_difference", 5)
                 transform_list.append(
                     EnsureSameShaped(
@@ -235,7 +234,6 @@ class DataAnalyzer:
             warnings.warn("tqdm is not installed. not displaying the caching progress.")
 
         for batch_data in tqdm(dataloader) if has_tqdm else dataloader:
-
             batch_data = batch_data[0]
             batch_data[self.image_key] = batch_data[self.image_key].to(self.device)
 

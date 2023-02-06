@@ -47,12 +47,10 @@ class DummyEncoder(BaseEncoder):
 
     @classmethod
     def num_channels_per_output(cls):
-
         return [(32, 64, 128, 256, 512, 1024), (32, 64, 128, 256), (32, 64, 128, 256), (32, 64, 128, 256)]
 
     @classmethod
     def num_outputs(cls):
-
         return [6, 4, 4, 4]
 
     @classmethod

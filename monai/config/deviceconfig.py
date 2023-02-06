@@ -16,6 +16,7 @@ import platform
 import re
 import sys
 from collections import OrderedDict
+from typing import TextIO
 
 import numpy as np
 import torch
@@ -176,7 +177,7 @@ def get_system_info() -> OrderedDict:
     return output
 
 
-def print_system_info(file=sys.stdout) -> None:
+def print_system_info(file: TextIO = sys.stdout) -> None:
     """
     Print system info to `file`. Requires the optional library, `psutil`.
 
@@ -191,7 +192,6 @@ def print_system_info(file=sys.stdout) -> None:
 
 
 def get_gpu_info() -> OrderedDict:
-
     output: OrderedDict = OrderedDict()
 
     num_gpus = torch.cuda.device_count()
@@ -223,7 +223,7 @@ def get_gpu_info() -> OrderedDict:
     return output
 
 
-def print_gpu_info(file=sys.stdout) -> None:
+def print_gpu_info(file: TextIO = sys.stdout) -> None:
     """
     Print GPU info to `file`.
 
@@ -234,7 +234,7 @@ def print_gpu_info(file=sys.stdout) -> None:
         print(f"{k}: {v}", file=file, flush=True)
 
 
-def print_debug_info(file=sys.stdout) -> None:
+def print_debug_info(file: TextIO = sys.stdout) -> None:
     """
     Print config (installed dependencies, etc.) and system info for debugging.
 

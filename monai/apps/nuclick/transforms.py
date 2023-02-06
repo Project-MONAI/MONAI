@@ -151,7 +151,6 @@ class SplitLabeld(MapTransform):
         others_value: int = 0,
         to_binary_mask: bool = True,
     ):
-
         super().__init__(keys, allow_missing_keys=False)
         self.others = others
         self.mask_value = mask_value
@@ -411,10 +410,10 @@ class AddClickSignalsd(MapTransform):
         image: str = NuclickKeys.IMAGE,
         foreground: str = NuclickKeys.FOREGROUND,
         bb_size: int = 128,
-        gaussian=False,
-        sigma=1.0,
+        gaussian: bool = False,
+        sigma: float = 1.0,
         truncated: float = 2.0,
-        add_exclusion_map=True,
+        add_exclusion_map: bool = True,
     ):
         self.image = image
         self.foreground = foreground
@@ -603,7 +602,7 @@ class AddLabelAsGuidanced(MapTransform):
         source: label/source key which gets added as additional guidance channel
     """
 
-    def __init__(self, keys: KeysCollection, source="label") -> None:
+    def __init__(self, keys: KeysCollection, source: str = "label") -> None:
         super().__init__(keys, allow_missing_keys=False)
         self.source = source
 
@@ -629,7 +628,7 @@ class SetLabelClassd(MapTransform):
         offset: offset value to be added to the mask value to determine the final class
     """
 
-    def __init__(self, keys: KeysCollection, offset=-1) -> None:
+    def __init__(self, keys: KeysCollection, offset: int = -1) -> None:
         super().__init__(keys, allow_missing_keys=False)
         self.offset = offset
 

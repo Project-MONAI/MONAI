@@ -69,7 +69,7 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         """
         Args:
             y_pred: input data to compute, typical segmentation model output.
@@ -95,7 +95,9 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
             distance_metric=self.distance_metric,
         )
 
-    def aggregate(self, reduction: MetricReduction | str | None = None):
+    def aggregate(
+        self, reduction: MetricReduction | str | None = None
+    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """
         Execute reduction logic for the output of `compute_average_surface_distance`.
 
@@ -120,7 +122,7 @@ def compute_average_surface_distance(
     include_background: bool = False,
     symmetric: bool = False,
     distance_metric: str = "euclidean",
-):
+) -> torch.Tensor:
     """
     This function is used to compute the Average Surface Distance from `y_pred` to `y`
     under the default setting.
@@ -145,10 +147,8 @@ def compute_average_surface_distance(
     if not include_background:
         y_pred, y = ignore_background(y_pred=y_pred, y=y)
 
-    if isinstance(y, torch.Tensor):
-        y = y.float()
-    if isinstance(y_pred, torch.Tensor):
-        y_pred = y_pred.float()
+    y_pred = convert_data_type(y_pred, output_type=torch.Tensor, dtype=torch.float)[0]
+    y = convert_data_type(y, output_type=torch.Tensor, dtype=torch.float)[0]
 
     if y.shape != y_pred.shape:
         raise ValueError(f"y_pred and y should have same shapes, got {y_pred.shape} and {y.shape}.")
@@ -168,4 +168,4 @@ def compute_average_surface_distance(
             surface_distance = np.concatenate([surface_distance, surface_distance_2])
         asd[b, c] = np.nan if surface_distance.shape == (0,) else surface_distance.mean()
 
-    return convert_data_type(asd, torch.Tensor)[0]
+    return convert_data_type(asd, output_type=torch.Tensor, device=y_pred.device, dtype=torch.float)[0]

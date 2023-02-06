@@ -145,6 +145,16 @@ Metrics
 .. autoclass:: CumulativeAverage
     :members:
 
+`Metrics reloaded binary`
+-------------------------
+.. autoclass:: MetricsReloadedBinary
+    :members:
+
+`Metrics reloaded categorical`
+------------------------------
+.. autoclass:: MetricsReloadedCategorical
+    :members:
+
 Utilities
 ---------
 .. automodule:: monai.metrics.utils

@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 import warnings
 from collections.abc import Mapping
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from monai.config import IgniteInfo
 from monai.utils import is_scalar, min_version, optional_import
@@ -143,7 +143,7 @@ class CheckpointSaver:
 
         if save_final:
 
-            def _final_func(engine: Engine):
+            def _final_func(engine: Engine) -> Any:
                 return engine.state.iteration
 
             self._final_checkpoint = Checkpoint(
@@ -156,7 +156,7 @@ class CheckpointSaver:
 
         if save_key_metric:
 
-            def _score_func(engine: Engine):
+            def _score_func(engine: Engine) -> Any:
                 if isinstance(key_metric_name, str):
                     metric_name = key_metric_name
                 elif hasattr(engine.state, "key_metric_name"):
@@ -191,7 +191,7 @@ class CheckpointSaver:
 
         if save_interval > 0:
 
-            def _interval_func(engine: Engine):
+            def _interval_func(engine: Engine) -> Any:
                 return engine.state.epoch if self.epoch_level else engine.state.iteration
 
             self._interval_checkpoint = Checkpoint(

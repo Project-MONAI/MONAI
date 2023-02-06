@@ -71,6 +71,7 @@ from .misc import (
     first,
     get_seed,
     has_option,
+    is_immutable,
     is_module_ver_at_least,
     is_scalar,
     is_scalar_tensor,

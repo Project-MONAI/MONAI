@@ -27,7 +27,7 @@ class BaseClient:
     to help with lifecycle management of the class object.
     """
 
-    def initialize(self, extra: dict | None = None):
+    def initialize(self, extra: dict | None = None) -> None:
         """
         Call to initialize the ClientAlgo class.
 
@@ -36,7 +36,7 @@ class BaseClient:
         """
         pass
 
-    def finalize(self, extra: dict | None = None):
+    def finalize(self, extra: dict | None = None) -> None:
         """
         Call to finalize the ClientAlgo class.
 
@@ -45,7 +45,7 @@ class BaseClient:
         """
         pass
 
-    def abort(self, extra: dict | None = None):
+    def abort(self, extra: dict | None = None) -> None:
         """
         Call to abort the ClientAlgo training or evaluation.
 

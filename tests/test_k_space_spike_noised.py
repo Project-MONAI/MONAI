@@ -49,7 +49,6 @@ class TestKSpaceSpikeNoised(unittest.TestCase):
 
     @parameterized.expand(TESTS)
     def test_same_result(self, im_shape, im_type):
-
         data = self.get_data(im_shape, im_type)
         loc = [0] + [int(im_shape[i] / 2) for i in range(len(im_shape))]
         k_intensity = 10
@@ -66,7 +65,6 @@ class TestKSpaceSpikeNoised(unittest.TestCase):
 
     @parameterized.expand(TESTS)
     def test_highlighted_kspace_pixel(self, im_shape, im_type):
-
         data = self.get_data(im_shape, im_type)
         loc = [0] + [int(im_shape[i] / 2) for i in range(len(im_shape))]
         k_intensity = 10

@@ -53,7 +53,6 @@ class TestNiftiEndianness(unittest.TestCase):
     @parameterized.expand(TESTS)
     @skipUnless(has_nib, "Requires NiBabel")
     def test_endianness(self, endianness, use_array, image_only):
-
         hdr = nib.Nifti1Header(endianness=endianness)
         nii = nib.Nifti1Image(self.im, np.eye(4), header=hdr)
         nib.save(nii, self.fname)

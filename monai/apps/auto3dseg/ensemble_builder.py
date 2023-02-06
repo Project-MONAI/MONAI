@@ -71,7 +71,7 @@ class AlgoEnsemble(ABC):
         """
         return self.algo_ensemble
 
-    def set_infer_files(self, dataroot: str, data_list_or_path: str | list, data_key: str = "testing"):
+    def set_infer_files(self, dataroot: str, data_list_or_path: str | list, data_key: str = "testing") -> None:
         """
         Set the files to perform model inference.
 
@@ -117,7 +117,7 @@ class AlgoEnsemble(ABC):
             else:
                 return VoteEnsemble(num_classes=preds[0].shape[0])(classes)
 
-    def __call__(self, pred_param: dict[str, Any] | None = None):
+    def __call__(self, pred_param: dict[str, Any] | None = None) -> list[torch.Tensor]:
         """
         Use the ensembled model to predict result.
 
@@ -180,7 +180,6 @@ class AlgoEnsembleBestN(AlgoEnsemble):
     """
 
     def __init__(self, n_best: int = 5):
-
         super().__init__()
         self.n_best = n_best
 
@@ -191,7 +190,7 @@ class AlgoEnsembleBestN(AlgoEnsemble):
         scores = concat_val_to_np(self.algos, [AlgoEnsembleKeys.SCORE])
         return np.argsort(scores).tolist()
 
-    def collect_algos(self, n_best: int = -1):
+    def collect_algos(self, n_best: int = -1) -> None:
         """
         Rank the algos by finding the top N (n_best) validation scores.
         """
@@ -225,7 +224,6 @@ class AlgoEnsembleBestByFold(AlgoEnsemble):
     """
 
     def __init__(self, n_fold: int = 5):
-
         super().__init__()
         self.n_fold = n_fold
 
@@ -296,7 +294,7 @@ class AlgoEnsembleBuilder:
 
             self.add_inferer(name, gen_algo, best_metric)
 
-    def add_inferer(self, identifier: str, gen_algo: BundleAlgo, best_metric: float | None = None):
+    def add_inferer(self, identifier: str, gen_algo: BundleAlgo, best_metric: float | None = None) -> None:
         """
         Add model inferer to the builder.
 
@@ -312,7 +310,7 @@ class AlgoEnsembleBuilder:
         algo = {AlgoEnsembleKeys.ID: identifier, AlgoEnsembleKeys.ALGO: gen_algo, AlgoEnsembleKeys.SCORE: best_metric}
         self.infer_algos.append(algo)
 
-    def set_ensemble_method(self, ensemble: AlgoEnsemble, *args, **kwargs):
+    def set_ensemble_method(self, ensemble: AlgoEnsemble, *args: Any, **kwargs: Any) -> None:
         """
         Set the ensemble method.
 

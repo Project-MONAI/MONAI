@@ -28,8 +28,10 @@ from monai.visualize import CAM, GradCAM, GradCAMpp
 
 __all__ = ["Inferer", "PatchInferer", "SimpleInferer", "SlidingWindowInferer", "SaliencyInferer", "SliceInferer"]
 
+T = TypeVar("T")
 
-class Inferer(ABC):
+
+class Inferer(ABC, Generic[T]):
     """
     A base class for model inference.
     Extend this class to support operations during inference, e.g. a sliding window method.
@@ -50,7 +52,7 @@ class Inferer(ABC):
     """
 
     @abstractmethod
-    def __call__(self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any):
+    def __call__(self, inputs: torch.Tensor, network: Callable[..., T], *args: Any, **kwargs: Any) -> T:
         """
         Run inference on `inputs` with the `network` model.
 
@@ -223,7 +225,9 @@ class SimpleInferer(Inferer):
     def __init__(self) -> None:
         Inferer.__init__(self)
 
-    def __call__(self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any):
+    def __call__(
+        self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any
+    ) -> torch.Tensor:
         """Unified callable function API of Inferers.
 
         Args:
@@ -237,7 +241,7 @@ class SimpleInferer(Inferer):
         return network(inputs, *args, **kwargs)
 
 
-class SlidingWindowInferer(Inferer):
+class SlidingWindowInferer(Inferer[Union[torch.Tensor, Sequence[torch.Tensor], Dict[Any, torch.Tensor]]]):
     """
     Sliding window method for model inference,
     with `sw_batch_size` windows for every model.forward().
@@ -384,7 +388,9 @@ class SaliencyInferer(Inferer):
 
     """
 
-    def __init__(self, cam_name: str, target_layers: str, class_idx: int | None = None, *args, **kwargs) -> None:
+    def __init__(
+        self, cam_name: str, target_layers: str, class_idx: int | None = None, *args: Any, **kwargs: Any
+    ) -> None:
         Inferer.__init__(self)
         if cam_name.lower() not in ("cam", "gradcam", "gradcampp"):
             raise ValueError("cam_name should be: 'CAM', 'GradCAM' or 'GradCAMpp'.")
@@ -438,7 +444,7 @@ class SliceInferer(SlidingWindowInferer):
 
     """
 
-    def __init__(self, spatial_dim: int = 0, *args, **kwargs) -> None:
+    def __init__(self, spatial_dim: int = 0, *args: Any, **kwargs: Any) -> None:
         self.spatial_dim = spatial_dim
         super().__init__(*args, **kwargs)
         self.orig_roi_size = ensure_tuple(self.roi_size)
@@ -476,8 +482,8 @@ class SliceInferer(SlidingWindowInferer):
         self,
         network: Callable[..., torch.Tensor | Sequence[torch.Tensor] | dict[Any, torch.Tensor]],
         x: torch.Tensor,
-        *args,
-        **kwargs,
+        *args: Any,
+        **kwargs: Any,
     ) -> torch.Tensor | tuple[torch.Tensor, ...] | dict[Any, torch.Tensor]:
         """
         Wrapper handles inference for 2D models over 3D volume inputs.

@@ -121,7 +121,6 @@ class TileOnGridd(Randomizable, MapTransform):
     def __call__(
         self, data: Mapping[Hashable, NdarrayOrTensor]
     ) -> dict[Hashable, NdarrayOrTensor] | list[dict[Hashable, NdarrayOrTensor]]:
-
         self.randomize()
 
         d = dict(data)

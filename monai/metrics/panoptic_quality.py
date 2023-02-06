@@ -73,7 +73,7 @@ class PanopticQualityMetric(CumulativeIterationMetric):
         self.smooth_numerator = smooth_numerator
         self.metric_name = ensure_tuple(metric_name)
 
-    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         """
         Args:
             y_pred: Predictions. It must be in the form of B2HW and have integer type. The first channel and the
@@ -122,7 +122,7 @@ class PanopticQualityMetric(CumulativeIterationMetric):
 
         return outputs
 
-    def aggregate(self, reduction: MetricReduction | str | None = None):
+    def aggregate(self, reduction: MetricReduction | str | None = None) -> torch.Tensor | list[torch.Tensor]:
         """
         Execute reduction logic for the output of `compute_panoptic_quality`.
 
@@ -160,7 +160,7 @@ def compute_panoptic_quality(
     match_iou_threshold: float = 0.5,
     smooth_numerator: float = 1e-6,
     output_confusion_matrix: bool = False,
-):
+) -> torch.Tensor:
     """Computes Panoptic Quality (PQ). If specifying `metric_name` to "SQ" or "RQ",
     Segmentation Quality (SQ) or Recognition Quality (RQ) will be returned instead.
 
@@ -219,7 +219,7 @@ def compute_panoptic_quality(
     return torch.as_tensor(iou_sum / (tp + 0.5 * fp + 0.5 * fn + smooth_numerator), device=pred.device)
 
 
-def _get_id_list(gt: torch.Tensor):
+def _get_id_list(gt: torch.Tensor) -> list[torch.Tensor]:
     id_list = list(gt.unique())
     # ensure id 0 is included
     if 0 not in id_list:
@@ -228,7 +228,9 @@ def _get_id_list(gt: torch.Tensor):
     return id_list
 
 
-def _get_pairwise_iou(pred: torch.Tensor, gt: torch.Tensor, device: str | torch.device = "cpu"):
+def _get_pairwise_iou(
+    pred: torch.Tensor, gt: torch.Tensor, device: str | torch.device = "cpu"
+) -> tuple[torch.Tensor, list[torch.Tensor], list[torch.Tensor]]:
     pred_id_list = _get_id_list(pred)
     true_id_list = _get_id_list(gt)
 
@@ -260,7 +262,9 @@ def _get_pairwise_iou(pred: torch.Tensor, gt: torch.Tensor, device: str | torch.
     return pairwise_iou, true_id_list, pred_id_list
 
 
-def _get_paired_iou(pairwise_iou: torch.Tensor, match_iou_threshold: float = 0.5, device: str | torch.device = "cpu"):
+def _get_paired_iou(
+    pairwise_iou: torch.Tensor, match_iou_threshold: float = 0.5, device: str | torch.device = "cpu"
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     if match_iou_threshold >= 0.5:
         pairwise_iou[pairwise_iou <= match_iou_threshold] = 0.0
         paired_true, paired_pred = torch.nonzero(pairwise_iou)[:, 0], torch.nonzero(pairwise_iou)[:, 1]
@@ -280,7 +284,7 @@ def _get_paired_iou(pairwise_iou: torch.Tensor, match_iou_threshold: float = 0.5
     return paired_iou, paired_true, paired_pred
 
 
-def _check_panoptic_metric_name(metric_name: str):
+def _check_panoptic_metric_name(metric_name: str) -> str:
     metric_name = metric_name.replace(" ", "_")
     metric_name = metric_name.lower()
     if metric_name in ["panoptic_quality", "pq"]:

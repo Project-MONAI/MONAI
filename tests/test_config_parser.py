@@ -107,6 +107,8 @@ TEST_CASE_3 = [
 
 TEST_CASE_4 = [{"A": 1, "B": "@A", "C": "@D", "E": "$'test' + '@F'"}]
 
+TEST_CASE_5 = [{"training": {"A": 1, "A_B": 2}, "total": "$@training#A + @training#A_B + 1"}, 4]
+
 
 class TestConfigParser(unittest.TestCase):
     def test_config_content(self):
@@ -295,6 +297,11 @@ class TestConfigParser(unittest.TestCase):
     def test_builtin(self):
         config = {"import statements": "$import math", "calc": {"_target_": "math.isclose", "a": 0.001, "b": 0.001}}
         self.assertEqual(ConfigParser(config).calc, True)
+
+    @parameterized.expand([TEST_CASE_5])
+    def test_substring_reference(self, config, expected):
+        parser = ConfigParser(config=config)
+        self.assertEqual(parser.get_parsed_content("total"), expected)
 
 
 if __name__ == "__main__":

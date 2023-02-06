@@ -205,7 +205,7 @@ class AnchorGenerator(nn.Module):
 
         return base_anchors.round()
 
-    def set_cell_anchors(self, dtype: torch.dtype, device: torch.device):
+    def set_cell_anchors(self, dtype: torch.dtype, device: torch.device) -> None:
         """
         Convert each element in self.cell_anchors to ``dtype`` and send to ``device``.
         """
@@ -373,7 +373,6 @@ class AnchorGeneratorWithAnchorShape(AnchorGenerator):
         | Sequence[Sequence[float]] = ((32, 32, 32), (48, 20, 20), (20, 48, 20), (20, 20, 48)),
         indexing: str = "ij",
     ) -> None:
-
         nn.Module.__init__(self)
 
         spatial_dims = len(base_anchor_shapes[0])

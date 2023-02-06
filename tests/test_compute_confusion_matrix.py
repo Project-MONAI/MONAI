@@ -14,6 +14,7 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
+import numpy as np
 import torch
 from parameterized import parameterized
 
@@ -220,6 +221,7 @@ class TestConfusionMatrix(unittest.TestCase):
         input_data["include_background"] = False
         result = get_confusion_matrix(**input_data)
         assert_allclose(result, expected_value[:, 1:, :], atol=1e-4, rtol=1e-4)
+        np.testing.assert_equal(result.device, input_data["y_pred"].device)
 
     @parameterized.expand(TEST_CASES_COMPUTE_SAMPLE)
     def test_compute_sample(self, input_data, expected_value):

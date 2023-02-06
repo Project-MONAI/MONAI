@@ -61,7 +61,6 @@ class MILModel(nn.Module):
         trans_blocks: int = 4,
         trans_dropout: float = 0.0,
     ) -> None:
-
         super().__init__()
 
         if num_classes <= 0:
@@ -75,7 +74,6 @@ class MILModel(nn.Module):
         self.transformer: nn.Module | None = None
 
         if backbone is None:
-
             net = models.resnet50(pretrained=pretrained)
             nfc = net.fc.in_features  # save the number of final features
             net.fc = torch.nn.Identity()  # remove final linear layer
@@ -96,7 +94,6 @@ class MILModel(nn.Module):
                 net.layer4.register_forward_hook(forward_hook("layer4"))
 
         elif isinstance(backbone, str):
-
             # assume torchvision model string is provided
             torch_model = getattr(models, backbone, None)
             if torch_model is None:
@@ -137,7 +134,6 @@ class MILModel(nn.Module):
             self.attention = nn.Sequential(nn.Linear(nfc, 2048), nn.Tanh(), nn.Linear(2048, 1))
 
         elif self.mil_mode == "att_trans_pyramid":
-
             transformer_list = nn.ModuleList(
                 [
                     nn.TransformerEncoder(
@@ -174,7 +170,6 @@ class MILModel(nn.Module):
         self.net = net
 
     def calc_head(self, x: torch.Tensor) -> torch.Tensor:
-
         sh = x.shape
 
         if self.mil_mode == "mean":
@@ -186,7 +181,6 @@ class MILModel(nn.Module):
             x, _ = torch.max(x, dim=1)
 
         elif self.mil_mode == "att":
-
             a = self.attention(x)
             a = torch.softmax(a, dim=1)
             x = torch.sum(x * a, dim=1)
@@ -194,7 +188,6 @@ class MILModel(nn.Module):
             x = self.myfc(x)
 
         elif self.mil_mode == "att_trans" and self.transformer is not None:
-
             x = x.permute(1, 0, 2)
             x = self.transformer(x)
             x = x.permute(1, 0, 2)
@@ -206,7 +199,6 @@ class MILModel(nn.Module):
             x = self.myfc(x)
 
         elif self.mil_mode == "att_trans_pyramid" and self.transformer is not None:
-
             l1 = torch.mean(self.extra_outputs["layer1"], dim=(2, 3)).reshape(sh[0], sh[1], -1).permute(1, 0, 2)
             l2 = torch.mean(self.extra_outputs["layer2"], dim=(2, 3)).reshape(sh[0], sh[1], -1).permute(1, 0, 2)
             l3 = torch.mean(self.extra_outputs["layer3"], dim=(2, 3)).reshape(sh[0], sh[1], -1).permute(1, 0, 2)
@@ -233,7 +225,6 @@ class MILModel(nn.Module):
         return x
 
     def forward(self, x: torch.Tensor, no_head: bool = False) -> torch.Tensor:
-
         sh = x.shape
         x = x.reshape(sh[0] * sh[1], sh[2], sh[3], sh[4])
 

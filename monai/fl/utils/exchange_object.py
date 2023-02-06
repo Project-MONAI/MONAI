@@ -28,8 +28,8 @@ class ExchangeObject(dict):
 
     def __init__(
         self,
-        weights=None,
-        optim=None,
+        weights: dict | None = None,
+        optim: dict | None = None,
         metrics: dict | None = None,
         weight_type: WeightType | None = None,
         statistics: dict | None = None,

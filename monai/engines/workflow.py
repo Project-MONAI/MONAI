@@ -132,7 +132,7 @@ class Workflow(Engine):
             if isinstance(sampler, DistributedSampler):
 
                 @self.on(Events.EPOCH_STARTED)
-                def set_sampler_epoch(engine: Engine):
+                def set_sampler_epoch(engine: Engine) -> None:
                     sampler.set_epoch(engine.state.epoch)
 
             if epoch_length is None:
@@ -209,7 +209,7 @@ class Workflow(Engine):
             if isinstance(engine.state.output, (list, dict)):
                 engine.state.output = transform(engine.state.output)
 
-    def _register_postprocessing(self, posttrans: Callable):
+    def _register_postprocessing(self, posttrans: Callable) -> None:
         """
         Register the postprocessing logic to the engine, will execute them as a chain when iteration completed.
 
@@ -225,7 +225,7 @@ class Workflow(Engine):
                 for i, (b, o) in enumerate(zip(engine.state.batch, engine.state.output)):
                     engine.state.batch[i], engine.state.output[i] = engine_apply_transform(b, o, posttrans)
 
-    def _register_metrics(self, k_metric: dict, add_metrics: dict | None = None):
+    def _register_metrics(self, k_metric: dict, add_metrics: dict | None = None) -> None:
         """
         Register the key metric and additional metrics to the engine, supports ignite Metrics.
 
@@ -260,7 +260,7 @@ class Workflow(Engine):
                     engine.state.best_metric = current_val_metric
                     engine.state.best_metric_epoch = engine.state.epoch
 
-    def _register_handlers(self, handlers: Sequence):
+    def _register_handlers(self, handlers: Sequence) -> None:
         """
         Register the handlers to the engine, supports ignite Handlers with `attach` API.
 
@@ -282,7 +282,7 @@ class Workflow(Engine):
             return
         super().run(data=self.data_loader, max_epochs=self.state.max_epochs)
 
-    def _iteration(self, engine, batchdata: dict[str, torch.Tensor]):
+    def _iteration(self, engine: Any, batchdata: dict[str, torch.Tensor]) -> dict:
         """
         Abstract callback function for the processing logic of 1 iteration in Ignite Engine.
         Need subclass to implement different logics, like SupervisedTrainer/Evaluator, GANTrainer, etc.

@@ -48,7 +48,7 @@ class ParamSchedulerHandler:
         vc_kwargs: dict,
         epoch_level: bool = False,
         name: str | None = None,
-        event=None,
+        event: str | None = None,
     ):
         self.epoch_level = epoch_level
         self.event = event if event is not None else Events.ITERATION_COMPLETED
@@ -76,7 +76,7 @@ class ParamSchedulerHandler:
             f"value_calculator must be either a string from {list(self._calculators.keys())} or a Callable."
         )
 
-    def __call__(self, engine: Engine):
+    def __call__(self, engine: Engine) -> None:
         if self.epoch_level:
             self._vc_kwargs["current_step"] = engine.state.epoch
         else:

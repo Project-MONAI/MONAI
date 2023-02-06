@@ -247,7 +247,6 @@ class SEBottleneck(SEBlock):
         stride: int = 1,
         downsample: Convolution | None = None,
     ) -> None:
-
         conv_param_1 = {
             "strides": 1,
             "kernel_size": 1,
@@ -298,7 +297,6 @@ class SEResNetBottleneck(SEBlock):
         stride: int = 1,
         downsample: Convolution | None = None,
     ) -> None:
-
         conv_param_1 = {
             "strides": stride,
             "kernel_size": 1,
@@ -348,7 +346,6 @@ class SEResNeXtBottleneck(SEBlock):
         downsample: Convolution | None = None,
         base_width: int = 4,
     ) -> None:
-
         conv_param_1 = {
             "strides": 1,
             "kernel_size": 1,
