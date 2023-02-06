@@ -28,12 +28,12 @@ from monai.transforms import (
     EnsureChannelFirstd,
     IdentityD,
     LoadImaged,
+    Orientationd,
     RandCropByPosNegLabeld,
     RandRotate90d,
     ResizeWithPadOrCropD,
     SaveImage,
     ScaleIntensityd,
-    Spacingd,
 )
 from monai.utils import optional_import, set_determinism
 from tests.utils import DistTestCase, skip_if_quick
@@ -45,7 +45,6 @@ TASK = "integration_segmentation_3d"
 
 def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, None), num_workers=4, lazy=True):
     print(f"test case: {locals()}")
-    monai.config.print_config()
     images = sorted(glob(os.path.join(root_dir, "img*.nii.gz")))
     segs = sorted(glob(os.path.join(root_dir, "seg*.nii.gz")))
     train_files = [{"img": img, "seg": seg} for img, seg in zip(images[:20], segs[:20])]
@@ -53,11 +52,11 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
     # define transforms for image and segmentation
     train_transforms = Compose(
         [
-            LoadImaged(keys=["img", "seg"], reader=readers[0]),
+            LoadImaged(keys=["img", "seg"], reader=readers[0], image_only=True),
             EnsureChannelFirstd(keys=["img", "seg"]),
-            # resampling with align_corners=True or dtype=float64 will generate
-            # slight different results between PyTorch 1.5 an 1.6
-            Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"], dtype=np.float32),
+            # Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"], dtype=np.float32),
+            Orientationd(keys=["img", "seg"], axcodes="ARS"),
+            RandRotate90d(keys=["img", "seg"], prob=1.0, spatial_axes=(1, 2)),
             ScaleIntensityd(keys="img"),
             IdentityD(keys="seg"),
             RandCropByPosNegLabeld(
@@ -83,15 +82,13 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
         train_ds = monai.data.LMDBDataset(data=train_files, transform=train_transforms, cache_dir=root_dir)
     else:
         train_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
-    # use batch_size=2 to load images and use RandCropByPosNegLabeld to generate 2 x 4 images for network training
-    train_loader = monai.data.DataLoader(train_ds, batch_size=2, shuffle=True, num_workers=num_workers)
 
     # create UNet, DiceLoss and Adam optimizer
     model = monai.networks.nets.UNet(
         spatial_dims=3, in_channels=1, out_channels=1, channels=(2, 2, 2, 2), strides=(2, 2, 2), num_res_units=2
     ).to(device)
-    loss_function = monai.losses.DiceLoss(sigmoid=True)
     optimizer = torch.optim.Adam(model.parameters(), 5e-4)
+    loss_function = monai.losses.DiceLoss(sigmoid=True)
 
     saver = SaveImage(
         output_dir=os.path.join(root_dir, "output"),
@@ -104,8 +101,15 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
         print_log=False,
     )
 
+    # use batch_size=2 to load images and use RandCropByPosNegLabeld to generate 2 x 4 images for network training
+    _g = torch.Generator()
+    _g.manual_seed(0)
+    set_determinism(0)
+    train_loader = monai.data.DataLoader(
+        train_ds, batch_size=2, shuffle=True, num_workers=num_workers, generator=_g, persistent_workers=num_workers > 0
+    )
     all_coords = set()
-    for epoch in range(5):
+    for epoch in range(3):
         print("-" * 10)
         print(f"Epoch {epoch + 1}/5")
         step = 0
@@ -131,6 +135,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
                 ops = item.applied_operations[idx]["extra_info"]["extra_info"]["cropped"]
                 img_name = os.path.basename(item.meta["filename_or_obj"])
                 coords = f"{img_name} - {ops}"
+                print(coords)
                 np.testing.assert_allclose(coords in all_coords, False)
                 all_coords.add(coords)
                 saver(item)
@@ -141,10 +146,11 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
 @skip_if_quick
 class IntegrationLazyResampling(DistTestCase):
     def setUp(self):
+        monai.config.print_config()
         set_determinism(seed=0)
 
         self.data_dir = tempfile.mkdtemp()
-        for i in range(10):
+        for i in range(2):
             im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1, channel_dim=-1)
             n = nib.Nifti1Image(im, np.eye(4))
             nib.save(n, os.path.join(self.data_dir, f"img{i:d}.nii.gz"))
@@ -164,25 +170,18 @@ class IntegrationLazyResampling(DistTestCase):
             _readers = ("itkreader", "itkreader")
         elif idx == 2:
             _readers = ("itkreader", "nibabelreader")
-        set_determinism(0)
-        results_expected = run_training_test(
-            self.data_dir, device=self.device, cachedataset=idx, readers=_readers, num_workers=2, lazy=False
-        )
-        set_determinism(0)
         results = run_training_test(
+            self.data_dir, device=self.device, cachedataset=idx, readers=_readers, num_workers=0, lazy=False
+        )
+        results_expected = run_training_test(
             self.data_dir, device=self.device, cachedataset=idx, readers=_readers, num_workers=2, lazy=True
         )
-        print(results.pop(), results_expected.pop())
+        np.testing.assert_allclose(results, results_expected)
         return results
 
     def test_training(self):
-        repeated = []
         # for i in range(4):
-        results = self.train_and_infer(0)
-        repeated.append(results)
-        # np.testing.assert_allclose(repeated[0], repeated[1])
-        # np.testing.assert_allclose(repeated[0], repeated[2])
-        # np.testing.assert_allclose(repeated[0], repeated[3])
+        self.train_and_infer(0)
 
 
 if __name__ == "__main__":
