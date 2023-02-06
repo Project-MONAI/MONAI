@@ -130,5 +130,5 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, spatial_size, kwargs: 
     }
     resampler = monai.transforms.SpatialResample(**init_kwargs)
     resampler.lazy_evaluation = False  # resampler is a lazytransform
-    with resampler.trace_transform(False):  # don't track this transform in `data`
+    with resampler.trace_transform(False):  # don't track this transform in `img`
         return resampler(img=img, **call_kwargs)

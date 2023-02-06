@@ -46,6 +46,7 @@ def eval_lazy_stack(
     padding_mode=GridSamplePadMode.BORDER,
     keys: str | None = None,
     dtype=None,
+    device=None,
 ):
     """
     Given the upcoming transform ``upcoming``, if lazy_resample is True, go through the MetaTensors and
@@ -57,22 +58,27 @@ def eval_lazy_stack(
         if (data.pending_operations and len(data.pending_operations) > 0) and (
             (isinstance(upcoming, (mt.Identityd, mt.Identity))) or upcoming is None
         ):
+            if device is not None:
+                data = mt.EnsureType(device=device)(data)
             data, _ = mt.apply_transforms(data, mode=mode, padding_mode=padding_mode, dtype=dtype)
         return data
     if isinstance(data, dict):
         _mode = ensure_tuple_rep(mode, len(keys))  # type: ignore
         _padding_mode = ensure_tuple_rep(padding_mode, len(keys))  # type: ignore
         _dtype = ensure_tuple_rep(dtype, len(keys))  # type: ignore
+        _device = ensure_tuple_rep(device, len(keys))  # type: ignore
         if isinstance(upcoming, MapTransform):
             _keys = [k if k in upcoming.keys and k in data else None for k in keys]  # type: ignore
         else:
             _keys = [k if k in data else None for k in keys]  # type: ignore
-        for k, m, p, dt in zip(_keys, _mode, _padding_mode, _dtype):
+        for k, m, p, dt, dve in zip(_keys, _mode, _padding_mode, _dtype, _device):
             if k is not None:
-                data[k] = eval_lazy_stack(data[k], upcoming, lazy_evaluation, mode=m, padding_mode=p, dtype=dt)
+                data[k] = eval_lazy_stack(
+                    data[k], upcoming, lazy_evaluation, mode=m, padding_mode=p, dtype=dt, device=dve
+                )
         return data
     if isinstance(data, (list, tuple)):
-        return [eval_lazy_stack(v, upcoming, lazy_evaluation, mode, padding_mode, keys, dtype) for v in data]
+        return [eval_lazy_stack(v, upcoming, lazy_evaluation, mode, padding_mode, keys, dtype, device) for v in data]
     return data
 
 
@@ -167,6 +173,7 @@ class Compose(Randomizable, InvertibleTransform):
         padding_mode=GridSamplePadMode.BORDER,
         lazy_keys=None,
         lazy_dtype=None,
+        lazy_device=None,
     ) -> None:
         if transforms is None:
             transforms = []
@@ -181,6 +188,7 @@ class Compose(Randomizable, InvertibleTransform):
         self.padding_mode = padding_mode
         self.lazy_keys = lazy_keys
         self.lazy_dtype = lazy_dtype
+        self.lazy_device = lazy_device
         if self.lazy_evaluation is not None:
             for t in self.flatten().transforms:  # TODO: test Compose of Compose/OneOf
                 if isinstance(t, LazyTransform):
@@ -227,14 +235,18 @@ class Compose(Randomizable, InvertibleTransform):
         return len(self.flatten().transforms)
 
     def __call__(self, input_):
+        kwargs = {
+            "lazy_evaluation": self.lazy_evaluation,
+            "mode": self.mode,
+            "padding_mode": self.padding_mode,
+            "keys": self.lazy_keys,
+            "dtype": self.lazy_dtype,
+            "device": self.lazy_device,
+        }
         for _transform in self.transforms:
-            input_ = eval_lazy_stack(
-                input_, _transform, self.lazy_evaluation, self.mode, self.padding_mode, self.lazy_keys, self.lazy_dtype
-            )
+            input_ = eval_lazy_stack(input_, _transform, **kwargs)
             input_ = apply_transform(_transform, input_, self.map_items, self.unpack_items, self.log_stats)
-        input_ = eval_lazy_stack(
-            input_, None, self.lazy_evaluation, self.mode, self.padding_mode, self.lazy_keys, self.lazy_dtype
-        )
+        input_ = eval_lazy_stack(input_, None, **kwargs)
         return input_
 
     def inverse(self, data):
