@@ -488,7 +488,9 @@ class SpatialCropBox(SpatialCrop):
             if s.start < 0 or s.stop < 0 or (s.step is not None and s.step < 0):
                 raise ValueError("Currently negative indexing is not supported for SpatialCropBox.")
 
-    def __call__(self, boxes: NdarrayTensor, labels: Sequence[NdarrayOrTensor] | NdarrayOrTensor) -> tuple[NdarrayTensor, tuple | NdarrayOrTensor]:  # type: ignore[override]
+    def __call__(  # type: ignore[override]
+            self, boxes: NdarrayTensor, labels: Sequence[NdarrayOrTensor] | NdarrayOrTensor
+    ) -> tuple[NdarrayTensor, tuple | NdarrayOrTensor]:
         """
         Args:
             boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
