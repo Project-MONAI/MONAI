@@ -106,7 +106,12 @@ def download_tcia_series_instance(
             monai.apps.utils.check_hash(filepath=os.path.join(output_dir, dcm), val=md5hash, hash_type="md5")
 
 
-def get_tcia_ref_uid(ds: Iterable, find_sop: bool = False, ref_series_uid_tag: tuple = (0x0020, 0x000E), ref_sop_uid_tag: tuple = (0x0008, 0x1155)) -> str:
+def get_tcia_ref_uid(
+    ds: Iterable,
+    find_sop: bool = False,
+    ref_series_uid_tag: tuple = (0x0020, 0x000E),
+    ref_sop_uid_tag: tuple = (0x0008, 0x1155),
+) -> str:
     """
     Achieve the referenced UID from the referenced Series Sequence for the input pydicom dataset object.
     The referenced UID could be Series Instance UID or SOP Instance UID. The UID will be detected from

@@ -102,7 +102,9 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
 
         return get_confusion_matrix(y_pred=y_pred, y=y, include_background=self.include_background)
 
-    def aggregate(self, compute_sample: bool = False, reduction: MetricReduction | str | None = None) -> list[torch.Tensor | tuple[torch.Tensor, torch.Tensor]]:
+    def aggregate(
+        self, compute_sample: bool = False, reduction: MetricReduction | str | None = None
+    ) -> list[torch.Tensor | tuple[torch.Tensor, torch.Tensor]]:
         """
         Execute reduction for the confusion matrix values.
 

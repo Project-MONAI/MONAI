@@ -128,7 +128,9 @@ def zoom_boxes(boxes: NdarrayTensor, zoom: Sequence[float] | float) -> NdarrayTe
     return apply_affine_to_boxes(boxes=boxes, affine=affine)
 
 
-def resize_boxes(boxes: NdarrayOrTensor, src_spatial_size: Sequence[int] | int, dst_spatial_size: Sequence[int] | int) -> NdarrayOrTensor:
+def resize_boxes(
+    boxes: NdarrayOrTensor, src_spatial_size: Sequence[int] | int, dst_spatial_size: Sequence[int] | int
+) -> NdarrayOrTensor:
     """
     Resize boxes when the corresponding image is resized
 
@@ -158,7 +160,9 @@ def resize_boxes(boxes: NdarrayOrTensor, src_spatial_size: Sequence[int] | int, 
     return zoom_boxes(boxes=boxes, zoom=zoom)
 
 
-def flip_boxes(boxes: NdarrayTensor, spatial_size: Sequence[int] | int, flip_axes: Sequence[int] | int | None = None) -> NdarrayTensor:
+def flip_boxes(
+    boxes: NdarrayTensor, spatial_size: Sequence[int] | int, flip_axes: Sequence[int] | int | None = None
+) -> NdarrayTensor:
     """
     Flip boxes when the corresponding image is flipped
 
@@ -268,7 +272,10 @@ def convert_box_to_mask(
 
 
 def convert_mask_to_box(
-    boxes_mask: NdarrayOrTensor, bg_label: int = -1, box_dtype: DtypeLike | torch.dtype = torch.float32, label_dtype: DtypeLike | torch.dtype = torch.long
+    boxes_mask: NdarrayOrTensor,
+    bg_label: int = -1,
+    box_dtype: DtypeLike | torch.dtype = torch.float32,
+    label_dtype: DtypeLike | torch.dtype = torch.long,
 ) -> tuple[NdarrayOrTensor, NdarrayOrTensor]:
     """
     Convert int16 mask image to box, which has the same size with the input image
@@ -373,7 +380,9 @@ def swapaxes_boxes(boxes: NdarrayTensor, axis1: int, axis2: int) -> NdarrayTenso
     return boxes_swap  # type: ignore[return-value]
 
 
-def rot90_boxes(boxes: NdarrayTensor, spatial_size: Sequence[int] | int, k: int = 1, axes: tuple[int, int] = (0, 1)) -> NdarrayTensor:
+def rot90_boxes(
+    boxes: NdarrayTensor, spatial_size: Sequence[int] | int, k: int = 1, axes: tuple[int, int] = (0, 1)
+) -> NdarrayTensor:
     """
     Rotate boxes by 90 degrees in the plane specified by axes.
     Rotation direction is from the first towards the second axis.

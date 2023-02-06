@@ -228,7 +228,9 @@ def _get_id_list(gt: torch.Tensor) -> list[torch.Tensor]:
     return id_list
 
 
-def _get_pairwise_iou(pred: torch.Tensor, gt: torch.Tensor, device: str | torch.device = "cpu") -> tuple[torch.Tensor, list[torch.Tensor], list[torch.Tensor]]:
+def _get_pairwise_iou(
+    pred: torch.Tensor, gt: torch.Tensor, device: str | torch.device = "cpu"
+) -> tuple[torch.Tensor, list[torch.Tensor], list[torch.Tensor]]:
     pred_id_list = _get_id_list(pred)
     true_id_list = _get_id_list(gt)
 
@@ -260,7 +262,9 @@ def _get_pairwise_iou(pred: torch.Tensor, gt: torch.Tensor, device: str | torch.
     return pairwise_iou, true_id_list, pred_id_list
 
 
-def _get_paired_iou(pairwise_iou: torch.Tensor, match_iou_threshold: float = 0.5, device: str | torch.device = "cpu") -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+def _get_paired_iou(
+    pairwise_iou: torch.Tensor, match_iou_threshold: float = 0.5, device: str | torch.device = "cpu"
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     if match_iou_threshold >= 0.5:
         pairwise_iou[pairwise_iou <= match_iou_threshold] = 0.0
         paired_true, paired_pred = torch.nonzero(pairwise_iou)[:, 0], torch.nonzero(pairwise_iou)[:, 1]

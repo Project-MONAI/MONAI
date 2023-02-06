@@ -50,7 +50,9 @@ class RegressionMetric(CumulativeIterationMetric):
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def aggregate(self, reduction: MetricReduction | str | None = None) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+    def aggregate(
+        self, reduction: MetricReduction | str | None = None
+    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """
         Args:
             reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,

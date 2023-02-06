@@ -424,7 +424,12 @@ class MaskToBox(Transform):
 
     backend = [TransformBackends.NUMPY]
 
-    def __init__(self, bg_label: int = -1, box_dtype: DtypeLike | torch.dtype = torch.float32, label_dtype: DtypeLike | torch.dtype = torch.long) -> None:
+    def __init__(
+        self,
+        bg_label: int = -1,
+        box_dtype: DtypeLike | torch.dtype = torch.float32,
+        label_dtype: DtypeLike | torch.dtype = torch.long,
+    ) -> None:
         self.bg_label = bg_label
         self.box_dtype = box_dtype
         self.label_dtype = label_dtype

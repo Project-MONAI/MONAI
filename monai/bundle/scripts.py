@@ -163,7 +163,9 @@ def _remove_ngc_prefix(name: str, prefix: str = "monai_") -> str:
     return name
 
 
-def _download_from_ngc(download_path: Path, filename: str, version: str, remove_prefix: str | None, progress: bool) -> None:
+def _download_from_ngc(
+    download_path: Path, filename: str, version: str, remove_prefix: str | None, progress: bool
+) -> None:
     # ensure prefix is contained
     filename = _add_ngc_prefix(filename)
     url = _get_ngc_bundle_url(model_name=filename, version=version)

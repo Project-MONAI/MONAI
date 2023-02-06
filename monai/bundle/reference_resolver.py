@@ -103,7 +103,9 @@ class ReferenceResolver:
             self._resolve_one_item(id=id, **kwargs)
         return self.items.get(id)
 
-    def _resolve_one_item(self, id: str, waiting_list: set[str] | None = None, **kwargs: Any) -> ConfigExpression | str | Any | None:
+    def _resolve_one_item(
+        self, id: str, waiting_list: set[str] | None = None, **kwargs: Any
+    ) -> ConfigExpression | str | Any | None:
         """
         Resolve and return one ``ConfigItem`` of ``id``, cache the resolved result in ``resolved_content``.
         If it has unresolved references, recursively resolve the referring items first.

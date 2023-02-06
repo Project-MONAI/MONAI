@@ -44,7 +44,9 @@ class FBetaScore(CumulativeIterationMetric):
 
         return get_f_beta_score(y_pred=y_pred, y=y, include_background=self.include_background)
 
-    def aggregate(self, compute_sample: bool = False, reduction: MetricReduction | str | None = None) -> Sequence[torch.Tensor | tuple[torch.Tensor, torch.Tensor]]:
+    def aggregate(
+        self, compute_sample: bool = False, reduction: MetricReduction | str | None = None
+    ) -> Sequence[torch.Tensor | tuple[torch.Tensor, torch.Tensor]]:
         data = self.get_buffer()
         if not isinstance(data, torch.Tensor):
             raise ValueError("the data to aggregate must be PyTorch Tensor.")

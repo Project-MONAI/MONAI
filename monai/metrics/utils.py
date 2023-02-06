@@ -46,7 +46,9 @@ def ignore_background(y_pred: NdarrayTensor, y: NdarrayTensor) -> tuple[NdarrayT
     return y_pred, y
 
 
-def do_metric_reduction(f: torch.Tensor, reduction: MetricReduction | str = MetricReduction.MEAN) -> tuple[torch.Tensor | Any, torch.Tensor]:
+def do_metric_reduction(
+    f: torch.Tensor, reduction: MetricReduction | str = MetricReduction.MEAN
+) -> tuple[torch.Tensor | Any, torch.Tensor]:
     """
     This function is to do the metric reduction for calculated `not-nan` metrics of each sample's each class.
     The function also returns `not_nans`, which counts the number of not nans for the metric.
@@ -106,7 +108,9 @@ def do_metric_reduction(f: torch.Tensor, reduction: MetricReduction | str = Metr
     return f, not_nans
 
 
-def get_mask_edges(seg_pred: NdarrayOrTensor, seg_gt: NdarrayOrTensor, label_idx: int = 1, crop: bool = True) -> tuple[np.ndarray, np.ndarray]:
+def get_mask_edges(
+    seg_pred: NdarrayOrTensor, seg_gt: NdarrayOrTensor, label_idx: int = 1, crop: bool = True
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Do binary erosion and use XOR for input to get the edges. This
     function is helpful to further calculate metrics such as Average Surface

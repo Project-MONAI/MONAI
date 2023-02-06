@@ -17,8 +17,8 @@ from torch.nn.modules.loss import _Loss
 from monai.metrics.utils import do_metric_reduction
 from monai.utils import MetricReduction
 
-from .metric import CumulativeIterationMetric
 from ..config import TensorOrList
+from .metric import CumulativeIterationMetric
 
 
 class LossMetric(CumulativeIterationMetric):
@@ -75,7 +75,9 @@ class LossMetric(CumulativeIterationMetric):
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def aggregate(self, reduction: MetricReduction | str | None = None) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+    def aggregate(
+        self, reduction: MetricReduction | str | None = None
+    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """
         Returns the aggregated loss value across multiple iterations.
 

@@ -103,7 +103,9 @@ def _get_ngc_doc_url(model_name: str, model_prefix: str = "") -> str:
     return f"https://ngc.nvidia.com/catalog/models/{model_prefix}{model_name}"
 
 
-def download_mmar(item: str | Mapping, mmar_dir: PathLike | None = None, progress: bool = True, api: bool = True, version: int = -1) -> Path:
+def download_mmar(
+    item: str | Mapping, mmar_dir: PathLike | None = None, progress: bool = True, api: bool = True, version: int = -1
+) -> Path:
     """
     Download and extract Medical Model Archive (MMAR) from Nvidia Clara Train.
 

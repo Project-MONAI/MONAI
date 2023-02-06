@@ -180,7 +180,11 @@ class RetinaNetDetector(nn.Module):
     """
 
     def __init__(
-        self, network: nn.Module, anchor_generator: AnchorGenerator, box_overlap_metric: Callable = box_iou, debug: bool = False
+        self,
+        network: nn.Module,
+        anchor_generator: AnchorGenerator,
+        box_overlap_metric: Callable = box_iou,
+        debug: bool = False,
     ):
         super().__init__()
 
@@ -313,7 +317,9 @@ class RetinaNetDetector(nn.Module):
         self.encode_gt = encode_gt
         self.decode_pred = decode_pred
 
-    def set_regular_matcher(self, fg_iou_thresh: float, bg_iou_thresh: float, allow_low_quality_matches: bool = True) -> None:
+    def set_regular_matcher(
+        self, fg_iou_thresh: float, bg_iou_thresh: float, allow_low_quality_matches: bool = True
+    ) -> None:
         """
         Using for training. Set torchvision matcher that matches anchors with ground truth boxes.
 

@@ -331,7 +331,9 @@ class OptunaGen(HPOGen):
         """Set the Optuna trial"""
         self.trial = trial
 
-    def __call__(self, trial: Any, obj_filename: str, output_folder: str = ".", template_path: PathLike | None = None) -> Any:
+    def __call__(
+        self, trial: Any, obj_filename: str, output_folder: str = ".", template_path: PathLike | None = None
+    ) -> Any:
         """
         Callabe that Optuna will use to optimize the hyper-parameters
 

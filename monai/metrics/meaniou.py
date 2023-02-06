@@ -85,7 +85,9 @@ class MeanIoU(CumulativeIterationMetric):
             y_pred=y_pred, y=y, include_background=self.include_background, ignore_empty=self.ignore_empty
         )
 
-    def aggregate(self, reduction: MetricReduction | str | None = None) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+    def aggregate(
+        self, reduction: MetricReduction | str | None = None
+    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """
         Execute reduction logic for the output of `compute_meaniou`.
 

@@ -48,7 +48,9 @@ class IterationMetric(Metric):
     Subclasses typically implement the `_compute_tensor` function for the actual tensor computation logic.
     """
 
-    def __call__(self, y_pred: TensorOrList, y: TensorOrList | None = None) -> torch.Tensor | Sequence[torch.Tensor | Sequence[torch.Tensor]]:
+    def __call__(
+        self, y_pred: TensorOrList, y: TensorOrList | None = None
+    ) -> torch.Tensor | Sequence[torch.Tensor | Sequence[torch.Tensor]]:
         """
         Execute basic computation for model prediction `y_pred` and ground truth `y` (optional).
         It supports inputs of a list of "channel-first" Tensor and a "batch-first" Tensor.
@@ -74,7 +76,9 @@ class IterationMetric(Metric):
             return self._compute_tensor(y_pred.detach(), y_)
         raise ValueError("y_pred or y must be a list/tuple of `channel-first` Tensors or a `batch-first` Tensor.")
 
-    def _compute_list(self, y_pred: TensorOrList, y: TensorOrList | None = None) -> torch.Tensor | list[torch.Tensor | Sequence[torch.Tensor]]:
+    def _compute_list(
+        self, y_pred: TensorOrList, y: TensorOrList | None = None
+    ) -> torch.Tensor | list[torch.Tensor | Sequence[torch.Tensor]]:
         """
         Execute the metric computation for `y_pred` and `y` in a list of "channel-first" tensors.
 
@@ -313,7 +317,9 @@ class CumulativeIterationMetric(Cumulative, IterationMetric):
 
     """
 
-    def __call__(self, y_pred: TensorOrList, y: TensorOrList | None = None) -> torch.Tensor | Sequence[torch.Tensor | Sequence[torch.Tensor]]:
+    def __call__(
+        self, y_pred: TensorOrList, y: TensorOrList | None = None
+    ) -> torch.Tensor | Sequence[torch.Tensor | Sequence[torch.Tensor]]:
         """
         Execute basic computation for model prediction and ground truth.
         It can support  both `list of channel-first Tensor` and `batch-first Tensor`.

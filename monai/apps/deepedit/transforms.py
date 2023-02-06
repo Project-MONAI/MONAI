@@ -84,7 +84,9 @@ class DiscardAddGuidanced(MapTransform):
 
 
 class NormalizeLabelsInDatasetd(MapTransform):
-    def __init__(self, keys: KeysCollection, label_names: dict[str, int] | None = None, allow_missing_keys: bool = False):
+    def __init__(
+        self, keys: KeysCollection, label_names: dict[str, int] | None = None, allow_missing_keys: bool = False
+    ):
         """
         Normalize label values according to label names dictionary
 
@@ -119,7 +121,9 @@ class NormalizeLabelsInDatasetd(MapTransform):
 
 
 class SingleLabelSelectiond(MapTransform):
-    def __init__(self, keys: KeysCollection, label_names: Sequence[str] | None = None, allow_missing_keys: bool = False):
+    def __init__(
+        self, keys: KeysCollection, label_names: Sequence[str] | None = None, allow_missing_keys: bool = False
+    ):
         """
         Selects one label at a time to train the DeepEdit
 
