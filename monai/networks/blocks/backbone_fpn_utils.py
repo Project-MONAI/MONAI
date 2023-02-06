@@ -57,7 +57,7 @@ from torch import Tensor, nn
 from monai.networks.nets import resnet
 from monai.utils import optional_import
 
-from .feature_pyramid_network import ExtraFPNBlock, FeaturePyramidNetwork, LastLevelMaxPool
+from .feature_pyramid_network import ExtraFPNBlock, FeaturePyramidNetwork, LastLevelMaxPool, DAF3D_FPN
 
 torchvision_models, _ = optional_import("torchvision.models")
 
@@ -173,3 +173,16 @@ def _resnet_fpn_extractor(
     return BackboneWithFPN(
         backbone, return_layers, in_channels_list, out_channels, extra_blocks=extra_blocks, spatial_dims=spatial_dims
     )
+
+class DAF3D_BackboneWithFPN(BackboneWithFPN):
+    def __init__(
+        self, 
+        backbone: nn.Module, 
+        return_layers: dict[str, str], 
+        in_channels_list: list[int], 
+        out_channels: int, 
+        spatial_dims: int | None = None, 
+        extra_blocks: ExtraFPNBlock | None = None) -> None:
+        
+        super().__init__(backbone, return_layers, in_channels_list, out_channels, spatial_dims, extra_blocks)
+        self.fpn = DAF3D_FPN(spatial_dims, in_channels_list, out_channels)
