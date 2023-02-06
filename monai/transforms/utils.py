@@ -844,9 +844,9 @@ def _create_rotate_90(
 ) -> NdarrayOrTensor:
 
     values = [(1, 0, 0, 1),
-              (0, -1, 1, 0),
+              (0, 1, -1, 0),
               (-1, 0, 0, -1),
-              (0, 1, -1, 0)]
+              (0, -1, 1, 0)]
 
     if spatial_dims == 2:
         if axis != (0, 1):

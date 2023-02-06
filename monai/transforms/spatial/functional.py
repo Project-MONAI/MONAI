@@ -28,7 +28,7 @@ from monai.transforms.utils import (
     compatible_rotate,
     compatible_rotate_90,
     compatible_scale,
-    compatible_translate, create_scale, create_rotate, create_identity,
+    compatible_translate, create_scale, create_rotate, create_identity, create_rotate_90, create_flip,
 )
 from monai.config import DtypeLike
 from monai.data.meta_obj import get_track_meta
@@ -309,20 +309,17 @@ def flip(
         else:
             input_shape = img_.shape
 
+    input_ndim = len(input_shape) - 1
+
     spatial_axis_ = spatial_axis
     if spatial_axis_ is None:
         spatial_axis_ = tuple(i for i in range(len(input_shape[1:])))
 
-    transform = compatible_flip(img_, spatial_axis_)
-
-    im_extents = extents_from_shape(input_shape)
-    im_extents = [transform @ e for e in im_extents]
-
-    output_shape = shape_from_extents(input_shape, im_extents)
+    transform = create_flip(input_ndim, spatial_axis_)
 
     metadata = {
         "spatial_axis": spatial_axis_,
-        LazyAttr.SHAPE: output_shape
+        LazyAttr.SHAPE: input_shape
     }
     return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
 
@@ -536,7 +533,7 @@ def zoom(
 
     if input_shape is None:
         if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
-            input_shape = img.peek_pending_shape()
+            input_shape = img_.peek_pending_shape()
         else:
             input_shape = img_.shape
 
@@ -605,6 +602,12 @@ def rotate90(
     # if shape_override is set, it always wins
     input_shape = shape_override
 
+    if input_shape is None:
+        if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
+            input_shape = img_.peek_pending_shape()
+        else:
+            input_shape = img_.shape
+
     input_ndim = len(input_shape) - 1
 
     if input_shape is None:
@@ -613,14 +616,19 @@ def rotate90(
         else:
             input_shape = img_.shape
 
-    transform = create_rotate(input_shape, spatial_axes, k)
-    output_shape_order = [i for i in range(input_ndim)]
-    for i in range(input_ndim):
-        if i == spatial_axes[0]:
-            output_shape_order[i] = spatial_axes[1]
-        elif i == spatial_axes[1]:
-            output_shape_order[i] = spatial_axes[0]
-    output_shape = tuple(input_shape[output_shape_order[i]] for i in input_ndim)
+    transform = create_rotate_90(input_ndim, spatial_axes, k)
+
+    # TODO: this could be calculated from the transform like the other functions do
+    if k % 2 == 1:
+        output_shape_order = [i for i in range(input_ndim)]
+        for i in range(input_ndim):
+            if i == spatial_axes[0]:
+                output_shape_order[i] = spatial_axes[1]
+            elif i == spatial_axes[1]:
+                output_shape_order[i] = spatial_axes[0]
+        output_shape = (input_shape[0],) + tuple(input_shape[output_shape_order[i] + 1] for i in range(input_ndim))
+    else:
+        output_shape = input_shape
 
     metadata = {
         "k": k,
@@ -690,7 +698,7 @@ def elastic_3d(
 
     if input_shape is None:
         if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
-            input_shape = img.peek_pending_shape()
+            input_shape = img_.peek_pending_shape()
         else:
             input_shape = img_.shape
 

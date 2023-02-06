@@ -279,3 +279,5 @@ class InvertibleTransform(TraceableTransform):
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+
+        #
