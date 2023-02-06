@@ -124,7 +124,7 @@ class DataAnalyzer:
         label_key: str | None = "label",
         hist_bins: list | int | None = 0,
         hist_range: list | None = None,
-        fmt: str | None = "yaml",
+        fmt: str = "yaml",
         histogram_only: bool = False,
         **extra_params,
     ):

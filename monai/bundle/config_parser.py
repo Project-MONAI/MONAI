@@ -16,7 +16,7 @@ import re
 from collections.abc import Sequence
 from copy import deepcopy
 from pathlib import Path
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from monai.bundle.config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem
 from monai.bundle.reference_resolver import ReferenceResolver
@@ -24,7 +24,10 @@ from monai.bundle.utils import ID_REF_KEY, ID_SEP_KEY, MACRO_KEY
 from monai.config import PathLike
 from monai.utils import ensure_tuple, look_up_option, optional_import
 
-yaml, _ = optional_import("yaml")
+if TYPE_CHECKING:
+    import yaml
+else:
+    yaml, _ = optional_import("yaml")
 
 __all__ = ["ConfigParser"]
 
@@ -101,7 +104,7 @@ class ConfigParser:
         excludes: Sequence[str] | str | None = None,
         globals: dict[str, Any] | None | bool = None,
     ):
-        self.config = None
+        self.config: ConfigItem | None = None
         self.globals: dict[str, Any] = {}
         _globals = _default_globals.copy()
         if isinstance(_globals, dict) and globals not in (None, False):
@@ -132,7 +135,7 @@ class ConfigParser:
         """
         return self.get_parsed_content(id)
 
-    def __getitem__(self, id: str | int):
+    def __getitem__(self, id: str | int) -> Any:
         """
         Get the config by id.
 
@@ -157,7 +160,7 @@ class ConfigParser:
                 raise KeyError(f"query key: {k}") from e
         return config
 
-    def __setitem__(self, id: str | int, config: Any):
+    def __setitem__(self, id: str | int, config: Any) -> None:
         """
         Set config by ``id``.  Note that this method should be used before ``parse()`` or ``get_parsed_content()``
         to ensure the updates are included in the parsed content.
@@ -184,7 +187,7 @@ class ConfigParser:
         self.ref_resolver.reset()
         return
 
-    def get(self, id: str = "", default: Any | None = None):
+    def get(self, id: str = "", default: Any | None = None) -> Any:
         """
         Get the config by id.
 
@@ -198,7 +201,7 @@ class ConfigParser:
         except (KeyError, IndexError, ValueError):  # Index error for integer indexing
             return default
 
-    def set(self, config: Any, id: str = "", recursive: bool = True):
+    def set(self, config: Any, id: str = "", recursive: bool = True) -> None:
         """
         Set config by ``id``.
 
@@ -220,7 +223,7 @@ class ConfigParser:
                 conf_ = conf_[k if isinstance(conf_, dict) else int(k)]
         self[id] = config
 
-    def update(self, pairs: dict[str, Any]):
+    def update(self, pairs: dict[str, Any]) -> None:
         """
         Set the ``id`` and the corresponding config content in pairs, see also :py:meth:`__setitem__`.
         For example, ``parser.update({"train#epoch": 100, "train#lr": 0.02})``
@@ -245,7 +248,7 @@ class ConfigParser:
         except (KeyError, IndexError, ValueError):  # Index error for integer indexing
             return False
 
-    def parse(self, reset: bool = True):
+    def parse(self, reset: bool = True) -> None:
         """
         Recursively resolve `self.config` to replace the macro tokens with target content.
         Then recursively parse the config source, add every item as ``ConfigItem`` to the reference resolver.
@@ -259,7 +262,7 @@ class ConfigParser:
         self.resolve_macro_and_relative_ids()
         self._do_parse(config=self.get())
 
-    def get_parsed_content(self, id: str = "", **kwargs):
+    def get_parsed_content(self, id: str = "", **kwargs: Any) -> Any:
         """
         Get the parsed result of ``ConfigItem`` with the specified ``id``.
 
@@ -286,7 +289,7 @@ class ConfigParser:
             self.parse(reset=not kwargs.get("lazy", True))
         return self.ref_resolver.get_resolved_content(id=id, **kwargs)
 
-    def read_meta(self, f: PathLike | Sequence[PathLike] | dict, **kwargs):
+    def read_meta(self, f: PathLike | Sequence[PathLike] | dict, **kwargs: Any) -> None:
         """
         Read the metadata from specified JSON or YAML file.
         The metadata as a dictionary will be stored at ``self.config["_meta_"]``.
@@ -300,7 +303,7 @@ class ConfigParser:
         """
         self.set(self.load_config_files(f, **kwargs), self.meta_key)
 
-    def read_config(self, f: PathLike | Sequence[PathLike] | dict, **kwargs):
+    def read_config(self, f: PathLike | Sequence[PathLike] | dict, **kwargs: Any) -> None:
         """
         Read the config from specified JSON or YAML file.
         The config content in the `self.config` dictionary.
@@ -316,7 +319,7 @@ class ConfigParser:
         content.update(self.load_config_files(f, **kwargs))
         self.set(config=content)
 
-    def _do_resolve(self, config: Any, id: str = ""):
+    def _do_resolve(self, config: Any, id: str = "") -> Any:
         """
         Recursively resolve `self.config` to replace the relative ids with absolute ids, for example,
         `@##A` means `A` in the upper level. and replace the macro tokens with target content,
@@ -354,7 +357,7 @@ class ConfigParser:
         """
         self.set(self._do_resolve(config=deepcopy(self.get())))
 
-    def _do_parse(self, config, id: str = ""):
+    def _do_parse(self, config: Any, id: str = "") -> None:
         """
         Recursively parse the nested data in config source, add every item as `ConfigItem` to the resolver.
 
@@ -381,7 +384,7 @@ class ConfigParser:
             self.ref_resolver.add_item(ConfigItem(config=item_conf, id=id))
 
     @classmethod
-    def load_config_file(cls, filepath: PathLike, **kwargs):
+    def load_config_file(cls, filepath: PathLike, **kwargs: Any) -> dict:
         """
         Load config file with specified file path (currently support JSON and YAML files).
 
@@ -397,13 +400,13 @@ class ConfigParser:
             raise ValueError(f'unknown file input: "{filepath}"')
         with open(_filepath) as f:
             if _filepath.lower().endswith(cls.suffixes[0]):
-                return json.load(f, **kwargs)
+                return json.load(f, **kwargs)  # type: ignore[no-any-return]
             if _filepath.lower().endswith(cls.suffixes[1:]):
-                return yaml.safe_load(f, **kwargs)
+                return yaml.safe_load(f, **kwargs)  # type: ignore[no-any-return]
             raise ValueError(f"only support JSON or YAML config file so far, got name {_filepath}.")
 
     @classmethod
-    def load_config_files(cls, files: PathLike | Sequence[PathLike] | dict, **kwargs) -> dict:
+    def load_config_files(cls, files: PathLike | Sequence[PathLike] | dict, **kwargs: Any) -> dict:
         """
         Load config files into a single config dict.
         The latter config file in the list will override or add the former config file.
@@ -423,7 +426,7 @@ class ConfigParser:
         return parser.get()  # type: ignore
 
     @classmethod
-    def export_config_file(cls, config: dict, filepath: PathLike, fmt="json", **kwargs):
+    def export_config_file(cls, config: dict, filepath: PathLike, fmt: str = "json", **kwargs: Any) -> None:
         """
         Export the config content to the specified file path (currently support JSON and YAML files).
 
