@@ -320,17 +320,17 @@ class LazyTransform(Transform, LazyTrait):
     """
 
     def __init__(self, lazy_evaluation: bool | None = True):
-        self.lazy_evaluation = lazy_evaluation
+        self.lazy_evaluation_ = lazy_evaluation
 
     @property
     def lazy_evaluation(self):
-        return self.lazy_evaluation
+        return self.lazy_evaluation_
 
     @lazy_evaluation.setter
     def lazy_evaluation(self, lazy_evaluation: bool):
         if not isinstance(lazy_evaluation, bool):
             raise TypeError("'lazy_evaluation must be a bool but is of " f"type {type(lazy_evaluation)}'")
-        self.lazy_evaluation = lazy_evaluation
+        self.lazy_evaluation_ = lazy_evaluation
 
 
 class RandomizableTransform(Randomizable, Transform):

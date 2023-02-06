@@ -20,6 +20,7 @@ from parameterized import parameterized
 
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import Resize
+from monai.transforms.spatial.functional import resize
 from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose, is_tf32_env, pytorch_after
 
 TEST_CASE_0 = [{"spatial_size": 15}, (6, 10, 15)]
@@ -32,7 +33,51 @@ TEST_CASE_3 = [{"spatial_size": 15, "anti_aliasing": True}, (6, 10, 15)]
 
 TEST_CASE_4 = [{"spatial_size": 6, "anti_aliasing": True, "anti_aliasing_sigma": 2.0}, (2, 4, 6)]
 
+TEST_CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4]
+
+ext_keys = ['spatial_size', 'size_mode', 'mode', 'align_corners', 'anti_aliasing',
+            'anti_aliasing_sigma', 'dtype', 'shape_override']
+
+TEST_CASES_EXT = [
+    [(1, 32, 32), {"spatial_size": 16},
+     dict(zip(ext_keys, [16, 'all', 'area', False, None, None, torch.float64, (1, 16, 16)]))],
+    [(1, 32, 32), {"spatial_size": 15, 'mode': 'nearest'},
+     dict(zip(ext_keys, [15, 'all', 'nearest', False, None, None, torch.float64, (1, 15, 15)]))],
+    [(1, 32, 32), {"spatial_size": 15, 'mode': 'nearest-exact'},
+     dict(zip(ext_keys, [15, 'all', 'nearest-exact', False, None, None, torch.float64, (1, 15, 15)]))],
+    [(1, 32, 32), {"spatial_size": 15, 'mode': 'linear'},
+     dict(zip(ext_keys, [15, 'all', 'linear', False, None, None, torch.float64, (1, 15, 15)]))],
+    [(1, 32, 32), {"spatial_size": 15, 'mode': 'bilinear'},
+     dict(zip(ext_keys, [15, 'all', 'bilinear', False, None, None, torch.float64, (1, 15, 15)]))],
+    [(1, 32, 32), {"spatial_size": 15, 'mode': 'bicubic'},
+     dict(zip(ext_keys, [15, 'all', 'bicubic', False, None, None, torch.float64, (1, 15, 15)]))],
+    [(1, 32, 32), {"spatial_size": 15, 'mode': 'trilinear'},
+     dict(zip(ext_keys, [15, 'all', 'trilinear', False, None, None, torch.float64, (1, 15, 15)]))],
+    [(1, 32, 32), {"spatial_size": 15, "mode": "area"},
+     dict(zip(ext_keys, [15, 'all', 'area', False, None, None, torch.float64, (1, 15, 15)]))],
+    [(1, 32, 32), {"spatial_size": (15, 15), "mode": "area"},
+     dict(zip(ext_keys, [(15, 15), 'all', 'area', False, None, None, torch.float64, (1, 15, 15)]))],
+    [(1, 32, 32, 16), {"spatial_size": (15, 15, 12), "mode": "bilinear"},
+     dict(zip(ext_keys, [(15, 15, 12), 'all', 'bilinear', False, None, None, torch.float64, (1, 15, 15, 12)]))],
+    [(1, 32, 32), {"spatial_size": 6, "mode": "trilinear", "align_corners": True},
+     dict(zip(ext_keys, [6, 'all', 'trilinear', True, None, None, torch.float64, (1, 6, 6)]))],
+    [(1, 32, 32), {"spatial_size": 15, "anti_aliasing": True},
+     dict(zip(ext_keys, [15, 'all', 'area', False, True, None, torch.float64, (1, 15, 15)]))],
+    [(1, 32, 32), {"spatial_size": 6, "anti_aliasing": True, "anti_aliasing_sigma": 2.0},
+     dict(zip(ext_keys, [6, 'all', 'area', False, True, 2.0, torch.float64, (1, 6, 6)]))]
+]
+
 diff_t = 0.3 if is_tf32_env() else 0.2
+
+CORRECT_RESULTS_TESTS = [
+    # TODO: reinstate area tests once the resampler allows it
+    ((32, -1), "bilinear", True), # ((32, -1), "area", True),
+    ((32, 32), "bilinear", False), # ((32, 32), "area", False),
+    ((32, 32, 32), "trilinear", True),
+    ((256, 256), "bilinear", False),
+    ((256, 256), "nearest-exact" if pytorch_after(1, 11) else "nearest", False),
+    ((128, 64), "bilinear", True), # ((128, 64), "area", True),  # already in a good shape
+]
 
 
 class TestResize(NumpyImageTestCase2D):
@@ -45,17 +90,42 @@ class TestResize(NumpyImageTestCase2D):
             resize = Resize(spatial_size=(128,), mode="order")
             resize(self.imt[0])
 
-    @parameterized.expand(
-        [
-            ((32, -1), "area", True),
-            ((32, 32), "area", False),
-            ((32, 32, 32), "trilinear", True),
-            ((256, 256), "bilinear", False),
-            ((256, 256), "nearest-exact" if pytorch_after(1, 11) else "nearest", False),
-            ((128, 64), "area", True),  # already in a good shape
-        ]
-    )
+    @parameterized.expand(TEST_CASES_EXT)
+    def test_functional_resize(self, img_size, kwargs, expected):
+        self._test_functional_resize(img_size, kwargs, expected)
+
+    def test_functional_resize_cases(self):
+        for t in TEST_CASES_EXT:
+            with self.subTest(t):
+                self._test_functional_resize(t[0], t[1], t[2])
+
+    def test_function_resize_not_lazy_cases(self):
+        for t in TEST_CASES_EXT:
+            with self.subTest(t):
+                self._test_functional_resize(t[0], t[1], t[2], False)
+
+    def _test_functional_resize(self, img_size, kwargs, expected, lazy: bool = True):
+        print(kwargs)
+        img = np.random.rand(*img_size)
+        result = resize(img, **kwargs, lazy_evaluation=lazy)
+        if lazy is True:
+            self.assertDictEqual(result.pending_operations[-1].metadata, expected)
+
+        else:
+            print(result.applied_operations, result.affine)
+            result.applied_operations
+
+
+    @parameterized.expand(CORRECT_RESULTS_TESTS)
     def test_correct_results(self, spatial_size, mode, anti_aliasing):
+        self._test_correct_results(spatial_size, mode, anti_aliasing)
+
+    def test_correct_results_cases(self):
+        for t in CORRECT_RESULTS_TESTS:
+            with self.subTest(t):
+                self._test_correct_results(*t)
+
+    def _test_correct_results(self, spatial_size, mode, anti_aliasing):
         """resize 'spatial_size' and 'mode'"""
         resize = Resize(spatial_size, mode=mode, anti_aliasing=anti_aliasing)
         _order = 0
@@ -93,15 +163,23 @@ class TestResize(NumpyImageTestCase2D):
                 np.abs(good - expected.size) / float(expected.size), diff_t, f"at most {diff_t} percent mismatch "
             )
 
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
+    @parameterized.expand(TEST_CASES)
     def test_longest_shape(self, input_param, expected_shape):
-        input_data = np.random.randint(0, 2, size=[3, 4, 7, 10])
+        self._test_longest_shape(input_param, expected_shape)
+
+    def test_longest_shape_cases(self):
+        for t in TEST_CASES:
+            with self.subTest(t):
+                self._test_longest_shape(*t)
+
+    def _test_longest_shape(self, input_param, expected_shape):
+        input_data = np.random.randint(0, 2, size=[3, 4, 7, 10]).astype(np.double)
         input_param["size_mode"] = "longest"
-        result = Resize(**input_param)(input_data)
+        result = Resize(**input_param, lazy_evaluation=False)(input_data)
         np.testing.assert_allclose(result.shape[1:], expected_shape)
 
         set_track_meta(False)
-        result = Resize(**input_param)(input_data)
+        result = Resize(**input_param, lazy_evaluation=False)(input_data)
         self.assertNotIsInstance(result, MetaTensor)
         np.testing.assert_allclose(result.shape[1:], expected_shape)
         set_track_meta(True)

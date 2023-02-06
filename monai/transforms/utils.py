@@ -18,7 +18,7 @@ from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
 from contextlib import contextmanager
 from functools import wraps
 from inspect import getmembers, isclass
-from typing import Any
+from typing import Any, Tuple
 
 import numpy as np
 import torch
@@ -78,9 +78,18 @@ __all__ = [
     "copypaste_arrays",
     "create_control_grid",
     "create_grid",
+    "compatible_identity",
+    "create_identity",
+    "compatible_rotate",
     "create_rotate",
+    "compatible_rotate_90",
+    "create_rotate_90",
+    "compatible_flip",
+    "create_flip",
+    "compatible_scale",
     "create_scale",
     "create_shear",
+    "compatible_translate",
     "create_translate",
     "extreme_points_to_image",
     "fill_holes",
@@ -116,6 +125,7 @@ __all__ = [
     "attach_hook",
     "sync_meta_info",
     "reset_ops_id",
+    "value_to_tuple_range"
 ]
 
 
@@ -681,6 +691,37 @@ def create_control_grid(
     )
 
 
+def compatible_identity(
+        img: NdarrayOrTensor,
+) -> NdarrayOrTensor:
+
+    spatial_dims = len(img.shape) - 1
+    device = get_device_from_tensor_like(img)
+    backend = get_backend_from_tensor_like(img)
+    return create_identity(spatial_dims, device, backend)
+
+
+def create_identity(
+        spatial_dims: int,
+        device: torch.device | None = None,
+        backend: str = TransformBackends.NUMPY
+) -> NdarrayOrTensor:
+    if backend == TransformBackends.NUMPY:
+        return np.eye(spatial_dims)
+    else:
+        return torch.eye(spatial_dims, device=device)
+
+
+def compatible_rotate(
+        img: NdarrayOrTensor,
+        radians: Sequence[float] | float
+) -> NdarrayOrTensor:
+    spatial_dims = len(img.shape) - 1
+    device = get_device_from_tensor_like(img)
+    backend = get_backend_from_tensor_like(img)
+    return create_rotate(spatial_dims, radians, device, backend)
+
+
 def create_rotate(
     spatial_dims: int,
     radians: Sequence[float] | float,
@@ -766,6 +807,122 @@ def _create_rotate(
     raise ValueError(f"Unsupported spatial_dims: {spatial_dims}, available options are [2, 3].")
 
 
+def compatible_rotate_90(
+        img: NdarrayOrTensor,
+        axis: Tuple[int, int],
+        steps: int | None = 1,
+):
+    spatial_dims = len(img.shape) - 1
+    device = get_device_from_tensor_like(img)
+    backend = get_backend_from_tensor_like(img)
+    return create_rotate_90(spatial_dims, axis, steps, device, backend)
+
+
+def create_rotate_90(
+        spatial_dims: int,
+        axis: Tuple[int, int],
+        steps: int | None = 1,
+        device: torch.device | None = None,
+        backend: str = TransformBackends.NUMPY
+):
+    backend_ = look_up_option(backend, TransformBackends)
+
+    if backend_ == TransformBackends.NUMPY:
+        return _create_rotate_90(spatial_dims, axis, steps, np.eye)
+
+    if backend_ == TransformBackends.TORCH:
+        return _create_rotate_90(spatial_dims, axis, steps, lambda rank: torch.eye(rank, device=device))
+
+    raise ValueError(f"backend {backend} is not supported")
+
+
+def _create_rotate_90(
+        spatial_dims: int,
+        axis: Tuple[int, int],
+        steps: int | None = 1,
+        eye_func: Callable = np.eye
+) -> NdarrayOrTensor:
+
+    values = [(1, 0, 0, 1),
+              (0, 1, -1, 0),
+              (-1, 0, 0, -1),
+              (0, -1, 1, 0)]
+
+    if spatial_dims == 2:
+        if axis != (0, 1):
+            raise ValueError(f"if 'spatial_dims' is 2, 'axis' must be (0, 1) but is {axis}")
+    elif spatial_dims == 3:
+        if axis not in ((0, 1), (0, 2), (1, 2)):
+            raise ValueError("if 'spatial_dims' is 3, 'axis' must be (0,1), (0, 2), or (1, 2) "
+                             f"but is {axis}")
+    else:
+        raise ValueError(f"'spatial_dims' must be 2 or 3 but is {spatial_dims}")
+
+    steps_ = steps % 4
+
+    affine = eye_func(spatial_dims + 1)
+
+    if spatial_dims == 2:
+        a, b = 0, 1
+    else:
+        a, b = axis
+
+    affine[a, a], affine[a, b], affine[b, a], affine[b, b] = values[steps_]
+    return affine
+
+
+def compatible_flip(
+        img: NdarrayOrTensor,
+        spatial_axis: Sequence[int] | int
+) -> NdarrayOrTensor:
+    spatial_dims = len(img.shape) - 1
+    device = get_device_from_tensor_like(img)
+    backend = get_backend_from_tensor_like(img)
+    return create_flip(spatial_dims, spatial_axis, device, backend)
+
+
+def create_flip(
+        spatial_dims: int,
+        spatial_axis: Sequence[int] | int,
+        device: torch.device | None = None,
+        backend: str = TransformBackends.NUMPY
+) -> NdarrayOrTensor:
+    _backend = look_up_option(backend, TransformBackends)
+
+    if _backend == TransformBackends.NUMPY:
+        return _create_flip(spatial_dims, spatial_axis, np.eye)
+
+    if _backend == TransformBackends.TORCH:
+        return _create_flip(spatial_dims, spatial_axis, lambda rank: torch.eye(rank, device=device))
+
+    raise ValueError(f"backend {backend} is not supported")
+
+
+def _create_flip(
+        spatial_dims: int,
+        spatial_axis: Sequence[int] | int,
+        eye_func: Callable = np.eye
+) -> NdarrayOrTensor:
+    affine = eye_func(spatial_dims + 1)
+    if isinstance(spatial_axis, int):
+        if spatial_axis < -spatial_dims or spatial_axis >= spatial_dims:
+            raise ValueError("'spatial_axis' values must be between "
+                             f"{-spatial_dims} and {spatial_dims-1} inclusive "
+                             f"('spatial_axis' is {spatial_axis})")
+        affine[spatial_axis, spatial_axis] = -1
+    else:
+        if any((s < -spatial_dims or s >= spatial_dims) for s in spatial_axis):
+            raise ValueError("'spatial_axis' values must be between "
+                             f"{-spatial_dims} and {spatial_dims-1} inclusive "
+                             f"('spatial_axis' is {spatial_axis})")
+
+        for i in range(spatial_dims):
+            if i in spatial_axis:
+                affine[i, i] = -1
+
+    return affine
+
+
 def create_shear(
     spatial_dims: int,
     coefs: Sequence[float] | float,
@@ -820,11 +977,35 @@ def _create_shear(spatial_dims: int, coefs: Sequence[float] | float, eye_func=np
     raise NotImplementedError("Currently only spatial_dims in [2, 3] are supported.")
 
 
+def compatible_scale(
+        image: NdarrayOrTensor,
+        scaling_factor: Sequence[float] | float,
+        dtype = torch.float64
+) -> NdarrayOrTensor:
+    """
+    Create a scaling matrix that is compatible with the `image` parameter. Compatible means that is is
+    a homogeneous matrix of the correct dimensionality for the image involved, and it is for the same
+    backend and device as the image.
+
+    Args:
+        image: A numpy ndarray or Tensor (including MetaTensor) for which the scale is being generated
+        scaling_factor: The scaling factors to be applied on a per dimension-basis. This should either
+                        be a single value if it is to be applied to every spatial dimension, or contain
+                        a value for each spatial dimension
+    Returns:
+         A homogeneous matrix as either an numpy ndarray or a Tensor
+    """
+    dims = len(image.shape) - 1
+    device = get_device_from_tensor_like(image)
+    backend = get_backend_from_tensor_like(image)
+    return create_scale(dims, scaling_factor, device, backend)
+
+
 def create_scale(
     spatial_dims: int,
     scaling_factor: Sequence[float] | float,
     device: torch.device | None = None,
-    backend=TransformBackends.NUMPY,
+    backend=TransformBackends.NUMPY
 ) -> NdarrayOrTensor:
     """
     create a scaling matrix
@@ -850,6 +1031,16 @@ def create_scale(
 def _create_scale(spatial_dims: int, scaling_factor: Sequence[float] | float, array_func=np.diag) -> NdarrayOrTensor:
     scaling_factor = ensure_tuple_size(scaling_factor, dim=spatial_dims, pad_val=1.0)
     return array_func(scaling_factor[:spatial_dims] + (1.0,))  # type: ignore
+
+
+def compatible_translate(
+        img: NdarrayOrTensor,
+        shift: Sequence[float] | float
+) -> NdarrayOrTensor:
+    spatial_dims = len(img.shape) - 1
+    device = get_device_from_tensor_like(img)
+    backend = get_backend_from_tensor_like(img)
+    return create_translate(spatial_dims, shift, device, backend)
 
 
 def create_translate(
@@ -1795,6 +1986,63 @@ def squarepulse(sig, duty: float = 0.5):
     mask3 = (~mask1) & (~mask2)
     y[mask3] = -1
     return y
+
+
+def get_device_from_tensor_like(data: NdarrayOrTensor):
+    """
+    This function returns the device of `data`, which must either be a numpy ndarray or a
+    pytorch Tensor.
+    Args:
+        data: the ndarray/tensor to return the device of
+    Returns:
+        None if `data` is a numpy array, or the device of the pytorch Tensor
+    """
+    if isinstance(data, np.ndarray):
+        return None
+    elif isinstance(data, torch.Tensor):
+        return data.device
+    else:
+        msg = "'data' must be one of numpy ndarray or torch Tensor but is {}"
+        raise ValueError(msg.format(type(data)))
+
+
+# this will conflict with PR Replacement Apply and Resample #5436
+def get_backend_from_tensor_like(data: NdarrayOrTensor):
+    """
+    This function returns the backend of `data`, which must either be a numpy ndarray or a
+    pytorch Tensor.
+    Args:
+        data: the ndarray/tensor to return the device of
+    Returns:
+        None if `data` is a numpy array, or the device of the pytorch Tensor
+    """
+    if isinstance(data, np.ndarray):
+        return TransformBackends.NUMPY
+    elif isinstance(data, torch.Tensor):
+        return TransformBackends.TORCH
+    else:
+        msg = "'data' must be one of numpy ndarray or torch Tensor but is {}"
+        raise ValueError(msg.format(type(data)))
+
+
+def value_to_tuple_range(value):
+    """
+    Takes a value or a tuple of values.
+     - if the value is a tuple of two elements, it will ensure that the elements are in sorted
+    order
+     - if the value is a tuple of one element, it will ensure that return a tuple of (-value[0],
+     +value[0])
+     - if the value is a scalar, it will return (-value, +value)
+    """
+    if isinstance(value, (tuple, list)):
+        if len(value) == 2:
+            return (value[0], value[1]) if value[0] <= value[1] else (value[1], value[0])
+        elif len(value) == 1:
+            return -value[0], value[0]
+        else:
+            raise ValueError(f"parameter 'value' must be of length 1 or 2 but is {len(value)}")
+    else:
+        return -value, value
 
 
 if __name__ == "__main__":
