@@ -122,7 +122,7 @@ class BoxCoder:
             # We expect gt_back to be equal to gt_boxes
     """
 
-    def __init__(self, weights: tuple[float], boxes_xform_clip: float | None = None) -> None:
+    def __init__(self, weights: Sequence[float], boxes_xform_clip: float | None = None) -> None:
         if boxes_xform_clip is None:
             boxes_xform_clip = math.log(1000.0 / 16)
         self.spatial_dims = look_up_option(len(weights), [4, 6]) // 2

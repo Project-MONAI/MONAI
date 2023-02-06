@@ -17,6 +17,7 @@ from torch.nn.modules.loss import _Loss
 from monai.metrics.utils import do_metric_reduction
 from monai.utils import MetricReduction
 
+from ..config import TensorOrList
 from .metric import CumulativeIterationMetric
 
 
@@ -74,7 +75,9 @@ class LossMetric(CumulativeIterationMetric):
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def aggregate(self, reduction: MetricReduction | str | None = None):
+    def aggregate(
+        self, reduction: MetricReduction | str | None = None
+    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """
         Returns the aggregated loss value across multiple iterations.
 
@@ -89,7 +92,7 @@ class LossMetric(CumulativeIterationMetric):
         f, not_nans = do_metric_reduction(data, reduction or self.reduction)
         return (f, not_nans) if self.get_not_nans else f
 
-    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor = None):  # type: ignore
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor | None = None) -> TensorOrList:
         """
         Input `y_pred` is compared with ground truth `y`.
         Both `y_pred` and `y` are expected to be a batch-first Tensor (BC[HWD]).
@@ -97,7 +100,7 @@ class LossMetric(CumulativeIterationMetric):
         Returns:
              a tensor with shape (BC[HWD]), or a list of tensors, each tensor with shape (C[HWD]).
         """
-        iter_loss = self.loss_fn(y_pred) if y is None else self.loss_fn(y_pred, y)
+        iter_loss: TensorOrList = self.loss_fn(y_pred) if y is None else self.loss_fn(y_pred, y)
         if isinstance(iter_loss, torch.Tensor):
             while iter_loss.dim() < 2:
                 iter_loss = iter_loss[None]

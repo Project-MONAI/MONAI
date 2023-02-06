@@ -64,7 +64,7 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
             raise ValueError(f"reduction must be one of {reduction_options}")
         self.weight_type = look_up_option(weight_type, Weight)
 
-    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         """Computes the Generalized Dice Score and returns a tensor with its per image values.
 
         Args:
@@ -80,7 +80,7 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
             y_pred=y_pred, y=y, include_background=self.include_background, weight_type=self.weight_type
         )
 
-    def aggregate(self, reduction: MetricReduction | str | None = None):
+    def aggregate(self, reduction: MetricReduction | str | None = None) -> torch.Tensor:
         """
         Execute reduction logic for the output of `compute_generalized_dice`.
 
