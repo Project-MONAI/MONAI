@@ -118,5 +118,5 @@ class ProbMapProducer:
         del self.counter[name]
         del self.level[name]
 
-    def finalize(self, engine: Engine):
+    def finalize(self, engine: Engine) -> None:
         self.logger.info(f"Probability map is created for {self.num_done_images}/{self.num_images} images!")

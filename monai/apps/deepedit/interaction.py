@@ -58,7 +58,7 @@ class Interaction:
         self.click_probability_key = click_probability_key
         self.max_interactions = max_interactions
 
-    def __call__(self, engine: SupervisedTrainer | SupervisedEvaluator, batchdata: dict[str, torch.Tensor]):
+    def __call__(self, engine: SupervisedTrainer | SupervisedEvaluator, batchdata: dict[str, torch.Tensor]) -> dict:
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
 

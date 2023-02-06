@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import math
 from abc import abstractmethod
+from collections.abc import Callable
 from functools import partial
 from typing import Any
 
@@ -49,7 +50,9 @@ class RegressionMetric(CumulativeIterationMetric):
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def aggregate(self, reduction: MetricReduction | str | None = None):
+    def aggregate(
+        self, reduction: MetricReduction | str | None = None
+    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """
         Args:
             reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
@@ -75,7 +78,7 @@ class RegressionMetric(CumulativeIterationMetric):
     def _compute_metric(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         if not isinstance(y_pred, torch.Tensor) or not isinstance(y, torch.Tensor):
             raise ValueError("y_pred and y must be PyTorch Tensor.")
         self._check_shape(y_pred, y)
@@ -222,7 +225,7 @@ class PSNRMetric(RegressionMetric):
         return 20 * math.log10(self.max_val) - 10 * torch.log10(mse_out)
 
 
-def compute_mean_error_metrics(y_pred: torch.Tensor, y: torch.Tensor, func) -> torch.Tensor:
+def compute_mean_error_metrics(y_pred: torch.Tensor, y: torch.Tensor, func: Callable) -> torch.Tensor:
     # reducing in only channel + spatial dimensions (not batch)
     # reduction of batch handled inside __call__() using do_metric_reduction() in respective calling class
     flt = partial(torch.flatten, start_dim=1)
@@ -325,7 +328,7 @@ class SSIMMetric(RegressionMetric):
 
             ssim = torch.stack(
                 [
-                    SSIMMetric(self.data_range, self.win_size, self.k1, self.k2, self.spatial_dims)(
+                    SSIMMetric(self.data_range, self.win_size, self.k1, self.k2, self.spatial_dims)(  # type: ignore[misc]
                         x[:, i, ...].unsqueeze(1), y[:, i, ...].unsqueeze(1)
                     )
                     for i in range(x.shape[1])
