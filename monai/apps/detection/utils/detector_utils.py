@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Any
 
 import torch
 import torch.nn.functional as F
@@ -95,7 +96,7 @@ def pad_images(
     spatial_dims: int,
     size_divisible: int | Sequence[int],
     mode: PytorchPadMode | str = PytorchPadMode.CONSTANT,
-    **kwargs,
+    **kwargs: Any,
 ) -> tuple[Tensor, list[list[int]]]:
     """
     Pad the input images, so that the output spatial sizes are divisible by `size_divisible`.
@@ -163,7 +164,7 @@ def preprocess_images(
     spatial_dims: int,
     size_divisible: int | Sequence[int],
     mode: PytorchPadMode | str = PytorchPadMode.CONSTANT,
-    **kwargs,
+    **kwargs: Any,
 ) -> tuple[Tensor, list[list[int]]]:
     """
     Preprocess the input images, including

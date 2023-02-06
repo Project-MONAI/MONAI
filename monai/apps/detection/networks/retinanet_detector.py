@@ -180,7 +180,7 @@ class RetinaNetDetector(nn.Module):
     """
 
     def __init__(
-        self, network, anchor_generator: AnchorGenerator, box_overlap_metric: Callable = box_iou, debug: bool = False
+        self, network: nn.Module, anchor_generator: AnchorGenerator, box_overlap_metric: Callable = box_iou, debug: bool = False
     ):
         super().__init__()
 
@@ -194,12 +194,12 @@ class RetinaNetDetector(nn.Module):
             )
 
         self.network = network
-        self.spatial_dims = self.network.spatial_dims
+        self.spatial_dims: int = self.network.spatial_dims  # type: ignore[assignment]
         self.num_classes = self.network.num_classes
         self.size_divisible = ensure_tuple_rep(self.network.size_divisible, self.spatial_dims)
         # keys for the network output
-        self.cls_key = self.network.cls_key
-        self.box_reg_key = self.network.box_reg_key
+        self.cls_key: str = self.network.cls_key  # type: ignore[assignment]
+        self.box_reg_key: str = self.network.box_reg_key  # type: ignore[assignment]
 
         # check if anchor_generator matches with network
         self.anchor_generator = anchor_generator
@@ -248,7 +248,7 @@ class RetinaNetDetector(nn.Module):
             apply_sigmoid=True,
         )
 
-    def set_box_coder_weights(self, weights: tuple[float]):
+    def set_box_coder_weights(self, weights: tuple[float]) -> None:
         """
         Set the weights for box coder.
 
@@ -260,7 +260,7 @@ class RetinaNetDetector(nn.Module):
             raise ValueError(f"len(weights) should be {2 * self.spatial_dims}, got weights={weights}.")
         self.box_coder = BoxCoder(weights=weights)
 
-    def set_target_keys(self, box_key: str, label_key: str):
+    def set_target_keys(self, box_key: str, label_key: str) -> None:
         """
         Set keys for the training targets and inference outputs.
         During training, both box_key and label_key should be keys in the targets
@@ -313,7 +313,7 @@ class RetinaNetDetector(nn.Module):
         self.encode_gt = encode_gt
         self.decode_pred = decode_pred
 
-    def set_regular_matcher(self, fg_iou_thresh: float, bg_iou_thresh: float, allow_low_quality_matches=True) -> None:
+    def set_regular_matcher(self, fg_iou_thresh: float, bg_iou_thresh: float, allow_low_quality_matches: bool = True) -> None:
         """
         Using for training. Set torchvision matcher that matches anchors with ground truth boxes.
 
@@ -347,7 +347,7 @@ class RetinaNetDetector(nn.Module):
 
     def set_hard_negative_sampler(
         self, batch_size_per_image: int, positive_fraction: float, min_neg: int = 1, pool_size: float = 10
-    ):
+    ) -> None:
         """
         Using for training. Set hard negative sampler that samples part of the anchors for training.
 
@@ -370,7 +370,7 @@ class RetinaNetDetector(nn.Module):
             pool_size=pool_size,
         )
 
-    def set_balanced_sampler(self, batch_size_per_image: int, positive_fraction: float):
+    def set_balanced_sampler(self, batch_size_per_image: int, positive_fraction: float) -> None:
         """
         Using for training. Set torchvision balanced sampler that samples part of the anchors for training.
 
@@ -396,7 +396,7 @@ class RetinaNetDetector(nn.Module):
         device: torch.device | str | None = None,
         progress: bool = False,
         cache_roi_weight_map: bool = False,
-    ):
+    ) -> None:
         """
         Define sliding window inferer and store it to self.inferer.
         """
@@ -421,7 +421,7 @@ class RetinaNetDetector(nn.Module):
         nms_thresh: float = 0.5,
         detections_per_img: int = 300,
         apply_sigmoid: bool = True,
-    ):
+    ) -> None:
         """
         Using for inference. Set the parameters that are used for box selection during inference.
         The box selection is performed with the following steps:
@@ -539,7 +539,7 @@ class RetinaNetDetector(nn.Module):
                 "or set classification loss function as Focal loss with self.set_cls_loss(*)"
             )
 
-    def generate_anchors(self, images: Tensor, head_outputs: dict[str, list[Tensor]]):
+    def generate_anchors(self, images: Tensor, head_outputs: dict[str, list[Tensor]]) -> None:
         """
         Generate anchors and store it in self.anchors: List[Tensor].
         We generate anchors only when there is no stored anchors,

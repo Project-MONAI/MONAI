@@ -205,7 +205,7 @@ class AnchorGenerator(nn.Module):
 
         return base_anchors.round()
 
-    def set_cell_anchors(self, dtype: torch.dtype, device: torch.device):
+    def set_cell_anchors(self, dtype: torch.dtype, device: torch.device) -> None:
         """
         Convert each element in self.cell_anchors to ``dtype`` and send to ``device``.
         """
