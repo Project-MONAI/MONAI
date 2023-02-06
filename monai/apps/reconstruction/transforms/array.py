@@ -72,7 +72,7 @@ class KspaceMask(RandomizableTransform):
         self.is_complex = is_complex
 
     @abstractmethod
-    def __call__(self, kspace: NdarrayOrTensor):
+    def __call__(self, kspace: NdarrayOrTensor) -> Sequence[Tensor]:
         """
         This is an extra instance to allow for defining new mask generators.
         For creating other mask transforms, define a new class and simply
