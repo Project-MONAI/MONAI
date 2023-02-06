@@ -24,7 +24,6 @@ from monai.visualize import plot_2d_or_3d_image
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 
-
 if TYPE_CHECKING:
     from ignite.engine import Engine
     from tensorboardX import SummaryWriter as SummaryWriterX
