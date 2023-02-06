@@ -489,7 +489,7 @@ class SpatialCropBox(SpatialCrop):
                 raise ValueError("Currently negative indexing is not supported for SpatialCropBox.")
 
     def __call__(  # type: ignore[override]
-            self, boxes: NdarrayTensor, labels: Sequence[NdarrayOrTensor] | NdarrayOrTensor
+        self, boxes: NdarrayTensor, labels: Sequence[NdarrayOrTensor] | NdarrayOrTensor
     ) -> tuple[NdarrayTensor, tuple | NdarrayOrTensor]:
         """
         Args:
