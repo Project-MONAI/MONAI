@@ -13,24 +13,26 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Sequence
 
 import numpy as np
 
-from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, Orientationd, Spacingd, SqueezeDimd
+from monai.config import PathLike
+from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, Orientationd, Spacingd, SqueezeDimd, Transform
 from monai.utils import GridSampleMode
 
 
 def create_dataset(
-    datalist,
+    datalist: list[dict],
     output_dir: str,
     dimension: int,
-    pixdim,
+    pixdim: Sequence[float] | float,
     image_key: str = "image",
     label_key: str = "label",
-    base_dir=None,
+    base_dir: PathLike | None = None,
     limit: int = 0,
     relative_path: bool = False,
-    transforms=None,
+    transforms: Transform | None = None,
 ) -> list[dict]:
     """
     Utility to pre-process and create dataset list for Deepgrow training over on existing one.

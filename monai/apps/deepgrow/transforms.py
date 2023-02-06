@@ -12,7 +12,8 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Callable, Hashable, Sequence
+from collections.abc import Callable, Hashable, Iterable, Sequence
+from typing import Any
 
 import numpy as np
 import torch
@@ -53,7 +54,7 @@ class FindAllValidSlicesd(Transform):
                 sids.append(sid)
         return np.asarray(sids)
 
-    def __call__(self, data) -> dict:
+    def __call__(self, data: Any) -> dict:
         d: dict = dict(data)
         label = d[self.label].numpy() if isinstance(data[self.label], torch.Tensor) else data[self.label]
         if label.shape[0] != 1:
@@ -405,7 +406,7 @@ class SpatialCropForegroundd(MapTransform):
         margin: int = 0,
         allow_smaller: bool = True,
         meta_keys: KeysCollection | None = None,
-        meta_key_postfix=DEFAULT_POST_FIX,
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         start_coord_key: str = "foreground_start_coord",
         end_coord_key: str = "foreground_end_coord",
         original_shape_key: str = "foreground_original_shape",
@@ -498,7 +499,7 @@ class AddGuidanceFromPointsd(Transform):
 
     def __init__(
         self,
-        ref_image,
+        ref_image: str,
         guidance: str = "guidance",
         foreground: str = "foreground",
         background: str = "background",
@@ -613,10 +614,10 @@ class SpatialCropGuidanced(MapTransform):
         self,
         keys: KeysCollection,
         guidance: str,
-        spatial_size,
-        margin=20,
+        spatial_size: Iterable[int],
+        margin: int = 20,
         meta_keys: KeysCollection | None = None,
-        meta_key_postfix=DEFAULT_POST_FIX,
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         start_coord_key: str = "foreground_start_coord",
         end_coord_key: str = "foreground_end_coord",
         original_shape_key: str = "foreground_original_shape",
@@ -654,7 +655,7 @@ class SpatialCropGuidanced(MapTransform):
             box_start[di], box_end[di] = min_d, max_d
         return box_start, box_end
 
-    def __call__(self, data) -> dict:
+    def __call__(self, data: Any) -> dict:
         d: dict = dict(data)
         first_key: Hashable = self.first_key(d)
         if first_key == ():
@@ -741,7 +742,7 @@ class ResizeGuidanced(Transform):
         self.meta_key_postfix = meta_key_postfix
         self.cropped_shape_key = cropped_shape_key
 
-    def __call__(self, data) -> dict:
+    def __call__(self, data: Any) -> dict:
         d = dict(data)
         guidance = d[self.guidance]
         meta_dict: dict = d[self.meta_keys or f"{self.ref_image}_{self.meta_key_postfix}"]
@@ -836,7 +837,7 @@ class RestoreLabeld(MapTransform):
         self.original_shape_key = original_shape_key
         self.cropped_shape_key = cropped_shape_key
 
-    def __call__(self, data) -> dict:
+    def __call__(self, data: Any) -> dict:
         d = dict(data)
         meta_dict: dict = d[f"{self.ref_image}_{self.meta_key_postfix}"]
 
@@ -917,8 +918,8 @@ class Fetch2DSliced(MapTransform):
 
     def __init__(
         self,
-        keys,
-        guidance="guidance",
+        keys: KeysCollection,
+        guidance: str = "guidance",
         axis: int = 0,
         meta_keys: KeysCollection | None = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
