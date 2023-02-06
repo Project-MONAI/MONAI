@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from monai.apps.pathology.utils import PathologyProbNMS, compute_isolated_tumor_cells, compute_multi_instance_mask
+from monai.config import NdarrayOrTensor
 from monai.data.image_reader import WSIReader
 from monai.metrics import compute_fp_tp_probs, compute_froc_curve_data, compute_froc_score
 from monai.utils import min_version, optional_import
@@ -128,7 +129,8 @@ class LesionFROC:
         by comparing the model outputs with the prepared ground truths for all samples
 
         """
-        total_fp_probs, total_tp_probs = [], []
+        total_fp_probs: list[NdarrayOrTensor] = []
+        total_tp_probs: list[NdarrayOrTensor] = []
         total_num_targets = 0
         num_images = len(self.data)
 

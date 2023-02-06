@@ -76,7 +76,7 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         """
         Args:
             y_pred: input data to compute, typical segmentation model output.
@@ -105,7 +105,7 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
             directed=self.directed,
         )
 
-    def aggregate(self, reduction: MetricReduction | str | None = None):
+    def aggregate(self, reduction: MetricReduction | str | None = None) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """
         Execute reduction logic for the output of `compute_hausdorff_distance`.
 
@@ -131,7 +131,7 @@ def compute_hausdorff_distance(
     distance_metric: str = "euclidean",
     percentile: float | None = None,
     directed: bool = False,
-):
+) -> torch.Tensor:
     """
     Compute the Hausdorff distance.
 
@@ -179,7 +179,7 @@ def compute_hausdorff_distance(
 
 def compute_percent_hausdorff_distance(
     edges_pred: np.ndarray, edges_gt: np.ndarray, distance_metric: str = "euclidean", percentile: float | None = None
-):
+) -> float:
     """
     This function is used to compute the directed Hausdorff distance.
     """
@@ -191,8 +191,8 @@ def compute_percent_hausdorff_distance(
         return np.nan
 
     if not percentile:
-        return surface_distance.max()
+        return surface_distance.max()  # type: ignore[no-any-return]
 
     if 0 <= percentile <= 100:
-        return np.percentile(surface_distance, percentile)
+        return np.percentile(surface_distance, percentile)  # type: ignore[no-any-return]
     raise ValueError(f"percentile should be a value between 0 and 100, get {percentile}.")

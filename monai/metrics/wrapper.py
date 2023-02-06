@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 import torch
 
 from monai.metrics.utils import do_metric_reduction, ignore_background, is_binary_tensor
@@ -55,7 +57,7 @@ class MetricsReloadedWrapper(CumulativeIterationMetric):
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def aggregate(self, reduction=None):
+    def aggregate(self, reduction: MetricReduction | str | None = None) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         data = self.get_buffer()
         if not isinstance(data, torch.Tensor):
             raise ValueError("the data to aggregate must be PyTorch Tensor.")
@@ -134,7 +136,7 @@ class MetricsReloadedBinary(MetricsReloadedWrapper):
             get_not_nans=get_not_nans,
         )
 
-    def _compute_tensor(self, y_pred, y):
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         """Computes a binary (single-class) MetricsReloaded metric from a batch of
         predictions and references.
 
@@ -175,7 +177,7 @@ class MetricsReloadedBinary(MetricsReloadedWrapper):
         metric = bpm.metrics[self.metric_name]()
 
         # Return metric as tensor
-        return convert_to_tensor(metric, device=device)
+        return convert_to_tensor(metric, device=device)  # type: ignore[no-any-return]
 
 
 class MetricsReloadedCategorical(MetricsReloadedWrapper):
@@ -242,7 +244,7 @@ class MetricsReloadedCategorical(MetricsReloadedWrapper):
         )
         self.smooth_dr = smooth_dr
 
-    def _compute_tensor(self, y_pred, y):
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         """Computes a categorical (multi-class) MetricsReloaded metric from a batch of
         predictions and references.
 
@@ -299,4 +301,4 @@ class MetricsReloadedCategorical(MetricsReloadedWrapper):
         metric = metric[..., None]
 
         # Return metric as tensor
-        return convert_to_tensor(metric, device=device)
+        return cast(torch.Tensor, convert_to_tensor(metric, device=device))

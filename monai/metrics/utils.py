@@ -12,10 +12,12 @@
 from __future__ import annotations
 
 import warnings
+from typing import Any
 
 import numpy as np
 import torch
 
+from monai.config import NdarrayOrTensor, NdarrayTensor
 from monai.transforms.croppad.array import SpatialCrop
 from monai.transforms.utils import generate_spatial_bounding_box
 from monai.utils import MetricReduction, convert_data_type, look_up_option, optional_import
@@ -27,7 +29,7 @@ distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="di
 __all__ = ["ignore_background", "do_metric_reduction", "get_mask_edges", "get_surface_distance", "is_binary_tensor"]
 
 
-def ignore_background(y_pred: np.ndarray | torch.Tensor, y: np.ndarray | torch.Tensor):
+def ignore_background(y_pred: NdarrayTensor, y: NdarrayTensor) -> tuple[NdarrayTensor, NdarrayTensor]:
     """
     This function is used to remove background (the first channel) for `y_pred` and `y`.
 
@@ -39,12 +41,12 @@ def ignore_background(y_pred: np.ndarray | torch.Tensor, y: np.ndarray | torch.T
 
     """
 
-    y = y[:, 1:] if y.shape[1] > 1 else y
-    y_pred = y_pred[:, 1:] if y_pred.shape[1] > 1 else y_pred
+    y = y[:, 1:] if y.shape[1] > 1 else y  # type: ignore[assignment]
+    y_pred = y_pred[:, 1:] if y_pred.shape[1] > 1 else y_pred  # type: ignore[assignment]
     return y_pred, y
 
 
-def do_metric_reduction(f: torch.Tensor, reduction: MetricReduction | str = MetricReduction.MEAN):
+def do_metric_reduction(f: torch.Tensor, reduction: MetricReduction | str = MetricReduction.MEAN) -> tuple[torch.Tensor | Any, torch.Tensor]:
     """
     This function is to do the metric reduction for calculated `not-nan` metrics of each sample's each class.
     The function also returns `not_nans`, which counts the number of not nans for the metric.
@@ -104,7 +106,7 @@ def do_metric_reduction(f: torch.Tensor, reduction: MetricReduction | str = Metr
     return f, not_nans
 
 
-def get_mask_edges(seg_pred, seg_gt, label_idx: int = 1, crop: bool = True) -> tuple[np.ndarray, np.ndarray]:
+def get_mask_edges(seg_pred: NdarrayOrTensor, seg_gt: NdarrayOrTensor, label_idx: int = 1, crop: bool = True) -> tuple[np.ndarray, np.ndarray]:
     """
     Do binary erosion and use XOR for input to get the edges. This
     function is helpful to further calculate metrics such as Average Surface
@@ -156,8 +158,8 @@ def get_mask_edges(seg_pred, seg_gt, label_idx: int = 1, crop: bool = True) -> t
         seg_pred, seg_gt = np.expand_dims(seg_pred, axis=channel_dim), np.expand_dims(seg_gt, axis=channel_dim)
         box_start, box_end = generate_spatial_bounding_box(np.asarray(seg_pred | seg_gt))
         cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
-        seg_pred = convert_data_type(np.squeeze(cropper(seg_pred), axis=channel_dim), np.ndarray)[0]
-        seg_gt = convert_data_type(np.squeeze(cropper(seg_gt), axis=channel_dim), np.ndarray)[0]
+        seg_pred = convert_data_type(np.squeeze(cropper(seg_pred), axis=channel_dim), np.ndarray)[0]  # type: ignore[arg-type]
+        seg_gt = convert_data_type(np.squeeze(cropper(seg_gt), axis=channel_dim), np.ndarray)[0]  # type: ignore[arg-type]
 
     # Do binary erosion and use XOR to get edges
     edges_pred = binary_erosion(seg_pred) ^ seg_pred
@@ -201,7 +203,7 @@ def get_surface_distance(seg_pred: np.ndarray, seg_gt: np.ndarray, distance_metr
     return np.asarray(dis[seg_pred])
 
 
-def is_binary_tensor(input: torch.Tensor, name: str):
+def is_binary_tensor(input: torch.Tensor, name: str) -> None:
     """Determines whether the input tensor is torch binary tensor or not.
 
     Args:
@@ -211,8 +213,8 @@ def is_binary_tensor(input: torch.Tensor, name: str):
     Raises:
         ValueError: if `input` is not a PyTorch Tensor.
 
-    Returns:
-        Union[str, None]: warning message, if the tensor is not binary. Otherwise, None.
+    Note:
+        A warning message is printed, if the tensor is not binary.
     """
     if not isinstance(input, torch.Tensor):
         raise ValueError(f"{name} must be of type PyTorch Tensor.")
@@ -220,7 +222,7 @@ def is_binary_tensor(input: torch.Tensor, name: str):
         warnings.warn(f"{name} should be a binarized tensor.")
 
 
-def remap_instance_id(pred: torch.Tensor, by_size: bool = False):
+def remap_instance_id(pred: torch.Tensor, by_size: bool = False) -> torch.Tensor:
     """
     This function is used to rename all instance id of `pred`, so that the id is
     contiguous.
