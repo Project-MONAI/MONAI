@@ -44,7 +44,7 @@ from monai.utils.enums import DataStatsKeys
 logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(asctime)s - %(message)s")
 
 
-def convert_global_weights(global_weights: Mapping, local_var_dict: MutableMapping):
+def convert_global_weights(global_weights: Mapping, local_var_dict: MutableMapping) -> tuple[MutableMapping, int]:
     """Helper function to convert global weights to local weights format"""
     # Before loading weights, tensors might need to be reshaped to support HE for secure aggregation.
     model_keys = global_weights.keys()
@@ -550,7 +550,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
                 self.evaluator.logger.setLevel(logging.WARNING)
         self.logger.info(f"Initialized {self.client_name}.")
 
-    def train(self, data: ExchangeObject, extra=None):
+    def train(self, data: ExchangeObject, extra: dict | None = None) -> None:
         """
         Train on client's local data.
 
@@ -575,7 +575,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         self.logger.info(f"Load {self.client_name} weights...")
         local_var_dict = get_state_dict(self.trainer.network)
         self.global_weights, n_converted = convert_global_weights(
-            global_weights=data.weights, local_var_dict=local_var_dict
+            global_weights=cast(dict, data.weights), local_var_dict=local_var_dict
         )
         self._check_converted(data.weights, local_var_dict, n_converted)
 
@@ -669,7 +669,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
 
         return return_weights
 
-    def evaluate(self, data: ExchangeObject, extra=None):
+    def evaluate(self, data: ExchangeObject, extra: dict | None = None) -> ExchangeObject:
         """
         Evaluate on client's local data.
 
@@ -697,7 +697,9 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         self.phase = FlPhase.EVALUATE
         self.logger.info(f"Load {self.client_name} weights...")
         local_var_dict = get_state_dict(self.evaluator.network)
-        global_weights, n_converted = convert_global_weights(global_weights=data.weights, local_var_dict=local_var_dict)
+        global_weights, n_converted = convert_global_weights(
+            global_weights=cast(dict, data.weights), local_var_dict=local_var_dict
+        )
         self._check_converted(data.weights, local_var_dict, n_converted)
 
         _, updated_keys, _ = copy_model_state(src=global_weights, dst=self.evaluator.network)
@@ -729,7 +731,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             self.logger.info(f"Aborting {self.client_name} evaluator...")
             self.evaluator.interrupt()
 
-    def finalize(self, extra=None):
+    def finalize(self, extra: dict | None = None) -> None:
         """
         Finalize the training or evaluation.
         Args:

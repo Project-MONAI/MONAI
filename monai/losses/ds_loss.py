@@ -60,7 +60,7 @@ class DeepSupervisionLoss(_Loss):
 
         return weights
 
-    def get_loss(self, input: torch.Tensor, target: torch.Tensor):
+    def get_loss(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
         Calculates a loss output accounting for differences in shapes,
         and downsizing targets if necessary (using nearest neighbor interpolation)
@@ -68,9 +68,9 @@ class DeepSupervisionLoss(_Loss):
         """
         if input.shape[2:] != target.shape[2:]:
             target = F.interpolate(target, size=input.shape[2:], mode=self.interp_mode)
-        return self.loss(input, target)
+        return self.loss(input, target)  # type: ignore[no-any-return]
 
-    def forward(self, input: torch.Tensor | list[torch.Tensor], target: torch.Tensor):
+    def forward(self, input: torch.Tensor | list[torch.Tensor], target: torch.Tensor) -> torch.Tensor:
         if isinstance(input, (list, tuple)):
             weights = self.get_weights(levels=len(input))
             loss = torch.tensor(0, dtype=torch.float, device=target.device)
@@ -78,7 +78,7 @@ class DeepSupervisionLoss(_Loss):
                 loss += weights[l] * self.get_loss(input[l].float(), target)
             return loss
 
-        return self.loss(input.float(), target)
+        return self.loss(input.float(), target)  # type: ignore[no-any-return]
 
 
 ds_loss = DeepSupervisionLoss

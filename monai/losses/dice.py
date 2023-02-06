@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Callable, Sequence
+from typing import Any
 
 import numpy as np
 import torch
@@ -205,21 +206,21 @@ class MaskedDiceLoss(DiceLoss):
 
     """
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         """
         Args follow :py:class:`monai.losses.DiceLoss`.
         """
         super().__init__(*args, **kwargs)
         self.spatial_weighted = MaskedLoss(loss=super().forward)
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor, mask: torch.Tensor | None = None):
+    def forward(self, input: torch.Tensor, target: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
         """
         Args:
             input: the shape should be BNH[WD].
             target: the shape should be BNH[WD].
             mask: the shape should B1H[WD] or 11H[WD].
         """
-        return self.spatial_weighted(input=input, target=target, mask=mask)
+        return self.spatial_weighted(input=input, target=target, mask=mask)  # type: ignore[no-any-return]
 
 
 class GeneralizedDiceLoss(_Loss):
@@ -695,7 +696,7 @@ class DiceCELoss(_Loss):
         self.lambda_ce = lambda_ce
         self.old_pt_ver = not pytorch_after(1, 10)
 
-    def ce(self, input: torch.Tensor, target: torch.Tensor):
+    def ce(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
         Compute CrossEntropy loss for the input and target.
         Will remove the channel dim according to PyTorch CrossEntropyLoss:
@@ -715,7 +716,7 @@ class DiceCELoss(_Loss):
         elif not torch.is_floating_point(target):
             target = target.to(dtype=input.dtype)
 
-        return self.cross_entropy(input, target)
+        return self.cross_entropy(input, target)  # type: ignore[no-any-return]
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
