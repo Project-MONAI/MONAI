@@ -13,7 +13,8 @@ from __future__ import annotations
 
 import warnings
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -73,9 +74,7 @@ class SimpleInferer(Inferer):
     def __init__(self) -> None:
         Inferer.__init__(self)
 
-    def __call__(
-        self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any
-    ) -> torch.Tensor:
+    def __call__(self, inputs: torch.Tensor, network: Callable, *args: Any, **kwargs: Any) -> torch.Tensor:
         """Unified callable function API of Inferers.
 
         Args:
