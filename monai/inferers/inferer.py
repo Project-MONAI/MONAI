@@ -75,7 +75,7 @@ class SimpleInferer(Inferer):
         Inferer.__init__(self)
 
     def __call__(
-            self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any
+        self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any
     ) -> torch.Tensor:
         """Unified callable function API of Inferers.
 
