@@ -68,9 +68,10 @@ class Inferer(ABC, Generic[T]):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
-class PatchInferer(Inferer):
+class PatchInferer(Inferer[Union[torch.Tensor, Sequence[torch.Tensor], Dict[Any, torch.Tensor]]]):
     """
-    SimpleInferer is the normal inference method that run model forward() directly.
+    Inference on patches instead of the whole image based on Splitter and Merger.
+    This splits the input image into patches and then merge the resulted patches.
 
     Args:
         splitter: a `Splitter` object that split the inputs into patches. Defaults to None.
@@ -78,6 +79,7 @@ class PatchInferer(Inferer):
         merger: a `Merger` object that merges patch outputs. Defaults to AvgMerger.
         pre_processor: a callable that process patches before the being fed to the network. Defaults to None.
         post_processor: a callable that process the output of the network. Defaults to None.
+        patch_filter_fn:
         output_keys: if the network output is a dictionary, this defines the keys of the output dictionary to use.
             Defaults to None, where all the keys are taken if output is a dictionary.
     """
@@ -100,7 +102,7 @@ class PatchInferer(Inferer):
         self.splitter = splitter
 
         # mergers
-        self.mergers = (AvgMerger(),) if merger is None else ensure_tuple(merger)
+        self.mergers: Sequence[Merger] = (AvgMerger(),) if merger is None else ensure_tuple(merger)
         for m in self.mergers:
             if not isinstance(m, Merger):
                 raise TypeError(f"'merger' should be a `Merger` object, {type(m)} is given.")
@@ -182,8 +184,12 @@ class PatchInferer(Inferer):
         return self._ensure_tuple_outputs(outputs)
 
     def __call__(
-        self, inputs: torch.Tensor, network: Callable, *args: Any, **kwargs: Any
-    ) -> tuple[torch.Tensor] | torch.Tensor:
+        self,
+        inputs: torch.Tensor,
+        network: Callable[..., torch.Tensor | Sequence[torch.Tensor] | dict[Any, torch.Tensor]],
+        *args: Any,
+        **kwargs: Any,
+    ) -> torch.Tensor | tuple[torch.Tensor, ...] | dict[Any, torch.Tensor]:
         """
         Args:
             inputs: input data for inference, either a torch.Tensor, representing a image or batch of images.
@@ -213,7 +219,11 @@ class PatchInferer(Inferer):
         # finalize the mergers
         merged_outputs = tuple(merger.finalize() for merger in self.mergers)
 
-        return merged_outputs if len(merged_outputs) > 1 else merged_outputs[0]
+        if self.output_keys:
+            return dict(zip(self.output_keys, merged_outputs))
+        if len(merged_outputs) == 1:
+            return merged_outputs[0]
+        return merged_outputs
 
 
 class SimpleInferer(Inferer):
