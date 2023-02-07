@@ -65,8 +65,8 @@ class SlidingWindowSplitter(Splitter):
         filter_fn: Callable | None = None,
         device: torch.device | str | None = None,
         pad_mode: str | None = PytorchPadMode.CONSTANT,
-        **pad_kwargs,
-    ):
+        **pad_kwargs: Any,
+    ) -> None:
         """Split the input into patches with sliding window strategy and a possible overlap.
         If also allows to offset the starting position and filter the patches.
 

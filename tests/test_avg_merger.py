@@ -20,9 +20,12 @@ from monai.inferers import AvgMerger
 from tests.utils import assert_allclose
 
 TENSOR_4x4 = torch.randint(low=0, high=255, size=(2, 3, 4, 4), dtype=torch.float32)
+TENSOR_4x4_WITH_NAN = TENSOR_4x4.clone()
+TENSOR_4x4_WITH_NAN[..., 2:, 2:] = torch.nan
+TENSOR_2x2 = torch.randint(low=0, high=255, size=(2, 3, 2, 2), dtype=torch.float32)
 
 # no-overlapping 2x2
-TEST_CASE_0 = [
+TEST_CASE_SAME_SIZE_0 = [
     TENSOR_4x4,
     [
         (TENSOR_4x4[..., :2, :2], (0, 0)),
@@ -34,7 +37,7 @@ TEST_CASE_0 = [
 ]
 
 # overlapping 2x2
-TEST_CASE_1 = [
+TEST_CASE_SAME_SIZE_1 = [
     TENSOR_4x4,
     [
         (TENSOR_4x4[..., 0:2, 0:2], (0, 0)),
@@ -51,7 +54,7 @@ TEST_CASE_1 = [
 ]
 
 # overlapping 3x3 (non-divisible)
-TEST_CASE_2 = [
+TEST_CASE_SAME_SIZE_2 = [
     TENSOR_4x4,
     [
         (TENSOR_4x4[..., :3, :3], (0, 0)),
@@ -62,25 +65,80 @@ TEST_CASE_2 = [
     TENSOR_4x4,
 ]
 
+#  overlapping 2x2 with NaN values
+TEST_CASE_SAME_SIZE_3 = [
+    TENSOR_4x4_WITH_NAN,
+    [
+        (TENSOR_4x4_WITH_NAN[..., 0:2, 0:2], (0, 0)),
+        (TENSOR_4x4_WITH_NAN[..., 0:2, 1:3], (0, 1)),
+        (TENSOR_4x4_WITH_NAN[..., 0:2, 2:4], (0, 2)),
+        (TENSOR_4x4_WITH_NAN[..., 1:3, 0:2], (1, 0)),
+        (TENSOR_4x4_WITH_NAN[..., 1:3, 1:3], (1, 1)),
+        (TENSOR_4x4_WITH_NAN[..., 1:3, 2:4], (1, 2)),
+        (TENSOR_4x4_WITH_NAN[..., 2:4, 0:2], (2, 0)),
+        (TENSOR_4x4_WITH_NAN[..., 2:4, 1:3], (2, 1)),
+        (TENSOR_4x4_WITH_NAN[..., 2:4, 2:4], (2, 2)),
+    ],
+    TENSOR_4x4_WITH_NAN,
+]
+
 # non-overlapping 2x2 with missing patch
-WITH_NAN = TENSOR_4x4.clone()
-WITH_NAN[..., 2:, 2:] = torch.nan
-TEST_CASE_3 = [
+TEST_CASE_SAME_SIZE_4 = [
     TENSOR_4x4,
     [(TENSOR_4x4[..., :2, :2], (0, 0)), (TENSOR_4x4[..., :2, 2:], (0, 2)), (TENSOR_4x4[..., 2:, :2], (2, 0))],
-    WITH_NAN,
+    TENSOR_4x4_WITH_NAN,
+]
+
+# no-overlapping 2x2 input patches with 1x1 outputs
+TEST_CASE_DIFFERENT_SIZE_0 = [
+    TENSOR_4x4,
+    [
+        (TENSOR_4x4[..., :2, :2], (0, 0)),
+        (TENSOR_4x4[..., :2, 2:], (0, 2)),
+        (TENSOR_4x4[..., 2:, :2], (2, 0)),
+        (TENSOR_4x4[..., 2:, 2:], (2, 2)),
+    ],
+    [
+        (TENSOR_2x2[..., :1, :1], (0, 0)),
+        (TENSOR_2x2[..., :1, 1:], (0, 1)),
+        (TENSOR_2x2[..., 1:, :1], (1, 0)),
+        (TENSOR_2x2[..., 1:, 1:], (1, 1)),
+    ],
+    TENSOR_2x2,
 ]
 
 
 class AvgMergerTests(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
-    def test_merge_patches(self, image, patch_locations, expected):
+    @parameterized.expand(
+        [
+            TEST_CASE_SAME_SIZE_0,
+            TEST_CASE_SAME_SIZE_1,
+            TEST_CASE_SAME_SIZE_2,
+            TEST_CASE_SAME_SIZE_3,
+            TEST_CASE_SAME_SIZE_4,
+        ]
+    )
+    def test_merge_patches_same_size(self, image, patch_locations, expected):
         merger = AvgMerger()
         merger.initialize(inputs=image, in_patch=patch_locations[0][0], out_patch=patch_locations[0][0])
         for pl in patch_locations:
             merger.aggregate(pl[0], pl[1])
         output = merger.finalize()
         assert_allclose(output, expected)
+
+    @parameterized.expand([TEST_CASE_DIFFERENT_SIZE_0])
+    def test_merge_patches_different_size(self, image, in_patch_locations, out_patch_locations, expected):
+        merger = AvgMerger()
+        merger.initialize(inputs=image, in_patch=in_patch_locations[0][0], out_patch=out_patch_locations[0][0])
+        for pl in out_patch_locations:
+            merger.aggregate(pl[0], pl[1])
+        output = merger.finalize()
+        assert_allclose(output, expected)
+
+    def test_merge_non_initialized_error(self):
+        with self.assertRaises(ValueError):
+            merger = AvgMerger()
+            merger.aggregate(torch.zeros(1, 3, 2, 2), (3, 3))
 
 
 if __name__ == "__main__":

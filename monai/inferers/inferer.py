@@ -13,8 +13,7 @@ from __future__ import annotations
 
 import warnings
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
-from typing import Any
+from typing import Any, Callable, Dict, Generic, Iterable, Iterator, Mapping, Sequence, TypeVar, Union
 
 import torch
 import torch.nn as nn
@@ -163,14 +162,14 @@ class PatchInferer(Inferer):
                 # concatenate batch of patches to create a tensor
                 yield torch.cat(patch_batch), location_batch, idx_in_batch
 
-    def _ensure_tuple_outputs(self, outputs):
+    def _ensure_tuple_outputs(self, outputs: Any) -> tuple:
         if isinstance(outputs, dict):
             if self.output_keys is None:
                 self.output_keys = list(outputs.keys())  # model's output keys
             return tuple(outputs[k] for k in self.output_keys)
         return ensure_tuple(outputs, wrap_array=True)
 
-    def _run_inference(self, network: Callable, patch: torch.Tensor, *args, **kwargs):
+    def _run_inference(self, network: Callable, patch: torch.Tensor, *args: Any, **kwargs: Any) -> tuple:
         # pre-process
         if self.pre_processor:
             patch = self.pre_processor(patch)
@@ -182,7 +181,9 @@ class PatchInferer(Inferer):
         # ensure we have a tuple of model outputs to support multiple outputs
         return self._ensure_tuple_outputs(outputs)
 
-    def __call__(self, inputs: torch.Tensor, network: Callable, *args: Any, **kwargs: Any):
+    def __call__(
+        self, inputs: torch.Tensor, network: Callable, *args: Any, **kwargs: Any
+    ) -> tuple[torch.Tensor] | torch.Tensor:
         """
         Args:
             inputs: input data for inference, either a torch.Tensor, representing a image or batch of images.
@@ -208,7 +209,7 @@ class PatchInferer(Inferer):
             for merger, output_batch in zip(self.mergers, outputs):
                 # split output into individual patches and then aggregate
                 for loc, out in zip(location_batch, torch.chunk(output_batch, batch_size)):
-                    merger.aggregate(out, loc)  # type: ignore
+                    merger.aggregate(out, loc)
         # finalize the mergers
         merged_outputs = tuple(merger.finalize() for merger in self.mergers)
 

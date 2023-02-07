@@ -13,7 +13,6 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from typing import Any
 
 import torch
 
@@ -38,7 +37,7 @@ class Merger(ABC):
         self.is_finalized = False
 
     @abstractmethod
-    def initialize(self, inputs: torch.Tensor, in_patch: torch.Tensor, out_patch: torch.Tensor):
+    def initialize(self, inputs: torch.Tensor, in_patch: torch.Tensor, out_patch: torch.Tensor) -> None:
         """
         Initialize the merger.
 
@@ -54,7 +53,7 @@ class Merger(ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def aggregate(self, values: torch.Tensor, location: Sequence[int]):
+    def aggregate(self, values: torch.Tensor, location: Sequence[int]) -> None:
         """
         Aggregate values for merging.
 
@@ -69,7 +68,7 @@ class Merger(ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def finalize(self) -> Any:
+    def finalize(self) -> torch.Tensor:
         """
         Perform final operations for merging patches.
 
@@ -115,7 +114,7 @@ class AvgMerger(Merger):
 
         return self.output_shape
 
-    def initialize(self, inputs: torch.Tensor, in_patch: torch.Tensor, out_patch: torch.Tensor):
+    def initialize(self, inputs: torch.Tensor, in_patch: torch.Tensor, out_patch: torch.Tensor) -> None:
         """
         Initialize the merger by creating tensors for aggregation (`values` and `counts`).
 
@@ -131,7 +130,7 @@ class AvgMerger(Merger):
         self.is_initialized = True
         self.is_finalized = False
 
-    def aggregate(self, values: torch.Tensor, location: Sequence[int]):
+    def aggregate(self, values: torch.Tensor, location: Sequence[int]) -> None:
         """
         Aggregate values for merging.
 
