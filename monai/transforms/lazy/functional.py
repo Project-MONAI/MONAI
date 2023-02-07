@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Sequence, Union
+from typing import Any, Sequence, Union, Tuple, Optional
 
 import itertools as it
 
@@ -19,8 +19,8 @@ import numpy as np
 import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.meta_tensor import MetaTensor, get_track_meta
 
-from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
 from monai.transforms.lazy.resampler import resample
 from monai.transforms.lazy.utils import (
@@ -312,3 +312,49 @@ def matmul_grid_matrix_slow(left: NdarrayOrTensor, right: NdarrayOrTensor):
 
 def matmul_matrix_matrix(left: NdarrayOrTensor, right: NdarrayOrTensor):
     return left @ right
+
+
+def lazily_apply_op(
+        tensor, op, lazy_evaluation
+) -> Union[MetaTensor, Tuple[torch.Tensor, Optional[MetaMatrix]]]:
+    """
+    This function is intended for use only by developers of spatial functional transforms that
+    can be lazily executed.
+
+    This function will immediately apply the op to the given tensor if `lazy_evaluation` is set to
+    False. Its precise behaviour depends on whether it is passed a Tensor or MetaTensor:
+
+
+    If passed a Tensor, it returns a tuple of Tensor, MetaMatrix:
+     - if the operation was applied, Tensor, None is returned
+     - if the operation was not applied, Tensor, MetaMatrix is returned
+
+    If passed a MetaTensor, only the tensor itself is returned
+
+    Args:
+          tensor: the tensor to have the operation lazily applied to
+          op: the MetaMatrix containing the transform and metadata
+          lazy_evaluation: a boolean flag indicating whether to apply the operation lazily
+    """
+    if isinstance(tensor, MetaTensor):
+        tensor.push_pending_operation(op)
+        if lazy_evaluation is False:
+            result, pending = apply_transforms(tensor)
+            return result
+        else:
+            return tensor
+    else:
+        if lazy_evaluation is False:
+            result, pending = apply_transforms(tensor, [op])
+            return (result, op) if get_track_meta() is True else result
+        else:
+            return (tensor, op) if get_track_meta() is True else tensor
+
+
+def invert(
+       data: Union[torch.tensor, MetaTensor]
+):
+    metadata = data.applied_operations.pop()
+    print(metadata)
+    return data
+

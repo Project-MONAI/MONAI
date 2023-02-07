@@ -35,6 +35,7 @@ from monai.networks.utils import meshgrid_ij, normalize_transform
 from monai.transforms.croppad.array import CenterSpatialCrop, ResizeWithPadOrCrop
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import InvertibleTransform
+from monai.transforms.lazy.functional import invert
 from monai.transforms.spatial.functional import (
     flip,
     resize,
@@ -580,6 +581,9 @@ class Spacing(LazyTransform, InvertibleTransform):
                         lazy_evaluation=self.lazy_evaluation)
         return img_t
 
+    def inverse(self, data):
+        return invert(data)
+
 
 class Orientation(InvertibleTransform):
     """
@@ -748,6 +752,9 @@ class Flip(LazyTransform, InvertibleTransform):
 
         return img_t
 
+    def inverse(self, data):
+        return invert(data)
+
 
 class Resize(LazyTransform, InvertibleTransform):
     """
@@ -849,6 +856,9 @@ class Resize(LazyTransform, InvertibleTransform):
 
         return img_t
 
+    def inverse(self, data):
+        return invert(data)
+
 
 class Rotate(InvertibleTransform, LazyTransform):
     backend = [TransformBackends.TORCH]
@@ -931,6 +941,9 @@ class Rotate(InvertibleTransform, LazyTransform):
                        align_corners_, dtype_, lazy_evaluation=self.lazy_evaluation)
 
         return img_t
+
+    def inverse(self, data):
+        return invert(data)
 
 
 class Zoom(LazyTransform, InvertibleTransform):
@@ -1019,6 +1032,9 @@ class Zoom(LazyTransform, InvertibleTransform):
 
         return img_t
 
+    def inverse(self, data):
+        return invert(data)
+
 
 class Rotate90(InvertibleTransform, LazyTransform):
     """
@@ -1063,6 +1079,9 @@ class Rotate90(InvertibleTransform, LazyTransform):
 
         return img_t
 
+    def inverse(self, data):
+        return invert(data)
+
 
 class RandRotate90(InvertibleTransform, LazyTransform, RandomizableTrait):
     """
@@ -1093,7 +1112,7 @@ class RandRotate90(InvertibleTransform, LazyTransform, RandomizableTrait):
 
         self.spatial_axes = spatial_axes
 
-        self.randomizer = DiscreteRandomizer(0, max_k, prob, random_seed, random_state)
+        self.randomizer = DiscreteRandomizer(0, max_k, prob, 0, random_seed, random_state)
 
     def __call__(
             self,
@@ -1106,6 +1125,9 @@ class RandRotate90(InvertibleTransform, LazyTransform, RandomizableTrait):
             randomize: whether to execute `randomize()` function first, default to True.
         """
         return rotate90(img, self.randomizer.sample(), self.spatial_axes, lazy_evaluation=self.lazy_evaluation)
+
+    def inverse(self, data):
+        return invert(data)
 
 
 class RandRotate(InvertibleTransform, LazyTransform, RandomizableTrait):
@@ -1211,6 +1233,9 @@ class RandRotate(InvertibleTransform, LazyTransform, RandomizableTrait):
                       align_corners_, dtype_,
                       lazy_evaluation=self.lazy_evaluation)
 
+    def inverse(self, data):
+        return invert(data)
+
 
 class RandFlip(InvertibleTransform, LazyTransform, RandomizableTrait):
     """
@@ -1256,6 +1281,9 @@ class RandFlip(InvertibleTransform, LazyTransform, RandomizableTrait):
         else:
             return identity(img, None, None, lazy_evaluation=self.lazy_evaluation)
 
+    def inverse(self, data):
+        return invert(data)
+
 
 class RandAxisFlip(InvertibleTransform, LazyTransform, RandomizableTrait):
     """
@@ -1294,6 +1322,9 @@ class RandAxisFlip(InvertibleTransform, LazyTransform, RandomizableTrait):
 
         flip_axis = self.randomizer.do_random()
         return flip(img, flip_axis, lazy_evaluation=self.lazy_evaluation)
+
+    def inverse(self, data):
+        return invert(data)
 
 
 class RandZoom(RandomizableTransform, InvertibleTransform):
@@ -1418,6 +1449,9 @@ class RandZoom(RandomizableTransform, InvertibleTransform):
             z_info = self.pop_transform(out, check=False) if self._do_transform else {}
             self.push_transform(out, extra_info=z_info)
         return out  # type: ignore
+
+    def inverse(self, data):
+        return invert(data)
 
 
 class AffineGrid(Transform):
@@ -2580,6 +2614,9 @@ class Rand3DElastic(RandomizableTransform, LazyTransform):
                                lazy_evaluation=self.lazy_evaluation)
 
             return img_t
+
+    def inverse(self, data):
+        return invert(data)
 
 
 class GridDistortion(Transform):

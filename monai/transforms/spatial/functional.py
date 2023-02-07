@@ -16,18 +16,12 @@ from typing import Optional, Sequence, Tuple, Union
 import numpy as np
 
 import torch
-import warnings
 
 from monai.networks.layers import GaussianFilter
 
 
 from monai.transforms.utils import (
     create_grid,
-    compatible_flip,
-    compatible_identity,
-    compatible_rotate,
-    compatible_rotate_90,
-    compatible_scale,
     compatible_translate, create_scale, create_rotate, create_identity, create_rotate_90, create_flip,
 )
 from monai.config import DtypeLike
@@ -35,9 +29,8 @@ from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.lazy.functional import (
     apply_align_corners,
-    apply_transforms,
     extents_from_shape,
-    shape_from_extents,
+    shape_from_extents, lazily_apply_op,
 )
 from monai.transforms.lazy.functional import MetaMatrix, is_matrix_shaped
 from monai.utils import (
@@ -56,43 +49,6 @@ from monai.utils import (
 
 
 # TODO: overriding of the operation name in the case that the function is being called from a random array / dict transform
-
-
-def lazily_apply_op(
-        tensor, op, lazy_evaluation
-) -> Union[MetaTensor, Tuple[torch.Tensor, Optional[MetaMatrix]]]:
-    """
-    This function is intended for use only by developers of spatial functional transforms that
-    can be lazily executed.
-
-    This function will immediately apply the op to the given tensor if `lazy_evaluation` is set to
-    False. Its precise behaviour depends on whether it is passed a Tensor or MetaTensor:
-
-
-    If passed a Tensor, it returns a tuple of Tensor, MetaMatrix:
-     - if the operation was applied, Tensor, None is returned
-     - if the operation was not applied, Tensor, MetaMatrix is returned
-
-    If passed a MetaTensor, only the tensor itself is returned
-
-    Args:
-          tensor: the tensor to have the operation lazily applied to
-          op: the MetaMatrix containing the transform and metadata
-          lazy_evaluation: a boolean flag indicating whether to apply the operation lazily
-    """
-    if isinstance(tensor, MetaTensor):
-        tensor.push_pending_operation(op)
-        if lazy_evaluation is False:
-            result, pending = apply_transforms(tensor)
-            return result
-        else:
-            return tensor
-    else:
-        if lazy_evaluation is False:
-            result, pending = apply_transforms(tensor, [op])
-            return (result, op) if get_track_meta() is True else result
-        else:
-            return (tensor, op) if get_track_meta() is True else tensor
 
 
 def transform_shape(input_shape: Sequence[int], matrix: torch.Tensor):
