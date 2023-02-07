@@ -620,9 +620,11 @@ class LazyAttr(StrEnum):
     This class specifies the set of key attributes to be tracked for each MetaTensor.
     """
 
-    SHAPE = "lazy_shape"  # spatial shape
+    IN_SHAPE = "input_lazy_shape"  # spatial shape
+    OUT_SHAPE = "output_lazy_shape"
     AFFINE = "lazy_affine"
     PADDING_MODE = "lazy_padding_mode"
     INTERP_MODE = "lazy_interpolation_mode"
-    DTYPE = "lazy_dtype"
+    IN_DTYPE = "lazy_dtype"
+    OUT_DTYPE = "output_lazy_dtype"
     ALIGN_CORNERS = "lazy_align_corners"

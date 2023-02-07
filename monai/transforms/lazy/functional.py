@@ -87,7 +87,7 @@ def apply_transforms(
         override_kwargs[LazyAttr.PADDING_MODE] = padding_mode
     if align_corners is not None:
         override_kwargs[LazyAttr.ALIGN_CORNERS] = align_corners
-    override_kwargs[LazyAttr.DTYPE] = data.dtype if dtype is None else dtype
+    override_kwargs[LazyAttr.OUT_DTYPE] = data.dtype if dtype is None else dtype
 
     for p in pending[1:]:
         new_kwargs = kwargs_from_pending(p)
@@ -95,14 +95,14 @@ def apply_transforms(
             # carry out an intermediate resample here due to incompatibility between arguments
             _cur_kwargs = cur_kwargs.copy()
             _cur_kwargs.update(override_kwargs)
-            sp_size = _cur_kwargs.pop(LazyAttr.SHAPE, None)
-            data = resample(data, cumulative_xform, sp_size, _cur_kwargs)
+            data = resample(data, cumulative_xform, _cur_kwargs)
         next_matrix = affine_from_pending(p)
         cumulative_xform = combine_transforms(cumulative_xform, next_matrix)
         cur_kwargs.update(new_kwargs)
+
+    # carry out any final resample that is required
     cur_kwargs.update(override_kwargs)
-    sp_size = cur_kwargs.pop(LazyAttr.SHAPE, None)
-    data = resample(data, cumulative_xform, sp_size, cur_kwargs)
+    data = resample(data, cumulative_xform, cur_kwargs)
     if isinstance(data, MetaTensor):
         data.clear_pending_operations()
         # TODO: at present, the resample and the modified Affine that it calls update .affine

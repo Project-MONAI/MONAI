@@ -577,7 +577,7 @@ class Spacing(LazyTransform, InvertibleTransform):
 
         img_t = spacing(data_array, self.pixdim, self.src_pixdim, self.diagonal,
                         mode_, padding_mode_, align_corners_, dtype_,
-                        None, self.lazy_evaluation)
+                        lazy_evaluation=self.lazy_evaluation)
         return img_t
 
 
@@ -744,7 +744,7 @@ class Flip(LazyTransform, InvertibleTransform):
     ):
         spatial_axis_ = spatial_axis or self.spatial_axis
 
-        img_t = flip(img, spatial_axis_, None, self.lazy_evaluation)
+        img_t = flip(img, spatial_axis_, lazy_evaluation=self.lazy_evaluation)
 
         return img_t
 
@@ -844,9 +844,8 @@ class Resize(LazyTransform, InvertibleTransform):
         anti_aliasing_ = anti_aliasing or self.anti_aliasing
         anti_aliasing_sigma_ = anti_aliasing_sigma or self.anti_aliasing_sigma
 
-        img_t = resize(img, self.spatial_size, self.size_mode, mode_,
-                       align_corners_, anti_aliasing_, anti_aliasing_sigma_,
-                       self.dtype, None, self.lazy_evaluation)
+        img_t = resize(img, self.spatial_size, self.size_mode, mode_, align_corners_, anti_aliasing_,
+                       anti_aliasing_sigma_, self.dtype, lazy_evaluation=self.lazy_evaluation)
 
         return img_t
 
@@ -929,7 +928,7 @@ class Rotate(InvertibleTransform, LazyTransform):
         dtype_ = self.dtype
 
         img_t = rotate(img, self.angle, keep_size, mode_, padding_mode_,
-                       align_corners_, dtype_, None, self.lazy_evaluation)
+                       align_corners_, dtype_, lazy_evaluation=self.lazy_evaluation)
 
         return img_t
 
@@ -1016,7 +1015,7 @@ class Zoom(LazyTransform, InvertibleTransform):
         align_corners_ = self.align_corners if align_corners is None else align_corners
 
         img_t = zoom(img, self.zoom, mode_, padding_mode_, align_corners_,
-                     self.keep_size, img.dtype, None, self.lazy_evaluation)
+                     self.keep_size, img.dtype, lazy_evaluation=self.lazy_evaluation)
 
         return img_t
 
@@ -1060,7 +1059,7 @@ class Rotate90(InvertibleTransform, LazyTransform):
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
-        img_t = rotate90(img, self.k, self.spatial_axes, None, self.lazy_evaluation)
+        img_t = rotate90(img, self.k, self.spatial_axes, lazy_evaluation=self.lazy_evaluation)
 
         return img_t
 
@@ -1106,7 +1105,7 @@ class RandRotate90(InvertibleTransform, LazyTransform, RandomizableTrait):
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
             randomize: whether to execute `randomize()` function first, default to True.
         """
-        return rotate90(img, self.randomizer.sample(), self.spatial_axes, None, self.lazy_evaluation)
+        return rotate90(img, self.randomizer.sample(), self.spatial_axes, lazy_evaluation=self.lazy_evaluation)
 
 
 class RandRotate(InvertibleTransform, LazyTransform, RandomizableTrait):
@@ -1210,7 +1209,7 @@ class RandRotate(InvertibleTransform, LazyTransform, RandomizableTrait):
         return rotate(img, angles, self.keep_size,
                       mode_, padding_mode_,
                       align_corners_, dtype_,
-                      None, self.lazy_evaluation)
+                      lazy_evaluation=self.lazy_evaluation)
 
 
 class RandFlip(InvertibleTransform, LazyTransform, RandomizableTrait):
@@ -1230,9 +1229,9 @@ class RandFlip(InvertibleTransform, LazyTransform, RandomizableTrait):
             self,
             prob: float = 0.1,
             spatial_axis: Sequence[int] | int | None = None,
-			lazy_evaluation: bool = True,
-			seed: int | None = None,
-			state: np.random.RandomState | None = None
+            lazy_evaluation: bool = True,
+            seed: int | None = None,
+            state: np.random.RandomState | None = None
         ) -> None:
         LazyTransform.__init__(self, lazy_evaluation)
         self.spatial_axis = spatial_axis
@@ -1253,9 +1252,9 @@ class RandFlip(InvertibleTransform, LazyTransform, RandomizableTrait):
         do_flip = self.randomizer.sample()
 
         if do_flip:
-            return flip(img, self.spatial_axis, None, self.lazy_evaluation)
+            return flip(img, self.spatial_axis, lazy_evaluation=self.lazy_evaluation)
         else:
-            return identity(img, None, self.lazy_evaluation)
+            return identity(img, None, None, lazy_evaluation=self.lazy_evaluation)
 
 
 class RandAxisFlip(InvertibleTransform, LazyTransform, RandomizableTrait):
@@ -1274,9 +1273,9 @@ class RandAxisFlip(InvertibleTransform, LazyTransform, RandomizableTrait):
     def __init__(
             self,
             prob: float = 0.1,
-			lazy_evaluation: bool = True,
-			seed: int | None = None,
-			state: np.random.RandomState | None = None
+            lazy_evaluation: bool = True,
+            seed: int | None = None,
+            state: np.random.RandomState | None = None
     ) -> None:
         LazyTransform.__init__(self, lazy_evaluation)
         self.randomizer = SpatialAxisRandomizer(prob, None, seed, state)
@@ -1294,7 +1293,7 @@ class RandAxisFlip(InvertibleTransform, LazyTransform, RandomizableTrait):
         """
 
         flip_axis = self.randomizer.do_random()
-        return flip(img, flip_axis, None, self.lazy_evaluation)
+        return flip(img, flip_axis, lazy_evaluation=self.lazy_evaluation)
 
 
 class RandZoom(RandomizableTransform, InvertibleTransform):
@@ -2577,7 +2576,8 @@ class Rand3DElastic(RandomizableTransform, LazyTransform):
             img_t = elastic_3d(img,
                                self.sigma, self.magnitude, self.rand_offsets,
                                spatial_size_, mode_, padding_mode_, self.device,
-                               shape_override=shape_override_, lazy_evaluation=self.lazy_evaluation)
+                               shape_override=shape_override_, dtype_override= None,
+                               lazy_evaluation=self.lazy_evaluation)
 
             return img_t
 

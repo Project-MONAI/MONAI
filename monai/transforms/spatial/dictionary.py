@@ -643,16 +643,9 @@ class Resized(MapTransform, InvertibleTransform, LazyTransform):
         for key, mode, align_corners, anti_aliasing, anti_aliasing_sigma in self.key_iterator(
             rd, self.mode, self.align_corners, self.anti_aliasing, self.anti_aliasing_sigma
         ):
-            rd[key] = resize(
-                rd[key],
-                spatial_size=self.spatial_size,
-                size_mode=self.size_mode,
-                mode=mode,
-                align_corners=align_corners,
-                anti_aliasing=anti_aliasing,
-                anti_aliasing_sigma=anti_aliasing_sigma,
-                lazy_evaluation=self.lazy_evaluation
-            )
+            rd[key] = resize(rd[key], spatial_size=self.spatial_size, size_mode=self.size_mode, mode=mode,
+                             align_corners=align_corners, anti_aliasing=anti_aliasing,
+                             anti_aliasing_sigma=anti_aliasing_sigma, lazy_evaluation=self.lazy_evaluation)
         return rd
 
 

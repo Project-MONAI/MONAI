@@ -107,7 +107,7 @@ class TestResize(NumpyImageTestCase2D):
     def _test_functional_resize(self, img_size, kwargs, expected, lazy: bool = True):
         print(kwargs)
         img = np.random.rand(*img_size)
-        result = resize(img, **kwargs, lazy_evaluation=lazy)
+        result = resize(img, lazy_evaluation=lazy, **kwargs)
         if lazy is True:
             self.assertDictEqual(result.pending_operations[-1].metadata, expected)
 

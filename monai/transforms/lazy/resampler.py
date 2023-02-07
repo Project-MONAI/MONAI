@@ -5,7 +5,7 @@ from typing import Sequence
 import numpy as np
 
 import torch
-from monai.transforms.inverse import InvertibleTransform
+# from monai.transforms.inverse import InvertibleTransform
 
 from monai.transforms.utils import create_translate, create_grid, Transform
 
@@ -37,8 +37,8 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = 
         raise NotImplementedError("calling dense grid resample API not implemented")
     kwargs = {} if kwargs is None else kwargs
     init_kwargs = {
-        "spatial_size": kwargs.pop(LazyAttr.SHAPE, data.shape)[1:],
-        "dtype": kwargs.pop(LazyAttr.DTYPE, data.dtype),
+        "spatial_size": kwargs.pop(LazyAttr.OUT_SHAPE, data.shape)[1:],
+        "dtype": kwargs.pop(LazyAttr.OUT_DTYPE, data.dtype),
     }
     call_kwargs = {
         "mode": kwargs.pop(LazyAttr.INTERP_MODE, None),
@@ -308,7 +308,8 @@ class GridResampler(Transform):
         return grid_, affine  # type: ignore
 
 
-class Resampler(InvertibleTransform):
+# class Resampler(InvertibleTransform):
+class Resampler:
     """
     TODO: refactor for lazy resampling
     Transform ``img`` given the affine parameters.

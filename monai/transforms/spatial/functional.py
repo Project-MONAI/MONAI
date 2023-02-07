@@ -119,39 +119,56 @@ def transform_shape(input_shape: Sequence[int], matrix: torch.Tensor):
     return output_shape
 
 
+def get_input_shape_and_dtype(shape_override, dtype_override, img):
+    # if shape_override is set, it always wins
+    input_shape = shape_override
+    input_dtype = dtype_override
+
+    if input_shape is None:
+        if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
+            input_shape = img.peek_pending_shape()
+        else:
+            input_shape = img.shape
+    if input_dtype is None:
+        if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
+            input_dtype = img.peek_pending_dtype()
+        else:
+            input_dtype = img.dtype
+    return input_shape, input_dtype
+
+
 def identity(
     img: torch.Tensor,
     mode: Optional[Union[InterpolateMode, str]] = None,
     padding_mode: Optional[Union[NumpyPadMode, GridSamplePadMode, str]] = None,
     dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
     shape_override: Optional[Sequence[int]] = None,
+    dtype_override: Optional[Union[DtypeLike, torch.dtype]] = None,
     lazy_evaluation: Optional[bool] = True
 ):
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
 
-    # if shape_override is set, it always wins
-    input_shape = shape_override
+    input_shape, input_dtype = get_input_shape_and_dtype(shape_override, dtype_override, img_)
 
-    if input_shape is None:
-        if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
-            input_shape = img.peek_pending_shape()
-        else:
-            input_shape = img_.shape
+    input_ndim = len(input_shape) - 1
 
     mode_ = None if mode is None else look_up_option(mode, GridSampleMode)
     padding_mode_ = None if padding_mode is None else look_up_option(padding_mode, GridSamplePadMode)
     dtype_ = get_equivalent_dtype(dtype or img_.dtype, torch.Tensor)
 
-    transform = compatible_identity(img_)
+    transform = create_identity(input_ndim)
 
     metadata = {
-        LazyAttr.SHAPE: input_shape
+        LazyAttr.IN_SHAPE: input_shape,
+        LazyAttr.IN_DTYPE: input_dtype,
+        LazyAttr.OUT_SHAPE: input_shape,
+        LazyAttr.OUT_DTYPE: dtype_,
     }
     if mode_ is not None:
         metadata[LazyAttr.INTERP_MODE] = mode_
     if padding_mode_ is not None:
         metadata[LazyAttr.PADDING_MODE] = padding_mode_
-    metadata[LazyAttr.DTYPE] = dtype_
+    # metadata[LazyAttr.DTYPE] = dtype_
 
     return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
 
@@ -166,6 +183,7 @@ def spacing(
     align_corners: Optional[bool] = False,
     dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
     shape_override: Optional[Sequence[int]] = None,
+    dtype_override: Optional[Union[DtypeLike, torch.dtype]] = None,
     lazy_evaluation: Optional[bool] = True
 ):
     """
@@ -196,14 +214,7 @@ def spacing(
 
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
 
-    # if shape_override is set, it always wins
-    input_shape = shape_override
-
-    if input_shape is None:
-        if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
-            input_shape = img.peek_pending_shape()
-        else:
-            input_shape = img_.shape
+    input_shape, input_dtype = get_input_shape_and_dtype(shape_override, dtype_override, img_)
 
     src_pixdim_ = src_pixdim or img_.pixdim
 
@@ -234,8 +245,10 @@ def spacing(
         LazyAttr.INTERP_MODE: mode_,
         LazyAttr.PADDING_MODE: padding_mode_,
         LazyAttr.ALIGN_CORNERS: align_corners,
-        LazyAttr.DTYPE: dtype_,
-        LazyAttr.SHAPE: output_shape
+        LazyAttr.IN_DTYPE: input_dtype,
+        LazyAttr.IN_SHAPE: input_shape,
+        LazyAttr.OUT_DTYPE: dtype_,
+        LazyAttr.OUT_SHAPE: output_shape
     }
     return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
 
@@ -296,18 +309,12 @@ def flip(
         img: torch.Tensor,
         spatial_axis: Union[Sequence[int], int],
         shape_override: Optional[Sequence] = None,
+        dtype_override: Optional[Union[DtypeLike, torch.dtype]] = None,
         lazy_evaluation: Optional[bool] = True
 ):
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
 
-    # if shape_override is set, it always wins
-    input_shape = shape_override
-
-    if input_shape is None:
-        if isinstance(img_, MetaTensor) and len(img_.pending_operations) > 0:
-            input_shape = img_.peek_pending_shape()
-        else:
-            input_shape = img_.shape
+    input_shape, input_dtype = get_input_shape_and_dtype(shape_override, dtype_override, img_)
 
     input_ndim = len(input_shape) - 1
 
@@ -319,25 +326,30 @@ def flip(
 
     metadata = {
         "spatial_axis": spatial_axis_,
-        LazyAttr.SHAPE: input_shape
+        LazyAttr.IN_SHAPE: input_shape,
+        LazyAttr.IN_DTYPE: input_dtype,
+        LazyAttr.OUT_SHAPE: input_shape,
+        LazyAttr.OUT_DTYPE: input_dtype,
     }
     return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
 
 
 def resize(
-    img: torch.Tensor,
-    spatial_size: Union[Sequence[int], int],
-    size_mode: str = "all",
-    mode: Optional[Union[InterpolateMode, str]] = InterpolateMode.AREA,
-    align_corners: Optional[bool] = False,
-    anti_aliasing: Optional[bool] = None,
-    anti_aliasing_sigma: Optional[Union[Sequence[float], float]] = None,
-    dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
-    shape_override: Optional[Sequence[int]] = None,
-    lazy_evaluation: Optional[bool] = True
+        img: torch.Tensor,
+        spatial_size: Union[Sequence[int], int],
+        size_mode: str = "all",
+        mode: Optional[Union[InterpolateMode, str]] = InterpolateMode.AREA,
+        align_corners: Optional[bool] = False,
+        anti_aliasing: Optional[bool] = None,
+        anti_aliasing_sigma: Optional[Union[Sequence[float], float]] = None,
+        dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
+        shape_override: Optional[Sequence[int]] = None,
+        dtype_override: Optional[Union[DtypeLike, torch.dtype]] = None,
+        lazy_evaluation: Optional[bool] = True
 ):
     """
     Args:
+        dtype_override:
         img: channel first array, must have shape: (num_channels, H[, W, ..., ]).
         mode: {``"nearest"``, ``"nearest-exact"``, ``"linear"``,
             ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
@@ -363,14 +375,7 @@ def resize(
 
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
 
-    # if shape_override is set, it always wins
-    input_shape = shape_override
-
-    if input_shape is None:
-        if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
-            input_shape = img.peek_pending_shape()
-        else:
-            input_shape = img_.shape
+    input_shape, input_dtype = get_input_shape_and_dtype(shape_override, dtype_override, img_)
 
     input_ndim = len(input_shape) - 1
 
@@ -412,22 +417,25 @@ def resize(
         LazyAttr.ALIGN_CORNERS: align_corners,
         "anti_aliasing": anti_aliasing,
         "anti_aliasing_sigma": anti_aliasing_sigma,
-        LazyAttr.DTYPE: dtype_,
-        LazyAttr.SHAPE: output_shape
+        LazyAttr.IN_SHAPE: input_shape,
+        LazyAttr.IN_DTYPE: input_dtype,
+        LazyAttr.OUT_SHAPE: output_shape,
+        LazyAttr.OUT_DTYPE: dtype_,
     }
     return lazily_apply_op(img_, MetaMatrix(pixel_transform, metadata), lazy_evaluation)
 
 
 def rotate(
-    img: torch.Tensor,
-    angle: Union[Sequence[float], float],
-    keep_size: Optional[bool] = True,
-    mode: Optional[Union[InterpolateMode, str]] = InterpolateMode.AREA,
-    padding_mode: Optional[Union[NumpyPadMode, GridSamplePadMode, str]] = NumpyPadMode.EDGE,
-    align_corners: Optional[bool] = False,
-    dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
-    shape_override: Optional[Sequence[int]] = None,
-    lazy_evaluation: Optional[bool] = True
+        img: torch.Tensor,
+        angle: Union[Sequence[float], float],
+        keep_size: Optional[bool] = True,
+        mode: Optional[Union[InterpolateMode, str]] = InterpolateMode.AREA,
+        padding_mode: Optional[Union[NumpyPadMode, GridSamplePadMode, str]] = NumpyPadMode.EDGE,
+        align_corners: Optional[bool] = False,
+        dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
+        shape_override: Optional[Sequence[int]] = None,
+        dtype_override: Optional[Union[DtypeLike, torch.dtype]] = None,
+        lazy_evaluation: Optional[bool] = True
 ):
     """
     Args:
@@ -461,14 +469,7 @@ def rotate(
     dtype_ = get_equivalent_dtype(dtype or img_.dtype, torch.Tensor)
     # img_ = img_.to(dtype_)
 
-    # if shape_override is set, it always wins
-    input_shape = shape_override
-
-    if input_shape is None:
-        if isinstance(img_, MetaTensor) and len(img_.pending_operations) > 0:
-            input_shape = img_.peek_pending_shape()
-        else:
-            input_shape = img_.shape
+    input_shape, input_dtype = get_input_shape_and_dtype(shape_override, dtype_override, img_)
 
     input_ndim = len(input_shape) - 1
     if input_ndim not in (2, 3):
@@ -493,8 +494,10 @@ def rotate(
         LazyAttr.INTERP_MODE: mode_,
         LazyAttr.PADDING_MODE: padding_mode_,
         LazyAttr.ALIGN_CORNERS: align_corners,
-        LazyAttr.DTYPE: dtype_,
-        LazyAttr.SHAPE: output_shape
+        LazyAttr.IN_SHAPE: input_shape,
+        LazyAttr.IN_DTYPE: input_dtype,
+        LazyAttr.OUT_SHAPE: output_shape,
+        LazyAttr.OUT_DTYPE: dtype_,
     }
     return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
 
@@ -508,6 +511,7 @@ def zoom(
         keep_size: Optional[bool] = True,
         dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
         shape_override: Optional[Sequence[int]] = None,
+        dtype_override: Optional[Union[DtypeLike, torch.dtype]] = None,
         lazy_evaluation: Optional[bool] = True
 ):
     """
@@ -528,14 +532,7 @@ def zoom(
 
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
 
-    # if shape_override is set, it always wins
-    input_shape = shape_override
-
-    if input_shape is None:
-        if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
-            input_shape = img_.peek_pending_shape()
-        else:
-            input_shape = img_.shape
+    input_shape, input_dtype = get_input_shape_and_dtype(shape_override, dtype_override, img_)
 
     input_ndim = len(input_shape) - 1
 
@@ -568,7 +565,10 @@ def zoom(
         LazyAttr.PADDING_MODE: padding_mode_,
         LazyAttr.ALIGN_CORNERS: align_corners,
         "keep_size": keep_size,
-        LazyAttr.SHAPE: output_shape
+        LazyAttr.IN_SHAPE: input_shape,
+        LazyAttr.IN_DTYPE: input_dtype,
+        LazyAttr.OUT_SHAPE: output_shape,
+        LazyAttr.OUT_DTYPE: dtype_,
     }
 
     return lazily_apply_op(img_, MetaMatrix(transform_, metadata), lazy_evaluation)
@@ -579,6 +579,7 @@ def rotate90(
         k: Optional[int] = 1,
         spatial_axes: Optional[Tuple[int, int]] = (0, 1),
         shape_override: Optional[Sequence[int]] = None,
+        dtype_override: Optional[Union[DtypeLike, torch.dtype]] = None,
         lazy_evaluation: Optional[bool] = True
 ):
     """
@@ -602,19 +603,9 @@ def rotate90(
     # if shape_override is set, it always wins
     input_shape = shape_override
 
-    if input_shape is None:
-        if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
-            input_shape = img_.peek_pending_shape()
-        else:
-            input_shape = img_.shape
+    input_shape, input_dtype = get_input_shape_and_dtype(shape_override, dtype_override, img_)
 
     input_ndim = len(input_shape) - 1
-
-    if input_shape is None:
-        if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
-            input_shape = img.peek_pending_shape()
-        else:
-            input_shape = img_.shape
 
     transform = create_rotate_90(input_ndim, spatial_axes, k)
 
@@ -633,7 +624,10 @@ def rotate90(
     metadata = {
         "k": k,
         "spatial_axes": spatial_axes,
-        LazyAttr.SHAPE: output_shape
+        LazyAttr.IN_SHAPE: input_shape,
+        LazyAttr.IN_DTYPE: input_dtype,
+        LazyAttr.OUT_SHAPE: output_shape,
+        LazyAttr.OUT_DTYPE: input_dtype,
     }
     return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
 
@@ -689,18 +683,12 @@ def elastic_3d(
         padding_mode: str = GridSamplePadMode.REFLECTION,
         device: Optional[torch.device] = None,
         shape_override: Optional[Tuple[float]] = None,
+        dtype_override: Optional[Union[DtypeLike, torch.dtype]] = None,
         lazy_evaluation: Optional[bool] = True
 ):
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
 
-    # if shape_override is set, it always wins
-    input_shape = shape_override
-
-    if input_shape is None:
-        if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
-            input_shape = img_.peek_pending_shape()
-        else:
-            input_shape = img_.shape
+    input_shape, input_dtype = get_input_shape_and_dtype(shape_override, dtype_override, img_)
 
     sp_size = fall_back_tuple(spatial_size, img.shape[1:])
     device_ = img.device if isinstance(img, torch.Tensor) else device
@@ -731,18 +719,12 @@ def translate(
         padding_mode: Optional[Union[GridSamplePadMode, str]] = NumpyPadMode.EDGE,
         dtype: Union[DtypeLike, torch.dtype] = np.float32,
         shape_override: Optional[Sequence[int]] = None,
+        dtype_override: Optional[Union[DtypeLike, torch.dtype]] = None,
         lazy_evaluation: Optional[bool] = True
 ):
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
 
-    # if shape_override is set, it always wins
-    input_shape = shape_override
-
-    if input_shape is None:
-        if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
-            input_shape = img.peek_pending_shape()
-        else:
-            input_shape = img_.shape
+    input_shape, input_dtype = get_input_shape_and_dtype(shape_override, dtype_override, img_)
 
     dtype_ = img_.dtype if dtype is None else dtype
     input_ndim = len(input_shape) - 1
@@ -756,8 +738,10 @@ def translate(
         "translation": translation,
         LazyAttr.INTERP_MODE: mode,
         LazyAttr.PADDING_MODE: padding_mode,
-        LazyAttr.DTYPE: dtype_,
-        LazyAttr.SHAPE: input_shape
+        LazyAttr.IN_SHAPE: input_shape,
+        LazyAttr.IN_DTYPE: input_dtype,
+        LazyAttr.OUT_SHAPE: shape_override,
+        LazyAttr.OUT_DTYPE: dtype_,
     }
 
     return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)

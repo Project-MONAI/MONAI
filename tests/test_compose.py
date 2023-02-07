@@ -11,13 +11,18 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import sys
 import unittest
 
-from monai.data import DataLoader, Dataset
-from monai.transforms import AddChannel, Compose
+import torch
+
+from monai.data import DataLoader, Dataset, MetaTensor
+from monai.transforms import AddChannel, Compose, Rotate, Zoom
 from monai.transforms.transform import Randomizable
 from monai.utils import set_determinism
+from monai.transforms.spatial import old_array
 
 
 class _RandXform(Randomizable):
@@ -218,6 +223,32 @@ class TestCompose(unittest.TestCase):
 
     def test_backwards_compatible_imports(self):
         from monai.transforms.compose import MapTransform, RandomizableTransform, Transform  # noqa: F401
+
+
+    class TestInverseCompose(unittest.TestCase):
+
+        def test_metatensor_identities(self):
+
+            t = torch.rand(1, 64, 64)
+            a = Rotate(torch.pi / 8, mode="bilinear", padding_mode="zeros")
+            b = Zoom(0.8, mode="bilinear", padding_mode="zeros")
+            ta = a(t)
+            tb = b(ta)
+
+            print(ta is tb)
+
+        def test_inversion(self):
+            t = torch.rand(1, 64, 64)
+
+            a = old_array.Rotate(torch.pi / 8, mode="bilinear")
+            b = old_array.Zoom(0.8, mode="bilinear")
+
+            ta = a(t)
+            tab = b(ta)
+
+            tinva = b.inverse(tab)
+            tinvo = a.inverse(tinva)
+
 
 
 if __name__ == "__main__":

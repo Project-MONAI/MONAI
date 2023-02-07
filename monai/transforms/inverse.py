@@ -23,6 +23,8 @@ from monai import transforms
 from monai.data.meta_obj import MetaObj, get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
+# from monai.transforms.lazy.functional import apply_transforms
+from monai.transforms.lazy.utils import MetaMatrix
 from monai.transforms.transform import LazyTransform, Transform
 from monai.utils import LazyAttr, MetaKeys, TraceKeys, convert_to_dst_type, convert_to_numpy, convert_to_tensor
 
@@ -356,6 +358,7 @@ class InvertibleTransform(TraceableTransform):
             d = transforms.sync_meta_info(k, data, t=False)
         return d
 
+
     def inverse(self, data: Any) -> Any:
         """
         Inverse of ``__call__``.
@@ -364,6 +367,13 @@ class InvertibleTransform(TraceableTransform):
             NotImplementedError: When the subclass does not override this method.
 
         """
-        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
-
-        #
+        raise NotImplementedError()
+    #     # generate the forward transform metadata, enforcing laziness
+    #     transform = self.pop_transform(data)
+    #     return self.inverse_transform(self, data, transform)
+    #
+    # def inverse_transform(self, data, transform):
+    #     if not isinstance(MetaMatrix):
+    #         raise ValueError(f"'transform' must be of type MetaMatrix but is {type(transform)}")
+    #
+    #     apply_transforms(data, [transform])

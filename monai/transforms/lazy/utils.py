@@ -97,12 +97,12 @@ def kwargs_from_pending(pending_item):
         LazyAttr.INTERP_MODE: pending_item.get(LazyAttr.INTERP_MODE, None),  # interpolation mode
         LazyAttr.PADDING_MODE: pending_item.get(LazyAttr.PADDING_MODE, None),  # padding mode
     }
-    if LazyAttr.SHAPE in pending_item:
-        ret[LazyAttr.SHAPE] = pending_item[LazyAttr.SHAPE]
+    if LazyAttr.OUT_SHAPE in pending_item:
+        ret[LazyAttr.OUT_SHAPE] = pending_item[LazyAttr.OUT_SHAPE]
     elif "shape_override" in pending_item:
-        ret[LazyAttr.SHAPE] = pending_item["shape_override"]
-    if LazyAttr.DTYPE in pending_item:
-        ret[LazyAttr.DTYPE] = pending_item[LazyAttr.DTYPE]
+        ret[LazyAttr.OUT_SHAPE] = pending_item["shape_override"]
+    if LazyAttr.OUT_DTYPE in pending_item:
+        ret[LazyAttr.OUT_DTYPE] = pending_item[LazyAttr.OUT_DTYPE]
     return ret
 
 
@@ -172,7 +172,6 @@ class MetaMatrix:
         else:
             matrix_ = matrix
         self.matrix = matrix_
-
         self.metadata = metadata or {}
 
     def __matmul__(self, other):
