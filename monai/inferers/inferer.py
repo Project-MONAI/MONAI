@@ -47,7 +47,7 @@ class Inferer(ABC):
     """
 
     @abstractmethod
-    def __call__(self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any) -> Any:
+    def __call__(self, inputs: torch.Tensor, network: Callable, *args: Any, **kwargs: Any) -> Any:
         """
         Run inference on `inputs` with the `network` model.
 
@@ -74,7 +74,9 @@ class SimpleInferer(Inferer):
     def __init__(self) -> None:
         Inferer.__init__(self)
 
-    def __call__(self, inputs: torch.Tensor, network: Callable, *args: Any, **kwargs: Any) -> torch.Tensor:
+    def __call__(
+            self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any
+    ) -> torch.Tensor:
         """Unified callable function API of Inferers.
 
         Args:
