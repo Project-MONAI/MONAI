@@ -43,6 +43,7 @@ TESTS = [
 
 RANDOM_SEED = 240982147
 
+
 def create_itk_affine_from_parameters(
     image, translation=None, rotation=None, scale=None, shear=None, center_of_rotation=None
 ):
