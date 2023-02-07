@@ -41,6 +41,7 @@ TESTS = [
     "copd1_highres_EXP_STD_COPD_img.nii.gz",
 ]
 
+RANDOM_SEED = 240982147
 
 def create_itk_affine_from_parameters(
     image, translation=None, rotation=None, scale=None, shear=None, center_of_rotation=None
@@ -184,6 +185,8 @@ def monai_warp(image_tensor, ddf_tensor):
 @unittest.skipUnless(has_itk, "Requires `itk` package.")
 class TestITKTorchAffineMatrixBridge(unittest.TestCase):
     def setUp(self):
+        torch.manual_seed(RANDOM_SEED)
+        np.random.seed(RANDOM_SEED)
         self.data_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
         self.reader = ITKReader(pixel_type=itk.F)
 
@@ -394,7 +397,6 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
 
     @parameterized.expand([(2,), (3,)])
     def test_random_array(self, ndim):
-        # TODO is flaky
         # Create image/array with random size and pixel intensities
         s = torch.randint(low=2, high=20, size=(ndim,))
         img = 100 * torch.rand((1, 1, *s.tolist()), dtype=torch.float32)
