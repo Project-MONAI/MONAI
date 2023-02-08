@@ -12,10 +12,13 @@
 from __future__ import annotations
 
 import warnings
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
-import numpy.typing as npt
+
+if TYPE_CHECKING:
+    import numpy.typing as npt
+
 import torch
 
 from monai.utils import Average, look_up_option
