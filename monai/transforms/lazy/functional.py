@@ -367,4 +367,3 @@ def invert(
     inv_metadata = copy.deepcopy(metadata)
     inv_metadata.invert()
     return lazily_apply_op(data, inv_metadata, lazy_evaluation, False)
-
