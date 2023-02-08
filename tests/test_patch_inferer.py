@@ -85,6 +85,31 @@ TEST_CASE_6_SMALLER = [
     TENSOR_2x2,
 ]
 
+# preprocess patches
+TEST_CASE_7_PREPROCESS = [
+    TENSOR_4x4,
+    dict(
+        splitter=SlidingWindowSplitter(patch_size=(2, 2)),
+        merger=AvgMerger(),
+        pre_processor=lambda x: 2 * x,
+        post_processor=None,
+    ),
+    lambda x: x,
+    2 * TENSOR_4x4,
+]
+
+# preprocess patches
+TEST_CASE_8_POSTPROCESS = [
+    TENSOR_4x4,
+    dict(
+        splitter=SlidingWindowSplitter(patch_size=(2, 2)),
+        merger=AvgMerger(),
+        pre_processor=None,
+        post_processor=lambda x: 4 * x,
+    ),
+    lambda x: x,
+    4 * TENSOR_4x4,
+]
 
 # list of tensor output
 TEST_CASE_0_LIST_TENSOR = [
@@ -137,6 +162,8 @@ class PatchInfererTests(unittest.TestCase):
             TEST_CASE_4_SPLIT_LIST,
             TEST_CASE_5_SPLIT_LIST,
             TEST_CASE_6_SMALLER,
+            TEST_CASE_7_PREPROCESS,
+            TEST_CASE_8_POSTPROCESS,
         ]
     )
     def test_patch_inferer_tensor(self, inputs, arguments, network, expected):

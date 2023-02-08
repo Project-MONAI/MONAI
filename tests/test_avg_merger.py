@@ -105,6 +105,11 @@ class AvgMergerTests(unittest.TestCase):
         for pl in patch_locations:
             merger.aggregate(pl[0], pl[1])
         output = merger.finalize()
+        # check for multiple call of finalize
+        self.assertIs(output, merger.finalize())
+        # check if get_output is working fine
+        self.assertIs(output, merger.get_output())
+        # check if the result is matching the expectation
         assert_allclose(output, expected)
 
     def test_avg_merger_non_initialized_error(self):

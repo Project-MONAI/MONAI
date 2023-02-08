@@ -76,9 +76,10 @@ class PatchInferer(Inferer):
         splitter: a `Splitter` object that split the inputs into patches. Defaults to None.
             If not provided or None, the inputs are considered to be already split into patches.
         merger: a `Merger` object that merges patch outputs. Defaults to AvgMerger.
+        batch_size: batch size for patches. If the input tensor is already batched [BxCxWxH],
+            this adds additional batching [(B'*B)xCxW'xH'] for inference on patches. Defaults to 1.
         pre_processor: a callable that process patches before the being fed to the network. Defaults to None.
         post_processor: a callable that process the output of the network. Defaults to None.
-        patch_filter_fn:
         output_keys: if the network output is a dictionary, this defines the keys of the output dictionary to use.
             Defaults to None, where all the keys are taken if output is a dictionary.
     """
@@ -176,7 +177,7 @@ class PatchInferer(Inferer):
         # ensure we have a tuple of model outputs to support multiple outputs
         return self._ensure_tuple_outputs(outputs)
 
-    def _initialize_mergers(self, inputs, outputs, patches, batch_size):
+    def _initialize_mergers(self, inputs, outputs, patches, batch_size) -> list:
         in_patch = torch.chunk(patches, batch_size)[0]
         ratios = []
         for merger, out_patch_batch in zip(self.mergers, outputs):
@@ -190,11 +191,11 @@ class PatchInferer(Inferer):
                 merger.initialize(output_shape)
         return ratios
 
-    def _get_ratio(self, in_patch, out_patch):
+    def _get_ratio(self, in_patch, out_patch) -> tuple:
         """Define the shape of output merged tensors"""
         return tuple(op / ip for ip, op in zip(in_patch.shape[2:], out_patch.shape[2:]))
 
-    def _get_output_shape(self, inputs, out_patch, ratio):
+    def _get_output_shape(self, inputs, out_patch, ratio) -> tuple:
         """Define the shape of output merged tensors"""
         in_spatial_shape = inputs.shape[2:]
         out_spatial_shape = tuple(round(s * r) for s, r in zip(in_spatial_shape, ratio))
@@ -210,7 +211,9 @@ class PatchInferer(Inferer):
     ) -> torch.Tensor | Sequence[torch.Tensor] | dict[Any, torch.Tensor]:
         """
         Args:
-            inputs: input data for inference, either a torch.Tensor, representing a image or batch of images.
+            inputs: input data for inference, a torch.Tensor, representing an image or batch of images.
+                However if the data is already split, it can be fed by providing a list of tuple (patch, location),
+                or a MetaTensor that has metadata for `PatchKeys.LOCATION`. In both cases no splitter should be provided.
             network: target model to execute inference.
                 supports callables such as ``lambda x: my_torch_model(x, additional_config)``
             args: optional args to be passed to ``network``.
@@ -238,10 +241,7 @@ class PatchInferer(Inferer):
                     out_loc = [round(l * r) for l, r in zip(in_loc, ratio)]
                     merger.aggregate(out_patch, out_loc)
         # finalize the mergers and get the results
-        merged_outputs = []
-        for merger in self.mergers:
-            merger.finalize()
-            merged_outputs.append(merger.get_output())
+        merged_outputs = tuple(merger.finalize() for merger in self.mergers)
         # return according to model output
         if self.output_keys:
             return dict(zip(self.output_keys, merged_outputs))
