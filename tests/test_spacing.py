@@ -351,6 +351,16 @@ class TestSpacingCase(unittest.TestCase):
         self.assertEqual(img_out.shape, img_t.shape)
         self.assertLess(((affine - img_out.affine) ** 2).sum() ** 0.5, 5e-2)
 
+    def test_property_no_change(self):
+        affine = torch.tensor(
+            [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]], dtype=torch.float32, device="cpu"
+        )
+        affine[:3] *= 1 - 1e-4  # make sure it's not exactly target but close to the target
+        img = MetaTensor(torch.rand((1, 10, 9, 8), dtype=torch.float32), affine=affine, meta={"fname": "somewhere"})
+        tr = Spacing(pixdim=[1.0, 1.0, 1.0])
+        tr(img)
+        assert_allclose(tr.pixdim, [1.0, 1.0, 1.0], type_test=False)
+
 
 if __name__ == "__main__":
     unittest.main()

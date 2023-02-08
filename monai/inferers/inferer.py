@@ -13,7 +13,8 @@ from __future__ import annotations
 
 import warnings
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Generic, Mapping, Sequence, TypeVar, Union
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -24,10 +25,8 @@ from monai.visualize import CAM, GradCAM, GradCAMpp
 
 __all__ = ["Inferer", "SimpleInferer", "SlidingWindowInferer", "SaliencyInferer", "SliceInferer"]
 
-T = TypeVar("T")
 
-
-class Inferer(ABC, Generic[T]):
+class Inferer(ABC):
     """
     A base class for model inference.
     Extend this class to support operations during inference, e.g. a sliding window method.
@@ -48,7 +47,7 @@ class Inferer(ABC, Generic[T]):
     """
 
     @abstractmethod
-    def __call__(self, inputs: torch.Tensor, network: Callable[..., T], *args: Any, **kwargs: Any) -> T:
+    def __call__(self, inputs: torch.Tensor, network: Callable, *args: Any, **kwargs: Any) -> Any:
         """
         Run inference on `inputs` with the `network` model.
 
@@ -65,7 +64,7 @@ class Inferer(ABC, Generic[T]):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
-class SimpleInferer(Inferer[torch.Tensor]):
+class SimpleInferer(Inferer):
     """
     SimpleInferer is the normal inference method that run model forward() directly.
     Usage example can be found in the :py:class:`monai.inferers.Inferer` base class.
@@ -91,7 +90,7 @@ class SimpleInferer(Inferer[torch.Tensor]):
         return network(inputs, *args, **kwargs)
 
 
-class SlidingWindowInferer(Inferer[Union[torch.Tensor, Sequence[torch.Tensor], Dict[Any, torch.Tensor]]]):
+class SlidingWindowInferer(Inferer):
     """
     Sliding window method for model inference,
     with `sw_batch_size` windows for every model.forward().
