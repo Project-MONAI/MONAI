@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import logging
 import os
-import sys
 from collections.abc import Mapping, MutableMapping
 from typing import Any, cast
 
@@ -22,6 +21,7 @@ import torch.distributed as dist
 
 import monai
 from monai.apps.auto3dseg.data_analyzer import DataAnalyzer
+from monai.apps.utils import get_logger
 from monai.auto3dseg import SegSummarizer
 from monai.bundle import DEFAULT_EXP_MGMT_SETTINGS, ConfigComponent, ConfigItem, ConfigParser, patch_bundle_tracking
 from monai.engines import SupervisedTrainer, Trainer
@@ -41,7 +41,7 @@ from monai.networks.utils import copy_model_state, get_state_dict
 from monai.utils import min_version, require_pkg
 from monai.utils.enums import DataStatsKeys
 
-logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(asctime)s - %(message)s")
+logger = get_logger(__name__)
 
 
 def convert_global_weights(global_weights: Mapping, local_var_dict: MutableMapping) -> tuple[MutableMapping, int]:
@@ -116,7 +116,7 @@ class MonaiAlgoStats(ClientAlgoStats):
         data_stats_transform_list: list | None = None,
         histogram_only: bool = False,
     ):
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger = logger
         self.bundle_root = bundle_root
         self.config_train_filename = config_train_filename
         self.config_filters_filename = config_filters_filename
@@ -405,7 +405,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         data_stats_transform_list: list | None = None,
         tracking: str | dict | None = None,
     ):
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger = logger
         if config_evaluate_filename == "default":
             # by default, evaluator needs both training and evaluate to be instantiated.
             config_evaluate_filename = ["configs/train.json", "configs/evaluate.json"]
