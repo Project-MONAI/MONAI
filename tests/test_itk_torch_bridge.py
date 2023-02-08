@@ -29,7 +29,7 @@ from monai.data.itk_torch_bridge import (
 )
 from monai.networks.blocks import Warp
 from monai.transforms import Affine
-from monai.utils import optional_import
+from monai.utils import optional_import, set_determinism
 from tests.utils import skip_if_downloading_fails, skip_if_quick, testing_data_config
 
 itk, has_itk = optional_import("itk")
@@ -41,153 +41,11 @@ TESTS = [
     "copd1_highres_EXP_STD_COPD_img.nii.gz",
 ]
 
-RANDOM_SEED = 240982147
-
-
-def create_itk_affine_from_parameters(
-    image, translation=None, rotation=None, scale=None, shear=None, center_of_rotation=None
-):
-    """
-    Creates an affine transformation for an ITK image based on the provided parameters.
-
-    Args:
-        image: The ITK image.
-        translation: The translation (shift) to apply to the image.
-        rotation: The rotation to apply to the image, specified as angles in radians around the x, y, and z axes.
-        scale: The scaling factor to apply to the image.
-        shear: The shear to apply to the image.
-        center_of_rotation: The center of rotation for the image. If not specified,
-                            the center of the image is used.
-
-    Returns:
-        A tuple containing the affine transformation matrix and the translation vector.
-    """
-    itk_transform = itk.AffineTransform[itk.D, image.ndim].New()
-
-    # Set center
-    if center_of_rotation:
-        itk_transform.SetCenter(center_of_rotation)
-    else:
-        itk_transform.SetCenter(get_itk_image_center(image))
-
-    # Set parameters
-    if rotation:
-        if image.ndim == 2:
-            itk_transform.Rotate2D(rotation[0])
-        else:
-            for i, angle_in_rads in enumerate(rotation):
-                if angle_in_rads != 0:
-                    axis = [0, 0, 0]
-                    axis[i] = 1
-                    itk_transform.Rotate3D(axis, angle_in_rads)
-
-    if scale:
-        itk_transform.Scale(scale)
-
-    if shear:
-        itk_transform.Shear(*shear)
-
-    if translation:
-        itk_transform.Translate(translation)
-
-    matrix = np.asarray(itk_transform.GetMatrix(), dtype=np.float64)
-
-    return matrix, translation
-
-
-def itk_affine_resample(image, matrix, translation, center_of_rotation=None, reference_image=None):
-    # Translation transform
-    itk_transform = itk.AffineTransform[itk.D, image.ndim].New()
-
-    # Set center
-    if center_of_rotation:
-        itk_transform.SetCenter(center_of_rotation)
-    else:
-        itk_transform.SetCenter(get_itk_image_center(image))
-
-    # Set matrix and translation
-    itk_transform.SetMatrix(itk.matrix_from_array(matrix))
-    itk_transform.Translate(translation)
-
-    # Interpolator
-    image = image.astype(itk.D)
-    interpolator = itk.LinearInterpolateImageFunction.New(image)
-
-    if not reference_image:
-        reference_image = image
-
-    # Resample with ITK
-    output_image = itk.resample_image_filter(
-        image, interpolator=interpolator, transform=itk_transform, output_parameters_from_image=reference_image
-    )
-
-    return np.asarray(output_image, dtype=np.float32)
-
-
-def monai_affine_resample(metatensor, affine_matrix):
-    affine = Affine(affine=affine_matrix, padding_mode="zeros", mode="bilinear", dtype=torch.float64, image_only=True)
-    output_tensor = affine(metatensor)
-
-    return output_tensor.squeeze().permute(*torch.arange(output_tensor.ndim - 2, -1, -1)).array
-
-
-def remove_border(image):
-    """
-    MONAI seems to have different behavior in the borders of the image than ITK.
-    This helper function sets the border of the ITK image as 0 (padding but keeping
-    the same image size) in order to allow numerical comparison between the
-    result from resampling with ITK/Elastix and resampling with MONAI.
-    To use: image[:] = remove_border(image)
-    Args:
-        image: The ITK image to be padded.
-
-    Returns:
-        The padded array of data.
-    """
-    return np.pad(image[1:-1, 1:-1, 1:-1] if image.ndim == 3 else image[1:-1, 1:-1], pad_width=1)
-
-
-def itk_warp(image, ddf):
-    """
-    warping with python itk
-    Args:
-        image: itk image of array shape 2D: (H, W) or 3D: (D, H, W)
-        ddf: numpy array of shape 2D: (2, H, W) or 3D: (3, D, H, W)
-    Returns:
-        warped_image: numpy array of shape (H, W) or (D, H, W)
-    """
-    # MONAI -> ITK ddf
-    displacement_field = monai_to_itk_ddf(image, ddf)
-
-    # Resample using the ddf
-    interpolator = itk.LinearInterpolateImageFunction.New(image)
-    warped_image = itk.warp_image_filter(
-        image, interpolator=interpolator, displacement_field=displacement_field, output_parameters_from_image=image
-    )
-
-    return np.asarray(warped_image)
-
-
-def monai_warp(image_tensor, ddf_tensor):
-    """
-    warping with MONAI
-    Args:
-        image_tensor: torch tensor of shape 2D: (1, 1, H, W) and 3D: (1, 1, D, H, W)
-        ddf_tensor: torch tensor of shape 2D: (1, 2, H, W) and 3D: (1, 3, D, H, W)
-    Returns:
-        warped_image: numpy array of shape (H, W) or (D, H, W)
-    """
-    warp = Warp(mode="bilinear", padding_mode="zeros")
-    warped_image = warp(image_tensor.to(torch.float64), ddf_tensor.to(torch.float64))
-
-    return warped_image.to(torch.float32).squeeze().numpy()
-
 
 @unittest.skipUnless(has_itk, "Requires `itk` package.")
 class TestITKTorchAffineMatrixBridge(unittest.TestCase):
     def setUp(self):
-        torch.manual_seed(RANDOM_SEED)
-        np.random.seed(RANDOM_SEED)
+        set_determinism(seed=0)
         self.data_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
         self.reader = ITKReader(pixel_type=itk.F)
 
@@ -200,11 +58,149 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
                         data_spec["url"], path, hash_val=data_spec["hash_val"], hash_type=data_spec["hash_type"]
                     )
 
+    def tearDown(self):
+        set_determinism(seed=None)
+
+    def create_itk_affine_from_parameters(
+        self, image, translation=None, rotation=None, scale=None, shear=None, center_of_rotation=None
+    ):
+        """
+        Creates an affine transformation for an ITK image based on the provided parameters.
+
+        Args:
+            image: The ITK image.
+            translation: The translation (shift) to apply to the image.
+            rotation: The rotation to apply to the image, specified as angles in radians around the x, y, and z axes.
+            scale: The scaling factor to apply to the image.
+            shear: The shear to apply to the image.
+            center_of_rotation: The center of rotation for the image. If not specified,
+                                the center of the image is used.
+
+        Returns:
+            A tuple containing the affine transformation matrix and the translation vector.
+        """
+        itk_transform = itk.AffineTransform[itk.D, image.ndim].New()
+
+        # Set center
+        if center_of_rotation:
+            itk_transform.SetCenter(center_of_rotation)
+        else:
+            itk_transform.SetCenter(get_itk_image_center(image))
+
+        # Set parameters
+        if rotation:
+            if image.ndim == 2:
+                itk_transform.Rotate2D(rotation[0])
+            else:
+                for i, angle_in_rads in enumerate(rotation):
+                    if angle_in_rads != 0:
+                        axis = [0, 0, 0]
+                        axis[i] = 1
+                        itk_transform.Rotate3D(axis, angle_in_rads)
+
+        if scale:
+            itk_transform.Scale(scale)
+
+        if shear:
+            itk_transform.Shear(*shear)
+
+        if translation:
+            itk_transform.Translate(translation)
+
+        matrix = np.asarray(itk_transform.GetMatrix(), dtype=np.float64)
+
+        return matrix, translation
+
+    def itk_affine_resample(self, image, matrix, translation, center_of_rotation=None, reference_image=None):
+        # Translation transform
+        itk_transform = itk.AffineTransform[itk.D, image.ndim].New()
+
+        # Set center
+        if center_of_rotation:
+            itk_transform.SetCenter(center_of_rotation)
+        else:
+            itk_transform.SetCenter(get_itk_image_center(image))
+
+        # Set matrix and translation
+        itk_transform.SetMatrix(itk.matrix_from_array(matrix))
+        itk_transform.Translate(translation)
+
+        # Interpolator
+        image = image.astype(itk.D)
+        interpolator = itk.LinearInterpolateImageFunction.New(image)
+
+        if not reference_image:
+            reference_image = image
+
+        # Resample with ITK
+        output_image = itk.resample_image_filter(
+            image, interpolator=interpolator, transform=itk_transform, output_parameters_from_image=reference_image
+        )
+
+        return np.asarray(output_image, dtype=np.float32)
+
+    def monai_affine_resample(self, metatensor, affine_matrix):
+        affine = Affine(
+            affine=affine_matrix, padding_mode="zeros", mode="bilinear", dtype=torch.float64, image_only=True
+        )
+        output_tensor = affine(metatensor)
+
+        return output_tensor.squeeze().permute(*torch.arange(output_tensor.ndim - 2, -1, -1)).array
+
+    def remove_border(self, image):
+        """
+        MONAI seems to have different behavior in the borders of the image than ITK.
+        This helper function sets the border of the ITK image as 0 (padding but keeping
+        the same image size) in order to allow numerical comparison between the
+        result from resampling with ITK/Elastix and resampling with MONAI.
+        To use: image[:] = remove_border(image)
+        Args:
+            image: The ITK image to be padded.
+
+        Returns:
+            The padded array of data.
+        """
+        return np.pad(image[1:-1, 1:-1, 1:-1] if image.ndim == 3 else image[1:-1, 1:-1], pad_width=1)
+
+    def itk_warp(self, image, ddf):
+        """
+        warping with python itk
+        Args:
+            image: itk image of array shape 2D: (H, W) or 3D: (D, H, W)
+            ddf: numpy array of shape 2D: (2, H, W) or 3D: (3, D, H, W)
+        Returns:
+            warped_image: numpy array of shape (H, W) or (D, H, W)
+        """
+        # MONAI -> ITK ddf
+        displacement_field = monai_to_itk_ddf(image, ddf)
+
+        # Resample using the ddf
+        interpolator = itk.LinearInterpolateImageFunction.New(image)
+        warped_image = itk.warp_image_filter(
+            image, interpolator=interpolator, displacement_field=displacement_field, output_parameters_from_image=image
+        )
+
+        return np.asarray(warped_image)
+
+    def monai_warp(self, image_tensor, ddf_tensor):
+        """
+        warping with MONAI
+        Args:
+            image_tensor: torch tensor of shape 2D: (1, 1, H, W) and 3D: (1, 1, D, H, W)
+            ddf_tensor: torch tensor of shape 2D: (1, 2, H, W) and 3D: (1, 3, D, H, W)
+        Returns:
+            warped_image: numpy array of shape (H, W) or (D, H, W)
+        """
+        warp = Warp(mode="bilinear", padding_mode="zeros")
+        warped_image = warp(image_tensor.to(torch.float64), ddf_tensor.to(torch.float64))
+
+        return warped_image.to(torch.float32).squeeze().numpy()
+
     @parameterized.expand(TESTS)
     def test_setting_affine_parameters(self, filepath):
         # Read image
         image = self.reader.read(os.path.join(self.data_dir, filepath))
-        image[:] = remove_border(image)
+        image[:] = self.remove_border(image)
         ndim = image.ndim
 
         # Affine parameters
@@ -218,13 +214,13 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         image.SetSpacing(spacing)
 
         # ITK
-        matrix, translation = create_itk_affine_from_parameters(image, translation, rotation, scale, shear)
-        output_array_itk = itk_affine_resample(image, matrix=matrix, translation=translation)
+        matrix, translation = self.create_itk_affine_from_parameters(image, translation, rotation, scale, shear)
+        output_array_itk = self.itk_affine_resample(image, matrix=matrix, translation=translation)
 
         # MONAI
         metatensor = itk_image_to_metatensor(image)
         affine_matrix_for_monai = itk_to_monai_affine(image, matrix, translation)
-        output_array_monai = monai_affine_resample(metatensor, affine_matrix=affine_matrix_for_monai)
+        output_array_monai = self.monai_affine_resample(metatensor, affine_matrix=affine_matrix_for_monai)
 
         ###########################################################################
         # Make sure that the array conversion of the inputs is the same
@@ -253,7 +249,7 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
     def test_arbitary_center_of_rotation(self, filepath):
         # Read image
         image = self.reader.read(os.path.join(self.data_dir, filepath))
-        image[:] = remove_border(image)
+        image[:] = self.remove_border(image)
         ndim = image.ndim
 
         # ITK matrix (3x3 affine matrix)
@@ -275,12 +271,12 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         image.SetOrigin(origin)
 
         # ITK
-        output_array_itk = itk_affine_resample(image, matrix, translation, center_of_rotation)
+        output_array_itk = self.itk_affine_resample(image, matrix, translation, center_of_rotation)
 
         # MONAI
         metatensor = itk_image_to_metatensor(image)
         affine_matrix_for_monai = itk_to_monai_affine(image, matrix, translation, center_of_rotation)
-        output_array_monai = monai_affine_resample(metatensor, affine_matrix=affine_matrix_for_monai)
+        output_array_monai = self.monai_affine_resample(metatensor, affine_matrix=affine_matrix_for_monai)
 
         # Make sure that the array conversion of the inputs is the same
         input_array_monai = metatensor.squeeze().permute(*torch.arange(metatensor.ndim - 2, -1, -1)).array
@@ -304,7 +300,7 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
     def test_monai_to_itk(self, filepath):
         # Read image
         image = self.reader.read(os.path.join(self.data_dir, filepath))
-        image[:] = remove_border(image)
+        image[:] = self.remove_border(image)
         ndim = image.ndim
 
         # MONAI affine matrix
@@ -330,11 +326,11 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
 
         # ITK
         matrix, translation = monai_to_itk_affine(image, affine_matrix, center_of_rotation)
-        output_array_itk = itk_affine_resample(image, matrix, translation, center_of_rotation)
+        output_array_itk = self.itk_affine_resample(image, matrix, translation, center_of_rotation)
 
         # MONAI
         metatensor = itk_image_to_metatensor(image)
-        output_array_monai = monai_affine_resample(metatensor, affine_matrix)
+        output_array_monai = self.monai_affine_resample(metatensor, affine_matrix)
 
         # Make sure that the array conversion of the inputs is the same
         input_array_monai = metatensor.squeeze().permute(*torch.arange(metatensor.ndim - 2, -1, -1)).array
@@ -357,7 +353,7 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_cyclic_conversion(self, filepath):
         image = self.reader.read(os.path.join(self.data_dir, filepath))
-        image[:] = remove_border(image)
+        image[:] = self.remove_border(image)
         ndim = image.ndim
 
         # ITK matrix (3x3 affine matrix)
@@ -397,7 +393,6 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         np.testing.assert_allclose(translation, translation_result)
 
     @parameterized.expand([(2,), (3,)])
-    @skip_if_quick
     def test_random_array(self, ndim):
         # Create image/array with random size and pixel intensities
         s = torch.randint(low=2, high=20, size=(ndim,))
@@ -409,7 +404,7 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         ddf = 5 * torch.rand((1, ndim, *img.shape[-ndim:]), dtype=torch.float32) - 2.5
 
         # Warp with MONAI
-        img_resampled = monai_warp(img, ddf)
+        img_resampled = self.monai_warp(img, ddf)
 
         # Create ITK image
         itk_img = itk.GetImageFromArray(img.squeeze().numpy())
@@ -428,7 +423,7 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         itk_img.SetOrigin(origin)
 
         # Warp with ITK
-        itk_img_resampled = itk_warp(itk_img, ddf.squeeze().numpy())
+        itk_img_resampled = self.itk_warp(itk_img, ddf.squeeze().numpy())
 
         # Compare
         np.testing.assert_allclose(img_resampled, itk_img_resampled, rtol=1e-2, atol=1e-2)
@@ -436,10 +431,11 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         print(f"[Min, Max] diff: [{diff_output.min()}, {diff_output.max()}]")
 
     @parameterized.expand(TESTS)
+    @skip_if_quick
     def test_real_data(self, filepath):
         # Read image
         image = self.reader.read(os.path.join(self.data_dir, filepath))
-        image[:] = remove_border(image)
+        image[:] = self.remove_border(image)
         ndim = image.ndim
 
         # Random ddf
@@ -447,10 +443,10 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
 
         # Warp with MONAI
         image_tensor = torch.tensor(itk.GetArrayFromImage(image), dtype=torch.float32).unsqueeze(0).unsqueeze(0)
-        img_resampled = monai_warp(image_tensor, ddf)
+        img_resampled = self.monai_warp(image_tensor, ddf)
 
         # Warp with ITK
-        itk_img_resampled = itk_warp(image, ddf.squeeze().numpy())
+        itk_img_resampled = self.itk_warp(image, ddf.squeeze().numpy())
 
         # Compare
         np.testing.assert_allclose(img_resampled, itk_img_resampled, rtol=1e-3, atol=1e-3)
@@ -461,7 +457,7 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
     def test_use_reference_space(self, ref_filepath, filepath):
         # Read the images
         image = self.reader.read(os.path.join(self.data_dir, filepath))
-        image[:] = remove_border(image)
+        image[:] = self.remove_border(image)
         ndim = image.ndim
 
         ref_image = self.reader.read(os.path.join(self.data_dir, ref_filepath))
@@ -505,12 +501,12 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         center_of_rotation = [-32.3, 125.1, 0.7][:ndim]
 
         # Resample using ITK
-        output_array_itk = itk_affine_resample(image, matrix, translation, center_of_rotation, ref_image)
+        output_array_itk = self.itk_affine_resample(image, matrix, translation, center_of_rotation, ref_image)
 
         # MONAI
         metatensor = itk_image_to_metatensor(image)
         affine_matrix_for_monai = itk_to_monai_affine(image, matrix, translation, center_of_rotation, ref_image)
-        output_array_monai = monai_affine_resample(metatensor, affine_matrix_for_monai)
+        output_array_monai = self.monai_affine_resample(metatensor, affine_matrix_for_monai)
 
         # Compare outputs
         np.testing.assert_allclose(output_array_monai, output_array_itk, rtol=1e-3, atol=1e-3)

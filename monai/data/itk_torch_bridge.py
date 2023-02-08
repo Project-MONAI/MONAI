@@ -29,60 +29,12 @@ else:
     itk, has_itk = optional_import("itk")
 
 __all__ = [
-    "get_itk_image_center",
     "itk_image_to_metatensor",
     "itk_to_monai_affine",
     "monai_to_itk_affine",
+    "get_itk_image_center",
     "monai_to_itk_ddf",
 ]
-
-
-def _assert_itk_regions_match_array(image):
-    # Note: Make it more compact? Also, are there redundant checks?
-    largest_region = image.GetLargestPossibleRegion()
-    buffered_region = image.GetBufferedRegion()
-    requested_region = image.GetRequestedRegion()
-
-    largest_region_size = np.array(largest_region.GetSize())
-    buffered_region_size = np.array(buffered_region.GetSize())
-    requested_region_size = np.array(requested_region.GetSize())
-    array_size = np.array(image.shape)[::-1]
-
-    largest_region_index = np.array(largest_region.GetIndex())
-    buffered_region_index = np.array(buffered_region.GetIndex())
-    requested_region_index = np.array(requested_region.GetIndex())
-
-    indices_are_zeros = (
-        np.all(largest_region_index == 0) and np.all(buffered_region_index == 0) and np.all(requested_region_index == 0)
-    )
-
-    sizes_match = (
-        np.array_equal(array_size, largest_region_size)
-        and np.array_equal(largest_region_size, buffered_region_size)
-        and np.array_equal(buffered_region_size, requested_region_size)
-    )
-
-    assert indices_are_zeros, "ITK-MONAI bridge: non-zero ITK region indices encountered"
-    assert sizes_match, "ITK-MONAI bridge: ITK regions should be of the same shape"
-
-
-def get_itk_image_center(image):
-    """
-    Calculates the center of the ITK image based on its origin, size, and spacing.
-    This center is equivalent to the implicit image center that MONAI uses.
-
-    Args:
-        image: The ITK image.
-
-    Returns:
-        The center of the image as a list of coordinates.
-    """
-    image_size = np.asarray(image.GetLargestPossibleRegion().GetSize(), np.float32)
-    spacing = np.asarray(image.GetSpacing())
-    origin = np.asarray(image.GetOrigin())
-    center = image.GetDirection() @ ((image_size / 2 - 0.5) * spacing) + origin
-
-    return center.tolist()
 
 
 def itk_image_to_metatensor(image):
@@ -102,72 +54,6 @@ def itk_image_to_metatensor(image):
     metatensor = EnsureChannelFirst()(metatensor)
 
     return metatensor
-
-
-def _compute_offset_matrix(image, center_of_rotation) -> tuple[torch.Tensor, torch.Tensor]:
-    ndim = image.ndim
-    offset = np.asarray(get_itk_image_center(image)) - np.asarray(center_of_rotation)
-    offset_matrix = torch.eye(ndim + 1, dtype=torch.float64)
-    offset_matrix[:ndim, ndim] = torch.tensor(offset, dtype=torch.float64)
-    inverse_offset_matrix = torch.eye(ndim + 1, dtype=torch.float64)
-    inverse_offset_matrix[:ndim, ndim] = -torch.tensor(offset, dtype=torch.float64)
-
-    return offset_matrix, inverse_offset_matrix
-
-
-def _compute_spacing_matrix(image) -> tuple[torch.Tensor, torch.Tensor]:
-    ndim = image.ndim
-    spacing = np.asarray(image.GetSpacing(), dtype=np.float64)
-    spacing_matrix = torch.eye(ndim + 1, dtype=torch.float64)
-    inverse_spacing_matrix = torch.eye(ndim + 1, dtype=torch.float64)
-    for i, e in enumerate(spacing):
-        spacing_matrix[i, i] = e
-        inverse_spacing_matrix[i, i] = 1 / e
-
-    return spacing_matrix, inverse_spacing_matrix
-
-
-def _compute_direction_matrix(image) -> tuple[torch.Tensor, torch.Tensor]:
-    ndim = image.ndim
-    direction = itk.array_from_matrix(image.GetDirection())
-    direction_matrix = torch.eye(ndim + 1, dtype=torch.float64)
-    direction_matrix[:ndim, :ndim] = torch.tensor(direction, dtype=torch.float64)
-    inverse_direction = itk.array_from_matrix(image.GetInverseDirection())
-    inverse_direction_matrix = torch.eye(ndim + 1, dtype=torch.float64)
-    inverse_direction_matrix[:ndim, :ndim] = torch.tensor(inverse_direction, dtype=torch.float64)
-
-    return direction_matrix, inverse_direction_matrix
-
-
-def _compute_reference_space_affine_matrix(image, ref_image) -> torch.Tensor:
-    ndim = ref_image.ndim
-
-    # Spacing and direction as matrices
-    spacing_matrix, inv_spacing_matrix = (m[:ndim, :ndim].numpy() for m in _compute_spacing_matrix(image))
-    ref_spacing_matrix, ref_inv_spacing_matrix = (m[:ndim, :ndim].numpy() for m in _compute_spacing_matrix(ref_image))
-
-    direction_matrix, inv_direction_matrix = (m[:ndim, :ndim].numpy() for m in _compute_direction_matrix(image))
-    ref_direction_matrix, ref_inv_direction_matrix = (
-        m[:ndim, :ndim].numpy() for m in _compute_direction_matrix(ref_image)
-    )
-
-    # Matrix calculation
-    matrix = ref_direction_matrix @ ref_spacing_matrix @ inv_spacing_matrix @ inv_direction_matrix
-
-    # Offset calculation
-    pixel_offset = -1
-    image_size = np.asarray(ref_image.GetLargestPossibleRegion().GetSize(), np.float32)
-    translation = (
-        (ref_direction_matrix @ ref_spacing_matrix - direction_matrix @ spacing_matrix)
-        @ (image_size + pixel_offset)
-        / 2
-    )
-    translation += np.asarray(ref_image.GetOrigin()) - np.asarray(image.GetOrigin())
-
-    # Convert matrix ITK matrix and translation to MONAI affine matrix
-    ref_affine_matrix = itk_to_monai_affine(image, matrix=matrix, translation=translation)
-
-    return ref_affine_matrix
 
 
 def itk_to_monai_affine(image, matrix, translation, center_of_rotation=None, reference_image=None) -> torch.Tensor:
@@ -257,6 +143,120 @@ def monai_to_itk_affine(image, affine_matrix, center_of_rotation=None):
     translation = affine_matrix[:ndim, ndim].tolist()
 
     return matrix, translation
+
+
+def get_itk_image_center(image):
+    """
+    Calculates the center of the ITK image based on its origin, size, and spacing.
+    This center is equivalent to the implicit image center that MONAI uses.
+
+    Args:
+        image: The ITK image.
+
+    Returns:
+        The center of the image as a list of coordinates.
+    """
+    image_size = np.asarray(image.GetLargestPossibleRegion().GetSize(), np.float32)
+    spacing = np.asarray(image.GetSpacing())
+    origin = np.asarray(image.GetOrigin())
+    center = image.GetDirection() @ ((image_size / 2 - 0.5) * spacing) + origin
+
+    return center.tolist()
+
+
+def _assert_itk_regions_match_array(image):
+    # Note: Make it more compact? Also, are there redundant checks?
+    largest_region = image.GetLargestPossibleRegion()
+    buffered_region = image.GetBufferedRegion()
+    requested_region = image.GetRequestedRegion()
+
+    largest_region_size = np.array(largest_region.GetSize())
+    buffered_region_size = np.array(buffered_region.GetSize())
+    requested_region_size = np.array(requested_region.GetSize())
+    array_size = np.array(image.shape)[::-1]
+
+    largest_region_index = np.array(largest_region.GetIndex())
+    buffered_region_index = np.array(buffered_region.GetIndex())
+    requested_region_index = np.array(requested_region.GetIndex())
+
+    indices_are_zeros = (
+        np.all(largest_region_index == 0) and np.all(buffered_region_index == 0) and np.all(requested_region_index == 0)
+    )
+
+    sizes_match = (
+        np.array_equal(array_size, largest_region_size)
+        and np.array_equal(largest_region_size, buffered_region_size)
+        and np.array_equal(buffered_region_size, requested_region_size)
+    )
+
+    assert indices_are_zeros, "ITK-MONAI bridge: non-zero ITK region indices encountered"
+    assert sizes_match, "ITK-MONAI bridge: ITK regions should be of the same shape"
+
+
+def _compute_offset_matrix(image, center_of_rotation) -> tuple[torch.Tensor, torch.Tensor]:
+    ndim = image.ndim
+    offset = np.asarray(get_itk_image_center(image)) - np.asarray(center_of_rotation)
+    offset_matrix = torch.eye(ndim + 1, dtype=torch.float64)
+    offset_matrix[:ndim, ndim] = torch.tensor(offset, dtype=torch.float64)
+    inverse_offset_matrix = torch.eye(ndim + 1, dtype=torch.float64)
+    inverse_offset_matrix[:ndim, ndim] = -torch.tensor(offset, dtype=torch.float64)
+
+    return offset_matrix, inverse_offset_matrix
+
+
+def _compute_spacing_matrix(image) -> tuple[torch.Tensor, torch.Tensor]:
+    ndim = image.ndim
+    spacing = np.asarray(image.GetSpacing(), dtype=np.float64)
+    spacing_matrix = torch.eye(ndim + 1, dtype=torch.float64)
+    inverse_spacing_matrix = torch.eye(ndim + 1, dtype=torch.float64)
+    for i, e in enumerate(spacing):
+        spacing_matrix[i, i] = e
+        inverse_spacing_matrix[i, i] = 1 / e
+
+    return spacing_matrix, inverse_spacing_matrix
+
+
+def _compute_direction_matrix(image) -> tuple[torch.Tensor, torch.Tensor]:
+    ndim = image.ndim
+    direction = itk.array_from_matrix(image.GetDirection())
+    direction_matrix = torch.eye(ndim + 1, dtype=torch.float64)
+    direction_matrix[:ndim, :ndim] = torch.tensor(direction, dtype=torch.float64)
+    inverse_direction = itk.array_from_matrix(image.GetInverseDirection())
+    inverse_direction_matrix = torch.eye(ndim + 1, dtype=torch.float64)
+    inverse_direction_matrix[:ndim, :ndim] = torch.tensor(inverse_direction, dtype=torch.float64)
+
+    return direction_matrix, inverse_direction_matrix
+
+
+def _compute_reference_space_affine_matrix(image, ref_image) -> torch.Tensor:
+    ndim = ref_image.ndim
+
+    # Spacing and direction as matrices
+    spacing_matrix, inv_spacing_matrix = (m[:ndim, :ndim].numpy() for m in _compute_spacing_matrix(image))
+    ref_spacing_matrix, ref_inv_spacing_matrix = (m[:ndim, :ndim].numpy() for m in _compute_spacing_matrix(ref_image))
+
+    direction_matrix, inv_direction_matrix = (m[:ndim, :ndim].numpy() for m in _compute_direction_matrix(image))
+    ref_direction_matrix, ref_inv_direction_matrix = (
+        m[:ndim, :ndim].numpy() for m in _compute_direction_matrix(ref_image)
+    )
+
+    # Matrix calculation
+    matrix = ref_direction_matrix @ ref_spacing_matrix @ inv_spacing_matrix @ inv_direction_matrix
+
+    # Offset calculation
+    pixel_offset = -1
+    image_size = np.asarray(ref_image.GetLargestPossibleRegion().GetSize(), np.float32)
+    translation = (
+        (ref_direction_matrix @ ref_spacing_matrix - direction_matrix @ spacing_matrix)
+        @ (image_size + pixel_offset)
+        / 2
+    )
+    translation += np.asarray(ref_image.GetOrigin()) - np.asarray(image.GetOrigin())
+
+    # Convert matrix ITK matrix and translation to MONAI affine matrix
+    ref_affine_matrix = itk_to_monai_affine(image, matrix=matrix, translation=translation)
+
+    return ref_affine_matrix
 
 
 def monai_to_itk_ddf(image, ddf):
