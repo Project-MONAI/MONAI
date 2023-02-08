@@ -111,14 +111,14 @@ def spatial_resample(
     img = img.as_tensor() if isinstance(img, MetaTensor) else img
     if affine_unchanged or lazy_evaluation:
         # no significant change or lazy change, return original image
-        out = convert_to_tensor(img, track_meta=get_track_meta())  # type: ignore
+        out = convert_to_tensor(img, track_meta=get_track_meta())
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info  # type: ignore
     im_size = torch.tensor(img.shape).tolist()
     chns, in_sp_size, additional_dims = im_size[0], im_size[1 : spatial_rank + 1], im_size[spatial_rank + 1 :]
 
     if additional_dims:
         xform_shape = [-1] + in_sp_size
-        img = img.reshape(xform_shape)  # type: ignore
+        img = img.reshape(xform_shape)
     img = img.to(dtype_pt)
     if isinstance(mode, int):
         dst_xform_1 = normalize_transform(spatial_size, xform.device, xform.dtype, True, True)[0]  # to (-1, 1)

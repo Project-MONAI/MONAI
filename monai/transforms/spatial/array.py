@@ -1571,7 +1571,7 @@ class AffineGrid(LazyTransform):
         else:
             affine = self.affine  # type: ignore
         if self.lazy_evaluation:
-            return None, affine  # type: ignore
+            return None, affine
 
         affine = to_affine_nd(len(grid_) - 1, affine)
         affine = convert_to_tensor(affine, device=grid_.device, dtype=grid_.dtype, track_meta=False)  # type: ignore
@@ -1580,7 +1580,7 @@ class AffineGrid(LazyTransform):
                 create_translate(spatial_dims, [-0.5] * spatial_dims, device=_device, backend=_b), affine
             )[0]
         grid_ = (affine @ grid_.view((grid_.shape[0], -1))).view([-1] + list(grid_.shape[1:]))
-        return grid_, affine  # type: ignore
+        return grid_, affine
 
 
 class RandAffineGrid(Randomizable, LazyTransform):

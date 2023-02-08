@@ -1266,7 +1266,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform):
         if randomize:
             if label is None:
                 label = self.label
-            self.randomize(label, indices, image)  # type: ignore
+            self.randomize(label, indices, image)
         results: list[torch.Tensor] = []
         if self.centers is not None:
             img_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
