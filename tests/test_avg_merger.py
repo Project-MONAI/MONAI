@@ -22,7 +22,6 @@ from tests.utils import assert_allclose
 TENSOR_4x4 = torch.randint(low=0, high=255, size=(2, 3, 4, 4), dtype=torch.float32)
 TENSOR_4x4_WITH_NAN = TENSOR_4x4.clone()
 TENSOR_4x4_WITH_NAN[..., 2:, 2:] = torch.nan
-TENSOR_2x2 = torch.randint(low=0, high=255, size=(2, 3, 2, 2), dtype=torch.float32)
 
 # no-overlapping 2x2
 TEST_CASE_SAME_SIZE_0 = [
@@ -89,24 +88,6 @@ TEST_CASE_SAME_SIZE_4 = [
     TENSOR_4x4_WITH_NAN,
 ]
 
-# no-overlapping 2x2 input patches with 1x1 outputs
-TEST_CASE_DIFFERENT_SIZE_0 = [
-    TENSOR_4x4,
-    [
-        (TENSOR_4x4[..., :2, :2], (0, 0)),
-        (TENSOR_4x4[..., :2, 2:], (0, 2)),
-        (TENSOR_4x4[..., 2:, :2], (2, 0)),
-        (TENSOR_4x4[..., 2:, 2:], (2, 2)),
-    ],
-    [
-        (TENSOR_2x2[..., :1, :1], (0, 0)),
-        (TENSOR_2x2[..., :1, 1:], (0, 1)),
-        (TENSOR_2x2[..., 1:, :1], (1, 0)),
-        (TENSOR_2x2[..., 1:, 1:], (1, 1)),
-    ],
-    TENSOR_2x2,
-]
-
 
 class AvgMergerTests(unittest.TestCase):
     @parameterized.expand(
@@ -118,27 +99,23 @@ class AvgMergerTests(unittest.TestCase):
             TEST_CASE_SAME_SIZE_4,
         ]
     )
-    def test_merge_patches_same_size(self, image, patch_locations, expected):
+    def test_avg_merger_patches_same_size(self, image, patch_locations, expected):
         merger = AvgMerger()
-        merger.initialize(inputs=image, in_patch=patch_locations[0][0], out_patch=patch_locations[0][0])
+        merger.initialize(output_shape=image.shape)
         for pl in patch_locations:
             merger.aggregate(pl[0], pl[1])
         output = merger.finalize()
         assert_allclose(output, expected)
 
-    @parameterized.expand([TEST_CASE_DIFFERENT_SIZE_0])
-    def test_merge_patches_different_size(self, image, in_patch_locations, out_patch_locations, expected):
-        merger = AvgMerger()
-        merger.initialize(inputs=image, in_patch=in_patch_locations[0][0], out_patch=out_patch_locations[0][0])
-        for pl in out_patch_locations:
-            merger.aggregate(pl[0], pl[1])
-        output = merger.finalize()
-        assert_allclose(output, expected)
-
-    def test_merge_non_initialized_error(self):
+    def test_avg_merger_non_initialized_error(self):
         with self.assertRaises(ValueError):
             merger = AvgMerger()
             merger.aggregate(torch.zeros(1, 3, 2, 2), (3, 3))
+
+    def test_avg_merge_no_output_shape_error(self):
+        with self.assertRaises(ValueError):
+            merger = AvgMerger()
+            merger.initialize()
 
 
 if __name__ == "__main__":
