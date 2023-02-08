@@ -16,8 +16,8 @@ from collections.abc import Sequence
 import torch
 import torch.nn as nn
 
-from monai.networks.blocks.convolutions import Convolution
 from monai.networks.blocks import ADN
+from monai.networks.blocks.convolutions import Convolution
 from monai.networks.layers import same_padding
 from monai.networks.layers.factories import Conv
 
@@ -108,7 +108,7 @@ class SimpleASPP(nn.Module):
         return x_out
 
 
-class DAF3D_ASPP(SimpleASPP):
+class Daf3dASPP(SimpleASPP):
     def __init__(
         self,
         spatial_dims: int,
@@ -120,23 +120,29 @@ class DAF3D_ASPP(SimpleASPP):
         bias: bool = False,
     ) -> None:
         super().__init__(spatial_dims, in_channels, conv_out_channels, kernel_sizes, dilations, norm_type, bias=bias)
-        
-        #change convolutions in self.convs so they fit our needs
+
+        # change convolutions in self.convs so they fit our needs
         new_convs = nn.ModuleList()
-        for _conv in self.convs: 
-            tmp_conv = Convolution(1,1,1)
-            tmp_conv.conv = _conv 
+        for _conv in self.convs:
+            tmp_conv = Convolution(1, 1, 1)
+            tmp_conv.conv = _conv
             tmp_conv.adn = ADN(ordering="N", norm=norm_type, norm_dim=1)
             tmp_conv = self._init_weight(tmp_conv)
             new_convs.append(tmp_conv)
         self.convs = new_convs
 
-        #change final convolution
-        self.conv_k1 = Convolution(spatial_dims=3, in_channels=4*in_channels, out_channels=conv_out_channels, kernel_size=1, adn_ordering="N", norm=norm_type)
+        # change final convolution
+        self.conv_k1 = Convolution(
+            spatial_dims=3,
+            in_channels=4 * in_channels,
+            out_channels=conv_out_channels,
+            kernel_size=1,
+            adn_ordering="N",
+            norm=norm_type,
+        )
 
     def _init_weight(self, conv):
         for m in conv.modules():
-            if isinstance(m, nn.Conv3d): #true for conv.conv
-                torch.nn.init.kaiming_normal_(m.weight) 
+            if isinstance(m, nn.Conv3d):  # true for conv.conv
+                torch.nn.init.kaiming_normal_(m.weight)
         return conv
-

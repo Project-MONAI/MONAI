@@ -57,7 +57,7 @@ from torch import Tensor, nn
 from monai.networks.nets import resnet
 from monai.utils import optional_import
 
-from .feature_pyramid_network import ExtraFPNBlock, FeaturePyramidNetwork, LastLevelMaxPool, DAF3D_FPN
+from .feature_pyramid_network import Daf3dFPN, ExtraFPNBlock, FeaturePyramidNetwork, LastLevelMaxPool
 
 torchvision_models, _ = optional_import("torchvision.models")
 
@@ -174,15 +174,27 @@ def _resnet_fpn_extractor(
         backbone, return_layers, in_channels_list, out_channels, extra_blocks=extra_blocks, spatial_dims=spatial_dims
     )
 
-class DAF3D_BackboneWithFPN(BackboneWithFPN):
+
+class Daf3dBackboneWithFPN(BackboneWithFPN):
     def __init__(
-        self, 
-        backbone: nn.Module, 
-        return_layers: dict[str, str], 
-        in_channels_list: list[int], 
-        out_channels: int, 
-        spatial_dims: int | None = None, 
-        extra_blocks: ExtraFPNBlock | None = None) -> None:
-        
+        self,
+        backbone: nn.Module,
+        return_layers: dict[str, str],
+        in_channels_list: list[int],
+        out_channels: int,
+        spatial_dims: int | None = None,
+        extra_blocks: ExtraFPNBlock | None = None,
+    ) -> None:
         super().__init__(backbone, return_layers, in_channels_list, out_channels, spatial_dims, extra_blocks)
-        self.fpn = DAF3D_FPN(spatial_dims, in_channels_list, out_channels)
+
+        if spatial_dims is None:
+            if hasattr(backbone, "spatial_dims") and isinstance(backbone.spatial_dims, int):
+                spatial_dims = backbone.spatial_dims
+            elif isinstance(backbone.conv1, nn.Conv2d):
+                spatial_dims = 2
+            elif isinstance(backbone.conv1, nn.Conv3d):
+                spatial_dims = 3
+            else:
+                raise ValueError("Could not find spatial_dims of backbone, please specify it.")
+
+        self.fpn = Daf3dFPN(spatial_dims, in_channels_list, out_channels)

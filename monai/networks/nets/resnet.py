@@ -429,74 +429,65 @@ def resnet200(pretrained: bool = False, progress: bool = True, **kwargs: Any) ->
     return _resnet("resnet200", ResNetBottleneck, [3, 24, 36, 3], get_inplanes(), pretrained, progress, **kwargs)
 
 
-class DAF3D_ResNetBottleneck(ResNetBottleneck):
+class Daf3dResNetBottleneck(ResNetBottleneck):
     expansion = 2
 
     def __init__(self, in_planes, planes, spatial_dims=3, stride=1, downsample=None):
-        
         norm_type: Callable = Norm[Norm.GROUP, spatial_dims]
         conv_type: Callable = Conv[Conv.CONV, spatial_dims]
-        
-        #in case downsample uses batch norm, change to group norm
+
+        # in case downsample uses batch norm, change to group norm
         if isinstance(downsample, nn.Sequential):
             downsample = nn.Sequential(
-                conv_type(in_planes, planes * self.expansion, kernel_size=1, stride=stride, bias=False), 
-                norm_type(num_groups=32, num_channels=planes*self.expansion)
+                conv_type(in_planes, planes * self.expansion, kernel_size=1, stride=stride, bias=False),
+                norm_type(num_groups=32, num_channels=planes * self.expansion),
             )
 
         super().__init__(in_planes, planes, 3, stride, downsample)
 
-        #change norm from batch to group norm
+        # change norm from batch to group norm
         self.bn1 = norm_type(num_groups=32, num_channels=planes)
         self.bn2 = norm_type(num_groups=32, num_channels=planes)
         self.bn3 = norm_type(num_groups=32, num_channels=planes * self.expansion)
 
-        #adapt one convolution which is implemented differently
-        self.conv2 = conv_type(
-            planes, 
-            planes, 
-            kernel_size=3, 
-            padding=1,
-            stride=stride, 
-            groups=32, 
-            bias=False)
-        
-        #adapt activation function
+        # adapt one convolution which is implemented differently
+        self.conv2 = conv_type(planes, planes, kernel_size=3, padding=1, stride=stride, groups=32, bias=False)
+
+        # adapt activation function
         self.relu = nn.PReLU()
 
-class DAF3D_ResNetDilatedBottleneck(DAF3D_ResNetBottleneck):
+
+class Daf3dResNetDilatedBottleneck(Daf3dResNetBottleneck):
     def __init__(self, in_planes, planes, spatial_dims=3, stride=1, downsample=None):
         super().__init__(in_planes, planes, spatial_dims, stride, downsample)
 
-        #add dilation in second convolution
+        # add dilation in second convolution
         conv_type: Callable = Conv[Conv.CONV, spatial_dims]
         self.conv2 = conv_type(
-            planes, 
-            planes, 
-            kernel_size=3,
-            stride=stride, 
-            padding=2,
-            dilation=2,
-            groups=32,
-            bias=False
+            planes, planes, kernel_size=3, stride=stride, padding=2, dilation=2, groups=32, bias=False
         )
 
-class DAF3D_ResNet(ResNet):
-    def __init__(self, block, layers, block_inplanes, shortcut_type='B'):
+
+class Daf3dResNet(ResNet):
+    def __init__(self, block, layers, block_inplanes, shortcut_type="B"):
         super().__init__(block, layers, block_inplanes, n_input_channels=1, num_classes=2, shortcut_type=shortcut_type)
 
         self.in_planes = 64
 
-        #adapt first convolution
-        conv_type : Callable = Conv[Conv.CONV, 3]
+        # adapt first convolution
+        conv_type: Callable = Conv[Conv.CONV, 3]
         norm_type: Callable = Norm[Norm.GROUP, 3]
 
-        self.conv1 = conv_type(1, self.in_planes, kernel_size=7, stride=(1,2,2), padding=(3,3,3), bias=False)
+        self.conv1 = conv_type(1, self.in_planes, kernel_size=7, stride=(1, 2, 2), padding=(3, 3, 3), bias=False)
         self.bn1 = norm_type(32, 64)
         self.relu = nn.PReLU()
-    
-        #adapt layers to our needs
+
+        # adapt layers to our needs
         self.layer1 = self._make_layer(block, block_inplanes[0], layers[0], 3, shortcut_type)
         self.layer2 = self._make_layer(block, block_inplanes[1], layers[1], 3, shortcut_type, stride=(1, 2, 2))
-        self.layer3 = self._make_layer(DAF3D_ResNetDilatedBottleneck, block_inplanes[2], layers[2], 3, shortcut_type, stride=1)
-        self.layer4 = self._make_layer(DAF3D_ResNetDilatedBottleneck, block_inplanes[3], layers[3], 3, shortcut_type, stride=1)
+        self.layer3 = self._make_layer(
+            Daf3dResNetDilatedBottleneck, block_inplanes[2], layers[2], 3, shortcut_type, stride=1
+        )
+        self.layer4 = self._make_layer(
+            Daf3dResNetDilatedBottleneck, block_inplanes[3], layers[3], 3, shortcut_type, stride=1
+        )

@@ -58,8 +58,8 @@ from collections.abc import Callable
 import torch.nn.functional as F
 from torch import Tensor, nn
 
-from monai.networks.layers.factories import Conv, Pool
 from monai.networks.blocks.convolutions import Convolution
+from monai.networks.layers.factories import Conv, Pool
 
 __all__ = ["ExtraFPNBlock", "LastLevelMaxPool", "LastLevelP6P7", "FeaturePyramidNetwork"]
 
@@ -264,25 +264,33 @@ class FeaturePyramidNetwork(nn.Module):
 
         return out
 
-class DAF3D_FPN(FeaturePyramidNetwork):
+
+class Daf3dFPN(FeaturePyramidNetwork):
     def __init__(
-        self, 
+        self,
         spatial_dims: int,
         in_channels_list: list[int],
         out_channels: int,
-        extra_blocks: ExtraFPNBlock | None = None,):
-
+        extra_blocks: ExtraFPNBlock | None = None,
+    ):
         super().__init__(spatial_dims, in_channels_list, out_channels, extra_blocks)
 
         self.inner_blocks = nn.ModuleList()
         for in_channels in in_channels_list:
             if in_channels == 0:
                 raise ValueError("in_channels=0 is currently not supported")
-            inner_block_module = Convolution(spatial_dims, in_channels, out_channels, kernel_size=1, adn_ordering="NA", act="PRELU", norm=("group", {"num_groups": 32, "num_channels" : 128}))
+            inner_block_module = Convolution(
+                spatial_dims,
+                in_channels,
+                out_channels,
+                kernel_size=1,
+                adn_ordering="NA",
+                act="PRELU",
+                norm=("group", {"num_groups": 32, "num_channels": 128}),
+            )
             self.inner_blocks.append(inner_block_module)
 
     def forward(self, x: dict[str, Tensor]) -> dict[str, Tensor]:
-        
         # unpack OrderedDict into two lists for easier handling
         names = list(x.keys())
         x_values: list[Tensor] = list(x.values())
