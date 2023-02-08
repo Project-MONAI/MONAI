@@ -30,7 +30,7 @@ from monai.data.itk_torch_bridge import (
 from monai.networks.blocks import Warp
 from monai.transforms import Affine
 from monai.utils import optional_import
-from tests.utils import skip_if_downloading_fails, testing_data_config
+from tests.utils import skip_if_downloading_fails, skip_if_quick, testing_data_config
 
 itk, has_itk = optional_import("itk")
 
@@ -397,6 +397,7 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         np.testing.assert_allclose(translation, translation_result)
 
     @parameterized.expand([(2,), (3,)])
+    @skip_if_quick
     def test_random_array(self, ndim):
         # Create image/array with random size and pixel intensities
         s = torch.randint(low=2, high=20, size=(ndim,))
