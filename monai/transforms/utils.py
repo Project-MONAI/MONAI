@@ -401,7 +401,7 @@ def weighted_patch_samples(
 
     """
     if w is None:
-        raise ValueError("w must be an ND array.")
+        raise ValueError("w must be an ND array, got None.")
     if r_state is None:
         r_state = np.random.RandomState()
     img_size = np.asarray(w.shape, dtype=int)
@@ -447,7 +447,10 @@ def correct_crop_centers(
     spatial_size = fall_back_tuple(spatial_size, default=label_spatial_shape)
     if any(np.subtract(label_spatial_shape, spatial_size) < 0):
         if not allow_smaller:
-            raise ValueError("The size of the proposed random crop ROI is larger than the image size.")
+            raise ValueError(
+                "The size of the proposed random crop ROI is larger than the image size, "
+                f"got {label_spatial_shape} and {spatial_size} respectively."
+            )
         spatial_size = tuple(min(l, s) for l, s in zip(label_spatial_shape, spatial_size))
 
     # Select subregion to assure valid roi
@@ -555,12 +558,14 @@ def generate_label_classes_crop_centers(
         rand_state = np.random.random.__self__  # type: ignore
 
     if num_samples < 1:
-        raise ValueError("num_samples must be an int number and greater than 0.")
+        raise ValueError(f"num_samples must be an int number and greater than 0, got {num_samples}.")
     ratios_: list[float | int] = ([1] * len(indices)) if ratios is None else ratios
     if len(ratios_) != len(indices):
-        raise ValueError("random crop ratios must match the number of indices of classes.")
+        raise ValueError(
+            f"random crop ratios must match the number of indices of classes, got {len(ratios_)} and {len(indices)}."
+        )
     if any(i < 0 for i in ratios_):
-        raise ValueError("ratios should not contain negative number.")
+        raise ValueError(f"ratios should not contain negative number, got {ratios_}.")
 
     for i, array in enumerate(indices):
         if len(array) == 0:

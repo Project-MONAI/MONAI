@@ -206,12 +206,12 @@ class RandRicianNoise(RandomizableTransform):
                 img[i] = self._add_noise(d, mean=_mean[i], std=_std[i] * d.std() if self.relative else _std[i])
         else:
             if not isinstance(self.mean, (int, float)):
-                raise RuntimeError("If channel_wise is False, mean must be a float or int number.")
+                raise RuntimeError(f"If channel_wise is False, mean must be a float or int, got {type(self.mean)}.")
             if not isinstance(self.std, (int, float)):
-                raise RuntimeError("If channel_wise is False, std must be a float or int number.")
+                raise RuntimeError(f"If channel_wise is False, std must be a float or int, got {type(self.std)}.")
             std = self.std * img.std().item() if self.relative else self.std
             if not isinstance(std, (int, float)):
-                raise RuntimeError("std must be a float or int number.")
+                raise RuntimeError(f"std must be a float or int number, got {type(std)}.")
             img = self._add_noise(img, mean=self.mean, std=std)
         return img
 

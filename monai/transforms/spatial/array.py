@@ -1639,7 +1639,9 @@ class RandZoom(RandomizableTransform, InvertibleTransform):
         self.min_zoom = ensure_tuple(min_zoom)
         self.max_zoom = ensure_tuple(max_zoom)
         if len(self.min_zoom) != len(self.max_zoom):
-            raise AssertionError("min_zoom and max_zoom must have same length.")
+            raise ValueError(
+                f"min_zoom and max_zoom must have same length, got {len(self.min_zoom)} and {len(self.max_zoom)}."
+            )
         self.mode: InterpolateMode = look_up_option(mode, InterpolateMode)
         self.padding_mode = padding_mode
         self.align_corners = align_corners
