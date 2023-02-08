@@ -27,6 +27,7 @@ from monai.transforms import (
     Compose,
     EnsureChannelFirstd,
     IdentityD,
+    LoadImage,
     LoadImaged,
     Orientationd,
     RandCropByPosNegLabeld,
@@ -34,6 +35,7 @@ from monai.transforms import (
     ResizeWithPadOrCropD,
     SaveImage,
     ScaleIntensityd,
+    Spacingd,
 )
 from monai.utils import optional_import, set_determinism
 from tests.utils import DistTestCase, skip_if_quick
@@ -54,7 +56,13 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
         [
             LoadImaged(keys=["img", "seg"], reader=readers[0], image_only=True),
             EnsureChannelFirstd(keys=["img", "seg"]),
-            # Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"], dtype=np.float32),
+            Spacingd(
+                keys=["img", "seg"],
+                pixdim=[1.2, 0.8, 0.7],
+                mode=["bilinear", 0],
+                padding_mode=("zeros", "constant"),
+                dtype=np.float32,
+            ),
             Orientationd(keys=["img", "seg"], axcodes="ARS"),
             RandRotate90d(keys=["img", "seg"], prob=1.0, spatial_axes=(1, 2)),
             ScaleIntensityd(keys="img"),
@@ -66,12 +74,11 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
             ResizeWithPadOrCropD(keys=["img", "seg"], spatial_size=[32, 40, 48]),
         ],
         lazy_evaluation=lazy,
-        mode=(1, 0),
-        padding_mode="constant",
+        mode=("bilinear", 0),
+        padding_mode=("zeros", "constant"),
         lazy_keys=("img", "seg"),
         lazy_dtype=(torch.float32, torch.uint8),
     )
-    # train_transforms.set_random_state(1234)
 
     # create a training data loader
     if cachedataset == 2:
@@ -94,7 +101,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
         output_dir=os.path.join(root_dir, "output"),
         dtype=np.float32,
         output_ext=".nii.gz",
-        output_postfix="seg",
+        output_postfix=f"seg_{lazy}_{num_workers}",
         mode="bilinear",
         resample=False,
         separate_folder=False,
@@ -128,11 +135,15 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
                 item.copy_meta_from(in_img)
                 np.testing.assert_array_equal(item.pending_operations, [])
                 np.testing.assert_array_equal(in_seg.pending_operations, [])
-                np.testing.assert_allclose(len(item.applied_operations) > 1, True)
-                for idx, n in enumerate(item.applied_operations):  # noqa
-                    if n["class"] == "RandCropByPosNegLabel":
-                        break
-                ops = item.applied_operations[idx]["extra_info"]["extra_info"]["cropped"]
+                ops = [0]
+                if len(item.applied_operations) > 1:
+                    found = False
+                    for idx, n in enumerate(item.applied_operations):  # noqa
+                        if n["class"] == "RandCropByPosNegLabel":
+                            found = True
+                            break
+                    if found:
+                        ops = item.applied_operations[idx]["extra_info"]["extra_info"]["cropped"]
                 img_name = os.path.basename(item.meta["filename_or_obj"])
                 coords = f"{img_name} - {ops}"
                 print(coords)
@@ -150,7 +161,7 @@ class IntegrationLazyResampling(DistTestCase):
         set_determinism(seed=0)
 
         self.data_dir = tempfile.mkdtemp()
-        for i in range(2):
+        for i in range(3):
             im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1, channel_dim=-1)
             n = nib.Nifti1Image(im, np.eye(4))
             nib.save(n, os.path.join(self.data_dir, f"img{i:d}.nii.gz"))
@@ -171,16 +182,25 @@ class IntegrationLazyResampling(DistTestCase):
         elif idx == 2:
             _readers = ("itkreader", "nibabelreader")
         results = run_training_test(
-            self.data_dir, device=self.device, cachedataset=idx, readers=_readers, num_workers=0, lazy=False
+            self.data_dir, device=self.device, cachedataset=idx, readers=_readers, num_workers=0, lazy=True
         )
         results_expected = run_training_test(
-            self.data_dir, device=self.device, cachedataset=idx, readers=_readers, num_workers=2, lazy=True
+            self.data_dir, device=self.device, cachedataset=idx, readers=_readers, num_workers=0, lazy=False
         )
+        self.assertFalse(np.allclose(results, [0]))
+        self.assertFalse(np.allclose(results_expected, [0]))
         np.testing.assert_allclose(results, results_expected)
+        lazy_files = glob(os.path.join(self.data_dir, "output", "*_True_*.nii.gz"))
+        regular_files = glob(os.path.join(self.data_dir, "output", "*_False_*.nii.gz"))
+        for a, b in zip(sorted(lazy_files), sorted(regular_files)):
+            img_lazy = LoadImage(image_only=True)(a)
+            img_regular = LoadImage(image_only=True)(b)
+            diff = np.size(img_lazy) - np.sum(np.isclose(img_lazy, img_regular, atol=1e-4))
+            diff_rate = diff / np.size(img_lazy)
+            np.testing.assert_allclose(diff_rate, 0.0, atol=0.03)
         return results
 
     def test_training(self):
-        # for i in range(4):
         self.train_and_infer(0)
 
 
