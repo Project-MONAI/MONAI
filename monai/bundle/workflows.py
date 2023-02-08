@@ -17,10 +17,11 @@ from abc import ABC, abstractmethod
 from logging.config import fileConfig
 from pathlib import Path
 from typing import Any, Sequence
+
 from monai.apps.utils import get_logger
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import DEFAULT_EXP_MGMT_SETTINGS
-from monai.engines import Trainer, Evaluator
+from monai.engines import Evaluator, Trainer
 from monai.inferers import Inferer
 
 __all__ = ["BundleWorkflow", "ConfigWorkflow", "ConfigTrainWorkflow", "ConfigInferWorkflow"]
@@ -33,6 +34,7 @@ class BundleWorkflow(ABC):
     Base class for the workflow specification in bundle.
 
     """
+
     @abstractmethod
     def initialize(self, *args: Any, **kwargs: Any) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
@@ -54,6 +56,7 @@ class TrainProperties(ABC):
     "val_dataset", "val_dataset_data".
 
     """
+
     @property
     def bundle_root(self) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
@@ -157,6 +160,7 @@ class InferProperties(ABC):
     Subclass must implement the logic for properties: "bundle_root", "device", "network_def", "inferer".
 
     """
+
     @property
     def bundle_root(self) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
@@ -297,16 +301,10 @@ class ConfigTrainWorkflow(ConfigWorkflow, TrainProperties):
         "train#dataset#data",
         "train#handlers",
     ]
-    val_ids = [
-        "validate#evaluator",
-        "validate#handlers",
-        "validate#dataset",
-        "validate#dataset#data",
-    ]
+    val_ids = ["validate#evaluator", "validate#handlers", "validate#dataset", "validate#dataset#data"]
 
     def check(self) -> bool:
-        return self.check_required_ids(self.train_ids, self.parser) & \
-            self.check_required_ids(self.val_ids, self.parser)
+        return self.check_required_ids(self.train_ids, self.parser) & self.check_required_ids(self.val_ids, self.parser)
 
     @property
     def bundle_root(self) -> bool:

@@ -35,7 +35,7 @@ from monai.bundle.workflows import ConfigWorkflow
 from monai.config import IgniteInfo, PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
 from monai.networks import convert_to_torchscript, copy_model_state, get_state_dict, save_state
-from monai.utils import check_parent_dir, get_equivalent_dtype, min_version, optional_import
+from monai.utils import check_parent_dir, deprecated_arg, get_equivalent_dtype, min_version, optional_import
 from monai.utils.misc import ensure_tuple
 
 validate, _ = optional_import("jsonschema", name="validate")
@@ -572,11 +572,16 @@ def get_bundle_info(
     return bundle_info[version]
 
 
+@deprecated_arg(
+    name="runner_id",
+    since="1.1",
+    msg_suffix="please clearly define `initialize`, `run`, `finalize` expression sections in the bundle config.",
+)
 def run(
+    runner_id: str | None = None,
     meta_file: str | Sequence[str] | None = None,
     config_file: str | Sequence[str] | None = None,
     logging_file: str | None = None,
-    runner_id: str | None = None,
     tracking: str | dict | None = None,
     args_file: str | None = None,
     **override: Any,
@@ -605,12 +610,12 @@ def run(
         python -m monai.bundle run --args_file "/workspace/data/args.json" --config_file <config path>
 
     Args:
+        runner_id: ID name of the expected config expression to run, default to "run".
         meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
         config_file: filepath of the config file, if `None`, must be provided in `args_file`.
             if it is a list of file paths, the content of them will be merged.
         logging_file: config file for `logging` module in the program, default to `None`. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
-        runner_id: ID name of the expected config expression to run, default to "run".
         tracking: enable the experiment tracking feature at runtime with optionally configurable and extensible.
             if "mlflow", will add `MLFlowHandler` to the parsed bundle with default logging settings,
             if other string, treat it as file path to load the logging settings, if `dict`,
@@ -673,10 +678,10 @@ def run(
 
     _args = _update_args(
         args=args_file,
+        runner_id=runner_id,
         meta_file=meta_file,
         config_file=config_file,
         logging_file=logging_file,
-        runner_id=runner_id,
         tracking=tracking,
         **override,
     )

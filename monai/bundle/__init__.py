@@ -10,6 +10,7 @@
 # limitations under the License.
 
 from __future__ import annotations
+
 from .bundle import Bundle, ConfigBundle
 from .config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem, Instantiable
 from .config_parser import ConfigParser
@@ -35,4 +36,4 @@ from .utils import (
     MACRO_KEY,
     load_bundle_config,
 )
-from .workflows import BundleWorkflow, ConfigWorkflow, ConfigTrainWorkflow, ConfigInferWorkflow
+from .workflows import BundleWorkflow, ConfigInferWorkflow, ConfigTrainWorkflow, ConfigWorkflow

@@ -9,7 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from abc import ABC
+
 from monai.apps.utils import get_logger
 
 __all__ = ["Bundle", "ConfigBundle"]
@@ -22,6 +25,7 @@ class Bundle(ABC):
     Base class for the bundle structure.
 
     """
+
     def __init__(self, root: str) -> None:
         self.root = root
 
