@@ -594,7 +594,7 @@ def save_obj(
         pass
 
 
-def label_union(x: list) -> list:
+def label_union(x: list | np.ndarray) -> list:
     """
     Compute the union of class IDs in label and generate a list to include all class IDs
     Args:

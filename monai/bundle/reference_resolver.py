@@ -59,8 +59,8 @@ class ReferenceResolver:
 
     def __init__(self, items: Sequence[ConfigItem] | None = None):
         # save the items in a dictionary with the `ConfigItem.id` as key
-        self.items: dict[str, Any] = {} if items is None else {i.get_id(): i for i in items}
-        self.resolved_content: dict[str, Any] = {}
+        self.items: dict[str, ConfigItem] = {} if items is None else {i.get_id(): i for i in items}
+        self.resolved_content: dict[str, ConfigExpression | str | Any | None] = {}
 
     def reset(self):
         """
@@ -73,7 +73,7 @@ class ReferenceResolver:
     def is_resolved(self) -> bool:
         return bool(self.resolved_content)
 
-    def add_item(self, item: ConfigItem):
+    def add_item(self, item: ConfigItem) -> None:
         """
         Add a ``ConfigItem`` to the resolver.
 
@@ -86,7 +86,7 @@ class ReferenceResolver:
             return
         self.items[id] = item
 
-    def get_item(self, id: str, resolve: bool = False, **kwargs):
+    def get_item(self, id: str, resolve: bool = False, **kwargs: Any) -> ConfigItem | None:
         """
         Get the ``ConfigItem`` by id.
 
@@ -103,7 +103,9 @@ class ReferenceResolver:
             self._resolve_one_item(id=id, **kwargs)
         return self.items.get(id)
 
-    def _resolve_one_item(self, id: str, waiting_list: set[str] | None = None, **kwargs):
+    def _resolve_one_item(
+        self, id: str, waiting_list: set[str] | None = None, **kwargs: Any
+    ) -> ConfigExpression | str | Any | None:
         """
         Resolve and return one ``ConfigItem`` of ``id``, cache the resolved result in ``resolved_content``.
         If it has unresolved references, recursively resolve the referring items first.
@@ -173,7 +175,7 @@ class ReferenceResolver:
             self.resolved_content[id] = new_config
         return self.resolved_content[id]
 
-    def get_resolved_content(self, id: str, **kwargs):
+    def get_resolved_content(self, id: str, **kwargs: Any) -> ConfigExpression | str | Any | None:
         """
         Get the resolved ``ConfigItem`` by id.
 
@@ -247,7 +249,7 @@ class ReferenceResolver:
         return value
 
     @classmethod
-    def find_refs_in_config(cls, config, id: str, refs: dict[str, int] | None = None) -> dict[str, int]:
+    def find_refs_in_config(cls, config: Any, id: str, refs: dict[str, int] | None = None) -> dict[str, int]:
         """
         Recursively search all the content of input config item to get the ids of references.
         References mean: the IDs of other config items (``"@XXX"`` in this config item), or the
@@ -274,7 +276,7 @@ class ReferenceResolver:
         return refs_
 
     @classmethod
-    def update_config_with_refs(cls, config, id: str, refs: dict | None = None):
+    def update_config_with_refs(cls, config: Any, id: str, refs: dict | None = None) -> Any:
         """
         With all the references in ``refs``, update the input config content with references
         and return the new config.

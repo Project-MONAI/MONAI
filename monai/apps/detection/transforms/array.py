@@ -15,12 +15,12 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 from __future__ import annotations
 
-from typing import Callable, Sequence
+from typing import Any, Sequence
 
 import numpy as np
 import torch
 
-from monai.config.type_definitions import NdarrayOrTensor
+from monai.config.type_definitions import DtypeLike, NdarrayOrTensor, NdarrayTensor
 from monai.data.box_utils import (
     BoxMode,
     clip_boxes_to_image,
@@ -202,12 +202,12 @@ class ZoomBox(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, zoom: Sequence[float] | float, keep_size: bool = False, **kwargs) -> None:
+    def __init__(self, zoom: Sequence[float] | float, keep_size: bool = False, **kwargs: Any) -> None:
         self.zoom = zoom
         self.keep_size = keep_size
         self.kwargs = kwargs
 
-    def __call__(self, boxes: torch.Tensor, src_spatial_size: Sequence[int] | int | None = None):
+    def __call__(self, boxes: NdarrayTensor, src_spatial_size: Sequence[int] | int | None = None) -> NdarrayTensor:
         """
         Args:
             boxes: source bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
@@ -262,11 +262,11 @@ class ResizeBox(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, spatial_size: Sequence[int] | int, size_mode: str = "all", **kwargs) -> None:
+    def __init__(self, spatial_size: Sequence[int] | int, size_mode: str = "all", **kwargs: Any) -> None:
         self.size_mode = look_up_option(size_mode, ["all", "longest"])
         self.spatial_size = spatial_size
 
-    def __call__(self, boxes: NdarrayOrTensor, src_spatial_size: Sequence[int] | int):  # type: ignore
+    def __call__(self, boxes: NdarrayOrTensor, src_spatial_size: Sequence[int] | int) -> NdarrayOrTensor:  # type: ignore[override]
         """
         Args:
             boxes: source bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
@@ -424,7 +424,12 @@ class MaskToBox(Transform):
 
     backend = [TransformBackends.NUMPY]
 
-    def __init__(self, bg_label: int = -1, box_dtype=torch.float32, label_dtype=torch.long) -> None:
+    def __init__(
+        self,
+        bg_label: int = -1,
+        box_dtype: DtypeLike | torch.dtype = torch.float32,
+        label_dtype: DtypeLike | torch.dtype = torch.long,
+    ) -> None:
         self.bg_label = bg_label
         self.box_dtype = box_dtype
         self.label_dtype = label_dtype
@@ -483,7 +488,9 @@ class SpatialCropBox(SpatialCrop):
             if s.start < 0 or s.stop < 0 or (s.step is not None and s.step < 0):
                 raise ValueError("Currently negative indexing is not supported for SpatialCropBox.")
 
-    def __call__(self, boxes: NdarrayOrTensor, labels: Sequence[NdarrayOrTensor] | NdarrayOrTensor):  # type: ignore
+    def __call__(  # type: ignore[override]
+        self, boxes: NdarrayTensor, labels: Sequence[NdarrayOrTensor] | NdarrayOrTensor
+    ) -> tuple[NdarrayTensor, tuple | NdarrayOrTensor]:
         """
         Args:
             boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
@@ -526,11 +533,9 @@ class RotateBox90(Rotate90):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __call__(self, boxes: NdarrayOrTensor, spatial_size: Sequence[int] | int):  # type: ignore
+    def __call__(self, boxes: NdarrayTensor, spatial_size: Sequence[int] | int) -> NdarrayTensor:  # type: ignore[override]
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
-        rot90: Callable = rot90_boxes
-        out: NdarrayOrTensor = rot90(boxes, spatial_size, self.k, self.spatial_axes)
-        return out
+        return rot90_boxes(boxes, spatial_size, self.k, self.spatial_axes)

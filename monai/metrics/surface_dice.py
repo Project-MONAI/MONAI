@@ -67,7 +67,7 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         r"""
         Args:
             y_pred: Predicted segmentation, typically segmentation model output.
@@ -87,7 +87,9 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
             distance_metric=self.distance_metric,
         )
 
-    def aggregate(self, reduction: MetricReduction | str | None = None):
+    def aggregate(
+        self, reduction: MetricReduction | str | None = None
+    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         r"""
         Aggregates the output of `_compute_tensor`.
 
@@ -115,7 +117,7 @@ def compute_surface_dice(
     class_thresholds: list[float],
     include_background: bool = False,
     distance_metric: str = "euclidean",
-):
+) -> torch.Tensor:
     r"""
     This function computes the (Normalized) Surface Dice (NSD) between the two tensors `y_pred` (referred to as
     :math:`\hat{Y}`) and `y` (referred to as :math:`Y`). This metric determines which fraction of a segmentation

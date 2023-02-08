@@ -185,7 +185,7 @@ class SupervisedTrainer(Trainer):
         self.inferer = SimpleInferer() if inferer is None else inferer
         self.optim_set_to_none = optim_set_to_none
 
-    def _iteration(self, engine: SupervisedTrainer, batchdata: dict[str, torch.Tensor]):
+    def _iteration(self, engine: SupervisedTrainer, batchdata: dict[str, torch.Tensor]) -> dict:
         """
         Callback function for the Supervised Training processing logic of 1 iteration in Ignite Engine.
         Return below items in a dictionary:

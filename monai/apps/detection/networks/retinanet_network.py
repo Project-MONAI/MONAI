@@ -46,7 +46,7 @@ from typing import Dict
 import torch
 from torch import Tensor, nn
 
-from monai.networks.blocks.backbone_fpn_utils import _resnet_fpn_extractor
+from monai.networks.blocks.backbone_fpn_utils import BackboneWithFPN, _resnet_fpn_extractor
 from monai.networks.layers.factories import Conv
 from monai.networks.nets import resnet
 from monai.utils import ensure_tuple_rep, look_up_option, optional_import
@@ -264,7 +264,7 @@ class RetinaNet(nn.Module):
         spatial_dims: int,
         num_classes: int,
         num_anchors: int,
-        feature_extractor,
+        feature_extractor: nn.Module,
         size_divisible: Sequence[int] | int = 1,
     ):
         super().__init__()
@@ -281,7 +281,7 @@ class RetinaNet(nn.Module):
             )
         self.feature_extractor = feature_extractor
 
-        self.feature_map_channels: int = self.feature_extractor.out_channels
+        self.feature_map_channels: int = self.feature_extractor.out_channels  # type: ignore[assignment]
         self.num_anchors = num_anchors
         self.classification_head = RetinaNetClassificationHead(
             self.feature_map_channels, self.num_anchors, self.num_classes, spatial_dims=self.spatial_dims
@@ -335,7 +335,7 @@ def resnet_fpn_feature_extractor(
     pretrained_backbone: bool = False,
     returned_layers: Sequence[int] = (1, 2, 3),
     trainable_backbone_layers: int | None = None,
-):
+) -> BackboneWithFPN:
     """
     Constructs a feature extractor network with a ResNet-FPN backbone, used as feature_extractor in RetinaNet.
 
