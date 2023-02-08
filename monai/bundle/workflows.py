@@ -48,7 +48,7 @@ class BundleWorkflow(ABC):
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
 
-class TrainProperties(ABC):
+class TrainProperties:
     """
     Interface to get / set required properties for the training process in bundle.
     Subclass must implement the logic for properties: "bundle_root", "device", "dataset_dir", "trainer",
@@ -154,7 +154,7 @@ class TrainProperties(ABC):
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
 
-class InferProperties(ABC):
+class InferProperties:
     """
     Interface to get / set required properties for the inference process in bundle.
     Subclass must implement the logic for properties: "bundle_root", "device", "network_def", "inferer".
