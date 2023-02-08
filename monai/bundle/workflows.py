@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import time
 from abc import ABC, abstractmethod
@@ -52,122 +54,98 @@ class TrainProperties(ABC):
     "val_dataset", "val_dataset_data".
 
     """
-    @abstractmethod
     @property
     def bundle_root(self) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
     @bundle_root.setter
     def bundle_root(self, path: str) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
     @property
     def device(self) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
     @device.setter
     def device(self, name: str) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
     @property
     def dataset_dir(self) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
     @dataset_dir.setter
     def dataset_dir(self, path: str) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
     @property
     def trainer(self) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
     @trainer.setter
     def trainer(self, trainer: Trainer | dict) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
     @property
     def max_epochs(self) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
     @max_epochs.setter
     def max_epochs(self, max_epochs: int) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
     @property
     def train_dataset(self) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
     @train_dataset.setter
     def train_dataset(self, dataset: Any) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
     @property
     def train_dataset_data(self) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
     @train_dataset_data.setter
     def train_dataset_data(self, data: Any) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
     @property
     def train_handlers(self) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
     @train_handlers.setter
     def train_handlers(self, handlers: list) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
     @property
     def evaluator(self) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
     @evaluator.setter
     def evaluator(self, evaluator: Evaluator | dict) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
     @property
     def val_handlers(self) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
     @val_handlers.setter
     def val_handlers(self, handlers: list) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
     @property
     def val_dataset(self) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
     @val_dataset.setter
     def val_dataset(self, dataset: Any) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
     @property
     def val_dataset_data(self) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
     @val_dataset_data.setter
     def val_dataset_data(self, data: Any) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
@@ -179,42 +157,34 @@ class InferProperties(ABC):
     Subclass must implement the logic for properties: "bundle_root", "device", "network_def", "inferer".
 
     """
-    @abstractmethod
     @property
     def bundle_root(self) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
     @bundle_root.setter
     def bundle_root(self, str) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
     @property
     def device(self) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
     @device.setter
     def device(self, name: str) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
     @property
     def network_def(self) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
     @network_def.setter
     def network_def(self, net: dict) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
     @property
     def inferer(self) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
     @inferer.setter
     def inferer(self, inferer: Inferer | dict) -> bool:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")

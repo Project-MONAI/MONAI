@@ -60,7 +60,7 @@ class TestBundleRun(unittest.TestCase):
                 },
                 f,
             )
-        cmd = ["coverage", "run", "-m", "monai.bundle", "run", "training", "--config_file", config_file]
+        cmd = ["coverage", "run", "-m", "monai.bundle", "run", "--runner_id", "training", "--config_file", config_file]
         command_line_tests(cmd)
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
@@ -112,7 +112,7 @@ class TestBundleRun(unittest.TestCase):
         else:
             override = f"--network %{overridefile1}#move_net --dataset#_target_ %{overridefile2}"
         # test with `monai.bundle` as CLI entry directly
-        cmd = "-m monai.bundle run evaluating --postprocessing#transforms#2#output_postfix seg"
+        cmd = "-m monai.bundle run --runner_id evaluating --postprocessing#transforms#2#output_postfix seg"
         cmd += f" {override} --no_epoch False --output_dir {tempdir}"
         la = ["coverage", "run"] + cmd.split(" ") + ["--meta_file", meta_file] + ["--config_file", config_file]
         test_env = os.environ.copy()

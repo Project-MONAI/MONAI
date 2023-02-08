@@ -580,7 +580,7 @@ def run(
     tracking: str | dict | None = None,
     args_file: str | None = None,
     **override: Any,
-) -> list:
+) -> None:
     """
     Specify `meta_file` and `config_file` to run monai bundle components and workflows.
 
@@ -690,7 +690,7 @@ def run(
         meta_file=meta_file_,
         config_file=config_file_,
         logging_file=logging_file_,
-        run_id=runner_id,
+        run_id=runner_id_,
         tracking=tracking_,
         **_args,
     )
