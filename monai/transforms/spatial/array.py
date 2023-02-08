@@ -553,7 +553,7 @@ class Spacing(InvertibleTransform):
             input_affine = np.eye(sr + 1, dtype=np.float64)
         affine_ = to_affine_nd(sr, convert_data_type(input_affine, np.ndarray)[0])
 
-        out_d = self.pixdim[:sr]
+        out_d = self.pixdim[:sr].copy()
         if out_d.size < sr:
             out_d = np.append(out_d, [out_d[-1]] * (sr - out_d.size))
 
