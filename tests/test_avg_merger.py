@@ -21,7 +21,7 @@ from tests.utils import assert_allclose
 
 TENSOR_4x4 = torch.randint(low=0, high=255, size=(2, 3, 4, 4), dtype=torch.float32)
 TENSOR_4x4_WITH_NAN = TENSOR_4x4.clone()
-TENSOR_4x4_WITH_NAN[..., 2:, 2:] = torch.nan
+TENSOR_4x4_WITH_NAN[..., 2:, 2:] = float("nan")
 
 # no-overlapping 2x2
 TEST_CASE_SAME_SIZE_0 = [

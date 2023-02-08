@@ -126,7 +126,7 @@ def is_immutable(obj: Any) -> bool:
     return isinstance(obj, (type(None), int, float, bool, complex, str, tuple, bytes, type, range, slice))
 
 
-def ensure_tuple(vals: Any, wrap_array: bool = False) -> tuple[Any, ...]:
+def ensure_tuple(vals: Any, wrap_array: bool = False) -> tuple:
     """
     Returns a tuple of `vals`.
 
@@ -141,11 +141,11 @@ def ensure_tuple(vals: Any, wrap_array: bool = False) -> tuple[Any, ...]:
     return tuple(vals) if issequenceiterable(vals) else (vals,)
 
 
-def ensure_tuple_size(tup: Any, dim: int, pad_val: Any = 0, pad_from_start: bool = False) -> tuple[Any, ...]:
+def ensure_tuple_size(vals: Any, dim: int, pad_val: Any = 0, pad_from_start: bool = False) -> tuple:
     """
     Returns a copy of `tup` with `dim` values by either shortened or padded with `pad_val` as necessary.
     """
-    tup = ensure_tuple(tup)
+    tup = ensure_tuple(vals)
     pad_dim = dim - len(tup)
     if pad_dim <= 0:
         return tup[:dim]
