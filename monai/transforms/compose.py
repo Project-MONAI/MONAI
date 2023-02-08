@@ -38,7 +38,7 @@ from monai.utils import MAX_SEED, GridSampleMode, GridSamplePadMode, TraceKeys, 
 __all__ = ["Compose", "OneOf", "RandomOrder"]
 
 
-def eval_lazy_stack(
+def _eval_lazy_stack(
     data,
     upcoming,
     lazy_evaluation: bool | None = False,
@@ -73,12 +73,12 @@ def eval_lazy_stack(
             _keys = [k if k in data else None for k in keys]  # type: ignore
         for k, m, p, dt, dve in zip(_keys, _mode, _padding_mode, _dtype, _device):
             if k is not None:
-                data[k] = eval_lazy_stack(
+                data[k] = _eval_lazy_stack(
                     data[k], upcoming, lazy_evaluation, mode=m, padding_mode=p, dtype=dt, device=dve
                 )
         return data
     if isinstance(data, (list, tuple)):
-        return [eval_lazy_stack(v, upcoming, lazy_evaluation, mode, padding_mode, keys, dtype, device) for v in data]
+        return [_eval_lazy_stack(v, upcoming, lazy_evaluation, mode, padding_mode, keys, dtype, device) for v in data]
     return data
 
 
@@ -234,8 +234,9 @@ class Compose(Randomizable, InvertibleTransform):
         """Return number of transformations."""
         return len(self.flatten().transforms)
 
-    def __call__(self, input_):
-        kwargs = {
+    def lazy_config(self):
+        """Return the lazy config to be passed to eval_lazy_stack."""
+        return {
             "lazy_evaluation": self.lazy_evaluation,
             "mode": self.mode,
             "padding_mode": self.padding_mode,
@@ -243,10 +244,15 @@ class Compose(Randomizable, InvertibleTransform):
             "dtype": self.lazy_dtype,
             "device": self.lazy_device,
         }
+
+    def eval_lazy_stack(self, input_, upcoming_xform):
+        return _eval_lazy_stack(input_, None, **self.lazy_config())
+
+    def __call__(self, input_):
         for _transform in self.transforms:
-            input_ = eval_lazy_stack(input_, _transform, **kwargs)
+            input_ = self.eval_lazy_stack(input_, _transform)
             input_ = apply_transform(_transform, input_, self.map_items, self.unpack_items, self.log_stats)
-        input_ = eval_lazy_stack(input_, None, **kwargs)
+        input_ = self.eval_lazy_stack(input_, None)
         return input_
 
     def inverse(self, data):
