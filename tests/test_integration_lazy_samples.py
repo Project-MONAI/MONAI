@@ -60,22 +60,23 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
                 keys=["img", "seg"],
                 pixdim=[1.2, 0.8, 0.7],
                 mode=["bilinear", 0],
-                padding_mode=("zeros", "constant"),
+                padding_mode=("border", "nearest"),
                 dtype=np.float32,
             ),
             Orientationd(keys=["img", "seg"], axcodes="ARS"),
             RandRotate90d(keys=["img", "seg"], prob=1.0, spatial_axes=(1, 2)),
             ScaleIntensityd(keys="img"),
-            IdentityD(keys="seg"),
+            IdentityD(keys=["seg"]),
             RandCropByPosNegLabeld(
-                keys=["img", "seg"], label_key="seg", spatial_size=[32, 40, 41], pos=1, neg=1, num_samples=4
+                keys=["img", "seg"], label_key="seg", spatial_size=[77, 82, 80], pos=1, neg=1, num_samples=4
             ),
+            IdentityD(keys=["img", "seg"]),
             RandRotate90d(keys=["img", "seg"], prob=0.8, spatial_axes=[0, 2]),
-            ResizeWithPadOrCropD(keys=["img", "seg"], spatial_size=[32, 40, 48]),
+            ResizeWithPadOrCropD(keys=["img", "seg"], spatial_size=[80, 72, 80]),
         ],
         lazy_evaluation=lazy,
         mode=("bilinear", 0),
-        padding_mode=("zeros", "constant"),
+        padding_mode=("border", "nearest"),
         lazy_keys=("img", "seg"),
         lazy_dtype=(torch.float32, torch.uint8),
     )
@@ -83,7 +84,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
     # create a training data loader
     if cachedataset == 2:
         train_ds = monai.data.CacheDataset(
-            data=train_files, transform=train_transforms, cache_rate=0.8, runtime_cache="process"
+            data=train_files, transform=train_transforms, cache_rate=0.8, runtime_cache=False, num_workers=0
         )
     elif cachedataset == 3:
         train_ds = monai.data.LMDBDataset(data=train_files, transform=train_transforms, cache_dir=root_dir)
@@ -113,10 +114,10 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
     _g.manual_seed(0)
     set_determinism(0)
     train_loader = monai.data.DataLoader(
-        train_ds, batch_size=2, shuffle=True, num_workers=num_workers, generator=_g, persistent_workers=num_workers > 0
+        train_ds, batch_size=1, shuffle=True, num_workers=num_workers, generator=_g, persistent_workers=num_workers > 0
     )
     all_coords = set()
-    for epoch in range(3):
+    for epoch in range(5):
         print("-" * 10)
         print(f"Epoch {epoch + 1}/5")
         step = 0
@@ -149,7 +150,8 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
                 print(coords)
                 np.testing.assert_allclose(coords in all_coords, False)
                 all_coords.add(coords)
-                saver(item)
+                saver(item)  # just testing the saving
+                saver(in_img)
                 saver(in_seg)
     return ops
 
@@ -185,23 +187,27 @@ class IntegrationLazyResampling(DistTestCase):
             self.data_dir, device=self.device, cachedataset=idx, readers=_readers, num_workers=0, lazy=True
         )
         results_expected = run_training_test(
-            self.data_dir, device=self.device, cachedataset=idx, readers=_readers, num_workers=0, lazy=False
+            self.data_dir, device=self.device, cachedataset=0, readers=_readers, num_workers=0, lazy=False
         )
         self.assertFalse(np.allclose(results, [0]))
         self.assertFalse(np.allclose(results_expected, [0]))
         np.testing.assert_allclose(results, results_expected)
         lazy_files = glob(os.path.join(self.data_dir, "output", "*_True_*.nii.gz"))
         regular_files = glob(os.path.join(self.data_dir, "output", "*_False_*.nii.gz"))
+        diffs = []
         for a, b in zip(sorted(lazy_files), sorted(regular_files)):
             img_lazy = LoadImage(image_only=True)(a)
             img_regular = LoadImage(image_only=True)(b)
             diff = np.size(img_lazy) - np.sum(np.isclose(img_lazy, img_regular, atol=1e-4))
             diff_rate = diff / np.size(img_lazy)
+            diffs.append(diff_rate)
             np.testing.assert_allclose(diff_rate, 0.0, atol=0.03)
+        print("volume diff:", diffs)
         return results
 
     def test_training(self):
-        self.train_and_infer(0)
+        for i in range(4):
+            self.train_and_infer(i)
 
 
 if __name__ == "__main__":

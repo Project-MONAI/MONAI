@@ -324,6 +324,7 @@ class PersistentDataset(Dataset):
             _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
             item_transformed = self.transform.eval_lazy_stack(item_transformed, _xform)
             item_transformed = apply_transform(_xform, item_transformed)
+        item_transformed = self.transform.eval_lazy_stack(item_transformed, None)
         if self.reset_ops_id:
             reset_ops_id(item_transformed)
         return item_transformed
@@ -351,6 +352,7 @@ class PersistentDataset(Dataset):
                 start_post_randomize_run = True
                 item_transformed = self.transform.eval_lazy_stack(item_transformed, _transform)
                 item_transformed = apply_transform(_transform, item_transformed)
+        item_transformed = self.transform.eval_lazy_stack(item_transformed, None)
         return item_transformed
 
     def _cachecheck(self, item_transformed):
@@ -500,6 +502,7 @@ class CacheNTransDataset(PersistentDataset):
             _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
             item_transformed = self.transform.eval_lazy_stack(item_transformed, _xform)
             item_transformed = apply_transform(_xform, item_transformed)
+        item_transformed = self.transform.eval_lazy_stack(item_transformed, None)
         reset_ops_id(item_transformed)
         return item_transformed
 
@@ -519,6 +522,7 @@ class CacheNTransDataset(PersistentDataset):
             if i >= self.cache_n_trans:
                 item_transformed = self.transform.eval_lazy_stack(item_transformed, item_transformed)
                 item_transformed = apply_transform(_transform, item_transformed)
+        item_transformed = self.transform.eval_lazy_stack(item_transformed, None)
         return item_transformed
 
 
@@ -890,6 +894,7 @@ class CacheDataset(Dataset):
             _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
             item = self.transform.eval_lazy_stack(item, _xform)
             item = apply_transform(_xform, item)
+        item = self.transform.eval_lazy_stack(item, None)
         if self.as_contiguous:
             item = convert_to_contiguous(item, memory_format=torch.contiguous_format)
         return item
@@ -928,6 +933,7 @@ class CacheDataset(Dataset):
                         data = deepcopy(data)
                 data = self.transform.eval_lazy_stack(data, _transform)
                 data = apply_transform(_transform, data)
+        data = self.transform.eval_lazy_stack(data, None)
         return data
 
 

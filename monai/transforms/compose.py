@@ -246,7 +246,7 @@ class Compose(Randomizable, InvertibleTransform):
         }
 
     def eval_lazy_stack(self, input_, upcoming_xform):
-        return _eval_lazy_stack(input_, None, **self.lazy_config())
+        return _eval_lazy_stack(input_, upcoming_xform, **self.lazy_config())
 
     def __call__(self, input_):
         for _transform in self.transforms:
