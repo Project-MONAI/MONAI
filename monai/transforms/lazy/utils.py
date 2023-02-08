@@ -187,3 +187,10 @@ class MetaMatrix:
         else:
             other_ = other
         return MetaMatrix(other_ @ self.matrix)
+
+    def invert(self):
+        self.matrix.data = torch.inverse(self.matrix.data)
+        self.metadata[LazyAttr.IN_DTYPE], self.metadata[LazyAttr.OUT_DTYPE] =\
+            self.metadata[LazyAttr.OUT_DTYPE], self.metadata[LazyAttr.IN_DTYPE]
+        self.metadata[LazyAttr.IN_SHAPE], self.metadata[LazyAttr.OUT_SHAPE] =\
+            self.metadata[LazyAttr.OUT_SHAPE], self.metadata[LazyAttr.IN_SHAPE]

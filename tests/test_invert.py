@@ -44,17 +44,19 @@ class TestInvert(unittest.TestCase):
         set_determinism(seed=0)
         im_fname = make_nifti_image(create_test_image_3d(101, 100, 107, noise_max=100)[1])  # label image, discrete
         data = [im_fname for _ in range(12)]
+        lazy = False
         transform = Compose(
             [
                 LoadImage(image_only=True),
                 EnsureChannelFirst(),
-                Orientation("RPS"),
-                Spacing(pixdim=(1.2, 1.01, 0.9), mode="bilinear", dtype=np.float32),
-                RandFlip(prob=0.5, spatial_axis=[1, 2]),
-                RandAxisFlip(prob=0.5),
-                RandRotate90(prob=0, spatial_axes=(1, 2)),
-                RandZoom(prob=0.5, min_zoom=0.5, max_zoom=1.1, keep_size=True),
-                RandRotate(prob=0.5, range_x=np.pi, mode="bilinear", align_corners=True, dtype=np.float64),
+                # Orientation("RPS"),
+                Spacing(pixdim=(1.2, 1.01, 0.9), mode="bilinear", dtype=np.float32, lazy_evaluation=lazy),
+                RandFlip(prob=0.5, spatial_axis=[1, 2], lazy_evaluation=lazy),
+                RandAxisFlip(prob=0.5, lazy_evaluation=lazy),
+                RandRotate90(prob=0, spatial_axes=(1, 2), lazy_evaluation=lazy),
+                RandZoom(prob=0.5, min_zoom=0.5, max_zoom=1.1, keep_size=True, lazy_evaluation=lazy),
+                RandRotate(prob=0.5, range_x=np.pi, mode="bilinear", align_corners=True, dtype=np.float64,
+                           lazy_evaluation=lazy),
                 RandAffine(prob=0.5, rotate_range=np.pi, mode="nearest"),
                 ResizeWithPadOrCrop(100),
                 CastToType(dtype=torch.uint8),

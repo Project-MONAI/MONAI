@@ -45,8 +45,9 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = 
         "padding_mode": kwargs.pop(LazyAttr.PADDING_MODE, None),
     }
     resampler = Resampler(affine=matrix, image_only=True, **init_kwargs)
-    with resampler.trace_transform(False):  # don't track this transform in `data`
-        return resampler(img=data, **call_kwargs)
+    # with resampler.trace_transform(False):  # don't track this transform in `data`
+    #     return resampler(img=data, **call_kwargs)
+    return resampler(img=data, **call_kwargs)
 
 
 class ResampleImpl:
@@ -444,14 +445,14 @@ class Resampler:
         _padding_mode = padding_mode if padding_mode is not None else self.padding_mode
         grid, affine = self.affine_grid(spatial_size=sp_size)
         out = self.resampler(img, grid=grid, mode=_mode, padding_mode=_padding_mode)
-        if not isinstance(out, MetaTensor):
-            return out if self.image_only else (out, affine)
-        if get_track_meta():
-            out.meta = img.meta  # type: ignore
-            self.update_meta(out, affine, img_size, sp_size)
-            self.push_transform(
-                out, orig_size=img_size, extra_info={"affine": affine, "mode": _mode, "padding_mode": _padding_mode}
-            )
+        # if not isinstance(out, MetaTensor):
+        #     return out if self.image_only else (out, affine)
+        # if get_track_meta():
+        #     out.meta = img.meta  # type: ignore
+        #     self.update_meta(out, affine, img_size, sp_size)
+        #     self.push_transform(
+        #         out, orig_size=img_size, extra_info={"affine": affine, "mode": _mode, "padding_mode": _padding_mode}
+        #     )
         return out if self.image_only else (out, affine)
 
     @classmethod
