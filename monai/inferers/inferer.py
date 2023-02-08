@@ -177,7 +177,7 @@ class PatchInferer(Inferer):
         # ensure we have a tuple of model outputs to support multiple outputs
         return self._ensure_tuple_outputs(outputs)
 
-    def _initialize_mergers(self, inputs, outputs, patches, batch_size) -> list:
+    def _initialize_mergers(self, inputs, outputs, patches, batch_size):
         in_patch = torch.chunk(patches, batch_size)[0]
         ratios = []
         for merger, out_patch_batch in zip(self.mergers, outputs):
@@ -191,11 +191,11 @@ class PatchInferer(Inferer):
                 merger.initialize(output_shape)
         return ratios
 
-    def _get_ratio(self, in_patch, out_patch) -> tuple:
+    def _get_ratio(self, in_patch, out_patch):
         """Define the shape of output merged tensors"""
         return tuple(op / ip for ip, op in zip(in_patch.shape[2:], out_patch.shape[2:]))
 
-    def _get_output_shape(self, inputs, out_patch, ratio) -> tuple:
+    def _get_output_shape(self, inputs, out_patch, ratio):
         """Define the shape of output merged tensors"""
         in_spatial_shape = inputs.shape[2:]
         out_spatial_shape = tuple(round(s * r) for s, r in zip(in_spatial_shape, ratio))
