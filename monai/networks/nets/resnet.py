@@ -469,8 +469,8 @@ class Daf3dResNetDilatedBottleneck(Daf3dResNetBottleneck):
 
 
 class Daf3dResNet(ResNet):
-    def __init__(self, block, layers, block_inplanes, shortcut_type="B"):
-        super().__init__(block, layers, block_inplanes, n_input_channels=1, num_classes=2, shortcut_type=shortcut_type)
+    def __init__(self, block, layers, block_inplanes, n_input_channels, shortcut_type="B"):
+        super().__init__(block, layers, block_inplanes, n_input_channels=n_input_channels, num_classes=2, shortcut_type=shortcut_type)
 
         self.in_planes = 64
 
@@ -478,7 +478,7 @@ class Daf3dResNet(ResNet):
         conv_type: Callable = Conv[Conv.CONV, 3]
         norm_type: Callable = Norm[Norm.GROUP, 3]
 
-        self.conv1 = conv_type(1, self.in_planes, kernel_size=7, stride=(1, 2, 2), padding=(3, 3, 3), bias=False)
+        self.conv1 = conv_type(n_input_channels, self.in_planes, kernel_size=7, stride=(1, 2, 2), padding=(3, 3, 3), bias=False)
         self.bn1 = norm_type(32, 64)
         self.relu = nn.PReLU()
 

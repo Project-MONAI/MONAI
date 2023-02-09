@@ -62,9 +62,9 @@ class AttentionModule(nn.Module):
 
 
 class Daf3dBackbone(nn.Module):
-    def __init__(self):
+    def __init__(self, layers, block_inplanes, n_input_channels):
         super().__init__()
-        net = Daf3dResNet(Daf3dResNetBottleneck, [3, 4, 6, 3], [128, 256, 512, 1024])
+        net = Daf3dResNet(Daf3dResNetBottleneck, layers, block_inplanes, n_input_channels)
         net_modules = list(net.children())
         self.layer0 = nn.Sequential(*net_modules[:3])
         # the layer0 contains the first convolution, bn and relu
@@ -90,16 +90,16 @@ class Daf3dBackbone(nn.Module):
 
 
 class DAF3D(nn.Module):
-    def __init__(self):
+    def __init__(self, in_channels, out_channels):
         super().__init__()
         self.backbone_with_fpn = Daf3dBackboneWithFPN(
-            backbone=Daf3dBackbone(),
+            backbone=Daf3dBackbone(layers=[3, 4, 6, 3], block_inplanes=[128, 256, 512, 1024], n_input_channels=in_channels),
             return_layers={"layer1": "feat1", "layer2": "feat2", "layer3": "feat3", "layer4": "feat4"},
             in_channels_list=[256, 512, 1024, 2048],
             out_channels=128,
             spatial_dims=3,
         )
-        self.predict1 = nn.Conv3d(128, 1, kernel_size=1)
+        self.predict1 = nn.Conv3d(128, out_channels, kernel_size=1)
 
         group_norm = ("group", {"num_groups": 32, "num_channels": 64})
         act_prelu = ("prelu", {"num_parameters": 1, "init": 0.25})
@@ -137,7 +137,7 @@ class DAF3D(nn.Module):
         self.attention = AttentionModule()
 
         self.refine = Convolution(3, 256, 64, kernel_size=1, adn_ordering="NA", norm=group_norm, act=act_prelu)
-        self.predict2 = nn.Conv3d(64, 1, kernel_size=1)
+        self.predict2 = nn.Conv3d(64, out_channels, kernel_size=1)
         self.aspp = Daf3dASPP(
             3,
             64,
