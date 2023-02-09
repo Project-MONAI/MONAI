@@ -141,18 +141,14 @@ class StatsHandler:
                 " please call `logging.basicConfig(stream=sys.stdout, level=logging.INFO)` to enable it."
             )
         if self.iteration_log and not engine.has_event_handler(self.iteration_completed, Events.ITERATION_COMPLETED):
-            event = (
-                Events.ITERATION_COMPLETED(event_filter=self.iteration_log)
-                if callable(self.iteration_log)
-                else Events.ITERATION_COMPLETED
-            )
+            event = Events.ITERATION_COMPLETED
+            if callable(self.iteration_log):  # substitute event with new one using filter callable
+                event = event(event_filter=self.iteration_log)  
             engine.add_event_handler(event, self.iteration_completed)
         if self.epoch_log and not engine.has_event_handler(self.epoch_completed, Events.EPOCH_COMPLETED):
-            event = (
-                Events.EPOCH_COMPLETED(event_filter=self.epoch_log)
-                if callable(self.epoch_log)
-                else Events.EPOCH_COMPLETED
-            )
+            event = Events.EPOCH_COMPLETED
+            if callable(self.epoch_log):  # substitute event with new one using filter callable
+                event = event(event_filter=self.epoch_log)  
             engine.add_event_handler(event, self.epoch_completed)
         if not engine.has_event_handler(self.exception_raised, Events.EXCEPTION_RAISED):
             engine.add_event_handler(Events.EXCEPTION_RAISED, self.exception_raised)
