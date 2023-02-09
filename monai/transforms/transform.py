@@ -329,7 +329,7 @@ class LazyTransform(Transform, LazyTrait):
     @lazy_evaluation.setter
     def lazy_evaluation(self, lazy_evaluation: bool):
         if not isinstance(lazy_evaluation, bool):
-            raise TypeError("'lazy_evaluation must be a bool but is of " f"type {type(lazy_evaluation)}'")
+            raise TypeError(f"lazy_evaluation must be a bool but is of type {type(lazy_evaluation)}")
         self.lazy_evaluation = lazy_evaluation
 
 
