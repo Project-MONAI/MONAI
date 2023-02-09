@@ -65,7 +65,6 @@ from monai.utils import (
     fall_back_tuple,
     issequenceiterable,
     optional_import,
-    pytorch_after,
 )
 from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import GridPatchSort, PytorchPadMode, TraceKeys, TransformBackends, WSIPatchKeys
@@ -272,14 +271,12 @@ class SpatialResample(InvertibleTransform):
             )
 
         try:
-            _s = convert_to_tensor(src_affine_, track_meta=False, device=torch.device("cpu"))
-            _d = convert_to_tensor(dst_affine, track_meta=False, device=torch.device("cpu"))
-            xform = (
-                torch.linalg.solve(_s, _d) if pytorch_after(1, 8, 0) else torch.solve(_d, _s).solution  # type: ignore
-            )
+            _s = convert_to_numpy(src_affine_)
+            _d = convert_to_numpy(dst_affine)
+            xform = np.linalg.solve(_s, _d)
         except (np.linalg.LinAlgError, RuntimeError) as e:
-            raise ValueError("src affine is not invertible.") from e
-        xform = to_affine_nd(spatial_rank, xform).to(device=img.device, dtype=_dtype)
+            raise ValueError(f"src affine is not invertible {_s}, {_d}.") from e
+        xform = convert_to_tensor(to_affine_nd(spatial_rank, xform)).to(device=img.device, dtype=_dtype)
         # no resampling if it's identity transform
         if allclose(xform, torch.eye(len(xform)), atol=AFFINE_TOL) and allclose(spatial_size, in_spatial_size):
             return self._post_process(
@@ -293,12 +290,12 @@ class SpatialResample(InvertibleTransform):
             xform_shape = [-1] + in_spatial_size
             img = img.reshape(xform_shape)  # type: ignore
         if isinstance(mode, int):
-            dst_xform_1 = normalize_transform(spatial_size, xform.device, xform.dtype, True, True)[0]  # to (-1, 1)
+            dst_xform_1 = normalize_transform(spatial_size, "cpu", xform.dtype, True, True)[0].numpy()  # to (-1, 1)
             if not align_corners:
-                norm = create_scale(spatial_rank, [(max(d, 2) - 1) / d for d in spatial_size], xform.device, "torch")
-                dst_xform_1 = norm.to(xform.dtype) @ dst_xform_1  # type: ignore  # scaling (num_step - 1) / num_step
-            dst_xform_d = normalize_transform(spatial_size, xform.device, xform.dtype, align_corners, False)[0]
-            xform = xform @ torch.inverse(dst_xform_d) @ dst_xform_1
+                norm = create_scale(spatial_rank, [(max(d, 2) - 1) / d for d in spatial_size])
+                dst_xform_1 = norm.astype(float) @ dst_xform_1  # type: ignore  # scaling (num_step - 1) / num_step
+            dst_xform_d = normalize_transform(spatial_size, "cpu", xform.dtype, align_corners, False)[0].numpy()
+            xform @= convert_to_dst_type(np.linalg.solve(dst_xform_d, dst_xform_1), xform)[0]
             affine_xform = Affine(
                 affine=xform, spatial_size=spatial_size, normalized=True, image_only=True, dtype=_dtype  # type: ignore
             )
