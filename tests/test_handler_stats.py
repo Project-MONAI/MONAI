@@ -26,74 +26,97 @@ from monai.handlers import StatsHandler
 
 class TestHandlerStats(unittest.TestCase):
     def test_metrics_print(self):
-        log_stream = StringIO()
-        log_handler = logging.StreamHandler(log_stream)
-        log_handler.setLevel(logging.INFO)
-        key_to_handler = "test_logging"
-        key_to_print = "testing_metric"
+        def event_filter(_, event):
+            if event in [1, 2]:
+                return True
+            return False
 
-        # set up engine
-        def _train_func(engine, batch):
-            return [torch.tensor(0.0)]
+        for epoch_log in [True, event_filter]:
+            log_stream = StringIO()
+            log_handler = logging.StreamHandler(log_stream)
+            log_handler.setLevel(logging.INFO)
+            key_to_handler = "test_logging"
+            key_to_print = "testing_metric"
 
-        engine = Engine(_train_func)
+            # set up engine
+            def _train_func(engine, batch):
+                return [torch.tensor(0.0)]
 
-        # set up dummy metric
-        @engine.on(Events.EPOCH_COMPLETED)
-        def _update_metric(engine):
-            current_metric = engine.state.metrics.get(key_to_print, 0.1)
-            engine.state.metrics[key_to_print] = current_metric + 0.1
+            engine = Engine(_train_func)
 
-        # set up testing handler
-        logger = logging.getLogger(key_to_handler)
-        logger.setLevel(logging.INFO)
-        logger.addHandler(log_handler)
-        stats_handler = StatsHandler(iteration_log=False, epoch_log=True, name=key_to_handler)
-        stats_handler.attach(engine)
+            # set up dummy metric
+            @engine.on(Events.EPOCH_COMPLETED)
+            def _update_metric(engine):
+                current_metric = engine.state.metrics.get(key_to_print, 0.1)
+                engine.state.metrics[key_to_print] = current_metric + 0.1
 
-        engine.run(range(3), max_epochs=2)
+            # set up testing handler
+            logger = logging.getLogger(key_to_handler)
+            logger.setLevel(logging.INFO)
+            logger.addHandler(log_handler)
+            stats_handler = StatsHandler(iteration_log=False, epoch_log=epoch_log, name=key_to_handler)
+            stats_handler.attach(engine)
 
-        # check logging output
-        output_str = log_stream.getvalue()
-        log_handler.close()
-        has_key_word = re.compile(f".*{key_to_print}.*")
-        content_count = 0
-        for line in output_str.split("\n"):
-            if has_key_word.match(line):
-                content_count += 1
-        self.assertTrue(content_count > 0)
+            max_epochs = 4
+            engine.run(range(3), max_epochs=max_epochs)
+
+            # check logging output
+            output_str = log_stream.getvalue()
+            log_handler.close()
+            has_key_word = re.compile(f".*{key_to_print}.*")
+            content_count = 0
+            for line in output_str.split("\n"):
+                if has_key_word.match(line):
+                    content_count += 1
+            if epoch_log is True:
+                self.assertTrue(content_count == max_epochs)
+            else:
+                self.assertTrue(content_count == 2)  # 2 = len([1, 2]) from event_filter
 
     def test_loss_print(self):
-        log_stream = StringIO()
-        log_handler = logging.StreamHandler(log_stream)
-        log_handler.setLevel(logging.INFO)
-        key_to_handler = "test_logging"
-        key_to_print = "myLoss"
+        def event_filter(_, event):
+            if event in [1, 3]:
+                return True
+            return False
 
-        # set up engine
-        def _train_func(engine, batch):
-            return [torch.tensor(0.0)]
+        for iteration_log in [True, event_filter]:
+            log_stream = StringIO()
+            log_handler = logging.StreamHandler(log_stream)
+            log_handler.setLevel(logging.INFO)
+            key_to_handler = "test_logging"
+            key_to_print = "myLoss"
 
-        engine = Engine(_train_func)
+            # set up engine
+            def _train_func(engine, batch):
+                return [torch.tensor(0.0)]
 
-        # set up testing handler
-        logger = logging.getLogger(key_to_handler)
-        logger.setLevel(logging.INFO)
-        logger.addHandler(log_handler)
-        stats_handler = StatsHandler(iteration_log=True, epoch_log=False, name=key_to_handler, tag_name=key_to_print)
-        stats_handler.attach(engine)
+            engine = Engine(_train_func)
 
-        engine.run(range(3), max_epochs=2)
+            # set up testing handler
+            logger = logging.getLogger(key_to_handler)
+            logger.setLevel(logging.INFO)
+            logger.addHandler(log_handler)
+            stats_handler = StatsHandler(
+                iteration_log=iteration_log, epoch_log=False, name=key_to_handler, tag_name=key_to_print
+            )
+            stats_handler.attach(engine)
 
-        # check logging output
-        output_str = log_stream.getvalue()
-        log_handler.close()
-        has_key_word = re.compile(f".*{key_to_print}.*")
-        content_count = 0
-        for line in output_str.split("\n"):
-            if has_key_word.match(line):
-                content_count += 1
-        self.assertTrue(content_count > 0)
+            num_iters = 3
+            max_epochs = 2
+            engine.run(range(num_iters), max_epochs=max_epochs)
+
+            # check logging output
+            output_str = log_stream.getvalue()
+            log_handler.close()
+            has_key_word = re.compile(f".*{key_to_print}.*")
+            content_count = 0
+            for line in output_str.split("\n"):
+                if has_key_word.match(line):
+                    content_count += 1
+            if iteration_log is True:
+                self.assertTrue(content_count == num_iters * max_epochs)
+            else:
+                self.assertTrue(content_count == 2)  # 2 = len([1, 3]) from event_filter
 
     def test_loss_dict(self):
         log_stream = StringIO()
