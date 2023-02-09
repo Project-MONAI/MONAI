@@ -449,7 +449,7 @@ def correct_crop_centers(
         if not allow_smaller:
             raise ValueError(
                 "The size of the proposed random crop ROI is larger than the image size, "
-                f"got {spatial_size} and {label_spatial_shape} respectively."
+                f"got ROI size {spatial_size} and label image size {label_spatial_shape} respectively."
             )
         spatial_size = tuple(min(l, s) for l, s in zip(label_spatial_shape, spatial_size))
 
