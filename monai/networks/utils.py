@@ -22,6 +22,7 @@ from contextlib import contextmanager
 from copy import deepcopy
 from typing import Any
 
+import numpy as np
 import torch
 import torch.nn as nn
 
@@ -29,7 +30,7 @@ from monai.apps.utils import get_logger
 from monai.config import PathLike
 from monai.utils.misc import ensure_tuple, save_obj, set_determinism
 from monai.utils.module import look_up_option, pytorch_after
-from monai.utils.type_conversion import convert_to_tensor
+from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
 
 __all__ = [
     "one_hot",
@@ -185,7 +186,7 @@ def predict_segmentation(logits: torch.Tensor, mutually_exclusive: bool = False,
 
 def normalize_transform(
     shape,
-    device: torch.device | None = None,
+    device: torch.device | str | None = None,
     dtype: torch.dtype | None = None,
     align_corners: bool = False,
     zero_centered: bool = False,
@@ -264,8 +265,8 @@ def to_norm_affine(
         raise ValueError(f"affine suggests {sr}D, got src={len(src_size)}D, dst={len(dst_size)}D.")
 
     src_xform = normalize_transform(src_size, affine.device, affine.dtype, align_corners, zero_centered)
-    dst_xform = normalize_transform(dst_size, affine.device, affine.dtype, align_corners, zero_centered)
-    return src_xform @ affine @ torch.inverse(dst_xform)
+    dst_xform = normalize_transform(dst_size, "cpu", affine.dtype, align_corners, zero_centered)
+    return src_xform @ affine @ convert_to_dst_type(np.linalg.inv(dst_xform.numpy()), dst=affine)[0]
 
 
 def normal_init(
