@@ -630,7 +630,7 @@ def path_to_uri(path: PathLike) -> str:
     return Path(path).absolute().as_uri()
 
 
-def pprint_edges(val, n_lines=20) -> str:
+def pprint_edges(val: Any, n_lines: int = 20) -> str:
     """
     Pretty print the head and tail ``n_lines`` of ``val``, and omit the middle part if the part has more than 3 lines.
 
