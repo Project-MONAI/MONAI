@@ -78,6 +78,74 @@ class BaseWSIReader(ImageReader):
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
+    def _get_valid_level(
+        self,
+        wsi,
+        level: int | None,
+        mpp: tuple[float, float] | None,
+        power: int | None,
+        mpp_rtol: float,
+        mpp_atol: float,
+        power_rtol: float,
+        power_atol: float,
+    ) -> int:
+        """
+        Returns the level associated to the resolution parameter in the whole slide image.
+
+        Args:
+            resolution:  a dictionary containing resolution information: `level`, `mpp` or `power`.
+
+        """
+
+        # Check if not more than one resolution parameter is provided.
+        resolution = [val[0] for val in [("level", level), ("mpp", mpp), ("power", power)] if val[1] is not None]
+        if len(resolution) > 1:
+            raise ValueError(f"Only one of `level`, `mpp`, or `power` should be provided. {resolution} are provided.")
+
+        n_levels = self.get_level_count(wsi)
+
+        if mpp is not None:
+            if self.get_mpp(wsi, 0) is None:
+                raise ValueError(
+                    "mpp is not defined in this whole slide image, please use `level` (or `power`) instead."
+                )
+            available_mpps = [self.get_mpp(wsi, level) for level in range(n_levels)]
+            if mpp in available_mpps:
+                valid_mpp = mpp
+            else:
+                valid_mpp = min(available_mpps, key=lambda x: abs(x[0] - mpp[0]) + abs(x[1] - mpp[1]))  # type: ignore
+                for i in range(2):
+                    if abs(valid_mpp[i] - mpp[i]) > mpp_atol + mpp_rtol * abs(mpp[i]):
+                        raise ValueError(
+                            f"The requested mpp ({mpp}) does not exist in this whole slide image"
+                            f"(with mpp_rtol={mpp_rtol} and mpp_atol={mpp_atol})."
+                            f" The closest matching available mpp is {valid_mpp}."
+                            "Please consider changing the tolerances or use another mpp."
+                        )
+            level = available_mpps.index(valid_mpp)
+
+        elif power is not None:
+            available_powers = [self.get_power(wsi, level) for level in range(n_levels)]
+            if power in available_powers:
+                valid_power = power
+            else:
+                valid_power = min(available_powers, key=lambda x: abs(x - power))  # type: ignore
+                if abs(valid_power - power) > power_atol + power_rtol * abs(power):
+                    raise ValueError(
+                        f"The requested power ({power}) does not exist in this whole slide image"
+                        f"(with power_rtol={power_rtol} and power_atol={power_atol})."
+                        f" The closest matching available power is {valid_power}."
+                        "Please consider changing the tolerances or use another power."
+                    )
+            level = available_powers.index(valid_power)
+        else:
+            if level is None:
+                level = self.level
+            if level >= n_levels:
+                raise ValueError(f"The maximum level of this image is {n_levels-1} while level={level} is requested)!")
+
+        return level
+
     @abstractmethod
     def get_level_count(self, wsi) -> int:
         """
@@ -114,7 +182,19 @@ class BaseWSIReader(ImageReader):
 
         Args:
             wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated
+            level: the level number where mpp is calculated
+
+        """
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+
+    @abstractmethod
+    def get_power(self, wsi, level: int | None = None) -> int:
+        """
+        Returns the magnification power of the whole slide image at a given level.
+
+        Args:
+            wsi: a whole slide image object loaded from a file
+            level: the level number where magnification power is calculated
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
@@ -176,6 +256,12 @@ class BaseWSIReader(ImageReader):
         location: tuple[int, int] = (0, 0),
         size: tuple[int, int] | None = None,
         level: int | None = None,
+        mpp: tuple[float, float] | None = None,
+        power: int | None = None,
+        mpp_rtol: float = 0.1,
+        mpp_atol: float = 0.1,
+        power_rtol: float = 0.1,
+        power_atol: float = 0.1,
         dtype: DtypeLike = np.uint8,
         mode: str = "RGB",
     ) -> tuple[np.ndarray, dict]:
@@ -197,16 +283,13 @@ class BaseWSIReader(ImageReader):
         """
         patch_list: list = []
         metadata_list: list = []
+
         # CuImage object is iterable, so ensure_tuple won't work on single object
-        if not isinstance(wsi, list):
-            wsi = [wsi]
+        if not isinstance(wsi, (list, tuple)):
+            wsi = (wsi,)
         for each_wsi in ensure_tuple(wsi):
-            # Verify magnification level
-            if level is None:
-                level = self.level
-            max_level = self.get_level_count(each_wsi) - 1
-            if level > max_level:
-                raise ValueError(f"The maximum level of this image is {max_level} while level={level} is requested)!")
+            # get the valid level based on resolution info
+            level = self._get_valid_level(wsi, level, mpp, power, mpp_rtol, mpp_atol, power_rtol, power_atol)
 
             # Verify location
             if location is None:
@@ -352,14 +435,29 @@ class WSIReader(BaseWSIReader):
 
         Args:
             wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated. If not provided the default level (from `self.level`)
-                will be used.
+            level: the level number where mpp calculated.
+                If not provided the default level (from `self.level`) will be used.
 
         """
         if level is None:
             level = self.level
 
         return self.reader.get_mpp(wsi, level)
+
+    def get_power(self, wsi, level: int | None = None) -> int:
+        """
+        Returns the micro-per-pixel resolution of the whole slide image at a given level.
+
+        Args:
+            wsi: a whole slide image object loaded from a file
+            level: the level number where the magnification power is calculated.
+                If not provided the default level (from `self.level`) will be used.
+
+        """
+        if level is None:
+            level = self.level
+
+        return self.reader.get_power(wsi, level)
 
     def _get_patch(
         self, wsi, location: tuple[int, int], size: tuple[int, int], level: int, dtype: DtypeLike, mode: str
@@ -468,7 +566,7 @@ class CuCIMWSIReader(BaseWSIReader):
 
         Args:
             wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated. If not provided the default level (from `self.level`)
+            level: the level number where mpp is calculated. If not provided the default level (from `self.level`)
                 will be used.
 
         """
@@ -477,6 +575,30 @@ class CuCIMWSIReader(BaseWSIReader):
 
         factor = float(wsi.resolutions["level_downsamples"][level])
         return (wsi.metadata["cucim"]["spacing"][1] * factor, wsi.metadata["cucim"]["spacing"][0] * factor)
+
+    def get_power(self, wsi, level: int | None = None) -> int:
+        """
+        Returns the magnification power of the whole slide image at a given level.
+
+        Args:
+            wsi: a whole slide image object loaded from a file
+            level: the level number where magnification power is calculated.
+                If not provided the default level (from `self.level`) will be used.
+
+        """
+        if level is None:
+            level = self.level
+
+        if "aperio" in wsi.metadata:
+            objective_power = wsi.metadata["aperio"].get("AppMag")
+            if objective_power:
+                downsample_ratio = self.get_downsample_ratio(wsi, level)
+                return round(float(objective_power) / downsample_ratio)
+
+        raise ValueError(
+            "Objective power can only be obtained for Aperio images using CuCIM."
+            "Please use `level` (or `mpp`) instead, or try OpenSlide backend."
+        )
 
     def read(self, data: Sequence[PathLike] | PathLike | np.ndarray, **kwargs):
         """
@@ -631,6 +753,26 @@ class OpenSlideWSIReader(BaseWSIReader):
         factor *= wsi.level_downsamples[level]
         return (factor / float(wsi.properties["tiff.YResolution"]), factor / float(wsi.properties["tiff.XResolution"]))
 
+    def get_power(self, wsi, level: int | None = None) -> int:
+        """
+        Returns the magnification power of the whole slide image at a given level.
+
+        Args:
+            wsi: a whole slide image object loaded from a file
+            level: the level number where magnification power is calculated.
+                If not provided the default level (from `self.level`) will be used.
+
+        """
+        if level is None:
+            level = self.level
+
+        objective_power = wsi.properties.get("openslide.objective-power")
+        if objective_power:
+            downsample_ratio = self.get_downsample_ratio(wsi, level)
+            return int(round(objective_power / downsample_ratio))
+
+        raise ValueError("Objective power cannot be obtained for this file. Please use `level` (or `mpp`) instead.")
+
     def read(self, data: Sequence[PathLike] | PathLike | np.ndarray, **kwargs):
         """
         Read whole slide image objects from given file or list of files.
@@ -777,6 +919,21 @@ class TiffFileWSIReader(BaseWSIReader):
         yres = wsi.pages[level].tags["YResolution"].value
         xres = wsi.pages[level].tags["XResolution"].value
         return (factor * yres[1] / yres[0], factor * xres[1] / xres[0])
+
+    def get_power(self, wsi, level: int | None = None) -> int:
+        """
+        Returns the magnification power of the whole slide image at a given level.
+
+        Args:
+            wsi: a whole slide image object loaded from a file
+            level: the level number where magnification power is calculated.
+                If not provided the default level (from `self.level`) will be used.
+
+        """
+        raise ValueError(
+            "Objective power cannot be obtained from TiffFile object."
+            "Please use `level` (or `mpp`) instead, or try other backends."
+        )
 
     def read(self, data: Sequence[PathLike] | PathLike | np.ndarray, **kwargs):
         """
