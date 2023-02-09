@@ -930,7 +930,7 @@ def generate_spatial_bounding_box(
     margin = ensure_tuple_rep(margin, ndim)
     for m in margin:
         if m < 0:
-            raise ValueError("margin value should not be negative number.")
+            raise ValueError(f"margin value should not be negative number, got {margin}.")
 
     box_start = [0] * ndim
     box_end = [0] * ndim
@@ -1070,7 +1070,7 @@ def get_unique_labels(img: NdarrayOrTensor, is_onehot: bool, discard: int | Iter
         applied_labels = {i for i, s in enumerate(img) if s.sum() > 0}
     else:
         if n_channels != 1:
-            raise ValueError("If input not one-hotted, should only be 1 channel.")
+            raise ValueError(f"If input not one-hotted, should only be 1 channel, got {n_channels}.")
         applied_labels = set(unique(img).tolist())
     if discard is not None:
         for i in ensure_tuple(discard):
