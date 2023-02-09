@@ -75,9 +75,9 @@ class PatchInferer(Inferer):
     Args:
         splitter: a `Splitter` object that split the inputs into patches. Defaults to None.
             If not provided or None, the inputs are considered to be already split into patches.
-        merger: a `Merger` object that merges patch outputs. Defaults to AvgMerger.
+        merger: a `Merger` object that merges patch outputs. Defaults to `AvgMerger`.
         batch_size: batch size for patches. If the input tensor is already batched [BxCxWxH],
-            this adds additional batching [(B'*B)xCxW'xH'] for inference on patches. Defaults to 1.
+            this adds additional batching [(Bp*B)xCxWpxHp] for inference on patches. Defaults to 1.
         pre_processor: a callable that process patches before the being fed to the network. Defaults to None.
         post_processor: a callable that process the output of the network. Defaults to None.
         output_keys: if the network output is a dictionary, this defines the keys of the output dictionary to use.

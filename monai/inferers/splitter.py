@@ -80,8 +80,10 @@ class SlidingWindowSplitter(Splitter):
             pad_mode: the pad mode when the patches are extracted from outside of the image
                 (either when the offset is negative or the image is non-divisible by the patch_size).
                 If set to `None`, the last incomplete patch will be dropped. Defaults to PytorchPadMode.CONSTANT.
+            pad_kwargs: other arguments for `torch.nn.functional.pad`.
 
-        Note: for `patch_size`, `offset`, and `overlap` if only one scaler value is provided,
+        Note:
+            If only one scaler value is provided for for `patch_size`, `offset`, or `overlap`,
                 it will be broadcasted to all the spatial dimensions.
         """
         super().__init__(patch_size=patch_size, device=device)
