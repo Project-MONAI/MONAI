@@ -14,6 +14,7 @@ from __future__ import annotations
 import inspect
 import itertools
 import os
+import pprint
 import random
 import shutil
 import tempfile
@@ -60,6 +61,7 @@ __all__ = [
     "save_obj",
     "label_union",
     "path_to_uri",
+    "pprint_edges",
 ]
 
 _seed = None
@@ -626,3 +628,17 @@ def path_to_uri(path: PathLike) -> str:
 
     """
     return Path(path).absolute().as_uri()
+
+
+def pprint_edges(val, n_lines=20) -> str:
+    """
+    Pretty print the head and tail ``n_lines`` of ``val``, and omit the middle part if the part has more than 3 lines.
+
+    Returns: the formatted string.
+    """
+    val_str = pprint.pformat(val).splitlines(True)
+    n_lines = max(n_lines, 1)
+    if len(val_str) > n_lines * 2 + 3:
+        hidden_n = len(val_str) - n_lines * 2
+        val_str = val_str[:n_lines] + [f"\n ... omitted {hidden_n} line(s)\n\n"] + val_str[-n_lines:]
+    return "".join(val_str)
