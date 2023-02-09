@@ -401,7 +401,7 @@ def weighted_patch_samples(
 
     """
     if w is None:
-        raise ValueError("w must be an ND array.")
+        raise ValueError("w must be an ND array, got None.")
     if r_state is None:
         r_state = np.random.RandomState()
     img_size = np.asarray(w.shape, dtype=int)
@@ -449,7 +449,7 @@ def correct_crop_centers(
         if not allow_smaller:
             raise ValueError(
                 "The size of the proposed random crop ROI is larger than the image size, "
-                f"got {label_spatial_shape} and {spatial_size}."
+                f"got ROI size {spatial_size} and label image size {label_spatial_shape} respectively."
             )
         spatial_size = tuple(min(l, s) for l, s in zip(label_spatial_shape, spatial_size))
 
@@ -822,7 +822,7 @@ def _create_shear(spatial_dims: int, coefs: Sequence[float] | float, eye_func=np
         out[1, 0], out[1, 2] = coefs[2], coefs[3]
         out[2, 0], out[2, 1] = coefs[4], coefs[5]
         return out  # type: ignore
-    raise NotImplementedError(f"Currently only spatial_dims in [2, 3] are supported, got {spatial_dims}.")
+    raise NotImplementedError("Currently only spatial_dims in [2, 3] are supported.")
 
 
 def create_scale(
@@ -1071,7 +1071,7 @@ def get_unique_labels(img: NdarrayOrTensor, is_onehot: bool, discard: int | Iter
         applied_labels = {i for i, s in enumerate(img) if s.sum() > 0}
     else:
         if n_channels != 1:
-            raise ValueError(f"If input not one-hotted, should only be 1 channel, got {n_channels} ({img.shape}).")
+            raise ValueError(f"If input not one-hotted, should only be 1 channel, got {n_channels}.")
         applied_labels = set(unique(img).tolist())
     if discard is not None:
         for i in ensure_tuple(discard):

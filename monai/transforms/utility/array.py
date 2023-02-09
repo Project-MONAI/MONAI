@@ -161,7 +161,7 @@ class AsChannelFirst(Transform):
 
     def __init__(self, channel_dim: int = -1) -> None:
         if not (isinstance(channel_dim, int) and channel_dim >= -1):
-            raise AssertionError("invalid channel dimension.")
+            raise ValueError(f"invalid channel dimension ({channel_dim}).")
         self.channel_dim = channel_dim
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
@@ -191,7 +191,7 @@ class AsChannelLast(Transform):
 
     def __init__(self, channel_dim: int = 0) -> None:
         if not (isinstance(channel_dim, int) and channel_dim >= -1):
-            raise AssertionError("invalid channel dimension.")
+            raise ValueError(f"invalid channel dimension ({channel_dim}).")
         self.channel_dim = channel_dim
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
@@ -303,7 +303,7 @@ class RepeatChannel(Transform):
 
     def __init__(self, repeats: int) -> None:
         if repeats <= 0:
-            raise AssertionError("repeats count must be greater than 0.")
+            raise ValueError(f"repeats count must be greater than 0, got {repeats}.")
         self.repeats = repeats
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
@@ -328,7 +328,7 @@ class RemoveRepeatedChannel(Transform):
 
     def __init__(self, repeats: int) -> None:
         if repeats <= 0:
-            raise AssertionError("repeats count must be greater than 0.")
+            raise ValueError(f"repeats count must be greater than 0, got {repeats}.")
 
         self.repeats = repeats
 
@@ -337,7 +337,7 @@ class RemoveRepeatedChannel(Transform):
         Apply the transform to `img`, assuming `img` is a "channel-first" array.
         """
         if img.shape[0] < 2:
-            raise AssertionError("Image must have more than one channel")
+            raise ValueError(f"Image must have more than one channel, got {img.shape[0]} channels.")
 
         out: NdarrayOrTensor = convert_to_tensor(img[:: self.repeats, :], track_meta=get_track_meta())
         return out
@@ -718,7 +718,7 @@ class DataStats(Transform):
 
         """
         if not isinstance(prefix, str):
-            raise AssertionError("prefix must be a string.")
+            raise ValueError(f"prefix must be a string, got {type(prefix)}.")
         self.prefix = prefix
         self.data_type = data_type
         self.data_shape = data_shape
