@@ -142,7 +142,9 @@ class LoadImaged(MapTransform):
             raise TypeError(f"meta_key_postfix must be a str but is {type(meta_key_postfix).__name__}.")
         self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
         if len(self.keys) != len(self.meta_keys):
-            raise ValueError("meta_keys should have the same length as keys.")
+            raise ValueError(
+                f"meta_keys should have the same length as keys, got {len(self.keys)} and {len(self.meta_keys)}."
+            )
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.overwriting = overwriting
 
@@ -162,10 +164,12 @@ class LoadImaged(MapTransform):
                 d[key] = data
             else:
                 if not isinstance(data, (tuple, list)):
-                    raise ValueError("loader must return a tuple or list (because image_only=False was used).")
+                    raise ValueError(
+                        f"loader must return a tuple or list (because image_only=False was used), got {type(data)}."
+                    )
                 d[key] = data[0]
                 if not isinstance(data[1], dict):
-                    raise ValueError("metadata must be a dict.")
+                    raise ValueError(f"metadata must be a dict, got {type(data[1])}.")
                 meta_key = meta_key or f"{key}_{meta_key_postfix}"
                 if meta_key in d and not self.overwriting:
                     raise KeyError(f"Metadata with key {meta_key} already exists and overwriting=False.")
