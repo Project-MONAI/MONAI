@@ -47,6 +47,7 @@ def _eval_lazy_stack(
     keys: str | None = None,
     dtype=None,
     device=None,
+    align_corners: bool = False,
 ):
     """
     Given the upcoming transform ``upcoming``, if lazy_resample is True, go through the MetaTensors and
@@ -60,25 +61,31 @@ def _eval_lazy_stack(
         ):
             if device is not None:
                 data = mt.EnsureType(device=device)(data)
-            data, _ = mt.apply_transforms(data, mode=mode, padding_mode=padding_mode, dtype=dtype)
+            data, _ = mt.apply_transforms(
+                data, mode=mode, padding_mode=padding_mode, dtype=dtype, align_corners=align_corners
+            )
         return data
     if isinstance(data, dict):
         _mode = ensure_tuple_rep(mode, len(keys))  # type: ignore
         _padding_mode = ensure_tuple_rep(padding_mode, len(keys))  # type: ignore
         _dtype = ensure_tuple_rep(dtype, len(keys))  # type: ignore
         _device = ensure_tuple_rep(device, len(keys))  # type: ignore
+        _align_corners = ensure_tuple_rep(align_corners, len(keys))  # type: ignore
         if isinstance(upcoming, MapTransform):
             _keys = [k if k in upcoming.keys and k in data else None for k in keys]  # type: ignore
         else:
             _keys = [k if k in data else None for k in keys]  # type: ignore
-        for k, m, p, dt, dve in zip(_keys, _mode, _padding_mode, _dtype, _device):
+        for k, m, p, dt, dve, ac in zip(_keys, _mode, _padding_mode, _dtype, _device, _align_corners):
             if k is not None:
                 data[k] = _eval_lazy_stack(
-                    data[k], upcoming, lazy_evaluation, mode=m, padding_mode=p, dtype=dt, device=dve
+                    data[k], upcoming, lazy_evaluation, mode=m, padding_mode=p, dtype=dt, device=dve, align_corners=ac
                 )
         return data
     if isinstance(data, (list, tuple)):
-        return [_eval_lazy_stack(v, upcoming, lazy_evaluation, mode, padding_mode, keys, dtype, device) for v in data]
+        return [
+            _eval_lazy_stack(v, upcoming, lazy_evaluation, mode, padding_mode, keys, dtype, device, align_corners)
+            for v in data
+        ]
     return data
 
 

@@ -35,7 +35,7 @@ def apply_transforms(
     mode: str | int | None = None,
     padding_mode: str | None = None,
     dtype=np.float64,
-    align_corners: bool | None = False,
+    align_corners: bool | None = None,
 ):
     """
     This method applies pending transforms to `data` tensors.
