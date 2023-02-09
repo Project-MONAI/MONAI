@@ -216,7 +216,7 @@ class AsDiscrete(Transform):
         to_onehot = self.to_onehot if to_onehot is None else to_onehot
         if to_onehot is not None:
             if not isinstance(to_onehot, int):
-                raise ValueError("the number of classes for One-Hot must be an integer.")
+                raise ValueError(f"the number of classes for One-Hot must be an integer, got {type(to_onehot)}.")
             img_t = one_hot(
                 img_t, num_classes=to_onehot, dim=self.kwargs.get("dim", 0), dtype=self.kwargs.get("dtype", torch.float)
             )
