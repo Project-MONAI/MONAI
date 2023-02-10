@@ -83,13 +83,13 @@ class SlidingWindowSplitter(Splitter):
             pad_kwargs: other arguments for `torch.nn.functional.pad`.
 
         Note:
-            If only one scaler value is provided for for `patch_size`, `offset`, or `overlap`,
+            If only one scaler value is provided for `patch_size`, `offset`, or `overlap`,
                 it will be broadcasted to all the spatial dimensions.
         """
         super().__init__(patch_size=patch_size, device=device)
         self.offset = offset
         if any(ov < 0 or ov >= 1 for ov in ensure_tuple(overlap)):
-            raise ValueError("Overlap must be between 0 and 1.")
+            raise ValueError(f"Overlap must be between 0 and 1 but {overlap} is given.")
         self.overlap = overlap
         self.filter_fn = self._get_valid_filter_fn(filter_fn)
         self.pad_mode = pad_mode

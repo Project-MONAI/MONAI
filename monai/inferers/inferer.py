@@ -108,9 +108,7 @@ class PatchInferer(Inferer):
 
         # pre-processor (process patch before the network)
         if pre_processor is not None and not callable(pre_processor):
-            raise TypeError(
-                f"'pre_processor' should be a callable object, not None and {type(pre_processor)} is given."
-            )
+            raise TypeError(f"'pre_processor' should be a callable object, {type(pre_processor)} is given.")
         self.pre_processor = pre_processor
 
         # post-processor (process the output of the network)
@@ -191,6 +189,13 @@ class PatchInferer(Inferer):
                 merger.initialize(output_shape)
         return ratios
 
+    def _aggregate(self, outputs, locations, ratios, batch_size):
+        for merger, output_patches, ratio in zip(self.mergers, outputs, ratios):
+            # split batched output into individual patches and then aggregate
+            for in_loc, out_patch in zip(locations, torch.chunk(output_patches, batch_size)):
+                out_loc = [round(l * r) for l, r in zip(in_loc, ratio)]
+                merger.aggregate(out_patch, out_loc)
+
     def _get_ratio(self, in_patch, out_patch):
         """Define the shape of output merged tensors"""
         return tuple(op / ip for ip, op in zip(in_patch.shape[2:], out_patch.shape[2:]))
@@ -235,11 +240,7 @@ class PatchInferer(Inferer):
                 ratios = self._initialize_mergers(inputs, outputs, patches, batch_size)
                 is_merger_initialized = True
             # aggregate outputs
-            for merger, output_patches, ratio in zip(self.mergers, outputs, ratios):
-                # split batched output into individual patches and then aggregate
-                for in_loc, out_patch in zip(locations, torch.chunk(output_patches, batch_size)):
-                    out_loc = [round(l * r) for l, r in zip(in_loc, ratio)]
-                    merger.aggregate(out_patch, out_loc)
+            self._aggregate(outputs, locations, ratios, batch_size)
         # finalize the mergers and get the results
         merged_outputs = tuple(merger.finalize() for merger in self.mergers)
         # return according to model output
