@@ -66,6 +66,16 @@ def testing_data_config(*keys):
     return reduce(operator.getitem, keys, _test_data_config)
 
 
+def get_testing_algo_template_path():
+    """
+    a local folder to the testing algorithm template or a url to the compressed template file.
+    Default to None, which effectively uses bundle_gen's ``default_algo_zip`` path.
+
+    https://github.com/Project-MONAI/MONAI/blob/1.1.0/monai/apps/auto3dseg/bundle_gen.py#L380-L381
+    """
+    return os.environ.get("MONAI_TESTING_ALGO_TEMPLATE", None)
+
+
 def clone(data: NdarrayTensor) -> NdarrayTensor:
     """
     Clone data independent of type.
