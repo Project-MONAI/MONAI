@@ -21,8 +21,10 @@ import unittest
 
 import nibabel as nib
 import numpy as np
+import torch
 from parameterized import parameterized
 
+from monai.data import MetaTensor
 from monai.data.image_reader import ITKReader, NibabelReader
 from monai.data.image_writer import ITKWriter
 from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, ResampleToMatch, SaveImaged
@@ -89,6 +91,12 @@ class TestResampleToMatch(unittest.TestCase):
         self.assertEqual(im_mod2.shape, data["im2"].shape)
         self.assertLess(((im_mod2.affine - data["im2"].affine) ** 2).sum() ** 0.5, 1e-2)
         self.assertEqual(im_mod2.applied_operations, [])
+
+    def test_no_name(self):
+        img_1 = MetaTensor(torch.zeros(1, 2, 2, 2))
+        img_2 = MetaTensor(torch.zeros(1, 3, 3, 3))
+        im_mod = ResampleToMatch()(img_1, img_2)
+        self.assertEqual(im_mod.meta["filename_or_obj"], "resample_to_match_source")
 
 
 if __name__ == "__main__":
