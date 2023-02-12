@@ -368,12 +368,3 @@ class InvertibleTransform(TraceableTransform):
 
         """
         raise NotImplementedError()
-    #     # generate the forward transform metadata, enforcing laziness
-    #     transform = self.pop_transform(data)
-    #     return self.inverse_transform(self, data, transform)
-    #
-    # def inverse_transform(self, data, transform):
-    #     if not isinstance(MetaMatrix):
-    #         raise ValueError(f"'transform' must be of type MetaMatrix but is {type(transform)}")
-    #
-    #     apply_transforms(data, [transform])

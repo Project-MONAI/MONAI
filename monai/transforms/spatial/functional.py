@@ -195,6 +195,7 @@ def spacing(
 
 
     metadata = {
+        "op": "spacing",
         "pixdim": pixdim_,
         "src_pixdim": src_pixdim_,
         "diagonal": diagonal,
@@ -281,6 +282,7 @@ def flip(
     transform = create_flip(input_ndim, spatial_axis_)
 
     metadata = {
+        "op": "flip",
         "spatial_axis": spatial_axis_,
         LazyAttr.IN_SHAPE: input_shape,
         LazyAttr.IN_DTYPE: input_dtype,
@@ -367,6 +369,7 @@ def resize(
     print("output_shape:", output_shape)
 
     metadata = {
+        "op": "resize",
         "spatial_size": spatial_size,
         "size_mode": size_mode,
         LazyAttr.INTERP_MODE: mode_,
@@ -445,6 +448,7 @@ def rotate(
         transform = rotate_tx
 
     metadata = {
+        "op": "rotate",
         "angle": angle,
         "keep_size": keep_size,
         LazyAttr.INTERP_MODE: mode_,
@@ -516,6 +520,7 @@ def zoom(
 
 
     metadata = {
+        "op": "zoom",
         "factor": zoom_factors,
         LazyAttr.INTERP_MODE: mode_,
         LazyAttr.PADDING_MODE: padding_mode_,
@@ -578,6 +583,7 @@ def rotate90(
         output_shape = input_shape
 
     metadata = {
+        "op": "rotate90",
         "k": k,
         "spatial_axes": spatial_axes,
         LazyAttr.IN_SHAPE: input_shape,
@@ -653,6 +659,7 @@ def elastic_3d(
     grid[:3] += gaussian(offsets)[0] * magnitude
 
     metadata = {
+        "op": "elastic_3d",
         "sigma": sigma,
         "magnitude": magnitude,
         "offsets": offsets,
@@ -691,6 +698,7 @@ def translate(
     transform = compatible_translate(img, translation)
 
     metadata = {
+        "op": "translation",
         "translation": translation,
         LazyAttr.INTERP_MODE: mode,
         LazyAttr.PADDING_MODE: padding_mode,

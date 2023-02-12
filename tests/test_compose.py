@@ -22,7 +22,7 @@ from monai.data import DataLoader, Dataset, MetaTensor
 from monai.transforms import AddChannel, Compose, Rotate, Zoom
 from monai.transforms.transform import Randomizable
 from monai.utils import set_determinism
-from monai.transforms.spatial import old_array
+from monai.transforms.spatial import array, old_array
 
 
 class _RandXform(Randomizable):
@@ -225,30 +225,47 @@ class TestCompose(unittest.TestCase):
         from monai.transforms.compose import MapTransform, RandomizableTransform, Transform  # noqa: F401
 
 
-    class TestInverseCompose(unittest.TestCase):
+TEST_INVERSION_CASES = [
+    (
+        torch.rand(1, 64, 64),
+        [
+            array.Rotate(torch.pi / 8, mode="bilinear", padding_mode="zeros", keep_size=False),
+            array.Zoom(0.8, mode="bilinear", padding_mode="zeros", lazy_evaluation=False)
+        ]
+    )
+]
+class TestInverseCompose(unittest.TestCase):
 
-        def test_metatensor_identities(self):
+    def test_metatensor_identities(self):
 
-            t = torch.rand(1, 64, 64)
-            a = Rotate(torch.pi / 8, mode="bilinear", padding_mode="zeros")
-            b = Zoom(0.8, mode="bilinear", padding_mode="zeros")
-            ta = a(t)
-            tb = b(ta)
+        t = torch.rand(1, 64, 64)
+        a = Rotate(torch.pi / 8, mode="bilinear", padding_mode="zeros")
+        b = Zoom(0.8, mode="bilinear", padding_mode="zeros")
+        ta = a(t)
+        tb = b(ta)
 
-            print(ta is tb)
+        print(ta is tb)
 
-        def test_inversion(self):
-            t = torch.rand(1, 64, 64)
+    def test_inversion_cases(self):
+        for i_t, t in enumerate(TEST_INVERSION_CASES):
+            with self.subTest(i_t):
+                self._test_inversion(*t)
 
-            a = old_array.Rotate(torch.pi / 8, mode="bilinear")
-            b = old_array.Zoom(0.8, mode="bilinear")
+    def _test_inversion(self, data, transforms):
 
-            ta = a(t)
-            tab = b(ta)
+        t = data
+        forward = [t]
+        for tx in transforms:
+            t = tx(t)
+            forward.append(t)
 
-            tinva = b.inverse(tab)
-            tinvo = a.inverse(tinva)
+        backward = [t]
+        for tx in reversed(transforms):
+            t = tx.inverse(t)
+            backward.append(t)
 
+        print(forward)
+        print(backward)
 
 
 if __name__ == "__main__":

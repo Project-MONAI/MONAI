@@ -367,5 +367,4 @@ def invert(
     metadata: MetaMatrix = data.applied_operations.pop()
     inv_metadata = copy.deepcopy(metadata)
     inv_metadata.invert()
-    return lazily_apply_op(data, inv_metadata, lazy_evaluation)
-
+    return lazily_apply_op(data, inv_metadata, lazy_evaluation, False)
