@@ -165,7 +165,7 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
 
     def itk_warp(self, image, ddf):
         """
-        warping with python itk
+        Warping with python itk
         Args:
             image: itk image of array shape 2D: (H, W) or 3D: (D, H, W)
             ddf: numpy array of shape 2D: (2, H, W) or 3D: (3, D, H, W)
@@ -185,7 +185,7 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
 
     def monai_warp(self, image_tensor, ddf_tensor):
         """
-        warping with MONAI
+        Warping with MONAI
         Args:
             image_tensor: torch tensor of shape 2D: (1, 1, H, W) and 3D: (1, 1, D, H, W)
             ddf_tensor: torch tensor of shape 2D: (1, 2, H, W) and 3D: (1, 3, D, H, W)
@@ -223,7 +223,6 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         affine_matrix_for_monai = itk_to_monai_affine(image, matrix, translation)
         output_array_monai = self.monai_affine_resample(metatensor, affine_matrix=affine_matrix_for_monai)
 
-        ###########################################################################
         # Make sure that the array conversion of the inputs is the same
         input_array_monai = metatensor.squeeze().permute(*torch.arange(metatensor.ndim - 2, -1, -1)).array
         np.testing.assert_array_equal(input_array_monai, np.asarray(image))
@@ -232,19 +231,7 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         percentage = (
             100 * np.isclose(output_array_monai, output_array_itk).sum(dtype=np.float64) / output_array_itk.size
         )
-        print("MONAI equals result: ", percentage, "%")
         self.assertGreaterEqual(percentage, 99.0)
-
-        diff_output = output_array_monai - output_array_itk
-        print(f"[Min, Max] MONAI: [{output_array_monai.min()}, {output_array_monai.max()}]")
-        print(f"[Min, Max] ITK: [{output_array_itk.min()}, {output_array_itk.max()}]")
-        print(f"[Min, Max] diff: [{diff_output.min()}, {diff_output.max()}]")
-
-        # Write
-        # itk.imwrite(itk.GetImageFromArray(diff_output), "./output/diff.tif")
-        # itk.imwrite(itk.GetImageFromArray(output_array_monai), "./output/output_monai.tif")
-        # itk.imwrite(itk.GetImageFromArray(output_array_itk), "./output/output_itk.tif")
-        ###########################################################################
 
     @parameterized.expand(TESTS)
     def test_arbitary_center_of_rotation(self, filepath):
@@ -283,19 +270,11 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         input_array_monai = metatensor.squeeze().permute(*torch.arange(metatensor.ndim - 2, -1, -1)).array
         np.testing.assert_array_equal(input_array_monai, np.asarray(image))
 
-        ###########################################################################
         # Compare outputs
         percentage = (
             100 * np.isclose(output_array_monai, output_array_itk).sum(dtype=np.float64) / output_array_itk.size
         )
-        print("MONAI equals result: ", percentage, "%")
         self.assertGreaterEqual(percentage, 99.0)
-
-        diff_output = output_array_monai - output_array_itk
-        print(f"[Min, Max] MONAI: [{output_array_monai.min()}, {output_array_monai.max()}]")
-        print(f"[Min, Max] ITK: [{output_array_itk.min()}, {output_array_itk.max()}]")
-        print(f"[Min, Max] diff: [{diff_output.min()}, {diff_output.max()}]")
-        ###########################################################################
 
     @parameterized.expand(TESTS)
     def test_monai_to_itk(self, filepath):
@@ -337,19 +316,11 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         input_array_monai = metatensor.squeeze().permute(*torch.arange(metatensor.ndim - 2, -1, -1)).array
         np.testing.assert_array_equal(input_array_monai, np.asarray(image))
 
-        ###########################################################################
         # Compare outputs
         percentage = (
             100 * np.isclose(output_array_monai, output_array_itk).sum(dtype=np.float64) / output_array_itk.size
         )
-        print("MONAI equals result: ", percentage, "%")
         self.assertGreaterEqual(percentage, 99.0)
-
-        diff_output = output_array_monai - output_array_itk
-        print(f"[Min, Max] MONAI: [{output_array_monai.min()}, {output_array_monai.max()}]")
-        print(f"[Min, Max] ITK: [{output_array_itk.min()}, {output_array_itk.max()}]")
-        print(f"[Min, Max] diff: [{diff_output.min()}, {diff_output.max()}]")
-        ###########################################################################
 
     @parameterized.expand(TESTS)
     def test_cyclic_conversion(self, filepath):
@@ -431,8 +402,6 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
 
         # Compare
         np.testing.assert_allclose(img_resampled, itk_img_resampled, rtol=1e-2, atol=1e-2)
-        diff_output = img_resampled - itk_img_resampled
-        print(f"[Min, Max] diff: [{diff_output.min()}, {diff_output.max()}]")
 
     @parameterized.expand(TESTS)
     @skip_if_quick
@@ -454,8 +423,6 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
 
         # Compare
         np.testing.assert_allclose(img_resampled, itk_img_resampled, rtol=1e-3, atol=1e-3)
-        diff_output = img_resampled - itk_img_resampled
-        print(f"[Min, Max] diff: [{diff_output.min()}, {diff_output.max()}]")
 
     @parameterized.expand(zip(TESTS[::2], TESTS[1::2]))
     def test_use_reference_space(self, ref_filepath, filepath):
@@ -514,11 +481,6 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
 
         # Compare outputs
         np.testing.assert_allclose(output_array_monai, output_array_itk, rtol=1e-3, atol=1e-3)
-
-        diff_output = output_array_monai - output_array_itk
-        print(f"[Min, Max] MONAI: [{output_array_monai.min()}, {output_array_monai.max()}]")
-        print(f"[Min, Max] ITK: [{output_array_itk.min()}, {output_array_itk.max()}]")
-        print(f"[Min, Max] diff: [{diff_output.min()}, {diff_output.max()}]")
 
 
 if __name__ == "__main__":
