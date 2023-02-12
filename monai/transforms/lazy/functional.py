@@ -13,6 +13,8 @@ from __future__ import annotations
 
 from typing import Any, Sequence, Union, Tuple, Optional
 
+import copy
+
 import itertools as it
 
 import numpy as np
@@ -39,12 +41,13 @@ from monai.utils import LazyAttr
 
 
 def apply_transforms(
-    data: torch.Tensor | MetaTensor,
-    pending: list | None = None,
-    mode: str | int | None = None,
-    padding_mode: str | None = None,
-    dtype=np.float64,
-    align_corners: bool | None = None,
+        data: torch.Tensor | MetaTensor,
+        pending: list | None = None,
+        mode: str | int | None = None,
+        padding_mode: str | None = None,
+        dtype=np.float64,
+        align_corners: bool | None = None,
+        track_meta: bool | None = True
 ):
     """
     This method applies pending transforms to `data` tensors.
@@ -69,6 +72,8 @@ def apply_transforms(
         align_corners: Geometrically, we consider the pixels of the input as squares rather than points, when using
             the PyTorch resampling backend. Defaults to ``None``.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+        track_meta: Whether the operations that are applied should be tracked (on the MetaTensor if
+            the tensor is a MetaTensor)
     """
     if isinstance(data, MetaTensor) and pending is None:
         pending = data.pending_operations.copy()
@@ -108,8 +113,9 @@ def apply_transforms(
         # TODO: at present, the resample and the modified Affine that it calls update .affine
         # on the MetaTensor. Is this the right approach or should we do it here?
         # data.affine = data.affine @ to_affine_nd(3, cumulative_xform)
-        for p in pending:
-            data.push_applied_operation(p)
+        if track_meta:
+            for p in pending:
+                data.push_applied_operation(p)
         return data, None
 
     return data, pending
@@ -315,7 +321,10 @@ def matmul_matrix_matrix(left: NdarrayOrTensor, right: NdarrayOrTensor):
 
 
 def lazily_apply_op(
-        tensor, op, lazy_evaluation
+        tensor,
+        op,
+        lazy_evaluation,
+        track_meta=True
 ) -> Union[MetaTensor, Tuple[torch.Tensor, Optional[MetaMatrix]]]:
     """
     This function is intended for use only by developers of spatial functional transforms that
@@ -339,22 +348,24 @@ def lazily_apply_op(
     if isinstance(tensor, MetaTensor):
         tensor.push_pending_operation(op)
         if lazy_evaluation is False:
-            result, pending = apply_transforms(tensor)
+            result, pending = apply_transforms(tensor, track_meta=track_meta)
             return result
         else:
             return tensor
     else:
         if lazy_evaluation is False:
-            result, pending = apply_transforms(tensor, [op])
+            result, pending = apply_transforms(tensor, [op], track_meta=track_meta)
             return (result, op) if get_track_meta() is True else result
         else:
             return (tensor, op) if get_track_meta() is True else tensor
 
 
 def invert(
-       data: Union[torch.tensor, MetaTensor]
+        data: Union[torch.tensor, MetaTensor],
+        lazy_evaluation=True
 ):
-    metadata = data.applied_operations.pop()
-    print(metadata)
-    return data
+    metadata: MetaMatrix = data.applied_operations.pop()
+    inv_metadata = copy.deepcopy(metadata)
+    inv_metadata.invert()
+    return lazily_apply_op(data, inv_metadata, lazy_evaluation)
 

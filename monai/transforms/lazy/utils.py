@@ -174,6 +174,16 @@ class MetaMatrix:
         self.matrix = matrix_
         self.metadata = metadata or {}
 
+    def invert(self):
+        self.matrix.data = torch.inverse(self.matrix.data)
+
+        def swap(d, k1, k2):
+            d[k1], d[k2] = d[k2], d[k1]
+
+        swap(self.metadata, LazyAttr.IN_DTYPE, LazyAttr.OUT_DTYPE)
+        swap(self.metadata, LazyAttr.IN_SHAPE, LazyAttr.OUT_SHAPE)
+
+
     def __matmul__(self, other):
         if isinstance(other, MetaMatrix):
             other_ = other.matrix
