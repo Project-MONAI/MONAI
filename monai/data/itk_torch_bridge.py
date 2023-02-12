@@ -11,12 +11,12 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 import torch
 
-from monai.data import ITKReader
+from monai.data import ITKReader, ITKWriter
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import EnsureChannelFirst
 from monai.utils import convert_to_dst_type, optional_import
@@ -30,6 +30,7 @@ else:
 
 __all__ = [
     "itk_image_to_metatensor",
+    "metatensor_to_itk_image",
     "itk_to_monai_affine",
     "monai_to_itk_affine",
     "get_itk_image_center",
@@ -37,7 +38,7 @@ __all__ = [
 ]
 
 
-def itk_image_to_metatensor(image):
+def itk_image_to_metatensor(image) -> MetaTensor:
     """
     Converts an ITK image to a MetaTensor object.
 
@@ -53,7 +54,25 @@ def itk_image_to_metatensor(image):
     metatensor = MetaTensor.ensure_torch_and_prune_meta(image_array, meta_data)
     metatensor = EnsureChannelFirst()(metatensor)
 
-    return metatensor
+    return cast(MetaTensor, metatensor)
+
+
+def metatensor_to_itk_image(meta_tensor: MetaTensor):
+    """
+    Converts a MetaTensor object to an ITK image.
+
+    Args:
+        meta_tensor: The MetaTensor to be converted.
+
+    Returns:
+        A MetaTensor object containing the array data and metadata.
+    """
+    return ITKWriter.create_backend_obj(
+        meta_tensor.array,
+        channel_dim=None,
+        affine=meta_tensor.affine,
+        affine_lps_to_ras=False,  # False if the affine is in itk convention
+    )
 
 
 def itk_to_monai_affine(image, matrix, translation, center_of_rotation=None, reference_image=None) -> torch.Tensor:

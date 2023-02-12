@@ -24,6 +24,7 @@ from monai.data.itk_torch_bridge import (
     get_itk_image_center,
     itk_image_to_metatensor,
     itk_to_monai_affine,
+    metatensor_to_itk_image,
     monai_to_itk_affine,
     monai_to_itk_ddf,
 )
@@ -386,11 +387,14 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         image.SetOrigin(origin)
 
         affine_matrix = itk_to_monai_affine(image, matrix, translation, center_of_rotation)
-
         matrix_result, translation_result = monai_to_itk_affine(image, affine_matrix, center_of_rotation)
+
+        meta_tensor = itk_image_to_metatensor(image)
+        image_result = metatensor_to_itk_image(meta_tensor)
 
         np.testing.assert_allclose(matrix, matrix_result)
         np.testing.assert_allclose(translation, translation_result)
+        np.testing.assert_array_equal(image, image_result)  #TODO: This fails
 
     @parameterized.expand([(2,), (3,)])
     def test_random_array(self, ndim):

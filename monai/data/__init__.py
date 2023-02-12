@@ -65,6 +65,7 @@ from .itk_torch_bridge import (
     get_itk_image_center,
     itk_image_to_metatensor,
     itk_to_monai_affine,
+    metatensor_to_itk_image,
     monai_to_itk_affine,
     monai_to_itk_ddf,
 )
