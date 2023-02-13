@@ -609,6 +609,70 @@ def convert_to_torchscript(
     return script_module
 
 
+def convert_to_trt(
+    model: nn.Module,
+    filename_or_obj: Any | None = None,
+    extra_files: dict | None = None,
+    verify: bool = False,
+    inputs: Sequence[Any] | None = None,
+    device: torch.device | None = None,
+    rtol: float = 1e-4,
+    atol: float = 0.0,
+    **kwargs,
+):
+    """
+    Utility to convert a model into TorchScript model and save to file,
+    with optional input / output data verification.
+
+    Args:
+        model: source PyTorch model to save.
+        filename_or_obj: if not None, specify a file-like object (has to implement write and flush)
+            or a string containing a file path name to save the TorchScript model.
+        extra_files: map from filename to contents which will be stored as part of the save model file.
+            for more details: https://pytorch.org/docs/stable/generated/torch.jit.save.html.
+        verify: whether to verify the input and output of TorchScript model.
+            if `filename_or_obj` is not None, load the saved TorchScript model and verify.
+        inputs: input test data to verify model, should be a sequence of data, every item maps to a argument
+            of `model()` function.
+        device: target device to verify the model, if None, use CUDA if available.
+        rtol: the relative tolerance when comparing the outputs of PyTorch model and TorchScript model.
+        atol: the absolute tolerance when comparing the outputs of PyTorch model and TorchScript model.
+        kwargs: other arguments except `obj` for `torch.jit.script()` to convert model, for more details:
+            https://pytorch.org/docs/master/generated/torch.jit.script.html.
+
+    """
+    model.eval()
+    with torch.no_grad():
+        script_module = torch.jit.script(model, **kwargs)
+        if filename_or_obj is not None:
+            torch.jit.save(m=script_module, f=filename_or_obj, _extra_files=extra_files)
+
+    if verify:
+        if device is None:
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        if inputs is None:
+            raise ValueError("missing input data for verification.")
+
+        inputs = [i.to(device) if isinstance(i, torch.Tensor) else i for i in inputs]
+        ts_model = torch.jit.load(filename_or_obj) if filename_or_obj is not None else script_module
+        ts_model.eval().to(device)
+        model = model.to(device)
+
+        with torch.no_grad():
+            set_determinism(seed=0)
+            torch_out = ensure_tuple(model(*inputs))
+            set_determinism(seed=0)
+            torchscript_out = ensure_tuple(ts_model(*inputs))
+            set_determinism(seed=None)
+        # compare TorchScript and PyTorch results
+        for r1, r2 in zip(torch_out, torchscript_out):
+            if isinstance(r1, torch.Tensor) or isinstance(r2, torch.Tensor):
+                assert_fn = torch.testing.assert_close if pytorch_after(1, 11) else torch.testing.assert_allclose
+                assert_fn(r1, r2, rtol=rtol, atol=atol)
+
+    return script_module
+
+
 def meshgrid_ij(*tensors):
     if torch.meshgrid.__kwdefaults__ is not None and "indexing" in torch.meshgrid.__kwdefaults__:
         return torch.meshgrid(*tensors, indexing="ij")  # new api pytorch after 1.10

@@ -34,7 +34,7 @@ from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import DEFAULT_EXP_MGMT_SETTINGS, DEFAULT_INFERENCE, DEFAULT_METADATA
 from monai.config import IgniteInfo, PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
-from monai.networks import convert_to_torchscript, copy_model_state, get_state_dict, save_state
+from monai.networks import convert_to_trt, convert_to_torchscript, copy_model_state, get_state_dict, save_state
 from monai.utils import check_parent_dir, get_equivalent_dtype, min_version, optional_import
 from monai.utils.misc import ensure_tuple, pprint_edges
 
@@ -908,6 +908,104 @@ def verify_net_in_out(
 
 
 def ckpt_export(
+    net_id: str | None = None,
+    filepath: PathLike | None = None,
+    ckpt_file: str | None = None,
+    meta_file: str | Sequence[str] | None = None,
+    config_file: str | Sequence[str] | None = None,
+    key_in_ckpt: str | None = None,
+    args_file: str | None = None,
+    **override: Any,
+) -> None:
+    """
+    Export the model checkpoint to the given filepath with metadata and config included as JSON files.
+
+    Typical usage examples:
+
+    .. code-block:: bash
+
+        python -m monai.bundle ckpt_export network --filepath <export path> --ckpt_file <checkpoint path> ...
+
+    Args:
+        net_id: ID name of the network component in the config, it must be `torch.nn.Module`.
+        filepath: filepath to export, if filename has no extension it becomes `.ts`.
+        ckpt_file: filepath of the model checkpoint to load.
+        meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
+        config_file: filepath of the config file to save in TorchScript model and extract network information,
+            the saved key in the TorchScript model is the config filename without extension, and the saved config
+            value is always serialized in JSON format no matter the original file format is JSON or YAML.
+            it can be a single file or a list of files. if `None`, must be provided in `args_file`.
+        key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
+            weights. if not nested checkpoint, no need to set.
+        args_file: a JSON or YAML file to provide default values for `meta_file`, `config_file`,
+            `net_id` and override pairs. so that the command line inputs can be simplified.
+        override: id-value pairs to override or add the corresponding config content.
+            e.g. ``--_meta#network_data_format#inputs#image#num_channels 3``.
+
+    """
+    _args = _update_args(
+        args=args_file,
+        net_id=net_id,
+        filepath=filepath,
+        meta_file=meta_file,
+        config_file=config_file,
+        ckpt_file=ckpt_file,
+        key_in_ckpt=key_in_ckpt,
+        **override,
+    )
+    _log_input_summary(tag="ckpt_export", args=_args)
+    filepath_, ckpt_file_, config_file_, net_id_, meta_file_, key_in_ckpt_ = _pop_args(
+        _args, "filepath", "ckpt_file", "config_file", net_id="", meta_file=None, key_in_ckpt=""
+    )
+
+    parser = ConfigParser()
+
+    parser.read_config(f=config_file_)
+    if meta_file_ is not None:
+        parser.read_meta(f=meta_file_)
+
+    # the rest key-values in the _args are to override config content
+    for k, v in _args.items():
+        parser[k] = v
+
+    net = parser.get_parsed_content(net_id_)
+    if has_ignite:
+        # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
+        Checkpoint.load_objects(to_load={key_in_ckpt_: net}, checkpoint=ckpt_file_)
+    else:
+        ckpt = torch.load(ckpt_file_)
+        copy_model_state(dst=net, src=ckpt if key_in_ckpt_ == "" else ckpt[key_in_ckpt_])
+
+    # convert to TorchScript model and save with metadata, config content
+    net = convert_to_trt(model=net)
+
+    extra_files: dict = {}
+    for i in ensure_tuple(config_file_):
+        # split the filename and directory
+        filename = os.path.basename(i)
+        # remove extension
+        filename, _ = os.path.splitext(filename)
+        # because all files are stored as JSON their name parts without extension must be unique
+        if filename in extra_files:
+            raise ValueError(f"Filename part '{filename}' is given multiple times in config file list.")
+        # the file may be JSON or YAML but will get loaded and dumped out again as JSON
+        extra_files[filename] = json.dumps(ConfigParser.load_config_file(i)).encode()
+
+    # add .json extension to all extra files which are always encoded as JSON
+    extra_files = {k + ".json": v for k, v in extra_files.items()}
+
+    save_net_with_metadata(
+        jit_obj=net,
+        filename_prefix_or_stream=filepath_,
+        include_config_vals=False,
+        append_timestamp=False,
+        meta_values=parser.get().pop("_meta_", None),
+        more_extra_files=extra_files,
+    )
+    logger.info(f"exported to TorchScript file: {filepath_}.")
+
+
+def trt_export(
     net_id: str | None = None,
     filepath: PathLike | None = None,
     ckpt_file: str | None = None,
