@@ -1327,7 +1327,7 @@ class RandAxisFlip(InvertibleTransform, LazyTransform, RandomizableTrait):
         return invert(data, self.lazy_evaluation)
 
 
-class RandZoom(RandomizableTransform, InvertibleTransform):
+class RandZoom(InvertibleTransform, LazyTransform, RandomizableTrait):
     """
     Randomly zooms input arrays with given probability within given zoom range.
 
@@ -1365,42 +1365,46 @@ class RandZoom(RandomizableTransform, InvertibleTransform):
     backend = Zoom.backend
 
     def __init__(
-        self,
-        prob: float = 0.1,
-        min_zoom: Sequence[float] | float = 0.9,
-        max_zoom: Sequence[float] | float = 1.1,
-        mode: str = InterpolateMode.AREA,
-        padding_mode: str = NumpyPadMode.EDGE,
-        align_corners: bool | None = None,
-        keep_size: bool = True,
-        lazy_evaluation: bool = True,
-        **kwargs,
+            self,
+            prob: float = 0.1,
+            min_zoom: Sequence[float] | float = 0.9,
+            max_zoom: Sequence[float] | float = 1.1,
+            mode: str = InterpolateMode.AREA,
+            padding_mode: str = NumpyPadMode.EDGE,
+            align_corners: bool | None = None,
+            keep_size: bool = True,
+            lazy_evaluation: bool = True,
+            seed: int | None = None,
+            state: np.random.RandomState | None = None,
+            **kwargs,
     ) -> None:
-        RandomizableTransform.__init__(self, prob)
-        self.min_zoom = ensure_tuple(min_zoom)
-        self.max_zoom = ensure_tuple(max_zoom)
-        if len(self.min_zoom) != len(self.max_zoom):
+        LazyTransform.__init__(self, lazy_evaluation)
+        # self.min_zoom = ensure_tuple(min_zoom)
+        # self.max_zoom = ensure_tuple(max_zoom)
+        if len(min_zoom) != len(max_zoom):
             raise AssertionError("min_zoom and max_zoom must have same length.")
         self.mode: InterpolateMode = look_up_option(mode, InterpolateMode)
         self.padding_mode = padding_mode
         self.align_corners = align_corners
         self.keep_size = keep_size
         self.lazy_evaluation = lazy_evaluation
+
+        self.randomizer = ContinuousRandomizer(min_zoom, max_zoom, prob, 1.0, seed, state)
         self.kwargs = kwargs
 
         self._zoom: Sequence[float] = [1.0]
 
-    def randomize(self, img: NdarrayOrTensor) -> None:
-        super().randomize(None)
-        if not self._do_transform:
-            return None
-        self._zoom = [self.R.uniform(l, h) for l, h in zip(self.min_zoom, self.max_zoom)]
-        if len(self._zoom) == 1:
-            # to keep the spatial shape ratio, use same random zoom factor for all dims
-            self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 1)
-        elif len(self._zoom) == 2 and img.ndim > 3:
-            # if 2 zoom factors provided for 3D data, use the first factor for H and W dims, second factor for D dim
-            self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 2) + ensure_tuple(self._zoom[-1])
+    # def randomize(self, img: NdarrayOrTensor) -> None:
+    #     super().randomize(None)
+    #     if not self._do_transform:
+    #         return None
+    #     self._zoom = [self.R.uniform(l, h) for l, h in zip(self.min_zoom, self.max_zoom)]
+    #     if len(self._zoom) == 1:
+    #         # to keep the spatial shape ratio, use same random zoom factor for all dims
+    #         self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 1)
+    #     elif len(self._zoom) == 2 and img.ndim > 3:
+    #         # if 2 zoom factors provided for 3D data, use the first factor for H and W dims, second factor for D dim
+    #         self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 2) + ensure_tuple(self._zoom[-1])
 
     def __call__(
             self,
@@ -1430,25 +1434,32 @@ class RandZoom(RandomizableTransform, InvertibleTransform):
             randomize: whether to execute `randomize()` function first, default to True.
 
         """
-        # match the spatial image dim
-        if randomize:
-            self.randomize(img=img)
+        # # match the spatial image dim
+        # if randomize:
+        #     self.randomize(img=img)
+        #
+        # if not self._do_transform:
+        #     out = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)
+        # else:
+        #     out = Zoom(
+        #         self._zoom,
+        #         keep_size=self.keep_size,
+        #         mode=look_up_option(mode or self.mode, InterpolateMode),
+        #         padding_mode=padding_mode or self.padding_mode,
+        #         align_corners=self.align_corners if align_corners is None else align_corners,
+        #         **self.kwargs,
+        #     )(img)
+        # if get_track_meta():
+        #     z_info = self.pop_transform(out, check=False) if self._do_transform else {}
+        #     self.push_transform(out, extra_info=z_info)
+        # return out  # type: ignore
+        zoom_ = self.randomizer.sample(img)
+        mode_ = mode or self.mode
+        padding_mode_ = padding_mode or self.padding_mode
+        align_corners_ = align_corners or self.align_corners
 
-        if not self._do_transform:
-            out = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)
-        else:
-            out = Zoom(
-                self._zoom,
-                keep_size=self.keep_size,
-                mode=look_up_option(mode or self.mode, InterpolateMode),
-                padding_mode=padding_mode or self.padding_mode,
-                align_corners=self.align_corners if align_corners is None else align_corners,
-                **self.kwargs,
-            )(img)
-        if get_track_meta():
-            z_info = self.pop_transform(out, check=False) if self._do_transform else {}
-            self.push_transform(out, extra_info=z_info)
-        return out  # type: ignore
+        return zoom(img, zoom_, mode_, padding_mode_, align_corners_, self.keep_size,
+                    lazy_evaluation=self.lazy_evaluation)
 
     def inverse(self, data):
         return invert(data, self.lazy_evaluation)

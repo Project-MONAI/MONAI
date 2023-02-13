@@ -130,7 +130,7 @@ class ContinuousRandomizer(Randomizer):
             seed: int | None = None,
             state: np.random.RandomState | None = None
     ):
-        super().__init__(prob, state, seed)
+        super().__init__(prob, seed, state)
 
         validate_compatible_scalar_or_tuple('min_value', 'max_value', min_value, max_value)
         validate_compatible_scalar_or_tuple('min_value', 'default', min_value, default)
