@@ -266,7 +266,7 @@ def to_norm_affine(
 
     src_xform = normalize_transform(src_size, affine.device, affine.dtype, align_corners, zero_centered)
     dst_xform = normalize_transform(dst_size, "cpu", affine.dtype, align_corners, zero_centered)
-    return src_xform @ affine @ convert_to_dst_type(np.linalg.inv(dst_xform.numpy()), dst=affine)[0]
+    return src_xform @ affine @ convert_to_dst_type(np.linalg.inv(dst_xform.numpy()), dst=affine)[0]  # monai#5983
 
 
 def normal_init(

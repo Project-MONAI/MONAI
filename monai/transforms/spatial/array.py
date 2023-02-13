@@ -273,7 +273,7 @@ class SpatialResample(InvertibleTransform):
         try:
             _s = convert_to_numpy(src_affine_)
             _d = convert_to_numpy(dst_affine)
-            xform = np.linalg.solve(_s, _d)
+            xform = np.linalg.solve(_s, _d)  # monai#5983
         except (np.linalg.LinAlgError, RuntimeError) as e:
             raise ValueError(f"src affine is not invertible {_s}, {_d}.") from e
         xform = convert_to_tensor(to_affine_nd(spatial_rank, xform)).to(device=img.device, dtype=_dtype)
