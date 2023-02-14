@@ -289,7 +289,7 @@ class LoadImage(Transform):
         img_array, meta_data = reader.get_data(img)
         img_array = convert_to_dst_type(img_array, dst=img_array, dtype=self.dtype)[0]
         if not isinstance(meta_data, dict):
-            raise ValueError("`meta_data` must be a dict.")
+            raise ValueError(f"`meta_data` must be a dict, got type {type(meta_data)}.")
         # make sure all elements in metadata are little endian
         meta_data = switch_endianness(meta_data, "<")
 
