@@ -56,7 +56,7 @@ so that the deep learning models and pipelines can readily incorporate the meta 
 
 ### GPU-based accelerations
 
-Implementations are provided to ensure optimal usage of the underlying hardware resources. [[fast training guide]](https://github.com/Project-MONAI/tutorials/blob/main/acceleration/fast_model_training_guide)
+Implementations are provided to ensure optimal usage of the underlying hardware resources. [[fast training guide]](https://github.com/Project-MONAI/tutorials/blob/main/acceleration)
 
 ### Determinism and reproducibility
 
