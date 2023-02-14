@@ -9,15 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import numbers
 from typing import Union
 
 import numpy as np
-from skimage import color
-from monai.utils import optional_import
-
-skimage = optional_import('skimage')
 
 from monai.transforms.transform import Transform
+from monai.utils import optional_import
+
+color, _ = optional_import("skimage", name="color")
 
 
 class HEDJitter(Transform):
@@ -33,8 +33,10 @@ class HEDJitter(Transform):
 
     Note:
         For more information refer to:
-            - the paper benchmarking different stain augmentation and normalization methods including HED: Tellez et al. 2020 https://arxiv.org/abs/1902.06543
-            - the original paper on color deconvolution: Ruifrok et al. 2001 https://helios2.mi.parisdescartes.fr/~lomn/Cours/CV/BME/HistoPatho/Color/PythonColorDeconv/Quantification_of_histochemical_staining.pdf
+            - the paper benchmarking different stain augmentation and normalization methods including HED:
+                Tellez et al. 2020 https://arxiv.org/abs/1902.06543
+            - the original paper on color deconvolution: Ruifrok et al. 2001
+                https://helios2.mi.parisdescartes.fr/~lomn/Cours/CV/BME/HistoPatho/Color/PythonColorDeconv/Quantification_of_histochemical_staining.pdf
             - previous Pytorch implementation: https://github.com/gatsby2016/Augmentation-PyTorch-Transforms
 
     """
@@ -45,12 +47,12 @@ class HEDJitter(Transform):
         self.alpha = np.random.uniform(1 - theta, 1 + theta, (1, 3))
         self.betti = np.random.uniform(-theta, theta, (1, 3))
 
-    def adjust_HED(img, alpha, betti):
+    def adjust_hed(self, img, alpha, betti):
         # img = np.array(img)
 
-        s = np.reshape(skimage.color.rgb2hed(img), (-1, 3))
+        s = np.reshape(color.rgb2hed(img), (-1, 3))
         ns = alpha * s + betti  # perturbations on HED color space
-        nimg = skimage.color.hed2rgb(np.reshape(ns, img.shape))
+        nimg = color.hed2rgb(np.reshape(ns, img.shape))
 
         imin = nimg.min()
         imax = nimg.max()
@@ -68,7 +70,7 @@ class HEDJitter(Transform):
         """
         if not isinstance(image, np.ndarray):
             raise TypeError("Image must be of type numpy.ndarray.")
-        perturbed_image = self.adjust_HED(image, self.alpha, self.betti)
+        perturbed_image = self.adjust_hed(image, self.alpha, self.betti)
         return perturbed_image
 
     def __repr__(self):
