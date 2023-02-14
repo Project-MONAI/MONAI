@@ -14,9 +14,9 @@ class FakeRandomState:
     def rand(self, *_):
         self.__check_compatible(self.index, 'rand', self.value_pairs[self.index])
         value = self.value_pairs[self.index][1]
+        self.index += 1
         if isinstance(value, Exception):
             raise value
-        self.index += 1
         return value
 
     def uniform(self, *_):

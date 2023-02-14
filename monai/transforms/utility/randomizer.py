@@ -67,7 +67,7 @@ class Randomizer:
 class BooleanRandomizer(Randomizer):
     def __init__(
             self,
-            threshold: Union[Tuple[float], float] = 1.0,
+            threshold: Union[Tuple[float], float] = 0.5,
             prob: float = 1.0,
             default: Union[Tuple[Any], Any] = False,
             seed: int | None = None,

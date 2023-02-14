@@ -240,6 +240,23 @@ def is_scalar(val: Any) -> bool:
     return bool(np.isscalar(val))
 
 
+def validate_scalars_or_tuples(first, second):
+    invalid = False
+    if isinstance(first, tuple):
+        if isinstance(second, tuple):
+            if len(first) != len(second):
+                invalid = True
+        else:
+            invalid = True
+    else:
+        if isinstance(second, tuple):
+            invalid = True
+
+    if invalid:
+        raise ValueError("'first' and 'second' must be scalars or equal length vectors; "
+                         f" 'first' is {first} and 'second' is {second}")
+
+
 def progress_bar(index: int, count: int, desc: str | None = None, bar_len: int = 30, newline: bool = False) -> None:
     """print a progress bar to track some time consuming task.
 

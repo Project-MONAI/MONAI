@@ -98,7 +98,7 @@ from monai.utils import (
 )
 from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import GridPatchSort, PytorchPadMode, TraceKeys, TransformBackends, WSIPatchKeys
-from monai.utils.misc import ImageMetaKey as Key
+from monai.utils.misc import ImageMetaKey as Key, validate_scalars_or_tuples
 from monai.utils.module import look_up_option
 from monai.utils.type_conversion import convert_data_type, get_equivalent_dtype, get_torch_dtype_from_string
 
@@ -576,7 +576,7 @@ class Spacing(LazyTransform, InvertibleTransform):
         align_corners_ = align_corners or self.align_corners
         dtype_ = dtype or self.dtype
 
-        img_t = spacing(data_array, self.pixdim, self.src_pixdim, self.diagonal,
+        img_t = spacing(data_array, self.pixdim, self.diagonal,
                         mode_, padding_mode_, align_corners_, dtype_,
                         lazy_evaluation=self.lazy_evaluation)
         return img_t
@@ -1112,7 +1112,7 @@ class RandRotate90(InvertibleTransform, LazyTransform, RandomizableTrait):
 
         self.spatial_axes = spatial_axes
 
-        self.randomizer = DiscreteRandomizer(0, max_k, prob, 0, random_seed, random_state)
+        self.randomizer = DiscreteRandomizer(0, max_k + 1, prob, 0, random_seed, random_state)
 
     def __call__(
             self,
@@ -1125,6 +1125,14 @@ class RandRotate90(InvertibleTransform, LazyTransform, RandomizableTrait):
             randomize: whether to execute `randomize()` function first, default to True.
         """
         return rotate90(img, self.randomizer.sample(), self.spatial_axes, lazy_evaluation=self.lazy_evaluation)
+
+    def set_random_state(
+            self,
+            seed: int | None = None,
+            state: np.random.RandomState | None = None
+    ) -> RandRotate90:
+        self.randomizer.set_random_state(seed, state)
+        return self
 
     def inverse(self, data):
         return invert(data, self.lazy_evaluation)
@@ -1233,6 +1241,14 @@ class RandRotate(InvertibleTransform, LazyTransform, RandomizableTrait):
                       align_corners_, dtype_,
                       lazy_evaluation=self.lazy_evaluation)
 
+    def set_random_state(
+            self,
+            seed: int | None = None,
+            state: np.random.RandomState | None = None
+    ) -> RandRotate:
+        self.randomizer.set_random_state(seed, state)
+        return self
+
     def inverse(self, data):
         return invert(data, self.lazy_evaluation)
 
@@ -1261,7 +1277,7 @@ class RandFlip(InvertibleTransform, LazyTransform, RandomizableTrait):
         LazyTransform.__init__(self, lazy_evaluation)
         self.spatial_axis = spatial_axis
 
-        self.randomizer = BooleanRandomizer(1.0, prob, False, seed, state)
+        self.randomizer = BooleanRandomizer(1.0, prob=prob, default=False, seed=seed, state=state)
 
     def __call__(
             self,
@@ -1280,6 +1296,14 @@ class RandFlip(InvertibleTransform, LazyTransform, RandomizableTrait):
             return flip(img, self.spatial_axis, lazy_evaluation=self.lazy_evaluation)
         else:
             return identity(img, None, None, lazy_evaluation=self.lazy_evaluation)
+
+    def set_random_state(
+            self,
+            seed: int | None = None,
+            state: np.random.RandomState | None = None
+    ) -> RandFlip:
+        self.randomizer.set_random_state(seed, state)
+        return self
 
     def inverse(self, data):
         return invert(data, self.lazy_evaluation)
@@ -1322,6 +1346,14 @@ class RandAxisFlip(InvertibleTransform, LazyTransform, RandomizableTrait):
 
         flip_axis = self.randomizer.do_random()
         return flip(img, flip_axis, lazy_evaluation=self.lazy_evaluation)
+
+    def set_random_state(
+            self,
+            seed: int | None = None,
+            state: np.random.RandomState | None = None
+    ) -> RandAxisFlip:
+        self.randomizer.set_random_state(seed, state)
+        return self
 
     def inverse(self, data):
         return invert(data, self.lazy_evaluation)
@@ -1379,10 +1411,11 @@ class RandZoom(InvertibleTransform, LazyTransform, RandomizableTrait):
             **kwargs,
     ) -> None:
         LazyTransform.__init__(self, lazy_evaluation)
-        # self.min_zoom = ensure_tuple(min_zoom)
-        # self.max_zoom = ensure_tuple(max_zoom)
-        if len(min_zoom) != len(max_zoom):
-            raise AssertionError("min_zoom and max_zoom must have same length.")
+        # min_zoom_ = ensure_tuple(min_zoom)
+        # max_zoom_ = ensure_tuple(max_zoom)
+        # if len(min_zoom_) != len(max_zoom_):
+        #     raise AssertionError("min_zoom and max_zoom must have same length.")
+        validate_scalars_or_tuples(min_zoom, max_zoom)
         self.mode: InterpolateMode = look_up_option(mode, InterpolateMode)
         self.padding_mode = padding_mode
         self.align_corners = align_corners
@@ -1391,20 +1424,6 @@ class RandZoom(InvertibleTransform, LazyTransform, RandomizableTrait):
 
         self.randomizer = ContinuousRandomizer(min_zoom, max_zoom, prob, 1.0, seed, state)
         self.kwargs = kwargs
-
-        self._zoom: Sequence[float] = [1.0]
-
-    # def randomize(self, img: NdarrayOrTensor) -> None:
-    #     super().randomize(None)
-    #     if not self._do_transform:
-    #         return None
-    #     self._zoom = [self.R.uniform(l, h) for l, h in zip(self.min_zoom, self.max_zoom)]
-    #     if len(self._zoom) == 1:
-    #         # to keep the spatial shape ratio, use same random zoom factor for all dims
-    #         self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 1)
-    #     elif len(self._zoom) == 2 and img.ndim > 3:
-    #         # if 2 zoom factors provided for 3D data, use the first factor for H and W dims, second factor for D dim
-    #         self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 2) + ensure_tuple(self._zoom[-1])
 
     def __call__(
             self,
@@ -1434,32 +1453,21 @@ class RandZoom(InvertibleTransform, LazyTransform, RandomizableTrait):
             randomize: whether to execute `randomize()` function first, default to True.
 
         """
-        # # match the spatial image dim
-        # if randomize:
-        #     self.randomize(img=img)
-        #
-        # if not self._do_transform:
-        #     out = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)
-        # else:
-        #     out = Zoom(
-        #         self._zoom,
-        #         keep_size=self.keep_size,
-        #         mode=look_up_option(mode or self.mode, InterpolateMode),
-        #         padding_mode=padding_mode or self.padding_mode,
-        #         align_corners=self.align_corners if align_corners is None else align_corners,
-        #         **self.kwargs,
-        #     )(img)
-        # if get_track_meta():
-        #     z_info = self.pop_transform(out, check=False) if self._do_transform else {}
-        #     self.push_transform(out, extra_info=z_info)
-        # return out  # type: ignore
-        zoom_ = self.randomizer.sample(img)
+        zoom_ = self.randomizer.sample()
         mode_ = mode or self.mode
         padding_mode_ = padding_mode or self.padding_mode
         align_corners_ = align_corners or self.align_corners
 
         return zoom(img, zoom_, mode_, padding_mode_, align_corners_, self.keep_size,
                     lazy_evaluation=self.lazy_evaluation)
+
+    def set_random_state(
+            self,
+            seed: int | None = None,
+            state: np.random.RandomState | None = None
+    ) -> RandZoom:
+        self.randomizer.set_random_state(seed, state)
+        return self
 
     def inverse(self, data):
         return invert(data, self.lazy_evaluation)

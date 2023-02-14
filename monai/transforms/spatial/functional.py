@@ -132,12 +132,16 @@ def identity(
 def spacing(
     img: torch.Tensor,
     pixdim: Union[Sequence[float], float],
-    src_pixdim: Optional[Union[Sequence[float], float]] = None,
+    # src_pixdim: Optional[Union[Sequence[float], float]] = None,
     diagonal: Optional[bool] = False,
     mode: Optional[Union[InterpolateMode, str]] = InterpolateMode.AREA,
     padding_mode: Optional[Union[NumpyPadMode, GridSamplePadMode, str]] = NumpyPadMode.EDGE,
     align_corners: Optional[bool] = False,
     dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
+    scale_extent: bool = False,
+    recompute_affine: bool = False,
+    min_pixdim: Sequence[float] | float | np.ndarray | None = None,
+    max_pixdim: Sequence[float] | float | np.ndarray | None = None,
     shape_override: Optional[Sequence[int]] = None,
     dtype_override: Optional[Union[DtypeLike, torch.dtype]] = None,
     lazy_evaluation: Optional[bool] = True
@@ -172,7 +176,8 @@ def spacing(
 
     input_shape, input_dtype = get_input_shape_and_dtype(shape_override, dtype_override, img_)
 
-    src_pixdim_ = src_pixdim or img_.pixdim
+    # src_pixdim_ = src_pixdim or img_.pixdim
+    src_pixdim_ = img_.pixdim
 
     input_ndim = len(input_shape) - 1
 
@@ -497,11 +502,13 @@ def zoom(
     input_ndim = len(input_shape) - 1
 
     zoom_factors = ensure_tuple_rep(factor, input_ndim)
+    # zoom_factors = ensure_tuple(factor)
     zoom_factors = [1 / f for f in zoom_factors]
     shape_zoom_factors = [1 / z for z in zoom_factors]
 
     mode_ = look_up_option(mode, GridSampleMode)
-    padding_mode_ = look_up_option(padding_mode, GridSamplePadMode)
+    padding_mode_ = 'border' if padding_mode == 'edge' else padding_mode
+    padding_mode_ = look_up_option(padding_mode_, GridSamplePadMode)
     dtype_ = get_equivalent_dtype(dtype or img_.dtype, torch.Tensor)
 
     transform = create_scale(input_ndim, zoom_factors)
