@@ -15,6 +15,7 @@ defined in :py:class:`monai.apps.pathology.transforms.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
+import numbers
 from typing import Dict, Hashable, Mapping, Union
 
 import numpy as np
@@ -26,7 +27,7 @@ from .array import ExtractHEStains, HEDJitter, NormalizeHEStains
 
 
 class HEDJitterd(MapTransform):
-    
+
     """Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.HEDJitter`.
     Class to randomly perturbe HED color space values of image using stain deconvolution.
 
@@ -39,7 +40,7 @@ class HEDJitterd(MapTransform):
 
     """
 
-    def __init__(self, keys: KeysCollection, theta: float = 0.0) -> None:
+    def __init__(self, keys: KeysCollection, theta: float = 0.0, allow_missing_keys: bool = False) -> None:
         super().__init__(keys, allow_missing_keys)
         assert isinstance(theta, numbers.Number), "theta should be a single number."
         self.hedjitter = HEDJitter(theta=theta)
