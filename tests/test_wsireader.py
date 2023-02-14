@@ -48,6 +48,9 @@ TEST_CASE_0 = [FILE_PATH, 2, (3, HEIGHT // 4, WIDTH // 4)]
 
 TEST_CASE_TRANSFORM_0 = [FILE_PATH, 4, (HEIGHT // 16, WIDTH // 16), (1, 3, HEIGHT // 16, WIDTH // 16)]
 
+# ----------------------------------------------------------------------------
+# Test cases for deprecated monai.data.image_reader.WSIReader
+# ----------------------------------------------------------------------------
 TEST_CASE_DEP_1 = [
     FILE_PATH,
     {"location": (HEIGHT // 2, WIDTH // 2), "size": (2, 1), "level": 0},
@@ -83,6 +86,10 @@ TEST_CASE_DEP_5 = [
     np.array([[[239, 239], [239, 239]], [[239, 239], [239, 239]], [[237, 237], [237, 237]]]),
 ]
 
+# ----------------------------------------------------------------------------
+# Test cases for monai.data.wsi_reader.WSIReader
+# ----------------------------------------------------------------------------
+
 TEST_CASE_1 = [
     FILE_PATH,
     {},
@@ -116,6 +123,13 @@ TEST_CASE_5 = [
     {"level": 2},
     {"location": (0, 0), "size": (2, 1)},
     np.array([[[239], [239]], [[239], [239]], [[239], [239]]]),
+]
+
+TEST_CASE_6 = [
+    FILE_PATH,
+    {},
+    {"location": (HEIGHT // 2, WIDTH // 2), "size": (2, 1), "mpp": 0.25},
+    np.array([[[246], [246]], [[246], [246]], [[246], [246]]]),
 ]
 
 TEST_CASE_MULTI_WSI = [

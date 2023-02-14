@@ -109,7 +109,7 @@ class BaseWSIReader(ImageReader):
                 raise ValueError(
                     "mpp is not defined in this whole slide image, please use `level` (or `power`) instead."
                 )
-            available_mpps = [self.get_mpp(wsi, level) for level in range(n_levels)]
+            available_mpps = [self.get_mpp(wsi, level) for level in range(n_levels)]  # FIXME: not ordered maybe!
             if mpp in available_mpps:
                 valid_mpp = mpp
             else:
@@ -125,7 +125,7 @@ class BaseWSIReader(ImageReader):
             level = available_mpps.index(valid_mpp)
 
         elif power is not None:
-            available_powers = [self.get_power(wsi, level) for level in range(n_levels)]
+            available_powers = [self.get_power(wsi, level) for level in range(n_levels)]  # FIXME: not ordered maybe!
             if power in available_powers:
                 valid_power = power
             else:
@@ -188,7 +188,7 @@ class BaseWSIReader(ImageReader):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def get_power(self, wsi, level: int | None = None) -> int:
+    def get_power(self, wsi, level: int | None = None) -> float:
         """
         Returns the magnification power of the whole slide image at a given level.
 
@@ -256,12 +256,12 @@ class BaseWSIReader(ImageReader):
         location: tuple[int, int] = (0, 0),
         size: tuple[int, int] | None = None,
         level: int | None = None,
-        mpp: tuple[float, float] | None = None,
+        mpp: float | tuple[float, float] | None = None,
         power: int | None = None,
-        mpp_rtol: float = 0.1,
-        mpp_atol: float = 0.1,
-        power_rtol: float = 0.1,
-        power_atol: float = 0.1,
+        mpp_rtol: float = 0.05,
+        mpp_atol: float = 0.0,
+        power_rtol: float = 0.05,
+        power_atol: float = 0.0,
         dtype: DtypeLike = np.uint8,
         mode: str = "RGB",
     ) -> tuple[np.ndarray, dict]:
@@ -274,6 +274,7 @@ class BaseWSIReader(ImageReader):
             size: (height, width) tuple giving the patch size at the given level (`level`).
                 If None, it is set to the full image size at the given level.
             level: the level number. Defaults to 0
+            ....
             dtype: the data type of output image
             mode: the output image mode, 'RGB' or 'RGBA'
 
