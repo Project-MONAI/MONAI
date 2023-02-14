@@ -13,6 +13,8 @@ from __future__ import annotations
 
 from typing import Union
 
+import math
+
 import numpy as np
 import torch
 
@@ -131,6 +133,76 @@ def is_grid_shaped(data):
     return len(data.shape) == 3 and data.shape[0] == 3 or len(data.shape) == 4 and data.shape[0] == 4
 
 
+def matrix_to_eulers(matrix):
+    odd = 0 if (0+1) % 3 == 1 else 1
+    i = 0
+    j = (0 + 1 + odd) % 3
+    k = (0 + 2 - odd) % 3
+    print(odd, i, j, k)
+
+    res_0 = math.atan2(matrix[j, k], matrix[k, k])
+    c2 = np.linalg.norm(np.asarray([matrix[i, i], matrix[i, j]]))
+
+    if odd == 0 and res_0 < 0 or odd == 1 and res_0 > 0:
+        if res_0 > 0:
+            res_0 -= torch.pi
+        else:
+            res_0 += torch.pi
+        res_1 = math.atan2(-matrix[i, k], -c2)
+    else:
+        res_1 = math.atan2(-matrix[i, k], c2)
+
+    s1 = np.sin(res_0)
+    c1 = np.cos(res_0)
+    res_2 = math.atan2(s1 * matrix[k, i] - c1 * matrix[j, i], c1 * matrix[j, j] - s1 * matrix[2, 1])
+
+    if odd == 0:
+        res_0 = -res_0
+        res_1 = -res_1
+        res_2 = -res_2
+
+    return np.asarray([res_0, res_1, res_2])
+
+
+def check_matrix(matrix):
+    x = matrix[0, :-1]
+    y = matrix[1, :-1]
+    z = matrix[2, :-1]
+
+    norm_x = np.linalg.norm(x)
+    norm_y = np.linalg.norm(y)
+    norm_z = np.linalg.norm(z)
+
+    unit_scale = np.isclose(norm_x, 1.0) and np.isclose(norm_y, 1.0) and np.isclose(norm_z, 1.0)
+
+    is_ortho = (np.isclose(np.abs(x).max(), norm_x) and np.isclose(np.abs(y).max(), norm_y) and
+                np.isclose(np.abs(z).max(), norm_z))
+
+    is_unskewed = np.isclose(np.dot(x, y), 0.0) and np.isclose(np.dot(x, z), 0.0) and np.isclose(np.dot(y, z), 0.0)
+
+    return (
+        is_ortho,
+        unit_scale,
+#        is_unskewed,
+    )
+
+
+def check_axes(matrix):
+    is_ortho, is_scaled = check_matrix(matrix)
+
+    if not is_ortho:
+        raise ValueError(f"check_axes only accepts orthogonally aligned matrices (matrix is {matrix}")
+
+    x = matrix[0, :-1]
+    y = matrix[1, :-1]
+    z = matrix[2, :-1]
+    x_ind = np.argwhere(np.abs(x) > 1e-6)[0, 0]
+    y_ind = np.argwhere(np.abs(y) > 1e-6)[0, 0]
+    z_ind = np.argwhere(np.abs(z) > 1e-6)[0, 0]
+    return ((x_ind, 1 if x[x_ind] > 0.0 else -1),
+            (y_ind, 1 if y[y_ind] > 0.0 else -1),
+            (z_ind, 1 if z[z_ind] > 0.0 else -1))
+
 class Matrix:
     def __init__(self, matrix: NdarrayOrTensor):
         self.data = ensure_tensor(matrix)
@@ -182,7 +254,6 @@ class MetaMatrix:
 
         swap(self.metadata, LazyAttr.IN_DTYPE, LazyAttr.OUT_DTYPE)
         swap(self.metadata, LazyAttr.IN_SHAPE, LazyAttr.OUT_SHAPE)
-
 
     def __matmul__(self, other):
         if isinstance(other, MetaMatrix):

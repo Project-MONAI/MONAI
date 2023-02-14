@@ -58,7 +58,7 @@ class Randomizer:
             self.R = np.random.RandomState()
 
     def do_random(self):
-        return self.R.uniform() < self.prob
+        return self.R.uniform() <= self.prob
 
     def sample(self, *args, **kwargs):
         return self.R.uniform()
@@ -133,11 +133,15 @@ class ContinuousRandomizer(Randomizer):
         super().__init__(prob, seed, state)
 
         validate_compatible_scalar_or_tuple('min_value', 'max_value', min_value, max_value)
-        validate_compatible_scalar_or_tuple('min_value', 'default', min_value, default)
+        if isinstance(min_value, tuple):
+            default_ = tuple(default for _ in min_value)
+        else:
+            # validate_compatible_scalar_or_tuple('min_value', 'default', min_value, default)
+            default_ = default
 
         self.min_value = min_value
         self.max_value = max_value
-        self.default = default
+        self.default = default_
 
     def sample(self):
         if self.do_random():
