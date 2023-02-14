@@ -828,7 +828,7 @@ def _create_shear(spatial_dims: int, coefs: Sequence[float] | float, eye_func=np
 def create_scale(
     spatial_dims: int,
     scaling_factor: Sequence[float] | float,
-    device: torch.device | None = None,
+    device: torch.device | str | None = None,
     backend=TransformBackends.NUMPY,
 ) -> NdarrayOrTensor:
     """

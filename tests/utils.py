@@ -49,7 +49,7 @@ from monai.utils.module import pytorch_after, version_leq
 from monai.utils.type_conversion import convert_data_type
 
 nib, _ = optional_import("nibabel")
-http_error, has_requests = optional_import("requests", name="HTTPError")
+http_error, has_req = optional_import("requests", name="HTTPError")
 
 quick_test_var = "QUICKTEST"
 _tf32_enabled = None
@@ -136,7 +136,7 @@ def assert_allclose(
 def skip_if_downloading_fails():
     try:
         yield
-    except (ContentTooShortError, HTTPError, ConnectionError) + (http_error,) if has_requests else () as e:
+    except (ContentTooShortError, HTTPError, ConnectionError) + (http_error,) if has_req else () as e:  # noqa: B030
         raise unittest.SkipTest(f"error while downloading: {e}") from e
     except ssl.SSLError as ssl_e:
         if "decryption failed" in str(ssl_e):
