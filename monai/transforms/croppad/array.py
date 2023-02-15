@@ -30,7 +30,8 @@ from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.inverse import InvertibleTransform, TraceableTransform
-from monai.transforms.transform import MultiSampleTrait, Randomizable, Transform
+from monai.transforms.traits import MultiSampleTrait
+from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.utils import (
     compute_divisible_spatial_size,
     convert_pad_mode,

@@ -53,7 +53,8 @@ from monai.transforms.spatial.array import (
     SpatialResample,
     Zoom,
 )
-from monai.transforms.transform import MapTransform, MultiSampleTrait, RandomizableTransform
+from monai.transforms.traits import MultiSampleTrait
+from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.transforms.utils import create_grid
 from monai.utils import (
     GridSampleMode,

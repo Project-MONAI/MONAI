@@ -47,7 +47,8 @@ from monai.transforms.croppad.array import (
     SpatialPad,
 )
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.transform import MapTransform, MultiSampleTrait, Randomizable
+from monai.transforms.traits import MultiSampleTrait
+from monai.transforms.transform import MapTransform, Randomizable
 from monai.transforms.utils import is_positive
 from monai.utils import MAX_SEED, Method, PytorchPadMode, deprecated_arg_default, ensure_tuple_rep
 

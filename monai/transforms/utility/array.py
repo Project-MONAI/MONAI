@@ -44,13 +44,8 @@ from monai.networks.layers.simplelayers import (
     median_filter,
 )
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.transform import (
-    MultiSampleTrait,
-    Randomizable,
-    RandomizableTrait,
-    RandomizableTransform,
-    Transform,
-)
+from monai.transforms.traits import MultiSampleTrait
+from monai.transforms.transform import Randomizable, RandomizableTrait, RandomizableTransform, Transform
 from monai.transforms.utils import (
     extreme_points_to_image,
     get_extreme_points,
