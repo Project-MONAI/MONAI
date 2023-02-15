@@ -265,7 +265,7 @@ def sliding_window_inference(
         output_image_list[ss] = output_image_list[ss].detach()
         _map = count_map_list.pop(0)
         for _i in range(output_image_list[ss].shape[1]):
-            output_image_list[ss][:, _i:_i+1, ...] /= _map
+            output_image_list[ss][:, _i : _i + 1, ...] /= _map
         output_image_list[ss] = output_image_list[ss].to(compute_dtype)
 
     # remove padding if image_size smaller than roi_size
