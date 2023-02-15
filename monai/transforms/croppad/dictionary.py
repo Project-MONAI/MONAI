@@ -49,7 +49,7 @@ from monai.transforms.croppad.array import (
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import LazyTransform, MapTransform, Randomizable
 from monai.transforms.utils import is_positive
-from monai.utils import MAX_SEED, Method, PytorchPadMode, ensure_tuple_rep
+from monai.utils import MAX_SEED, Method, PytorchPadMode, deprecated_arg_default, ensure_tuple_rep
 
 __all__ = [
     "Padd",
@@ -488,6 +488,7 @@ class RandSpatialCropd(RandCropd):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         keys: KeysCollection,
@@ -526,6 +527,7 @@ class RandScaleCropd(RandCropd):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         keys: KeysCollection,
@@ -577,6 +579,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, LazyTransform):
 
     backend = RandSpatialCropSamples.backend
 
+    @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         keys: KeysCollection,

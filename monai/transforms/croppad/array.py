@@ -55,6 +55,7 @@ from monai.utils import (
     convert_to_dst_type,
     convert_to_numpy,
     convert_to_tensor,
+    deprecated_arg_default,
     ensure_tuple,
     ensure_tuple_rep,
     fall_back_tuple,
@@ -559,6 +560,7 @@ class RandSpatialCrop(Randomizable, Crop):
             if True, the actual size is sampled from `randint(roi_size, max_roi_size + 1)`.
     """
 
+    @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         roi_size: Sequence[int] | int,
@@ -622,6 +624,7 @@ class RandScaleCrop(RandSpatialCrop):
             `randint(roi_scale * image spatial size, max_roi_scale * image spatial size + 1)`.
     """
 
+    @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         roi_scale: Sequence[float] | float,
@@ -688,6 +691,7 @@ class RandSpatialCropSamples(Randomizable, TraceableTransform, LazyTransform):
 
     backend = RandSpatialCrop.backend
 
+    @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         roi_size: Sequence[int] | int,
