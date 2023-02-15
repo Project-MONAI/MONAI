@@ -14,8 +14,7 @@ from __future__ import annotations
 import itertools
 import random
 import warnings
-from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
-from contextlib import contextmanager
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from functools import wraps
 from inspect import getmembers, isclass
 from typing import Any, Tuple
@@ -28,8 +27,8 @@ from monai.config import DtypeLike, IndexSelection
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 from monai.networks.layers import GaussianFilter
 from monai.networks.utils import meshgrid_ij
-from monai.transforms.compose import Compose, OneOf
-from monai.transforms.transform import MapTransform, Transform, apply_transform
+# from monai.transforms.compose import Compose, OneOf
+from monai.transforms.transform import Transform
 from monai.transforms.utils_pytorch_numpy_unification import (
     any_np_pt,
     ascontiguousarray,
@@ -71,7 +70,6 @@ cucim, has_cucim = optional_import("cucim")
 exposure, has_skimage = optional_import("skimage.exposure")
 
 __all__ = [
-    "allow_missing_keys_mode",
     "check_boundaries",
     "compute_divisible_spatial_size",
     "convert_applied_interp_mode",
@@ -115,7 +113,6 @@ __all__ = [
     "weighted_patch_samples",
     "zero_margins",
     "equalize_hist",
-    "get_number_image_type_conversions",
     "get_transform_backends",
     "print_transform_backends",
     "convert_pad_mode",
@@ -1461,53 +1458,6 @@ def map_spatial_axes(
     return spatial_axes_
 
 
-@contextmanager
-def allow_missing_keys_mode(transform: MapTransform | Compose | tuple[MapTransform] | tuple[Compose]):
-    """Temporarily set all MapTransforms to not throw an error if keys are missing. After, revert to original states.
-
-    Args:
-        transform: either MapTransform or a Compose
-
-    Example:
-
-    .. code-block:: python
-
-        data = {"image": np.arange(16, dtype=float).reshape(1, 4, 4)}
-        t = SpatialPadd(["image", "label"], 10, allow_missing_keys=False)
-        _ = t(data)  # would raise exception
-        with allow_missing_keys_mode(t):
-            _ = t(data)  # OK!
-    """
-    # If given a sequence of transforms, Compose them to get a single list
-    if issequenceiterable(transform):
-        transform = Compose(transform)
-
-    # Get list of MapTransforms
-    transforms = []
-    if isinstance(transform, MapTransform):
-        transforms = [transform]
-    elif isinstance(transform, Compose):
-        # Only keep contained MapTransforms
-        transforms = [t for t in transform.flatten().transforms if isinstance(t, MapTransform)]
-    if len(transforms) == 0:
-        raise TypeError(
-            "allow_missing_keys_mode expects either MapTransform(s) or Compose(s) containing MapTransform(s)"
-        )
-
-    # Get the state of each `allow_missing_keys`
-    orig_states = [t.allow_missing_keys for t in transforms]
-
-    try:
-        # Set all to True
-        for t in transforms:
-            t.allow_missing_keys = True
-        yield
-    finally:
-        # Revert
-        for t, o_s in zip(transforms, orig_states):
-            t.allow_missing_keys = o_s
-
-
 _interp_modes = list(InterpolateMode) + list(GridSampleMode)
 
 
@@ -1674,40 +1624,40 @@ class Fourier:
         return out
 
 
-def get_number_image_type_conversions(transform: Compose, test_data: Any, key: Hashable | None = None) -> int:
-    """
-    Get the number of times that the data need to be converted (e.g., numpy to torch).
-    Conversions between different devices are also counted (e.g., CPU to GPU).
-
-    Args:
-        transform: composed transforms to be tested
-        test_data: data to be used to count the number of conversions
-        key: if using dictionary transforms, this key will be used to check the number of conversions.
-    """
-
-    def _get_data(obj, key):
-        return obj if key is None else obj[key]
-
-    # if the starting point is a string (e.g., input to LoadImage), start
-    # at -1 since we don't want to count the string -> image conversion.
-    num_conversions = 0 if not isinstance(_get_data(test_data, key), str) else -1
-
-    tr = transform.flatten().transforms
-
-    if isinstance(transform, OneOf) or any(isinstance(i, OneOf) for i in tr):
-        raise RuntimeError("Not compatible with `OneOf`, as the applied transform is deterministically chosen.")
-
-    for _transform in tr:
-        prev_data = _get_data(test_data, key)
-        prev_type = type(prev_data)
-        prev_device = prev_data.device if isinstance(prev_data, torch.Tensor) else None
-        test_data = apply_transform(_transform, test_data, transform.map_items, transform.unpack_items)
-        # every time the type or device changes, increment the counter
-        curr_data = _get_data(test_data, key)
-        curr_device = curr_data.device if isinstance(curr_data, torch.Tensor) else None
-        if not isinstance(curr_data, prev_type) or curr_device != prev_device:
-            num_conversions += 1
-    return num_conversions
+# def get_number_image_type_conversions(transform: "Compose", test_data: Any, key: Hashable | None = None) -> int:
+#     """
+#     Get the number of times that the data need to be converted (e.g., numpy to torch).
+#     Conversions between different devices are also counted (e.g., CPU to GPU).
+#
+#     Args:
+#         transform: composed transforms to be tested
+#         test_data: data to be used to count the number of conversions
+#         key: if using dictionary transforms, this key will be used to check the number of conversions.
+#     """
+#
+#     def _get_data(obj, key):
+#         return obj if key is None else obj[key]
+#
+#     # if the starting point is a string (e.g., input to LoadImage), start
+#     # at -1 since we don't want to count the string -> image conversion.
+#     num_conversions = 0 if not isinstance(_get_data(test_data, key), str) else -1
+#
+#     tr = transform.flatten().transforms
+#
+#     if isinstance(transform, OneOf) or any(isinstance(i, OneOf) for i in tr):
+#         raise RuntimeError("Not compatible with `OneOf`, as the applied transform is deterministically chosen.")
+#
+#     for _transform in tr:
+#         prev_data = _get_data(test_data, key)
+#         prev_type = type(prev_data)
+#         prev_device = prev_data.device if isinstance(prev_data, torch.Tensor) else None
+#         test_data = apply_transform(_transform, test_data, transform.map_items, transform.unpack_items)
+#         # every time the type or device changes, increment the counter
+#         curr_data = _get_data(test_data, key)
+#         curr_device = curr_data.device if isinstance(curr_data, torch.Tensor) else None
+#         if not isinstance(curr_data, prev_type) or curr_device != prev_device:
+#             num_conversions += 1
+#     return num_conversions
 
 
 def get_transform_backends():

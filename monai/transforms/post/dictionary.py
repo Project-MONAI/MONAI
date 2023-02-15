@@ -45,7 +45,8 @@ from monai.transforms.post.array import (
 )
 from monai.transforms.transform import MapTransform
 from monai.transforms.utility.array import ToTensor
-from monai.transforms.utils import allow_missing_keys_mode, convert_applied_interp_mode
+from monai.transforms.utils import convert_applied_interp_mode
+from monai.transforms import allow_missing_keys_mode
 from monai.utils import PostFix, convert_to_tensor, ensure_tuple, ensure_tuple_rep
 
 __all__ = [

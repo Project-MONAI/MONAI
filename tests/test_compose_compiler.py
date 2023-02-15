@@ -2,8 +2,19 @@ import unittest
 
 import numpy as np
 
+import torch
 
-from monai.transforms import LazyTrait, MultiSampleTrait, RandomizableTrait
+from monai.transforms.transform import LazyTrait, MultiSampleTrait, RandomizableTrait
+from monai.transforms import ResizeWithPadOrCrop, CastToType
+from monai.transforms import LoadImage, EnsureChannelFirst
+
+from monai.transforms.spatial.array import (
+    Flip,
+    Rotate,
+    Rotate90,
+    Spacing,
+    Zoom,
+)
 from monai.transforms.lazy.array import (
     ApplyTransforms,
     CachedTransform,
@@ -180,3 +191,58 @@ class TestUtilityTransforms(unittest.TestCase):
         self.assertEqual(actual[5], e)
         self.assertEqual(actual[6], f)
         self.assertIsInstance(actual[7], ApplyTransforms)
+
+
+class TestRealPipelineScenarios(unittest.TestCase):
+
+    TEST_CASES = [
+        (
+            [
+                LoadImage(image_only=True),
+                EnsureChannelFirst(),
+                # Orientation("RPS"),
+                Spacing(pixdim=(1.2, 1.01, 0.9), mode="bilinear", dtype=np.float32),
+                Flip(spatial_axis=[1, 2]),
+                Rotate90(spatial_axes=(1, 2)),
+                Zoom(zoom=0.75, keep_size=True),
+                Rotate(angle=(np.pi, 0, 0), mode="bilinear", align_corners=True, dtype=np.float64),
+                # RandAffine(prob=0.5, rotate_range=np.pi, mode="nearest"),
+                ResizeWithPadOrCrop(100),
+                CastToType(dtype=torch.uint8),
+            ], (7,)
+        ),
+        (
+            [
+                LoadImage(image_only=True),
+                EnsureChannelFirst(),
+                # Orientation("RPS"),
+                Spacing(pixdim=(1.2, 1.01, 0.9), mode="bilinear", dtype=np.float32),
+                Flip(spatial_axis=[1, 2]),
+                Rotate90(spatial_axes=(1, 2), lazy_evaluation=False),
+                Zoom(zoom=0.75, keep_size=True),
+                Rotate(angle=(np.pi, 0, 0), mode="bilinear", align_corners=True, dtype=np.float64),
+                # RandAffine(prob=0.5, rotate_range=np.pi, mode="nearest"),
+                ResizeWithPadOrCrop(100),
+                CastToType(dtype=torch.uint8),
+            ], (7, )
+        ),
+    ]
+
+    def test_compose_compiler_cases(self):
+        for i_c, c in enumerate(self.TEST_CASES):
+            self._test_compose_compiler(*c)
+
+    def _test_compose_compiler(self, transforms, apply_locations):
+        comp = ComposeCompiler()
+        actual = comp.compile_lazy_resampling(transforms)
+        offset = 0
+        for a in actual:
+            print(a)
+
+        t = 0
+        for a in range(len(actual)):
+            if a not in apply_locations:
+                self.assertIs(transforms[t], actual[a])
+                t += 1
+            else:
+                self.assertIsInstance(actual[a], ApplyTransforms)

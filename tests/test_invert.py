@@ -34,7 +34,14 @@ from monai.transforms import (
     RandZoom,
     ResizeWithPadOrCrop,
     Spacing,
+    Flip,
+    Rotate,
+    Rotate90,
+    Zoom,
 )
+import monai.transforms.spatial.old_array as old
+from monai.transforms.compose import Compose2
+
 from monai.utils import set_determinism
 from tests.utils import assert_allclose, make_nifti_image
 
@@ -45,28 +52,61 @@ class TestInvert(unittest.TestCase):
         im_fname = make_nifti_image(create_test_image_3d(101, 100, 107, noise_max=100)[1])  # label image, discrete
         data = [im_fname for _ in range(12)]
         lazy = False
-        transform = Compose(
+        # transform = Compose(
+        #     [
+        #         LoadImage(image_only=True),
+        #         EnsureChannelFirst(),
+        #         # Orientation("RPS"),
+        #         Spacing(pixdim=(1.2, 1.01, 0.9), mode="bilinear", dtype=np.float32, lazy_evaluation=lazy),
+        #         RandFlip(prob=0.5, spatial_axis=[1, 2], lazy_evaluation=lazy),
+        #         RandAxisFlip(prob=0.5, lazy_evaluation=lazy),
+        #         RandRotate90(prob=0, spatial_axes=(1, 2), lazy_evaluation=lazy),
+        #         RandZoom(prob=0.5, min_zoom=0.5, max_zoom=1.1, keep_size=True, lazy_evaluation=lazy),
+        #         RandRotate(prob=0.5, range_x=np.pi, mode="bilinear", align_corners=True, dtype=np.float64,
+        #                    lazy_evaluation=lazy),
+        #         RandAffine(prob=0.5, rotate_range=np.pi, mode="nearest"),
+        #         ResizeWithPadOrCrop(100),
+        #         CastToType(dtype=torch.uint8),
+        #     ]
+        # )
+        transform_new = Compose2(
             [
                 LoadImage(image_only=True),
                 EnsureChannelFirst(),
                 # Orientation("RPS"),
                 Spacing(pixdim=(1.2, 1.01, 0.9), mode="bilinear", dtype=np.float32, lazy_evaluation=lazy),
-                RandFlip(prob=0.5, spatial_axis=[1, 2], lazy_evaluation=lazy),
-                RandAxisFlip(prob=0.5, lazy_evaluation=lazy),
-                RandRotate90(prob=0, spatial_axes=(1, 2), lazy_evaluation=lazy),
-                RandZoom(prob=0.5, min_zoom=0.5, max_zoom=1.1, keep_size=True, lazy_evaluation=lazy),
-                RandRotate(prob=0.5, range_x=np.pi, mode="bilinear", align_corners=True, dtype=np.float64,
-                           lazy_evaluation=lazy),
-                RandAffine(prob=0.5, rotate_range=np.pi, mode="nearest"),
+                Flip(spatial_axis=[1, 2], lazy_evaluation=lazy),
+                Rotate90(spatial_axes=(1, 2), lazy_evaluation=lazy),
+                Zoom(zoom=0.75, keep_size=True, lazy_evaluation=lazy),
+                Rotate(angle=(np.pi, 0, 0), mode="bilinear", align_corners=True, dtype=np.float64,
+                       lazy_evaluation=lazy),
+                # RandAffine(prob=0.5, rotate_range=np.pi, mode="nearest"),
                 ResizeWithPadOrCrop(100),
                 CastToType(dtype=torch.uint8),
+
             ]
         )
-
+        # transform_old = Compose(
+        #     [
+        #         LoadImage(image_only=True),
+        #         EnsureChannelFirst(),
+        #         # Orientation("RPS"),
+        #         old.Spacing(pixdim=(1.2, 1.01, 0.9), mode="bilinear", dtype=np.float32),
+        #         old.Flip(spatial_axis=[1, 2]),
+        #         old.Rotate90(spatial_axes=(1, 2)),
+        #         old.Zoom(zoom=0.75, keep_size=True),
+        #         old.Rotate(angle=(np.pi, 0, 0), mode="bilinear", align_corners=True, dtype=np.float64),
+        #         # RandAffine(prob=0.5, rotate_range=np.pi, mode="nearest"),
+        #         ResizeWithPadOrCrop(100),
+        #         CastToType(dtype=torch.uint8),
+        #     ]
+        # )
+        transform = transform_new
         # num workers = 0 for mac or gpu transforms
         num_workers = 0 if sys.platform != "linux" or torch.cuda.is_available() else 2
         dataset = Dataset(data, transform=transform)
-        self.assertIsInstance(transform.inverse(dataset[0]), MetaTensor)
+        data_ = dataset[0]
+        self.assertIsInstance(transform.inverse(data_), MetaTensor)
         loader = DataLoader(dataset, num_workers=num_workers, batch_size=1)
         inverter = Invert(transform=transform, nearest_interp=True, device="cpu", post_func=torch.as_tensor)
 
@@ -75,6 +115,7 @@ class TestInvert(unittest.TestCase):
             for item in d:
                 orig = deepcopy(item)
                 i = inverter(item)
+                print(item.shape, i.shape)
                 self.assertTupleEqual(orig.shape[1:], (100, 100, 100))
                 # check the nearest interpolation mode
                 assert_allclose(i.to(torch.uint8).to(torch.float), i.to(torch.float))

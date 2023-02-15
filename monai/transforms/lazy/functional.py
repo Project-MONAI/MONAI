@@ -81,6 +81,8 @@ def apply_transforms(
     pending = [] if pending is None else pending
 
     if not pending:
+        if isinstance(data, MetaTensor):
+            return data
         return data, []
 
     cumulative_xform = affine_from_pending(pending[0])

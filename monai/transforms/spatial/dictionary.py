@@ -145,22 +145,6 @@ __all__ = [
 ]
 
 
-def keys_to_process(
-        keys: KeysCollection,
-        dictionary: Mapping[Hashable, torch.Tensor],
-        allow_missing_keys: bool,
-) -> KeysCollection:
-    """
-    Returns all or some of the keys passed in `keys`, depending on the parameters:
-     - If `allow_missing_keys` is False, all keys are returned.
-     - If `allow_missing_keys` is True, keys that are present as keys in `dictionary`
-     are returned.
-    """
-    if allow_missing_keys is True:
-        return {k for k in keys if k in dictionary}
-    return keys
-
-
 class SpatialResampled(MapTransform, InvertibleTransform):
     """
     TODO: determine whether this is still needed
@@ -1321,7 +1305,7 @@ class RandAxisFlipd(MapTransform, InvertibleTransform, LazyTransform, Randomizab
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         rd = dict(data)
-        first_key: Hashable = self.first_key(d)
+        first_key: Hashable = self.first_key(rd)
         if first_key == ():
             return rd
 

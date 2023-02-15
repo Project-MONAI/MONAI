@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from monai.transforms import LazyTrait, MultiSampleTrait, RandomizableTrait
+from monai.transforms.traits import LazyTrait, MultiSampleTrait, RandomizableTrait
 from monai.transforms.lazy.array import ApplyTransforms, CachedTransform, MultiSampleTransform
 
 
@@ -50,17 +50,21 @@ class ComposeCompiler:
         return list(transforms)
 
     def compile_lazy_resampling(self, transforms):
+        """
+        Note: if a lazy transform has `lazy_evaluation` set to False, it doesn't need an ApplyTransforms
+        instance to be appended, as it can take care of running the pending transforms itself
+        """
         result = list()
         lazy = list()
-        for i in range(len(transforms)):
-            if self.transform_is_lazy(transforms[i]):
-                lazy.append(transforms[i])
+        for t in transforms:
+            if self.transform_is_lazy(t):
+                lazy.append(t)
             else:
                 if len(lazy) > 0:
                     result.extend(lazy)
                     result.append(ApplyTransforms())
                     lazy = list()
-                result.append(transforms[i])
+                result.append(t)
         if len(lazy) > 0:
             result.extend(lazy)
             result.append(ApplyTransforms())

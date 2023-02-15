@@ -14,6 +14,8 @@ A collection of generic interfaces for MONAI transforms.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+
 import warnings
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any
@@ -24,15 +26,18 @@ import monai
 from monai.transforms.inverse import InvertibleTransform
 
 # For backwards compatibility (so this still works: from monai.transforms.compose import MapTransform)
+from monai.transforms.traits import InvertibleTrait, LazyTrait
 from monai.transforms.transform import (  # noqa: F401
     MapTransform,
     Randomizable,
     RandomizableTransform,
     Transform,
-    apply_transform,
+    apply_transform, RandomizableTrait,
 )
-from monai.utils import MAX_SEED, ensure_tuple, get_seed
+from monai.utils import MAX_SEED, ensure_tuple, get_seed, issequenceiterable
 from monai.utils.enums import TraceKeys
+
+import monai.transforms.utility.compose_compiler as cc
 
 __all__ = ["Compose", "OneOf", "RandomOrder"]
 
@@ -123,6 +128,7 @@ class Compose(Randomizable, InvertibleTransform):
         map_items: bool = True,
         unpack_items: bool = False,
         log_stats: bool = False,
+        lazy_evaluation: bool = True
     ) -> None:
         if transforms is None:
             transforms = []
@@ -186,6 +192,43 @@ class Compose(Randomizable, InvertibleTransform):
         for t in reversed(invertible_transforms):
             data = apply_transform(t.inverse, data, self.map_items, self.unpack_items, self.log_stats)
         return data
+
+
+class Compose2(RandomizableTrait, InvertibleTrait, LazyTrait):
+
+    def __init__(
+            self,
+            transforms: Sequence[Callable] | Callable | None = None,
+            map_items: bool = True,
+            unpack_items: bool = True,
+            log_stats: bool = False,
+            lazy_evaluation: bool = True
+    ):
+        self._compiler = cc.ComposeCompiler()
+
+        # This is the uncompiled transform list. It is not supposed to be altered
+        self._uncompiled_transforms = list(transforms)
+        self._forward_transforms = self._compiler.compile_lazy_resampling(transforms)
+        self._backward_transforms = None
+        self._log_stats = log_stats
+
+    def set_random_state(self, seed=None, state=None):
+        for t in self._uncompiled_transforms:
+            if isinstance(t, RandomizableTrait):
+                t.set_random_state(seed, state)
+
+    def __call__(self, data):
+        for t in self._forward_transforms:
+            # data = apply_transform(t, data, self.map_items, self.unpack_items, self.log_stats)
+            data = apply_transform(t, data, False, False, self._log_stats)
+
+    def inverse(self, data):
+        if self._backward_transforms is None:
+            self._backward_transforms =\
+                self._compiler.compile_lazy_resampling(reversed(self._uncompiled_transforms))
+
+        for t in self._backward_transforms:
+            data = apply_transform(t.inverse, data, False, False, self._log_stats)
 
 
 class OneOf(Compose):
@@ -351,3 +394,50 @@ class RandomOrder(Compose):
         for o in reversed(applied_order):
             data = apply_transform(self.transforms[o].inverse, data, self.map_items, self.unpack_items, self.log_stats)
         return data
+
+
+@contextmanager
+def allow_missing_keys_mode(transform: MapTransform | Compose | tuple[MapTransform] | tuple[Compose]):
+    """Temporarily set all MapTransforms to not throw an error if keys are missing. After, revert to original states.
+
+    Args:
+        transform: either MapTransform or a Compose
+
+    Example:
+
+    .. code-block:: python
+
+        data = {"image": np.arange(16, dtype=float).reshape(1, 4, 4)}
+        t = SpatialPadd(["image", "label"], 10, allow_missing_keys=False)
+        _ = t(data)  # would raise exception
+        with allow_missing_keys_mode(t):
+            _ = t(data)  # OK!
+    """
+    # If given a sequence of transforms, Compose them to get a single list
+    if issequenceiterable(transform):
+        transform = Compose(transform)
+
+    # Get list of MapTransforms
+    transforms = []
+    if isinstance(transform, MapTransform):
+        transforms = [transform]
+    elif isinstance(transform, Compose):
+        # Only keep contained MapTransforms
+        transforms = [t for t in transform.flatten().transforms if isinstance(t, MapTransform)]
+    if len(transforms) == 0:
+        raise TypeError(
+            "allow_missing_keys_mode expects either MapTransform(s) or Compose(s) containing MapTransform(s)"
+        )
+
+    # Get the state of each `allow_missing_keys`
+    orig_states = [t.allow_missing_keys for t in transforms]
+
+    try:
+        # Set all to True
+        for t in transforms:
+            t.allow_missing_keys = True
+        yield
+    finally:
+        # Revert
+        for t, o_s in zip(transforms, orig_states):
+            t.allow_missing_keys = o_s

@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 from .adaptors import FunctionSignature, adaptor, apply_alias, to_kwargs
-from .compose import Compose, OneOf, RandomOrder
+from .compose import Compose, OneOf, RandomOrder, allow_missing_keys_mode
 from .croppad.array import (
     BorderPad,
     BoundingRect,
@@ -455,16 +455,18 @@ from .spatial.dictionary import (
     ZoomDict,
 )
 from .transform import (
-    LazyTrait,
     LazyTransform,
     MapTransform,
-    MultiSampleTrait,
     Randomizable,
-    RandomizableTrait,
     RandomizableTransform,
     ThreadUnsafe,
     Transform,
     apply_transform,
+)
+from .traits import (
+    LazyTrait,
+    MultiSampleTrait,
+    RandomizableTrait,
 )
 from .utility.array import (
     AddChannel,
@@ -631,7 +633,6 @@ from .utility.dictionary import (
 )
 from .utils import (
     Fourier,
-    allow_missing_keys_mode,
     attach_hook,
     compute_divisible_spatial_size,
     convert_applied_interp_mode,
@@ -651,7 +652,6 @@ from .utils import (
     generate_spatial_bounding_box,
     get_extreme_points,
     get_largest_connected_component_mask,
-    get_number_image_type_conversions,
     get_transform_backends,
     img_bounds,
     in_bounds,

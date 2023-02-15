@@ -458,7 +458,7 @@ class Spacing(LazyTransform, InvertibleTransform):
         min_pixdim: Sequence[float] | float | np.ndarray | None = None,
         max_pixdim: Sequence[float] | float | np.ndarray | None = None,
         image_only: bool = False,
-        lazy_evaluation: bool | None = False
+        lazy_evaluation: bool | None = True
     ) -> None:
         """
         Args:
@@ -772,7 +772,7 @@ class Resize(LazyTransform, InvertibleTransform):
             anti_aliasing: bool = False,
             anti_aliasing_sigma: Sequence[float] | float | None = None,
             dtype: Optional[Union[DtypeLike, torch.dtype]] = np.float32,
-            lazy_evaluation: Optional[bool] = False
+            lazy_evaluation: Optional[bool] = True
     ) -> None:
         """
         Resize the input image to given spatial size (with scaling, not cropping/padding).
@@ -864,14 +864,14 @@ class Rotate(InvertibleTransform, LazyTransform):
     backend = [TransformBackends.TORCH]
 
     def __init__(
-	        self,
-	        angle: Sequence[float] | float,
-	        keep_size: bool = True,
-	        mode: str = GridSampleMode.BILINEAR,
-	        padding_mode: str = GridSamplePadMode.BORDER,
-	        align_corners: bool = False,
-	        dtype: DtypeLike | torch.dtype = torch.float32,
-	        lazy_evaluation: bool = False
+        self,
+        angle: Sequence[float] | float,
+        keep_size: bool = True,
+        mode: str = GridSampleMode.BILINEAR,
+        padding_mode: str = GridSamplePadMode.BORDER,
+        align_corners: bool = False,
+        dtype: DtypeLike | torch.dtype = torch.float32,
+        lazy_evaluation: bool = True
     ) -> None:
         """
         Rotates an input image by given angle using :py:class:`monai.networks.layers.AffineTransform`.
