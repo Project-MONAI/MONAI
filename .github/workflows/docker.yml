@@ -35,7 +35,7 @@ jobs:
           python setup.py build
           cat build/lib/monai/_version.py
       - name: Upload version
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: _version.py
           path: build/lib/monai/_version.py
