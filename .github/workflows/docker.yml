@@ -55,7 +55,7 @@ jobs:
       with:
         ref: dev
     - name: Download version
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: _version.py
     - name: Install Latest Docker
