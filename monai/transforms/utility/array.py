@@ -44,7 +44,13 @@ from monai.networks.layers.simplelayers import (
     median_filter,
 )
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.transform import Randomizable, RandomizableTrait, RandomizableTransform, Transform
+from monai.transforms.transform import (
+    MultiSampleTrait,
+    Randomizable,
+    RandomizableTrait,
+    RandomizableTransform,
+    Transform,
+)
 from monai.transforms.utils import (
     extreme_points_to_image,
     get_extreme_points,
@@ -343,7 +349,7 @@ class RemoveRepeatedChannel(Transform):
         return out
 
 
-class SplitDim(Transform):
+class SplitDim(Transform, MultiSampleTrait):
     """
     Given an image of size X along a certain dimension, return a list of length X containing
     images. Useful for converting 3D images into a stack of 2D images, splitting multichannel inputs into
@@ -976,7 +982,7 @@ class LabelToMask(Transform):
         return data
 
 
-class FgBgToIndices(Transform):
+class FgBgToIndices(Transform, MultiSampleTrait):
     """
     Compute foreground and background of the input label data, return the indices.
     If no output_shape specified, output data will be 1 dim indices after flattening.
@@ -1017,7 +1023,7 @@ class FgBgToIndices(Transform):
         return fg_indices, bg_indices
 
 
-class ClassesToIndices(Transform):
+class ClassesToIndices(Transform, MultiSampleTrait):
     backend = [TransformBackends.NUMPY, TransformBackends.TORCH]
 
     def __init__(

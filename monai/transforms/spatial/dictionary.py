@@ -53,7 +53,7 @@ from monai.transforms.spatial.array import (
     SpatialResample,
     Zoom,
 )
-from monai.transforms.transform import MapTransform, RandomizableTransform
+from monai.transforms.transform import MapTransform, MultiSampleTrait, RandomizableTransform
 from monai.transforms.utils import create_grid
 from monai.utils import (
     GridSampleMode,
@@ -1779,7 +1779,7 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
         return d
 
 
-class GridSplitd(MapTransform):
+class GridSplitd(MapTransform, MultiSampleTrait):
     """
     Split the image into patches based on the provided grid in 2D.
 
@@ -1820,7 +1820,7 @@ class GridSplitd(MapTransform):
         return output
 
 
-class GridPatchd(MapTransform):
+class GridPatchd(MapTransform, MultiSampleTrait):
     """
     Extract all the patches sweeping the entire image in a row-major sliding-window manner with possible overlaps.
     It can sort the patches and return all or a subset of them.
@@ -1884,7 +1884,7 @@ class GridPatchd(MapTransform):
         return d
 
 
-class RandGridPatchd(RandomizableTransform, MapTransform):
+class RandGridPatchd(RandomizableTransform, MapTransform, MultiSampleTrait):
     """
     Extract all the patches sweeping the entire image in a row-major sliding-window manner with possible overlaps,
     and with random offset for the minimal corner of the image, (0,0) for 2D and (0,0,0) for 3D.
