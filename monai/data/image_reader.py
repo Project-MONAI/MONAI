@@ -1141,13 +1141,17 @@ class PILReader(ImageReader):
     Args:
         converter: additional function to convert the image data after `read()`.
             for example, use `converter=lambda image: image.convert("LA")` to convert image format.
+        reverse_indexing: whether to swap axis 0 and 1 after loading the array, this is enabled by default,
+            so that output of the reader is consistent with the other readers. Set this option to ``False`` to use
+            the PIL backend's original spatial axes convention.
         kwargs: additional args for `Image.open` API in `read()`, mode details about available args:
             https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.open
     """
 
-    def __init__(self, converter: Callable | None = None, **kwargs):
+    def __init__(self, converter: Callable | None = None, reverse_indexing: bool = True, **kwargs):
         super().__init__()
         self.converter = converter
+        self.reverse_indexing = reverse_indexing
         self.kwargs = kwargs
 
     def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
@@ -1207,7 +1211,7 @@ class PILReader(ImageReader):
         for i in ensure_tuple(img):
             header = self._get_meta_dict(i)
             header[MetaKeys.SPATIAL_SHAPE] = self._get_spatial_shape(i)
-            data = np.moveaxis(np.asarray(i), 0, 1)
+            data = np.moveaxis(np.asarray(i), 0, 1) if self.reverse_indexing else np.asarray(i)
             img_array.append(data)
             header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
                 "no_channel" if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
