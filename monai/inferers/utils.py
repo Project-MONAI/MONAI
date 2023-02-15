@@ -272,7 +272,7 @@ def sliding_window_inference(
     for ss, output_i in enumerate(output_image_list):
         for _i in range(output_i.shape[1]):
             if torch.isnan(output_i[:, _i, ...]).any() or torch.isinf(output_i[:, _i, ...]).any():
-                warnings.warn(f"{_i:d}th channel of sliding window inference results contain NaN or Inf.")
+                warnings.warn(f"{_i}th channel of sliding window inference results contains NaN or Inf.")
 
         zoom_scale = [
             seg_prob_map_shape_d / roi_size_d for seg_prob_map_shape_d, roi_size_d in zip(output_i.shape[2:], roi_size)
