@@ -1683,7 +1683,7 @@ def scale_affine(spatial_rank, spatial_size, new_spatial_size, centered: bool = 
     s = np.array([float(o) / float(max(n, 1)) for o, n in zip(spatial_size, new_spatial_size)])
     scale = create_scale(r, s.tolist())
     if centered:
-        scale[:r, -1] = (np.diag(scale)[:r] - 1) / 2  # type: ignore
+        scale[:r, -1] = (np.diag(scale)[:r] - 1) / 2.0  # type: ignore
     return scale
 
 

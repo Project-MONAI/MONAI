@@ -176,7 +176,7 @@ def flip(img, shape, sp_axes, transform_info):
     axes = monai.transforms.utils.map_spatial_axes(img.ndim, sp_axes)  # use the axes with channel dim
     rank = img.peek_pending_rank() if isinstance(img, MetaTensor) else torch.tensor(3.0, dtype=torch.double)
     # shape and axes include the channel dim
-    xform = convert_to_dst_type(torch.eye(int(rank) + 1), rank)[0]
+    xform = torch.eye(int(rank) + 1, dtype=torch.double)
     for axis in axes:
         sp = axis - 1
         xform[sp, sp], xform[sp, -1] = xform[sp, sp] * -1, shape[axis] - 1
@@ -208,7 +208,7 @@ def resize(img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing,
     meta_info = TraceableTransform.track_transform_meta(
         img,
         sp_size=out_size,
-        affine=convert_to_dst_type(scale_affine(rank, orig_size, out_size), rank)[0],
+        affine=scale_affine(rank, orig_size, out_size),
         extra_info=extra_info,
         orig_size=orig_size,
         transform_info=transform_info,
@@ -290,7 +290,7 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype,
         int(math.floor(float(i) * z))
         for i, z in zip(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:], scale_factor)
     ]
-    xform = convert_to_dst_type(scale_affine(rank, im_shape, output_size), rank)[0]
+    xform = scale_affine(rank, im_shape, output_size)
     extra_info = {
         "mode": mode,
         "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
@@ -384,7 +384,7 @@ def affine_func(img, affine, grid, resampler, sp_size, mode, padding_mode, do_re
     }
     img_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
     rank = img.peek_pending_rank() if isinstance(img, MetaTensor) else torch.tensor(3.0, dtype=torch.double)
-    affine = convert_to_dst_type(monai.transforms.Affine.compute_w_affine(rank, affine, img_size, sp_size), rank)[0]
+    affine = monai.transforms.Affine.compute_w_affine(rank, affine, img_size, sp_size)
     meta_info = TraceableTransform.track_transform_meta(
         img,
         sp_size=sp_size,

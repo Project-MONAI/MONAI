@@ -461,7 +461,7 @@ class MetaTensor(MetaObj, torch.Tensor):
     @affine.setter
     def affine(self, d: NdarrayTensor) -> None:
         """Set the affine."""
-        self.meta[MetaKeys.AFFINE] = torch.as_tensor(d, device=torch.device("cpu"))
+        self.meta[MetaKeys.AFFINE] = torch.as_tensor(d, device=torch.device("cpu"), dtype=torch.double)
 
     @property
     def pixdim(self):
@@ -490,8 +490,7 @@ class MetaTensor(MetaObj, torch.Tensor):
 
     def peek_pending_rank(self):
         a = self.pending_operations[-1].get(LazyAttr.AFFINE, None) if self.pending_operations else self.affine
-        r = max(1, len(a) - 1)
-        return convert_to_dst_type(r, self.affine)[0]
+        return int(max(1, len(a) - 1))
 
     def new_empty(self, size, dtype=None, device=None, requires_grad=False):
         """
