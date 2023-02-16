@@ -29,8 +29,12 @@ from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import get_random_patch, get_valid_patch_size
+from monai.transforms import RandomizableTrait, MultiSampleTrait
+from monai.transforms.croppad.functional import croppad
+from monai.transforms.croppad.randomizer import CropRandomizer
 from monai.transforms.inverse import InvertibleTransform, TraceableTransform
-from monai.transforms.transform import Randomizable, Transform
+from monai.transforms.lazy.functional import invert
+from monai.transforms.transform import Randomizable, Transform, LazyTransform
 from monai.transforms.utils import (
     compute_divisible_spatial_size,
     convert_pad_mode,
@@ -43,7 +47,7 @@ from monai.transforms.utils import (
     map_classes_to_indices,
     weighted_patch_samples,
 )
-from monai.utils import ImageMetaKey as Key
+from monai.utils import ImageMetaKey as Key, GridSamplePadMode
 from monai.utils import (
     Method,
     PytorchPadMode,
@@ -1378,3 +1382,103 @@ class BoundingRect(Transform):
             bbox.append([i for k in zip(start_, end_) for i in k])
 
         return np.stack(bbox, axis=0)
+
+
+class CropPad(InvertibleTransform, LazyTransform):
+
+    def __init__(
+            self,
+            slices: Sequence[slice] | None = None,
+            padding_mode: GridSamplePadMode | str = GridSamplePadMode.BORDER,
+            lazy_evaluation: bool = True
+    ):
+        LazyTransform.__init__(self, lazy_evaluation)
+        self.slices = slices
+        self.padding_mode = padding_mode
+
+    def __call__(
+            self,
+            img: NdarrayOrTensor,
+            slices: Sequence[slice] | None = None,
+            shape_override: Sequence | None = None
+    ):
+        slices_ = slices if self.slices is None else self.slices
+
+        img_t = croppad(img, slices_, self.padding_mode, lazy_evaluation=self.lazy_evaluation)
+
+        return img_t
+
+    def inverse(self, data):
+        return invert(data, self.lazy_evaluation)
+
+
+class RandomCropPad(InvertibleTransform, LazyTransform, RandomizableTrait):
+
+    def __init__(
+            self,
+            sizes: Sequence[int] | int,
+            prob: float = 0.1,
+            padding_mode: GridSamplePadMode | str = GridSamplePadMode.BORDER,
+            lazy_evaluation: bool = True
+    ):
+        LazyTransform.__init__(self, lazy_evaluation)
+        # self.sizes = sizes
+        self.padding_mode = padding_mode
+
+        self.randomizer = CropRandomizer(sizes)
+
+
+    def __call__(
+            self,
+            img: torch.Tensor,
+            randomize: bool = True
+    ):
+
+        img_shape = img.shape[:1]
+
+        extents = self.randomizer.sample(img_shape)
+
+        img_t = croppad(img, extents, self.padding_mode, lazy_evaluation=self.lazy_evaluation)
+
+        # if self._do_transform:
+        #     offsets_ = self.offsets
+        # else:
+        #     # center crop if this sample isn't random
+        #     offsets_ = tuple((i - s) // 2 for i, s in zip(img_shape, self.sizes))
+        # slices = tuple(slice(o, o + s) for o, s in zip(offsets_, self.sizes))
+        # return self.op(img, slices=slices)
+
+    def inverse(self, data):
+        return invert(data, self.lazy_evaluation)
+
+
+class RandomCropPadMultiSample(
+    InvertibleTransform, LazyTransform, RandomizableTrait, MultiSampleTrait
+):
+
+    def __init__(
+            self,
+            sizes: Sequence[int] | int,
+            sample_count: int,
+            padding_mode: GridSamplePadMode | str = GridSamplePadMode.BORDER,
+            lazy_evaluation: bool = True
+    ):
+        self.sample_count = sample_count
+        self.op = RandomCropPad(sizes, 1.0, padding_mode, lazy_evaluation)
+
+    def __call__(
+            self,
+            img: torch.Tensor,
+            randomize: bool = True
+    ):
+        for i in range(self.sample_count):
+            yield self.op(img, randomize)
+
+    def inverse(
+            self,
+            data: NdarrayOrTensor
+    ):
+        raise NotImplementedError()
+
+    def set_random_state(self, seed=None, state=None):
+        self.op.set_random_state(seed, state)
