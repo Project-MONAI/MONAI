@@ -30,7 +30,8 @@ from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_tensor import MetaObj, MetaTensor
 from monai.data.utils import no_collation
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.transform import MapTransform, Randomizable, RandomizableTrait, RandomizableTransform
+from monai.transforms.traits import MultiSampleTrait, RandomizableTrait
+from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utility.array import (
     AddChannel,
     AddCoordinateChannels,
@@ -385,7 +386,7 @@ class RemoveRepeatedChanneld(MapTransform):
         return d
 
 
-class SplitDimd(MapTransform):
+class SplitDimd(MapTransform, MultiSampleTrait):
     backend = SplitDim.backend
 
     def __init__(
@@ -1243,7 +1244,7 @@ class LabelToMaskd(MapTransform):
         return d
 
 
-class FgBgToIndicesd(MapTransform):
+class FgBgToIndicesd(MapTransform, MultiSampleTrait):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.FgBgToIndices`.
 
@@ -1290,7 +1291,7 @@ class FgBgToIndicesd(MapTransform):
         return d
 
 
-class ClassesToIndicesd(MapTransform):
+class ClassesToIndicesd(MapTransform, MultiSampleTrait):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.ClassesToIndices`.
 

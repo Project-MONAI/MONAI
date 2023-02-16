@@ -453,18 +453,8 @@ from .spatial.dictionary import (
     ZoomD,
     ZoomDict,
 )
-from .transform import (
-    LazyTrait,
-    LazyTransform,
-    MapTransform,
-    MultiSampleTrait,
-    Randomizable,
-    RandomizableTrait,
-    RandomizableTransform,
-    ThreadUnsafe,
-    Transform,
-    apply_transform,
-)
+from .traits import LazyTrait, MultiSampleTrait, RandomizableTrait, ThreadUnsafe
+from .transform import LazyTransform, MapTransform, Randomizable, RandomizableTransform, Transform, apply_transform
 from .utility.array import (
     AddChannel,
     AddCoordinateChannels,

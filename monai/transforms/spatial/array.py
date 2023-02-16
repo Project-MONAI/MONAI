@@ -43,6 +43,7 @@ from monai.transforms.spatial.functional import (
     spatial_resample,
     zoom,
 )
+from monai.transforms.traits import MultiSampleTrait
 from monai.transforms.transform import LazyTransform, Randomizable, RandomizableTransform, Transform
 from monai.transforms.utils import (
     convert_pad_mode,
@@ -2867,7 +2868,7 @@ class RandGridDistortion(RandomizableTransform):
         return self.grid_distortion(img, distort_steps=self.distort_steps, mode=mode, padding_mode=padding_mode)
 
 
-class GridSplit(Transform):
+class GridSplit(Transform, MultiSampleTrait):
     """
     Split the image into patches based on the provided grid in 2D.
 
@@ -2952,7 +2953,7 @@ class GridSplit(Transform):
         return size, steps
 
 
-class GridPatch(Transform):
+class GridPatch(Transform, MultiSampleTrait):
     """
     Extract all the patches sweeping the entire image in a row-major sliding-window manner with possible overlaps.
     It can sort the patches and return all or a subset of them.
@@ -3079,7 +3080,7 @@ class GridPatch(Transform):
         return output
 
 
-class RandGridPatch(GridPatch, RandomizableTransform):
+class RandGridPatch(GridPatch, RandomizableTransform, MultiSampleTrait):
     """
     Extract all the patches sweeping the entire image in a row-major sliding-window manner with possible overlaps,
     and with random offset for the minimal corner of the image, (0,0) for 2D and (0,0,0) for 3D.

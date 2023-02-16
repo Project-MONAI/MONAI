@@ -32,6 +32,7 @@ from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.croppad.functional import crop_func, pad_func
 from monai.transforms.inverse import InvertibleTransform, TraceableTransform
+from monai.transforms.traits import MultiSampleTrait
 from monai.transforms.transform import LazyTransform, Randomizable, Transform
 from monai.transforms.utils import (
     compute_divisible_spatial_size,
@@ -658,7 +659,7 @@ class RandScaleCrop(RandSpatialCrop):
         return super().__call__(img=img, randomize=randomize)
 
 
-class RandSpatialCropSamples(Randomizable, TraceableTransform, LazyTransform):
+class RandSpatialCropSamples(Randomizable, TraceableTransform, LazyTransform, MultiSampleTrait):
     """
     Crop image with random size or specific size ROI to generate a list of N samples.
     It can crop at a random position as center or at the image center. And allows to set
@@ -881,7 +882,7 @@ class CropForeground(Crop):
         return super().inverse(inv)
 
 
-class RandWeightedCrop(Randomizable, TraceableTransform, LazyTransform):
+class RandWeightedCrop(Randomizable, TraceableTransform, LazyTransform, MultiSampleTrait):
     """
     Samples a list of `num_samples` image patches according to the provided `weight_map`.
 
@@ -956,7 +957,7 @@ class RandWeightedCrop(Randomizable, TraceableTransform, LazyTransform):
         return results
 
 
-class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform):
+class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, MultiSampleTrait):
     """
     Crop random fixed sized regions with the center being a foreground or background voxel
     based on the Pos Neg Ratio.
@@ -1127,7 +1128,7 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform):
         return results
 
 
-class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform):
+class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, MultiSampleTrait):
     """
     Crop random fixed sized regions with the center being a class based on the specified ratios of every class.
     The label data can be One-Hot format array or Argmax data. And will return a list of arrays for all the
