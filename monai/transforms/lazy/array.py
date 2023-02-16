@@ -31,7 +31,7 @@ class ApplyTransforms(InvertibleTransform):
         return apply_transforms(*args, **kwargs)
 
     def inverse(self, data):
-        return NotImplementedError()
+        return self(data)
 
 
 class CacheMechanism:

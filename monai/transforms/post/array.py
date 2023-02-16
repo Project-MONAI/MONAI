@@ -28,6 +28,7 @@ from monai.data.meta_tensor import MetaTensor
 from monai.networks import one_hot
 from monai.networks.layers import GaussianFilter, apply_filter, separable_filtering
 from monai.transforms.inverse import InvertibleTransform
+from monai.transforms.traits import InvertibleTrait
 from monai.transforms.transform import Transform
 from monai.transforms.utility.array import ToTensor
 from monai.transforms.utils import (
@@ -800,7 +801,7 @@ class Invert(Transform):
             post_func: postprocessing for the inverted result, should be a callable function.
             to_tensor: whether to convert the inverted data into PyTorch Tensor first, default to `True`.
         """
-        if not isinstance(transform, InvertibleTransform):
+        if not isinstance(transform, InvertibleTrait):
             raise ValueError("transform is not invertible, can't invert transform for the data.")
         self.transform = transform
         self.nearest_interp = nearest_interp
