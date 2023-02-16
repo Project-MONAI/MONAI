@@ -14,6 +14,7 @@ from __future__ import annotations
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 from scipy.ndimage import zoom as zoom_scipy
 
@@ -37,7 +38,7 @@ class TestZoom(NumpyImageTestCase2D):
     @parameterized.expand(VALID_CASES)
     def test_pending_ops(self, zoom, mode):
         im = MetaTensor(self.imt[0], meta={"a": "b", "affine": DEFAULT_TEST_AFFINE})
-        zoom_fn = Zoom(zoom=zoom, mode="nearest-exact", keep_size=False)
+        zoom_fn = Zoom(zoom=zoom, mode="bilinear", keep_size=False, dtype=torch.float64)
         # non-lazy
         expected = zoom_fn(im)
         self.assertIsInstance(expected, MetaTensor)
@@ -47,7 +48,7 @@ class TestZoom(NumpyImageTestCase2D):
         self.assertIsInstance(pending_result, MetaTensor)
         assert_allclose(pending_result.peek_pending_affine(), expected.affine)
         assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:])
-        result = apply_transforms(pending_result, mode="nearest", dtype=np.float64, align_corners=True)[0]
+        result = apply_transforms(pending_result, mode="bilinear", dtype=np.float64, align_corners=True)[0]
         # compare
         assert_allclose(result, expected, rtol=1e-5)
 
