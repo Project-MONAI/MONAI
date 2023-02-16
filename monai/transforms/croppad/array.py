@@ -30,6 +30,7 @@ from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.inverse import InvertibleTransform, TraceableTransform
+from monai.transforms.traits import MultiSampleTrait
 from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.utils import (
     compute_divisible_spatial_size,
@@ -683,7 +684,7 @@ class RandScaleCrop(RandSpatialCrop):
         return super().__call__(img=img, randomize=randomize)
 
 
-class RandSpatialCropSamples(Randomizable, TraceableTransform):
+class RandSpatialCropSamples(Randomizable, TraceableTransform, MultiSampleTrait):
     """
     Crop image with random size or specific size ROI to generate a list of N samples.
     It can crop at a random position as center or at the image center. And allows to set
@@ -893,7 +894,7 @@ class CropForeground(Crop):
         return super().inverse(inv)
 
 
-class RandWeightedCrop(Randomizable, TraceableTransform):
+class RandWeightedCrop(Randomizable, TraceableTransform, MultiSampleTrait):
     """
     Samples a list of `num_samples` image patches according to the provided `weight_map`.
 
@@ -958,7 +959,7 @@ class RandWeightedCrop(Randomizable, TraceableTransform):
         return results
 
 
-class RandCropByPosNegLabel(Randomizable, TraceableTransform):
+class RandCropByPosNegLabel(Randomizable, TraceableTransform, MultiSampleTrait):
     """
     Crop random fixed sized regions with the center being a foreground or background voxel
     based on the Pos Neg Ratio.
@@ -1118,7 +1119,7 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform):
         return results
 
 
-class RandCropByLabelClasses(Randomizable, TraceableTransform):
+class RandCropByLabelClasses(Randomizable, TraceableTransform, MultiSampleTrait):
     """
     Crop random fixed sized regions with the center being a class based on the specified ratios of every class.
     The label data can be One-Hot format array or Argmax data. And will return a list of arrays for all the
