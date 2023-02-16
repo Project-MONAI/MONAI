@@ -24,7 +24,12 @@ from monai.apps.auto3dseg import BundleGen, DataAnalyzer, NNIGen, OptunaGen, imp
 from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
 from monai.utils import optional_import
-from tests.utils import SkipIfBeforePyTorchVersion, skip_if_downloading_fails, skip_if_no_cuda
+from tests.utils import (
+    SkipIfBeforePyTorchVersion,
+    get_testing_algo_template_path,
+    skip_if_downloading_fails,
+    skip_if_no_cuda,
+)
 
 _, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 optuna, has_optuna = optional_import("optuna")
@@ -120,7 +125,10 @@ class TestHPO(unittest.TestCase):
         ConfigParser.export_config_file(data_src, data_src_cfg)
         with skip_if_downloading_fails():
             bundle_generator = BundleGen(
-                algo_path=work_dir, data_stats_filename=da_output_yaml, data_src_cfg_name=data_src_cfg
+                algo_path=work_dir,
+                data_stats_filename=da_output_yaml,
+                data_src_cfg_name=data_src_cfg,
+                templates_path_or_url=get_testing_algo_template_path(),
             )
         bundle_generator.generate(work_dir, num_fold=1)
 
