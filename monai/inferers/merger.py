@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
+from typing import Any
 
 import torch
 
@@ -24,7 +25,12 @@ __all__ = ["Merger", "AvgMerger"]
 class Merger(ABC):
     """
     A base class for merging patches.
-    Extend this class to support operations for `PatchInference`, e.g. `AvgMerger`.
+    Extend this class to support operations for `PatchInference`.
+
+    There are two methods that have to be implemented in the concrete classes:
+
+        - aggregate: aggregate the values at their corresponding locations
+        - finalize: perform any final process and return the merged output
 
     Args:
         device: the device where Merger tensors should reside.
@@ -33,31 +39,17 @@ class Merger(ABC):
     def __init__(self, device: torch.device | str | None = None, dtype: torch.dtype = torch.float32) -> None:
         self.device = device
         self.dtype = dtype
-        self.is_initialized = False
         self.is_finalized = False
-
-    @abstractmethod
-    def initialize(self, output_shape: Sequence[int] | None = None) -> None:
-        """
-        Initialize the merger.
-
-        Args:
-            output_shape: the shape of output tensor (B,C,H,W,[D])
-
-        Raises:
-            NotImplementedError: When the subclass does not override this method.
-
-        """
-        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
     def aggregate(self, values: torch.Tensor, location: Sequence[int]) -> None:
         """
         Aggregate values for merging.
+        This method is being called in a loop and should add values to their corresponding location in the merged output results.
 
         Args:
             values: a tensor of shape BCHW[D], representing the values of inference output
-            location: a tuple/list giving the top left location of the patch in the original image.
+            location: a tuple/list giving the top left location of the patch in the output.
 
         Raises:
             NotImplementedError: When the subclass does not override this method.
@@ -66,20 +58,13 @@ class Merger(ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def finalize(self) -> torch.Tensor:
+    def finalize(self) -> Any:
         """
-        Perform final operations for merging patches.
+        Perform final operations for merging patches and return the final merged output.
 
-        Raises:
-            NotImplementedError: When the subclass does not override this method.
-
-        """
-        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
-
-    @abstractmethod
-    def get_output(self) -> torch.Tensor:
-        """
-        Get the output merged tensor.
+        Returns:
+            The results of merged patches, which is commonly a torch.Tensor representing the merged result, or
+                a string representing the filepath to the merged results on disk.
 
         Raises:
             NotImplementedError: When the subclass does not override this method.
@@ -100,29 +85,16 @@ class AvgMerger(Merger):
 
     def __init__(
         self,
-        output_shape: Sequence[int] | None = None,
+        output_shape: Sequence[int],
         device: torch.device | str = "cpu",
         dtype: torch.dtype = torch.float32,
     ) -> None:
-        super().__init__(device, dtype)
-        self.output_shape = output_shape
-
-    def initialize(self, output_shape: Sequence[int] | None = None) -> None:
-        """
-        Initialize the merger by creating tensors for aggregating `values` and `counts`.
-
-        Args:
-            output_shape: the shape of output tensor (B,C,H,W,[D])
-        """
-        # overwrite output_shape if the self.output_shape is set
-        if self.output_shape:
-            output_shape = self.output_shape
+        super().__init__(device=device, dtype=dtype)
         if output_shape is None:
             raise ValueError("A valid `output_shape` should be set in the init or initialize method.")
-        self.values = torch.zeros(output_shape, dtype=self.dtype, device=self.device)
-        self.counts = torch.zeros(output_shape, dtype=torch.uint8, device=self.device)
-        self.is_initialized = True
-        self.is_finalized = False
+        self.output_shape = output_shape
+        self.values = torch.zeros(self.output_shape, dtype=self.dtype, device=self.device)
+        self.counts = torch.zeros(self.output_shape, dtype=torch.int16, device=self.device)
 
     def aggregate(self, values: torch.Tensor, location: Sequence[int]) -> None:
         """
@@ -136,8 +108,8 @@ class AvgMerger(Merger):
             NotImplementedError: When the subclass does not override this method.
 
         """
-        if not self.is_initialized:
-            raise ValueError("`AvgMerger` needs to be initialized before aggregation.")
+        if self.is_finalized:
+            raise ValueError("`AvgMerger` is already finalized. Please instantiate a new object to aggregate.")
         patch_size = values.shape[2:]
         map_slice = tuple(slice(loc, loc + size) for loc, size in zip(location, patch_size))
         map_slice = ensure_tuple_size(map_slice, values.ndim, pad_val=slice(None), pad_from_start=True)
@@ -146,41 +118,43 @@ class AvgMerger(Merger):
 
     def finalize(self) -> torch.Tensor:
         """
-        Finalize the merging by dividing values by counts.
+        Finalize merging by dividing values by counts and return the merged tensor.
 
-        Note:
-            To avoid creating a new tensor for the final results to save memory, after this method is called,
-            `get_values()` method will return the "final" averaged values and not the accumulating values.
-            Also calling `self.finalize` multiple times does not have any effect unless it is initialized again.
+        Notes:
+            To avoid creating a new tensor for the final results (to save memory space),
+            after this method is called, `get_values()` method will return the "final" averaged values,
+            and not the accumulating values. Also calling `finalize()` multiple times does not have any effect.
 
         Returns:
             torch.tensor: a tensor of merged patches
         """
-        # guard against multiple call to finalize (before initialized again)
+        # guard against multiple call to finalize
         if not self.is_finalized:
-            # use in-place division to save space and create self.output alias
-            self.output = self.values.div_(self.counts)
+            # use in-place division to save space
+            self.values.div_(self.counts)
             # set finalize flag to protect performing in-place division again
             self.is_finalized = True
-            # unset initialize flag to avoid further aggregation
-            self.is_initialized = False
 
-        return self.get_output()
+        return self.values
 
     def get_values(self) -> torch.Tensor:
-        """Get the accumulating values during aggregation or final averaged values after it is finalized.
+        """
+        Get the accumulating values during aggregation or final averaged values after it is finalized.
 
-        Note:
-            - If called before finalizing, this method returns the accumulating values.
-            - If called after finalizing, this method returns the final merged [and averaged] values.
-            - Call self.finalize() to finalize.
+        Returns:
+            Merged (averaged) output tensor.
+
+        Notes:
+            - If called before calling `finalize()`, this method returns the accumulating values.
+            - If called after calling `finalize()`, this method returns the final merged [and averaged] values.
         """
         return self.values
 
     def get_counts(self) -> torch.Tensor:
-        """Get the aggregator tensor for number of samples."""
-        return self.counts
+        """
+        Get the aggregator tensor for number of samples.
 
-    def get_output(self) -> torch.Tensor:
-        """Get the output merged tensor."""
-        return self.output
+        Returns:
+            torch.Tensor: Number of accumulated samples at each location.
+        """
+        return self.counts

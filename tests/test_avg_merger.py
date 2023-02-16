@@ -100,27 +100,24 @@ class AvgMergerTests(unittest.TestCase):
         ]
     )
     def test_avg_merger_patches_same_size(self, image, patch_locations, expected):
-        merger = AvgMerger()
-        merger.initialize(output_shape=image.shape)
+        merger = AvgMerger(output_shape=image.shape)
         for pl in patch_locations:
             merger.aggregate(pl[0], pl[1])
         output = merger.finalize()
         # check for multiple call of finalize
         self.assertIs(output, merger.finalize())
-        # check if get_output is working fine
-        self.assertIs(output, merger.get_output())
         # check if the result is matching the expectation
         assert_allclose(output, expected)
 
-    def test_avg_merger_non_initialized_error(self):
+    def test_avg_merger_finalized_error(self):
         with self.assertRaises(ValueError):
-            merger = AvgMerger()
+            merger = AvgMerger(output_shape=(1, 3, 2, 3))
+            merger.finalize()
             merger.aggregate(torch.zeros(1, 3, 2, 2), (3, 3))
 
-    def test_avg_merge_no_output_shape_error(self):
+    def test_avg_merge_none_output_shape_error(self):
         with self.assertRaises(ValueError):
-            merger = AvgMerger()
-            merger.initialize()
+            merger = AvgMerger(output_shape=None)
 
 
 if __name__ == "__main__":
