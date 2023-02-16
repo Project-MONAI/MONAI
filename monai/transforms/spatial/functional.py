@@ -506,8 +506,10 @@ def zoom(
     zoom_factors = [1 / f for f in zoom_factors]
     shape_zoom_factors = [1 / z for z in zoom_factors]
 
+    # TODO: Remove this after consolidated resampling
     mode_ = 'bilinear' if mode == 'area' else mode
     mode_ = look_up_option(mode_, GridSampleMode)
+    # TODO: Remove this after consolidated resampling
     padding_mode_ = 'border' if padding_mode == 'edge' else padding_mode
     padding_mode_ = look_up_option(padding_mode_, GridSamplePadMode)
     dtype_ = get_equivalent_dtype(dtype or img_.dtype, torch.Tensor)

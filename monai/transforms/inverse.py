@@ -25,6 +25,7 @@ from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
 # from monai.transforms.lazy.functional import apply_transforms
 from monai.transforms.lazy.utils import MetaMatrix
+from monai.transforms.traits import InvertibleTrait
 from monai.transforms.transform import LazyTransform, Transform
 from monai.utils import LazyAttr, MetaKeys, TraceKeys, convert_to_dst_type, convert_to_numpy, convert_to_tensor
 
@@ -305,7 +306,7 @@ class TraceableTransform(Transform):
         self.tracing = prev
 
 
-class InvertibleTransform(TraceableTransform):
+class InvertibleTransform(TraceableTransform, InvertibleTrait):
     """Classes for invertible transforms.
 
     This class exists so that an ``invert`` method can be implemented. This allows, for

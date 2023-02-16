@@ -195,7 +195,8 @@ class Compose(Randomizable, InvertibleTransform):
 
 
 class Compose2(RandomizableTrait, InvertibleTrait, LazyTrait):
-
+    # TODO: add suppress compile flag
+    # TODO: add optional external ComposeCompiler parameter
     def __init__(
             self,
             transforms: Sequence[Callable] | Callable | None = None,
@@ -222,13 +223,19 @@ class Compose2(RandomizableTrait, InvertibleTrait, LazyTrait):
             # data = apply_transform(t, data, self.map_items, self.unpack_items, self.log_stats)
             data = apply_transform(t, data, False, False, self._log_stats)
 
+        return data
+
     def inverse(self, data):
+
         if self._backward_transforms is None:
+            raw_backward_transforms = [t for t in self._uncompiled_transforms if isinstance(t, InvertibleTrait)]
             self._backward_transforms =\
-                self._compiler.compile_lazy_resampling(reversed(self._uncompiled_transforms))
+                self._compiler.compile_lazy_resampling(reversed(raw_backward_transforms))
 
         for t in self._backward_transforms:
             data = apply_transform(t.inverse, data, False, False, self._log_stats)
+
+        return data
 
 
 class OneOf(Compose):
