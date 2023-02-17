@@ -140,7 +140,7 @@ class AvgMerger(Merger):
 
     def get_values(self) -> torch.Tensor:
         """
-        Get the accumulating values during aggregation or final averaged values after it is finalized.
+        Get the accumulated values during aggregation or final averaged values after it is finalized.
 
         Returns:
             Merged (averaged) output tensor.
