@@ -25,6 +25,7 @@ import torch
 from monai import config, transforms
 from monai.config import KeysCollection
 from monai.data.meta_tensor import MetaTensor
+from monai.transforms.traits import LazyTrait, RandomizableTrait, ThreadUnsafe
 from monai.utils import MAX_SEED, ensure_tuple, first
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import MONAIEnvVars
@@ -32,9 +33,6 @@ from monai.utils.misc import MONAIEnvVars
 __all__ = [
     "ThreadUnsafe",
     "apply_transform",
-    "LazyTrait",
-    "RandomizableTrait",
-    "MultiSampleTrait",
     "Randomizable",
     "LazyTransform",
     "RandomizableTransform",
@@ -130,69 +128,6 @@ def apply_transform(
             else:
                 _log_stats(data=data)
         raise RuntimeError(f"applying transform {transform}") from e
-
-
-class LazyTrait:
-    """
-    An interface to indicate that the transform has the capability to execute using
-    MONAI's lazy resampling feature. In order to do this, the implementing class needs
-    to be able to describe its operation as an affine matrix or grid with accompanying metadata.
-    This interface can be extended from by people adapting transforms to the MONAI framework as
-    well as by implementors of MONAI transforms.
-    """
-
-    @property
-    def lazy_evaluation(self):
-        """
-        Get whether lazy_evaluation is enabled for this transform instance.
-        Returns:
-            True if the transform is operating in a lazy fashion, False if not.
-        """
-        raise NotImplementedError()
-
-    @lazy_evaluation.setter
-    def lazy_evaluation(self, enabled: bool):
-        """
-        Set whether lazy_evaluation is enabled for this transform instance.
-        Args:
-            enabled: True if the transform should operate in a lazy fashion, False if not.
-        """
-        raise NotImplementedError()
-
-
-class RandomizableTrait:
-    """
-    An interface to indicate that the transform has the capability to perform
-    randomized transforms to the data that it is called upon. This interface
-    can be extended from by people adapting transforms to the MONAI framework as well as by
-    implementors of MONAI transforms.
-    """
-
-    pass
-
-
-class MultiSampleTrait:
-    """
-    An interface to indicate that the transform has the capability to return multiple samples
-    given an input, such as when performing random crops of a sample. This interface can be
-    extended from by people adapting transforms to the MONAI framework as well as by implementors
-    of MONAI transforms.
-    """
-
-    pass
-
-
-class ThreadUnsafe:
-    """
-    A class to denote that the transform will mutate its member variables,
-    when being applied. Transforms inheriting this class should be used
-    cautiously in a multi-thread context.
-
-    This type is typically used by :py:class:`monai.data.CacheDataset` and
-    its extensions, where the transform cache is built with multiple threads.
-    """
-
-    pass
 
 
 class Randomizable(ThreadUnsafe, RandomizableTrait):
