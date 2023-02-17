@@ -14,7 +14,7 @@ from __future__ import annotations
 import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
-from typing import Any, Type
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -95,7 +95,7 @@ class PatchInferer(Inferer):
     def __init__(
         self,
         splitter: Splitter | Callable | None = None,
-        merger_cls: Type[Merger] = AvgMerger,
+        merger_cls: type[Merger] = AvgMerger,
         batch_size: int = 1,
         preprocessing: Callable | None = None,
         postprocessing: Callable | None = None,
