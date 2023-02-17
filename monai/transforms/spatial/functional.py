@@ -198,7 +198,6 @@ def flip(img, shape, sp_axes, transform_info):
 def resize(img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, transform_info):
     img = convert_to_tensor(img, track_meta=get_track_meta())
     orig_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
-    rank = img.peek_pending_rank() if isinstance(img, MetaTensor) else torch.tensor(3.0, dtype=torch.double)
     extra_info = {
         "mode": mode,
         "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
@@ -208,7 +207,7 @@ def resize(img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing,
     meta_info = TraceableTransform.track_transform_meta(
         img,
         sp_size=out_size,
-        affine=scale_affine(rank, orig_size, out_size),
+        affine=scale_affine(orig_size, out_size),
         extra_info=extra_info,
         orig_size=orig_size,
         transform_info=transform_info,
@@ -285,12 +284,11 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, t
 
 def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype, transform_info):
     im_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
-    rank = img.peek_pending_rank() if isinstance(img, MetaTensor) else torch.tensor(3.0, dtype=torch.double)
     output_size = [
         int(math.floor(float(i) * z))
         for i, z in zip(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:], scale_factor)
     ]
-    xform = scale_affine(rank, im_shape, output_size)
+    xform = scale_affine(im_shape, output_size)
     extra_info = {
         "mode": mode,
         "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,

@@ -480,11 +480,13 @@ class MetaTensor(MetaObj, torch.Tensor):
 
     def peek_pending_affine(self):
         res = self.affine
+        r = len(res) - 1
         for p in self.pending_operations:
-            next_matrix = convert_to_tensor(p.get(LazyAttr.AFFINE))
+            next_matrix = convert_to_tensor(p.get(LazyAttr.AFFINE), dtype=torch.double)
             if next_matrix is None:
                 continue
             res = convert_to_dst_type(res, next_matrix)[0]
+            next_matrix = monai.data.utils.to_affine_nd(r, next_matrix)
             res = monai.transforms.lazy.utils.combine_transforms(res, next_matrix)
         return res
 

@@ -1662,25 +1662,23 @@ def convert_to_contiguous(
         return data
 
 
-def scale_affine(spatial_rank, spatial_size, new_spatial_size, centered: bool = True):
+def scale_affine(spatial_size, new_spatial_size, centered: bool = True):
     """
-    Scale the affine matrix according to the new spatial size.
+    Compute the scaling matrix according to the new spatial size
 
     Args:
-        spatial_rank: the expected spatial rank.
         spatial_size: original spatial size.
         new_spatial_size: new spatial size.
-        centered: whether the scaling is with respect to
-            the image center (True, default) or corner (False).
+        centered: whether the scaling is with respect to the image center (True, default) or corner (False).
 
     Returns:
-        Scaled affine matrix.
+        the scaling matrix.
 
     """
-    r = int(spatial_rank)
+    r = max(len(new_spatial_size), len(spatial_size))
     if spatial_size == new_spatial_size:
         return np.eye(r + 1)
-    s = np.array([float(o) / float(max(n, 1)) for o, n in zip(spatial_size, new_spatial_size)])
+    s = np.array([float(o) / float(max(n, 1)) for o, n in zip(spatial_size, new_spatial_size)], dtype=float)
     scale = create_scale(r, s.tolist())
     if centered:
         scale[:r, -1] = (np.diag(scale)[:r] - 1) / 2.0  # type: ignore
