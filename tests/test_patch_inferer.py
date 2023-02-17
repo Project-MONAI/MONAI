@@ -17,6 +17,7 @@ import torch
 from parameterized import parameterized
 from torch.nn.functional import avg_pool2d
 
+from monai.data.meta_tensor import MetaTensor
 from monai.inferers import AvgMerger, PatchInferer, SlidingWindowSplitter
 from tests.utils import assert_allclose
 
@@ -153,6 +154,10 @@ TEST_CASE_ERROR_6 = [
     dict(splitter=lambda x: x),
     AttributeError,
 ]
+# invalid inputs: split patches tensor without location
+TEST_CASE_ERROR_7 = [torch.zeros(2, 2), dict(splitter=None), ValueError]
+# invalid inputs: split patches MetaTensor without location metadata
+TEST_CASE_ERROR_8 = [MetaTensor(torch.zeros(2, 2)), dict(splitter=None), ValueError]
 
 
 class PatchInfererTests(unittest.TestCase):
@@ -197,6 +202,8 @@ class PatchInfererTests(unittest.TestCase):
             TEST_CASE_ERROR_4,
             TEST_CASE_ERROR_5,
             TEST_CASE_ERROR_6,
+            TEST_CASE_ERROR_7,
+            TEST_CASE_ERROR_8,
         ]
     )
     def test_patch_inferer_errors(self, inputs, arguments, expected_error):

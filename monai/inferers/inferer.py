@@ -243,6 +243,22 @@ class PatchInferer(Inferer):
         """
         patches_locations: Iterable[tuple[torch.Tensor, Sequence[int]]]
         if self.splitter is None:
+            if isinstance(inputs, torch.Tensor):
+                if isinstance(inputs, MetaTensor):
+                    if PatchKeys.LOCATION not in inputs.meta:
+                        raise ValueError(
+                            "`PatchKey.LOCATION` does not exists in `inputs.meta`. "
+                            "If the inputs are already split into patches, the location of patches needs to be "
+                            "provided as `PatchKey.LOCATION` metadata in a MetaTensor. "
+                            "If the input is not already split, please provide `splitter`."
+                        )
+                else:
+                    raise ValueError(
+                        "`splitter` should be set if the input is not already split into patches. "
+                        "For inputs that are split, the location of patches needs to be provided as "
+                        "(image, location) pairs, or as `PatchKey.LOCATION` metadata in a MetaTensor. "
+                        f"The provided inputs type is {type(inputs)}."
+                    )
             patches_locations = inputs
         else:
             patches_locations = self.splitter(inputs)
