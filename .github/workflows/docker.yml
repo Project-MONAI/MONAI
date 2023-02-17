@@ -9,7 +9,6 @@ on:
   push:
     branches:
       - dev
-      - fixes-docker
   # Allows you to run this workflow manually from the Actions tab
   # This is to trigger building/testing docker image from dev only.
   workflow_dispatch:
@@ -59,12 +58,6 @@ jobs:
       uses: actions/download-artifact@v3
       with:
         name: _version.py
-    # - name: Install Latest Docker
-    #   run: |
-    #     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-    #     sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu  $(lsb_release -cs)  stable"
-    #     sudo apt-get update
-    #     sudo apt-get install docker-ce
     - name: docker_build
       shell: bash
       run: |
