@@ -216,7 +216,7 @@ class TestRealPipelineScenarios(unittest.TestCase):
                 LoadImage(image_only=True),
                 EnsureChannelFirst(),
                 # Orientation("RPS"),
-                Spacing(pixdim=(1.2, 1.01, 0.9), mode="bilinear", dtype=np.float32),
+                Spacing(pixdim=(1.2, 1.01, 0.9), mode="bilinear", dtype=np.float32, lazy_evaluation=False),
                 Flip(spatial_axis=[1, 2]),
                 Rotate90(spatial_axes=(1, 2), lazy_evaluation=False),
                 Zoom(zoom=0.75, keep_size=True),

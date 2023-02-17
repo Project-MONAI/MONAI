@@ -14,11 +14,11 @@ from typing import Optional, Sequence, Union
 import torch
 
 from monai.data.meta_obj import get_track_meta
-from monai.transforms import create_translate
+from monai.transforms.utils import create_translate
 from monai.transforms.lazy.functional import extents_from_shape, shape_from_extents, lazily_apply_op
 # from monai.transforms.meta_matrix import MatrixFactory
 from monai.transforms.lazy.utils import MetaMatrix
-from monai.transforms.spatial.functional import get_input_shape_and_dtype
+from monai.transforms.spatial.functional import get_input_shape_and_dtype, transform_shape
 from monai.utils import GridSamplePadMode, NumpyPadMode, convert_to_tensor, LazyAttr
 
 
@@ -44,9 +44,10 @@ def croppad(
     slice_centers = [(s.stop + s.start) / 2 for s in slices]
     deltas = [s - i for i, s in zip(img_centers, slice_centers)]
     transform = create_translate(input_ndim, deltas)
-    im_extents = extents_from_shape([input_shape[0]] + [s.stop - s.start for s in slices])
-    im_extents = [transform @ e for e in im_extents]
-    shape_override_ = shape_from_extents(input_shape, im_extents)
+    output_shape = transform_shape([input_shape[0]] + [s.stop - s.start for s in slices], transform)
+    # im_extents = extents_from_shape([input_shape[0]] + [s.stop - s.start for s in slices])
+    # im_extents = [transform @ e for e in im_extents]
+    # shape_override_ = shape_from_extents(input_shape, im_extents)
 
     metadata = {
         "op": "croppad",
@@ -55,6 +56,6 @@ def croppad(
         LazyAttr.IN_SHAPE: input_shape,
         LazyAttr.IN_DTYPE: input_dtype,
         LazyAttr.OUT_DTYPE: input_dtype,
-        LazyAttr.OUT_SHAPE: shape_override_
+        LazyAttr.OUT_SHAPE: output_shape
     }
     return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)

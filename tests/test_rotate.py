@@ -20,6 +20,7 @@ from parameterized import parameterized
 
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import Rotate
+from monai.transforms.spatial.functional import rotate
 from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, NumpyImageTestCase3D, test_local_inversion
 
 import matplotlib.pyplot as plt
@@ -60,6 +61,7 @@ class TestRotate2D(NumpyImageTestCase2D):
 
     def _test_correct_results(self, im_type, angle, keep_size, mode, padding_mode, align_corners):
         import monai.transforms.spatial.old_array as old
+
         rotate_fn = Rotate(angle, keep_size, mode, padding_mode, align_corners, dtype=np.float64,
                            lazy_evaluation=False)
         o_rotate_fn = old.Rotate(angle, keep_size, mode, padding_mode, align_corners, dtype=np.float64)
@@ -67,6 +69,9 @@ class TestRotate2D(NumpyImageTestCase2D):
         src_im = im_type(self.imt[0])
         o_dest_im = o_rotate_fn(src_im)
         dest_im = rotate_fn(src_im)
+        p_dest_im = rotate(src_im, angle, keep_size, mode, padding_mode, align_corners, dtype=np.float64,
+                           lazy_evaluation=False)
+
         if keep_size:
             np.testing.assert_allclose(self.imt[0].shape, dest_im.shape)
         _order = 0 if mode == "nearest" else 1
@@ -87,9 +92,8 @@ class TestRotate2D(NumpyImageTestCase2D):
         expected = np.stack(expected).astype(np.float32)
         dest_im = dest_im.cpu() if isinstance(dest_im, torch.Tensor) else dest_im
         good = np.sum(np.isclose(expected, dest_im, atol=1e-3))
+        self.assertEqual(dest_im, p_dest_im)
         self.assertLessEqual(np.abs(good - expected.size), 5, "diff at most 5 pixels")
-
-    # def _test_functional(self):
 
 
 class TestRotate3D(NumpyImageTestCase3D):

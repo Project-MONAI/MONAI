@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 
 from monai.transforms.utils import create_rotate, create_scale, create_flip, create_rotate_90, create_shear
-from monai.transforms.lazy.utils import matrix_to_eulers, check_matrix, check_axes
+from monai.transforms.lazy.utils import matrix_to_eulers, check_matrix, check_axes, check_unit_translate
 
 import torch
 
@@ -68,6 +68,34 @@ class TestCheckMatrix(unittest.TestCase):
     def _test_check_matrix(self, matrix, expected):
         self.assertEqual(check_matrix(matrix), expected)
 
+
+def make_matrix(tvals, noise):
+    matrix = np.eye(4)
+    for i_t, t in enumerate(tvals):
+        matrix[i_t, -1] = t + noise
+
+    return matrix
+
+
+class TestCheckUnitTranslate(unittest.TestCase):
+
+    TEST_CASES = [
+        (make_matrix((5, 4), 0.000001), (1, 16, 16), (1, 6, 6)),
+        (make_matrix((5.5, 4.5), 0.000001), (1, 16, 16), (1, 5, 5)),
+        (make_matrix((5.5, 4.5), 0.000001), (1, 17, 17), (1, 6, 6)),
+        (make_matrix((5, 4), 0.000001), (1, 17, 17), (1, 5, 5)),
+    ]
+
+    def test_check_unit_translate_cases(self):
+        for i_c, c in enumerate(self.TEST_CASES):
+            with self.subTest(f"{i_c}"):
+                self._test_check_unit_translate(*c)
+
+    def _test_check_unit_translate(self, matrix, src_shape, dst_shape):
+        actual = check_unit_translate(matrix, src_shape, dst_shape)
+        print(actual)
+
+
 class TestCheckAxes(unittest.TestCase):
 
     TEST_CASES = [
@@ -79,10 +107,11 @@ class TestCheckAxes(unittest.TestCase):
         (create_rotate(3, (0, torch.pi, 0)), ((0, -1), (1, 1), (2, -1))),
         (create_rotate(3, (torch.pi, 0, 0)), ((0, 1), (1, -1), (2, -1))),
     ]
+
     def test_check_axes_cases(self):
         for i_c, c in enumerate(self.TEST_CASES):
             with self.subTest(f"{i_c}"):
                 self._test_check_axes(*c)
 
     def _test_check_axes(self, matrix, expected):
-        self.assertEqual(check_axes(matrix), expected)
+        self.assertEqual(check_axes(matrix), expected)#

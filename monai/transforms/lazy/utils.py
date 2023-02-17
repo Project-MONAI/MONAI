@@ -182,9 +182,30 @@ def check_matrix(matrix):
 
     return (
         is_ortho,
-        unit_scale,
+        unit_scale
 #        is_unskewed,
     )
+
+
+def check_unit_translate(matrix, src_image_shape, dst_image_shape):
+
+    src_image_shape_ = src_image_shape[1:]
+    dst_image_shape_ = dst_image_shape[1:]
+
+    if len(src_image_shape_) != len(dst_image_shape_):
+        raise ValueError("'src_image_shape' and 'dst_image_shape' must be sequences of the same length "
+                         f"but are length {src_image_shape_} and {dst_image_shape_} respectively")
+
+    for i, (s, d) in enumerate(zip(src_image_shape_, dst_image_shape_)):
+        partial = matrix[i, -1] - np.floor(matrix[i, -1])
+        if s % 2 == d % 2:
+            if not (np.isclose(partial, 1.0, atol=1e-5) or np.isclose(partial, 0.0, atol=1e-5)):
+                return False
+        else:
+            if not np.isclose(partial, 0.5, atol=1e-5):
+                return False
+
+    return True
 
 
 def check_axes(matrix):
@@ -203,9 +224,13 @@ def check_axes(matrix):
             (y_ind, 1 if y[y_ind] > 0.0 else -1),
             (z_ind, 1 if z[z_ind] > 0.0 else -1))
 
+
 class Matrix:
     def __init__(self, matrix: NdarrayOrTensor):
         self.data = ensure_tensor(matrix)
+
+    def __repr__(self):
+        return f"Matrix<data={self.data if is_matrix_shaped(self.data) else self.data.shape}>"
 
     # def __matmul__(self, other):
     #     if isinstance(other, Matrix):
@@ -275,3 +300,6 @@ class MetaMatrix:
             self.metadata[LazyAttr.OUT_DTYPE], self.metadata[LazyAttr.IN_DTYPE]
         self.metadata[LazyAttr.IN_SHAPE], self.metadata[LazyAttr.OUT_SHAPE] =\
             self.metadata[LazyAttr.OUT_SHAPE], self.metadata[LazyAttr.IN_SHAPE]
+
+    def __repr__(self):
+        return f"MetaMatrix<matrix={self.matrix}, metadata={self.metadata}>"

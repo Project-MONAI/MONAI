@@ -19,7 +19,7 @@ from monai.data.utils import to_affine_nd
 from monai.data.meta_tensor import MetaTensor, get_track_meta
 
 from monai.config import NdarrayOrTensor, DtypeLike, USE_COMPILED
-from monai.transforms.lazy.utils import AffineMatrix, check_matrix
+from monai.transforms.lazy.utils import AffineMatrix, check_matrix, is_grid_shaped
 from monai.utils import LazyAttr, convert_data_type, convert_to_dst_type, TraceKeys, convert_to_tensor, fall_back_tuple, \
     GridSampleMode, GridSamplePadMode, TransformBackends, look_up_option, convert_to_cupy, convert_to_numpy, \
     optional_import, SplineMode, NdimageMode
@@ -45,18 +45,22 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = 
         "padding_mode": kwargs.pop(LazyAttr.PADDING_MODE, None),
     }
 
-    is_ortho, unit_scale = check_matrix(matrix)
-    # if is_ortho:
-    #     if unit_scale:
-    #         torch.nn.functional.interpolate
-    #     else:
-    #         pass
-    # else:
-    #     resampler = Resampler(affine=matrix, image_only=True, **init_kwargs)
-    #     return resampler(img=data, **call_kwargs)
-
-    resampler = Resampler(affine=matrix, image_only=True, **init_kwargs)
-    return resampler(img=data, **call_kwargs)
+    is_grid = is_grid_shaped(matrix)
+    is_ortho, unit_scale, unit_shift = check_matrix(matrix)
+    if not is_grid:
+        if is_ortho:
+            if unit_scale and unit_shift:
+                # do array
+                pass
+            else:
+                # interpolate
+                pass
+        else:
+            resampler = Resampler(affine=matrix, image_only=True, **init_kwargs)
+            return resampler(img=data, **call_kwargs)
+    else:
+        resampler = Resampler(affine=matrix, image_only=True, **init_kwargs)
+        return resampler(img=data, **call_kwargs)
 
 class ResampleImpl:
     """

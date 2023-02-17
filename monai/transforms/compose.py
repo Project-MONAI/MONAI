@@ -203,7 +203,8 @@ class Compose2(RandomizableTrait, InvertibleTrait, LazyTrait):
             map_items: bool = True,
             unpack_items: bool = True,
             log_stats: bool = False,
-            lazy_evaluation: bool = True
+            lazy_evaluation: bool = True,
+            compose_compiler: cc.ComposeCompiler | None = None
     ):
         self._compiler = cc.ComposeCompiler()
 
