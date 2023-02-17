@@ -11,9 +11,8 @@
 
 from __future__ import annotations
 
-from typing import Tuple, Union
+from typing import Sequence, Tuple, Union
 
-import numpy as np
 import torch
 import torch.nn as nn
 from squeeze_and_excitation import squeeze_and_excitation as se1
@@ -21,14 +20,15 @@ from squeeze_and_excitation import squeeze_and_excitation as se1
 from monai.networks.blocks import Bottleneck, ClassifierBlock, ConvConcatDenseBlock, Decoder, Encoder
 from monai.networks.blocks import squeeze_and_excitation as se
 from monai.networks.layers.factories import Act, Norm
-from monai.networks.layers.simplelayers import SkipConnectionWithIndices
+from monai.networks.layers.simplelayers import SkipConnectionWithIdx
 from monai.networks.layers.utils import get_dropout_layer, get_pool_layer
-from monai.utils import alias, export
+from monai.utils import export
+
+__all__ = ["Quicknat"]
 
 
 @export("monai.networks.nets")
-@alias("Quicknat")
-class QuickNAT(nn.Module):
+class Quicknat(nn.Module):
     """
     Model for "Quick segmentation of NeuroAnaTomy (QuickNAT) based on a deep fully convolutional neural network.
     Refer to: "QuickNAT: A Fully Convolutional Network for Quick and Accurate Segmentation of Neuroanatomy by
@@ -99,7 +99,7 @@ class QuickNAT(nn.Module):
         num_classes: int = 33,
         num_channels: int = 1,
         num_filters: int = 64,
-        kernel_size: int = (5, 5),
+        kernel_size: Sequence[int] | int = 5,
         kernel_c: int = 1,
         stride_conv: int = 1,
         pool: int = 2,
@@ -114,7 +114,7 @@ class QuickNAT(nn.Module):
         self.act = act
         self.norm = norm
         self.adn_ordering = adn_ordering
-        super(QuickNAT, self).__init__()
+        super().__init__()
         se_layer = self.get_selayer(num_filters, se_block)
         dropout_layer = get_dropout_layer(name=("dropout", {"p": drop_out}), dropout_dim=2)
         max_pool = get_pool_layer(
@@ -143,17 +143,17 @@ class QuickNAT(nn.Module):
 
             if layer == 1:
                 down = ConvConcatDenseBlock(num_channels, se_layer, dropout_layer, kernel_size, num_filters)
-                up = ConvConcatDenseBlock(num_filters * 2, self.SELayer, dropout_layer, kernel_size, num_filters)
+                up = ConvConcatDenseBlock(num_filters * 2, se_layer, dropout_layer, kernel_size, num_filters)
                 classifier = ClassifierBlock(2, num_filters, num_classes, stride_conv, kernel_c)
-                return MySequential(down, SkipConnectionWithIndices(subblock), up, classifier)
+                return SequentialWithIdx(down, SkipConnectionWithIdx(subblock), up, classifier)
             else:
-                up = Decoder(num_filters * 2, un_pool, self.SELayer, dropout_layer, kernel_size, num_filters)
-                down = Encoder(num_filters, max_pool, self.SELayer, dropout_layer, kernel_size, num_filters)
-                return MySequential(down, SkipConnectionWithIndices(subblock), up)
+                up = Decoder(num_filters * 2, un_pool, se_layer, dropout_layer, kernel_size, num_filters)
+                down = Encoder(num_filters, max_pool, se_layer, dropout_layer, kernel_size, num_filters)
+                return SequentialWithIdx(down, SkipConnectionWithIdx(subblock), up)
 
         self.model = _create_model(1)
 
-    def get_selayer(self, n_filters, se_block_type = "None"):
+    def get_selayer(self, n_filters, se_block_type="None"):
         """
         Returns the SEBlock defined in the initialization of the QuickNAT model.
 
@@ -163,17 +163,18 @@ class QuickNAT(nn.Module):
         Returns: Appropriate SEBlock. SSE and CSSE not implemented in Monai yet.
         """
         if se_block_type == "CSE":
-            self.SELayer = se.ChannelSELayer(2, n_filters)
+            return se.ChannelSELayer(2, n_filters)
         # not implemented in squeeze_and_excitation in monai
         elif se_block_type == "SSE":
-            self.SELayer = se1.SpatialSELayer(n_filters)
+            return se1.SpatialSELayer(n_filters)
 
         elif se_block_type == "CSSE":
             # not implemented in monai
-            self.SELayer = se1.ChannelSpatialSELayer(n_filters)
+            return se1.ChannelSpatialSELayer(n_filters)
         else:
-            self.SELayer = None
-    # TODO: Do I include this: 
+            return None
+
+    # TODO: Do I include this:
     def enable_test_dropout(self):
         """
         Enables test time drop out for uncertainity
@@ -195,21 +196,9 @@ class QuickNAT(nn.Module):
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         input, _ = self.model(input, None)
         return input
-        
-    # TODO do I include this: 
-    def save(self, path):
-        """
-        Save model with its parameters to the given path. Conventionally the
-        path should end with '*.model'.
-
-        Inputs:
-        - path: path string
-        """
-        print("Saving model... %s" % path)
-        torch.save(self.state_dict(), path)
 
 
-class MySequential(nn.Sequential):
+class SequentialWithIdx(nn.Sequential):
     """
     A sequential container.
     Modules will be added to it in the order they are passed in the
