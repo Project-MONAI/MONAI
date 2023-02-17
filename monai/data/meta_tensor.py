@@ -492,7 +492,7 @@ class MetaTensor(MetaObj, torch.Tensor):
 
     def peek_pending_rank(self):
         a = self.pending_operations[-1].get(LazyAttr.AFFINE, None) if self.pending_operations else self.affine
-        return int(max(1, len(a) - 1))
+        return 1 if a is None else int(max(1, len(a) - 1))
 
     def new_empty(self, size, dtype=None, device=None, requires_grad=False):
         """
