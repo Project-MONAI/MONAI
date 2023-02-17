@@ -25,7 +25,7 @@ from monai.data.meta_obj import MetaObj, get_track_meta
 from monai.data.utils import affine_to_spacing, decollate_batch, list_data_collate, remove_extra_metadata
 from monai.utils import look_up_option
 from monai.utils.enums import LazyAttr, MetaKeys, PostFix, SpaceKeys
-from monai.utils.type_conversion import convert_data_type, convert_to_numpy, convert_to_tensor
+from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, convert_to_numpy, convert_to_tensor
 
 __all__ = ["MetaTensor"]
 
@@ -461,7 +461,7 @@ class MetaTensor(MetaObj, torch.Tensor):
     @affine.setter
     def affine(self, d: NdarrayTensor) -> None:
         """Set the affine."""
-        self.meta[MetaKeys.AFFINE] = torch.as_tensor(d, device=torch.device("cpu"))
+        self.meta[MetaKeys.AFFINE] = torch.as_tensor(d, device=torch.device("cpu"), dtype=torch.double)
 
     @property
     def pixdim(self):
@@ -479,10 +479,13 @@ class MetaTensor(MetaObj, torch.Tensor):
         return tuple(convert_to_numpy(self.shape, wrap_sequence=True).tolist()[1:]) if res is None else res
 
     def peek_pending_affine(self):
-        res = None
-        if self.pending_operations:
-            res = self.pending_operations[-1].get(LazyAttr.AFFINE, None)
-        return self.affine if res is None else res
+        res = self.affine
+        for p in self.pending_operations:
+            next_matrix = convert_to_tensor(p.get(LazyAttr.AFFINE))
+            if next_matrix is None:
+                continue
+            res = convert_to_dst_type(res, next_matrix)[0]
+            res = monai.transforms.lazy.utils.combine_transforms(res, next_matrix)
 
     def new_empty(self, size, dtype=None, device=None, requires_grad=False):
         """
