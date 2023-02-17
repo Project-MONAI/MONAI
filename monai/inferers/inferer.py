@@ -94,7 +94,7 @@ class PatchInferer(Inferer):
 
     def __init__(
         self,
-        splitter: Splitter | None = None,
+        splitter: Splitter | Callable | None = None,
         merger_cls: type[Merger] = AvgMerger,
         batch_size: int = 1,
         preprocessing: Callable | None = None,
