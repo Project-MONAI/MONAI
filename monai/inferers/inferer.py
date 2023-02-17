@@ -20,7 +20,7 @@ import torch
 import torch.nn as nn
 
 from monai.data.meta_tensor import MetaTensor
-from monai.inferers.merger import AvgMerger, Merger, MergeType
+from monai.inferers.merger import AvgMerger, Merger
 from monai.inferers.splitter import Splitter
 from monai.inferers.utils import compute_importance_map, sliding_window_inference
 from monai.utils import BlendMode, PatchKeys, PytorchPadMode, ensure_tuple
@@ -229,7 +229,7 @@ class PatchInferer(Inferer):
         network: Callable[..., torch.Tensor | Sequence[torch.Tensor] | dict[Any, torch.Tensor]],
         *args: Any,
         **kwargs: Any,
-    ) -> MergeType | Sequence[MergeType] | dict[Any, MergeType]:
+    ) -> Any:
         """
         Args:
             inputs: input data for inference, a torch.Tensor, representing an image or batch of images.
@@ -241,14 +241,15 @@ class PatchInferer(Inferer):
             kwargs: optional keyword args to be passed to ``network``.
 
         """
-        ratios = []
-        patch_locations: Iterable[tuple[torch.Tensor, Sequence[int]]]
+        patches_locations: Iterable[tuple[torch.Tensor, Sequence[int]]]
         if self.splitter is None:
-            patch_locations = inputs
+            patches_locations = inputs
         else:
-            patch_locations = self.splitter(inputs)
+            patches_locations = self.splitter(inputs)
+
+        ratios: list[float] = []
         mergers: list[Merger] = []
-        for patches, locations, batch_size in self._batch_sampler(patch_locations):
+        for patches, locations, batch_size in self._batch_sampler(patches_locations):
             # run inference
             outputs = self._run_inference(network, patches, *args, **kwargs)
             # initialize the mergers
@@ -256,6 +257,7 @@ class PatchInferer(Inferer):
                 mergers, ratios = self._initialize_mergers(inputs, outputs, patches, batch_size)
             # aggregate outputs
             self._aggregate(outputs, locations, batch_size, mergers, ratios)
+
         # finalize the mergers and get the results
         merged_outputs = tuple(merger.finalize() for merger in mergers)
         # return according to the model output

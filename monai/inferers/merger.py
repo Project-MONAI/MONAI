@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from typing import Generic, TypeVar
+from typing import Any
 
 import torch
 
@@ -21,10 +21,8 @@ from monai.utils import ensure_tuple_size
 
 __all__ = ["Merger", "AvgMerger"]
 
-MergeType = TypeVar("MergeType")
 
-
-class Merger(ABC, Generic[MergeType]):
+class Merger(ABC):
     """
     A base class for merging patches.
     Extend this class to support operations for `PatchInference`.
@@ -66,7 +64,7 @@ class Merger(ABC, Generic[MergeType]):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def finalize(self) -> MergeType:
+    def finalize(self) -> Any:
         """
         Perform final operations for merging patches and return the final merged output.
 
@@ -81,7 +79,7 @@ class Merger(ABC, Generic[MergeType]):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
-class AvgMerger(Merger[torch.Tensor]):
+class AvgMerger(Merger):
     """Merge patches by taking average of the overlapping area
 
     Args:
