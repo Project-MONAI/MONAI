@@ -9,6 +9,7 @@ on:
   push:
     branches:
       - dev
+      - fixes-docker
   # Allows you to run this workflow manually from the Actions tab
   # This is to trigger building/testing docker image from dev only.
   workflow_dispatch:
