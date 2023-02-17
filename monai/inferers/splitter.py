@@ -43,7 +43,8 @@ class Splitter(ABC):
     @abstractmethod
     def __call__(self, inputs: Any) -> Iterable[tuple[torch.Tensor, Sequence[int]]]:
         """
-        Split the input image (or batch of images) into patches.
+        Split the input image (or batch of images) into patches and return pairs of (patch, location).
+        Where location is the coordinate of top left [front] corner of a patch.
 
         Args:
             inputs: either a tensor of shape BCHW[D], representing a batch of images,
