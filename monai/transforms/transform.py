@@ -319,7 +319,7 @@ class LazyTransform(Transform, LazyTrait):
     dictionary transforms to simplify implementation of new lazy transforms.
     """
 
-    _lazy_evaluation: bool = False    
+    _lazy_evaluation: bool = False
 
     @property
     def lazy_evaluation(self):
