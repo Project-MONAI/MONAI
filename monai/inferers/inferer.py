@@ -94,7 +94,7 @@ class PatchInferer(Inferer):
 
     def __init__(
         self,
-        splitter: Splitter | Callable | None = None,
+        splitter: Splitter | None = None,
         merger_cls: type[Merger] = AvgMerger,
         batch_size: int = 1,
         preprocessing: Callable | None = None,
@@ -109,11 +109,15 @@ class PatchInferer(Inferer):
             if callable(splitter):
                 warnings.warn(
                     "`splitter` is a callable instead of `Splitter` object, please make sure that it returns "
-                    "the correct values: either Iterable[tuple[torch.Tensor, Sequence[int]]], or "
+                    "the correct values. Either Iterable[tuple[torch.Tensor, Sequence[int]]], or "
                     "a MetaTensor with defined `PatchKey.LOCATION` metadata."
                 )
             else:
-                raise TypeError(f"'splitter' should be a callable or `Splitter` object, {type(splitter)} is given.")
+                raise TypeError(
+                    f"'splitter' should be a `Splitter` object  (or a callable that returns "
+                    "an iterable of pairs of (patch, location) or a MetaTensor that has `PatchKeys.LOCATION` metadata)."
+                    f"{type(splitter)} is given."
+                )
         self.splitter = splitter
 
         # mergers
