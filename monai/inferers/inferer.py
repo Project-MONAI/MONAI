@@ -245,7 +245,7 @@ class PatchInferer(Inferer):
             kwargs: optional keyword args to be passed to ``network``.
 
         """
-        patches_locations: Iterable[tuple[torch.Tensor, Sequence[int]]]
+        patches_locations: Iterable[tuple[torch.Tensor, Sequence[int]]] | MetaTensor
         if self.splitter is None:
             if isinstance(inputs, torch.Tensor):
                 if isinstance(inputs, MetaTensor):
