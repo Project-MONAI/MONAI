@@ -11,38 +11,23 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+from monai.utils import optional_import
+
 from .tensorboard_handlers import TensorBoardImageHandler, TensorBoardStatsHandler
+
+if TYPE_CHECKING:
+    from clearml import Task
+else:
+    Task = optional_import("clearml.Task", name="Task")
 
 
 class ClearMLHandler:
     """
-
     Base class for the handlers to log everything to ClearML WebUI.
-
-    Args:
-        project_name:               The name of the project in which the experiment will be created.
-                                    If the project does not exist, it is created. If project_name is
-                                    None, the repository name is used. (Optional)
-        task_name:                  ClearML task name. Default set to 'monai clearml example'.
-        output_uri:                 The default location for output models and other artifacts.
-                                    If True, the default files_server will be used for model storage.
-                                    In the default location, ClearML creates a subfolder for the output.
-                                    The subfolder structure is the following:
-                                    <output destination name> / <project name> / <task name>.<Task ID>.
-                                    Default set to 'True'
-        tags:                       Add a list of tags (str) to the created Task.
-                                    For example: tags=['512x512', 'yolov3'].
-                                    Default set to None.
-        reuse_last_task_id:         Force a new Task (experiment) with a previously used Task ID,
-                                    and the same project and Task name. Default set to 'True'.
-        continue_last_task:         Continue the execution of a previously executed Task (experiment).
-                                    Default set to 'False'.
-        auto_connect_frameworks:    Automatically connect frameworks This includes patching MatplotLib,
-                                    XGBoost, scikit-learn, Keras callbacks, and TensorBoard/X to
-                                    serialize plots, graphs, and the model location
-                                    to the ClearML Server (backend), in addition to original output destination.
-
-    For more details of ClearML usage, please refer to: https://clear.ml/docs/latest/docs/references/sdk/task
+    For more details of ClearML usage, please refer to:
+    https://clear.ml/docs/latest/docs/references/sdk/task
 
     """
 
@@ -56,10 +41,16 @@ class ClearMLHandler:
         continue_last_task: bool,
         auto_connect_frameworks,
     ):
-        try:
-            from clearml import Task
-        except ModuleNotFoundError as exc:
-            raise ModuleNotFoundError("Please install ClearML with 'pip install clearml' before using it.") from exc
+        """
+        Args:
+            project_name:               ClearML project name.
+            task_name:                  ClearML task name.
+            output_uri:                 The default location for output models and other artifacts.
+            tags:                       A list of tags (str) to the created Task.
+            reuse_last_task_id:         Force a new Task (experiment) with a previously used Task ID.
+            continue_last_task:         Continue the execution of a previously executed Task (experiment).
+            auto_connect_frameworks:    Automatically connect frameworks.
+        """
 
         if Task.current_task():
             self.clearml_task = Task.current_task()
@@ -97,27 +88,13 @@ class ClearMLStatsHandler(ClearMLHandler, TensorBoardStatsHandler):
     ):
         """
         Args:
-            project_name:               The name of the project in which the experiment will be created.
-                                        If the project does not exist, it is created. If project_name is
-                                        None, the repository name is used. (Optional)
-            task_name:                  ClearML task name. Default set to 'monai clearml example'.
+            project_name:               ClearML project name.
+            task_name:                  ClearML task name.
             output_uri:                 The default location for output models and other artifacts.
-                                        If True, the default files_server will be used for model storage.
-                                        In the default location, ClearML creates a subfolder for the output.
-                                        The subfolder structure is the following:
-                                        <output destination name> / <project name> / <task name>.<Task ID>.
-                                        Default set to 'True'
-            tags:                       Add a list of tags (str) to the created Task.
-                                        For example: tags=['512x512', 'yolov3'].
-                                        Default set to None.
-            reuse_last_task_id:         Force a new Task (experiment) with a previously used Task ID,
-                                        and the same project and Task name. Default set to 'True'.
+            tags:                       A list of tags (str) to the created Task.
+            reuse_last_task_id:         Force a new Task (experiment) with a previously used Task ID.
             continue_last_task:         Continue the execution of a previously executed Task (experiment).
-                                        Default set to 'False'.
-            auto_connect_frameworks:    Automatically connect frameworks This includes patching MatplotLib,
-                                        XGBoost, scikit-learn, Keras callbacks, and TensorBoard/X to
-                                        serialize plots, graphs, and the model location
-                                        to the ClearML Server (backend), in addition to original output destination.
+            auto_connect_frameworks:    Automatically connect frameworks.
         """
 
         ClearMLHandler.__init__(
@@ -155,27 +132,14 @@ class ClearMLImageHandler(ClearMLHandler, TensorBoardImageHandler):
     ):
         """
         Args:
-                project_name:               The name of the project in which the experiment will be created.
-                                            If the project does not exist, it is created. If project_name is
-                                            None, the repository name is used. (Optional)
-                task_name:                  ClearML task name. Default set to 'monai clearml example'.
-                output_uri:                 The default location for output models and other artifacts.
-                                            If True, the default files_server will be used for model storage.
-                                            In the default location, ClearML creates a subfolder for the output.
-                                            The subfolder structure is the following:
-                                            <output destination name> / <project name> / <task name>.<Task ID>.
-                                            Default set to 'True'
-                tags:                       Add a list of tags (str) to the created Task.
-                                            For example: tags=['512x512', 'yolov3'].
-                                            Default set to None.
-                reuse_last_task_id:         Force a new Task (experiment) with a previously used Task ID,
-                                            and the same project and Task name. Default set to 'True'.
-                continue_last_task:         Continue the execution of a previously executed Task (experiment).
-                                            Default set to 'False'.
-                auto_connect_frameworks:    Automatically connect frameworks This includes patching MatplotLib,
-                                            XGBoost, scikit-learn, Keras callbacks, and TensorBoard/X to
-                                            serialize plots, graphs, and the model location
-                                            to the ClearML Server (backend), in addition to original output destination.
+            project_name:               ClearML project name.
+            task_name:                  ClearML task name.
+            output_uri:                 The default location for output models and other artifacts.
+            tags:                       A list of tags (str) to the created Task.
+            reuse_last_task_id:         Force a new Task (experiment) with a previously used Task ID.
+            continue_last_task:         Continue the execution of a previously executed Task (experiment).
+            auto_connect_frameworks:    Automatically connect frameworks.
+
         """
 
         ClearMLHandler.__init__(
