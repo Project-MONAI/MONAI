@@ -26,7 +26,7 @@ TENSOR_2x2 = avg_pool2d(TENSOR_4x4, 2, 2)
 # no-overlapping 2x2 patches
 TEST_CASE_0_TENSOR = [
     TENSOR_4x4,
-    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger=AvgMerger()),
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger_cls=AvgMerger),
     lambda x: x,
     TENSOR_4x4,
 ]
@@ -37,7 +37,7 @@ TEST_CASE_1_TENSOR = [TENSOR_4x4, dict(splitter=SlidingWindowSplitter(patch_size
 # divisible batch_size
 TEST_CASE_2_TENSOR = [
     TENSOR_4x4,
-    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger=AvgMerger(), batch_size=2),
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger_cls=AvgMerger, batch_size=2),
     lambda x: x,
     TENSOR_4x4,
 ]
@@ -45,7 +45,7 @@ TEST_CASE_2_TENSOR = [
 # non-divisible batch_size
 TEST_CASE_3_TENSOR = [
     TENSOR_4x4,
-    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger=AvgMerger(), batch_size=3),
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger_cls=AvgMerger, batch_size=3),
     lambda x: x,
     TENSOR_4x4,
 ]
@@ -58,7 +58,7 @@ TEST_CASE_4_SPLIT_LIST = [
         (TENSOR_4x4[..., 2:, :2], (2, 0)),
         (TENSOR_4x4[..., 2:, 2:], (2, 2)),
     ],
-    dict(splitter=None, merger=AvgMerger(output_shape=(2, 3, 4, 4))),
+    dict(splitter=None, merger_cls=AvgMerger, output_shape=(2, 3, 4, 4)),
     lambda x: x,
     TENSOR_4x4,
 ]
@@ -72,7 +72,7 @@ TEST_CASE_5_SPLIT_LIST = [
         (TENSOR_4x4[..., 2:, :2], (2, 0)),
         (TENSOR_4x4[..., 2:, 2:], (2, 2)),
     ],
-    dict(merger=AvgMerger(output_shape=(2, 3, 4, 4))),
+    dict(merger_cls=AvgMerger, output_shape=(2, 3, 4, 4)),
     lambda x: x,
     TENSOR_4x4,
 ]
@@ -80,7 +80,7 @@ TEST_CASE_5_SPLIT_LIST = [
 # output smaller than input patches
 TEST_CASE_6_SMALLER = [
     TENSOR_4x4,
-    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger=AvgMerger()),
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger_cls=AvgMerger),
     lambda x: torch.mean(x, dim=(-1, -2), keepdim=True),
     TENSOR_2x2,
 ]
@@ -90,9 +90,9 @@ TEST_CASE_7_PREPROCESS = [
     TENSOR_4x4,
     dict(
         splitter=SlidingWindowSplitter(patch_size=(2, 2)),
-        merger=AvgMerger(),
-        pre_processor=lambda x: 2 * x,
-        post_processor=None,
+        merger_cls=AvgMerger,
+        preprocessing=lambda x: 2 * x,
+        postprocessing=None,
     ),
     lambda x: x,
     2 * TENSOR_4x4,
@@ -103,9 +103,9 @@ TEST_CASE_8_POSTPROCESS = [
     TENSOR_4x4,
     dict(
         splitter=SlidingWindowSplitter(patch_size=(2, 2)),
-        merger=AvgMerger(),
-        pre_processor=None,
-        post_processor=lambda x: 4 * x,
+        merger_cls=AvgMerger,
+        preprocessing=None,
+        postprocessing=lambda x: 4 * x,
     ),
     lambda x: x,
     4 * TENSOR_4x4,
@@ -114,7 +114,7 @@ TEST_CASE_8_POSTPROCESS = [
 # list of tensor output
 TEST_CASE_0_LIST_TENSOR = [
     TENSOR_4x4,
-    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger=(AvgMerger(), AvgMerger())),
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger_cls=AvgMerger),
     lambda x: (x, x),
     (TENSOR_4x4, TENSOR_4x4),
 ]
@@ -122,7 +122,7 @@ TEST_CASE_0_LIST_TENSOR = [
 # list of tensor output
 TEST_CASE_0_DICT = [
     TENSOR_4x4,
-    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger=AvgMerger()),
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger_cls=AvgMerger),
     lambda x: {"model_output": x},
     {"model_output": TENSOR_4x4},
 ]
@@ -132,15 +132,18 @@ TEST_CASE_0_DICT = [
 # ----------------------------------------------------------------------------
 # invalid splitter: not callable
 TEST_CASE_ERROR_0 = [None, dict(splitter=1), TypeError]
-# invalid splitter: not callable
-TEST_CASE_ERROR_1 = [None, dict(splitter=lambda x: x, merger=lambda x: x), TypeError]
-TEST_CASE_ERROR_2 = [None, dict(splitter=lambda x: x, merger=[AvgMerger(), None]), TypeError]
+# invalid merger: callable
+TEST_CASE_ERROR_1 = [None, dict(splitter=lambda x: x, merger_cls=lambda x: x), TypeError]
+# invalid merger: Merger object
+TEST_CASE_ERROR_2 = [None, dict(splitter=lambda x: x, merger_cls=AvgMerger(output_shape=(1, 1))), TypeError]
+# invalid merger: list of Merger class
+TEST_CASE_ERROR_3 = [None, dict(splitter=lambda x: x, merger_cls=[AvgMerger, AvgMerger]), TypeError]
 # invalid preprocessing
-TEST_CASE_ERROR_3 = [None, dict(splitter=lambda x: x, pre_processing=1), TypeError]
+TEST_CASE_ERROR_4 = [None, dict(splitter=lambda x: x, preprocessing=1), TypeError]
 # invalid postprocessing
-TEST_CASE_ERROR_4 = [None, dict(splitter=lambda x: x, post_processing=1), TypeError]
+TEST_CASE_ERROR_5 = [None, dict(splitter=lambda x: x, postprocessing=1), TypeError]
 # provide splitter when data is already split (splitter is not None)
-TEST_CASE_ERROR_5 = [
+TEST_CASE_ERROR_6 = [
     [
         (TENSOR_4x4[..., :2, :2], (0, 0)),
         (TENSOR_4x4[..., :2, 2:], (0, 2)),
@@ -148,7 +151,7 @@ TEST_CASE_ERROR_5 = [
         (TENSOR_4x4[..., 2:, 2:], (2, 2)),
     ],
     dict(splitter=lambda x: x),
-    ValueError,
+    AttributeError,
 ]
 
 
@@ -186,7 +189,15 @@ class PatchInfererTests(unittest.TestCase):
             assert_allclose(output[k], expected[k])
 
     @parameterized.expand(
-        [TEST_CASE_ERROR_0, TEST_CASE_ERROR_1, TEST_CASE_ERROR_2, TEST_CASE_ERROR_3, TEST_CASE_ERROR_4]
+        [
+            TEST_CASE_ERROR_0,
+            TEST_CASE_ERROR_1,
+            TEST_CASE_ERROR_2,
+            TEST_CASE_ERROR_3,
+            TEST_CASE_ERROR_4,
+            TEST_CASE_ERROR_5,
+            TEST_CASE_ERROR_6,
+        ]
     )
     def test_patch_inferer_errors(self, inputs, arguments, expected_error):
         with self.assertRaises(expected_error):

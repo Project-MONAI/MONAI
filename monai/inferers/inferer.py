@@ -14,13 +14,13 @@ from __future__ import annotations
 import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
-from typing import Any
+from typing import Any, Type
 
 import torch
 import torch.nn as nn
 
 from monai.data.meta_tensor import MetaTensor
-from monai.inferers.merger import AvgMerger, Merger
+from monai.inferers.merger import AvgMerger, Merger, MergeType
 from monai.inferers.splitter import Splitter
 from monai.inferers.utils import compute_importance_map, sliding_window_inference
 from monai.utils import BlendMode, PatchKeys, PytorchPadMode, ensure_tuple
@@ -75,46 +75,62 @@ class PatchInferer(Inferer):
     Args:
         splitter: a `Splitter` object that split the inputs into patches. Defaults to None.
             If not provided or None, the inputs are considered to be already split into patches.
-        merger: a `Merger` object that merges patch outputs. Defaults to `AvgMerger`.
+        merger_cls: a `Merger` subclass that can be instantiated to merges patch outputs.
+            Defaults to `AvgMerger`.
         batch_size: batch size for patches. If the input tensor is already batched [BxCxWxH],
-            this adds additional batching [(Bp*B)xCxWpxHp] for inference on patches. Defaults to 1.
-        pre_processor: a callable that process patches before the being fed to the network. Defaults to None.
-        post_processor: a callable that process the output of the network. Defaults to None.
-        output_keys: if the network output is a dictionary, this defines the keys of the output dictionary to use.
-            Defaults to None, where all the keys are taken if output is a dictionary.
+            this adds additional batching [(Bp*B)xCxWpxHp] for inference on patches.
+            Defaults to 1.
+        preprocessing: a callable that process patches before the being fed to the network.
+            Defaults to None.
+        postprocessing: a callable that process the output of the network.
+            Defaults to None.
+        output_keys: if the network output is a dictionary, this defines the keys of
+            the output dictionary to be used for merging.
+            Defaults to None, where all the keys are used.
+        merger_kwargs: arguments to be passed to `merger_cls` for instantiation.
+            `output_shape` is calculated automatically based on the input shape and
+            the output patch shape unless it is passed here.
     """
 
     def __init__(
         self,
-        splitter: Splitter | None = None,
-        merger: Merger | Sequence[Merger] | None = None,
+        splitter: Splitter | Callable | None = None,
+        merger_cls: Type[Merger] = AvgMerger,
         batch_size: int = 1,
-        pre_processor: Callable | None = None,
-        post_processor: Callable | None = None,
+        preprocessing: Callable | None = None,
+        postprocessing: Callable | None = None,
         output_keys: Sequence | None = None,
+        **merger_kwargs: Any,
     ) -> None:
         Inferer.__init__(self)
 
         # splitter
-        if splitter is not None and not callable(splitter):
-            raise TypeError(f"'splitter' should be a callable object, {type(splitter)} is given.")
+        if splitter is not None and not isinstance(splitter, Splitter):
+            if callable(splitter):
+                warnings.warn(
+                    "`splitter` is a callable instead of `Splitter` object, please make sure that it returns "
+                    "the correct values: either Iterable[tuple[torch.Tensor, Sequence[int]]], or "
+                    "a MetaTensor with defined `PatchKey.LOCATION` metadata."
+                )
+            else:
+                raise TypeError(f"'splitter' should be a callable or `Splitter` object, {type(splitter)} is given.")
         self.splitter = splitter
 
         # mergers
-        self.mergers: Sequence[Merger] = (AvgMerger(),) if merger is None else ensure_tuple(merger)
-        for m in self.mergers:
-            if not isinstance(m, Merger):
-                raise TypeError(f"'merger' should be a `Merger` object, {type(m)} is given.")
+        if not issubclass(merger_cls, Merger):
+            raise TypeError(f"'merger' should be a subclass of `Merger`, {merger_cls} is given.")
+        self.merger_cls = merger_cls
+        self.merger_kwargs = merger_kwargs
 
         # pre-processor (process patch before the network)
-        if pre_processor is not None and not callable(pre_processor):
-            raise TypeError(f"'pre_processor' should be a callable object, {type(pre_processor)} is given.")
-        self.pre_processor = pre_processor
+        if preprocessing is not None and not callable(preprocessing):
+            raise TypeError(f"'preprocessing' should be a callable object, {type(preprocessing)} is given.")
+        self.preprocessing = preprocessing
 
         # post-processor (process the output of the network)
-        if post_processor is not None and not callable(post_processor):
-            raise TypeError(f"'post_processor' should be a callable object, {type(post_processor)} is given.")
-        self.post_processor = post_processor
+        if postprocessing is not None and not callable(postprocessing):
+            raise TypeError(f"'postprocessing' should be a callable object, {type(postprocessing)} is given.")
+        self.postprocessing = postprocessing
 
         # batch size for patches
         self.batch_size = batch_size
@@ -165,40 +181,40 @@ class PatchInferer(Inferer):
 
     def _run_inference(self, network: Callable, patch: torch.Tensor, *args: Any, **kwargs: Any) -> tuple:
         # pre-process
-        if self.pre_processor:
-            patch = self.pre_processor(patch)
+        if self.preprocessing:
+            patch = self.preprocessing(patch)
         # inference
         outputs = network(patch, *args, **kwargs)
         # post-process
-        if self.post_processor:
-            outputs = self.post_processor(outputs)
+        if self.postprocessing:
+            outputs = self.postprocessing(outputs)
         # ensure we have a tuple of model outputs to support multiple outputs
         return self._ensure_tuple_outputs(outputs)
 
     def _initialize_mergers(self, inputs, outputs, patches, batch_size):
         in_patch = torch.chunk(patches, batch_size)[0]
+        mergers = []
         ratios = []
-        for merger, out_patch_batch in zip(self.mergers, outputs):
+        for out_patch_batch in outputs:
             out_patch = torch.chunk(out_patch_batch, batch_size)[0]
-            ratio = self._get_ratio(in_patch, out_patch)
+            # calculate the ratio of input and output patch sizes
+            ratio = tuple(op / ip for ip, op in zip(in_patch.shape[2:], out_patch.shape[2:]))
             ratios.append(ratio)
-            if self.splitter is None:
-                merger.initialize()
-            else:
+            # calculate output_shape only if it is not provided and splitter is not None.
+            if self.splitter is not None and "output_shape" not in self.merger_kwargs:
                 output_shape = self._get_output_shape(inputs, out_patch, ratio)
-                merger.initialize(output_shape)
-        return ratios
+                merger = self.merger_cls(output_shape=output_shape, **self.merger_kwargs)
+            else:
+                merger = self.merger_cls(**self.merger_kwargs)
+            mergers.append(merger)
+        return mergers, ratios
 
-    def _aggregate(self, outputs, locations, ratios, batch_size):
-        for merger, output_patches, ratio in zip(self.mergers, outputs, ratios):
+    def _aggregate(self, outputs, locations, batch_size, mergers, ratios):
+        for output_patches, merger, ratio in zip(outputs, mergers, ratios):
             # split batched output into individual patches and then aggregate
             for in_loc, out_patch in zip(locations, torch.chunk(output_patches, batch_size)):
                 out_loc = [round(l * r) for l, r in zip(in_loc, ratio)]
                 merger.aggregate(out_patch, out_loc)
-
-    def _get_ratio(self, in_patch, out_patch):
-        """Define the shape of output merged tensors"""
-        return tuple(op / ip for ip, op in zip(in_patch.shape[2:], out_patch.shape[2:]))
 
     def _get_output_shape(self, inputs, out_patch, ratio):
         """Define the shape of output merged tensors"""
@@ -213,7 +229,7 @@ class PatchInferer(Inferer):
         network: Callable[..., torch.Tensor | Sequence[torch.Tensor] | dict[Any, torch.Tensor]],
         *args: Any,
         **kwargs: Any,
-    ) -> torch.Tensor | Sequence[torch.Tensor] | dict[Any, torch.Tensor]:
+    ) -> MergeType | Sequence[MergeType] | dict[Any, MergeType]:
         """
         Args:
             inputs: input data for inference, a torch.Tensor, representing an image or batch of images.
@@ -225,25 +241,24 @@ class PatchInferer(Inferer):
             kwargs: optional keyword args to be passed to ``network``.
 
         """
-        is_merger_initialized = False
         ratios = []
         patch_locations: Iterable[tuple[torch.Tensor, Sequence[int]]]
         if self.splitter is None:
             patch_locations = inputs
         else:
             patch_locations = self.splitter(inputs)
+        mergers: list[Merger] = []
         for patches, locations, batch_size in self._batch_sampler(patch_locations):
             # run inference
             outputs = self._run_inference(network, patches, *args, **kwargs)
             # initialize the mergers
-            if not is_merger_initialized:
-                ratios = self._initialize_mergers(inputs, outputs, patches, batch_size)
-                is_merger_initialized = True
+            if not mergers:
+                mergers, ratios = self._initialize_mergers(inputs, outputs, patches, batch_size)
             # aggregate outputs
-            self._aggregate(outputs, locations, ratios, batch_size)
+            self._aggregate(outputs, locations, batch_size, mergers, ratios)
         # finalize the mergers and get the results
-        merged_outputs = tuple(merger.finalize() for merger in self.mergers)
-        # return according to model output
+        merged_outputs = tuple(merger.finalize() for merger in mergers)
+        # return according to the model output
         if self.output_keys:
             return dict(zip(self.output_keys, merged_outputs))
         if len(merged_outputs) == 1:

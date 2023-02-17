@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from typing import Any
+from typing import Generic, TypeVar
 
 import torch
 
@@ -21,22 +21,30 @@ from monai.utils import ensure_tuple_size
 
 __all__ = ["Merger", "AvgMerger"]
 
+MergeType = TypeVar("MergeType")
 
-class Merger(ABC):
+
+class Merger(ABC, Generic[MergeType]):
     """
     A base class for merging patches.
     Extend this class to support operations for `PatchInference`.
-
-    There are two methods that have to be implemented in the concrete classes:
+    There are two methods that must be implemented in the concrete classes:
 
         - aggregate: aggregate the values at their corresponding locations
         - finalize: perform any final process and return the merged output
 
     Args:
+        output_shape: the shape of the merged output tensor. Default to None.
         device: the device where Merger tensors should reside.
     """
 
-    def __init__(self, device: torch.device | str | None = None, dtype: torch.dtype = torch.float32) -> None:
+    def __init__(
+        self,
+        output_shape: Sequence[int] | None = None,
+        device: torch.device | str | None = None,
+        dtype: torch.dtype = torch.float32,
+    ) -> None:
+        self.output_shape = output_shape
         self.device = device
         self.dtype = dtype
         self.is_finalized = False
@@ -58,7 +66,7 @@ class Merger(ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def finalize(self) -> Any:
+    def finalize(self) -> MergeType:
         """
         Perform final operations for merging patches and return the final merged output.
 
@@ -73,26 +81,21 @@ class Merger(ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
-class AvgMerger(Merger):
+class AvgMerger(Merger[torch.Tensor]):
     """Merge patches by taking average of the overlapping area
 
     Args:
-        output_shape: optional fix size for the shape of the output tensor. Default to None.
-            If provided, it overwrites the `output_shape` in `initialize(output_shape)`.
+        output_shape: the shape of the merged output tensor.
         device: the device for aggregator tensors and final results.
         dtype: the dtype for aggregation and final result and .
     """
 
     def __init__(
-        self,
-        output_shape: Sequence[int],
-        device: torch.device | str = "cpu",
-        dtype: torch.dtype = torch.float32,
+        self, output_shape: Sequence[int], device: torch.device | str = "cpu", dtype: torch.dtype = torch.float32
     ) -> None:
-        super().__init__(device=device, dtype=dtype)
-        if output_shape is None:
-            raise ValueError("A valid `output_shape` should be set in the init or initialize method.")
-        self.output_shape = output_shape
+        super().__init__(output_shape=output_shape, device=device, dtype=dtype)
+        if not self.output_shape:
+            raise ValueError(f"`output_shape` must be provided for `AvgMerger`. {self.output_shape} is give.")
         self.values = torch.zeros(self.output_shape, dtype=self.dtype, device=self.device)
         self.counts = torch.zeros(self.output_shape, dtype=torch.int16, device=self.device)
 
