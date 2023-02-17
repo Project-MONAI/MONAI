@@ -36,15 +36,9 @@ class Merger(ABC):
         device: the device where Merger tensors should reside.
     """
 
-    def __init__(
-        self,
-        output_shape: Sequence[int] | None = None,
-        device: torch.device | str | None = None,
-        dtype: torch.dtype = torch.float32,
-    ) -> None:
+    def __init__(self, output_shape: Sequence[int] | None = None, device: torch.device | str | None = None) -> None:
         self.output_shape = output_shape
         self.device = device
-        self.dtype = dtype
         self.is_finalized = False
 
     @abstractmethod
@@ -85,17 +79,24 @@ class AvgMerger(Merger):
     Args:
         output_shape: the shape of the merged output tensor.
         device: the device for aggregator tensors and final results.
-        dtype: the dtype for aggregation and final result and .
+        value_dtype: the dtype for value aggregating tensor and the final result.
+        count_dtype: the dtype for sample counting tensor.
     """
 
     def __init__(
-        self, output_shape: Sequence[int], device: torch.device | str = "cpu", dtype: torch.dtype = torch.float32
+        self,
+        output_shape: Sequence[int],
+        device: torch.device | str = "cpu",
+        value_dtype: torch.dtype = torch.float32,
+        count_dtype: torch.dtype = torch.uint8,
     ) -> None:
-        super().__init__(output_shape=output_shape, device=device, dtype=dtype)
+        super().__init__(output_shape=output_shape, device=device)
         if not self.output_shape:
             raise ValueError(f"`output_shape` must be provided for `AvgMerger`. {self.output_shape} is give.")
-        self.values = torch.zeros(self.output_shape, dtype=self.dtype, device=self.device)
-        self.counts = torch.zeros(self.output_shape, dtype=torch.int16, device=self.device)
+        self.value_dtype = value_dtype
+        self.count_dtype = count_dtype
+        self.values = torch.zeros(self.output_shape, dtype=self.value_dtype, device=self.device)
+        self.counts = torch.zeros(self.output_shape, dtype=self.count_dtype, device=self.device)
 
     def aggregate(self, values: torch.Tensor, location: Sequence[int]) -> None:
         """

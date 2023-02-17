@@ -24,8 +24,8 @@ TENSOR_4x4_WITH_NAN = TENSOR_4x4.clone()
 TENSOR_4x4_WITH_NAN[..., 2:, 2:] = float("nan")
 
 # no-overlapping 2x2
-TEST_CASE_SAME_SIZE_0 = [
-    TENSOR_4x4,
+TEST_CASE_0_DEFAULT_DTYPE = [
+    dict(output_shape=TENSOR_4x4.shape),
     [
         (TENSOR_4x4[..., :2, :2], (0, 0)),
         (TENSOR_4x4[..., :2, 2:], (0, 2)),
@@ -36,8 +36,8 @@ TEST_CASE_SAME_SIZE_0 = [
 ]
 
 # overlapping 2x2
-TEST_CASE_SAME_SIZE_1 = [
-    TENSOR_4x4,
+TEST_CASE_1_DEFAULT_DTYPE = [
+    dict(output_shape=TENSOR_4x4.shape),
     [
         (TENSOR_4x4[..., 0:2, 0:2], (0, 0)),
         (TENSOR_4x4[..., 0:2, 1:3], (0, 1)),
@@ -53,8 +53,8 @@ TEST_CASE_SAME_SIZE_1 = [
 ]
 
 # overlapping 3x3 (non-divisible)
-TEST_CASE_SAME_SIZE_2 = [
-    TENSOR_4x4,
+TEST_CASE_2_DEFAULT_DTYPE = [
+    dict(output_shape=TENSOR_4x4.shape),
     [
         (TENSOR_4x4[..., :3, :3], (0, 0)),
         (TENSOR_4x4[..., :3, 1:], (0, 1)),
@@ -65,8 +65,8 @@ TEST_CASE_SAME_SIZE_2 = [
 ]
 
 #  overlapping 2x2 with NaN values
-TEST_CASE_SAME_SIZE_3 = [
-    TENSOR_4x4_WITH_NAN,
+TEST_CASE_3_DEFAULT_DTYPE = [
+    dict(output_shape=TENSOR_4x4_WITH_NAN.shape),
     [
         (TENSOR_4x4_WITH_NAN[..., 0:2, 0:2], (0, 0)),
         (TENSOR_4x4_WITH_NAN[..., 0:2, 1:3], (0, 1)),
@@ -82,28 +82,69 @@ TEST_CASE_SAME_SIZE_3 = [
 ]
 
 # non-overlapping 2x2 with missing patch
-TEST_CASE_SAME_SIZE_4 = [
-    TENSOR_4x4,
+TEST_CASE_4_DEFAULT_DTYPE = [
+    dict(output_shape=TENSOR_4x4.shape),
     [(TENSOR_4x4[..., :2, :2], (0, 0)), (TENSOR_4x4[..., :2, 2:], (0, 2)), (TENSOR_4x4[..., 2:, :2], (2, 0))],
     TENSOR_4x4_WITH_NAN,
+]
+
+# with value_dtype set to half precision
+TEST_CASE_5_VALUE_DTYPE = [
+    dict(output_shape=TENSOR_4x4.shape, value_dtype=torch.float16),
+    [
+        (TENSOR_4x4[..., :2, :2], (0, 0)),
+        (TENSOR_4x4[..., :2, 2:], (0, 2)),
+        (TENSOR_4x4[..., 2:, :2], (2, 0)),
+        (TENSOR_4x4[..., 2:, 2:], (2, 2)),
+    ],
+    TENSOR_4x4,
+]
+# with count_dtype set to int32
+TEST_CASE_6_COUNT_DTYPE = [
+    dict(output_shape=TENSOR_4x4.shape, count_dtype=torch.int32),
+    [
+        (TENSOR_4x4[..., :2, :2], (0, 0)),
+        (TENSOR_4x4[..., :2, 2:], (0, 2)),
+        (TENSOR_4x4[..., 2:, :2], (2, 0)),
+        (TENSOR_4x4[..., 2:, 2:], (2, 2)),
+    ],
+    TENSOR_4x4,
+]
+# with both value_dtype, count_dtype set to double precision
+TEST_CASE_7_COUNT_VALUE_DTYPE = [
+    dict(output_shape=TENSOR_4x4.shape, value_dtype=torch.float64, count_dtype=torch.float64),
+    [
+        (TENSOR_4x4[..., :2, :2], (0, 0)),
+        (TENSOR_4x4[..., :2, 2:], (0, 2)),
+        (TENSOR_4x4[..., 2:, :2], (2, 0)),
+        (TENSOR_4x4[..., 2:, 2:], (2, 2)),
+    ],
+    TENSOR_4x4,
 ]
 
 
 class AvgMergerTests(unittest.TestCase):
     @parameterized.expand(
         [
-            TEST_CASE_SAME_SIZE_0,
-            TEST_CASE_SAME_SIZE_1,
-            TEST_CASE_SAME_SIZE_2,
-            TEST_CASE_SAME_SIZE_3,
-            TEST_CASE_SAME_SIZE_4,
+            TEST_CASE_0_DEFAULT_DTYPE,
+            TEST_CASE_1_DEFAULT_DTYPE,
+            TEST_CASE_2_DEFAULT_DTYPE,
+            TEST_CASE_3_DEFAULT_DTYPE,
+            TEST_CASE_4_DEFAULT_DTYPE,
+            TEST_CASE_5_VALUE_DTYPE,
+            TEST_CASE_6_COUNT_DTYPE,
+            TEST_CASE_7_COUNT_VALUE_DTYPE,
         ]
     )
-    def test_avg_merger_patches_same_size(self, image, patch_locations, expected):
-        merger = AvgMerger(output_shape=image.shape)
+    def test_avg_merger_patches(self, arguments, patch_locations, expected):
+        merger = AvgMerger(**arguments)
         for pl in patch_locations:
             merger.aggregate(pl[0], pl[1])
         output = merger.finalize()
+        if "value_dtype" in arguments:
+            self.assertTrue(merger.get_values().dtype, arguments["value_dtype"])
+        if "count_dtype" in arguments:
+            self.assertTrue(merger.get_counts().dtype, arguments["count_dtype"])
         # check for multiple call of finalize
         self.assertIs(output, merger.finalize())
         # check if the result is matching the expectation
@@ -117,7 +158,7 @@ class AvgMergerTests(unittest.TestCase):
 
     def test_avg_merge_none_output_shape_error(self):
         with self.assertRaises(ValueError):
-            merger = AvgMerger(output_shape=None)
+            AvgMerger(output_shape=None)
 
 
 if __name__ == "__main__":
