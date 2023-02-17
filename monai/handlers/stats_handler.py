@@ -66,8 +66,8 @@ class StatsHandler:
 
     def __init__(
         self,
-        iteration_log: bool = True,
-        epoch_log: bool = True,
+        iteration_log: bool | Callable[[Engine, int], bool] = True,
+        epoch_log: bool | Callable[[Engine, int], bool] = True,
         epoch_print_logger: Callable[[Engine], Any] | None = None,
         iteration_print_logger: Callable[[Engine], Any] | None = None,
         output_transform: Callable = lambda x: x[0],
@@ -80,8 +80,14 @@ class StatsHandler:
         """
 
         Args:
-            iteration_log: whether to log data when iteration completed, default to `True`.
-            epoch_log: whether to log data when epoch completed, default to `True`.
+            iteration_log: whether to log data when iteration completed, default to `True`. ``iteration_log`` can
+                be also a function and it will be interpreted as an event filter
+                (see https://pytorch.org/ignite/generated/ignite.engine.events.Events.html for details).
+                Event filter function accepts as input engine and event value (iteration) and should return True/False.
+                Event filtering can be helpful to customize iteration logging frequency.
+            epoch_log: whether to log data when epoch completed, default to `True`. ``epoch_log`` can be
+                also a function and it will be interpreted as an event filter. See ``iteration_log`` argument for more
+                details.
             epoch_print_logger: customized callable printer for epoch level logging.
                 Must accept parameter "engine", use default printer if None.
             iteration_print_logger: customized callable printer for iteration level logging.
@@ -135,9 +141,15 @@ class StatsHandler:
                 " please call `logging.basicConfig(stream=sys.stdout, level=logging.INFO)` to enable it."
             )
         if self.iteration_log and not engine.has_event_handler(self.iteration_completed, Events.ITERATION_COMPLETED):
-            engine.add_event_handler(Events.ITERATION_COMPLETED, self.iteration_completed)
+            event = Events.ITERATION_COMPLETED
+            if callable(self.iteration_log):  # substitute event with new one using filter callable
+                event = event(event_filter=self.iteration_log)
+            engine.add_event_handler(event, self.iteration_completed)
         if self.epoch_log and not engine.has_event_handler(self.epoch_completed, Events.EPOCH_COMPLETED):
-            engine.add_event_handler(Events.EPOCH_COMPLETED, self.epoch_completed)
+            event = Events.EPOCH_COMPLETED
+            if callable(self.epoch_log):  # substitute event with new one using filter callable
+                event = event(event_filter=self.epoch_log)
+            engine.add_event_handler(event, self.epoch_completed)
         if not engine.has_event_handler(self.exception_raised, Events.EXCEPTION_RAISED):
             engine.add_event_handler(Events.EXCEPTION_RAISED, self.exception_raised)
 

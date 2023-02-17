@@ -14,7 +14,6 @@ from __future__ import annotations
 import ast
 import json
 import os
-import pprint
 import re
 import warnings
 from collections.abc import Mapping, Sequence
@@ -36,7 +35,7 @@ from monai.config import IgniteInfo, PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
 from monai.networks import convert_to_torchscript, copy_model_state, get_state_dict, save_state
 from monai.utils import check_parent_dir, deprecated_arg, get_equivalent_dtype, min_version, optional_import
-from monai.utils.misc import ensure_tuple
+from monai.utils.misc import ensure_tuple, pprint_edges
 
 validate, _ = optional_import("jsonschema", name="validate")
 ValidationError, _ = optional_import("jsonschema.exceptions", name="ValidationError")
@@ -47,6 +46,7 @@ logger = get_logger(module_name=__name__)
 
 # set BUNDLE_DOWNLOAD_SRC="ngc" to use NGC source in default for bundle download
 download_source = os.environ.get("BUNDLE_DOWNLOAD_SRC", "github")
+PPRINT_CONFIG_N = 5
 
 
 def _update_args(args: str | dict | None = None, ignore_none: bool = True, **kwargs: Any) -> dict:
@@ -87,7 +87,7 @@ def _pop_args(src: dict, *args: Any, **kwargs: Any) -> tuple:
 def _log_input_summary(tag: str, args: dict) -> None:
     logger.info(f"--- input summary of monai.bundle.scripts.{tag} ---")
     for name, val in args.items():
-        logger.info(f"> {name}: {pprint.pformat(val)}")
+        logger.info(f"> {name}: {pprint_edges(val, PPRINT_CONFIG_N)}")
     logger.info("---\n\n")
 
 

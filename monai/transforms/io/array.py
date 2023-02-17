@@ -116,9 +116,9 @@ class LoadImage(Transform):
         - Current default readers: (nii, nii.gz -> NibabelReader), (png, jpg, bmp -> PILReader),
           (npz, npy -> NumpyReader), (nrrd -> NrrdReader), (DICOM file -> ITKReader).
 
-    Please note that for png, jpg, bmp, and other 2D formats, readers often swap axis 0 and 1 after
-    loading the array because the `HW` definition for non-medical specific file formats is different
-    from other common medical packages.
+    Please note that for png, jpg, bmp, and other 2D formats, readers by default swap axis 0 and 1 after
+    loading the array with ``reverse_indexing`` set to ``True`` because the spatial axes definition
+    for non-medical specific file formats is different from other common medical packages.
 
     See also:
 
@@ -289,7 +289,7 @@ class LoadImage(Transform):
         img_array, meta_data = reader.get_data(img)
         img_array = convert_to_dst_type(img_array, dst=img_array, dtype=self.dtype)[0]
         if not isinstance(meta_data, dict):
-            raise ValueError("`meta_data` must be a dict.")
+            raise ValueError(f"`meta_data` must be a dict, got type {type(meta_data)}.")
         # make sure all elements in metadata are little endian
         meta_data = switch_endianness(meta_data, "<")
 
