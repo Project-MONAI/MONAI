@@ -486,6 +486,11 @@ class MetaTensor(MetaObj, torch.Tensor):
                 continue
             res = convert_to_dst_type(res, next_matrix)[0]
             res = monai.transforms.lazy.utils.combine_transforms(res, next_matrix)
+        return res
+
+    def peek_pending_rank(self):
+        a = self.pending_operations[-1].get(LazyAttr.AFFINE, None) if self.pending_operations else self.affine
+        return int(max(1, len(a) - 1))
 
     def new_empty(self, size, dtype=None, device=None, requires_grad=False):
         """
