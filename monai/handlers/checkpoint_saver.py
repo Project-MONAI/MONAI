@@ -272,10 +272,10 @@ class CheckpointSaver:
             raise AssertionError
         if not hasattr(self.logger, "info"):
             raise AssertionError("Error, provided logger has not info attribute.")
-        if self._final_checkpoint.save_handler.filename is not None:
-            _final_checkpoint_path = os.path.join(self.save_dir, self._final_checkpoint.save_handler.filename)
+        if self._final_checkpoint.save_handler.filename is not None:  # type: ignore[attr-defined]
+            _final_checkpoint_path = os.path.join(self.save_dir, self._final_checkpoint.save_handler.filename)  # type: ignore[attr-defined]
         else:
-            _final_checkpoint_path = self._final_checkpoint.last_checkpoint
+            _final_checkpoint_path = self._final_checkpoint.last_checkpoint  # type: ignore[assignment]
         self.logger.info(f"Train completed, saved final checkpoint: {_final_checkpoint_path}")
 
     def exception_raised(self, engine: Engine, e: Exception) -> None:
