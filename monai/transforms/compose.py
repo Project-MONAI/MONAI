@@ -42,7 +42,7 @@ import monai.transforms.utility.compose_compiler as cc
 __all__ = ["Compose", "OneOf", "RandomOrder"]
 
 
-class Compose(Randomizable, InvertibleTransform):
+class OldCompose(Randomizable, InvertibleTransform):
     """
     ``Compose`` provides the ability to chain a series of callables together in
     a sequential manner. Each transform in the sequence must take a single
@@ -138,7 +138,7 @@ class Compose(Randomizable, InvertibleTransform):
         self.log_stats = log_stats
         self.set_random_state(seed=get_seed())
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> Compose:
+    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> OldCompose:
         super().set_random_state(seed=seed, state=state)
         for _transform in self.transforms:
             if not isinstance(_transform, Randomizable):
@@ -194,7 +194,7 @@ class Compose(Randomizable, InvertibleTransform):
         return data
 
 
-class Compose2(RandomizableTrait, InvertibleTrait, LazyTrait):
+class Compose(RandomizableTrait, InvertibleTrait, LazyTrait):
     # TODO: add suppress compile flag
     # TODO: add optional external ComposeCompiler parameter
     def __init__(

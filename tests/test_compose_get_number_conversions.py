@@ -21,8 +21,10 @@ from parameterized import parameterized
 from monai.transforms import Compose
 from monai.transforms.compose import OneOf
 from monai.transforms.transform import Transform
-from monai.transforms.utils import get_number_image_type_conversions
 from monai.utils import convert_to_numpy, convert_to_tensor
+
+from tests.utilities.helpers import get_number_image_type_conversions
+
 
 NP_ARR = np.ones((10, 10, 10))
 PT_ARR = torch.as_tensor(NP_ARR)

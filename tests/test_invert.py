@@ -40,7 +40,7 @@ from monai.transforms import (
     Zoom,
 )
 import monai.transforms.spatial.old_array as old
-from monai.transforms.compose import Compose2
+from monai.transforms.compose import Compose
 
 from monai.utils import set_determinism
 from tests.utils import assert_allclose, make_nifti_image
@@ -51,7 +51,7 @@ class TestInvert(unittest.TestCase):
         set_determinism(seed=0)
         im_fname = make_nifti_image(create_test_image_3d(101, 100, 107, noise_max=100)[1])  # label image, discrete
         data = [im_fname for _ in range(12)]
-        lazy = False
+        lazy = True
         # transform = Compose(
         #     [
         #         LoadImage(image_only=True),
@@ -69,7 +69,7 @@ class TestInvert(unittest.TestCase):
         #         CastToType(dtype=torch.uint8),
         #     ]
         # )
-        transform_new = Compose2(
+        transform_new = Compose(
             [
                 LoadImage(image_only=True),
                 EnsureChannelFirst(),

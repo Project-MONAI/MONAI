@@ -118,7 +118,8 @@ def apply_transforms(
         if track_meta:
             for p in pending:
                 data.push_applied_operation(p)
-        return data, None
+        return data
+        # return data, None
 
     return data, pending
 
@@ -350,13 +351,17 @@ def lazily_apply_op(
     if isinstance(tensor, MetaTensor):
         tensor.push_pending_operation(op)
         if lazy_evaluation is False:
-            result, pending = apply_transforms(tensor, track_meta=track_meta)
+            response = apply_transforms(tensor, track_meta=track_meta)
+            result, pending = response if isinstance(response, tuple) else (response, None)
+            # result, pending = apply_transforms(tensor, track_meta=track_meta)
             return result
         else:
             return tensor
     else:
         if lazy_evaluation is False:
-            result, pending = apply_transforms(tensor, [op], track_meta=track_meta)
+            response = apply_transforms(tensor, [op], track_meta=track_meta)
+            result, pending = response if isinstance(response, tuple) else (response, None)
+            # result, pending = apply_transforms(tensor, [op], track_meta=track_meta)
             return (result, op) if get_track_meta() is True else result
         else:
             return (tensor, op) if get_track_meta() is True else tensor

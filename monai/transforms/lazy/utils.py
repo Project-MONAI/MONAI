@@ -93,6 +93,9 @@ def affine_from_pending(pending_item):
 
 def kwargs_from_pending(pending_item):
     """Extract kwargs from a pending transform item."""
+    if isinstance(pending_item, MetaMatrix):
+        return pending_item.metadata
+
     if not isinstance(pending_item, dict):
         return {}
     ret = {
@@ -259,7 +262,7 @@ class MetaMatrix:
             metadata: dict | None = None
     ):
         if not isinstance(matrix, (Matrix, Grid)):
-            if matrix.shape == 2:
+            if len(matrix.shape) == 2:
                 if matrix.shape[0] != matrix.shape[1] or matrix.shape[0] not in (3, 4):
                     raise ValueError(
                         "If 'matrix' is passed a numpy ndarray/torch Tensor, it must"
