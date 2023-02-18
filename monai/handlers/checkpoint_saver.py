@@ -119,6 +119,7 @@ class CheckpointSaver:
         self._key_metric_checkpoint: Checkpoint | None = None
         self._interval_checkpoint: Checkpoint | None = None
         self._name = name
+        self._final_filename = final_filename
 
         class _DiskSaver(DiskSaver):
             """
@@ -149,7 +150,7 @@ class CheckpointSaver:
 
             self._final_checkpoint = Checkpoint(
                 to_save=self.save_dict,
-                save_handler=_DiskSaver(dirname=self.save_dir, filename=final_filename),
+                save_handler=_DiskSaver(dirname=self.save_dir, filename=self._final_filename),
                 filename_prefix=file_prefix,
                 score_function=_final_func,
                 score_name="final_iteration",
@@ -272,8 +273,8 @@ class CheckpointSaver:
             raise AssertionError
         if not hasattr(self.logger, "info"):
             raise AssertionError("Error, provided logger has not info attribute.")
-        if self._final_checkpoint.save_handler.filename is not None:  # type: ignore[attr-defined]
-            _final_checkpoint_path = os.path.join(self.save_dir, self._final_checkpoint.save_handler.filename)  # type: ignore[attr-defined]
+        if self._final_filename is not None:
+            _final_checkpoint_path = os.path.join(self.save_dir, self._final_filename)
         else:
             _final_checkpoint_path = self._final_checkpoint.last_checkpoint  # type: ignore[assignment]
         self.logger.info(f"Train completed, saved final checkpoint: {_final_checkpoint_path}")
@@ -296,7 +297,11 @@ class CheckpointSaver:
             raise AssertionError
         if not hasattr(self.logger, "info"):
             raise AssertionError("Error, provided logger has not info attribute.")
-        self.logger.info(f"Exception raised, saved the last checkpoint: {self._final_checkpoint.last_checkpoint}")
+        if self._final_filename is not None:
+            _final_checkpoint_path = os.path.join(self.save_dir, self._final_filename)
+        else:
+            _final_checkpoint_path = self._final_checkpoint.last_checkpoint  # type: ignore[assignment]
+        self.logger.info(f"Exception raised, saved the last checkpoint: {_final_checkpoint_path}")
         raise e
 
     def metrics_completed(self, engine: Engine) -> None:
