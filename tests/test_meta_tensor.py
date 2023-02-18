@@ -515,9 +515,11 @@ class TestMetaTensor(unittest.TestCase):
         self.assertEqual(m.pending_operations, [])
         self.assertEqual(m.peek_pending_shape(), (10, 8))
         self.assertIsInstance(m.peek_pending_affine(), torch.Tensor)
+        self.assertTrue(m.peek_pending_rank() >= 1)
         m.push_pending_operation({})
         self.assertEqual(m.peek_pending_shape(), (10, 8))
         self.assertIsInstance(m.peek_pending_affine(), torch.Tensor)
+        self.assertTrue(m.peek_pending_rank() >= 1)
 
     @parameterized.expand(TESTS)
     def test_multiprocessing(self, device=None, dtype=None):
