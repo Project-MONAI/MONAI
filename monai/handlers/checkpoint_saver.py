@@ -11,8 +11,8 @@
 
 from __future__ import annotations
 
-import os
 import logging
+import os
 import warnings
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
