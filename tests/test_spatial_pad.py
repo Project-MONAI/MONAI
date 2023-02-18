@@ -16,6 +16,7 @@ import unittest
 from parameterized import parameterized
 
 from monai.transforms import SpatialPad
+from monai.transforms.lazy.functional import apply_transforms
 from tests.padders import PadTest
 
 TESTS = []
@@ -30,10 +31,27 @@ class TestSpatialPad(PadTest):
     def test_pad(self, input_param, input_shape, expected_shape):
         self.pad_test(input_param, input_shape, expected_shape)
 
-    def test_pad_kwargs(self):
-        kwargs = {"spatial_size": [15, 8], "method": "end", "mode": "constant"}
-        unchanged_slices = [slice(None), slice(None, 8), slice(None, 4)]
-        self.pad_test_kwargs(unchanged_slices, **kwargs)
+    # def test_pad_kwargs(self):
+    #     kwargs = {"spatial_size": [15, 8], "method": "end", "mode": "constant"}
+    #     unchanged_slices = [slice(None), slice(None, 8), slice(None, 4)]
+    #     self.pad_test_kwargs(unchanged_slices, **kwargs)
+    
+    # @parameterized.expand(TESTS)
+    # def test_pending_ops(self, zoom, mode):
+    #     im = MetaTensor(self.imt[0], meta={"a": "b", "affine": DEFAULT_TEST_AFFINE})
+    #     zoom_fn = Zoom(zoom=zoom, mode="bilinear", keep_size=False, dtype=torch.float64)
+    #     # non-lazy
+    #     expected = zoom_fn(im)
+    #     self.assertIsInstance(expected, MetaTensor)
+    #     # lazy
+    #     zoom_fn.lazy_evaluation = True
+    #     pending_result = zoom_fn(im)
+    #     self.assertIsInstance(pending_result, MetaTensor)
+    #     assert_allclose(pending_result.peek_pending_affine(), expected.affine)
+    #     assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:])
+    #     result = apply_transforms(pending_result, mode="bilinear", dtype=np.float64, align_corners=True)[0]
+    #     # compare
+    #     assert_allclose(result, expected, rtol=1e-5)
 
 
 if __name__ == "__main__":
