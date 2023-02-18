@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import os
 import logging
 import warnings
 from collections.abc import Mapping
@@ -271,7 +272,11 @@ class CheckpointSaver:
             raise AssertionError
         if not hasattr(self.logger, "info"):
             raise AssertionError("Error, provided logger has not info attribute.")
-        self.logger.info(f"Train completed, saved final checkpoint: {self._final_checkpoint.last_checkpoint}")
+        if self._final_checkpoint.save_handler.filename is not None:
+            _final_checkpoint_path = os.path.join(self.save_dir, self._final_checkpoint.save_handler.filename)
+        else:
+            _final_checkpoint_path = self._final_checkpoint.last_checkpoint
+        self.logger.info(f"Train completed, saved final checkpoint: {_final_checkpoint_path}")
 
     def exception_raised(self, engine: Engine, e: Exception) -> None:
         """Callback for train or validation/evaluation exception raised Event.
