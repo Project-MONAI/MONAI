@@ -401,7 +401,7 @@ def weighted_patch_samples(
 
     """
     if w is None:
-        raise ValueError("w must be an ND array.")
+        raise ValueError("w must be an ND array, got None.")
     if r_state is None:
         r_state = np.random.RandomState()
     img_size = np.asarray(w.shape, dtype=int)
@@ -447,7 +447,10 @@ def correct_crop_centers(
     spatial_size = fall_back_tuple(spatial_size, default=label_spatial_shape)
     if any(np.subtract(label_spatial_shape, spatial_size) < 0):
         if not allow_smaller:
-            raise ValueError("The size of the proposed random crop ROI is larger than the image size.")
+            raise ValueError(
+                "The size of the proposed random crop ROI is larger than the image size, "
+                f"got ROI size {spatial_size} and label image size {label_spatial_shape} respectively."
+            )
         spatial_size = tuple(min(l, s) for l, s in zip(label_spatial_shape, spatial_size))
 
     # Select subregion to assure valid roi
@@ -555,12 +558,14 @@ def generate_label_classes_crop_centers(
         rand_state = np.random.random.__self__  # type: ignore
 
     if num_samples < 1:
-        raise ValueError("num_samples must be an int number and greater than 0.")
+        raise ValueError(f"num_samples must be an int number and greater than 0, got {num_samples}.")
     ratios_: list[float | int] = ([1] * len(indices)) if ratios is None else ratios
     if len(ratios_) != len(indices):
-        raise ValueError("random crop ratios must match the number of indices of classes.")
+        raise ValueError(
+            f"random crop ratios must match the number of indices of classes, got {len(ratios_)} and {len(indices)}."
+        )
     if any(i < 0 for i in ratios_):
-        raise ValueError("ratios should not contain negative number.")
+        raise ValueError(f"ratios should not contain negative number, got {ratios_}.")
 
     for i, array in enumerate(indices):
         if len(array) == 0:
@@ -823,7 +828,7 @@ def _create_shear(spatial_dims: int, coefs: Sequence[float] | float, eye_func=np
 def create_scale(
     spatial_dims: int,
     scaling_factor: Sequence[float] | float,
-    device: torch.device | None = None,
+    device: torch.device | str | None = None,
     backend=TransformBackends.NUMPY,
 ) -> NdarrayOrTensor:
     """
@@ -868,6 +873,7 @@ def create_translate(
         backend: APIs to use, ``numpy`` or ``torch``.
     """
     _backend = look_up_option(backend, TransformBackends)
+    spatial_dims = int(spatial_dims)
     if _backend == TransformBackends.NUMPY:
         return _create_translate(spatial_dims=spatial_dims, shift=shift, eye_func=np.eye, array_func=np.asarray)
     if _backend == TransformBackends.TORCH:
@@ -925,7 +931,7 @@ def generate_spatial_bounding_box(
     margin = ensure_tuple_rep(margin, ndim)
     for m in margin:
         if m < 0:
-            raise ValueError("margin value should not be negative number.")
+            raise ValueError(f"margin value should not be negative number, got {margin}.")
 
     box_start = [0] * ndim
     box_end = [0] * ndim
@@ -1065,7 +1071,7 @@ def get_unique_labels(img: NdarrayOrTensor, is_onehot: bool, discard: int | Iter
         applied_labels = {i for i, s in enumerate(img) if s.sum() > 0}
     else:
         if n_channels != 1:
-            raise ValueError("If input not one-hotted, should only be 1 channel.")
+            raise ValueError(f"If input not one-hotted, should only be 1 channel, got {n_channels}.")
         applied_labels = set(unique(img).tolist())
     if discard is not None:
         for i in ensure_tuple(discard):

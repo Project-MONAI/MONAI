@@ -92,7 +92,7 @@ class FastMRIReader(ImageReader):
         )
         return data, header
 
-    def _get_meta_dict(self, dat) -> dict:
+    def _get_meta_dict(self, dat: dict) -> dict:
         """
         Get all the metadata of the loaded dict and return the meta dict.
 

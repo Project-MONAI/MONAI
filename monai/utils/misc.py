@@ -14,6 +14,7 @@ from __future__ import annotations
 import inspect
 import itertools
 import os
+import pprint
 import random
 import shutil
 import tempfile
@@ -36,6 +37,7 @@ __all__ = [
     "star_zip_with",
     "first",
     "issequenceiterable",
+    "is_immutable",
     "ensure_tuple",
     "ensure_tuple_size",
     "ensure_tuple_rep",
@@ -59,6 +61,7 @@ __all__ = [
     "save_obj",
     "label_union",
     "path_to_uri",
+    "pprint_edges",
 ]
 
 _seed = None
@@ -114,6 +117,15 @@ def issequenceiterable(obj: Any) -> bool:
     except Exception:
         return False
     return isinstance(obj, Iterable) and not isinstance(obj, (str, bytes))
+
+
+def is_immutable(obj: Any) -> bool:
+    """
+    Determine if the object is an immutable object.
+
+    see also https://github.com/python/cpython/blob/3.11/Lib/copy.py#L109
+    """
+    return isinstance(obj, (type(None), int, float, bool, complex, str, tuple, bytes, type, range, slice))
 
 
 def ensure_tuple(vals: Any, wrap_array: bool = False) -> tuple[Any, ...]:
@@ -584,7 +596,7 @@ def save_obj(
         pass
 
 
-def label_union(x: list) -> list:
+def label_union(x: list | np.ndarray) -> list:
     """
     Compute the union of class IDs in label and generate a list to include all class IDs
     Args:
@@ -616,3 +628,17 @@ def path_to_uri(path: PathLike) -> str:
 
     """
     return Path(path).absolute().as_uri()
+
+
+def pprint_edges(val: Any, n_lines: int = 20) -> str:
+    """
+    Pretty print the head and tail ``n_lines`` of ``val``, and omit the middle part if the part has more than 3 lines.
+
+    Returns: the formatted string.
+    """
+    val_str = pprint.pformat(val).splitlines(True)
+    n_lines = max(n_lines, 1)
+    if len(val_str) > n_lines * 2 + 3:
+        hidden_n = len(val_str) - n_lines * 2
+        val_str = val_str[:n_lines] + [f"\n ... omitted {hidden_n} line(s)\n\n"] + val_str[-n_lines:]
+    return "".join(val_str)

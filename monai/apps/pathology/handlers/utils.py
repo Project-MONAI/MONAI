@@ -11,13 +11,14 @@
 
 from __future__ import annotations
 
-from collections.abc import Hashable
+from collections.abc import Callable, Hashable
+from typing import Any
 
 from monai.config import KeysCollection
 from monai.utils import ensure_tuple
 
 
-def from_engine_hovernet(keys: KeysCollection, nested_key: str):
+def from_engine_hovernet(keys: KeysCollection, nested_key: str) -> Callable[[Any], Any]:
     """
     Since the output of HoVerNet is a dictionary, this function is to extend `monai.handlers.from_engine`
     to work with HoVerNet.

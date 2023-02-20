@@ -12,9 +12,10 @@
 from __future__ import annotations
 
 import logging
+import os
 import warnings
 from collections.abc import Mapping
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from monai.config import IgniteInfo
 from monai.utils import is_scalar, min_version, optional_import
@@ -118,6 +119,7 @@ class CheckpointSaver:
         self._key_metric_checkpoint: Checkpoint | None = None
         self._interval_checkpoint: Checkpoint | None = None
         self._name = name
+        self._final_filename = final_filename
 
         class _DiskSaver(DiskSaver):
             """
@@ -143,12 +145,12 @@ class CheckpointSaver:
 
         if save_final:
 
-            def _final_func(engine: Engine):
+            def _final_func(engine: Engine) -> Any:
                 return engine.state.iteration
 
             self._final_checkpoint = Checkpoint(
                 to_save=self.save_dict,
-                save_handler=_DiskSaver(dirname=self.save_dir, filename=final_filename),
+                save_handler=_DiskSaver(dirname=self.save_dir, filename=self._final_filename),
                 filename_prefix=file_prefix,
                 score_function=_final_func,
                 score_name="final_iteration",
@@ -156,7 +158,7 @@ class CheckpointSaver:
 
         if save_key_metric:
 
-            def _score_func(engine: Engine):
+            def _score_func(engine: Engine) -> Any:
                 if isinstance(key_metric_name, str):
                     metric_name = key_metric_name
                 elif hasattr(engine.state, "key_metric_name"):
@@ -191,7 +193,7 @@ class CheckpointSaver:
 
         if save_interval > 0:
 
-            def _interval_func(engine: Engine):
+            def _interval_func(engine: Engine) -> Any:
                 return engine.state.epoch if self.epoch_level else engine.state.iteration
 
             self._interval_checkpoint = Checkpoint(
@@ -271,7 +273,11 @@ class CheckpointSaver:
             raise AssertionError
         if not hasattr(self.logger, "info"):
             raise AssertionError("Error, provided logger has not info attribute.")
-        self.logger.info(f"Train completed, saved final checkpoint: {self._final_checkpoint.last_checkpoint}")
+        if self._final_filename is not None:
+            _final_checkpoint_path = os.path.join(self.save_dir, self._final_filename)
+        else:
+            _final_checkpoint_path = self._final_checkpoint.last_checkpoint  # type: ignore[assignment]
+        self.logger.info(f"Train completed, saved final checkpoint: {_final_checkpoint_path}")
 
     def exception_raised(self, engine: Engine, e: Exception) -> None:
         """Callback for train or validation/evaluation exception raised Event.
@@ -291,7 +297,11 @@ class CheckpointSaver:
             raise AssertionError
         if not hasattr(self.logger, "info"):
             raise AssertionError("Error, provided logger has not info attribute.")
-        self.logger.info(f"Exception raised, saved the last checkpoint: {self._final_checkpoint.last_checkpoint}")
+        if self._final_filename is not None:
+            _final_checkpoint_path = os.path.join(self.save_dir, self._final_filename)
+        else:
+            _final_checkpoint_path = self._final_checkpoint.last_checkpoint  # type: ignore[assignment]
+        self.logger.info(f"Exception raised, saved the last checkpoint: {_final_checkpoint_path}")
         raise e
 
     def metrics_completed(self, engine: Engine) -> None:

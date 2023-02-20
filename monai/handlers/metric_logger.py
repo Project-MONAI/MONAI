@@ -12,10 +12,10 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 from enum import Enum
 from threading import RLock
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from monai.config import IgniteInfo
 from monai.utils import min_version, optional_import
@@ -30,7 +30,7 @@ else:
     )
 
 
-def _get_loss_from_output(output, loss_key: str = CommonKeys.LOSS):
+def _get_loss_from_output(output: Sequence[Mapping[str, Any]], loss_key: str = CommonKeys.LOSS) -> Any:
     return output[0][loss_key]
 
 

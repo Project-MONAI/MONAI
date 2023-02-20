@@ -17,6 +17,7 @@ from contextlib import contextmanager
 from glob import glob
 from os import path
 from threading import Timer
+from types import ModuleType
 
 import torch
 
@@ -45,7 +46,9 @@ def timeout(time, message):
                 pass
 
 
-def load_module(module_name: str, defines: dict | None = None, verbose_build: bool = False, build_timeout: int = 300):
+def load_module(
+    module_name: str, defines: dict | None = None, verbose_build: bool = False, build_timeout: int = 300
+) -> ModuleType:
     """
     Handles the loading of c++ extension modules.
 
@@ -87,4 +90,4 @@ def load_module(module_name: str, defines: dict | None = None, verbose_build: bo
             name=name, sources=source, extra_cflags=define_args, extra_cuda_cflags=define_args, verbose=verbose_build
         )
 
-    return module
+    return module  # type: ignore[no-any-return]

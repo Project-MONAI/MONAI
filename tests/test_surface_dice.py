@@ -19,13 +19,15 @@ import torch.nn.functional as F
 
 from monai.metrics.surface_dice import SurfaceDiceMetric
 
+_device = "cuda:0" if torch.cuda.is_available() else "cpu"
+
 
 class TestAllSurfaceDiceMetrics(unittest.TestCase):
     def test_tolerance_euclidean_distance(self):
         batch_size = 2
         n_class = 2
-        predictions = torch.zeros((batch_size, 480, 640), dtype=torch.int64)
-        labels = torch.zeros((batch_size, 480, 640), dtype=torch.int64)
+        predictions = torch.zeros((batch_size, 480, 640), dtype=torch.int64, device=_device)
+        labels = torch.zeros((batch_size, 480, 640), dtype=torch.int64, device=_device)
         predictions[0, :, 50:] = 1
         labels[0, :, 60:] = 1  # 10 px shift
         predictions_hot = F.one_hot(predictions, num_classes=n_class).permute(0, 3, 1, 2)
@@ -38,8 +40,10 @@ class TestAllSurfaceDiceMetrics(unittest.TestCase):
         res0_nans = sd0_nans(predictions_hot, labels_hot)
         agg0_nans, not_nans = sd0_nans.aggregate()
 
-        np.testing.assert_array_equal(res0, res0_nans)
-        np.testing.assert_array_equal(agg0, agg0_nans)
+        np.testing.assert_array_equal(res0.cpu(), res0_nans.cpu())
+        np.testing.assert_equal(res0.device, predictions.device)
+        np.testing.assert_array_equal(agg0.cpu(), agg0_nans.cpu())
+        np.testing.assert_equal(agg0.device, predictions.device)
 
         res1 = SurfaceDiceMetric(class_thresholds=[1, 1], include_background=True)(predictions_hot, labels_hot)
         res9 = SurfaceDiceMetric(class_thresholds=[9, 9], include_background=True)(predictions_hot, labels_hot)
@@ -51,7 +55,7 @@ class TestAllSurfaceDiceMetrics(unittest.TestCase):
 
         assert res0[0, 0] < res1[0, 0] < res9[0, 0] < res10[0, 0]
         assert res0[0, 1] < res1[0, 1] < res9[0, 1] < res10[0, 1]
-        np.testing.assert_array_equal(res10, res11)
+        np.testing.assert_array_equal(res10.cpu(), res11.cpu())
 
         expected_res0 = np.zeros((batch_size, n_class))
         expected_res0[0, 1] = 1 - (478 + 480 + 9 * 2) / (480 * 4 + 588 * 2 + 578 * 2)
@@ -59,9 +63,9 @@ class TestAllSurfaceDiceMetrics(unittest.TestCase):
         expected_res0[1, 0] = 1
         expected_res0[1, 1] = np.nan
         for b, c in np.ndindex(batch_size, n_class):
-            np.testing.assert_allclose(expected_res0[b, c], res0[b, c])
-        np.testing.assert_array_equal(agg0, np.nanmean(np.nanmean(expected_res0, axis=1), axis=0))
-        np.testing.assert_equal(not_nans, torch.tensor(2))
+            np.testing.assert_allclose(expected_res0[b, c], res0[b, c].cpu())
+        np.testing.assert_array_equal(agg0.cpu(), np.nanmean(np.nanmean(expected_res0, axis=1), axis=0))
+        np.testing.assert_equal(not_nans.cpu(), torch.tensor(2))
 
     def test_tolerance_all_distances(self):
         batch_size = 1
@@ -277,17 +281,17 @@ class TestAllSurfaceDiceMetrics(unittest.TestCase):
 
         # test aggregation
         res_bgr = sur_metric_bgr.aggregate(reduction="mean")
-        np.testing.assert_equal(res_bgr, torch.tensor([1 / 3], dtype=torch.float64))
+        np.testing.assert_equal(res_bgr, torch.tensor([1 / 3], dtype=torch.float))
         res = sur_metric.aggregate()
-        np.testing.assert_equal(res, torch.tensor([0], dtype=torch.float64))
+        np.testing.assert_equal(res, torch.tensor([0], dtype=torch.float))
 
         predictions_empty = torch.zeros((2, 3, 1, 1))
         sur_metric_nans = SurfaceDiceMetric(class_thresholds=[1, 1, 1], include_background=True, get_not_nans=True)
         res_classes = sur_metric_nans(predictions_empty, predictions_empty)
         res, not_nans = sur_metric_nans.aggregate()
         np.testing.assert_array_equal(res_classes, [[np.nan, np.nan, np.nan], [np.nan, np.nan, np.nan]])
-        np.testing.assert_equal(res, torch.tensor([0], dtype=torch.float64))
-        np.testing.assert_equal(not_nans, torch.tensor([0], dtype=torch.float64))
+        np.testing.assert_equal(res, torch.tensor([0], dtype=torch.float))
+        np.testing.assert_equal(not_nans, torch.tensor([0], dtype=torch.float))
 
 
 if __name__ == "__main__":

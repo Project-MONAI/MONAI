@@ -14,7 +14,8 @@ Wrapper around NVIDIA Tools Extension for profiling MONAI transformations
 
 from __future__ import annotations
 
-from monai.transforms.transform import RandomizableTrait, Transform
+from monai.transforms.traits import RandomizableTrait
+from monai.transforms.transform import Transform
 from monai.utils import optional_import
 
 _nvtx, _ = optional_import("torch._C._nvtx", descriptor="NVTX is not installed. Are you sure you have a CUDA build?")

@@ -56,7 +56,7 @@ def import_bundle_algo_history(
     return history
 
 
-def export_bundle_algo_history(history: list[dict[str, BundleAlgo]]):
+def export_bundle_algo_history(history: list[dict[str, BundleAlgo]]) -> None:
     """
     Save all the BundleAlgo in the history to algo_object.pkl in each individual folder
 

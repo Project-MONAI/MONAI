@@ -310,6 +310,8 @@ class TraceKeys(StrEnum):
     DO_TRANSFORM: str = "do_transforms"
     KEY_SUFFIX: str = "_transforms"
     NONE: str = "none"
+    TRACING: str = "tracing"
+    LAZY_EVALUATION: str = "lazy_evaluation"
 
 
 class CommonKeys(StrEnum):
@@ -623,3 +625,4 @@ class LazyAttr(StrEnum):
     PADDING_MODE = "lazy_padding_mode"
     INTERP_MODE = "lazy_interpolation_mode"
     DTYPE = "lazy_dtype"
+    ALIGN_CORNERS = "lazy_align_corners"

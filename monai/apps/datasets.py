@@ -17,6 +17,7 @@ import sys
 import warnings
 from collections.abc import Callable, Sequence
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -101,7 +102,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
         progress: bool = True,
         copy_cache: bool = True,
         as_contiguous: bool = True,
-        runtime_cache=False,
+        runtime_cache: bool = False,
     ) -> None:
         root_dir = Path(root_dir)
         if not root_dir.is_dir():
@@ -298,7 +299,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         progress: bool = True,
         copy_cache: bool = True,
         as_contiguous: bool = True,
-        runtime_cache=False,
+        runtime_cache: bool = False,
     ) -> None:
         root_dir = Path(root_dir)
         if not root_dir.is_dir():
@@ -364,7 +365,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
     def randomize(self, data: np.ndarray) -> None:
         self.R.shuffle(data)
 
-    def get_properties(self, keys: Sequence[str] | str | None = None):
+    def get_properties(self, keys: Sequence[str] | str | None = None) -> dict:
         """
         Get the loaded properties of dataset with specified keys.
         If no keys specified, return all the loaded properties.
@@ -516,7 +517,7 @@ class TciaDataset(Randomizable, CacheDataset):
         progress: bool = True,
         copy_cache: bool = True,
         as_contiguous: bool = True,
-        runtime_cache=False,
+        runtime_cache: bool = False,
     ) -> None:
         root_dir = Path(root_dir)
         if not root_dir.is_dir():
@@ -576,7 +577,7 @@ class TciaDataset(Randomizable, CacheDataset):
     def randomize(self, data: np.ndarray) -> None:
         self.R.shuffle(data)
 
-    def _download_series_reference_data(self, series_uid: str, download_dir: str):
+    def _download_series_reference_data(self, series_uid: str, download_dir: str) -> None:
         """
         First of all, download a series from TCIA according to `series_uid`.
         Then find all referenced series and download.
@@ -705,7 +706,7 @@ class CrossValidation:
 
     """
 
-    def __init__(self, dataset_cls, nfolds: int = 5, seed: int = 0, **dataset_params) -> None:
+    def __init__(self, dataset_cls: object, nfolds: int = 5, seed: int = 0, **dataset_params: Any) -> None:
         if not hasattr(dataset_cls, "_split_datalist"):
             raise ValueError("dataset class must have _split_datalist API.")
         self.dataset_cls = dataset_cls
@@ -713,7 +714,7 @@ class CrossValidation:
         self.seed = seed
         self.dataset_params = dataset_params
 
-    def get_dataset(self, folds: Sequence[int] | int, **dataset_params):
+    def get_dataset(self, folds: Sequence[int] | int, **dataset_params: Any) -> object:
         """
         Generate dataset based on the specified fold indices in the cross validation group.
 

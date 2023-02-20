@@ -66,6 +66,7 @@ from __future__ import annotations
 import logging as logger
 import time
 from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 
@@ -155,7 +156,7 @@ class COCOMetric:
         self.recall_thresholds = np.linspace(0.0, 1.00, int(np.round((1.00 - 0.0) / 0.01)) + 1, endpoint=True)
         self.max_detections = max_detection
 
-    def __call__(self, *args, **kwargs) -> tuple[dict[str, float], dict[str, np.ndarray] | None]:
+    def __call__(self, *args: Any, **kwargs: Any) -> tuple[dict[str, float], dict[str, np.ndarray] | None]:
         """
         Compute metric. See :func:`compute` for more information.
 
@@ -169,7 +170,7 @@ class COCOMetric:
         """
         return self.compute(*args, **kwargs)
 
-    def check_number_of_iou(self, *args) -> None:
+    def check_number_of_iou(self, *args: np.ndarray) -> None:
         """
         Check if shape of input in first dimension is consistent with expected IoU values
         (assumes IoU dimension is the first dimension)
