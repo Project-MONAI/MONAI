@@ -828,7 +828,7 @@ def _create_shear(spatial_dims: int, coefs: Sequence[float] | float, eye_func=np
 def create_scale(
     spatial_dims: int,
     scaling_factor: Sequence[float] | float,
-    device: torch.device | None = None,
+    device: torch.device | str | None = None,
     backend=TransformBackends.NUMPY,
 ) -> NdarrayOrTensor:
     """
@@ -873,6 +873,7 @@ def create_translate(
         backend: APIs to use, ``numpy`` or ``torch``.
     """
     _backend = look_up_option(backend, TransformBackends)
+    spatial_dims = int(spatial_dims)
     if _backend == TransformBackends.NUMPY:
         return _create_translate(spatial_dims=spatial_dims, shift=shift, eye_func=np.eye, array_func=np.asarray)
     if _backend == TransformBackends.TORCH:

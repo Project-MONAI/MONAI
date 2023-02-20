@@ -309,7 +309,7 @@ class FlexibleUNet(nn.Module):
             bias=decoder_bias,
             upsample=upsample,
             interp_mode=interp_mode,
-            pre_conv=None,
+            pre_conv="default",
             align_corners=None,
             is_pad=is_pad,
         )
