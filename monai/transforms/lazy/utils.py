@@ -38,7 +38,7 @@ class Affine:
             return False
         if not hasattr(data, "shape") or len(data.shape) < 2:
             return False
-        return data.shape[-1] in (3, 4) and data.shape[-2] in (3, 4) and data.shape[-1] == data.shape[-2]
+        return data.shape[-1] in (3, 4) and data.shape[-1] == data.shape[-2]
 
 
 class DisplacementField:
@@ -129,6 +129,6 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, spatial_size, kwargs: 
         "padding_mode": kwargs.pop(LazyAttr.PADDING_MODE, None),
     }
     resampler = monai.transforms.SpatialResample(**init_kwargs)
-    # resampler.lazy_evaluation = False
-    with resampler.trace_transform(False):  # don't track this transform in `data`
+    # resampler.lazy_evaluation = False  # resampler is a lazytransform
+    with resampler.trace_transform(False):  # don't track this transform in `img`
         return resampler(img=img, **call_kwargs)

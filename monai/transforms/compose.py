@@ -221,7 +221,10 @@ class OneOf(Compose):
         elif weights is None or isinstance(weights, float):
             weights = [1.0 / len(self.transforms)] * len(self.transforms)
         if len(weights) != len(self.transforms):
-            raise AssertionError("transforms and weights should be same size if both specified as sequences.")
+            raise ValueError(
+                "transforms and weights should be same size if both specified as sequences, "
+                f"got {len(weights)} and {len(self.transforms)}."
+            )
         self.weights = ensure_tuple(self._normalize_probabilities(weights))
 
     def _normalize_probabilities(self, weights):
@@ -229,9 +232,9 @@ class OneOf(Compose):
             return weights
         weights = np.array(weights)
         if np.any(weights < 0):
-            raise AssertionError("Probabilities must be greater than or equal to zero.")
+            raise ValueError(f"Probabilities must be greater than or equal to zero, got {weights}.")
         if np.all(weights == 0):
-            raise AssertionError("At least one probability must be greater than zero.")
+            raise ValueError(f"At least one probability must be greater than zero, got {weights}.")
         weights = weights / weights.sum()
         return list(weights)
 
@@ -278,7 +281,9 @@ class OneOf(Compose):
                 if isinstance(data[key], monai.data.MetaTensor) or self.trace_key(key) in data:
                     index = self.pop_transform(data, key)[TraceKeys.EXTRA_INFO]["index"]
         else:
-            raise RuntimeError("Inverse only implemented for Mapping (dictionary) or MetaTensor data.")
+            raise RuntimeError(
+                f"Inverse only implemented for Mapping (dictionary) or MetaTensor data, got type {type(data)}."
+            )
         if index is None:
             # no invertible transforms have been applied
             return data
@@ -342,7 +347,9 @@ class RandomOrder(Compose):
                 if isinstance(data[key], monai.data.MetaTensor) or self.trace_key(key) in data:
                     applied_order = self.pop_transform(data, key)[TraceKeys.EXTRA_INFO]["applied_order"]
         else:
-            raise RuntimeError("Inverse only implemented for Mapping (dictionary) or MetaTensor data.")
+            raise RuntimeError(
+                f"Inverse only implemented for Mapping (dictionary) or MetaTensor data, got type {type(data)}."
+            )
         if applied_order is None:
             # no invertible transforms have been applied
             return data
