@@ -34,7 +34,6 @@ for p in TEST_NDARRAYS:
 class TestSqueezeDim(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_shape(self, input_param, test_data, expected_shape):
-
         result = SqueezeDim(**input_param)(test_data)
         self.assertTupleEqual(result.shape, expected_shape)
         if "dim" in input_param and input_param["dim"] == 2 and isinstance(result, MetaTensor):
@@ -42,7 +41,6 @@ class TestSqueezeDim(unittest.TestCase):
 
     @parameterized.expand(TESTS_FAIL)
     def test_invalid_inputs(self, exception, input_param, test_data):
-
         with self.assertRaises(exception):
             SqueezeDim(**input_param)(test_data)
 

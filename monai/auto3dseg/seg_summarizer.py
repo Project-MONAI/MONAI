@@ -89,7 +89,6 @@ class SegSummarizer(Compose):
         hist_range: list | None = None,
         histogram_only: bool = False,
     ) -> None:
-
         self.image_key = image_key
         self.label_key = label_key
         # set defaults

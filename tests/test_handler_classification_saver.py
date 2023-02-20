@@ -28,7 +28,6 @@ from monai.handlers import ClassificationSaver
 class TestHandlerClassificationSaver(unittest.TestCase):
     def test_saved_content(self):
         with tempfile.TemporaryDirectory() as tempdir:
-
             # set up engine
             def _train_func(engine, batch):
                 engine.state.batch = decollate_batch(batch)

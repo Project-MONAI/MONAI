@@ -191,7 +191,6 @@ def print_system_info(file=sys.stdout) -> None:
 
 
 def get_gpu_info() -> OrderedDict:
-
     output: OrderedDict = OrderedDict()
 
     num_gpus = torch.cuda.device_count()

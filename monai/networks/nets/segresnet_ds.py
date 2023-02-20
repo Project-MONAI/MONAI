@@ -152,7 +152,6 @@ class SegResEncoder(nn.Module):
         head_module: nn.Module | None = None,
         anisotropic_scales: tuple | None = None,
     ):
-
         super().__init__()
 
         if spatial_dims not in (1, 2, 3):
@@ -215,7 +214,6 @@ class SegResEncoder(nn.Module):
         self.spatial_dims = spatial_dims
 
     def _forward(self, x: torch.Tensor) -> list[torch.Tensor]:
-
         outputs = []
         x = self.conv_init(x)
 
@@ -273,7 +271,6 @@ class SegResNetDS(nn.Module):
         upsample_mode: UpsampleMode | str = "deconv",
         resolution: tuple | None = None,
     ):
-
         super().__init__()
 
         if spatial_dims not in (1, 2, 3):
@@ -330,7 +327,6 @@ class SegResNetDS(nn.Module):
         self.up_layers = nn.ModuleList()
 
         for i in range(n_up):
-
             filters = filters // 2
             kernel_size, _, stride = (
                 aniso_kernel(anisotropic_scales[len(blocks_up) - i - 1]) if anisotropic_scales else (3, 1, 2)
@@ -392,7 +388,6 @@ class SegResNetDS(nn.Module):
         return all(a)
 
     def _forward(self, x: torch.Tensor) -> torch.Tensor | list[torch.Tensor]:
-
         if self.preprocess is not None:
             x = self.preprocess(x)
 

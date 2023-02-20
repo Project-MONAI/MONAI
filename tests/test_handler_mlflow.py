@@ -60,7 +60,6 @@ class TestHandlerMLFlow(unittest.TestCase):
     def test_metrics_track(self):
         experiment_param = {"backbone": "efficientnet_b0"}
         with tempfile.TemporaryDirectory() as tempdir:
-
             # set up engine
             def _train_func(engine, batch):
                 return [batch + 1.0]
