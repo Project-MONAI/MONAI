@@ -81,6 +81,7 @@ def submit_to_azureml_if_needed() -> health_azure.AzureRunInfo:
         snapshot_root_directory=os.getcwd(),
         conda_environment_file=os.path.join(os.getcwd(), "environment-dev.yml"),
         entry_script=os.getcwd() + "/" + __file__,
+        strictly_aml_v1=True,
     )
     print(f"Run info generated: {str(run_info)}")
     return run_info
