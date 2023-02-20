@@ -19,7 +19,7 @@ import numpy as np
 import torch
 
 from monai.config import IgniteInfo
-from monai.utils import is_scalar, min_version, optional_import
+from monai.utils import deprecated_arg, is_scalar, min_version, optional_import
 from monai.visualize import plot_2d_or_3d_image
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
@@ -87,6 +87,8 @@ class TensorBoardStatsHandler(TensorBoardHandler):
 
     """
 
+    @deprecated_arg("epoch_interval", since="1.1", removed="1.3")
+    @deprecated_arg("iteration_interval", since="1.1", removed="1.3")
     def __init__(
         self,
         summary_writer: SummaryWriter | SummaryWriterX | None = None,
