@@ -46,7 +46,7 @@ def itk_image_to_metatensor(image) -> MetaTensor:
         image: The ITK image to be converted.
 
     Returns:
-        A MetaTensor object containing the array data and metadata.
+        A MetaTensor object containing the array data and metadata in ChannelFirst format.
     """
     reader = ITKReader(affine_lps_to_ras=False)
     image_array, meta_data = reader.get_data(image)
@@ -59,16 +59,18 @@ def itk_image_to_metatensor(image) -> MetaTensor:
 
 def metatensor_to_itk_image(meta_tensor: MetaTensor):
     """
-    Converts a MetaTensor object to an ITK image.
+    Converts a MetaTensor object to an ITK image. Expects the MetaTensor to be in ChannelFirst format.
 
     Args:
         meta_tensor: The MetaTensor to be converted.
 
     Returns:
-        A MetaTensor object containing the array data and metadata.
+        The ITK image.
+
+    See also: :py:func:`ITKWriter.create_backend_obj`
     """
     return ITKWriter.create_backend_obj(
-        meta_tensor.array,
+        meta_tensor.array.squeeze(),
         channel_dim=None,
         affine=meta_tensor.affine,
         affine_lps_to_ras=False,  # False if the affine is in itk convention

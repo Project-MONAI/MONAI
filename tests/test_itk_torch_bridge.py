@@ -365,7 +365,8 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
 
         np.testing.assert_allclose(matrix, matrix_result)
         np.testing.assert_allclose(translation, translation_result)
-        np.testing.assert_array_equal(image, image_result)  #TODO: This fails
+        np.testing.assert_array_equal(image.shape, image_result.shape)
+        np.testing.assert_array_equal(image, image_result)
 
     @parameterized.expand([(2,), (3,)])
     def test_random_array(self, ndim):
