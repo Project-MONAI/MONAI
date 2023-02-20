@@ -30,7 +30,9 @@ from monai.apps.auto3dseg.ensemble_builder import (
     AlgoEnsembleBuilder,
 )
 from monai.apps.auto3dseg.hpo_gen import NNIGen
-from monai.apps.auto3dseg.utils import export_bundle_algo_history, import_bundle_algo_history
+from monai.apps.auto3dseg.utils import (
+    export_bundle_algo_history, import_bundle_algo_history, submit_to_azureml_if_needed,
+)
 from monai.apps.utils import get_logger
 from monai.auto3dseg.utils import algo_to_pickle
 from monai.bundle import ConfigParser
@@ -223,6 +225,7 @@ class AutoRunner:
         templates_path_or_url: str | None = None,
         **kwargs: Any,
     ):
+        run_info = submit_to_azureml_if_needed()
         logger.info(f"AutoRunner using work directory {work_dir}")
         os.makedirs(work_dir, exist_ok=True)
 

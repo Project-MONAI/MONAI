@@ -145,3 +145,7 @@ tests/testing_data/eval_data_stats.yaml
 
 # profiling results
 *.prof
+
+# AzureML Configuration
+
+azureml_config.json

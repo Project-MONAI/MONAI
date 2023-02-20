@@ -15,7 +15,10 @@ import os
 
 from monai.apps.auto3dseg.bundle_gen import BundleAlgo
 from monai.auto3dseg import algo_from_pickle, algo_to_pickle
+from monai.utils import optional_import
 
+# health_azure, has_health_azure = optional_import("health_azure")
+import health_azure
 
 def import_bundle_algo_history(
     output_folder: str = ".", template_path: str | None = None, only_trained: bool = True
@@ -66,3 +69,18 @@ def export_bundle_algo_history(history: list[dict[str, BundleAlgo]]) -> None:
     for task in history:
         for _, algo in task.items():
             algo_to_pickle(algo, template_path=algo.template_path)
+
+
+def submit_to_azureml_if_needed() -> health_azure.AzureRunInfo:
+    run_info = health_azure.submit_to_azure_if_needed(
+        compute_cluster_name="lite-testing-ds2",
+        workspace_config_file="azureml_config.json",
+        input_datasets=["dataset_goes_here"],
+        default_datastore="innereyedatasets",
+        docker_base_image="mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04",
+        snapshot_root_directory=os.getcwd(),
+        conda_environment_file=os.path.join(os.getcwd(), "environment-dev.yml"),
+        entry_script=os.getcwd() + "/" + __file__,
+    )
+    print(f"Run info generated: {str(run_info)}")
+    return run_info
