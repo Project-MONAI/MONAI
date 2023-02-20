@@ -61,7 +61,7 @@ from .feature_pyramid_network import Daf3dFPN, ExtraFPNBlock, FeaturePyramidNetw
 
 torchvision_models, _ = optional_import("torchvision.models")
 
-__all__ = ["BackboneWithFPN"]
+__all__ = ["BackboneWithFPN", "Daf3dBackboneWithFPN"]
 
 
 class BackboneWithFPN(nn.Module):
@@ -176,6 +176,25 @@ def _resnet_fpn_extractor(
 
 
 class Daf3dBackboneWithFPN(BackboneWithFPN):
+    """
+    Same as BackboneWithFPN but uses custom Daf3DFPN as feature pyramid network
+
+    Args:
+        backbone: backbone network
+        return_layers: a dict containing the names
+            of the modules for which the activations will be returned as
+            the key of the dict, and the value of the dict is the name
+            of the returned activation (which the user can specify).
+        in_channels_list: number of channels for each feature map
+            that is returned, in the order they are present in the OrderedDict
+        out_channels: number of channels in the FPN.
+        spatial_dims: 2D or 3D images
+        extra_blocks: if provided, extra operations will
+            be performed. It is expected to take the fpn features, the original
+            features and the names of the original features as input, and returns
+            a new list of feature maps and their corresponding names
+    """
+
     def __init__(
         self,
         backbone: nn.Module,
@@ -197,4 +216,4 @@ class Daf3dBackboneWithFPN(BackboneWithFPN):
             else:
                 raise ValueError("Could not find spatial_dims of backbone, please specify it.")
 
-        self.fpn = Daf3dFPN(spatial_dims, in_channels_list, out_channels)
+        self.fpn = Daf3dFPN(spatial_dims, in_channels_list, out_channels, extra_blocks)

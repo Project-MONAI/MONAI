@@ -61,7 +61,7 @@ from torch import Tensor, nn
 from monai.networks.blocks.convolutions import Convolution
 from monai.networks.layers.factories import Conv, Pool
 
-__all__ = ["ExtraFPNBlock", "LastLevelMaxPool", "LastLevelP6P7", "FeaturePyramidNetwork"]
+__all__ = ["ExtraFPNBlock", "LastLevelMaxPool", "LastLevelP6P7", "FeaturePyramidNetwork", "Daf3dFPN"]
 
 
 class ExtraFPNBlock(nn.Module):
@@ -266,6 +266,22 @@ class FeaturePyramidNetwork(nn.Module):
 
 
 class Daf3dFPN(FeaturePyramidNetwork):
+    """
+    Feature Pyramid Network as used in 'Deep Attentive Features for Prostate Segmentation in 3D Transrectal Ultrasound'
+    <https://arxiv.org/pdf/1907.01743.pdf>.
+    Omits 3x3x3 convolution of layer_blocks and interpolates resulting feature maps to be the same size as
+    feature map with highest resolution.
+
+    Args:
+        spatial_dims: 2D or 3D images
+        in_channels_list: number of channels for each feature map that is passed to the module
+        out_channels: number of channels of the FPN representation
+        extra_blocks: if provided, extra operations will be performed.
+            It is expected to take the fpn features, the original
+            features and the names of the original features as input, and returns
+            a new list of feature maps and their corresponding names
+    """
+
     def __init__(
         self,
         spatial_dims: int,
@@ -309,6 +325,7 @@ class Daf3dFPN(FeaturePyramidNetwork):
         if self.extra_blocks is not None:
             results, names = self.extra_blocks(results, x_values, names)
 
+        # bring all layers to same size
         results = [results[0]] + [F.interpolate(l, size=x["feat1"].size()[2:], mode="trilinear") for l in results[1:]]
         # make it back an OrderedDict
         out = OrderedDict(list(zip(names, results)))
