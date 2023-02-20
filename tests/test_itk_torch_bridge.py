@@ -31,16 +31,13 @@ from monai.data.itk_torch_bridge import (
 from monai.networks.blocks import Warp
 from monai.transforms import Affine
 from monai.utils import optional_import, set_determinism
-from tests.utils import skip_if_downloading_fails, skip_if_quick, testing_data_config
+from tests.utils import skip_if_downloading_fails, skip_if_quick, test_is_quick, testing_data_config
 
 itk, has_itk = optional_import("itk")
 
-TESTS = [
-    "CT_2D_head_fixed.mha",
-    "CT_2D_head_moving.mha",
-    "copd1_highres_INSP_STD_COPD_img.nii.gz",
-    "copd1_highres_EXP_STD_COPD_img.nii.gz",
-]
+TESTS = ["CT_2D_head_fixed.mha", "CT_2D_head_moving.mha"]
+if not test_is_quick():
+    TESTS += ["copd1_highres_INSP_STD_COPD_img.nii.gz", "copd1_highres_EXP_STD_COPD_img.nii.gz"]
 
 
 @unittest.skipUnless(has_itk, "Requires `itk` package.")
@@ -426,6 +423,7 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         np.testing.assert_allclose(img_resampled, itk_img_resampled, rtol=1e-3, atol=1e-3)
 
     @parameterized.expand(zip(TESTS[::2], TESTS[1::2]))
+    @skip_if_quick
     def test_use_reference_space(self, ref_filepath, filepath):
         # Read the images
         image = self.reader.read(os.path.join(self.data_dir, filepath))

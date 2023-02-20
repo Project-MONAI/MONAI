@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, cast
 import numpy as np
 import torch
 
+from monai.config.type_definitions import DtypeLike
 from monai.data import ITKReader, ITKWriter
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import EnsureChannelFirst
@@ -38,42 +39,59 @@ __all__ = [
 ]
 
 
-def itk_image_to_metatensor(image) -> MetaTensor:
+def itk_image_to_metatensor(
+    image, channel_dim: str | int | None = None, dtype: DtypeLike | torch.dtype = float
+) -> MetaTensor:
     """
     Converts an ITK image to a MetaTensor object.
 
     Args:
         image: The ITK image to be converted.
+        channel_dim: the channel dimension of the input image, default is None.
+            This is used to set original_channel_dim in the metadata, EnsureChannelFirst reads this field.
+            If None, the channel_dim is inferred automatically.
+            If the input array doesn't have a channel dim, this value should be ``'no_channel'``.
+        dtype: output dtype, defaults to the Python built-in `float`.
 
     Returns:
         A MetaTensor object containing the array data and metadata in ChannelFirst format.
     """
-    reader = ITKReader(affine_lps_to_ras=False)
+    reader = ITKReader(affine_lps_to_ras=False, channel_dim=channel_dim)
     image_array, meta_data = reader.get_data(image)
-    image_array = convert_to_dst_type(image_array, dst=image_array, dtype=np.dtype(itk.D))[0]
+    image_array = convert_to_dst_type(image_array, dst=image_array, dtype=dtype)[0]
     metatensor = MetaTensor.ensure_torch_and_prune_meta(image_array, meta_data)
-    metatensor = EnsureChannelFirst()(metatensor)
+    metatensor = EnsureChannelFirst(channel_dim=channel_dim)(metatensor)
 
     return cast(MetaTensor, metatensor)
 
 
-def metatensor_to_itk_image(meta_tensor: MetaTensor):
+def metatensor_to_itk_image(
+    meta_tensor: MetaTensor, channel_dim: int | None = 0, dtype: DtypeLike = np.float32, **kwargs
+):
     """
     Converts a MetaTensor object to an ITK image. Expects the MetaTensor to be in ChannelFirst format.
 
     Args:
         meta_tensor: The MetaTensor to be converted.
+        channel_dim: channel dimension of the data array, defaults to ``0`` (Channel-first).
+            ``None`` indicates no channel dimension. This is used to create a Vector Image if it is not ``None``.
+        dtype: output data type, defaults to `np.float32`.
+        kwargs: additional keyword arguments. Currently `itk.GetImageFromArray` will get ``ttype`` from this dictionary.
 
     Returns:
         The ITK image.
 
     See also: :py:func:`ITKWriter.create_backend_obj`
     """
-    return ITKWriter.create_backend_obj(
-        meta_tensor.array.squeeze(),
-        channel_dim=None,
+    writer = ITKWriter(output_dtype=dtype, affine_lps_to_ras=False)
+    writer.set_data_array(data_array=meta_tensor.data, channel_dim=channel_dim, squeeze_end_dims=True)
+    return writer.create_backend_obj(
+        writer.data_obj,
+        channel_dim=writer.channel_dim,
         affine=meta_tensor.affine,
         affine_lps_to_ras=False,  # False if the affine is in itk convention
+        dtype=writer.output_dtype,
+        kwargs=kwargs,
     )
 
 
@@ -210,8 +228,10 @@ def _assert_itk_regions_match_array(image):
         and np.array_equal(buffered_region_size, requested_region_size)
     )
 
-    assert indices_are_zeros, "ITK-MONAI bridge: non-zero ITK region indices encountered"
-    assert sizes_match, "ITK-MONAI bridge: ITK regions should be of the same shape"
+    if not indices_are_zeros:
+        raise AssertionError("ITK-MONAI bridge: non-zero ITK region indices encountered")
+    if not sizes_match:
+        raise AssertionError("ITK-MONAI bridge: ITK regions should be of the same shape")
 
 
 def _compute_offset_matrix(image, center_of_rotation) -> tuple[torch.Tensor, torch.Tensor]:
