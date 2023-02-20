@@ -252,6 +252,11 @@ N-Dim Fourier Transform
 .. autofunction:: monai.data.fft_utils.fftn_centered
 .. autofunction:: monai.data.fft_utils.ifftn_centered
 
+ITK Torch Bridge
+~~~~~~~~~~~~~~~~
+.. automodule:: monai.data.itk_torch_bridge
+  :members:
+
 
 Meta Object
 -----------
