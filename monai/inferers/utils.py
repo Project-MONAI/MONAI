@@ -262,7 +262,7 @@ def sliding_window_inference(
 
     # account for any overlapping sections
     for ss in range(len(output_image_list)):
-        output_image_list[ss] = output_image_list[ss].detach()
+        output_image_list[ss] = output_image_list[ss]
         _map = count_map_list.pop(0)
         for _i in range(output_image_list[ss].shape[1]):
             output_image_list[ss][:, _i : _i + 1, ...] /= _map
