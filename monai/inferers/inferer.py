@@ -14,6 +14,7 @@ from __future__ import annotations
 import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from pydoc import locate
 from typing import Any
 
 import torch
@@ -124,8 +125,12 @@ class PatchInferer(Inferer):
         # merger
         if isinstance(merger_cls, str):
             valid_merger: type[Merger]
-            valid_merger, merger_found = optional_import("monai.inferers.merger", name=merger_cls)  # search mergers
+            # search amongst implemented mergers in MONAI
+            valid_merger, merger_found = optional_import("monai.inferers.merger", name=merger_cls)
             if not merger_found:
+                # try to locate the provided class (with dotted path)
+                valid_merger = locate(merger_cls)  # type: ignore
+            if valid_merger is None:
                 raise ValueError(f"The requested merger ['{merger_cls}'] does not exist.")
             merger_cls = valid_merger
         if not issubclass(merger_cls, Merger):

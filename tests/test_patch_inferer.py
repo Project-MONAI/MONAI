@@ -112,10 +112,18 @@ TEST_CASE_8_POSTPROCESS = [
     4 * TENSOR_4x4,
 ]
 
-# string merger
+# str merger as the class name
 TEST_CASE_9_STR_MERGER = [
     TENSOR_4x4,
     dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger_cls="AvgMerger"),
+    lambda x: x,
+    TENSOR_4x4,
+]
+
+# str merger as dotted patch
+TEST_CASE_10_STR_MERGER = [
+    TENSOR_4x4,
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger_cls="monai.inferers.merger.AvgMerger"),
     lambda x: x,
     TENSOR_4x4,
 ]
@@ -183,6 +191,7 @@ class PatchInfererTests(unittest.TestCase):
             TEST_CASE_7_PREPROCESS,
             TEST_CASE_8_POSTPROCESS,
             TEST_CASE_9_STR_MERGER,
+            TEST_CASE_10_STR_MERGER,
         ]
     )
     def test_patch_inferer_tensor(self, inputs, arguments, network, expected):
