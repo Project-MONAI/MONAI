@@ -15,33 +15,26 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 from __future__ import annotations
 
-import math
-import warnings
 from enum import Enum
 
 import numpy as np
 import torch
 
 import monai
-from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import AFFINE_TOL, compute_shape_offset, to_affine_nd
 from monai.networks.layers import AffineTransform
 from monai.networks.utils import normalize_transform
-from monai.transforms.croppad.array import ResizeWithPadOrCrop
-from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import TraceableTransform
-from monai.transforms.utils import create_rotate, create_scale, create_translate, scale_affine
+from monai.transforms.utils import create_scale
 from monai.transforms.utils_pytorch_numpy_unification import allclose
 from monai.utils import (
     TraceKeys,
-    convert_data_type,
     convert_to_dst_type,
     convert_to_numpy,
     convert_to_tensor,
     ensure_tuple,
-    ensure_tuple_rep,
     fall_back_tuple,
     optional_import,
 )
