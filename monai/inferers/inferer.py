@@ -124,15 +124,15 @@ class PatchInferer(Inferer):
 
         # merger
         if isinstance(merger_cls, str):
-            valid_merger: type[Merger]
+            valid_merger_cls: type[Merger]
             # search amongst implemented mergers in MONAI
-            valid_merger, merger_found = optional_import("monai.inferers.merger", name=merger_cls)
+            valid_merger_cls, merger_found = optional_import("monai.inferers.merger", name=merger_cls)
             if not merger_found:
-                # try to locate the provided class (with dotted path)
-                valid_merger = locate(merger_cls)  # type: ignore
-            if valid_merger is None:
+                # try to locate the requested merger class (with dotted path)
+                valid_merger_cls = locate(merger_cls)  # type: ignore
+            if valid_merger_cls is None:
                 raise ValueError(f"The requested merger ['{merger_cls}'] does not exist.")
-            merger_cls = valid_merger
+            merger_cls = valid_merger_cls
         if not issubclass(merger_cls, Merger):
             raise TypeError(f"'merger' should be a subclass of `Merger`, {merger_cls} is given.")
         self.merger_cls = merger_cls
