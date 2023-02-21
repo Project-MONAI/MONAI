@@ -18,6 +18,7 @@ import torch
 
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.transform import MapTransform
+from monai.transforms.lazy.functional import apply_transforms
 from monai.utils.enums import NumpyPadMode, PytorchPadMode
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
@@ -44,6 +45,8 @@ PT_MODES: list = [
 ]
 MODES += PT_MODES
 MODES += [PytorchPadMode(i) for i in PT_MODES]
+
+TESTS_PENDING_MODE = [["constant", "zeros"], ["edge", "border"]]
 
 
 class PadTest(unittest.TestCase):
@@ -109,3 +112,27 @@ class PadTest(unittest.TestCase):
                             inv = padder.inverse(result)
                             assert_allclose(im, inv, type_test=False)
                             self.assertEqual(inv.applied_operations, [])
+
+    def pad_test_pending_ops(self, input_param, input_shape):
+        for mode in TESTS_PENDING_MODE[:2]:
+            # TODO: One of the dim in the input data contains 1 report error.
+            pad_fn = self.Padder(mode=mode[0], **input_param)
+            data = self.get_arr(input_shape)
+            is_map = isinstance(pad_fn, MapTransform)
+            im = MetaTensor(data, meta={"a": "b", "affine": np.eye(len(input_shape))})
+            input_data = {"img": im} if is_map else im
+            # non-lazy
+            result_non_lazy = pad_fn(input_data)
+            expected = result_non_lazy["img"] if is_map else result_non_lazy
+            self.assertIsInstance(expected, MetaTensor)
+            # lazy
+            pad_fn.lazy_evaluation = True
+            pending_result = pad_fn(input_data)
+            pending_result = pending_result["img"] if is_map else pending_result
+            self.assertIsInstance(pending_result, MetaTensor)
+            assert_allclose(pending_result.peek_pending_affine(), expected.affine)
+            assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:])
+            # TODO: mode="bilinear" may report error
+            result = apply_transforms(pending_result, mode="nearest", padding_mode=mode[1], align_corners=True)[0]
+            # compare
+            assert_allclose(result, expected, rtol=1e-5)
