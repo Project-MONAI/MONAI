@@ -112,6 +112,14 @@ TEST_CASE_8_POSTPROCESS = [
     4 * TENSOR_4x4,
 ]
 
+# string merger
+TEST_CASE_9_STR_MERGER = [
+    TENSOR_4x4,
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger_cls="AvgMerger"),
+    lambda x: x,
+    TENSOR_4x4,
+]
+
 # list of tensor output
 TEST_CASE_0_LIST_TENSOR = [
     TENSOR_4x4,
@@ -133,18 +141,20 @@ TEST_CASE_0_DICT = [
 # ----------------------------------------------------------------------------
 # invalid splitter: not callable
 TEST_CASE_ERROR_0 = [None, dict(splitter=1), TypeError]
+# invalid merger: non-existent merger
+TEST_CASE_ERROR_1 = [None, dict(splitter=lambda x: x, merger_cls="NonExistent"), ValueError]
 # invalid merger: callable
-TEST_CASE_ERROR_1 = [None, dict(splitter=lambda x: x, merger_cls=lambda x: x), TypeError]
+TEST_CASE_ERROR_2 = [None, dict(splitter=lambda x: x, merger_cls=lambda x: x), TypeError]
 # invalid merger: Merger object
-TEST_CASE_ERROR_2 = [None, dict(splitter=lambda x: x, merger_cls=AvgMerger(output_shape=(1, 1))), TypeError]
+TEST_CASE_ERROR_3 = [None, dict(splitter=lambda x: x, merger_cls=AvgMerger(output_shape=(1, 1))), TypeError]
 # invalid merger: list of Merger class
-TEST_CASE_ERROR_3 = [None, dict(splitter=lambda x: x, merger_cls=[AvgMerger, AvgMerger]), TypeError]
+TEST_CASE_ERROR_4 = [None, dict(splitter=lambda x: x, merger_cls=[AvgMerger, AvgMerger]), TypeError]
 # invalid preprocessing
-TEST_CASE_ERROR_4 = [None, dict(splitter=lambda x: x, preprocessing=1), TypeError]
+TEST_CASE_ERROR_5 = [None, dict(splitter=lambda x: x, preprocessing=1), TypeError]
 # invalid postprocessing
-TEST_CASE_ERROR_5 = [None, dict(splitter=lambda x: x, postprocessing=1), TypeError]
+TEST_CASE_ERROR_6 = [None, dict(splitter=lambda x: x, postprocessing=1), TypeError]
 # provide splitter when data is already split (splitter is not None)
-TEST_CASE_ERROR_6 = [
+TEST_CASE_ERROR_7 = [
     [
         (TENSOR_4x4[..., :2, :2], (0, 0)),
         (TENSOR_4x4[..., :2, 2:], (0, 2)),
@@ -155,9 +165,9 @@ TEST_CASE_ERROR_6 = [
     AttributeError,
 ]
 # invalid inputs: split patches tensor without location
-TEST_CASE_ERROR_7 = [torch.zeros(2, 2), dict(splitter=None), ValueError]
+TEST_CASE_ERROR_8 = [torch.zeros(2, 2), dict(splitter=None), ValueError]
 # invalid inputs: split patches MetaTensor without location metadata
-TEST_CASE_ERROR_8 = [MetaTensor(torch.zeros(2, 2)), dict(splitter=None), ValueError]
+TEST_CASE_ERROR_9 = [MetaTensor(torch.zeros(2, 2)), dict(splitter=None), ValueError]
 
 
 class PatchInfererTests(unittest.TestCase):
@@ -172,6 +182,7 @@ class PatchInfererTests(unittest.TestCase):
             TEST_CASE_6_SMALLER,
             TEST_CASE_7_PREPROCESS,
             TEST_CASE_8_POSTPROCESS,
+            TEST_CASE_9_STR_MERGER,
         ]
     )
     def test_patch_inferer_tensor(self, inputs, arguments, network, expected):
@@ -204,6 +215,7 @@ class PatchInfererTests(unittest.TestCase):
             TEST_CASE_ERROR_6,
             TEST_CASE_ERROR_7,
             TEST_CASE_ERROR_8,
+            TEST_CASE_ERROR_9,
         ]
     )
     def test_patch_inferer_errors(self, inputs, arguments, expected_error):

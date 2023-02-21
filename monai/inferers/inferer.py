@@ -23,7 +23,7 @@ from monai.data.meta_tensor import MetaTensor
 from monai.inferers.merger import AvgMerger, Merger
 from monai.inferers.splitter import Splitter
 from monai.inferers.utils import compute_importance_map, sliding_window_inference
-from monai.utils import BlendMode, PatchKeys, PytorchPadMode, ensure_tuple
+from monai.utils import BlendMode, PatchKeys, PytorchPadMode, ensure_tuple, optional_import
 from monai.visualize import CAM, GradCAM, GradCAMpp
 
 __all__ = ["Inferer", "PatchInferer", "SimpleInferer", "SlidingWindowInferer", "SaliencyInferer", "SliceInferer"]
@@ -76,6 +76,7 @@ class PatchInferer(Inferer):
         splitter: a `Splitter` object that split the inputs into patches. Defaults to None.
             If not provided or None, the inputs are considered to be already split into patches.
         merger_cls: a `Merger` subclass that can be instantiated to merges patch outputs.
+            It can also be a string that matches the name of a class inherited from `Merger` class.
             Defaults to `AvgMerger`.
         batch_size: batch size for patches. If the input tensor is already batched [BxCxWxH],
             this adds additional batching [(Bp*B)xCxWpxHp] for inference on patches.
@@ -95,7 +96,7 @@ class PatchInferer(Inferer):
     def __init__(
         self,
         splitter: Splitter | Callable | None = None,
-        merger_cls: type[Merger] = AvgMerger,
+        merger_cls: type[Merger] | str = AvgMerger,
         batch_size: int = 1,
         preprocessing: Callable | None = None,
         postprocessing: Callable | None = None,
@@ -120,7 +121,13 @@ class PatchInferer(Inferer):
                 )
         self.splitter = splitter
 
-        # mergers
+        # merger
+        if isinstance(merger_cls, str):
+            valid_merger: type[Merger]
+            valid_merger, merger_found = optional_import("monai.inferers.merger", name=merger_cls)  # search mergers
+            if not merger_found:
+                raise ValueError(f"The requested merger ['{merger_cls}'] does not exist.")
+            merger_cls = valid_merger
         if not issubclass(merger_cls, Merger):
             raise TypeError(f"'merger' should be a subclass of `Merger`, {merger_cls} is given.")
         self.merger_cls = merger_cls

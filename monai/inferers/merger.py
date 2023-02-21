@@ -48,7 +48,7 @@ class Merger(ABC):
         This method is being called in a loop and should add values to their corresponding location in the merged output results.
 
         Args:
-            values: a tensor of shape BCHW[D], representing the values of inference output
+            values: a tensor of shape BCHW[D], representing the values of inference output.
             location: a tuple/list giving the top left location of the patch in the output.
 
         Raises:
