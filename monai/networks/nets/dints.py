@@ -77,15 +77,6 @@ class _IdentityWithRAMCost(nn.Identity):
         self.ram_cost = 0
 
 
-class _CloseWithRAMCost(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.ram_cost = 0
-
-    def forward(self, x):
-        return torch.tensor(0.0, requires_grad=False).to(x)
-
-
 class _ActiConvNormBlockWithRAMCost(ActiConvNormBlock):
     """The class wraps monai layers with ram estimation. The ram_cost = total_ram/output_size is estimated.
     Here is the estimation:
@@ -176,7 +167,8 @@ class MixedOp(nn.Module):
             arch_code_c = np.ones(len(ops))
         self.ops = nn.ModuleList()
         for arch_c, op_name in zip(arch_code_c, ops):
-            self.ops.append(_CloseWithRAMCost() if arch_c == 0 else ops[op_name](c))
+            if arch_c > 0:
+                self.ops.append(ops[op_name](c))
 
     def forward(self, x: torch.Tensor, weight: torch.Tensor):
         """
