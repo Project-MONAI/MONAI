@@ -131,7 +131,7 @@ class PatchInferer(Inferer):
                 # try to locate the requested merger class (with dotted path)
                 valid_merger_cls = locate(merger_cls)  # type: ignore
             if valid_merger_cls is None:
-                raise ValueError(f"The requested merger ['{merger_cls}'] does not exist.")
+                raise ValueError(f"The requested `merger_cls` ['{merger_cls}'] does not exist.")
             merger_cls = valid_merger_cls
         if not issubclass(merger_cls, Merger):
             raise TypeError(f"'merger' should be a subclass of `Merger`, {merger_cls} is given.")
