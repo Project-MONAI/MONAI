@@ -204,7 +204,7 @@ class ITKReader(ImageReader):
 
     def __init__(
         self,
-        channel_dim: int | None = None,
+        channel_dim: str | int | None = None,
         series_name: str = "",
         reverse_indexing: bool = False,
         series_meta: bool = False,
@@ -366,7 +366,7 @@ class ITKReader(ImageReader):
         sr = itk.array_from_matrix(img.GetDirection()).shape[0]
         sr = max(min(sr, 3), 1)
         _size = list(itk.size(img))
-        if self.channel_dim is not None:
+        if isinstance(self.channel_dim, int):
             _size.pop(self.channel_dim)
         return np.asarray(_size[:sr])
 
