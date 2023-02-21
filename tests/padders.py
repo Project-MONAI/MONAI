@@ -18,7 +18,6 @@ import torch
 
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.transform import MapTransform
-from monai.transforms.lazy.functional import apply_transforms
 from monai.utils.enums import NumpyPadMode, PytorchPadMode
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
@@ -54,7 +53,7 @@ class PadTest(unittest.TestCase):
 
     def pad_test(self, input_param, input_shape, expected_shape, modes=None):
         # loop over each mode
-        for mode in modes or MODES[0:1]:
+        for mode in modes or MODES:
             with self.subTest(mode=mode):
                 base_comparison = None
                 im = self.get_arr(input_shape)
@@ -80,50 +79,33 @@ class PadTest(unittest.TestCase):
                                     base_comparison = r_im
                                 else:
                                     assert_allclose(r_im, base_comparison)
-                                # lazy
-                                if mode == "constant":
-                                    padder.lazy_evaluation = True
-                                    pending_result = padder(input_data, **call_extra_args)
-                                    # print('*****', pending_result.pending_operations)
-                                # self.assertIsInstance(pending_result, MetaTensor)
-                                # assert_allclose(pending_result.peek_pending_affine(), r_im.affine)
-                                # assert_allclose(pending_result.peek_pending_shape(), r_im.shape[1:])
-                                    result = apply_transforms(pending_result, padding_mode="zeros")[0]
-                                    print(result)
-                                    print('======')
-                                    print(r_im)
-                                # compare
-                                # print(result.shape, r_im.shape)
-                                    assert_allclose(result, r_im, rtol=1e-5)
-                                    padder.lazy_evaluation = False
-                                # # test inverse
-                                # if isinstance(r_im, MetaTensor):
-                                #     r_out = padder.inverse(r_out)
-                                #     r_im = r_out["img"] if is_map else r_out
-                                #     self.assertIsInstance(r_im, MetaTensor)
-                                #     assert_allclose(r_im, input_image, type_test=False)
-                                #     self.assertEqual(r_im.applied_operations, [])
-                                #     print('******', r_im.shape)
+                                # test inverse
+                                if isinstance(r_im, MetaTensor):
+                                    r_out = padder.inverse(r_out)
+                                    r_im = r_out["img"] if is_map else r_out
+                                    self.assertIsInstance(r_im, MetaTensor)
+                                    assert_allclose(r_im, input_image, type_test=False)
+                                    self.assertEqual(r_im.applied_operations, [])
 
-    # def pad_test_kwargs(self, unchanged_slices, **input_param):
-    #     for im_type in TEST_NDARRAYS_ALL:
-    #         with self.subTest(im_type=im_type):
-    #             for kwargs in ({"value": 2}, {"constant_values": ((0, 0), (1, 1), (2, 2))}):
-    #                 with self.subTest(kwargs=kwargs):
-    #                     im = im_type(np.random.randint(-100, -10, size=(3, 8, 4)))
-    #                     padder = self.Padder(**input_param, **kwargs)
-    #                     result = padder(im)
-    #                     if isinstance(result, torch.Tensor):
-    #                         result = result.cpu()
-    #                     assert_allclose(result[unchanged_slices], im, type_test=False)
-    #                     # we should have the same as the input plus some 2s (if value) or 1s and 2s (if constant_values)
-    #                     if isinstance(im, torch.Tensor):
-    #                         im = im.detach().cpu().numpy()
-    #                     expected_vals = np.unique(im).tolist()
-    #                     expected_vals += [2] if "value" in kwargs else [1, 2]
-    #                     assert_allclose(np.unique(result), expected_vals, type_test=False)
-    #                     # check inverse
-    #                     if isinstance(result, MetaTensor):
-    #                         inv = padder.inverse(result)
-    #                         assert_allclose(im, inv, type_test=False)
-    #                         self.assertEqual(inv.applied_operations, [])
+    def pad_test_kwargs(self, unchanged_slices, **input_param):
+        for im_type in TEST_NDARRAYS_ALL:
+            with self.subTest(im_type=im_type):
+                for kwargs in ({"value": 2}, {"constant_values": ((0, 0), (1, 1), (2, 2))}):
+                    with self.subTest(kwargs=kwargs):
+                        im = im_type(np.random.randint(-100, -10, size=(3, 8, 4)))
+                        padder = self.Padder(**input_param, **kwargs)
+                        result = padder(im)
+                        if isinstance(result, torch.Tensor):
+                            result = result.cpu()
+                        assert_allclose(result[unchanged_slices], im, type_test=False)
+                        # we should have the same as the input plus some 2s (if value) or 1s and 2s (if constant_values)
+                        if isinstance(im, torch.Tensor):
+                            im = im.detach().cpu().numpy()
+                        expected_vals = np.unique(im).tolist()
+                        expected_vals += [2] if "value" in kwargs else [1, 2]
+                        assert_allclose(np.unique(result), expected_vals, type_test=False)
+                        # check inverse
+                        if isinstance(result, MetaTensor):
+                            inv = padder.inverse(result)
+                            assert_allclose(im, inv, type_test=False)
+                            self.assertEqual(inv.applied_operations, [])
