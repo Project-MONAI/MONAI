@@ -9,9 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Tuple, Union
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -44,7 +47,7 @@ class Inferer(ABC):
     """
 
     @abstractmethod
-    def __call__(self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any):
+    def __call__(self, inputs: torch.Tensor, network: Callable, *args: Any, **kwargs: Any) -> Any:
         """
         Run inference on `inputs` with the `network` model.
 
@@ -71,7 +74,9 @@ class SimpleInferer(Inferer):
     def __init__(self) -> None:
         Inferer.__init__(self)
 
-    def __call__(self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any):
+    def __call__(
+        self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any
+    ) -> torch.Tensor:
         """Unified callable function API of Inferers.
 
         Args:
@@ -134,18 +139,18 @@ class SlidingWindowInferer(Inferer):
 
     def __init__(
         self,
-        roi_size: Union[Sequence[int], int],
+        roi_size: Sequence[int] | int,
         sw_batch_size: int = 1,
         overlap: float = 0.25,
-        mode: Union[BlendMode, str] = BlendMode.CONSTANT,
-        sigma_scale: Union[Sequence[float], float] = 0.125,
-        padding_mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
+        mode: BlendMode | str = BlendMode.CONSTANT,
+        sigma_scale: Sequence[float] | float = 0.125,
+        padding_mode: PytorchPadMode | str = PytorchPadMode.CONSTANT,
         cval: float = 0.0,
-        sw_device: Union[torch.device, str, None] = None,
-        device: Union[torch.device, str, None] = None,
+        sw_device: torch.device | str | None = None,
+        device: torch.device | str | None = None,
         progress: bool = False,
         cache_roi_weight_map: bool = False,
-        cpu_thresh: Optional[int] = None,
+        cpu_thresh: int | None = None,
     ) -> None:
         super().__init__()
         self.roi_size = roi_size
@@ -180,10 +185,10 @@ class SlidingWindowInferer(Inferer):
     def __call__(
         self,
         inputs: torch.Tensor,
-        network: Callable[..., Union[torch.Tensor, Sequence[torch.Tensor], Dict[Any, torch.Tensor]]],
+        network: Callable[..., torch.Tensor | Sequence[torch.Tensor] | dict[Any, torch.Tensor]],
         *args: Any,
         **kwargs: Any,
-    ) -> Union[torch.Tensor, Tuple[torch.Tensor, ...], Dict[Any, torch.Tensor]]:
+    ) -> torch.Tensor | tuple[torch.Tensor, ...] | dict[Any, torch.Tensor]:
         """
 
         Args:
@@ -232,7 +237,9 @@ class SaliencyInferer(Inferer):
 
     """
 
-    def __init__(self, cam_name: str, target_layers: str, class_idx: Optional[int] = None, *args, **kwargs) -> None:
+    def __init__(
+        self, cam_name: str, target_layers: str, class_idx: int | None = None, *args: Any, **kwargs: Any
+    ) -> None:
         Inferer.__init__(self)
         if cam_name.lower() not in ("cam", "gradcam", "gradcampp"):
             raise ValueError("cam_name should be: 'CAM', 'GradCAM' or 'GradCAMpp'.")
@@ -253,7 +260,7 @@ class SaliencyInferer(Inferer):
             kwargs: other optional keyword args to be passed to `__call__` of cam.
 
         """
-        cam: Union[CAM, GradCAM, GradCAMpp]
+        cam: CAM | GradCAM | GradCAMpp
         if self.cam_name == "cam":
             cam = CAM(network, self.target_layers, *self.args, **self.kwargs)
         elif self.cam_name == "gradcam":
@@ -286,7 +293,7 @@ class SliceInferer(SlidingWindowInferer):
 
     """
 
-    def __init__(self, spatial_dim: int = 0, *args, **kwargs) -> None:
+    def __init__(self, spatial_dim: int = 0, *args: Any, **kwargs: Any) -> None:
         self.spatial_dim = spatial_dim
         super().__init__(*args, **kwargs)
         self.orig_roi_size = ensure_tuple(self.roi_size)
@@ -294,10 +301,10 @@ class SliceInferer(SlidingWindowInferer):
     def __call__(
         self,
         inputs: torch.Tensor,
-        network: Callable[..., Union[torch.Tensor, Sequence[torch.Tensor], Dict[Any, torch.Tensor]]],
+        network: Callable[..., torch.Tensor | Sequence[torch.Tensor] | dict[Any, torch.Tensor]],
         *args: Any,
         **kwargs: Any,
-    ) -> Union[torch.Tensor, Tuple[torch.Tensor, ...], Dict[Any, torch.Tensor]]:
+    ) -> torch.Tensor | tuple[torch.Tensor, ...] | dict[Any, torch.Tensor]:
         """
         Args:
             inputs: 3D input for inference
@@ -322,11 +329,11 @@ class SliceInferer(SlidingWindowInferer):
 
     def network_wrapper(
         self,
-        network: Callable[..., Union[torch.Tensor, Sequence[torch.Tensor], Dict[Any, torch.Tensor]]],
+        network: Callable[..., torch.Tensor | Sequence[torch.Tensor] | dict[Any, torch.Tensor]],
         x: torch.Tensor,
-        *args,
-        **kwargs,
-    ) -> Union[torch.Tensor, Tuple[torch.Tensor, ...], Dict[Any, torch.Tensor]]:
+        *args: Any,
+        **kwargs: Any,
+    ) -> torch.Tensor | tuple[torch.Tensor, ...] | dict[Any, torch.Tensor]:
         """
         Wrapper handles inference for 2D models over 3D volume inputs.
         """

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import contextlib
 
 from .box_utils import (
@@ -59,12 +61,16 @@ from .image_writer import (
     resolve_writer,
 )
 from .iterable_dataset import CSVIterableDataset, IterableDataset, ShuffleBuffer
+from .itk_torch_bridge import (
+    get_itk_image_center,
+    itk_image_to_metatensor,
+    itk_to_monai_affine,
+    metatensor_to_itk_image,
+    monai_to_itk_affine,
+    monai_to_itk_ddf,
+)
 from .meta_obj import MetaObj, get_track_meta, set_track_meta
 from .meta_tensor import MetaTensor
-from .nifti_saver import NiftiSaver
-from .nifti_writer import write_nifti
-from .png_saver import PNGSaver
-from .png_writer import write_png
 from .samplers import DistributedSampler, DistributedWeightedRandomSampler
 from .synthetic import create_test_image_2d, create_test_image_3d
 from .test_time_augmentation import TestTimeAugmentation
@@ -115,18 +121,19 @@ from .wsi_reader import BaseWSIReader, CuCIMWSIReader, OpenSlideWSIReader, TiffF
 with contextlib.suppress(BaseException):
     from multiprocessing.reduction import ForkingPickler
 
-    def _rebuild_meta(cls, storage, metadata):
+    def _rebuild_meta(cls, storage, dtype, metadata):
         storage_offset, size, stride, meta_dict = metadata
-        t = cls([], dtype=storage.dtype, device=storage.device)
+        t = cls([], dtype=dtype, device=storage.device)
         t.set_(storage._untyped() if hasattr(storage, "_untyped") else storage, storage_offset, size, stride)
         t.__dict__ = meta_dict
         return t
 
     def reduce_meta_tensor(meta_tensor):
-        storage = meta_tensor.storage()
+        storage = meta_tensor.untyped_storage() if hasattr(meta_tensor, "untyped_storage") else meta_tensor.storage()
+        dtype = meta_tensor.dtype
         if storage.is_cuda:
             raise NotImplementedError("sharing CUDA metatensor across processes not implemented")
         metadata = (meta_tensor.storage_offset(), meta_tensor.size(), meta_tensor.stride(), meta_tensor.__dict__)
-        return _rebuild_meta, (type(meta_tensor), storage, metadata)
+        return _rebuild_meta, (type(meta_tensor), storage, dtype, metadata)
 
     ForkingPickler.register(MetaTensor, reduce_meta_tensor)

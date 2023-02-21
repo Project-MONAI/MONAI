@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import sys
 import tempfile
@@ -32,7 +34,7 @@ class _Stream:
 class TestIterableDataset(unittest.TestCase):
     def test_shape(self):
         expected_shape = (128, 128, 128)
-        test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]), np.eye(4))
+        test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]).astype(float), np.eye(4))
         test_data = []
         with tempfile.TemporaryDirectory() as tempdir:
             for i in range(6):

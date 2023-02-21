@@ -58,6 +58,11 @@ Blocks
 .. autoclass:: Mish
     :members:
 
+`GEGLU`
+~~~~~~~
+.. autoclass:: GEGLU
+    :members:
+
 `GCN Module`
 ~~~~~~~~~~~~
 .. autoclass:: GCN
@@ -347,6 +352,16 @@ Layers
 `BilateralFilter`
 ~~~~~~~~~~~~~~~~~
 .. autoclass:: BilateralFilter
+    :members:
+
+`TrainableBilateralFilter`
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TrainableBilateralFilter
+    :members:
+
+`TrainableJointBilateralFilter`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TrainableJointBilateralFilter
     :members:
 
 `PHLFilter`

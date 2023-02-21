@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Union
+from __future__ import annotations
+
+from collections.abc import Callable
 
 from monai.handlers.ignite_metric import IgniteMetric
 from monai.metrics import HausdorffDistanceMetric
@@ -25,9 +27,9 @@ class HausdorffDistance(IgniteMetric):
         self,
         include_background: bool = False,
         distance_metric: str = "euclidean",
-        percentile: Optional[float] = None,
+        percentile: float | None = None,
         directed: bool = False,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        reduction: MetricReduction | str = MetricReduction.MEAN,
         output_transform: Callable = lambda x: x,
         save_details: bool = True,
     ) -> None:

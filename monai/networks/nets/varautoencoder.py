@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Tuple, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import numpy as np
 import torch
@@ -77,19 +79,18 @@ class VarAutoEncoder(AutoEncoder):
         latent_size: int,
         channels: Sequence[int],
         strides: Sequence[int],
-        kernel_size: Union[Sequence[int], int] = 3,
-        up_kernel_size: Union[Sequence[int], int] = 3,
+        kernel_size: Sequence[int] | int = 3,
+        up_kernel_size: Sequence[int] | int = 3,
         num_res_units: int = 0,
-        inter_channels: Optional[list] = None,
-        inter_dilations: Optional[list] = None,
+        inter_channels: list | None = None,
+        inter_dilations: list | None = None,
         num_inter_units: int = 2,
-        act: Optional[Union[Tuple, str]] = Act.PRELU,
-        norm: Union[Tuple, str] = Norm.INSTANCE,
-        dropout: Optional[Union[Tuple, str, float]] = None,
+        act: tuple | str | None = Act.PRELU,
+        norm: tuple | str = Norm.INSTANCE,
+        dropout: tuple | str | float | None = None,
         bias: bool = True,
         use_sigmoid: bool = True,
     ) -> None:
-
         self.in_channels, *self.in_shape = in_shape
         self.use_sigmoid = use_sigmoid
 
@@ -124,7 +125,7 @@ class VarAutoEncoder(AutoEncoder):
         self.logvar = nn.Linear(linear_size, self.latent_size)
         self.decodeL = nn.Linear(self.latent_size, linear_size)
 
-    def encode_forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def encode_forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         x = self.encode(x)
         x = self.intermediate(x)
         x = x.view(x.shape[0], -1)
@@ -148,7 +149,7 @@ class VarAutoEncoder(AutoEncoder):
 
         return std.add_(mu)
 
-    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         mu, logvar = self.encode_forward(x)
         z = self.reparameterize(mu, logvar)
         return self.decode_forward(z, self.use_sigmoid), mu, logvar, z

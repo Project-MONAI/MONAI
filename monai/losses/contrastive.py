@@ -9,13 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from warnings import warn
 
 import torch
 from torch.nn import functional as F
 from torch.nn.modules.loss import _Loss
-
-from monai.utils import deprecated_arg
 
 
 class ContrastiveLoss(_Loss):
@@ -30,8 +30,7 @@ class ContrastiveLoss(_Loss):
 
     """
 
-    @deprecated_arg(name="reduction", since="0.8", msg_suffix="`reduction` is no longer supported.")
-    def __init__(self, temperature: float = 0.5, batch_size: int = -1, reduction="sum") -> None:
+    def __init__(self, temperature: float = 0.5, batch_size: int = -1) -> None:
         """
         Args:
             temperature: Can be scaled between 0 and 1 for learning from negative samples, ideally set to 0.5.

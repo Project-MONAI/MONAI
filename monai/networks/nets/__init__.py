@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from .ahnet import AHnet, Ahnet, AHNet
 from .attentionunet import AttentionUnet
 from .autoencoder import AutoEncoder

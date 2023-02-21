@@ -9,10 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import math
 from abc import abstractmethod
+from collections.abc import Callable
 from functools import partial
-from typing import Any, Tuple, Union
+from typing import Any
 
 import torch
 import torch.nn.functional as F
@@ -42,14 +45,14 @@ class RegressionMetric(CumulativeIterationMetric):
 
     """
 
-    def __init__(
-        self, reduction: Union[MetricReduction, str] = MetricReduction.MEAN, get_not_nans: bool = False
-    ) -> None:
+    def __init__(self, reduction: MetricReduction | str = MetricReduction.MEAN, get_not_nans: bool = False) -> None:
         super().__init__()
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):
+    def aggregate(
+        self, reduction: MetricReduction | str | None = None
+    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """
         Args:
             reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
@@ -75,7 +78,7 @@ class RegressionMetric(CumulativeIterationMetric):
     def _compute_metric(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         if not isinstance(y_pred, torch.Tensor) or not isinstance(y, torch.Tensor):
             raise ValueError("y_pred and y must be PyTorch Tensor.")
         self._check_shape(y_pred, y)
@@ -103,9 +106,7 @@ class MSEMetric(RegressionMetric):
 
     """
 
-    def __init__(
-        self, reduction: Union[MetricReduction, str] = MetricReduction.MEAN, get_not_nans: bool = False
-    ) -> None:
+    def __init__(self, reduction: MetricReduction | str = MetricReduction.MEAN, get_not_nans: bool = False) -> None:
         super().__init__(reduction=reduction, get_not_nans=get_not_nans)
         self.sq_func = partial(torch.pow, exponent=2.0)
 
@@ -137,9 +138,7 @@ class MAEMetric(RegressionMetric):
 
     """
 
-    def __init__(
-        self, reduction: Union[MetricReduction, str] = MetricReduction.MEAN, get_not_nans: bool = False
-    ) -> None:
+    def __init__(self, reduction: MetricReduction | str = MetricReduction.MEAN, get_not_nans: bool = False) -> None:
         super().__init__(reduction=reduction, get_not_nans=get_not_nans)
         self.abs_func = torch.abs
 
@@ -172,9 +171,7 @@ class RMSEMetric(RegressionMetric):
 
     """
 
-    def __init__(
-        self, reduction: Union[MetricReduction, str] = MetricReduction.MEAN, get_not_nans: bool = False
-    ) -> None:
+    def __init__(self, reduction: MetricReduction | str = MetricReduction.MEAN, get_not_nans: bool = False) -> None:
         super().__init__(reduction=reduction, get_not_nans=get_not_nans)
         self.sq_func = partial(torch.pow, exponent=2.0)
 
@@ -214,10 +211,7 @@ class PSNRMetric(RegressionMetric):
     """
 
     def __init__(
-        self,
-        max_val: Union[int, float],
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
-        get_not_nans: bool = False,
+        self, max_val: int | float, reduction: MetricReduction | str = MetricReduction.MEAN, get_not_nans: bool = False
     ) -> None:
         super().__init__(reduction=reduction, get_not_nans=get_not_nans)
         self.max_val = max_val
@@ -231,7 +225,7 @@ class PSNRMetric(RegressionMetric):
         return 20 * math.log10(self.max_val) - 10 * torch.log10(mse_out)
 
 
-def compute_mean_error_metrics(y_pred: torch.Tensor, y: torch.Tensor, func) -> torch.Tensor:
+def compute_mean_error_metrics(y_pred: torch.Tensor, y: torch.Tensor, func: Callable) -> torch.Tensor:
     # reducing in only channel + spatial dimensions (not batch)
     # reduction of batch handled inside __call__() using do_metric_reduction() in respective calling class
     flt = partial(torch.flatten, start_dim=1)
@@ -275,7 +269,7 @@ class SSIMMetric(RegressionMetric):
         k1: float = 0.01,
         k2: float = 0.03,
         spatial_dims: int = 2,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        reduction: MetricReduction | str = MetricReduction.MEAN,
         get_not_nans: bool = False,
     ):
         super().__init__(reduction=reduction, get_not_nans=get_not_nans)
@@ -286,8 +280,7 @@ class SSIMMetric(RegressionMetric):
         self.cov_norm = (win_size**2) / (win_size**2 - 1)
         self.w = torch.ones([1, 1] + [win_size for _ in range(spatial_dims)]) / win_size**spatial_dims
 
-    def _compute_intermediate_statistics(self, x: torch.Tensor, y: torch.Tensor) -> Tuple[torch.Tensor, ...]:
-
+    def _compute_intermediate_statistics(self, x: torch.Tensor, y: torch.Tensor) -> tuple[torch.Tensor, ...]:
         data_range = self.data_range[(None,) * (self.spatial_dims + 2)]
         # determine whether to work with 2D convolution or 3D
         conv = getattr(F, f"conv{self.spatial_dims}d")
@@ -335,7 +328,7 @@ class SSIMMetric(RegressionMetric):
 
             ssim = torch.stack(
                 [
-                    SSIMMetric(self.data_range, self.win_size, self.k1, self.k2, self.spatial_dims)(
+                    SSIMMetric(self.data_range, self.win_size, self.k1, self.k2, self.spatial_dims)(  # type: ignore[misc]
                         x[:, i, ...].unsqueeze(1), y[:, i, ...].unsqueeze(1)
                     )
                     for i in range(x.shape[1])
@@ -354,7 +347,7 @@ class SSIMMetric(RegressionMetric):
 
         return ssim_per_batch
 
-    def _compute_metric_and_contrast(self, x: torch.Tensor, y: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _compute_metric_and_contrast(self, x: torch.Tensor, y: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Args:
             x: first sample (e.g., the reference image). Its shape is (B,C,W,H) for 2D data and (B,C,W,H,D) for 3D.

@@ -9,19 +9,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import logging
 import os
-import sys
-from typing import Any, Dict, Mapping, MutableMapping, Optional, Union, cast
+from collections.abc import Mapping, MutableMapping
+from typing import Any, cast
 
 import torch
 import torch.distributed as dist
 
 import monai
 from monai.apps.auto3dseg.data_analyzer import DataAnalyzer
+from monai.apps.utils import get_logger
 from monai.auto3dseg import SegSummarizer
 from monai.bundle import DEFAULT_EXP_MGMT_SETTINGS, ConfigComponent, ConfigItem, ConfigParser, patch_bundle_tracking
-from monai.engines import Trainer
+from monai.engines import SupervisedTrainer, Trainer
 from monai.fl.client import ClientAlgo, ClientAlgoStats
 from monai.fl.utils.constants import (
     BundleKeys,
@@ -38,10 +41,10 @@ from monai.networks.utils import copy_model_state, get_state_dict
 from monai.utils import min_version, require_pkg
 from monai.utils.enums import DataStatsKeys
 
-logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(asctime)s - %(message)s")
+logger = get_logger(__name__)
 
 
-def convert_global_weights(global_weights: Mapping, local_var_dict: MutableMapping):
+def convert_global_weights(global_weights: Mapping, local_var_dict: MutableMapping) -> tuple[MutableMapping, int]:
     """Helper function to convert global weights to local weights format"""
     # Before loading weights, tensors might need to be reshaped to support HE for secure aggregation.
     model_keys = global_weights.keys()
@@ -106,14 +109,14 @@ class MonaiAlgoStats(ClientAlgoStats):
     def __init__(
         self,
         bundle_root: str,
-        config_train_filename: Optional[Union[str, list]] = "configs/train.json",
-        config_filters_filename: Optional[Union[str, list]] = None,
-        train_data_key: Optional[str] = BundleKeys.TRAIN_DATA,
-        eval_data_key: Optional[str] = BundleKeys.VALID_DATA,
-        data_stats_transform_list: Optional[list] = None,
+        config_train_filename: str | list | None = "configs/train.json",
+        config_filters_filename: str | list | None = None,
+        train_data_key: str | None = BundleKeys.TRAIN_DATA,
+        eval_data_key: str | None = BundleKeys.VALID_DATA,
+        data_stats_transform_list: list | None = None,
         histogram_only: bool = False,
     ):
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger = logger
         self.bundle_root = bundle_root
         self.config_train_filename = config_train_filename
         self.config_filters_filename = config_filters_filename
@@ -122,10 +125,10 @@ class MonaiAlgoStats(ClientAlgoStats):
         self.data_stats_transform_list = data_stats_transform_list
         self.histogram_only = histogram_only
 
-        self.client_name: Optional[str] = None
+        self.client_name: str | None = None
         self.app_root: str = ""
-        self.train_parser: Optional[ConfigParser] = None
-        self.filter_parser: Optional[ConfigParser] = None
+        self.train_parser: ConfigParser | None = None
+        self.filter_parser: ConfigParser | None = None
         self.post_statistics_filters: Any = None
         self.phase = FlPhase.IDLE
         self.dataset_root: Any = None
@@ -177,7 +180,7 @@ class MonaiAlgoStats(ClientAlgoStats):
 
         self.logger.info(f"Initialized {self.client_name}.")
 
-    def get_data_stats(self, extra: Optional[dict] = None) -> ExchangeObject:
+    def get_data_stats(self, extra: dict | None = None) -> ExchangeObject:
         """
         Returns summary statistics about the local data.
 
@@ -385,24 +388,24 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         bundle_root: str,
         local_epochs: int = 1,
         send_weight_diff: bool = True,
-        config_train_filename: Optional[Union[str, list]] = "configs/train.json",
-        config_evaluate_filename: Optional[Union[str, list]] = "default",
-        config_filters_filename: Optional[Union[str, list]] = None,
+        config_train_filename: str | list | None = "configs/train.json",
+        config_evaluate_filename: str | list | None = "default",
+        config_filters_filename: str | list | None = None,
         disable_ckpt_loading: bool = True,
-        best_model_filepath: Optional[str] = "models/model.pt",
-        final_model_filepath: Optional[str] = "models/model_final.pt",
-        save_dict_key: Optional[str] = "model",
-        seed: Optional[int] = None,
+        best_model_filepath: str | None = "models/model.pt",
+        final_model_filepath: str | None = "models/model_final.pt",
+        save_dict_key: str | None = "model",
+        seed: int | None = None,
         benchmark: bool = True,
         multi_gpu: bool = False,
         backend: str = "nccl",
         init_method: str = "env://",
-        train_data_key: Optional[str] = BundleKeys.TRAIN_DATA,
-        eval_data_key: Optional[str] = BundleKeys.VALID_DATA,
-        data_stats_transform_list: Optional[list] = None,
-        tracking: Optional[Union[str, dict]] = None,
+        train_data_key: str | None = BundleKeys.TRAIN_DATA,
+        eval_data_key: str | None = BundleKeys.VALID_DATA,
+        data_stats_transform_list: list | None = None,
+        tracking: str | dict | None = None,
     ):
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger = logger
         if config_evaluate_filename == "default":
             # by default, evaluator needs both training and evaluate to be instantiated.
             config_evaluate_filename = ["configs/train.json", "configs/evaluate.json"]
@@ -426,16 +429,16 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         self.tracking = tracking
 
         self.app_root = ""
-        self.train_parser: Optional[ConfigParser] = None
-        self.eval_parser: Optional[ConfigParser] = None
-        self.filter_parser: Optional[ConfigParser] = None
-        self.trainer: Optional[Trainer] = None
-        self.evaluator: Optional[Any] = None
+        self.train_parser: ConfigParser | None = None
+        self.eval_parser: ConfigParser | None = None
+        self.filter_parser: ConfigParser | None = None
+        self.trainer: SupervisedTrainer | None = None
+        self.evaluator: Any | None = None
         self.pre_filters = None
         self.post_weight_filters = None
         self.post_evaluate_filters = None
         self.iter_of_start_time = 0
-        self.global_weights: Optional[Mapping] = None
+        self.global_weights: Mapping | None = None
         self.rank = 0
 
         self.phase = FlPhase.IDLE
@@ -547,7 +550,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
                 self.evaluator.logger.setLevel(logging.WARNING)
         self.logger.info(f"Initialized {self.client_name}.")
 
-    def train(self, data: ExchangeObject, extra=None):
+    def train(self, data: ExchangeObject, extra: dict | None = None) -> None:
         """
         Train on client's local data.
 
@@ -572,7 +575,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         self.logger.info(f"Load {self.client_name} weights...")
         local_var_dict = get_state_dict(self.trainer.network)
         self.global_weights, n_converted = convert_global_weights(
-            global_weights=data.weights, local_var_dict=local_var_dict
+            global_weights=cast(dict, data.weights), local_var_dict=local_var_dict
         )
         self._check_converted(data.weights, local_var_dict, n_converted)
 
@@ -621,8 +624,8 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
                 # if weights contain several state dicts, use the one defined by `save_dict_key`
                 if isinstance(weights, dict) and self.save_dict_key in weights:
                     weights = weights.get(self.save_dict_key)
-                weigh_type: Optional[WeightType] = WeightType.WEIGHTS
-                stats: Dict = {}
+                weigh_type: WeightType | None = WeightType.WEIGHTS
+                stats: dict = {}
                 self.logger.info(f"Returning {model_type} checkpoint weights from {model_path}.")
             else:
                 raise ValueError(
@@ -666,7 +669,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
 
         return return_weights
 
-    def evaluate(self, data: ExchangeObject, extra=None):
+    def evaluate(self, data: ExchangeObject, extra: dict | None = None) -> ExchangeObject:
         """
         Evaluate on client's local data.
 
@@ -694,7 +697,9 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         self.phase = FlPhase.EVALUATE
         self.logger.info(f"Load {self.client_name} weights...")
         local_var_dict = get_state_dict(self.evaluator.network)
-        global_weights, n_converted = convert_global_weights(global_weights=data.weights, local_var_dict=local_var_dict)
+        global_weights, n_converted = convert_global_weights(
+            global_weights=cast(dict, data.weights), local_var_dict=local_var_dict
+        )
         self._check_converted(data.weights, local_var_dict, n_converted)
 
         _, updated_keys, _ = copy_model_state(src=global_weights, dst=self.evaluator.network)
@@ -726,7 +731,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             self.logger.info(f"Aborting {self.client_name} evaluator...")
             self.evaluator.interrupt()
 
-    def finalize(self, extra=None):
+    def finalize(self, extra: dict | None = None) -> None:
         """
         Finalize the training or evaluation.
         Args:

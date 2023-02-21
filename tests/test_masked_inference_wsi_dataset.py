@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
@@ -38,7 +40,6 @@ WIDTH = 46000
 
 
 def prepare_data(*masks):
-
     mask = np.zeros((HEIGHT // 2, WIDTH // 2))
     mask[100, 100] = 1
     np.save(masks[0], mask)

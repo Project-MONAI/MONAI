@@ -1,11 +1,11 @@
 -f https://download.pytorch.org/whl/cpu/torch-1.12.1%2Bcpu-cp37-cp37m-linux_x86_64.whl
 torch>=1.8
 pytorch-ignite==0.4.10
-numpy>=1.17
+numpy>=1.20
 itk>=5.2
 nibabel
 parameterized
-scikit-image>=0.14.2
+scikit-image>=0.19.0
 tensorboard
 commonmark==0.9.1
 recommonmark==0.6.0
@@ -21,10 +21,10 @@ sphinx-autodoc-typehints==1.11.1
 pandas
 einops
 transformers<4.22  # https://github.com/Project-MONAI/MONAI/issues/5157
-mlflow
+mlflow>=1.28.0
 tensorboardX
-imagecodecs; platform_system == "Linux"
-tifffile; platform_system == "Linux"
+imagecodecs; platform_system == "Linux" or platform_system == "Darwin"
+tifffile; platform_system == "Linux" or platform_system == "Darwin"
 pyyaml
 fire
 jsonschema

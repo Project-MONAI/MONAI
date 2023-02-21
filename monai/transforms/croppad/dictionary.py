@@ -15,8 +15,11 @@ defined in :py:class:`monai.transforms.croppad.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
+from __future__ import annotations
+
+from collections.abc import Callable, Hashable, Mapping, Sequence
 from copy import deepcopy
-from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Union
+from typing import Any
 
 import numpy as np
 import torch
@@ -44,10 +47,10 @@ from monai.transforms.croppad.array import (
     SpatialPad,
 )
 from monai.transforms.inverse import InvertibleTransform
+from monai.transforms.traits import MultiSampleTrait
 from monai.transforms.transform import MapTransform, Randomizable
 from monai.transforms.utils import is_positive
-from monai.utils import MAX_SEED, Method, PytorchPadMode, ensure_tuple_rep
-from monai.utils.deprecate_utils import deprecated_arg
+from monai.utils import MAX_SEED, Method, PytorchPadMode, deprecated_arg_default, ensure_tuple_rep
 
 __all__ = [
     "Padd",
@@ -141,13 +144,13 @@ class Padd(MapTransform, InvertibleTransform):
         self.padder = padder
         self.mode = ensure_tuple_rep(mode, len(self.keys))
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key, m in self.key_iterator(d, self.mode):
             d[key] = self.padder(d[key], mode=m)
         return d
 
-    def inverse(self, data: Mapping[Hashable, MetaTensor]) -> Dict[Hashable, MetaTensor]:
+    def inverse(self, data: Mapping[Hashable, MetaTensor]) -> dict[Hashable, MetaTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.padder.inverse(d[key])
@@ -164,7 +167,7 @@ class SpatialPadd(Padd):
     def __init__(
         self,
         keys: KeysCollection,
-        spatial_size: Union[Sequence[int], int],
+        spatial_size: Sequence[int] | int,
         method: str = Method.SYMMETRIC,
         mode: SequenceStr = PytorchPadMode.CONSTANT,
         allow_missing_keys: bool = False,
@@ -208,7 +211,7 @@ class BorderPadd(Padd):
     def __init__(
         self,
         keys: KeysCollection,
-        spatial_border: Union[Sequence[int], int],
+        spatial_border: Sequence[int] | int,
         mode: SequenceStr = PytorchPadMode.CONSTANT,
         allow_missing_keys: bool = False,
         **kwargs,
@@ -255,7 +258,7 @@ class DivisiblePadd(Padd):
     def __init__(
         self,
         keys: KeysCollection,
-        k: Union[Sequence[int], int],
+        k: Sequence[int] | int,
         mode: SequenceStr = PytorchPadMode.CONSTANT,
         method: str = Method.SYMMETRIC,
         allow_missing_keys: bool = False,
@@ -306,13 +309,13 @@ class Cropd(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.cropper = cropper
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.cropper(d[key])  # type: ignore
         return d
 
-    def inverse(self, data: Mapping[Hashable, MetaTensor]) -> Dict[Hashable, MetaTensor]:
+    def inverse(self, data: Mapping[Hashable, MetaTensor]) -> dict[Hashable, MetaTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.cropper.inverse(d[key])
@@ -336,9 +339,7 @@ class RandCropd(Cropd, Randomizable):
     def __init__(self, keys: KeysCollection, cropper: Crop, allow_missing_keys: bool = False):
         super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys)
 
-    def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandCropd":
+    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandCropd:
         super().set_random_state(seed, state)
         if isinstance(self.cropper, Randomizable):
             self.cropper.set_random_state(seed, state)
@@ -348,7 +349,7 @@ class RandCropd(Cropd, Randomizable):
         if isinstance(self.cropper, Randomizable):
             self.cropper.randomize(img_size)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         # the first key must exist to execute random operations
         self.randomize(d[self.first_key(d)].shape[1:])
@@ -376,11 +377,11 @@ class SpatialCropd(Cropd):
     def __init__(
         self,
         keys: KeysCollection,
-        roi_center: Optional[Sequence[int]] = None,
-        roi_size: Optional[Sequence[int]] = None,
-        roi_start: Optional[Sequence[int]] = None,
-        roi_end: Optional[Sequence[int]] = None,
-        roi_slices: Optional[Sequence[slice]] = None,
+        roi_center: Sequence[int] | None = None,
+        roi_size: Sequence[int] | None = None,
+        roi_start: Sequence[int] | None = None,
+        roi_end: Sequence[int] | None = None,
+        roi_slices: Sequence[slice] | None = None,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -419,9 +420,7 @@ class CenterSpatialCropd(Cropd):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
-    def __init__(
-        self, keys: KeysCollection, roi_size: Union[Sequence[int], int], allow_missing_keys: bool = False
-    ) -> None:
+    def __init__(self, keys: KeysCollection, roi_size: Sequence[int] | int, allow_missing_keys: bool = False) -> None:
         cropper = CenterSpatialCrop(roi_size)
         super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys)
 
@@ -441,7 +440,7 @@ class CenterScaleCropd(Cropd):
     """
 
     def __init__(
-        self, keys: KeysCollection, roi_scale: Union[Sequence[float], float], allow_missing_keys: bool = False
+        self, keys: KeysCollection, roi_scale: Sequence[float] | float, allow_missing_keys: bool = False
     ) -> None:
         cropper = CenterScaleCrop(roi_scale)
         super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys)
@@ -477,11 +476,12 @@ class RandSpatialCropd(RandCropd):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         keys: KeysCollection,
-        roi_size: Union[Sequence[int], int],
-        max_roi_size: Optional[Union[Sequence[int], int]] = None,
+        roi_size: Sequence[int] | int,
+        max_roi_size: Sequence[int] | int | None = None,
         random_center: bool = True,
         random_size: bool = True,
         allow_missing_keys: bool = False,
@@ -515,11 +515,12 @@ class RandScaleCropd(RandCropd):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         keys: KeysCollection,
-        roi_scale: Union[Sequence[float], float],
-        max_roi_scale: Optional[Union[Sequence[float], float]] = None,
+        roi_scale: Sequence[float] | float,
+        max_roi_scale: Sequence[float] | float | None = None,
         random_center: bool = True,
         random_size: bool = True,
         allow_missing_keys: bool = False,
@@ -528,7 +529,7 @@ class RandScaleCropd(RandCropd):
         super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys)
 
 
-class RandSpatialCropSamplesd(Randomizable, MapTransform):
+class RandSpatialCropSamplesd(Randomizable, MapTransform, MultiSampleTrait):
     """
     Dictionary-based version :py:class:`monai.transforms.RandSpatialCropSamples`.
     Crop image with random size or specific size ROI to generate a list of N samples.
@@ -566,28 +567,25 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
 
     backend = RandSpatialCropSamples.backend
 
-    @deprecated_arg(name="meta_keys", since="0.9")
-    @deprecated_arg(name="meta_key_postfix", since="0.9")
+    @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         keys: KeysCollection,
-        roi_size: Union[Sequence[int], int],
+        roi_size: Sequence[int] | int,
         num_samples: int,
-        max_roi_size: Optional[Union[Sequence[int], int]] = None,
+        max_roi_size: Sequence[int] | int | None = None,
         random_center: bool = True,
         random_size: bool = True,
-        meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
         allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.cropper = RandSpatialCropSamples(roi_size, num_samples, max_roi_size, random_center, random_size)
 
-    def randomize(self, data: Optional[Any] = None) -> None:
+    def randomize(self, data: Any | None = None) -> None:
         self.sub_seed = self.R.randint(MAX_SEED, dtype="uint32")
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> List[Dict[Hashable, torch.Tensor]]:
-        ret: List[Dict[Hashable, torch.Tensor]] = [dict(data) for _ in range(self.cropper.num_samples)]
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> list[dict[Hashable, torch.Tensor]]:
+        ret: list[dict[Hashable, torch.Tensor]] = [dict(data) for _ in range(self.cropper.num_samples)]
         # deep copy all the unmodified data
         for i in range(self.cropper.num_samples):
             for key in set(data.keys()).difference(set(self.keys)):
@@ -620,10 +618,10 @@ class CropForegroundd(Cropd):
         keys: KeysCollection,
         source_key: str,
         select_fn: Callable = is_positive,
-        channel_indices: Optional[IndexSelection] = None,
-        margin: Union[Sequence[int], int] = 0,
+        channel_indices: IndexSelection | None = None,
+        margin: Sequence[int] | int = 0,
         allow_smaller: bool = True,
-        k_divisible: Union[Sequence[int], int] = 1,
+        k_divisible: Sequence[int] | int = 1,
         mode: SequenceStr = PytorchPadMode.CONSTANT,
         start_coord_key: str = "foreground_start_coord",
         end_coord_key: str = "foreground_end_coord",
@@ -672,7 +670,7 @@ class CropForegroundd(Cropd):
         super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         self.cropper: CropForeground
         box_start, box_end = self.cropper.compute_bounding_box(img=d[self.source_key])
@@ -685,7 +683,7 @@ class CropForegroundd(Cropd):
         return d
 
 
-class RandWeightedCropd(Randomizable, MapTransform):
+class RandWeightedCropd(Randomizable, MapTransform, MultiSampleTrait):
     """
     Samples a list of `num_samples` image patches according to the provided `weight_map`.
 
@@ -705,18 +703,12 @@ class RandWeightedCropd(Randomizable, MapTransform):
 
     backend = SpatialCrop.backend
 
-    @deprecated_arg(name="meta_keys", since="0.9")
-    @deprecated_arg(name="meta_key_postfix", since="0.9")
-    @deprecated_arg(name="center_coord_key", since="0.9", msg_suffix="coords stored in img.meta['crop_center']")
     def __init__(
         self,
         keys: KeysCollection,
         w_key: str,
-        spatial_size: Union[Sequence[int], int],
+        spatial_size: Sequence[int] | int,
         num_samples: int = 1,
-        center_coord_key: Optional[str] = None,
-        meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
         allow_missing_keys: bool = False,
     ):
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -724,8 +716,8 @@ class RandWeightedCropd(Randomizable, MapTransform):
         self.cropper = RandWeightedCrop(spatial_size, num_samples)
 
     def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandWeightedCropd":
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandWeightedCropd:
         super().set_random_state(seed, state)
         self.cropper.set_random_state(seed, state)
         return self
@@ -733,9 +725,9 @@ class RandWeightedCropd(Randomizable, MapTransform):
     def randomize(self, weight_map: NdarrayOrTensor) -> None:
         self.cropper.randomize(weight_map)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> List[Dict[Hashable, torch.Tensor]]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> list[dict[Hashable, torch.Tensor]]:
         # output starts as empty list of dictionaries
-        ret: List = [dict(data) for _ in range(self.cropper.num_samples)]
+        ret: list = [dict(data) for _ in range(self.cropper.num_samples)]
         # deep copy all the unmodified data
         for i in range(self.cropper.num_samples):
             for key in set(data.keys()).difference(set(self.keys)):
@@ -748,7 +740,7 @@ class RandWeightedCropd(Randomizable, MapTransform):
         return ret
 
 
-class RandCropByPosNegLabeld(Randomizable, MapTransform):
+class RandCropByPosNegLabeld(Randomizable, MapTransform, MultiSampleTrait):
     """
     Dictionary-based version :py:class:`monai.transforms.RandCropByPosNegLabel`.
     Crop random fixed sized regions with the center being a foreground or background voxel
@@ -802,22 +794,18 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
 
     backend = RandCropByPosNegLabel.backend
 
-    @deprecated_arg(name="meta_keys", since="0.9")
-    @deprecated_arg(name="meta_key_postfix", since="0.9")
     def __init__(
         self,
         keys: KeysCollection,
         label_key: str,
-        spatial_size: Union[Sequence[int], int],
+        spatial_size: Sequence[int] | int,
         pos: float = 1.0,
         neg: float = 1.0,
         num_samples: int = 1,
-        image_key: Optional[str] = None,
+        image_key: str | None = None,
         image_threshold: float = 0.0,
-        fg_indices_key: Optional[str] = None,
-        bg_indices_key: Optional[str] = None,
-        meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
+        fg_indices_key: str | None = None,
+        bg_indices_key: str | None = None,
         allow_smaller: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -836,8 +824,8 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         )
 
     def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandCropByPosNegLabeld":
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandCropByPosNegLabeld:
         super().set_random_state(seed, state)
         self.cropper.set_random_state(seed, state)
         return self
@@ -845,13 +833,13 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
     def randomize(
         self,
         label: torch.Tensor,
-        fg_indices: Optional[NdarrayOrTensor] = None,
-        bg_indices: Optional[NdarrayOrTensor] = None,
-        image: Optional[torch.Tensor] = None,
+        fg_indices: NdarrayOrTensor | None = None,
+        bg_indices: NdarrayOrTensor | None = None,
+        image: torch.Tensor | None = None,
     ) -> None:
         self.cropper.randomize(label=label, fg_indices=fg_indices, bg_indices=bg_indices, image=image)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> List[Dict[Hashable, torch.Tensor]]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> list[dict[Hashable, torch.Tensor]]:
         d = dict(data)
         label = d[self.label_key]
         image = d[self.image_key] if self.image_key else None
@@ -861,7 +849,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         self.randomize(label, fg_indices, bg_indices, image)
 
         # initialize returned list with shallow copy to preserve key ordering
-        ret: List = [dict(d) for _ in range(self.cropper.num_samples)]
+        ret: list = [dict(d) for _ in range(self.cropper.num_samples)]
         # deep copy all the unmodified data
         for i in range(self.cropper.num_samples):
             for key in set(d.keys()).difference(set(self.keys)):
@@ -873,7 +861,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         return ret
 
 
-class RandCropByLabelClassesd(Randomizable, MapTransform):
+class RandCropByLabelClassesd(Randomizable, MapTransform, MultiSampleTrait):
     """
     Dictionary-based version :py:class:`monai.transforms.RandCropByLabelClasses`.
     Crop random fixed sized regions with the center being a class based on the specified ratios of every class.
@@ -947,21 +935,17 @@ class RandCropByLabelClassesd(Randomizable, MapTransform):
 
     backend = RandCropByLabelClasses.backend
 
-    @deprecated_arg(name="meta_keys", since="0.9")
-    @deprecated_arg(name="meta_key_postfix", since="0.9")
     def __init__(
         self,
         keys: KeysCollection,
         label_key: str,
-        spatial_size: Union[Sequence[int], int],
-        ratios: Optional[List[Union[float, int]]] = None,
-        num_classes: Optional[int] = None,
+        spatial_size: Sequence[int] | int,
+        ratios: list[float | int] | None = None,
+        num_classes: int | None = None,
         num_samples: int = 1,
-        image_key: Optional[str] = None,
+        image_key: str | None = None,
         image_threshold: float = 0.0,
-        indices_key: Optional[str] = None,
-        meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
+        indices_key: str | None = None,
         allow_smaller: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -979,18 +963,18 @@ class RandCropByLabelClassesd(Randomizable, MapTransform):
         )
 
     def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandCropByLabelClassesd":
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandCropByLabelClassesd:
         super().set_random_state(seed, state)
         self.cropper.set_random_state(seed, state)
         return self
 
     def randomize(
-        self, label: torch.Tensor, indices: Optional[List[NdarrayOrTensor]] = None, image: Optional[torch.Tensor] = None
+        self, label: torch.Tensor, indices: list[NdarrayOrTensor] | None = None, image: torch.Tensor | None = None
     ) -> None:
         self.cropper.randomize(label=label, indices=indices, image=image)
 
-    def __call__(self, data: Mapping[Hashable, Any]) -> List[Dict[Hashable, torch.Tensor]]:
+    def __call__(self, data: Mapping[Hashable, Any]) -> list[dict[Hashable, torch.Tensor]]:
         d = dict(data)
         label = d[self.label_key]
         image = d[self.image_key] if self.image_key else None
@@ -999,7 +983,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform):
         self.randomize(label, indices, image)
 
         # initialize returned list with shallow copy to preserve key ordering
-        ret: List = [dict(d) for _ in range(self.cropper.num_samples)]
+        ret: list = [dict(d) for _ in range(self.cropper.num_samples)]
         # deep copy all the unmodified data
         for i in range(self.cropper.num_samples):
             for key in set(d.keys()).difference(set(self.keys)):
@@ -1038,7 +1022,7 @@ class ResizeWithPadOrCropd(Padd):
     def __init__(
         self,
         keys: KeysCollection,
-        spatial_size: Union[Sequence[int], int],
+        spatial_size: Sequence[int] | int,
         mode: SequenceStr = PytorchPadMode.CONSTANT,
         allow_missing_keys: bool = False,
         method: str = Method.SYMMETRIC,
@@ -1074,7 +1058,7 @@ class BoundingRectd(MapTransform):
         self.bbox = BoundingRect(select_fn=select_fn)
         self.bbox_key_postfix = bbox_key_postfix
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         """
         See also: :py:class:`monai.transforms.utils.generate_spatial_bounding_box`.
         """

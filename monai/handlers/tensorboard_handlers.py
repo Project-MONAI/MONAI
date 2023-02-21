@@ -9,25 +9,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
 
 from monai.config import IgniteInfo
-from monai.utils import is_scalar, min_version, optional_import
+from monai.utils import deprecated_arg, is_scalar, min_version, optional_import
 from monai.visualize import plot_2d_or_3d_image
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
-SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
 if TYPE_CHECKING:
     from ignite.engine import Engine
+    from tensorboardX import SummaryWriter as SummaryWriterX
+    from torch.utils.tensorboard import SummaryWriter
 else:
     Engine, _ = optional_import(
         "ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine", as_type="decorator"
     )
+    SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
+    SummaryWriterX, _ = optional_import("tensorboardX", name="SummaryWriter")
 
 DEFAULT_TAG = "Loss"
 
@@ -43,7 +49,7 @@ class TensorBoardHandler:
 
     """
 
-    def __init__(self, summary_writer=None, log_dir: str = "./runs"):
+    def __init__(self, summary_writer: SummaryWriter | SummaryWriterX | None = None, log_dir: str = "./runs"):
         if summary_writer is None:
             self._writer = SummaryWriter(log_dir=log_dir)
             self.internal_writer = True
@@ -81,19 +87,21 @@ class TensorBoardStatsHandler(TensorBoardHandler):
 
     """
 
+    @deprecated_arg("epoch_interval", since="1.1", removed="1.3")
+    @deprecated_arg("iteration_interval", since="1.1", removed="1.3")
     def __init__(
         self,
-        summary_writer=None,
+        summary_writer: SummaryWriter | SummaryWriterX | None = None,
         log_dir: str = "./runs",
-        iteration_log: bool = True,
-        epoch_log: bool = True,
-        epoch_event_writer: Optional[Callable[[Engine, Any], Any]] = None,
+        iteration_log: bool | Callable[[Engine, int], bool] = True,
+        epoch_log: bool | Callable[[Engine, int], bool] = True,
+        epoch_event_writer: Callable[[Engine, Any], Any] | None = None,
         epoch_interval: int = 1,
-        iteration_event_writer: Optional[Callable[[Engine, Any], Any]] = None,
+        iteration_event_writer: Callable[[Engine, Any], Any] | None = None,
         iteration_interval: int = 1,
         output_transform: Callable = lambda x: x[0],
         global_epoch_transform: Callable = lambda x: x,
-        state_attributes: Optional[Sequence[str]] = None,
+        state_attributes: Sequence[str] | None = None,
         tag_name: str = DEFAULT_TAG,
     ) -> None:
         """
@@ -102,13 +110,20 @@ class TensorBoardStatsHandler(TensorBoardHandler):
                 default to create a new TensorBoard writer.
             log_dir: if using default SummaryWriter, write logs to this directory, default is `./runs`.
             iteration_log: whether to write data to TensorBoard when iteration completed, default to `True`.
+                ``iteration_log`` can be also a function and it will be interpreted as an event filter
+                (see https://pytorch.org/ignite/generated/ignite.engine.events.Events.html for details).
+                Event filter function accepts as input engine and event value (iteration) and should return True/False.
             epoch_log: whether to write data to TensorBoard when epoch completed, default to `True`.
+                ``epoch_log`` can be also a function and it will be interpreted as an event filter.
+                See ``iteration_log`` argument for more details.
             epoch_event_writer: customized callable TensorBoard writer for epoch level.
                 Must accept parameter "engine" and "summary_writer", use default event writer if None.
             epoch_interval: the epoch interval at which the epoch_event_writer is called. Defaults to 1.
+                ``epoch_interval`` must be 1 if ``epoch_log`` is callable.
             iteration_event_writer: customized callable TensorBoard writer for iteration level.
                 Must accept parameter "engine" and "summary_writer", use default event writer if None.
             iteration_interval: the iteration interval at which the iteration_event_writer is called. Defaults to 1.
+                ``iteration_interval`` must be 1 if ``iteration_log`` is callable.
             output_transform: a callable that is used to transform the
                 ``ignite.engine.state.output`` into a scalar to plot, or a dictionary of {key: scalar}.
                 In the latter case, the output string will be formatted as key: value.
@@ -125,6 +140,12 @@ class TensorBoardStatsHandler(TensorBoardHandler):
                 when epoch completed.
             tag_name: when iteration output is a scalar, tag_name is used to plot, defaults to ``'Loss'``.
         """
+        if callable(iteration_log) and iteration_interval > 1:
+            raise ValueError("If iteration_log is callable, then iteration_interval should be 1")
+
+        if callable(epoch_log) and epoch_interval > 1:
+            raise ValueError("If epoch_log is callable, then epoch_interval should be 1")
+
         super().__init__(summary_writer=summary_writer, log_dir=log_dir)
         self.iteration_log = iteration_log
         self.epoch_log = epoch_log
@@ -146,11 +167,19 @@ class TensorBoardStatsHandler(TensorBoardHandler):
 
         """
         if self.iteration_log and not engine.has_event_handler(self.iteration_completed, Events.ITERATION_COMPLETED):
-            engine.add_event_handler(
-                Events.ITERATION_COMPLETED(every=self.iteration_interval), self.iteration_completed
-            )
+            event = Events.ITERATION_COMPLETED
+            if callable(self.iteration_log):  # substitute event with new one using filter callable
+                event = event(event_filter=self.iteration_log)
+            elif self.iteration_interval > 1:
+                event = event(every=self.iteration_interval)
+            engine.add_event_handler(event, self.iteration_completed)
         if self.epoch_log and not engine.has_event_handler(self.epoch_completed, Events.EPOCH_COMPLETED):
-            engine.add_event_handler(Events.EPOCH_COMPLETED(every=self.epoch_interval), self.epoch_completed)
+            event = Events.EPOCH_COMPLETED
+            if callable(self.epoch_log):  # substitute event with new one using filter callable
+                event = event(event_filter=self.epoch_log)
+            elif self.epoch_log > 1:
+                event = event(every=self.epoch_interval)
+            engine.add_event_handler(event, self.epoch_completed)
 
     def epoch_completed(self, engine: Engine) -> None:
         """
@@ -180,7 +209,9 @@ class TensorBoardStatsHandler(TensorBoardHandler):
         else:
             self._default_iteration_writer(engine, self._writer)
 
-    def _write_scalar(self, _engine: Engine, writer, tag: str, value: Any, step: int) -> None:
+    def _write_scalar(
+        self, _engine: Engine, writer: SummaryWriter | SummaryWriterX, tag: str, value: Any, step: int
+    ) -> None:
         """
         Write scale value into TensorBoard.
         Default to call `SummaryWriter.add_scalar()`.
@@ -195,7 +226,7 @@ class TensorBoardStatsHandler(TensorBoardHandler):
         """
         writer.add_scalar(tag, value, step)
 
-    def _default_epoch_writer(self, engine: Engine, writer) -> None:
+    def _default_epoch_writer(self, engine: Engine, writer: SummaryWriter | SummaryWriterX) -> None:
         """
         Execute epoch level event write operation.
         Default to write the values from Ignite `engine.state.metrics` dict and
@@ -217,7 +248,7 @@ class TensorBoardStatsHandler(TensorBoardHandler):
                 self._write_scalar(engine, writer, attr, getattr(engine.state, attr, None), current_epoch)
         writer.flush()
 
-    def _default_iteration_writer(self, engine: Engine, writer) -> None:
+    def _default_iteration_writer(self, engine: Engine, writer: SummaryWriter | SummaryWriterX) -> None:
         """
         Execute iteration level event write operation based on Ignite `engine.state.output` data.
         Extract the values from `self.output_transform(engine.state.output)`.
@@ -296,7 +327,7 @@ class TensorBoardImageHandler(TensorBoardHandler):
 
     def __init__(
         self,
-        summary_writer=None,
+        summary_writer: SummaryWriter | SummaryWriterX | None = None,
         log_dir: str = "./runs",
         interval: int = 1,
         epoch_level: bool = True,

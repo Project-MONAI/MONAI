@@ -8,13 +8,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Hashable, Tuple
+
+from __future__ import annotations
+
+from collections.abc import Callable, Hashable
+from typing import Any
 
 from monai.config import KeysCollection
 from monai.utils import ensure_tuple
 
 
-def from_engine_hovernet(keys: KeysCollection, nested_key: str):
+def from_engine_hovernet(keys: KeysCollection, nested_key: str) -> Callable[[Any], Any]:
     """
     Since the output of HoVerNet is a dictionary, this function is to extend `monai.handlers.from_engine`
     to work with HoVerNet.
@@ -38,7 +42,7 @@ def from_engine_hovernet(keys: KeysCollection, nested_key: str):
         nested_key: specified key to extract nested data from dictionary or decollated list of dictionaries.
 
     """
-    _keys: Tuple[Hashable, ...] = ensure_tuple(keys)
+    _keys: tuple[Hashable, ...] = ensure_tuple(keys)
 
     def _wrapper(data):
         if isinstance(data, dict):

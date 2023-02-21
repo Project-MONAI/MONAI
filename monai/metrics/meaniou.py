@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union
+from __future__ import annotations
 
 import torch
 
@@ -51,7 +51,7 @@ class MeanIoU(CumulativeIterationMetric):
     def __init__(
         self,
         include_background: bool = True,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        reduction: MetricReduction | str = MetricReduction.MEAN,
         get_not_nans: bool = False,
         ignore_empty: bool = True,
     ) -> None:
@@ -61,7 +61,7 @@ class MeanIoU(CumulativeIterationMetric):
         self.get_not_nans = get_not_nans
         self.ignore_empty = ignore_empty
 
-    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         """
         Args:
             y_pred: input data to compute, typical segmentation model output.
@@ -85,7 +85,9 @@ class MeanIoU(CumulativeIterationMetric):
             y_pred=y_pred, y=y, include_background=self.include_background, ignore_empty=self.ignore_empty
         )
 
-    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):
+    def aggregate(
+        self, reduction: MetricReduction | str | None = None
+    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """
         Execute reduction logic for the output of `compute_meaniou`.
 

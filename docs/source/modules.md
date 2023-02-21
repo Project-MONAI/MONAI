@@ -56,7 +56,7 @@ so that the deep learning models and pipelines can readily incorporate the meta 
 
 ### GPU-based accelerations
 
-Implementations are provided to ensure optimal usage of the underlying hardware resources. [[fast training guide]](https://github.com/Project-MONAI/tutorials/blob/main/acceleration/fast_model_training_guide.md)
+Implementations are provided to ensure optimal usage of the underlying hardware resources. [[fast training guide]](https://github.com/Project-MONAI/tutorials/blob/main/acceleration)
 
 ### Determinism and reproducibility
 
@@ -83,8 +83,8 @@ domain-specific usability and pipeline performance.
 ### Cache IO and transforms data to accelerate training
 
 Data-driven methods require many (potentially thousands of) epochs of training data reading and preprocessing. MONAI
-provides multi-threaded cache-based datasets to accelerate the process [[Datasets experiment]](https://github.com/Project-MONAI/tutorials/blob/master/acceleration/dataset_type_performance.ipynb). The
-cache can be persistent and dynamic (`SmartCacheDataset`) and reused across different experiments [[SmartCache example]](https://github.com/Project-MONAI/tutorials/blob/master/acceleration/distributed_training/unet_training_smartcache.py).
+provides multi-threaded cache-based datasets to accelerate the process [[Datasets experiment]](https://github.com/Project-MONAI/tutorials/blob/main/acceleration/dataset_type_performance.ipynb). The
+cache can be persistent and dynamic (`SmartCacheDataset`) and reused across different experiments [[SmartCache example]](https://github.com/Project-MONAI/tutorials/blob/main/acceleration/distributed_training/unet_training_smartcache.py).
 The following figure illustrates the training speedup compared with a regular PyTorch program.
 
 ![cachedataset speed](../images/datasets_speed.png)
@@ -97,13 +97,13 @@ executes the transforms in a separate thread:
 
 ![threaddataloader](../images/threaddataloader.png)
 
-a `ThreadDataLoader` example is within the [Spleen fast training tutorial](https://github.com/Project-MONAI/tutorials/blob/master/acceleration/fast_training_tutorial.ipynb).
+a `ThreadDataLoader` example is within the [Spleen fast training tutorial](https://github.com/Project-MONAI/tutorials/blob/main/acceleration/fast_training_tutorial.ipynb).
 
 ### Public datasets
 
 To quickly get started with popular training data, MONAI provides several ready-to-integrate Dataset classes
 (such as `MedNISTDataset`, `DecathlonDataset`, [`TciaDataset`](https://github.com/Project-MONAI/tutorials/blob/main/modules/tcia_dataset.ipynb)), which include data downloading, and support training/evaluation splits generation with transforms.
-[[Public datasets tutorial]](https://github.com/Project-MONAI/tutorials/blob/master/modules/public_datasets.ipynb)
+[[Public datasets tutorial]](https://github.com/Project-MONAI/tutorials/blob/main/modules/public_datasets.ipynb)
 The common workflow of predefined datasets:
 
 ![pre-defined dataset](../images/dataset_progress.png)
@@ -123,7 +123,7 @@ MONAI implements reference networks with the aim of both flexibility and code re
 
 Network layers and blocks are in general implemented to be compatible with spatial 1D, 2D and 3D inputs.
 Users can easily integrate the layers, blocks and networks as part of their customised pipelines.
-Various utilities are provided to leverage the existing model weights, e.g., finetuning [from MMAR](https://github.com/Project-MONAI/tutorials/blob/master/modules/transfer_mmar.ipynb)
+Various utilities are provided to leverage the existing model weights, e.g., finetuning [from MMAR](https://github.com/Project-MONAI/tutorials/blob/main/modules/transfer_mmar.ipynb)
 or [from a bundle in MONAI model-zoo](https://github.com/Project-MONAI/tutorials/tree/main/model_zoo).
 
 ### C++/CUDA optimized modules
@@ -152,7 +152,7 @@ widely-used approaches. Currently, several popular evaluation metrics and infere
 
 For model inferences on large volumes, the sliding window approach is a popular choice to achieve high performance while
 having flexible memory requirements (_alternatively, please check out the latest research on [model parallel
-training](#lamp-large-deep-nets-with-automated-model-parallelism-for-image-segmentation) using MONAI_). It also supports
+training](https://github.com/Project-MONAI/research-contributions/tree/main/lamp-automated-model-parallelism). It also supports
 `overlap` and `blending_mode` configurations to handle the overlapped windows for better performances.
 
 ![sliding window scheme](../images/sliding_window.png)
@@ -162,7 +162,7 @@ training](#lamp-large-deep-nets-with-automated-model-parallelism-for-image-segme
 Various useful evaluation metrics have been implemented to measure the quality of medical image specific models.
 These include `Mean Dice`, `ROCAUC`, `Confusion Matrices`, `Hausdorff
 Distance`, `Surface Distance`, `Occlusion Sensitivity`.
-The APIs also support [multi-processing computation](https://github.com/Project-MONAI/tutorials/blob/master/modules/compute_metric.py).
+The APIs also support [multi-processing computation](https://github.com/Project-MONAI/tutorials/blob/main/modules/compute_metric.py).
 
 ### Report generation
 `MetricsSaver` is provided to write the final metric summary report: `mean`, `median`, `max`, `min`, `<int>percentile`, `std`:
@@ -170,7 +170,7 @@ The APIs also support [multi-processing computation](https://github.com/Project-
 ![metrics report example](../images/metrics_report.png)
 
 ## Visualization
-Beyond the simple point and curve plotting, intuitive interfaces are provided to visualize multidimensional data as GIF animations in TensorBoard. This could provide a quick qualitative assessment of the model by visualizing, for example, the volumetric inputs, segmentation maps, and intermediate feature maps. A runnable example with visualization is available at [UNet training example](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/torch/unet_training_dict.py). To work with ignite program, MONAI also provides several ignite handlers to visualize training curve and metrics with `TensorBoard` or `MLFlow`, more details is available in [TensorBoard and MLFlow handlers example](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/unet_segmentation_3d_ignite.ipynb).
+Beyond the simple point and curve plotting, intuitive interfaces are provided to visualize multidimensional data as GIF animations in TensorBoard. This could provide a quick qualitative assessment of the model by visualizing, for example, the volumetric inputs, segmentation maps, and intermediate feature maps. A runnable example with visualization is available at [UNet training example](https://github.com/Project-MONAI/tutorials/blob/main/3d_segmentation/torch/unet_training_dict.py). To work with ignite program, MONAI also provides several ignite handlers to visualize training curve and metrics with `TensorBoard` or `MLFlow`, more details is available in [TensorBoard and MLFlow handlers example](https://github.com/Project-MONAI/tutorials/blob/main/3d_segmentation/unet_segmentation_3d_ignite.ipynb).
 
 To easily visualize a 3D image as frames of 2D images, MONAI provides the utility `matshow3d` based on `matplotlib` library. It can plot frames of image for the specified dimension, showing a spleen 3D image as example:
 `matshow3d(volume=image, figsize=(100, 100), every_n=10, frame_dim=-1 show=True, cmap="gray")`
@@ -181,13 +181,13 @@ MONAI also provides the `blend_images` utility to blend the `image` and `label` 
 
 ![blend example](../images/blend.png)
 
-For more details of `TensorBoard utility`, `matshow3d` and `blend_images`, please check the [visualization tutorial](https://github.com/Project-MONAI/tutorials/blob/master/modules/transform_visualization.ipynb).
+For more details of `TensorBoard utility`, `matshow3d` and `blend_images`, please check the [visualization tutorial](https://github.com/Project-MONAI/tutorials/blob/main/modules/transform_visualization.ipynb).
 
 And to visualize the class activation mapping for a trained classification model, MONAI provides CAM, GradCAM, GradCAM++ APIs for both 2D and 3D models:
 
 ![CAM visualization example](../images/cam.png)
 
-The above example is generated by computing [GradCAM/GradCAM++ from a lung CT lesion classification model](https://github.com/Project-MONAI/tutorials/tree/master/modules/interpretability).
+The above example is generated by computing [GradCAM/GradCAM++ from a lung CT lesion classification model](https://github.com/Project-MONAI/tutorials/tree/main/modules/interpretability).
 
 ## Workflows
 
@@ -199,14 +199,14 @@ The trainers and evaluators of the workflows are compatible with pytorch-ignite 
 
 ### General workflows pipeline
 
-The workflow and some of MONAI event handlers are shown as below [[Workflow examples]](https://github.com/Project-MONAI/tutorials/tree/master/modules/engines):
+The workflow and some of MONAI event handlers are shown as below [[Workflow examples]](https://github.com/Project-MONAI/tutorials/tree/main/modules/engines):
 
 ![workflow pipeline](../images/workflows.png)
 
 
 ### EnsembleEvaluator
 
-A typical ensemble procoess is implemented as a ready-to-use workflow [[Cross validation and model ensemble tutorial]](https://github.com/Project-MONAI/tutorials/blob/master/modules/cross_validation_models_ensemble.ipynb):
+A typical ensemble procoess is implemented as a ready-to-use workflow [[Cross validation and model ensemble tutorial]](https://github.com/Project-MONAI/tutorials/blob/main/modules/cross_validation_models_ensemble.ipynb):
 1. Split all the training dataset into K folds.
 2. Train K models with every K-1 folds data.
 3. Execute inference on the test data with all the K models.
@@ -221,7 +221,7 @@ A typical ensemble procoess is implemented as a ready-to-use workflow [[Cross va
 1. enabling postprocessing transforms for each item independently -- randomised transforms could be applied differently for each predicted item in a batch.
 2. simplifying the transform APIs and reducing the input validation burdens because both the preprocessing and postprocessing transforms now only need to support the "channel-first" input format.
 3. enabling the `Invertd` transform for the predictions and the inverted data with different shapes, as the data items are in a list, not stacked in a single tensor.
-4. allowing for both batch-first tensor and list of channel-first tensors in a flexible metric computation. [[decollate batch tutorial]](https://github.com/Project-MONAI/tutorials/blob/master/modules/decollate_batch.ipynb)
+4. allowing for both batch-first tensor and list of channel-first tensors in a flexible metric computation. [[decollate batch tutorial]](https://github.com/Project-MONAI/tutorials/blob/main/modules/decollate_batch.ipynb)
 
 A typical process of `decollate batch` is illustrated as follows (with a `batch_size=N` model predictions and labels as an example):
 
@@ -231,8 +231,8 @@ A typical process of `decollate batch` is illustrated as follows (with a `batch_
 
 Except for the pytorch-ignite based `monai.engines`, most of the MONAI modules could be used independently or combined
 with other software packages. For example, MONAI can be easily integrated into popular frameworks such as
-PyTorch-Lightning and Catalyst. [[Lightning segmentation](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/spleen_segmentation_3d_lightning.ipynb),
-[Catalyst segmentation](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/unet_segmentation_3d_catalyst.ipynb)]
+PyTorch-Lightning and Catalyst. [[Lightning segmentation](https://github.com/Project-MONAI/tutorials/blob/main/3d_segmentation/spleen_segmentation_3d_lightning.ipynb),
+[Catalyst segmentation](https://github.com/Project-MONAI/tutorials/blob/main/3d_segmentation/unet_segmentation_3d_catalyst.ipynb)]
 
 ## Bundle
 
@@ -264,7 +264,7 @@ A typical bundle example can include:
      ┗━ *license.txt
 ```
 Details about the bundle config definition and syntax & examples are at [config syntax](https://docs.monai.io/en/latest/config_syntax.html).
-A step-by-step [get started](https://github.com/Project-MONAI/tutorials/blob/master/bundle/get_started.md) tutorial notebook can help users quickly set up a bundle. [[bundle examples](https://github.com/Project-MONAI/tutorials/tree/main/bundle), [model-zoo](https://github.com/Project-MONAI/model-zoo)]
+A step-by-step [get started](https://github.com/Project-MONAI/tutorials/blob/main/bundle/get_started.md) tutorial notebook can help users quickly set up a bundle. [[bundle examples](https://github.com/Project-MONAI/tutorials/tree/main/bundle), [model-zoo](https://github.com/Project-MONAI/model-zoo)]
 
 ## Federated Learning
 
@@ -308,7 +308,7 @@ MONAI provides state-of-the-art performance optimization methods including:
 ### Auto mixed precision (AMP)
 
 Simply set `amp=True/False` in `SupervisedTrainer` or `SupervisedEvaluator` during training or evaluation to enable/disable AMP
-Example benchmark results are as follows [[AMP training tutorial]](https://github.com/Project-MONAI/tutorials/blob/master/acceleration/automatic_mixed_precision.ipynb):
+Example benchmark results are as follows [[AMP training tutorial]](https://github.com/Project-MONAI/tutorials/blob/main/acceleration/automatic_mixed_precision.ipynb):
 
 training with AMP ON/OFF on a NVIDIA V100 GPU with CUDA 11 and PyTorch 1.6:
 
@@ -318,15 +318,15 @@ training with AMP ON/OFF on a NVIDIA A100 GPU with CUDA 11 and PyTorch 1.6:
 
 ![amp a100 results](../images/amp_training_a100.png)
 
-Several tools including `DLProf`, `Nsight`, `NVTX` and `NVML` can be used with MONAI to identify the performance bottleneck. [[profiling tutorial]](https://github.com/Project-MONAI/tutorials/blob/master/performance_profiling/radiology/profiling_train_base_nvtx.md)
+Several tools including `DLProf`, `Nsight`, `NVTX` and `NVML` can be used with MONAI to identify the performance bottleneck. [[profiling tutorial]](https://github.com/Project-MONAI/tutorials/blob/main/performance_profiling/radiology/profiling_train_base_nvtx.md)
 
 ### Distributed training
 
 The distributed data-parallel APIs of MONAI are compatible with the native PyTorch distributed module, pytorch-ignite distributed module, Horovod, XLA, and the SLURM platform.
-[[distributed training tutorial]](https://github.com/Project-MONAI/tutorials/blob/master/acceleration/distributed_training/brats_training_ddp.py)
+[[distributed training tutorial]](https://github.com/Project-MONAI/tutorials/blob/main/acceleration/distributed_training/brats_training_ddp.py)
 
 ![distributed training results](../images/brats_distributed.png)
 
-The [fast training tutorial](https://github.com/Project-MONAI/tutorials/blob/master/acceleration/fast_training_tutorial.ipynb)
+The [fast training tutorial](https://github.com/Project-MONAI/tutorials/blob/main/acceleration/fast_training_tutorial.ipynb)
 combines `AMP` with `CacheDataset`, `GPU cache`, `GPU transforms`, `ThreadDataLoader`, tuning of networks and optimizers, can achieve substantial speedup compared
 with a PyTorch regular implementation.

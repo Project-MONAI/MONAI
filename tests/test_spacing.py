@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
-from typing import Dict, List
 
 import numpy as np
 import torch
@@ -23,7 +24,7 @@ from monai.transforms import Spacing
 from monai.utils import fall_back_tuple
 from tests.utils import TEST_DEVICES, TEST_NDARRAYS_ALL, assert_allclose, skip_if_quick
 
-TESTS: List[List] = []
+TESTS: list[list] = []
 for device in TEST_DEVICES:
     TESTS.append(
         [
@@ -267,10 +268,10 @@ class TestSpacingCase(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_spacing(
         self,
-        init_param: Dict,
+        init_param: dict,
         img: torch.Tensor,
         affine: torch.Tensor,
-        data_param: Dict,
+        data_param: dict,
         expected_output: torch.Tensor,
         device: torch.device,
     ):
@@ -349,6 +350,16 @@ class TestSpacingCase(unittest.TestCase):
         self.assertEqual(img_out.applied_operations, [])
         self.assertEqual(img_out.shape, img_t.shape)
         self.assertLess(((affine - img_out.affine) ** 2).sum() ** 0.5, 5e-2)
+
+    def test_property_no_change(self):
+        affine = torch.tensor(
+            [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]], dtype=torch.float32, device="cpu"
+        )
+        affine[:3] *= 1 - 1e-4  # make sure it's not exactly target but close to the target
+        img = MetaTensor(torch.rand((1, 10, 9, 8), dtype=torch.float32), affine=affine, meta={"fname": "somewhere"})
+        tr = Spacing(pixdim=[1.0, 1.0, 1.0])
+        tr(img)
+        assert_allclose(tr.pixdim, [1.0, 1.0, 1.0], type_test=False)
 
 
 if __name__ == "__main__":

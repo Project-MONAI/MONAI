@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union
+from __future__ import annotations
 
 import torch
 
@@ -46,8 +46,8 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
     def __init__(
         self,
         include_background: bool = True,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN_BATCH,
-        weight_type: Union[Weight, str] = Weight.SQUARE,
+        reduction: MetricReduction | str = MetricReduction.MEAN_BATCH,
+        weight_type: Weight | str = Weight.SQUARE,
     ) -> None:
         super().__init__()
         self.include_background = include_background
@@ -64,7 +64,7 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
             raise ValueError(f"reduction must be one of {reduction_options}")
         self.weight_type = look_up_option(weight_type, Weight)
 
-    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         """Computes the Generalized Dice Score and returns a tensor with its per image values.
 
         Args:
@@ -80,7 +80,7 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
             y_pred=y_pred, y=y, include_background=self.include_background, weight_type=self.weight_type
         )
 
-    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):
+    def aggregate(self, reduction: MetricReduction | str | None = None) -> torch.Tensor:
         """
         Execute reduction logic for the output of `compute_generalized_dice`.
 
@@ -106,10 +106,7 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
 
 
 def compute_generalized_dice(
-    y_pred: torch.Tensor,
-    y: torch.Tensor,
-    include_background: bool = True,
-    weight_type: Union[Weight, str] = Weight.SQUARE,
+    y_pred: torch.Tensor, y: torch.Tensor, include_background: bool = True, weight_type: Weight | str = Weight.SQUARE
 ) -> torch.Tensor:
     """Computes the Generalized Dice Score and returns a tensor with its per image values.
 
@@ -179,7 +176,9 @@ def compute_generalized_dice(
     y_pred_o = y_pred_o.sum(dim=-1)
     denom_zeros = denom == 0
     generalized_dice_score[denom_zeros] = torch.where(
-        (y_pred_o == 0)[denom_zeros], torch.tensor(1.0), torch.tensor(0.0)
+        (y_pred_o == 0)[denom_zeros],
+        torch.tensor(1.0, device=generalized_dice_score.device),
+        torch.tensor(0.0, device=generalized_dice_score.device),
     )
 
     return generalized_dice_score

@@ -15,7 +15,9 @@ defined in :py:class:`monai.transforms.intensity.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Callable, Dict, Hashable, Mapping, Optional, Sequence, Tuple, Union
+from __future__ import annotations
+
+from typing import Callable, Hashable, Mapping, Sequence
 
 import numpy as np
 
@@ -195,13 +197,13 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         self.rand_gaussian_noise = RandGaussianNoise(mean=mean, std=std, prob=1.0, dtype=dtype)
 
     def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandGaussianNoised":
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandGaussianNoised:
         super().set_random_state(seed, state)
         self.rand_gaussian_noise.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
@@ -253,8 +255,8 @@ class RandRicianNoised(RandomizableTransform, MapTransform):
         self,
         keys: KeysCollection,
         prob: float = 0.1,
-        mean: Union[Sequence[float], float] = 0.0,
-        std: Union[Sequence[float], float] = 1.0,
+        mean: Sequence[float] | float = 0.0,
+        std: Sequence[float] | float = 1.0,
         channel_wise: bool = False,
         relative: bool = False,
         sample_std: bool = True,
@@ -273,14 +275,12 @@ class RandRicianNoised(RandomizableTransform, MapTransform):
             dtype=dtype,
         )
 
-    def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandRicianNoised":
+    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandRicianNoised:
         super().set_random_state(seed, state)
         self.rand_rician_noise.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
@@ -305,8 +305,8 @@ class ShiftIntensityd(MapTransform):
         keys: KeysCollection,
         offset: float,
         safe: bool = False,
-        factor_key: Optional[str] = None,
-        meta_keys: Optional[KeysCollection] = None,
+        factor_key: str | None = None,
+        meta_keys: KeysCollection | None = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -341,13 +341,13 @@ class ShiftIntensityd(MapTransform):
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.shifter = ShiftIntensity(offset, safe)
 
-    def __call__(self, data) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, factor_key, meta_key, meta_key_postfix in self.key_iterator(
             d, self.factor_key, self.meta_keys, self.meta_key_postfix
         ):
             meta_key = meta_key or f"{key}_{meta_key_postfix}"
-            factor: Optional[float] = d[meta_key].get(factor_key) if meta_key in d else None
+            factor: float | None = d[meta_key].get(factor_key) if meta_key in d else None
             offset = None if factor is None else self.shifter.offset * factor
             d[key] = self.shifter(d[key], offset=offset)
         return d
@@ -363,10 +363,10 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        offsets: Union[Tuple[float, float], float],
+        offsets: tuple[float, float] | float,
         safe: bool = False,
-        factor_key: Optional[str] = None,
-        meta_keys: Optional[KeysCollection] = None,
+        factor_key: str | None = None,
+        meta_keys: KeysCollection | None = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
         prob: float = 0.1,
         allow_missing_keys: bool = False,
@@ -408,13 +408,13 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
         self.shifter = RandShiftIntensity(offsets=offsets, safe=safe, prob=1.0)
 
     def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandShiftIntensityd":
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandShiftIntensityd:
         super().set_random_state(seed, state)
         self.shifter.set_random_state(seed, state)
         return self
 
-    def __call__(self, data) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
@@ -428,7 +428,7 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
             d, self.factor_key, self.meta_keys, self.meta_key_postfix
         ):
             meta_key = meta_key or f"{key}_{meta_key_postfix}"
-            factor: Optional[float] = d[meta_key].get(factor_key) if meta_key in d else None
+            factor: float | None = d[meta_key].get(factor_key) if meta_key in d else None
             d[key] = self.shifter(d[key], factor=factor, randomize=False)
         return d
 
@@ -463,7 +463,7 @@ class StdShiftIntensityd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.shifter = StdShiftIntensity(factor, nonzero, channel_wise, dtype)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.shifter(d[key])
@@ -480,7 +480,7 @@ class RandStdShiftIntensityd(RandomizableTransform, MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        factors: Union[Tuple[float, float], float],
+        factors: tuple[float, float] | float,
         prob: float = 0.1,
         nonzero: bool = False,
         channel_wise: bool = False,
@@ -506,13 +506,13 @@ class RandStdShiftIntensityd(RandomizableTransform, MapTransform):
         )
 
     def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandStdShiftIntensityd":
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandStdShiftIntensityd:
         super().set_random_state(seed, state)
         self.shifter.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
@@ -539,9 +539,9 @@ class ScaleIntensityd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        minv: Optional[float] = 0.0,
-        maxv: Optional[float] = 1.0,
-        factor: Optional[float] = None,
+        minv: float | None = 0.0,
+        maxv: float | None = 1.0,
+        factor: float | None = None,
         channel_wise: bool = False,
         dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
@@ -563,7 +563,7 @@ class ScaleIntensityd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.scaler = ScaleIntensity(minv, maxv, factor, channel_wise, dtype)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.scaler(d[key])
@@ -580,7 +580,7 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        factors: Union[Tuple[float, float], float],
+        factors: tuple[float, float] | float,
         prob: float = 0.1,
         dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
@@ -602,13 +602,13 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
         self.scaler = RandScaleIntensity(factors=factors, dtype=dtype, prob=1.0)
 
     def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandScaleIntensityd":
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandScaleIntensityd:
         super().set_random_state(seed, state)
         self.scaler.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
@@ -634,7 +634,7 @@ class RandBiasFieldd(RandomizableTransform, MapTransform):
         self,
         keys: KeysCollection,
         degree: int = 3,
-        coeff_range: Tuple[float, float] = (0.0, 0.1),
+        coeff_range: tuple[float, float] = (0.0, 0.1),
         dtype: DtypeLike = np.float32,
         prob: float = 0.1,
         allow_missing_keys: bool = False,
@@ -656,14 +656,12 @@ class RandBiasFieldd(RandomizableTransform, MapTransform):
 
         self.rand_bias_field = RandBiasField(degree=degree, coeff_range=coeff_range, dtype=dtype, prob=1.0)
 
-    def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandBiasFieldd":
+    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandBiasFieldd:
         super().set_random_state(seed, state)
         self.rand_bias_field.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
@@ -708,8 +706,8 @@ class NormalizeIntensityd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        subtrahend: Optional[NdarrayOrTensor] = None,
-        divisor: Optional[NdarrayOrTensor] = None,
+        subtrahend: NdarrayOrTensor | None = None,
+        divisor: NdarrayOrTensor | None = None,
         nonzero: bool = False,
         channel_wise: bool = False,
         dtype: DtypeLike = np.float32,
@@ -718,7 +716,7 @@ class NormalizeIntensityd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.normalizer = NormalizeIntensity(subtrahend, divisor, nonzero, channel_wise, dtype)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.normalizer(d[key])
@@ -751,7 +749,7 @@ class ThresholdIntensityd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.filter = ThresholdIntensity(threshold, above, cval)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.filter(d[key])
@@ -781,8 +779,8 @@ class ScaleIntensityRanged(MapTransform):
         keys: KeysCollection,
         a_min: float,
         a_max: float,
-        b_min: Optional[float] = None,
-        b_max: Optional[float] = None,
+        b_min: float | None = None,
+        b_max: float | None = None,
         clip: bool = False,
         dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
@@ -790,7 +788,7 @@ class ScaleIntensityRanged(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.scaler = ScaleIntensityRange(a_min, a_max, b_min, b_max, clip, dtype)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.scaler(d[key])
@@ -817,7 +815,7 @@ class AdjustContrastd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.adjuster = AdjustContrast(gamma)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.adjuster(d[key])
@@ -846,7 +844,7 @@ class RandAdjustContrastd(RandomizableTransform, MapTransform):
         self,
         keys: KeysCollection,
         prob: float = 0.1,
-        gamma: Union[Tuple[float, float], float] = (0.5, 4.5),
+        gamma: tuple[float, float] | float = (0.5, 4.5),
         allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -854,13 +852,13 @@ class RandAdjustContrastd(RandomizableTransform, MapTransform):
         self.adjuster = RandAdjustContrast(gamma=gamma, prob=1.0)
 
     def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandAdjustContrastd":
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandAdjustContrastd:
         super().set_random_state(seed, state)
         self.adjuster.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
@@ -901,8 +899,8 @@ class ScaleIntensityRangePercentilesd(MapTransform):
         keys: KeysCollection,
         lower: float,
         upper: float,
-        b_min: Optional[float],
-        b_max: Optional[float],
+        b_min: float | None,
+        b_max: float | None,
         clip: bool = False,
         relative: bool = False,
         channel_wise: bool = False,
@@ -912,7 +910,7 @@ class ScaleIntensityRangePercentilesd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.scaler = ScaleIntensityRangePercentiles(lower, upper, b_min, b_max, clip, relative, channel_wise, dtype)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.scaler(d[key])
@@ -945,8 +943,8 @@ class MaskIntensityd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        mask_data: Optional[NdarrayOrTensor] = None,
-        mask_key: Optional[str] = None,
+        mask_data: NdarrayOrTensor | None = None,
+        mask_key: str | None = None,
         select_fn: Callable = is_positive,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -954,7 +952,7 @@ class MaskIntensityd(MapTransform):
         self.converter = MaskIntensity(mask_data=mask_data, select_fn=select_fn)
         self.mask_key = mask_key if mask_data is None else None
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key], d[self.mask_key]) if self.mask_key is not None else self.converter(d[key])
@@ -991,7 +989,7 @@ class SavitzkyGolaySmoothd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = SavitzkyGolaySmooth(window_length=window_length, order=order, axis=axis, mode=mode)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -1014,13 +1012,11 @@ class MedianSmoothd(MapTransform):
 
     backend = MedianSmooth.backend
 
-    def __init__(
-        self, keys: KeysCollection, radius: Union[Sequence[int], int], allow_missing_keys: bool = False
-    ) -> None:
+    def __init__(self, keys: KeysCollection, radius: Sequence[int] | int, allow_missing_keys: bool = False) -> None:
         super().__init__(keys, allow_missing_keys)
         self.converter = MedianSmooth(radius)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -1048,14 +1044,14 @@ class GaussianSmoothd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        sigma: Union[Sequence[float], float],
+        sigma: Sequence[float] | float,
         approx: str = "erf",
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.converter = GaussianSmooth(sigma, approx=approx)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -1084,9 +1080,9 @@ class RandGaussianSmoothd(RandomizableTransform, MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        sigma_x: Tuple[float, float] = (0.25, 1.5),
-        sigma_y: Tuple[float, float] = (0.25, 1.5),
-        sigma_z: Tuple[float, float] = (0.25, 1.5),
+        sigma_x: tuple[float, float] = (0.25, 1.5),
+        sigma_y: tuple[float, float] = (0.25, 1.5),
+        sigma_z: tuple[float, float] = (0.25, 1.5),
         approx: str = "erf",
         prob: float = 0.1,
         allow_missing_keys: bool = False,
@@ -1098,13 +1094,13 @@ class RandGaussianSmoothd(RandomizableTransform, MapTransform):
         )
 
     def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandGaussianSmoothd":
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandGaussianSmoothd:
         super().set_random_state(seed, state)
         self.rand_smooth.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
@@ -1144,8 +1140,8 @@ class GaussianSharpend(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        sigma1: Union[Sequence[float], float] = 3.0,
-        sigma2: Union[Sequence[float], float] = 1.0,
+        sigma1: Sequence[float] | float = 3.0,
+        sigma2: Sequence[float] | float = 1.0,
         alpha: float = 30.0,
         approx: str = "erf",
         allow_missing_keys: bool = False,
@@ -1153,7 +1149,7 @@ class GaussianSharpend(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = GaussianSharpen(sigma1, sigma2, alpha, approx=approx)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -1189,13 +1185,13 @@ class RandGaussianSharpend(RandomizableTransform, MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        sigma1_x: Tuple[float, float] = (0.5, 1.0),
-        sigma1_y: Tuple[float, float] = (0.5, 1.0),
-        sigma1_z: Tuple[float, float] = (0.5, 1.0),
-        sigma2_x: Union[Tuple[float, float], float] = 0.5,
-        sigma2_y: Union[Tuple[float, float], float] = 0.5,
-        sigma2_z: Union[Tuple[float, float], float] = 0.5,
-        alpha: Tuple[float, float] = (10.0, 30.0),
+        sigma1_x: tuple[float, float] = (0.5, 1.0),
+        sigma1_y: tuple[float, float] = (0.5, 1.0),
+        sigma1_z: tuple[float, float] = (0.5, 1.0),
+        sigma2_x: tuple[float, float] | float = 0.5,
+        sigma2_y: tuple[float, float] | float = 0.5,
+        sigma2_z: tuple[float, float] | float = 0.5,
+        alpha: tuple[float, float] = (10.0, 30.0),
         approx: str = "erf",
         prob: float = 0.1,
         allow_missing_keys: bool = False,
@@ -1215,13 +1211,13 @@ class RandGaussianSharpend(RandomizableTransform, MapTransform):
         )
 
     def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandGaussianSharpend":
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandGaussianSharpend:
         super().set_random_state(seed, state)
         self.rand_sharpen.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Dict[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: dict[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
@@ -1256,7 +1252,7 @@ class RandHistogramShiftd(RandomizableTransform, MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        num_control_points: Union[Tuple[int, int], int] = 10,
+        num_control_points: tuple[int, int] | int = 10,
         prob: float = 0.1,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -1265,13 +1261,13 @@ class RandHistogramShiftd(RandomizableTransform, MapTransform):
         self.shifter = RandHistogramShift(num_control_points=num_control_points, prob=1.0)
 
     def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandHistogramShiftd":
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandHistogramShiftd:
         super().set_random_state(seed, state)
         self.shifter.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Dict[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: dict[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
@@ -1320,19 +1316,16 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
         alpha: Sequence[float] = (0.0, 1.0),
         allow_missing_keys: bool = False,
     ) -> None:
-
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob=prob)
         self.rand_gibbs_noise = RandGibbsNoise(alpha=alpha, prob=1.0)
 
-    def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandGibbsNoised":
+    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandGibbsNoised:
         super().set_random_state(seed, state)
         self.rand_gibbs_noise.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Dict[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: dict[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
@@ -1369,12 +1362,10 @@ class GibbsNoised(MapTransform):
     backend = GibbsNoise.backend
 
     def __init__(self, keys: KeysCollection, alpha: float = 0.5, allow_missing_keys: bool = False) -> None:
-
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.transform = GibbsNoise(alpha)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.transform(d[key])
@@ -1427,15 +1418,14 @@ class KSpaceSpikeNoised(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        loc: Union[Tuple, Sequence[Tuple]],
-        k_intensity: Optional[Union[Sequence[float], float]] = None,
+        loc: tuple | Sequence[tuple],
+        k_intensity: Sequence[float] | float | None = None,
         allow_missing_keys: bool = False,
     ) -> None:
-
         super().__init__(keys, allow_missing_keys)
         self.transform = KSpaceSpikeNoise(loc, k_intensity)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         """
         Args:
             data: Expects image/label to have dimensions (C, H, W) or
@@ -1490,7 +1480,7 @@ class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
         self,
         keys: KeysCollection,
         prob: float = 0.1,
-        intensity_range: Optional[Sequence[Union[Sequence[float], float]]] = None,
+        intensity_range: Sequence[Sequence[float] | float] | None = None,
         channel_wise: bool = True,
         allow_missing_keys: bool = False,
     ):
@@ -1499,13 +1489,13 @@ class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
         self.rand_noise = RandKSpaceSpikeNoise(prob=1.0, intensity_range=intensity_range, channel_wise=channel_wise)
 
     def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandKSpaceSpikeNoised":
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandKSpaceSpikeNoised:
         super().set_random_state(seed, state)
         self.rand_noise.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Dict[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: dict[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
@@ -1556,11 +1546,11 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
         self,
         keys: KeysCollection,
         holes: int,
-        spatial_size: Union[Sequence[int], int],
+        spatial_size: Sequence[int] | int,
         dropout_holes: bool = True,
-        fill_value: Optional[Union[Tuple[float, float], float]] = None,
-        max_holes: Optional[int] = None,
-        max_spatial_size: Optional[Union[Sequence[int], int]] = None,
+        fill_value: tuple[float, float] | float | None = None,
+        max_holes: int | None = None,
+        max_spatial_size: Sequence[int] | int | None = None,
         prob: float = 0.1,
         allow_missing_keys: bool = False,
     ):
@@ -1577,13 +1567,13 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
         )
 
     def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandCoarseDropoutd":
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandCoarseDropoutd:
         super().set_random_state(seed, state)
         self.dropper.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
@@ -1637,9 +1627,9 @@ class RandCoarseShuffled(RandomizableTransform, MapTransform):
         self,
         keys: KeysCollection,
         holes: int,
-        spatial_size: Union[Sequence[int], int],
-        max_holes: Optional[int] = None,
-        max_spatial_size: Optional[Union[Sequence[int], int]] = None,
+        spatial_size: Sequence[int] | int,
+        max_holes: int | None = None,
+        max_spatial_size: Sequence[int] | int | None = None,
         prob: float = 0.1,
         allow_missing_keys: bool = False,
     ):
@@ -1650,13 +1640,13 @@ class RandCoarseShuffled(RandomizableTransform, MapTransform):
         )
 
     def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandCoarseShuffled":
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandCoarseShuffled:
         super().set_random_state(seed, state)
         self.shuffle.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
@@ -1706,8 +1696,8 @@ class HistogramNormalized(MapTransform):
         num_bins: int = 256,
         min: int = 0,
         max: int = 255,
-        mask: Optional[NdarrayOrTensor] = None,
-        mask_key: Optional[str] = None,
+        mask: NdarrayOrTensor | None = None,
+        mask_key: str | None = None,
         dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -1715,7 +1705,7 @@ class HistogramNormalized(MapTransform):
         self.transform = HistogramNormalize(num_bins=num_bins, min=min, max=max, mask=mask, dtype=dtype)
         self.mask_key = mask_key if mask is None else None
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.transform(d[key], d[self.mask_key]) if self.mask_key is not None else self.transform(d[key])
@@ -1750,17 +1740,17 @@ class ForegroundMaskd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        threshold: Union[Dict, Callable, str, float] = "otsu",
-        hsv_threshold: Optional[Union[Dict, Callable, str, float, int]] = None,
+        threshold: dict | Callable | str | float = "otsu",
+        hsv_threshold: dict | Callable | str | float | int | None = None,
         invert: bool = False,
-        new_key_prefix: Optional[str] = None,
+        new_key_prefix: str | None = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.transform = ForegroundMask(threshold=threshold, hsv_threshold=hsv_threshold, invert=invert)
         self.new_key_prefix = new_key_prefix
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             new_key = key if self.new_key_prefix is None else self.new_key_prefix + key
@@ -1793,7 +1783,7 @@ class ComputeHoVerMapsd(MapTransform):
         self.transform = ComputeHoVerMaps(dtype=dtype)
         self.new_key_prefix = new_key_prefix
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             new_key = key if self.new_key_prefix is None else self.new_key_prefix + key

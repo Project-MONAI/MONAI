@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import unittest
 import warnings
@@ -56,7 +58,6 @@ class MedNISTDataset(torch.utils.data.Dataset):
 
 
 def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0", num_workers=10):
-
     monai.config.print_config()
     # define transforms for image and classification
     train_transforms = Compose(
