@@ -83,10 +83,12 @@ class TestSlidingWindowInference(unittest.TestCase):
         def compute(data):
             return data + 1
 
+        inputs.requires_grad = True
         result = sliding_window_inference(inputs, roi_shape, sw_batch_size, compute)
+        self.assertTrue(result.requires_grad)
         np.testing.assert_string_equal(inputs.device.type, result.device.type)
         expected_val = np.ones((1, 3, 16, 15, 7), dtype=np.float32) + 1
-        np.testing.assert_allclose(result.cpu().numpy(), expected_val)
+        np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val)
 
     @parameterized.expand(list(itertools.product(TEST_TORCH_AND_META_TENSORS, ("cpu", "cuda"), ("cpu", "cuda", None))))
     @skip_if_no_cuda
