@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import numbers
 from collections.abc import Hashable, Mapping
-from typing import Dict, Union
 
 import numpy as np
 
@@ -48,7 +47,7 @@ class HEDJitterd(MapTransform):
         assert isinstance(theta, numbers.Number), "theta should be a single number."
         self.hedjitter = HEDJitter(theta=theta)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.hedjitter(d[key])

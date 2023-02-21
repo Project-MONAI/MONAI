@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import numbers
-from typing import Union
 
 import numpy as np
 
@@ -77,9 +76,9 @@ class HEDJitter(Transform):
 
     def __repr__(self):
         format_string = self.__class__.__name__ + "("
-        format_string += "theta={0}".format(self.theta)
-        format_string += ",alpha={0}".format(self.alpha)
-        format_string += ",betti={0}".format(self.betti)
+        format_string += f"theta={self.theta}"
+        format_string += f",alpha={self.alpha}"
+        format_string += f",betti={self.betti}"
         return format_string
 
 
