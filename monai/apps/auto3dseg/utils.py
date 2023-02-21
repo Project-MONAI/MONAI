@@ -85,8 +85,7 @@ def submit_auto3dseg_module_to_azureml_if_needed(
         docker_base_image="mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04",
         snapshot_root_directory=os.getcwd(),
         conda_environment_file=os.path.join("environment-azureml.yml"),
-        entry_script=os.path.join(os.getcwd(), __file__),
-        # entry_script=f"python -m monai.apps.auto3dseg {module_name} {module_function}",
+        entry_script="-m monai.apps.auto3dseg",
         strictly_aml_v1=False,
     )
     print(f"Run info generated: {str(run_info)}")
