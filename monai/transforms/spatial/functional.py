@@ -44,7 +44,7 @@ cupy, _ = optional_import("cupy")
 cupy_ndi, _ = optional_import("cupyx.scipy.ndimage")
 np_ndi, _ = optional_import("scipy.ndimage")
 
-__all__ = ["spatial_resample", "orientation", "flip", "resize", "rotate", "zoom", "rotate90", "affine_func"]
+__all__ = ["spatial_resample"]
 
 
 def spatial_resample(
