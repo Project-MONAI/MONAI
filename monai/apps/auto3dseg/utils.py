@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 import os
-from typing import Optional
+from typing import Any
 
 # health_azure, has_health_azure = optional_import("health_azure")
 import health_azure
@@ -73,20 +73,39 @@ def export_bundle_algo_history(history: list[dict[str, BundleAlgo]]) -> None:
             algo_to_pickle(algo, template_path=algo.template_path)
 
 
-def submit_auto3dseg_module_to_azureml_if_needed(
-    module_name: str, module_function: str, args: Optional[dict] = None
-) -> health_azure.AzureRunInfo:
+def is_running_in_azureml() -> bool:
+    return health_azure.utils.is_running_in_azure_ml()
 
-    run_info = health_azure.submit_to_azure_if_needed(
-        compute_cluster_name="lite-testing-ds2",
-        workspace_config_file="azureml_config.json",
-        input_datasets=["hello_world"],
-        default_datastore="himldatasets",
-        docker_base_image="mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04",
-        snapshot_root_directory=os.getcwd(),
-        conda_environment_file=os.path.join("environment-azureml.yml"),
-        entry_script="-m monai.apps.auto3dseg",
-        strictly_aml_v1=False,
-    )
-    print(f"Run info generated: {str(run_info)}")
+
+def extract_azureml_args_from_cfg(cfg: dict[str, Any]) -> dict[str, Any]:
+    azureml_key_prefix = "azureml_"
+
+    azureml_args = {}
+
+    for key, value in cfg.items():
+        if key.startswith(azureml_key_prefix):
+            azureml_args[key.removeprefix(azureml_key_prefix)] = value
+
+    return azureml_args
+
+
+def submit_auto3dseg_module_to_azureml_if_needed(cfg: dict[str, Any]) -> health_azure.AzureRunInfo:
+    user_defined_azureml_args = extract_azureml_args_from_cfg(cfg)
+    azureml_args = {
+        "workspace_config_file": "azureml_configs/azureml_config.json",
+        "docker_base_image": "mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04",
+        "snapshot_root_directory": os.getcwd(),
+        "conda_environment_file": "environment-azureml.yml",
+        "entry_script": "-m monai.apps.auto3dseg",
+        "strictly_aml_v1": False,
+    }
+    azureml_args.update(user_defined_azureml_args)
+
+    needed_keys = {"compute_cluster_name", "default_datastore"}
+    missing_keys = needed_keys.difference(azureml_args.keys())
+    if len(missing_keys) > 0:
+        raise ValueError(f"Missing keys in azureml_args: {missing_keys}")
+
+    run_info = health_azure.submit_to_azure_if_needed(**azureml_args)
+
     return run_info

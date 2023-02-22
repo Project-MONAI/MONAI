@@ -20,14 +20,12 @@ from typing import Any, cast
 
 import numpy as np
 import torch
+from health_azure.utils import is_running_in_azure_ml
 
 from monai.apps.auto3dseg.bundle_gen import BundleGen
 from monai.apps.auto3dseg.data_analyzer import DataAnalyzer
 from monai.apps.auto3dseg.ensemble_builder import (
-    AlgoEnsemble,
-    AlgoEnsembleBestByFold,
-    AlgoEnsembleBestN,
-    AlgoEnsembleBuilder,
+    AlgoEnsemble, AlgoEnsembleBestByFold, AlgoEnsembleBestN, AlgoEnsembleBuilder,
 )
 from monai.apps.auto3dseg.hpo_gen import NNIGen
 from monai.apps.auto3dseg.utils import (
@@ -225,7 +223,9 @@ class AutoRunner:
         templates_path_or_url: str | None = None,
         **kwargs: Any,
     ):
-        run_info = submit_auto3dseg_module_to_azureml_if_needed(module_name="AutoRunner", module_function="run")
+
+        if is_running_in_azure_ml():
+            work_dir = os.path.join("outputs", work_dir)
 
         logger.info(f"AutoRunner using work directory {work_dir}")
         os.makedirs(work_dir, exist_ok=True)
@@ -252,11 +252,16 @@ class AutoRunner:
         else:
             raise ValueError(f"{input} is not a valid file or dict")
 
+        run_info = submit_auto3dseg_module_to_azureml_if_needed(cfg=self.data_src_cfg)
+
         missing_keys = {"dataroot", "datalist", "modality"}.difference(self.data_src_cfg.keys())
         if len(missing_keys) > 0:
             raise ValueError(f"Config keys are missing {missing_keys}")
 
-        self.dataroot = self.data_src_cfg["dataroot"]
+        if run_info.input_datasets:
+            self.dataroot = run_info.input_datasets[0]
+        else:
+            self.dataroot = self.data_src_cfg["dataroot"]
         self.datalist_filename = self.data_src_cfg["datalist"]
         self.datastats_filename = os.path.join(self.work_dir, "datastats.yaml")
 

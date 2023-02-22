@@ -1,0 +1,43 @@
+{
+    "testing": [
+
+        {
+            "image": "0/ct.nii.gz",
+            "label": "0/label.nii.gz"
+        },
+        {
+            "image": "1/ct.nii.gz",
+            "label": "1/label.nii.gz"
+        },
+        {
+            "image": "2/ct.nii.gz",
+            "label": "2/label.nii.gz"
+        },
+        {
+            "image": "3/ct.nii.gz",
+            "label": "3/label.nii.gz"
+        }
+    ],
+    "training": [
+        {
+            "fold": 0,
+            "image": "10/ct.nii.gz",
+            "label": "10/label.nii.gz"
+        },
+        {
+            "fold": 0,
+            "image": "11/ct.nii.gz",
+            "label": "11/label.nii.gz"
+        },
+        {
+            "fold": 0,
+            "image": "12/ct.nii.gz",
+            "label": "12/label.nii.gz"
+        },
+        {
+            "fold": 0,
+            "image": "13/ct.nii.gz",
+            "label": "13/label.nii.gz"
+        }
+    ]
+}
