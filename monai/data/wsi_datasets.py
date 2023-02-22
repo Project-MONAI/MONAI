@@ -36,8 +36,8 @@ class PatchWSIDataset(Dataset):
 
     Args:
         data: the list of input samples including image, location, and label (see the note below for more details).
-        size: the size of patch to be extracted from the whole slide image.
-        level: the level at which the patches to be extracted (default to 0).
+        patch_size: the size of patch to be extracted from the whole slide image.
+        patch_level: the level at which the patches to be extracted (default to 0).
         transform: transforms to be executed on input data.
         include_label: whether to load and include labels in the output
         center_location: whether the input location information is the position of the center of the patch
@@ -325,8 +325,8 @@ class MaskedPatchWSIDataset(PatchWSIDataset):
 
     Args:
         data: the list of input samples including image, location, and label (see the note below for more details).
-        size: the size of patch to be extracted from the whole slide image.
-        level: the level at which the patches to be extracted (default to 0).
+        patch_size: the size of patch to be extracted from the whole slide image.
+        patch_level: the level at which the patches to be extracted (default to 0).
         mask_level: the resolution level at which the mask is created.
         transform: transforms to be executed on input data.
         include_label: whether to load and include labels in the output
