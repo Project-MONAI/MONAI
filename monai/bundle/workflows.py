@@ -678,4 +678,4 @@ class ConfigInferWorkflow(ConfigWorkflow, InferProperties):
 
     @key_metric.setter
     def key_metric(self, key_metric: Any):
-        self.set_content(self.optional_infer_ids[1], key_metric, allow_missing=True)
+        self.set_content(self.optional_infer_ids[2], key_metric, allow_missing=True)

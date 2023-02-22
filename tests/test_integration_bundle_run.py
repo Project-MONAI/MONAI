@@ -21,6 +21,7 @@ from glob import glob
 
 import nibabel as nib
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.bundle import ConfigParser
@@ -56,6 +57,7 @@ class TestBundleRun(unittest.TestCase):
             json.dump(
                 {
                     "trainer": {"_target_": "tests.test_integration_bundle_run._Runnable42", "val": 42},
+                    # keep this test case to cover the "runner_id" arg
                     "training": "$@trainer.run()",
                 },
                 f,
@@ -111,9 +113,10 @@ class TestBundleRun(unittest.TestCase):
             override = "--network $@network_def.to(@device) --dataset#_target_ Dataset"
         else:
             override = f"--network %{overridefile1}#move_net --dataset#_target_ %{overridefile2}"
+        device = "$torch.device('cuda:0')" if torch.cuda.is_available() else "$torch.device('cpu')"
         # test with `monai.bundle` as CLI entry directly
-        cmd = "-m monai.bundle run evaluating --postprocessing#transforms#2#output_postfix seg"
-        cmd += f" {override} --no_epoch False --output_dir {tempdir}"
+        cmd = "-m monai.bundle run --postprocessing#transforms#2#output_postfix seg"
+        cmd += f" {override} --no_epoch False --output_dir {tempdir} --device {device}"
         la = ["coverage", "run"] + cmd.split(" ") + ["--meta_file", meta_file] + ["--config_file", config_file]
         test_env = os.environ.copy()
         print(f"CUDA_VISIBLE_DEVICES in {__file__}", test_env.get("CUDA_VISIBLE_DEVICES"))
@@ -124,8 +127,8 @@ class TestBundleRun(unittest.TestCase):
 
         tracking_uri = path_to_uri(tempdir) + "/mlflow_override2"  # test override experiment management configs
         # here test the script with `google fire` tool as CLI
-        cmd = "-m fire monai.bundle.scripts run evaluating --tracking mlflow --evaluator#amp False"
-        cmd += f" --tracking_uri {tracking_uri} {override} --output_dir {tempdir}"
+        cmd = "-m fire monai.bundle.scripts run --tracking mlflow --evaluator#amp False"
+        cmd += f" --tracking_uri {tracking_uri} {override} --output_dir {tempdir} --device {device}"
         la = ["coverage", "run"] + cmd.split(" ") + ["--meta_file", meta_file] + ["--config_file", config_file]
         command_line_tests(la)
         self.assertTupleEqual(loader(os.path.join(tempdir, "image", "image_trans.nii.gz")).shape, expected_shape)

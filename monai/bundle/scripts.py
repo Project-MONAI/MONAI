@@ -575,6 +575,7 @@ def get_bundle_info(
 @deprecated_arg(
     name="runner_id",
     since="1.1",
+    removed="1.3",
     msg_suffix="please clearly define `initialize`, `run`, `finalize` expression sections in the bundle config.",
 )
 def run(
