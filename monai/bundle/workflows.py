@@ -39,15 +39,15 @@ class BundleWorkflow(ABC):
     """
 
     @abstractmethod
-    def initialize(self, *args: Any, **kwargs: Any) -> bool:
+    def initialize(self, *args: Any, **kwargs: Any) -> Any:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def run(self, *args: Any, **kwargs: Any) -> bool:
+    def run(self, *args: Any, **kwargs: Any) -> Any:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def finalize(self, *args: Any, **kwargs: Any) -> bool:
+    def finalize(self, *args: Any, **kwargs: Any) -> Any:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
 
@@ -247,7 +247,7 @@ class InferProperties:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
     @network_def.setter
-    def network_def(self, net: dict):
+    def network_def(self, net: torch.Module | dict):
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
     @property
@@ -319,18 +319,18 @@ class ConfigWorkflow(BundleWorkflow):
                 settings_ = ConfigParser.load_config_files(tracking)
             self.patch_bundle_tracking(parser=self.parser, settings=settings_)
 
-    def initialize(self) -> bool:
+    def initialize(self) -> Any:
         # reset the "reference_resolver" buffer at initialization stage
         self.parser.parse(reset=True)
         return self._run_expr(id=self.init_id)
 
-    def run(self) -> bool:
+    def run(self) -> Any:
         return self._run_expr(id=self.run_id)
 
-    def finalize(self) -> bool:
+    def finalize(self) -> Any:
         return self._run_expr(id=self.final_id)
 
-    def _run_expr(self, id: str, **kwargs) -> bool:
+    def _run_expr(self, id: str, **kwargs) -> Any:
         return self.parser.get_parsed_content(id, **kwargs) if id in self.parser else None
 
     def get_content(self, id: str, allow_missing: bool = False):
@@ -645,7 +645,7 @@ class ConfigInferWorkflow(ConfigWorkflow, InferProperties):
         return self.get_content(self.required_infer_ids[2])
 
     @network_def.setter
-    def network_def(self, net: dict):
+    def network_def(self, net: torch.Module | dict):
         self.set_content(self.required_infer_ids[2], net)
 
     @property

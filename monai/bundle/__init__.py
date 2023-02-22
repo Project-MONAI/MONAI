@@ -36,4 +36,11 @@ from .utils import (
     MACRO_KEY,
     load_bundle_config,
 )
-from .workflows import BundleWorkflow, ConfigInferWorkflow, ConfigTrainWorkflow, ConfigWorkflow
+from .workflows import (
+    BundleWorkflow,
+    ConfigInferWorkflow,
+    ConfigTrainWorkflow,
+    ConfigWorkflow,
+    InferProperties,
+    TrainProperties,
+)
