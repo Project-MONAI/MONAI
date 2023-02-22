@@ -39,9 +39,9 @@ from monai.transforms import (
 )
 from monai.utils import set_determinism
 
-TEST_CASE_1 = [os.path.join(os.path.dirname(__file__), "testing_data", "inference.json"), (128, 128, 128)]
+TEST_CASE_1 = [os.path.join(os.path.dirname(__file__), "testing_data", "inference.json")]
 
-TEST_CASE_2 = [os.path.join(os.path.dirname(__file__), "testing_data", "inference.yaml"), (128, 128, 128)]
+TEST_CASE_2 = [os.path.join(os.path.dirname(__file__), "testing_data", "inference.yaml")]
 
 
 class NonConfigWorkflow(BundleWorkflow, InferProperties):
@@ -50,7 +50,8 @@ class NonConfigWorkflow(BundleWorkflow, InferProperties):
 
     """
 
-    def __init__(self, output_dir):
+    def __init__(self, filename, output_dir):
+        self.filename = filename
         self.output_dir = output_dir
         self._bundle_root = "will override"
         self._device = torch.device("cpu")
@@ -66,8 +67,7 @@ class NonConfigWorkflow(BundleWorkflow, InferProperties):
             self._preprocessing = Compose(
                 [LoadImaged(keys="image"), EnsureChannelFirstd(keys="image"), ScaleIntensityd(keys="image")]
             )
-        filename = os.path.join(self.output_dir, "image.nii")
-        dataset = Dataset(data=[{"image": filename}], transform=self._preprocessing)
+        dataset = Dataset(data=[{"image": self.filename}], transform=self._preprocessing)
         dataloader = DataLoader(dataset, batch_size=1, num_workers=4)
 
         if self._network_def is None:
@@ -169,11 +169,15 @@ class NonConfigWorkflow(BundleWorkflow, InferProperties):
 class TestBundleInferWorkflow(unittest.TestCase):
     def setUp(self):
         self.data_dir = tempfile.mkdtemp()
+        self.expected_shape = (128, 128, 128)
+        test_image = np.random.rand(*self.expected_shape)
+        self.filename = os.path.join(self.data_dir, "image.nii")
+        nib.save(nib.Nifti1Image(test_image, np.eye(4)), self.filename)
 
     def tearDown(self):
         shutil.rmtree(self.data_dir)
 
-    def _test_inferer(self, inferer, expected_shape):
+    def _test_inferer(self, inferer):
         # should initialize before parsing any bundle content
         inferer.initialize()
         # test read / write the properties, note that we don't assume it as JSON or YAML config here
@@ -205,32 +209,30 @@ class TestBundleInferWorkflow(unittest.TestCase):
         # verify inference output
         loader = LoadImage(image_only=True)
         pred_file = os.path.join(self.data_dir, "image", "image_seg.nii.gz")
-        self.assertTupleEqual(loader(pred_file).shape, expected_shape)
+        self.assertTupleEqual(loader(pred_file).shape, self.expected_shape)
         os.remove(pred_file)
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
-    def test_shape(self, config_file, expected_shape):
-        test_image = np.random.rand(*expected_shape)
-        filename = os.path.join(self.data_dir, "image.nii")
-        nib.save(nib.Nifti1Image(test_image, np.eye(4)), filename)
-
+    def test_config(self, config_file):
         override = {
             "network": "$@network_def.to(@device)",
             "dataset#_target_": "Dataset",
-            "dataset#data": [{"image": filename}],
+            "dataset#data": [{"image": self.filename}],
             "postprocessing#transforms#2#output_postfix": "seg",
             "output_dir": self.data_dir,
         }
         # test standard MONAI model-zoo config workflow
-        inferer1 = ConfigInferWorkflow(
+        inferer = ConfigInferWorkflow(
             config_file=config_file,
             logging_file=os.path.join(os.path.dirname(__file__), "testing_data", "logging.conf"),
             **override,
         )
-        self._test_inferer(inferer1, expected_shape)
+        self._test_inferer(inferer)
+
+    def test_non_config(self):
         # test user defined python style workflow
-        inferer2 = NonConfigWorkflow(output_dir=self.data_dir)
-        self._test_inferer(inferer2, expected_shape)
+        inferer = NonConfigWorkflow(self.filename, self.data_dir)
+        self._test_inferer(inferer)
 
 
 if __name__ == "__main__":
