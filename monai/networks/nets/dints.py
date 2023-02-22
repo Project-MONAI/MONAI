@@ -18,6 +18,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 from monai.networks.blocks.dints_block import (
     ActiConvNormBlock,
     FactorizedIncreaseBlock,
@@ -39,7 +40,7 @@ __all__ = ["DiNTS", "TopologyConstruction", "TopologyInstance", "TopologySearch"
 class CellInterface(torch.nn.Module):
     """interface for torchscriptable Cell"""
 
-    def forward(self, x: torch.Tensor, weight: torch.Tensor | None) -> torch.Tensor:  # type: ignore
+    def forward(self, x: torch.Tensor, weight) -> torch.Tensor:  # type: ignore
         pass
 
 
@@ -675,9 +676,7 @@ class TopologyInstance(TopologyConstruction):
             for res_idx, activation in enumerate(self.arch_code_a[blk_idx].data):
                 if activation:
                     mod: CellInterface = self.cell_tree[str((blk_idx, res_idx))]
-                    _out = mod.forward(
-                        x=inputs[self.arch_code2in[res_idx]], weight=None
-                    )
+                    _out = mod.forward(x=inputs[self.arch_code2in[res_idx]], weight=None)
                     outputs[self.arch_code2out[res_idx]] = outputs[self.arch_code2out[res_idx]] + _out
             inputs = outputs
 
