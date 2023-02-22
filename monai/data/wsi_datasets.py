@@ -207,7 +207,7 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
                 {"image": "path/to/image2.tiff", "patch_size": [20, 20], "patch_level": 2}
             ]
 
-        Unlike `MaskedPatchWSIDataset`, this dataset does not filter any patch.
+        Unlike `MaskedPatchWSIDataset`, this dataset does not filter any patches.
     """
 
     def __init__(
