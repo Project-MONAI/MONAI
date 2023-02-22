@@ -41,9 +41,8 @@ class StatsHandler:
 
     Note that if `name` arg is None, will leverage `engine.logger` as default logger directly, otherwise,
     get logger from `logging.getLogger(name)`, we can setup a logger outside first with the same `name`.
-    As the default log level of `RootLogger` is `WARNING`, may need to call
-    `logging.basicConfig(stream=sys.stdout, level=logging.INFO)` before running this handler to enable
-    the stats logging.
+    As the default log level is `WARNING`, it's recommended to call
+    `logging.getLogger(name).setLevel(logging.INFO)` before running this handler to enable the stats logging.
 
     Default behaviors:
         - When EPOCH_COMPLETED, logs ``engine.state.metrics`` using ``self.logger``.
@@ -52,7 +51,7 @@ class StatsHandler:
 
     Usage example::
 
-        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+        logging.getLogger("train_stats").setLevel(logging.INFO)
 
         trainer = SupervisedTrainer(...)
         StatsHandler(name="train_stats").attach(trainer)
@@ -142,7 +141,7 @@ class StatsHandler:
             suggested += "\n\n"
             warnings.warn(
                 f"the effective log level of {self.logger.name} higher than INFO, StatsHandler may not generate logs,"
-                f" please use the following code before running the engine to enable it: {suggested}"
+                f"\nplease use the following code before running the engine to enable it: {suggested}"
             )
         if self.iteration_log and not engine.has_event_handler(self.iteration_completed, Events.ITERATION_COMPLETED):
             event = Events.ITERATION_COMPLETED
