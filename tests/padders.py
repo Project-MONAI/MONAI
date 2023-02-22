@@ -17,8 +17,8 @@ import numpy as np
 import torch
 
 from monai.data.meta_tensor import MetaTensor
-from monai.transforms.transform import MapTransform
 from monai.transforms.lazy.functional import apply_transforms
+from monai.transforms.transform import MapTransform
 from monai.utils.enums import NumpyPadMode, PytorchPadMode
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 

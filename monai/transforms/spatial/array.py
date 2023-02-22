@@ -477,7 +477,8 @@ class Spacing(InvertibleTransform):
             dtype=dtype,
         )
         if self.recompute_affine and isinstance(data_array, MetaTensor):
-            data_array.affine = scale_affine(affine_, original_spatial_shape, actual_shape)
+            a = scale_affine(original_spatial_shape, actual_shape)
+            data_array.affine = convert_to_dst_type(a, affine_)[0]  # type: ignore
         return data_array
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
