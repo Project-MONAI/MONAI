@@ -171,7 +171,7 @@ class PatchWSIDataset(Dataset):
 
 class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
     """
-    This dataset extracts patches (sliding window) from whole slide images (without loading the whole image)
+    This dataset extracts patches in sliding-window manner from whole slide images (without loading the whole image).
     It also reads labels for each patch and provides each patch with its associated class labels.
 
     Args:
@@ -207,6 +207,7 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
                 {"image": "path/to/image2.tiff", "patch_size": [20, 20], "patch_level": 2}
             ]
 
+        Unlike `MaskedPatchWSIDataset`, this dataset does not filter any patch.
     """
 
     def __init__(
