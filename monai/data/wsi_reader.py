@@ -17,11 +17,12 @@ from os.path import abspath
 from typing import Any
 
 import numpy as np
+import torch
 
 from monai.config import DtypeLike, PathLike
 from monai.data.image_reader import ImageReader, _stack_images
 from monai.data.utils import is_supported_format
-from monai.utils import WSIPatchKeys, ensure_tuple, optional_import, require_pkg
+from monai.utils import WSIPatchKeys, ensure_tuple, optional_import, require_pkg, dtype_torch_to_numpy
 
 CuImage, _ = optional_import("cucim", name="CuImage")
 OpenSlide, _ = optional_import("openslide", name="OpenSlide")
@@ -34,12 +35,19 @@ class BaseWSIReader(ImageReader):
     """
     An abstract class that defines APIs to load patches from whole slide image files.
 
+    Args:
+        level: the whole slide image level at which the image is extracted.
+        channel_dim: the desired dimension for color channel.
+        dtype: the data type of output image.
+        mode: the output image color mode, e.g., "RGB" or "RGBA".
+        kwargs: additional args for the reader
+
     Typical usage of a concrete implementation of this class is:
 
     .. code-block:: python
 
         image_reader = MyWSIReader()
-        wsi = image_reader.read(, **kwargs)
+        wsi = image_reader.read(filepath, **kwargs)
         img_data, meta_data = image_reader.get_data(wsi)
 
     - The `read` call converts an image filename into whole slide image object,
@@ -59,10 +67,19 @@ class BaseWSIReader(ImageReader):
     supported_suffixes: list[str] = []
     backend = ""
 
-    def __init__(self, level: int = 0, channel_dim: int = 0, **kwargs):
+    def __init__(
+        self,
+        level: int,
+        channel_dim: int,
+        dtype: DtypeLike | torch.dtype,
+        mode: str,
+        **kwargs,
+    ):
         super().__init__()
         self.level = level
         self.channel_dim = channel_dim
+        self.dtype = dtype
+        self.mode = mode
         self.kwargs = kwargs
         self.metadata: dict[Any, Any] = {}
 
@@ -176,8 +193,8 @@ class BaseWSIReader(ImageReader):
         location: tuple[int, int] = (0, 0),
         size: tuple[int, int] | None = None,
         level: int | None = None,
-        dtype: DtypeLike = np.uint8,
-        mode: str = "RGB",
+        dtype: DtypeLike | torch.dtype = None,
+        mode: str | None = None,
     ) -> tuple[np.ndarray, dict]:
         """
         Verifies inputs, extracts patches from WSI image and generates metadata, and return them.
@@ -186,15 +203,19 @@ class BaseWSIReader(ImageReader):
             wsi: a whole slide image object loaded from a file or a list of such objects
             location: (top, left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
             size: (height, width) tuple giving the patch size at the given level (`level`).
-                If None, it is set to the full image size at the given level.
+                If not provided or None, it is set to the full image size at the given level.
             level: the level number. Defaults to 0
-            dtype: the data type of output image
-            mode: the output image mode, 'RGB' or 'RGBA'
+            dtype: the data type of output image. If not provided the default of `np.uint8` is used.
+            mode: the output image color mode, "RGB" or "RGBA". If not provided the default of "RGB" is used.
 
         Returns:
             a tuples, where the first element is an image patch [CxHxW] or stack of patches,
                 and second element is a dictionary of metadata
         """
+        if dtype is None:
+            dtype = self.dtype
+        if mode is None:
+            mode = self.mode
         patch_list: list = []
         metadata_list: list = []
         # CuImage object is iterable, so ensure_tuple won't work on single object
@@ -225,7 +246,11 @@ class BaseWSIReader(ImageReader):
                     raise ValueError(f"Patch size should be greater than zero, provided: patch size = {size}")
 
             # Extract a patch or the entire image
-            patch = self._get_patch(each_wsi, location=location, size=size, level=level, dtype=dtype, mode=mode)
+            # If dtype is torch convert the patch to torch.Tensor
+            np_dtype = dtype_torch_to_numpy(dtype) if isinstance(dtype, torch.dtype) else dtype
+            patch = self._get_patch(each_wsi, location=location, size=size, level=level, dtype=np_dtype, mode=mode)
+            if isinstance(dtype, torch.dtype):
+                patch = torch.as_tensor(patch, dtype=dtype)
 
             # check if the image has three dimensions (2D + color)
             if patch.ndim != 3:
@@ -281,13 +306,23 @@ class WSIReader(BaseWSIReader):
         backend: the name of backend whole slide image reader library, the default is cuCIM.
         level: the level at which patches are extracted.
         channel_dim: the desired dimension for color channel. Default to 0 (channel first).
+        dtype: the data type of output image. Defaults to `np.uint8`.
+        mode: the output image color mode, "RGB" or "RGBA". Defaults to "RGB".
         num_workers: number of workers for multi-thread image loading (cucim backend only).
         kwargs: additional arguments to be passed to the backend library
 
     """
 
-    def __init__(self, backend="cucim", level: int = 0, channel_dim: int = 0, **kwargs):
-        super().__init__(level, channel_dim, **kwargs)
+    def __init__(
+        self,
+        backend="cucim",
+        level: int = 0,
+        channel_dim: int = 0,
+        dtype: DtypeLike | torch.dtype = np.uint8,
+        mode: str = "RGB",
+        **kwargs,
+    ):
+        super().__init__(level=level, channel_dim=channel_dim, dtype=dtype, mode=mode, **kwargs)
         self.backend = backend.lower()
         self.reader: CuCIMWSIReader | OpenSlideWSIReader | TiffFileWSIReader
         if self.backend == "cucim":
@@ -403,6 +438,8 @@ class CuCIMWSIReader(BaseWSIReader):
         level: the whole slide image level at which the image is extracted. (default=0)
             This is overridden if the level argument is provided in `get_data`.
         channel_dim: the desired dimension for color channel. Default to 0 (channel first).
+        dtype: the data type of output image. Defaults to `np.uint8`.
+        mode: the output image color mode, "RGB" or "RGBA". Defaults to "RGB".
         num_workers: number of workers for multi-thread image loading
         kwargs: additional args for `cucim.CuImage` module:
             https://github.com/rapidsai/cucim/blob/main/cpp/include/cucim/cuimage.h
@@ -412,8 +449,16 @@ class CuCIMWSIReader(BaseWSIReader):
     supported_suffixes = ["tif", "tiff", "svs"]
     backend = "cucim"
 
-    def __init__(self, level: int = 0, channel_dim: int = 0, num_workers: int = 0, **kwargs):
-        super().__init__(level, channel_dim, **kwargs)
+    def __init__(
+        self,
+        level: int = 0,
+        channel_dim: int = 0,
+        dtype: DtypeLike | torch.dtype = np.uint8,
+        mode: str = "RGB",
+        num_workers: int = 0,
+        **kwargs,
+    ):
+        super().__init__(level=level, channel_dim=channel_dim, dtype=dtype, mode=mode, **kwargs)
         self.num_workers = num_workers
 
     @staticmethod
@@ -551,12 +596,24 @@ class OpenSlideWSIReader(BaseWSIReader):
         level: the whole slide image level at which the image is extracted. (default=0)
             This is overridden if the level argument is provided in `get_data`.
         channel_dim: the desired dimension for color channel. Default to 0 (channel first).
+        dtype: the data type of output image. Defaults to `np.uint8`.
+        mode: the output image color mode, "RGB" or "RGBA". Defaults to "RGB".
         kwargs: additional args for `openslide.OpenSlide` module.
 
     """
 
     supported_suffixes = ["tif", "tiff", "svs"]
     backend = "openslide"
+
+    def __init__(
+        self,
+        level: int = 0,
+        channel_dim: int = 0,
+        dtype: DtypeLike | torch.dtype = np.uint8,
+        mode: str = "RGB",
+        **kwargs,
+    ):
+        super().__init__(level=level, channel_dim=channel_dim, dtype=dtype, mode=mode, **kwargs)
 
     @staticmethod
     def get_level_count(wsi) -> int:
@@ -695,12 +752,24 @@ class TiffFileWSIReader(BaseWSIReader):
         level: the whole slide image level at which the image is extracted. (default=0)
             This is overridden if the level argument is provided in `get_data`.
         channel_dim: the desired dimension for color channel. Default to 0 (channel first).
+        dtype: the data type of output image. Defaults to `np.uint8`.
+        mode: the output image color mode, "RGB" or "RGBA". Defaults to "RGB".
         kwargs: additional args for `tifffile.TiffFile` module.
 
     """
 
     supported_suffixes = ["tif", "tiff", "svs"]
     backend = "tifffile"
+
+    def __init__(
+        self,
+        level: int = 0,
+        channel_dim: int = 0,
+        dtype: DtypeLike | torch.dtype = np.uint8,
+        mode: str = "RGB",
+        **kwargs,
+    ):
+        super().__init__(level=level, channel_dim=channel_dim, dtype=dtype, mode=mode, **kwargs)
 
     @staticmethod
     def get_level_count(wsi) -> int:
