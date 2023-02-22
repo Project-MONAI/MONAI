@@ -43,6 +43,7 @@ from .enums import (
     MetricReduction,
     NdimageMode,
     NumpyPadMode,
+    PatchKeys,
     PostFix,
     ProbMapKeys,
     PytorchPadMode,
