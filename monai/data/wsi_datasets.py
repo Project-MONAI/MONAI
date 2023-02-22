@@ -171,26 +171,29 @@ class PatchWSIDataset(Dataset):
 
 class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
     """
-    This dataset extracts patches from whole slide images (without loading the whole image)
+    This dataset extracts patches (sliding window) from whole slide images (without loading the whole image)
     It also reads labels for each patch and provides each patch with its associated class labels.
 
     Args:
         data: the list of input samples including image, location, and label (see the note below for more details).
-        size: the size of patch to be extracted from the whole slide image.
-        level: the level at which the patches to be extracted (default to 0).
+        patch_size: the size of patch to be extracted from the whole slide image.
+        patch_level: the level at which the patches to be extracted (default to 0).
+        mask_level: the resolution level at which the mask/map is created (for `ProbMapProducer` for instance).
+        overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
+            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
         offset: the offset of image to extract patches (the starting position of the upper left patch).
         offset_limits: if offset is set to "random", a tuple of integers defining the lower and upper limit of the
             random offset for all dimensions, or a tuple of tuples that defines the limits for each dimension.
-        overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
-            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
         transform: transforms to be executed on input data.
+        include_label: whether to load and include labels in the output
+        center_location: whether the input location information is the position of the center of the patch
+        additional_meta_keys: the list of keys for items to be copied to the output metadata from the input data
         reader: the module to be used for loading whole slide imaging. Defaults to cuCIM. If `reader` is
 
             - a string, it defines the backend of `monai.data.WSIReader`.
             - a class (inherited from `BaseWSIReader`), it is initialized and set as wsi_reader,
             - an instance of a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
 
-        map_level: the resolution level at which the output map is created.
         seed: random seed to randomly generate offsets. Defaults to 0.
         kwargs: additional arguments to pass to `WSIReader` or provided whole slide reader class
 
@@ -220,7 +223,6 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
         center_location: bool = False,
         additional_meta_keys: Sequence[str] = (ProbMapKeys.LOCATION, ProbMapKeys.SIZE, ProbMapKeys.COUNT),
         reader="cuCIM",
-        map_level: int = 0,
         seed: int = 0,
         **kwargs,
     ):
