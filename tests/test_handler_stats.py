@@ -254,7 +254,8 @@ class TestHandlerStats(unittest.TestCase):
 
         # set up testing handler
         stats_handler = StatsHandler(name=None, tag_name=key_to_print)
-        stats_handler.attach(engine)
+        with self.assertWarns(Warning):  # engine logging level warn
+            stats_handler.attach(engine)
         # leverage `engine.logger` to print info
         engine.logger.setLevel(logging.INFO)
         level = logging.root.getEffectiveLevel()

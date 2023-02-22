@@ -135,10 +135,14 @@ class StatsHandler:
         """
         if self.name is None:
             self.logger = engine.logger
-        if self.logger.getEffectiveLevel() > logging.INFO or logging.root.getEffectiveLevel() > logging.INFO:
+        if self.logger.getEffectiveLevel() > logging.INFO:
+            suggested = f"\n\nimport logging\nlogging.getLogger('{self.logger.name}').setLevel(logging.INFO)"
+            if self.logger.name != engine.logger.name:
+                suggested += f"\nlogging.getLogger('{engine.logger.name}').setLevel(logging.INFO)"
+            suggested += "\n\n"
             warnings.warn(
-                "the effective log level of engine logger or RootLogger is higher than INFO, may not record log,"
-                " please call `logging.basicConfig(stream=sys.stdout, level=logging.INFO)` to enable it."
+                f"the effective log level of {self.logger.name} higher than INFO, StatsHandler may not generate logs,"
+                f" please use the following code before running the engine to enable it: {suggested}"
             )
         if self.iteration_log and not engine.has_event_handler(self.iteration_completed, Events.ITERATION_COMPLETED):
             event = Events.ITERATION_COMPLETED
