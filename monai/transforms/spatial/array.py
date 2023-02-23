@@ -68,7 +68,7 @@ from monai.utils import (
     optional_import,
 )
 from monai.utils.deprecate_utils import deprecated_arg
-from monai.utils.enums import GridPatchSort, PytorchPadMode, TraceKeys, TransformBackends, WSIPatchKeys
+from monai.utils.enums import GridPatchSort, PatchKeys, PytorchPadMode, TraceKeys, TransformBackends
 from monai.utils.misc import ImageMetaKey as Key
 from monai.utils.module import look_up_option
 from monai.utils.type_conversion import convert_data_type, get_equivalent_dtype, get_torch_dtype_from_string
@@ -3185,23 +3185,26 @@ class GridPatch(Transform, MultiSampleTrait):
 
     def filter_threshold(self, image_np: np.ndarray, locations: np.ndarray):
         """
-        Filter the patches and their locations according to a threshold
+        Filter the patches and their locations according to a threshold.
+
         Args:
-            image_np: a numpy.ndarray representing a stack of patches
-            locations: a numpy.ndarray representing the stack of location of each patch
+            image_np: a numpy.ndarray representing a stack of patches.
+            locations: a numpy.ndarray representing the stack of location of each patch.
+
+        Returns:
+            tuple[numpy.ndarray, numpy.ndarray]:  tuple of filtered patches and locations.
         """
         n_dims = len(image_np.shape)
         idx = np.argwhere(image_np.sum(axis=tuple(range(1, n_dims))) < self.threshold).reshape(-1)
-        image_np = image_np[idx]
-        locations = locations[idx]
-        return image_np, locations
+        return image_np[idx], locations[idx]
 
     def filter_count(self, image_np: np.ndarray, locations: np.ndarray):
         """
         Sort the patches based on the sum of their intensity, and just keep `self.num_patches` of them.
+
         Args:
-            image_np: a numpy.ndarray representing a stack of patches
-            locations: a numpy.ndarray representing the stack of location of each patch
+            image_np: a numpy.ndarray representing a stack of patches.
+            locations: a numpy.ndarray representing the stack of location of each patch.
         """
         if self.sort_fn is None:
             image_np = image_np[: self.num_patches]
@@ -3219,7 +3222,17 @@ class GridPatch(Transform, MultiSampleTrait):
             locations = locations[idx]
         return image_np, locations
 
-    def __call__(self, array: NdarrayOrTensor):
+    def __call__(self, array: NdarrayOrTensor) -> MetaTensor:
+        """
+        Extract the patches (sweeping the entire image in a row-major sliding-window manner with possible overlaps).
+
+        Args:
+            array: a input image as `numpy.ndarray` or `torch.Tensor`
+
+        Return:
+            MetaTensor: the extracted patches as a single tensor (with patch dimension as the first dimension),
+                with defined `PatchKeys.LOCATION` and `PatchKeys.COUNT` metadata.
+        """
         # create the patch iterator which sweeps the image row-by-row
         array_np, *_ = convert_data_type(array, np.ndarray)
         patch_iterator = iter_patch(
@@ -3233,7 +3246,9 @@ class GridPatch(Transform, MultiSampleTrait):
         )
         patches = list(zip(*patch_iterator))
         patched_image = np.array(patches[0])
-        locations = np.array(patches[1])[:, 1:, 0]  # only keep the starting location
+        del patches[0]
+        locations = np.array(patches[0])[:, 1:, 0]  # only keep the starting location
+        del patches[0]
 
         # Apply threshold filter before filtering by count (if threshold_first is set)
         if self.threshold_first and self.threshold is not None:
@@ -3259,8 +3274,8 @@ class GridPatch(Transform, MultiSampleTrait):
 
         # Convert to MetaTensor
         metadata = array.meta if isinstance(array, MetaTensor) else MetaTensor.get_default_meta()
-        metadata[WSIPatchKeys.LOCATION] = locations.T
-        metadata[WSIPatchKeys.COUNT] = len(locations)
+        metadata[PatchKeys.LOCATION] = locations.T
+        metadata[PatchKeys.COUNT] = len(locations)
         metadata["spatial_shape"] = np.tile(np.array(self.patch_size), (len(locations), 1)).T
         output = MetaTensor(x=patched_image, meta=metadata)
         output.is_batch = True
