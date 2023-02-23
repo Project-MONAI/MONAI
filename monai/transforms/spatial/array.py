@@ -3139,8 +3139,10 @@ class GridPatch(Transform, MultiSampleTrait):
     Args:
         patch_size: size of patches to generate slices for, 0 or None selects whole dimension
         offset: offset of starting position in the array, default is 0 for each dimension.
-        num_patches: number of patches to return. Defaults to None, which returns all the available patches.
-            If the required patches are more than the available patches, padding will be applied.
+        num_patches: number of patches (or maximum number of patches) to return.
+            If the requested number of patches is greater than the number of available patches,
+            padding will be applied to provide exactly `num_patches` patches unless `threshold` is set.
+            Defaults to None, which returns all the available patches.
         overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
             If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
         sort_fn: when `num_patches` is provided, it determines if keep patches with highest values (`"max"`),
@@ -3230,22 +3232,22 @@ class GridPatch(Transform, MultiSampleTrait):
         patched_image = np.array(patches[0])
         locations = np.array(patches[1])[:, 1:, 0]  # only keep the starting location
 
-        # Filter patches
-        if self.num_patches:
-            patched_image, locations = self.filter_count(patched_image, locations)
-        elif self.threshold:
+        if self.threshold:
             patched_image, locations = self.filter_threshold(patched_image, locations)
 
-        # Pad the patch list to have the requested number of patches
         if self.num_patches:
-            padding = self.num_patches - len(patched_image)
-            if padding > 0:
-                patched_image = np.pad(
-                    patched_image,
-                    [[0, padding], [0, 0]] + [[0, 0]] * len(self.patch_size),
-                    constant_values=self.pad_kwargs.get("constant_values", 0),
-                )
-                locations = np.pad(locations, [[0, padding], [0, 0]], constant_values=0)
+            # Limit number of patches
+            patched_image, locations = self.filter_count(patched_image, locations)
+            # Pad the patch list to have the requested number of patches
+            if not self.threshold:
+                padding = self.num_patches - len(patched_image)
+                if padding > 0:
+                    patched_image = np.pad(
+                        patched_image,
+                        [[0, padding], [0, 0]] + [[0, 0]] * len(self.patch_size),
+                        constant_values=self.pad_kwargs.get("constant_values", 0),
+                    )
+                    locations = np.pad(locations, [[0, padding], [0, 0]], constant_values=0)
 
         # Convert to MetaTensor
         metadata = array.meta if isinstance(array, MetaTensor) else MetaTensor.get_default_meta()
