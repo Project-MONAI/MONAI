@@ -35,6 +35,7 @@ from monai.networks.utils import meshgrid_ij, normalize_transform
 from monai.transforms.croppad.array import CenterSpatialCrop, ResizeWithPadOrCrop
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import InvertibleTransform
+from monai.transforms.traits import MultiSampleTrait
 from monai.transforms.transform import Randomizable, RandomizableTransform, Transform
 from monai.transforms.utils import (
     convert_pad_mode,
@@ -65,7 +66,6 @@ from monai.utils import (
     fall_back_tuple,
     issequenceiterable,
     optional_import,
-    pytorch_after,
 )
 from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import GridPatchSort, PytorchPadMode, TraceKeys, TransformBackends, WSIPatchKeys
@@ -272,14 +272,12 @@ class SpatialResample(InvertibleTransform):
             )
 
         try:
-            _s = convert_to_tensor(src_affine_, track_meta=False, device=torch.device("cpu"))
-            _d = convert_to_tensor(dst_affine, track_meta=False, device=torch.device("cpu"))
-            xform = (
-                torch.linalg.solve(_s, _d) if pytorch_after(1, 8, 0) else torch.solve(_d, _s).solution  # type: ignore
-            )
+            _s = convert_to_numpy(src_affine_)
+            _d = convert_to_numpy(dst_affine)
+            xform = np.linalg.solve(_s, _d)  # monai#5983
         except (np.linalg.LinAlgError, RuntimeError) as e:
-            raise ValueError("src affine is not invertible.") from e
-        xform = to_affine_nd(spatial_rank, xform).to(device=img.device, dtype=_dtype)
+            raise ValueError(f"src affine is not invertible {_s}, {_d}.") from e
+        xform = convert_to_tensor(to_affine_nd(spatial_rank, xform)).to(device=img.device, dtype=_dtype)
         # no resampling if it's identity transform
         if allclose(xform, torch.eye(len(xform)), atol=AFFINE_TOL) and allclose(spatial_size, in_spatial_size):
             return self._post_process(
@@ -293,12 +291,12 @@ class SpatialResample(InvertibleTransform):
             xform_shape = [-1] + in_spatial_size
             img = img.reshape(xform_shape)  # type: ignore
         if isinstance(mode, int):
-            dst_xform_1 = normalize_transform(spatial_size, xform.device, xform.dtype, True, True)[0]  # to (-1, 1)
+            dst_xform_1 = normalize_transform(spatial_size, "cpu", xform.dtype, True, True)[0].numpy()  # to (-1, 1)
             if not align_corners:
-                norm = create_scale(spatial_rank, [(max(d, 2) - 1) / d for d in spatial_size], xform.device, "torch")
-                dst_xform_1 = norm.to(xform.dtype) @ dst_xform_1  # type: ignore  # scaling (num_step - 1) / num_step
-            dst_xform_d = normalize_transform(spatial_size, xform.device, xform.dtype, align_corners, False)[0]
-            xform = xform @ torch.inverse(dst_xform_d) @ dst_xform_1
+                norm = create_scale(spatial_rank, [(max(d, 2) - 1) / d for d in spatial_size])
+                dst_xform_1 = norm.astype(float) @ dst_xform_1  # type: ignore  # scaling (num_step - 1) / num_step
+            dst_xform_d = normalize_transform(spatial_size, "cpu", xform.dtype, align_corners, False)[0].numpy()
+            xform @= convert_to_dst_type(np.linalg.solve(dst_xform_d, dst_xform_1), xform)[0]
             affine_xform = Affine(
                 affine=xform, spatial_size=spatial_size, normalized=True, image_only=True, dtype=_dtype  # type: ignore
             )
@@ -1084,7 +1082,7 @@ class Rotate(InvertibleTransform):
         padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
         align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
         dtype = transform[TraceKeys.EXTRA_INFO]["dtype"]
-        inv_rot_mat = linalg_inv(fwd_rot_mat)
+        inv_rot_mat = linalg_inv(convert_to_numpy(fwd_rot_mat))
 
         xform = AffineTransform(
             normalized=False,
@@ -2281,7 +2279,7 @@ class Affine(InvertibleTransform):
         fwd_affine = transform[TraceKeys.EXTRA_INFO]["affine"]
         mode = transform[TraceKeys.EXTRA_INFO]["mode"]
         padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
-        inv_affine = linalg_inv(fwd_affine)
+        inv_affine = linalg_inv(convert_to_numpy(fwd_affine))
         inv_affine = convert_to_dst_type(inv_affine, data, dtype=inv_affine.dtype)[0]
 
         affine_grid = AffineGrid(affine=inv_affine)
@@ -2520,7 +2518,7 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
         fwd_affine = transform[TraceKeys.EXTRA_INFO]["affine"]
         mode = transform[TraceKeys.EXTRA_INFO]["mode"]
         padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
-        inv_affine = linalg_inv(fwd_affine)
+        inv_affine = linalg_inv(convert_to_numpy(fwd_affine))
         inv_affine = convert_to_dst_type(inv_affine, data, dtype=inv_affine.dtype)[0]
         affine_grid = AffineGrid(affine=inv_affine)
         grid, _ = affine_grid(orig_size)
@@ -3048,7 +3046,7 @@ class RandGridDistortion(RandomizableTransform):
         return self.grid_distortion(img, distort_steps=self.distort_steps, mode=mode, padding_mode=padding_mode)
 
 
-class GridSplit(Transform):
+class GridSplit(Transform, MultiSampleTrait):
     """
     Split the image into patches based on the provided grid in 2D.
 
@@ -3133,7 +3131,7 @@ class GridSplit(Transform):
         return size, steps
 
 
-class GridPatch(Transform):
+class GridPatch(Transform, MultiSampleTrait):
     """
     Extract all the patches sweeping the entire image in a row-major sliding-window manner with possible overlaps.
     It can sort the patches and return all or a subset of them.
@@ -3260,7 +3258,7 @@ class GridPatch(Transform):
         return output
 
 
-class RandGridPatch(GridPatch, RandomizableTransform):
+class RandGridPatch(GridPatch, RandomizableTransform, MultiSampleTrait):
     """
     Extract all the patches sweeping the entire image in a row-major sliding-window manner with possible overlaps,
     and with random offset for the minimal corner of the image, (0,0) for 2D and (0,0,0) for 3D.

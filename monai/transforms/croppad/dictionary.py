@@ -47,9 +47,10 @@ from monai.transforms.croppad.array import (
     SpatialPad,
 )
 from monai.transforms.inverse import InvertibleTransform
+from monai.transforms.traits import MultiSampleTrait
 from monai.transforms.transform import MapTransform, Randomizable
 from monai.transforms.utils import is_positive
-from monai.utils import MAX_SEED, Method, PytorchPadMode, ensure_tuple_rep
+from monai.utils import MAX_SEED, Method, PytorchPadMode, deprecated_arg_default, ensure_tuple_rep
 
 __all__ = [
     "Padd",
@@ -475,6 +476,7 @@ class RandSpatialCropd(RandCropd):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         keys: KeysCollection,
@@ -513,6 +515,7 @@ class RandScaleCropd(RandCropd):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         keys: KeysCollection,
@@ -526,7 +529,7 @@ class RandScaleCropd(RandCropd):
         super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys)
 
 
-class RandSpatialCropSamplesd(Randomizable, MapTransform):
+class RandSpatialCropSamplesd(Randomizable, MapTransform, MultiSampleTrait):
     """
     Dictionary-based version :py:class:`monai.transforms.RandSpatialCropSamples`.
     Crop image with random size or specific size ROI to generate a list of N samples.
@@ -564,6 +567,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
 
     backend = RandSpatialCropSamples.backend
 
+    @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         keys: KeysCollection,
@@ -679,7 +683,7 @@ class CropForegroundd(Cropd):
         return d
 
 
-class RandWeightedCropd(Randomizable, MapTransform):
+class RandWeightedCropd(Randomizable, MapTransform, MultiSampleTrait):
     """
     Samples a list of `num_samples` image patches according to the provided `weight_map`.
 
@@ -736,7 +740,7 @@ class RandWeightedCropd(Randomizable, MapTransform):
         return ret
 
 
-class RandCropByPosNegLabeld(Randomizable, MapTransform):
+class RandCropByPosNegLabeld(Randomizable, MapTransform, MultiSampleTrait):
     """
     Dictionary-based version :py:class:`monai.transforms.RandCropByPosNegLabel`.
     Crop random fixed sized regions with the center being a foreground or background voxel
@@ -857,7 +861,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         return ret
 
 
-class RandCropByLabelClassesd(Randomizable, MapTransform):
+class RandCropByLabelClassesd(Randomizable, MapTransform, MultiSampleTrait):
     """
     Dictionary-based version :py:class:`monai.transforms.RandCropByLabelClasses`.
     Crop random fixed sized regions with the center being a class based on the specified ratios of every class.

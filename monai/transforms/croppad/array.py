@@ -30,6 +30,7 @@ from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.inverse import InvertibleTransform, TraceableTransform
+from monai.transforms.traits import MultiSampleTrait
 from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.utils import (
     compute_divisible_spatial_size,
@@ -52,6 +53,7 @@ from monai.utils import (
     convert_data_type,
     convert_to_dst_type,
     convert_to_tensor,
+    deprecated_arg_default,
     ensure_tuple,
     ensure_tuple_rep,
     fall_back_tuple,
@@ -585,6 +587,7 @@ class RandSpatialCrop(Randomizable, Crop):
             if True, the actual size is sampled from `randint(roi_size, max_roi_size + 1)`.
     """
 
+    @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         roi_size: Sequence[int] | int,
@@ -647,6 +650,7 @@ class RandScaleCrop(RandSpatialCrop):
             `randint(roi_scale * image spatial size, max_roi_scale * image spatial size + 1)`.
     """
 
+    @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         roi_scale: Sequence[float] | float,
@@ -680,7 +684,7 @@ class RandScaleCrop(RandSpatialCrop):
         return super().__call__(img=img, randomize=randomize)
 
 
-class RandSpatialCropSamples(Randomizable, TraceableTransform):
+class RandSpatialCropSamples(Randomizable, TraceableTransform, MultiSampleTrait):
     """
     Crop image with random size or specific size ROI to generate a list of N samples.
     It can crop at a random position as center or at the image center. And allows to set
@@ -713,6 +717,7 @@ class RandSpatialCropSamples(Randomizable, TraceableTransform):
 
     backend = RandSpatialCrop.backend
 
+    @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         roi_size: Sequence[int] | int,
@@ -889,7 +894,7 @@ class CropForeground(Crop):
         return super().inverse(inv)
 
 
-class RandWeightedCrop(Randomizable, TraceableTransform):
+class RandWeightedCrop(Randomizable, TraceableTransform, MultiSampleTrait):
     """
     Samples a list of `num_samples` image patches according to the provided `weight_map`.
 
@@ -954,7 +959,7 @@ class RandWeightedCrop(Randomizable, TraceableTransform):
         return results
 
 
-class RandCropByPosNegLabel(Randomizable, TraceableTransform):
+class RandCropByPosNegLabel(Randomizable, TraceableTransform, MultiSampleTrait):
     """
     Crop random fixed sized regions with the center being a foreground or background voxel
     based on the Pos Neg Ratio.
@@ -1114,7 +1119,7 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform):
         return results
 
 
-class RandCropByLabelClasses(Randomizable, TraceableTransform):
+class RandCropByLabelClasses(Randomizable, TraceableTransform, MultiSampleTrait):
     """
     Crop random fixed sized regions with the center being a class based on the specified ratios of every class.
     The label data can be One-Hot format array or Argmax data. And will return a list of arrays for all the

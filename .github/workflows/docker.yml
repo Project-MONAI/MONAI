@@ -25,17 +25,17 @@ jobs:
         with:
           ref: dev
           fetch-depth: 0
-      - name: Set up Python 3.8
+      - name: Set up Python 3.9
         uses: actions/setup-python@v4
         with:
-          python-version: '3.8'
+          python-version: '3.9'
       - shell: bash
         run: |
           git describe
           python setup.py build
           cat build/lib/monai/_version.py
       - name: Upload version
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: _version.py
           path: build/lib/monai/_version.py
@@ -55,18 +55,13 @@ jobs:
       with:
         ref: dev
     - name: Download version
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: _version.py
-    - name: Install Latest Docker
-      run: |
-        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-        sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu  $(lsb_release -cs)  stable"
-        sudo apt-get update
-        sudo apt-get install docker-ce
     - name: docker_build
       shell: bash
       run: |
+        docker --version
         # get tag info for versioning
         cat _version.py
         mv _version.py monai/
