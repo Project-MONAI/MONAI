@@ -219,6 +219,8 @@ class AutoRunner:
         analyze: bool | None = None,
         algo_gen: bool | None = None,
         train: bool | None = None,
+        training_params: dict[str, Any] | None = None,
+        num_fold: int | None = 5,
         hpo: bool = False,
         hpo_backend: str = "nni",
         ensemble: bool = True,
@@ -259,6 +261,7 @@ class AutoRunner:
         if len(missing_keys) > 0:
             raise ValueError(f"Config keys are missing {missing_keys}")
 
+        logger.info(f"Argv: {sys.argv}")
         if AZUREML_FLAG in sys.argv or is_running_in_azure_ml():
             run_info = submit_auto3dseg_module_to_azureml_if_needed(self.data_src_cfg[AZUREML_CONFIG_KEY])
             self.dataroot = run_info.input_datasets[0]
@@ -280,9 +283,9 @@ class AutoRunner:
         self.ensemble = ensemble  # last step, no need to check
 
         # intermediate variables
-        self.num_fold = 5
+        self.num_fold = num_fold
         self.ensemble_method_name = "AlgoEnsembleBestByFold"
-        self.set_training_params()
+        self.set_training_params(training_params)
         self.set_prediction_params()
         self.set_analyze_params()
 
@@ -385,7 +388,7 @@ class AutoRunner:
         if gpu_customization_specs is not None:
             self.gpu_customization_specs = gpu_customization_specs
 
-    def set_num_fold(self, num_fold: int = 5) -> None:
+    def set_num_fold(self, num_fold: int) -> None:
         """
         Set the number of cross validation folds for all algos.
 
@@ -416,6 +419,7 @@ class AutoRunner:
 
         """
         self.train_params = deepcopy(params) if params is not None else {}
+        logger.info(f"Set AutoRunner training params to {self.train_params}")
 
     def set_prediction_params(self, params: dict[str, Any] | None = None) -> None:
         """
@@ -565,6 +569,7 @@ class AutoRunner:
         """
         for task in history:
             for _, algo in task.items():
+                logger.info(f"Type of train_params when calling algo.train: {type(self.train_params)}")
                 algo.train(self.train_params)
                 acc = algo.get_score()
                 algo_to_pickle(algo, template_path=algo.template_path, best_metrics=acc)
@@ -639,6 +644,7 @@ class AutoRunner:
         """
         Run the AutoRunner pipeline
         """
+        logger.info(f"Type of train_params at start of run () is {type(self.train_params)}")
         # step 1: data analysis
         if self.analyze and self.analyze_params is not None:
             logger.info("Running data analysis...")
@@ -683,6 +689,8 @@ class AutoRunner:
 
         # step 3: algo training
         if self.train:
+            logger.info(f"Type of train_params at start of step 3 is {type(self.train_params)}")
+
             history = import_bundle_algo_history(self.work_dir, only_trained=False)
 
             if len(history) == 0:

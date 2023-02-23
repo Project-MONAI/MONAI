@@ -38,6 +38,26 @@
             "fold": 0,
             "image": "13/ct.nii.gz",
             "label": "13/label.nii.gz"
+        },
+        {
+            "fold": 1,
+            "image": "14/ct.nii.gz",
+            "label": "14/label.nii.gz"
+        },
+        {
+            "fold": 1,
+            "image": "15/ct.nii.gz",
+            "label": "15/label.nii.gz"
+        },
+        {
+            "fold": 1,
+            "image": "16/ct.nii.gz",
+            "label": "16/label.nii.gz"
+        },
+        {
+            "fold": 1,
+            "image": "17/ct.nii.gz",
+            "label": "17/label.nii.gz"
         }
     ]
 }

@@ -6,3 +6,7 @@ azureml_config:
   input_datasets:
   - "lung_tcia_single_label_12_22_v3"
   default_datastore: "himldatasets"
+  # compute_cluster_name: "lite-test-ds2"
+  # input_datasets:
+  # - "test_dataset"
+  # default_datastore: "test_datastore"
