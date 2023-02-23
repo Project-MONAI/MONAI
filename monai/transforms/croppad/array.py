@@ -22,7 +22,6 @@ from typing import Any
 
 import numpy as np
 import torch
-from torch.nn.functional import pad as pad_pt
 
 from monai.config import IndexSelection
 from monai.config.type_definitions import NdarrayOrTensor
@@ -35,7 +34,6 @@ from monai.transforms.traits import MultiSampleTrait
 from monai.transforms.transform import LazyTransform, Randomizable, Transform
 from monai.transforms.utils import (
     compute_divisible_spatial_size,
-    convert_pad_mode,
     create_translate,
     generate_label_classes_crop_centers,
     generate_pos_neg_label_crop_centers,

@@ -19,7 +19,6 @@ import numpy as np
 import torch
 from torch.nn.functional import pad as pad_pt
 
-import monai
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.inverse import TraceableTransform
