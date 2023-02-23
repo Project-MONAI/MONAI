@@ -22,7 +22,7 @@ import torch
 from monai.config import DtypeLike, PathLike
 from monai.data.image_reader import ImageReader, _stack_images
 from monai.data.utils import is_supported_format
-from monai.utils import WSIPatchKeys, ensure_tuple, optional_import, require_pkg, dtype_torch_to_numpy
+from monai.utils import WSIPatchKeys, dtype_torch_to_numpy, ensure_tuple, optional_import, require_pkg
 
 CuImage, _ = optional_import("cucim", name="CuImage")
 OpenSlide, _ = optional_import("openslide", name="OpenSlide")
@@ -72,6 +72,7 @@ class BaseWSIReader(ImageReader):
         level: int,
         channel_dim: int,
         dtype: DtypeLike | torch.dtype,
+        device: torch.device | str,
         mode: str,
         **kwargs,
     ):
@@ -79,6 +80,7 @@ class BaseWSIReader(ImageReader):
         self.level = level
         self.channel_dim = channel_dim
         self.dtype = dtype
+        self.device = device
         self.mode = mode
         self.kwargs = kwargs
         self.metadata: dict[Any, Any] = {}
@@ -193,7 +195,8 @@ class BaseWSIReader(ImageReader):
         location: tuple[int, int] = (0, 0),
         size: tuple[int, int] | None = None,
         level: int | None = None,
-        dtype: DtypeLike | torch.dtype = None,
+        dtype: DtypeLike | torch.dtype | None = None,
+        device: torch.device | str | None = None,
         mode: str | None = None,
     ) -> tuple[np.ndarray, dict]:
         """
@@ -214,6 +217,8 @@ class BaseWSIReader(ImageReader):
         """
         if dtype is None:
             dtype = self.dtype
+        if device is None:
+            device = self.device
         if mode is None:
             mode = self.mode
         patch_list: list = []
@@ -251,7 +256,10 @@ class BaseWSIReader(ImageReader):
             patch = self._get_patch(each_wsi, location=location, size=size, level=level, dtype=np_dtype, mode=mode)
             # Convert the patch to torch.Tensor if dtype is torch
             if isinstance(dtype, torch.dtype):
-                patch = torch.as_tensor(patch, dtype=dtype)
+                if patch.flags["WRITEABLE"]:
+                    patch = torch.as_tensor(patch, dtype=dtype, device=device)
+                else:
+                    patch = torch.tensor(patch, dtype=dtype, device=device)
 
             # check if the image has three dimensions (2D + color)
             if patch.ndim != 3:
@@ -320,18 +328,25 @@ class WSIReader(BaseWSIReader):
         level: int = 0,
         channel_dim: int = 0,
         dtype: DtypeLike | torch.dtype = np.uint8,
+        device: torch.device | str = "cpu",
         mode: str = "RGB",
         **kwargs,
     ):
-        super().__init__(level=level, channel_dim=channel_dim, dtype=dtype, mode=mode, **kwargs)
+        super().__init__(level=level, channel_dim=channel_dim, dtype=dtype, device=device, mode=mode, **kwargs)
         self.backend = backend.lower()
         self.reader: CuCIMWSIReader | OpenSlideWSIReader | TiffFileWSIReader
         if self.backend == "cucim":
-            self.reader = CuCIMWSIReader(level=level, channel_dim=channel_dim, **kwargs)
+            self.reader = CuCIMWSIReader(
+                level=level, channel_dim=channel_dim, dtype=dtype, device=device, mode=mode, **kwargs
+            )
         elif self.backend == "openslide":
-            self.reader = OpenSlideWSIReader(level=level, channel_dim=channel_dim, **kwargs)
+            self.reader = OpenSlideWSIReader(
+                level=level, channel_dim=channel_dim, dtype=dtype, device=device, mode=mode, **kwargs
+            )
         elif self.backend == "tifffile":
-            self.reader = TiffFileWSIReader(level=level, channel_dim=channel_dim, **kwargs)
+            self.reader = TiffFileWSIReader(
+                level=level, channel_dim=channel_dim, dtype=dtype, device=device, mode=mode, **kwargs
+            )
         else:
             raise ValueError(
                 f"The supported backends are cucim, openslide, and tifffile but '{self.backend}' was given."
@@ -455,11 +470,12 @@ class CuCIMWSIReader(BaseWSIReader):
         level: int = 0,
         channel_dim: int = 0,
         dtype: DtypeLike | torch.dtype = np.uint8,
+        device: torch.device | str = "cpu",
         mode: str = "RGB",
         num_workers: int = 0,
         **kwargs,
     ):
-        super().__init__(level=level, channel_dim=channel_dim, dtype=dtype, mode=mode, **kwargs)
+        super().__init__(level=level, channel_dim=channel_dim, dtype=dtype, device=device, mode=mode, **kwargs)
         self.num_workers = num_workers
 
     @staticmethod
@@ -611,10 +627,11 @@ class OpenSlideWSIReader(BaseWSIReader):
         level: int = 0,
         channel_dim: int = 0,
         dtype: DtypeLike | torch.dtype = np.uint8,
+        device: torch.device | str = "cpu",
         mode: str = "RGB",
         **kwargs,
     ):
-        super().__init__(level=level, channel_dim=channel_dim, dtype=dtype, mode=mode, **kwargs)
+        super().__init__(level=level, channel_dim=channel_dim, dtype=dtype, device=device, mode=mode, **kwargs)
 
     @staticmethod
     def get_level_count(wsi) -> int:
@@ -767,10 +784,11 @@ class TiffFileWSIReader(BaseWSIReader):
         level: int = 0,
         channel_dim: int = 0,
         dtype: DtypeLike | torch.dtype = np.uint8,
+        device: torch.device | str = "cpu",
         mode: str = "RGB",
         **kwargs,
     ):
-        super().__init__(level=level, channel_dim=channel_dim, dtype=dtype, mode=mode, **kwargs)
+        super().__init__(level=level, channel_dim=channel_dim, dtype=dtype, device=device, mode=mode, **kwargs)
 
     @staticmethod
     def get_level_count(wsi) -> int:
