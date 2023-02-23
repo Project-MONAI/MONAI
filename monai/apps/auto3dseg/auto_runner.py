@@ -14,12 +14,14 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
 from copy import deepcopy
 from time import sleep
 from typing import Any, cast
 
 import numpy as np
 import torch
+from health_azure.himl import AZUREML_FLAG
 from health_azure.utils import is_running_in_azure_ml
 
 from monai.apps.auto3dseg.bundle_gen import BundleGen
@@ -29,7 +31,8 @@ from monai.apps.auto3dseg.ensemble_builder import (
 )
 from monai.apps.auto3dseg.hpo_gen import NNIGen
 from monai.apps.auto3dseg.utils import (
-    export_bundle_algo_history, import_bundle_algo_history, submit_auto3dseg_module_to_azureml_if_needed,
+    AZUREML_CONFIG_KEY, export_bundle_algo_history,
+    import_bundle_algo_history, submit_auto3dseg_module_to_azureml_if_needed,
 )
 from monai.apps.utils import get_logger
 from monai.auto3dseg.utils import algo_to_pickle
@@ -252,16 +255,16 @@ class AutoRunner:
         else:
             raise ValueError(f"{input} is not a valid file or dict")
 
-        run_info = submit_auto3dseg_module_to_azureml_if_needed(cfg=self.data_src_cfg)
-
         missing_keys = {"dataroot", "datalist", "modality"}.difference(self.data_src_cfg.keys())
         if len(missing_keys) > 0:
             raise ValueError(f"Config keys are missing {missing_keys}")
 
-        if run_info.input_datasets:
+        if AZUREML_FLAG in sys.argv or is_running_in_azure_ml():
+            run_info = submit_auto3dseg_module_to_azureml_if_needed(self.data_src_cfg[AZUREML_CONFIG_KEY])
             self.dataroot = run_info.input_datasets[0]
         else:
             self.dataroot = self.data_src_cfg["dataroot"]
+
         self.datalist_filename = self.data_src_cfg["datalist"]
         self.datastats_filename = os.path.join(self.work_dir, "datastats.yaml")
 

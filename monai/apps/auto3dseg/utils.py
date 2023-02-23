@@ -21,6 +21,8 @@ from monai.apps.auto3dseg.bundle_gen import BundleAlgo
 from monai.auto3dseg import algo_from_pickle, algo_to_pickle
 from monai.utils import optional_import
 
+AZUREML_CONFIG_KEY = "azureml_config"
+
 
 def import_bundle_algo_history(
     output_folder: str = ".", template_path: str | None = None, only_trained: bool = True
@@ -73,24 +75,7 @@ def export_bundle_algo_history(history: list[dict[str, BundleAlgo]]) -> None:
             algo_to_pickle(algo, template_path=algo.template_path)
 
 
-def is_running_in_azureml() -> bool:
-    return health_azure.utils.is_running_in_azure_ml()
-
-
-def extract_azureml_args_from_cfg(cfg: dict[str, Any]) -> dict[str, Any]:
-    azureml_key_prefix = "azureml_"
-
-    azureml_args = {}
-
-    for key, value in cfg.items():
-        if key.startswith(azureml_key_prefix):
-            azureml_args[key.removeprefix(azureml_key_prefix)] = value
-
-    return azureml_args
-
-
-def submit_auto3dseg_module_to_azureml_if_needed(cfg: dict[str, Any]) -> health_azure.AzureRunInfo:
-    user_defined_azureml_args = extract_azureml_args_from_cfg(cfg)
+def submit_auto3dseg_module_to_azureml_if_needed(azure_cfg: dict[str, Any]) -> health_azure.AzureRunInfo:
     azureml_args = {
         "workspace_config_file": "azureml_configs/azureml_config.json",
         "docker_base_image": "mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04",
@@ -99,7 +84,7 @@ def submit_auto3dseg_module_to_azureml_if_needed(cfg: dict[str, Any]) -> health_
         "entry_script": "-m monai.apps.auto3dseg",
         "strictly_aml_v1": False,
     }
-    azureml_args.update(user_defined_azureml_args)
+    azureml_args.update(azure_cfg)
 
     needed_keys = {"compute_cluster_name", "default_datastore"}
     missing_keys = needed_keys.difference(azureml_args.keys())
