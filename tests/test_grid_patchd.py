@@ -46,7 +46,13 @@ TEST_CASE_12 = [
     {"image": A},
     [np.zeros((3, 3, 3)), np.pad(A[:, :1, 1:4], ((0, 0), (2, 0), (0, 0)), mode="constant")],
 ]
+# Only threshold filtering
 TEST_CASE_13 = [{"patch_size": (2, 2), "threshold": 50.0}, {"image": A}, [A11]]
+TEST_CASE_14 = [{"patch_size": (2, 2), "threshold": 150.0}, {"image": A}, [A11, A12, A21]]
+# threshold filtering with num_patches more than available patches (no effect)
+TEST_CASE_15 = [{"patch_size": (2, 2), "threshold": 50.0, "num_patches": 3}, {"image": A}, [A11]]
+# threshold filtering with num_patches less than available patches (count filtering)
+TEST_CASE_16 = [{"patch_size": (2, 2), "threshold": 150.0, "num_patches": 2}, {"image": A}, [A11, A12]]
 
 TEST_SINGLE = []
 for p in TEST_NDARRAYS:
@@ -64,6 +70,9 @@ for p in TEST_NDARRAYS:
     TEST_SINGLE.append([p, *TEST_CASE_11])
     TEST_SINGLE.append([p, *TEST_CASE_12])
     TEST_SINGLE.append([p, *TEST_CASE_13])
+    TEST_SINGLE.append([p, *TEST_CASE_14])
+    TEST_SINGLE.append([p, *TEST_CASE_15])
+    TEST_SINGLE.append([p, *TEST_CASE_16])
 
 
 class TestGridPatchd(unittest.TestCase):
