@@ -17,13 +17,14 @@ from __future__ import annotations
 
 import numpy as np
 import torch
+from torch.nn.functional import pad as pad_pt
 
 import monai
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.inverse import TraceableTransform
-from monai.transforms.utils import create_translate
-from monai.utils import TraceKeys, convert_to_tensor
+from monai.transforms.utils import create_translate, convert_pad_mode
+from monai.utils import TraceKeys, convert_to_tensor, convert_to_dst_type
 
 __all__ = ["pad_func"]
 
@@ -44,6 +45,40 @@ def pad_func(img: torch.Tensor, to_pad: list[tuple[int, int]], mode: str, transf
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
     """
+    def _np_pad(img: torch.Tensor, pad_width: list[tuple[int, int]], mode: str, **kwargs) -> torch.Tensor:
+        img_np = img.detach().cpu().numpy() if isinstance(img, torch.Tensor) else img
+        mode = convert_pad_mode(dst=img_np, mode=mode).value
+        if mode == "constant" and "value" in kwargs:
+            kwargs["constant_values"] = kwargs.pop("value")
+        out = torch.as_tensor(np.pad(img, pad_width, mode=mode, **kwargs))  # type: ignore
+        if isinstance(img, MetaTensor):
+            out = convert_to_dst_type(out, dst=img)[0]
+        return out
+
+    def _pt_pad(img: torch.Tensor, pad_width: list[tuple[int, int]], mode: str, **kwargs) -> torch.Tensor:
+        pt_pad_width = [val for sublist in pad_width[1:] for val in sublist[::-1]][::-1]
+        # torch.pad expects `[B, C, H, W, [D]]` shape
+        return pad_pt(img.unsqueeze(0), pt_pad_width, mode=mode, **kwargs).squeeze(0)
+
+    def _pad_nd(img: torch.Tensor, to_pad: list[tuple[int, int]], mode: str, **kwargs):
+        if mode in {"linear_ramp", "maximum", "mean", "median", "minimum", "symmetric", "empty"}:
+            return _np_pad(img, pad_width=to_pad, mode=mode, **kwargs)
+        mode = convert_pad_mode(dst=img, mode=mode).value
+        try:
+            _pad = (
+                _pt_pad
+                if mode in {"reflect", "replicate"}
+                and img.dtype not in {torch.int16, torch.int64, torch.bool, torch.uint8}
+                else _np_pad
+            )
+            return _pad(img, pad_width=to_pad, mode=mode, **kwargs)
+        except (ValueError, TypeError, RuntimeError) as err:
+            if isinstance(err, NotImplementedError) or any(
+                k in str(err) for k in ("supported", "unexpected keyword", "implemented")
+            ):
+                return _np_pad(img, pad_width=to_pad, mode=mode, **kwargs)
+            raise ValueError(f"{img.shape} {to_pad} {mode} {kwargs} {img.dtype} {img.device}") from err
+
     extra_info = {"padded": to_pad}
     img_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
     spatial_rank = img.peek_pending_rank() if isinstance(img, MetaTensor) else 3
@@ -70,6 +105,6 @@ def pad_func(img: torch.Tensor, to_pad: list[tuple[int, int]], mode: str, transf
     out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
     if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
-    out = monai.transforms.Pad.pad_nd(out, to_pad, mode, **kwargs) if do_pad else out
+    out = _pad_nd(out, to_pad, mode, **kwargs) if do_pad else out
     out = convert_to_tensor(out, track_meta=get_track_meta())
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
