@@ -28,18 +28,33 @@ from monai.utils import TraceKeys, convert_to_tensor
 __all__ = ["pad_func"]
 
 
-def pad_func(img, to_pad_, mode, kwargs, transform_info):
-    extra_info = {"padded": to_pad_}
+def pad_func(img: torch.Tensor, to_pad: list[tuple[int, int]], mode: str, transform_info: dict, kwargs: dict):
+    """
+    Args:
+        img: data to be transformed, assuming `img` is channel-first and padding doesn't apply to the channel dim.
+        to_pad: the amount to be padded in each dimension [(low_H, high_H), (low_W, high_W), ...].
+            default to `self.to_pad`.
+        mode: available modes: (Numpy) {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            (PyTorch) {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+            One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+        transform_info: a dictionary with the relevant information pertaining to an applied transform.
+        kwargs: other arguments for the `np.pad` or `torch.pad` function.
+            note that `np.pad` treats channel dimension as the first dimension.
+    """
+    extra_info = {"padded": to_pad}
     img_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
     spatial_rank = img.peek_pending_rank() if isinstance(img, MetaTensor) else 3
-    do_pad = np.asarray(to_pad_).any()
+    do_pad = np.asarray(to_pad).any()
     if do_pad:
-        to_pad_ = list(to_pad_)
-        if len(to_pad_) < len(img.shape):
-            to_pad_ = list(to_pad_) + [(0, 0)] * (len(img.shape) - len(to_pad_))
-        to_shift = [-s[0] for s in to_pad_[1:]]  # skipping the channel pad
+        to_pad = list(to_pad)
+        if len(to_pad) < len(img.shape):
+            to_pad = list(to_pad) + [(0, 0)] * (len(img.shape) - len(to_pad))
+        to_shift = [-s[0] for s in to_pad[1:]]  # skipping the channel pad
         xform = create_translate(spatial_rank, to_shift)
-        shape = [d + s + e for d, (s, e) in zip(img_size, to_pad_[1:])]
+        shape = [d + s + e for d, (s, e) in zip(img_size, to_pad[1:])]
     else:
         shape = img_size
         xform = torch.eye(int(spatial_rank) + 1, device=torch.device("cpu"), dtype=torch.float64)
@@ -55,6 +70,6 @@ def pad_func(img, to_pad_, mode, kwargs, transform_info):
     out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
     if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
-    out = monai.transforms.Pad.pad_nd(out, to_pad_, mode, **kwargs) if do_pad else out
+    out = monai.transforms.Pad.pad_nd(out, to_pad, mode, **kwargs) if do_pad else out
     out = convert_to_tensor(out, track_meta=get_track_meta())
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out

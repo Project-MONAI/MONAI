@@ -126,7 +126,7 @@ class Pad(InvertibleTransform, LazyTransform):
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
     @staticmethod
-    def _np_pad(img: torch.Tensor, pad_width, mode, **kwargs) -> torch.Tensor:
+    def _np_pad(img, pad_width, mode, **kwargs) -> torch.Tensor:
         img_np = img.detach().cpu().numpy() if isinstance(img, torch.Tensor) else img
         mode = convert_pad_mode(dst=img_np, mode=mode).value
         if mode == "constant" and "value" in kwargs:
@@ -138,31 +138,43 @@ class Pad(InvertibleTransform, LazyTransform):
         return out
 
     @staticmethod
-    def _pt_pad(img: torch.Tensor, pad_width, mode, **kwargs) -> torch.Tensor:
+    def _pt_pad(img, pad_width, mode, **kwargs) -> torch.Tensor:
         pt_pad_width = [val for sublist in pad_width[1:] for val in sublist[::-1]][::-1]
         # torch.pad expects `[B, C, H, W, [D]]` shape
         return pad_pt(img.unsqueeze(0), pt_pad_width, mode=mode, **kwargs).squeeze(0)
 
     @staticmethod
-    def pad_nd(img_t, to_pad, mode, **kwargs):
-        """pad with torch or numpy function"""
+    def pad_nd(img: torch.Tensor, to_pad: list[tuple[int, int]], mode: str, **kwargs):
+        """
+        pad with torch or numpy function
+
+        Args:
+            img: data to be transformed, assuming `img` is channel-first and padding doesn't apply to the channel dim.
+            to_pad: the amount to be padded in each dimension [(low_H, high_H), (low_W, high_W), ...].
+            mode: available modes: (Numpy) {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                (PyTorch) {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+        """
         if mode in {"linear_ramp", "maximum", "mean", "median", "minimum", "symmetric", "empty"}:
-            return Pad._np_pad(img_t, pad_width=to_pad, mode=mode, **kwargs)
-        mode = convert_pad_mode(dst=img_t, mode=mode).value
+            return Pad._np_pad(img, pad_width=to_pad, mode=mode, **kwargs)
+        mode = convert_pad_mode(dst=img, mode=mode).value
         try:
             _pad = (
                 Pad._pt_pad
                 if mode in {"reflect", "replicate"}
-                and img_t.dtype not in {torch.int16, torch.int64, torch.bool, torch.uint8}
+                and img.dtype not in {torch.int16, torch.int64, torch.bool, torch.uint8}
                 else Pad._np_pad
             )
-            return _pad(img_t, pad_width=to_pad, mode=mode, **kwargs)
+            return _pad(img, pad_width=to_pad, mode=mode, **kwargs)
         except (ValueError, TypeError, RuntimeError) as err:
             if isinstance(err, NotImplementedError) or any(
                 k in str(err) for k in ("supported", "unexpected keyword", "implemented")
             ):
-                return Pad._np_pad(img_t, pad_width=to_pad, mode=mode, **kwargs)
-            raise ValueError(f"{img_t.shape} {to_pad} {mode} {kwargs} {img_t.dtype} {img_t.device}") from err
+                return Pad._np_pad(img, pad_width=to_pad, mode=mode, **kwargs)
+            raise ValueError(f"{img.shape} {to_pad} {mode} {kwargs} {img.dtype} {img.device}") from err
 
     def __call__(  # type: ignore
         self, img: torch.Tensor, to_pad: list[tuple[int, int]] | None = None, mode: str | None = None, **kwargs
@@ -191,7 +203,7 @@ class Pad(InvertibleTransform, LazyTransform):
         kwargs_.update(kwargs)
 
         img_t = convert_to_tensor(data=img, track_meta=get_track_meta())
-        return pad_func(img_t, to_pad_, mode_, kwargs_, self.get_transform_info())  # type: ignore
+        return pad_func(img_t, to_pad_, mode_, self.get_transform_info(), kwargs_)  # type: ignore
 
     def inverse(self, data: MetaTensor) -> MetaTensor:
         transform = self.pop_transform(data)
