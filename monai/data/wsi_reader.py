@@ -245,10 +245,11 @@ class BaseWSIReader(ImageReader):
                 if size[0] <= 0 or size[1] <= 0:
                     raise ValueError(f"Patch size should be greater than zero, provided: patch size = {size}")
 
-            # Extract a patch or the entire image
-            # If dtype is torch convert the patch to torch.Tensor
+            # Get numpy dtype if it is not already.
             np_dtype = dtype_torch_to_numpy(dtype) if isinstance(dtype, torch.dtype) else dtype
+            # Extract a patch or the entire image
             patch = self._get_patch(each_wsi, location=location, size=size, level=level, dtype=np_dtype, mode=mode)
+            # Convert the patch to torch.Tensor if dtype is torch
             if isinstance(dtype, torch.dtype):
                 patch = torch.as_tensor(patch, dtype=dtype)
 
