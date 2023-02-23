@@ -51,9 +51,13 @@ TEST_CASE_12 = [
 TEST_CASE_13 = [{"patch_size": (2, 2), "threshold": 50.0}, A, [A11]]
 TEST_CASE_14 = [{"patch_size": (2, 2), "threshold": 150.0}, A, [A11, A12, A21]]
 # threshold filtering with num_patches more than available patches (no effect)
-TEST_CASE_15 = [{"patch_size": (2, 2), "threshold": 50.0, "num_patches": 3}, A, [A11]]
+TEST_CASE_15 = [{"patch_size": (2, 2), "num_patches": 3, "threshold": 50.0}, A, [A11]]
 # threshold filtering with num_patches less than available patches (count filtering)
-TEST_CASE_16 = [{"patch_size": (2, 2), "threshold": 150.0, "num_patches": 2}, A, [A11, A12]]
+TEST_CASE_16 = [{"patch_size": (2, 2), "num_patches": 2, "threshold": 150.0}, A, [A11, A12]]
+# threshold filtering before count filtering
+TEST_CASE_17 = [{"patch_size": (2, 2), "num_patches": 2, "threshold": -50.0, "threshold_first": True}, -A, [-A12, -A21]]
+# threshold filtering after count filtering (causes desirable or undesirable data reduction)
+TEST_CASE_18 = [{"patch_size": (2, 2), "num_patches": 2, "threshold": -50.0, "threshold_first": False}, -A, [-A12]]
 
 TEST_CASE_META_0 = [
     {"patch_size": (2, 2)},
@@ -93,6 +97,8 @@ for p in TEST_NDARRAYS:
     TEST_CASES.append([p, *TEST_CASE_14])
     TEST_CASES.append([p, *TEST_CASE_15])
     TEST_CASES.append([p, *TEST_CASE_16])
+    TEST_CASES.append([p, *TEST_CASE_17])
+    TEST_CASES.append([p, *TEST_CASE_18])
 
 
 class TestGridPatch(unittest.TestCase):
