@@ -22,8 +22,8 @@ from torch.nn.functional import pad as pad_pt
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.inverse import TraceableTransform
-from monai.transforms.utils import create_translate, convert_pad_mode
-from monai.utils import TraceKeys, convert_to_tensor, convert_to_dst_type
+from monai.transforms.utils import convert_pad_mode, create_translate
+from monai.utils import TraceKeys, convert_to_dst_type, convert_to_tensor
 
 __all__ = ["pad_func"]
 
@@ -44,6 +44,7 @@ def pad_func(img: torch.Tensor, to_pad: list[tuple[int, int]], mode: str, transf
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
     """
+
     def _np_pad(img: torch.Tensor, pad_width: list[tuple[int, int]], mode: str, **kwargs) -> torch.Tensor:
         img_np = img.detach().cpu().numpy() if isinstance(img, torch.Tensor) else img
         mode = convert_pad_mode(dst=img_np, mode=mode).value
