@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-A collection of "vanilla" transforms for spatial operations
+A collection of "functional" transforms for spatial operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
@@ -47,6 +47,9 @@ def _pt_pad(img: torch.Tensor, pad_width: list[tuple[int, int]], mode: str, **kw
 
 def pad_nd(img: torch.Tensor, to_pad: list[tuple[int, int]], mode: str, **kwargs):
     """
+    PyTorch/Numpy pad ``img`` with integers ``to_pad`` amounts. Depending on the ``mode`` and input dtype,
+    a suitable backend will be used automatically.
+
     Args:
         img: data to be transformed, assuming `img` is channel-first and padding doesn't apply to the channel dim.
         to_pad: the amount to be padded in each dimension [(low_H, high_H), (low_W, high_W), ...].
@@ -80,6 +83,9 @@ def pad_nd(img: torch.Tensor, to_pad: list[tuple[int, int]], mode: str, **kwargs
 
 def pad_func(img: torch.Tensor, to_pad: list[tuple[int, int]], mode: str, transform_info: dict, kwargs: dict):
     """
+    Functional implementation of padding a MetaTensor. This function operates eagerly or lazily according
+    to ``transform_info[TraceKeys.LAZY_EVALUATION]`` (default ``False``).
+
     Args:
         img: data to be transformed, assuming `img` is channel-first and padding doesn't apply to the channel dim.
         to_pad: the amount to be padded in each dimension [(low_H, high_H), (low_W, high_W), ...].
