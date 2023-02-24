@@ -280,7 +280,7 @@ class ResampleToMatch(SpatialResample):
         if isinstance(img, MetaTensor):
             img.affine = dst_affine
             if isinstance(img_dst, MetaTensor):
-                original_fname = img.meta.get(Key.FILENAME_OR_OBJ, "resampled_to_match_source")
+                original_fname = img.meta.get(Key.FILENAME_OR_OBJ, "resample_to_match_source")
                 img.meta = deepcopy(img_dst.meta)
                 img.meta[Key.FILENAME_OR_OBJ] = original_fname  # keep the original name, the others are overwritten
         return img
