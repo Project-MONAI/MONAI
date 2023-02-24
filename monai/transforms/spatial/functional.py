@@ -95,6 +95,7 @@ def spatial_resample(
         transform_info=transform_info,
         lazy_evaluation=lazy_evaluation,
     )
+    # drop current meta first since line 102 is a shallow copy
     img = img.as_tensor() if isinstance(img, MetaTensor) else img
     if affine_unchanged or lazy_evaluation:
         # no significant change or lazy change, return original image
