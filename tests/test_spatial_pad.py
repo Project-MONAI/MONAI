@@ -13,14 +13,26 @@ from __future__ import annotations
 
 import unittest
 
+import numpy as np
 from parameterized import parameterized
 
-from monai.transforms import SpatialPad
+from monai.transforms import BorderPad, Compose, DivisiblePad, SpatialPad
+from monai.transforms.lazy.functional import apply_transforms
 from tests.padders import PadTest
+from tests.utils import assert_allclose
 
 TESTS = []
 TESTS.append([{"spatial_size": [3, 4], "method": "end"}, (1, 2, 3), (1, 3, 4)])
 TESTS.append([{"spatial_size": [15, 4, -1], "method": "symmetric"}, (3, 8, 8, 4), (3, 15, 8, 4)])
+
+func1 = {SpatialPad: {"spatial_size": [15, 4, -1], "method": "symmetric"}}
+func2 = {BorderPad: {"spatial_border": 2}}
+func3 = {DivisiblePad: {"k": 5, "method": "end"}}
+
+TESTS_COMBINE = []
+TESTS_COMBINE.append([[func1, func2, func3], (3, 8, 8, 4), (3, 20, 15, 10)])
+TESTS_COMBINE.append([[func1, func2], (3, 8, 8, 4), (3, 19, 12, 8)])
+TESTS_COMBINE.append([[func2, func2], (3, 8, 8, 4), (3, 16, 16, 12)])
 
 
 class TestSpatialPad(PadTest):
@@ -38,6 +50,10 @@ class TestSpatialPad(PadTest):
     @parameterized.expand(TESTS)
     def test_pending_ops(self, input_param, input_shape, _):
         self.pad_test_pending_ops(input_param, input_shape)
+
+    @parameterized.expand(TESTS_COMBINE)
+    def test_combine_ops(self, funcs, input_shape, expected_shape):
+        self.pad_test_combine_ops(funcs, input_shape, expected_shape)
 
 
 if __name__ == "__main__":
