@@ -50,6 +50,33 @@ __all__ = ["spatial_resample"]
 def spatial_resample(
     img, dst_affine, spatial_size, mode, padding_mode, align_corners, dtype_pt, transform_info
 ) -> torch.Tensor:
+    """
+    Functional implementation of resampling the input image to the specified ``dst_affine`` matrix and ``spatial_size``.
+    This function operates eagerly or lazily according to
+    ``transform_info[TraceKeys.LAZY_EVALUATION]`` (default ``False``).
+
+    Args:
+        img: data to be resampled, assuming `img` is channel-first.
+        dst_affine: target affine matrix, if None, use the input affine matrix, effectively no resampling.
+        spatial_size: output spatial size, if the component is ``-1``, use the corresponding input spatial size.
+        mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
+            Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+            When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
+            and the value represents the order of the spline interpolation.
+            See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+        padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+            Padding mode for outside grid values. Defaults to ``"border"``.
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+            When `mode` is an integer, using numpy/cupy backends, this argument accepts
+            {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
+            See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+        align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+            Defaults to ``None``, effectively using the value of `self.align_corners`.
+        dtype_pt: data `dtype` for resampling computation.
+        transform_info: a dictionary with the relevant information pertaining to an applied transform.
+    """
     original_spatial_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
     src_affine: torch.Tensor = img.peek_pending_affine() if isinstance(img, MetaTensor) else torch.eye(4)
     img = convert_to_tensor(data=img, track_meta=get_track_meta())
