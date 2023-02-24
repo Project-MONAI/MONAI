@@ -907,6 +907,39 @@ def verify_net_in_out(
     logger.info("data shape of network is verified with no error.")
 
 
+def _get_net_input_shape(
+    parser: ConfigParser | None = None,
+    p: int | None = 1,
+    n: int | None = 1,
+    any: int | None = 1,
+) -> tuple:
+    """
+    Get the input data defined in the metadata.
+
+    Typical usage examples:
+
+
+    Args:
+        parser: the parser of the given bundle.
+        p: power factor to generate input data shape if dim of expected shape is "x**p", default to 1.
+        n: multiply factor to generate input data shape if dim of expected shape is "x*n", default to 1.
+        any: specified size to generate input data shape if dim of expected shape is "*", default to 1.
+    """
+    if not parser:
+        raise AttributeError(f"Error parser to parse input shape.")
+
+    try:
+        key = "_meta_#network_data_format#inputs#image#num_channels"
+        input_channels = parser[key]
+        key = "_meta_#network_data_format#inputs#image#spatial_shape"
+        input_spatial_shape = tuple(parser[key])
+    except KeyError as e:
+        raise KeyError(f"Failed to parse due to missing expected key in the config: {key}.") from e
+
+    spatial_shape = _get_fake_spatial_shape(input_spatial_shape, p=p, n=n, any=any)
+    return (1, input_channels, *spatial_shape)
+
+
 def ckpt_export(
     net_id: str | None = None,
     filepath: PathLike | None = None,
@@ -977,7 +1010,7 @@ def ckpt_export(
         copy_model_state(dst=net, src=ckpt if key_in_ckpt_ == "" else ckpt[key_in_ckpt_])
 
     # convert to TorchScript model and save with metadata, config content
-    net = convert_to_trt(model=net)
+    net = convert_to_torchscript(model=net)
 
     extra_files: dict = {}
     for i in ensure_tuple(config_file_):
@@ -1004,7 +1037,6 @@ def ckpt_export(
     )
     logger.info(f"exported to TorchScript file: {filepath_}.")
 
-
 def trt_export(
     net_id: str | None = None,
     filepath: PathLike | None = None,
@@ -1012,17 +1044,21 @@ def trt_export(
     meta_file: str | Sequence[str] | None = None,
     config_file: str | Sequence[str] | None = None,
     key_in_ckpt: str | None = None,
+    precision: str | None = None,
+    input_shape: Sequence[str] | None = None,
+    ir: str | None = None,
+    dynamic_batchsize: Sequence[str] | None = None,
     args_file: str | None = None,
     **override: Any,
 ) -> None:
     """
-    Export the model checkpoint to the given filepath with metadata and config included as JSON files.
+    Export the model checkpoint to the given filepath as a tensorrt module.
 
     Typical usage examples:
 
     .. code-block:: bash
 
-        python -m monai.bundle ckpt_export network --filepath <export path> --ckpt_file <checkpoint path> ...
+        python -m monai.bundle trt_export network --filepath <export path> --ckpt_file <checkpoint path> --input_shape <input shape> ...
 
     Args:
         net_id: ID name of the network component in the config, it must be `torch.nn.Module`.
@@ -1035,6 +1071,13 @@ def trt_export(
             it can be a single file or a list of files. if `None`, must be provided in `args_file`.
         key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
             weights. if not nested checkpoint, no need to set.
+        precision: the precision for converting models to TensorRT engine. Should be 'fp32' or 'fp16'.
+        input_shape: an input shape that is used during converting models to trt module. Should has shape like
+            (N, C, H, W) or (N, C, H, W, D).
+        ir: the intermedia representation way to transform a pytorch module to TensorRT module. Could be choose from
+            `script, trace`.
+        dynamic_batchsize: a three number list to define the batch size range for TensorRT module. Each of the
+            three number means `MIN_BATCH, OPT_BATCH, MAX_BATCH` in order.
         args_file: a JSON or YAML file to provide default values for `meta_file`, `config_file`,
             `net_id` and override pairs. so that the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.
@@ -1049,13 +1092,39 @@ def trt_export(
         config_file=config_file,
         ckpt_file=ckpt_file,
         key_in_ckpt=key_in_ckpt,
+        precision=precision,
+        input_shape=input_shape,
+        ir=ir,
+        dynamic_batchsize=dynamic_batchsize,
         **override,
     )
-    _log_input_summary(tag="ckpt_export", args=_args)
-    filepath_, ckpt_file_, config_file_, net_id_, meta_file_, key_in_ckpt_ = _pop_args(
-        _args, "filepath", "ckpt_file", "config_file", net_id="", meta_file=None, key_in_ckpt=""
+    _log_input_summary(tag="trt_export", args=_args)
+    (
+        filepath_,
+        ckpt_file_,
+        config_file_,
+        net_id_,
+        meta_file_,
+        key_in_ckpt_,
+        precision_,
+        input_shape_,
+        dynamic_batchsize_,
+        ir_,
+    ) = _pop_args(
+        _args,
+        "filepath",
+        "ckpt_file",
+        "config_file",
+        net_id="",
+        meta_file=None,
+        key_in_ckpt="",
+        precision="fp32"
+        input_shape=[],
+        dynamic_batchsize=["1", "4", "8"],
+        ir="script",
     )
-
+    input_shape_ = tuple([int(x) for x in input_shape_])
+    dynamic_batchsize_ = [int(x) for x in dynamic_batchsize_]
     parser = ConfigParser()
 
     parser.read_config(f=config_file_)
@@ -1066,16 +1135,23 @@ def trt_export(
     for k, v in _args.items():
         parser[k] = v
 
+    if not input_shape_:
+        input_shape_ = _get_net_input_shape(parser)
+
     net = parser.get_parsed_content(net_id_)
+
     if has_ignite:
         # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
         Checkpoint.load_objects(to_load={key_in_ckpt_: net}, checkpoint=ckpt_file_)
     else:
         ckpt = torch.load(ckpt_file_)
         copy_model_state(dst=net, src=ckpt if key_in_ckpt_ == "" else ckpt[key_in_ckpt_])
+        pass
 
-    # convert to TorchScript model and save with metadata, config content
-    net = convert_to_torchscript(model=net)
+    # convert to TensorRT module and save with metadata, config content
+    net = convert_to_trt(
+        model=net,precision=precision_, input_shape=input_shape_, dynamic_batchsize=dynamic_batchsize_, ir=ir_
+    )
 
     extra_files: dict = {}
     for i in ensure_tuple(config_file_):

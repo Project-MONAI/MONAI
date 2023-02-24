@@ -46,6 +46,7 @@ __all__ = [
     "copy_model_state",
     "save_state",
     "convert_to_torchscript",
+    "convert_to_trt",
     "meshgrid_ij",
     "meshgrid_xy",
     "replace_modules",
@@ -555,6 +556,7 @@ def convert_to_torchscript(
     device: torch.device | None = None,
     rtol: float = 1e-4,
     atol: float = 0.0,
+    is_trace: bool = False,
     **kwargs,
 ):
     """
@@ -574,13 +576,20 @@ def convert_to_torchscript(
         device: target device to verify the model, if None, use CUDA if available.
         rtol: the relative tolerance when comparing the outputs of PyTorch model and TorchScript model.
         atol: the absolute tolerance when comparing the outputs of PyTorch model and TorchScript model.
+        is_trace: whether to use `torch.jit.trace` to get the torchscript model.
+
         kwargs: other arguments except `obj` for `torch.jit.script()` to convert model, for more details:
             https://pytorch.org/docs/master/generated/torch.jit.script.html.
 
     """
     model.eval()
     with torch.no_grad():
-        script_module = torch.jit.script(model, **kwargs)
+        if is_trace:
+            if inputs is None:
+                raise ValueError("missing input data for tracing convert.")
+            script_module = torch.jit.trace(model, example_inputs=inputs)
+        else:
+            script_module = torch.jit.script(model, **kwargs)
         if filename_or_obj is not None:
             torch.jit.save(m=script_module, f=filename_or_obj, _extra_files=extra_files)
 
@@ -611,15 +620,17 @@ def convert_to_torchscript(
 
 
 def convert_to_trt(
-    model: nn.Module,
-    filename_or_obj: Any | None = None,
-    extra_files: dict | None = None,
+    model: nn.module,
+    precision: str,
+    input_shape: Sequence[int],
+    dynamic_batchsize: Sequence[int],
+    ir: str,
+    filename_or_obj: Optional[Any] = None,
+    extra_files: Optional[Dict] = None,
     verify: bool = False,
-    inputs: Sequence[Any] | None = None,
-    device: torch.device | None = None,
+    device: Optional[torch.device] = None,
     rtol: float = 1e-4,
     atol: float = 0.0,
-    **kwargs,
 ):
     """
     Utility to convert a model into TorchScript model and save to file,
@@ -642,36 +653,57 @@ def convert_to_trt(
             https://pytorch.org/docs/master/generated/torch.jit.script.html.
 
     """
-    model.eval()
-    with torch.no_grad():
-        script_module = torch.jit.script(model, **kwargs)
-        if filename_or_obj is not None:
-            torch.jit.save(m=script_module, f=filename_or_obj, _extra_files=extra_files)
 
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    inputs = [torch.rand(input_shape)]
+    ir_model = convert_to_torchscript(model, device=device, inputs=inputs is_trace=(ir == "trace"))
+
+    convert_precision = torch.float32 if precision == "fp32" else torch.half
+    ir_model.eval().to(device)
+    min_input_shape = [*input_shape]
+    min_input_shape[0] *= dynamic_batchsize[0]
+    opt_input_shape = [*input_shape]
+    opt_input_shape[0] *= dynamic_batchsize[1]
+    max_input_shape = [*input_shape]
+    max_input_shape[0] *= dynamic_batchsize[2]
+    with torch.no_grad:
+
+        # TODO Try to figure out if TRT module through fx the same as script module
+        # TODO Multi inputs
+        input_placeholder = [
+            torch_tensorrt.Input(
+                min_shape=min_input_shape,
+                opt_shape=opt_input_shape,
+                max_shape=max_input_shape,
+            )
+        ]
+        trt_model = torch_tensorrt.compile(
+            ir_model, inputs=input_placeholder, enabled_precisions=convert_precision
+        )
     if verify:
-        if device is None:
-            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         if inputs is None:
             raise ValueError("missing input data for verification.")
 
         inputs = [i.to(device) if isinstance(i, torch.Tensor) else i for i in inputs]
-        ts_model = torch.jit.load(filename_or_obj) if filename_or_obj is not None else script_module
-        ts_model.eval().to(device)
         model = model.to(device)
 
         with torch.no_grad():
             set_determinism(seed=0)
             torch_out = ensure_tuple(model(*inputs))
             set_determinism(seed=0)
-            torchscript_out = ensure_tuple(ts_model(*inputs))
+            torchscript_out = ensure_tuple(trt_model(*inputs))
             set_determinism(seed=None)
         # compare TorchScript and PyTorch results
         for r1, r2 in zip(torch_out, torchscript_out):
             if isinstance(r1, torch.Tensor) or isinstance(r2, torch.Tensor):
-                assert_fn = torch.testing.assert_close if pytorch_after(1, 11) else torch.testing.assert_allclose
+                assert_fn = (
+                    torch.testing.assert_close
+                    if pytorch_after(1, 11)
+                    else torch.testing.assert_allclose
+                )
                 assert_fn(r1, r2, rtol=rtol, atol=atol)
 
-    return script_module
+    return trt_model
 
 
 def meshgrid_ij(*tensors):
