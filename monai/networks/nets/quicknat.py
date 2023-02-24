@@ -17,7 +17,8 @@ import torch
 import torch.nn as nn
 from squeeze_and_excitation import squeeze_and_excitation as se1
 
-from monai.networks.blocks import Bottleneck, ClassifierBlock, ConvConcatDenseBlock, Decoder, Encoder
+from monai.networks.blocks import Bottleneck, ConvConcatDenseBlock, Decoder, Encoder
+from monai.networks.blocks.convolutions import ClassifierBlock
 from monai.networks.blocks import squeeze_and_excitation as se
 from monai.networks.layers.factories import Act, Norm
 from monai.networks.layers.simplelayers import SkipConnectionWithIdx
@@ -197,7 +198,9 @@ class Quicknat(nn.Module):
         input, _ = self.model(input, None)
         return input
 
-# Should go into a layers file but not clear which exact one. 
+# Should go into a layers file but not clear which exact one.
+
+
 class SequentialWithIdx(nn.Sequential):
     """
     A sequential container.
