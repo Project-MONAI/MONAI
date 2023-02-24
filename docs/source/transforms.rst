@@ -88,6 +88,14 @@ Generic Interfaces
 .. autoclass:: RandomOrder
     :members:
 
+Functionals
+-----------
+
+.. automodule:: monai.transforms.croppad.functional
+    :members:
+
+.. currentmodule:: monai.transforms
+
 Vanilla Transforms
 ------------------
 

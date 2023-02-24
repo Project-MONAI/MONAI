@@ -96,7 +96,7 @@ class TestResampleToMatch(unittest.TestCase):
         img_1 = MetaTensor(torch.zeros(1, 2, 2, 2))
         img_2 = MetaTensor(torch.zeros(1, 3, 3, 3))
         im_mod = ResampleToMatch()(img_1, img_2)
-        self.assertEqual(im_mod.meta["filename_or_obj"], "resampled_to_match_source")
+        self.assertEqual(im_mod.meta["filename_or_obj"], "resample_to_match_source")
         SaveImage(output_dir=self.tmpdir, output_postfix="", separate_folder=False, resample=False)(im_mod)
 
 

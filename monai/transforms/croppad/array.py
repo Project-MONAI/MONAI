@@ -23,7 +23,6 @@ from typing import Any
 
 import numpy as np
 import torch
-from torch.nn.functional import pad as pad_pt
 
 from monai.config import IndexSelection
 from monai.config.type_definitions import NdarrayOrTensor
@@ -36,7 +35,6 @@ from monai.transforms.traits import MultiSampleTrait
 from monai.transforms.transform import LazyTransform, Randomizable, Transform
 from monai.transforms.utils import (
     compute_divisible_spatial_size,
-    convert_pad_mode,
     generate_label_classes_crop_centers,
     generate_pos_neg_label_crop_centers,
     generate_spatial_bounding_box,
@@ -53,7 +51,6 @@ from monai.utils import (
     TraceKeys,
     TransformBackends,
     convert_data_type,
-    convert_to_dst_type,
     convert_to_numpy,
     convert_to_tensor,
     deprecated_arg_default,
@@ -127,44 +124,6 @@ class Pad(InvertibleTransform, LazyTransform):
         """
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @staticmethod
-    def _np_pad(img: torch.Tensor, pad_width, mode, **kwargs) -> torch.Tensor:
-        img_np = img.detach().cpu().numpy() if isinstance(img, torch.Tensor) else img
-        mode = convert_pad_mode(dst=img_np, mode=mode).value
-        if mode == "constant" and "value" in kwargs:
-            kwargs["constant_values"] = kwargs.pop("value")
-        out = torch.as_tensor(np.pad(img, pad_width, mode=mode, **kwargs))
-        if isinstance(img, MetaTensor):
-            out = convert_to_dst_type(out, dst=img)[0]
-        return out
-
-    @staticmethod
-    def _pt_pad(img: torch.Tensor, pad_width, mode, **kwargs) -> torch.Tensor:
-        pt_pad_width = [val for sublist in pad_width[1:] for val in sublist[::-1]][::-1]
-        # torch.pad expects `[B, C, H, W, [D]]` shape
-        return pad_pt(img.unsqueeze(0), pt_pad_width, mode=mode, **kwargs).squeeze(0)
-
-    @staticmethod
-    def pad_nd(img_t, to_pad_, mode, **kwargs):
-        """pad with torch or numpy function"""
-        if mode in {"linear_ramp", "maximum", "mean", "median", "minimum", "symmetric", "empty"}:
-            return Pad._np_pad(img_t, pad_width=to_pad_, mode=mode, **kwargs)
-        mode = convert_pad_mode(dst=img_t, mode=mode).value
-        try:
-            _pad = (
-                Pad._pt_pad
-                if mode in {"reflect", "replicate"}
-                and img_t.dtype not in {torch.int16, torch.int64, torch.bool, torch.uint8}
-                else Pad._np_pad
-            )
-            return _pad(img_t, pad_width=to_pad_, mode=mode, **kwargs)
-        except (ValueError, TypeError, RuntimeError) as err:
-            if isinstance(err, NotImplementedError) or any(
-                k in str(err) for k in ("supported", "unexpected keyword", "implemented")
-            ):
-                return Pad._np_pad(img_t, pad_width=to_pad_, mode=mode, **kwargs)
-            raise ValueError(f"{img_t.shape} {to_pad_} {mode} {kwargs} {img_t.dtype} {img_t.device}") from err
-
     def __call__(  # type: ignore
         self, img: torch.Tensor, to_pad: list[tuple[int, int]] | None = None, mode: str | None = None, **kwargs
     ) -> torch.Tensor:
@@ -192,7 +151,7 @@ class Pad(InvertibleTransform, LazyTransform):
         kwargs_.update(kwargs)
 
         img_t = convert_to_tensor(data=img, track_meta=get_track_meta())
-        return pad_func(img_t, to_pad_, mode_, kwargs_, self.get_transform_info())  # type: ignore
+        return pad_func(img_t, to_pad_, mode_, self.get_transform_info(), kwargs_)  # type: ignore
 
     def inverse(self, data: MetaTensor) -> MetaTensor:
         transform = self.pop_transform(data)
