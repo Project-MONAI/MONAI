@@ -178,9 +178,9 @@ class TraceableTransform(Transform):
         if not lazy_evaluation and affine is not None and isinstance(data_t, MetaTensor):
             # not lazy evaluation, directly update the metatensor affine (don't push to the stack)
             orig_affine = data_t.peek_pending_affine()
-            orig_affine = convert_to_dst_type(orig_affine, affine, dtype=torch.double)[0]
-            affine = orig_affine @ to_affine_nd(len(orig_affine) - 1, affine, dtype=torch.double)
-            out_obj.meta[MetaKeys.AFFINE] = convert_to_tensor(affine, device=torch.device("cpu"), dtype=torch.double)
+            orig_affine = convert_to_dst_type(orig_affine, affine, dtype=torch.float64)[0]
+            affine = orig_affine @ to_affine_nd(len(orig_affine) - 1, affine, dtype=torch.float64)
+            out_obj.meta[MetaKeys.AFFINE] = convert_to_tensor(affine, device=torch.device("cpu"), dtype=torch.float64)
 
         if not (get_track_meta() and transform_info and transform_info.get(TraceKeys.TRACING)):
             if isinstance(data, Mapping):

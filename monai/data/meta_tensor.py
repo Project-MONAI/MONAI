@@ -461,7 +461,7 @@ class MetaTensor(MetaObj, torch.Tensor):
     @affine.setter
     def affine(self, d: NdarrayTensor) -> None:
         """Set the affine."""
-        self.meta[MetaKeys.AFFINE] = torch.as_tensor(d, device=torch.device("cpu"), dtype=torch.double)
+        self.meta[MetaKeys.AFFINE] = torch.as_tensor(d, device=torch.device("cpu"), dtype=torch.float64)
 
     @property
     def pixdim(self):
@@ -471,7 +471,10 @@ class MetaTensor(MetaObj, torch.Tensor):
         return affine_to_spacing(self.affine)
 
     def peek_pending_shape(self):
-        """Get the currently expected spatial shape as if all the pending operations are executed."""
+        """
+        Get the currently expected spatial shape as if all the pending operations are executed.
+        For tensors that have more than 3 spatial dimensions, only the shapes of the top 3 dimensions will be returned.
+        """
         res = None
         if self.pending_operations:
             res = self.pending_operations[-1].get(LazyAttr.SHAPE, None)
@@ -482,7 +485,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         res = self.affine
         r = len(res) - 1
         for p in self.pending_operations:
-            next_matrix = convert_to_tensor(p.get(LazyAttr.AFFINE), dtype=torch.double)
+            next_matrix = convert_to_tensor(p.get(LazyAttr.AFFINE), dtype=torch.float64)
             if next_matrix is None:
                 continue
             res = convert_to_dst_type(res, next_matrix)[0]
