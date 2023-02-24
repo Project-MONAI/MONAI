@@ -12,12 +12,13 @@
 from __future__ import annotations
 
 import os
-
 import yaml
+
+from batchgenerators.utilities.file_and_folder_operations import join, load_pickle
 
 
 class nnUNetRunner:
-     def __init__(self, input):
+    def __init__(self, input):
         self.input_info = []
         self.input_config_or_dict = input
         if isinstance(self.input_config_or_dict, dict):
@@ -32,16 +33,23 @@ class nnUNetRunner:
         self.nnunet_preprocessed = self.input_info["nnunet_preprocessed"]
         self.nnunet_results = self.input_info["nnunet_results"]
 
-        # dataset_name_or_id has to be a string
-        self.dataset_name_or_id = str(self.input_info["dataset_name_or_id"])
-
-        self.num_folds = 5
-
         # claim environment variable
         os.environ["nnUNet_raw"] = self.nnunet_raw
         os.environ["nnUNet_preprocessed"] = self.nnunet_preprocessed
         os.environ["nnUNet_results"] = self.nnunet_results
         os.environ["OMP_NUM_THREADS"] = str(1)
+
+        # dataset_name_or_id has to be a string
+        self.dataset_name_or_id = str(self.input_info["dataset_name_or_id"])
+
+        from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
+        self.dataset_name = maybe_convert_to_dataset_name(int(self.dataset_name_or_id))
+
+        from nnunetv2.configuration import default_num_processes
+        self.default_num_processes = default_num_processes
+
+        self.num_folds = 5
+        self.best_configuration = None
 
     def convert_msd_dataset(self):
         pass
@@ -90,33 +98,74 @@ class nnUNetRunner:
                 self.validate_single_model(config=_config, fold=_fold)
 
     def find_best_configuration(self):
-        dataset_name = maybe_convert_to_dataset_name(d)
-        source_dir = join(nnUNet_raw, dataset_name, "imagesTs")
-        target_dir_base = join(nnUNet_results, dataset_name)
+        from nnunetv2.evaluation.find_best_configuration import find_best_configuration, \
+            dumb_trainer_config_plans_to_trained_models_dict
 
         models = dumb_trainer_config_plans_to_trained_models_dict(
             ["nnUNetTrainer_5epochs"], ["2d", "3d_lowres", "3d_cascade_fullres", "3d_fullres"], ["nnUNetPlans"]
         )
         ret = find_best_configuration(
-            d, models, allow_ensembling=True, num_processes=8, overwrite=True, folds=(0, 1, 2, 3, 4), strict=True
+            int(self.dataset_name_or_id), models, allow_ensembling=True, num_processes=8, overwrite=True, folds=(0, 1, 2, 3, 4), strict=True
+        )
+        self.best_configuration = ret
+
+    def predict(
+        self,
+        list_of_lists_or_source_folder: Union[str, List[List[str]]],
+        output_folder: str,
+        model_training_output_dir: str,
+        use_folds: Union[Tuple[int, ...], str] = None,
+        tile_step_size: float = 0.5,
+        use_gaussian: bool = True,
+        use_mirroring: bool = True,
+        perform_everything_on_gpu: bool = True,
+        verbose: bool = True,
+        save_probabilities: bool = False,
+        overwrite: bool = True,
+        checkpoint_name: str = 'checkpoint_final.pth',
+        folder_with_segs_from_prev_stage: str = None,
+        num_parts: int = 1,
+        part_id: int = 0,
+    ):
+        from nnunetv2.inference.predict_from_raw_data import predict_from_raw_data
+
+        predict_from_raw_data(
+            list_of_lists_or_source_folder=list_of_lists_or_source_folder,
+            output_folder=output_folder,
+            model_training_output_dir=model_training_output_dir,
+            use_folds=use_folds,
+            tile_step_size=tile_step_size,
+            use_gaussian=use_gaussian,
+            use_mirroring=use_mirroring,
+            perform_everything_on_gpu=perform_everything_on_gpu,
+            verbose=verbose,
+            save_probabilities=save_probabilities,
+            overwrite=overwrite,
+            checkpoint_name=checkpoint_name,
+            num_processes_preprocessing=self.default_num_processes,
+            num_processes_segmentation_export=self.default_num_processes,
+            folder_with_segs_from_prev_stage=folder_with_segs_from_prev_stage,
+            num_parts=num_parts,
+            part_id=part_id,
         )
 
-    def ensemble(self, folds=(0, 1, 2, 3, 4)):
-        has_ensemble = len(ret["best_model_or_ensemble"]["selected_model_or_models"]) > 1
+    def predict_ensemble(self, folds=[0, 3]):
+        from nnunetv2.ensembling.ensemble import ensemble_folders
+        # from nnunetv2.inference.predict_from_raw_data import predict_from_raw_data
+        from nnunetv2.postprocessing.remove_connected_components import apply_postprocessing_to_folder
+        from nnunetv2.utilities.file_path_utilities import get_output_folder
 
-        used_folds = (0, 3)
+        source_dir = join(self.nnunet_raw, self.dataset_name, "imagesTs")
+        target_dir_base = join(self.nnunet_results, self.dataset_name)
+
+        has_ensemble = len(self.best_configuration["best_model_or_ensemble"]["selected_model_or_models"]) > 1
+
+        used_folds = folds
         output_folders = []
-        for im in ret["best_model_or_ensemble"]["selected_model_or_models"]:
+        for im in self.best_configuration["best_model_or_ensemble"]["selected_model_or_models"]:
             output_dir = join(target_dir_base, f"pred_{im['configuration']}")
-            model_folder = get_output_folder(d, im["trainer"], im["plans_identifier"], im["configuration"])
-            # note that if the best model is the enseble of 3d_lowres and 3d cascade then 3d_lowres will be predicted
-            # twice (once standalone and once to generate the predictions for the cascade) because we don't reuse the
-            # prediction here. Proper way would be to check for that and
-            # then give the output of 3d_lowres inference to the folder_with_segs_from_prev_stage kwarg in
-            # predict_from_raw_data. Since we allow for
-            # dynamically setting 'previous_stage' in the plans I am too lazy to implement this here. This is just an
-            # integration test after all. Take a closer look at how this in handled in predict_from_raw_data
-            predict_from_raw_data(
+            model_folder = get_output_folder(int(self.dataset_name_or_id), im["trainer"], im["plans_identifier"], im["configuration"])
+            self.predict(
                 list_of_lists_or_source_folder=source_dir,
                 output_folder=output_dir,
                 model_training_output_dir=model_folder,
@@ -137,17 +186,17 @@ class nnUNetRunner:
             folder_for_pp = output_folders[0]
 
         # apply postprocessing
-        pp_fns, pp_fn_kwargs = load_pickle(ret["best_model_or_ensemble"]["postprocessing_file"])
+        pp_fns, pp_fn_kwargs = load_pickle(self.best_configuration["best_model_or_ensemble"]["postprocessing_file"])
         apply_postprocessing_to_folder(
             folder_for_pp,
             join(target_dir_base, "ensemble_predictions_postprocessed"),
             pp_fns,
             pp_fn_kwargs,
-            plans_file_or_dict=ret["best_model_or_ensemble"]["some_plans_file"],
+            plans_file_or_dict=self.best_configuration["best_model_or_ensemble"]["some_plans_file"],
         )
 
     def run(self):
         # self.plan_and_process()
         # self.train()
         self.find_best_configuration()
-        # self.ensemble()
+        self.predict_ensemble()
