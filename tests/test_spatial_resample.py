@@ -22,6 +22,7 @@ from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
 from monai.transforms import SpatialResample
+from monai.transforms.lazy.functional import apply_transforms
 from monai.utils import optional_import
 from tests.utils import TEST_DEVICES, TEST_NDARRAYS_ALL, assert_allclose
 
@@ -131,6 +132,28 @@ for track_meta in (True,):
         TEST_TORCH_INPUT.append(t + [track_meta])
 
 
+def get_apply_param(init_param=None, call_param=None):
+    apply_param = {}
+    for key in ["pending", "mode", "padding_mode", "dtype", "align_corners"]:
+        if init_param:
+            if key in init_param.keys():
+                apply_param[key] = init_param[key]
+        if call_param:
+            if key in call_param.keys():
+                apply_param[key] = call_param[key]
+    return apply_param
+
+
+def test_resampler_lazy(resampler, non_lazy_out, init_param=None, call_param=None):
+    resampler.lazy_evaluation = True
+    pending_out = resampler(**call_param)
+    assert_allclose(pending_out.peek_pending_affine(), non_lazy_out.affine)
+    assert_allclose(pending_out.peek_pending_shape(), non_lazy_out.shape[1:4])
+    apply_param = get_apply_param(init_param, call_param)
+    lazy_out = apply_transforms(pending_out, **apply_param)[0]
+    assert_allclose(lazy_out, non_lazy_out, rtol=1e-5)
+
+
 class TestSpatialResample(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_flips(self, img, device, data_param, expected_output):
@@ -140,9 +163,14 @@ class TestSpatialResample(unittest.TestCase):
                 img.affine = torch.eye(4)
             if hasattr(img, "to"):
                 img = img.to(device)
-            out = SpatialResample()(img=img, **data_param)
+            resampler = SpatialResample()
+            call_param = data_param.copy()
+            call_param["img"] = img
+            out = resampler(**call_param)
             assert_allclose(out, expected_output, rtol=1e-2, atol=1e-2)
-            assert_allclose(out.affine, data_param["dst_affine"])
+            assert_allclose(to_affine_nd(len(out.shape) - 1, out.affine), call_param["dst_affine"])
+
+            test_resampler_lazy(resampler, out, init_param=None, call_param=call_param)
 
     @parameterized.expand(TEST_4_5_D)
     def test_4d_5d(self, new_shape, tile, device, dtype, expected_data):
@@ -152,9 +180,14 @@ class TestSpatialResample(unittest.TestCase):
 
         dst = torch.tensor([[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, -1.0, 1.5], [0.0, 0.0, 0.0, 1.0]])
         dst = dst.to(dtype)
-        out = SpatialResample(dtype=dtype, align_corners=True)(img=img, dst_affine=dst, align_corners=False)
+        init_param = {"dtype": dtype, "align_corners": True}
+        call_param = {"img": img, "dst_affine": dst, "align_corners": False}
+        resampler = SpatialResample(**init_param)
+        out = resampler(**call_param)
         assert_allclose(out, expected_data[None], rtol=1e-2, atol=1e-2)
         assert_allclose(out.affine, dst.to(torch.float32), rtol=1e-2, atol=1e-2)
+
+        test_resampler_lazy(resampler, out, init_param, call_param)
 
     @parameterized.expand(TEST_DEVICES)
     def test_ill_affine(self, device):
@@ -182,9 +215,14 @@ class TestSpatialResample(unittest.TestCase):
         img = torch.as_tensor(np.tile(img, tile)).to(device)
         dst = torch.tensor([[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, -1.0, 1.5], [0.0, 0.0, 0.0, 1.0]])
         dst = dst.to(dtype).to(device)
-
-        out = SpatialResample(dtype=dtype)(img=img, dst_affine=dst)
+        init_param = {"dtype": dtype}
+        call_param = {"img": img, "dst_affine": dst}
+        resampler = SpatialResample(**init_param)
+        out = resampler(**call_param)
         assert_allclose(out, expected_data[None], rtol=1e-2, atol=1e-2)
+
+        test_resampler_lazy(resampler, out, init_param, call_param)
+
         if track_meta:
             self.assertIsInstance(out, MetaTensor)
             assert_allclose(out.affine, dst.to(torch.float32), rtol=1e-2, atol=1e-2)
@@ -198,7 +236,7 @@ class TestSpatialResample(unittest.TestCase):
         tr = SpatialResample()
         out = tr(img=img, **data_param)
         assert_allclose(out, expected_output, rtol=1e-2, atol=1e-2)
-        assert_allclose(out.affine, data_param["dst_affine"])
+        assert_allclose(to_affine_nd(len(out.shape) - 1, out.affine), data_param["dst_affine"])
 
         # inverse
         out = tr.inverse(out)

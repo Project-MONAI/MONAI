@@ -36,6 +36,10 @@ class TestBorderPadd(PadTest):
         modes = ["constant", NumpyPadMode.CONSTANT, PytorchPadMode.CONSTANT, "edge", NumpyPadMode.EDGE]
         self.pad_test(input_param, input_shape, expected_shape, modes)
 
+    @parameterized.expand(TESTS)
+    def test_pending_ops(self, input_param, input_shape, _):
+        self.pad_test_pending_ops(input_param, input_shape)
+
 
 if __name__ == "__main__":
     unittest.main()
