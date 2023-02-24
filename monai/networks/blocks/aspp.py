@@ -16,8 +16,8 @@ from collections.abc import Sequence
 import torch
 import torch.nn as nn
 
-from monai.networks.blocks.convolutions import Convolution
 from monai.networks.blocks import ADN
+from monai.networks.blocks.convolutions import Convolution
 from monai.networks.layers import same_padding
 from monai.networks.layers.factories import Conv
 
@@ -108,35 +108,76 @@ class SimpleASPP(nn.Module):
         return x_out
 
 
-class DAF3D_ASPP(SimpleASPP):
+class Daf3dASPP(SimpleASPP):
+    """
+    Atrous Spatial Pyramid Pooling module as used in 'Deep Attentive Features for Prostate Segmentation in
+    3D Transrectal Ultrasound' <https://arxiv.org/pdf/1907.01743.pdf>. Core functionality as in SimpleASPP, but after each
+    layerwise convolution a group normalization is added. Further weight initialization for convolutions is provided in
+    _init_weight(). Additional possibility to specify the number of final output channels.
+
+    Args:
+        spatial_dims: number of spatial dimensions, could be 1, 2, or 3.
+        in_channels: number of input channels.
+        conv_out_channels: number of output channels of each atrous conv.
+        out_channels: number of output channels of final convolution.
+            If None, uses len(kernel_sizes) * conv_out_channels
+        kernel_sizes: a sequence of four convolutional kernel sizes.
+            Defaults to (1, 3, 3, 3) for four (dilated) convolutions.
+        dilations: a sequence of four convolutional dilation parameters.
+            Defaults to (1, 2, 4, 6) for four (dilated) convolutions.
+        norm_type: final kernel-size-one convolution normalization type.
+            Defaults to batch norm.
+        acti_type: final kernel-size-one convolution activation type.
+            Defaults to leaky ReLU.
+        bias: whether to have a bias term in convolution blocks. Defaults to False.
+            According to `Performance Tuning Guide <https://pytorch.org/tutorials/recipes/recipes/tuning_guide.html>`_,
+            if a conv layer is directly followed by a batch norm layer, bias should be False.
+
+    Raises:
+        ValueError: When ``kernel_sizes`` length differs from ``dilations``.
+    """
+
     def __init__(
         self,
         spatial_dims: int,
         in_channels: int,
         conv_out_channels: int,
+        out_channels: int | None = None,
         kernel_sizes: Sequence[int] = (1, 3, 3, 3),
         dilations: Sequence[int] = (1, 2, 4, 6),
         norm_type: tuple | str | None = "BATCH",
+        acti_type: tuple | str | None = "LEAKYRELU",
         bias: bool = False,
     ) -> None:
-        super().__init__(spatial_dims, in_channels, conv_out_channels, kernel_sizes, dilations, norm_type, bias=bias)
-        
-        #change convolutions in self.convs so they fit our needs
+        super().__init__(
+            spatial_dims, in_channels, conv_out_channels, kernel_sizes, dilations, norm_type, acti_type, bias
+        )
+
+        # add normalization after each atrous convolution, initializes weights
         new_convs = nn.ModuleList()
-        for _conv in self.convs: 
-            tmp_conv = Convolution(1,1,1)
-            tmp_conv.conv = _conv 
+        for _conv in self.convs:
+            tmp_conv = Convolution(1, 1, 1)
+            tmp_conv.conv = _conv
             tmp_conv.adn = ADN(ordering="N", norm=norm_type, norm_dim=1)
             tmp_conv = self._init_weight(tmp_conv)
             new_convs.append(tmp_conv)
         self.convs = new_convs
 
-        #change final convolution
-        self.conv_k1 = Convolution(spatial_dims=3, in_channels=4*in_channels, out_channels=conv_out_channels, kernel_size=1, adn_ordering="N", norm=norm_type)
+        # change final convolution to different out_channels
+        if out_channels is None:
+            out_channels = len(kernel_sizes) * conv_out_channels
+
+        self.conv_k1 = Convolution(
+            spatial_dims=3,
+            in_channels=len(kernel_sizes) * conv_out_channels,
+            out_channels=out_channels,
+            kernel_size=1,
+            norm=norm_type,
+            act=acti_type,
+        )
 
     def _init_weight(self, conv):
         for m in conv.modules():
-            if isinstance(m, nn.Conv3d): #true for conv.conv
-                torch.nn.init.kaiming_normal_(m.weight) 
+            if isinstance(m, nn.Conv3d):  # true for conv.conv
+                torch.nn.init.kaiming_normal_(m.weight)
         return conv
-
