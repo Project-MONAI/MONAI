@@ -25,7 +25,57 @@ from monai.transforms.inverse import TraceableTransform
 from monai.transforms.utils import convert_pad_mode, create_translate
 from monai.utils import TraceKeys, convert_to_dst_type, convert_to_tensor
 
-__all__ = ["pad_func"]
+__all__ = ["pad_nd", "pad_func"]
+
+
+def _np_pad(img: torch.Tensor, pad_width: list[tuple[int, int]], mode: str, **kwargs) -> torch.Tensor:
+    img_np = img.detach().cpu().numpy() if isinstance(img, torch.Tensor) else img
+    mode = convert_pad_mode(dst=img_np, mode=mode).value
+    if mode == "constant" and "value" in kwargs:
+        kwargs["constant_values"] = kwargs.pop("value")
+    out = torch.as_tensor(np.pad(img, pad_width, mode=mode, **kwargs))  # type: ignore
+    if isinstance(img, MetaTensor):
+        out = convert_to_dst_type(out, dst=img)[0]
+    return out
+
+
+def _pt_pad(img: torch.Tensor, pad_width: list[tuple[int, int]], mode: str, **kwargs) -> torch.Tensor:
+    pt_pad_width = [val for sublist in pad_width[1:] for val in sublist[::-1]][::-1]
+    # torch.pad expects `[B, C, H, W, [D]]` shape
+    return pad_pt(img.unsqueeze(0), pt_pad_width, mode=mode, **kwargs).squeeze(0)
+
+
+def pad_nd(img: torch.Tensor, to_pad: list[tuple[int, int]], mode: str, **kwargs):
+    """
+    Args:
+        img: data to be transformed, assuming `img` is channel-first and padding doesn't apply to the channel dim.
+        to_pad: the amount to be padded in each dimension [(low_H, high_H), (low_W, high_W), ...].
+            default to `self.to_pad`.
+        mode: available modes: (Numpy) {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            (PyTorch) {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+            One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+        kwargs: other arguments for the `np.pad` or `torch.pad` function.
+            note that `np.pad` treats channel dimension as the first dimension.
+    """
+    if mode in {"linear_ramp", "maximum", "mean", "median", "minimum", "symmetric", "empty"}:
+        return _np_pad(img, pad_width=to_pad, mode=mode, **kwargs)
+    mode = convert_pad_mode(dst=img, mode=mode).value
+    try:
+        _pad = (
+            _pt_pad
+            if mode in {"reflect", "replicate"} and img.dtype not in {torch.int16, torch.int64, torch.bool, torch.uint8}
+            else _np_pad
+        )
+        return _pad(img, pad_width=to_pad, mode=mode, **kwargs)
+    except (ValueError, TypeError, RuntimeError) as err:
+        if isinstance(err, NotImplementedError) or any(
+            k in str(err) for k in ("supported", "unexpected keyword", "implemented")
+        ):
+            return _np_pad(img, pad_width=to_pad, mode=mode, **kwargs)
+        raise ValueError(f"{img.shape} {to_pad} {mode} {kwargs} {img.dtype} {img.device}") from err
 
 
 def pad_func(img: torch.Tensor, to_pad: list[tuple[int, int]], mode: str, transform_info: dict, kwargs: dict):
@@ -44,41 +94,6 @@ def pad_func(img: torch.Tensor, to_pad: list[tuple[int, int]], mode: str, transf
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
     """
-
-    def _np_pad(img: torch.Tensor, pad_width: list[tuple[int, int]], mode: str, **kwargs) -> torch.Tensor:
-        img_np = img.detach().cpu().numpy() if isinstance(img, torch.Tensor) else img
-        mode = convert_pad_mode(dst=img_np, mode=mode).value
-        if mode == "constant" and "value" in kwargs:
-            kwargs["constant_values"] = kwargs.pop("value")
-        out = torch.as_tensor(np.pad(img, pad_width, mode=mode, **kwargs))  # type: ignore
-        if isinstance(img, MetaTensor):
-            out = convert_to_dst_type(out, dst=img)[0]
-        return out
-
-    def _pt_pad(img: torch.Tensor, pad_width: list[tuple[int, int]], mode: str, **kwargs) -> torch.Tensor:
-        pt_pad_width = [val for sublist in pad_width[1:] for val in sublist[::-1]][::-1]
-        # torch.pad expects `[B, C, H, W, [D]]` shape
-        return pad_pt(img.unsqueeze(0), pt_pad_width, mode=mode, **kwargs).squeeze(0)
-
-    def _pad_nd(img: torch.Tensor, to_pad: list[tuple[int, int]], mode: str, **kwargs):
-        if mode in {"linear_ramp", "maximum", "mean", "median", "minimum", "symmetric", "empty"}:
-            return _np_pad(img, pad_width=to_pad, mode=mode, **kwargs)
-        mode = convert_pad_mode(dst=img, mode=mode).value
-        try:
-            _pad = (
-                _pt_pad
-                if mode in {"reflect", "replicate"}
-                and img.dtype not in {torch.int16, torch.int64, torch.bool, torch.uint8}
-                else _np_pad
-            )
-            return _pad(img, pad_width=to_pad, mode=mode, **kwargs)
-        except (ValueError, TypeError, RuntimeError) as err:
-            if isinstance(err, NotImplementedError) or any(
-                k in str(err) for k in ("supported", "unexpected keyword", "implemented")
-            ):
-                return _np_pad(img, pad_width=to_pad, mode=mode, **kwargs)
-            raise ValueError(f"{img.shape} {to_pad} {mode} {kwargs} {img.dtype} {img.device}") from err
-
     extra_info = {"padded": to_pad}
     img_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
     spatial_rank = img.peek_pending_rank() if isinstance(img, MetaTensor) else 3
@@ -105,6 +120,6 @@ def pad_func(img: torch.Tensor, to_pad: list[tuple[int, int]], mode: str, transf
     out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
     if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
-    out = _pad_nd(out, to_pad, mode, **kwargs) if do_pad else out
+    out = pad_nd(out, to_pad, mode, **kwargs) if do_pad else out
     out = convert_to_tensor(out, track_meta=get_track_meta())
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
