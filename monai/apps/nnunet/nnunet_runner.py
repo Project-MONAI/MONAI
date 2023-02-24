@@ -60,6 +60,7 @@ class nnUNetRunner:
                 --export_validation_probabilities true \
                 --num_gpus 2
     """
+
     def __init__(self, input):
         self.input = input
         with open(self.input) as f:
