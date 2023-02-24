@@ -12,8 +12,11 @@
 from __future__ import annotations
 
 import os
+<<<<<<< HEAD
 import subprocess
 
+=======
+>>>>>>> a33f9b03e54f7013a466472d02ec51d2cc0162d4
 import yaml
 
 
@@ -34,7 +37,16 @@ class nnUNetRunner:
 
         self.num_folds = 5
 
+<<<<<<< HEAD
     def train_single_model(self, config, fold, **kwargs):
+=======
+    def train_single_model(
+        self,
+        config,
+        fold,
+        **kwargs,
+    ):
+>>>>>>> a33f9b03e54f7013a466472d02ec51d2cc0162d4
         """
         Args:
             config: configuration that should be trained.
