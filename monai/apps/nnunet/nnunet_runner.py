@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import os
-import subprocess
 import yaml
 
 
@@ -35,7 +34,7 @@ class nnUNetRunner:
         self.dataset_name_or_id = str(input_info["dataset_name_or_id"])
 
         self.num_folds = 5
-    
+
     def train_single_model(
         self,
         config,
@@ -72,7 +71,7 @@ class nnUNetRunner:
     ):
         if type(configs) == str:
             configs = [configs]
-        
+
         for _i in range(len(configs)):
             _config = configs[_i]
             for _fold in range(self.num_folds):
@@ -99,7 +98,7 @@ class nnUNetRunner:
     ):
         if type(configs) == str:
             configs = [configs]
-        
+
         for _i in range(len(configs)):
             _config = configs[_i]
             for _fold in range(self.num_folds):
