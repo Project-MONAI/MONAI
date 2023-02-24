@@ -22,18 +22,18 @@ from typing import Any
 
 import numpy as np
 import torch
-from torch.nn.functional import pad as pad_pt
 
 from monai.config import IndexSelection
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import get_random_patch, get_valid_patch_size
+from monai.transforms.croppad.functional import pad_func
 from monai.transforms.inverse import InvertibleTransform, TraceableTransform
-from monai.transforms.transform import Randomizable, Transform
+from monai.transforms.traits import MultiSampleTrait
+from monai.transforms.transform import LazyTransform, Randomizable, Transform
 from monai.transforms.utils import (
     compute_divisible_spatial_size,
-    convert_pad_mode,
     create_translate,
     generate_label_classes_crop_centers,
     generate_pos_neg_label_crop_centers,
@@ -52,6 +52,7 @@ from monai.utils import (
     convert_data_type,
     convert_to_dst_type,
     convert_to_tensor,
+    deprecated_arg_default,
     ensure_tuple,
     ensure_tuple_rep,
     fall_back_tuple,
@@ -80,7 +81,7 @@ __all__ = [
 ]
 
 
-class Pad(InvertibleTransform):
+class Pad(InvertibleTransform, LazyTransform):
     """
     Perform padding for a given an amount of padding in each dimension.
 
@@ -122,24 +123,6 @@ class Pad(InvertibleTransform):
         """
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @staticmethod
-    def _np_pad(img: torch.Tensor, pad_width, mode, **kwargs) -> torch.Tensor:
-        img_np = img.detach().cpu().numpy() if isinstance(img, torch.Tensor) else img
-        mode = convert_pad_mode(dst=img_np, mode=mode).value
-        if mode == "constant" and "value" in kwargs:
-            val = kwargs.pop("value")
-            kwargs["constant_values"] = val
-        out = torch.as_tensor(np.pad(img, pad_width, mode=mode, **kwargs))
-        if isinstance(img, MetaTensor):
-            out = convert_to_dst_type(out, dst=img)[0]
-        return out
-
-    @staticmethod
-    def _pt_pad(img: torch.Tensor, pad_width, mode, **kwargs) -> torch.Tensor:
-        pt_pad_width = [val for sublist in pad_width[1:] for val in sublist[::-1]][::-1]
-        # torch.pad expects `[B, C, H, W, [D]]` shape
-        return pad_pt(img.unsqueeze(0), pt_pad_width, mode=mode, **kwargs).squeeze(0)
-
     def __call__(  # type: ignore
         self, img: torch.Tensor, to_pad: list[tuple[int, int]] | None = None, mode: str | None = None, **kwargs
     ) -> torch.Tensor:
@@ -160,52 +143,14 @@ class Pad(InvertibleTransform):
         """
         to_pad_ = self.to_pad if to_pad is None else to_pad
         if to_pad_ is None:
-            to_pad_ = self.compute_pad_width(img.shape[1:])
+            spatial_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
+            to_pad_ = self.compute_pad_width(spatial_shape)
         mode_ = self.mode if mode is None else mode
         kwargs_ = dict(self.kwargs)
         kwargs_.update(kwargs)
 
         img_t = convert_to_tensor(data=img, track_meta=get_track_meta())
-        _orig_size = img_t.shape[1:]
-
-        # all zeros, skip padding
-        if np.asarray(to_pad_).any():
-            to_pad_ = list(to_pad_)
-            if len(to_pad_) < len(img_t.shape):
-                to_pad_ = list(to_pad_) + [(0, 0)] * (len(img_t.shape) - len(to_pad_))
-            if mode_ in {"linear_ramp", "maximum", "mean", "median", "minimum", "symmetric", "empty"}:
-                out = self._np_pad(img_t, pad_width=to_pad_, mode=mode_, **kwargs_)
-            else:
-                mode_ = convert_pad_mode(dst=img_t, mode=mode_).value
-                try:
-                    _pad = (
-                        self._pt_pad
-                        if mode_ in {"reflect", "replicate"}
-                        and img_t.dtype not in {torch.int16, torch.int64, torch.bool, torch.uint8}
-                        else self._np_pad
-                    )
-                    out = _pad(img_t, pad_width=to_pad_, mode=mode_, **kwargs_)
-                except (ValueError, TypeError, RuntimeError) as err:
-                    if isinstance(err, NotImplementedError) or any(
-                        k in str(err) for k in ("supported", "unexpected keyword", "implemented")
-                    ):
-                        out = self._np_pad(img_t, pad_width=to_pad_, mode=mode_, **kwargs_)
-                    else:
-                        raise ValueError(
-                            f"{img_t.shape} {to_pad_} {mode_} {kwargs_} {img_t.dtype} {img_t.device}"
-                        ) from err
-        else:
-            out = img_t
-        if get_track_meta():
-            self.update_meta(tensor=out, to_pad=to_pad_)  # type: ignore
-            self.push_transform(out, orig_size=_orig_size, extra_info={"padded": to_pad_})
-        return out
-
-    def update_meta(self, tensor: MetaTensor, to_pad: list[tuple[int, int]]):
-        spatial_rank = max(len(tensor.affine) - 1, 1)
-        to_shift = [-s[0] for s in to_pad[1:]]  # skipping the channel pad
-        mat = create_translate(spatial_rank, to_shift)
-        tensor.affine = tensor.affine @ convert_to_dst_type(mat, tensor.affine)[0]
+        return pad_func(img_t, to_pad_, mode_, self.get_transform_info(), kwargs_)  # type: ignore
 
     def inverse(self, data: MetaTensor) -> MetaTensor:
         transform = self.pop_transform(data)
@@ -585,6 +530,7 @@ class RandSpatialCrop(Randomizable, Crop):
             if True, the actual size is sampled from `randint(roi_size, max_roi_size + 1)`.
     """
 
+    @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         roi_size: Sequence[int] | int,
@@ -647,6 +593,7 @@ class RandScaleCrop(RandSpatialCrop):
             `randint(roi_scale * image spatial size, max_roi_scale * image spatial size + 1)`.
     """
 
+    @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         roi_scale: Sequence[float] | float,
@@ -680,7 +627,7 @@ class RandScaleCrop(RandSpatialCrop):
         return super().__call__(img=img, randomize=randomize)
 
 
-class RandSpatialCropSamples(Randomizable, TraceableTransform):
+class RandSpatialCropSamples(Randomizable, TraceableTransform, MultiSampleTrait):
     """
     Crop image with random size or specific size ROI to generate a list of N samples.
     It can crop at a random position as center or at the image center. And allows to set
@@ -713,6 +660,7 @@ class RandSpatialCropSamples(Randomizable, TraceableTransform):
 
     backend = RandSpatialCrop.backend
 
+    @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         roi_size: Sequence[int] | int,
@@ -889,7 +837,7 @@ class CropForeground(Crop):
         return super().inverse(inv)
 
 
-class RandWeightedCrop(Randomizable, TraceableTransform):
+class RandWeightedCrop(Randomizable, TraceableTransform, MultiSampleTrait):
     """
     Samples a list of `num_samples` image patches according to the provided `weight_map`.
 
@@ -954,7 +902,7 @@ class RandWeightedCrop(Randomizable, TraceableTransform):
         return results
 
 
-class RandCropByPosNegLabel(Randomizable, TraceableTransform):
+class RandCropByPosNegLabel(Randomizable, TraceableTransform, MultiSampleTrait):
     """
     Crop random fixed sized regions with the center being a foreground or background voxel
     based on the Pos Neg Ratio.
@@ -1114,7 +1062,7 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform):
         return results
 
 
-class RandCropByLabelClasses(Randomizable, TraceableTransform):
+class RandCropByLabelClasses(Randomizable, TraceableTransform, MultiSampleTrait):
     """
     Crop random fixed sized regions with the center being a class based on the specified ratios of every class.
     The label data can be One-Hot format array or Argmax data. And will return a list of arrays for all the

@@ -96,7 +96,7 @@ class TestSpatialResample(unittest.TestCase):
         out = output_data["img"]
 
         assert_allclose(out, expected_output, rtol=1e-2, atol=1e-2)
-        assert_allclose(out.affine, dst_affine, rtol=1e-2, atol=1e-2)
+        assert_allclose(to_affine_nd(len(out.shape) - 1, out.affine), dst_affine, rtol=1e-2, atol=1e-2)
 
         inverted = xform.inverse(output_data)["img"]
         self.assertEqual(inverted.applied_operations, [])  # no further invert after inverting

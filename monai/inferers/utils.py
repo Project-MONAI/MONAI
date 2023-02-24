@@ -262,13 +262,14 @@ def sliding_window_inference(
 
     # account for any overlapping sections
     for ss in range(len(output_image_list)):
-        output_image_list[ss] = (output_image_list[ss] / count_map_list.pop(0)).to(compute_dtype)
+        output_image_list[ss] = output_image_list[ss]
+        _map = count_map_list.pop(0)
+        for _i in range(output_image_list[ss].shape[1]):
+            output_image_list[ss][:, _i : _i + 1, ...] /= _map
+        output_image_list[ss] = output_image_list[ss].to(compute_dtype)
 
     # remove padding if image_size smaller than roi_size
     for ss, output_i in enumerate(output_image_list):
-        if torch.isnan(output_i).any() or torch.isinf(output_i).any():
-            warnings.warn("Sliding window inference results contain NaN or Inf.")
-
         zoom_scale = [
             seg_prob_map_shape_d / roi_size_d for seg_prob_map_shape_d, roi_size_d in zip(output_i.shape[2:], roi_size)
         ]
