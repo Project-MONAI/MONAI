@@ -461,7 +461,7 @@ class MetaTensor(MetaObj, torch.Tensor):
     @affine.setter
     def affine(self, d: NdarrayTensor) -> None:
         """Set the affine."""
-        self.meta[MetaKeys.AFFINE] = torch.as_tensor(d, device=torch.device("cpu"), dtype=torch.double)
+        self.meta[MetaKeys.AFFINE] = torch.as_tensor(d, device=torch.device("cpu"), dtype=torch.float64)
 
     @property
     def pixdim(self):
@@ -485,7 +485,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         res = self.affine
         r = len(res) - 1
         for p in self.pending_operations:
-            next_matrix = convert_to_tensor(p.get(LazyAttr.AFFINE), dtype=torch.double)
+            next_matrix = convert_to_tensor(p.get(LazyAttr.AFFINE), dtype=torch.float64)
             if next_matrix is None:
                 continue
             res = convert_to_dst_type(res, next_matrix)[0]
