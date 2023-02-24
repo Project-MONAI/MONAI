@@ -13,6 +13,50 @@ from __future__ import annotations
 
 from monai.apps.nnunet.nnunet_runner import nnUNetRunner
 
+"""
+Examples:
+    - User can use the one-liner to start the nnU-Net workflow
+
+    .. code-block:: bash
+
+        python -m monai.apps.nnunet nnUNetRunner run --input "./input.yaml"
+
+    - single-gpu training for all 20 models
+
+    .. code-block:: bash
+
+        python -m monai.apps.nnunet nnUNetRunner train --input "./input.yaml"
+
+    - single-gpu training for a single model
+
+    .. code-block:: bash
+
+        python -m monai.apps.nnunet nnUNetRunner train_single_model --input "./input.yaml" \
+            --config "3d_fullres" \
+            --fold 0 \
+            --trainer_class_name "nnUNetTrainer_5epochs" \
+            --export_validation_probabilities true
+
+    - multi-gpu training for all 20 models
+
+    .. code-block:: bash
+
+        export CUDA_VISIBLE_DEVICES=0,1 # optional
+        python -m monai.apps.nnunet nnUNetRunner train --input "./input.yaml" --num_gpus 2
+
+    - multi-gpu training for a single model
+
+    .. code-block:: bash
+
+        export CUDA_VISIBLE_DEVICES=0,1 # optional
+        python -m monai.apps.nnunet nnUNetRunner train_single_model --input "./input.yaml" \
+            --config "3d_fullres" \
+            --fold 0 \
+            --trainer_class_name "nnUNetTrainer_5epochs" \
+            --export_validation_probabilities true \
+            --num_gpus 2
+"""
+
 if __name__ == "__main__":
     from monai.utils import optional_import
 
