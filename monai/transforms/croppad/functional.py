@@ -81,7 +81,7 @@ def pad_nd(img: torch.Tensor, to_pad: list[tuple[int, int]], mode: str, **kwargs
         raise ValueError(f"{img.shape} {to_pad} {mode} {kwargs} {img.dtype} {img.device}") from err
 
 
-def pad_func(img: torch.Tensor, to_pad: list[tuple[int, int]], mode: str, transform_info: dict, kwargs: dict):
+def pad_func(img: torch.Tensor, to_pad: list[tuple[int, int]], mode: str, transform_info: dict, kwargs):
     """
     Functional implementation of padding a MetaTensor. This function operates eagerly or lazily according
     to ``transform_info[TraceKeys.LAZY_EVALUATION]`` (default ``False``).
