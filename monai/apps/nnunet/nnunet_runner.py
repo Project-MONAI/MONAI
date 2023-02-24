@@ -62,20 +62,33 @@ class nnUNetRunner:
     """
 
     def __init__(self, input):
-        self.input = input
-        with open(self.input) as f:
-            input_info = yaml.full_load(f)
+        self.input_info = []
+        self.input_config_or_dict = input
+        if isinstance(self.input_config_or_dict, dict):
+            self.input_info = self.input_config_or_dict
+        elif isinstance(self.input_config_or_dict, str) and os.path.isfile(self.input_config_or_dict):
+            with open(self.input_config_or_dict) as f:
+                self.input_info = yaml.full_load(f)
+        else:
+            raise ValueError(f"{input} is not a valid file or dict")
 
-        # claim environment variable
-        os.environ["nnUNet_raw"] = input_info["nnunet_raw"]
-        os.environ["nnUNet_preprocessed"] = input_info["nnunet_preprocessed"]
-        os.environ["nnUNet_results"] = input_info["nnunet_results"]
-        os.environ["OMP_NUM_THREADS"] = str(1)
+        self.nnunet_raw = self.input_info["nnunet_raw"]
+        self.nnunet_preprocessed = self.input_info["nnunet_preprocessed"]
+        self.nnunet_results = self.input_info["nnunet_results"]
 
         # dataset_name_or_id has to be a string
-        self.dataset_name_or_id = str(input_info["dataset_name_or_id"])
+        self.dataset_name_or_id = str(self.input_info["dataset_name_or_id"])
 
         self.num_folds = 5
+
+        # claim environment variable
+        os.environ["nnUNet_raw"] = self.nnunet_raw
+        os.environ["nnUNet_preprocessed"] = self.nnunet_preprocessed
+        os.environ["nnUNet_results"] = self.nnunet_results
+        os.environ["OMP_NUM_THREADS"] = str(1)
+
+    def convert_msd_dataset(self):
+        pass
 
     def plan_and_process(self):
         pass
@@ -132,10 +145,9 @@ class nnUNetRunner:
             d, models, allow_ensembling=True, num_processes=8, overwrite=True, folds=(0, 1, 2, 3, 4), strict=True
         )
 
-    def ensemble(self):
+    def ensemble(self, folds=(0, 1, 2, 3, 4)):
         has_ensemble = len(ret["best_model_or_ensemble"]["selected_model_or_models"]) > 1
 
-        # we don't use all folds to speed stuff up
         used_folds = (0, 3)
         output_folders = []
         for im in ret["best_model_or_ensemble"]["selected_model_or_models"]:
@@ -179,7 +191,7 @@ class nnUNetRunner:
         )
 
     def run(self):
-        self.plan_and_process()
+        # self.plan_and_process()
         self.train()
-        self.find_best_configuration()
-        self.ensemble()
+        # self.find_best_configuration()
+        # self.ensemble()
