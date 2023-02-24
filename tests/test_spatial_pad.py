@@ -13,13 +13,10 @@ from __future__ import annotations
 
 import unittest
 
-import numpy as np
 from parameterized import parameterized
 
-from monai.transforms import BorderPad, Compose, DivisiblePad, SpatialPad
-from monai.transforms.lazy.functional import apply_transforms
+from monai.transforms import BorderPad, DivisiblePad, SpatialPad
 from tests.padders import PadTest
-from tests.utils import assert_allclose
 
 TESTS = []
 TESTS.append([{"spatial_size": [3, 4], "method": "end"}, (1, 2, 3), (1, 3, 4)])
