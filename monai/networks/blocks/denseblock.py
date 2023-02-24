@@ -172,7 +172,7 @@ class ConvConcatDenseBlock(ConvDenseBlock):
 
     def _get_layer(self, in_channels, out_channels, dilation):
         """
-        After ever convolutional layer the output is concatenated with the input and the layer before. 
+        After ever convolutional layer the output is concatenated with the input and the layer before.
         The concatenated output is used as input to the next convolutional layer.
 
         Args:
@@ -228,7 +228,7 @@ class Encoder(ConvConcatDenseBlock):
     Returns a convolution dense block for the encoding (down) part of a layer of the network.
     This Encoder block downpools the data with max_pool.
     Its output is used as input to the next layer down.
-    New feature: it returns the indices of the max_pool to the decoder (up) path 
+    New feature: it returns the indices of the max_pool to the decoder (up) path
     at the same layer to upsample the input.
 
     Args:

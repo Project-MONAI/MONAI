@@ -18,8 +18,8 @@ import torch.nn as nn
 from squeeze_and_excitation import squeeze_and_excitation as se1
 
 from monai.networks.blocks import Bottleneck, ConvConcatDenseBlock, Decoder, Encoder
-from monai.networks.blocks.convolutions import ClassifierBlock
 from monai.networks.blocks import squeeze_and_excitation as se
+from monai.networks.blocks.convolutions import ClassifierBlock
 from monai.networks.layers.factories import Act, Norm
 from monai.networks.layers.simplelayers import SkipConnectionWithIdx
 from monai.networks.layers.utils import get_dropout_layer, get_pool_layer
@@ -197,6 +197,7 @@ class Quicknat(nn.Module):
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         input, _ = self.model(input, None)
         return input
+
 
 # Should go into a layers file but not clear which exact one.
 
