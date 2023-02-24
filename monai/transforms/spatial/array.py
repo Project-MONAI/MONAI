@@ -3149,8 +3149,6 @@ class GridPatch(Transform, MultiSampleTrait):
             lowest values (`"min"`), or in their default order (`None`). Default to None.
         threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
             Defaults to no filtering.
-        threshold_first: whether to apply threshold filtering before limiting the number of patches to `num_patches`.
-            Defaults to True.
         pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to ``"constant"``.
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
 
@@ -3169,7 +3167,6 @@ class GridPatch(Transform, MultiSampleTrait):
         overlap: Sequence[float] | float = 0.0,
         sort_fn: str | None = None,
         threshold: float | None = None,
-        threshold_first: bool = True,
         pad_mode: str = PytorchPadMode.CONSTANT,
         **pad_kwargs,
     ):
@@ -3181,7 +3178,6 @@ class GridPatch(Transform, MultiSampleTrait):
         self.num_patches = num_patches
         self.sort_fn = sort_fn.lower() if sort_fn else None
         self.threshold = threshold
-        self.threshold_first = threshold_first
 
     def filter_threshold(self, image_np: np.ndarray, locations: np.ndarray):
         """
@@ -3250,10 +3246,11 @@ class GridPatch(Transform, MultiSampleTrait):
         locations = np.array(patches[0])[:, 1:, 0]  # only keep the starting location
         del patches[0]
 
-        # Apply threshold filter before filtering by count (if threshold_first is set)
-        if self.threshold_first and self.threshold is not None:
+        # Apply threshold filtering
+        if self.threshold is not None:
             patched_image, locations = self.filter_threshold(patched_image, locations)
 
+        # Apply count filtering
         if self.num_patches:
             # Limit number of patches
             patched_image, locations = self.filter_count(patched_image, locations)
@@ -3267,10 +3264,6 @@ class GridPatch(Transform, MultiSampleTrait):
                         constant_values=self.pad_kwargs.get("constant_values", 0),
                     )
                     locations = np.pad(locations, [[0, padding], [0, 0]], constant_values=0)
-
-        # Apply threshold filter after filtering by count (if threshold_first is not set)
-        if not self.threshold_first and self.threshold is not None:
-            patched_image, locations = self.filter_threshold(patched_image, locations)
 
         # Convert to MetaTensor
         metadata = array.meta if isinstance(array, MetaTensor) else MetaTensor.get_default_meta()
