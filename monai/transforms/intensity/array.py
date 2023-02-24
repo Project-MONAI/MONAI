@@ -1254,7 +1254,7 @@ class RandGaussianSmooth(RandomizableTransform):
         if not self._do_transform:
             return img
 
-        sigma = ensure_tuple_size(tup=(self.x, self.y, self.z), dim=img.ndim - 1)
+        sigma = ensure_tuple_size(vals=(self.x, self.y, self.z), dim=img.ndim - 1)
         return GaussianSmooth(sigma=sigma, approx=self.approx)(img)
 
 
@@ -1392,8 +1392,8 @@ class RandGaussianSharpen(RandomizableTransform):
 
         if self.x2 is None or self.y2 is None or self.z2 is None or self.a is None:
             raise RuntimeError("please call the `randomize()` function first.")
-        sigma1 = ensure_tuple_size(tup=(self.x1, self.y1, self.z1), dim=img.ndim - 1)
-        sigma2 = ensure_tuple_size(tup=(self.x2, self.y2, self.z2), dim=img.ndim - 1)
+        sigma1 = ensure_tuple_size(vals=(self.x1, self.y1, self.z1), dim=img.ndim - 1)
+        sigma2 = ensure_tuple_size(vals=(self.x2, self.y2, self.z2), dim=img.ndim - 1)
         return GaussianSharpen(sigma1=sigma1, sigma2=sigma2, alpha=self.a, approx=self.approx)(img)
 
 
