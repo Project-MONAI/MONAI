@@ -16,6 +16,7 @@ from collections.abc import Sequence
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from monai.networks.blocks import ADN
 from monai.networks.layers.convutils import same_padding, stride_minus_kernel_padding
@@ -316,3 +317,37 @@ class ResidualUnit(nn.Module):
         res: torch.Tensor = self.residual(x)  # create the additive residual from x
         cx: torch.Tensor = self.conv(x)  # apply x to sequence of operations
         return cx + res  # add the residual to the output
+
+
+class ClassifierBlock(Convolution):
+    """
+    Returns a classifier block without an activation function at the top.
+    It consists of a 1 * 1 convolutional layer which maps the input to a num_class channel feature map.
+    The output is a probability map for each of the classes.
+
+    Args:
+        spatial_dims: number of spatial dimensions.
+        in_channels: number of input channels.
+        out_channels: number of classes to map to.
+        strides: convolution stride. Defaults to 1.
+        kernel_size: convolution kernel size. Defaults to 3.
+        adn_ordering: a string representing the ordering of activation, normalization, and dropout.
+        Defaults to "NDA".
+        act: activation type and arguments. Defaults to PReLU.
+
+    """
+
+    def __init__(self, spatial_dims, in_channels, out_channels, strides, kernel_size, act=None, adn_ordering="A"):
+        super().__init__(spatial_dims, in_channels, out_channels, strides, kernel_size, adn_ordering, act)
+
+    def forward(self, input: torch.Tensor, weights=None, indices=None):
+        _, channel, _, _ = input.size()
+        if weights is not None:
+            weights, _ = torch.max(weights, dim=0)
+            weights = weights.view(1, channel, 1, 1)
+            # use weights to adapt how the classes are weighted.
+            out_conv = F.conv2d(input, weights)
+        else:
+            out_conv = super().forward(input)
+        # no indices to return
+        return out_conv, None

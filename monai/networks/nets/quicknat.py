@@ -197,7 +197,7 @@ class Quicknat(nn.Module):
         input, _ = self.model(input, None)
         return input
 
-
+# Should go into a layers file but not clear which exact one. 
 class SequentialWithIdx(nn.Sequential):
     """
     A sequential container.

@@ -52,6 +52,7 @@ from .highresnet import HighResBlock, HighResNet
 from .hovernet import Hovernet, HoVernet, HoVerNet, HoverNet
 from .milmodel import MILModel
 from .netadapter import NetAdapter
+from .quicknat import Quicknat
 from .regressor import Regressor
 from .regunet import GlobalNet, LocalNet, RegUNet
 from .resnet import (
