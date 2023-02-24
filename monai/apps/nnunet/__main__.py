@@ -13,13 +13,8 @@ from __future__ import annotations
 
 from monai.apps.nnunet.nnunet_runner import nnUNetRunner
 
-
 if __name__ == "__main__":
     from monai.utils import optional_import
 
     fire, _ = optional_import("fire")
-    fire.Fire(
-        {
-            "nnUNetRunner": nnUNetRunner,
-        }
-    )
+    fire.Fire({"nnUNetRunner": nnUNetRunner})

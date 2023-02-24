@@ -13,14 +13,12 @@ from __future__ import annotations
 
 import os
 import subprocess
+
 import yaml
 
 
 class nnUNetRunner:
-    def __init__(
-        self,
-        input,
-    ):
+    def __init__(self, input):
         self.input = input
         with open(self.input) as f:
             input_info = yaml.full_load(f)
@@ -35,13 +33,8 @@ class nnUNetRunner:
         self.dataset_name_or_id = str(input_info["dataset_name_or_id"])
 
         self.num_folds = 5
-    
-    def train_single_model(
-        self,
-        config,
-        fold,
-        **kwargs,
-    ):
+
+    def train_single_model(self, config, fold, **kwargs):
         """
         Args:
             config: configuration that should be trained.
@@ -58,52 +51,25 @@ class nnUNetRunner:
         """
         from nnunetv2.run.run_training import run_training
 
-        run_training(
-            dataset_name_or_id = self.dataset_name_or_id,
-            configuration = config,
-            fold = fold,
-            **kwargs,
-        )
+        run_training(dataset_name_or_id=self.dataset_name_or_id, configuration=config, fold=fold, **kwargs)
 
-    def train(
-        self,
-        configs = ["3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"],
-        **kwargs,
-    ):
+    def train(self, configs=["3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"], **kwargs):
         if type(configs) == str:
             configs = [configs]
-        
+
         for _i in range(len(configs)):
             _config = configs[_i]
             for _fold in range(self.num_folds):
-                self.train_single_model(
-                    config = _config,
-                    fold = _fold,
-                    **kwargs,
-                )
+                self.train_single_model(config=_config, fold=_fold, **kwargs)
 
-    def validate_single_model(
-        self,
-        config,
-        fold,
-    ):
-        self.train_single_model(
-            config = config,
-            fold = fold,
-            only_run_validation=True,
-        )
+    def validate_single_model(self, config, fold):
+        self.train_single_model(config=config, fold=fold, only_run_validation=True)
 
-    def validate(
-        self,
-        configs = ["3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"],
-    ):
+    def validate(self, configs=["3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"]):
         if type(configs) == str:
             configs = [configs]
-        
+
         for _i in range(len(configs)):
             _config = configs[_i]
             for _fold in range(self.num_folds):
-                self.validate_single_model(
-                    config = _config,
-                    fold = _fold,
-                )
+                self.validate_single_model(config=_config, fold=_fold)
