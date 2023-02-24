@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-
+from collections.abc import Mapping, Sequence, Optional, Union
 from monai.utils import optional_import
 
 from .tensorboard_handlers import TensorBoardImageHandler, TensorBoardStatsHandler
@@ -33,13 +33,13 @@ class ClearMLHandler:
 
     def __init__(
         self,
-        project_name: str,
-        task_name: str,
-        output_uri: str,
-        tags,
+        project_name: str | None,
+        task_name: str | None,
+        output_uri: str | None,
+        tags: Optional[Sequence[str]] | None,
         reuse_last_task_id: bool,
         continue_last_task: bool,
-        auto_connect_frameworks,
+        auto_connect_frameworks: Union[bool, Mapping[str, Union[bool, str, list]]] | bool,
     ):
         """
         Args:
@@ -76,13 +76,13 @@ class ClearMLStatsHandler(ClearMLHandler, TensorBoardStatsHandler):
 
     def __init__(
         self,
-        project_name: str = None,
-        task_name: str = None,
+        project_name: str | None = "MONAI",
+        task_name: str | None = "Default Task",
         output_uri: str = True,
-        tags=None,
+        tags: Optional[Sequence[str]] | None = None,
         reuse_last_task_id: bool = True,
         continue_last_task: bool = False,
-        auto_connect_frameworks=True,
+        auto_connect_frameworks: Union[bool, Mapping[str, Union[bool, str, list]]] | bool = True,
         *args,
         **kwargs,
     ):
@@ -120,13 +120,13 @@ class ClearMLImageHandler(ClearMLHandler, TensorBoardImageHandler):
 
     def __init__(
         self,
-        project_name: str = None,
-        task_name: str = None,
-        output_uri: str = True,
-        tags=None,
+        project_name: str | None = "MONAI",
+        task_name: str | None = "Default Task",
+        output_uri: str | bool = True,
+        tags: Optional[Sequence[str]] | None = None,
         reuse_last_task_id: bool = True,
         continue_last_task: bool = False,
-        auto_connect_frameworks=True,
+        auto_connect_frameworks: Union[bool, Mapping[str, Union[bool, str, list]]] | bool = True,
         *args,
         **kwargs,
     ):
