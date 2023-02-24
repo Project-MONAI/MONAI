@@ -18,7 +18,6 @@ from __future__ import annotations
 import warnings
 from collections.abc import Callable
 from copy import deepcopy
-from enum import Enum
 from itertools import zip_longest
 from typing import Any, Optional, Sequence, Tuple, Union, cast
 
@@ -31,12 +30,13 @@ from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import AFFINE_TOL, affine_to_spacing, compute_shape_offset, iter_patch, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
-from monai.networks.utils import meshgrid_ij, normalize_transform
+from monai.networks.utils import meshgrid_ij
 from monai.transforms.croppad.array import CenterSpatialCrop, ResizeWithPadOrCrop
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import InvertibleTransform
+from monai.transforms.spatial.functional import spatial_resample
 from monai.transforms.traits import MultiSampleTrait
-from monai.transforms.transform import Randomizable, RandomizableTransform, Transform
+from monai.transforms.transform import LazyTransform, Randomizable, RandomizableTransform, Transform
 from monai.transforms.utils import (
     convert_pad_mode,
     create_control_grid,
@@ -48,7 +48,7 @@ from monai.transforms.utils import (
     map_spatial_axes,
     scale_affine,
 )
-from monai.transforms.utils_pytorch_numpy_unification import allclose, linalg_inv, moveaxis, where
+from monai.transforms.utils_pytorch_numpy_unification import linalg_inv, moveaxis, where
 from monai.utils import (
     GridSampleMode,
     GridSamplePadMode,
@@ -111,7 +111,7 @@ __all__ = [
 RandRange = Optional[Union[Sequence[Union[Tuple[float, float], float]], float]]
 
 
-class SpatialResample(InvertibleTransform):
+class SpatialResample(InvertibleTransform, LazyTransform):
     """
     Resample input image from the orientation/spacing defined by ``src_affine`` affine matrix into
     the ones specified by ``dst_affine`` affine matrix.
@@ -151,43 +151,6 @@ class SpatialResample(InvertibleTransform):
         self.padding_mode = padding_mode
         self.align_corners = align_corners
         self.dtype = dtype
-
-    def _post_process(
-        self,
-        img: torch.Tensor,
-        src_affine: torch.Tensor,
-        dst_affine: torch.Tensor,
-        mode,
-        padding_mode,
-        align_corners,
-        original_spatial_shape,
-    ) -> torch.Tensor:
-        """
-        Small fn to simplify returning data. If `MetaTensor`, update affine. Elif
-        tracking metadata is desired, create `MetaTensor` with affine. Else, return
-        image as `torch.Tensor`. Output type is always `float32`.
-
-        Also append the transform to the stack.
-        """
-        dtype = img.dtype
-        img = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)
-        if get_track_meta():
-            self.update_meta(img, dst_affine)
-            self.push_transform(
-                img,
-                extra_info={
-                    "dtype": str(dtype)[6:],  # dtype as string; remove "torch": torch.float32 -> float32
-                    "mode": mode.value if isinstance(mode, Enum) else mode,
-                    "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                    "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
-                    "src_affine": src_affine,
-                },
-                orig_size=original_spatial_shape,
-            )
-        return img
-
-    def update_meta(self, img, dst_affine):
-        img.affine = dst_affine
 
     def __call__(
         self,
@@ -237,86 +200,12 @@ class SpatialResample(InvertibleTransform):
         Set `dst_affine` and `spatial_size` to `None` to turn off the resampling step.
         """
         # get dtype as torch (e.g., torch.float64)
-        _dtype = get_equivalent_dtype(dtype or self.dtype or img.dtype, torch.Tensor)
+        dtype_pt = get_equivalent_dtype(dtype or self.dtype or img.dtype, torch.Tensor)
         align_corners = self.align_corners if align_corners is None else align_corners
         mode = mode if mode is not None else self.mode
         padding_mode = padding_mode if padding_mode is not None else self.padding_mode
-        original_spatial_shape = img.shape[1:]
-
-        src_affine_: torch.Tensor = img.affine if isinstance(img, MetaTensor) else torch.eye(4)
-        img = convert_to_tensor(data=img, track_meta=get_track_meta(), dtype=_dtype)
-        spatial_rank = min(len(img.shape) - 1, src_affine_.shape[0] - 1, 3)
-        if (not isinstance(spatial_size, int) or spatial_size != -1) and spatial_size is not None:
-            spatial_rank = min(len(ensure_tuple(spatial_size)), 3)  # infer spatial rank based on spatial_size
-        src_affine_ = to_affine_nd(spatial_rank, src_affine_).to(_dtype)
-        dst_affine = to_affine_nd(spatial_rank, dst_affine) if dst_affine is not None else src_affine_
-        dst_affine = convert_to_dst_type(dst_affine, src_affine_)[0]
-        if not isinstance(dst_affine, torch.Tensor):
-            raise ValueError(f"dst_affine should be a torch.Tensor, got {type(dst_affine)}")
-
-        in_spatial_size = torch.tensor(img.shape[1 : spatial_rank + 1])
-        if isinstance(spatial_size, int) and (spatial_size == -1):  # using the input spatial size
-            spatial_size = in_spatial_size
-        elif spatial_size is None and spatial_rank > 1:  # auto spatial size
-            spatial_size, _ = compute_shape_offset(in_spatial_size, src_affine_, dst_affine)  # type: ignore
-        spatial_size = torch.tensor(fall_back_tuple(ensure_tuple(spatial_size)[:spatial_rank], in_spatial_size))
-
-        if (
-            allclose(src_affine_, dst_affine, atol=AFFINE_TOL)
-            and allclose(spatial_size, in_spatial_size)
-            or spatial_rank == 1
-        ):
-            # no significant change, return original image
-            return self._post_process(
-                img, src_affine_, src_affine_, mode, padding_mode, align_corners, original_spatial_shape
-            )
-
-        try:
-            _s = convert_to_numpy(src_affine_)
-            _d = convert_to_numpy(dst_affine)
-            xform = np.linalg.solve(_s, _d)  # monai#5983
-        except (np.linalg.LinAlgError, RuntimeError) as e:
-            raise ValueError(f"src affine is not invertible {_s}, {_d}.") from e
-        xform = convert_to_tensor(to_affine_nd(spatial_rank, xform)).to(device=img.device, dtype=_dtype)
-        # no resampling if it's identity transform
-        if allclose(xform, torch.eye(len(xform)), atol=AFFINE_TOL) and allclose(spatial_size, in_spatial_size):
-            return self._post_process(
-                img, src_affine_, src_affine_, mode, padding_mode, align_corners, original_spatial_shape
-            )
-
-        in_spatial_size = in_spatial_size.tolist()  # type: ignore
-        chns, additional_dims = img.shape[0], img.shape[spatial_rank + 1 :]  # beyond three spatial dims
-
-        if additional_dims:
-            xform_shape = [-1] + in_spatial_size
-            img = img.reshape(xform_shape)  # type: ignore
-        if isinstance(mode, int):
-            dst_xform_1 = normalize_transform(spatial_size, "cpu", xform.dtype, True, True)[0].numpy()  # to (-1, 1)
-            if not align_corners:
-                norm = create_scale(spatial_rank, [(max(d, 2) - 1) / d for d in spatial_size])
-                dst_xform_1 = norm.astype(float) @ dst_xform_1  # type: ignore  # scaling (num_step - 1) / num_step
-            dst_xform_d = normalize_transform(spatial_size, "cpu", xform.dtype, align_corners, False)[0].numpy()
-            xform @= convert_to_dst_type(np.linalg.solve(dst_xform_d, dst_xform_1), xform)[0]
-            affine_xform = Affine(
-                affine=xform, spatial_size=spatial_size, normalized=True, image_only=True, dtype=_dtype  # type: ignore
-            )
-            with affine_xform.trace_transform(False):
-                img = affine_xform(img, mode=mode, padding_mode=padding_mode)  # type: ignore
-        else:
-            affine_xform = AffineTransform(  # type: ignore
-                normalized=False,
-                mode=mode,
-                padding_mode=padding_mode,
-                align_corners=align_corners,
-                reverse_indexing=True,
-            )
-            img = affine_xform(img.unsqueeze(0), theta=xform, spatial_size=spatial_size).squeeze(0)  # type: ignore
-        if additional_dims:
-            full_shape = (chns, *spatial_size, *additional_dims)
-            img = img.reshape(full_shape)
-
-        return self._post_process(
-            img, src_affine_, dst_affine, mode, padding_mode, align_corners, original_spatial_shape
+        return spatial_resample(
+            img, dst_affine, spatial_size, mode, padding_mode, align_corners, dtype_pt, self.get_transform_info()
         )
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
@@ -339,14 +228,6 @@ class SpatialResample(InvertibleTransform):
 class ResampleToMatch(SpatialResample):
     """Resample an image to match given metadata. The affine matrix will be aligned,
     and the size of the output image will match."""
-
-    def update_meta(self, img: torch.Tensor, dst_affine=None, img_dst=None):
-        if dst_affine is not None:
-            super().update_meta(img, dst_affine)
-        if isinstance(img_dst, MetaTensor) and isinstance(img, MetaTensor):
-            original_fname = img.meta.get(Key.FILENAME_OR_OBJ, "resample_to_match_source")
-            img.meta = deepcopy(img_dst.meta)
-            img.meta[Key.FILENAME_OR_OBJ] = original_fname  # keep the original name, the others are overwritten
 
     def __call__(  # type: ignore
         self,
@@ -396,7 +277,12 @@ class ResampleToMatch(SpatialResample):
             align_corners=align_corners,
             dtype=dtype,
         )
-        self.update_meta(img, dst_affine=dst_affine, img_dst=img_dst)
+        if isinstance(img, MetaTensor):
+            img.affine = dst_affine
+            if isinstance(img_dst, MetaTensor):
+                original_fname = img.meta.get(Key.FILENAME_OR_OBJ, "resample_to_match_source")
+                img.meta = deepcopy(img_dst.meta)
+                img.meta[Key.FILENAME_OR_OBJ] = original_fname  # keep the original name, the others are overwritten
         return img
 
 
