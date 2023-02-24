@@ -10,7 +10,6 @@
 # limitations under the License.
 
 from __future__ import annotations
-
 import os
 import shutil
 import subprocess
@@ -44,6 +43,9 @@ from monai.utils.module import look_up_option, optional_import
 logger = get_logger(module_name=__name__)
 
 nni, has_nni = optional_import("nni")
+
+
+RUNNING_IN_AZURE_ML = is_running_in_azure_ml()
 
 
 class AutoRunner:
@@ -229,7 +231,7 @@ class AutoRunner:
         **kwargs: Any,
     ):
 
-        if is_running_in_azure_ml():
+        if RUNNING_IN_AZURE_ML:
             work_dir = os.path.join("outputs", work_dir)
 
         logger.info(f"AutoRunner using work directory {work_dir}")
@@ -246,9 +248,7 @@ class AutoRunner:
 
         if isinstance(input, dict):
             self.data_src_cfg = input
-            ConfigParser.export_config_file(
-                config=input, filepath=self.data_src_cfg_name, fmt="yaml", default_flow_style=None, sort_keys=False
-            )
+            self.write_data_src_cfg()
         elif isinstance(input, str) and os.path.isfile(input):
             self.data_src_cfg = ConfigParser.load_config_file(input)
             logger.info(f"Loading input config {input}")
@@ -262,9 +262,11 @@ class AutoRunner:
             raise ValueError(f"Config keys are missing {missing_keys}")
 
         logger.info(f"Argv: {sys.argv}")
-        if AZUREML_FLAG in sys.argv or is_running_in_azure_ml():
+        if AZUREML_FLAG in sys.argv or RUNNING_IN_AZURE_ML:
             run_info = submit_auto3dseg_module_to_azureml_if_needed(self.data_src_cfg[AZUREML_CONFIG_KEY])
             self.dataroot = run_info.input_datasets[0]
+            self.data_src_cfg["dataroot"] = str(self.dataroot)
+            self.write_data_src_cfg()
         else:
             self.dataroot = self.data_src_cfg["dataroot"]
 
@@ -304,6 +306,16 @@ class AutoRunner:
         self.set_hpo_params()
         self.search_space: dict[str, dict[str, Any]] = {}
         self.hpo_tasks = 0
+
+    def write_data_src_cfg(self, data_src_cfg: dict[str, Any] | None = None) -> None:
+        output_data_src_cfg = data_src_cfg if data_src_cfg is not None else self.data_src_cfg
+        ConfigParser.export_config_file(
+            config=output_data_src_cfg,
+            filepath=self.data_src_cfg_name,
+            fmt="yaml",
+            default_flow_style=None,
+            sort_keys=False
+        )
 
     def read_cache(self):
         """
@@ -645,6 +657,7 @@ class AutoRunner:
         Run the AutoRunner pipeline
         """
         logger.info(f"Type of train_params at start of run () is {type(self.train_params)}")
+
         # step 1: data analysis
         if self.analyze and self.analyze_params is not None:
             logger.info("Running data analysis...")
@@ -663,6 +676,7 @@ class AutoRunner:
                     f"Could not find the datastats file {self.datastats_filename}. "
                     "Possibly the required data analysis step was not completed."
                 )
+
 
             bundle_generator = BundleGen(
                 algos=self.algos,
