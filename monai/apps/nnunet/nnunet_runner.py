@@ -12,11 +12,6 @@
 from __future__ import annotations
 
 import os
-<<<<<<< HEAD
-import subprocess
-
-=======
->>>>>>> a33f9b03e54f7013a466472d02ec51d2cc0162d4
 import yaml
 
 
