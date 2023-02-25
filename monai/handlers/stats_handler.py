@@ -56,7 +56,6 @@ class StatsHandler:
         import ignite
         import monai
 
-        ignite.utils.setup_logger("train_stats")
         trainer = ignite.engine.Engine(lambda x, y: [0.0])  # an example trainer
         monai.handlers.StatsHandler(name="train_stats").attach(trainer)
 
@@ -133,7 +132,7 @@ class StatsHandler:
         self.state_attributes = state_attributes
         self.tag_name = tag_name
         self.key_var_format = key_var_format
-        self.logger = logging.getLogger(name) # if `name` is None, will default to `engine.logger` when attached
+        self.logger = monai.apps.get_logger(name)  # if `name` is None, will default to `engine.logger` when attached
         self.name = name
 
     def attach(self, engine: Engine) -> None:
