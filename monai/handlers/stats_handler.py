@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Any
 
 import torch
 
-import monai
+from monai.apps import get_logger
 from monai.config import IgniteInfo
 from monai.utils import deprecated_arg_default, is_scalar, min_version, optional_import
 
@@ -125,7 +125,7 @@ class StatsHandler:
         self.state_attributes = state_attributes
         self.tag_name = tag_name
         self.key_var_format = key_var_format
-        self.logger = monai.apps.get_logger(name)  # if `name` is None, will default to `engine.logger` when attached
+        self.logger = get_logger(name)  # type: ignore
         self.name = name
 
     def attach(self, engine: Engine) -> None:
