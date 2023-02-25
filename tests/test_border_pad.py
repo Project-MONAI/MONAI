@@ -40,6 +40,10 @@ class TestBorderPad(PadTest):
         unchanged_slices = [slice(None), slice(2, -2), slice(2, -2)]
         self.pad_test_kwargs(unchanged_slices, **kwargs)
 
+    @parameterized.expand(TESTS)
+    def test_pending_ops(self, input_param, input_shape, _):
+        self.pad_test_pending_ops(input_param, input_shape)
+
 
 if __name__ == "__main__":
     unittest.main()
