@@ -43,7 +43,7 @@ class StatsHandler:
     Note that if ``name`` is None, this class will leverage `engine.logger` as the logger, otherwise,
     ``logging.getLogger(name)`` is used. In both cases, it's important to make sure that the logging level is at least
     ``INFO``. To change the level of logging, please call ``import ignite; ignite.utils.setup_logger(name)``
-    (when ``name`` is not None) or ``engine.logger = ignite.utils.setup_logger(engine.logger.name)``
+    (when ``name`` is not None) or ``engine.logger = ignite.utils.setup_logger(engine.logger.name, reset=True)``
     (when ``name`` is None) before running the engine with this handler attached.
 
     Default behaviors:
@@ -146,9 +146,9 @@ class StatsHandler:
         if self.name is None:
             self.logger = engine.logger
         if self.logger.getEffectiveLevel() > logging.INFO:
-            suggested = f"\n\nimport ignite\nignite.utils.setup_logger('{self.logger.name}')"
+            suggested = f"\n\nimport ignite\nignite.utils.setup_logger('{self.logger.name}', reset=True)"
             if self.logger.name != engine.logger.name:
-                suggested += f"\nignite.utils.setup_logger('{engine.logger.name}')"
+                suggested += f"\nignite.utils.setup_logger('{engine.logger.name}', reset=True)"
             suggested += "\n\n"
             warnings.warn(
                 f"the effective log level of {self.logger.name} is higher than INFO, StatsHandler may not output logs,"
