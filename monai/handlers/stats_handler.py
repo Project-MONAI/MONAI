@@ -66,14 +66,7 @@ class StatsHandler:
 
     """
 
-    @deprecated_arg_default(
-        "name",
-        old_default=None,
-        new_default="StatsHandler",
-        since="1.1",
-        replaced="1.3",
-        msg_suffix="the default logger is 'StatsHandler'.",
-    )
+    @deprecated_arg_default("name", old_default=None, new_default="StatsHandler", since="1.1", replaced="1.3")
     def __init__(
         self,
         iteration_log: bool | Callable[[Engine, int], bool] = True,
