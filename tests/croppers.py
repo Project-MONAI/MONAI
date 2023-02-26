@@ -17,6 +17,7 @@ from copy import deepcopy
 import numpy as np
 
 from monai.data.meta_tensor import MetaTensor
+from monai.transforms.lazy.functional import apply_transforms
 from monai.transforms.transform import MapTransform
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
@@ -103,3 +104,25 @@ class CropTest(unittest.TestCase):
         # there should be as many zeros as elements missing from uniques
         missing = input_data.size - len(uniques)
         self.assertEqual((inv_np == 0).sum(), missing)
+
+    def crop_test_pending_ops(self, input_param, input_shape):
+        crop_fn = self.Cropper(**input_param)
+        data = self.get_arr(input_shape)
+        is_map = isinstance(crop_fn, MapTransform)
+        im = MetaTensor(data, meta={"a": "b", "affine": np.eye(len(input_shape))})
+        input_data = {"img": im} if is_map else im
+        # non-lazy
+        result_non_lazy = crop_fn(input_data)
+        expected = result_non_lazy["img"] if is_map else result_non_lazy
+        self.assertIsInstance(expected, MetaTensor)
+        # lazy
+        crop_fn.lazy_evaluation = True
+        pending_result = crop_fn(input_data)
+        pending_result = pending_result["img"] if is_map else pending_result
+        self.assertIsInstance(pending_result, MetaTensor)
+        assert_allclose(pending_result.peek_pending_affine(), expected.affine)
+        assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:])
+        # only support nearest
+        result = apply_transforms(pending_result, mode="nearest", align_corners=True)[0]
+        # compare
+        assert_allclose(result, expected, rtol=1e-5)

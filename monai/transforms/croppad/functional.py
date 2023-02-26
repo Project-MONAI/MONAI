@@ -36,7 +36,12 @@ def crop_func(img, slices, transform_info):
     spatial_rank = img.peek_pending_rank() if isinstance(img, MetaTensor) else 3
     cropped = np.asarray([[s.indices(o)[0], o - s.indices(o)[1]] for s, o in zip(slices[1:], img_size)])
     extra_info = {"cropped": cropped.flatten().tolist()}
-    to_shift = [s.start if s.start is not None else 0 for s in ensure_tuple(slices)[1:]]
+    to_shift = []
+    for i, s in enumerate(ensure_tuple(slices)[1:]):
+        if s.start is not None:
+            to_shift.append(img_size[i] + s.start if s.start < 0 else s.start)
+        else:
+            to_shift.append(0)
     shape = [s.indices(o)[1] - s.indices(o)[0] for s, o in zip(slices[1:], img_size)]
     meta_info = TraceableTransform.track_transform_meta(
         img,
