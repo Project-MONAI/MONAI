@@ -13,7 +13,10 @@ A collection of "vanilla" transforms for crop and pad operations acting on batch
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Any, Dict, Hashable, Mapping
+from __future__ import annotations
+
+from collections.abc import Hashable, Mapping
+from typing import Any
 
 import numpy as np
 import torch
@@ -112,9 +115,9 @@ class PadListDataCollate(InvertibleTransform):
         return list_data_collate(batch)
 
     @staticmethod
-    def inverse(data: dict) -> Dict[Hashable, np.ndarray]:
+    def inverse(data: dict) -> dict[Hashable, np.ndarray]:
         if not isinstance(data, Mapping):
-            raise RuntimeError("Inverse can only currently be applied on dictionaries.")
+            raise RuntimeError(f"Inverse can only currently be applied on dictionaries, got type {type(data)}.")
 
         d = dict(data)
         for key in d:
@@ -125,7 +128,7 @@ class PadListDataCollate(InvertibleTransform):
                 transform_key = InvertibleTransform.trace_key(key)
                 if transform_key in d:
                     transforms = d[transform_key]
-            if not transforms or not isinstance(transforms[-1], Dict):
+            if not transforms or not isinstance(transforms[-1], dict):
                 continue
             if transforms[-1].get(TraceKeys.CLASS_NAME) == PadListDataCollate.__name__:
                 xform = transforms.pop()

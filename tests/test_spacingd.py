@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
-from typing import List, Tuple
 
 import numpy as np
 import torch
@@ -22,7 +23,7 @@ from monai.data.utils import affine_to_spacing
 from monai.transforms import Spacingd
 from tests.utils import TEST_DEVICES, assert_allclose
 
-TESTS: List[Tuple] = []
+TESTS: list[tuple] = []
 for device in TEST_DEVICES:
     TESTS.append(
         (
@@ -104,11 +105,11 @@ class TestSpacingDCase(unittest.TestCase):
     def test_orntd_torch(self, init_param, img: torch.Tensor, track_meta: bool, device):
         set_track_meta(track_meta)
         tr = Spacingd(**init_param)
-        data = {"seg": img.to(device)}
-        res = tr(data)["seg"]
+        res = tr({"seg": img.to(device)})["seg"]
 
         if track_meta:
             self.assertIsInstance(res, MetaTensor)
+            assert isinstance(res, MetaTensor)  # for mypy type narrowing
             new_spacing = affine_to_spacing(res.affine, 3)
             assert_allclose(new_spacing, init_param["pixdim"], type_test=False)
             self.assertNotEqual(img.shape, res.shape)

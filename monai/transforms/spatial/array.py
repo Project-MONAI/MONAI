@@ -12,11 +12,14 @@
 A collection of "vanilla" transforms for spatial operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
+
+from __future__ import annotations
+
 import warnings
+from collections.abc import Callable
 from copy import deepcopy
-from enum import Enum
 from itertools import zip_longest
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
 import torch
@@ -27,11 +30,13 @@ from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import AFFINE_TOL, affine_to_spacing, compute_shape_offset, iter_patch, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
-from monai.networks.utils import meshgrid_ij, normalize_transform
+from monai.networks.utils import meshgrid_ij
 from monai.transforms.croppad.array import CenterSpatialCrop, ResizeWithPadOrCrop
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.transform import Randomizable, RandomizableTransform, Transform
+from monai.transforms.spatial.functional import spatial_resample
+from monai.transforms.traits import MultiSampleTrait
+from monai.transforms.transform import LazyTransform, Randomizable, RandomizableTransform, Transform
 from monai.transforms.utils import (
     convert_pad_mode,
     create_control_grid,
@@ -43,7 +48,7 @@ from monai.transforms.utils import (
     map_spatial_axes,
     scale_affine,
 )
-from monai.transforms.utils_pytorch_numpy_unification import allclose, linalg_inv, moveaxis, where
+from monai.transforms.utils_pytorch_numpy_unification import linalg_inv, moveaxis, where
 from monai.utils import (
     GridSampleMode,
     GridSamplePadMode,
@@ -61,7 +66,6 @@ from monai.utils import (
     fall_back_tuple,
     issequenceiterable,
     optional_import,
-    pytorch_after,
 )
 from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import GridPatchSort, PytorchPadMode, TraceKeys, TransformBackends, WSIPatchKeys
@@ -107,7 +111,7 @@ __all__ = [
 RandRange = Optional[Union[Sequence[Union[Tuple[float, float], float]], float]]
 
 
-class SpatialResample(InvertibleTransform):
+class SpatialResample(InvertibleTransform, LazyTransform):
     """
     Resample input image from the orientation/spacing defined by ``src_affine`` affine matrix into
     the ones specified by ``dst_affine`` affine matrix.
@@ -120,7 +124,7 @@ class SpatialResample(InvertibleTransform):
 
     def __init__(
         self,
-        mode: Union[str, int] = GridSampleMode.BILINEAR,
+        mode: str | int = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.BORDER,
         align_corners: bool = False,
         dtype: DtypeLike = np.float64,
@@ -148,55 +152,14 @@ class SpatialResample(InvertibleTransform):
         self.align_corners = align_corners
         self.dtype = dtype
 
-    def _post_process(
-        self,
-        img: torch.Tensor,
-        src_affine: torch.Tensor,
-        dst_affine: torch.Tensor,
-        mode,
-        padding_mode,
-        align_corners,
-        original_spatial_shape,
-    ) -> torch.Tensor:
-        """
-        Small fn to simplify returning data. If `MetaTensor`, update affine. Elif
-        tracking metadata is desired, create `MetaTensor` with affine. Else, return
-        image as `torch.Tensor`. Output type is always `float32`.
-
-        Also append the transform to the stack.
-        """
-        dtype = img.dtype
-        img = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)
-        if get_track_meta():
-            self.update_meta(img, dst_affine)
-            self.push_transform(
-                img,
-                extra_info={
-                    "dtype": str(dtype)[6:],  # dtype as string; remove "torch": torch.float32 -> float32
-                    "mode": mode.value if isinstance(mode, Enum) else mode,
-                    "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                    "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
-                    "src_affine": src_affine,
-                },
-                orig_size=original_spatial_shape,
-            )
-        return img
-
-    def update_meta(self, img, dst_affine):
-        img.affine = dst_affine
-
-    @deprecated_arg(
-        name="src_affine", since="0.9", msg_suffix="img should be `MetaTensor`, so affine can be extracted directly."
-    )
     def __call__(
         self,
         img: torch.Tensor,
-        src_affine: Optional[NdarrayOrTensor] = None,
-        dst_affine: Optional[torch.Tensor] = None,
-        spatial_size: Optional[Union[Sequence[int], torch.Tensor, int]] = None,
-        mode: Union[str, int, None] = None,
-        padding_mode: Optional[str] = None,
-        align_corners: Optional[bool] = None,
+        dst_affine: torch.Tensor | None = None,
+        spatial_size: Sequence[int] | torch.Tensor | int | None = None,
+        mode: str | int | None = None,
+        padding_mode: str | None = None,
+        align_corners: bool | None = None,
         dtype: DtypeLike = None,
     ) -> torch.Tensor:
         """
@@ -237,88 +200,12 @@ class SpatialResample(InvertibleTransform):
         Set `dst_affine` and `spatial_size` to `None` to turn off the resampling step.
         """
         # get dtype as torch (e.g., torch.float64)
-        _dtype = get_equivalent_dtype(dtype or self.dtype or img.dtype, torch.Tensor)
-        align_corners = self.align_corners if align_corners is None else align_corners
+        dtype_pt = get_equivalent_dtype(dtype or self.dtype or img.dtype, torch.Tensor)
+        align_corners = align_corners if align_corners is not None else self.align_corners
         mode = mode if mode is not None else self.mode
         padding_mode = padding_mode if padding_mode is not None else self.padding_mode
-        original_spatial_shape = img.shape[1:]
-
-        src_affine_: torch.Tensor = img.affine if isinstance(img, MetaTensor) else torch.eye(4)
-        img = convert_to_tensor(data=img, track_meta=get_track_meta(), dtype=_dtype)
-        spatial_rank = min(len(img.shape) - 1, src_affine_.shape[0] - 1, 3)
-        if (not isinstance(spatial_size, int) or spatial_size != -1) and spatial_size is not None:
-            spatial_rank = min(len(ensure_tuple(spatial_size)), 3)  # infer spatial rank based on spatial_size
-        src_affine_ = to_affine_nd(spatial_rank, src_affine_).to(_dtype)
-        dst_affine = to_affine_nd(spatial_rank, dst_affine) if dst_affine is not None else src_affine_
-        dst_affine = convert_to_dst_type(dst_affine, src_affine_)[0]
-        if not isinstance(dst_affine, torch.Tensor):
-            raise ValueError(f"dst_affine should be a torch.Tensor, got {type(dst_affine)}")
-
-        in_spatial_size = torch.tensor(img.shape[1 : spatial_rank + 1])
-        if isinstance(spatial_size, int) and (spatial_size == -1):  # using the input spatial size
-            spatial_size = in_spatial_size
-        elif spatial_size is None and spatial_rank > 1:  # auto spatial size
-            spatial_size, _ = compute_shape_offset(in_spatial_size, src_affine_, dst_affine)  # type: ignore
-        spatial_size = torch.tensor(fall_back_tuple(ensure_tuple(spatial_size)[:spatial_rank], in_spatial_size))
-
-        if (
-            allclose(src_affine_, dst_affine, atol=AFFINE_TOL)
-            and allclose(spatial_size, in_spatial_size)
-            or spatial_rank == 1
-        ):
-            # no significant change, return original image
-            return self._post_process(
-                img, src_affine_, src_affine_, mode, padding_mode, align_corners, original_spatial_shape
-            )
-
-        try:
-            _s = convert_to_tensor(src_affine_, track_meta=False, device=torch.device("cpu"))
-            _d = convert_to_tensor(dst_affine, track_meta=False, device=torch.device("cpu"))
-            xform = (
-                torch.linalg.solve(_s, _d) if pytorch_after(1, 8, 0) else torch.solve(_d, _s).solution  # type: ignore
-            )
-        except (np.linalg.LinAlgError, RuntimeError) as e:
-            raise ValueError("src affine is not invertible.") from e
-        xform = to_affine_nd(spatial_rank, xform).to(device=img.device, dtype=_dtype)
-        # no resampling if it's identity transform
-        if allclose(xform, torch.eye(len(xform)), atol=AFFINE_TOL) and allclose(spatial_size, in_spatial_size):
-            return self._post_process(
-                img, src_affine_, src_affine_, mode, padding_mode, align_corners, original_spatial_shape
-            )
-
-        in_spatial_size = in_spatial_size.tolist()  # type: ignore
-        chns, additional_dims = img.shape[0], img.shape[spatial_rank + 1 :]  # beyond three spatial dims
-
-        if additional_dims:
-            xform_shape = [-1] + in_spatial_size
-            img = img.reshape(xform_shape)  # type: ignore
-        if isinstance(mode, int):
-            dst_xform_1 = normalize_transform(spatial_size, xform.device, xform.dtype, True, True)[0]  # to (-1, 1)
-            if not align_corners:
-                norm = create_scale(spatial_rank, [(max(d, 2) - 1) / d for d in spatial_size], xform.device, "torch")
-                dst_xform_1 = norm.to(xform.dtype) @ dst_xform_1  # type: ignore  # scaling (num_step - 1) / num_step
-            dst_xform_d = normalize_transform(spatial_size, xform.device, xform.dtype, align_corners, False)[0]
-            xform = xform @ torch.inverse(dst_xform_d) @ dst_xform_1
-            affine_xform = Affine(
-                affine=xform, spatial_size=spatial_size, normalized=True, image_only=True, dtype=_dtype
-            )
-            with affine_xform.trace_transform(False):
-                img = affine_xform(img, mode=mode, padding_mode=padding_mode)
-        else:
-            affine_xform = AffineTransform(
-                normalized=False,
-                mode=mode,
-                padding_mode=padding_mode,
-                align_corners=align_corners,
-                reverse_indexing=True,
-            )
-            img = affine_xform(img.unsqueeze(0), theta=xform, spatial_size=spatial_size).squeeze(0)
-        if additional_dims:
-            full_shape = (chns, *spatial_size, *additional_dims)
-            img = img.reshape(full_shape)
-
-        return self._post_process(
-            img, src_affine_, dst_affine, mode, padding_mode, align_corners, original_spatial_shape
+        return spatial_resample(
+            img, dst_affine, spatial_size, mode, padding_mode, align_corners, dtype_pt, self.get_transform_info()
         )
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
@@ -342,43 +229,19 @@ class ResampleToMatch(SpatialResample):
     """Resample an image to match given metadata. The affine matrix will be aligned,
     and the size of the output image will match."""
 
-    def update_meta(self, img: torch.Tensor, dst_affine=None, img_dst=None):
-        if dst_affine is not None:
-            super().update_meta(img, dst_affine)
-        if isinstance(img_dst, MetaTensor) and isinstance(img, MetaTensor):
-            original_fname = img.meta[Key.FILENAME_OR_OBJ]
-            img.meta = deepcopy(img_dst.meta)
-            img.meta[Key.FILENAME_OR_OBJ] = original_fname  # keep the original name, the others are overwritten
-
-    @deprecated_arg(
-        name="src_meta", since="0.9", msg_suffix="img should be `MetaTensor`, so affine can be extracted directly."
-    )
-    @deprecated_arg(
-        name="dst_meta", since="0.9", msg_suffix="img_dst should be `MetaTensor`, so affine can be extracted directly."
-    )
-    def __call__(
+    def __call__(  # type: ignore
         self,
         img: torch.Tensor,
         img_dst: torch.Tensor,
-        src_meta: Optional[Dict] = None,
-        dst_meta: Optional[Dict] = None,
-        mode: Union[str, int, None] = None,
-        padding_mode: Optional[str] = None,
-        align_corners: Optional[bool] = None,
+        mode: str | int | None = None,
+        padding_mode: str | None = None,
+        align_corners: bool | None = None,
         dtype: DtypeLike = None,
     ) -> torch.Tensor:
         """
         Args:
-            img: input image to be resampled to match ``dst_meta``. It currently supports channel-first arrays with
+            img: input image to be resampled to match ``img_dst``. It currently supports channel-first arrays with
                 at most three spatial dimensions.
-            src_meta: Dictionary containing the source affine matrix in the form ``{'affine':src_affine}``.
-                If ``affine`` is not specified, an identity matrix is assumed.  Defaults to ``None``.
-                See also:  https://docs.monai.io/en/stable/transforms.html#spatialresample
-            dst_meta: Dictionary containing the target affine matrix and target spatial shape in the form
-                ``{'affine':src_affine, 'spatial_shape':spatial_size}``. If ``affine`` is  not
-                specified, ``src_affine`` is assumed. If ``spatial_shape`` is not specified, spatial size is
-                automatically computed, containing the previous field of view.  Defaults to ``None``.
-                See also: https://docs.monai.io/en/stable/transforms.html#spatialresample
             mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
@@ -398,8 +261,6 @@ class ResampleToMatch(SpatialResample):
                 ``np.float64`` (for best precision). If ``None``, use the data type of input data.
                 To be compatible with other modules, the output data type is always `float32`.
         Raises:
-            RuntimeError: When ``src_meta`` is missing.
-            RuntimeError: When ``dst_meta`` is missing.
             ValueError: When the affine matrix of the source image is not invertible.
         Returns:
             Resampled input tensor or MetaTensor.
@@ -416,7 +277,12 @@ class ResampleToMatch(SpatialResample):
             align_corners=align_corners,
             dtype=dtype,
         )
-        self.update_meta(img, dst_affine=dst_affine, img_dst=img_dst)
+        if isinstance(img, MetaTensor):
+            img.affine = dst_affine
+            if isinstance(img_dst, MetaTensor):
+                original_fname = img.meta.get(Key.FILENAME_OR_OBJ, "resample_to_match_source")
+                img.meta = deepcopy(img_dst.meta)
+                img.meta[Key.FILENAME_OR_OBJ] = original_fname  # keep the original name, the others are overwritten
         return img
 
 
@@ -427,20 +293,18 @@ class Spacing(InvertibleTransform):
 
     backend = SpatialResample.backend
 
-    @deprecated_arg(name="image_only", since="0.9")
     def __init__(
         self,
-        pixdim: Union[Sequence[float], float, np.ndarray],
+        pixdim: Sequence[float] | float | np.ndarray,
         diagonal: bool = False,
-        mode: Union[str, int] = GridSampleMode.BILINEAR,
+        mode: str | int = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.BORDER,
         align_corners: bool = False,
         dtype: DtypeLike = np.float64,
         scale_extent: bool = False,
         recompute_affine: bool = False,
-        min_pixdim: Union[Sequence[float], float, np.ndarray, None] = None,
-        max_pixdim: Union[Sequence[float], float, np.ndarray, None] = None,
-        image_only: bool = False,
+        min_pixdim: Sequence[float] | float | np.ndarray | None = None,
+        max_pixdim: Sequence[float] | float | np.ndarray | None = None,
     ) -> None:
         """
         Args:
@@ -514,13 +378,13 @@ class Spacing(InvertibleTransform):
     def __call__(
         self,
         data_array: torch.Tensor,
-        affine: Optional[NdarrayOrTensor] = None,
-        mode: Union[str, int, None] = None,
-        padding_mode: Optional[str] = None,
-        align_corners: Optional[bool] = None,
+        affine: NdarrayOrTensor | None = None,
+        mode: str | int | None = None,
+        padding_mode: str | None = None,
+        align_corners: bool | None = None,
         dtype: DtypeLike = None,
-        scale_extent: Optional[bool] = None,
-        output_spatial_shape: Optional[Union[Sequence[int], np.ndarray, int]] = None,
+        scale_extent: bool | None = None,
+        output_spatial_shape: Sequence[int] | np.ndarray | int | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -573,7 +437,7 @@ class Spacing(InvertibleTransform):
             input_affine = np.eye(sr + 1, dtype=np.float64)
         affine_ = to_affine_nd(sr, convert_data_type(input_affine, np.ndarray)[0])
 
-        out_d = self.pixdim[:sr]
+        out_d = self.pixdim[:sr].copy()
         if out_d.size < sr:
             out_d = np.append(out_d, [out_d[-1]] * (sr - out_d.size))
 
@@ -606,7 +470,7 @@ class Spacing(InvertibleTransform):
         data_array = self.sp_resample(
             data_array,
             dst_affine=torch.as_tensor(new_affine),
-            spatial_size=actual_shape,
+            spatial_size=actual_shape,  # type: ignore
             mode=mode,
             padding_mode=padding_mode,
             align_corners=align_corners,
@@ -627,13 +491,11 @@ class Orientation(InvertibleTransform):
 
     backend = [TransformBackends.NUMPY, TransformBackends.TORCH]
 
-    @deprecated_arg(name="image_only", since="0.9")
     def __init__(
         self,
-        axcodes: Optional[str] = None,
+        axcodes: str | None = None,
         as_closest_canonical: bool = False,
-        labels: Optional[Sequence[Tuple[str, str]]] = (("L", "R"), ("P", "A"), ("I", "S")),
-        image_only: bool = False,
+        labels: Sequence[tuple[str, str]] | None = (("L", "R"), ("P", "A"), ("I", "S")),
     ) -> None:
         """
         Args:
@@ -768,7 +630,7 @@ class Flip(InvertibleTransform):
 
     backend = [TransformBackends.TORCH]
 
-    def __init__(self, spatial_axis: Optional[Union[Sequence[int], int]] = None) -> None:
+    def __init__(self, spatial_axis: Sequence[int] | int | None = None) -> None:
         self.spatial_axis = spatial_axis
 
     def update_meta(self, img, shape, axes):
@@ -839,12 +701,12 @@ class Resize(InvertibleTransform):
 
     def __init__(
         self,
-        spatial_size: Union[Sequence[int], int],
+        spatial_size: Sequence[int] | int,
         size_mode: str = "all",
         mode: str = InterpolateMode.AREA,
-        align_corners: Optional[bool] = None,
+        align_corners: bool | None = None,
         anti_aliasing: bool = False,
-        anti_aliasing_sigma: Union[Sequence[float], float, None] = None,
+        anti_aliasing_sigma: Sequence[float] | float | None = None,
     ) -> None:
         self.size_mode = look_up_option(size_mode, ["all", "longest"])
         self.spatial_size = spatial_size
@@ -856,10 +718,10 @@ class Resize(InvertibleTransform):
     def __call__(
         self,
         img: torch.Tensor,
-        mode: Optional[str] = None,
-        align_corners: Optional[bool] = None,
-        anti_aliasing: Optional[bool] = None,
-        anti_aliasing_sigma: Union[Sequence[float], float, None] = None,
+        mode: str | None = None,
+        align_corners: bool | None = None,
+        anti_aliasing: bool | None = None,
+        anti_aliasing_sigma: Sequence[float] | float | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -998,12 +860,12 @@ class Rotate(InvertibleTransform):
 
     def __init__(
         self,
-        angle: Union[Sequence[float], float],
+        angle: Sequence[float] | float,
         keep_size: bool = True,
         mode: str = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.BORDER,
         align_corners: bool = False,
-        dtype: Union[DtypeLike, torch.dtype] = torch.float32,
+        dtype: DtypeLike | torch.dtype = torch.float32,
     ) -> None:
         self.angle = angle
         self.keep_size = keep_size
@@ -1015,10 +877,10 @@ class Rotate(InvertibleTransform):
     def __call__(
         self,
         img: torch.Tensor,
-        mode: Optional[str] = None,
-        padding_mode: Optional[str] = None,
-        align_corners: Optional[bool] = None,
-        dtype: Union[DtypeLike, torch.dtype] = None,
+        mode: str | None = None,
+        padding_mode: str | None = None,
+        align_corners: bool | None = None,
+        dtype: DtypeLike | torch.dtype = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -1106,7 +968,7 @@ class Rotate(InvertibleTransform):
         padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
         align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
         dtype = transform[TraceKeys.EXTRA_INFO]["dtype"]
-        inv_rot_mat = linalg_inv(fwd_rot_mat)
+        inv_rot_mat = linalg_inv(convert_to_numpy(fwd_rot_mat))
 
         xform = AffineTransform(
             normalized=False,
@@ -1160,10 +1022,10 @@ class Zoom(InvertibleTransform):
 
     def __init__(
         self,
-        zoom: Union[Sequence[float], float],
+        zoom: Sequence[float] | float,
         mode: str = InterpolateMode.AREA,
         padding_mode: str = NumpyPadMode.EDGE,
-        align_corners: Optional[bool] = None,
+        align_corners: bool | None = None,
         keep_size: bool = True,
         **kwargs,
     ) -> None:
@@ -1177,9 +1039,9 @@ class Zoom(InvertibleTransform):
     def __call__(
         self,
         img: torch.Tensor,
-        mode: Optional[str] = None,
-        padding_mode: Optional[str] = None,
-        align_corners: Optional[bool] = None,
+        mode: str | None = None,
+        padding_mode: str | None = None,
+        align_corners: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -1278,7 +1140,7 @@ class Rotate90(InvertibleTransform):
 
     backend = [TransformBackends.TORCH]
 
-    def __init__(self, k: int = 1, spatial_axes: Tuple[int, int] = (0, 1)) -> None:
+    def __init__(self, k: int = 1, spatial_axes: tuple[int, int] = (0, 1)) -> None:
         """
         Args:
             k: number of times to rotate by 90 degrees.
@@ -1287,7 +1149,7 @@ class Rotate90(InvertibleTransform):
                 If axis is negative it counts from the last to the first axis.
         """
         self.k = k
-        spatial_axes_: Tuple[int, int] = ensure_tuple(spatial_axes)  # type: ignore
+        spatial_axes_: tuple[int, int] = ensure_tuple(spatial_axes)  # type: ignore
         if len(spatial_axes_) != 2:
             raise ValueError("spatial_axes must be 2 int numbers to indicate the axes to rotate 90 degrees.")
         self.spatial_axes = spatial_axes_
@@ -1316,7 +1178,7 @@ class Rotate90(InvertibleTransform):
             rot90 = to_affine_nd(r, create_rotate(sp_r, [s * np.pi / 2]))
         else:
             idx = {1, 2, 3} - set(axes)
-            angle: List[float] = [0, 0, 0]
+            angle: list[float] = [0, 0, 0]
             angle[idx.pop() - 1] = s * np.pi / 2
             rot90 = to_affine_nd(r, create_rotate(sp_r, angle))
         for _ in range(k):
@@ -1345,7 +1207,7 @@ class RandRotate90(RandomizableTransform, InvertibleTransform):
 
     backend = Rotate90.backend
 
-    def __init__(self, prob: float = 0.1, max_k: int = 3, spatial_axes: Tuple[int, int] = (0, 1)) -> None:
+    def __init__(self, prob: float = 0.1, max_k: int = 3, spatial_axes: tuple[int, int] = (0, 1)) -> None:
         """
         Args:
             prob: probability of rotating.
@@ -1360,7 +1222,7 @@ class RandRotate90(RandomizableTransform, InvertibleTransform):
 
         self._rand_k = 0
 
-    def randomize(self, data: Optional[Any] = None) -> None:
+    def randomize(self, data: Any | None = None) -> None:
         super().randomize(None)
         if not self._do_transform:
             return None
@@ -1425,15 +1287,15 @@ class RandRotate(RandomizableTransform, InvertibleTransform):
 
     def __init__(
         self,
-        range_x: Union[Tuple[float, float], float] = 0.0,
-        range_y: Union[Tuple[float, float], float] = 0.0,
-        range_z: Union[Tuple[float, float], float] = 0.0,
+        range_x: tuple[float, float] | float = 0.0,
+        range_y: tuple[float, float] | float = 0.0,
+        range_z: tuple[float, float] | float = 0.0,
         prob: float = 0.1,
         keep_size: bool = True,
         mode: str = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.BORDER,
         align_corners: bool = False,
-        dtype: Union[DtypeLike, torch.dtype] = np.float32,
+        dtype: DtypeLike | torch.dtype = np.float32,
     ) -> None:
         RandomizableTransform.__init__(self, prob)
         self.range_x = ensure_tuple(range_x)
@@ -1456,7 +1318,7 @@ class RandRotate(RandomizableTransform, InvertibleTransform):
         self.y = 0.0
         self.z = 0.0
 
-    def randomize(self, data: Optional[Any] = None) -> None:
+    def randomize(self, data: Any | None = None) -> None:
         super().randomize(None)
         if not self._do_transform:
             return None
@@ -1464,16 +1326,14 @@ class RandRotate(RandomizableTransform, InvertibleTransform):
         self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
         self.z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
 
-    @deprecated_arg(name="get_matrix", since="0.9", msg_suffix="please use `img.meta` instead.")
     def __call__(
         self,
         img: torch.Tensor,
-        mode: Optional[str] = None,
-        padding_mode: Optional[str] = None,
-        align_corners: Optional[bool] = None,
-        dtype: Union[DtypeLike, torch.dtype] = None,
+        mode: str | None = None,
+        padding_mode: str | None = None,
+        align_corners: bool | None = None,
+        dtype: DtypeLike | torch.dtype = None,
         randomize: bool = True,
-        get_matrix: bool = False,
     ):
         """
         Args:
@@ -1531,7 +1391,7 @@ class RandFlip(RandomizableTransform, InvertibleTransform):
 
     backend = Flip.backend
 
-    def __init__(self, prob: float = 0.1, spatial_axis: Optional[Union[Sequence[int], int]] = None) -> None:
+    def __init__(self, prob: float = 0.1, spatial_axis: Sequence[int] | int | None = None) -> None:
         RandomizableTransform.__init__(self, prob)
         self.flipper = Flip(spatial_axis=spatial_axis)
 
@@ -1573,7 +1433,7 @@ class RandAxisFlip(RandomizableTransform, InvertibleTransform):
 
     def __init__(self, prob: float = 0.1) -> None:
         RandomizableTransform.__init__(self, prob)
-        self._axis: Optional[int] = None
+        self._axis: int | None = None
         self.flipper = Flip(spatial_axis=self._axis)
 
     def randomize(self, data: NdarrayOrTensor) -> None:
@@ -1651,11 +1511,11 @@ class RandZoom(RandomizableTransform, InvertibleTransform):
     def __init__(
         self,
         prob: float = 0.1,
-        min_zoom: Union[Sequence[float], float] = 0.9,
-        max_zoom: Union[Sequence[float], float] = 1.1,
+        min_zoom: Sequence[float] | float = 0.9,
+        max_zoom: Sequence[float] | float = 1.1,
         mode: str = InterpolateMode.AREA,
         padding_mode: str = NumpyPadMode.EDGE,
-        align_corners: Optional[bool] = None,
+        align_corners: bool | None = None,
         keep_size: bool = True,
         **kwargs,
     ) -> None:
@@ -1663,7 +1523,9 @@ class RandZoom(RandomizableTransform, InvertibleTransform):
         self.min_zoom = ensure_tuple(min_zoom)
         self.max_zoom = ensure_tuple(max_zoom)
         if len(self.min_zoom) != len(self.max_zoom):
-            raise AssertionError("min_zoom and max_zoom must have same length.")
+            raise ValueError(
+                f"min_zoom and max_zoom must have same length, got {len(self.min_zoom)} and {len(self.max_zoom)}."
+            )
         self.mode: InterpolateMode = look_up_option(mode, InterpolateMode)
         self.padding_mode = padding_mode
         self.align_corners = align_corners
@@ -1687,9 +1549,9 @@ class RandZoom(RandomizableTransform, InvertibleTransform):
     def __call__(
         self,
         img: torch.Tensor,
-        mode: Optional[str] = None,
-        padding_mode: Optional[str] = None,
-        align_corners: Optional[bool] = None,
+        mode: str | None = None,
+        padding_mode: str | None = None,
+        align_corners: bool | None = None,
         randomize: bool = True,
     ) -> torch.Tensor:
         """
@@ -1772,13 +1634,13 @@ class AffineGrid(Transform):
 
     def __init__(
         self,
-        rotate_params: Optional[Union[Sequence[float], float]] = None,
-        shear_params: Optional[Union[Sequence[float], float]] = None,
-        translate_params: Optional[Union[Sequence[float], float]] = None,
-        scale_params: Optional[Union[Sequence[float], float]] = None,
-        device: Optional[torch.device] = None,
+        rotate_params: Sequence[float] | float | None = None,
+        shear_params: Sequence[float] | float | None = None,
+        translate_params: Sequence[float] | float | None = None,
+        scale_params: Sequence[float] | float | None = None,
+        device: torch.device | None = None,
         dtype: DtypeLike = np.float32,
-        affine: Optional[NdarrayOrTensor] = None,
+        affine: NdarrayOrTensor | None = None,
     ) -> None:
         self.rotate_params = rotate_params
         self.shear_params = shear_params
@@ -1789,8 +1651,8 @@ class AffineGrid(Transform):
         self.affine = affine
 
     def __call__(
-        self, spatial_size: Optional[Sequence[int]] = None, grid: Optional[torch.Tensor] = None
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        self, spatial_size: Sequence[int] | None = None, grid: torch.Tensor | None = None
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         The grid can be initialized with a `spatial_size` parameter, or provided directly as `grid`.
         Therefore, either `spatial_size` or `grid` must be provided.
@@ -1849,7 +1711,7 @@ class RandAffineGrid(Randomizable, Transform):
         shear_range: RandRange = None,
         translate_range: RandRange = None,
         scale_range: RandRange = None,
-        device: Optional[torch.device] = None,
+        device: torch.device | None = None,
     ) -> None:
         """
         Args:
@@ -1889,13 +1751,13 @@ class RandAffineGrid(Randomizable, Transform):
         self.translate_range = ensure_tuple(translate_range)
         self.scale_range = ensure_tuple(scale_range)
 
-        self.rotate_params: Optional[List[float]] = None
-        self.shear_params: Optional[List[float]] = None
-        self.translate_params: Optional[List[float]] = None
-        self.scale_params: Optional[List[float]] = None
+        self.rotate_params: list[float] | None = None
+        self.shear_params: list[float] | None = None
+        self.translate_params: list[float] | None = None
+        self.scale_params: list[float] | None = None
 
         self.device = device
-        self.affine: Optional[torch.Tensor] = torch.eye(4, dtype=torch.float64)
+        self.affine: torch.Tensor | None = torch.eye(4, dtype=torch.float64)
 
     def _get_rand_param(self, param_range, add_scalar: float = 0.0):
         out_param = []
@@ -1908,17 +1770,14 @@ class RandAffineGrid(Randomizable, Transform):
                 out_param.append(self.R.uniform(-f, f) + add_scalar)
         return out_param
 
-    def randomize(self, data: Optional[Any] = None) -> None:
+    def randomize(self, data: Any | None = None) -> None:
         self.rotate_params = self._get_rand_param(self.rotate_range)
         self.shear_params = self._get_rand_param(self.shear_range)
         self.translate_params = self._get_rand_param(self.translate_range)
         self.scale_params = self._get_rand_param(self.scale_range, 1.0)
 
     def __call__(
-        self,
-        spatial_size: Optional[Sequence[int]] = None,
-        grid: Optional[NdarrayOrTensor] = None,
-        randomize: bool = True,
+        self, spatial_size: Sequence[int] | None = None, grid: NdarrayOrTensor | None = None, randomize: bool = True
     ) -> torch.Tensor:
         """
         Args:
@@ -1942,7 +1801,7 @@ class RandAffineGrid(Randomizable, Transform):
         _grid, self.affine = affine_grid(spatial_size, grid)  # type: ignore
         return _grid
 
-    def get_transformation_matrix(self) -> Optional[torch.Tensor]:
+    def get_transformation_matrix(self) -> torch.Tensor | None:
         """Get the most recently applied transformation matrix"""
         return self.affine
 
@@ -1954,13 +1813,8 @@ class RandDeformGrid(Randomizable, Transform):
 
     backend = [TransformBackends.TORCH]
 
-    @deprecated_arg(name="as_tensor_output", since="0.8")
     def __init__(
-        self,
-        spacing: Union[Sequence[float], float],
-        magnitude_range: Tuple[float, float],
-        as_tensor_output: bool = True,
-        device: Optional[torch.device] = None,
+        self, spacing: Sequence[float] | float, magnitude_range: tuple[float, float], device: torch.device | None = None
     ) -> None:
         """
         Args:
@@ -1997,15 +1851,14 @@ class RandDeformGrid(Randomizable, Transform):
 
 
 class Resample(Transform):
-
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
         self,
-        mode: Union[str, int] = GridSampleMode.BILINEAR,
+        mode: str | int = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.BORDER,
         norm_coords: bool = True,
-        device: Optional[torch.device] = None,
+        device: torch.device | None = None,
         dtype: DtypeLike = np.float64,
     ) -> None:
         """
@@ -2049,9 +1902,9 @@ class Resample(Transform):
     def __call__(
         self,
         img: torch.Tensor,
-        grid: Optional[torch.Tensor] = None,
-        mode: Union[str, int, None] = None,
-        padding_mode: Optional[str] = None,
+        grid: torch.Tensor | None = None,
+        mode: str | int | None = None,
+        padding_mode: str | None = None,
         dtype: DtypeLike = None,
     ) -> torch.Tensor:
         """
@@ -2141,7 +1994,7 @@ class Resample(Transform):
             if self.norm_coords:
                 for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
                     grid_t[i] = 2.0 / (max(2, dim) - 1.0) * grid_t[i] / grid_t[-1:]
-            index_ordering: List[int] = list(range(sr - 1, -1, -1))
+            index_ordering: list[int] = list(range(sr - 1, -1, -1))
             grid_t = moveaxis(grid_t[index_ordering], 0, -1)  # type: ignore
             out = torch.nn.functional.grid_sample(
                 img_t.unsqueeze(0),
@@ -2163,20 +2016,18 @@ class Affine(InvertibleTransform):
 
     backend = list(set(AffineGrid.backend) & set(Resample.backend))
 
-    @deprecated_arg(name="norm_coords", since="0.8")
     def __init__(
         self,
-        rotate_params: Optional[Union[Sequence[float], float]] = None,
-        shear_params: Optional[Union[Sequence[float], float]] = None,
-        translate_params: Optional[Union[Sequence[float], float]] = None,
-        scale_params: Optional[Union[Sequence[float], float]] = None,
-        affine: Optional[NdarrayOrTensor] = None,
-        spatial_size: Optional[Union[Sequence[int], int]] = None,
-        mode: Union[str, int] = GridSampleMode.BILINEAR,
+        rotate_params: Sequence[float] | float | None = None,
+        shear_params: Sequence[float] | float | None = None,
+        translate_params: Sequence[float] | float | None = None,
+        scale_params: Sequence[float] | float | None = None,
+        affine: NdarrayOrTensor | None = None,
+        spatial_size: Sequence[int] | int | None = None,
+        mode: str | int = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.REFLECTION,
         normalized: bool = False,
-        norm_coords: bool = True,
-        device: Optional[torch.device] = None,
+        device: torch.device | None = None,
         dtype: DtypeLike = np.float32,
         image_only: bool = False,
     ) -> None:
@@ -2232,10 +2083,6 @@ class Affine(InvertibleTransform):
                 the output data type is always `float32`.
             image_only: if True return only the image volume, otherwise return (image, affine).
 
-        .. deprecated:: 0.8.1
-            ``norm_coords`` is deprecated, please use ``normalized`` instead
-            (the new flag is a negation, i.e., ``norm_coords == not normalized``).
-
         """
         self.affine_grid = AffineGrid(
             rotate_params=rotate_params,
@@ -2256,10 +2103,10 @@ class Affine(InvertibleTransform):
     def __call__(
         self,
         img: torch.Tensor,
-        spatial_size: Optional[Union[Sequence[int], int]] = None,
-        mode: Union[str, int, None] = None,
-        padding_mode: Optional[str] = None,
-    ) -> Union[torch.Tensor, Tuple[torch.Tensor, NdarrayOrTensor]]:
+        spatial_size: Sequence[int] | int | None = None,
+        mode: str | int | None = None,
+        padding_mode: str | None = None,
+    ) -> torch.Tensor | tuple[torch.Tensor, NdarrayOrTensor]:
         """
         Args:
             img: shape must be (num_channels, H, W[, D]),
@@ -2318,7 +2165,7 @@ class Affine(InvertibleTransform):
         fwd_affine = transform[TraceKeys.EXTRA_INFO]["affine"]
         mode = transform[TraceKeys.EXTRA_INFO]["mode"]
         padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
-        inv_affine = linalg_inv(fwd_affine)
+        inv_affine = linalg_inv(convert_to_numpy(fwd_affine))
         inv_affine = convert_to_dst_type(inv_affine, data, dtype=inv_affine.dtype)[0]
 
         affine_grid = AffineGrid(affine=inv_affine)
@@ -2348,11 +2195,11 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
         shear_range: RandRange = None,
         translate_range: RandRange = None,
         scale_range: RandRange = None,
-        spatial_size: Optional[Union[Sequence[int], int]] = None,
-        mode: Union[str, int] = GridSampleMode.BILINEAR,
+        spatial_size: Sequence[int] | int | None = None,
+        mode: str | int = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.REFLECTION,
         cache_grid: bool = False,
-        device: Optional[torch.device] = None,
+        device: torch.device | None = None,
     ) -> None:
         """
         Args:
@@ -2465,14 +2312,12 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
             else self._cached_grid
         )
 
-    def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandAffine":
+    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandAffine:
         self.rand_affine_grid.set_random_state(seed, state)
         super().set_random_state(seed, state)
         return self
 
-    def randomize(self, data: Optional[Any] = None) -> None:
+    def randomize(self, data: Any | None = None) -> None:
         super().randomize(None)
         if not self._do_transform:
             return None
@@ -2481,9 +2326,9 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
     def __call__(
         self,
         img: torch.Tensor,
-        spatial_size: Optional[Union[Sequence[int], int]] = None,
-        mode: Union[str, int, None] = None,
-        padding_mode: Optional[str] = None,
+        spatial_size: Sequence[int] | int | None = None,
+        mode: str | int | None = None,
+        padding_mode: str | None = None,
         randomize: bool = True,
         grid=None,
     ) -> torch.Tensor:
@@ -2559,7 +2404,7 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
         fwd_affine = transform[TraceKeys.EXTRA_INFO]["affine"]
         mode = transform[TraceKeys.EXTRA_INFO]["mode"]
         padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
-        inv_affine = linalg_inv(fwd_affine)
+        inv_affine = linalg_inv(convert_to_numpy(fwd_affine))
         inv_affine = convert_to_dst_type(inv_affine, data, dtype=inv_affine.dtype)[0]
         affine_grid = AffineGrid(affine=inv_affine)
         grid, _ = affine_grid(orig_size)
@@ -2584,17 +2429,17 @@ class Rand2DElastic(RandomizableTransform):
 
     def __init__(
         self,
-        spacing: Union[Tuple[float, float], float],
-        magnitude_range: Tuple[float, float],
+        spacing: tuple[float, float] | float,
+        magnitude_range: tuple[float, float],
         prob: float = 0.1,
         rotate_range: RandRange = None,
         shear_range: RandRange = None,
         translate_range: RandRange = None,
         scale_range: RandRange = None,
-        spatial_size: Optional[Union[Tuple[int, int], int]] = None,
-        mode: Union[str, int] = GridSampleMode.BILINEAR,
+        spatial_size: tuple[int, int] | int | None = None,
+        mode: str | int = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.REFLECTION,
-        device: Optional[torch.device] = None,
+        device: torch.device | None = None,
     ) -> None:
         """
         Args:
@@ -2664,9 +2509,7 @@ class Rand2DElastic(RandomizableTransform):
         self.mode = mode
         self.padding_mode: str = padding_mode
 
-    def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "Rand2DElastic":
+    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> Rand2DElastic:
         self.deform_grid.set_random_state(seed, state)
         self.rand_affine_grid.set_random_state(seed, state)
         super().set_random_state(seed, state)
@@ -2688,9 +2531,9 @@ class Rand2DElastic(RandomizableTransform):
     def __call__(
         self,
         img: torch.Tensor,
-        spatial_size: Optional[Union[Tuple[int, int], int]] = None,
-        mode: Union[str, int, None] = None,
-        padding_mode: Optional[str] = None,
+        spatial_size: tuple[int, int] | int | None = None,
+        mode: str | int | None = None,
+        padding_mode: str | None = None,
         randomize: bool = True,
     ) -> torch.Tensor:
         """
@@ -2730,7 +2573,7 @@ class Rand2DElastic(RandomizableTransform):
             grid = CenterSpatialCrop(roi_size=sp_size)(grid[0])
         else:
             _device = img.device if isinstance(img, torch.Tensor) else self.device
-            grid = create_grid(spatial_size=sp_size, device=_device, backend="torch")
+            grid = cast(torch.Tensor, create_grid(spatial_size=sp_size, device=_device, backend="torch"))
         out: torch.Tensor = self.resampler(
             img,
             grid,
@@ -2751,17 +2594,17 @@ class Rand3DElastic(RandomizableTransform):
 
     def __init__(
         self,
-        sigma_range: Tuple[float, float],
-        magnitude_range: Tuple[float, float],
+        sigma_range: tuple[float, float],
+        magnitude_range: tuple[float, float],
         prob: float = 0.1,
         rotate_range: RandRange = None,
         shear_range: RandRange = None,
         translate_range: RandRange = None,
         scale_range: RandRange = None,
-        spatial_size: Optional[Union[Tuple[int, int, int], int]] = None,
-        mode: Union[str, int] = GridSampleMode.BILINEAR,
+        spatial_size: tuple[int, int, int] | int | None = None,
+        mode: str | int = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.REFLECTION,
-        device: Optional[torch.device] = None,
+        device: torch.device | None = None,
     ) -> None:
         """
         Args:
@@ -2839,9 +2682,7 @@ class Rand3DElastic(RandomizableTransform):
         self.magnitude = 1.0
         self.sigma = 1.0
 
-    def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "Rand3DElastic":
+    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> Rand3DElastic:
         self.rand_affine_grid.set_random_state(seed, state)
         super().set_random_state(seed, state)
         return self
@@ -2863,9 +2704,9 @@ class Rand3DElastic(RandomizableTransform):
     def __call__(
         self,
         img: torch.Tensor,
-        spatial_size: Optional[Union[Tuple[int, int, int], int]] = None,
-        mode: Union[str, int, None] = None,
-        padding_mode: Optional[str] = None,
+        spatial_size: tuple[int, int, int] | int | None = None,
+        mode: str | int | None = None,
+        padding_mode: str | None = None,
         randomize: bool = True,
     ) -> torch.Tensor:
         """
@@ -2911,16 +2752,15 @@ class Rand3DElastic(RandomizableTransform):
 
 
 class GridDistortion(Transform):
-
     backend = [TransformBackends.TORCH]
 
     def __init__(
         self,
-        num_cells: Union[Tuple[int], int],
+        num_cells: tuple[int] | int,
         distort_steps: Sequence[Sequence[float]],
-        mode: Union[str, int] = GridSampleMode.BILINEAR,
+        mode: str | int = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.BORDER,
-        device: Optional[torch.device] = None,
+        device: torch.device | None = None,
     ) -> None:
         """
         Grid distortion transform. Refer to:
@@ -2954,9 +2794,9 @@ class GridDistortion(Transform):
     def __call__(
         self,
         img: torch.Tensor,
-        distort_steps: Optional[Sequence[Sequence]] = None,
-        mode: Optional[str] = None,
-        padding_mode: Optional[str] = None,
+        distort_steps: Sequence[Sequence] | None = None,
+        mode: str | None = None,
+        padding_mode: str | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -3009,17 +2849,16 @@ class GridDistortion(Transform):
 
 
 class RandGridDistortion(RandomizableTransform):
-
     backend = [TransformBackends.TORCH]
 
     def __init__(
         self,
-        num_cells: Union[Tuple[int], int] = 5,
+        num_cells: tuple[int] | int = 5,
         prob: float = 0.1,
-        distort_limit: Union[Tuple[float, float], float] = (-0.03, 0.03),
-        mode: Union[str, int] = GridSampleMode.BILINEAR,
+        distort_limit: tuple[float, float] | float = (-0.03, 0.03),
+        mode: str | int = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.BORDER,
-        device: Optional[torch.device] = None,
+        device: torch.device | None = None,
     ) -> None:
         """
         Random grid distortion transform. Refer to:
@@ -3067,7 +2906,7 @@ class RandGridDistortion(RandomizableTransform):
         )
 
     def __call__(
-        self, img: torch.Tensor, mode: Optional[str] = None, padding_mode: Optional[str] = None, randomize: bool = True
+        self, img: torch.Tensor, mode: str | None = None, padding_mode: str | None = None, randomize: bool = True
     ) -> torch.Tensor:
         """
         Args:
@@ -3093,7 +2932,7 @@ class RandGridDistortion(RandomizableTransform):
         return self.grid_distortion(img, distort_steps=self.distort_steps, mode=mode, padding_mode=padding_mode)
 
 
-class GridSplit(Transform):
+class GridSplit(Transform, MultiSampleTrait):
     """
     Split the image into patches based on the provided grid in 2D.
 
@@ -3113,7 +2952,7 @@ class GridSplit(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, grid: Tuple[int, int] = (2, 2), size: Optional[Union[int, Tuple[int, int]]] = None):
+    def __init__(self, grid: tuple[int, int] = (2, 2), size: int | tuple[int, int] | None = None):
         # Grid size
         self.grid = grid
 
@@ -3121,15 +2960,15 @@ class GridSplit(Transform):
         self.size = None if size is None else ensure_tuple_rep(size, len(self.grid))
 
     def __call__(
-        self, image: NdarrayOrTensor, size: Optional[Union[int, Tuple[int, int], np.ndarray]] = None
-    ) -> List[NdarrayOrTensor]:
+        self, image: NdarrayOrTensor, size: int | tuple[int, int] | np.ndarray | None = None
+    ) -> list[NdarrayOrTensor]:
         input_size = self.size if size is None else ensure_tuple_rep(size, len(self.grid))
 
         if self.grid == (1, 1) and input_size is None:
             return [image]
 
         split_size, steps = self._get_params(image.shape[1:], input_size)
-        patches: List[NdarrayOrTensor]
+        patches: list[NdarrayOrTensor]
         as_strided_func: Callable
         if isinstance(image, torch.Tensor):
             as_strided_func = torch.as_strided
@@ -3157,9 +2996,7 @@ class GridSplit(Transform):
 
         return patches
 
-    def _get_params(
-        self, image_size: Union[Sequence[int], np.ndarray], size: Optional[Union[Sequence[int], np.ndarray]] = None
-    ):
+    def _get_params(self, image_size: Sequence[int] | np.ndarray, size: Sequence[int] | np.ndarray | None = None):
         """
         Calculate the size and step required for splitting the image
         Args:
@@ -3180,7 +3017,7 @@ class GridSplit(Transform):
         return size, steps
 
 
-class GridPatch(Transform):
+class GridPatch(Transform, MultiSampleTrait):
     """
     Extract all the patches sweeping the entire image in a row-major sliding-window manner with possible overlaps.
     It can sort the patches and return all or a subset of them.
@@ -3209,17 +3046,17 @@ class GridPatch(Transform):
     def __init__(
         self,
         patch_size: Sequence[int],
-        offset: Optional[Sequence[int]] = None,
-        num_patches: Optional[int] = None,
-        overlap: Union[Sequence[float], float] = 0.0,
-        sort_fn: Optional[str] = None,
-        threshold: Optional[float] = None,
+        offset: Sequence[int] | None = None,
+        num_patches: int | None = None,
+        overlap: Sequence[float] | float = 0.0,
+        sort_fn: str | None = None,
+        threshold: float | None = None,
         pad_mode: str = PytorchPadMode.CONSTANT,
         **pad_kwargs,
     ):
         self.patch_size = ensure_tuple(patch_size)
         self.offset = ensure_tuple(offset) if offset else (0,) * len(self.patch_size)
-        self.pad_mode: Optional[NumpyPadMode] = convert_pad_mode(dst=np.zeros(1), mode=pad_mode) if pad_mode else None
+        self.pad_mode: NumpyPadMode | None = convert_pad_mode(dst=np.zeros(1), mode=pad_mode) if pad_mode else None
         self.pad_kwargs = pad_kwargs
         self.overlap = overlap
         self.num_patches = num_patches
@@ -3307,7 +3144,7 @@ class GridPatch(Transform):
         return output
 
 
-class RandGridPatch(GridPatch, RandomizableTransform):
+class RandGridPatch(GridPatch, RandomizableTransform, MultiSampleTrait):
     """
     Extract all the patches sweeping the entire image in a row-major sliding-window manner with possible overlaps,
     and with random offset for the minimal corner of the image, (0,0) for 2D and (0,0,0) for 3D.
@@ -3338,12 +3175,12 @@ class RandGridPatch(GridPatch, RandomizableTransform):
     def __init__(
         self,
         patch_size: Sequence[int],
-        min_offset: Optional[Union[Sequence[int], int]] = None,
-        max_offset: Optional[Union[Sequence[int], int]] = None,
-        num_patches: Optional[int] = None,
-        overlap: Union[Sequence[float], float] = 0.0,
-        sort_fn: Optional[str] = None,
-        threshold: Optional[float] = None,
+        min_offset: Sequence[int] | int | None = None,
+        max_offset: Sequence[int] | int | None = None,
+        num_patches: int | None = None,
+        overlap: Sequence[float] | float = 0.0,
+        sort_fn: str | None = None,
+        threshold: float | None = None,
         pad_mode: str = PytorchPadMode.CONSTANT,
         **pad_kwargs,
     ):

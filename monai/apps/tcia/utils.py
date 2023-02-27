@@ -9,8 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
-from typing import List, Optional
+from typing import Iterable
 
 import monai
 from monai.config.type_definitions import PathLike
@@ -24,7 +26,7 @@ __all__ = ["get_tcia_metadata", "download_tcia_series_instance", "get_tcia_ref_u
 BASE_URL = "https://services.cancerimagingarchive.net/nbia-api/services/v1/"
 
 
-def get_tcia_metadata(query: str, attribute: Optional[str] = None):
+def get_tcia_metadata(query: str, attribute: str | None = None) -> list:
     """
     Achieve metadata of a public The Cancer Imaging Archive (TCIA) dataset.
 
@@ -51,7 +53,7 @@ def get_tcia_metadata(query: str, attribute: Optional[str] = None):
     full_url = f"{BASE_URL}{query}"
     resp = requests_get(full_url)
     resp.raise_for_status()
-    metadata_list: List = []
+    metadata_list: list = []
     if len(resp.text) == 0:
         return metadata_list
     for d in resp.json():
@@ -70,7 +72,7 @@ def download_tcia_series_instance(
     check_md5: bool = False,
     hashes_filename: str = "md5hashes.csv",
     progress: bool = True,
-):
+) -> None:
     """
     Download a dicom series from a public The Cancer Imaging Archive (TCIA) dataset.
     The downloaded compressed file will be stored in `download_dir`, and the uncompressed folder will be saved
@@ -104,7 +106,12 @@ def download_tcia_series_instance(
             monai.apps.utils.check_hash(filepath=os.path.join(output_dir, dcm), val=md5hash, hash_type="md5")
 
 
-def get_tcia_ref_uid(ds, find_sop: bool = False, ref_series_uid_tag=(0x0020, 0x000E), ref_sop_uid_tag=(0x0008, 0x1155)):
+def get_tcia_ref_uid(
+    ds: Iterable,
+    find_sop: bool = False,
+    ref_series_uid_tag: tuple = (0x0020, 0x000E),
+    ref_sop_uid_tag: tuple = (0x0008, 0x1155),
+) -> str:
     """
     Achieve the referenced UID from the referenced Series Sequence for the input pydicom dataset object.
     The referenced UID could be Series Instance UID or SOP Instance UID. The UID will be detected from
@@ -126,7 +133,7 @@ def get_tcia_ref_uid(ds, find_sop: bool = False, ref_series_uid_tag=(0x0020, 0x0
             for item in elem:
                 output = get_tcia_ref_uid(item, find_sop)
         if elem.tag == ref_uid_tag:
-            return elem.value
+            return elem.value  # type: ignore[no-any-return]
 
     return output
 

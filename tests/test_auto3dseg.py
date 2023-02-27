@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
@@ -148,7 +150,6 @@ class TestImageAnalyzer(Analyzer):
     """
 
     def __init__(self, image_key="image", stats_name="test_image"):
-
         self.image_key = image_key
         report_format = {"test_stats": None}
 
@@ -174,7 +175,6 @@ class TestDataAnalyzer(unittest.TestCase):
 
     @parameterized.expand(SIM_CPU_TEST_CASES)
     def test_data_analyzer_cpu(self, input_params):
-
         sim_dim = input_params["sim_dim"]
         label_key = input_params["label_key"]
         image_only = not bool(label_key)

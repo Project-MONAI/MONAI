@@ -61,9 +61,12 @@ This script is almost same with https://github.com/MIC-DKFZ/nnDetection/blob/mai
 The changes include 1) code reformatting, 2) docstrings.
 """
 
+from __future__ import annotations
+
 import logging as logger
 import time
-from typing import Dict, List, Sequence, Tuple, Union
+from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 
@@ -153,7 +156,7 @@ class COCOMetric:
         self.recall_thresholds = np.linspace(0.0, 1.00, int(np.round((1.00 - 0.0) / 0.01)) + 1, endpoint=True)
         self.max_detections = max_detection
 
-    def __call__(self, *args, **kwargs) -> Tuple[Dict[str, float], Union[Dict[str, np.ndarray], None]]:
+    def __call__(self, *args: Any, **kwargs: Any) -> tuple[dict[str, float], dict[str, np.ndarray] | None]:
         """
         Compute metric. See :func:`compute` for more information.
 
@@ -162,12 +165,12 @@ class COCOMetric:
             **kwargs: keyword arguments passed to :func:`compute`
 
         Returns:
-            Dict[str, float]: dictionary with scalar values for evaluation
-            Dict[str, np.ndarray]: dictionary with arrays, e.g. for visualization of graphs
+            dict[str, float]: dictionary with scalar values for evaluation
+            dict[str, np.ndarray]: dictionary with arrays, e.g. for visualization of graphs
         """
         return self.compute(*args, **kwargs)
 
-    def check_number_of_iou(self, *args) -> None:
+    def check_number_of_iou(self, *args: np.ndarray) -> None:
         """
         Check if shape of input in first dimension is consistent with expected IoU values
         (assumes IoU dimension is the first dimension)
@@ -192,13 +195,13 @@ class COCOMetric:
         """
         return list(self.iou_thresholds)
 
-    def compute(self, results_list: List[Dict[int, Dict[str, np.ndarray]]]) -> Tuple[Dict[str, float], None]:
+    def compute(self, results_list: list[dict[int, dict[str, np.ndarray]]]) -> tuple[dict[str, float], None]:
         """
         Compute COCO metrics
 
         Args:
-            results_list (List[Dict[int, Dict[str, np.ndarray]]]): list with results per image (in list)
-                per category (dict). Inner Dict contains multiple results obtained by :func:`box_matching_batch`.
+            results_list (list[dict[int, dict[str, np.ndarray]]]): list with results per image (in list)
+                per category (dict). Inner dict contains multiple results obtained by :func:`box_matching_batch`.
 
                 - `dtMatches`: matched detections [T, D], where T = number of
                   thresholds, D = number of detections
@@ -211,13 +214,13 @@ class COCOMetric:
                   indicate which detections should be ignored
 
         Returns:
-            Dict[str, float], dictionary with coco metrics
+            dict[str, float], dictionary with coco metrics
         """
         if self.verbose:
             logger.info("Start COCO metric computation...")
             tic = time.time()
 
-        dataset_statistics = self._compute_statistics(results_list=results_list)  # Dict[str, Union[np.ndarray, List]]
+        dataset_statistics = self._compute_statistics(results_list=results_list)  # dict[str, Union[np.ndarray, list]]
 
         if self.verbose:
             toc = time.time()
@@ -232,13 +235,13 @@ class COCOMetric:
             logger.info(f"COCO metrics computed in t={(toc - tic):0.2f}s.")
         return results, None
 
-    def _compute_ap(self, dataset_statistics: Dict[str, Union[np.ndarray, List]]) -> Dict[str, float]:
+    def _compute_ap(self, dataset_statistics: dict[str, np.ndarray | list]) -> dict[str, float]:
         """
         Compute AP metrics
 
         Args:
-            dataset_statistics (List[Dict[int, Dict[str, np.ndarray]]]): list with result s per image (in list)
-                per category (dict). Inner Dict contains multiple results obtained by :func:`box_matching_batch`.
+            dataset_statistics (list[dict[int, dict[str, np.ndarray]]]): list with result s per image (in list)
+                per category (dict). Inner dict contains multiple results obtained by :func:`box_matching_batch`.
 
                 - `dtMatches`: matched detections [T, D], where T = number of
                   thresholds, D = number of detections
@@ -279,13 +282,13 @@ class COCOMetric:
                     results[key] = self._select_ap(dataset_statistics, iou_idx=[idx], cls_idx=cls_idx, max_det_idx=-1)
         return results
 
-    def _compute_ar(self, dataset_statistics: Dict[str, Union[np.ndarray, List]]) -> Dict[str, float]:
+    def _compute_ar(self, dataset_statistics: dict[str, np.ndarray | list]) -> dict[str, float]:
         """
         Compute AR metrics
 
         Args:
-            dataset_statistics (List[Dict[int, Dict[str, np.ndarray]]]): list with result s per image (in list)
-                per category (dict). Inner Dict contains multiple results obtained by :func:`box_matching_batch`.
+            dataset_statistics (list[dict[int, dict[str, np.ndarray]]]): list with result s per image (in list)
+                per category (dict). Inner dict contains multiple results obtained by :func:`box_matching_batch`.
 
                 - `dtMatches`: matched detections [T, D], where T = number of
                   thresholds, D = number of detections
@@ -324,8 +327,8 @@ class COCOMetric:
     @staticmethod
     def _select_ap(
         dataset_statistics: dict,
-        iou_idx: Union[int, List[int], np.ndarray, None] = None,
-        cls_idx: Union[int, Sequence[int], None] = None,
+        iou_idx: int | list[int] | np.ndarray | None = None,
+        cls_idx: int | Sequence[int] | None = None,
         max_det_idx: int = -1,
     ) -> float:
         """
@@ -359,8 +362,8 @@ class COCOMetric:
     @staticmethod
     def _select_ar(
         dataset_statistics: dict,
-        iou_idx: Union[int, Sequence[int], None] = None,
-        cls_idx: Union[int, Sequence[int], None] = None,
+        iou_idx: int | Sequence[int] | None = None,
+        cls_idx: int | Sequence[int] | None = None,
         max_det_idx: int = -1,
     ) -> float:
         """
@@ -395,16 +398,14 @@ class COCOMetric:
 
         return float(np.mean(rec[rec > -1]))
 
-    def _compute_statistics(
-        self, results_list: List[Dict[int, Dict[str, np.ndarray]]]
-    ) -> Dict[str, Union[np.ndarray, List]]:
+    def _compute_statistics(self, results_list: list[dict[int, dict[str, np.ndarray]]]) -> dict[str, np.ndarray | list]:
         """
         Compute statistics needed for COCO metrics (mAP, AP of individual classes, mAP@IoU_Thresholds, AR)
         Adapted from https://github.com/cocodataset/cocoapi/blob/master/PythonAPI/pycocotools/cocoeval.py
 
         Args:
-            results_list (List[Dict[int, Dict[str, np.ndarray]]]): list with result s per image (in list)
-                per category (dict). Inner Dict contains multiple results obtained by :func:`box_matching_batch`.
+            results_list (list[dict[int, dict[str, np.ndarray]]]): list with result s per image (in list)
+                per category (dict). Inner dict contains multiple results obtained by :func:`box_matching_batch`.
 
                 - `dtMatches`: matched detections [T, D], where T = number of
                   thresholds, D = number of detections
@@ -487,9 +488,9 @@ def _compute_stats_single_threshold(
     tp: np.ndarray,
     fp: np.ndarray,
     dt_scores_sorted: np.ndarray,
-    recall_thresholds: Union[np.ndarray, Sequence[float]],
+    recall_thresholds: np.ndarray | Sequence[float],
     num_gt: int,
-) -> Tuple[float, np.ndarray, np.ndarray]:
+) -> tuple[float, np.ndarray, np.ndarray]:
     """
     Compute recall value, precision curve and scores thresholds
     Adapted from https://github.com/cocodataset/cocoapi/blob/master/PythonAPI/pycocotools/cocoeval.py

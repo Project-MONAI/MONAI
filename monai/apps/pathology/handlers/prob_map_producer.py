@@ -9,9 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import logging
 import os
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -38,11 +40,7 @@ class ProbMapProducer:
     """
 
     def __init__(
-        self,
-        output_dir: str = "./",
-        output_postfix: str = "",
-        dtype: DtypeLike = np.float64,
-        name: Optional[str] = None,
+        self, output_dir: str = "./", output_postfix: str = "", dtype: DtypeLike = np.float64, name: str | None = None
     ) -> None:
         """
         Args:
@@ -57,9 +55,9 @@ class ProbMapProducer:
         self.output_dir = output_dir
         self.output_postfix = output_postfix
         self.dtype = dtype
-        self.prob_map: Dict[str, np.ndarray] = {}
-        self.level: Dict[str, int] = {}
-        self.counter: Dict[str, int] = {}
+        self.prob_map: dict[str, np.ndarray] = {}
+        self.level: dict[str, int] = {}
+        self.counter: dict[str, int] = {}
         self.num_done_images: int = 0
         self.num_images: int = 0
 
@@ -120,5 +118,5 @@ class ProbMapProducer:
         del self.counter[name]
         del self.level[name]
 
-    def finalize(self, engine: Engine):
+    def finalize(self, engine: Engine) -> None:
         self.logger.info(f"Probability map is created for {self.num_done_images}/{self.num_images} images!")

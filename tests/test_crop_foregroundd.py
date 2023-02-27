@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -19,7 +21,6 @@ from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TEST_POSITION, TESTS = [], []
 for p in TEST_NDARRAYS_ALL:
-
     TEST_POSITION.append(
         [
             {

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -17,6 +19,7 @@ from parameterized import parameterized
 
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
+from monai.transforms.lazy.functional import apply_transforms
 from monai.transforms.spatial.dictionary import SpatialResampled
 from tests.utils import TEST_DEVICES, assert_allclose
 
@@ -83,19 +86,45 @@ for dst, expct in zip(destinations_2d, expected_2d):
                     )
 
 
+def get_apply_param(init_param=None, call_param=None):
+    apply_param = {}
+    for key in ["pending", "mode", "padding_mode", "dtype", "align_corners"]:
+        if init_param:
+            if key in init_param.keys():
+                apply_param[key] = init_param[key]
+        if call_param:
+            if key in call_param.keys():
+                apply_param[key] = call_param[key]
+    return apply_param
+
+
 class TestSpatialResample(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_flips_inverse(self, img, device, dst_affine, kwargs, expected_output):
         img = MetaTensor(img, affine=torch.eye(4)).to(device)
         data = {"img": img, "dst_affine": dst_affine}
-
-        xform = SpatialResampled(keys="img", **kwargs)
-        output_data = xform(data)
+        init_param = kwargs.copy()
+        init_param["keys"] = "img"
+        call_param = {"data": data}
+        xform = SpatialResampled(**init_param)
+        output_data = xform(**call_param)
         out = output_data["img"]
 
         assert_allclose(out, expected_output, rtol=1e-2, atol=1e-2)
-        assert_allclose(out.affine, dst_affine, rtol=1e-2, atol=1e-2)
+        assert_allclose(to_affine_nd(len(out.shape) - 1, out.affine), dst_affine, rtol=1e-2, atol=1e-2)
 
+        # check lazy
+        lazy_xform = SpatialResampled(**init_param)
+        lazy_xform.lazy_evaluation = True
+        pending_output_data = lazy_xform(**call_param)
+        pending_out = pending_output_data["img"]
+        assert_allclose(pending_out.peek_pending_affine(), out.affine)
+        assert_allclose(pending_out.peek_pending_shape(), out.shape[1:4])
+        apply_param = get_apply_param(init_param=init_param, call_param=call_param)
+        lazy_out = apply_transforms(pending_out, **apply_param)[0]
+        assert_allclose(lazy_out, out, rtol=1e-5)
+
+        # check inverse
         inverted = xform.inverse(output_data)["img"]
         self.assertEqual(inverted.applied_operations, [])  # no further invert after inverting
         expected_affine = to_affine_nd(len(out.affine) - 1, torch.eye(4))

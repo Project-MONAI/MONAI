@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
-from typing import Tuple
 
 import numpy as np
 import torch
@@ -21,7 +22,7 @@ from tests.utils import assert_allclose
 
 
 def create_spherical_seg_3d(
-    radius: float = 20.0, centre: Tuple[int, int, int] = (49, 49, 49), im_shape: Tuple[int, int, int] = (99, 99, 99)
+    radius: float = 20.0, centre: tuple[int, int, int] = (49, 49, 49), im_shape: tuple[int, int, int] = (99, 99, 99)
 ) -> np.ndarray:
     """
     Return a 3D image with a sphere inside. Voxel values will be

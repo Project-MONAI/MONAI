@@ -29,8 +29,9 @@ The functions in this script are adapted from nnDetection,
 https://github.com/MIC-DKFZ/nnDetection/blob/main/nndet/core/boxes/sampler.py
 """
 
+from __future__ import annotations
+
 import logging
-from typing import List, Tuple
 
 import torch
 from torch import Tensor
@@ -125,7 +126,7 @@ class HardNegativeSampler(HardNegativeSamplerBase):
         self.positive_fraction = positive_fraction
         logging.info("Sampling hard negatives on a per batch basis")
 
-    def __call__(self, target_labels: List[Tensor], concat_fg_probs: Tensor) -> Tuple[List[Tensor], List[Tensor]]:
+    def __call__(self, target_labels: list[Tensor], concat_fg_probs: Tensor) -> tuple[list[Tensor], list[Tensor]]:
         """
         Select positives and hard negatives from list samples per image.
         Hard negative sampler will be applied to each image independently.
@@ -158,8 +159,8 @@ class HardNegativeSampler(HardNegativeSamplerBase):
         return self.select_samples_img_list(target_labels, fg_probs)
 
     def select_samples_img_list(
-        self, target_labels: List[Tensor], fg_probs: List[Tensor]
-    ) -> Tuple[List[Tensor], List[Tensor]]:
+        self, target_labels: list[Tensor], fg_probs: list[Tensor]
+    ) -> tuple[list[Tensor], list[Tensor]]:
         """
         Select positives and hard negatives from list samples per image.
         Hard negative sampler will be applied to each image independently.
@@ -205,7 +206,7 @@ class HardNegativeSampler(HardNegativeSamplerBase):
 
         return pos_idx, neg_idx
 
-    def select_samples_per_img(self, labels_per_img: Tensor, fg_probs_per_img: Tensor) -> Tuple[Tensor, Tensor]:
+    def select_samples_per_img(self, labels_per_img: Tensor, fg_probs_per_img: Tensor) -> tuple[Tensor, Tensor]:
         """
         Select positives and hard negatives from samples.
 

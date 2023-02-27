@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from .utils import (
     convert_to_torchscript,
     copy_model_state,
@@ -25,7 +27,6 @@ from .utils import (
     replace_modules_temp,
     save_state,
     set_named_module,
-    slice_channels,
     to_norm_affine,
     train_mode,
 )

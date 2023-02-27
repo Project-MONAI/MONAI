@@ -13,8 +13,11 @@ A collection of transforms for signal operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
+from __future__ import annotations
+
 import warnings
-from typing import Any, Optional, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 import torch
@@ -57,7 +60,7 @@ class SignalRandShift(RandomizableTransform):
     backend = [TransformBackends.NUMPY, TransformBackends.TORCH]
 
     def __init__(
-        self, mode: Optional[str] = "wrap", filling: Optional[float] = 0.0, boundaries: Sequence[float] = (-1.0, 1.0)
+        self, mode: str | None = "wrap", filling: float | None = 0.0, boundaries: Sequence[float] = (-1.0, 1.0)
     ) -> None:
         """
         Args:
@@ -390,10 +393,7 @@ class SignalRemoveFrequency(Transform):
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
-        self,
-        frequency: Optional[float] = None,
-        quality_factor: Optional[float] = None,
-        sampling_freq: Optional[float] = None,
+        self, frequency: float | None = None, quality_factor: float | None = None, sampling_freq: float | None = None
     ) -> None:
         """
         Args:

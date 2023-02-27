@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
@@ -32,6 +34,13 @@ def case_pdb(sarg=None):
     config = {"transform": {"_target_": "Compose", "transforms": [], "_debug_": True}}
     parser = ConfigParser(config=config)
     parser.get_parsed_content()
+
+
+@TimedCall(seconds=100, force_quit=True)
+def case_pdb_inst(sarg=None):
+    config = {"transform": {"_target_": "Compose", "transforms": [], "_mode_": "debug"}}
+    parser = ConfigParser(config=config)
+    return parser.transform
 
 
 # test the resolved and parsed instances
@@ -98,6 +107,8 @@ TEST_CASE_3 = [
 
 TEST_CASE_4 = [{"A": 1, "B": "@A", "C": "@D", "E": "$'test' + '@F'"}]
 
+TEST_CASE_5 = [{"training": {"A": 1, "A_B": 2}, "total": "$@training#A + @training#A_B + 1"}, 4]
+
 
 class TestConfigParser(unittest.TestCase):
     def test_config_content(self):
@@ -153,6 +164,8 @@ class TestConfigParser(unittest.TestCase):
     def test_function(self, config):
         parser = ConfigParser(config=config, globals={"TestClass": TestClass})
         for id in config:
+            if id in ("compute", "cls_compute"):
+                parser[f"{id}#_mode_"] = "partial"
             func = parser.get_parsed_content(id=id)
             self.assertTrue(id in parser.ref_resolver.resolved_content)
             if id == "error_func":
@@ -246,6 +259,14 @@ class TestConfigParser(unittest.TestCase):
         result = trans(np.ones(64))
         self.assertTupleEqual(result.shape, (1, 8, 8))
 
+    def test_non_str_target(self):
+        configs = {
+            "fwd": {"_target_": "$@model.forward", "x": "$torch.rand(1, 3, 256, 256)", "_mode_": "partial"},
+            "model": {"_target_": "monai.networks.nets.resnet.resnet18", "pretrained": False, "spatial_dims": 2},
+        }
+        self.assertTrue(callable(ConfigParser(config=configs).fwd))
+        self.assertTupleEqual(tuple(ConfigParser(config=configs).fwd().shape), (1, 400))
+
     def test_error_instance(self):
         config = {"transform": {"_target_": "Compose", "transforms_wrong_key": []}}
         parser = ConfigParser(config=config)
@@ -255,6 +276,32 @@ class TestConfigParser(unittest.TestCase):
     def test_pdb(self):
         with self.assertRaisesRegex(RuntimeError, ".*bdb.BdbQuit.*"):
             case_pdb()
+        self.assertEqual(case_pdb_inst(), None)  # pdb.runcall without input is None
+
+    def test_get_via_attributes(self):
+        config = {
+            "A": {"B": {"C": 1}},
+            "my_dims": 2,
+            "dims_1": "$@my_dims + 1",
+            "patch_size": [8, 8],
+            "transform": {"_target_": "Lambda", "func": "$lambda x: x.reshape((1, *@patch_size))"},
+        }
+        parser = ConfigParser(config=config)
+        self.assertEqual(parser.A, {"B": {"C": 1}})
+        self.assertEqual(parser.dims_1, 3)
+
+        trans = parser.transform
+        result = trans(np.ones(64))
+        self.assertTupleEqual(result.shape, (1, 8, 8))
+
+    def test_builtin(self):
+        config = {"import statements": "$import math", "calc": {"_target_": "math.isclose", "a": 0.001, "b": 0.001}}
+        self.assertEqual(ConfigParser(config).calc, True)
+
+    @parameterized.expand([TEST_CASE_5])
+    def test_substring_reference(self, config, expected):
+        parser = ConfigParser(config=config)
+        self.assertEqual(parser.get_parsed_content("total"), expected)
 
 
 if __name__ == "__main__":

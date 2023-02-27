@@ -159,9 +159,16 @@ function clang_format {
         while read i; do $clang_format_tool -style=file -i $i; done
 }
 
+function is_pip_installed() {
+	return $(${PY_EXE} -c "import sys, pkgutil; sys.exit(0 if pkgutil.find_loader(sys.argv[1]) else 1)" $1)
+}
+
 function clean_py {
-    # remove coverage history
-    ${cmdPrefix}${PY_EXE} -m coverage erase
+    if is_pip_installed coverage
+    then
+      # remove coverage history
+      ${cmdPrefix}${PY_EXE} -m coverage erase
+    fi
 
     # uninstall the development package
     echo "Uninstalling MONAI development files..."
@@ -198,10 +205,6 @@ function print_error_msg() {
 function print_style_fail_msg() {
     echo "${red}Check failed!${noColor}"
     echo "Please run auto style fixes: ${green}./runtests.sh --autofix${noColor}"
-}
-
-function is_pip_installed() {
-	return $(${PY_EXE} -c "import sys, pkgutil; sys.exit(0 if pkgutil.find_loader(sys.argv[1]) else 1)" $1)
 }
 
 function list_unittests() {
@@ -255,8 +258,6 @@ do
             doIsortFormat=true
             doFlake8Format=true
             doPylintFormat=true
-            doPytypeFormat=true
-            doMypyFormat=true
             doCopyRight=true
         ;;
         --disttests)
@@ -567,7 +568,7 @@ then
     else
         ${cmdPrefix}${PY_EXE} -m pytype --version
 
-        ${cmdPrefix}${PY_EXE} -m pytype -j ${NUM_PARALLEL} --python-version="$(${PY_EXE} -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")"
+        ${cmdPrefix}${PY_EXE} -m pytype -j ${NUM_PARALLEL} --python-version="$(${PY_EXE} -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")" "$(pwd)"
 
         pytype_status=$?
         if [ ${pytype_status} -ne 0 ]
@@ -629,6 +630,11 @@ fi
 if [ $doCoverage = true ]
 then
     echo "${separator}${blue}coverage${noColor}"
+    # ensure that the necessary packages for code format testing are installed
+    if ! is_pip_installed coverage
+    then
+        install_deps
+    fi
     cmd="${PY_EXE} -m coverage run --append"
 fi
 
@@ -680,6 +686,11 @@ fi
 if [ $doCoverage = true ]
 then
     echo "${separator}${blue}coverage${noColor}"
+    # ensure that the necessary packages for code format testing are installed
+    if ! is_pip_installed coverage
+    then
+        install_deps
+    fi
     ${cmdPrefix}${PY_EXE} -m coverage combine --append .coverage/
     ${cmdPrefix}${PY_EXE} -m coverage report --ignore-errors
 fi
