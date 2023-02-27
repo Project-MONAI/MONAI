@@ -12,20 +12,20 @@
 from __future__ import annotations
 
 import os
-import yaml
 
 from batchgenerators.utilities.file_and_folder_operations import join, load_pickle
+from monai.bundle import ConfigParser
 
 
 class nnUNetRunner:
     def __init__(self, input):
         self.input_info = []
         self.input_config_or_dict = input
+
         if isinstance(self.input_config_or_dict, dict):
             self.input_info = self.input_config_or_dict
         elif isinstance(self.input_config_or_dict, str) and os.path.isfile(self.input_config_or_dict):
-            with open(self.input_config_or_dict) as f:
-                self.input_info = yaml.full_load(f)
+            self.input_info = ConfigParser.load_config_file(self.input_config_or_dict)
         else:
             raise ValueError(f"{input} is not a valid file or dict")
 
