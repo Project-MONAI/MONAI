@@ -17,6 +17,7 @@ from copy import deepcopy
 import numpy as np
 
 from monai.data.meta_tensor import MetaTensor
+from monai.transforms import Compose
 from monai.transforms.lazy.functional import apply_transforms
 from monai.transforms.transform import MapTransform
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
@@ -123,6 +124,34 @@ class CropTest(unittest.TestCase):
         assert_allclose(pending_result.peek_pending_affine(), expected.affine)
         assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:])
         # only support nearest
+        result = apply_transforms(pending_result, mode="nearest", align_corners=True)[0]
+        # compare
+        assert_allclose(result, expected, rtol=1e-5)
+
+    def crop_test_combine_ops(self, funcs, input_shape, expected_shape):
+        # non-lazy
+        _funcs = []
+        for func in funcs:
+            for _func, _params in func.items():
+                _funcs.append(_func(**_params))
+        trans = Compose(_funcs)
+        data = self.get_arr(input_shape)
+        is_map = isinstance(_funcs[0], MapTransform)
+        im = MetaTensor(data, meta={"a": "b", "affine": np.eye(len(input_shape))})
+        input_data = {"img": im} if is_map else im
+        result_non_lazy = trans(input_data)
+        expected = result_non_lazy["img"] if is_map else result_non_lazy
+        self.assertIsInstance(expected, MetaTensor)
+        # lazy
+        pending_result = input_data
+        for _func in _funcs:
+            _func.lazy_evaluation = True
+            pending_result = _func(pending_result)
+        pending_result = pending_result["img"] if is_map else pending_result
+        self.assertIsInstance(pending_result, MetaTensor)
+        assert_allclose(pending_result.peek_pending_affine(), expected.affine)
+        assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:])
+        # TODO: mode="bilinear" may report error
         result = apply_transforms(pending_result, mode="nearest", align_corners=True)[0]
         # compare
         assert_allclose(result, expected, rtol=1e-5)

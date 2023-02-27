@@ -15,7 +15,7 @@ import unittest
 
 from parameterized import parameterized
 
-from monai.transforms import SpatialCrop
+from monai.transforms import SpatialCrop, CenterSpatialCrop, CenterScaleCrop
 from tests.croppers import CropTest
 
 TESTS = [
@@ -41,6 +41,15 @@ TESTS = [
 
 TEST_ERRORS = [[{"roi_slices": [slice(s, e, 2) for s, e in zip([-1, -2, 0], [None, None, 2])]}]]
 
+func1 = {CenterSpatialCrop: {"roi_size": [8, 8, 6]}}
+func2 = {SpatialCrop: {"roi_center": [1, 1, 1], "roi_size": [3, 4, 3]}}
+func3 = {CenterScaleCrop: {"roi_scale": [0.6, 0.3, -1]}}
+
+TESTS_COMBINE = []
+TESTS_COMBINE.append([[func1, func2, func3], (3, 10, 10, 8), (3, 2, 2, 3)])
+TESTS_COMBINE.append([[func1, func2], (3, 8, 8, 4), (3, 3, 4, 3)])
+TESTS_COMBINE.append([[func1, func3], (3, 8, 8, 4), (3, 5, 3, 4)])
+
 
 class TestSpatialCrop(CropTest):
     Cropper = SpatialCrop
@@ -57,6 +66,10 @@ class TestSpatialCrop(CropTest):
     @parameterized.expand(TESTS)
     def test_pending_ops(self, input_param, input_shape, _):
         return self.crop_test_pending_ops(input_param, input_shape)
+
+    @parameterized.expand(TESTS_COMBINE)
+    def test_combine_ops(self, funcs, input_shape, expected_shape):
+        self.crop_test_combine_ops(funcs, input_shape, expected_shape)
 
 
 if __name__ == "__main__":
