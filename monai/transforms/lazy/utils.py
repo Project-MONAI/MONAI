@@ -16,7 +16,7 @@ import torch
 
 import monai
 from monai.config import NdarrayOrTensor
-from monai.utils import LazyAttr, convert_to_tensor
+from monai.utils import LazyAttr, convert_to_numpy, convert_to_tensor
 
 __all__ = ["resample", "combine_transforms"]
 
@@ -105,6 +105,28 @@ def is_compatible_apply_kwargs(kwargs_1, kwargs_2):
     return True
 
 
+def require_interp(matrix, atol=1e-5):
+    s = matrix[:, -1]
+    if not np.allclose(s, np.round(s), atol=atol):
+        return None
+
+    ndim = len(matrix) - 1
+    mat = convert_to_numpy(matrix)
+    ox, oy = [], [0]
+    for x, r in enumerate(mat[:ndim, :ndim]):
+        for y, c in enumerate(r):
+            if np.isclose(c, -1, atol=atol) or np.isclose(c, 1, atol=atol):
+                y_channel = y + 1
+                if x in ox or y_channel in oy:
+                    return None
+                else:
+                    ox.append(x)
+                    oy.append(y_channel)
+            elif not np.isclose(c, 0.0, atol=atol):
+                return None
+    return oy
+
+
 def resample(data: torch.Tensor, matrix: NdarrayOrTensor, spatial_size, kwargs: dict | None = None):
     """
     This is a minimal implementation of resample that always uses SpatialResample.
@@ -120,15 +142,62 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, spatial_size, kwargs: 
         "dtype": kwargs.pop(LazyAttr.DTYPE, data.dtype),
         "align_corners": kwargs.pop(LazyAttr.ALIGN_CORNERS, None),
     }
+
+    ndim = len(matrix) - 1
     img = convert_to_tensor(data=data, track_meta=monai.data.get_track_meta())
-    init_affine = monai.data.to_affine_nd(len(matrix) - 1, img.affine)
+    init_affine = monai.data.to_affine_nd(ndim, img.affine)
     call_kwargs = {
         "spatial_size": img.peek_pending_shape() if spatial_size is None else spatial_size,
         "dst_affine": init_affine @ monai.utils.convert_to_dst_type(matrix, init_affine)[0],
         "mode": kwargs.pop(LazyAttr.INTERP_MODE, None),
         "padding_mode": kwargs.pop(LazyAttr.PADDING_MODE, None),
     }
+
+    matrix_np = convert_to_numpy(matrix, wrap_sequence=True).copy()
+    axes = require_interp(matrix_np)
+    if axes is not None:
+        # todo: if no change just return the array
+        # todo: if on cpu, use the numpy array because flip is faster
+        matrix_np = np.round(matrix_np)
+        full_transpose = np.argsort(axes).tolist()
+        if not np.all(full_transpose == np.arange(len(img.shape))):
+            img = img.permute(full_transpose)
+        matrix_np[:ndim] = matrix_np[[x - 1 for x in axes[1:]]]
+        flip = [idx + 1 for idx, val in enumerate(matrix_np[:ndim]) if val[idx] == -1]
+        if flip:
+            img = torch.flip(img, dims=flip)
+            for f in flip:
+                ind_f = f - 1
+                matrix_np[ind_f, ind_f] = 1
+                matrix_np[ind_f, -1] = img.shape[f] - 1 - matrix_np[ind_f, -1]
+
+        cc = np.asarray(np.meshgrid(*[[0.5, x - 0.5] for x in spatial_size], indexing="ij"))
+        cc = cc.reshape((len(spatial_size), -1))
+        src_cc = np.floor(matrix_np @ np.concatenate((cc, np.ones_like(cc[:1]))))
+        src_start, src_end = src_cc.min(axis=1), src_cc.max(axis=1)
+        to_pad, to_crop, do_pad, do_crop = [(0, 0)], [slice(None)], False, False
+        for s, e, sp in zip(src_start, src_end, img.shape[1:]):
+            do_pad, do_crop = do_pad or s < 0 or e > sp - 1, do_crop or s > 0 or e < sp - 1
+            to_pad += [(0 if s >= 0 else int(-s), 0 if e < sp - 1 else int(e - sp + 1))]
+            to_crop += [slice(int(max(s, 0)), int(e + 1 + to_pad[-1][0]))]
+        if do_pad:
+            p_mode = kwargs.pop(LazyAttr.PADDING_MODE, None)
+            if p_mode is None or p_mode in ("zeros", "constant"):
+                _mode = "constant"
+            elif p_mode in ("reflection", "reflect", "grid_mirror", "mirror"):
+                _mode = "reflect"
+            elif p_mode in ("nearest", "border"):
+                _mode = "replicate"
+            else:
+                _mode = "circular"
+            img = monai.transforms.croppad.functional.pad_nd(img, to_pad, mode=_mode)  # todo set padding mode
+        if do_crop:
+            img = img[to_crop]
+        img.affine = call_kwargs["dst_affine"]
+        return img
+
     resampler = monai.transforms.SpatialResample(**init_kwargs)
     resampler.lazy_evaluation = False  # resampler is a lazytransform
     with resampler.trace_transform(False):  # don't track this transform in `img`
-        return resampler(img=img, **call_kwargs)
+        new_img = resampler(img=img, **call_kwargs)
+    return new_img
