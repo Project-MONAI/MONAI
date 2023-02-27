@@ -65,11 +65,10 @@ class nnUNetRunner:
         from nnunetv2.experiment_planning.plan_and_preprocess_api import extract_fingerprints
         print("Fingerprint extraction...")
         extract_fingerprints([int(self.dataset_name_or_id)], fpe, npfp, verify_dataset_integrity, clean, verbose)
-        print("1 done")
 
     def plan_experiments(
         self,
-        pl=False,
+        pl="ExperimentPlanner",
         gpu_memory_target=False,
         preprocessor_name="DefaultPreprocessor",
         overwrite_target_spacing=None,
@@ -81,7 +80,6 @@ class nnUNetRunner:
         plan_experiments(
             [int(self.dataset_name_or_id)], pl, gpu_memory_target, preprocessor_name, overwrite_target_spacing, overwrite_plans_name
         )
-        print("2 done")
 
     def preprocess(
         self,
@@ -103,7 +101,7 @@ class nnUNetRunner:
         verify_dataset_integrity=False,
         no_pp=False,
         clean=False,
-        pl=False,
+        pl="ExperimentPlanner",
         gpu_memory_target=False,
         preprocessor_name="DefaultPreprocessor",
         overwrite_target_spacing=None,
