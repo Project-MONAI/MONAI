@@ -1522,6 +1522,9 @@ class NrrdReader(ImageReader):
         dtype: dtype of the data array when loading image.
         index_order: Specify whether the returned data array should be in C-order (‘C’) or Fortran-order (‘F’).
             Numpy is usually in C-order, but default on the NRRD header is F
+        affine_lps_to_ras: whether to convert the affine matrix from "LPS" to "RAS". Defaults to ``True``.
+            Set to ``True`` to be consistent with ``NibabelReader``, otherwise the affine matrix is unmodified.
+
         kwargs: additional args for `nrrd.read` API. more details about available args:
             https://github.com/mhe/pynrrd/blob/master/nrrd/reader.py
 
@@ -1532,11 +1535,13 @@ class NrrdReader(ImageReader):
         channel_dim: int | None = None,
         dtype: np.dtype | type | str | None = np.float32,
         index_order: str = "F",
+        affine_lps_to_ras: bool = True,
         **kwargs,
     ):
         self.channel_dim = channel_dim
         self.dtype = dtype
         self.index_order = index_order
+        self.affine_lps_to_ras = affine_lps_to_ras
         self.kwargs = kwargs
 
     def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
@@ -1590,7 +1595,10 @@ class NrrdReader(ImageReader):
             if self.index_order == "C":
                 header = self._convert_f_to_c_order(header)
             header[MetaKeys.ORIGINAL_AFFINE] = self._get_affine(i)
-            header = self._switch_lps_ras(header)
+
+            if self.affine_lps_to_ras:
+                header = self._switch_lps_ras(header)
+
             header[MetaKeys.AFFINE] = header[MetaKeys.ORIGINAL_AFFINE].copy()
             header[MetaKeys.SPATIAL_SHAPE] = header["sizes"]
             [header.pop(k) for k in ("sizes", "space origin", "space directions")]  # rm duplicated data in header
