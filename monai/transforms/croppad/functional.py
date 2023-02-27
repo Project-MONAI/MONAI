@@ -15,6 +15,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 from __future__ import annotations
 
+import warnings
 import numpy as np
 import torch
 from torch.nn.functional import pad as pad_pt
@@ -29,20 +30,34 @@ __all__ = ["pad_nd", "pad_func"]
 
 
 def _np_pad(img: torch.Tensor, pad_width: list[tuple[int, int]], mode: str, **kwargs) -> torch.Tensor:
-    img_np = img.detach().cpu().numpy() if isinstance(img, torch.Tensor) else img
+    if isinstance(img, torch.Tensor):
+        if img.is_cuda:
+            warnings.warn(f"Padding: moving img {img.shape} on cuda to cpu for dtype={img.dtype} mode={mode}.")
+        img_np = img.detach().cpu().numpy()
+    else:
+        img_np = img
     mode = convert_pad_mode(dst=img_np, mode=mode).value
     if mode == "constant" and "value" in kwargs:
-        kwargs["constant_values"] = kwargs.pop("value")
-    out = torch.as_tensor(np.pad(img, pad_width, mode=mode, **kwargs))  # type: ignore
+        _kwargs = kwargs.copy()
+        _kwargs["constant_values"] = _kwargs.pop("value")
+    else:
+        _kwargs = kwargs
+    out = torch.as_tensor(np.pad(img, pad_width, mode=mode, **_kwargs))  # type: ignore
     if isinstance(img, MetaTensor):
         out = convert_to_dst_type(out, dst=img)[0]
     return out
 
 
 def _pt_pad(img: torch.Tensor, pad_width: list[tuple[int, int]], mode: str, **kwargs) -> torch.Tensor:
+    mode = convert_pad_mode(dst=img, mode=mode).value
+    if mode == "constant" and "constant_values" in kwargs:
+        _kwargs = kwargs.copy()
+        _kwargs["value"] = _kwargs.pop("constant_values")
+    else:
+        _kwargs = kwargs
     pt_pad_width = [val for sublist in pad_width[1:] for val in sublist[::-1]][::-1]
     # torch.pad expects `[B, C, H, W, [D]]` shape
-    return pad_pt(img.unsqueeze(0), pt_pad_width, mode=mode, **kwargs).squeeze(0)
+    return pad_pt(img.unsqueeze(0), pt_pad_width, mode=mode, **_kwargs).squeeze(0)
 
 
 def pad_nd(img: torch.Tensor, to_pad: list[tuple[int, int]], mode: str, **kwargs):
@@ -68,15 +83,15 @@ def pad_nd(img: torch.Tensor, to_pad: list[tuple[int, int]], mode: str, **kwargs
     mode = convert_pad_mode(dst=img, mode=mode).value
     try:
         _pad = (
-            _pt_pad
-            if mode in {"reflect", "replicate", "constant", "circular"}
-            and img.dtype not in {torch.int64, torch.bool}
-            else _np_pad
+            _np_pad
+            if mode in {"reflect", "replicate"}
+            and img.dtype in {torch.int16, torch.int64, torch.bool, torch.uint8}
+            else _pt_pad
         )
         return _pad(img, pad_width=to_pad, mode=mode, **kwargs)
     except (ValueError, TypeError, RuntimeError) as err:
         if isinstance(err, NotImplementedError) or any(
-            k in str(err) for k in ("supported", "unexpected keyword", "implemented")
+            k in str(err) for k in ("supported", "unexpected keyword", "implemented", "value")
         ):
             return _np_pad(img, pad_width=to_pad, mode=mode, **kwargs)
         raise ValueError(f"{img.shape} {to_pad} {mode} {kwargs} {img.dtype} {img.device}") from err
