@@ -166,7 +166,8 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, spatial_size, kwargs: 
         # todo: if on cpu, use the numpy array because flip is faster
         matrix_np = np.round(matrix_np)
         full_transpose = np.argsort(axes).tolist()
-        if not np.all(full_transpose == np.arange(len(img.shape))):
+        in_shape = img.peek_pending_shape()
+        if not np.all(full_transpose == np.arange(len(in_shape))):
             img = img.permute(full_transpose)
         matrix_np[:ndim] = matrix_np[[x - 1 for x in axes[1:]]]
         flip = [idx + 1 for idx, val in enumerate(matrix_np[:ndim]) if val[idx] == -1]
@@ -175,14 +176,14 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, spatial_size, kwargs: 
             for f in flip:
                 ind_f = f - 1
                 matrix_np[ind_f, ind_f] = 1
-                matrix_np[ind_f, -1] = img.shape[f] - 1 - matrix_np[ind_f, -1]
+                matrix_np[ind_f, -1] = in_shape[ind_f] - 1 - matrix_np[ind_f, -1]
 
         cc = np.asarray(np.meshgrid(*[[0.5, x - 0.5] for x in spatial_size], indexing="ij"))
         cc = cc.reshape((len(spatial_size), -1))
         src_cc = np.floor(matrix_np @ np.concatenate((cc, np.ones_like(cc[:1]))))
         src_start, src_end = src_cc.min(axis=1), src_cc.max(axis=1)
         to_pad, to_crop, do_pad, do_crop = [(0, 0)], [slice(None)], False, False
-        for s, e, sp in zip(src_start, src_end, img.shape[1:]):
+        for s, e, sp in zip(src_start, src_end, in_shape):
             do_pad, do_crop = do_pad or s < 0 or e > sp - 1, do_crop or s > 0 or e < sp - 1
             to_pad += [(0 if s >= 0 else int(-s), 0 if e < sp - 1 else int(e - sp + 1))]
             to_crop += [slice(int(max(s, 0)), int(e + 1 + to_pad[-1][0]))]
