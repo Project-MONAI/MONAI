@@ -79,7 +79,7 @@ def pad_nd(img: torch.Tensor, to_pad: list[tuple[int, int]], mode: str, **kwargs
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
     """
-    if mode in {"linear_ramp", "maximum", "mean", "median", "minimum", "symmetric", "empty", "wrap"}:
+    if mode in {"linear_ramp", "maximum", "mean", "median", "minimum", "symmetric", "empty"}:
         return _np_pad(img, pad_width=to_pad, mode=mode, **kwargs)
     mode = convert_pad_mode(dst=img, mode=mode).value
     try:
