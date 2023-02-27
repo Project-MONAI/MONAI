@@ -89,7 +89,7 @@ def pad_func(img: torch.Tensor, to_pad: list[tuple[int, int]], mode: str, transf
     Args:
         img: data to be transformed, assuming `img` is channel-first and padding doesn't apply to the channel dim.
         to_pad: the amount to be padded in each dimension [(low_H, high_H), (low_W, high_W), ...].
-            default to `self.to_pad`.
+            note that it including channel dimension.
         mode: available modes: (Numpy) {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
             ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
             (PyTorch) {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
@@ -131,9 +131,15 @@ def pad_func(img: torch.Tensor, to_pad: list[tuple[int, int]], mode: str, transf
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 
-def crop_func(img: torch.Tensor, slices, transform_info: dict):
+def crop_func(img: torch.Tensor, slices: tuple[slice, ...], transform_info: dict):
     """
+    Functional implementation of cropping a MetaTensor. This function operates eagerly or lazily according
+    to ``transform_info[TraceKeys.LAZY_EVALUATION]`` (default ``False``).
 
+    Args:
+        img: data to be transformed, assuming `img` is channel-first and cropping doesn't apply to the channel dim.
+        slices: the crop slices computed based on specified `center & size` or `start & end` or `slices`.
+        transform_info: a dictionary with the relevant information pertaining to an applied transform.
     """
     img_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
     spatial_rank = img.peek_pending_rank() if isinstance(img, MetaTensor) else 3
