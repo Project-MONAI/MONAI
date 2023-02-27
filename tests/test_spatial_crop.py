@@ -15,7 +15,7 @@ import unittest
 
 from parameterized import parameterized
 
-from monai.transforms import SpatialCrop, CenterSpatialCrop, CenterScaleCrop
+from monai.transforms import CenterScaleCrop, CenterSpatialCrop, SpatialCrop
 from tests.croppers import CropTest
 
 TESTS = [
