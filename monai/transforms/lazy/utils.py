@@ -106,6 +106,12 @@ def is_compatible_apply_kwargs(kwargs_1, kwargs_2):
 
 
 def require_interp(matrix, atol=1e-5):
+    """
+    returns None if the affine matrix suggests interpolation
+    otherwise returns axes information about simple axes flipping/transposing/integer translation.
+    if the affine matrices match these conditions, the resampling can be achieved by simple array operations
+    such as flip/permute/pad_nd/slice
+    """
     s = matrix[:, -1]
     if not np.allclose(s, np.round(s), atol=atol):
         return None
