@@ -609,15 +609,15 @@ def patch_bundle_tracking(parser: ConfigParser, settings: dict) -> None:
 
 def run(
     runner_id: str | Sequence[str] | None = None,
-    meta_file: str | Sequence[str] | None = None,
+    meta_file: str | Sequence[str] | None = "configs/metadata.json",
     config_file: str | Sequence[str] | None = None,
-    logging_file: str | None = None,
+    logging_file: str | None = "configs/logging.conf",
     tracking: str | dict | None = None,
     args_file: str | None = None,
     **override: Any,
 ) -> list:
     """
-    Specify `meta_file` and `config_file` to run monai bundle components and workflows.
+    Specify `config_file` to run monai bundle components and workflows.
 
     Typical usage examples:
 
@@ -642,10 +642,12 @@ def run(
     Args:
         runner_id: ID name of the expected config expression to run, can also be a list of IDs to run in order.
         meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
+            Default to "configs/metadata.json", which is commonly used for bundles in MONAI model zoo.
         config_file: filepath of the config file, if `None`, must be provided in `args_file`.
             if it is a list of file paths, the content of them will be merged.
-        logging_file: config file for `logging` module in the program, default to `None`. for more details:
+        logging_file: config file for `logging` module in the program. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
+            Default to "configs/logging.conf", which is commonly used for bundles in MONAI model zoo.
         tracking: enable the experiment tracking feature at runtime with optionally configurable and extensible.
             if "mlflow", will add `MLFlowHandler` to the parsed bundle with default logging settings,
             if other string, treat it as file path to load the logging settings, if `dict`,
@@ -718,8 +720,8 @@ def run(
     if "config_file" not in _args:
         warnings.warn("`config_file` not provided for 'monai.bundle run'.")
     _log_input_summary(tag="run", args=_args)
-    config_file_, meta_file_, runner_id_, logging_file_, tracking_ = _pop_args(
-        _args, config_file=None, meta_file=None, runner_id="", logging_file=None, tracking=None
+    meta_file_, logging_file_, config_file_, runner_id_, tracking_ = _pop_args(
+        _args, "meta_file", "logging_file", config_file=None, runner_id="", tracking=None
     )
     if logging_file_ is not None:
         if not os.path.exists(logging_file_):
