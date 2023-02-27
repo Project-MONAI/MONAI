@@ -23,6 +23,8 @@ TEST_SHAPES = [
     [{"roi_size": [2, 2, -1]}, (3, 3, 3, 3), (3, 2, 2, 3)],
     [{"roi_size": [2, 2, 2]}, (3, 3, 3, 3), (3, 2, 2, 2)],
     [{"roi_size": [2, 2, 2]}, (3, 3, 3, 3), (3, 2, 2, 2)],
+    # [{"roi_size": [2, 1, 2]}, (3, 3, 3, 3), (3, 2, 1, 2)],
+    [{"roi_size": [2, 1, 3]}, (3, 3, 1, 3), (3, 2, 1, 3)],
 ]
 
 TEST_VALUES = [
@@ -44,6 +46,10 @@ class TestCenterSpatialCrop(CropTest):
     @parameterized.expand(TEST_VALUES)
     def test_value(self, input_param, input_arr, expected_arr):
         self.crop_test_value(input_param, input_arr, expected_arr)
+
+    @parameterized.expand(TEST_SHAPES)
+    def test_pending_ops(self, input_param, input_shape, _):
+        return self.crop_test_pending_ops(input_param, input_shape)
 
 
 if __name__ == "__main__":

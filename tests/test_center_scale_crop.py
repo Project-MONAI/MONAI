@@ -20,7 +20,8 @@ from monai.transforms import CenterScaleCrop
 from tests.croppers import CropTest
 
 TEST_SHAPES = [
-    # [{"roi_scale": [0.6, 0.3, -1]}, (3, 3, 3, 3), (3, 2, 1, 3)], # issue with unit-size dimension
+    # TODO issue with single-dimensional output in all crop/pad transform
+    # [{"roi_scale": [0.6, 0.3, -1]}, (3, 3, 3, 3), (3, 2, 1, 3)],
     [{"roi_scale": [0.6, 0.3, -1]}, (3, 3, 4, 3), (3, 2, 2, 3)],
     [{"roi_scale": 0.6}, (3, 3, 3, 3), (3, 2, 2, 2)],
     [{"roi_scale": 0.5}, (3, 3, 3, 3), (3, 2, 2, 2)],
