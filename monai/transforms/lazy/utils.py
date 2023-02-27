@@ -152,8 +152,9 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, spatial_size, kwargs: 
     ndim = len(matrix) - 1
     img = convert_to_tensor(data=data, track_meta=monai.data.get_track_meta())
     init_affine = monai.data.to_affine_nd(ndim, img.affine)
+    out_shape = img.peek_pending_shape() if spatial_size is None else spatial_size
     call_kwargs = {
-        "spatial_size": img.peek_pending_shape() if spatial_size is None else spatial_size,
+        "spatial_size": out_shape,
         "dst_affine": init_affine @ monai.utils.convert_to_dst_type(matrix, init_affine)[0],
         "mode": kwargs.pop(LazyAttr.INTERP_MODE, None),
         "padding_mode": kwargs.pop(LazyAttr.PADDING_MODE, None),
@@ -178,8 +179,8 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, spatial_size, kwargs: 
                 matrix_np[ind_f, ind_f] = 1
                 matrix_np[ind_f, -1] = in_shape[ind_f] - 1 - matrix_np[ind_f, -1]
 
-        cc = np.asarray(np.meshgrid(*[[0.5, x - 0.5] for x in spatial_size], indexing="ij"))
-        cc = cc.reshape((len(spatial_size), -1))
+        cc = np.asarray(np.meshgrid(*[[0.5, x - 0.5] for x in out_shape], indexing="ij"))
+        cc = cc.reshape((len(out_shape), -1))
         src_cc = np.floor(matrix_np @ np.concatenate((cc, np.ones_like(cc[:1]))))
         src_start, src_end = src_cc.min(axis=1), src_cc.max(axis=1)
         to_pad, to_crop, do_pad, do_crop = [(0, 0)], [slice(None)], False, False
