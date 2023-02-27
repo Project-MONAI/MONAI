@@ -106,7 +106,7 @@ class CropTest(unittest.TestCase):
         missing = input_data.size - len(uniques)
         self.assertEqual((inv_np == 0).sum(), missing)
 
-    def crop_test_pending_ops(self, input_param, input_shape, align_corners):
+    def crop_test_pending_ops(self, input_param, input_shape, align_corners=True):
         crop_fn = self.Cropper(**input_param)
         data = self.get_arr(input_shape)
         is_map = isinstance(crop_fn, MapTransform)
