@@ -25,7 +25,6 @@ TESTS = [
     [{"roi_start": [0, 0], "roi_end": [2, 2]}, (3, 3, 3, 3), (3, 2, 2, 3)],
     [{"roi_start": [0, 0, 0, 0, 0], "roi_end": [2, 2, 2, 2, 2]}, (3, 3, 3, 3), (3, 2, 2, 2)],
     [{"roi_start": [0, 0, 0, 0, 0], "roi_end": [8, 8, 8, 2, 2]}, (3, 3, 3, 3), (3, 3, 3, 3)],
-    # [{"roi_start": [1, 0, 0], "roi_end": [1, 8, 8]}, (3, 3, 3, 3), (3, 0, 3, 3)], # not support during lazy
     [
         {"roi_slices": [slice(s, e) for s, e in zip([None, None, None], [None, None, None])]},
         (3, 11, 12, 15),
@@ -40,6 +39,9 @@ TESTS = [
 ]
 
 TEST_ERRORS = [[{"roi_slices": [slice(s, e, 2) for s, e in zip([-1, -2, 0], [None, None, 2])]}]]
+
+TEST_LAZY_ERRORS = [[{"roi_start": [1, 0, 0], "roi_end": [1, 8, 8]}, (3, 3, 3, 3), (3, 0, 3, 3)]]
+
 
 func1 = {CenterSpatialCrop: {"roi_size": [8, 8, 6]}}
 func2 = {SpatialCrop: {"roi_center": [1, 1, 1], "roi_size": [3, 4, 3]}}
@@ -66,6 +68,11 @@ class TestSpatialCrop(CropTest):
     @parameterized.expand(TESTS)
     def test_pending_ops(self, input_param, input_shape, _):
         return self.crop_test_pending_ops(input_param, input_shape)
+
+    @parameterized.expand(TEST_LAZY_ERRORS)
+    def test_lazy_error(self, input_param, input_shape, _):
+        with self.assertRaises(ValueError):
+            return self.crop_test_pending_ops(input_param, input_shape)
 
     @parameterized.expand(TESTS_COMBINE)
     def test_combine_ops(self, funcs, input_shape, expected_shape):
