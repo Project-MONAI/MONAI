@@ -164,10 +164,10 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, spatial_size, kwargs: 
     if axes is not None:
         # todo: if no change just return the array
         # todo: if on cpu, use the numpy array because flip is faster
+        in_shape = img.shape[1:]
         matrix_np = np.round(matrix_np)
         full_transpose = np.argsort(axes).tolist()
-        in_shape = img.peek_pending_shape()
-        if not np.all(full_transpose == np.arange(len(in_shape))):
+        if not np.allclose(full_transpose, np.arange(len(in_shape) + 1)):
             img = img.permute(full_transpose)
         matrix_np[:ndim] = matrix_np[[x - 1 for x in axes[1:]]]
         flip = [idx + 1 for idx, val in enumerate(matrix_np[:ndim]) if val[idx] == -1]
@@ -188,7 +188,7 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, spatial_size, kwargs: 
             to_pad += [(0 if s >= 0 else int(-s), 0 if e < sp - 1 else int(e - sp + 1))]
             to_crop += [slice(int(max(s, 0)), int(e + 1 + to_pad[-1][0]))]
         if do_pad:
-            p_mode = kwargs.pop(LazyAttr.PADDING_MODE, None)
+            p_mode = call_kwargs["padding_mode"]
             if p_mode is None or p_mode in ("zeros", "constant"):
                 _mode = "constant"
             elif p_mode in ("reflection", "reflect", "grid_mirror", "mirror"):
