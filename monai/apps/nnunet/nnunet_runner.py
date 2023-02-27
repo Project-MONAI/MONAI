@@ -69,7 +69,7 @@ class nnUNetRunner:
     def plan_experiments(
         self,
         pl="ExperimentPlanner",
-        gpu_memory_target=False,
+        gpu_memory_target=8,
         preprocessor_name="DefaultPreprocessor",
         overwrite_target_spacing=None,
         overwrite_plans_name="nnUNetPlans",
@@ -102,7 +102,7 @@ class nnUNetRunner:
         no_pp=False,
         clean=False,
         pl="ExperimentPlanner",
-        gpu_memory_target=False,
+        gpu_memory_target=8,
         preprocessor_name="DefaultPreprocessor",
         overwrite_target_spacing=None,
         overwrite_plans_name="nnUNetPlans",
@@ -112,7 +112,7 @@ class nnUNetRunner:
     ):
         self.extract_fingerprints(fpe, np, verify_dataset_integrity, clean, verbose)
         self.plan_experiments(pl, gpu_memory_target, preprocessor_name, overwrite_target_spacing, overwrite_plans_name)
-        self.preprocess(overwrite_plans_name, configurations=c, num_processes=np, verbose=verbose)
+        self.preprocess(c, np, overwrite_plans_name, verbose)
 
     def train_single_model(self, config, fold, **kwargs):
         """
