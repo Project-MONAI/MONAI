@@ -719,10 +719,6 @@ def run(
     )
     if "config_file" not in _args:
         warnings.warn("`config_file` not provided for 'monai.bundle run'.")
-    if meta_file is None:
-        _args["meta_file"] = None  # None input is ignored in "_update_args"
-    if logging_file is None:
-        _args["logging_file"] = None
     _log_input_summary(tag="run", args=_args)
     config_file_, meta_file_, runner_id_, logging_file_, tracking_ = _pop_args(
         _args,
@@ -734,14 +730,21 @@ def run(
     )
     if logging_file_ is not None:
         if not os.path.exists(logging_file_):
-            raise FileNotFoundError(f"can't find the logging config file: {logging_file_}.")
-        logger.info(f"set logging properties based on config: {logging_file_}.")
-        fileConfig(logging_file_, disable_existing_loggers=False)
+            if logging_file_ == "configs/logging.conf":
+                warnings.warn("default logging file in 'configs/logging.conf' not exists, skip logging.")
+            else:
+                raise FileNotFoundError(f"can't find the logging config file: {logging_file_}.")
+        else:
+            logger.info(f"set logging properties based on config: {logging_file_}.")
+            fileConfig(logging_file_, disable_existing_loggers=False)
 
     parser = ConfigParser()
     parser.read_config(f=config_file_)
     if meta_file_ is not None:
-        parser.read_meta(f=meta_file_)
+        if not os.path.exists(meta_file_):
+            warnings.warn("default meta file in 'configs/metadata.json' not exists.")
+        else:
+            parser.read_meta(f=meta_file_)
 
     # the rest key-values in the _args are to override config content
     parser.update(pairs=_args)
