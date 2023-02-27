@@ -465,7 +465,10 @@ class CenterSpatialCrop(Crop):
         slicing doesn't apply to the channel dim.
 
         """
-        return super().__call__(img=img, slices=self.compute_slices(img.shape[1:]))
+        return super().__call__(
+            img=img,
+            slices=self.compute_slices(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]),
+        )
 
 
 class CenterScaleCrop(Crop):
@@ -482,11 +485,11 @@ class CenterScaleCrop(Crop):
         self.roi_scale = roi_scale
 
     def __call__(self, img: torch.Tensor) -> torch.Tensor:  # type: ignore
-        img_size = img.shape[1:]
+        img_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
         ndim = len(img_size)
         roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
         cropper = CenterSpatialCrop(roi_size=roi_size)
-        return super().__call__(img=img, slices=cropper.compute_slices(img.shape[1:]))
+        return super().__call__(img=img, slices=cropper.compute_slices(img_size))
 
 
 class RandSpatialCrop(Randomizable, Crop):
@@ -606,7 +609,7 @@ class RandScaleCrop(RandSpatialCrop):
         slicing doesn't apply to the channel dim.
 
         """
-        self.get_max_roi_size(img.shape[1:])
+        self.get_max_roi_size(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:])
         return super().__call__(img=img, randomize=randomize)
 
 
