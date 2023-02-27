@@ -164,12 +164,12 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, spatial_size, kwargs: 
     if axes is not None:
         # todo: if no change just return the array
         # todo: if on cpu, use the numpy array because flip is faster
-        in_shape = img.shape[1:]
         matrix_np = np.round(matrix_np)
         full_transpose = np.argsort(axes).tolist()
-        if not np.allclose(full_transpose, np.arange(len(in_shape) + 1)):
+        if not np.allclose(full_transpose, np.arange(len(img.shape))):
             img = img.permute(full_transpose)
-        matrix_np[:ndim] = matrix_np[[x - 1 for x in axes[1:]]]
+        in_shape = img.shape[1:]
+        matrix_np[:ndim] = matrix_np[[x - 1 for x in full_transpose[1:]]]
         flip = [idx + 1 for idx, val in enumerate(matrix_np[:ndim]) if val[idx] == -1]
         if flip:
             img = torch.flip(img, dims=flip)
