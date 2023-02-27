@@ -1,0 +1,204 @@
+{
+    "testing": [
+        {
+            "image": "imagesTs/prostate_08.nii.gz"
+        },
+        {
+            "image": "imagesTs/prostate_22.nii.gz"
+        },
+        {
+            "image": "imagesTs/prostate_30.nii.gz"
+        },
+        {
+            "image": "imagesTs/prostate_45.nii.gz"
+        },
+        {
+            "image": "imagesTs/prostate_26.nii.gz"
+        },
+        {
+            "image": "imagesTs/prostate_36.nii.gz"
+        },
+        {
+            "image": "imagesTs/prostate_12.nii.gz"
+        },
+        {
+            "image": "imagesTs/prostate_33.nii.gz"
+        },
+        {
+            "image": "imagesTs/prostate_09.nii.gz"
+        },
+        {
+            "image": "imagesTs/prostate_05.nii.gz"
+        },
+        {
+            "image": "imagesTs/prostate_23.nii.gz"
+        },
+        {
+            "image": "imagesTs/prostate_19.nii.gz"
+        },
+        {
+            "image": "imagesTs/prostate_15.nii.gz"
+        },
+        {
+            "image": "imagesTs/prostate_11.nii.gz"
+        },
+        {
+            "image": "imagesTs/prostate_03.nii.gz"
+        },
+        {
+            "image": "imagesTs/prostate_27.nii.gz"
+        }
+    ],
+    "training": [
+        {
+            "fold": 0,
+            "image": "imagesTr/prostate_16.nii.gz",
+            "label": "labelsTr/prostate_16.nii.gz"
+        },
+        {
+            "fold": 0,
+            "image": "imagesTr/prostate_04.nii.gz",
+            "label": "labelsTr/prostate_04.nii.gz"
+        },
+        {
+            "fold": 0,
+            "image": "imagesTr/prostate_20.nii.gz",
+            "label": "labelsTr/prostate_20.nii.gz"
+        },
+        {
+            "fold": 0,
+            "image": "imagesTr/prostate_43.nii.gz",
+            "label": "labelsTr/prostate_43.nii.gz"
+        },
+        {
+            "fold": 0,
+            "image": "imagesTr/prostate_06.nii.gz",
+            "label": "labelsTr/prostate_06.nii.gz"
+        },
+        {
+            "fold": 0,
+            "image": "imagesTr/prostate_14.nii.gz",
+            "label": "labelsTr/prostate_14.nii.gz"
+        },
+        {
+            "fold": 1,
+            "image": "imagesTr/prostate_41.nii.gz",
+            "label": "labelsTr/prostate_41.nii.gz"
+        },
+        {
+            "fold": 1,
+            "image": "imagesTr/prostate_34.nii.gz",
+            "label": "labelsTr/prostate_34.nii.gz"
+        },
+        {
+            "fold": 1,
+            "image": "imagesTr/prostate_38.nii.gz",
+            "label": "labelsTr/prostate_38.nii.gz"
+        },
+        {
+            "fold": 1,
+            "image": "imagesTr/prostate_10.nii.gz",
+            "label": "labelsTr/prostate_10.nii.gz"
+        },
+        {
+            "fold": 1,
+            "image": "imagesTr/prostate_02.nii.gz",
+            "label": "labelsTr/prostate_02.nii.gz"
+        },
+        {
+            "fold": 1,
+            "image": "imagesTr/prostate_24.nii.gz",
+            "label": "labelsTr/prostate_24.nii.gz"
+        },
+        {
+            "fold": 2,
+            "image": "imagesTr/prostate_47.nii.gz",
+            "label": "labelsTr/prostate_47.nii.gz"
+        },
+        {
+            "fold": 2,
+            "image": "imagesTr/prostate_28.nii.gz",
+            "label": "labelsTr/prostate_28.nii.gz"
+        },
+        {
+            "fold": 2,
+            "image": "imagesTr/prostate_00.nii.gz",
+            "label": "labelsTr/prostate_00.nii.gz"
+        },
+        {
+            "fold": 2,
+            "image": "imagesTr/prostate_42.nii.gz",
+            "label": "labelsTr/prostate_42.nii.gz"
+        },
+        {
+            "fold": 2,
+            "image": "imagesTr/prostate_21.nii.gz",
+            "label": "labelsTr/prostate_21.nii.gz"
+        },
+        {
+            "fold": 2,
+            "image": "imagesTr/prostate_17.nii.gz",
+            "label": "labelsTr/prostate_17.nii.gz"
+        },
+        {
+            "fold": 3,
+            "image": "imagesTr/prostate_40.nii.gz",
+            "label": "labelsTr/prostate_40.nii.gz"
+        },
+        {
+            "fold": 3,
+            "image": "imagesTr/prostate_31.nii.gz",
+            "label": "labelsTr/prostate_31.nii.gz"
+        },
+        {
+            "fold": 3,
+            "image": "imagesTr/prostate_07.nii.gz",
+            "label": "labelsTr/prostate_07.nii.gz"
+        },
+        {
+            "fold": 3,
+            "image": "imagesTr/prostate_35.nii.gz",
+            "label": "labelsTr/prostate_35.nii.gz"
+        },
+        {
+            "fold": 3,
+            "image": "imagesTr/prostate_44.nii.gz",
+            "label": "labelsTr/prostate_44.nii.gz"
+        },
+        {
+            "fold": 3,
+            "image": "imagesTr/prostate_39.nii.gz",
+            "label": "labelsTr/prostate_39.nii.gz"
+        },
+        {
+            "fold": 4,
+            "image": "imagesTr/prostate_01.nii.gz",
+            "label": "labelsTr/prostate_01.nii.gz"
+        },
+        {
+            "fold": 4,
+            "image": "imagesTr/prostate_13.nii.gz",
+            "label": "labelsTr/prostate_13.nii.gz"
+        },
+        {
+            "fold": 4,
+            "image": "imagesTr/prostate_46.nii.gz",
+            "label": "labelsTr/prostate_46.nii.gz"
+        },
+        {
+            "fold": 4,
+            "image": "imagesTr/prostate_25.nii.gz",
+            "label": "labelsTr/prostate_25.nii.gz"
+        },
+        {
+            "fold": 4,
+            "image": "imagesTr/prostate_29.nii.gz",
+            "label": "labelsTr/prostate_29.nii.gz"
+        },
+        {
+            "fold": 4,
+            "image": "imagesTr/prostate_37.nii.gz",
+            "label": "labelsTr/prostate_37.nii.gz"
+        }
+    ]
+}
