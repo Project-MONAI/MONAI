@@ -18,8 +18,9 @@ from typing import TYPE_CHECKING, Any
 
 import torch
 
+from monai.apps import get_logger
 from monai.config import IgniteInfo
-from monai.utils import is_scalar, min_version, optional_import
+from monai.utils import deprecated_arg_default, is_scalar, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:
@@ -39,11 +40,11 @@ class StatsHandler:
     It can be used for any Ignite Engine(trainer, validator and evaluator).
     And it can support logging for epoch level and iteration level with pre-defined loggers.
 
-    Note that if `name` arg is None, will leverage `engine.logger` as default logger directly, otherwise,
-    get logger from `logging.getLogger(name)`, we can setup a logger outside first with the same `name`.
-    As the default log level of `RootLogger` is `WARNING`, may need to call
-    `logging.basicConfig(stream=sys.stdout, level=logging.INFO)` before running this handler to enable
-    the stats logging.
+    Note that if ``name`` is None, this class will leverage `engine.logger` as the logger, otherwise,
+    ``logging.getLogger(name)`` is used. In both cases, it's important to make sure that the logging level is at least
+    ``INFO``. To change the level of logging, please call ``import ignite; ignite.utils.setup_logger(name)``
+    (when ``name`` is not None) or ``engine.logger = ignite.utils.setup_logger(engine.logger.name, reset=True)``
+    (when ``name`` is None) before running the engine with this handler attached.
 
     Default behaviors:
         - When EPOCH_COMPLETED, logs ``engine.state.metrics`` using ``self.logger``.
@@ -52,18 +53,20 @@ class StatsHandler:
 
     Usage example::
 
-        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+        import ignite
+        import monai
 
-        trainer = SupervisedTrainer(...)
-        StatsHandler(name="train_stats").attach(trainer)
+        trainer = ignite.engine.Engine(lambda x, y: [0.0])  # an example trainer
+        monai.handlers.StatsHandler(name="train_stats").attach(trainer)
 
-        trainer.run()
+        trainer.run(range(3), max_epochs=4)
 
     More details of example is available in the tutorial:
     https://github.com/Project-MONAI/tutorials/blob/master/modules/engines/unet_training_dict.py.
 
     """
 
+    @deprecated_arg_default("name", old_default=None, new_default="StatsHandler", since="1.1", replaced="1.3")
     def __init__(
         self,
         iteration_log: bool | Callable[[Engine, int], bool] = True,
@@ -122,7 +125,7 @@ class StatsHandler:
         self.state_attributes = state_attributes
         self.tag_name = tag_name
         self.key_var_format = key_var_format
-        self.logger = logging.getLogger(name)  # if `name` is None, will default to `engine.logger` when attached
+        self.logger = get_logger(name)  # type: ignore
         self.name = name
 
     def attach(self, engine: Engine) -> None:
@@ -135,10 +138,14 @@ class StatsHandler:
         """
         if self.name is None:
             self.logger = engine.logger
-        if self.logger.getEffectiveLevel() > logging.INFO or logging.root.getEffectiveLevel() > logging.INFO:
+        if self.logger.getEffectiveLevel() > logging.INFO:
+            suggested = f"\n\nimport ignite\nignite.utils.setup_logger('{self.logger.name}', reset=True)"
+            if self.logger.name != engine.logger.name:
+                suggested += f"\nignite.utils.setup_logger('{engine.logger.name}', reset=True)"
+            suggested += "\n\n"
             warnings.warn(
-                "the effective log level of engine logger or RootLogger is higher than INFO, may not record log,"
-                " please call `logging.basicConfig(stream=sys.stdout, level=logging.INFO)` to enable it."
+                f"the effective log level of {self.logger.name} is higher than INFO, StatsHandler may not output logs,"
+                f"\nplease use the following code before running the engine to enable it: {suggested}"
             )
         if self.iteration_log and not engine.has_event_handler(self.iteration_completed, Events.ITERATION_COMPLETED):
             event = Events.ITERATION_COMPLETED
