@@ -609,9 +609,9 @@ def patch_bundle_tracking(parser: ConfigParser, settings: dict) -> None:
 
 def run(
     runner_id: str | Sequence[str] | None = None,
-    meta_file: str | Sequence[str] | None = "configs/metadata.json",
+    meta_file: str | Sequence[str] | None = None,
     config_file: str | Sequence[str] | None = None,
-    logging_file: str | None = "configs/logging.conf",
+    logging_file: str | None = None,
     tracking: str | dict | None = None,
     args_file: str | None = None,
     **override: Any,
@@ -719,9 +719,18 @@ def run(
     )
     if "config_file" not in _args:
         warnings.warn("`config_file` not provided for 'monai.bundle run'.")
+    if meta_file is None:
+        _args["meta_file"] = None  # None input is ignored in "_update_args"
+    if logging_file is None:
+        _args["logging_file"] = None
     _log_input_summary(tag="run", args=_args)
-    meta_file_, logging_file_, config_file_, runner_id_, tracking_ = _pop_args(
-        _args, "meta_file", "logging_file", config_file=None, runner_id="", tracking=None
+    config_file_, meta_file_, runner_id_, logging_file_, tracking_ = _pop_args(
+        _args,
+        config_file=None,
+        meta_file="configs/metadata.json",
+        runner_id="",
+        logging_file="configs/logging.conf",
+        tracking=None,
     )
     if logging_file_ is not None:
         if not os.path.exists(logging_file_):

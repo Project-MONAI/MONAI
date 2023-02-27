@@ -60,7 +60,20 @@ class TestBundleRun(unittest.TestCase):
                 },
                 f,
             )
-        cmd = ["coverage", "run", "-m", "monai.bundle", "run", "training", "--config_file", config_file]
+        cmd = [
+            "coverage",
+            "run",
+            "-m",
+            "monai.bundle",
+            "run",
+            "training",
+            "--config_file",
+            config_file,
+            "--meta_file",
+            "None",
+            "--logging_file",
+            "None",
+        ]
         command_line_tests(cmd)
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
