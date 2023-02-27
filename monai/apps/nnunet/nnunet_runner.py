@@ -51,11 +51,70 @@ class nnUNetRunner:
         self.num_folds = 5
         self.best_configuration = None
 
-    def convert_msd_dataset(self):
+    def convert_dataset(self):
         pass
 
-    def plan_and_process(self):
-        pass
+    def extract_fingerprints(
+        self,
+        fpe="DatasetFingerprintExtractor",
+        npfp=8,
+        verify_dataset_integrity=False,
+        clean=False,
+        verbose=False,
+    ):
+        from nnunetv2.experiment_planning.plan_and_preprocess_api import extract_fingerprints
+        print("Fingerprint extraction...")
+        extract_fingerprints([int(self.dataset_name_or_id)], fpe, npfp, verify_dataset_integrity, clean, verbose)
+        print("1 done")
+
+    def plan_experiments(
+        self,
+        pl=False,
+        gpu_memory_target=False,
+        preprocessor_name="DefaultPreprocessor",
+        overwrite_target_spacing=None,
+        overwrite_plans_name="nnUNetPlans",
+        verbose=False,
+    ):
+        from nnunetv2.experiment_planning.plan_and_preprocess_api import plan_experiments
+        print('Experiment planning...')
+        plan_experiments(
+            [int(self.dataset_name_or_id)], pl, gpu_memory_target, preprocessor_name, overwrite_target_spacing, overwrite_plans_name
+        )
+        print("2 done")
+
+    def preprocess(
+        self,
+        c=["2d", "3d_fullres", "3d_lowres"],
+        np=[8, 4, 8],
+        overwrite_plans_name="nnUNetPlans",
+        verbose=False,
+    ):
+        from nnunetv2.experiment_planning.plan_and_preprocess_api import preprocess
+        print('Preprocessing...')
+        preprocess(
+            [int(self.dataset_name_or_id)], overwrite_plans_name, configurations=c, num_processes=np, verbose=verbose
+        )
+
+    def plan_and_process(
+        self,
+        fpe="DatasetFingerprintExtractor",
+        npfp=8,
+        verify_dataset_integrity=False,
+        no_pp=False,
+        clean=False,
+        pl=False,
+        gpu_memory_target=False,
+        preprocessor_name="DefaultPreprocessor",
+        overwrite_target_spacing=None,
+        overwrite_plans_name="nnUNetPlans",
+        c=["2d", "3d_fullres", "3d_lowres"],
+        np=[8, 4, 8],
+        verbose=False,
+    ):
+        self.extract_fingerprints(fpe, np, verify_dataset_integrity, clean, verbose)
+        self.plan_experiments(pl, gpu_memory_target, preprocessor_name, overwrite_target_spacing, overwrite_plans_name)
+        self.preprocess(overwrite_plans_name, configurations=c, num_processes=np, verbose=verbose)
 
     def train_single_model(self, config, fold, **kwargs):
         """
@@ -196,7 +255,7 @@ class nnUNetRunner:
         )
 
     def run(self):
-        # self.plan_and_process()
-        # self.train()
+        self.plan_and_process()
+        self.train()
         self.find_best_configuration()
         self.predict_ensemble()
