@@ -20,11 +20,11 @@ from monai.transforms import CenterSpatialCrop
 from tests.croppers import CropTest
 
 TEST_SHAPES = [
-    [{"roi_size": [2, 2, -1]}, (3, 3, 3, 3), (3, 2, 2, 3)],
-    [{"roi_size": [2, 2, 2]}, (3, 3, 3, 3), (3, 2, 2, 2)],
-    [{"roi_size": [2, 2, 2]}, (3, 3, 3, 3), (3, 2, 2, 2)],
-    # [{"roi_size": [2, 1, 2]}, (3, 3, 3, 3), (3, 2, 1, 2)],
-    [{"roi_size": [2, 1, 3]}, (3, 3, 1, 3), (3, 2, 1, 3)],
+    [{"roi_size": [2, 2, -1]}, (3, 3, 3, 3), (3, 2, 2, 3), True],
+    [{"roi_size": [2, 2, 2]}, (3, 3, 3, 3), (3, 2, 2, 2), True],
+    [{"roi_size": [2, 2, 2]}, (3, 3, 3, 3), (3, 2, 2, 2), True],
+    [{"roi_size": [2, 1, 2]}, (3, 3, 3, 3), (3, 2, 1, 2), False],
+    [{"roi_size": [2, 1, 3]}, (3, 3, 1, 3), (3, 2, 1, 3), True],
 ]
 
 TEST_VALUES = [
@@ -40,7 +40,7 @@ class TestCenterSpatialCrop(CropTest):
     Cropper = CenterSpatialCrop
 
     @parameterized.expand(TEST_SHAPES)
-    def test_shape(self, input_param, input_shape, expected_shape):
+    def test_shape(self, input_param, input_shape, expected_shape, _):
         self.crop_test(input_param, input_shape, expected_shape)
 
     @parameterized.expand(TEST_VALUES)
@@ -48,8 +48,8 @@ class TestCenterSpatialCrop(CropTest):
         self.crop_test_value(input_param, input_arr, expected_arr)
 
     @parameterized.expand(TEST_SHAPES)
-    def test_pending_ops(self, input_param, input_shape, _):
-        return self.crop_test_pending_ops(input_param, input_shape)
+    def test_pending_ops(self, input_param, input_shape, _, align_corners):
+        return self.crop_test_pending_ops(input_param, input_shape, align_corners)
 
 
 if __name__ == "__main__":
