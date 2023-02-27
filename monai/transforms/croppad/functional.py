@@ -16,6 +16,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 from __future__ import annotations
 
 import warnings
+
 import numpy as np
 import torch
 from torch.nn.functional import pad as pad_pt
@@ -84,8 +85,7 @@ def pad_nd(img: torch.Tensor, to_pad: list[tuple[int, int]], mode: str, **kwargs
     try:
         _pad = (
             _np_pad
-            if mode in {"reflect", "replicate"}
-            and img.dtype in {torch.int16, torch.int64, torch.bool, torch.uint8}
+            if mode in {"reflect", "replicate"} and img.dtype in {torch.int16, torch.int64, torch.bool, torch.uint8}
             else _pt_pad
         )
         return _pad(img, pad_width=to_pad, mode=mode, **kwargs)
