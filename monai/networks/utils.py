@@ -656,7 +656,7 @@ def convert_to_trt(
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     inputs = [torch.rand(input_shape)]
-    ir_model = convert_to_torchscript(model, device=device, inputs=inputs is_trace=(ir == "trace"))
+    ir_model = convert_to_torchscript(model, device=device, inputs=inputs, is_trace=(ir == "trace"))
 
     convert_precision = torch.float32 if precision == "fp32" else torch.half
     ir_model.eval().to(device)
@@ -677,9 +677,7 @@ def convert_to_trt(
                 max_shape=max_input_shape,
             )
         ]
-        trt_model = torch_tensorrt.compile(
-            ir_model, inputs=input_placeholder, enabled_precisions=convert_precision
-        )
+        trt_model = torch_tensorrt.compile(ir_model, inputs=input_placeholder, enabled_precisions=convert_precision)
     if verify:
         if inputs is None:
             raise ValueError("missing input data for verification.")
@@ -696,11 +694,7 @@ def convert_to_trt(
         # compare TorchScript and PyTorch results
         for r1, r2 in zip(torch_out, torchscript_out):
             if isinstance(r1, torch.Tensor) or isinstance(r2, torch.Tensor):
-                assert_fn = (
-                    torch.testing.assert_close
-                    if pytorch_after(1, 11)
-                    else torch.testing.assert_allclose
-                )
+                assert_fn = torch.testing.assert_close if pytorch_after(1, 11) else torch.testing.assert_allclose
                 assert_fn(r1, r2, rtol=rtol, atol=atol)
 
     return trt_model
