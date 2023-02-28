@@ -25,9 +25,9 @@ from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.inverse import TraceableTransform
 from monai.transforms.utils import convert_pad_mode, create_translate
-from monai.utils import TraceKeys, convert_to_dst_type, convert_to_tensor
+from monai.utils import TraceKeys, convert_to_dst_type, convert_to_tensor, ensure_tuple
 
-__all__ = ["pad_nd", "pad_func"]
+__all__ = ["pad_nd", "pad_func", "crop_func"]
 
 
 def _np_pad(img: torch.Tensor, pad_width: list[tuple[int, int]], mode: str, **kwargs) -> torch.Tensor:
@@ -105,7 +105,7 @@ def pad_func(img: torch.Tensor, to_pad: list[tuple[int, int]], mode: str, transf
     Args:
         img: data to be transformed, assuming `img` is channel-first and padding doesn't apply to the channel dim.
         to_pad: the amount to be padded in each dimension [(low_H, high_H), (low_W, high_W), ...].
-            default to `self.to_pad`.
+            note that it including channel dimension.
         mode: available modes: (Numpy) {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
             ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
             (PyTorch) {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
@@ -144,4 +144,41 @@ def pad_func(img: torch.Tensor, to_pad: list[tuple[int, int]], mode: str, transf
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     out = pad_nd(out, to_pad, mode, **kwargs) if do_pad else out
     out = convert_to_tensor(out, track_meta=get_track_meta())
+    return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+
+def crop_func(img: torch.Tensor, slices: tuple[slice, ...], transform_info: dict):
+    """
+    Functional implementation of cropping a MetaTensor. This function operates eagerly or lazily according
+    to ``transform_info[TraceKeys.LAZY_EVALUATION]`` (default ``False``).
+
+    Args:
+        img: data to be transformed, assuming `img` is channel-first and cropping doesn't apply to the channel dim.
+        slices: the crop slices computed based on specified `center & size` or `start & end` or `slices`.
+        transform_info: a dictionary with the relevant information pertaining to an applied transform.
+    """
+    img_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
+    spatial_rank = img.peek_pending_rank() if isinstance(img, MetaTensor) else 3
+    cropped = np.asarray([[s.indices(o)[0], o - s.indices(o)[1]] for s, o in zip(slices[1:], img_size)])
+    extra_info = {"cropped": cropped.flatten().tolist()}
+    to_shift = []
+    for i, s in enumerate(ensure_tuple(slices)[1:]):
+        if s.start is not None:
+            to_shift.append(img_size[i] + s.start if s.start < 0 else s.start)
+        else:
+            to_shift.append(0)
+    shape = [s.indices(o)[1] - s.indices(o)[0] for s, o in zip(slices[1:], img_size)]
+    meta_info = TraceableTransform.track_transform_meta(
+        img,
+        sp_size=shape,
+        affine=create_translate(spatial_rank, to_shift),
+        extra_info=extra_info,
+        orig_size=img_size,
+        transform_info=transform_info,
+        lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
+    )
+    out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
+    if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+    out = out[slices]
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out

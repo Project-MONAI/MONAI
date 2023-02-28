@@ -297,7 +297,7 @@ class DivisiblePadd(Padd):
         super().__init__(keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys)
 
 
-class Cropd(MapTransform, InvertibleTransform):
+class Cropd(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of abstract class :py:class:`monai.transforms.Crop`.
 
@@ -314,6 +314,12 @@ class Cropd(MapTransform, InvertibleTransform):
     def __init__(self, keys: KeysCollection, cropper: Crop, allow_missing_keys: bool = False):
         super().__init__(keys, allow_missing_keys)
         self.cropper = cropper
+
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, value: bool) -> None:
+        self._lazy_evaluation = value
+        if isinstance(self.cropper, LazyTransform):
+            self.cropper.lazy_evaluation = value
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)

@@ -28,13 +28,12 @@ from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import get_random_patch, get_valid_patch_size
-from monai.transforms.croppad.functional import pad_func
+from monai.transforms.croppad.functional import crop_func, pad_func
 from monai.transforms.inverse import InvertibleTransform, TraceableTransform
 from monai.transforms.traits import MultiSampleTrait
 from monai.transforms.transform import LazyTransform, Randomizable, Transform
 from monai.transforms.utils import (
     compute_divisible_spatial_size,
-    create_translate,
     generate_label_classes_crop_centers,
     generate_pos_neg_label_crop_centers,
     generate_spatial_bounding_box,
@@ -50,7 +49,6 @@ from monai.utils import (
     TraceKeys,
     TransformBackends,
     convert_data_type,
-    convert_to_dst_type,
     convert_to_tensor,
     deprecated_arg_default,
     ensure_tuple,
@@ -307,7 +305,7 @@ class DivisiblePad(Pad):
         return spatial_pad.compute_pad_width(spatial_shape)
 
 
-class Crop(InvertibleTransform):
+class Crop(InvertibleTransform, LazyTransform):
     """
     Perform crop operations on the input image.
 
@@ -373,30 +371,15 @@ class Crop(InvertibleTransform):
         slicing doesn't apply to the channel dim.
 
         """
-        orig_size = img.shape[1:]
         slices_ = list(slices)
-        sd = len(img.shape[1:])  # spatial dims
+        sd = len(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:])  # spatial dims
         if len(slices_) < sd:
             slices_ += [slice(None)] * (sd - len(slices_))
         # Add in the channel (no cropping)
         slices = tuple([slice(None)] + slices_[:sd])
 
         img_t: MetaTensor = convert_to_tensor(data=img, track_meta=get_track_meta())
-        _orig_size = img_t.shape[1:]
-        img_t = img_t[slices]  # type: ignore
-        if get_track_meta():
-            self.update_meta(tensor=img_t, slices=slices)
-            cropped_from_start = np.asarray([s.indices(o)[0] for s, o in zip(slices[1:], orig_size)])
-            cropped_from_end = np.asarray(orig_size) - img_t.shape[1:] - cropped_from_start
-            cropped = list(chain(*zip(cropped_from_start.tolist(), cropped_from_end.tolist())))
-            self.push_transform(img_t, orig_size=_orig_size, extra_info={"cropped": cropped})
-        return img_t
-
-    def update_meta(self, tensor: MetaTensor, slices: tuple[slice, ...]):
-        spatial_rank = max(len(tensor.affine) - 1, 1)
-        to_shift = [s.start if s.start is not None else 0 for s in ensure_tuple(slices)[1:]]
-        mat = create_translate(spatial_rank, to_shift)
-        tensor.affine = tensor.affine @ convert_to_dst_type(mat, tensor.affine)[0]
+        return crop_func(img_t, slices, self.get_transform_info())  # type: ignore
 
     def inverse(self, img: MetaTensor) -> MetaTensor:
         transform = self.pop_transform(img)
@@ -482,7 +465,10 @@ class CenterSpatialCrop(Crop):
         slicing doesn't apply to the channel dim.
 
         """
-        return super().__call__(img=img, slices=self.compute_slices(img.shape[1:]))
+        return super().__call__(
+            img=img,
+            slices=self.compute_slices(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]),
+        )
 
 
 class CenterScaleCrop(Crop):
@@ -499,11 +485,11 @@ class CenterScaleCrop(Crop):
         self.roi_scale = roi_scale
 
     def __call__(self, img: torch.Tensor) -> torch.Tensor:  # type: ignore
-        img_size = img.shape[1:]
+        img_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
         ndim = len(img_size)
         roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
         cropper = CenterSpatialCrop(roi_size=roi_size)
-        return super().__call__(img=img, slices=cropper.compute_slices(img.shape[1:]))
+        return super().__call__(img=img, slices=cropper.compute_slices(img_size))
 
 
 class RandSpatialCrop(Randomizable, Crop):
@@ -623,7 +609,7 @@ class RandScaleCrop(RandSpatialCrop):
         slicing doesn't apply to the channel dim.
 
         """
-        self.get_max_roi_size(img.shape[1:])
+        self.get_max_roi_size(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:])
         return super().__call__(img=img, randomize=randomize)
 
 
