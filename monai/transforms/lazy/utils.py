@@ -179,6 +179,8 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, spatial_size, kwargs: 
                 matrix_np[ind_f, ind_f] = 1
                 matrix_np[ind_f, -1] = in_shape[ind_f] - 1 - matrix_np[ind_f, -1]
 
+        if not np.all(convert_to_numpy(out_shape, wrap_sequence=True) > 0):
+            raise ValueError("Resampling out_shape should be positive, got {out_shape}")
         cc = np.asarray(np.meshgrid(*[[0.5, x - 0.5] for x in out_shape], indexing="ij"))
         cc = cc.reshape((len(out_shape), -1))
         src_cc = np.floor(matrix_np @ np.concatenate((cc, np.ones_like(cc[:1]))))
