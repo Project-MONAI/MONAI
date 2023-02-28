@@ -232,7 +232,7 @@ class SpatialResampled(MapTransform, InvertibleTransform, LazyTransform):
         return d
 
 
-class ResampleToMatchd(MapTransform, InvertibleTransform):
+class ResampleToMatchd(MapTransform, InvertibleTransform, LazyTransform):
     """Dictionary-based wrapper of :py:class:`monai.transforms.ResampleToMatch`."""
 
     backend = ResampleToMatch.backend
@@ -282,6 +282,11 @@ class ResampleToMatchd(MapTransform, InvertibleTransform):
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.resampler = ResampleToMatch()
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool) -> None:
+        self._lazy_evaluation = val
+        self.resampler.lazy_evaluation = val
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
@@ -304,7 +309,7 @@ class ResampleToMatchd(MapTransform, InvertibleTransform):
         return d
 
 
-class Spacingd(MapTransform, InvertibleTransform):
+class Spacingd(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Spacing`.
 
@@ -402,6 +407,11 @@ class Spacingd(MapTransform, InvertibleTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.scale_extent = ensure_tuple_rep(scale_extent, len(self.keys))
+
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool) -> None:
+        self._lazy_evaluation = val
+        self.spacing_transform.lazy_evaluation = val
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d: dict = dict(data)

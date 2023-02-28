@@ -34,7 +34,7 @@ from monai.networks.utils import meshgrid_ij
 from monai.transforms.croppad.array import CenterSpatialCrop, ResizeWithPadOrCrop
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.spatial.functional import spatial_resample
+from monai.transforms.spatial.functional import orientation, spatial_resample
 from monai.transforms.traits import MultiSampleTrait
 from monai.transforms.transform import LazyTransform, Randomizable, RandomizableTransform, Transform
 from monai.transforms.utils import (
@@ -267,7 +267,7 @@ class ResampleToMatch(SpatialResample):
         """
         if img_dst is None:
             raise RuntimeError("`img_dst` is missing.")
-        dst_affine = img_dst.affine if isinstance(img_dst, MetaTensor) else torch.eye(4)
+        dst_affine = img_dst.peek_pending_affine() if isinstance(img_dst, MetaTensor) else torch.eye(4)
         img = super().__call__(
             img=img,
             dst_affine=dst_affine,
@@ -277,16 +277,17 @@ class ResampleToMatch(SpatialResample):
             align_corners=align_corners,
             dtype=dtype,
         )
-        if isinstance(img, MetaTensor):
-            img.affine = dst_affine
-            if isinstance(img_dst, MetaTensor):
-                original_fname = img.meta.get(Key.FILENAME_OR_OBJ, "resample_to_match_source")
-                img.meta = deepcopy(img_dst.meta)
-                img.meta[Key.FILENAME_OR_OBJ] = original_fname  # keep the original name, the others are overwritten
+        if not self.lazy_evaluation:
+            if isinstance(img, MetaTensor):
+                img.affine = dst_affine
+                if isinstance(img_dst, MetaTensor):
+                    original_fname = img.meta.get(Key.FILENAME_OR_OBJ, "resample_to_match_source")
+                    img.meta = deepcopy(img_dst.meta)
+                    img.meta[Key.FILENAME_OR_OBJ] = original_fname  # keep the original name, the others are overwritten
         return img
 
 
-class Spacing(InvertibleTransform):
+class Spacing(InvertibleTransform, LazyTransform):
     """
     Resample input image into the specified `pixdim`.
     """
@@ -374,6 +375,11 @@ class Spacing(InvertibleTransform):
             mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype
         )
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool) -> None:
+        self._lazy_evaluation = val
+        self.sp_resample.lazy_evaluation = val
+
     @deprecated_arg(name="affine", since="0.9", msg_suffix="Not needed, input should be `MetaTensor`.")
     def __call__(
         self,
@@ -430,7 +436,7 @@ class Spacing(InvertibleTransform):
         affine_: np.ndarray
         if affine is not None:
             warnings.warn("arg `affine` is deprecated, the affine of MetaTensor in data_array has higher priority.")
-        input_affine = data_array.affine if isinstance(data_array, MetaTensor) else affine
+        input_affine = data_array.peek_pending_affine() if isinstance(data_array, MetaTensor) else affine
         if input_affine is None:
             warnings.warn("`data_array` is not of type MetaTensor, assuming affine to be identity.")
             # default to identity
@@ -460,12 +466,7 @@ class Spacing(InvertibleTransform):
         scale_extent = self.scale_extent if scale_extent is None else scale_extent
         output_shape, offset = compute_shape_offset(data_array.shape[1:], affine_, new_affine, scale_extent)
         new_affine[:sr, -1] = offset[:sr]
-        # convert to MetaTensor if necessary
-        data_array = convert_to_tensor(data_array, track_meta=get_track_meta())
-        if isinstance(data_array, MetaTensor):
-            data_array.affine = torch.as_tensor(affine_)
 
-        # we don't want to track the nested transform otherwise two will be appended
         actual_shape = list(output_shape) if output_spatial_shape is None else output_spatial_shape
         data_array = self.sp_resample(
             data_array,
@@ -477,7 +478,10 @@ class Spacing(InvertibleTransform):
             dtype=dtype,
         )
         if self.recompute_affine and isinstance(data_array, MetaTensor):
-            data_array.affine = scale_affine(affine_, original_spatial_shape, actual_shape)
+            if self.lazy_evaluation:
+                raise NotImplementedError("recompute_affine is not supported with lazy evaluation.")
+            a = scale_affine(original_spatial_shape, actual_shape)
+            data_array.affine = convert_to_dst_type(a, affine_)[0]  # type: ignore
         return data_array
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
@@ -508,12 +512,9 @@ class Orientation(InvertibleTransform):
             labels: optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
                 Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.
-
         Raises:
             ValueError: When ``axcodes=None`` and ``as_closest_canonical=True``. Incompatible values.
-
         See Also: `nibabel.orientations.ornt2axcodes`.
-
         """
         if axcodes is None and not as_closest_canonical:
             raise ValueError("Incompatible values: axcodes=None and as_closest_canonical=True.")
@@ -527,19 +528,15 @@ class Orientation(InvertibleTransform):
         """
         If input type is `MetaTensor`, original affine is extracted with `data_array.affine`.
         If input type is `torch.Tensor`, original affine is assumed to be identity.
-
         Args:
             data_array: in shape (num_channels, H[, W, ...]).
-
         Raises:
             ValueError: When ``data_array`` has no spatial dimensions.
             ValueError: When ``axcodes`` spatiality differs from ``data_array``.
-
         Returns:
             data_array [reoriented in `self.axcodes`]. Output type will be `MetaTensor`
                 unless `get_track_meta() == False`, in which case it will be
                 `torch.Tensor`.
-
         """
         spatial_shape = data_array.shape[1:]
         sr = len(spatial_shape)
