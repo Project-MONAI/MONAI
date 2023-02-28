@@ -48,7 +48,7 @@ from monai.transforms.croppad.array import (
 )
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.traits import MultiSampleTrait
-from monai.transforms.transform import MapTransform, Randomizable
+from monai.transforms.transform import LazyTransform, MapTransform, Randomizable
 from monai.transforms.utils import is_positive
 from monai.utils import MAX_SEED, Method, PytorchPadMode, deprecated_arg_default, ensure_tuple_rep
 
@@ -110,7 +110,7 @@ __all__ = [
 ]
 
 
-class Padd(MapTransform, InvertibleTransform):
+class Padd(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Pad`.
 
@@ -143,6 +143,12 @@ class Padd(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.padder = padder
         self.mode = ensure_tuple_rep(mode, len(self.keys))
+
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, value: bool) -> None:
+        self._lazy_evaluation = value
+        if isinstance(self.padder, LazyTransform):
+            self.padder.lazy_evaluation = value
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
@@ -291,7 +297,7 @@ class DivisiblePadd(Padd):
         super().__init__(keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys)
 
 
-class Cropd(MapTransform, InvertibleTransform):
+class Cropd(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of abstract class :py:class:`monai.transforms.Crop`.
 
@@ -308,6 +314,12 @@ class Cropd(MapTransform, InvertibleTransform):
     def __init__(self, keys: KeysCollection, cropper: Crop, allow_missing_keys: bool = False):
         super().__init__(keys, allow_missing_keys)
         self.cropper = cropper
+
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, value: bool) -> None:
+        self._lazy_evaluation = value
+        if isinstance(self.cropper, LazyTransform):
+            self.cropper.lazy_evaluation = value
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
