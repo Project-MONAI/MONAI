@@ -51,7 +51,6 @@ from monai.utils import (
     TraceKeys,
     TransformBackends,
     convert_data_type,
-    convert_to_numpy,
     convert_to_tensor,
     deprecated_arg_default,
     ensure_tuple,
@@ -458,7 +457,7 @@ class CenterSpatialCrop(Crop):
         self.roi_size = roi_size
 
     def compute_slices(self, spatial_size: Sequence[int]):  # type: ignore
-        roi_size = fall_back_tuple(self.roi_size, convert_to_numpy(spatial_size, wrap_sequence=True))
+        roi_size = fall_back_tuple(self.roi_size, spatial_size)
         roi_center = [i // 2 for i in spatial_size]
         return super().compute_slices(roi_center=roi_center, roi_size=roi_size)
 
@@ -485,7 +484,6 @@ class CenterScaleCrop(Crop):
     """
 
     def __init__(self, roi_scale: Sequence[float] | float):
-        super().__init__()
         self.roi_scale = roi_scale
 
     def __call__(self, img: torch.Tensor) -> torch.Tensor:  # type: ignore
