@@ -232,7 +232,7 @@ class AutoRunner:
     ):
 
         if RUNNING_IN_AZURE_ML:
-            work_dir = os.path("outputs")
+            work_dir = "outputs"
 
         logger.info(f"AutoRunner using work directory {work_dir}")
 
