@@ -14,6 +14,7 @@ from __future__ import annotations
 import os
 
 from batchgenerators.utilities.file_and_folder_operations import join, load_pickle
+
 from monai.bundle import ConfigParser
 
 
@@ -43,26 +44,27 @@ class nnUNetRunner:
         self.dataset_name_or_id = str(self.input_info["dataset_name_or_id"])
 
         from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
+
         self.dataset_name = maybe_convert_to_dataset_name(int(self.dataset_name_or_id))
 
         from nnunetv2.configuration import default_num_processes
+
         self.default_num_processes = default_num_processes
 
         self.num_folds = 5
         self.best_configuration = None
 
-    def convert_dataset(self):
-        pass
+    def convert_msd_dataset(self, data_dir, overwrite_id=None, np=-1):
+        from nnunetv2.dataset_conversion.convert_MSD_dataset import convert_msd_dataset
+
+        num_processes = None if np < 0 else self.default_num_processes
+        convert_msd_dataset(data_dir, overwrite_id, num_processes)
 
     def extract_fingerprints(
-        self,
-        fpe="DatasetFingerprintExtractor",
-        npfp=8,
-        verify_dataset_integrity=False,
-        clean=False,
-        verbose=False,
+        self, fpe="DatasetFingerprintExtractor", npfp=8, verify_dataset_integrity=False, clean=False, verbose=False
     ):
         from nnunetv2.experiment_planning.plan_and_preprocess_api import extract_fingerprints
+
         print("Fingerprint extraction...")
         extract_fingerprints([int(self.dataset_name_or_id)], fpe, npfp, verify_dataset_integrity, clean, verbose)
 
@@ -76,20 +78,23 @@ class nnUNetRunner:
         verbose=False,
     ):
         from nnunetv2.experiment_planning.plan_and_preprocess_api import plan_experiments
-        print('Experiment planning...')
+
+        print("Experiment planning...")
         plan_experiments(
-            [int(self.dataset_name_or_id)], pl, gpu_memory_target, preprocessor_name, overwrite_target_spacing, overwrite_plans_name
+            [int(self.dataset_name_or_id)],
+            pl,
+            gpu_memory_target,
+            preprocessor_name,
+            overwrite_target_spacing,
+            overwrite_plans_name,
         )
 
     def preprocess(
-        self,
-        c=["2d", "3d_fullres", "3d_lowres"],
-        np=[8, 4, 8],
-        overwrite_plans_name="nnUNetPlans",
-        verbose=False,
+        self, c=["2d", "3d_fullres", "3d_lowres"], np=[8, 4, 8], overwrite_plans_name="nnUNetPlans", verbose=False
     ):
         from nnunetv2.experiment_planning.plan_and_preprocess_api import preprocess
-        print('Preprocessing...')
+
+        print("Preprocessing...")
         preprocess(
             [int(self.dataset_name_or_id)], overwrite_plans_name, configurations=c, num_processes=np, verbose=verbose
         )
@@ -155,14 +160,22 @@ class nnUNetRunner:
                 self.validate_single_model(config=_config, fold=_fold)
 
     def find_best_configuration(self):
-        from nnunetv2.evaluation.find_best_configuration import find_best_configuration, \
-            dumb_trainer_config_plans_to_trained_models_dict
+        from nnunetv2.evaluation.find_best_configuration import (
+            dumb_trainer_config_plans_to_trained_models_dict,
+            find_best_configuration,
+        )
 
         models = dumb_trainer_config_plans_to_trained_models_dict(
             ["nnUNetTrainer_5epochs"], ["2d", "3d_lowres", "3d_cascade_fullres", "3d_fullres"], ["nnUNetPlans"]
         )
         ret = find_best_configuration(
-            int(self.dataset_name_or_id), models, allow_ensembling=True, num_processes=8, overwrite=True, folds=(0, 1, 2, 3, 4), strict=True
+            int(self.dataset_name_or_id),
+            models,
+            allow_ensembling=True,
+            num_processes=8,
+            overwrite=True,
+            folds=(0, 1, 2, 3, 4),
+            strict=True,
         )
         self.best_configuration = ret
 
@@ -179,12 +192,21 @@ class nnUNetRunner:
         verbose: bool = True,
         save_probabilities: bool = False,
         overwrite: bool = True,
-        checkpoint_name: str = 'checkpoint_final.pth',
+        checkpoint_name: str = "checkpoint_final.pth",
         folder_with_segs_from_prev_stage: str = None,
         num_parts: int = 1,
         part_id: int = 0,
+        num_processes_preprocessing: int = -1,
+        num_processes_segmentation_export: int = -1,
     ):
         from nnunetv2.inference.predict_from_raw_data import predict_from_raw_data
+
+        n_processes_preprocessing = (
+            self.default_num_processes if num_processes_preprocessing < 0 else num_processes_preprocessing
+        )
+        n_processes_segmentation_export = (
+            self.default_num_processes if n_processes_segmentation_export < 0 else n_processes_segmentation_export
+        )
 
         predict_from_raw_data(
             list_of_lists_or_source_folder=list_of_lists_or_source_folder,
@@ -199,8 +221,8 @@ class nnUNetRunner:
             save_probabilities=save_probabilities,
             overwrite=overwrite,
             checkpoint_name=checkpoint_name,
-            num_processes_preprocessing=self.default_num_processes,
-            num_processes_segmentation_export=self.default_num_processes,
+            num_processes_preprocessing=n_processes_preprocessing,
+            num_processes_segmentation_export=n_processes_segmentation_export,
             folder_with_segs_from_prev_stage=folder_with_segs_from_prev_stage,
             num_parts=num_parts,
             part_id=part_id,
@@ -208,6 +230,7 @@ class nnUNetRunner:
 
     def predict_ensemble(self, folds=[0, 3]):
         from nnunetv2.ensembling.ensemble import ensemble_folders
+
         # from nnunetv2.inference.predict_from_raw_data import predict_from_raw_data
         from nnunetv2.postprocessing.remove_connected_components import apply_postprocessing_to_folder
         from nnunetv2.utilities.file_path_utilities import get_output_folder
@@ -221,7 +244,9 @@ class nnUNetRunner:
         output_folders = []
         for im in self.best_configuration["best_model_or_ensemble"]["selected_model_or_models"]:
             output_dir = join(target_dir_base, f"pred_{im['configuration']}")
-            model_folder = get_output_folder(int(self.dataset_name_or_id), im["trainer"], im["plans_identifier"], im["configuration"])
+            model_folder = get_output_folder(
+                int(self.dataset_name_or_id), im["trainer"], im["plans_identifier"], im["configuration"]
+            )
             self.predict(
                 list_of_lists_or_source_folder=source_dir,
                 output_folder=output_dir,
