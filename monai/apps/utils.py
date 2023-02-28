@@ -58,13 +58,15 @@ def get_logger(
     (https://docs.python.org/3/library/logging.html#formatter-objects).
     `logger_handler` can be used to add an additional handler.
     """
+    adds_stdout_handler = module_name is not None and module_name not in logging.root.manager.loggerDict
     logger = logging.getLogger(module_name)
     logger.propagate = False
     logger.setLevel(logging.INFO)
-    handler = logging.StreamHandler(sys.stdout)
-    formatter = logging.Formatter(fmt=fmt, datefmt=datefmt)
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
+    if adds_stdout_handler:  # don't add multiple stdout or add to the root
+        handler = logging.StreamHandler(sys.stdout)
+        formatter = logging.Formatter(fmt=fmt, datefmt=datefmt)
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
     if logger_handler is not None:
         logger.addHandler(logger_handler)
     return logger
