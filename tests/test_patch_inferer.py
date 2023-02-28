@@ -64,7 +64,6 @@ TEST_CASE_4_SPLIT_LIST = [
     TENSOR_4x4,
 ]
 
-
 # using all default parameters (patches are already split)
 TEST_CASE_5_SPLIT_LIST = [
     [
