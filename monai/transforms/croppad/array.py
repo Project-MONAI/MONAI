@@ -15,6 +15,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Callable, Sequence
 from itertools import chain
 from math import ceil
@@ -44,6 +45,7 @@ from monai.transforms.utils import (
 )
 from monai.utils import ImageMetaKey as Key
 from monai.utils import (
+    LazyAttr,
     Method,
     PytorchPadMode,
     TraceKeys,
@@ -548,14 +550,15 @@ class RandSpatialCrop(Randomizable, Crop):
         slicing doesn't apply to the channel dim.
 
         """
+        img_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
         if randomize:
-            self.randomize(img.shape[1:])
+            self.randomize(img_size)
         if self._size is None:
             raise RuntimeError("self._size not specified.")
         if self.random_center:
             return super().__call__(img=img, slices=self._slices)
         cropper = CenterSpatialCrop(self._size)
-        return super().__call__(img=img, slices=cropper.compute_slices(img.shape[1:]))
+        return super().__call__(img=img, slices=cropper.compute_slices(img_size))
 
 
 class RandScaleCrop(RandSpatialCrop):
@@ -613,7 +616,7 @@ class RandScaleCrop(RandSpatialCrop):
         return super().__call__(img=img, randomize=randomize)
 
 
-class RandSpatialCropSamples(Randomizable, TraceableTransform, MultiSampleTrait):
+class RandSpatialCropSamples(Randomizable, TraceableTransform, LazyTransform, MultiSampleTrait):
     """
     Crop image with random size or specific size ROI to generate a list of N samples.
     It can crop at a random position as center or at the image center. And allows to set
@@ -667,6 +670,11 @@ class RandSpatialCropSamples(Randomizable, TraceableTransform, MultiSampleTrait)
         self.cropper.set_random_state(seed, state)
         return self
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, value: bool) -> None:
+        self._lazy_evaluation = value
+        self.cropper.lazy_evaluation = value
+
     def randomize(self, data: Any | None = None) -> None:
         pass
 
@@ -676,12 +684,11 @@ class RandSpatialCropSamples(Randomizable, TraceableTransform, MultiSampleTrait)
         cropping doesn't change the channel dim.
         """
         ret = []
-        orig_size = img.shape[1:]
         for i in range(self.num_samples):
             cropped = self.cropper(img)
             if get_track_meta():
                 cropped.meta[Key.PATCH_INDEX] = i  # type: ignore
-                self.push_transform(cropped, orig_size=orig_size, extra_info=self.pop_transform(cropped, check=False))
+                self.push_transform(cropped, replace=True)  # track as this class instead of RandSpatialCrop
             ret.append(cropped)
         return ret
 
@@ -759,12 +766,19 @@ class CropForeground(Crop):
         self.k_divisible = k_divisible
         self.padder = Pad(mode=mode, **pad_kwargs)
 
+    @Crop.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, _val: bool):
+        self._lazy_evaluation = _val
+        self.padder.lazy_evaluation = _val
+
     def compute_bounding_box(self, img: torch.Tensor):
         """
         Compute the start points and end points of bounding box to crop.
         And adjust bounding box coords to be divisible by `k`.
 
         """
+        if isinstance(img, MetaTensor) and img.pending_operations:
+            warnings.warn("foreground computation may not be accurate if the image has pending operations.")
         box_start, box_end = generate_spatial_bounding_box(
             img, self.select_fn, self.channel_indices, self.margin, self.allow_smaller
         )
@@ -788,16 +802,20 @@ class CropForeground(Crop):
         slices = self.compute_slices(roi_start=box_start, roi_end=box_end)
         cropped = super().__call__(img=img, slices=slices)
         pad_to_start = np.maximum(-box_start, 0)
-        pad_to_end = np.maximum(box_end - np.asarray(img.shape[1:]), 0)
+        pad_to_end = np.maximum(
+            box_end - np.asarray(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]), 0
+        )
         pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
-        pad_width = BorderPad(spatial_border=pad).compute_pad_width(cropped.shape[1:])
+        pad_width = BorderPad(spatial_border=pad).compute_pad_width(
+            cropped.peek_pending_shape() if isinstance(cropped, MetaTensor) else cropped.shape[1:]
+        )
         ret = self.padder.__call__(img=cropped, to_pad=pad_width, mode=mode, **pad_kwargs)
         # combine the traced cropping and padding into one transformation
         # by taking the padded info and placing it in a key inside the crop info.
-        if get_track_meta():
-            ret_: MetaTensor = ret  # type: ignore
-            app_op = ret_.applied_operations.pop(-1)
-            ret_.applied_operations[-1][TraceKeys.EXTRA_INFO]["pad_info"] = app_op
+        if get_track_meta() and isinstance(ret, MetaTensor):
+            # ops = ret.applied_operations if not self.lazy_evaluation else ret.pending_operations
+            if not self.lazy_evaluation:
+                ret.applied_operations[-1][TraceKeys.EXTRA_INFO]["pad_info"] = ret.applied_operations.pop()
         return ret
 
     def __call__(self, img: torch.Tensor, mode: str | None = None, **pad_kwargs):  # type: ignore
@@ -1196,7 +1214,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, MultiSampleTrait)
         return results
 
 
-class ResizeWithPadOrCrop(InvertibleTransform):
+class ResizeWithPadOrCrop(InvertibleTransform, LazyTransform):
     """
     Resize an image to a target spatial size by either centrally cropping the image or
     padding it evenly with a user-specified mode.
@@ -1231,6 +1249,12 @@ class ResizeWithPadOrCrop(InvertibleTransform):
         self.padder = SpatialPad(spatial_size=spatial_size, method=method, mode=mode, **pad_kwargs)
         self.cropper = CenterSpatialCrop(roi_size=spatial_size)
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool):
+        self.padder.lazy_evaluation = val
+        self.cropper.lazy_evaluation = val
+        self._lazy_evaluation = val
+
     def __call__(self, img: torch.Tensor, mode: str | None = None, **pad_kwargs) -> torch.Tensor:  # type: ignore
         """
         Args:
@@ -1246,14 +1270,29 @@ class ResizeWithPadOrCrop(InvertibleTransform):
                 note that `np.pad` treats channel dimension as the first dimension.
 
         """
-        orig_size = img.shape[1:]
         ret = self.padder(self.cropper(img), mode=mode, **pad_kwargs)
         # remove the individual info and combine
         if get_track_meta():
             ret_: MetaTensor = ret  # type: ignore
-            pad_info = ret_.applied_operations.pop(-1)
-            crop_info = ret_.applied_operations.pop(-1)
-            self.push_transform(ret_, orig_size=orig_size, extra_info={"pad_info": pad_info, "crop_info": crop_info})
+            if not self.lazy_evaluation:
+                pad_info = ret_.applied_operations.pop()
+                crop_info = ret_.applied_operations.pop()
+                orig_size = crop_info.get(TraceKeys.ORIG_SIZE)
+                self.push_transform(
+                    ret_, orig_size=orig_size, extra_info={"pad_info": pad_info, "crop_info": crop_info}
+                )
+            else:
+                pad_info = ret_.pending_operations.pop()
+                crop_info = ret_.pending_operations.pop()
+                orig_size = crop_info.get(TraceKeys.ORIG_SIZE)
+                self.push_transform(
+                    ret_,
+                    orig_size=orig_size,
+                    sp_size=pad_info[LazyAttr.SHAPE],
+                    affine=crop_info[LazyAttr.AFFINE] @ pad_info[LazyAttr.AFFINE],
+                    extra_info={"pad_info": pad_info, "crop_info": crop_info},
+                )
+
         return ret
 
     def inverse(self, img: MetaTensor) -> MetaTensor:

@@ -682,6 +682,11 @@ class CropForegroundd(Cropd):
         super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, value: bool) -> None:
+        self._lazy_evaluation = value
+        self.cropper.lazy_evaluation = value
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         self.cropper: CropForeground
