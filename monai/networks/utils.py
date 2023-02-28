@@ -25,13 +25,14 @@ from typing import Any, Dict, Optional
 import numpy as np
 import torch
 import torch.nn as nn
-import torch_tensorrt
 
-from monai.apps.utils import get_logger
+from monai.apps.utils import get_logger, optional_import
 from monai.config import PathLike
 from monai.utils.misc import ensure_tuple, save_obj, set_determinism
 from monai.utils.module import look_up_option, pytorch_after
 from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
+
+torch_tensorrt, has_torch_tensorrt = optional_import("torch_tensorrt")
 
 __all__ = [
     "one_hot",
@@ -655,7 +656,13 @@ def convert_to_trt(
 
     """
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if not has_torch_tensorrt:
+        raise ImportError("Cannot find torch_tensorrt module, please install it before converting.")
+
+    if not torch.cuda.is_available():
+        raise Exception("Cannot find GPU devices.")
+
+    device = torch.device("cuda")
     inputs = [torch.rand(input_shape)]
     ir_model = convert_to_torchscript(model, device=device, inputs=inputs, is_trace=(ir == "trace"))
 
