@@ -34,7 +34,7 @@ from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import DEFAULT_EXP_MGMT_SETTINGS, DEFAULT_INFERENCE, DEFAULT_METADATA
 from monai.config import IgniteInfo, PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
-from monai.networks import convert_to_trt, convert_to_torchscript, copy_model_state, get_state_dict, save_state
+from monai.networks import convert_to_torchscript, convert_to_trt, copy_model_state, get_state_dict, save_state
 from monai.utils import check_parent_dir, get_equivalent_dtype, min_version, optional_import
 from monai.utils.misc import ensure_tuple, pprint_edges
 
@@ -922,10 +922,7 @@ def verify_net_in_out(
 
 
 def _get_net_input_shape(
-    parser: ConfigParser | None = None,
-    p: int | None = 1,
-    n: int | None = 1,
-    any: int | None = 1,
+    parser: ConfigParser | None = None, p: int | None = 1, n: int | None = 1, any: int | None = 1
 ) -> tuple:
     """
     Get the input data defined in the metadata.
@@ -940,7 +937,7 @@ def _get_net_input_shape(
         any: specified size to generate input data shape if dim of expected shape is "*", default to 1.
     """
     if not parser:
-        raise AttributeError(f"Error parser to parse input shape.")
+        raise AttributeError("Error parser to parse input shape.")
 
     try:
         key = "_meta_#network_data_format#inputs#image#num_channels"
@@ -1051,6 +1048,7 @@ def ckpt_export(
     )
     logger.info(f"exported to TorchScript file: {filepath_}.")
 
+
 def trt_export(
     net_id: str | None = None,
     filepath: PathLike | None = None,
@@ -1132,7 +1130,7 @@ def trt_export(
         net_id="",
         meta_file=None,
         key_in_ckpt="",
-        precision="fp32"
+        precision="fp32",
         input_shape=[],
         dynamic_batchsize=["1", "4", "8"],
         ir="script",
@@ -1164,7 +1162,7 @@ def trt_export(
 
     # convert to TensorRT module and save with metadata, config content
     net = convert_to_trt(
-        model=net,precision=precision_, input_shape=input_shape_, dynamic_batchsize=dynamic_batchsize_, ir=ir_
+        model=net, precision=precision_, input_shape=input_shape_, dynamic_batchsize=dynamic_batchsize_, ir=ir_
     )
 
     extra_files: dict = {}

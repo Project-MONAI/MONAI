@@ -20,11 +20,12 @@ from collections import OrderedDict
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import contextmanager
 from copy import deepcopy
-from typing import Any
+from typing import Any, Dict, Optional
 
 import numpy as np
 import torch
 import torch.nn as nn
+import torch_tensorrt
 
 from monai.apps.utils import get_logger
 from monai.config import PathLike
@@ -671,11 +672,7 @@ def convert_to_trt(
         # TODO Try to figure out if TRT module through fx the same as script module
         # TODO Multi inputs
         input_placeholder = [
-            torch_tensorrt.Input(
-                min_shape=min_input_shape,
-                opt_shape=opt_input_shape,
-                max_shape=max_input_shape,
-            )
+            torch_tensorrt.Input(min_shape=min_input_shape, opt_shape=opt_input_shape, max_shape=max_input_shape)
         ]
         trt_model = torch_tensorrt.compile(ir_model, inputs=input_placeholder, enabled_precisions=convert_precision)
     if verify:
