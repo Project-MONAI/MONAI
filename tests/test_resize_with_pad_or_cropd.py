@@ -17,16 +17,14 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms import ResizeWithPadOrCropd
-from tests.utils import TEST_NDARRAYS_ALL, pytorch_after
+from monai.transforms.lazy.functional import apply_transforms
+from tests.test_resize_with_pad_or_crop import TESTS_PENDING_MODE
+from tests.utils import assert_allclose, TEST_NDARRAYS_ALL, pytorch_after
 
 TEST_CASES = [
     [{"keys": "img", "spatial_size": [15, 8, 8], "mode": "constant"}, {"img": np.zeros((3, 8, 8, 4))}, (3, 15, 8, 8)],
-    [
-        {"keys": "img", "spatial_size": [15, 4, 8], "mode": "constant", "method": "end", "constant_values": 1},
-        {"img": np.zeros((3, 8, 8, 4))},
-        (3, 15, 4, 8),
-    ],
     [{"keys": "img", "spatial_size": [15, 4, -1], "mode": "constant"}, {"img": np.zeros((3, 8, 8, 4))}, (3, 15, 4, 4)],
     [
         {"keys": "img", "spatial_size": [15, 4, -1], "mode": "reflect" if pytorch_after(1, 11) else "constant"},
@@ -37,6 +35,11 @@ TEST_CASES = [
         {"keys": "img", "spatial_size": [-1, -1, -1], "mode": "reflect" if pytorch_after(1, 11) else "constant"},
         {"img": np.zeros((3, 8, 8, 4))},
         (3, 8, 8, 4),
+    ],
+    [
+        {"keys": "img", "spatial_size": [15, 4, 8], "mode": "constant", "method": "end", "constant_values": 1},
+        {"img": np.zeros((3, 8, 8, 4))},
+        (3, 15, 4, 8),
     ],
 ]
 
@@ -56,6 +59,26 @@ class TestResizeWithPadOrCropd(unittest.TestCase):
             inv = padcropper.inverse(result)
             for k in input_data:
                 self.assertTupleEqual(inv[k].shape, input_data[k].shape)
+
+    # exlude last test case since grid sample only support constant value to be zero
+    @parameterized.expand(TEST_CASES[:4])
+    def test_pending_ops(self, input_param, input_data, _expected_data):
+        for p in TEST_NDARRAYS_ALL:
+            padcropper = ResizeWithPadOrCropd(**input_param)
+            input_data["img"] = p(input_data["img"])
+            # non-lazy
+            expected = padcropper(input_data)["img"]
+            self.assertIsInstance(expected, MetaTensor)
+            # lazy
+            padcropper.lazy_evaluation = True
+            pending_result = padcropper(input_data)["img"]
+            self.assertIsInstance(pending_result, MetaTensor)
+            assert_allclose(pending_result.peek_pending_affine(), expected.affine)
+            assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:])
+            # only support nearest
+            result = apply_transforms(pending_result, mode="nearest", padding_mode=TESTS_PENDING_MODE[input_param["mode"]], align_corners=True)[0]
+            # compare
+            assert_allclose(result, expected, rtol=1e-5)
 
 
 if __name__ == "__main__":
