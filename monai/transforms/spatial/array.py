@@ -284,6 +284,14 @@ class ResampleToMatch(SpatialResample):
                     original_fname = img.meta.get(Key.FILENAME_OR_OBJ, "resample_to_match_source")
                     img.meta = deepcopy(img_dst.meta)
                     img.meta[Key.FILENAME_OR_OBJ] = original_fname  # keep the original name, the others are overwritten
+        else:
+            if isinstance(img, MetaTensor) and isinstance(img_dst, MetaTensor):
+                original_fname = img.meta.get(Key.FILENAME_OR_OBJ, "resample_to_match_source")
+                meta_dict = deepcopy(img_dst.meta)
+                for k in ("affine", "spatial_shape"):  # keys that don't copy from img_dst in lazy evaluation
+                    meta_dict.pop(k, None)
+                img.meta.update(meta_dict)
+                img.meta[Key.FILENAME_OR_OBJ] = original_fname  # keep the original name, the others are overwritten
         return img
 
 
