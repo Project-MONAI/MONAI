@@ -18,7 +18,6 @@ from parameterized import parameterized
 
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms.spatial.array import GridPatch
-from monai.utils.enums import NumpyPadMode, PytorchPadMode
 from tests.utils import TEST_NDARRAYS, SkipIfBeforePyTorchVersion, assert_allclose
 
 A = np.arange(16).repeat(3).reshape(4, 4, 3).transpose(2, 0, 1)
