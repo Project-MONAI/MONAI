@@ -11,8 +11,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-from collections.abc import Mapping, Sequence, Optional, Union
+from typing import TYPE_CHECKING, Mapping, Optional, Sequence, Union
+
 from monai.utils import optional_import
 
 from .tensorboard_handlers import TensorBoardImageHandler, TensorBoardStatsHandler
@@ -20,7 +20,7 @@ from .tensorboard_handlers import TensorBoardImageHandler, TensorBoardStatsHandl
 if TYPE_CHECKING:
     from clearml import Task
 else:
-    Task = optional_import("clearml.Task", name="Task")
+    Task, _ = optional_import("clearml", name="Task")
 
 
 class ClearMLHandler:
