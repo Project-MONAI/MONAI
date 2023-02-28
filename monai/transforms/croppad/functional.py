@@ -33,17 +33,14 @@ __all__ = ["pad_nd", "pad_func", "crop_func"]
 def _np_pad(img: torch.Tensor, pad_width: list[tuple[int, int]], mode: str, **kwargs) -> torch.Tensor:
     if isinstance(img, torch.Tensor):
         if img.is_cuda:
-            warnings.warn(f"Padding: moving img {img.shape} on cuda to cpu for dtype={img.dtype} mode={mode}.")
+            warnings.warn(f"Padding: moving img {img.shape} from cuda to cpu for dtype={img.dtype} mode={mode}.")
         img_np = img.detach().cpu().numpy()
     else:
         img_np = img
     mode = convert_pad_mode(dst=img_np, mode=mode).value
     if mode == "constant" and "value" in kwargs:
-        _kwargs = kwargs.copy()
-        _kwargs["constant_values"] = _kwargs.pop("value")
-    else:
-        _kwargs = kwargs
-    out = torch.as_tensor(np.pad(img, pad_width, mode=mode, **_kwargs))  # type: ignore
+        kwargs["constant_values"] = kwargs.pop("value")
+    out = torch.as_tensor(np.pad(img, pad_width, mode=mode, **kwargs))  # type: ignore
     if isinstance(img, MetaTensor):
         out = convert_to_dst_type(out, dst=img)[0]
     return out
