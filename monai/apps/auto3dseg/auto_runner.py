@@ -232,10 +232,9 @@ class AutoRunner:
     ):
 
         if RUNNING_IN_AZURE_ML:
-            work_dir = os.path.join("outputs", work_dir)
+            work_dir = os.path("outputs")
 
         logger.info(f"AutoRunner using work directory {work_dir}")
-        os.makedirs(work_dir, exist_ok=True)
 
         self.work_dir = os.path.abspath(work_dir)
         self.data_src_cfg_name = os.path.join(self.work_dir, "input.yaml")
@@ -248,27 +247,25 @@ class AutoRunner:
 
         if isinstance(input, dict):
             self.data_src_cfg = input
-            self.write_data_src_cfg()
         elif isinstance(input, str) and os.path.isfile(input):
-            self.data_src_cfg = ConfigParser.load_config_file(input)
             logger.info(f"Loading input config {input}")
-            if input != self.data_src_cfg_name:
-                shutil.copy(input, self.data_src_cfg_name)
+            self.data_src_cfg = ConfigParser.load_config_file(input)
         else:
-            raise ValueError(f"{input} is not a valid file or dict")
+            raise ValueError(f"Input: {input} is not a valid file or dict")
 
         missing_keys = {"dataroot", "datalist", "modality"}.difference(self.data_src_cfg.keys())
         if len(missing_keys) > 0:
             raise ValueError(f"Config keys are missing {missing_keys}")
 
-        logger.info(f"Argv: {sys.argv}")
         if AZUREML_FLAG in sys.argv or RUNNING_IN_AZURE_ML:
             run_info = submit_auto3dseg_module_to_azureml_if_needed(self.data_src_cfg[AZUREML_CONFIG_KEY])
             self.dataroot = run_info.input_datasets[0]
             self.data_src_cfg["dataroot"] = str(self.dataroot)
-            self.write_data_src_cfg()
         else:
             self.dataroot = self.data_src_cfg["dataroot"]
+
+        os.makedirs(work_dir, exist_ok=True)
+        self.write_data_src_cfg()
 
         self.datalist_filename = self.data_src_cfg["datalist"]
         self.datastats_filename = os.path.join(self.work_dir, "datastats.yaml")
