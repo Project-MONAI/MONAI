@@ -89,6 +89,10 @@ class TestRandScaleCropd(CropTest):
                 result = cropper(input_data)["img"]
                 self.assertTupleEqual(result.shape, expected_shape)
 
+    @parameterized.expand(TEST_SHAPES)
+    def test_pending_ops(self, input_param, input_shape, _):
+        return self.crop_test_pending_ops(input_param, input_shape)
+
 
 if __name__ == "__main__":
     unittest.main()
