@@ -24,6 +24,7 @@ TEST_SHAPES = [
     [{"keys": "img", "roi_size": [3, 3, -1], "random_center": True}, (3, 3, 3, 5), (3, 3, 3, 5)],
     [{"keys": "img", "roi_size": [3, 3, 3], "random_center": True}, (3, 3, 3, 3), (3, 3, 3, 3)],
     [{"keys": "img", "roi_size": [3, 3, 3], "random_center": False}, (3, 3, 3, 3), (3, 3, 3, 3)],
+    [{"keys": "img", "roi_size": [3, 2, 3], "random_center": False, "random_size": False}, (3, 3, 3, 3), (3, 3, 2, 3)],
 ]
 
 TEST_VALUES = [
