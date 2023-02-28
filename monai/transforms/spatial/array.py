@@ -3149,7 +3149,10 @@ class GridPatch(Transform, MultiSampleTrait):
             lowest values (`"min"`), or in their default order (`None`). Default to None.
         threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
             Defaults to no filtering.
-        pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to ``"constant"``.
+        pad_mode: the padding mode for padding to be applied to the input image by patch_size.
+            Defaults to None, which means no padding will be applied.
+            Refer to `NumpyPadMode` and `PytorchPadMode` for acceptable values.
+            For more details please see: https://numpy.org/doc/1.20/reference/generated/numpy.pad.html
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
 
     Returns:
@@ -3167,7 +3170,7 @@ class GridPatch(Transform, MultiSampleTrait):
         overlap: Sequence[float] | float = 0.0,
         sort_fn: str | None = None,
         threshold: float | None = None,
-        pad_mode: str = PytorchPadMode.CONSTANT,
+        pad_mode: str | None = None,
         **pad_kwargs,
     ):
         self.patch_size = ensure_tuple(patch_size)
@@ -3242,9 +3245,8 @@ class GridPatch(Transform, MultiSampleTrait):
         )
         patches = list(zip(*patch_iterator))
         patched_image = np.array(patches[0])
-        del patches[0]
-        locations = np.array(patches[0])[:, 1:, 0]  # only keep the starting location
-        del patches[0]
+        locations = np.array(patches[1])[:, 1:, 0]  # only keep the starting location
+        del patches  # it will free up some memory if padding is used.
 
         # Apply threshold filtering
         if self.threshold is not None:

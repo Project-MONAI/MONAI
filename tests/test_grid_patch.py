@@ -18,6 +18,7 @@ from parameterized import parameterized
 
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms.spatial.array import GridPatch
+from monai.utils.enums import NumpyPadMode, PytorchPadMode
 from tests.utils import TEST_NDARRAYS, SkipIfBeforePyTorchVersion, assert_allclose
 
 A = np.arange(16).repeat(3).reshape(4, 4, 3).transpose(2, 0, 1)
@@ -38,12 +39,12 @@ TEST_CASE_8 = [{"patch_size": (2, 2), "num_patches": 3, "sort_fn": "max"}, A, [A
 TEST_CASE_9 = [{"patch_size": (2, 2), "num_patches": 4, "sort_fn": "min"}, A, [A11, A12, A21, A22]]
 TEST_CASE_10 = [{"patch_size": (2, 2), "overlap": 0.5, "num_patches": 3}, A, [A11, A[:, :2, 1:3], A12]]
 TEST_CASE_11 = [
-    {"patch_size": (3, 3), "num_patches": 2, "constant_values": 255},
+    {"patch_size": (3, 3), "num_patches": 2, "constant_values": 255, "pad_mode": "constant"},
     A,
     [A[:, :3, :3], np.pad(A[:, :3, 3:], ((0, 0), (0, 0), (0, 2)), mode="constant", constant_values=255)],
 ]
 TEST_CASE_12 = [
-    {"patch_size": (3, 3), "offset": (-2, -2), "num_patches": 2},
+    {"patch_size": (3, 3), "offset": (-2, -2), "num_patches": 2, "pad_mode": "constant"},
     A,
     [np.zeros((3, 3, 3)), np.pad(A[:, :1, 1:4], ((0, 0), (2, 0), (0, 0)), mode="constant")],
 ]
