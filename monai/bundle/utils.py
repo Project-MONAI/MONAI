@@ -155,6 +155,15 @@ DEFAULT_MLFLOW_SETTINGS = {
     },
 }
 
+DEFAULT_CLEARML_STATS_SETTINGS = {
+
+}
+
+DEFAULT_CLEARML_IMAGE_SETTINGS = {
+
+}
+
+
 DEFAULT_EXP_MGMT_SETTINGS = {"mlflow": DEFAULT_MLFLOW_SETTINGS}  # default experiment management settings
 
 
