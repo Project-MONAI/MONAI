@@ -230,8 +230,6 @@ class nnUNetRunner:
 
     def predict_ensemble(self, folds=[0, 3]):
         from nnunetv2.ensembling.ensemble import ensemble_folders
-
-        # from nnunetv2.inference.predict_from_raw_data import predict_from_raw_data
         from nnunetv2.postprocessing.remove_connected_components import apply_postprocessing_to_folder
         from nnunetv2.utilities.file_path_utilities import get_output_folder
 
