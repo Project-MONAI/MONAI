@@ -148,4 +148,4 @@ tests/testing_data/eval_data_stats.yaml
 
 # AzureML Configuration
 
-azureml_config.json
+azureml_configs/
