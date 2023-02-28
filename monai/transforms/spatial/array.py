@@ -201,7 +201,7 @@ class SpatialResample(InvertibleTransform, LazyTransform):
         """
         # get dtype as torch (e.g., torch.float64)
         dtype_pt = get_equivalent_dtype(dtype or self.dtype or img.dtype, torch.Tensor)
-        align_corners = self.align_corners if align_corners is None else align_corners
+        align_corners = align_corners if align_corners is not None else self.align_corners
         mode = mode if mode is not None else self.mode
         padding_mode = padding_mode if padding_mode is not None else self.padding_mode
         return spatial_resample(

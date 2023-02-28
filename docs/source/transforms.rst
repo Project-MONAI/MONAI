@@ -91,7 +91,14 @@ Generic Interfaces
 Functionals
 -----------
 
+Crop and Pad (functional)
+^^^^^^^^^^^^^^^^^^^^^^^^^
 .. automodule:: monai.transforms.croppad.functional
+    :members:
+
+Spatial (functional)
+^^^^^^^^^^^^^^^^^^^^
+.. automodule:: monai.transforms.spatial.functional
     :members:
 
 .. currentmodule:: monai.transforms
