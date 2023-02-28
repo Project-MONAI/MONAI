@@ -20,7 +20,7 @@ from collections import OrderedDict
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import contextmanager
 from copy import deepcopy
-from typing import Any, Dict, Optional
+from typing import Any
 
 import numpy as np
 import torch
@@ -626,10 +626,10 @@ def convert_to_trt(
     input_shape: Sequence[int],
     dynamic_batchsize: Sequence[int],
     ir: str,
-    filename_or_obj: Optional[Any] = None,
-    extra_files: Optional[Dict] = None,
+    filename_or_obj: Any | None = None,
+    extra_files: dict | None = None,
     verify: bool = False,
-    device: Optional[torch.device] = None,
+    device: torch.device | None = None,
     rtol: float = 1e-4,
     atol: float = 0.0,
 ):
