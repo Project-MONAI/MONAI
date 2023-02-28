@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Mapping, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Mapping, Sequence
 
 from monai.utils import optional_import
 
@@ -36,10 +36,10 @@ class ClearMLHandler:
         project_name: str | None,
         task_name: str | None,
         output_uri: str | None,
-        tags: Optional[Sequence[str]] | None,
+        tags: Sequence[str] | None | None,
         reuse_last_task_id: bool,
         continue_last_task: bool,
-        auto_connect_frameworks: Union[bool, Mapping[str, Union[bool, str, list]]] | bool,
+        auto_connect_frameworks: bool | Mapping[str, bool | str | list] | bool,
     ):
         """
         Args:
@@ -79,10 +79,10 @@ class ClearMLStatsHandler(ClearMLHandler, TensorBoardStatsHandler):
         project_name: str | None = "MONAI",
         task_name: str | None = "Default Task",
         output_uri: str = True,
-        tags: Optional[Sequence[str]] | None = None,
+        tags: Sequence[str] | None | None = None,
         reuse_last_task_id: bool = True,
         continue_last_task: bool = False,
-        auto_connect_frameworks: Union[bool, Mapping[str, Union[bool, str, list]]] | bool = True,
+        auto_connect_frameworks: bool | Mapping[str, bool | str | list] | bool = True,
         *args,
         **kwargs,
     ):
@@ -123,10 +123,10 @@ class ClearMLImageHandler(ClearMLHandler, TensorBoardImageHandler):
         project_name: str | None = "MONAI",
         task_name: str | None = "Default Task",
         output_uri: str | bool = True,
-        tags: Optional[Sequence[str]] | None = None,
+        tags: Sequence[str] | None | None = None,
         reuse_last_task_id: bool = True,
         continue_last_task: bool = False,
-        auto_connect_frameworks: Union[bool, Mapping[str, Union[bool, str, list]]] | bool = True,
+        auto_connect_frameworks: bool | Mapping[str, bool | str | list] | bool = True,
         *args,
         **kwargs,
     ):
