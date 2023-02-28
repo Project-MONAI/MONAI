@@ -581,7 +581,6 @@ class AutoRunner:
         """
         for task in history:
             for _, algo in task.items():
-                logger.info(f"Type of train_params when calling algo.train: {type(self.train_params)}")
                 algo.train(self.train_params)
                 acc = algo.get_score()
                 algo_to_pickle(algo, template_path=algo.template_path, best_metrics=acc)
@@ -656,7 +655,6 @@ class AutoRunner:
         """
         Run the AutoRunner pipeline
         """
-        logger.info(f"Type of train_params at start of run () is {type(self.train_params)}")
 
         # step 1: data analysis
         if self.analyze and self.analyze_params is not None:
@@ -703,7 +701,6 @@ class AutoRunner:
 
         # step 3: algo training
         if self.train:
-            logger.info(f"Type of train_params at start of step 3 is {type(self.train_params)}")
 
             history = import_bundle_algo_history(self.work_dir, only_trained=False)
 
