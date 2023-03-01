@@ -11,15 +11,16 @@
 
 from __future__ import annotations
 
+import copy
 import glob
-import monai
-import nibabel as nib
 import os
-import shutil
-import torch
 
+import nibabel as nib
+import numpy as np
+import torch
 from batchgenerators.utilities.file_and_folder_operations import join, load_pickle
 
+import monai
 from monai.bundle import ConfigParser
 
 
@@ -36,8 +37,12 @@ class nnUNetRunner:
             raise ValueError(f"{input} is not a valid file or dict")
 
         self.nnunet_raw = self.input_info.pop("nnunet_raw", os.path.join(".", "work_dir", "nnUNet_raw_data_base"))
-        self.nnunet_preprocessed = self.input_info.pop("nnunet_preprocessed", os.path.join(".", "work_dir", "nnUNet_preprocessed"))
-        self.nnunet_results = self.input_info.pop("nnunet_results", os.path.join(".", "work_dir", "nnUNet_trained_models"))
+        self.nnunet_preprocessed = self.input_info.pop(
+            "nnunet_preprocessed", os.path.join(".", "work_dir", "nnUNet_preprocessed")
+        )
+        self.nnunet_results = self.input_info.pop(
+            "nnunet_results", os.path.join(".", "work_dir", "nnUNet_trained_models")
+        )
 
         if not os.path.exists(self.nnunet_raw):
             os.makedirs(self.nnunet_raw)
@@ -72,127 +77,140 @@ class nnUNetRunner:
         self.best_configuration = None
 
     def convert_dataset(self):
-        # try:
-        raw_data_foldername_perfix = str(int(self.dataset_name_or_id) + 1000)
-        raw_data_foldername_perfix = "Dataset" + raw_data_foldername_perfix[-3:]
+        try:
+            raw_data_foldername_perfix = str(int(self.dataset_name_or_id) + 1000)
+            raw_data_foldername_perfix = "Dataset" + raw_data_foldername_perfix[-3:]
 
-        # check if dataset is created
-        subdirs = glob.glob(f"{self.nnunet_raw}/*")
-        dataset_ids = [_item.split(os.sep)[-1] for _item in subdirs]
-        dataset_ids = [_item.split("_")[0] for _item in dataset_ids]
-        if raw_data_foldername_perfix in dataset_ids:
-            print("Dataset with the same ID exists!")
-            return
+            # check if dataset is created
+            subdirs = glob.glob(f"{self.nnunet_raw}/*")
+            dataset_ids = [_item.split(os.sep)[-1] for _item in subdirs]
+            dataset_ids = [_item.split("_")[0] for _item in dataset_ids]
+            if raw_data_foldername_perfix in dataset_ids:
+                print("Dataset with the same ID exists!")
+                return
 
-        data_dir = self.input_info.pop("dataroot")
-        if data_dir[-1] == os.sep:
-            data_dir = data_dir[:-1]
+            data_dir = self.input_info.pop("dataroot")
+            if data_dir[-1] == os.sep:
+                data_dir = data_dir[:-1]
 
-        raw_data_foldername = raw_data_foldername_perfix + "_" + data_dir.split(os.sep)[-1]
-        raw_data_foldername = os.path.join(self.nnunet_raw, raw_data_foldername)
-        if not os.path.exists(raw_data_foldername):
-            os.makedirs(raw_data_foldername)
+            raw_data_foldername = raw_data_foldername_perfix + "_" + data_dir.split(os.sep)[-1]
+            raw_data_foldername = os.path.join(self.nnunet_raw, raw_data_foldername)
+            if not os.path.exists(raw_data_foldername):
+                os.makedirs(raw_data_foldername)
 
-        datalist_json = ConfigParser.load_config_file(self.input_info.pop("datalist"))
-        
-        if "training" in datalist_json:
-            os.makedirs(os.path.join(raw_data_foldername, "imagesTs"))
-            os.makedirs(os.path.join(raw_data_foldername, "labelsTs"))
-        
-        if "test" in datalist_json or "testing" in datalist_json:
-            os.makedirs(os.path.join(raw_data_foldername, "imagesTr"))
-            test_key = "test" if "test" in datalist_json else "testing"
+            datalist_json = ConfigParser.load_config_file(self.input_info.pop("datalist"))
 
-        img = monai.transforms.LoadImage(image_only=True, ensure_channel_first=True, simple_keys=True)(os.path.join(data_dir, datalist_json["training"][0]["image"]))
-        num_input_channels = img.size()[0] if img.dim() == 4 else 1
-        print(f"num_input_channels: {num_input_channels}")
-
-        num_foreground_classes = 0
-        for _i in range(len(datalist_json["training"])):
-            seg = monai.transforms.LoadImage(image_only=True, ensure_channel_first=True, simple_keys=True)(os.path.join(data_dir, datalist_json["training"][_i]["label"]))
-            num_foreground_classes = max(num_foreground_classes, int(seg.max()))
-        print(f"num_foreground_classes: {num_foreground_classes}")
-
-        new_json_data = {}
-        
-        modality = self.input_info.pop("modality")
-        if type(modality) != list:
-            modality = [modality]
-
-        new_json_data["channel_names"] = {}
-        for _j in range(num_input_channels):
-            new_json_data["channel_names"][str(_j)] = modality[_j]
-
-        new_json_data["labels"] = {}
-        new_json_data["labels"]["background"] = 0
-        for _j in range(num_foreground_classes):
-            new_json_data["labels"][f"class{_j + 1}"] = _j + 1
-
-        new_json_data["numTraining"] = len(datalist_json["training"])
-        name_parts = datalist_json["training"][0]["image"].split(".")
-        new_json_data["file_ending"] = name_parts[-1] if name_parts[-1] != "gz" else f".{name_parts[-2]}.{name_parts[-1]}"
-
-        ConfigParser.export_config_file(
-            config=new_json_data, filepath=os.path.join(raw_data_foldername, "dataset.json"), fmt="json", sort_keys=True, indent=4, ensure_ascii=False
-        )
-
-        for _k in range(len(datalist_json["training"])):
-            img_name = datalist_json["training"][_k]["image"]
-            while img_name[:2] == "./" or img_name[0] == "/":
-                if img_name[:2] == "./":
-                    img_name = img_name[2:]
-                if img_name[0] == "/":
-                    img_name = img_name[1:]
-            img_name = img_name[:-len(new_json_data["file_ending"])].replace(os.sep, "") + new_json_data["file_ending"]
-            
-            # copy image
-            if num_input_channels == 1:
-                shutil.copy2(
-                    os.path.join(data_dir, datalist_json["training"][_i]["image"]),
-                    os.path.join(raw_data_foldername, "imagesTs", img_name.replace(new_json_data["file_ending"], "_0000" + new_json_data["file_ending"])),
-                )
+            if "training" in datalist_json:
+                os.makedirs(os.path.join(raw_data_foldername, "imagesTs"))
+                os.makedirs(os.path.join(raw_data_foldername, "labelsTs"))
             else:
-                affine = nib.load(os.path.join(data_dir, datalist_json["training"][_k]["image"])).affine
-                nda = monai.transforms.LoadImage(image_only=True, ensure_channel_first=True, simple_keys=True)(os.path.join(data_dir, datalist_json["training"][_k]["image"]))
-                nda = nda.numpy()
-                for _l in range(num_input_channels):
-                    outimg = nib.Nifti1Image(nda[_l, ...], affine)
-                    index = "_" + str(_l + 10000)[-4:]
-                    nib.save(outimg, os.path.join(raw_data_foldername, "imagesTs", img_name.replace(new_json_data["file_ending"], index + new_json_data["file_ending"])))
+                print("Input '.json' data list is incorrect.")
+                return
 
-            # copy label
-            shutil.copy2(
-                os.path.join(data_dir, datalist_json["training"][_i]["label"]),
-                os.path.join(raw_data_foldername, "labelsTs", img_name),
+            test_key = None
+            if "test" in datalist_json or "testing" in datalist_json:
+                os.makedirs(os.path.join(raw_data_foldername, "imagesTr"))
+                test_key = "test" if "test" in datalist_json else "testing"
+
+            img = monai.transforms.LoadImage(image_only=True, ensure_channel_first=True, simple_keys=True)(
+                os.path.join(data_dir, datalist_json["training"][0]["image"])
+            )
+            num_input_channels = img.size()[0] if img.dim() == 4 else 1
+            print(f"num_input_channels: {num_input_channels}")
+
+            num_foreground_classes = 0
+            for _i in range(len(datalist_json["training"])):
+                seg = monai.transforms.LoadImage(image_only=True, ensure_channel_first=True, simple_keys=True)(
+                    os.path.join(data_dir, datalist_json["training"][_i]["label"])
+                )
+                num_foreground_classes = max(num_foreground_classes, int(seg.max()))
+            print(f"num_foreground_classes: {num_foreground_classes}")
+
+            new_json_data = {}
+
+            modality = self.input_info.pop("modality")
+            if type(modality) != list:
+                modality = [modality]
+
+            new_json_data["channel_names"] = {}
+            for _j in range(num_input_channels):
+                new_json_data["channel_names"][str(_j)] = modality[_j]
+
+            new_json_data["labels"] = {}
+            new_json_data["labels"]["background"] = 0
+            for _j in range(num_foreground_classes):
+                new_json_data["labels"][f"class{_j + 1}"] = _j + 1
+
+            new_json_data["numTraining"] = len(datalist_json["training"])
+            new_json_data["file_ending"] = ".nii.gz"
+
+            ConfigParser.export_config_file(
+                config=new_json_data,
+                filepath=os.path.join(raw_data_foldername, "dataset.json"),
+                fmt="json",
+                sort_keys=True,
+                indent=4,
+                ensure_ascii=False,
             )
 
-        # if "test" in datalist_json or "testing" in datalist_json:
-        #     for _k in range(len(datalist_json[test_key])):
-        #         img_name = datalist_json[test_key][_k]["image"]
-        #         while img_name[:2] == "./" or img_name[0] == "/":
-        #             if img_name[:2] == "./":
-        #                 img_name = img_name[2:]
-        #             if img_name[0] == "/":
-        #                 img_name = img_name[1:]
-        #         img_name = img_name[:-len(new_json_data["file_ending"])].replace(os.sep, "") + new_json_data["file_ending"]
-                
-        #         # copy image
-        #         if num_input_channels == 1:
-        #             shutil.copy2(
-        #                 os.path.join(data_dir, datalist_json[test_key][_i]["image"]),
-        #                 os.path.join(raw_data_foldername, "imagesTs", img_name.replace(new_json_data["file_ending"], "_0000" + new_json_data["file_ending"])),
-        #             )
-        #         else:
-        #             affine = nib.load(os.path.join(data_dir, datalist_json[test_key][_k]["image"])).affine
-        #             nda = monai.transforms.LoadImage(image_only=True, ensure_channel_first=True, simple_keys=True)(os.path.join(data_dir, datalist_json["training"][_k]["image"]))
-        #             nda = nda.numpy()
-        #             for _l in range(num_input_channels):
-        #                 outimg = nib.Nifti1Image(nda[_l, ...], affine)
-        #                 index = "_" + str(_l + 10000)[-4:]
-        #                 nib.save(outimg, os.path.join(raw_data_foldername, "imagesTs", img_name.replace(new_json_data["file_ending"], index + new_json_data["file_ending"])))
+            _index = 0
+            new_datalist_json = {}
+            new_datalist_json["training"] = []
+            new_datalist_json[test_key] = []
 
-        # except:
-        #     print("Input '.yaml' is incorrect.")
+            for _key, _folder in list(zip(["training", test_key], ["imagesTs", "imagesTr"])):
+                if _key == None:
+                    continue
+
+                for _k in range(len(datalist_json[_key])):
+                    orig_img_name = (
+                        datalist_json[_key][_k]["image"]
+                        if type(datalist_json[_key][_k]) == dict
+                        else datalist_json[_key][_k]
+                    )
+                    img_name = f"image_{_index}"
+                    _index += 1
+
+                    # copy image
+                    nda = monai.transforms.LoadImage(image_only=True, ensure_channel_first=True, simple_keys=True)(
+                        os.path.join(data_dir, orig_img_name)
+                    )
+                    affine = nda.meta["original_affine"]
+                    nda = nda.numpy()
+                    for _l in range(num_input_channels):
+                        outimg = nib.Nifti1Image(nda[_l, ...], affine)
+                        index = "_" + str(_l + 10000)[-4:]
+                        nib.save(outimg, os.path.join(raw_data_foldername, _folder, img_name + index + ".nii.gz"))
+
+                    # copy label
+                    if type(datalist_json[_key][_k]) == dict and "label" in datalist_json[_key][_k]:
+                        nda = monai.transforms.LoadImage(image_only=True, ensure_channel_first=True, simple_keys=True)(
+                            os.path.join(data_dir, datalist_json[_key][_k]["label"])
+                        )
+                        affine = nda.meta["original_affine"]
+                        nda = nda.numpy().astype(np.uint8)
+                        nib.save(
+                            nib.Nifti1Image(nda, affine),
+                            os.path.join(raw_data_foldername, "labelsTs", img_name + ".nii.gz"),
+                        )
+
+                    if type(datalist_json[_key][_k]) == dict:
+                        _val = copy.deepcopy(datalist_json[_key][_k])
+                        _val["new_name"] = img_name
+                        new_datalist_json[_key].append(_val)
+                    else:
+                        new_datalist_json[_key].append({"image": datalist_json[_key][_k], "new_name": img_name})
+
+            ConfigParser.export_config_file(
+                config=new_datalist_json,
+                filepath=os.path.join(raw_data_foldername, "datalist.json"),
+                fmt="json",
+                sort_keys=True,
+                indent=4,
+                ensure_ascii=False,
+            )
+        except:
+            print("Input '.yaml' is incorrect.")
 
     def convert_msd_dataset(self, data_dir, overwrite_id=None, np=-1):
         from nnunetv2.dataset_conversion.convert_MSD_dataset import convert_msd_dataset
@@ -345,7 +363,7 @@ class nnUNetRunner:
             self.default_num_processes if num_processes_preprocessing < 0 else num_processes_preprocessing
         )
         n_processes_segmentation_export = (
-            self.default_num_processes if n_processes_segmentation_export < 0 else n_processes_segmentation_export
+            self.default_num_processes if num_processes_segmentation_export < 0 else num_processes_segmentation_export
         )
 
         predict_from_raw_data(
