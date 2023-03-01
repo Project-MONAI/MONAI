@@ -1068,7 +1068,8 @@ def trt_export(
 
     .. code-block:: bash
 
-        python -m monai.bundle trt_export network --filepath <export path> --ckpt_file <checkpoint path> --input_shape <input shape> ...
+        python -m monai.bundle trt_export network --filepath <export path> --ckpt_file <checkpoint path> \
+                --input_shape <input shape> ...
 
     Args:
         net_id: ID name of the network component in the config, it must be `torch.nn.Module`.

@@ -675,7 +675,6 @@ def convert_to_trt(
     max_input_shape = [*input_shape]
     max_input_shape[0] *= dynamic_batchsize[2]
     with torch.no_grad():
-
         # TODO Try to figure out if TRT module through fx the same as script module
         # TODO Multi inputs
         input_placeholder = [
