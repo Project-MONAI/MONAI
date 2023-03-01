@@ -10,6 +10,7 @@
 # limitations under the License.
 
 from __future__ import annotations
+
 import os
 import shutil
 import subprocess
@@ -26,12 +27,17 @@ from health_azure.utils import is_running_in_azure_ml
 from monai.apps.auto3dseg.bundle_gen import BundleGen
 from monai.apps.auto3dseg.data_analyzer import DataAnalyzer
 from monai.apps.auto3dseg.ensemble_builder import (
-    AlgoEnsemble, AlgoEnsembleBestByFold, AlgoEnsembleBestN, AlgoEnsembleBuilder,
+    AlgoEnsemble,
+    AlgoEnsembleBestByFold,
+    AlgoEnsembleBestN,
+    AlgoEnsembleBuilder,
 )
 from monai.apps.auto3dseg.hpo_gen import NNIGen
 from monai.apps.auto3dseg.utils import (
-    AZUREML_CONFIG_KEY, export_bundle_algo_history,
-    import_bundle_algo_history, submit_auto3dseg_module_to_azureml_if_needed,
+    AZUREML_CONFIG_KEY,
+    export_bundle_algo_history,
+    import_bundle_algo_history,
+    submit_auto3dseg_module_to_azureml_if_needed,
 )
 from monai.apps.utils import get_logger
 from monai.auto3dseg.utils import algo_to_pickle
@@ -230,7 +236,6 @@ class AutoRunner:
         templates_path_or_url: str | None = None,
         **kwargs: Any,
     ):
-
         if RUNNING_IN_AZURE_ML:
             work_dir = "outputs"
 
@@ -311,7 +316,7 @@ class AutoRunner:
             filepath=self.data_src_cfg_name,
             fmt="yaml",
             default_flow_style=None,
-            sort_keys=False
+            sort_keys=False,
         )
 
     def read_cache(self):
@@ -672,7 +677,6 @@ class AutoRunner:
                     "Possibly the required data analysis step was not completed."
                 )
 
-
             bundle_generator = BundleGen(
                 algos=self.algos,
                 algo_path=self.work_dir,
@@ -698,7 +702,6 @@ class AutoRunner:
 
         # step 3: algo training
         if self.train:
-
             history = import_bundle_algo_history(self.work_dir, only_trained=False)
 
             if len(history) == 0:
