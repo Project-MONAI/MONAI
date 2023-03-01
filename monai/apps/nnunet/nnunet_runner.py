@@ -124,7 +124,6 @@ class nnUNetRunner:
             for _i in range(len(datalist_json["training"])):
                 seg = monai.transforms.LoadImage(image_only=True, ensure_channel_first=True, simple_keys=True)(
                     os.path.join(data_dir, datalist_json["training"][_i]["label"])
-
                 )
                 num_foreground_classes = max(num_foreground_classes, int(seg.max()))
             print(f"num_foreground_classes: {num_foreground_classes}")
@@ -161,7 +160,9 @@ class nnUNetRunner:
             new_datalist_json["training"] = []
             new_datalist_json[test_key] = []
 
-            for _key, _folder, _label_folder in list(zip(["training", test_key], ["imagesTs", "imagesTr"], ["labelsTs", "labelsTr"])):
+            for _key, _folder, _label_folder in list(
+                zip(["training", test_key], ["imagesTs", "imagesTr"], ["labelsTs", "labelsTr"])
+            ):
                 if _key == None:
                     continue
 
