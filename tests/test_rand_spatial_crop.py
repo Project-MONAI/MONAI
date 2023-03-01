@@ -17,7 +17,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.data.meta_tensor import MetaTensor
-from monai.transforms import RandSpatialCrop, RandScaleCrop
+from monai.transforms import RandScaleCrop, RandSpatialCrop
 from monai.transforms.lazy.functional import apply_transforms
 from tests.croppers import CropTest
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
