@@ -71,7 +71,7 @@ class TestRandScaleCrop(CropTest):
 
     @parameterized.expand(TEST_SHAPES)
     def test_pending_ops(self, input_param, input_shape, _):
-        return self.crop_test_pending_ops(input_param, input_shape)
+        self.crop_test_pending_ops(input_param, input_shape)
 
 
 if __name__ == "__main__":
