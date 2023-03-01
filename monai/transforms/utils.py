@@ -1628,13 +1628,13 @@ def convert_pad_mode(dst: NdarrayOrTensor, mode: str | None):
     if isinstance(dst, torch.Tensor):
         if mode == "wrap":
             mode = "circular"
-        if mode == "edge":
+        elif mode == "edge":
             mode = "replicate"
         return look_up_option(mode, PytorchPadMode)
     if isinstance(dst, np.ndarray):
         if mode == "circular":
             mode = "wrap"
-        if mode == "replicate":
+        elif mode == "replicate":
             mode = "edge"
         return look_up_option(mode, NumpyPadMode)
     raise ValueError(f"unsupported data type: {type(dst)}.")
