@@ -16,7 +16,9 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms import RandSpatialCrop
+from monai.transforms.lazy.functional import apply_transforms
 from tests.croppers import CropTest
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
@@ -62,13 +64,25 @@ class TestRandSpatialCrop(CropTest):
 
     @parameterized.expand(TEST_RANDOM_SHAPES)
     def test_random_shape(self, input_param, input_shape, expected_shape):
-        for im_type in TEST_NDARRAYS_ALL[:1]:
+        for im_type in TEST_NDARRAYS_ALL:
             with self.subTest(im_type=im_type):
                 cropper = RandSpatialCrop(**input_param)
                 cropper.set_random_state(seed=123)
                 input_data = im_type(np.random.randint(0, 2, input_shape))
-                result = cropper(input_data)
-                self.assertTupleEqual(result.shape, expected_shape)
+                expected = cropper(input_data)
+                self.assertTupleEqual(expected.shape, expected_shape)
+
+                # lazy
+                cropper_lazy = RandSpatialCrop(**input_param)
+                cropper_lazy.set_random_state(seed=123)
+                cropper_lazy.lazy_evaluation = True
+                pending_result = cropper_lazy(input_data)
+                self.assertIsInstance(pending_result, MetaTensor)
+                assert_allclose(pending_result.peek_pending_affine(), expected.affine)
+                assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:])
+                # only support nearest
+                result = apply_transforms(pending_result, mode="nearest", align_corners=True)[0]
+                assert_allclose(result, expected, rtol=1e-5)
 
     @parameterized.expand(TEST_SHAPES)
     def test_pending_ops(self, input_param, input_shape, _):
