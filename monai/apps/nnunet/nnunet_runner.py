@@ -17,7 +17,6 @@ import os
 
 import nibabel as nib
 import numpy as np
-import torch
 from batchgenerators.utilities.file_and_folder_operations import join, load_pickle
 
 import monai
