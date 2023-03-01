@@ -42,7 +42,6 @@ TEST_ERRORS = [[{"roi_slices": [slice(s, e, 2) for s, e in zip([-1, -2, 0], [Non
 
 TEST_LAZY_ERRORS = [[{"roi_start": [1, 0, 0], "roi_end": [1, 8, 8]}, (3, 3, 3, 3), (3, 0, 3, 3)]]
 
-
 func1 = {CenterSpatialCrop: {"roi_size": [8, 8, 6]}}
 func2 = {SpatialCrop: {"roi_center": [1, 1, 1], "roi_size": [3, 4, 3]}}
 func3 = {CenterScaleCrop: {"roi_scale": [0.6, 0.3, -1]}}
