@@ -41,7 +41,7 @@ for p in TEST_NDARRAYS_ALL:
                 ),
             },
             p(np.array([[[1, 2, 1], [2, 3, 2], [1, 2, 1]]])),
-            True
+            True,
         ]
     )
     TESTS.append(
@@ -53,7 +53,7 @@ for p in TEST_NDARRAYS_ALL:
                 )
             },
             p(np.array([[[3]]])),
-            False
+            False,
         ]
     )
     TESTS.append(
@@ -65,7 +65,7 @@ for p in TEST_NDARRAYS_ALL:
                 )
             },
             p(np.array([[[1, 2, 1], [2, 3, 2], [1, 2, 1]]])),
-            True
+            True,
         ]
     )
     TESTS.append(
@@ -77,7 +77,7 @@ for p in TEST_NDARRAYS_ALL:
                 )
             },
             p(np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0]]])),
-            True
+            True,
         ]
     )
     TESTS.append(
@@ -96,7 +96,7 @@ for p in TEST_NDARRAYS_ALL:
                 )
             },
             p(np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]])),
-            True
+            True,
         ]
     )
     TESTS.append(
@@ -129,7 +129,7 @@ for p in TEST_NDARRAYS_ALL:
                     ]
                 )
             ),
-            True
+            True,
         ]
     )
     TESTS.append(
@@ -152,7 +152,7 @@ for p in TEST_NDARRAYS_ALL:
                 )
             },
             p(np.array([[[0, 2, 1, 2, 0, 0], [1, 1, 2, 1, 1, 1], [2, 2, 3, 2, 2, 2], [1, 1, 2, 1, 1, 1]]])),
-            True
+            True,
         ]
     )
 
