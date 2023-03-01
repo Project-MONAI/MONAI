@@ -921,9 +921,7 @@ def verify_net_in_out(
     logger.info("data shape of network is verified with no error.")
 
 
-def _get_net_input_shape(
-    parser: ConfigParser | None = None, p: int | None = 1, n: int | None = 1, any: int | None = 1
-) -> tuple:
+def _get_net_input_shape(parser: ConfigParser | None = None, p: int = 1, n: int = 1, any: int = 1) -> tuple:
     """
     Get the input data defined in the metadata.
 

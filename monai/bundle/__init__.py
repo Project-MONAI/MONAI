@@ -26,6 +26,7 @@ from .scripts import (
     run,
     verify_metadata,
     verify_net_in_out,
+    trt_export,
 )
 from .utils import (
     DEFAULT_EXP_MGMT_SETTINGS,
