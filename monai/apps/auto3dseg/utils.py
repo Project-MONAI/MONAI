@@ -14,12 +14,11 @@ from __future__ import annotations
 import os
 from typing import Any
 
-# health_azure, has_health_azure = optional_import("health_azure")
-import health_azure
-
 from monai.apps.auto3dseg.bundle_gen import BundleAlgo
 from monai.auto3dseg import algo_from_pickle, algo_to_pickle
 from monai.utils import optional_import
+
+health_azure, has_health_azure = optional_import("health_azure")
 
 AZUREML_CONFIG_KEY = "azureml_config"
 

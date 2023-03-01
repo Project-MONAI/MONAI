@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import os
-import shutil
 import subprocess
 import sys
 from copy import deepcopy
@@ -21,8 +20,6 @@ from typing import Any, cast
 
 import numpy as np
 import torch
-from health_azure.himl import AZUREML_FLAG
-from health_azure.utils import is_running_in_azure_ml
 
 from monai.apps.auto3dseg.bundle_gen import BundleGen
 from monai.apps.auto3dseg.data_analyzer import DataAnalyzer
@@ -49,9 +46,7 @@ from monai.utils.module import look_up_option, optional_import
 logger = get_logger(module_name=__name__)
 
 nni, has_nni = optional_import("nni")
-
-
-RUNNING_IN_AZURE_ML = is_running_in_azure_ml()
+health_azure, has_health_azure = optional_import("health_azure")
 
 
 class AutoRunner:
@@ -236,7 +231,7 @@ class AutoRunner:
         templates_path_or_url: str | None = None,
         **kwargs: Any,
     ):
-        if RUNNING_IN_AZURE_ML:
+        if health_azure.utils.is_running_in_azure_ml():
             work_dir = "outputs"
 
         logger.info(f"AutoRunner using work directory {work_dir}")
@@ -262,7 +257,7 @@ class AutoRunner:
         if len(missing_keys) > 0:
             raise ValueError(f"Config keys are missing {missing_keys}")
 
-        if AZUREML_FLAG in sys.argv or RUNNING_IN_AZURE_ML:
+        if health_azure.himl.AZUREML_FLAG in sys.argv or health_azure.utils.is_running_in_azure_ml():
             run_info = submit_auto3dseg_module_to_azureml_if_needed(self.data_src_cfg[AZUREML_CONFIG_KEY])
             self.dataroot = run_info.input_datasets[0]
             self.data_src_cfg["dataroot"] = str(self.dataroot)
