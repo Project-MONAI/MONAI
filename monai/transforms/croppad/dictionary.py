@@ -705,7 +705,7 @@ class CropForegroundd(Cropd):
         return d
 
 
-class RandWeightedCropd(Randomizable, MapTransform, MultiSampleTrait):
+class RandWeightedCropd(Randomizable, MapTransform, LazyTransform, MultiSampleTrait):
     """
     Samples a list of `num_samples` image patches according to the provided `weight_map`.
 
@@ -747,6 +747,11 @@ class RandWeightedCropd(Randomizable, MapTransform, MultiSampleTrait):
     def randomize(self, weight_map: NdarrayOrTensor) -> None:
         self.cropper.randomize(weight_map)
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, value: bool) -> None:
+        self._lazy_evaluation = value
+        self.cropper.lazy_evaluation = value
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> list[dict[Hashable, torch.Tensor]]:
         # output starts as empty list of dictionaries
         ret: list = [dict(data) for _ in range(self.cropper.num_samples)]
@@ -757,7 +762,7 @@ class RandWeightedCropd(Randomizable, MapTransform, MultiSampleTrait):
 
         self.randomize(weight_map=data[self.w_key])
         for key in self.key_iterator(data):
-            for i, im in enumerate(self.cropper(data[key], weight_map=data[self.w_key], randomize=False)):
+            for i, im in enumerate(self.cropper(data[key], randomize=False)):
                 ret[i][key] = im
         return ret
 

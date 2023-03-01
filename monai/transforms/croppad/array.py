@@ -841,7 +841,7 @@ class CropForeground(Crop):
         return super().inverse(inv)
 
 
-class RandWeightedCrop(Randomizable, TraceableTransform, MultiSampleTrait):
+class RandWeightedCrop(Randomizable, TraceableTransform, LazyTransform, MultiSampleTrait):
     """
     Samples a list of `num_samples` image patches according to the provided `weight_map`.
 
@@ -865,9 +865,15 @@ class RandWeightedCrop(Randomizable, TraceableTransform, MultiSampleTrait):
         self.centers: list[np.ndarray] = []
 
     def randomize(self, weight_map: NdarrayOrTensor) -> None:
+        if isinstance(weight_map, MetaTensor) and weight_map.pending_operations:
+            warnings.warn("weight map has pending operations, the sampling may not be correct.")
         self.centers = weighted_patch_samples(
             spatial_size=self.spatial_size, w=weight_map[0], n_samples=self.num_samples, r_state=self.R
         )  # using only the first channel as weight map
+
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, _val: bool):
+        self._lazy_evaluation = _val
 
     def __call__(
         self, img: torch.Tensor, weight_map: NdarrayOrTensor | None = None, randomize: bool = True
@@ -883,25 +889,29 @@ class RandWeightedCrop(Randomizable, TraceableTransform, MultiSampleTrait):
         Returns:
             A list of image patches
         """
-        if weight_map is None:
-            weight_map = self.weight_map
-        if weight_map is None:
-            raise ValueError("weight map must be provided for weighted patch sampling.")
-        if img.shape[1:] != weight_map.shape[1:]:
-            raise ValueError(f"image and weight map spatial shape mismatch: {img.shape[1:]} vs {weight_map.shape[1:]}.")
+        img_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
 
         if randomize:
+            if weight_map is None:
+                weight_map = self.weight_map
+            if weight_map is None:
+                raise ValueError("weight map must be provided for weighted patch sampling.")
+            w_shape = weight_map.peek_pending_shape() if isinstance(weight_map, MetaTensor) else weight_map.shape[1:]
+            if img_shape != w_shape:
+                warnings.warn(f"image and weight map spatial shape mismatch: {img_shape} vs {w_shape}.")
             self.randomize(weight_map)
-        _spatial_size = fall_back_tuple(self.spatial_size, weight_map.shape[1:])
+
+        _spatial_size = fall_back_tuple(self.spatial_size, img_shape)
         results: list[torch.Tensor] = []
-        orig_size = img.shape[1:]
         for i, center in enumerate(self.centers):
-            cropped = SpatialCrop(roi_center=center, roi_size=_spatial_size)(img)
+            cropper = SpatialCrop(roi_center=center, roi_size=_spatial_size)
+            cropper.lazy_evaluation = self.lazy_evaluation
+            cropped = cropper(img)
             if get_track_meta():
                 ret_: MetaTensor = cropped  # type: ignore
                 ret_.meta[Key.PATCH_INDEX] = i
                 ret_.meta["crop_center"] = center
-                self.push_transform(ret_, orig_size=orig_size, extra_info=self.pop_transform(ret_, check=False))
+                self.push_transform(ret_, replace=True)
             results.append(cropped)
         return results
 
