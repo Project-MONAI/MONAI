@@ -1086,7 +1086,7 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
         return results
 
 
-class RandCropByLabelClasses(Randomizable, TraceableTransform, MultiSampleTrait):
+class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, MultiSampleTrait):
     """
     Crop random fixed sized regions with the center being a class based on the specified ratios of every class.
     The label data can be One-Hot format array or Argmax data. And will return a list of arrays for all the
@@ -1133,7 +1133,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, MultiSampleTrait)
             the spatial size of output data will be [32, 40, 40].
         ratios: specified ratios of every class in the label to generate crop centers, including background class.
             if None, every class will have the same ratio to generate crop centers.
-        label: the label image that is used for finding every classes, if None, must set at `self.__call__`.
+        label: the label image that is used for finding every class, if None, must set at `self.__call__`.
         num_classes: number of classes for argmax label, not necessary for One-Hot label.
         num_samples: number of samples (crop regions) to take in each list.
         image: if image is not None, only return the indices of every class that are within the valid
@@ -1176,19 +1176,32 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, MultiSampleTrait)
         self.allow_smaller = allow_smaller
 
     def randomize(
-        self, label: torch.Tensor, indices: list[NdarrayOrTensor] | None = None, image: torch.Tensor | None = None
+        self,
+        label: torch.Tensor | None = None,
+        indices: list[NdarrayOrTensor] | None = None,
+        image: torch.Tensor | None = None,
     ) -> None:
-        indices_: Sequence[NdarrayOrTensor]
-        if indices is None:
-            if self.indices is not None:
-                indices_ = self.indices
-            else:
-                indices_ = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
+        _shape = None
+        if label is None:
+            raise ValueError("label must not be None.")
         else:
-            indices_ = indices
+            _shape = label.peek_pending_shape() if isinstance(label, MetaTensor) else label.shape[1:]
+        if _shape is None:
+            raise ValueError("label or image must be provided to infer the output spatial shape.")
+        indices_ = self.indices if indices is None else indices
+        if indices_ is None:
+            if isinstance(label, MetaTensor) and label.pending_operations:
+                warnings.warn("label has pending operations, the fg/bg indices may be incorrect.")
+            if isinstance(image, MetaTensor) and image.pending_operations:
+                warnings.warn("image has pending operations, the fg/bg indices may be incorrect.")
+            indices_ = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
         self.centers = generate_label_classes_crop_centers(
-            self.spatial_size, self.num_samples, label.shape[1:], indices_, self.ratios, self.R, self.allow_smaller
+            self.spatial_size, self.num_samples, _shape, indices_, self.ratios, self.R, self.allow_smaller
         )
+
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, _val: bool):
+        self._lazy_evaluation = _val
 
     def __call__(
         self,
@@ -1209,26 +1222,25 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, MultiSampleTrait)
             randomize: whether to execute the random operations, default to `True`.
 
         """
-        if label is None:
-            label = self.label
-        if label is None:
-            raise ValueError("label should be provided.")
         if image is None:
             image = self.image
-
         if randomize:
+            if label is None:
+                label = self.label
             self.randomize(label, indices, image)
         results: list[torch.Tensor] = []
-        orig_size = img.shape[1:]
         if self.centers is not None:
+            img_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
+            roi_size = fall_back_tuple(self.spatial_size, default=img_shape)
             for i, center in enumerate(self.centers):
-                roi_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
-                cropped = SpatialCrop(roi_center=tuple(center), roi_size=roi_size)(img)
+                cropper = SpatialCrop(roi_center=tuple(center), roi_size=roi_size)
+                cropper.lazy_evaluation = self.lazy_evaluation
+                cropped = cropper(img)
                 if get_track_meta():
                     ret_: MetaTensor = cropped  # type: ignore
                     ret_.meta[Key.PATCH_INDEX] = i
                     ret_.meta["crop_center"] = center
-                    self.push_transform(ret_, orig_size=orig_size, extra_info=self.pop_transform(ret_, check=False))
+                    self.push_transform(ret_, replace=True)
                 results.append(cropped)
 
         return results

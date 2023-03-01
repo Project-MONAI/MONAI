@@ -891,7 +891,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, LazyTransform, MultiSam
         return ret
 
 
-class RandCropByLabelClassesd(Randomizable, MapTransform, MultiSampleTrait):
+class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSampleTrait):
     """
     Dictionary-based version :py:class:`monai.transforms.RandCropByLabelClasses`.
     Crop random fixed sized regions with the center being a class based on the specified ratios of every class.
@@ -1004,13 +1004,14 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, MultiSampleTrait):
     ) -> None:
         self.cropper.randomize(label=label, indices=indices, image=image)
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, value: bool) -> None:
+        self._lazy_evaluation = value
+        self.cropper.lazy_evaluation = value
+
     def __call__(self, data: Mapping[Hashable, Any]) -> list[dict[Hashable, torch.Tensor]]:
         d = dict(data)
-        label = d[self.label_key]
-        image = d[self.image_key] if self.image_key else None
-        indices = d.pop(self.indices_key, None) if self.indices_key is not None else None
-
-        self.randomize(label, indices, image)
+        self.randomize(d.get(self.label_key), d.pop(self.indices_key, None), d.get(self.image_key))  # type: ignore
 
         # initialize returned list with shallow copy to preserve key ordering
         ret: list = [dict(d) for _ in range(self.cropper.num_samples)]
@@ -1020,7 +1021,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, MultiSampleTrait):
                 ret[i][key] = deepcopy(d[key])
 
         for key in self.key_iterator(d):
-            for i, im in enumerate(self.cropper(d[key], label=label, randomize=False)):
+            for i, im in enumerate(self.cropper(d[key], randomize=False)):
                 ret[i][key] = im
         return ret
 
