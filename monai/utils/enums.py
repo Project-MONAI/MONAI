@@ -518,7 +518,7 @@ class MetaKeys(StrEnum):
     ORIGINAL_AFFINE = "original_affine"  # the affine after image loading before any data processing
     SPATIAL_SHAPE = "spatial_shape"  # optional key for the length in each spatial dimension
     SPACE = "space"  # possible values of space type are defined in `SpaceKeys`
-    ORIGINAL_CHANNEL_DIM = "original_channel_dim"  # an integer or "no_channel"
+    ORIGINAL_CHANNEL_DIM = "original_channel_dim"  # an integer or float("nan")
 
 
 class ColorOrder(StrEnum):

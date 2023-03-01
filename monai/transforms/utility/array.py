@@ -32,7 +32,7 @@ from monai.config import DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
-from monai.data.utils import no_collation
+from monai.data.utils import is_no_channel, no_collation
 from monai.networks.layers.simplelayers import (
     ApplyFilter,
     EllipticalFilter,
@@ -54,6 +54,7 @@ from monai.transforms.utils import (
 )
 from monai.transforms.utils_pytorch_numpy_unification import concatenate, in1d, moveaxis, unravel_indices
 from monai.utils import (
+    MetaKeys,
     TraceKeys,
     convert_data_type,
     convert_to_cupy,
@@ -267,9 +268,9 @@ class EnsureChannelFirst(Transform):
         if isinstance(img, MetaTensor):
             meta_dict = img.meta
 
-        channel_dim = meta_dict.get("original_channel_dim", None) if isinstance(meta_dict, Mapping) else None
+        channel_dim = meta_dict.get(MetaKeys.ORIGINAL_CHANNEL_DIM, None) if isinstance(meta_dict, Mapping) else None
         if self.input_channel_dim is not None:
-            channel_dim = self.input_channel_dim
+            channel_dim = float("nan") if self.input_channel_dim == "no_channel" else self.input_channel_dim
 
         if channel_dim is None:
             msg = "Unknown original_channel_dim in the MetaTensor meta dict or `meta_dict` or `channel_dim`."
@@ -280,12 +281,12 @@ class EnsureChannelFirst(Transform):
 
         # track the original channel dim
         if isinstance(meta_dict, dict):
-            meta_dict["original_channel_dim"] = channel_dim
+            meta_dict[MetaKeys.ORIGINAL_CHANNEL_DIM] = channel_dim
 
-        if channel_dim == "no_channel":
+        if is_no_channel(channel_dim):
             result = img[None]
         else:
-            result = moveaxis(img, channel_dim, 0)  # type: ignore
+            result = moveaxis(img, int(channel_dim), 0)  # type: ignore
 
         return convert_to_tensor(result, track_meta=get_track_meta())  # type: ignore
 
