@@ -17,7 +17,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.data.meta_tensor import MetaTensor
-from monai.transforms import RandSpatialCropd
+from monai.transforms import RandSpatialCropd, RandScaleCropd
 from monai.transforms.lazy.functional import apply_transforms
 from tests.croppers import CropTest
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
@@ -48,6 +48,15 @@ TEST_RANDOM_SHAPES = [
         (1, 3, 4, 3),
     ],
 ]
+
+func1 = {RandSpatialCropd: {"keys": "img", "roi_size": [8, 7, -1], "random_center": True, "random_size": False}}
+func2 = {RandScaleCropd: {"keys": "img", "roi_scale": [0.5, 0.6, -1.0], "random_center": True, "random_size": True}}
+func3 = {RandScaleCropd: {"keys": "img", "roi_scale": [1.0, 0.5, -1.0], "random_center": False, "random_size": False}}
+
+TESTS_COMBINE = []
+TESTS_COMBINE.append([[func1, func2, func3], (3, 10, 10, 8)])
+TESTS_COMBINE.append([[func1, func2], (3, 8, 8, 4)])
+TESTS_COMBINE.append([[func2, func2], (3, 8, 8, 4)])
 
 
 class TestRandSpatialCropd(CropTest):
@@ -92,7 +101,11 @@ class TestRandSpatialCropd(CropTest):
 
     @parameterized.expand(TEST_SHAPES)
     def test_pending_ops(self, input_param, input_shape, _):
-        return self.crop_test_pending_ops(input_param, input_shape)
+        self.crop_test_pending_ops(input_param, input_shape)
+
+    @parameterized.expand(TESTS_COMBINE)
+    def test_combine_ops(self, funcs, input_shape):
+        self.crop_test_combine_ops(funcs, input_shape)
 
 
 if __name__ == "__main__":
