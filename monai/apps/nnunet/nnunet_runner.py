@@ -111,6 +111,8 @@ class nnUNetRunner:
             if "test" in datalist_json or "testing" in datalist_json:
                 os.makedirs(os.path.join(raw_data_foldername, "imagesTr"))
                 test_key = "test" if "test" in datalist_json else "testing"
+                if type(datalist_json[test_key][0]) == dict and "label" in datalist_json[test_key][0]:
+                    os.makedirs(os.path.join(raw_data_foldername, "labelsTr"))
 
             img = monai.transforms.LoadImage(image_only=True, ensure_channel_first=True, simple_keys=True)(
                 os.path.join(data_dir, datalist_json["training"][0]["image"])
@@ -122,6 +124,7 @@ class nnUNetRunner:
             for _i in range(len(datalist_json["training"])):
                 seg = monai.transforms.LoadImage(image_only=True, ensure_channel_first=True, simple_keys=True)(
                     os.path.join(data_dir, datalist_json["training"][_i]["label"])
+
                 )
                 num_foreground_classes = max(num_foreground_classes, int(seg.max()))
             print(f"num_foreground_classes: {num_foreground_classes}")
@@ -158,7 +161,7 @@ class nnUNetRunner:
             new_datalist_json["training"] = []
             new_datalist_json[test_key] = []
 
-            for _key, _folder in list(zip(["training", test_key], ["imagesTs", "imagesTr"])):
+            for _key, _folder, _label_folder in list(zip(["training", test_key], ["imagesTs", "imagesTr"], ["labelsTs", "labelsTr"])):
                 if _key == None:
                     continue
 
