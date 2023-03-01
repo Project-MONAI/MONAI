@@ -204,7 +204,7 @@ class ITKReader(ImageReader):
 
     def __init__(
         self,
-        channel_dim: int | None = None,
+        channel_dim: str | int | None = None,
         series_name: str = "",
         reverse_indexing: bool = False,
         series_meta: bool = False,
@@ -366,7 +366,7 @@ class ITKReader(ImageReader):
         sr = itk.array_from_matrix(img.GetDirection()).shape[0]
         sr = max(min(sr, 3), 1)
         _size = list(itk.size(img))
-        if self.channel_dim is not None:
+        if isinstance(self.channel_dim, int):
             _size.pop(self.channel_dim)
         return np.asarray(_size[:sr])
 
@@ -1141,13 +1141,17 @@ class PILReader(ImageReader):
     Args:
         converter: additional function to convert the image data after `read()`.
             for example, use `converter=lambda image: image.convert("LA")` to convert image format.
+        reverse_indexing: whether to swap axis 0 and 1 after loading the array, this is enabled by default,
+            so that output of the reader is consistent with the other readers. Set this option to ``False`` to use
+            the PIL backend's original spatial axes convention.
         kwargs: additional args for `Image.open` API in `read()`, mode details about available args:
             https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.open
     """
 
-    def __init__(self, converter: Callable | None = None, **kwargs):
+    def __init__(self, converter: Callable | None = None, reverse_indexing: bool = True, **kwargs):
         super().__init__()
         self.converter = converter
+        self.reverse_indexing = reverse_indexing
         self.kwargs = kwargs
 
     def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
@@ -1194,8 +1198,8 @@ class PILReader(ImageReader):
         It computes `spatial_shape` and stores it in meta dict.
         When loading a list of files, they are stacked together at a new dimension as the first dimension,
         and the metadata of the first image is used to represent the output metadata.
-        Note that it will swap axis 0 and 1 after loading the array because the `HW` definition in PIL
-        is different from other common medical packages.
+        Note that by default `self.reverse_indexing` is set to ``True``, which swaps axis 0 and 1 after loading
+        the array because the spatial axes definition in PIL is different from other common medical packages.
 
         Args:
             img: a PIL Image object loaded from a file or a list of PIL Image objects.
@@ -1207,7 +1211,7 @@ class PILReader(ImageReader):
         for i in ensure_tuple(img):
             header = self._get_meta_dict(i)
             header[MetaKeys.SPATIAL_SHAPE] = self._get_spatial_shape(i)
-            data = np.moveaxis(np.asarray(i), 0, 1)
+            data = np.moveaxis(np.asarray(i), 0, 1) if self.reverse_indexing else np.asarray(i)
             img_array.append(data)
             header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
                 "no_channel" if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
@@ -1518,6 +1522,9 @@ class NrrdReader(ImageReader):
         dtype: dtype of the data array when loading image.
         index_order: Specify whether the returned data array should be in C-order (‘C’) or Fortran-order (‘F’).
             Numpy is usually in C-order, but default on the NRRD header is F
+        affine_lps_to_ras: whether to convert the affine matrix from "LPS" to "RAS". Defaults to ``True``.
+            Set to ``True`` to be consistent with ``NibabelReader``, otherwise the affine matrix is unmodified.
+
         kwargs: additional args for `nrrd.read` API. more details about available args:
             https://github.com/mhe/pynrrd/blob/master/nrrd/reader.py
 
@@ -1528,11 +1535,13 @@ class NrrdReader(ImageReader):
         channel_dim: int | None = None,
         dtype: np.dtype | type | str | None = np.float32,
         index_order: str = "F",
+        affine_lps_to_ras: bool = True,
         **kwargs,
     ):
         self.channel_dim = channel_dim
         self.dtype = dtype
         self.index_order = index_order
+        self.affine_lps_to_ras = affine_lps_to_ras
         self.kwargs = kwargs
 
     def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
@@ -1586,7 +1595,10 @@ class NrrdReader(ImageReader):
             if self.index_order == "C":
                 header = self._convert_f_to_c_order(header)
             header[MetaKeys.ORIGINAL_AFFINE] = self._get_affine(i)
-            header = self._switch_lps_ras(header)
+
+            if self.affine_lps_to_ras:
+                header = self._switch_lps_ras(header)
+
             header[MetaKeys.AFFINE] = header[MetaKeys.ORIGINAL_AFFINE].copy()
             header[MetaKeys.SPATIAL_SHAPE] = header["sizes"]
             [header.pop(k) for k in ("sizes", "space origin", "space directions")]  # rm duplicated data in header
