@@ -322,6 +322,8 @@ class WSIReader(BaseWSIReader):
 
     """
 
+    supported_backends = ["cucim", "openslide", "tifffile"]
+
     def __init__(
         self,
         backend="cucim",
