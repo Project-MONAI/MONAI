@@ -21,7 +21,16 @@ from monai.utils import optional_import
 
 yaml, _ = optional_import("yaml")
 
-__all__ = ["ID_REF_KEY", "ID_SEP_KEY", "EXPR_KEY", "MACRO_KEY", "DEFAULT_MLFLOW_SETTINGS", "DEFAULT_EXP_MGMT_SETTINGS"]
+__all__ = [
+    "ID_REF_KEY",
+    "ID_SEP_KEY",
+    "EXPR_KEY",
+    "MACRO_KEY",
+    "DEFAULT_MLFLOW_SETTINGS",
+    "DEFAULT_CLEARML_STATS_SETTINGS",
+    "DEFAULT_CLEARML_IMAGE_SETTINGS",
+    "DEFAULT_EXP_MGMT_SETTINGS",
+]
 
 ID_REF_KEY = "@"  # start of a reference to a ConfigItem
 ID_SEP_KEY = "#"  # separator for the ID of a ConfigItem
@@ -156,15 +165,109 @@ DEFAULT_MLFLOW_SETTINGS = {
 }
 
 DEFAULT_CLEARML_STATS_SETTINGS = {
-
+    "handlers_id": DEFAULT_HANDLERS_ID,
+    "configs": {
+        "experiment_name": "monai_experiment",
+        # may fill it at runtime
+        "execute_config": None,
+        "is_not_rank0": (
+            "$torch.distributed.is_available() \
+                and torch.distributed.is_initialized() and torch.distributed.get_rank() > 0"
+        ),
+        # ClearMLStatsHandler config for the trainer
+        "trainer": {
+            "_target_": "ClearMLStatsHandler",
+            "_disabled_": "@is_not_rank0",
+            "project_name": "MONAI",
+            "task_name": "@experiment_name",
+            "output_uri:": "True",
+            "tags": "None",
+            "reuse_last_task_id": "True",
+            "continue_last_task": "False",
+            "auto_connect_frameworks": "True",
+        },
+        # ClearMLStatsHandler config for the validator
+        "validator": {
+            "_target_": "ClearMLStatsHandler",
+            "_disabled_": "@is_not_rank0",
+            "project_name": "MONAI",
+            "task_name": "@experiment_name",
+            "output_uri:": "True",
+            "tags": "None",
+            "reuse_last_task_id": "True",
+            "continue_last_task": "False",
+            "auto_connect_frameworks": "True",
+        },
+        # ClearMLStatsHandler config for the evaluator
+        "evaluator": {
+            "_target_": "ClearMLStatsHandler",
+            "_disabled_": "@is_not_rank0",
+            "project_name": "MONAI",
+            "task_name": "@experiment_name",
+            "output_uri:": "True",
+            "tags": "None",
+            "reuse_last_task_id": "True",
+            "continue_last_task": "False",
+            "auto_connect_frameworks": "True",
+        },
+    },
 }
 
 DEFAULT_CLEARML_IMAGE_SETTINGS = {
-
+    "handlers_id": DEFAULT_HANDLERS_ID,
+    "configs": {
+        "experiment_name": "monai_experiment",
+        # may fill it at runtime
+        "execute_config": None,
+        "is_not_rank0": (
+            "$torch.distributed.is_available() \
+                and torch.distributed.is_initialized() and torch.distributed.get_rank() > 0"
+        ),
+        # ClearMLImageHandler config for the trainer
+        "trainer": {
+            "_target_": "ClearMLImageHandler",
+            "_disabled_": "@is_not_rank0",
+            "project_name": "MONAI",
+            "task_name": "@experiment_name",
+            "output_uri:": "True",
+            "tags": "None",
+            "reuse_last_task_id": "True",
+            "continue_last_task": "False",
+            "auto_connect_frameworks": "True",
+        },
+        # ClearMLImageHandler config for the validator
+        "validator": {
+            "_target_": "ClearMLImageHandler",
+            "_disabled_": "@is_not_rank0",
+            "project_name": "MONAI",
+            "task_name": "@experiment_name",
+            "output_uri:": "True",
+            "tags": "None",
+            "reuse_last_task_id": "True",
+            "continue_last_task": "False",
+            "auto_connect_frameworks": "True",
+        },
+        # ClearMLImageHandler config for the evaluator
+        "evaluator": {
+            "_target_": "ClearMLImageHandler",
+            "_disabled_": "@is_not_rank0",
+            "project_name": "MONAI",
+            "task_name": "@experiment_name",
+            "output_uri:": "True",
+            "tags": "None",
+            "reuse_last_task_id": "True",
+            "continue_last_task": "False",
+            "auto_connect_frameworks": "True",
+        },
+    },
 }
 
 
-DEFAULT_EXP_MGMT_SETTINGS = {"mlflow": DEFAULT_MLFLOW_SETTINGS}  # default experiment management settings
+DEFAULT_EXP_MGMT_SETTINGS = {
+    "mlflow": DEFAULT_MLFLOW_SETTINGS,
+    "clearml_stats": DEFAULT_CLEARML_STATS_SETTINGS,
+    "clearml_image": DEFAULT_CLEARML_IMAGE_SETTINGS,
+}  # default experiment management settings
 
 
 def load_bundle_config(bundle_path: str, *config_names: str, **load_kw_args: Any) -> Any:

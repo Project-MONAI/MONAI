@@ -189,6 +189,17 @@ MLFlow handler
 .. autoclass:: MLFlowHandler
     :members:
 
+ClearML handlers
+--------------------
+.. autoclass:: ClearMLHandler
+    :members:
+
+.. autoclass:: ClearMLStatsHandler
+    :members:
+
+.. autoclass:: ClearMLImageHandler
+    :members:
+
 NVTX Handlers
 -------------
 .. automodule:: monai.handlers.nvtx_handlers

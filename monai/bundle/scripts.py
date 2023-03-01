@@ -650,6 +650,8 @@ def run(
             Default to "configs/logging.conf", which is commonly used for bundles in MONAI model zoo.
         tracking: enable the experiment tracking feature at runtime with optionally configurable and extensible.
             if "mlflow", will add `MLFlowHandler` to the parsed bundle with default logging settings,
+            if "clearml_stats", will add `ClearMLStatsHandler` to the parsed bundle with default logging settings,
+            if "clearml_image", will add `ClearMLImageHandler` to the parsed bundle with default logging settings,
             if other string, treat it as file path to load the logging settings, if `dict`,
             treat it as logging settings, otherwise, use all the default settings.
             will patch the target config content with `tracking handlers` and the top-level items of `configs`.

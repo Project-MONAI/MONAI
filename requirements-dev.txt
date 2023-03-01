@@ -36,6 +36,7 @@ requests
 einops
 transformers<4.22  # https://github.com/Project-MONAI/MONAI/issues/5157
 mlflow>=1.28.0
+clearml >=1.9.1
 matplotlib!=3.5.0
 tensorboardX
 types-PyYAML

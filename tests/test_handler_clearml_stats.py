@@ -26,7 +26,7 @@ class TestHandlerClearMLStatsHandler(unittest.TestCase):
         try:
             ClearMLStatsHandler(
                 project_name="MONAI",
-                task_name="Default Task",
+                task_name="monai_experiment",
                 output_uri=True,
                 tags=None,
                 reuse_last_task_id=True,
@@ -35,7 +35,7 @@ class TestHandlerClearMLStatsHandler(unittest.TestCase):
             )
         except Exception as exc:
             self.fail(exc)
-        self.assertEqual(Task.current_task().name, "Default Task")
+        self.assertEqual(Task.current_task().name, "monai_experiment")
         self.assertEqual(Task.current_task()._project_name[1], "MONAI")
 
 

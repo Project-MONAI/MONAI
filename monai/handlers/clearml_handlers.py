@@ -40,16 +40,17 @@ class ClearMLHandler:
         reuse_last_task_id: bool,
         continue_last_task: bool,
         auto_connect_frameworks: bool | Mapping[str, bool | str | list],
-    ):
+    ) -> None:
         """
         Args:
-            project_name:               ClearML project name.
-            task_name:                  ClearML task name.
-            output_uri:                 The default location for output models and other artifacts.
-            tags:                       A list of tags (str) to the created Task.
-            reuse_last_task_id:         Force a new Task (experiment) with a previously used Task ID.
-            continue_last_task:         Continue the execution of a previously executed Task (experiment).
-            auto_connect_frameworks:    Automatically connect frameworks.
+            project_name: ClearML project name, default to 'MONAI'.
+            task_name: ClearML task name, default to 'monai_experiment'.
+            output_uri: The default location for output models and other artifacts, default to 'True'.
+            tags: A list of tags (str) to the created Task, default to 'None'.
+            reuse_last_task_id: Force a new Task (experiment) with a previously used Task ID, default to 'True'.
+            continue_last_task: Continue the execution of a previously executed Task (experiment), default to 'False'.
+            auto_connect_frameworks: Automatically connect frameworks, default to 'True'.
+
         """
 
         if Task.current_task():
@@ -77,7 +78,7 @@ class ClearMLStatsHandler(ClearMLHandler, TensorBoardStatsHandler):
     def __init__(
         self,
         project_name: str | None = "MONAI",
-        task_name: str | None = "Default Task",
+        task_name: str | None = "monai_experiment",
         output_uri: str | bool = True,
         tags: Sequence[str] | None = None,
         reuse_last_task_id: bool = True,
@@ -85,16 +86,17 @@ class ClearMLStatsHandler(ClearMLHandler, TensorBoardStatsHandler):
         auto_connect_frameworks: bool | Mapping[str, bool | str | list] = True,
         *args,
         **kwargs,
-    ):
+    ) -> None:
         """
         Args:
-            project_name:               ClearML project name.
-            task_name:                  ClearML task name.
-            output_uri:                 The default location for output models and other artifacts.
-            tags:                       A list of tags (str) to the created Task.
-            reuse_last_task_id:         Force a new Task (experiment) with a previously used Task ID.
-            continue_last_task:         Continue the execution of a previously executed Task (experiment).
-            auto_connect_frameworks:    Automatically connect frameworks.
+            project_name: ClearML project name, default to 'MONAI'.
+            task_name: ClearML task name, default to 'monai_experiment'.
+            output_uri: The default location for output models and other artifacts, default to 'True'.
+            tags: A list of tags (str) to the created Task, default to 'None'.
+            reuse_last_task_id: Force a new Task (experiment) with a previously used Task ID, default to 'True'.
+            continue_last_task: Continue the execution of a previously executed Task (experiment), default to 'False'.
+            auto_connect_frameworks: Automatically connect frameworks, default to 'True'.
+
         """
 
         ClearMLHandler.__init__(
@@ -121,7 +123,7 @@ class ClearMLImageHandler(ClearMLHandler, TensorBoardImageHandler):
     def __init__(
         self,
         project_name: str | None = "MONAI",
-        task_name: str | None = "Default Task",
+        task_name: str | None = "monai_experiment",
         output_uri: str | bool = True,
         tags: Sequence[str] | None = None,
         reuse_last_task_id: bool = True,
@@ -132,13 +134,13 @@ class ClearMLImageHandler(ClearMLHandler, TensorBoardImageHandler):
     ):
         """
         Args:
-            project_name:               ClearML project name.
-            task_name:                  ClearML task name.
-            output_uri:                 The default location for output models and other artifacts.
-            tags:                       A list of tags (str) to the created Task.
-            reuse_last_task_id:         Force a new Task (experiment) with a previously used Task ID.
-            continue_last_task:         Continue the execution of a previously executed Task (experiment).
-            auto_connect_frameworks:    Automatically connect frameworks.
+            project_name: ClearML project name, default to 'MONAI'.
+            task_name: ClearML task name, default to 'monai_experiment'.
+            output_uri: The default location for output models and other artifacts, default to 'True'.
+            tags: A list of tags (str) to the created Task, default to 'None'.
+            reuse_last_task_id: Force a new Task (experiment) with a previously used Task ID, default to 'True'.
+            continue_last_task: Continue the execution of a previously executed Task (experiment), default to 'False'.
+            auto_connect_frameworks: Automatically connect frameworks, default to 'True'.
 
         """
 
