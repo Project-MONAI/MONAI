@@ -16,6 +16,7 @@ import unittest
 import numpy as np
 import torch
 from parameterized import parameterized
+from copy import deepcopy
 
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import ResizeWithPadOrCropd
@@ -53,17 +54,20 @@ class TestResizeWithPadOrCropd(unittest.TestCase):
             ):
                 continue
             padcropper = ResizeWithPadOrCropd(**input_param)
-            input_data["img"] = p(input_data["img"])
-            result = padcropper(input_data)
+            input_data_ = deepcopy(input_data)
+            input_data_["img"] = p(input_data["img"])
+            result = padcropper(input_data_)
             np.testing.assert_allclose(result["img"].shape, expected_val)
             inv = padcropper.inverse(result)
-            for k in input_data:
-                self.assertTupleEqual(inv[k].shape, input_data[k].shape)
+            for k in input_data_:
+                self.assertTupleEqual(inv[k].shape, input_data_[k].shape)
 
-    # exlude last test case since grid sample only support constant value to be zero
-    @parameterized.expand(TEST_CASES[:4])
+    @parameterized.expand(TEST_CASES)
     def test_pending_ops(self, input_param, input_data, _expected_data):
         for p in TEST_NDARRAYS_ALL:
+            # grid sample only support constant value to be zero
+            if "constant_values" in input_param and input_param["constant_values"] != 0:
+                continue
             padcropper = ResizeWithPadOrCropd(**input_param)
             input_data["img"] = p(input_data["img"])
             # non-lazy

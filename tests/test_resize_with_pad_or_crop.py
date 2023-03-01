@@ -67,10 +67,12 @@ class TestResizeWithPadOrCrop(unittest.TestCase):
             self.assertIsInstance(inv, MetaTensor)
             self.assertEqual(inv.applied_operations, [])
 
-    # exlude last test case since grid sample only support constant value to be zero
-    @parameterized.expand(TEST_CASES[:4])
+    @parameterized.expand(TEST_CASES)
     def test_pending_ops(self, input_param, input_shape, _expected_data, align_corners):
         for p in TEST_NDARRAYS_ALL:
+            # grid sample only support constant value to be zero
+            if "constant_values" in input_param and input_param["constant_values"] != 0:
+                continue
             padcropper = ResizeWithPadOrCrop(**input_param)
             image = p(np.zeros(input_shape))
             # non-lazy
