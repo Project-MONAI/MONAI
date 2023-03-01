@@ -16,7 +16,6 @@ import monai
 import nibabel as nib
 import os
 import shutil
-import torch
 
 from batchgenerators.utilities.file_and_folder_operations import join, load_pickle
 
@@ -94,11 +93,11 @@ class nnUNetRunner:
             os.makedirs(raw_data_foldername)
 
         datalist_json = ConfigParser.load_config_file(self.input_info.pop("datalist"))
-        
+
         if "training" in datalist_json:
             os.makedirs(os.path.join(raw_data_foldername, "imagesTs"))
             os.makedirs(os.path.join(raw_data_foldername, "labelsTs"))
-        
+
         if "test" in datalist_json or "testing" in datalist_json:
             os.makedirs(os.path.join(raw_data_foldername, "imagesTr"))
             test_key = "test" if "test" in datalist_json else "testing"
@@ -114,7 +113,7 @@ class nnUNetRunner:
         print(f"num_foreground_classes: {num_foreground_classes}")
 
         new_json_data = {}
-        
+
         modality = self.input_info.pop("modality")
         if type(modality) != list:
             modality = [modality]
@@ -144,7 +143,7 @@ class nnUNetRunner:
                 if img_name[0] == "/":
                     img_name = img_name[1:]
             img_name = img_name[:-len(new_json_data["file_ending"])].replace(os.sep, "") + new_json_data["file_ending"]
-            
+
             # copy image
             if num_input_channels == 1:
                 shutil.copy2(
@@ -175,7 +174,7 @@ class nnUNetRunner:
         #             if img_name[0] == "/":
         #                 img_name = img_name[1:]
         #         img_name = img_name[:-len(new_json_data["file_ending"])].replace(os.sep, "") + new_json_data["file_ending"]
-                
+
         #         # copy image
         #         if num_input_channels == 1:
         #             shutil.copy2(
