@@ -1188,7 +1188,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
             if isinstance(image, MetaTensor) and image.pending_operations:
                 warnings.warn("image has pending operations, the fg/bg indices may be incorrect.")
             if label is None:
-                raise ValueError("label must not be None")
+                raise ValueError("label must not be None.")
             indices_ = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
         _shape = None
         if label is not None:

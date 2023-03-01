@@ -364,7 +364,8 @@ class RandCropd(Cropd, Randomizable):
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         # the first key must exist to execute random operations
-        self.randomize(d[self.first_key(d)].shape[1:])
+        first_item = d[self.first_key(d)]
+        self.randomize(first_item.peek_pending_shape() if isinstance(first_item, MetaTensor) else first_item.shape[1:])
         for key in self.key_iterator(d):
             kwargs = {"randomize": False} if isinstance(self.cropper, Randomizable) else {}
             d[key] = self.cropper(d[key], **kwargs)  # type: ignore
