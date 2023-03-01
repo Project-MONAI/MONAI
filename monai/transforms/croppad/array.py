@@ -1007,14 +1007,6 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
         bg_indices: NdarrayOrTensor | None = None,
         image: torch.Tensor | None = None,
     ) -> None:
-        _shape = None
-        if label is None:
-            raise ValueError("label must be provided.")
-        else:
-            _shape = label.peek_pending_shape() if isinstance(label, MetaTensor) else label.shape[1:]
-        if _shape is None:
-            raise ValueError("label or image must be provided to get the spatial shape.")
-
         fg_indices_ = self.fg_indices if fg_indices is None else fg_indices
         bg_indices_ = self.bg_indices if bg_indices is None else bg_indices
         if fg_indices_ is None or bg_indices_ is None:
@@ -1022,7 +1014,16 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
                 warnings.warn("label has pending operations, the fg/bg indices may be incorrect.")
             if isinstance(image, MetaTensor) and image.pending_operations:
                 warnings.warn("image has pending operations, the fg/bg indices may be incorrect.")
+            if label is None:
+                raise ValueError("label must be provided.")
             fg_indices_, bg_indices_ = map_binary_to_indices(label, image, self.image_threshold)
+        _shape = None
+        if label is not None:
+            _shape = label.peek_pending_shape() if isinstance(label, MetaTensor) else label.shape[1:]
+        elif image is not None:
+            _shape = image.peek_pending_shape() if isinstance(image, MetaTensor) else image.shape[1:]
+        if _shape is None:
+            raise ValueError("label or image must be provided to get the spatial shape.")
         self.centers = generate_pos_neg_label_crop_centers(
             self.spatial_size,
             self.num_samples,
@@ -1180,20 +1181,22 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
         indices: list[NdarrayOrTensor] | None = None,
         image: torch.Tensor | None = None,
     ) -> None:
-        _shape = None
-        if label is None:
-            raise ValueError("label must not be None.")
-        else:
-            _shape = label.peek_pending_shape() if isinstance(label, MetaTensor) else label.shape[1:]
-        if _shape is None:
-            raise ValueError("label or image must be provided to infer the output spatial shape.")
         indices_ = self.indices if indices is None else indices
         if indices_ is None:
             if isinstance(label, MetaTensor) and label.pending_operations:
                 warnings.warn("label has pending operations, the fg/bg indices may be incorrect.")
             if isinstance(image, MetaTensor) and image.pending_operations:
                 warnings.warn("image has pending operations, the fg/bg indices may be incorrect.")
+            if label is None:
+                raise ValueError("label must not be None")
             indices_ = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
+        _shape = None
+        if label is not None:
+            _shape = label.peek_pending_shape() if isinstance(label, MetaTensor) else label.shape[1:]
+        elif image is not None:
+            _shape = image.peek_pending_shape() if isinstance(image, MetaTensor) else image.shape[1:]
+        if _shape is None:
+            raise ValueError("label or image must be provided to infer the output spatial shape.")
         self.centers = generate_label_classes_crop_centers(
             self.spatial_size, self.num_samples, _shape, indices_, self.ratios, self.R, self.allow_smaller
         )
