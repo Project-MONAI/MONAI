@@ -89,6 +89,7 @@ from .croppad.dictionary import (
     SpatialPadD,
     SpatialPadDict,
 )
+from .croppad.functional import pad_func, pad_nd
 from .intensity.array import (
     AdjustContrast,
     ComputeHoVerMaps,
@@ -453,18 +454,9 @@ from .spatial.dictionary import (
     ZoomD,
     ZoomDict,
 )
-from .transform import (
-    LazyTrait,
-    LazyTransform,
-    MapTransform,
-    MultiSampleTrait,
-    Randomizable,
-    RandomizableTrait,
-    RandomizableTransform,
-    ThreadUnsafe,
-    Transform,
-    apply_transform,
-)
+from .spatial.functional import spatial_resample
+from .traits import LazyTrait, MultiSampleTrait, RandomizableTrait, ThreadUnsafe
+from .transform import LazyTransform, MapTransform, Randomizable, RandomizableTransform, Transform, apply_transform
 from .utility.array import (
     AddChannel,
     AddCoordinateChannels,

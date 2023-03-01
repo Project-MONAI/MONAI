@@ -873,6 +873,7 @@ def create_translate(
         backend: APIs to use, ``numpy`` or ``torch``.
     """
     _backend = look_up_option(backend, TransformBackends)
+    spatial_dims = int(spatial_dims)
     if _backend == TransformBackends.NUMPY:
         return _create_translate(spatial_dims=spatial_dims, shift=shift, eye_func=np.eye, array_func=np.asarray)
     if _backend == TransformBackends.TORCH:
@@ -1627,13 +1628,13 @@ def convert_pad_mode(dst: NdarrayOrTensor, mode: str | None):
     if isinstance(dst, torch.Tensor):
         if mode == "wrap":
             mode = "circular"
-        if mode == "edge":
+        elif mode == "edge":
             mode = "replicate"
         return look_up_option(mode, PytorchPadMode)
     if isinstance(dst, np.ndarray):
         if mode == "circular":
             mode = "wrap"
-        if mode == "replicate":
+        elif mode == "replicate":
             mode = "edge"
         return look_up_option(mode, NumpyPadMode)
     raise ValueError(f"unsupported data type: {type(dst)}.")

@@ -121,8 +121,9 @@ class TraceableTransform(Transform):
                 return data.copy_meta_from(meta_obj)
             if do_transform:
                 xform = data.pending_operations.pop()
+                extra = xform.copy()
                 xform.update(transform_info)
-                meta_obj = self.push_transform(data, transform_info=xform, lazy_evaluation=lazy_eval)
+                meta_obj = self.push_transform(data, transform_info=xform, lazy_evaluation=lazy_eval, extra_info=extra)
                 return data.copy_meta_from(meta_obj)
             return data
         kwargs["lazy_evaluation"] = lazy_eval
@@ -177,9 +178,9 @@ class TraceableTransform(Transform):
         if not lazy_evaluation and affine is not None and isinstance(data_t, MetaTensor):
             # not lazy evaluation, directly update the metatensor affine (don't push to the stack)
             orig_affine = data_t.peek_pending_affine()
-            orig_affine = convert_to_dst_type(orig_affine, affine)[0]
-            affine = orig_affine @ to_affine_nd(len(orig_affine) - 1, affine, dtype=affine.dtype)
-            out_obj.meta[MetaKeys.AFFINE] = convert_to_tensor(affine, device=torch.device("cpu"))
+            orig_affine = convert_to_dst_type(orig_affine, affine, dtype=torch.float64)[0]
+            affine = orig_affine @ to_affine_nd(len(orig_affine) - 1, affine, dtype=torch.float64)
+            out_obj.meta[MetaKeys.AFFINE] = convert_to_tensor(affine, device=torch.device("cpu"), dtype=torch.float64)
 
         if not (get_track_meta() and transform_info and transform_info.get(TraceKeys.TRACING)):
             if isinstance(data, Mapping):
@@ -199,6 +200,8 @@ class TraceableTransform(Transform):
             info[TraceKeys.ORIG_SIZE] = data_t.shape[1:]
         # include extra_info
         if extra_info is not None:
+            extra_info.pop(LazyAttr.SHAPE, None)
+            extra_info.pop(LazyAttr.AFFINE, None)
             info[TraceKeys.EXTRA_INFO] = extra_info
 
         # push the transform info to the applied_operation or pending_operation stack

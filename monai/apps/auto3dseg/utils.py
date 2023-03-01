@@ -16,7 +16,6 @@ from typing import Any
 
 from monai.apps.auto3dseg.bundle_gen import BundleAlgo
 from monai.auto3dseg import algo_from_pickle, algo_to_pickle
-from monai.utils import optional_import
 
 health_azure, has_health_azure = optional_import("health_azure")
 
