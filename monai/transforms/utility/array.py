@@ -372,8 +372,6 @@ class SplitDim(Transform, MultiSampleTrait):
         Apply the transform to `img`.
         """
         n_out = img.shape[self.dim]
-        if n_out <= 1:
-            raise RuntimeError(f"Input image is singleton along dimension to be split, got shape {img.shape}.")
         if isinstance(img, torch.Tensor):
             outputs = list(torch.split(img, 1, self.dim))
         else:
