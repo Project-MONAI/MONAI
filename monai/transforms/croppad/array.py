@@ -916,7 +916,7 @@ class RandWeightedCrop(Randomizable, TraceableTransform, LazyTransform, MultiSam
         return results
 
 
-class RandCropByPosNegLabel(Randomizable, TraceableTransform, MultiSampleTrait):
+class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, MultiSampleTrait):
     """
     Crop random fixed sized regions with the center being a foreground or background voxel
     based on the Pos Neg Ratio.
@@ -1003,30 +1003,41 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, MultiSampleTrait):
 
     def randomize(
         self,
-        label: torch.Tensor,
+        label: torch.Tensor | None = None,
         fg_indices: NdarrayOrTensor | None = None,
         bg_indices: NdarrayOrTensor | None = None,
         image: torch.Tensor | None = None,
     ) -> None:
-        if fg_indices is None or bg_indices is None:
-            if self.fg_indices is not None and self.bg_indices is not None:
-                fg_indices_ = self.fg_indices
-                bg_indices_ = self.bg_indices
-            else:
-                fg_indices_, bg_indices_ = map_binary_to_indices(label, image, self.image_threshold)
+        _shape = None
+        if label is None:
+            raise ValueError("label must be provided.")
         else:
-            fg_indices_ = fg_indices
-            bg_indices_ = bg_indices
+            _shape = label.peek_pending_shape() if isinstance(label, MetaTensor) else label.shape[1:]
+        if _shape is None:
+            raise ValueError("label or image must be provided to get the spatial shape.")
+
+        fg_indices_ = self.fg_indices if fg_indices is None else fg_indices
+        bg_indices_ = self.bg_indices if bg_indices is None else bg_indices
+        if fg_indices_ is None or bg_indices_ is None:
+            if isinstance(label, MetaTensor) and label.pending_operations:
+                warnings.warn("label has pending operations, the fg/bg indices may be incorrect.")
+            if isinstance(image, MetaTensor) and image.pending_operations:
+                warnings.warn("image has pending operations, the fg/bg indices may be incorrect.")
+            fg_indices_, bg_indices_ = map_binary_to_indices(label, image, self.image_threshold)
         self.centers = generate_pos_neg_label_crop_centers(
             self.spatial_size,
             self.num_samples,
             self.pos_ratio,
-            label.shape[1:],
+            _shape,
             fg_indices_,
             bg_indices_,
             self.R,
             self.allow_smaller,
         )
+
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, _val: bool):
+        self._lazy_evaluation = _val
 
     def __call__(
         self,
@@ -1052,26 +1063,25 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, MultiSampleTrait):
             randomize: whether to execute the random operations, default to `True`.
 
         """
-        if label is None:
-            label = self.label
-        if label is None:
-            raise ValueError("label should be provided.")
         if image is None:
             image = self.image
-
         if randomize:
+            if label is None:
+                label = self.label
             self.randomize(label, fg_indices, bg_indices, image)
         results: list[torch.Tensor] = []
-        orig_size = img.shape[1:]
         if self.centers is not None:
+            img_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
+            roi_size = fall_back_tuple(self.spatial_size, default=img_shape)
             for i, center in enumerate(self.centers):
-                roi_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
-                cropped = SpatialCrop(roi_center=center, roi_size=roi_size)(img)
+                cropper = SpatialCrop(roi_center=center, roi_size=roi_size)
+                cropper.lazy_evaluation = self.lazy_evaluation
+                cropped = cropper(img)
                 if get_track_meta():
                     ret_: MetaTensor = cropped  # type: ignore
                     ret_.meta[Key.PATCH_INDEX] = i
                     ret_.meta["crop_center"] = center
-                    self.push_transform(ret_, orig_size=orig_size, extra_info=self.pop_transform(ret_, check=False))
+                    self.push_transform(ret_, replace=True)
                 results.append(cropped)
         return results
 
