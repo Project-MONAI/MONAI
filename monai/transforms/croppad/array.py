@@ -813,7 +813,6 @@ class CropForeground(Crop):
         # combine the traced cropping and padding into one transformation
         # by taking the padded info and placing it in a key inside the crop info.
         if get_track_meta() and isinstance(ret, MetaTensor):
-            # ops = ret.applied_operations if not self.lazy_evaluation else ret.pending_operations
             if not self.lazy_evaluation:
                 ret.applied_operations[-1][TraceKeys.EXTRA_INFO]["pad_info"] = ret.applied_operations.pop()
         return ret
