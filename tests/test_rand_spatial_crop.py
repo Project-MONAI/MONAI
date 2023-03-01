@@ -73,15 +73,16 @@ class TestRandSpatialCrop(CropTest):
                 self.assertTupleEqual(expected.shape, expected_shape)
 
                 # lazy
-                cropper_lazy = RandSpatialCrop(**input_param)
-                cropper_lazy.set_random_state(seed=123)
-                cropper_lazy.lazy_evaluation = True
-                pending_result = cropper_lazy(input_data)
+                # reset random seed to ensure the same results
+                cropper.set_random_state(seed=123)
+                cropper.lazy_evaluation = True
+                pending_result = cropper(input_data)
                 self.assertIsInstance(pending_result, MetaTensor)
                 assert_allclose(pending_result.peek_pending_affine(), expected.affine)
                 assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:])
                 # only support nearest
                 result = apply_transforms(pending_result, mode="nearest", align_corners=True)[0]
+                # compare
                 assert_allclose(result, expected, rtol=1e-5)
 
     @parameterized.expand(TEST_SHAPES)
