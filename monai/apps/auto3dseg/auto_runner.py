@@ -223,7 +223,7 @@ class AutoRunner:
         algo_gen: bool | None = None,
         train: bool | None = None,
         training_params: dict[str, Any] | None = None,
-        num_fold: int | None = 5,
+        num_fold: int = 5,
         hpo: bool = False,
         hpo_backend: str = "nni",
         ensemble: bool = True,
