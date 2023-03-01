@@ -141,7 +141,7 @@ for p in TEST_NDARRAYS_ALL:
                 "channel_indices": 0,
                 "margin": 0,
                 "k_divisible": [4, 6],
-                "mode": "edge",
+                "mode": "constant",
             },
             {
                 "img": p(
@@ -151,7 +151,7 @@ for p in TEST_NDARRAYS_ALL:
                     )
                 )
             },
-            p(np.array([[[0, 2, 1, 2, 0, 0], [1, 1, 2, 1, 1, 1], [2, 2, 3, 2, 2, 2], [1, 1, 2, 1, 1, 1]]])),
+            p(np.array([[[0, 2, 1, 2, 0, 0], [1, 1, 2, 1, 1, 0], [2, 2, 3, 2, 2, 0], [1, 1, 2, 1, 1, 0]]])),
             True,
         ]
     )

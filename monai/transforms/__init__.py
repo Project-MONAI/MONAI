@@ -89,7 +89,7 @@ from .croppad.dictionary import (
     SpatialPadD,
     SpatialPadDict,
 )
-from .croppad.functional import pad_func, pad_nd
+from .croppad.functional import crop_func, crop_or_pad_nd, pad_func, pad_nd
 from .intensity.array import (
     AdjustContrast,
     ComputeHoVerMaps,
