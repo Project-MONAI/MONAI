@@ -27,6 +27,7 @@ from monai.config import DtypeLike, KeysCollection, PathLike
 from monai.data.utils import (
     affine_to_spacing,
     correct_nifti_header_if_necessary,
+    is_no_channel,
     is_supported_format,
     orientation_ras_lps,
 )
@@ -162,7 +163,7 @@ def _copy_compatible_dict(from_dict: dict, to_dict: dict):
 def _stack_images(image_list: list, meta_dict: dict):
     if len(image_list) <= 1:
         return image_list[0]
-    if meta_dict.get(MetaKeys.ORIGINAL_CHANNEL_DIM, None) not in ("no_channel", None):
+    if not is_no_channel(meta_dict.get(MetaKeys.ORIGINAL_CHANNEL_DIM, None)):
         channel_dim = int(meta_dict[MetaKeys.ORIGINAL_CHANNEL_DIM])
         return np.concatenate(image_list, axis=channel_dim)
     # stack at a new first dim as the channel dim, if `'original_channel_dim'` is unspecified
@@ -213,7 +214,7 @@ class ITKReader(ImageReader):
     ):
         super().__init__()
         self.kwargs = kwargs
-        self.channel_dim = channel_dim
+        self.channel_dim = float("nan") if channel_dim == "no_channel" else channel_dim
         self.series_name = series_name
         self.reverse_indexing = reverse_indexing
         self.series_meta = series_meta
@@ -305,7 +306,7 @@ class ITKReader(ImageReader):
             header[MetaKeys.SPATIAL_SHAPE] = self._get_spatial_shape(i)
             if self.channel_dim is None:  # default to "no_channel" or -1
                 header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
-                    "no_channel" if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
+                    float("nan") if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
                 )
             else:
                 header[MetaKeys.ORIGINAL_CHANNEL_DIM] = self.channel_dim
@@ -435,7 +436,7 @@ class PydicomReader(ImageReader):
 
     def __init__(
         self,
-        channel_dim: int | None = None,
+        channel_dim: str | int | None = None,
         affine_lps_to_ras: bool = True,
         swap_ij: bool = True,
         prune_metadata: bool = True,
@@ -444,7 +445,7 @@ class PydicomReader(ImageReader):
     ):
         super().__init__()
         self.kwargs = kwargs
-        self.channel_dim = channel_dim
+        self.channel_dim = float("nan") if channel_dim == "no_channel" else channel_dim
         self.affine_lps_to_ras = affine_lps_to_ras
         self.swap_ij = swap_ij
         self.prune_metadata = prune_metadata
@@ -629,7 +630,7 @@ class PydicomReader(ImageReader):
             metadata[MetaKeys.AFFINE] = affine.copy()
             if self.channel_dim is None:  # default to "no_channel" or -1
                 metadata[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
-                    "no_channel" if len(data_array.shape) == len(metadata[MetaKeys.SPATIAL_SHAPE]) else -1
+                    float("nan") if len(data_array.shape) == len(metadata[MetaKeys.SPATIAL_SHAPE]) else -1
                 )
             else:
                 metadata[MetaKeys.ORIGINAL_CHANNEL_DIM] = self.channel_dim
@@ -883,14 +884,14 @@ class NibabelReader(ImageReader):
     @deprecated_arg("dtype", since="1.0", msg_suffix="please modify dtype of the returned by ``get_data`` instead.")
     def __init__(
         self,
-        channel_dim: int | None = None,
+        channel_dim: str | int | None = None,
         as_closest_canonical: bool = False,
         squeeze_non_spatial_dims: bool = False,
         dtype: DtypeLike = np.float32,
         **kwargs,
     ):
         super().__init__()
-        self.channel_dim = channel_dim
+        self.channel_dim = float("nan") if channel_dim == "no_channel" else channel_dim
         self.as_closest_canonical = as_closest_canonical
         self.squeeze_non_spatial_dims = squeeze_non_spatial_dims
         self.dtype = dtype  # deprecated
@@ -965,7 +966,7 @@ class NibabelReader(ImageReader):
             img_array.append(data)
             if self.channel_dim is None:  # default to "no_channel" or -1
                 header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
-                    "no_channel" if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
+                    float("nan") if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
                 )
             else:
                 header[MetaKeys.ORIGINAL_CHANNEL_DIM] = self.channel_dim
@@ -1018,8 +1019,8 @@ class NibabelReader(ImageReader):
             dim = np.insert(dim, 0, 3)
         ndim = dim[0]
         size = list(dim[1:])
-        if self.channel_dim is not None:
-            size.pop(self.channel_dim)
+        if not is_no_channel(self.channel_dim):
+            size.pop(int(self.channel_dim))  # type: ignore
         spatial_rank = max(min(ndim, 3), 1)
         return np.asarray(size[:spatial_rank])
 
@@ -1049,12 +1050,12 @@ class NumpyReader(ImageReader):
 
     """
 
-    def __init__(self, npz_keys: KeysCollection | None = None, channel_dim: int | None = None, **kwargs):
+    def __init__(self, npz_keys: KeysCollection | None = None, channel_dim: str | int | None = None, **kwargs):
         super().__init__()
         if npz_keys is not None:
             npz_keys = ensure_tuple(npz_keys)
         self.npz_keys = npz_keys
-        self.channel_dim = channel_dim
+        self.channel_dim = float("nan") if channel_dim == "no_channel" else channel_dim
         self.kwargs = kwargs
 
     def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
@@ -1126,7 +1127,7 @@ class NumpyReader(ImageReader):
                 header[MetaKeys.SPACE] = SpaceKeys.RAS
             img_array.append(i)
             header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
-                self.channel_dim if isinstance(self.channel_dim, int) else "no_channel"
+                self.channel_dim if isinstance(self.channel_dim, int) else float("nan")
             )
             _copy_compatible_dict(header, compatible_meta)
 
@@ -1214,7 +1215,7 @@ class PILReader(ImageReader):
             data = np.moveaxis(np.asarray(i), 0, 1) if self.reverse_indexing else np.asarray(i)
             img_array.append(data)
             header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
-                "no_channel" if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
+                float("nan") if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
             )
             _copy_compatible_dict(header, compatible_meta)
 
@@ -1532,13 +1533,13 @@ class NrrdReader(ImageReader):
 
     def __init__(
         self,
-        channel_dim: int | None = None,
+        channel_dim: str | int | None = None,
         dtype: np.dtype | type | str | None = np.float32,
         index_order: str = "F",
         affine_lps_to_ras: bool = True,
         **kwargs,
     ):
-        self.channel_dim = channel_dim
+        self.channel_dim = float("nan") if channel_dim == "no_channel" else channel_dim
         self.dtype = dtype
         self.index_order = index_order
         self.affine_lps_to_ras = affine_lps_to_ras
@@ -1605,7 +1606,7 @@ class NrrdReader(ImageReader):
 
             if self.channel_dim is None:  # default to "no_channel" or -1
                 header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
-                    "no_channel" if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else 0
+                    float("nan") if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else 0
                 )
             else:
                 header[MetaKeys.ORIGINAL_CHANNEL_DIM] = self.channel_dim
