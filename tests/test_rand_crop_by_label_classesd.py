@@ -16,8 +16,10 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms import ClassesToIndicesd, RandCropByLabelClassesd
-from tests.utils import TEST_NDARRAYS_ALL
+from monai.transforms.lazy.functional import apply_transforms
+from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TESTS = []
 for p in TEST_NDARRAYS_ALL:
@@ -130,6 +132,26 @@ class TestRandCropByLabelClassesd(unittest.TestCase):
         self.assertTupleEqual(result[0]["img"].shape, expected_shape)
         _len = len(tuple(input_data.keys())) - 1  # except for the indices_key
         self.assertTupleEqual(tuple(result[0].keys())[:_len], tuple(input_data.keys())[:-1])
+
+    @parameterized.expand(TESTS)
+    def test_pending_ops(self, input_param, input_data, _expected_type, _expected_shape):
+        cropper = RandCropByLabelClassesd(**input_param)
+        # non-lazy
+        cropper.set_random_state(0)
+        expected = cropper(input_data)
+        self.assertIsInstance(expected[0]["img"], MetaTensor)
+        # lazy
+        cropper.set_random_state(0)
+        cropper.lazy_evaluation = True
+        pending_result = cropper(input_data)
+        for i, _pending_result in enumerate(pending_result):
+            self.assertIsInstance(_pending_result["img"], MetaTensor)
+            assert_allclose(_pending_result["img"].peek_pending_affine(), expected[i]["img"].affine)
+            assert_allclose(_pending_result["img"].peek_pending_shape(), expected[i]["img"].shape[1:])
+            # only support nearest
+            result = apply_transforms(_pending_result["img"], mode="nearest", align_corners=True)[0]
+            # compare
+            assert_allclose(result, expected[i]["img"], rtol=1e-5)
 
 
 if __name__ == "__main__":
