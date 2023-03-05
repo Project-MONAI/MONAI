@@ -1474,19 +1474,19 @@ class RandRotated(MapTransform, InvertibleTransform, LazyTransform, Randomizable
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
 
-        mode = ensure_tuple_rep(self.mode)
-        padding_mode = ensure_tuple_rep(self.padding_mode)
-
         rd = dict(data)
 
         angles = None
         for key_, mode_, padding_mode_, dtype_ in self.key_iterator(
-            rd, mode, padding_mode, self.dtype
+            rd, self.mode, self.padding_mode, self.dtype
         ):
+            ndims = len(rd[key_].space) - 1
+            tuple_mode = ensure_tuple_rep(mode_, ndims)
+            tuple_padding_mode = ensure_tuple_rep(padding_mode_, ndims)
             if angles is None:
                 angles = self.randomizer.sample(data[key_])
             rd[key_] = rotate(data[key_], angles, self.keep_size,
-                              mode_, padding_mode_, self.align_corners, dtype_,
+                              tuple_mode, tuple_padding_mode, self.align_corners, dtype_,
                               None, self.lazy_evaluation)
         return rd
 
