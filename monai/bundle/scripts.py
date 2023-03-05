@@ -1147,7 +1147,7 @@ def trt_export(
         parser[k] = v
 
     if not input_shape_:
-        input_shape_ = _get_net_input_shape(parser)
+        input_shape_ = get_net_input_shape(parser)
 
     net = parser.get_parsed_content(net_id_)
 
