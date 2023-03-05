@@ -1236,10 +1236,11 @@ class RandFlipd(MapTransform, InvertibleTransform, LazyTransform, RandomizableTr
         spatial_axis: Sequence[int] | int | None = None,
         allow_missing_keys: bool = False,
         seed: int | None = None,
-        state: np.random.RandomState | None = None
+        state: np.random.RandomState | None = None,
+        lazy_evaluation: bool = True
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
-        LazyTransform.__init__(self.lazy_evaluation)
+        LazyTransform.__init__(self, lazy_evaluation)
 
         self.spatial_axis = spatial_axis
         self.randomizer = BooleanRandomizer(1.0, prob=prob, default=False, seed=seed, state=state)

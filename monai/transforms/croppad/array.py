@@ -1389,11 +1389,16 @@ class CropPad(InvertibleTransform, LazyTransform):
     def __init__(
             self,
             slices: Sequence[slice] | None = None,
+            starts: Sequence[float] | None = None,
+            ends: Sequence[float] | None = None,
             padding_mode: GridSamplePadMode | str = GridSamplePadMode.BORDER,
             lazy_evaluation: bool = True
     ):
         LazyTransform.__init__(self, lazy_evaluation)
         self.slices = slices
+        if slices is None:
+            self.starts = starts
+            self.ends = ends
         self.padding_mode = padding_mode
 
     def __call__(
