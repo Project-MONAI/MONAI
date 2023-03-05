@@ -30,7 +30,7 @@ from monai.data.meta_tensor import MetaTensor
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.croppad.array import CenterSpatialCrop
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.spatial.array import (
+from monai.transforms.spatial.old_array import (
     Affine,
     Flip,
     GridDistortion,
@@ -543,8 +543,11 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
         self._rand_k = 0
 
     def randomize(self, data: Any | None = None) -> None:
-        self._rand_k = self.R.randint(self.max_k) + 1
         super().randomize(None)
+        if self._do_transform:
+            self._rand_k = self.R.randint(self.max_k) + 1
+        else:
+            self._rand_k = 0
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Mapping[Hashable, torch.Tensor]:
         self.randomize()
@@ -1434,7 +1437,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        self.rand_rotate = RandRotate(range_x=range_x, range_y=range_y, range_z=range_z, prob=1.0, keep_size=keep_size)
+        self.rand_rotate = RandRotate(range_x=range_x, range_y=range_y, range_z=range_z, prob=prob, keep_size=keep_size)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
@@ -1447,14 +1450,14 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
-        self.randomize(None)
+        # self.randomize(None)
 
         # all the keys share the same random rotate angle
         self.rand_rotate.randomize()
         for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
-            if self._do_transform:
+            if self.rand_rotate._do_transform:
                 d[key] = self.rand_rotate(
                     d[key],
                     mode=mode,
@@ -1466,7 +1469,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
             else:
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta(), dtype=torch.float32)
             if get_track_meta():
-                rot_info = self.pop_transform(d[key], check=False) if self._do_transform else {}
+                rot_info = self.pop_transform(d[key], check=False) if self.rand_rotate._do_transform else {}
                 self.push_transform(d[key], extra_info=rot_info)
         return d
 
@@ -1601,13 +1604,13 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        self.rand_zoom = RandZoom(prob=1.0, min_zoom=min_zoom, max_zoom=max_zoom, keep_size=keep_size, **kwargs)
+        self.rand_zoom = RandZoom(prob=prob, min_zoom=min_zoom, max_zoom=max_zoom, keep_size=keep_size, **kwargs)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
 
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandZoomd:
-        super().set_random_state(seed, state)
+        # super().set_random_state(seed, state)
         self.rand_zoom.set_random_state(seed, state)
         return self
 
@@ -1618,7 +1621,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
             out: dict[Hashable, torch.Tensor] = convert_to_tensor(d, track_meta=get_track_meta())
             return out
 
-        self.randomize(None)
+#        self.randomize(None)
 
         # all the keys share the same random zoom factor
         self.rand_zoom.randomize(d[first_key])
@@ -1626,14 +1629,14 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         for key, mode, padding_mode, align_corners in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners
         ):
-            if self._do_transform:
+            if self.rand_zoom._do_transform:
                 d[key] = self.rand_zoom(
                     d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners, randomize=False
                 )
             else:
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta(), dtype=torch.float32)
             if get_track_meta():
-                xform = self.pop_transform(d[key], check=False) if self._do_transform else {}
+                xform = self.pop_transform(d[key], check=False) if self.rand_zoom._do_transform else {}
                 self.push_transform(d[key], extra_info=xform)
         return d
 

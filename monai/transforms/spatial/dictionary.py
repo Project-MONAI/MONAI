@@ -563,7 +563,7 @@ class RandRotate90d(MapTransform, InvertibleTransform, LazyTransform, Randomizab
         self.max_k = max_k
         self.spatial_axes = spatial_axes
 
-        self.randomizer = DiscreteRandomizer(0, max_k + 1, prob, 0, seed, state)
+        self.randomizer = DiscreteRandomizer(0, max_k, prob, 0, seed, state)
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Mapping[Hashable, torch.Tensor]:
         # TODO: determine whether there is anything we need to do with this comment in the lazy
@@ -573,9 +573,8 @@ class RandRotate90d(MapTransform, InvertibleTransform, LazyTransform, Randomizab
         rd = dict(data)
 
         k = self.randomizer.sample()
-
         for key in self.key_iterator(rd):
-            rd[key] = rotate90(rd[key], k, self.spatial_axes, self.lazy_evaluation)
+            rd[key] = rotate90(rd[key], k, self.spatial_axes, lazy_evaluation=self.lazy_evaluation)
 
         return rd
 
@@ -1248,11 +1247,10 @@ class RandFlipd(MapTransform, InvertibleTransform, LazyTransform, RandomizableTr
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         rd = dict(data)
-
-        flip = self.randomizer.sample()
+        flip_ = self.randomizer.sample()
 
         for key in self.key_iterator(rd):
-            if flip:
+            if flip_:
                 rd[key] = flip(rd[key], self.spatial_axis, lazy_evaluation=self.lazy_evaluation)
             else:
                 rd[key] = identity(rd[key], None, None, lazy_evaluation=self.lazy_evaluation)
@@ -1460,10 +1458,10 @@ class RandRotated(MapTransform, InvertibleTransform, LazyTransform, Randomizable
         self.keys = keys
         self.keep_size = keep_size
         self.allow_missing_keys = allow_missing_keys
-        self.mode = mode
-        self.padding_mode = padding_mode
+        self.mode = ensure_tuple_rep(mode, len(keys))
+        self.padding_mode = ensure_tuple_rep(padding_mode, len(keys))
         self.align_corners = align_corners
-        self.dtype = ensure_tuple_rep(dtype)
+        self.dtype = ensure_tuple_rep(dtype, len(keys))
 
         self.randomizer = RotateRandomizer(value_to_tuple_range(range_x),
                                            value_to_tuple_range(range_y),
@@ -1480,13 +1478,11 @@ class RandRotated(MapTransform, InvertibleTransform, LazyTransform, Randomizable
         for key_, mode_, padding_mode_, dtype_ in self.key_iterator(
             rd, self.mode, self.padding_mode, self.dtype
         ):
-            ndims = len(rd[key_].space) - 1
-            tuple_mode = ensure_tuple_rep(mode_, ndims)
-            tuple_padding_mode = ensure_tuple_rep(padding_mode_, ndims)
             if angles is None:
                 angles = self.randomizer.sample(data[key_])
+
             rd[key_] = rotate(data[key_], angles, self.keep_size,
-                              tuple_mode, tuple_padding_mode, self.align_corners, dtype_,
+                              mode_, padding_mode_, self.align_corners, dtype_,
                               None, self.lazy_evaluation)
         return rd
 

@@ -703,9 +703,9 @@ def create_identity(
         backend: str = TransformBackends.NUMPY
 ) -> NdarrayOrTensor:
     if backend == TransformBackends.NUMPY:
-        return np.eye(spatial_dims)
+        return np.eye(spatial_dims + 1)
     else:
-        return torch.eye(spatial_dims, device=device)
+        return torch.eye(spatial_dims + 1, device=device)
 
 
 def compatible_rotate(

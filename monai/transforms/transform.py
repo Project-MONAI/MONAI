@@ -322,7 +322,8 @@ class RandomizableTransform(Randomizable, Transform):
 
         This method can generate the random factors based on properties of the input data.
         """
-        self._do_transform = self.R.rand() < self.prob
+        value = self.R.rand()
+        self._do_transform = value < self.prob
 
 
 class MapTransform(Transform):

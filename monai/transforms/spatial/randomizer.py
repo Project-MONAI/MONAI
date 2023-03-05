@@ -28,7 +28,7 @@ class RotateRandomizer(Randomizer):
             seed=None,
             state=None,
     ):
-        super().__init__(prob, state, seed)
+        super().__init__(prob, seed, state)
         self.range_x = range_x
         self.range_y = range_y
         self.range_z = range_z

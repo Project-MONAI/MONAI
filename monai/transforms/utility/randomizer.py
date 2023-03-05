@@ -52,16 +52,19 @@ class Randomizer:
     def set_random_state(self, seed=None, state=None):
         if seed is not None:
             self.R = np.random.RandomState(seed)
-        elif state is not None:
+            return
+        if state is not None:
             self.R = state
-        else:
-            self.R = np.random.RandomState()
+            return
+
+        self.R = np.random.RandomState()
 
     def do_random(self):
-        return self.R.uniform() <= self.prob
+        value = self.R.rand()
+        return value <= self.prob
 
     def sample(self, *args, **kwargs):
-        return self.R.uniform()
+        return self.R.rand()
 
 
 class BooleanRandomizer(Randomizer):
@@ -82,10 +85,13 @@ class BooleanRandomizer(Randomizer):
 
     def sample(self):
         if self.do_random():
-            if isinstance(self.threshold, tuple):
-                return tuple(self.R.uniform() <= t for t in self.threshold)
-            else:
-                return self.R.uniform() <= self.threshold
+            return True
+        else:
+            return self.default
+            # if isinstance(self.threshold, tuple):
+            #     return tuple(self.R.rand() <= t for t in self.threshold)
+            # else:
+            #     return self.R.rand() <= self.threshold
 
 
 class DiscreteRandomizer(Randomizer):
@@ -112,10 +118,10 @@ class DiscreteRandomizer(Randomizer):
     ):
         if self.do_random():
             if isinstance(self.min_value, tuple):
-                return tuple(self.R.randint(v_min, v_max + 1)
+                return tuple(self.R.randint(v_min, v_max) + 1
                              for v_min, v_max in zip(self.min_value, self.max_value))
             else:
-                return self.R.randint(self.min_value, self.max_value + 1)
+                return self.R.randint(self.min_value, self.max_value) + 1
 
         return self.default
 
