@@ -1460,8 +1460,8 @@ class RandRotated(MapTransform, InvertibleTransform, LazyTransform, Randomizable
         self.keys = keys
         self.keep_size = keep_size
         self.allow_missing_keys = allow_missing_keys
-        self.mode = ensure_tuple_rep(mode)
-        self.padding_mode = ensure_tuple_rep(padding_mode)
+        self.mode = mode
+        self.padding_mode = padding_mode
         self.align_corners = align_corners
         self.dtype = ensure_tuple_rep(dtype)
 
@@ -1473,11 +1473,15 @@ class RandRotated(MapTransform, InvertibleTransform, LazyTransform, Randomizable
                                            state=state)
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
+
+        mode = ensure_tuple_rep(self.mode)
+        padding_mode = ensure_tuple_rep(self.padding_mode)
+
         rd = dict(data)
 
         angles = None
         for key_, mode_, padding_mode_, dtype_ in self.key_iterator(
-            rd, self.mode, self.padding_mode, self.dtype
+            rd, mode, padding_mode, self.dtype
         ):
             if angles is None:
                 angles = self.randomizer.sample(data[key_])
