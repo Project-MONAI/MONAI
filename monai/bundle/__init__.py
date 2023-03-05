@@ -20,6 +20,7 @@ from .scripts import (
     get_all_bundles_list,
     get_bundle_info,
     get_bundle_versions,
+    get_net_input_shape,
     init_bundle,
     load,
     patch_bundle_tracking,
