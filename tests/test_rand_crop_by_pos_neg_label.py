@@ -17,8 +17,10 @@ from copy import deepcopy
 import numpy as np
 from parameterized import parameterized
 
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms import RandCropByPosNegLabel
-from tests.utils import TEST_NDARRAYS_ALL
+from monai.transforms.lazy.functional import apply_transforms
+from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TESTS = [
     [
@@ -121,6 +123,29 @@ class TestRandCropByPosNegLabel(unittest.TestCase):
             results.append(np.asarray(result))
             if len(results) > 1:
                 np.testing.assert_allclose(results[0], results[-1])
+
+    @parameterized.expand(TESTS)
+    def test_pending_ops(self, input_param, input_data, _expected_shape):
+        for p in TEST_NDARRAYS_ALL:
+            input_param_mod = self.convert_data_type(p, input_param)
+            input_data_mod = self.convert_data_type(p, input_data)
+            cropper = RandCropByPosNegLabel(**input_param_mod)
+            # non-lazy
+            cropper.set_random_state(0)
+            expected = cropper(**input_data_mod)
+            self.assertIsInstance(expected[0], MetaTensor)
+            # lazy
+            cropper.set_random_state(0)
+            cropper.lazy_evaluation = True
+            pending_result = cropper(**input_data_mod)
+            for i, _pending_result in enumerate(pending_result):
+                self.assertIsInstance(_pending_result, MetaTensor)
+                assert_allclose(_pending_result.peek_pending_affine(), expected[i].affine)
+                assert_allclose(_pending_result.peek_pending_shape(), expected[i].shape[1:])
+                # only support nearest
+                result = apply_transforms(_pending_result, mode="nearest", align_corners=True)[0]
+                # compare
+                assert_allclose(result, expected[i], rtol=1e-5)
 
 
 if __name__ == "__main__":
