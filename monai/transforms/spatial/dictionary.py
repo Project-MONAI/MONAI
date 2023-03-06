@@ -592,7 +592,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
 
-class Resized(MapTransform, InvertibleTransform):
+class Resized(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Resize`.
 
@@ -625,6 +625,8 @@ class Resized(MapTransform, InvertibleTransform):
             By default, this value is chosen as (s - 1) / 2 where s is the
             downsampling factor, where s > 1. For the up-size case, s < 1, no
             anti-aliasing is performed prior to rescaling.
+        dtype: data type for resampling computation. Defaults to ``float32``.
+            If None, use the data type of input data.
         allow_missing_keys: don't raise exception if key is missing.
     """
 
@@ -639,19 +641,26 @@ class Resized(MapTransform, InvertibleTransform):
         align_corners: Sequence[bool | None] | bool | None = None,
         anti_aliasing: Sequence[bool] | bool = False,
         anti_aliasing_sigma: Sequence[Sequence[float] | float | None] | Sequence[float] | float | None = None,
+        dtype: Sequence[DtypeLike | torch.dtype] | DtypeLike | torch.dtype = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
+        self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.anti_aliasing = ensure_tuple_rep(anti_aliasing, len(self.keys))
         self.anti_aliasing_sigma = ensure_tuple_rep(anti_aliasing_sigma, len(self.keys))
         self.resizer = Resize(spatial_size=spatial_size, size_mode=size_mode)
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool) -> None:
+        self._lazy_evaluation = val
+        self.resizer.lazy_evaluation = val
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
-        for key, mode, align_corners, anti_aliasing, anti_aliasing_sigma in self.key_iterator(
-            d, self.mode, self.align_corners, self.anti_aliasing, self.anti_aliasing_sigma
+        for key, mode, align_corners, anti_aliasing, anti_aliasing_sigma, dtype in self.key_iterator(
+            d, self.mode, self.align_corners, self.anti_aliasing, self.anti_aliasing_sigma, self.dtype
         ):
             d[key] = self.resizer(
                 d[key],
@@ -659,6 +668,7 @@ class Resized(MapTransform, InvertibleTransform):
                 align_corners=align_corners,
                 anti_aliasing=anti_aliasing,
                 anti_aliasing_sigma=anti_aliasing_sigma,
+                dtype=dtype,
             )
         return d
 

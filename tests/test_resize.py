@@ -20,6 +20,7 @@ from parameterized import parameterized
 
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import Resize
+from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose, is_tf32_env, pytorch_after
 
 TEST_CASE_0 = [{"spatial_size": 15}, (6, 10, 15)]
@@ -57,7 +58,8 @@ class TestResize(NumpyImageTestCase2D):
     )
     def test_correct_results(self, spatial_size, mode, anti_aliasing):
         """resize 'spatial_size' and 'mode'"""
-        resize = Resize(spatial_size, mode=mode, anti_aliasing=anti_aliasing)
+        init_param = {"spatial_size": spatial_size, "mode": mode, "anti_aliasing": anti_aliasing, "dtype": np.float64}
+        resize = Resize(**init_param)
         _order = 0
         if mode.endswith("linear"):
             _order = 1
@@ -74,7 +76,10 @@ class TestResize(NumpyImageTestCase2D):
         expected = np.stack(expected).astype(np.float32)
         for p in TEST_NDARRAYS_ALL:
             im = p(self.imt[0])
-            out = resize(im)
+            call_param = {"img": im}
+            out = resize(**call_param)
+            if init_param["mode"] in ("bilinear", "nearest", "bicubic"):
+                test_resampler_lazy(resize, out, init_param, call_param)
             if isinstance(im, MetaTensor):
                 im_inv = resize.inverse(out)
                 self.assertTrue(not im_inv.applied_operations)

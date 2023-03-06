@@ -15,6 +15,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 from __future__ import annotations
 
+import warnings
 from enum import Enum
 
 import numpy as np
@@ -26,8 +27,9 @@ from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import AFFINE_TOL, compute_shape_offset, to_affine_nd
 from monai.networks.layers import AffineTransform
 from monai.networks.utils import normalize_transform
+from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import TraceableTransform
-from monai.transforms.utils import create_scale
+from monai.transforms.utils import create_scale, scale_affine
 from monai.transforms.utils_pytorch_numpy_unification import allclose
 from monai.utils import (
     TraceKeys,
@@ -35,6 +37,7 @@ from monai.utils import (
     convert_to_numpy,
     convert_to_tensor,
     ensure_tuple,
+    ensure_tuple_rep,
     fall_back_tuple,
     optional_import,
 )
@@ -60,20 +63,19 @@ def spatial_resample(
         dst_affine: target affine matrix, if None, use the input affine matrix, effectively no resampling.
         spatial_size: output spatial size, if the component is ``-1``, use the corresponding input spatial size.
         mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
-            Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+            Interpolation mode to calculate output values.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
             and the value represents the order of the spline interpolation.
             See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
         padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
-            Padding mode for outside grid values. Defaults to ``"border"``.
+            Padding mode for outside grid values.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             When `mode` is an integer, using numpy/cupy backends, this argument accepts
             {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
             See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
         align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-            Defaults to ``None``, effectively using the value of `self.align_corners`.
         dtype_pt: data `dtype` for resampling computation.
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
     """
@@ -215,6 +217,10 @@ def flip(img, sp_axes, transform_info):
     Args:
         img: data to be changed, assuming `img` is channel-first.
         sp_axes: spatial axes along which to flip over.
+            If None, will flip over all of the axes of the input array.
+            If axis is negative it counts from the last to the first axis.
+            If axis is a tuple of ints, flipping is performed on all of the axes
+            specified in the tuple.
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
     """
     sp_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
@@ -239,4 +245,70 @@ def flip(img, sp_axes, transform_info):
     if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     out = torch.flip(out, axes)
+    return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+
+def resize(img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, transform_info):
+    """
+    Functional implementation of resize.
+    This function operates eagerly or lazily according to
+    ``transform_info[TraceKeys.LAZY_EVALUATION]`` (default ``False``).
+
+    Args:
+        img: data to be changed, assuming `img` is channel-first.
+        out_size: expected shape of spatial dimensions after resize operation.
+        mode: {``"nearest"``, ``"nearest-exact"``, ``"linear"``,
+            ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+            The interpolation mode.
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
+        align_corners: This only has an effect when mode is
+            'linear', 'bilinear', 'bicubic' or 'trilinear'.
+        dtype: data type for resampling computation. If None, use the data type of input data.
+        input_ndim: number of spatial dimensions.
+        anti_aliasing: whether to apply a Gaussian filter to smooth the image prior
+            to downsampling. It is crucial to filter when downsampling
+            the image to avoid aliasing artifacts. See also ``skimage.transform.resize``
+        anti_aliasing_sigma: {float, tuple of floats}, optional
+            Standard deviation for Gaussian filtering used when anti-aliasing.
+        transform_info: a dictionary with the relevant information pertaining to an applied transform.
+    """
+    img = convert_to_tensor(img, track_meta=get_track_meta())
+    orig_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
+    extra_info = {
+        "mode": mode,
+        "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
+        "dtype": str(dtype)[6:],  # dtype as string; remove "torch": torch.float32 -> float32
+        "new_dim": len(orig_size) - input_ndim,
+    }
+    meta_info = TraceableTransform.track_transform_meta(
+        img,
+        sp_size=out_size,
+        affine=scale_affine(orig_size, out_size),
+        extra_info=extra_info,
+        orig_size=orig_size,
+        transform_info=transform_info,
+        lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
+    )
+    out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
+    if transform_info.get(TraceKeys.LAZY_EVALUATION, False) or tuple(convert_to_numpy(orig_size)) == out_size:
+        if anti_aliasing and transform_info.get(TraceKeys.LAZY_EVALUATION, False):
+            warnings.warn("anti-aliasing is not compatible with lazy evaluation.")
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+    img_ = convert_to_tensor(out, dtype=dtype, track_meta=False)  # convert to a regular tensor
+    if anti_aliasing and any(x < y for x, y in zip(out_size, img_.shape[1:])):
+        factors = torch.div(torch.Tensor(list(img_.shape[1:])), torch.Tensor(out_size))
+        if anti_aliasing_sigma is None:
+            # if sigma is not given, use the default sigma in skimage.transform.resize
+            anti_aliasing_sigma = torch.maximum(torch.zeros(factors.shape), (factors - 1) / 2).tolist()
+        else:
+            # if sigma is given, use the given value for downsampling axis
+            anti_aliasing_sigma = list(ensure_tuple_rep(anti_aliasing_sigma, len(out_size)))
+            for axis in range(len(out_size)):
+                anti_aliasing_sigma[axis] = anti_aliasing_sigma[axis] * int(factors[axis] > 1)
+        anti_aliasing_filter = GaussianSmooth(sigma=anti_aliasing_sigma)
+        img_ = convert_to_tensor(anti_aliasing_filter(img_), track_meta=False)
+    resized = torch.nn.functional.interpolate(
+        input=img_.unsqueeze(0), size=out_size, mode=mode, align_corners=align_corners
+    )
+    out, *_ = convert_to_dst_type(resized.squeeze(0), out, dtype=torch.float32)
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out

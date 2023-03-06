@@ -32,9 +32,8 @@ from monai.data.utils import AFFINE_TOL, affine_to_spacing, compute_shape_offset
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.networks.utils import meshgrid_ij
 from monai.transforms.croppad.array import CenterSpatialCrop, ResizeWithPadOrCrop
-from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.spatial.functional import flip, orientation, spatial_resample
+from monai.transforms.spatial.functional import flip, orientation, resize, spatial_resample
 from monai.transforms.traits import MultiSampleTrait
 from monai.transforms.transform import LazyTransform, Randomizable, RandomizableTransform, Transform
 from monai.transforms.utils import (
@@ -629,7 +628,7 @@ class Flip(InvertibleTransform, LazyTransform):
             return flipper(data)
 
 
-class Resize(InvertibleTransform):
+class Resize(InvertibleTransform, LazyTransform):
     """
     Resize the input image to given spatial size (with scaling, not cropping/padding).
     Implemented using :py:class:`torch.nn.functional.interpolate`.
@@ -659,6 +658,9 @@ class Resize(InvertibleTransform):
             By default, this value is chosen as (s - 1) / 2 where s is the
             downsampling factor, where s > 1. For the up-size case, s < 1, no
             anti-aliasing is performed prior to rescaling.
+        dtype: data type for resampling computation. Defaults to ``float32``.
+            If None, use the data type of input data.
+
     """
 
     backend = [TransformBackends.TORCH]
@@ -671,6 +673,7 @@ class Resize(InvertibleTransform):
         align_corners: bool | None = None,
         anti_aliasing: bool = False,
         anti_aliasing_sigma: Sequence[float] | float | None = None,
+        dtype: DtypeLike | torch.dtype = torch.float32,
     ) -> None:
         self.size_mode = look_up_option(size_mode, ["all", "longest"])
         self.spatial_size = spatial_size
@@ -678,6 +681,7 @@ class Resize(InvertibleTransform):
         self.align_corners = align_corners
         self.anti_aliasing = anti_aliasing
         self.anti_aliasing_sigma = anti_aliasing_sigma
+        self.dtype = dtype
 
     def __call__(
         self,
@@ -686,6 +690,7 @@ class Resize(InvertibleTransform):
         align_corners: bool | None = None,
         anti_aliasing: bool | None = None,
         anti_aliasing_sigma: Sequence[float] | float | None = None,
+        dtype: DtypeLike | torch.dtype = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -706,6 +711,8 @@ class Resize(InvertibleTransform):
                 By default, this value is chosen as (s - 1) / 2 where s is the
                 downsampling factor, where s > 1. For the up-size case, s < 1, no
                 anti-aliasing is performed prior to rescaling.
+            dtype: data type for resampling computation. Defaults to ``self.dtype``.
+                If None, use the data type of input data.
 
         Raises:
             ValueError: When ``self.spatial_size`` length is less than ``img`` spatial dimensions.
@@ -725,60 +732,29 @@ class Resize(InvertibleTransform):
                     "len(spatial_size) must be greater or equal to img spatial dimensions, "
                     f"got spatial_size={output_ndim} img={input_ndim}."
                 )
-            spatial_size_ = fall_back_tuple(self.spatial_size, img.shape[1:])
+            _sp = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
+            sp_size = fall_back_tuple(self.spatial_size, _sp)
         else:  # for the "longest" mode
-            img_size = img.shape[1:]
+            img_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
             if not isinstance(self.spatial_size, int):
                 raise ValueError("spatial_size must be an int number if size_mode is 'longest'.")
             scale = self.spatial_size / max(img_size)
-            spatial_size_ = tuple(int(round(s * scale)) for s in img_size)
+            sp_size = tuple(int(round(s * scale)) for s in img_size)
 
-        original_sp_size = img.shape[1:]
         _mode = look_up_option(self.mode if mode is None else mode, InterpolateMode)
         _align_corners = self.align_corners if align_corners is None else align_corners
-        if tuple(img.shape[1:]) == spatial_size_:  # spatial shape is already the desired
-            img = convert_to_tensor(img, track_meta=get_track_meta())
-
-            return self._post_process(img, original_sp_size, spatial_size_, _mode, _align_corners, input_ndim)
-        img_ = convert_to_tensor(img, dtype=torch.float, track_meta=False)
-
-        if anti_aliasing and any(x < y for x, y in zip(spatial_size_, img_.shape[1:])):
-            factors = torch.div(torch.Tensor(list(img_.shape[1:])), torch.Tensor(spatial_size_))
-            if anti_aliasing_sigma is None:
-                # if sigma is not given, use the default sigma in skimage.transform.resize
-                anti_aliasing_sigma = torch.maximum(torch.zeros(factors.shape), (factors - 1) / 2).tolist()
-            else:
-                # if sigma is given, use the given value for downsampling axis
-                anti_aliasing_sigma = list(ensure_tuple_rep(anti_aliasing_sigma, len(spatial_size_)))
-                for axis in range(len(spatial_size_)):
-                    anti_aliasing_sigma[axis] = anti_aliasing_sigma[axis] * int(factors[axis] > 1)
-            anti_aliasing_filter = GaussianSmooth(sigma=anti_aliasing_sigma)
-            img_ = convert_to_tensor(anti_aliasing_filter(img_), track_meta=False)
-
-        img = convert_to_tensor(img, track_meta=get_track_meta())
-        resized = torch.nn.functional.interpolate(
-            input=img_.unsqueeze(0), size=spatial_size_, mode=_mode, align_corners=_align_corners
+        _dtype = get_equivalent_dtype(dtype or self.dtype or img.dtype, torch.Tensor)
+        return resize(  # type: ignore
+            img,
+            sp_size,
+            _mode,
+            _align_corners,
+            _dtype,
+            input_ndim,
+            anti_aliasing,
+            anti_aliasing_sigma,
+            self.get_transform_info(),
         )
-        out, *_ = convert_to_dst_type(resized.squeeze(0), img)
-        return self._post_process(out, original_sp_size, spatial_size_, _mode, _align_corners, input_ndim)
-
-    def _post_process(self, img: torch.Tensor, orig_size, sp_size, mode, align_corners, ndim) -> torch.Tensor:
-        if get_track_meta():
-            self.update_meta(img, orig_size, sp_size)
-            self.push_transform(
-                img,
-                orig_size=orig_size,
-                extra_info={
-                    "mode": mode,
-                    "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
-                    "new_dim": len(orig_size) - ndim,  # additional dims appended
-                },
-            )
-        return img
-
-    def update_meta(self, img, spatial_size, new_spatial_size):
-        affine = convert_to_tensor(img.affine, track_meta=False)
-        img.affine = scale_affine(affine, spatial_size, new_spatial_size)
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(data)
@@ -788,8 +764,12 @@ class Resize(InvertibleTransform):
         orig_size = transform[TraceKeys.ORIG_SIZE]
         mode = transform[TraceKeys.EXTRA_INFO]["mode"]
         align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
+        dtype = transform[TraceKeys.EXTRA_INFO]["dtype"]
         xform = Resize(
-            spatial_size=orig_size, mode=mode, align_corners=None if align_corners == TraceKeys.NONE else align_corners
+            spatial_size=orig_size,
+            mode=mode,
+            align_corners=None if align_corners == TraceKeys.NONE else align_corners,
+            dtype=dtype,
         )
         with xform.trace_transform(False):
             data = xform(data)
