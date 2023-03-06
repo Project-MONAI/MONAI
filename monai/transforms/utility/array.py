@@ -459,7 +459,7 @@ class ToTensor(Transform):
     def __init__(
         self,
         dtype: torch.dtype | None = None,
-        device: torch.device | None = None,
+        device: torch.device | str | None = None,
         wrap_sequence: bool = True,
         track_meta: bool | None = None,
     ) -> None:

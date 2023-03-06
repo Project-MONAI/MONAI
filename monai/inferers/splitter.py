@@ -24,7 +24,7 @@ from monai.data.wsi_reader import BaseWSIReader, WSIReader
 from monai.transforms import ToTensor
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep
 
-__all__ = ["Splitter", "SlidingWindowSplitter", "SlidingWindowWSISplitter"]
+__all__ = ["Splitter", "SlidingWindowSplitter", "WSISlidingWindowSplitter"]
 
 
 class Splitter(ABC):
@@ -125,7 +125,7 @@ class SlidingWindowSplitter(Splitter):
         spatial_ndim = inputs.ndim - n_non_spatial_dims
         spatial_shape = inputs.shape[n_non_spatial_dims:]
         patch_size, overlap, offset = _get_valid_sliding_window_params(
-            patch_size=patch_size, overlap=overlap, spatial_shape=spatial_shape
+            patch_size=self.patch_size, overlap=self.overlap, offset=self.offset, spatial_shape=spatial_shape
         )
         # check if there is any negative offset, there has to be a valid padding mode
         if any(off < 0 for off in offset) and not self.pad_kwargs["mode"]:
@@ -152,7 +152,7 @@ class SlidingWindowSplitter(Splitter):
             # correct the location with respect to original inputs (remove starting pads)
             if is_start_padded:
                 location = tuple(loc - p for loc, p in zip(location, pad_size[1::2]))
-            # filter patches and yield
+            # filter patch and yield
             if self.filter_fn is None:
                 yield patch, location
             elif self.filter_fn(patch, location):
@@ -192,7 +192,7 @@ class WSISlidingWindowSplitter(Splitter):
         overlap: Sequence[float] | float = 0.0,
         filter_fn: Callable | None = None,
         device: torch.device | str | None = None,
-        reader="cuCIM",
+        reader: str | BaseWSIReader | type[BaseWSIReader] = "cuCIM",
         reader_kwargs: dict | None = None,
     ) -> None:
 
@@ -224,18 +224,17 @@ class WSISlidingWindowSplitter(Splitter):
         Yields:
             tuple[torch.Tensor, Sequence[int]]: yields tuple of patch and location
         """
-        wsi: BaseWSIReader = self.reader.read(inputs)
+        wsi = self.reader.read(inputs)
         spatial_shape = self.reader.get_size(wsi)
         patch_size, overlap, offset = _get_valid_sliding_window_params(
             patch_size=self.patch_size, overlap=self.overlap, offset=self.offset, spatial_shape=spatial_shape
         )
 
         for location in iter_patch_position(spatial_shape, patch_size, offset, overlap, False):
-            patch, _ = self.reader.get_data(wsi=wsi, location=location, size=self.patch_size, level=self.patch_level)
+            patch_, _ = self.reader.get_data(wsi=wsi, location=location, size=patch_size, level=self.patch_level)
             # send the patch to target device
-            if self.device:
-                patch.to(self.device)
-            # filter patches and yield
+            patch = ToTensor(device=self.device)(patch_)
+            # filter patch and yield
             if self.filter_fn is None:
                 yield patch, location
             elif self.filter_fn(patch, location):
