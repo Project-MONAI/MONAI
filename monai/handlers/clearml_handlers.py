@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Mapping, Sequence, Any
+from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
 from monai.utils import optional_import
 
