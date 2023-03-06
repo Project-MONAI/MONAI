@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Mapping, Sequence
+from typing import TYPE_CHECKING, Mapping, Sequence, Any
 
 from monai.utils import optional_import
 
@@ -90,8 +90,8 @@ class ClearMLStatsHandler(ClearMLHandler, TensorBoardStatsHandler):
         reuse_last_task_id: bool = True,
         continue_last_task: bool = False,
         auto_connect_frameworks: bool | Mapping[str, bool | str | list] = True,
-        *args,
-        **kwargs,
+        *args: Any,
+        **kwargs: Any,
     ) -> None:
         """
         Args:
@@ -138,8 +138,8 @@ class ClearMLImageHandler(ClearMLHandler, TensorBoardImageHandler):
         reuse_last_task_id: bool = True,
         continue_last_task: bool = False,
         auto_connect_frameworks: bool | Mapping[str, bool | str | list] = True,
-        *args,
-        **kwargs,
+        *args: Any,
+        **kwargs: Any,
     ) -> None:
         """
         Args:
