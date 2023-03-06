@@ -25,7 +25,7 @@ else:
 
 class ClearMLHandler:
     """
-    Base class for the handlers to log everything to ClearML WebUI.
+    Base class for the handlers to log everything to ClearML.
     For more details of ClearML usage, please refer to:
     https://clear.ml/docs/latest/docs/references/sdk/task
 
@@ -74,7 +74,7 @@ class ClearMLStatsHandler(ClearMLHandler, TensorBoardStatsHandler):
     """
 
     Class to write tensorboard stats by inheriting TensorBoardStatsHandler class.
-    Everything from Tensorboard is logged automatically to ClearML WebUI.
+    Everything from Tensorboard is logged automatically to ClearML.
 
     Usage example is available in the tutorial:
     https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/unet_segmentation_3d_ignite.ipynb.
@@ -122,7 +122,7 @@ class ClearMLImageHandler(ClearMLHandler, TensorBoardImageHandler):
     """
 
     This class inherits all functionality from TensorBoardImageHandler class.
-    Everything from Tensorboard is logged automatically to ClearML WebUI.
+    Everything from Tensorboard is logged automatically to ClearML.
 
     Usage example is available in the tutorial:
     https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/unet_segmentation_3d_ignite.ipynb.
