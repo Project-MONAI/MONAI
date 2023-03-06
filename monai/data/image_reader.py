@@ -1274,8 +1274,7 @@ class WSIReader(ImageReader):
         if backend == "openslide":
             return OpenSlide
         if backend == "cucim":
-            CuImage, _ = optional_import("cucim", name="CuImage")
-            return CuImage
+            return optional_import("cucim", name="CuImage")[0]
         if backend == "tifffile":
             return TiffFile
         raise ValueError("`backend` should be 'cuCIM', 'OpenSlide' or 'TiffFile'.")

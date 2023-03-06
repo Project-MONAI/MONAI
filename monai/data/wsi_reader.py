@@ -23,7 +23,6 @@ from monai.data.image_reader import ImageReader, _stack_images
 from monai.data.utils import is_supported_format
 from monai.utils import WSIPatchKeys, ensure_tuple, optional_import, require_pkg
 
-CuImage, _ = optional_import("cucim", name="CuImage")
 OpenSlide, _ = optional_import("openslide", name="OpenSlide")
 TiffFile, _ = optional_import("tifffile", name="TiffFile")
 
@@ -491,13 +490,15 @@ class CuCIMWSIReader(BaseWSIReader):
             whole slide image object or list of such objects
 
         """
+        cuimage_cls, _ = optional_import("cucim", name="CuImage")
+
         wsi_list: list = []
 
         filenames: Sequence[PathLike] = ensure_tuple(data)
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
         for filename in filenames:
-            wsi = CuImage(filename, **kwargs_)
+            wsi = cuimage_cls(filename, **kwargs_)
             wsi_list.append(wsi)
 
         return wsi_list if len(filenames) > 1 else wsi_list[0]
