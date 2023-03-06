@@ -19,7 +19,7 @@ from typing import Any
 import numpy as np
 import torch
 
-from monai.config import DtypeLike, PathLike
+from monai.config import DtypeLike, NdarrayOrTensor, PathLike
 from monai.data.image_reader import ImageReader, _stack_images
 from monai.data.utils import is_supported_format
 from monai.utils import WSIPatchKeys, dtype_torch_to_numpy, ensure_tuple, optional_import, require_pkg
@@ -158,7 +158,7 @@ class BaseWSIReader(ImageReader):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     def _get_metadata(
-        self, wsi, patch: np.ndarray, location: tuple[int, int], size: tuple[int, int], level: int
+        self, wsi, patch: NdarrayOrTensor, location: tuple[int, int], size: tuple[int, int], level: int
     ) -> dict:
         """
         Returns metadata of the extracted patch from the whole slide image.
@@ -253,6 +253,7 @@ class BaseWSIReader(ImageReader):
             # Get numpy dtype if it is not already.
             np_dtype = dtype_torch_to_numpy(dtype) if isinstance(dtype, torch.dtype) else dtype
             # Extract a patch or the entire image
+            patch: NdarrayOrTensor
             patch = self._get_patch(each_wsi, location=location, size=size, level=level, dtype=np_dtype, mode=mode)
             # Convert the patch to torch.Tensor if dtype is torch
             if isinstance(dtype, torch.dtype):

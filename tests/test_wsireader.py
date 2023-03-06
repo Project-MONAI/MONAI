@@ -17,9 +17,9 @@ from typing import Any
 from unittest import skipUnless
 
 import numpy as np
+import torch
 from numpy.testing import assert_array_equal
 from parameterized import parameterized
-import torch
 
 from monai.config import PathLike
 from monai.data import DataLoader, Dataset
@@ -328,13 +328,13 @@ class WSIReaderTests:
 
         @parameterized.expand(
             [
-                # TEST_CASE_1,
-                # TEST_CASE_2,
-                # TEST_CASE_3,
-                # TEST_CASE_4,
-                # TEST_CASE_5,
-                # TEST_CASE_6,
-                # TEST_CASE_7,
+                TEST_CASE_1,
+                TEST_CASE_2,
+                TEST_CASE_3,
+                TEST_CASE_4,
+                TEST_CASE_5,
+                TEST_CASE_6,
+                TEST_CASE_7,
                 TEST_CASE_8,
                 TEST_CASE_9,
             ]
@@ -486,25 +486,25 @@ class WSIReaderTests:
             self.assertTupleEqual(mpp, expected_mpp)
 
 
-# @skipUnless(has_cucim, "Requires cucim")
-# class TestCuCIMDeprecated(WSIReaderDeprecatedTests.Tests):
-#     @classmethod
-#     def setUpClass(cls):
-#         cls.backend = "cucim"
+@skipUnless(has_cucim, "Requires cucim")
+class TestCuCIMDeprecated(WSIReaderDeprecatedTests.Tests):
+    @classmethod
+    def setUpClass(cls):
+        cls.backend = "cucim"
 
 
-# @skipUnless(has_osl, "Requires OpenSlide")
-# class TestOpenSlideDeprecated(WSIReaderDeprecatedTests.Tests):
-#     @classmethod
-#     def setUpClass(cls):
-#         cls.backend = "openslide"
+@skipUnless(has_osl, "Requires OpenSlide")
+class TestOpenSlideDeprecated(WSIReaderDeprecatedTests.Tests):
+    @classmethod
+    def setUpClass(cls):
+        cls.backend = "openslide"
 
 
-# @skipUnless(has_tiff, "Requires TiffFile")
-# class TestTiffFileDeprecated(WSIReaderDeprecatedTests.Tests):
-#     @classmethod
-#     def setUpClass(cls):
-#         cls.backend = "tifffile"
+@skipUnless(has_tiff, "Requires TiffFile")
+class TestTiffFileDeprecated(WSIReaderDeprecatedTests.Tests):
+    @classmethod
+    def setUpClass(cls):
+        cls.backend = "tifffile"
 
 
 @skipUnless(has_cucim, "Requires cucim")
