@@ -44,7 +44,7 @@ cupy, _ = optional_import("cupy")
 cupy_ndi, _ = optional_import("cupyx.scipy.ndimage")
 np_ndi, _ = optional_import("scipy.ndimage")
 
-__all__ = ["spatial_resample"]
+__all__ = ["spatial_resample", "orientation"]
 
 
 def spatial_resample(
@@ -160,3 +160,47 @@ def spatial_resample(
         img = img.reshape(full_shape)
     out = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out  # type: ignore
+
+
+def orientation(img, original_affine, spatial_ornt, transform_info):
+    """
+    Functional implementation of changing the input image's orientation into the specified based on `spatial_ornt`.
+    This function operates eagerly or lazily according to
+    ``transform_info[TraceKeys.LAZY_EVALUATION]`` (default ``False``).
+
+    Args:
+        img: data to be changed, assuming `img` is channel-first.
+        original_affine: original affine of the input image.
+        spatial_ornt: orientation.
+        transform_info: a dictionary with the relevant information pertaining to an applied transform.
+    """
+    spatial_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
+    xform = nib.orientations.inv_ornt_aff(spatial_ornt, spatial_shape)
+    img = convert_to_tensor(img, track_meta=get_track_meta())
+
+    spatial_ornt[:, 0] += 1  # skip channel dim
+    spatial_ornt = np.concatenate([np.array([[0, 1]]), spatial_ornt])
+    axes = [ax for ax, flip in enumerate(spatial_ornt[:, 1]) if flip == -1]
+    full_transpose = np.arange(len(spatial_shape) + 1)  # channel-first array
+    full_transpose[: len(spatial_ornt)] = np.argsort(spatial_ornt[:, 0])
+    extra_info = {"original_affine": original_affine}
+
+    shape_np = convert_to_numpy(spatial_shape, wrap_sequence=True)
+    shape_np = shape_np[[i - 1 for i in full_transpose if i > 0]]
+    meta_info = TraceableTransform.track_transform_meta(
+        img,
+        sp_size=shape_np,
+        affine=xform,
+        extra_info=extra_info,
+        orig_size=spatial_shape,
+        transform_info=transform_info,
+        lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
+    )
+    out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
+    if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+    if axes:
+        out = torch.flip(out, dims=axes)
+    if not np.all(full_transpose == np.arange(len(out.shape))):
+        out = out.permute(full_transpose.tolist())
+    return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out

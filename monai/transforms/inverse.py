@@ -175,6 +175,9 @@ class TraceableTransform(Transform):
         if isinstance(data_t, MetaTensor):
             out_obj.copy_meta_from(data_t, keys=out_obj.__dict__.keys())
 
+        if lazy_evaluation and (not get_track_meta()):
+            warnings.warn("metadata is not tracked, please call 'set_track_meta(True)' if doing lazy evaluation.")
+
         if not lazy_evaluation and affine is not None and isinstance(data_t, MetaTensor):
             # not lazy evaluation, directly update the metatensor affine (don't push to the stack)
             orig_affine = data_t.peek_pending_affine()

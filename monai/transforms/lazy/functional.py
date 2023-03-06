@@ -39,6 +39,7 @@ def apply_transforms(
 ):
     """
     This method applies pending transforms to `data` tensors.
+    Currently, only 2d and 3d input are supported.
 
     Args:
         data: A torch Tensor or a monai MetaTensor.

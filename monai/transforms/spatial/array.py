@@ -34,7 +34,7 @@ from monai.networks.utils import meshgrid_ij
 from monai.transforms.croppad.array import CenterSpatialCrop, ResizeWithPadOrCrop
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.spatial.functional import spatial_resample
+from monai.transforms.spatial.functional import orientation, spatial_resample
 from monai.transforms.traits import MultiSampleTrait
 from monai.transforms.transform import LazyTransform, Randomizable, RandomizableTransform, Transform
 from monai.transforms.utils import (
@@ -496,7 +496,7 @@ class Spacing(InvertibleTransform, LazyTransform):
         return self.sp_resample.inverse(data)
 
 
-class Orientation(InvertibleTransform):
+class Orientation(InvertibleTransform, LazyTransform):
     """
     Change the input image's orientation into the specified based on `axcodes`.
     """
@@ -546,14 +546,14 @@ class Orientation(InvertibleTransform):
                 unless `get_track_meta() == False`, in which case it will be
                 `torch.Tensor`.
         """
-        spatial_shape = data_array.shape[1:]
+        spatial_shape = data_array.peek_pending_shape() if isinstance(data_array, MetaTensor) else data_array.shape[1:]
         sr = len(spatial_shape)
         if sr <= 0:
             raise ValueError("data_array must have at least one spatial dimension.")
         affine_: np.ndarray
         affine_np: np.ndarray
         if isinstance(data_array, MetaTensor):
-            affine_np, *_ = convert_data_type(data_array.affine, np.ndarray)
+            affine_np, *_ = convert_data_type(data_array.peek_pending_affine(), np.ndarray)
             affine_ = to_affine_nd(sr, affine_np)
         else:
             warnings.warn("`data_array` is not of type `MetaTensor, assuming affine to be identity.")
@@ -569,8 +569,8 @@ class Orientation(InvertibleTransform):
                 raise ValueError("Incompatible values: axcodes=None and as_closest_canonical=True.")
             if sr < len(self.axcodes):
                 warnings.warn(
-                    f"axcodes ('{self.axcodes}') length is smaller than the number of input spatial dimensions D={sr}.\n"
-                    f"{self.__class__.__name__}: input spatial shape is {spatial_shape}, num. channels is {data_array.shape[0]},"
+                    f"axcodes ('{self.axcodes}') length is smaller than number of input spatial dimensions D={sr}.\n"
+                    f"{self.__class__.__name__}: spatial shape = {spatial_shape}, channels = {data_array.shape[0]},"
                     "please make sure the input is in the channel-first format."
                 )
             dst = nib.orientations.axcodes2ornt(self.axcodes[:sr], labels=self.labels)
@@ -579,31 +579,7 @@ class Orientation(InvertibleTransform):
                     f"axcodes must match data_array spatially, got axcodes={len(self.axcodes)}D data_array={sr}D"
                 )
             spatial_ornt = nib.orientations.ornt_transform(src, dst)
-        new_affine = affine_ @ nib.orientations.inv_ornt_aff(spatial_ornt, spatial_shape)
-
-        # convert to MetaTensor if necessary
-        data_array = convert_to_tensor(data_array, track_meta=get_track_meta())
-
-        spatial_ornt[:, 0] += 1  # skip channel dim
-        spatial_ornt = np.concatenate([np.array([[0, 1]]), spatial_ornt])
-        axes = [ax for ax, flip in enumerate(spatial_ornt[:, 1]) if flip == -1]
-        if axes:
-            data_array = torch.flip(data_array, dims=axes)
-        full_transpose = np.arange(len(data_array.shape))
-        full_transpose[: len(spatial_ornt)] = np.argsort(spatial_ornt[:, 0])
-        if not np.all(full_transpose == np.arange(len(data_array.shape))):
-            data_array = data_array.permute(full_transpose.tolist())
-
-        new_affine = to_affine_nd(affine_np, new_affine)
-        new_affine, *_ = convert_data_type(new_affine, torch.Tensor, dtype=torch.float32, device=data_array.device)
-
-        if get_track_meta():
-            self.update_meta(data_array, new_affine)
-            self.push_transform(data_array, extra_info={"original_affine": affine_np})
-        return data_array
-
-    def update_meta(self, img, new_affine):
-        img.affine = new_affine
+        return orientation(data_array, affine_np, spatial_ornt, self.get_transform_info())  # type: ignore
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(data)

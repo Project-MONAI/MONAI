@@ -29,7 +29,16 @@ def get_apply_param(init_param=None, call_param=None, params=apply_transforms_kw
     return apply_param
 
 
-def test_resampler_lazy(resampler, expected_output, init_param=None, call_param=None, output_key=None, rtol=1e-5):
+def test_resampler_lazy(
+    resampler,
+    expected_output,
+    init_param=None,
+    call_param=None,
+    output_key=None,
+    rtol=1e-5,
+    atol=1e-7,
+    skip_shape_check=False,
+):
     """
     This test function is used to test the consistency between non-lazy and lazy transforms.
     Args:
@@ -39,6 +48,8 @@ def test_resampler_lazy(resampler, expected_output, init_param=None, call_param=
         call_param: parameters that are used when calling the transform.
         output_key: key to get the output of the transform. This argument is used for dictionary based transforms.
         rtol: relative tolerance. This argument is only used to compare the output.
+        atol: absolute tolerance. This argument is only used to compare the output.
+        skip_shape_check: skip the check of shapes.
 
     """
     resampler.lazy_evaluation = True
@@ -48,7 +59,8 @@ def test_resampler_lazy(resampler, expected_output, init_param=None, call_param=
     else:
         non_lazy_out, lazy_out = expected_output, pending_output
     assert_allclose(lazy_out.peek_pending_affine(), non_lazy_out.affine)
-    assert_allclose(lazy_out.peek_pending_shape(), non_lazy_out.shape[1:4])
+    if not skip_shape_check:
+        assert_allclose(lazy_out.peek_pending_shape(), non_lazy_out.shape[1:4])
     apply_param = get_apply_param(init_param, call_param)
     lazy_out = apply_transforms(lazy_out, **apply_param)[0]
-    assert_allclose(lazy_out, non_lazy_out, rtol=rtol)
+    assert_allclose(lazy_out, non_lazy_out, rtol=rtol, atol=atol)
