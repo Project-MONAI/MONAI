@@ -67,7 +67,6 @@ morphology, has_morphology = optional_import("skimage.morphology")
 ndimage, _ = optional_import("scipy.ndimage")
 cp, has_cp = optional_import("cupy")
 cp_ndarray, _ = optional_import("cupy", name="ndarray")
-
 exposure, has_skimage = optional_import("skimage.exposure")
 
 __all__ = [

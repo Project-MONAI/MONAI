@@ -491,7 +491,6 @@ class CuCIMWSIReader(BaseWSIReader):
 
         """
         cuimage_cls, _ = optional_import("cucim", name="CuImage")
-
         wsi_list: list = []
 
         filenames: Sequence[PathLike] = ensure_tuple(data)

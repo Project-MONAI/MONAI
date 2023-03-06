@@ -62,7 +62,6 @@ else:
     nrrd, has_nrrd = optional_import("nrrd", allow_namespace_pkg=True)
 
 OpenSlide, _ = optional_import("openslide", name="OpenSlide")
-
 TiffFile, _ = optional_import("tifffile", name="TiffFile")
 
 __all__ = [
