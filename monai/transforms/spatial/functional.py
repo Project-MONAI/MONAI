@@ -364,14 +364,11 @@ def resize(
     dtype_ = get_equivalent_dtype(dtype or img.dtype, torch.Tensor)
     shape_zoom_factors = [i / j for i, j in zip(spatial_size_, input_shape[1:])]
     pixel_zoom_factors = [j / i for i, j in zip(spatial_size_, input_shape[1:])]
-    print("zoom_factors:", shape_zoom_factors)
 
     shape_transform = create_scale(input_ndim, shape_zoom_factors)
     pixel_transform = create_scale(input_ndim, pixel_zoom_factors)
-    print("transform:", shape_transform)
 
     output_shape = transform_shape(input_shape, shape_transform)
-    print("output_shape:", output_shape)
 
     metadata = {
         "op": "resize",
