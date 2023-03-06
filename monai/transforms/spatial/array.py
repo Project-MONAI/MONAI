@@ -34,7 +34,7 @@ from monai.networks.utils import meshgrid_ij
 from monai.transforms.croppad.array import CenterSpatialCrop, ResizeWithPadOrCrop
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.spatial.functional import orientation, spatial_resample
+from monai.transforms.spatial.functional import flip, orientation, spatial_resample
 from monai.transforms.traits import MultiSampleTrait
 from monai.transforms.transform import LazyTransform, Randomizable, RandomizableTransform, Transform
 from monai.transforms.utils import (
@@ -594,7 +594,7 @@ class Orientation(InvertibleTransform, LazyTransform):
         return data
 
 
-class Flip(InvertibleTransform):
+class Flip(InvertibleTransform, LazyTransform):
     """
     Reverses the order of elements along the given spatial axis. Preserves shape.
     See `torch.flip` documentation for additional details:
@@ -614,30 +614,13 @@ class Flip(InvertibleTransform):
     def __init__(self, spatial_axis: Sequence[int] | int | None = None) -> None:
         self.spatial_axis = spatial_axis
 
-    def update_meta(self, img, shape, axes):
-        # shape and axes include the channel dim
-        affine = img.affine
-        mat = convert_to_dst_type(torch.eye(len(affine)), affine)[0]
-        for axis in axes:
-            sp = axis - 1
-            mat[sp, sp], mat[sp, -1] = mat[sp, sp] * -1, shape[axis] - 1
-        img.affine = affine @ mat
-
-    def forward_image(self, img, axes) -> torch.Tensor:
-        return torch.flip(img, axes)
-
     def __call__(self, img: torch.Tensor) -> torch.Tensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ])
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
-        axes = map_spatial_axes(img.ndim, self.spatial_axis)
-        out = self.forward_image(img, axes)
-        if get_track_meta():
-            self.update_meta(out, out.shape, axes)
-            self.push_transform(out)
-        return out
+        return flip(img, self.spatial_axis, transform_info=self.get_transform_info())  # type: ignore
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         self.pop_transform(data)

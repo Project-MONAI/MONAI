@@ -192,11 +192,7 @@ class TestOrientationCase(unittest.TestCase):
         call_param = {"data_array": img}
         res = ornt(**call_param)
         if img.ndim in (3, 4):
-            # test lazy on 2d and 3d cases
-            skip_shape_check = False if len(img.shape) < 5 else True
-            test_resampler_lazy(
-                ornt, res, init_param=init_param, call_param=call_param, skip_shape_check=skip_shape_check
-            )
+            test_resampler_lazy(ornt, res, init_param, call_param)
 
         assert_allclose(res, expected_data.to(device))
         new_code = nib.orientations.aff2axcodes(res.affine.cpu(), labels=ornt.labels)

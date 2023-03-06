@@ -44,7 +44,7 @@ cupy, _ = optional_import("cupy")
 cupy_ndi, _ = optional_import("cupyx.scipy.ndimage")
 np_ndi, _ = optional_import("scipy.ndimage")
 
-__all__ = ["spatial_resample", "orientation"]
+__all__ = ["spatial_resample", "orientation", "flip"]
 
 
 def spatial_resample(
@@ -203,4 +203,40 @@ def orientation(img, original_affine, spatial_ornt, transform_info):
         out = torch.flip(out, dims=axes)
     if not np.all(full_transpose == np.arange(len(out.shape))):
         out = out.permute(full_transpose.tolist())
+    return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+
+def flip(img, sp_axes, transform_info):
+    """
+    Functional implementation of flip.
+    This function operates eagerly or lazily according to
+    ``transform_info[TraceKeys.LAZY_EVALUATION]`` (default ``False``).
+
+    Args:
+        img: data to be changed, assuming `img` is channel-first.
+        sp_axes: spatial axes along which to flip over.
+        transform_info: a dictionary with the relevant information pertaining to an applied transform.
+    """
+    sp_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
+    sp_size = convert_to_numpy(sp_size, wrap_sequence=True).tolist()
+    extra_info = {"axes": sp_axes}  # track the spatial axes
+    axes = monai.transforms.utils.map_spatial_axes(img.ndim, sp_axes)  # use the axes with channel dim
+    rank = img.peek_pending_rank() if isinstance(img, MetaTensor) else torch.tensor(3.0, dtype=torch.double)
+    # axes include the channel dim
+    xform = torch.eye(int(rank) + 1, dtype=torch.double)
+    for axis in axes:
+        sp = axis - 1
+        xform[sp, sp], xform[sp, -1] = xform[sp, sp] * -1, sp_size[sp] - 1
+    meta_info = TraceableTransform.track_transform_meta(
+        img,
+        sp_size=sp_size,
+        affine=xform,
+        extra_info=extra_info,
+        transform_info=transform_info,
+        lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
+    )
+    out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
+    if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+    out = torch.flip(out, axes)
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
