@@ -485,7 +485,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         res = self.affine
         r = len(res) - 1
         if r not in (2, 3):
-            warnings.warn(f"Only 2d and 3d affine is supported, got {r}d input.")
+            warnings.warn(f"Only 2d and 3d affine are supported, got {r}d input.")
         for p in self.pending_operations:
             next_matrix = convert_to_tensor(p.get(LazyAttr.AFFINE), dtype=torch.float64)
             if next_matrix is None:
