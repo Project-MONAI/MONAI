@@ -16,10 +16,9 @@ import unittest
 from unittest import skipUnless
 
 from parameterized import parameterized
-from torch.nn.functional import pad
 
 from monai.inferers import WSISlidingWindowSplitter
-from tests.utils import assert_allclose, download_url_or_skip_test, optional_import, testing_data_config
+from tests.utils import download_url_or_skip_test, optional_import, testing_data_config
 
 
 cucim, has_cucim = optional_import("cucim")
