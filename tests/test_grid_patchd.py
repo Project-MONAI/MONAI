@@ -54,7 +54,6 @@ TEST_CASE_15 = [{"patch_size": (2, 2), "threshold": 50.0, "num_patches": 3}, {"i
 # threshold filtering with num_patches less than available patches (count filtering)
 TEST_CASE_16 = [{"patch_size": (2, 2), "threshold": 150.0, "num_patches": 2}, {"image": A}, [A11, A12]]
 
-
 TEST_SINGLE = []
 for p in TEST_NDARRAYS:
     TEST_SINGLE.append([p, *TEST_CASE_0])
