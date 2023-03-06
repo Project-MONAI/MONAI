@@ -140,7 +140,7 @@ class ClearMLImageHandler(ClearMLHandler, TensorBoardImageHandler):
         auto_connect_frameworks: bool | Mapping[str, bool | str | list] = True,
         *args,
         **kwargs,
-    ):
+    ) -> None:
         """
         Args:
             project_name: ClearML project name, default to 'MONAI'.
