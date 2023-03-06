@@ -190,7 +190,7 @@ MLFlow handler
     :members:
 
 ClearML handlers
---------------------
+----------------
 .. autoclass:: ClearMLHandler
     :members:
 
