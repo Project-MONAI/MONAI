@@ -20,7 +20,6 @@ from parameterized import parameterized
 from monai.inferers import WSISlidingWindowSplitter
 from tests.utils import download_url_or_skip_test, optional_import, testing_data_config
 
-
 cucim, has_cucim = optional_import("cucim")
 has_cucim = has_cucim and hasattr(cucim, "CuImage")
 openslide, has_osl = optional_import("openslide")
@@ -40,10 +39,7 @@ WIDTH = 46000
 # Primary use test cases
 # ----------------------------------------------------------------------------
 # no-overlapping 2x2
-TEST_CASE_0 = [
-    FILE_PATH,
-    {"patch_size": (1000, 1000), "overlap": 0.0, "reader": "OpenSlide"},
-]
+TEST_CASE_0 = [FILE_PATH, {"patch_size": (1000, 1000), "overlap": 0.0, "reader": "OpenSlide"}]
 
 
 @skipUnless(has_cucim or has_osl or has_tiff, "Requires cucim, openslide, or tifffile!")
@@ -54,11 +50,7 @@ def setUpModule():
 
 
 class WSISlidingWindowSplitterTests(unittest.TestCase):
-    @parameterized.expand(
-        [
-            TEST_CASE_0,
-        ]
-    )
+    @parameterized.expand([TEST_CASE_0])
     def test_split_patches(self, image, arguments):
         patches = WSISlidingWindowSplitter(**arguments)(image)
         # self.assertEqual(len(patches), len(expected))
