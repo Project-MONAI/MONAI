@@ -1075,7 +1075,7 @@ class Rotate90(InvertibleTransform, LazyTransform):
             return xform(data)
 
 
-class RandRotate90(RandomizableTransform, InvertibleTransform):
+class RandRotate90(RandomizableTransform, InvertibleTransform, LazyTransform):
     """
     With probability `prob`, input arrays are rotated by 90 degrees
     in the plane specified by `spatial_axes`.
@@ -1114,13 +1114,13 @@ class RandRotate90(RandomizableTransform, InvertibleTransform):
             self.randomize()
 
         if self._do_transform:
-            out = Rotate90(self._rand_k, self.spatial_axes)(img)
+            xform = Rotate90(self._rand_k, self.spatial_axes)
+            xform.lazy_evaluation = self.lazy_evaluation
+            out = xform(img)
         else:
             out = convert_to_tensor(img, track_meta=get_track_meta())
 
-        if get_track_meta():
-            maybe_rot90_info = self.pop_transform(out, check=False) if self._do_transform else {}
-            self.push_transform(out, extra_info=maybe_rot90_info)
+        self.push_transform(out, replace=True)
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
