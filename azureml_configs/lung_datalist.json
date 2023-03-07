@@ -1,6 +1,5 @@
 {
     "testing": [
-
         {
             "image": "0/ct.nii.gz",
             "label": "0/label.nii.gz"
