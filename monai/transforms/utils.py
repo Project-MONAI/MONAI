@@ -67,7 +67,6 @@ morphology, has_morphology = optional_import("skimage.morphology")
 ndimage, _ = optional_import("scipy.ndimage")
 cp, has_cp = optional_import("cupy")
 cp_ndarray, _ = optional_import("cupy", name="ndarray")
-cucim, has_cucim = optional_import("cucim")
 exposure, has_skimage = optional_import("skimage.exposure")
 
 __all__ = [
@@ -974,6 +973,7 @@ def get_largest_connected_component_mask(
     """
     # use skimage/cucim.skimage and np/cp depending on whether packages are
     # available and input is non-cpu torch.tensor
+    cucim, has_cucim = optional_import("cucim")
     use_cp = has_cp and has_cucim and isinstance(img, torch.Tensor) and img.device != torch.device("cpu")
     if use_cp:
         img_ = convert_to_cupy(img.short())  # type: ignore
