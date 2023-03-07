@@ -34,7 +34,7 @@ from monai.bundle.workflows import ConfigWorkflow
 from monai.config import IgniteInfo, PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
 from monai.networks import convert_to_torchscript, copy_model_state, get_state_dict, save_state
-from monai.utils import check_parent_dir, deprecated_arg, get_equivalent_dtype, min_version, optional_import
+from monai.utils import check_parent_dir, get_equivalent_dtype, min_version, optional_import
 from monai.utils.misc import ensure_tuple, pprint_edges
 
 validate, _ = optional_import("jsonschema", name="validate")
@@ -572,12 +572,6 @@ def get_bundle_info(
     return bundle_info[version]
 
 
-@deprecated_arg(
-    name="runner_id",
-    since="1.1",
-    removed="1.3",
-    msg_suffix="please clearly define `initialize`, `run`, `finalize` expression sections in the bundle config.",
-)
 def run(
     runner_id: str | None = None,
     meta_file: str | Sequence[str] | None = None,
