@@ -700,8 +700,8 @@ def run(
         tracking=None,
     )
     workflow = ConfigWorkflow(
-        meta_file=meta_file_,
         config_file=config_file_,
+        meta_file=meta_file_,
         logging_file=logging_file_,
         run_id=runner_id_,
         tracking=tracking_,

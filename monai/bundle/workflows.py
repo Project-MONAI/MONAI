@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import time
+import warnings
 from abc import ABC, abstractmethod
 from logging.config import fileConfig
 from pathlib import Path
@@ -286,9 +287,9 @@ class InferProperties:
 class ConfigWorkflow(BundleWorkflow):
     def __init__(
         self,
-        meta_file: str | Sequence[str] | None = None,
-        config_file: str | Sequence[str] | None = None,
-        logging_file: str | None = None,
+        config_file: str | Sequence[str],
+        meta_file: str | Sequence[str] | None = "configs/metadata.json",
+        logging_file: str | None = "configs/logging.conf",
         init_id: str = "initialize",
         run_id: str = "run",
         final_id: str = "finalize",
@@ -297,14 +298,24 @@ class ConfigWorkflow(BundleWorkflow):
     ) -> None:
         if logging_file is not None:
             if not os.path.exists(logging_file):
-                raise FileNotFoundError(f"can't find the logging config file: {logging_file}.")
-            logger.info(f"set logging properties based on config: {logging_file}.")
-            fileConfig(logging_file, disable_existing_loggers=False)
+                if logging_file == "configs/logging.conf":
+                    warnings.warn("default logging file in 'configs/logging.conf' not exists, skip logging.")
+                else:
+                    raise FileNotFoundError(f"can't find the logging config file: {logging_file}.")
+            else:
+                logger.info(f"set logging properties based on config: {logging_file}.")
+                fileConfig(logging_file, disable_existing_loggers=False)
 
         self.parser = ConfigParser()
         self.parser.read_config(f=config_file)
         if meta_file is not None:
-            self.parser.read_meta(f=meta_file)
+            if not os.path.exists(meta_file):
+                if meta_file == "configs/metadata.json":
+                    warnings.warn("default metadata file in 'configs/metadata.json' not exists, skip loading.")
+                else:
+                    raise FileNotFoundError(f"can't find the metadata config file: {meta_file}.")
+            else:
+                self.parser.read_meta(f=meta_file)
 
         # the rest key-values in the _args are to override config content
         self.parser.update(pairs=override)
