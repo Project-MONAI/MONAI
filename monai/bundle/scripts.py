@@ -1062,7 +1062,7 @@ def trt_export(
     **override: Any,
 ) -> None:
     """
-    Export the model checkpoint to the given filepath as a tensorrt module.
+    Export the model checkpoint to the given filepath as a TensorRT engine based torchscript.
 
     Typical usage examples:
 
@@ -1082,12 +1082,12 @@ def trt_export(
             it can be a single file or a list of files. if `None`, must be provided in `args_file`.
         key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
             weights. if not nested checkpoint, no need to set.
-        precision: the precision for converting models to TensorRT engine. Should be 'fp32' or 'fp16'.
-        input_shape: an input shape that is used during converting models to trt module. Should has shape like
+        precision: the weight precision of converted TensorRT engine based torchscript models. Should be 'fp32' or 'fp16'.
+        input_shape: an input shape that is used to generate random input during the convert. Should be like
             (N, C, H, W) or (N, C, H, W, D).
-        ir: the intermedia representation way to transform a pytorch module to TensorRT module. Could be choose from
-            `script, trace`.
-        dynamic_batchsize: a three number list to define the batch size range for TensorRT module. Each of the
+        ir: the intermediate representation way to transform a pytorch module to a TensorRT engine based torchscript. Could 
+            be choose from `(script, trace)`.
+        dynamic_batchsize: a three number list to define the batch size range for the converted model. Each of the
             three number means `MIN_BATCH, OPT_BATCH, MAX_BATCH` in order.
         args_file: a JSON or YAML file to provide default values for `meta_file`, `config_file`,
             `net_id` and override pairs. so that the command line inputs can be simplified.
