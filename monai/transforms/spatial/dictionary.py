@@ -493,7 +493,7 @@ class Orientationd(MapTransform, InvertibleTransform, LazyTransform):
         return d
 
 
-class Rotate90d(MapTransform, InvertibleTransform):
+class Rotate90d(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Rotate90`.
     """
@@ -512,6 +512,11 @@ class Rotate90d(MapTransform, InvertibleTransform):
         """
         super().__init__(keys, allow_missing_keys)
         self.rotator = Rotate90(k, spatial_axes)
+
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool) -> None:
+        self._lazy_evaluation = val
+        self.rotator.lazy_evaluation = val
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)

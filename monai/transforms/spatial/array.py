@@ -33,7 +33,7 @@ from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.networks.utils import meshgrid_ij
 from monai.transforms.croppad.array import CenterSpatialCrop, ResizeWithPadOrCrop
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.spatial.functional import flip, orientation, resize, rotate, spatial_resample
+from monai.transforms.spatial.functional import flip, orientation, resize, rotate, spatial_resample, rotate90
 from monai.transforms.traits import MultiSampleTrait
 from monai.transforms.transform import LazyTransform, Randomizable, RandomizableTransform, Transform
 from monai.transforms.utils import (
@@ -1029,7 +1029,7 @@ class Zoom(InvertibleTransform):
         return out
 
 
-class Rotate90(InvertibleTransform):
+class Rotate90(InvertibleTransform, LazyTransform):
     """
     Rotate an array by 90 degrees in the plane specified by `axes`.
     See `torch.rot90` for additional details:
@@ -1047,7 +1047,7 @@ class Rotate90(InvertibleTransform):
                 Default: (0, 1), this is the first two axis in spatial dimensions.
                 If axis is negative it counts from the last to the first axis.
         """
-        self.k = k
+        self.k = (4 + (k % 4)) % 4  # 0, 1, 2, 3
         spatial_axes_: tuple[int, int] = ensure_tuple(spatial_axes)  # type: ignore
         if len(spatial_axes_) != 2:
             raise ValueError("spatial_axes must be 2 int numbers to indicate the axes to rotate 90 degrees.")
@@ -1060,30 +1060,7 @@ class Rotate90(InvertibleTransform):
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         axes = map_spatial_axes(img.ndim, self.spatial_axes)
-        ori_shape = img.shape[1:]
-        out: NdarrayOrTensor = torch.rot90(img, self.k, axes)
-        out = convert_to_dst_type(out, img)[0]
-        if get_track_meta():
-            self.update_meta(out, ori_shape, out.shape[1:], axes, self.k)
-            self.push_transform(out, extra_info={"axes": [d - 1 for d in axes], "k": self.k})  # compensate spatial dim
-        return out
-
-    def update_meta(self, img, spatial_size, new_spatial_size, axes, k):
-        affine = convert_data_type(img.affine, torch.Tensor)[0]
-        r, sp_r = len(affine) - 1, len(spatial_size)
-        mat = to_affine_nd(r, create_translate(sp_r, [-float(d - 1) / 2 for d in new_spatial_size]))
-        s = -1.0 if int(axes[0]) - int(axes[1]) in (-1, 2) else 1.0
-        if sp_r == 2:
-            rot90 = to_affine_nd(r, create_rotate(sp_r, [s * np.pi / 2]))
-        else:
-            idx = {1, 2, 3} - set(axes)
-            angle: list[float] = [0, 0, 0]
-            angle[idx.pop() - 1] = s * np.pi / 2
-            rot90 = to_affine_nd(r, create_rotate(sp_r, angle))
-        for _ in range(k):
-            mat = rot90 @ mat
-        mat = to_affine_nd(r, create_translate(sp_r, [float(d - 1) / 2 for d in spatial_size])) @ mat
-        img.affine = affine @ convert_to_dst_type(mat, affine)[0]
+        return rotate90(img, axes, self.k, self.get_transform_info())  # type: ignore
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(data)
