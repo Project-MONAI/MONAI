@@ -3140,7 +3140,6 @@ class GridPatch(Transform, MultiSampleTrait):
         patches = list(zip(*patch_iterator))
         patched_image = np.array(patches[0])
         locations = np.array(patches[1])[:, 1:, 0]  # only keep the starting location
-        del patches  # it will free up some memory if padding is used.
 
         # Apply threshold filtering
         if self.threshold is not None:
