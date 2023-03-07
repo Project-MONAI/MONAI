@@ -17,7 +17,7 @@ import unittest
 
 from monai.apps.auto3dseg import AutoRunner
 from monai.utils import optional_import
-from tests.utils import skip_if_quick
+from tests.utils import generate_fake_segmentation_data, skip_if_quick
 
 health_azure, has_health_azure = optional_import("health_azure")
 

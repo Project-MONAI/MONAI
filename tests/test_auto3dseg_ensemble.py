@@ -26,6 +26,8 @@ from monai.utils import optional_import, set_determinism
 from monai.utils.enums import AlgoEnsembleKeys
 from tests.utils import (
     SkipIfBeforePyTorchVersion,
+    export_fake_data_config_file,
+    generate_fake_segmentation_data,
     get_testing_algo_template_path,
     skip_if_downloading_fails,
     skip_if_no_cuda,
@@ -94,20 +96,10 @@ class TestEnsembleBuilder(unittest.TestCase):
             os.makedirs(work_dir)
 
         # Generate a fake dataset
-        for d in fake_datalist["testing"] + fake_datalist["training"]:
-            im, seg = create_test_image_3d(24, 24, 24, rad_max=10, num_seg_classes=1)
-            nib_image = nib.Nifti1Image(im, affine=np.eye(4))
-            image_fpath = os.path.join(dataroot, d["image"])
-            nib.save(nib_image, image_fpath)
-
-            if "label" in d:
-                nib_image = nib.Nifti1Image(seg, affine=np.eye(4))
-                label_fpath = os.path.join(dataroot, d["label"])
-                nib.save(nib_image, label_fpath)
+        generate_fake_segmentation_data(dataroot, fake_datalist)
 
         # write to a json file
-        fake_json_datalist = os.path.join(dataroot, "fake_input.json")
-        ConfigParser.export_config_file(fake_datalist, fake_json_datalist)
+        fake_json_datalist = export_fake_data_config_file(dataroot)
 
         da = DataAnalyzer(fake_json_datalist, dataroot, output_path=da_output_yaml)
         da.get_all_case_stats()
