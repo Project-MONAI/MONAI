@@ -20,6 +20,8 @@ from .enums import (
     Average,
     BlendMode,
     BoxModeName,
+    BundleProperty,
+    BundlePropertyConfig,
     ChannelMatching,
     ColorOrder,
     CommonKeys,

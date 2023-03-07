@@ -22,7 +22,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.bundle import BundleWorkflow, ConfigInferWorkflow, InferProperties
+from monai.bundle import BundleWorkflow, ConfigWorkflow
 from monai.data import DataLoader, Dataset
 from monai.engines import SupervisedEvaluator
 from monai.inferers import SlidingWindowInferer
@@ -37,20 +37,21 @@ from monai.transforms import (
     SaveImaged,
     ScaleIntensityd,
 )
-from monai.utils import set_determinism
+from monai.utils import BundleProperty, set_determinism
 
 TEST_CASE_1 = [os.path.join(os.path.dirname(__file__), "testing_data", "inference.json")]
 
 TEST_CASE_2 = [os.path.join(os.path.dirname(__file__), "testing_data", "inference.yaml")]
 
 
-class NonConfigWorkflow(BundleWorkflow, InferProperties):
+class NonConfigWorkflow(BundleWorkflow):
     """
     Test class simulates the bundle workflow defined by Python script directly.
 
     """
 
     def __init__(self, filename, output_dir):
+        super().__init__(workflow="inference")
         self.filename = filename
         self.output_dir = output_dir
         self._bundle_root = "will override"
@@ -107,66 +108,24 @@ class NonConfigWorkflow(BundleWorkflow, InferProperties):
     def finalize(self):
         return True
 
-    @property
-    def bundle_root(self):
-        return self._bundle_root
+    def _get_property(self, name, property):
+        if name == "bundle_root":
+            return self._bundle_root
+        if name == "network_def":
+            return self._network_def
+        if property[BundleProperty.REQUIRED]:
+            raise ValueError(f"unsupported property '{name}' is required in the bundle properties.")
 
-    @bundle_root.setter
-    def bundle_root(self, path):
-        self._bundle_root = path
-
-    @property
-    def device(self):
-        return self._device
-
-    @device.setter
-    def device(self, name):
-        self._device = torch.device(name)
-
-    @property
-    def network_def(self):
-        return self._network_def
-
-    @network_def.setter
-    def network_def(self, net):
-        self._network_def = net
-
-    @property
-    def inferer(self):
-        return self._inferer
-
-    @inferer.setter
-    def inferer(self, inferer):
-        self._inferer = inferer
-
-    @property
-    def preprocessing(self):
-        return self._preprocessing
-
-    @preprocessing.setter
-    def preprocessing(self, preprocessing):
-        self._preprocessing = preprocessing
-
-    @property
-    def postprocessing(self):
-        return self._postprocessing
-
-    @postprocessing.setter
-    def postprocessing(self, postprocessing):
-        self._postprocessing = postprocessing
-
-    @property
-    def key_metric(self):
-        # None for non-existing optional properties
-        return None
-
-    @key_metric.setter
-    def key_metric(self, key_metric):
-        # do nothing for non-existing optional properties
-        pass
+    def _set_property(self, name, property, value):
+        if name == "bundle_root":
+            self._bundle_root = value
+        elif name == "network_def":
+            self._network_def = value
+        elif property[BundleProperty.REQUIRED]:
+            raise ValueError(f"unsupported property '{name}' is required in the bundle properties.")
 
 
-class TestBundleInferWorkflow(unittest.TestCase):
+class TestBundleWorkflow(unittest.TestCase):
     def setUp(self):
         self.data_dir = tempfile.mkdtemp()
         self.expected_shape = (128, 128, 128)
@@ -180,25 +139,27 @@ class TestBundleInferWorkflow(unittest.TestCase):
     def _test_inferer(self, inferer):
         # should initialize before parsing any bundle content
         inferer.initialize()
+        # test required and optional properties
+        inferer.check_properties()
         # test read / write the properties, note that we don't assume it as JSON or YAML config here
         self.assertEqual(inferer.bundle_root, "will override")
-        self.assertEqual(inferer.device, torch.device("cpu"))
+        # self.assertEqual(inferer.device, torch.device("cpu"))
         net = inferer.network_def
         self.assertTrue(isinstance(net, UNet))
-        sliding_window = inferer.inferer
-        self.assertTrue(isinstance(sliding_window, SlidingWindowInferer))
-        preprocessing = inferer.preprocessing
-        self.assertTrue(isinstance(preprocessing, Compose))
-        postprocessing = inferer.postprocessing
-        self.assertTrue(isinstance(postprocessing, Compose))
+        # sliding_window = inferer.inferer
+        # self.assertTrue(isinstance(sliding_window, SlidingWindowInferer))
+        # preprocessing = inferer.preprocessing
+        # self.assertTrue(isinstance(preprocessing, Compose))
+        # postprocessing = inferer.postprocessing
+        # self.assertTrue(isinstance(postprocessing, Compose))
         # test optional properties
         self.assertTrue(inferer.key_metric is None)
         inferer.bundle_root = "/workspace/data/spleen_ct_segmentation"
-        inferer.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        # inferer.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         inferer.network_def = deepcopy(net)
-        inferer.inferer = deepcopy(sliding_window)
-        inferer.preprocessing = deepcopy(preprocessing)
-        inferer.postprocessing = deepcopy(postprocessing)
+        # inferer.inferer = deepcopy(sliding_window)
+        # inferer.preprocessing = deepcopy(preprocessing)
+        # inferer.postprocessing = deepcopy(postprocessing)
         # test optional properties
         inferer.key_metric = "set optional properties"
 
@@ -222,7 +183,8 @@ class TestBundleInferWorkflow(unittest.TestCase):
             "output_dir": self.data_dir,
         }
         # test standard MONAI model-zoo config workflow
-        inferer = ConfigInferWorkflow(
+        inferer = ConfigWorkflow(
+            workflow="infer",
             config_file=config_file,
             logging_file=os.path.join(os.path.dirname(__file__), "testing_data", "logging.conf"),
             **override,

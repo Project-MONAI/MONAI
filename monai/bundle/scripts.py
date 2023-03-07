@@ -700,6 +700,7 @@ def run(
         tracking=None,
     )
     workflow = ConfigWorkflow(
+        workflow="train",  # no need to check properties here, set any supported value
         config_file=config_file_,
         meta_file=meta_file_,
         logging_file=logging_file_,

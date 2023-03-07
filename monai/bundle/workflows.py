@@ -19,18 +19,56 @@ from logging.config import fileConfig
 from pathlib import Path
 from typing import Any, Sequence
 
-import torch
-
 from monai.apps.utils import get_logger
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import DEFAULT_EXP_MGMT_SETTINGS
-from monai.engines import Evaluator, Trainer
-from monai.inferers import Inferer
-from monai.transforms import Transform
+from monai.utils import BundleProperty, BundlePropertyConfig
 
-__all__ = ["BundleWorkflow", "ConfigWorkflow", "ConfigTrainWorkflow", "ConfigInferWorkflow"]
+__all__ = ["BundleWorkflow", "ConfigWorkflow"]
 
 logger = get_logger(module_name=__name__)
+
+
+TrainProperties = {
+    "bundle_root": {
+        BundleProperty.DESP: "root path of the bundle.",
+        BundleProperty.REQUIRED: True,
+        BundlePropertyConfig.ID: "bundle_root",
+    },
+    "device": {
+        BundleProperty.DESP: "target device to execute the bundle workflow.",
+        BundleProperty.REQUIRED: True,
+        BundlePropertyConfig.ID: "device",
+    },
+    "train_preprocessing": {
+        BundleProperty.DESP: "preprocessing for input data.",
+        BundleProperty.REQUIRED: False,
+        BundlePropertyConfig.ID: "train#preprocessing",
+        BundlePropertyConfig.REF_ID: "train#dataset#transform",
+    },
+    # TODO: add all the required and optional properties
+}
+
+
+InferProperties = {
+    "bundle_root": {
+        BundleProperty.DESP: "root path of the bundle.",
+        BundleProperty.REQUIRED: True,
+        BundlePropertyConfig.ID: "bundle_root",
+    },
+    "network_def": {
+        BundleProperty.DESP: "network module for the inference.",
+        BundleProperty.REQUIRED: True,
+        BundlePropertyConfig.ID: "network_def",
+    },
+    "key_metric": {
+        BundleProperty.DESP: "the key metric during evaluation.",
+        BundleProperty.REQUIRED: False,
+        BundlePropertyConfig.ID: "key_metric",
+        BundlePropertyConfig.REF_ID: "evaluator#key_val_metric",
+    },
+    # TODO: add all the required and optional properties
+}
 
 
 class BundleWorkflow(ABC):
@@ -38,6 +76,14 @@ class BundleWorkflow(ABC):
     Base class for the workflow specification in bundle.
 
     """
+
+    def __init__(self, workflow: str):
+        if workflow.lower() in ("train", "training"):
+            self.properties = TrainProperties
+        elif workflow.lower() in ("infer", "inference", "eval", "evaluation"):
+            self.properties = InferProperties
+        else:
+            raise ValueError(f"got unsupported workflow type: '{workflow}'.")
 
     @abstractmethod
     def initialize(self, *args: Any, **kwargs: Any) -> Any:
@@ -51,242 +97,36 @@ class BundleWorkflow(ABC):
     def finalize(self, *args: Any, **kwargs: Any) -> Any:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-
-class TrainProperties:
-    """
-    Interface to get / set required properties for the training process in bundle.
-    Subclass must implement the logic for properties.
-
-    """
-
-    @property
-    def bundle_root(self) -> str:
+    @abstractmethod
+    def _get_property(self, name: str, property: dict) -> Any:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @bundle_root.setter
-    def bundle_root(self, path: str):
+    @abstractmethod
+    def _set_property(self, name: str, property: dict, value: Any) -> Any:
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    @property
-    def device(self) -> torch.device:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+    def __getattr__(self, name):
+        if name in self.properties:
+            return self._get_property(name=name, property=self.properties[name])
+        else:
+            return self.__getattribute__(name)  # getting regular attribute
 
-    @device.setter
-    def device(self, name: str):
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+    def __setattr__(self, name, value):
+        if name != "properties" and name in self.properties:
+            self._set_property(name=name, property=self.properties[name], value=value)
+        else:
+            super().__setattr__(name, value)  # setting regular attribute
 
-    @property
-    def dataset_dir(self) -> str:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @dataset_dir.setter
-    def dataset_dir(self, path: str):
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @property
-    def trainer(self) -> Trainer:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @trainer.setter
-    def trainer(self, trainer: Trainer | dict):
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @property
-    def max_epochs(self) -> int:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @max_epochs.setter
-    def max_epochs(self, max_epochs: int):
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @property
-    def train_dataset(self) -> Any:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @train_dataset.setter
-    def train_dataset(self, dataset: Any):
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @property
-    def train_dataset_data(self) -> Any:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @train_dataset_data.setter
-    def train_dataset_data(self, data: Any):
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @property
-    def train_handlers(self) -> list:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @train_handlers.setter
-    def train_handlers(self, handlers: list):
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @property
-    def train_inferer(self) -> Inferer:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @train_inferer.setter
-    def train_inferer(self, inferer: Inferer | dict):
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @property
-    def train_preprocessing(self) -> Transform | None:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @train_preprocessing.setter
-    def train_preprocessing(self, preprocessing: Transform | dict):
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @property
-    def train_postprocessing(self) -> Transform | None:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @train_postprocessing.setter
-    def train_postprocessing(self, postprocessing: Transform | dict):
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @property
-    def train_key_metric(self) -> Any:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @train_key_metric.setter
-    def train_key_metric(self, key_metric: Any):
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @property
-    def evaluator(self) -> Evaluator | None:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @evaluator.setter
-    def evaluator(self, evaluator: Evaluator | dict):
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @property
-    def val_handlers(self) -> list | None:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @val_handlers.setter
-    def val_handlers(self, handlers: list):
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @property
-    def val_dataset(self) -> Any:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @val_dataset.setter
-    def val_dataset(self, dataset: Any):
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @property
-    def val_dataset_data(self) -> Any:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @val_dataset_data.setter
-    def val_dataset_data(self, data: Any):
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @property
-    def val_inferer(self) -> Inferer | None:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @val_inferer.setter
-    def val_inferer(self, inferer: Inferer | dict):
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @property
-    def val_preprocessing(self) -> Transform | None:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @val_preprocessing.setter
-    def val_preprocessing(self, preprocessing: Transform | dict):
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @property
-    def val_postprocessing(self) -> Transform | None:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @val_postprocessing.setter
-    def val_postprocessing(self, postprocessing: Transform | dict):
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @property
-    def val_key_metric(self) -> Any:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @val_key_metric.setter
-    def val_key_metric(self, key_metric: Any):
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-
-class InferProperties:
-    """
-    Interface to get / set required properties for the inference process in bundle.
-    Subclass must implement the logic for properties.
-
-    """
-
-    @property
-    def bundle_root(self) -> str:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @bundle_root.setter
-    def bundle_root(self, str):
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @property
-    def device(self) -> torch.device:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @device.setter
-    def device(self, name: str):
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @property
-    def network_def(self) -> torch.Module:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @network_def.setter
-    def network_def(self, net: torch.Module | dict):
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @property
-    def inferer(self) -> Inferer:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @inferer.setter
-    def inferer(self, inferer: Inferer | dict):
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @property
-    def preprocessing(self) -> Transform | None:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @preprocessing.setter
-    def preprocessing(self, preprocessing: Transform | dict):
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @property
-    def postprocessing(self) -> Transform | None:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @postprocessing.setter
-    def postprocessing(self, postprocessing: Transform | dict):
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @property
-    def key_metric(self) -> Any:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @key_metric.setter
-    def key_metric(self, key_metric: Any):
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+    def check_properties(self):
+        missing_props = [n for n, p in self.properties.items() if p[BundleProperty.REQUIRED] and not hasattr(self, n)]
+        if missing_props:
+            raise ValueError(f"loaded bundle does not contain the following required properties: {missing_props}")
 
 
 class ConfigWorkflow(BundleWorkflow):
     def __init__(
         self,
+        workflow: str,
         config_file: str | Sequence[str],
         meta_file: str | Sequence[str] | None = "configs/metadata.json",
         logging_file: str | None = "configs/logging.conf",
@@ -296,6 +136,7 @@ class ConfigWorkflow(BundleWorkflow):
         tracking: str | dict | None = None,
         **override,
     ) -> None:
+        super().__init__(workflow=workflow)
         if logging_file is not None:
             if not os.path.exists(logging_file):
                 if logging_file == "configs/logging.conf":
@@ -341,47 +182,57 @@ class ConfigWorkflow(BundleWorkflow):
     def finalize(self) -> Any:
         return self._run_expr(id=self.final_id)
 
+    def check_properties(self):
+        super().check_properties()
+        # also check whether the optional properties use correct ID name if existing
+        wrong_props = []
+        for n, p in self.properties.items():
+            if not p[BundleProperty.REQUIRED] and not self._check_optional_id(name=n, property=p):
+                wrong_props.append(n)
+        if wrong_props:
+            raise ValueError(f"loaded bundle defines the following optional properties with wrong ID: {wrong_props}")
+        # check validation `interval` property
+        if "train#handlers" in self.parser:
+            for h in self.parser["train#handlers"]:
+                if h["_target_"] == "ValidationHandler":
+                    interval = h.get("interval", None)
+                    if interval is not None and interval != "val_interval":
+                        raise ValueError("please use ID 'val_interval' to define validation interval in training.")
+
     def _run_expr(self, id: str, **kwargs) -> Any:
         return self.parser.get_parsed_content(id, **kwargs) if id in self.parser else None
 
-    def get_content(self, id: str, allow_missing: bool = False):
+    def _get_property(self, name: str, property: dict):
         if not self.parser.ref_resolver.is_resolved():
             raise RuntimeError("please execute 'initialize' before getting any parsed content.")
+        id = property[BundlePropertyConfig.ID]
         if id not in self.parser:
-            if allow_missing:
+            if not property[BundleProperty.REQUIRED]:
                 return None
             else:
-                raise KeyError(f"id '{id}' not in the config.")
+                raise KeyError(f"property '{name}' with config ID '{id}' not in the config.")
         return self.parser.get_parsed_content(id=id)
 
-    def set_content(self, id: str, content: Any, allow_missing: bool = False):
+    def _set_property(self, name: str, property: dict, value: Any):
+        id = property[BundlePropertyConfig.ID]
         if id not in self.parser:
-            if allow_missing:
-                return
+            if not property[BundleProperty.REQUIRED]:
+                return None
             else:
-                raise KeyError(f"id '{id}' not in the config.")
-        self.parser[id] = content
+                raise KeyError(f"property '{name}' with config ID '{id}' not in the config.")
+        self.parser[id] = value
         # must parse the config again after changing the content
         self.parser.ref_resolver.reset()
 
-    def check(self) -> bool:
-        pass
-
-    def _check_required_ids(self, ids: Sequence[str]) -> bool:
-        ret = True
-        for i in ids:
-            if i not in self.parser:
-                logger.info(f"did not find the required id '{i}' in the config.")
-                ret = False
-        return ret
-
-    def _check_optional_id(self, caller_id: str, expected: str):
-        ret = self.parser.get(caller_id, None)
-        if ret is not None and ret != "@" + expected:
-            logger.info(f"found optional component with id '{ret}', but its id should be defined as `{expected}`.")
+    def _check_optional_id(self, name: str, property: dict):
+        if BundlePropertyConfig.REF_ID not in property:
+            raise ValueError(f"can't find the ID of reference config item for optional property '{name}'.")
+        ret = self.parser.get(property[BundlePropertyConfig.REF_ID], None)
+        if ret is not None and ret != "@" + property[BundlePropertyConfig.ID]:
             return False
         return True
 
+    # TODO: this function is called by MONAI FL, will update it after updated MONAI FL
     @staticmethod
     def patch_bundle_tracking(parser: ConfigParser, settings: dict):
         """
@@ -415,278 +266,3 @@ class ConfigWorkflow(BundleWorkflow):
             filepath = os.path.join(parser.get_parsed_content("output_dir"), default_name)
         Path(filepath).parent.mkdir(parents=True, exist_ok=True)
         parser.export_config_file(parser.get(), filepath)
-
-
-class ConfigTrainWorkflow(ConfigWorkflow, TrainProperties):
-    required_train_ids = [
-        "bundle_root",
-        "device",
-        "dataset_dir",
-        "train#trainer",
-        "train#trainer#max_epochs",
-        "train#dataset",
-        "train#dataset#data",
-        "train#handlers",
-        "train#inferer",
-    ]
-    required_val_ids = [
-        "validate#evaluator",
-        "validate#handlers",
-        "validate#dataset",
-        "validate#dataset#data",
-        "validate#inferer",
-    ]
-    optional_train_ids = ["train#preprocessing", "train#postprocessing", "train#key_metric"]
-    optional_val_ids = ["validate#preprocessing", "validate#postprocessing", "validate#key_metric"]
-
-    def check(self) -> bool:
-        ret = self._check_required_ids(self.required_train_ids)
-        # if having validation logic, verify the ids
-        ret &= self._check_required_ids(self.required_val_ids) if "validate" in self.parser else True
-        # check optional ids if existing
-        ret &= (
-            self._check_optional_id("train#dataset#transform", self.optional_train_ids[0])
-            & self._check_optional_id("train#trainer#postprocessing", self.optional_train_ids[1])
-            & self._check_optional_id("train#trainer#key_train_metric", self.optional_train_ids[2])
-            & self._check_optional_id("validate#dataset#transform", self.optional_val_ids[0])
-            & self._check_optional_id("validate#evaluator#postprocessing", self.optional_val_ids[1])
-            & self._check_optional_id("validate#evaluator#key_val_metric", self.optional_val_ids[2])
-        )
-        for h in self.parser["train#handlers"]:
-            if h["_target_"] == "ValidationHandler":
-                interval = h.get("interval", None)
-                if interval is not None and interval != "val_interval":
-                    logger.info(f"please use id 'val_interval' to define validation interval, got: '{interval}'.")
-                    ret = False
-        return ret
-
-    @property
-    def bundle_root(self) -> str:
-        return self.get_content(self.required_train_ids[0])
-
-    @bundle_root.setter
-    def bundle_root(self, path: str):
-        self.set_content(self.required_train_ids[0], path)
-
-    @property
-    def device(self) -> torch.device:
-        return self.get_content(self.required_train_ids[1])
-
-    @device.setter
-    def device(self, name: str):
-        self.set_content(self.required_train_ids[1], name)
-
-    @property
-    def dataset_dir(self) -> str:
-        return self.get_content(self.required_train_ids[2])
-
-    @dataset_dir.setter
-    def dataset_dir(self, path: str):
-        self.set_content(self.required_train_ids[2], path)
-
-    @property
-    def trainer(self) -> Trainer:
-        return self.get_content(self.required_train_ids[3])
-
-    @trainer.setter
-    def trainer(self, trainer: Trainer | dict):
-        self.set_content(self.required_train_ids[3], trainer)
-
-    @property
-    def max_epochs(self) -> int:
-        return self.get_content(self.required_train_ids[4])
-
-    @max_epochs.setter
-    def max_epochs(self, max_epochs: int):
-        self.set_content(self.required_train_ids[4], max_epochs)
-
-    @property
-    def train_dataset(self) -> Any:
-        return self.get_content(self.required_train_ids[5])
-
-    @train_dataset.setter
-    def train_dataset(self, dataset: Any):
-        self.set_content(self.required_train_ids[5], dataset)
-
-    @property
-    def train_dataset_data(self) -> Any:
-        return self.get_content(self.required_train_ids[6])
-
-    @train_dataset_data.setter
-    def train_dataset_data(self, data: Any):
-        self.set_content(self.required_train_ids[6], data)
-
-    @property
-    def train_handlers(self) -> list:
-        return self.get_content(self.required_train_ids[7])
-
-    @train_handlers.setter
-    def train_handlers(self, handlers: list):
-        self.set_content(self.required_train_ids[7], handlers)
-
-    @property
-    def train_inferer(self) -> Inferer:
-        return self.get_content(self.required_train_ids[8])
-
-    @train_inferer.setter
-    def train_inferer(self, inferer: Inferer | dict):
-        self.set_content(self.required_train_ids[8], inferer)
-
-    @property
-    def train_preprocessing(self) -> Transform | None:
-        return self.get_content(self.optional_train_ids[0], allow_missing=True)
-
-    @train_preprocessing.setter
-    def train_preprocessing(self, preprocessing: Transform | dict):
-        self.set_content(self.optional_train_ids[0], preprocessing, allow_missing=True)
-
-    @property
-    def train_postprocessing(self) -> Transform | None:
-        return self.get_content(self.optional_train_ids[1], allow_missing=True)
-
-    @train_postprocessing.setter
-    def train_postprocessing(self, postprocessing: Transform | dict):
-        self.set_content(self.optional_train_ids[1], postprocessing, allow_missing=True)
-
-    @property
-    def train_key_metric(self) -> Any:
-        return self.get_content(self.optional_train_ids[2], allow_missing=True)
-
-    @train_key_metric.setter
-    def train_key_metric(self, key_metric: Any):
-        self.set_content(self.optional_train_ids[2], key_metric, allow_missing=True)
-
-    @property
-    def evaluator(self) -> Evaluator | None:
-        return self.get_content(self.required_val_ids[0], allow_missing=True)
-
-    @evaluator.setter
-    def evaluator(self, evaluator: Evaluator | dict):
-        self.set_content(self.required_val_ids[0], evaluator, allow_missing=True)
-
-    @property
-    def val_handlers(self) -> list | None:
-        return self.get_content(self.required_val_ids[1], allow_missing=True)
-
-    @val_handlers.setter
-    def val_handlers(self, handlers: list):
-        self.set_content(self.required_val_ids[1], handlers, allow_missing=True)
-
-    @property
-    def val_dataset(self) -> Any:
-        return self.get_content(self.required_val_ids[2], allow_missing=True)
-
-    @val_dataset.setter
-    def val_dataset(self, dataset: Any):
-        self.set_content(self.required_val_ids[2], dataset, allow_missing=True)
-
-    @property
-    def val_dataset_data(self) -> Any:
-        return self.get_content(self.required_val_ids[3], allow_missing=True)
-
-    @val_dataset_data.setter
-    def val_dataset_data(self, data: Any):
-        self.set_content(self.required_val_ids[3], data, allow_missing=True)
-
-    @property
-    def val_inferer(self) -> Inferer | None:
-        return self.get_content(self.required_val_ids[4], allow_missing=True)
-
-    @val_inferer.setter
-    def val_inferer(self, inferer: Inferer | dict):
-        self.set_content(self.required_val_ids[4], inferer, allow_missing=True)
-
-    @property
-    def val_preprocessing(self) -> Transform | None:
-        return self.get_content(self.optional_val_ids[0], allow_missing=True)
-
-    @val_preprocessing.setter
-    def val_preprocessing(self, preprocessing: Transform | dict):
-        self.set_content(self.optional_val_ids[0], preprocessing, allow_missing=True)
-
-    @property
-    def val_postprocessing(self) -> Transform | None:
-        return self.get_content(self.optional_val_ids[1], allow_missing=True)
-
-    @val_postprocessing.setter
-    def val_postprocessing(self, postprocessing: Transform | dict):
-        self.set_content(self.optional_val_ids[1], postprocessing, allow_missing=True)
-
-    @property
-    def val_key_metric(self) -> Any:
-        return self.get_content(self.optional_val_ids[2], allow_missing=True)
-
-    @val_key_metric.setter
-    def val_key_metric(self, key_metric: Any):
-        self.set_content(self.optional_val_ids[2], key_metric, allow_missing=True)
-
-
-class ConfigInferWorkflow(ConfigWorkflow, InferProperties):
-    required_infer_ids = ["bundle_root", "device", "network_def", "inferer"]
-    optional_infer_ids = ["preprocessing", "postprocessing", "key_metric"]
-
-    def check(self) -> bool:
-        ret = self._check_required_ids(self.infer_ids)
-        # check optional ids if existing
-        ret &= (
-            self._check_optional_id("dataset#transform", self.optional_infer_ids[0])
-            & self._check_optional_id("evaluator#postprocessing", self.optional_infer_ids[1])
-            & self._check_optional_id("evaluator#key_val_metric", self.optional_infer_ids[2])
-        )
-        return ret
-
-    @property
-    def bundle_root(self) -> str:
-        return self.get_content(self.required_infer_ids[0])
-
-    @bundle_root.setter
-    def bundle_root(self, path: str):
-        self.set_content(self.required_infer_ids[0], path)
-
-    @property
-    def device(self) -> torch.device:
-        return self.get_content(self.required_infer_ids[1])
-
-    @device.setter
-    def device(self, name: str):
-        self.set_content(self.required_infer_ids[1], name)
-
-    @property
-    def network_def(self) -> torch.Module:
-        return self.get_content(self.required_infer_ids[2])
-
-    @network_def.setter
-    def network_def(self, net: torch.Module | dict):
-        self.set_content(self.required_infer_ids[2], net)
-
-    @property
-    def inferer(self) -> Inferer:
-        return self.get_content(self.required_infer_ids[3])
-
-    @inferer.setter
-    def inferer(self, inferer: Inferer | dict):
-        self.set_content(self.required_infer_ids[3], inferer)
-
-    @property
-    def preprocessing(self) -> Transform | None:
-        return self.get_content(self.optional_infer_ids[0], allow_missing=True)
-
-    @preprocessing.setter
-    def preprocessing(self, preprocessing: Transform | dict):
-        self.set_content(self.optional_infer_ids[0], preprocessing, allow_missing=True)
-
-    @property
-    def postprocessing(self) -> Transform | None:
-        return self.get_content(self.optional_infer_ids[1], allow_missing=True)
-
-    @postprocessing.setter
-    def postprocessing(self, postprocessing: Transform | dict):
-        self.set_content(self.optional_infer_ids[1], postprocessing, allow_missing=True)
-
-    @property
-    def key_metric(self) -> Any:
-        return self.get_content(self.optional_infer_ids[2], allow_missing=True)
-
-    @key_metric.setter
-    def key_metric(self, key_metric: Any):
-        self.set_content(self.optional_infer_ids[2], key_metric, allow_missing=True)

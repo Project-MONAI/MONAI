@@ -54,6 +54,8 @@ __all__ = [
     "HoVerNetMode",
     "HoVerNetBranch",
     "LazyAttr",
+    "BundleProperty",
+    "BundlePropertyConfig",
 ]
 
 
@@ -636,3 +638,26 @@ class LazyAttr(StrEnum):
     INTERP_MODE = "lazy_interpolation_mode"
     DTYPE = "lazy_dtype"
     ALIGN_CORNERS = "lazy_align_corners"
+
+
+class BundleProperty(StrEnum):
+    """
+    Bundle property fields:
+    `DESP` is the description of the property.
+    `REQUIRED` is flag to indicate whether the property is required or optional.
+    """
+
+    DESP = "description"
+    REQUIRED = "required"
+
+
+class BundlePropertyConfig(StrEnum):
+    """
+    additional bundle property fields for config based bundle workflow:
+    `ID` is the config item ID of the property.
+    `REF_ID` is the ID of config item which is supposed to refer to this property.
+    this field is only useful to check the optional property ID.
+    """
+
+    ID = "id"
+    REF_ID = "refer_id"
