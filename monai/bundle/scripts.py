@@ -588,7 +588,7 @@ def run(
     **override: Any,
 ) -> None:
     """
-    Specify `meta_file` and `config_file` to run monai bundle components and workflows.
+    Specify `config_file` to run monai bundle components and workflows.
 
     Typical usage examples:
 
@@ -613,10 +613,12 @@ def run(
     Args:
         runner_id: ID name of the expected config expression to run, default to "run".
         meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
+            Default to "configs/metadata.json", which is commonly used for bundles in MONAI model zoo.
         config_file: filepath of the config file, if `None`, must be provided in `args_file`.
             if it is a list of file paths, the content of them will be merged.
-        logging_file: config file for `logging` module in the program, default to `None`. for more details:
+        logging_file: config file for `logging` module in the program. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
+            Default to "configs/logging.conf", which is commonly used for bundles in MONAI model zoo.
         tracking: enable the experiment tracking feature at runtime with optionally configurable and extensible.
             if "mlflow", will add `MLFlowHandler` to the parsed bundle with default logging settings,
             if other string, treat it as file path to load the logging settings, if `dict`,
@@ -689,8 +691,13 @@ def run(
     if "config_file" not in _args:
         warnings.warn("`config_file` not provided for 'monai.bundle run'.")
     _log_input_summary(tag="run", args=_args)
-    config_file_, meta_file_, logging_file_, runner_id_, tracking_ = _pop_args(
-        _args, config_file=None, meta_file=None, logging_file=None, runner_id="run", tracking=None
+    config_file_, meta_file_, runner_id_, logging_file_, tracking_ = _pop_args(
+        _args,
+        config_file=None,
+        meta_file="configs/metadata.json",
+        runner_id="",
+        logging_file="configs/logging.conf",
+        tracking=None,
     )
     workflow = ConfigWorkflow(
         meta_file=meta_file_,

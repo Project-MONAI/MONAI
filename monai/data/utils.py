@@ -94,6 +94,7 @@ __all__ = [
     "remove_extra_metadata",
     "get_extra_metadata_keys",
     "PICKLE_KEY_SUFFIX",
+    "is_no_channel",
 ]
 
 # module to be used by `torch.save`
@@ -1529,3 +1530,14 @@ def get_extra_metadata_keys() -> list[str]:
     # ]
 
     return keys
+
+
+def is_no_channel(val) -> bool:
+    """Returns whether `val` indicates "no_channel", for MetaKeys.ORIGINAL_CHANNEL_DIM."""
+    if isinstance(val, torch.Tensor):
+        return bool(torch.isnan(val))
+    if isinstance(val, str):
+        return val == "no_channel"
+    if np.isscalar(val):
+        return bool(np.isnan(val))
+    return val is None

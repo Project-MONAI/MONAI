@@ -248,6 +248,7 @@ class SaveImaged(MapTransform):
 
     """
 
+    @deprecated_arg_default("resample", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         keys: KeysCollection,

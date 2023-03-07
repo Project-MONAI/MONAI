@@ -367,6 +367,7 @@ class SaveImage(Transform):
             see also: :py:func:`monai.data.folder_layout.default_name_formatter`.
     """
 
+    @deprecated_arg_default("resample", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         output_dir: PathLike = "./",
