@@ -17,9 +17,11 @@ from monai.handlers import ClearMLImageHandler
 from monai.utils import optional_import
 
 Task, has_clearml = optional_import("clearml", name="Task")
+_, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
 
 @unittest.skipUnless(has_clearml, "Requires 'clearml' installation")
+@unittest.skipUnless(has_tb, "Requires SummaryWriter installation")
 class TestHandlerClearMLImageHandler(unittest.TestCase):
     def test_task_init(self):
         Task.set_offline(offline_mode=True)
