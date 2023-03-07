@@ -22,7 +22,14 @@ import torch
 from monai.config import DtypeLike, NdarrayOrTensor, PathLike
 from monai.data.image_reader import ImageReader, _stack_images
 from monai.data.utils import is_supported_format
-from monai.utils import WSIPatchKeys, dtype_torch_to_numpy, ensure_tuple, optional_import, require_pkg
+from monai.utils import (
+    WSIPatchKeys,
+    dtype_numpy_to_torch,
+    dtype_torch_to_numpy,
+    ensure_tuple,
+    optional_import,
+    require_pkg,
+)
 
 OpenSlide, _ = optional_import("openslide", name="OpenSlide")
 TiffFile, _ = optional_import("tifffile", name="TiffFile")
@@ -38,6 +45,8 @@ class BaseWSIReader(ImageReader):
         level: the whole slide image level at which the image is extracted.
         channel_dim: the desired dimension for color channel.
         dtype: the data type of output image.
+        device: target device to put the extracted patch. If device is not None nor "cpu",
+            the output will be converted to torch and sent to the device (even if the dtype is numpy).
         mode: the output image color mode, e.g., "RGB" or "RGBA".
         kwargs: additional args for the reader
 
@@ -79,7 +88,10 @@ class BaseWSIReader(ImageReader):
         self.level = level
         self.channel_dim = channel_dim
         self.dtype = dtype
-        self.device = device
+        if isinstance(device, torch.device):
+            self.device = device
+        else:
+            self.device = torch.device(device)
         self.mode = mode
         self.kwargs = kwargs
         self.metadata: dict[Any, Any] = {}
@@ -151,6 +163,8 @@ class BaseWSIReader(ImageReader):
                 If None, it is set to the full image size at the given level.
             level: the level number. Defaults to 0
             dtype: the data type of output image
+            device: target device to put the extracted patch. If device is not None nor "cpu",
+                the output will be converted to torch and sent to the device (even if the dtype is numpy).
             mode: the output image mode, 'RGB' or 'RGBA'
 
         """
@@ -208,6 +222,7 @@ class BaseWSIReader(ImageReader):
                 If not provided or None, it is set to the full image size at the given level.
             level: the level number. Defaults to 0
             dtype: the data type of output image. If not provided the default of `np.uint8` is used.
+            device:
             mode: the output image color mode, "RGB" or "RGBA". If not provided the default of "RGB" is used.
 
         Returns:
@@ -218,6 +233,8 @@ class BaseWSIReader(ImageReader):
             dtype = self.dtype
         if device is None:
             device = self.device
+        else:
+            device = torch.device(device)
         if mode is None:
             mode = self.mode
         patch_list: list = []
@@ -254,6 +271,10 @@ class BaseWSIReader(ImageReader):
             # Extract a patch or the entire image
             patch: NdarrayOrTensor
             patch = self._get_patch(each_wsi, location=location, size=size, level=level, dtype=np_dtype, mode=mode)
+            # Ensure dtype is torch.dtype if the device is not "cpu"
+            if device is not None and device.type != "cpu":
+                if isinstance(dtype, np.dtype):
+                    dtype = dtype_numpy_to_torch(dtype)
             # Convert the patch to torch.Tensor if dtype is torch
             if isinstance(dtype, torch.dtype):
                 if patch.flags["WRITEABLE"]:
@@ -317,6 +338,8 @@ class WSIReader(BaseWSIReader):
         channel_dim: the desired dimension for color channel. Default to 0 (channel first).
         dtype: the data type of output image. Defaults to `np.uint8`.
         mode: the output image color mode, "RGB" or "RGBA". Defaults to "RGB".
+        device: target device to put the extracted patch. If device is not None nor "cpu",
+            the output will be converted to torch and sent to the device (even if the dtype is numpy).
         num_workers: number of workers for multi-thread image loading (cucim backend only).
         kwargs: additional arguments to be passed to the backend library
 
@@ -457,6 +480,8 @@ class CuCIMWSIReader(BaseWSIReader):
             This is overridden if the level argument is provided in `get_data`.
         channel_dim: the desired dimension for color channel. Default to 0 (channel first).
         dtype: the data type of output image. Defaults to `np.uint8`.
+        device: target device to put the extracted patch. If device is not None nor "cpu",
+            the output will be converted to torch and sent to the device (even if the dtype is numpy).
         mode: the output image color mode, "RGB" or "RGBA". Defaults to "RGB".
         num_workers: number of workers for multi-thread image loading
         kwargs: additional args for `cucim.CuImage` module:
@@ -617,6 +642,8 @@ class OpenSlideWSIReader(BaseWSIReader):
             This is overridden if the level argument is provided in `get_data`.
         channel_dim: the desired dimension for color channel. Default to 0 (channel first).
         dtype: the data type of output image. Defaults to `np.uint8`.
+        device: target device to put the extracted patch. If device is not None nor "cpu",
+            the output will be converted to torch and sent to the device (even if the dtype is numpy).
         mode: the output image color mode, "RGB" or "RGBA". Defaults to "RGB".
         kwargs: additional args for `openslide.OpenSlide` module.
 
@@ -774,6 +801,8 @@ class TiffFileWSIReader(BaseWSIReader):
             This is overridden if the level argument is provided in `get_data`.
         channel_dim: the desired dimension for color channel. Default to 0 (channel first).
         dtype: the data type of output image. Defaults to `np.uint8`.
+        device: target device to put the extracted patch. If device is not None nor "cpu",
+            the output will be converted to torch and sent to the device (even if the dtype is numpy).
         mode: the output image color mode, "RGB" or "RGBA". Defaults to "RGB".
         kwargs: additional args for `tifffile.TiffFile` module.
 
