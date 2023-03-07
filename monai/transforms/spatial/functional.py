@@ -29,7 +29,7 @@ from monai.networks.layers import AffineTransform
 from monai.networks.utils import normalize_transform
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import TraceableTransform
-from monai.transforms.utils import create_scale, scale_affine
+from monai.transforms.utils import create_rotate, create_scale, create_translate, scale_affine
 from monai.transforms.utils_pytorch_numpy_unification import allclose
 from monai.utils import (
     TraceKeys,
@@ -47,7 +47,7 @@ cupy, _ = optional_import("cupy")
 cupy_ndi, _ = optional_import("cupyx.scipy.ndimage")
 np_ndi, _ = optional_import("scipy.ndimage")
 
-__all__ = ["spatial_resample", "orientation", "flip"]
+__all__ = ["spatial_resample", "orientation", "flip", "rotate"]
 
 
 def spatial_resample(
@@ -311,4 +311,69 @@ def resize(img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing,
         input=img_.unsqueeze(0), size=out_size, mode=mode, align_corners=align_corners
     )
     out, *_ = convert_to_dst_type(resized.squeeze(0), out, dtype=torch.float32)
+    return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+
+def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, transform_info):
+    """
+    Functional implementation of rotate.
+    This function operates eagerly or lazily according to
+    ``transform_info[TraceKeys.LAZY_EVALUATION]`` (default ``False``).
+
+    Args:
+        img: data to be changed, assuming `img` is channel-first.
+        angle: Rotation angle(s) in radians. should a float for 2D, three floats for 3D.
+        output_shape: output shape of the rotated data.
+        mode: {``"bilinear"``, ``"nearest"``}
+            Interpolation mode to calculate output values.
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+        padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+            Padding mode for outside grid values.
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+        align_corners: See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+        dtype: data type for resampling computation.
+            If None, use the data type of input data. To be compatible with other modules,
+            the output data type is always ``float32``.
+        transform_info: a dictionary with the relevant information pertaining to an applied transform.
+    """
+    im_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
+    input_ndim = len(im_shape)
+    if input_ndim not in (2, 3):
+        raise ValueError(f"Unsupported image dimension: {input_ndim}, available options are [2, 3].")
+    _angle = ensure_tuple_rep(angle, 1 if input_ndim == 2 else 3)
+    transform = create_rotate(input_ndim, _angle)
+    if output_shape is None:
+        corners = np.asarray(np.meshgrid(*[(0, dim) for dim in im_shape], indexing="ij")).reshape((len(im_shape), -1))
+        corners = transform[:-1, :-1] @ corners  # type: ignore
+        output_shape = np.asarray(corners.ptp(axis=1) + 0.5, dtype=int)
+    shift = create_translate(input_ndim, ((np.array(im_shape) - 1) / 2).tolist())
+    shift_1 = create_translate(input_ndim, (-(np.asarray(output_shape, dtype=int) - 1) / 2).tolist())
+    transform = shift @ transform @ shift_1
+    extra_info = {
+        "rot_mat": transform,
+        "mode": mode,
+        "padding_mode": padding_mode,
+        "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
+        "dtype": str(dtype)[6:],  # dtype as string; remove "torch": torch.float32 -> float32
+    }
+    meta_info = TraceableTransform.track_transform_meta(
+        img,
+        sp_size=output_shape,
+        affine=transform,
+        extra_info=extra_info,
+        orig_size=im_shape,
+        transform_info=transform_info,
+        lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
+    )
+    out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
+    if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+    xform = AffineTransform(
+        normalized=False, mode=mode, padding_mode=padding_mode, align_corners=align_corners, reverse_indexing=True
+    )
+    img_t = out.to(dtype)
+    transform_t, *_ = convert_to_dst_type(transform, img_t)
+    output: torch.Tensor = xform(img_t.unsqueeze(0), transform_t, spatial_size=tuple(int(i) for i in output_shape))
+    output = output.float().squeeze(0)
+    out, *_ = convert_to_dst_type(output, dst=out, dtype=torch.float32)
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out

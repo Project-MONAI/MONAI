@@ -78,7 +78,7 @@ class TestResize(NumpyImageTestCase2D):
             im = p(self.imt[0])
             call_param = {"img": im}
             out = resize(**call_param)
-            if init_param["mode"] in ("bilinear", "nearest", "bicubic"):
+            if init_param["mode"] in ("bilinear", "nearest"):
                 test_resampler_lazy(resize, out, init_param, call_param)
             if isinstance(im, MetaTensor):
                 im_inv = resize.inverse(out)

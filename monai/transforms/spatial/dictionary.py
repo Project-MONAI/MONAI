@@ -1351,10 +1351,9 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
 
-class Rotated(MapTransform, InvertibleTransform):
+class Rotated(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Rotate`.
-
     Args:
         keys: Keys to pick data for transformation.
         angle: Rotation angle(s) in radians.
@@ -1399,6 +1398,11 @@ class Rotated(MapTransform, InvertibleTransform):
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
+
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool):
+        self.rotator.lazy_evaluation = val
+        self._lazy_evaluation = val
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
