@@ -1432,26 +1432,19 @@ class RandomCropPad(InvertibleTransform, LazyTransform, RandomizableTrait):
 
         self.randomizer = CropRandomizer(sizes)
 
-
     def __call__(
             self,
             img: torch.Tensor,
             randomize: bool = True
     ):
 
-        img_shape = img.shape[:1]
+        img_shape = img.shape[1:]
 
         extents = self.randomizer.sample(img_shape)
 
         img_t = croppad(img, extents, self.padding_mode, lazy_evaluation=self.lazy_evaluation)
 
-        # if self._do_transform:
-        #     offsets_ = self.offsets
-        # else:
-        #     # center crop if this sample isn't random
-        #     offsets_ = tuple((i - s) // 2 for i, s in zip(img_shape, self.sizes))
-        # slices = tuple(slice(o, o + s) for o, s in zip(offsets_, self.sizes))
-        # return self.op(img, slices=slices)
+        return img_t
 
     def inverse(self, data):
         return invert(data, self.lazy_evaluation)

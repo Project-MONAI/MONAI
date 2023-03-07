@@ -27,6 +27,7 @@ import torch
 from monai.config import IndexSelection, KeysCollection, SequenceStr
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_tensor import MetaTensor
+from monai.transforms.traits import RandomizableTrait
 from monai.transforms.croppad.array import (
     BorderPad,
     BoundingRect,
@@ -46,10 +47,13 @@ from monai.transforms.croppad.array import (
     SpatialCrop,
     SpatialPad,
 )
+from monai.transforms.croppad.functional import croppad
+from monai.transforms.croppad.randomizer import CropRandomizer
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.transform import MapTransform, Randomizable
+from monai.transforms.lazy.functional import invert
+from monai.transforms.transform import MapTransform, Randomizable, LazyTransform
 from monai.transforms.utils import is_positive
-from monai.utils import MAX_SEED, Method, PytorchPadMode, ensure_tuple_rep
+from monai.utils import MAX_SEED, Method, PytorchPadMode, ensure_tuple_rep, GridSamplePadMode
 
 __all__ = [
     "Padd",
@@ -1066,6 +1070,48 @@ class BoundingRectd(MapTransform):
                 raise KeyError(f"Bounding box data with key {key_to_add} already exists.")
             d[key_to_add] = bbox
         return d
+
+
+class RandCropPadd(MapTransform, InvertibleTransform, LazyTransform, RandomizableTrait):
+
+    def __init__(
+            self,
+            keys,
+            sizes: Sequence[int] | int,
+            padding_mode: GridSamplePadMode | str = GridSamplePadMode.BORDER,
+            allow_missing_keys=False,
+            lazy_evaluation: bool = True,
+            seed = None,
+            state = None
+    ):
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        LazyTransform.__init__(self, lazy_evaluation)
+        # self.sizes = sizes
+        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
+
+        self.randomizer = CropRandomizer(sizes, seed=seed, state=state)
+
+    def __call__(
+            self,
+            data: torch.Tensor,
+    ):
+        rd = dict(data)
+
+        # TODO: this should be parameterized so that it can crop images with differing extents
+        extents = None
+
+        for key_, padding_mode_, in self.key_iterator(rd, self.padding_mode):
+            if extents is None:
+                img_shape = data[key_].shape[1:]
+                print(img_shape)
+                extents = self.randomizer.sample(img_shape)
+
+            rd[key_] = croppad(data[key_], extents, padding_mode_, lazy_evaluation=self.lazy_evaluation)
+
+        return rd
+
+    def inverse(self, data):
+        return invert(data, self.lazy_evaluation)
 
 
 PadD = PadDict = Padd

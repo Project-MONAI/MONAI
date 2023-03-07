@@ -1097,8 +1097,8 @@ class RandRotate90(InvertibleTransform, LazyTransform, RandomizableTrait):
             max_k: int = 3,
             spatial_axes: tuple[int, int] = (0, 1),
             lazy_evaluation: bool = True,
-            random_seed: int | None = None,
-            random_state: np.random.RandomState | None = None
+            seed: int | None = None,
+            state: np.random.RandomState | None = None
     ) -> None:
         """
         Args:
@@ -1112,7 +1112,7 @@ class RandRotate90(InvertibleTransform, LazyTransform, RandomizableTrait):
 
         self.spatial_axes = spatial_axes
 
-        self.randomizer = DiscreteRandomizer(0, max_k + 1, prob, 0, random_seed, random_state)
+        self.randomizer = DiscreteRandomizer(0, max_k + 1, prob, 0, seed, state)
 
     def __call__(
             self,

@@ -43,6 +43,7 @@ from monai.transforms.post.array import (
     SobelGradients,
     VoteEnsemble,
 )
+from monai.transforms.traits import InvertibleTrait
 from monai.transforms.transform import MapTransform
 from monai.transforms.utility.array import ToTensor
 from monai.transforms.utils import convert_applied_interp_mode
@@ -625,7 +626,7 @@ class Invertd(MapTransform):
 
         """
         super().__init__(keys, allow_missing_keys)
-        if not isinstance(transform, InvertibleTransform):
+        if not isinstance(transform, InvertibleTrait):
             raise ValueError("transform is not invertible, can't invert transform for the data.")
         self.transform = transform
         self.orig_keys = ensure_tuple_rep(orig_keys, len(self.keys)) if orig_keys is not None else self.keys
@@ -699,8 +700,10 @@ class Invertd(MapTransform):
             if config.USE_META_DICT:
                 input_dict[InvertibleTransform.trace_key(orig_key)] = transform_info
                 input_dict[PostFix.meta(orig_key)] = meta_info
-            with allow_missing_keys_mode(self.transform):  # type: ignore
-                inverted = self.transform.inverse(input_dict)
+            # TODO: this needs to support lazy resampling
+            raise NotImplementedException()
+            # with allow_missing_keys_mode(self.transform):  # type: ignore
+            #     inverted = self.transform.inverse(input_dict)
 
             # save the inverted data
             inverted_data = inverted[orig_key]

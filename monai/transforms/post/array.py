@@ -802,7 +802,7 @@ class Invert(Transform):
             to_tensor: whether to convert the inverted data into PyTorch Tensor first, default to `True`.
         """
         if not isinstance(transform, InvertibleTrait):
-            raise ValueError("transform is not invertible, can't invert transform for the data.")
+            raise ValueError(f"transform {transform} is not invertible, can't invert transform for the data.")
         self.transform = transform
         self.nearest_interp = nearest_interp
         self.device = device

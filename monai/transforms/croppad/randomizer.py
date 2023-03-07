@@ -16,9 +16,12 @@ class CropRandomizer(Randomizer):
             seed: int | None = None,
             state: np.random.RandomState | None = None
     ):
-        super().__init__(prob, state, seed)
+        super().__init__(prob, seed, state)
 
         self.sizes = sizes
+
+    def do_random(self):
+        return True
 
     def sample(self, shape: Sequence[int]):
         if self.do_random():
@@ -33,4 +36,8 @@ class CropRandomizer(Randomizer):
                                  f" (lengths {len(self.sizes)} and {len(shape)} respectively)")
 
             valid_ranges = tuple(i - c for i, c in zip(shape, crop_shape))
-            return tuple(self.R.randint(0, r + 1) if r > 0 else r for r in valid_ranges)
+            print(valid_ranges)
+
+            starts = tuple(self.R.randint(0, r + 1) if r > 0 else r for r in valid_ranges)
+            slices = tuple(slice(s, s + c) for s, c in zip(starts, crop_shape))
+            return slices
