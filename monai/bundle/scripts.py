@@ -923,13 +923,10 @@ def verify_net_in_out(
 
 def get_net_input_shape(parser: ConfigParser | None = None, p: int = 1, n: int = 1, any: int = 1) -> tuple:
     """
-    Get the input data defined in the metadata.
-
-    Typical usage examples:
-
+    Get the input shape defined in the metadata.
 
     Args:
-        parser: the parser of the given bundle.
+        parser: a parser of the given bundle.
         p: power factor to generate input data shape if dim of expected shape is "x**p", default to 1.
         n: multiply factor to generate input data shape if dim of expected shape is "x*n", default to 1.
         any: specified size to generate input data shape if dim of expected shape is "*", default to 1.
@@ -1157,9 +1154,8 @@ def trt_export(
     else:
         ckpt = torch.load(ckpt_file_)
         copy_model_state(dst=net, src=ckpt if key_in_ckpt_ == "" else ckpt[key_in_ckpt_])
-        pass
 
-    # convert to TensorRT module and save with metadata, config content
+    # convert to a TensorRT engine based torchscript and save with metadata, config content
     net = convert_to_trt(
         model=net, precision=precision_, input_shape=input_shape_, dynamic_batchsize=dynamic_batchsize_, ir=ir_
     )

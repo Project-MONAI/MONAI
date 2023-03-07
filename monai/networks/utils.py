@@ -627,8 +627,6 @@ def convert_to_trt(
     input_shape: Sequence[int],
     dynamic_batchsize: Sequence[int],
     ir: str,
-    filename_or_obj: Any | None = None,
-    extra_files: dict | None = None,
     verify: bool = False,
     device: torch.device | None = None,
     rtol: float = 1e-4,
@@ -640,27 +638,25 @@ def convert_to_trt(
 
     Args:
         model: source PyTorch model to save.
-        filename_or_obj: if not None, specify a file-like object (has to implement write and flush)
-            or a string containing a file path name to save the TorchScript model.
-        extra_files: map from filename to contents which will be stored as part of the save model file.
-            for more details: https://pytorch.org/docs/stable/generated/torch.jit.save.html.
+        precision: the weight precision of converted TensorRT engine based torchscript models. Should be 'fp32' or 'fp16'.
+        input_shape: an input shape that is used to generate random input during the convert. Should be like
+            (N, C, H, W) or (N, C, H, W, D).
+        dynamic_batchsize: a three number list to define the batch size range for the converted model. Each of the
+            three number means `MIN_BATCH, OPT_BATCH, MAX_BATCH` in order.
+        ir: the intermediate representation way to transform a pytorch module to a TensorRT engine based torchscript. Could
+            be choose from `(script, trace)`.
         verify: whether to verify the input and output of TorchScript model.
             if `filename_or_obj` is not None, load the saved TorchScript model and verify.
-        inputs: input test data to verify model, should be a sequence of data, every item maps to a argument
-            of `model()` function.
         device: target device to verify the model, if None, use CUDA if available.
         rtol: the relative tolerance when comparing the outputs of PyTorch model and TorchScript model.
         atol: the absolute tolerance when comparing the outputs of PyTorch model and TorchScript model.
-        kwargs: other arguments except `obj` for `torch.jit.script()` to convert model, for more details:
-            https://pytorch.org/docs/master/generated/torch.jit.script.html.
-
     """
 
     if not has_torch_tensorrt:
         raise ImportError("Cannot find torch_tensorrt module, please install it before converting.")
 
     if not torch.cuda.is_available():
-        raise Exception("Cannot find GPU devices.")
+        raise Exception("Cannot find any GPU devices.")
 
     device = torch.device("cuda")
     inputs = [torch.rand(input_shape)]
@@ -675,7 +671,6 @@ def convert_to_trt(
     max_input_shape = [*input_shape]
     max_input_shape[0] *= dynamic_batchsize[2]
     with torch.no_grad():
-        # TODO Try to figure out if TRT module through fx the same as script module
         # TODO Multi inputs
         input_placeholder = [
             torch_tensorrt.Input(min_shape=min_input_shape, opt_shape=opt_input_shape, max_shape=max_input_shape)
