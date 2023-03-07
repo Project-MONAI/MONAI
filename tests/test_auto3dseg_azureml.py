@@ -15,29 +15,13 @@ import os
 import tempfile
 import unittest
 
+
 from monai.apps.auto3dseg import AutoRunner
+from monai.bundle.config_parser import ConfigParser
 from monai.utils import optional_import
-from tests.utils import generate_fake_segmentation_data, skip_if_quick
+from tests.utils import generate_fake_segmentation_data, export_fake_data_config_file, skip_if_quick
 
 health_azure, has_health_azure = optional_import("health_azure")
-
-fake_datalist: dict[str, list[dict]] = {
-    "testing": [{"image": "val_001.fake.nii.gz"}, {"image": "val_002.fake.nii.gz"}],
-    "training": [
-        {"fold": 0, "image": "tr_image_001.fake.nii.gz", "label": "tr_label_001.fake.nii.gz"},
-        {"fold": 0, "image": "tr_image_002.fake.nii.gz", "label": "tr_label_002.fake.nii.gz"},
-        {"fold": 0, "image": "tr_image_003.fake.nii.gz", "label": "tr_label_003.fake.nii.gz"},
-        {"fold": 0, "image": "tr_image_004.fake.nii.gz", "label": "tr_label_004.fake.nii.gz"},
-        {"fold": 1, "image": "tr_image_005.fake.nii.gz", "label": "tr_label_005.fake.nii.gz"},
-        {"fold": 1, "image": "tr_image_006.fake.nii.gz", "label": "tr_label_006.fake.nii.gz"},
-        {"fold": 1, "image": "tr_image_007.fake.nii.gz", "label": "tr_label_007.fake.nii.gz"},
-        {"fold": 1, "image": "tr_image_008.fake.nii.gz", "label": "tr_label_008.fake.nii.gz"},
-        {"fold": 2, "image": "tr_image_009.fake.nii.gz", "label": "tr_label_009.fake.nii.gz"},
-        {"fold": 2, "image": "tr_image_010.fake.nii.gz", "label": "tr_label_010.fake.nii.gz"},
-        {"fold": 2, "image": "tr_image_011.fake.nii.gz", "label": "tr_label_011.fake.nii.gz"},
-        {"fold": 2, "image": "tr_image_012.fake.nii.gz", "label": "tr_label_012.fake.nii.gz"},
-    ],
-}
 
 
 @skip_if_quick
@@ -45,10 +29,34 @@ fake_datalist: dict[str, list[dict]] = {
 class TestAuto3DSegAzureML(unittest.TestCase):
     def setUp(self) -> None:
         self.test_dir = tempfile.TemporaryDirectory(dir=".")
-        os.makedirs(os.path.join(self.test_dir.name, "data"))
+        self.dataroot = os.path.join(self.test_dir.name, "data")
+        os.makedirs(self.dataroot)
 
     def test_submit_autorunner_job_to_azureml(self) -> None:
-        test_input = './azureml_configs/auto3dseg_test_task.yaml'
+
+        # generate fake data and datalist
+        generate_fake_segmentation_data(self.dataroot)
+        fake_json_datalist = export_fake_data_config_file(self.dataroot)
+
+        # set up test task yaml
+        self.test_task_yaml = os.path.join(self.test_dir.name, "fake_task.yaml")
+        azureml_test_task_src = {
+            "name": "test_task",
+            "task": "segmentation",
+            "modality": "MRI",
+            "datalist": fake_json_datalist,
+            "dataroot": self.dataroot,
+            "multigpu": True,
+
+            "azureml_config": {
+                "compute_cluster_name": "dedicated-nc24s-v2",
+                "default_datastore": "himldatasets",
+                "wait_for_completion": True
+            }
+        }
+        ConfigParser.export_config_file(azureml_test_task_src, self.test_task_yaml)
+
+        # set up test training params
         test_params = {
             "num_epochs_per_validation": 1,
             "num_images_per_batch": 1,
@@ -56,17 +64,19 @@ class TestAuto3DSegAzureML(unittest.TestCase):
             "num_warmup_epochs": 1
         }
         test_num_fold = 2
+
+        # run AutoRunner in AzureML
         with self.assertRaises(SystemExit) as cm:
             with unittest.mock.patch('sys.argv', [
                 '__main__.py',
                 'AutoRunner',
                 'run',
-                f'--input={test_input}',
+                f'--input={self.test_task_yaml}',
                 f'--training_params={test_params}',
                 f'--num_fold={test_num_fold}',
                 '--azureml'
             ]):
-                AutoRunner(input=test_input, training_params=test_params, num_fold=test_num_fold)
+                AutoRunner(input=self.test_task_yaml, training_params=test_params, num_fold=test_num_fold)
 
         self.assertEqual(cm.exception.code, 0)
 

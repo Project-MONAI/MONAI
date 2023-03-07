@@ -259,8 +259,11 @@ class AutoRunner:
 
         if health_azure.himl.AZUREML_FLAG in sys.argv or health_azure.utils.is_running_in_azure_ml():
             run_info = submit_auto3dseg_module_to_azureml_if_needed(self.data_src_cfg[AZUREML_CONFIG_KEY])
-            self.dataroot = run_info.input_datasets[0]
-            self.data_src_cfg["dataroot"] = str(self.dataroot)
+            if run_info.input_datasets:
+                self.dataroot = run_info.input_datasets[0]
+                self.data_src_cfg["dataroot"] = str(self.dataroot)
+            else:
+                self.dataroot = self.data_src_cfg["dataroot"]
         else:
             self.dataroot = self.data_src_cfg["dataroot"]
 
