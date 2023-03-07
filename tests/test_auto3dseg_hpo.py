@@ -16,13 +16,10 @@ import tempfile
 import unittest
 from functools import partial
 
-import nibabel as nib
-import numpy as np
 import torch
 
 from monai.apps.auto3dseg import BundleGen, DataAnalyzer, NNIGen, OptunaGen, import_bundle_algo_history
 from monai.bundle.config_parser import ConfigParser
-from monai.data import create_test_image_3d
 from monai.utils import optional_import
 from tests.utils import (
     SkipIfBeforePyTorchVersion,

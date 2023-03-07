@@ -15,13 +15,10 @@ import os
 import tempfile
 import unittest
 
-import nibabel as nib
-import numpy as np
 import torch
 
 from monai.apps.auto3dseg import AlgoEnsembleBestByFold, AlgoEnsembleBestN, AlgoEnsembleBuilder, BundleGen, DataAnalyzer
 from monai.bundle.config_parser import ConfigParser
-from monai.data import create_test_image_3d
 from monai.utils import optional_import, set_determinism
 from monai.utils.enums import AlgoEnsembleKeys
 from tests.utils import (
