@@ -921,7 +921,9 @@ def verify_net_in_out(
     logger.info("data shape of network is verified with no error.")
 
 
-def get_net_input_shape(parser: ConfigParser | None = None, p: int = 1, n: int = 1, any: int = 1) -> tuple:
+def get_net_input_shape(
+    parser: ConfigParser | None = None, p: int = 1, n: int = 1, any: int = 1
+) -> Sequence[Sequence[int]]:
     """
     Get the input shape defined in the metadata.
 
@@ -930,20 +932,27 @@ def get_net_input_shape(parser: ConfigParser | None = None, p: int = 1, n: int =
         p: power factor to generate input data shape if dim of expected shape is "x**p", default to 1.
         n: multiply factor to generate input data shape if dim of expected shape is "x*n", default to 1.
         any: specified size to generate input data shape if dim of expected shape is "*", default to 1.
+
+    Return:
+        a sequence contains all inputs' shapes
     """
     if not parser:
         raise AttributeError("Error parser to parse input shape.")
-
+    inputs_shape = []
     try:
-        key = "_meta_#network_data_format#inputs#image#num_channels"
-        input_channels = parser[key]
-        key = "_meta_#network_data_format#inputs#image#spatial_shape"
-        input_spatial_shape = tuple(parser[key])
+        key = "_meta_#network_data_format#inputs"
+        prefix_key = key
+        inputs_info_dict = parser[key]
+        for input_name in inputs_info_dict:
+            key = f"{prefix_key}#{input_name}#num_channels"
+            input_channels = parser[key]
+            key = f"{prefix_key}#{input_name}#spatial_shape"
+            input_spatial_shape = parser[key]
+            spatial_shape = _get_fake_spatial_shape(input_spatial_shape, p=p, n=n, any=any)
+            inputs_shape.append([1, input_channels, *spatial_shape])
     except KeyError as e:
         raise KeyError(f"Failed to parse due to missing expected key in the config: {key}.") from e
-
-    spatial_shape = _get_fake_spatial_shape(input_spatial_shape, p=p, n=n, any=any)
-    return (1, input_channels, *spatial_shape)
+    return inputs_shape
 
 
 def ckpt_export(
@@ -1052,9 +1061,9 @@ def trt_export(
     config_file: str | Sequence[str] | None = None,
     key_in_ckpt: str | None = None,
     precision: str | None = None,
-    input_shape: Sequence[str] | None = None,
+    inputs_shape: Sequence[Sequence[int]] | None = None,
     ir: str | None = None,
-    dynamic_batchsize: Sequence[str] | None = None,
+    dynamic_batchsize: Sequence[Sequence[int]] | None = None,
     args_file: str | None = None,
     **override: Any,
 ) -> None:
@@ -1080,12 +1089,12 @@ def trt_export(
         key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
             weights. if not nested checkpoint, no need to set.
         precision: the weight precision of converted TensorRT engine based torchscript models. Should be 'fp32' or 'fp16'.
-        input_shape: an input shape that is used to generate random input during the convert. Should be like
-            (N, C, H, W) or (N, C, H, W, D).
+        inputs_shape: the inputs' shape that is used to generate random input during the convert. Should be a list with elements
+            like [N, C, H, W] or [N, C, H, W, D].
         ir: the intermediate representation way to transform a pytorch module to a TensorRT engine based torchscript. Could 
             be choose from `(script, trace)`.
-        dynamic_batchsize: a three number list to define the batch size range for the converted model. Each of the
-            three number means `MIN_BATCH, OPT_BATCH, MAX_BATCH` in order.
+        dynamic_batchsize: a list contains three number list elements to define the batch size range of inputs for the converted model.
+            In each element, the three number means `MIN_BATCH, OPT_BATCH, MAX_BATCH` in order.
         args_file: a JSON or YAML file to provide default values for `meta_file`, `config_file`,
             `net_id` and override pairs. so that the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.
@@ -1101,7 +1110,7 @@ def trt_export(
         ckpt_file=ckpt_file,
         key_in_ckpt=key_in_ckpt,
         precision=precision,
-        input_shape=input_shape,
+        inputs_shape=inputs_shape,
         ir=ir,
         dynamic_batchsize=dynamic_batchsize,
         **override,
@@ -1115,7 +1124,7 @@ def trt_export(
         meta_file_,
         key_in_ckpt_,
         precision_,
-        input_shape_,
+        inputs_shape_,
         dynamic_batchsize_,
         ir_,
     ) = _pop_args(
@@ -1127,12 +1136,13 @@ def trt_export(
         meta_file=None,
         key_in_ckpt="",
         precision="fp32",
-        input_shape=[],
-        dynamic_batchsize=["1", "4", "8"],
+        inputs_shape=[],
+        dynamic_batchsize=[
+            [1, 4, 8],
+        ],
         ir="script",
     )
-    input_shape_ = tuple([int(x) for x in input_shape_])
-    dynamic_batchsize_ = [int(x) for x in dynamic_batchsize_]
+
     parser = ConfigParser()
 
     parser.read_config(f=config_file_)
@@ -1143,8 +1153,8 @@ def trt_export(
     for k, v in _args.items():
         parser[k] = v
 
-    if not input_shape_:
-        input_shape_ = get_net_input_shape(parser)
+    if not inputs_shape_:
+        inputs_shape_ = get_net_input_shape(parser)
 
     net = parser.get_parsed_content(net_id_)
 
@@ -1157,7 +1167,7 @@ def trt_export(
 
     # convert to a TensorRT engine based torchscript and save with metadata, config content
     net = convert_to_trt(
-        model=net, precision=precision_, input_shape=input_shape_, dynamic_batchsize=dynamic_batchsize_, ir=ir_
+        model=net, precision=precision_, inputs_shape=inputs_shape_, dynamic_batchsize=dynamic_batchsize_, ir=ir_
     )
 
     extra_files: dict = {}

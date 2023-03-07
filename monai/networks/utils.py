@@ -624,8 +624,8 @@ def convert_to_torchscript(
 def convert_to_trt(
     model: nn.module,
     precision: str,
-    input_shape: Sequence[int],
-    dynamic_batchsize: Sequence[int],
+    inputs_shape: Sequence[Sequence[int]],
+    dynamic_batchsize: Sequence[Sequence[int]],
     ir: str,
     verify: bool = False,
     device: torch.device | None = None,
@@ -639,10 +639,10 @@ def convert_to_trt(
     Args:
         model: source PyTorch model to save.
         precision: the weight precision of converted TensorRT engine based torchscript models. Should be 'fp32' or 'fp16'.
-        input_shape: an input shape that is used to generate random input during the convert. Should be like
-            (N, C, H, W) or (N, C, H, W, D).
-        dynamic_batchsize: a three number list to define the batch size range for the converted model. Each of the
-            three number means `MIN_BATCH, OPT_BATCH, MAX_BATCH` in order.
+        inputs_shape: the inputs' shape that is used to generate random input during the convert. Should be a list with elements
+            like [N, C, H, W] or [N, C, H, W, D].
+        dynamic_batchsize: a list contains three number list elements to define the batch size range of inputs for the converted model.
+            In each element, the three number means `MIN_BATCH, OPT_BATCH, MAX_BATCH` in order.
         ir: the intermediate representation way to transform a pytorch module to a TensorRT engine based torchscript. Could
             be choose from `(script, trace)`.
         verify: whether to verify the input and output of TorchScript model.
@@ -658,23 +658,43 @@ def convert_to_trt(
     if not torch.cuda.is_available():
         raise Exception("Cannot find any GPU devices.")
 
+    if not inputs_shape:
+        raise ValueError("Missing inputs shape for model convert.")
+
     device = torch.device("cuda")
-    inputs = [torch.rand(input_shape)]
+    inputs = [torch.rand(cur_shape) for cur_shape in inputs_shape]
     ir_model = convert_to_torchscript(model, device=device, inputs=inputs, is_trace=(ir == "trace"))
 
     convert_precision = torch.float32 if precision == "fp32" else torch.half
     ir_model.eval().to(device)
-    min_input_shape = [*input_shape]
-    min_input_shape[0] *= dynamic_batchsize[0]
-    opt_input_shape = [*input_shape]
-    opt_input_shape[0] *= dynamic_batchsize[1]
-    max_input_shape = [*input_shape]
-    max_input_shape[0] *= dynamic_batchsize[2]
+    min_input_shape = []
+    opt_input_shape = []
+    max_input_shape = []
+
+    def scale_batch_size(input_shape: list, scale_num: int):
+        scale_shape = [*input_shape]
+        scale_shape[0] *= scale_num
+        return scale_shape
+
+    for i in range(len(inputs_shape)):
+        if i < len(dynamic_batchsize):
+            cur_min_shape = scale_batch_size(inputs_shape[i], dynamic_batchsize[i][0])
+            cur_opt_shape = scale_batch_size(inputs_shape[i], dynamic_batchsize[i][1])
+            cur_max_shape = scale_batch_size(inputs_shape[i], dynamic_batchsize[i][2])
+        else:
+            cur_min_shape = cur_opt_shape = cur_max_shape = inputs_shape[i]
+        min_input_shape.append(cur_min_shape)
+        opt_input_shape.append(cur_opt_shape)
+        max_input_shape.append(cur_max_shape)
     with torch.no_grad():
         # TODO Multi inputs
         input_placeholder = [
-            torch_tensorrt.Input(min_shape=min_input_shape, opt_shape=opt_input_shape, max_shape=max_input_shape)
+            torch_tensorrt.Input(
+                min_shape=min_input_shape[i], opt_shape=opt_input_shape[i], max_shape=max_input_shape[i]
+            )
+            for i in range(len(inputs_shape))
         ]
+        breakpoint()
         trt_model = torch_tensorrt.compile(ir_model, inputs=input_placeholder, enabled_precisions=convert_precision)
     if verify:
         if inputs is None:
