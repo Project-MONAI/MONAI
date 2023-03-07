@@ -76,6 +76,10 @@ def get_testing_algo_template_path():
     return os.environ.get("MONAI_TESTING_ALGO_TEMPLATE", None)
 
 
+def generate_segmentation_test_data(dataroot: str, datalist: dict[str, Any]) -> None:
+    pass
+
+
 def clone(data: NdarrayTensor) -> NdarrayTensor:
     """
     Clone data independent of type.

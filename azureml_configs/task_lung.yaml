@@ -1,0 +1,8 @@
+modality: CT
+datalist: "./azureml_configs/lung_datalist.json"
+dataroot: "/workspace/data/task"
+azureml_config:
+  compute_cluster_name: "dedicated-nc24s-v2"
+  input_datasets:
+  - "lung_tcia_single_label_12_22_v3"
+  default_datastore: "himldatasets"
