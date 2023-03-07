@@ -62,7 +62,6 @@ else:
     nrrd, has_nrrd = optional_import("nrrd", allow_namespace_pkg=True)
 
 OpenSlide, _ = optional_import("openslide", name="OpenSlide")
-CuImage, _ = optional_import("cucim", name="CuImage")
 TiffFile, _ = optional_import("tifffile", name="TiffFile")
 
 __all__ = [
@@ -1274,7 +1273,7 @@ class WSIReader(ImageReader):
         if backend == "openslide":
             return OpenSlide
         if backend == "cucim":
-            return CuImage
+            return optional_import("cucim", name="CuImage")[0]
         if backend == "tifffile":
             return TiffFile
         raise ValueError("`backend` should be 'cuCIM', 'OpenSlide' or 'TiffFile'.")
