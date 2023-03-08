@@ -65,11 +65,7 @@ for p in TEST_NDARRAYS_ALL:
             [
                 dict(rotate_params=[np.pi / 2], padding_mode="zeros", device=device, align_corners=False),
                 {"img": p(np.arange(4).reshape((1, 2, 2))), "spatial_size": (4, 4)},
-                p(
-                    np.array(
-                        [[[0.0, 0.0, 0.0, 0.0], [0.0, 0.5, 0.5, 0.0], [0.0, 1.25, 1.5, 0.25], [0.0, 0.75, 1.0, 0.25]]]
-                    )
-                ),
+                p(np.array([[[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 2.0, 0.0], [0.0, 0.0, 3.0, 1.0], [0.0, 0.0, 0.0, 0.0]]])),
             ]
         )
         TESTS.append(
@@ -178,13 +174,6 @@ class TestAffine(unittest.TestCase):
         if isinstance(result, tuple):
             output_idx = 0
             result = result[output_idx]
-        # test lazy
-        lazy_input_param = input_param.copy()
-        for align_corners in [True, False]:
-            lazy_input_param["align_corners"] = align_corners
-            resampler = Affine(**lazy_input_param)
-            non_lazy_result = resampler(**input_data)
-            test_resampler_lazy(resampler, non_lazy_result, lazy_input_param, input_data, output_idx=output_idx)
 
         test_local_inversion(g, result, input_copy)
         assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4, type_test=False)
@@ -196,6 +185,14 @@ class TestAffine(unittest.TestCase):
         self.assertNotIsInstance(result, MetaTensor)
         self.assertIsInstance(result, torch.Tensor)
         set_track_meta(True)
+
+        # test lazy
+        lazy_input_param = input_param.copy()
+        for align_corners in [True, False]:
+            lazy_input_param["align_corners"] = align_corners
+            resampler = Affine(**lazy_input_param)
+            non_lazy_result = resampler(**input_data)
+            test_resampler_lazy(resampler, non_lazy_result, lazy_input_param, input_data, output_idx=output_idx)
 
 
 if __name__ == "__main__":

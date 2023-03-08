@@ -599,7 +599,6 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform, La
 class Resized(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Resize`.
-
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
@@ -767,6 +766,7 @@ class Affined(MapTransform, InvertibleTransform, LazyTransform):
             spatial_size=spatial_size,
             device=device,
             dtype=dtype,  # type: ignore
+            align_corners=align_corners,
         )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
@@ -789,7 +789,7 @@ class Affined(MapTransform, InvertibleTransform, LazyTransform):
         return d
 
 
-class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
+class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.RandAffine`.
     """
@@ -831,14 +831,12 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
             shear_range: shear range with format matching `rotate_range`, it defines the range to randomly select
                 shearing factors(a tuple of 2 floats for 2D, a tuple of 6 floats for 3D) for affine matrix,
                 take a 3D affine as example::
-
                     [
                         [1.0, params[0], params[1], 0.0],
                         [params[2], 1.0, params[3], 0.0],
                         [params[4], params[5], 1.0, 0.0],
                         [0.0, 0.0, 0.0, 1.0],
                     ]
-
             translate_range: translate range with format matching `rotate_range`, it defines the range to randomly
                 select pixel/voxel to translate for every spatial dims.
             scale_range: scaling range with format matching `rotate_range`. it defines the range to randomly select
@@ -863,11 +861,9 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
                 accelerate the transform.
             device: device on which the tensor will be allocated.
             allow_missing_keys: don't raise exception if key is missing.
-
         See also:
             - :py:class:`monai.transforms.compose.MapTransform`
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
-
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
@@ -883,6 +879,11 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
+
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool) -> None:
+        self._lazy_evaluation = val
+        self.rand_affine.lazy_evaluation = val
 
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandAffined:
         self.rand_affine.set_random_state(seed, state)
@@ -900,7 +901,8 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         # all the keys share the same random Affine factor
         self.rand_affine.randomize()
 
-        spatial_size = d[first_key].shape[1:]
+        item = d[first_key]
+        spatial_size = item.peek_pending_shape() if isinstance(item, MetaTensor) else item.shape[1:]
 
         sp_size = fall_back_tuple(self.rand_affine.spatial_size, spatial_size)
         # change image size or do random transform
@@ -910,7 +912,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         if do_resampling:  # need to prepare grid
             grid = self.rand_affine.get_identity_grid(sp_size)
             if self._do_transform:  # add some random factors
-                grid = self.rand_affine.rand_affine_grid(grid=grid)
+                grid = self.rand_affine.rand_affine_grid(sp_size, grid=grid)
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             # do the transform
@@ -918,18 +920,19 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
                 d[key] = self.rand_affine(d[key], mode=mode, padding_mode=padding_mode, grid=grid)  # type: ignore
             else:
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta(), dtype=torch.float32)
-            if get_track_meta():
-                xform = self.pop_transform(d[key], check=False) if do_resampling else {}
-                self.push_transform(d[key], extra_info={"do_resampling": do_resampling, "rand_affine_info": xform})
+            self._do_transform = do_resampling  # TODO: unify self._do_transform and do_resampling
+            self.push_transform(d[key], replace=True)
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             tr = self.pop_transform(d[key])
-            do_resampling = tr[TraceKeys.EXTRA_INFO]["do_resampling"]
+            if TraceKeys.EXTRA_INFO not in tr[TraceKeys.EXTRA_INFO]:
+                continue
+            do_resampling = tr[TraceKeys.EXTRA_INFO][TraceKeys.EXTRA_INFO]["do_resampling"]
             if do_resampling:
-                d[key].applied_operations.append(tr[TraceKeys.EXTRA_INFO]["rand_affine_info"])  # type: ignore
+                d[key].applied_operations.append(tr[TraceKeys.EXTRA_INFO])  # type: ignore
                 d[key] = self.rand_affine.inverse(d[key])  # type: ignore
 
         return d
