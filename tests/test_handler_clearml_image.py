@@ -39,6 +39,8 @@ class TestHandlerClearMLImageHandler(unittest.TestCase):
             self.fail(exc)
         self.assertEqual(Task.current_task().name, "monai_experiment")
         self.assertEqual(Task.current_task()._project_name[1], "MONAI")
+        # Close ClearML Task
+        Task.current_task().close()
 
 
 if __name__ == "__main__":
