@@ -67,7 +67,6 @@ morphology, has_morphology = optional_import("skimage.morphology")
 ndimage, _ = optional_import("scipy.ndimage")
 cp, has_cp = optional_import("cupy")
 cp_ndarray, _ = optional_import("cupy", name="ndarray")
-cucim, has_cucim = optional_import("cucim")
 exposure, has_skimage = optional_import("skimage.exposure")
 
 __all__ = [
@@ -974,6 +973,7 @@ def get_largest_connected_component_mask(
     """
     # use skimage/cucim.skimage and np/cp depending on whether packages are
     # available and input is non-cpu torch.tensor
+    cucim, has_cucim = optional_import("cucim")
     use_cp = has_cp and has_cucim and isinstance(img, torch.Tensor) and img.device != torch.device("cpu")
     if use_cp:
         img_ = convert_to_cupy(img.short())  # type: ignore
@@ -1665,12 +1665,15 @@ def convert_to_contiguous(
 def scale_affine(spatial_size, new_spatial_size, centered: bool = True):
     """
     Compute the scaling matrix according to the new spatial size
+
     Args:
         spatial_size: original spatial size.
         new_spatial_size: new spatial size.
         centered: whether the scaling is with respect to the image center (True, default) or corner (False).
+
     Returns:
         the scaling matrix.
+
     """
     r = max(len(new_spatial_size), len(spatial_size))
     if spatial_size == new_spatial_size:
