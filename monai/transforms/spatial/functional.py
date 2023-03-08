@@ -382,6 +382,55 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, t
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 
+def rotate90(img, axes, k, transform_info):
+    """
+    Functional implementation of rotate90.
+    This function operates eagerly or lazily according to
+    ``transform_info[TraceKeys.LAZY_EVALUATION]`` (default ``False``).
+    Args:
+        img: data to be changed, assuming `img` is channel-first.
+        axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
+                Default: (0, 1), this is the first two axis in spatial dimensions.
+                If axis is negative it counts from the last to the first axis.
+        k: number of times to rotate by 90 degrees.
+        transform_info: a dictionary with the relevant information pertaining to an applied transform.
+    """
+    extra_info = {"axes": [d - 1 for d in axes], "k": k}
+    ori_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
+    sp_shape = list(ori_shape)
+    if k in (1, 3):
+        a_0, a_1 = axes[0] - 1, axes[1] - 1
+        sp_shape[a_0], sp_shape[a_1] = ori_shape[a_1], ori_shape[a_0]
+    rank = img.peek_pending_rank() if isinstance(img, MetaTensor) else torch.tensor(3.0, dtype=torch.double)
+    r, sp_r = int(rank), len(ori_shape)
+    xform = to_affine_nd(r, create_translate(sp_r, [-float(d - 1) / 2 for d in sp_shape]))
+    s = -1.0 if int(axes[0]) - int(axes[1]) in (-1, 2) else 1.0
+    if sp_r == 2:
+        rot90 = to_affine_nd(r, create_rotate(sp_r, [s * np.pi / 2]))
+    else:
+        idx = {1, 2, 3} - set(axes)
+        angle: list[float] = [0, 0, 0]
+        angle[idx.pop() - 1] = s * np.pi / 2
+        rot90 = to_affine_nd(r, create_rotate(sp_r, angle))
+    for _ in range(k):
+        xform = rot90 @ xform
+    xform = to_affine_nd(r, create_translate(sp_r, [float(d - 1) / 2 for d in ori_shape])) @ xform
+    meta_info = TraceableTransform.track_transform_meta(
+        img,
+        sp_size=sp_shape,
+        affine=xform,
+        extra_info=extra_info,
+        orig_size=ori_shape,
+        transform_info=transform_info,
+        lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
+    )
+    out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
+    if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+    out = torch.rot90(out, k, axes)
+    return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+
 def affine_func(img, affine, grid, resampler, sp_size, mode, padding_mode, do_resampling, image_only, transform_info):
     """
     Functional implementation of affine.

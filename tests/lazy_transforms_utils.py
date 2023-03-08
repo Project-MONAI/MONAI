@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+from monai.transforms import Randomizable
 from monai.data import set_track_meta
 from monai.transforms.lazy.functional import apply_transforms
 from tests.utils import assert_allclose
@@ -40,6 +41,7 @@ def test_resampler_lazy(
     rtol=1e-5,
     atol=1e-7,
     skip_shape_check=False,
+    seed=None,
 ):
     """
     This test function is used to test the consistency between non-lazy and lazy transforms.
@@ -53,8 +55,11 @@ def test_resampler_lazy(
         rtol: relative tolerance. This argument is only used to compare the output.
         atol: absolute tolerance. This argument is only used to compare the output.
         skip_shape_check: skip the check of shapes.
+        seed: set the random state with an integer seed. This argument is used for randomizable transforms.
 
     """
+    if isinstance(resampler, Randomizable):
+        resampler.set_random_state(seed=seed)
     set_track_meta(True)
     resampler.lazy_evaluation = True
     pending_output = resampler(**call_param)
