@@ -1429,7 +1429,7 @@ class Rotated(MapTransform, InvertibleTransform, LazyTransform):
         return d
 
 
-class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
+class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandRotate`
     Randomly rotates the input arrays.
@@ -1488,6 +1488,11 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool):
+        self.rand_rotate.lazy_evaluation = val
+        self._lazy_evaluation = val
+
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandRotated:
         super().set_random_state(seed, state)
         self.rand_rotate.set_random_state(seed, state)
@@ -1513,9 +1518,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
                 )
             else:
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta(), dtype=torch.float32)
-            if get_track_meta():
-                rot_info = self.pop_transform(d[key], check=False) if self._do_transform else {}
-                self.push_transform(d[key], extra_info=rot_info)
+            self.push_transform(d[key], replace=True)
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:

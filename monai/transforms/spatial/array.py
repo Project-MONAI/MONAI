@@ -1139,7 +1139,7 @@ class RandRotate90(RandomizableTransform, InvertibleTransform, LazyTransform):
         return Rotate90().inverse_transform(data, rotate_xform)
 
 
-class RandRotate(RandomizableTransform, InvertibleTransform):
+class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
     """
     Randomly rotate the input arrays.
 
@@ -1247,12 +1247,11 @@ class RandRotate(RandomizableTransform, InvertibleTransform):
                 align_corners=self.align_corners if align_corners is None else align_corners,
                 dtype=dtype or self.dtype or img.dtype,
             )
+            rotator.lazy_evaluation = self.lazy_evaluation
             out = rotator(img)
         else:
             out = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)
-        if get_track_meta():
-            rot_info = self.pop_transform(out, check=False) if self._do_transform else {}
-            self.push_transform(out, extra_info=rot_info)
+        self.push_transform(out, replace=True)
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
