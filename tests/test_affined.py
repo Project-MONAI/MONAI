@@ -82,6 +82,13 @@ for p in TEST_NDARRAYS_ALL:
         )
         TESTS.append(
             [
+                dict(keys="img", padding_mode="zeros", spatial_size=(-1, 0, 0), device=device, align_corners=False),
+                {"img": p(np.arange(27).reshape((1, 3, 3, 3)))},
+                p(np.arange(27).reshape(1, 3, 3, 3)),
+            ]
+        )
+        TESTS.append(
+            [
                 dict(keys="img", padding_mode="zeros", spatial_size=(4, 4, 4), device=device),
                 {"img": p(np.arange(8).reshape((1, 2, 2, 2)))},
                 p(
