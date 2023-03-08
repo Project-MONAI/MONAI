@@ -1091,7 +1091,7 @@ def trt_export(
         precision: the weight precision of converted TensorRT engine based torchscript models. Should be 'fp32' or 'fp16'.
         inputs_shape: the inputs' shape that is used to generate random input during the convert. Should be a list with elements
             like [N, C, H, W] or [N, C, H, W, D].
-        ir: the intermediate representation way to transform a pytorch module to a TensorRT engine based torchscript. Could 
+        ir: the intermediate representation way to transform a pytorch module to a TensorRT engine based torchscript. Could
             be choose from `(script, trace)`.
         dynamic_batchsize: a list contains three number list elements to define the batch size range of inputs for the converted model.
             In each element, the three number means `MIN_BATCH, OPT_BATCH, MAX_BATCH` in order.
