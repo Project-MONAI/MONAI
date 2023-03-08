@@ -622,7 +622,7 @@ def convert_to_torchscript(
 
 
 def convert_to_trt(
-    model: nn.module,
+    model: nn.Module,
     precision: str,
     inputs_shape: Sequence[Sequence[int]],
     dynamic_batchsize: Sequence[Sequence[int]],
@@ -662,7 +662,7 @@ def convert_to_trt(
         raise ValueError("Missing inputs shape for model convert.")
 
     device = torch.device("cuda")
-    inputs = [torch.rand(cur_shape) for cur_shape in inputs_shape]
+    inputs = [torch.rand(ensure_tuple(cur_shape)) for cur_shape in inputs_shape]
     ir_model = convert_to_torchscript(model, device=device, inputs=inputs, is_trace=(ir == "trace"))
 
     convert_precision = torch.float32 if precision == "fp32" else torch.half
@@ -671,7 +671,7 @@ def convert_to_trt(
     opt_input_shape = []
     max_input_shape = []
 
-    def scale_batch_size(input_shape: list, scale_num: int):
+    def scale_batch_size(input_shape: Sequence[int], scale_num: int):
         scale_shape = [*input_shape]
         scale_shape[0] *= scale_num
         return scale_shape
