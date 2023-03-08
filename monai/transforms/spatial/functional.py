@@ -387,6 +387,7 @@ def rotate90(img, axes, k, transform_info):
     Functional implementation of rotate90.
     This function operates eagerly or lazily according to
     ``transform_info[TraceKeys.LAZY_EVALUATION]`` (default ``False``).
+
     Args:
         img: data to be changed, assuming `img` is channel-first.
         axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
@@ -492,3 +493,4 @@ def affine_func(img, affine, grid, resampler, sp_size, mode, padding_mode, do_re
     out = convert_to_tensor(out, track_meta=get_track_meta())
     out = out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
     return out if image_only else (out, affine)
+
