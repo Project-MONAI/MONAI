@@ -1069,7 +1069,7 @@ def trt_export(
 ) -> None:
     """
     Export the model checkpoint to the given filepath as a TensorRT engine based torchscript.
-    Currently, this API only support to convert models whose inputs are all tensors.
+    Currently, this API only supports to convert models whose inputs are all tensors.
 
     Typical usage examples:
 
