@@ -687,14 +687,12 @@ def convert_to_trt(
         opt_input_shape.append(cur_opt_shape)
         max_input_shape.append(cur_max_shape)
     with torch.no_grad():
-        # TODO Multi inputs
         input_placeholder = [
             torch_tensorrt.Input(
                 min_shape=min_input_shape[i], opt_shape=opt_input_shape[i], max_shape=max_input_shape[i]
             )
             for i in range(len(inputs_shape))
         ]
-        breakpoint()
         trt_model = torch_tensorrt.compile(ir_model, inputs=input_placeholder, enabled_precisions=convert_precision)
     if verify:
         if inputs is None:
