@@ -1093,8 +1093,8 @@ def trt_export(
             like [N, C, H, W] or [N, C, H, W, D].
         ir: the intermediate representation way to transform a pytorch module to a TensorRT engine based torchscript. Could
             be choose from `(script, trace)`.
-        dynamic_batchsize: a list contains three number list elements to define the batch size range of inputs for the converted model.
-            In each element, the three number means `MIN_BATCH, OPT_BATCH, MAX_BATCH` in order.
+        dynamic_batchsize: a list contains three number list elements to define the batch size range of inputs for
+            the converted model. In each element, the three number means `MIN_BATCH, OPT_BATCH, MAX_BATCH` in order.
         args_file: a JSON or YAML file to provide default values for `meta_file`, `config_file`,
             `net_id` and override pairs. so that the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.
