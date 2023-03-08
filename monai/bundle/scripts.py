@@ -1137,9 +1137,7 @@ def trt_export(
         key_in_ckpt="",
         precision="fp32",
         inputs_shape=[],
-        dynamic_batchsize=[
-            [1, 4, 8],
-        ],
+        dynamic_batchsize=[[1, 4, 8]],
         ir="script",
     )
 
