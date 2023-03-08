@@ -1112,7 +1112,7 @@ class RandRotate90(InvertibleTransform, LazyTransform, RandomizableTrait):
 
         self.spatial_axes = spatial_axes
 
-        self.randomizer = DiscreteRandomizer(0, max_k + 1, prob, 0, seed, state)
+        self.randomizer = DiscreteRandomizer(0, max_k, prob, 0, seed=seed, state=state)
 
     def __call__(
             self,
@@ -1124,7 +1124,8 @@ class RandRotate90(InvertibleTransform, LazyTransform, RandomizableTrait):
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
             randomize: whether to execute `randomize()` function first, default to True.
         """
-        return rotate90(img, self.randomizer.sample(), self.spatial_axes, lazy_evaluation=self.lazy_evaluation)
+        k = self.randomizer.sample()
+        return rotate90(img, k, self.spatial_axes, lazy_evaluation=self.lazy_evaluation)
 
     def set_random_state(
             self,
@@ -1330,7 +1331,7 @@ class RandAxisFlip(InvertibleTransform, LazyTransform, RandomizableTrait):
             state: np.random.RandomState | None = None
     ) -> None:
         LazyTransform.__init__(self, lazy_evaluation)
-        self.randomizer = SpatialAxisRandomizer(prob, None, seed, state)
+        self.randomizer = SpatialAxisRandomizer(prob, None, seed=seed, state=state)
 
     def __call__(
             self,
@@ -1422,7 +1423,8 @@ class RandZoom(InvertibleTransform, LazyTransform, RandomizableTrait):
         self.keep_size = keep_size
         self.lazy_evaluation = lazy_evaluation
 
-        self.randomizer = ContinuousRandomizer(min_zoom, max_zoom, prob, 1.0, seed, state)
+        self.randomizer = ContinuousRandomizer(min_zoom, max_zoom, prob, 1.0,
+                                               seed=seed, state=state)
         self.kwargs = kwargs
 
     def __call__(

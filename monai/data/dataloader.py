@@ -73,8 +73,8 @@ class DataLoader(_TorchDataLoader):
         kwargs: other parameters for PyTorch DataLoader.
     """
 
-    def __init__(self, dataset: Dataset, num_workers: int = 0, **kwargs) -> None:
-        if num_workers == 0:
+    def __init__(self, dataset: Dataset, num_workers: int = 0, suppress_rng=False, **kwargs) -> None:
+        if num_workers == 0 and suppress_rng == False:
             # when num_workers > 0, random states are determined by worker_init_fn
             # this is to make the behavior consistent when num_workers == 0
             # torch.int64 doesn't work well on some versions of windows
