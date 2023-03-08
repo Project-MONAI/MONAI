@@ -1579,13 +1579,11 @@ class AffineGrid(LazyTransform):
 
         affine = convert_to_tensor(affine, device=grid_.device, dtype=grid_.dtype, track_meta=False)  # type: ignore
         if not self.align_corners:
-            affine = (
-                affine
-                @ convert_to_dst_type(
-                    create_translate(spatial_dims, [-0.5] * spatial_dims, device=_device, backend=_b), affine
-                )[0]
-            )
-        grid_ = (affine @ grid_.view((grid_.shape[0], -1))).view([-1] + list(grid_.shape[1:]))
+            shift = create_translate(spatial_dims, [-0.5] * spatial_dims, device=_device, backend=_b)
+            shift = convert_to_dst_type(shift, affine)[0]
+            grid_ = (affine @ shift @ grid_.view((grid_.shape[0], -1))).view([-1] + list(grid_.shape[1:]))
+        else:
+            grid_ = (affine @ grid_.view((grid_.shape[0], -1))).view([-1] + list(grid_.shape[1:]))
         return grid_, affine
 
 
@@ -1919,7 +1917,7 @@ class Resample(Transform):
                 grid_t.unsqueeze(0).to(img_t),
                 mode=GridSampleMode(_interp_mode),
                 padding_mode=GridSamplePadMode(_padding_mode),
-                align_corners=_align_corners,
+                align_corners=None if _align_corners == TraceKeys.NONE else _align_corners,  # type: ignore
             )[0]
         out_val, *_ = convert_to_dst_type(out, dst=img, dtype=np.float32)
         return out_val
@@ -2064,10 +2062,7 @@ class Affine(InvertibleTransform, LazyTransform):
         sp_size = fall_back_tuple(self.spatial_size if spatial_size is None else spatial_size, img_size)
         _mode = mode if mode is not None else self.mode
         _padding_mode = padding_mode if padding_mode is not None else self.padding_mode
-        if self._sp_size != sp_size:
-            self._grid, self._affine = self.affine_grid(spatial_size=sp_size)  # type: ignore
-            self._sp_size = sp_size  # type: ignore
-        grid, affine = self._grid, self._affine
+        grid, affine = self.affine_grid(spatial_size=sp_size)  # type: ignore
 
         return affine_func(  # type: ignore
             img,
