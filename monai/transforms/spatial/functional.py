@@ -28,11 +28,10 @@ from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import AFFINE_TOL, compute_shape_offset, to_affine_nd
 from monai.networks.layers import AffineTransform
-from monai.networks.utils import normalize_transform
 from monai.transforms.croppad.array import ResizeWithPadOrCrop
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import TraceableTransform
-from monai.transforms.utils import create_rotate, create_scale, create_translate, scale_affine
+from monai.transforms.utils import create_rotate, create_translate, scale_affine
 from monai.transforms.utils_pytorch_numpy_unification import allclose
 from monai.utils import (
     TraceKeys,
@@ -146,12 +145,8 @@ def spatial_resample(
         img = img.reshape(xform_shape)
     img = img.to(dtype_pt)
     if isinstance(mode, int):
-        dst_xform_1 = normalize_transform(spatial_size, "cpu", xform.dtype, True, True)[0].numpy()  # to (-1, 1)
-        if not align_corners:
-            norm = create_scale(spatial_rank, [(max(d, 2) - 1) / d for d in spatial_size])
-            dst_xform_1 = norm.astype(float) @ dst_xform_1  # type: ignore # scaling (num_step - 1) / num_step
-        dst_xform_d = normalize_transform(spatial_size, "cpu", xform.dtype, align_corners, False)[0].numpy()
-        xform @= convert_to_dst_type(np.linalg.solve(dst_xform_d, dst_xform_1), xform)[0]
+        dst_xform = create_translate(spatial_rank, [float(d - 1) / 2 for d in spatial_size])
+        xform = xform @ convert_to_dst_type(dst_xform, xform)[0]
         affine_xform = monai.transforms.Affine(
             affine=xform,
             spatial_size=spatial_size,
