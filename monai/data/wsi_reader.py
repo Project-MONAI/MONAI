@@ -272,7 +272,7 @@ class BaseWSIReader(ImageReader):
             patch: NdarrayOrTensor
             patch = self._get_patch(each_wsi, location=location, size=size, level=level, dtype=np_dtype, mode=mode)
             # Ensure dtype is torch.dtype if the device is not "cpu"
-            if device.type == "cuda" and isinstance(dtype, np.dtype):
+            if device.type == "cuda" and not isinstance(dtype, torch.dtype):
                 dtype = dtype_numpy_to_torch(dtype)
             # Convert the patch to torch.Tensor if dtype is torch
             if isinstance(dtype, torch.dtype):
