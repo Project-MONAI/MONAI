@@ -33,7 +33,7 @@ from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.networks.utils import meshgrid_ij
 from monai.transforms.croppad.array import CenterSpatialCrop, ResizeWithPadOrCrop
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.spatial.functional import flip, orientation, resize, rotate, spatial_resample
+from monai.transforms.spatial.functional import affine_func, flip, orientation, resize, rotate, spatial_resample
 from monai.transforms.traits import MultiSampleTrait
 from monai.transforms.transform import LazyTransform, Randomizable, RandomizableTransform, Transform
 from monai.transforms.utils import (
@@ -1499,22 +1499,19 @@ class RandZoom(RandomizableTransform, InvertibleTransform):
         return Zoom(self._zoom).inverse_transform(data, xform_info[TraceKeys.EXTRA_INFO])
 
 
-class AffineGrid(Transform):
+class AffineGrid(LazyTransform):
     """
     Affine transforms on the coordinates.
-
     Args:
         rotate_params: a rotation angle in radians, a scalar for 2D image, a tuple of 3 floats for 3D.
             Defaults to no rotation.
         shear_params: shearing factors for affine matrix, take a 3D affine as example::
-
             [
                 [1.0, params[0], params[1], 0.0],
                 [params[2], 1.0, params[3], 0.0],
                 [params[4], params[5], 1.0, 0.0],
                 [0.0, 0.0, 0.0, 1.0],
             ]
-
             a tuple of 2 floats for 2D, a tuple of 6 floats for 3D. Defaults to no shearing.
         translate_params: a tuple of 2 floats for 2D, a tuple of 3 floats for 3D. Translation is in
             pixel/voxel relative to the center of the input image. Defaults to no translation.
@@ -1523,10 +1520,11 @@ class AffineGrid(Transform):
         dtype: data type for the grid computation. Defaults to ``float32``.
             If ``None``, use the data type of input data (if `grid` is provided).
         device: device on which the tensor will be allocated, if a new grid is generated.
+        align_corners: Defaults to True.
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
         affine: If applied, ignore the params (`rotate_params`, etc.) and use the
             supplied matrix. Should be square with each side = num of image spatial
             dimensions + 1.
-
     """
 
     backend = [TransformBackends.TORCH]
@@ -1539,6 +1537,7 @@ class AffineGrid(Transform):
         scale_params: Sequence[float] | float | None = None,
         device: torch.device | None = None,
         dtype: DtypeLike = np.float32,
+        align_corners: bool = True,
         affine: NdarrayOrTensor | None = None,
     ) -> None:
         self.rotate_params = rotate_params
@@ -1546,54 +1545,66 @@ class AffineGrid(Transform):
         self.translate_params = translate_params
         self.scale_params = scale_params
         self.device = device
-        self.dtype = dtype
+        _dtype = get_equivalent_dtype(dtype, torch.Tensor)
+        self.dtype = _dtype if _dtype in (torch.float16, torch.float64, None) else torch.float32
+        self.align_corners = align_corners
         self.affine = affine
 
     def __call__(
         self, spatial_size: Sequence[int] | None = None, grid: torch.Tensor | None = None
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor | None, torch.Tensor]:
         """
         The grid can be initialized with a `spatial_size` parameter, or provided directly as `grid`.
         Therefore, either `spatial_size` or `grid` must be provided.
         When initialising from `spatial_size`, the backend "torch" will be used.
-
         Args:
             spatial_size: output grid size.
             grid: grid to be transformed. Shape must be (3, H, W) for 2D or (4, H, W, D) for 3D.
-
         Raises:
             ValueError: When ``grid=None`` and ``spatial_size=None``. Incompatible values.
-
         """
-        if grid is None:  # create grid from spatial_size
-            if spatial_size is None:
-                raise ValueError("Incompatible values: grid=None and spatial_size=None.")
-            grid_ = create_grid(spatial_size, device=self.device, backend="torch", dtype=self.dtype)
-        else:
-            grid_ = grid
-        _dtype = self.dtype or grid_.dtype
-        grid_: torch.Tensor = convert_to_tensor(grid_, dtype=_dtype, track_meta=get_track_meta())  # type: ignore
-        _b = TransformBackends.TORCH
-        _device = grid_.device  # type: ignore
-        affine: NdarrayOrTensor
-        if self.affine is None:
+        if not self.lazy_evaluation:
+            if grid is None:  # create grid from spatial_size
+                if spatial_size is None:
+                    raise ValueError("Incompatible values: grid=None and spatial_size=None.")
+                grid_ = create_grid(spatial_size, device=self.device, backend="torch", dtype=self.dtype)
+            else:
+                grid_ = grid
+            _dtype = self.dtype or grid_.dtype
+            grid_: torch.Tensor = convert_to_tensor(grid_, dtype=_dtype, track_meta=get_track_meta())  # type: ignore
+            _device = grid_.device  # type: ignore
             spatial_dims = len(grid_.shape) - 1
+        else:
+            _device = self.device
+            spatial_dims = len(spatial_size)  # type: ignore
+        _b = TransformBackends.TORCH
+        affine: torch.Tensor
+        if self.affine is None:
             affine = torch.eye(spatial_dims + 1, device=_device)
             if self.rotate_params:
-                affine = affine @ create_rotate(spatial_dims, self.rotate_params, device=_device, backend=_b)
+                affine @= create_rotate(spatial_dims, self.rotate_params, device=_device, backend=_b)
             if self.shear_params:
-                affine = affine @ create_shear(spatial_dims, self.shear_params, device=_device, backend=_b)
+                affine @= create_shear(spatial_dims, self.shear_params, device=_device, backend=_b)
             if self.translate_params:
-                affine = affine @ create_translate(spatial_dims, self.translate_params, device=_device, backend=_b)
+                affine @= create_translate(spatial_dims, self.translate_params, device=_device, backend=_b)
             if self.scale_params:
-                affine = affine @ create_scale(spatial_dims, self.scale_params, device=_device, backend=_b)
+                affine @= create_scale(spatial_dims, self.scale_params, device=_device, backend=_b)
         else:
-            affine = self.affine
+            affine = self.affine  # type: ignore
+        affine = to_affine_nd(spatial_dims, affine)
+        if not self.align_corners:
+            affine = (
+                affine
+                @ convert_to_dst_type(
+                    create_translate(spatial_dims, [-0.5] * spatial_dims, device=_device, backend=_b), affine
+                )[0]
+            )
+        if self.lazy_evaluation:
+            return None, affine
 
-        affine = to_affine_nd(len(grid_) - 1, affine)
         affine = convert_to_tensor(affine, device=grid_.device, dtype=grid_.dtype, track_meta=False)  # type: ignore
-        grid_ = (affine @ grid_.reshape((grid_.shape[0], -1))).reshape([-1] + list(grid_.shape[1:]))
-        return grid_, affine  # type: ignore
+        grid_ = (affine @ grid_.view((grid_.shape[0], -1))).view([-1] + list(grid_.shape[1:]))
+        return grid_, affine
 
 
 class RandAffineGrid(Randomizable, Transform):
@@ -1758,12 +1769,12 @@ class Resample(Transform):
         padding_mode: str = GridSamplePadMode.BORDER,
         norm_coords: bool = True,
         device: torch.device | None = None,
+        align_corners: bool = True,
         dtype: DtypeLike = np.float64,
     ) -> None:
         """
         computes output image using values from `img`, locations from `grid` using pytorch.
         supports spatially 2D or 3D (num_channels, H, W[, D]).
-
         Args:
             mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
@@ -1787,15 +1798,17 @@ class Resample(Transform):
                 `[-1, 1]` (for torch ``grid_sample`` implementation) to be compatible with the underlying
                 resampling API.
             device: device on which the tensor will be allocated.
+            align_corners: Defaults to True.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             dtype: data type for resampling computation. Defaults to ``float64`` for best precision.
                 If ``None``, use the data type of input data. To be compatible with other modules,
                 the output data type is always `float32`.
-
         """
         self.mode = mode
         self.padding_mode = padding_mode
         self.norm_coords = norm_coords
         self.device = device
+        self.align_corners = align_corners
         self.dtype = dtype
 
     def __call__(
@@ -1805,6 +1818,7 @@ class Resample(Transform):
         mode: str | int | None = None,
         padding_mode: str | None = None,
         dtype: DtypeLike = None,
+        align_corners: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -1832,7 +1846,8 @@ class Resample(Transform):
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             dtype: data type for resampling computation. Defaults to ``self.dtype``.
                 To be compatible with other modules, the output data type is always `float32`.
-
+            align_corners: Defaults to ``self.align_corners``.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
         See also:
             :py:const:`monai.config.USE_COMPILED`
         """
@@ -1841,6 +1856,7 @@ class Resample(Transform):
             return img
         _device = img.device if isinstance(img, torch.Tensor) else self.device
         _dtype = dtype or self.dtype or img.dtype
+        _align_corners = self.align_corners if align_corners is None else align_corners
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=_dtype, device=_device)
         grid_t, *_ = convert_to_dst_type(grid, img_t, dtype=grid.dtype, wrap_sequence=True)
         grid_t = grid_t.clone(memory_format=torch.contiguous_format)
@@ -1859,7 +1875,7 @@ class Resample(Transform):
         if USE_COMPILED or self._backend == TransformBackends.NUMPY:
             if self.norm_coords:
                 for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
-                    grid_t[i] = (max(dim, 2) / 2.0 - 0.5 + grid_t[i]) / grid_t[-1:]
+                    grid_t[i] += max(dim, 2) / 2.0 - 0.5 if _align_corners else max(dim, 2) / 2.0
             grid_t = grid_t[:sr]
             if USE_COMPILED and self._backend == TransformBackends.TORCH:  # compiled is using torch backend param name
                 grid_t = moveaxis(grid_t, 0, -1)  # type: ignore
@@ -1880,7 +1896,7 @@ class Resample(Transform):
             elif self._backend == TransformBackends.NUMPY:
                 is_cuda = img_t.is_cuda
                 img_np = (convert_to_cupy if is_cuda else convert_to_numpy)(img_t, wrap_sequence=True)
-                grid_np, *_ = convert_to_dst_type(grid_t, img_np, wrap_sequence=True)
+                grid_np, *_ = convert_to_dst_type(grid_t, img_np, dtype=grid_t.dtype, wrap_sequence=True)
                 _map_coord = (cupy_ndi if is_cuda else np_ndi).map_coordinates
                 out = (cupy if is_cuda else np).stack(
                     [
@@ -1892,7 +1908,7 @@ class Resample(Transform):
         else:
             if self.norm_coords:
                 for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
-                    grid_t[i] = 2.0 / (max(2, dim) - 1.0) * grid_t[i] / grid_t[-1:]
+                    grid_t[i] *= 2.0 / (max(2, dim) - 1.0)
             index_ordering: list[int] = list(range(sr - 1, -1, -1))
             grid_t = moveaxis(grid_t[index_ordering], 0, -1)  # type: ignore
             out = torch.nn.functional.grid_sample(
@@ -1900,17 +1916,16 @@ class Resample(Transform):
                 grid_t.unsqueeze(0).to(img_t),
                 mode=GridSampleMode(_interp_mode),
                 padding_mode=GridSamplePadMode(_padding_mode),
-                align_corners=True,
+                align_corners=_align_corners,
             )[0]
         out_val, *_ = convert_to_dst_type(out, dst=img, dtype=np.float32)
         return out_val
 
 
-class Affine(InvertibleTransform):
+class Affine(InvertibleTransform, LazyTransform):
     """
     Transform ``img`` given the affine parameters.
     A tutorial is available: https://github.com/Project-MONAI/tutorials/blob/0.6.0/modules/transforms_demo_2d.ipynb.
-
     """
 
     backend = list(set(AffineGrid.backend) & set(Resample.backend))
@@ -1928,23 +1943,21 @@ class Affine(InvertibleTransform):
         normalized: bool = False,
         device: torch.device | None = None,
         dtype: DtypeLike = np.float32,
+        align_corners: bool = True,
         image_only: bool = False,
     ) -> None:
         """
         The affine transformations are applied in rotate, shear, translate, scale order.
-
         Args:
             rotate_params: a rotation angle in radians, a scalar for 2D image, a tuple of 3 floats for 3D.
                 Defaults to no rotation.
             shear_params: shearing factors for affine matrix, take a 3D affine as example::
-
                 [
                     [1.0, params[0], params[1], 0.0],
                     [params[2], 1.0, params[3], 0.0],
                     [params[4], params[5], 1.0, 0.0],
                     [0.0, 0.0, 0.0, 1.0],
                 ]
-
                 a tuple of 2 floats for 2D, a tuple of 6 floats for 3D. Defaults to no shearing.
             translate_params: a tuple of 2 floats for 2D, a tuple of 3 floats for 3D. Translation is in
                 pixel/voxel relative to the center of the input image. Defaults to no translation.
@@ -1980,8 +1993,9 @@ class Affine(InvertibleTransform):
             dtype: data type for resampling computation. Defaults to ``float32``.
                 If ``None``, use the data type of input data. To be compatible with other modules,
                 the output data type is always `float32`.
+            align_corners: Defaults to True.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             image_only: if True return only the image volume, otherwise return (image, affine).
-
         """
         self.affine_grid = AffineGrid(
             rotate_params=rotate_params,
@@ -1990,14 +2004,24 @@ class Affine(InvertibleTransform):
             scale_params=scale_params,
             affine=affine,
             dtype=dtype,
+            align_corners=align_corners,
             device=device,
         )
         self.image_only = image_only
         self.norm_coord = not normalized
-        self.resampler = Resample(norm_coords=self.norm_coord, device=device, dtype=dtype)
+        self.resampler = Resample(norm_coords=self.norm_coord, device=device, dtype=dtype, align_corners=True)
         self.spatial_size = spatial_size
         self.mode = mode
         self.padding_mode: str = padding_mode
+
+        self._grid = None
+        self._affine = None
+        self._sp_size = None
+
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool) -> None:
+        self.affine_grid.lazy_evaluation = val
+        self._lazy_evaluation = val
 
     def __call__(
         self,
@@ -2028,34 +2052,38 @@ class Affine(InvertibleTransform):
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
-        img_size = img.shape[1:]
+        img_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
         sp_size = fall_back_tuple(self.spatial_size if spatial_size is None else spatial_size, img_size)
         _mode = mode if mode is not None else self.mode
         _padding_mode = padding_mode if padding_mode is not None else self.padding_mode
-        grid, affine = self.affine_grid(spatial_size=sp_size)
-        out = self.resampler(img, grid=grid, mode=_mode, padding_mode=_padding_mode)
-        if not isinstance(out, MetaTensor):
-            return out if self.image_only else (out, affine)
-        if get_track_meta():
-            out.meta = img.meta  # type: ignore
-            self.update_meta(out, affine, img_size, sp_size)
-            self.push_transform(
-                out, orig_size=img_size, extra_info={"affine": affine, "mode": _mode, "padding_mode": _padding_mode}
-            )
-        return out if self.image_only else (out, affine)
+        if self._sp_size != sp_size:
+            self._grid, self._affine = self.affine_grid(spatial_size=sp_size)  # type: ignore
+            self._sp_size = sp_size  # type: ignore
+        grid, affine = self._grid, self._affine
+
+        return affine_func(  # type: ignore
+            img,
+            affine,
+            grid,
+            self.resampler,
+            sp_size,
+            _mode,
+            _padding_mode,
+            True,
+            self.image_only,
+            self.get_transform_info(),
+        )
 
     @classmethod
-    def compute_w_affine(cls, affine, mat, img_size, sp_size):
-        r = len(affine) - 1
+    def compute_w_affine(cls, spatial_rank, mat, img_size, sp_size, norm_coord=True):
+        r = int(spatial_rank)
         mat = to_affine_nd(r, mat)
+        if not norm_coord:
+            return convert_data_type(mat, np.ndarray)[0]
         shift_1 = create_translate(r, [float(d - 1) / 2 for d in img_size[:r]])
         shift_2 = create_translate(r, [-float(d - 1) / 2 for d in sp_size[:r]])
         mat = shift_1 @ convert_data_type(mat, np.ndarray)[0] @ shift_2
-        return affine @ convert_to_dst_type(mat, affine)[0]
-
-    def update_meta(self, img, mat, img_size, sp_size):
-        affine = convert_data_type(img.affine, torch.Tensor)[0]
-        img.affine = Affine.compute_w_affine(affine, mat, img_size, sp_size)
+        return mat
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(data)
@@ -2074,7 +2102,11 @@ class Affine(InvertibleTransform):
         if not isinstance(out, MetaTensor):
             out = MetaTensor(out)
         out.meta = data.meta  # type: ignore
-        self.update_meta(out, inv_affine, data.shape[1:], orig_size)
+        affine = convert_data_type(out.peek_pending_affine(), torch.Tensor)[0]
+        xform, *_ = convert_to_dst_type(
+            Affine.compute_w_affine(len(affine) - 1, inv_affine, data.shape[1:], orig_size), affine
+        )
+        out.affine @= xform
         return out
 
 

@@ -33,6 +33,7 @@ from monai.transforms.utils import create_rotate, create_scale, create_translate
 from monai.transforms.utils_pytorch_numpy_unification import allclose
 from monai.utils import (
     TraceKeys,
+    convert_data_type,
     convert_to_dst_type,
     convert_to_numpy,
     convert_to_tensor,
@@ -335,7 +336,9 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, t
             If None, use the data type of input data. To be compatible with other modules,
             the output data type is always ``float32``.
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
+
     """
+
     im_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
     input_ndim = len(im_shape)
     if input_ndim not in (2, 3):
@@ -377,3 +380,66 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, t
     output = output.float().squeeze(0)
     out, *_ = convert_to_dst_type(output, dst=out, dtype=torch.float32)
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+
+def affine_func(img, affine, grid, resampler, sp_size, mode, padding_mode, do_resampling, image_only, transform_info):
+    """
+    Functional implementation of affine.
+    This function operates eagerly or lazily according to
+    ``transform_info[TraceKeys.LAZY_EVALUATION]`` (default ``False``).
+
+    Args:
+        img: data to be changed, assuming `img` is channel-first.
+        affine:
+        grid:
+        resampler: resampler function.
+        sp_size: output image spatial size.
+        mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
+            Interpolation mode to calculate output values. Defaults to ``self.mode``.
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+            When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
+            and the value represents the order of the spline interpolation.
+            See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+        padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+            Padding mode for outside grid values. Defaults to ``self.padding_mode``.
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+            When `mode` is an integer, using numpy/cupy backends, this argument accepts
+            {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
+            See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+        do_resampling:
+        image_only: if True return only the image volume, otherwise return (image, affine).
+        transform_info: a dictionary with the relevant information pertaining to an applied transform.
+
+    """
+
+    # resampler should carry the align_corners and type info
+    extra_info = {
+        "affine": affine,
+        "mode": mode,
+        "padding_mode": padding_mode,
+        "do_resampling": do_resampling,
+        "align_corners": resampler.align_corners,
+    }
+    img_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
+    rank = img.peek_pending_rank() if isinstance(img, MetaTensor) else torch.tensor(3.0, dtype=torch.double)
+    affine = monai.transforms.Affine.compute_w_affine(rank, affine, img_size, sp_size, resampler.norm_coords)
+    meta_info = TraceableTransform.track_transform_meta(
+        img,
+        sp_size=sp_size,
+        affine=affine,
+        extra_info=extra_info,
+        orig_size=img_size,
+        transform_info=transform_info,
+        lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
+    )
+    out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
+    if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
+        out = out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+        return out if image_only else (out, affine)
+    if do_resampling:
+        out = resampler(img=out, grid=grid, mode=mode, padding_mode=padding_mode)
+    else:
+        out = convert_data_type(out, dtype=torch.float32, device=resampler.device)[0]
+    out = convert_to_tensor(out, track_meta=get_track_meta())
+    out = out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+    return out if image_only else (out, affine)

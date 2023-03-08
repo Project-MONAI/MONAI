@@ -34,6 +34,13 @@ for p in TEST_NDARRAYS_ALL:
             )
             TESTS.append(
                 [
+                    dict(padding_mode="zeros", device=device, align_corners=False),
+                    {"grid": p(create_grid((2, 2))), "img": q(np.arange(4).reshape((1, 2, 2)))},
+                    q(np.array([[[1.5, 1.0], [1.25, 0.75]]])),
+                ]
+            )
+            TESTS.append(
+                [
                     dict(padding_mode="zeros", device=device),
                     {"grid": p(create_grid((4, 4))), "img": q(np.arange(4).reshape((1, 2, 2)))},
                     q(
