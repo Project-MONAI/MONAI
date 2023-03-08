@@ -1261,7 +1261,7 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
         return Rotate(0).inverse_transform(data, xform_info[TraceKeys.EXTRA_INFO])
 
 
-class RandFlip(RandomizableTransform, InvertibleTransform):
+class RandFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
     """
     Randomly flips the image along axes. Preserves shape.
     See numpy.flip for additional details.
@@ -1278,6 +1278,11 @@ class RandFlip(RandomizableTransform, InvertibleTransform):
         RandomizableTransform.__init__(self, prob)
         self.flipper = Flip(spatial_axis=spatial_axis)
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool):
+        self.flipper.lazy_evaluation = val
+        self._lazy_evaluation = val
+
     def __call__(self, img: torch.Tensor, randomize: bool = True) -> torch.Tensor:
         """
         Args:
@@ -1288,9 +1293,7 @@ class RandFlip(RandomizableTransform, InvertibleTransform):
             self.randomize(None)
         out = self.flipper(img) if self._do_transform else img
         out = convert_to_tensor(out, track_meta=get_track_meta())
-        if get_track_meta():
-            xform_info = self.pop_transform(out, check=False) if self._do_transform else {}
-            self.push_transform(out, extra_info=xform_info)
+        self.push_transform(out, replace=True)
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
