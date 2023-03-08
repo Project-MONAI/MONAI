@@ -559,9 +559,9 @@ class WSIReaderTests:
             assert_allclose(img, expected_img)
             self.assertEqual(img.dtype, expected_img.dtype)
             if isinstance(img, torch.Tensor):
-                self.assertEqual(img.device.type, torch.device(device))
+                self.assertEqual(img.device.type, device)
             else:
-                self.assertEqual(device, "cpu")
+                self.assertEqual("cpu", device)
             self.assertEqual(meta["backend"], self.backend)
             self.assertEqual(meta[WSIPatchKeys.PATH].lower(), str(os.path.abspath(file_path)).lower())
             self.assertEqual(meta[WSIPatchKeys.LEVEL], level)
