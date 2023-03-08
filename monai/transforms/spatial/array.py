@@ -33,7 +33,15 @@ from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.networks.utils import meshgrid_ij
 from monai.transforms.croppad.array import CenterSpatialCrop, ResizeWithPadOrCrop
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.spatial.functional import affine_func, flip, orientation, resize, rotate, spatial_resample, rotate90
+from monai.transforms.spatial.functional import (
+    affine_func,
+    flip,
+    orientation,
+    resize,
+    rotate,
+    rotate90,
+    spatial_resample,
+)
 from monai.transforms.traits import MultiSampleTrait
 from monai.transforms.transform import LazyTransform, Randomizable, RandomizableTransform, Transform
 from monai.transforms.utils import (

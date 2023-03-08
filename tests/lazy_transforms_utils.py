@@ -11,8 +11,8 @@
 
 from __future__ import annotations
 
-from monai.transforms import Randomizable
 from monai.data import set_track_meta
+from monai.transforms import Randomizable
 from monai.transforms.lazy.functional import apply_transforms
 from tests.utils import assert_allclose
 

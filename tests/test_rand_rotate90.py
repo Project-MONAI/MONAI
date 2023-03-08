@@ -40,7 +40,7 @@ class TestRandRotate90(NumpyImageTestCase2D):
             rotate.lazy_evaluation = False
 
     def test_k(self):
-        init_param = {'max_k': 2}
+        init_param = {"max_k": 2}
         rotate = RandRotate90(**init_param)
         for p in TEST_NDARRAYS_ALL:
             im = p(self.imt[0])
