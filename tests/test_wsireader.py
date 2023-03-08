@@ -559,7 +559,7 @@ class WSIReaderTests:
             assert_allclose(img, expected_img)
             self.assertEqual(img.dtype, expected_img.dtype)
             if isinstance(img, torch.Tensor):
-                self.assertEqual(img.device, torch.device(device))
+                self.assertEqual(img.device.type, torch.device(device.type))
             else:
                 self.assertEqual(device, "cpu")
             self.assertEqual(meta["backend"], self.backend)
