@@ -1308,7 +1308,7 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
         return d
 
 
-class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
+class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandAxisFlip`.
 
@@ -1328,6 +1328,11 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
         self.flipper = RandAxisFlip(prob=1.0)
+
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool):
+        self.flipper.lazy_evaluation = val
+        self._lazy_evaluation = val
 
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandAxisFlipd:
         super().set_random_state(seed, state)
@@ -1350,9 +1355,7 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
                 d[key] = self.flipper(d[key], randomize=False)
             else:
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
-            if get_track_meta():
-                xform = self.pop_transform(d[key], check=False) if self._do_transform else {}
-                self.push_transform(d[key], extra_info=xform)
+            self.push_transform(d[key], replace=True)
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
