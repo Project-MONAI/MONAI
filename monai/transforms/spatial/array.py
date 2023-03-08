@@ -1573,15 +1573,18 @@ class AffineGrid(LazyTransform):
                 affine @= create_scale(spatial_dims, self.scale_params, device=_device, backend=_b)
         else:
             affine = self.affine  # type: ignore
+        affine = to_affine_nd(spatial_dims, affine)
         if self.lazy_evaluation:
             return None, affine
 
-        affine = to_affine_nd(len(grid_) - 1, affine)
         affine = convert_to_tensor(affine, device=grid_.device, dtype=grid_.dtype, track_meta=False)  # type: ignore
         if not self.align_corners:
-            affine @= convert_to_dst_type(
-                create_translate(spatial_dims, [-0.5] * spatial_dims, device=_device, backend=_b), affine
-            )[0]
+            affine = (
+                affine
+                @ convert_to_dst_type(
+                    create_translate(spatial_dims, [-0.5] * spatial_dims, device=_device, backend=_b), affine
+                )[0]
+            )
         grid_ = (affine @ grid_.view((grid_.shape[0], -1))).view([-1] + list(grid_.shape[1:]))
         return grid_, affine
 
@@ -1866,6 +1869,9 @@ class Resample(Transform):
             if self.norm_coords:
                 for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
                     grid_t[i] += max(dim, 2) / 2.0 - 0.5 if _align_corners else max(dim, 2) / 2.0
+            elif not _align_corners:
+                for i in range(sr):
+                    grid_t[i] += 0.5  # shift in [-0.5, d-0.5] dst space
             grid_t = grid_t[:sr]
             if USE_COMPILED and self._backend == TransformBackends.TORCH:  # compiled is using torch backend param name
                 grid_t = moveaxis(grid_t, 0, -1)  # type: ignore
@@ -1902,6 +1908,10 @@ class Resample(Transform):
                         grid_t[i] *= 2.0 / (max(2, dim) - 1.0)
                     else:
                         grid_t[i] = (2.0 / max(2, dim)) * grid_t[i] + (1 / max(2, dim))
+            elif not align_corners:
+                for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
+                    _dim = max(2, dim)
+                    grid_t[i] *= (_dim - 1) / _dim
             index_ordering: list[int] = list(range(sr - 1, -1, -1))
             grid_t = moveaxis(grid_t[index_ordering], 0, -1)  # type: ignore
             out = torch.nn.functional.grid_sample(
@@ -1909,7 +1919,7 @@ class Resample(Transform):
                 grid_t.unsqueeze(0).to(img_t),
                 mode=GridSampleMode(_interp_mode),
                 padding_mode=GridSamplePadMode(_padding_mode),
-                align_corners=self.align_corners,
+                align_corners=_align_corners,
             )[0]
         out_val, *_ = convert_to_dst_type(out, dst=img, dtype=np.float32)
         return out_val
@@ -2073,11 +2083,12 @@ class Affine(InvertibleTransform, LazyTransform):
         )
 
     @classmethod
-    def compute_w_affine(cls, spatial_rank, mat, img_size, sp_size):
+    def compute_w_affine(cls, spatial_rank, mat, img_size, sp_size, align_corners=True):
         r = int(spatial_rank)
         mat = to_affine_nd(r, mat)
-        shift_1 = create_translate(r, [float(d - 1) / 2 for d in img_size[:r]])
-        shift_2 = create_translate(r, [-float(d - 1) / 2 for d in sp_size[:r]])
+        offset = 1 if align_corners else 0
+        shift_1 = create_translate(r, [float(d - offset) / 2 for d in img_size[:r]])
+        shift_2 = create_translate(r, [-float(d - offset) / 2 for d in sp_size[:r]])
         mat = shift_1 @ convert_data_type(mat, np.ndarray)[0] @ shift_2
         return mat
 
@@ -2088,19 +2099,20 @@ class Affine(InvertibleTransform, LazyTransform):
         fwd_affine = transform[TraceKeys.EXTRA_INFO]["affine"]
         mode = transform[TraceKeys.EXTRA_INFO]["mode"]
         padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
+        align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
         inv_affine = linalg_inv(convert_to_numpy(fwd_affine))
         inv_affine = convert_to_dst_type(inv_affine, data, dtype=inv_affine.dtype)[0]
 
-        affine_grid = AffineGrid(affine=inv_affine)
+        affine_grid = AffineGrid(affine=inv_affine, align_corners=align_corners)
         grid, _ = affine_grid(orig_size)
         # Apply inverse transform
-        out = self.resampler(data, grid, mode, padding_mode)
+        out = self.resampler(data, grid, mode, padding_mode, align_corners=align_corners)
         if not isinstance(out, MetaTensor):
             out = MetaTensor(out)
         out.meta = data.meta  # type: ignore
         affine = convert_data_type(out.peek_pending_affine(), torch.Tensor)[0]
         xform, *_ = convert_to_dst_type(
-            Affine.compute_w_affine(len(affine) - 1, inv_affine, data.shape[1:], orig_size), affine
+            Affine.compute_w_affine(len(affine) - 1, inv_affine, data.shape[1:], orig_size, align_corners), affine
         )
         out.affine @= xform
         return out
