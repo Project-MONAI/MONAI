@@ -771,6 +771,7 @@ class Affined(MapTransform, InvertibleTransform, LazyTransform):
             spatial_size=spatial_size,
             device=device,
             dtype=dtype,  # type: ignore
+            align_corners=align_corners,
         )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
@@ -1655,6 +1656,8 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
             It also can be a sequence of bool or None, each element corresponds to a key in ``keys``.
+        dtype: data type for resampling computation. Defaults to ``float32``.
+            If None, use the data type of input data.
         keep_size: Should keep original size (pad if needed), default is True.
         allow_missing_keys: don't raise exception if key is missing.
         kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
@@ -1673,6 +1676,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
         mode: SequenceStr = InterpolateMode.AREA,
         padding_mode: SequenceStr = NumpyPadMode.EDGE,
         align_corners: Sequence[bool | None] | bool | None = None,
+        dtype: Sequence[DtypeLike | torch.dtype] | DtypeLike | torch.dtype = np.float32,
         keep_size: bool = True,
         allow_missing_keys: bool = False,
         **kwargs,
@@ -1683,6 +1687,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
+        self.dtype = ensure_tuple_rep(dtype, len(self.keys))
 
     @LazyTransform.lazy_evaluation.setter  # type: ignore
     def lazy_evaluation(self, val: bool):
@@ -1706,12 +1711,17 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
         # all the keys share the same random zoom factor
         self.rand_zoom.randomize(d[first_key])
 
-        for key, mode, padding_mode, align_corners in self.key_iterator(
-            d, self.mode, self.padding_mode, self.align_corners
+        for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
+            d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
             if self._do_transform:
                 d[key] = self.rand_zoom(
-                    d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners, randomize=False
+                    d[key],
+                    mode=mode,
+                    padding_mode=padding_mode,
+                    align_corners=align_corners,
+                    dtype=dtype,
+                    randomize=False,
                 )
             else:
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta(), dtype=torch.float32)
