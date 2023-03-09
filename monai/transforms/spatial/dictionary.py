@@ -1836,24 +1836,32 @@ class GridPatchd(MapTransform, MultiSampleTrait):
         patch_size: size of patches to generate slices for, 0 or None selects whole dimension
         offset: starting position in the array, default is 0 for each dimension.
             np.random.randint(0, patch_size, 2) creates random start between 0 and `patch_size` for a 2D image.
-        num_patches: number of patches to return. Defaults to None, which returns all the available patches.
+        num_patches: number of patches (or maximum number of patches) to return.
+            If the requested number of patches is greater than the number of available patches,
+            padding will be applied to provide exactly `num_patches` patches unless `threshold` is set.
+            When `threshold` is set, this value is treated as the maximum number of patches.
+            Defaults to None, which does not limit number of the patches.
         overlap: amount of overlap between patches in each dimension. Default to 0.0.
         sort_fn: when `num_patches` is provided, it determines if keep patches with highest values (`"max"`),
             lowest values (`"min"`), or in their default order (`None`). Default to None.
         threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
             Defaults to no filtering.
-        pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to ``"constant"``.
+        pad_mode: the  mode for padding the input image by `patch_size` to include patches that cross boundaries.
+            Defaults to None, which means no padding will be applied.
+            Available modes:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}.
+            See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
         allow_missing_keys: don't raise exception if key is missing.
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
 
     Returns:
-        a list of dictionaries, each of which contains the all the original key/value with the values for `keys`
-            replaced by the patches. It also add the following new keys:
+        dictionary, contains the all the original key/value with the values for `keys`
+            replaced by the patches, a MetaTensor with following metadata:
 
-            "patch_location": the starting location of the patch in the image,
-            "patch_size": size of the extracted patch
-            "num_patches": total number of patches in the image
-            "offset": the amount of offset for the patches in the image (starting position of upper left patch)
+            - `PatchKeys.LOCATION`: the starting location of the patch in the image,
+            - `PatchKeys.COUNT`: total number of patches in the image,
+            - "spatial_shape": spatial size of the extracted patch, and
+            - "offset": the amount of offset for the patches in the image (starting position of the first patch)
     """
 
     backend = GridPatch.backend
@@ -1902,25 +1910,33 @@ class RandGridPatchd(RandomizableTransform, MapTransform, MultiSampleTrait):
         min_offset: the minimum range of starting position to be selected randomly. Defaults to 0.
         max_offset: the maximum range of starting position to be selected randomly.
             Defaults to image size modulo patch size.
-        num_patches: number of patches to return. Defaults to None, which returns all the available patches.
+        num_patches: number of patches (or maximum number of patches) to return.
+            If the requested number of patches is greater than the number of available patches,
+            padding will be applied to provide exactly `num_patches` patches unless `threshold` is set.
+            When `threshold` is set, this value is treated as the maximum number of patches.
+            Defaults to None, which does not limit number of the patches.
         overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
             If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
         sort_fn: when `num_patches` is provided, it determines if keep patches with highest values (`"max"`),
             lowest values (`"min"`), or in their default order (`None`). Default to None.
         threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
             Defaults to no filtering.
-        pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to ``"constant"``.
+        pad_mode: the  mode for padding the input image by `patch_size` to include patches that cross boundaries.
+            Defaults to None, which means no padding will be applied.
+            Available modes:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}.
+            See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
         allow_missing_keys: don't raise exception if key is missing.
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
 
     Returns:
-        a list of dictionaries, each of which contains the all the original key/value with the values for `keys`
-            replaced by the patches. It also add the following new keys:
+        dictionary, contains the all the original key/value with the values for `keys`
+            replaced by the patches, a MetaTensor with following metadata:
 
-            "patch_location": the starting location of the patch in the image,
-            "patch_size": size of the extracted patch
-            "num_patches": total number of patches in the image
-            "offset": the amount of offset for the patches in the image (starting position of the first patch)
+            - `PatchKeys.LOCATION`: the starting location of the patch in the image,
+            - `PatchKeys.COUNT`: total number of patches in the image,
+            - "spatial_shape": spatial size of the extracted patch, and
+            - "offset": the amount of offset for the patches in the image (starting position of the first patch)
 
     """
 
