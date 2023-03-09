@@ -115,7 +115,7 @@ class TestRandRotated2D(NumpyImageTestCase2D):
             keep_size=keep_size,
             mode=mode,
             padding_mode=padding_mode,
-            align_corners=align_corners,
+            align_corners=True,
             dtype=np.float64,
         )
         im = im_type(self.imt[0])

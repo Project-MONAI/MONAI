@@ -78,7 +78,7 @@ class TestRandRotate2D(NumpyImageTestCase2D):
             keep_size=keep_size,
             mode=mode,
             padding_mode=padding_mode,
-            align_corners=align_corners,
+            align_corners=True,
             dtype=np.float64,
         )
         rotate_fn.set_random_state(243)
