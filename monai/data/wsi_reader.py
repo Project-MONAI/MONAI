@@ -285,7 +285,7 @@ class WSIReader(BaseWSIReader):
 
     """
 
-    def __init__(self, backend="cucim", level: int = 0, channel_dim: int = 0, **kwargs):
+    def __init__(self, backend: str = "cucim", level: int = 0, channel_dim: int = 0, **kwargs):
         super().__init__(level, channel_dim, **kwargs)
         self.backend = backend.lower()
         self.reader: CuCIMWSIReader | OpenSlideWSIReader | TiffFileWSIReader

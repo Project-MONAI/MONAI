@@ -107,8 +107,8 @@ class SlidingWindowSplitter(Splitter):
         pad_size[1::2] = (-min(off, 0) for off in offset)
         # set the ending pad size only if it is not divisible by the patch size
         pad_size[::2] = (
-            0 if ps == 0 else (off - ins + ps) % round(ps * (1.0 - ov))
-            for ins, off, ps, ov in zip(spatial_shape, offset, patch_size, overlap)
+            0 if ps == 0 else (off - sh + ps) % round(ps * (1.0 - ov))
+            for sh, off, ps, ov in zip(spatial_shape, offset, patch_size, overlap)
         )
         return pad_size, any(pad_size[1::2])
 
@@ -204,12 +204,24 @@ class WSISlidingWindowSplitter(Splitter):
         self.filter_fn = _validate_patch_filter_fn(filter_fn)
         self.patch_level = patch_level
         self.reader_kwargs = reader_kwargs if reader_kwargs else {}
-        # Setup the WSI reader
+        self.set_reader(reader)
+
+    def set_reader(self, reader: str | BaseWSIReader | type[BaseWSIReader]) -> None:
+        """
+        Set the WSI reader object based on the input reader
+
+        Args:
+            reader: the module to be used for loading whole slide imaging. If `reader` is
+
+                - a string, it defines the backend of `monai.data.WSIReader`. Defaults to cuCIM.
+                - a class (inherited from `BaseWSIReader`), it is initialized and set as wsi_reader.
+                - an instance of a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
+        """
         self.reader: WSIReader | BaseWSIReader
         if isinstance(reader, str):
-            self.reader = WSIReader(backend=reader, level=patch_level, **self.reader_kwargs)
+            self.reader = WSIReader(backend=reader, level=self.patch_level, **self.reader_kwargs)
         elif isclass(reader) and issubclass(reader, BaseWSIReader):
-            self.reader = reader(level=patch_level, **self.reader_kwargs)
+            self.reader = reader(level=self.patch_level, **self.reader_kwargs)
         elif isinstance(reader, BaseWSIReader):
             self.reader = reader
         else:
@@ -250,11 +262,11 @@ def _get_valid_sliding_window_params(patch_size, overlap, offset, spatial_shape)
     overlap = tuple(o if p else 0.0 for o, p in zip(overlap, patch_size))
     # offset
     offset = ensure_tuple_rep(offset, spatial_ndim)
-    for off, ps, ins in zip(offset, patch_size, spatial_shape):
+    for off, ps, sh in zip(offset, patch_size, spatial_shape):
         if off < -ps:
             raise ValueError(f"Negative `offset` ({off}) cannot be larger than `patch_size` ({ps}) in magnitude.")
-        if off >= ins:
-            raise ValueError(f"`offset` ({off}) cannot be larger than inputs size ({ins}).")
+        if off >= sh:
+            raise ValueError(f"`offset` ({off}) cannot be larger than inputs size ({sh}).")
 
     return patch_size, overlap, offset
 
