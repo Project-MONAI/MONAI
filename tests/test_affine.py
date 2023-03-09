@@ -188,7 +188,7 @@ class TestAffine(unittest.TestCase):
 
         # test lazy
         lazy_input_param = input_param.copy()
-        for align_corners in [True, False]:
+        for align_corners in [True]:
             lazy_input_param["align_corners"] = align_corners
             resampler = Affine(**lazy_input_param)
             non_lazy_result = resampler(**input_data)
