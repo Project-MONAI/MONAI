@@ -1139,7 +1139,7 @@ class RandRotate90(RandomizableTransform, InvertibleTransform, LazyTransform):
         return Rotate90().inverse_transform(data, rotate_xform)
 
 
-class RandRotate(RandomizableTransform, InvertibleTransform):
+class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
     """
     Randomly rotate the input arrays.
 
@@ -1247,12 +1247,11 @@ class RandRotate(RandomizableTransform, InvertibleTransform):
                 align_corners=self.align_corners if align_corners is None else align_corners,
                 dtype=dtype or self.dtype or img.dtype,
             )
+            rotator.lazy_evaluation = self.lazy_evaluation
             out = rotator(img)
         else:
             out = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)
-        if get_track_meta():
-            rot_info = self.pop_transform(out, check=False) if self._do_transform else {}
-            self.push_transform(out, extra_info=rot_info)
+        self.push_transform(out, replace=True)
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
@@ -1262,7 +1261,7 @@ class RandRotate(RandomizableTransform, InvertibleTransform):
         return Rotate(0).inverse_transform(data, xform_info[TraceKeys.EXTRA_INFO])
 
 
-class RandFlip(RandomizableTransform, InvertibleTransform):
+class RandFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
     """
     Randomly flips the image along axes. Preserves shape.
     See numpy.flip for additional details.
@@ -1279,6 +1278,11 @@ class RandFlip(RandomizableTransform, InvertibleTransform):
         RandomizableTransform.__init__(self, prob)
         self.flipper = Flip(spatial_axis=spatial_axis)
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool):
+        self.flipper.lazy_evaluation = val
+        self._lazy_evaluation = val
+
     def __call__(self, img: torch.Tensor, randomize: bool = True) -> torch.Tensor:
         """
         Args:
@@ -1289,9 +1293,7 @@ class RandFlip(RandomizableTransform, InvertibleTransform):
             self.randomize(None)
         out = self.flipper(img) if self._do_transform else img
         out = convert_to_tensor(out, track_meta=get_track_meta())
-        if get_track_meta():
-            xform_info = self.pop_transform(out, check=False) if self._do_transform else {}
-            self.push_transform(out, extra_info=xform_info)
+        self.push_transform(out, replace=True)
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
@@ -1302,7 +1304,7 @@ class RandFlip(RandomizableTransform, InvertibleTransform):
         return self.flipper.inverse(data)
 
 
-class RandAxisFlip(RandomizableTransform, InvertibleTransform):
+class RandAxisFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
     """
     Randomly select a spatial axis and flip along it.
     See numpy.flip for additional details.
@@ -1319,6 +1321,11 @@ class RandAxisFlip(RandomizableTransform, InvertibleTransform):
         RandomizableTransform.__init__(self, prob)
         self._axis: int | None = None
         self.flipper = Flip(spatial_axis=self._axis)
+
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool):
+        self.flipper.lazy_evaluation = val
+        self._lazy_evaluation = val
 
     def randomize(self, data: NdarrayOrTensor) -> None:
         super().randomize(None)
@@ -1340,17 +1347,14 @@ class RandAxisFlip(RandomizableTransform, InvertibleTransform):
             out = self.flipper(img)
         else:
             out = convert_to_tensor(img, track_meta=get_track_meta())
-        if get_track_meta():
-            xform = self.pop_transform(out, check=False) if self._do_transform else {}
-            xform["axes"] = self._axis
-            self.push_transform(out, extra_info=xform)
+        self.push_transform(out, replace=True)
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(data)
         if not transform[TraceKeys.DO_TRANSFORM]:
             return data
-        flipper = Flip(spatial_axis=transform[TraceKeys.EXTRA_INFO]["axes"])
+        flipper = Flip(spatial_axis=transform[TraceKeys.EXTRA_INFO][TraceKeys.EXTRA_INFO]["axes"])
         with flipper.trace_transform(False):
             return flipper(data)
 
