@@ -58,7 +58,7 @@ Splitters
     :special-members: __call__
 
 `WSISlidingWindowSplitter`
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: WSISlidingWindowSplitter
     :members:
     :special-members: __call__
