@@ -207,25 +207,25 @@ class ConfigWorkflow(BundleWorkflow):
     def _run_expr(self, id: str, **kwargs) -> Any:
         return self.parser.get_parsed_content(id, **kwargs) if id in self.parser else None
 
-    def _get_id(self, name: str, property: dict) -> Any:
-        pid = property[BundlePropertyConfig.ID]
-        if pid not in self.parser:
+    def _get_prop_id(self, name: str, property: dict) -> Any:
+        prop_id = property[BundlePropertyConfig.ID]
+        if prop_id not in self.parser:
             if not property[BundleProperty.REQUIRED]:
                 return None
             else:
-                raise KeyError(f"Property '{name}' with config ID '{pid}' not in the config.")
-        return pid
+                raise KeyError(f"Property '{name}' with config ID '{prop_id}' not in the config.")
+        return prop_id
 
     def _get_property(self, name: str, property: dict):
         if not self.parser.ref_resolver.is_resolved():
             raise RuntimeError("Please execute 'initialize' before getting any parsed content.")
-        pid = self._get_id(name, property)
-        return self.parser.get_parsed_content(id=pid) if pid is not None else None
+        prop_id = self._get_prop_id(name, property)
+        return self.parser.get_parsed_content(id=prop_id) if prop_id is not None else None
 
     def _set_property(self, name: str, property: dict, value: Any):
-        pid = self._get_id(name, property)
-        if pid is not None:
-            self.parser[pid] = value
+        prop_id = self._get_prop_id(name, property)
+        if prop_id is not None:
+            self.parser[prop_id] = value
             # must parse the config again after changing the content
             self.parser.ref_resolver.reset()
 
