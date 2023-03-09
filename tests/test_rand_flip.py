@@ -38,10 +38,7 @@ class TestRandFlip(NumpyImageTestCase2D):
     def test_correct_results(self, _, spatial_axis):
         for p in TEST_NDARRAYS_ALL:
             im = p(self.imt[0])
-            init_param = {
-                "prob": 1.0,
-                "spatial_axis": spatial_axis
-            }
+            init_param = {"prob": 1.0, "spatial_axis": spatial_axis}
             flip = RandFlip(**init_param)
             set_track_meta(False)
             result = flip(im)
@@ -50,7 +47,7 @@ class TestRandFlip(NumpyImageTestCase2D):
             set_track_meta(True)
             expected = [np.flip(channel, spatial_axis) for channel in self.imt[0]]
             expected = np.stack(expected)
-            call_param = {'img': im}
+            call_param = {"img": im}
             result = flip(**call_param)
             assert_allclose(result, p(expected), type_test="tensor")
             test_local_inversion(flip, result, im)

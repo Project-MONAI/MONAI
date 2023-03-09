@@ -126,7 +126,9 @@ class TestRandRotated2D(NumpyImageTestCase2D):
         rotated = rotate_fn(**call_param)
 
         # test lazy
-        test_resampler_lazy(rotate_fn, rotated, init_param=init_param, call_param=call_param, seed=243, output_key="img")
+        test_resampler_lazy(
+            rotate_fn, rotated, init_param=init_param, call_param=call_param, seed=243, output_key="img"
+        )
 
         _order = 0 if mode == "nearest" else 1
         if padding_mode == "border":
@@ -168,7 +170,9 @@ class TestRandRotated3D(NumpyImageTestCase3D):
         rotated = rotate_fn(**call_param)
 
         # test lazy
-        test_resampler_lazy(rotate_fn, rotated, init_param=init_param, call_param=call_param, seed=243, output_key="img")
+        test_resampler_lazy(
+            rotate_fn, rotated, init_param=init_param, call_param=call_param, seed=243, output_key="img"
+        )
         np.testing.assert_allclose(rotated["img"].shape, expected)
 
         rotate_fn.prob = 0.0

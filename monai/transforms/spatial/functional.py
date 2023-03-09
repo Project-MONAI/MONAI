@@ -15,6 +15,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 from __future__ import annotations
 
+import math
 import warnings
 from enum import Enum
 
@@ -22,11 +23,13 @@ import numpy as np
 import torch
 
 import monai
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import AFFINE_TOL, compute_shape_offset, to_affine_nd
 from monai.networks.layers import AffineTransform
 from monai.networks.utils import normalize_transform
+from monai.transforms.croppad.array import ResizeWithPadOrCrop
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import TraceableTransform
 from monai.transforms.utils import create_rotate, create_scale, create_translate, scale_affine
@@ -384,6 +387,82 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, t
     output = output.float().squeeze(0)
     out, *_ = convert_to_dst_type(output, dst=out, dtype=torch.float32)
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+
+def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype, transform_info):
+    """
+    Functional implementation of zoom.
+    This function operates eagerly or lazily according to
+    ``transform_info[TraceKeys.LAZY_EVALUATION]`` (default ``False``).
+
+    Args:
+        img: data to be changed, assuming `img` is channel-first.
+        scale_factor: The zoom factor along the spatial axes.
+            If a float, zoom is the same for each spatial axis.
+            If a sequence, zoom should contain one value for each spatial axis.
+        keep_size: Whether keep original size (padding/slicing if needed).
+        mode: {``"bilinear"``, ``"nearest"``}
+            Interpolation mode to calculate output values.
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+        padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+            Padding mode for outside grid values.
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+        align_corners: See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+        dtype: data type for resampling computation.
+            If None, use the data type of input data. To be compatible with other modules,
+            the output data type is always ``float32``.
+        transform_info: a dictionary with the relevant information pertaining to an applied transform.
+
+    """
+    im_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
+    output_size = [
+        int(math.floor(float(i) * z))
+        for i, z in zip(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:], scale_factor)
+    ]
+    xform = scale_affine(im_shape, output_size)
+    extra_info = {
+        "mode": mode,
+        "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
+        "dtype": str(dtype)[6:],  # dtype as string; remove "torch": torch.float32 -> float32
+        "do_padcrop": False,
+        "padcrop": {},
+    }
+    if keep_size:
+        if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
+            raise NotImplementedError("keep_size=True is not supported for lazy evaluation.")
+        output_size = [int(i) for i in img.shape[1:]]
+    meta_info = TraceableTransform.track_transform_meta(
+        img,
+        sp_size=output_size,
+        affine=xform,
+        extra_info=extra_info,
+        orig_size=im_shape,
+        transform_info=transform_info,
+        lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
+    )
+    out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
+    if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+    img_t = out.to(dtype)
+    zoomed: NdarrayOrTensor = torch.nn.functional.interpolate(
+        recompute_scale_factor=True,
+        input=img_t.unsqueeze(0),
+        scale_factor=list(scale_factor),
+        mode=mode,
+        align_corners=align_corners,
+    ).squeeze(0)
+    out, *_ = convert_to_dst_type(zoomed, dst=out, dtype=torch.float32)
+    if isinstance(out, MetaTensor):
+        out = out.copy_meta_from(meta_info)
+    do_pad_crop = not np.allclose(output_size, zoomed.shape[1:])
+    if do_pad_crop:
+        _pad_crop = ResizeWithPadOrCrop(spatial_size=img_t.shape[1:], mode=padding_mode)
+        out = _pad_crop(out)
+    if get_track_meta() and do_pad_crop:
+        padcrop_xform = out.applied_operations.pop()
+        out.applied_operations[-1]["extra_info"]["do_padcrop"] = True
+        out.applied_operations[-1]["extra_info"]["padcrop"] = padcrop_xform
+    return out
 
 
 def rotate90(img, axes, k, transform_info):
