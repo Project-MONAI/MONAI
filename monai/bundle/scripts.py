@@ -22,7 +22,7 @@ from logging.config import fileConfig
 from pathlib import Path
 from shutil import copyfile
 from textwrap import dedent
-from typing import Any
+from typing import Any, Callable
 
 import torch
 from torch.cuda import is_available
@@ -955,6 +955,78 @@ def get_net_input_shape(
     return inputs_shape
 
 
+def _export(
+    converter: Callable,
+    parser: ConfigParser,
+    net_id: str,
+    filepath: str,
+    ckpt_file: str,
+    config_file: str,
+    key_in_ckpt: str,
+    update_args: dict,
+    **kwargs: Any,
+):
+    """
+    Export a model defined in the parser to a new one specified by converter.
+
+    Args:
+        converter: a callable object that takes a torch.nn.module and kwargs as input and
+            convert to another type.
+        parser: a parser of the model to be converted.
+        net_id: ID name of the network component in the config, it must be `torch.nn.Module`.
+        filepath: filepath to export, if filename has no extension it becomes `.ts`.
+        ckpt_file: filepath of the model checkpoint to load.
+        config_file: filepath of the config file to save in TorchScript model and extract network information,
+            the saved key in the TorchScript model is the config filename without extension, and the saved config
+            value is always serialized in JSON format no matter the original file format is JSON or YAML.
+            it can be a single file or a list of files. if `None`, must be provided in `args_file`.
+        key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
+            weights. if not nested checkpoint, no need to set.
+        update_args: a dict that contains key to be updated.
+        kwargs: key arguments for the converter.
+
+    """
+    # the rest key-values in the _args are to override config content
+    for k, v in update_args.items():
+        parser[k] = v
+
+    net = parser.get_parsed_content(net_id)
+    if has_ignite:
+        # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
+        Checkpoint.load_objects(to_load={key_in_ckpt: net}, checkpoint=ckpt_file)
+    else:
+        ckpt = torch.load(ckpt_file)
+        copy_model_state(dst=net, src=ckpt if key_in_ckpt == "" else ckpt[key_in_ckpt])
+
+    # convert to TorchScript model and save with metadata, config content
+    net = converter(model=net, **kwargs)
+
+    extra_files: dict = {}
+    for i in ensure_tuple(config_file):
+        # split the filename and directory
+        filename = os.path.basename(i)
+        # remove extension
+        filename, _ = os.path.splitext(filename)
+        # because all files are stored as JSON their name parts without extension must be unique
+        if filename in extra_files:
+            raise ValueError(f"Filename part '{filename}' is given multiple times in config file list.")
+        # the file may be JSON or YAML but will get loaded and dumped out again as JSON
+        extra_files[filename] = json.dumps(ConfigParser.load_config_file(i)).encode()
+
+    # add .json extension to all extra files which are always encoded as JSON
+    extra_files = {k + ".json": v for k, v in extra_files.items()}
+
+    save_net_with_metadata(
+        jit_obj=net,
+        filename_prefix_or_stream=filepath,
+        include_config_vals=False,
+        append_timestamp=False,
+        meta_values=parser.get().pop("_meta_", None),
+        more_extra_files=extra_files,
+    )
+    logger.info(f"exported to TorchScript file: {filepath}.")
+
+
 def ckpt_export(
     net_id: str | None = None,
     filepath: PathLike | None = None,
@@ -1012,45 +1084,16 @@ def ckpt_export(
     if meta_file_ is not None:
         parser.read_meta(f=meta_file_)
 
-    # the rest key-values in the _args are to override config content
-    for k, v in _args.items():
-        parser[k] = v
-
-    net = parser.get_parsed_content(net_id_)
-    if has_ignite:
-        # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
-        Checkpoint.load_objects(to_load={key_in_ckpt_: net}, checkpoint=ckpt_file_)
-    else:
-        ckpt = torch.load(ckpt_file_)
-        copy_model_state(dst=net, src=ckpt if key_in_ckpt_ == "" else ckpt[key_in_ckpt_])
-
-    # convert to TorchScript model and save with metadata, config content
-    net = convert_to_torchscript(model=net)
-
-    extra_files: dict = {}
-    for i in ensure_tuple(config_file_):
-        # split the filename and directory
-        filename = os.path.basename(i)
-        # remove extension
-        filename, _ = os.path.splitext(filename)
-        # because all files are stored as JSON their name parts without extension must be unique
-        if filename in extra_files:
-            raise ValueError(f"Filename part '{filename}' is given multiple times in config file list.")
-        # the file may be JSON or YAML but will get loaded and dumped out again as JSON
-        extra_files[filename] = json.dumps(ConfigParser.load_config_file(i)).encode()
-
-    # add .json extension to all extra files which are always encoded as JSON
-    extra_files = {k + ".json": v for k, v in extra_files.items()}
-
-    save_net_with_metadata(
-        jit_obj=net,
-        filename_prefix_or_stream=filepath_,
-        include_config_vals=False,
-        append_timestamp=False,
-        meta_values=parser.get().pop("_meta_", None),
-        more_extra_files=extra_files,
+    _export(
+        convert_to_torchscript,
+        parser,
+        net_id=net_id_,
+        filepath=filepath_,
+        ckpt_file=ckpt_file_,
+        config_file=config_file_,
+        key_in_ckpt=key_in_ckpt_,
+        update_args=_args,
     )
-    logger.info(f"exported to TorchScript file: {filepath_}.")
 
 
 def trt_export(
@@ -1148,51 +1191,23 @@ def trt_export(
     if meta_file_ is not None:
         parser.read_meta(f=meta_file_)
 
-    # the rest key-values in the _args are to override config content
-    for k, v in _args.items():
-        parser[k] = v
-
     if not inputs_shape_:
         inputs_shape_ = get_net_input_shape(parser)
 
-    net = parser.get_parsed_content(net_id_)
-
-    if has_ignite:
-        # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
-        Checkpoint.load_objects(to_load={key_in_ckpt_: net}, checkpoint=ckpt_file_)
-    else:
-        ckpt = torch.load(ckpt_file_)
-        copy_model_state(dst=net, src=ckpt if key_in_ckpt_ == "" else ckpt[key_in_ckpt_])
-
-    # convert to a TensorRT engine based torchscript and save with metadata, config content
-    net = convert_to_trt(
-        model=net, precision=precision_, inputs_shape=inputs_shape_, dynamic_batchsize=dynamic_batchsize_, ir=ir_
+    _export(
+        convert_to_trt,
+        parser,
+        net_id=net_id_,
+        filepath=filepath_,
+        ckpt_file=ckpt_file_,
+        config_file=config_file_,
+        key_in_ckpt=key_in_ckpt_,
+        update_args=_args,
+        precision=precision_,
+        inputs_shape=inputs_shape_,
+        dynamic_batchsize=dynamic_batchsize_,
+        ir=ir_,
     )
-
-    extra_files: dict = {}
-    for i in ensure_tuple(config_file_):
-        # split the filename and directory
-        filename = os.path.basename(i)
-        # remove extension
-        filename, _ = os.path.splitext(filename)
-        # because all files are stored as JSON their name parts without extension must be unique
-        if filename in extra_files:
-            raise ValueError(f"Filename part '{filename}' is given multiple times in config file list.")
-        # the file may be JSON or YAML but will get loaded and dumped out again as JSON
-        extra_files[filename] = json.dumps(ConfigParser.load_config_file(i)).encode()
-
-    # add .json extension to all extra files which are always encoded as JSON
-    extra_files = {k + ".json": v for k, v in extra_files.items()}
-
-    save_net_with_metadata(
-        jit_obj=net,
-        filename_prefix_or_stream=filepath_,
-        include_config_vals=False,
-        append_timestamp=False,
-        meta_values=parser.get().pop("_meta_", None),
-        more_extra_files=extra_files,
-    )
-    logger.info(f"exported to TorchScript file: {filepath_}.")
 
 
 def init_bundle(
