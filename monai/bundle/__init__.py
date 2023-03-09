@@ -11,7 +11,6 @@
 
 from __future__ import annotations
 
-from .bundle import Bundle, ConfigBundle
 from .config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem, Instantiable
 from .config_parser import ConfigParser
 from .reference_resolver import ReferenceResolver
