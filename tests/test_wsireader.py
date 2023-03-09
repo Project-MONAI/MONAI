@@ -154,6 +154,13 @@ TEST_CASE_9 = [
     torch.tensor([[[239], [239]], [[239], [239]], [[239], [239]]], dtype=torch.float32),
 ]
 
+TEST_CASE_10 = [
+    FILE_PATH,
+    {"level": 2, "dtype": None},
+    {"location": (0, 0), "size": (2, 1)},
+    np.array([[[239], [239]], [[239], [239]], [[239], [239]]], dtype=np.uint8),
+]
+
 # device tests
 TEST_CASE_DEVICE_1 = [
     FILE_PATH,
@@ -191,7 +198,7 @@ TEST_CASE_DEVICE_5 = [
     FILE_PATH,
     {"level": 2, "device": "cuda"},
     {"location": (0, 0), "size": (2, 1)},
-    torch.tensor([[[239], [239]], [[239], [239]], [[239], [239]]], dtype=torch.float32),
+    torch.tensor([[[239], [239]], [[239], [239]], [[239], [239]]], dtype=torch.uint8),
     "cuda",
 ]
 
@@ -199,7 +206,15 @@ TEST_CASE_DEVICE_6 = [
     FILE_PATH,
     {"level": 2},
     {"location": (0, 0), "size": (2, 1)},
-    np.array([[[239], [239]], [[239], [239]], [[239], [239]]], dtype=np.float32),
+    np.array([[[239], [239]], [[239], [239]], [[239], [239]]], dtype=np.uint8),
+    "cpu",
+]
+
+TEST_CASE_DEVICE_7 = [
+    FILE_PATH,
+    {"level": 2, "device": None},
+    {"location": (0, 0), "size": (2, 1)},
+    np.array([[[239], [239]], [[239], [239]], [[239], [239]]], dtype=np.uint8),
     "cpu",
 ]
 
@@ -387,6 +402,7 @@ class WSIReaderTests:
                 TEST_CASE_7,
                 TEST_CASE_8,
                 TEST_CASE_9,
+                TEST_CASE_10,
             ]
         )
         def test_read_region(self, file_path, kwargs, patch_info, expected_img):
@@ -543,6 +559,7 @@ class WSIReaderTests:
                 TEST_CASE_DEVICE_4,
                 TEST_CASE_DEVICE_5,
                 TEST_CASE_DEVICE_6,
+                TEST_CASE_DEVICE_7,
             ]
         )
         @skip_if_no_cuda
