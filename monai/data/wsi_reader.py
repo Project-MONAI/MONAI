@@ -94,6 +94,7 @@ class BaseWSIReader(ImageReader):
         self.metadata: dict[Any, Any] = {}
 
     def set_dtype(self, dtype):
+        self.dtype: torch.dtype | np.dtype
         if isinstance(dtype, torch.dtype):
             self.dtype = dtype
         else:
