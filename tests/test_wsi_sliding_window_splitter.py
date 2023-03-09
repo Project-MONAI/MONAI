@@ -101,6 +101,7 @@ TEST_CASE_8_OVERLAP = [
     {"locations": [(0, 0), (0, 1), (0, 2), (0, 3)]},
 ]
 
+
 # Filtering functions test cases
 def gen_location_filter(locations):
     def my_filter(patch, loc):
