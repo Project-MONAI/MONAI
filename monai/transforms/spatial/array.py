@@ -801,7 +801,7 @@ class Rotate(InvertibleTransform, LazyTransform):
         padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
             Padding mode for outside grid values. Defaults to ``"border"``.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-        align_corners: Defaults to False.
+        align_corners: Defaults to True.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
         dtype: data type for resampling computation. Defaults to ``float32``.
             If None, use the data type of input data. To be compatible with other modules,
@@ -816,7 +816,7 @@ class Rotate(InvertibleTransform, LazyTransform):
         keep_size: bool = True,
         mode: str = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.BORDER,
-        align_corners: bool = False,
+        align_corners: bool = True,
         dtype: DtypeLike | torch.dtype = torch.float32,
     ) -> None:
         self.angle = angle
@@ -1579,9 +1579,9 @@ class AffineGrid(LazyTransform):
 
         affine = convert_to_tensor(affine, device=grid_.device, dtype=grid_.dtype, track_meta=False)  # type: ignore
         if not self.align_corners:
-            shift = create_translate(spatial_dims, [-0.5] * spatial_dims, device=_device, backend=_b)
-            shift = convert_to_dst_type(shift, affine)[0]
-            grid_ = (affine @ shift @ grid_.view((grid_.shape[0], -1))).view([-1] + list(grid_.shape[1:]))
+            sc = create_scale(spatial_dims, [d / (d - 1) for d in grid_.shape[1:]], device=_device, backend=_b)
+            sc = convert_to_dst_type(sc, affine)[0]
+            grid_ = (affine @ sc @ grid_.view((grid_.shape[0], -1))).view([-1] + list(grid_.shape[1:]))
         else:
             grid_ = (affine @ grid_.view((grid_.shape[0], -1))).view([-1] + list(grid_.shape[1:]))
         return grid_, affine
@@ -1866,10 +1866,11 @@ class Resample(Transform):
         if USE_COMPILED or self._backend == TransformBackends.NUMPY:
             if self.norm_coords:
                 for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
-                    grid_t[i] += max(dim, 2) / 2.0 - 0.5 if _align_corners else max(dim, 2) / 2.0
+                    grid_t[i] += max(dim, 2) / 2.0 - 0.5
             elif not _align_corners:
-                for i in range(sr):
-                    grid_t[i] += 0.5  # shift in [-0.5, d-0.5] dst space
+                for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
+                    _dim = max(2, dim)
+                    grid_t[i] *= _dim / (_dim - 1)
             grid_t = grid_t[:sr]
             if USE_COMPILED and self._backend == TransformBackends.TORCH:  # compiled is using torch backend param name
                 grid_t = moveaxis(grid_t, 0, -1)  # type: ignore
@@ -1902,14 +1903,11 @@ class Resample(Transform):
         else:
             if self.norm_coords:
                 for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
-                    if _align_corners:
-                        grid_t[i] *= 2.0 / (max(2, dim) - 1.0)
-                    else:
-                        grid_t[i] = (2.0 / max(2, dim)) * grid_t[i] + (1 / max(2, dim))
-            elif not align_corners:
+                    grid_t[i] *= (2.0 / (max(2, dim) - 1.0)) if _align_corners else (2.0 / max(2, dim))
+            elif not _align_corners:
                 for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
                     _dim = max(2, dim)
-                    grid_t[i] *= (_dim - 1) / _dim
+                    grid_t[i] *= _dim / (_dim - 1)
             index_ordering: list[int] = list(range(sr - 1, -1, -1))
             grid_t = moveaxis(grid_t[index_ordering], 0, -1)  # type: ignore
             out = torch.nn.functional.grid_sample(
@@ -2081,9 +2079,8 @@ class Affine(InvertibleTransform, LazyTransform):
     def compute_w_affine(cls, spatial_rank, mat, img_size, sp_size, align_corners=True):
         r = int(spatial_rank)
         mat = to_affine_nd(r, mat)
-        offset = 1 if align_corners else 0
-        shift_1 = create_translate(r, [float(d - offset) / 2 for d in img_size[:r]])
-        shift_2 = create_translate(r, [-float(d - offset) / 2 for d in sp_size[:r]])
+        shift_1 = create_translate(r, [float(d - 1) / 2 for d in img_size[:r]])
+        shift_2 = create_translate(r, [-float(d - 1) / 2 for d in sp_size[:r]])
         mat = shift_1 @ convert_data_type(mat, np.ndarray)[0] @ shift_2
         return mat
 

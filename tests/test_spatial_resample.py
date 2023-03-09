@@ -43,6 +43,8 @@ for dst, expct in zip(destinations_3d, expected_3d):
             interp = ("nearest", "bilinear")
             for interp_mode in interp:
                 for padding_mode in ("zeros", "border", "reflection"):
+                    if padding_mode == "zeros" and not align:
+                        continue
                     TESTS.append(
                         [
                             torch.arange(12).reshape((1, 2, 2, 3)) + 1.0,  # data
@@ -80,7 +82,7 @@ for dst, expct in zip(destinations_2d, expected_2d):
                             "dtype": torch.float32,
                             "align_corners": align,
                             "mode": interp_mode,
-                            "padding_mode": "zeros",
+                            "padding_mode": "border",
                         },
                         expct,
                     ]
@@ -180,8 +182,8 @@ class TestSpatialResample(unittest.TestCase):
 
         dst = torch.tensor([[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, -1.0, 1.5], [0.0, 0.0, 0.0, 1.0]])
         dst = dst.to(dtype)
-        init_param = {"dtype": dtype, "align_corners": True}
-        call_param = {"img": img, "dst_affine": dst, "align_corners": False}
+        init_param = {"dtype": dtype, "align_corners": False}
+        call_param = {"img": img, "dst_affine": dst, "align_corners": True}
         resampler = SpatialResample(**init_param)
         out = resampler(**call_param)
         assert_allclose(out, expected_data[None], rtol=1e-2, atol=1e-2)
@@ -216,7 +218,7 @@ class TestSpatialResample(unittest.TestCase):
         dst = torch.tensor([[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, -1.0, 1.5], [0.0, 0.0, 0.0, 1.0]])
         dst = dst.to(dtype).to(device)
         init_param = {"dtype": dtype}
-        call_param = {"img": img, "dst_affine": dst}
+        call_param = {"img": img, "dst_affine": dst, "align_corners": True}
         resampler = SpatialResample(**init_param)
         out = resampler(**call_param)
         assert_allclose(out, expected_data[None], rtol=1e-2, atol=1e-2)

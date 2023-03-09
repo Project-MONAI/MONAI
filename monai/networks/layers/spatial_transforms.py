@@ -439,7 +439,7 @@ class AffineTransform(nn.Module):
         normalized: bool = False,
         mode: str = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.ZEROS,
-        align_corners: bool = False,
+        align_corners: bool = True,
         reverse_indexing: bool = True,
         zero_centered: bool | None = None,
     ) -> None:
@@ -574,7 +574,9 @@ class AffineTransform(nn.Module):
                 f"affine and image batch dimension must match, got affine={theta.shape[0]} image={src_size[0]}."
             )
 
-        grid = nn.functional.affine_grid(theta=theta[:, :sr], size=list(dst_size), align_corners=self.align_corners)
+        grid = nn.functional.affine_grid(
+            theta=theta[:, :sr], size=list(dst_size), align_corners=True if not self.normalized else self.align_corners
+        )
         dst = nn.functional.grid_sample(
             input=src.contiguous(),
             grid=grid,

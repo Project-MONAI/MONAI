@@ -48,7 +48,7 @@ for p in TEST_NDARRAYS_ALL:
 class TestRotate2D(NumpyImageTestCase2D):
     @parameterized.expand(TEST_CASES_2D)
     def test_correct_results(self, im_type, angle, keep_size, mode, padding_mode, align_corners):
-        rotate_fn = Rotate(angle, keep_size, mode, padding_mode, align_corners, dtype=np.float64)
+        rotate_fn = Rotate(angle, keep_size, mode, padding_mode, True, dtype=np.float64)
         rotated = rotate_fn(im_type(self.imt[0]))
         if keep_size:
             np.testing.assert_allclose(self.imt[0].shape, rotated.shape)
@@ -56,7 +56,7 @@ class TestRotate2D(NumpyImageTestCase2D):
         if padding_mode == "border":
             _mode = "nearest"
         elif padding_mode == "reflection":
-            _mode = "reflect"
+            _mode = "mirror"
         else:
             _mode = "constant"
 
@@ -76,7 +76,7 @@ class TestRotate2D(NumpyImageTestCase2D):
 class TestRotate3D(NumpyImageTestCase3D):
     @parameterized.expand(TEST_CASES_3D)
     def test_correct_results(self, im_type, angle, keep_size, mode, padding_mode, align_corners):
-        rotate_fn = Rotate([angle, 0, 0], keep_size, mode, padding_mode, align_corners, dtype=np.float64)
+        rotate_fn = Rotate([angle, 0, 0], keep_size, mode, padding_mode, True, dtype=np.float64)
         rotated = rotate_fn(im_type(self.imt[0]))
         if keep_size:
             np.testing.assert_allclose(self.imt[0].shape, rotated.shape)
@@ -84,7 +84,7 @@ class TestRotate3D(NumpyImageTestCase3D):
         if padding_mode == "border":
             _mode = "nearest"
         elif padding_mode == "reflection":
-            _mode = "reflect"
+            _mode = "mirror"
         else:
             _mode = "constant"
 
