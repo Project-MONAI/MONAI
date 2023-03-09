@@ -1164,7 +1164,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
         image_threshold: float = 0.0,
         indices: list[NdarrayOrTensor] | None = None,
         allow_smaller: bool = False,
-        warn: bool = True
+        warn: bool = True,
     ) -> None:
         self.spatial_size = spatial_size
         self.ratios = ratios
@@ -1201,7 +1201,14 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
         if _shape is None:
             raise ValueError("label or image must be provided to infer the output spatial shape.")
         self.centers = generate_label_classes_crop_centers(
-            self.spatial_size, self.num_samples, _shape, indices_, self.ratios, self.R, self.allow_smaller, self.warn
+            self.spatial_size,
+            self.num_samples,
+            label.shape[1:],
+            indices_,
+            self.ratios,
+            self.R,
+            self.allow_smaller,
+            self.warn,
         )
 
     @LazyTransform.lazy_evaluation.setter  # type: ignore

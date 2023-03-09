@@ -535,7 +535,7 @@ def generate_label_classes_crop_centers(
     ratios: list[float | int] | None = None,
     rand_state: np.random.RandomState | None = None,
     allow_smaller: bool = False,
-    warn: bool = True
+    warn: bool = True,
 ) -> list[list[int]]:
     """
     Generate valid sample locations based on the specified ratios of label classes.
