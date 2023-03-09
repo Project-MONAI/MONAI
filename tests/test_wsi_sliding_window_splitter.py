@@ -101,6 +101,22 @@ TEST_CASE_8_OVERLAP = [
     {"locations": [(0, 0), (0, 1), (0, 2), (0, 3)]},
 ]
 
+# Filtering functions test cases
+def gen_location_filter(locations):
+    def my_filter(patch, loc):
+        if loc in locations:
+            return False
+        return True
+
+    return my_filter
+
+
+TEST_CASE_9_FILTER = [
+    FILE_PATH,
+    {"patch_size": (1000, 1000), "reader": WSI_READER_STR, "filter_fn": gen_location_filter([(0, 0), (0, 2000)])},
+    {"locations": [(0, 1000), (0, 3000)]},
+]
+
 
 # ----------------------------------------------------------------------------
 # Error test cases
@@ -165,6 +181,7 @@ class WSISlidingWindowSplitterTests(unittest.TestCase):
             TEST_CASE_6_OVERLAP,
             TEST_CASE_7_OVERLAP,
             TEST_CASE_8_OVERLAP,
+            TEST_CASE_9_FILTER,
         ]
     )
     def test_split_patches(self, image, arguments, expected):
