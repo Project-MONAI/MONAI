@@ -1109,6 +1109,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, MultiSampleTrait)
         allow_smaller: if `False`, an exception will be raised if the image is smaller than
             the requested ROI in any dimension. If `True`, any smaller dimensions will remain
             unchanged.
+        warn: if `True` prints a warning if a class is not present in the label.
 
     """
 
@@ -1125,6 +1126,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, MultiSampleTrait)
         image_threshold: float = 0.0,
         indices: list[NdarrayOrTensor] | None = None,
         allow_smaller: bool = False,
+        warn: bool = True
     ) -> None:
         self.spatial_size = spatial_size
         self.ratios = ratios
@@ -1136,6 +1138,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, MultiSampleTrait)
         self.centers: list[list[int]] | None = None
         self.indices = indices
         self.allow_smaller = allow_smaller
+        self.warn = warn
 
     def randomize(
         self, label: torch.Tensor, indices: list[NdarrayOrTensor] | None = None, image: torch.Tensor | None = None
@@ -1149,7 +1152,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, MultiSampleTrait)
         else:
             indices_ = indices
         self.centers = generate_label_classes_crop_centers(
-            self.spatial_size, self.num_samples, label.shape[1:], indices_, self.ratios, self.R, self.allow_smaller
+            self.spatial_size, self.num_samples, label.shape[1:], indices_, self.ratios, self.R, self.allow_smaller, self.warn
         )
 
     def __call__(
