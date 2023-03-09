@@ -307,7 +307,7 @@ class Spacing(InvertibleTransform, LazyTransform):
         diagonal: bool = False,
         mode: str | int = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.BORDER,
-        align_corners: bool = False,
+        align_corners: bool = True,
         dtype: DtypeLike = np.float64,
         scale_extent: bool = False,
         recompute_affine: bool = False,

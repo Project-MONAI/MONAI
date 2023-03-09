@@ -332,7 +332,7 @@ class Spacingd(MapTransform, InvertibleTransform, LazyTransform):
         diagonal: bool = False,
         mode: SequenceStr = GridSampleMode.BILINEAR,
         padding_mode: SequenceStr = GridSamplePadMode.BORDER,
-        align_corners: Sequence[bool] | bool = False,
+        align_corners: Sequence[bool] | bool = True,
         dtype: Sequence[DtypeLike] | DtypeLike = np.float64,
         scale_extent: bool = False,
         recompute_affine: bool = False,
