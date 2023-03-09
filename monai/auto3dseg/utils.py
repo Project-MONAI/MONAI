@@ -43,7 +43,6 @@ __all__ = [
 
 measure_np, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
 cp, has_cp = optional_import("cupy")
-cucim, has_cucim = optional_import("cucim")
 
 
 def get_foreground_image(image: MetaTensor) -> np.ndarray:
@@ -93,7 +92,7 @@ def get_label_ccp(mask_index: MetaTensor, use_gpu: bool = True) -> tuple[list[An
             regardless of this setting.
 
     """
-
+    cucim, has_cucim = optional_import("cucim")
     shape_list = []
     if mask_index.device.type == "cuda" and has_cp and has_cucim and use_gpu:
         mask_cupy = ToCupy()(mask_index.short())
