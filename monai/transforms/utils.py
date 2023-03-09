@@ -535,6 +535,7 @@ def generate_label_classes_crop_centers(
     ratios: list[float | int] | None = None,
     rand_state: np.random.RandomState | None = None,
     allow_smaller: bool = False,
+    warn: bool = True,
 ) -> list[list[int]]:
     """
     Generate valid sample locations based on the specified ratios of label classes.
@@ -551,6 +552,7 @@ def generate_label_classes_crop_centers(
         allow_smaller: if `False`, an exception will be raised if the image is smaller than
             the requested ROI in any dimension. If `True`, any smaller dimensions will be set to
             match the cropped size (i.e., no cropping in that dimension).
+        warn: if `True` prints a warning if a class is not present in the label.
 
     """
     if rand_state is None:
@@ -567,7 +569,7 @@ def generate_label_classes_crop_centers(
         raise ValueError(f"ratios should not contain negative number, got {ratios_}.")
 
     for i, array in enumerate(indices):
-        if len(array) == 0:
+        if len(array) == 0 and warn:
             warnings.warn(f"no available indices of class {i} to crop, set the crop ratio of this class to zero.")
             ratios_[i] = 0
 
