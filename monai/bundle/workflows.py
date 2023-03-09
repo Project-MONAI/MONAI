@@ -75,6 +75,11 @@ class BundleWorkflow(ABC):
     """
     Base class for the workflow specification in bundle.
 
+    Args:
+        workflow: specifies the workflow type: "train" or "training" for a training workflow,
+            or "infer", "inference", "eval", "evaluation" for a inference workflow,
+            anything else will raise a ValueError.
+
     """
 
     def __init__(self, workflow: str):
@@ -83,27 +88,27 @@ class BundleWorkflow(ABC):
         elif workflow.lower() in ("infer", "inference", "eval", "evaluation"):
             self.properties = InferProperties
         else:
-            raise ValueError(f"got unsupported workflow type: '{workflow}'.")
+            raise ValueError(f"Unsupported workflow type: '{workflow}'.")
 
     @abstractmethod
     def initialize(self, *args: Any, **kwargs: Any) -> Any:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+        raise NotImplementedError()
 
     @abstractmethod
     def run(self, *args: Any, **kwargs: Any) -> Any:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+        raise NotImplementedError()
 
     @abstractmethod
     def finalize(self, *args: Any, **kwargs: Any) -> Any:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+        raise NotImplementedError()
 
     @abstractmethod
     def _get_property(self, name: str, property: dict) -> Any:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+        raise NotImplementedError()
 
     @abstractmethod
     def _set_property(self, name: str, property: dict, value: Any) -> Any:
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+        raise NotImplementedError()
 
     def __getattr__(self, name):
         if name in self.properties:
@@ -120,7 +125,7 @@ class BundleWorkflow(ABC):
     def check_properties(self):
         missing_props = [n for n, p in self.properties.items() if p[BundleProperty.REQUIRED] and not hasattr(self, n)]
         if missing_props:
-            raise ValueError(f"loaded bundle does not contain the following required properties: {missing_props}")
+            raise ValueError(f"Loaded bundle does not contain the following required properties: {missing_props}")
 
 
 class ConfigWorkflow(BundleWorkflow):
@@ -140,11 +145,11 @@ class ConfigWorkflow(BundleWorkflow):
         if logging_file is not None:
             if not os.path.exists(logging_file):
                 if logging_file == "configs/logging.conf":
-                    warnings.warn("default logging file in 'configs/logging.conf' not exists, skip logging.")
+                    warnings.warn("Default logging file in 'configs/logging.conf' does not exist, skipping logging.")
                 else:
-                    raise FileNotFoundError(f"can't find the logging config file: {logging_file}.")
+                    raise FileNotFoundError(f"Cannot find the logging config file: {logging_file}.")
             else:
-                logger.info(f"set logging properties based on config: {logging_file}.")
+                logger.info(f"Setting logging properties based on config: {logging_file}.")
                 fileConfig(logging_file, disable_existing_loggers=False)
 
         self.parser = ConfigParser()
@@ -152,9 +157,9 @@ class ConfigWorkflow(BundleWorkflow):
         if meta_file is not None:
             if not os.path.exists(meta_file):
                 if meta_file == "configs/metadata.json":
-                    warnings.warn("default metadata file in 'configs/metadata.json' not exists, skip loading.")
+                    warnings.warn("Default metadata file in 'configs/metadata.json' does not exist, skipping loading.")
                 else:
-                    raise FileNotFoundError(f"can't find the metadata config file: {meta_file}.")
+                    raise FileNotFoundError(f"Cannot find the metadata config file: {meta_file}.")
             else:
                 self.parser.read_meta(f=meta_file)
 
@@ -190,43 +195,43 @@ class ConfigWorkflow(BundleWorkflow):
             if not p[BundleProperty.REQUIRED] and not self._check_optional_id(name=n, property=p):
                 wrong_props.append(n)
         if wrong_props:
-            raise ValueError(f"loaded bundle defines the following optional properties with wrong ID: {wrong_props}")
+            raise ValueError(f"Loaded bundle defines the following optional properties with wrong ID: {wrong_props}")
         # check validation `interval` property
         if "train#handlers" in self.parser:
             for h in self.parser["train#handlers"]:
                 if h["_target_"] == "ValidationHandler":
                     interval = h.get("interval", None)
-                    if interval is not None and interval != "val_interval":
-                        raise ValueError("please use ID 'val_interval' to define validation interval in training.")
+                    if interval not in (None, "val_interval"):
+                        raise ValueError("Validation interval in training must be defined with ID 'val_interval'.")
 
     def _run_expr(self, id: str, **kwargs) -> Any:
         return self.parser.get_parsed_content(id, **kwargs) if id in self.parser else None
 
+    def _get_id(self, name: str, property: dict) -> Any:
+        pid = property[BundlePropertyConfig.ID]
+        if pid not in self.parser:
+            if not property[BundleProperty.REQUIRED]:
+                return None
+            else:
+                raise KeyError(f"Property '{name}' with config ID '{pid}' not in the config.")
+        return pid
+
     def _get_property(self, name: str, property: dict):
         if not self.parser.ref_resolver.is_resolved():
-            raise RuntimeError("please execute 'initialize' before getting any parsed content.")
-        id = property[BundlePropertyConfig.ID]
-        if id not in self.parser:
-            if not property[BundleProperty.REQUIRED]:
-                return None
-            else:
-                raise KeyError(f"property '{name}' with config ID '{id}' not in the config.")
-        return self.parser.get_parsed_content(id=id)
+            raise RuntimeError("Please execute 'initialize' before getting any parsed content.")
+        pid = self._get_id(name, property)
+        return self.parser.get_parsed_content(id=pid) if pid is not None else None
 
     def _set_property(self, name: str, property: dict, value: Any):
-        id = property[BundlePropertyConfig.ID]
-        if id not in self.parser:
-            if not property[BundleProperty.REQUIRED]:
-                return None
-            else:
-                raise KeyError(f"property '{name}' with config ID '{id}' not in the config.")
-        self.parser[id] = value
-        # must parse the config again after changing the content
-        self.parser.ref_resolver.reset()
+        pid = self._get_id(name, property)
+        if pid is not None:
+            self.parser[pid] = value
+            # must parse the config again after changing the content
+            self.parser.ref_resolver.reset()
 
     def _check_optional_id(self, name: str, property: dict):
         if BundlePropertyConfig.REF_ID not in property:
-            raise ValueError(f"can't find the ID of reference config item for optional property '{name}'.")
+            raise ValueError(f"Cannot find the ID of reference config item for optional property '{name}'.")
         ret = self.parser.get(property[BundlePropertyConfig.REF_ID], None)
         if ret is not None and ret != "@" + property[BundlePropertyConfig.ID]:
             return False

@@ -689,7 +689,7 @@ def run(
         _args,
         config_file=None,
         meta_file="configs/metadata.json",
-        runner_id="",
+        runner_id="run",
         logging_file="configs/logging.conf",
         tracking=None,
     )
