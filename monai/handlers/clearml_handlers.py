@@ -43,6 +43,7 @@ class ClearMLHandler:
         reuse_last_task_id: bool,
         continue_last_task: bool,
         auto_connect_frameworks: bool | Mapping[str, bool | str | list],
+        auto_connect_arg_parser: bool | Mapping[str, bool],
     ) -> None:
         """
         Args:
@@ -53,6 +54,7 @@ class ClearMLHandler:
             reuse_last_task_id: Force a new Task (experiment) with a previously used Task ID, default to 'True'.
             continue_last_task: Continue the execution of a previously executed Task (experiment), default to 'False'.
             auto_connect_frameworks: Automatically connect frameworks, default to 'True'.
+            auto_connect_arg_parser: Automatically connect an argparse object to the Task, default to 'True'.
 
         """
 
@@ -90,6 +92,7 @@ class ClearMLStatsHandler(ClearMLHandler, TensorBoardStatsHandler):
         reuse_last_task_id: bool = True,
         continue_last_task: bool = False,
         auto_connect_frameworks: bool | Mapping[str, bool | str | list] = True,
+        auto_connect_arg_parser: bool | Mapping[str, bool] = True,
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -102,6 +105,7 @@ class ClearMLStatsHandler(ClearMLHandler, TensorBoardStatsHandler):
             reuse_last_task_id: Force a new Task (experiment) with a previously used Task ID, default to 'True'.
             continue_last_task: Continue the execution of a previously executed Task (experiment), default to 'False'.
             auto_connect_frameworks: Automatically connect frameworks, default to 'True'.
+            auto_connect_arg_parser: Automatically connect an argparse object to the Task, default to 'True'.
 
         """
 
@@ -114,6 +118,7 @@ class ClearMLStatsHandler(ClearMLHandler, TensorBoardStatsHandler):
             reuse_last_task_id=reuse_last_task_id,
             continue_last_task=continue_last_task,
             auto_connect_frameworks=auto_connect_frameworks,
+            auto_connect_arg_parser=auto_connect_arg_parser,
         )
         TensorBoardStatsHandler.__init__(self, *args, **kwargs)
 
@@ -138,6 +143,7 @@ class ClearMLImageHandler(ClearMLHandler, TensorBoardImageHandler):
         reuse_last_task_id: bool = True,
         continue_last_task: bool = False,
         auto_connect_frameworks: bool | Mapping[str, bool | str | list] = True,
+        auto_connect_arg_parser: bool | Mapping[str, bool] = True,
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -150,6 +156,7 @@ class ClearMLImageHandler(ClearMLHandler, TensorBoardImageHandler):
             reuse_last_task_id: Force a new Task (experiment) with a previously used Task ID, default to 'True'.
             continue_last_task: Continue the execution of a previously executed Task (experiment), default to 'False'.
             auto_connect_frameworks: Automatically connect frameworks, default to 'True'.
+            auto_connect_arg_parser: Automatically connect an argparse object to the Task, default to 'True'.
 
         """
 
@@ -162,6 +169,7 @@ class ClearMLImageHandler(ClearMLHandler, TensorBoardImageHandler):
             reuse_last_task_id=reuse_last_task_id,
             continue_last_task=continue_last_task,
             auto_connect_frameworks=auto_connect_frameworks,
+            auto_connect_arg_parser=auto_connect_arg_parser,
         )
 
         TensorBoardImageHandler.__init__(self, *args, **kwargs)

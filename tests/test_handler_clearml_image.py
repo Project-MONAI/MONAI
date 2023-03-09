@@ -34,6 +34,7 @@ class TestHandlerClearMLImageHandler(unittest.TestCase):
                 reuse_last_task_id=True,
                 continue_last_task=False,
                 auto_connect_frameworks=True,
+                auto_connect_arg_parser=False,
             )
         except Exception as exc:
             self.fail(exc)
