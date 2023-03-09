@@ -128,8 +128,8 @@ TEST_CASE_5 = [
 
 TEST_CASE_6 = [
     FILE_PATH,
-    {"level": 2},
-    {"location": (0, 0), "size": (2, 1), "dtype": np.int32},
+    {"level": 2, "dtype": np.int32},
+    {"location": (0, 0), "size": (2, 1)},
     np.array([[[239], [239]], [[239], [239]], [[239], [239]]], dtype=np.int32),
 ]
 
@@ -142,8 +142,8 @@ TEST_CASE_7 = [
 
 TEST_CASE_8 = [
     FILE_PATH,
-    {"level": 2},
-    {"location": (0, 0), "size": (2, 1), "dtype": torch.uint8},
+    {"level": 2, "dtype": torch.uint8},
+    {"location": (0, 0), "size": (2, 1)},
     torch.tensor([[[239], [239]], [[239], [239]], [[239], [239]]], dtype=torch.uint8),
 ]
 
@@ -189,18 +189,18 @@ TEST_CASE_DEVICE_4 = [
 
 TEST_CASE_DEVICE_5 = [
     FILE_PATH,
-    {"level": 2, "dtype": np.float32},
-    {"location": (0, 0), "size": (2, 1), "device": "cpu"},
-    np.array([[[239], [239]], [[239], [239]], [[239], [239]]], dtype=np.float32),
-    "cpu",
+    {"level": 2, "device": "cuda"},
+    {"location": (0, 0), "size": (2, 1)},
+    torch.tensor([[[239], [239]], [[239], [239]], [[239], [239]]], dtype=torch.float32),
+    "cuda",
 ]
 
 TEST_CASE_DEVICE_6 = [
     FILE_PATH,
-    {"level": 2, "dtype": np.float32},
-    {"location": (0, 0), "size": (2, 1), "device": "cuda"},
-    torch.tensor([[[239], [239]], [[239], [239]], [[239], [239]]], dtype=torch.float32),
-    "cuda",
+    {"level": 2},
+    {"location": (0, 0), "size": (2, 1)},
+    np.array([[[239], [239]], [[239], [239]], [[239], [239]]], dtype=np.float32),
+    "cpu",
 ]
 
 TEST_CASE_MULTI_WSI = [
@@ -346,7 +346,9 @@ class WSIReaderDeprecatedTests:
         ):
             train_transform = Compose(
                 [
-                    LoadImaged(keys=["image"], reader=WSIReaderDeprecated, backend=self.backend, level=level),
+                    LoadImaged(
+                        keys=["image"], reader=WSIReaderDeprecated, backend=self.backend, level=level, image_only=False
+                    ),
                     ToTensord(keys=["image"]),
                 ]
             )
@@ -466,7 +468,7 @@ class WSIReaderTests:
         ):
             train_transform = Compose(
                 [
-                    LoadImaged(keys=["image"], reader=WSIReader, backend=self.backend, level=level),
+                    LoadImaged(keys=["image"], reader=WSIReader, backend=self.backend, level=level, image_only=False),
                     ToTensord(keys=["image"]),
                 ]
             )
@@ -483,7 +485,7 @@ class WSIReaderTests:
         ):
             train_transform = Compose(
                 [
-                    LoadImaged(keys=["image"], reader=WSIReader, backend=self.backend, level=level),
+                    LoadImaged(keys=["image"], reader=WSIReader, backend=self.backend, level=level, image_only=False),
                     ToTensord(keys=["image"]),
                 ]
             )

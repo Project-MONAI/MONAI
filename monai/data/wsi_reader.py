@@ -45,8 +45,8 @@ class BaseWSIReader(ImageReader):
         level: the whole slide image level at which the image is extracted.
         channel_dim: the desired dimension for color channel.
         dtype: the data type of output image.
-        device: target device to put the extracted patch. If device is not None nor "cpu",
-            the output will be converted to torch and sent to the device (even if the dtype is numpy).
+        device: target device to put the extracted patch. Note that if device is "cuda"",
+            the output will be converted to torch tenor and sent to the gpu even if the dtype is numpy.
         mode: the output image color mode, e.g., "RGB" or "RGBA".
         kwargs: additional args for the reader
 
@@ -80,21 +80,34 @@ class BaseWSIReader(ImageReader):
         level: int,
         channel_dim: int,
         dtype: DtypeLike | torch.dtype,
-        device: torch.device | str,
+        device: torch.device | str | None,
         mode: str,
         **kwargs,
     ):
         super().__init__()
         self.level = level
         self.channel_dim = channel_dim
-        self.dtype = dtype
-        if isinstance(device, torch.device):
-            self.device = device
-        else:
-            self.device = torch.device(device)
+        self.set_dtype(dtype)
+        self.set_device(device)
         self.mode = mode
         self.kwargs = kwargs
         self.metadata: dict[Any, Any] = {}
+
+    def set_dtype(self, dtype):
+        if isinstance(dtype, torch.dtype):
+            self.dtype = dtype
+        else:
+            self.dtype = np.dtype(dtype)
+
+    def set_device(self, device):
+        if device is None:
+            self.device = None
+        elif isinstance(device, torch.device):
+            self.device = device
+        elif isinstance(device, str):
+            self.device = torch.device(device)
+        else:
+            raise ValueError(f"`device` must be `torch.device`, `str` or `None` but {type(device)} is given.")
 
     @abstractmethod
     def get_size(self, wsi, level: int | None = None) -> tuple[int, int]:
@@ -163,8 +176,6 @@ class BaseWSIReader(ImageReader):
                 If None, it is set to the full image size at the given level.
             level: the level number. Defaults to 0
             dtype: the data type of output image
-            device: target device to put the extracted patch. If device is not None nor "cpu",
-                the output will be converted to torch and sent to the device (even if the dtype is numpy).
             mode: the output image mode, 'RGB' or 'RGBA'
 
         """
@@ -208,8 +219,6 @@ class BaseWSIReader(ImageReader):
         location: tuple[int, int] = (0, 0),
         size: tuple[int, int] | None = None,
         level: int | None = None,
-        dtype: DtypeLike | torch.dtype | None = None,
-        device: torch.device | str | None = None,
         mode: str | None = None,
     ) -> tuple[np.ndarray, dict]:
         """
@@ -221,20 +230,12 @@ class BaseWSIReader(ImageReader):
             size: (height, width) tuple giving the patch size at the given level (`level`).
                 If not provided or None, it is set to the full image size at the given level.
             level: the level number. Defaults to 0
-            dtype: the data type of output image. If not provided the default of `np.uint8` is used.
-            device:
             mode: the output image color mode, "RGB" or "RGBA". If not provided the default of "RGB" is used.
 
         Returns:
             a tuples, where the first element is an image patch [CxHxW] or stack of patches,
                 and second element is a dictionary of metadata
         """
-        if dtype is None:
-            dtype = self.dtype
-        if device is None:
-            device = self.device
-        else:
-            device = torch.device(device)
         if mode is None:
             mode = self.mode
         patch_list: list = []
@@ -267,19 +268,22 @@ class BaseWSIReader(ImageReader):
                     raise ValueError(f"Patch size should be greater than zero, provided: patch size = {size}")
 
             # Get numpy dtype if it is not already.
-            np_dtype = dtype_torch_to_numpy(dtype) if isinstance(dtype, torch.dtype) else dtype
+            dtype_np = dtype_torch_to_numpy(self.dtype) if isinstance(self.dtype, torch.dtype) else self.dtype
             # Extract a patch or the entire image
             patch: NdarrayOrTensor
-            patch = self._get_patch(each_wsi, location=location, size=size, level=level, dtype=np_dtype, mode=mode)
-            # Ensure dtype is torch.dtype if the device is not "cpu"
-            if device.type == "cuda" and not isinstance(dtype, torch.dtype):
-                dtype = dtype_numpy_to_torch(dtype)
+            patch = self._get_patch(each_wsi, location=location, size=size, level=level, dtype=dtype_np, mode=mode)
+
             # Convert the patch to torch.Tensor if dtype is torch
-            if isinstance(dtype, torch.dtype):
+            if isinstance(self.dtype, torch.dtype) or (self.device is not None and self.device.type == "cuda"):
+                # Ensure dtype is torch.dtype if the device is not "cpu"
+                dtype_torch = (
+                    dtype_numpy_to_torch(self.dtype) if not isinstance(self.dtype, torch.dtype) else self.dtype
+                )
+                # Copy the numpy array if it is not writable
                 if patch.flags["WRITEABLE"]:
-                    patch = torch.as_tensor(patch, dtype=dtype, device=device)
+                    patch = torch.as_tensor(patch, dtype=dtype_torch, device=self.device)
                 else:
-                    patch = torch.tensor(patch, dtype=dtype, device=device)
+                    patch = torch.tensor(patch, dtype=dtype_torch, device=self.device)
 
             # check if the image has three dimensions (2D + color)
             if patch.ndim != 3:
@@ -337,8 +341,8 @@ class WSIReader(BaseWSIReader):
         channel_dim: the desired dimension for color channel. Default to 0 (channel first).
         dtype: the data type of output image. Defaults to `np.uint8`.
         mode: the output image color mode, "RGB" or "RGBA". Defaults to "RGB".
-        device: target device to put the extracted patch. If device is not None nor "cpu",
-            the output will be converted to torch and sent to the device (even if the dtype is numpy).
+        device: target device to put the extracted patch. Note that if device is "cuda"",
+            the output will be converted to torch tenor and sent to the gpu even if the dtype is numpy.
         num_workers: number of workers for multi-thread image loading (cucim backend only).
         kwargs: additional arguments to be passed to the backend library
 
@@ -352,11 +356,10 @@ class WSIReader(BaseWSIReader):
         level: int = 0,
         channel_dim: int = 0,
         dtype: DtypeLike | torch.dtype = np.uint8,
-        device: torch.device | str = "cpu",
+        device: torch.device | str | None = None,
         mode: str = "RGB",
         **kwargs,
     ):
-        super().__init__(level=level, channel_dim=channel_dim, dtype=dtype, device=device, mode=mode, **kwargs)
         self.backend = backend.lower()
         self.reader: CuCIMWSIReader | OpenSlideWSIReader | TiffFileWSIReader
         if self.backend == "cucim":
@@ -376,6 +379,13 @@ class WSIReader(BaseWSIReader):
                 f"The supported backends are cucim, openslide, and tifffile but '{self.backend}' was given."
             )
         self.supported_suffixes = self.reader.supported_suffixes
+        self.level = self.reader.level
+        self.channel_dim = self.reader.channel_dim
+        self.dtype = self.reader.dtype
+        self.device = self.reader.device
+        self.mode = self.reader.mode
+        self.kwargs = self.reader.kwargs
+        self.metadata = self.reader.metadata
 
     def get_level_count(self, wsi) -> int:
         """
@@ -479,8 +489,8 @@ class CuCIMWSIReader(BaseWSIReader):
             This is overridden if the level argument is provided in `get_data`.
         channel_dim: the desired dimension for color channel. Default to 0 (channel first).
         dtype: the data type of output image. Defaults to `np.uint8`.
-        device: target device to put the extracted patch. If device is not None nor "cpu",
-            the output will be converted to torch and sent to the device (even if the dtype is numpy).
+        device: target device to put the extracted patch. Note that if device is "cuda"",
+            the output will be converted to torch tenor and sent to the gpu even if the dtype is numpy.
         mode: the output image color mode, "RGB" or "RGBA". Defaults to "RGB".
         num_workers: number of workers for multi-thread image loading
         kwargs: additional args for `cucim.CuImage` module:
@@ -496,7 +506,7 @@ class CuCIMWSIReader(BaseWSIReader):
         level: int = 0,
         channel_dim: int = 0,
         dtype: DtypeLike | torch.dtype = np.uint8,
-        device: torch.device | str = "cpu",
+        device: torch.device | str | None = None,
         mode: str = "RGB",
         num_workers: int = 0,
         **kwargs,
@@ -641,8 +651,8 @@ class OpenSlideWSIReader(BaseWSIReader):
             This is overridden if the level argument is provided in `get_data`.
         channel_dim: the desired dimension for color channel. Default to 0 (channel first).
         dtype: the data type of output image. Defaults to `np.uint8`.
-        device: target device to put the extracted patch. If device is not None nor "cpu",
-            the output will be converted to torch and sent to the device (even if the dtype is numpy).
+        device: target device to put the extracted patch. Note that if device is "cuda"",
+            the output will be converted to torch tenor and sent to the gpu even if the dtype is numpy.
         mode: the output image color mode, "RGB" or "RGBA". Defaults to "RGB".
         kwargs: additional args for `openslide.OpenSlide` module.
 
@@ -656,7 +666,7 @@ class OpenSlideWSIReader(BaseWSIReader):
         level: int = 0,
         channel_dim: int = 0,
         dtype: DtypeLike | torch.dtype = np.uint8,
-        device: torch.device | str = "cpu",
+        device: torch.device | str | None = None,
         mode: str = "RGB",
         **kwargs,
     ):
@@ -800,8 +810,8 @@ class TiffFileWSIReader(BaseWSIReader):
             This is overridden if the level argument is provided in `get_data`.
         channel_dim: the desired dimension for color channel. Default to 0 (channel first).
         dtype: the data type of output image. Defaults to `np.uint8`.
-        device: target device to put the extracted patch. If device is not None nor "cpu",
-            the output will be converted to torch and sent to the device (even if the dtype is numpy).
+        device: target device to put the extracted patch. Note that if device is "cuda"",
+            the output will be converted to torch tenor and sent to the gpu even if the dtype is numpy.
         mode: the output image color mode, "RGB" or "RGBA". Defaults to "RGB".
         kwargs: additional args for `tifffile.TiffFile` module.
 
@@ -815,7 +825,7 @@ class TiffFileWSIReader(BaseWSIReader):
         level: int = 0,
         channel_dim: int = 0,
         dtype: DtypeLike | torch.dtype = np.uint8,
-        device: torch.device | str = "cpu",
+        device: torch.device | str | None = None,
         mode: str = "RGB",
         **kwargs,
     ):
