@@ -332,7 +332,7 @@ class Spacingd(MapTransform, InvertibleTransform, LazyTransform):
         diagonal: bool = False,
         mode: SequenceStr = GridSampleMode.BILINEAR,
         padding_mode: SequenceStr = GridSamplePadMode.BORDER,
-        align_corners: Sequence[bool] | bool = True,
+        align_corners: Sequence[bool] | bool = False,
         dtype: Sequence[DtypeLike] | DtypeLike = np.float64,
         scale_extent: bool = False,
         recompute_affine: bool = False,
@@ -752,7 +752,7 @@ class Affined(MapTransform, InvertibleTransform, LazyTransform):
             dtype: data type for resampling computation. Defaults to ``float32``.
                 If ``None``, use the data type of input data. To be compatible with other modules,
                 the output data type is always `float32`.
-            align_corners: Defaults to True.
+            align_corners: Defaults to False.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             allow_missing_keys: don't raise exception if key is missing.
 

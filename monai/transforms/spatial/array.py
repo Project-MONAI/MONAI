@@ -801,7 +801,7 @@ class Rotate(InvertibleTransform, LazyTransform):
         padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
             Padding mode for outside grid values. Defaults to ``"border"``.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-        align_corners: Defaults to True.
+        align_corners: Defaults to False.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
         dtype: data type for resampling computation. Defaults to ``float32``.
             If None, use the data type of input data. To be compatible with other modules,

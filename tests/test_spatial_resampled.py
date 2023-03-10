@@ -41,8 +41,6 @@ for dst, expct in zip(destinations_3d, expected_3d):
                 interp = ("nearest", "bilinear")
                 for interp_mode in interp:
                     for padding_mode in ("zeros", "border", "reflection"):
-                        if padding_mode == "zeros" and not align:
-                            continue  # not align corners with padding zero will be zeros
                         TESTS.append(
                             [
                                 np.arange(12).reshape((1, 2, 2, 3)) + 1.0,  # data
@@ -81,7 +79,7 @@ for dst, expct in zip(destinations_2d, expected_2d):
                                 "dtype": dtype,
                                 "align_corners": align,
                                 "mode": interp_mode,
-                                "padding_mode": "border",
+                                "padding_mode": "zeros",
                             },
                             expct,
                         ]

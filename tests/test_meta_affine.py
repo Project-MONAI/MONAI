@@ -45,7 +45,7 @@ FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", f"{key}.nii.
 FILE_PATH_1 = os.path.join(os.path.dirname(__file__), "testing_data", f"{key_1}.nii.gz")
 
 TEST_CASES_ARRAY = [
-    [Compose([Spacing(pixdim=(1.0, 1.1, 1.2), align_corners=True), Orientation(axcodes="RAS")]), {}, TINY_DIFF],
+    [Compose([Spacing(pixdim=(1.0, 1.1, 1.2)), Orientation(axcodes="RAS")]), {}, TINY_DIFF],
     [Compose([Orientation(axcodes="RAS"), Spacing(pixdim=(1.0, 1.1, 1.2))]), {}, TINY_DIFF],
     ["CropForeground", {"k_divisible": 3}, TINY_DIFF],
     ["BorderPad", {"spatial_border": (2, 3, 4)}, TINY_DIFF],
