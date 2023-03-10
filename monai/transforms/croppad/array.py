@@ -106,13 +106,13 @@ class Pad(InvertibleTransform, LazyTransform):
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
-        self, to_pad: list[tuple[int, int]] | None = None, mode: str = PytorchPadMode.CONSTANT, **kwargs
+        self, to_pad: tuple[tuple[int, int]] | None = None, mode: str = PytorchPadMode.CONSTANT, **kwargs
     ) -> None:
         self.to_pad = to_pad
         self.mode = mode
         self.kwargs = kwargs
 
-    def compute_pad_width(self, spatial_shape: Sequence[int]) -> list[tuple[int, int]]:
+    def compute_pad_width(self, spatial_shape: Sequence[int]) -> tuple[tuple[int, int]]:
         """
         dynamically compute the pad width according to the spatial shape.
         the output is the amount of padding for all dimensions including the channel.
@@ -123,8 +123,8 @@ class Pad(InvertibleTransform, LazyTransform):
         """
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    def __call__(  # type: ignore
-        self, img: torch.Tensor, to_pad: list[tuple[int, int]] | None = None, mode: str | None = None, **kwargs
+    def __call__(  # type: ignore[override]
+        self, img: torch.Tensor, to_pad: tuple[tuple[int, int]] | None = None, mode: str | None = None, **kwargs
     ) -> torch.Tensor:
         """
         Args:
@@ -150,7 +150,7 @@ class Pad(InvertibleTransform, LazyTransform):
         kwargs_.update(kwargs)
 
         img_t = convert_to_tensor(data=img, track_meta=get_track_meta())
-        return pad_func(img_t, to_pad_, mode_, self.get_transform_info(), kwargs_)  # type: ignore
+        return pad_func(img_t, to_pad_, mode_, self.get_transform_info(), kwargs_)
 
     def inverse(self, data: MetaTensor) -> MetaTensor:
         transform = self.pop_transform(data)
@@ -200,7 +200,7 @@ class SpatialPad(Pad):
         self.method: Method = look_up_option(method, Method)
         super().__init__(mode=mode, **kwargs)
 
-    def compute_pad_width(self, spatial_shape: Sequence[int]) -> list[tuple[int, int]]:
+    def compute_pad_width(self, spatial_shape: Sequence[int]) -> tuple[tuple[int, int]]:
         """
         dynamically compute the pad width according to the spatial shape.
 
@@ -213,10 +213,10 @@ class SpatialPad(Pad):
             pad_width = []
             for i, sp_i in enumerate(spatial_size):
                 width = max(sp_i - spatial_shape[i], 0)
-                pad_width.append((width // 2, width - (width // 2)))
+                pad_width.append((int(width // 2), int(width - (width // 2))))
         else:
-            pad_width = [(0, max(sp_i - spatial_shape[i], 0)) for i, sp_i in enumerate(spatial_size)]
-        return [(0, 0)] + pad_width
+            pad_width = [(0, int(max(sp_i - spatial_shape[i], 0))) for i, sp_i in enumerate(spatial_size)]
+        return tuple([(0, 0)] + pad_width)  # type: ignore
 
 
 class BorderPad(Pad):
@@ -249,24 +249,26 @@ class BorderPad(Pad):
         self.spatial_border = spatial_border
         super().__init__(mode=mode, **kwargs)
 
-    def compute_pad_width(self, spatial_shape: Sequence[int]) -> list[tuple[int, int]]:
+    def compute_pad_width(self, spatial_shape: Sequence[int]) -> tuple[tuple[int, int]]:
         spatial_border = ensure_tuple(self.spatial_border)
         if not all(isinstance(b, int) for b in spatial_border):
             raise ValueError(f"self.spatial_border must contain only ints, got {spatial_border}.")
         spatial_border = tuple(max(0, b) for b in spatial_border)
 
         if len(spatial_border) == 1:
-            data_pad_width = [(spatial_border[0], spatial_border[0]) for _ in spatial_shape]
+            data_pad_width = [(int(spatial_border[0]), int(spatial_border[0])) for _ in spatial_shape]
         elif len(spatial_border) == len(spatial_shape):
-            data_pad_width = [(sp, sp) for sp in spatial_border[: len(spatial_shape)]]
+            data_pad_width = [(int(sp), int(sp)) for sp in spatial_border[: len(spatial_shape)]]
         elif len(spatial_border) == len(spatial_shape) * 2:
-            data_pad_width = [(spatial_border[2 * i], spatial_border[2 * i + 1]) for i in range(len(spatial_shape))]
+            data_pad_width = [
+                (int(spatial_border[2 * i]), int(spatial_border[2 * i + 1])) for i in range(len(spatial_shape))
+            ]
         else:
             raise ValueError(
                 f"Unsupported spatial_border length: {len(spatial_border)}, available options are "
                 f"[1, len(spatial_shape)={len(spatial_shape)}, 2*len(spatial_shape)={2*len(spatial_shape)}]."
             )
-        return [(0, 0)] + data_pad_width
+        return tuple([(0, 0)] + data_pad_width)  # type: ignore
 
 
 class DivisiblePad(Pad):
@@ -301,7 +303,7 @@ class DivisiblePad(Pad):
         self.method: Method = Method(method)
         super().__init__(mode=mode, **kwargs)
 
-    def compute_pad_width(self, spatial_shape: Sequence[int]) -> list[tuple[int, int]]:
+    def compute_pad_width(self, spatial_shape: Sequence[int]) -> tuple[tuple[int, int]]:
         new_size = compute_divisible_spatial_size(spatial_shape=spatial_shape, k=self.k)
         spatial_pad = SpatialPad(spatial_size=new_size, method=self.method)
         return spatial_pad.compute_pad_width(spatial_shape)
@@ -322,7 +324,7 @@ class Crop(InvertibleTransform, LazyTransform):
         roi_start: Sequence[int] | NdarrayOrTensor | None = None,
         roi_end: Sequence[int] | NdarrayOrTensor | None = None,
         roi_slices: Sequence[slice] | None = None,
-    ):
+    ) -> tuple[slice]:
         """
         Compute the crop slices based on specified `center & size` or `start & end` or `slices`.
 
@@ -340,8 +342,8 @@ class Crop(InvertibleTransform, LazyTransform):
 
         if roi_slices:
             if not all(s.step is None or s.step == 1 for s in roi_slices):
-                raise ValueError("only slice steps of 1/None are currently supported")
-            return list(roi_slices)
+                raise ValueError(f"only slice steps of 1/None are currently supported, got {roi_slices}.")
+            return ensure_tuple(roi_slices)  # type: ignore
         else:
             if roi_center is not None and roi_size is not None:
                 roi_center_t = convert_to_tensor(data=roi_center, dtype=torch.int16, wrap_sequence=True, device="cpu")
@@ -363,11 +365,12 @@ class Crop(InvertibleTransform, LazyTransform):
                 roi_end_t = torch.maximum(roi_end_t, roi_start_t)
             # convert to slices (accounting for 1d)
             if roi_start_t.numel() == 1:
-                return [slice(int(roi_start_t.item()), int(roi_end_t.item()))]
-            else:
-                return [slice(int(s), int(e)) for s, e in zip(roi_start_t.tolist(), roi_end_t.tolist())]
+                return ensure_tuple([slice(int(roi_start_t.item()), int(roi_end_t.item()))])  # type: ignore
+            return ensure_tuple(  # type: ignore
+                [slice(int(s), int(e)) for s, e in zip(roi_start_t.tolist(), roi_end_t.tolist())]
+            )
 
-    def __call__(self, img: torch.Tensor, slices: tuple[slice, ...]) -> torch.Tensor:  # type: ignore
+    def __call__(self, img: torch.Tensor, slices: tuple[slice, ...]) -> torch.Tensor:  # type: ignore[override]
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
@@ -378,10 +381,10 @@ class Crop(InvertibleTransform, LazyTransform):
         if len(slices_) < sd:
             slices_ += [slice(None)] * (sd - len(slices_))
         # Add in the channel (no cropping)
-        slices = tuple([slice(None)] + slices_[:sd])
+        slices_ = list([slice(None)] + slices_[:sd])
 
         img_t: MetaTensor = convert_to_tensor(data=img, track_meta=get_track_meta())
-        return crop_func(img_t, slices, self.get_transform_info())  # type: ignore
+        return crop_func(img_t, tuple(slices_), self.get_transform_info())
 
     def inverse(self, img: MetaTensor) -> MetaTensor:
         transform = self.pop_transform(img)
@@ -429,13 +432,13 @@ class SpatialCrop(Crop):
             roi_center=roi_center, roi_size=roi_size, roi_start=roi_start, roi_end=roi_end, roi_slices=roi_slices
         )
 
-    def __call__(self, img: torch.Tensor) -> torch.Tensor:  # type: ignore
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
 
         """
-        return super().__call__(img=img, slices=self.slices)
+        return super().__call__(img=img, slices=ensure_tuple(self.slices))
 
 
 class CenterSpatialCrop(Crop):
@@ -456,12 +459,12 @@ class CenterSpatialCrop(Crop):
     def __init__(self, roi_size: Sequence[int] | int) -> None:
         self.roi_size = roi_size
 
-    def compute_slices(self, spatial_size: Sequence[int]):  # type: ignore
+    def compute_slices(self, spatial_size: Sequence[int]) -> tuple[slice]:  # type: ignore[override]
         roi_size = fall_back_tuple(self.roi_size, spatial_size)
         roi_center = [i // 2 for i in spatial_size]
         return super().compute_slices(roi_center=roi_center, roi_size=roi_size)
 
-    def __call__(self, img: torch.Tensor) -> torch.Tensor:  # type: ignore
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
@@ -486,7 +489,7 @@ class CenterScaleCrop(Crop):
     def __init__(self, roi_scale: Sequence[float] | float):
         self.roi_scale = roi_scale
 
-    def __call__(self, img: torch.Tensor) -> torch.Tensor:  # type: ignore
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         img_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
         ndim = len(img_size)
         roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
@@ -771,7 +774,7 @@ class CropForeground(Crop):
         self._lazy_evaluation = _val
         self.padder.lazy_evaluation = _val
 
-    def compute_bounding_box(self, img: torch.Tensor):
+    def compute_bounding_box(self, img: torch.Tensor) -> tuple[np.ndarray, np.ndarray]:
         """
         Compute the start points and end points of bounding box to crop.
         And adjust bounding box coords to be divisible by `k`.
@@ -794,7 +797,7 @@ class CropForeground(Crop):
 
     def crop_pad(
         self, img: torch.Tensor, box_start: np.ndarray, box_end: np.ndarray, mode: str | None = None, **pad_kwargs
-    ):
+    ) -> torch.Tensor:
         """
         Crop and pad based on the bounding box.
 
@@ -817,7 +820,9 @@ class CropForeground(Crop):
                 ret.applied_operations[-1][TraceKeys.EXTRA_INFO]["pad_info"] = ret.applied_operations.pop()
         return ret
 
-    def __call__(self, img: torch.Tensor, mode: str | None = None, **pad_kwargs):  # type: ignore
+    def __call__(  # type: ignore[override]
+        self, img: torch.Tensor, mode: str | None = None, **pad_kwargs
+    ) -> torch.Tensor:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't change the channel dim.
@@ -826,7 +831,7 @@ class CropForeground(Crop):
         cropped = self.crop_pad(img, box_start, box_end, mode, **pad_kwargs)
 
         if self.return_coords:
-            return cropped, box_start, box_end
+            return cropped, box_start, box_end  # type: ignore[return-value]
         return cropped
 
     def inverse(self, img: MetaTensor) -> MetaTensor:
@@ -995,7 +1000,7 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
         self.num_samples = num_samples
         self.image = image
         self.image_threshold = image_threshold
-        self.centers: list[list[int]] | None = None
+        self.centers: tuple[tuple] | None = None
         self.fg_indices = fg_indices
         self.bg_indices = bg_indices
         self.allow_smaller = allow_smaller
@@ -1171,7 +1176,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
         self.num_samples = num_samples
         self.image = image
         self.image_threshold = image_threshold
-        self.centers: list[list[int]] | None = None
+        self.centers: tuple[tuple] | None = None
         self.indices = indices
         self.allow_smaller = allow_smaller
 
