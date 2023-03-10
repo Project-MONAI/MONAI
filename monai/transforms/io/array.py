@@ -13,14 +13,16 @@ A collection of "vanilla" transforms for IO functions
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
+from __future__ import annotations
+
 import inspect
 import logging
 import sys
 import traceback
 import warnings
+from collections.abc import Sequence
 from pathlib import Path
 from pydoc import locate
-from typing import Dict, List, Optional, Sequence, Type, Union
 
 import numpy as np
 import torch
@@ -42,7 +44,14 @@ from monai.transforms.transform import Transform
 from monai.transforms.utility.array import EnsureChannelFirst
 from monai.utils import GridSamplePadMode
 from monai.utils import ImageMetaKey as Key
-from monai.utils import OptionalImportError, convert_to_dst_type, ensure_tuple, look_up_option, optional_import
+from monai.utils import (
+    OptionalImportError,
+    convert_to_dst_type,
+    deprecated_arg_default,
+    ensure_tuple,
+    look_up_option,
+    optional_import,
+)
 
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
@@ -107,9 +116,9 @@ class LoadImage(Transform):
         - Current default readers: (nii, nii.gz -> NibabelReader), (png, jpg, bmp -> PILReader),
           (npz, npy -> NumpyReader), (nrrd -> NrrdReader), (DICOM file -> ITKReader).
 
-    Please note that for png, jpg, bmp, and other 2D formats, readers often swap axis 0 and 1 after
-    loading the array because the `HW` definition for non-medical specific file formats is different
-    from other common medical packages.
+    Please note that for png, jpg, bmp, and other 2D formats, readers by default swap axis 0 and 1 after
+    loading the array with ``reverse_indexing`` set to ``True`` because the spatial axes definition
+    for non-medical specific file formats is different from other common medical packages.
 
     See also:
 
@@ -117,15 +126,17 @@ class LoadImage(Transform):
 
     """
 
+    @deprecated_arg_default("image_only", False, True, since="1.1", replaced="1.3")
     def __init__(
         self,
         reader=None,
         image_only: bool = False,
-        dtype: Optional[DtypeLike] = np.float32,
+        dtype: DtypeLike | None = np.float32,
         ensure_channel_first: bool = False,
         simple_keys: bool = False,
-        prune_meta_pattern: Optional[str] = None,
+        prune_meta_pattern: str | None = None,
         prune_meta_sep: str = ".",
+        expanduser: bool = True,
         *args,
         **kwargs,
     ) -> None:
@@ -148,6 +159,7 @@ class LoadImage(Transform):
             prune_meta_sep: combined with `prune_meta_pattern`, used to match and prune keys
                 in the metadata (nested dictionary). default is ".", see also :py:class:`monai.transforms.DeleteItemsd`.
                 e.g. ``prune_meta_pattern=".*_code$", prune_meta_sep=" "`` removes meta keys that ends with ``"_code"``.
+            expanduser: if True cast filename to Path and call .expanduser on it, otherwise keep filename as is.
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
 
@@ -169,8 +181,9 @@ class LoadImage(Transform):
         self.simple_keys = simple_keys
         self.pattern = prune_meta_pattern
         self.sep = prune_meta_sep
+        self.expanduser = expanduser
 
-        self.readers: List[ImageReader] = []
+        self.readers: list[ImageReader] = []
         for r in SUPPORTED_READERS:  # set predefined readers as default
             try:
                 self.register(SUPPORTED_READERS[r](*args, **kwargs))
@@ -220,7 +233,7 @@ class LoadImage(Transform):
             warnings.warn(f"Preferably the reader should inherit ImageReader, but got {type(reader)}.")
         self.readers.append(reader)
 
-    def __call__(self, filename: Union[Sequence[PathLike], PathLike], reader: Optional[ImageReader] = None):
+    def __call__(self, filename: Sequence[PathLike] | PathLike, reader: ImageReader | None = None):
         """
         Load image file and metadata from the given filename(s).
         If `reader` is not specified, this class automatically chooses readers based on the
@@ -236,7 +249,9 @@ class LoadImage(Transform):
             reader: runtime reader to load image file and metadata.
 
         """
-        filename = tuple(f"{Path(s).expanduser()}" for s in ensure_tuple(filename))  # allow Path objects
+        filename = tuple(
+            f"{Path(s).expanduser()}" if self.expanduser else s for s in ensure_tuple(filename)  # allow Path objects
+        )
         img, err = None, []
         if reader is not None:
             img = reader.read(filename)  # runtime specified reader
@@ -274,7 +289,7 @@ class LoadImage(Transform):
         img_array, meta_data = reader.get_data(img)
         img_array = convert_to_dst_type(img_array, dst=img_array, dtype=self.dtype)[0]
         if not isinstance(meta_data, dict):
-            raise ValueError("`meta_data` must be a dict.")
+            raise ValueError(f"`meta_data` must be a dict, got type {type(meta_data)}.")
         # make sure all elements in metadata are little endian
         meta_data = switch_endianness(meta_data, "<")
 
@@ -357,19 +372,19 @@ class SaveImage(Transform):
         output_dir: PathLike = "./",
         output_postfix: str = "trans",
         output_ext: str = ".nii.gz",
-        output_dtype: Optional[DtypeLike] = np.float32,
+        output_dtype: DtypeLike | None = np.float32,
         resample: bool = True,
         mode: str = "nearest",
         padding_mode: str = GridSamplePadMode.BORDER,
-        scale: Optional[int] = None,
+        scale: int | None = None,
         dtype: DtypeLike = np.float64,
         squeeze_end_dims: bool = True,
         data_root_dir: PathLike = "",
         separate_folder: bool = True,
         print_log: bool = True,
         output_format: str = "",
-        writer: Union[Type[image_writer.ImageWriter], str, None] = None,
-        channel_dim: Optional[int] = 0,
+        writer: type[image_writer.ImageWriter] | str | None = None,
+        channel_dim: int | None = 0,
         output_name_formatter=None,
     ) -> None:
         self.folder_layout = FolderLayout(
@@ -425,7 +440,7 @@ class SaveImage(Transform):
         if write_kwargs is not None:
             self.write_kwargs.update(write_kwargs)
 
-    def __call__(self, img: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None):
+    def __call__(self, img: torch.Tensor | np.ndarray, meta_data: dict | None = None):
         """
         Args:
             img: target data content that save into file. The image should be channel-first, shape: `[C,H,W,[D]]`.

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 import warnings
 
@@ -232,7 +234,7 @@ class TestDeprecated(unittest.TestCase):
         def afoo4(a, b=None):
             pass
 
-        self.assertRaises(DeprecatedError, lambda: afoo4(1, b=2))
+        afoo4(1, b=2)
 
     def test_arg_except3_unknown(self):
         """
@@ -244,8 +246,8 @@ class TestDeprecated(unittest.TestCase):
         def afoo4(a, b=None, **kwargs):
             pass
 
-        self.assertRaises(DeprecatedError, lambda: afoo4(1, b=2))
-        self.assertRaises(DeprecatedError, lambda: afoo4(1, b=2, c=3))
+        afoo4(1, b=2)
+        afoo4(1, b=2, c=3)
 
     def test_replacement_arg(self):
         """

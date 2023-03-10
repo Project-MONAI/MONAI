@@ -9,9 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence, Tuple, Union
+from __future__ import annotations
 
-import torch
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING
+
 import torch.nn
 from torch.nn.parallel import DataParallel, DistributedDataParallel
 from torch.optim.optimizer import Optimizer
@@ -47,7 +49,7 @@ def _default_transform(_x: torch.Tensor, _y: torch.Tensor, _y_pred: torch.Tensor
 
 def _default_eval_transform(
     x: torch.Tensor, y: torch.Tensor, y_pred: torch.Tensor
-) -> Tuple[torch.Tensor, torch.Tensor]:
+) -> tuple[torch.Tensor, torch.Tensor]:
     return y_pred, y
 
 
@@ -55,12 +57,12 @@ def create_multigpu_supervised_trainer(
     net: torch.nn.Module,
     optimizer: Optimizer,
     loss_fn: Callable,
-    devices: Optional[Sequence[Union[str, torch.device]]] = None,
+    devices: Sequence[str | torch.device] | None = None,
     non_blocking: bool = False,
     prepare_batch: Callable = _prepare_batch,
     output_transform: Callable = _default_transform,
     distributed: bool = False,
-):
+) -> Engine:
     """
     Derived from `create_supervised_trainer` in Ignite.
 
@@ -97,20 +99,20 @@ def create_multigpu_supervised_trainer(
     elif len(devices_) > 1:
         net = DataParallel(net)
 
-    return create_supervised_trainer(
+    return create_supervised_trainer(  # type: ignore[no-any-return]
         net, optimizer, loss_fn, devices_[0], non_blocking, prepare_batch, output_transform
     )
 
 
 def create_multigpu_supervised_evaluator(
     net: torch.nn.Module,
-    metrics: Optional[Dict[str, Metric]] = None,
-    devices: Optional[Sequence[Union[str, torch.device]]] = None,
+    metrics: dict[str, Metric] | None = None,
+    devices: Sequence[str | torch.device] | None = None,
     non_blocking: bool = False,
     prepare_batch: Callable = _prepare_batch,
     output_transform: Callable = _default_eval_transform,
     distributed: bool = False,
-):
+) -> Engine:
     """
     Derived from `create_supervised_evaluator` in Ignite.
 
@@ -150,4 +152,6 @@ def create_multigpu_supervised_evaluator(
     elif len(devices_) > 1:
         net = DataParallel(net)
 
-    return create_supervised_evaluator(net, metrics, devices_[0], non_blocking, prepare_batch, output_transform)
+    return create_supervised_evaluator(  # type: ignore[no-any-return]
+        net, metrics, devices_[0], non_blocking, prepare_batch, output_transform
+    )

@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, Optional, Tuple, Type, Union
+from __future__ import annotations
 
 import torch
 import torch.nn as nn
@@ -20,7 +20,7 @@ from monai.networks.layers.factories import Act, Conv, Dropout, Norm, split_args
 __all__ = ["VNet"]
 
 
-def get_acti_layer(act: Union[Tuple[str, Dict], str], nchan: int = 0):
+def get_acti_layer(act: tuple[str, dict] | str, nchan: int = 0):
     if act == "prelu":
         act = ("prelu", {"num_parameters": nchan})
     act_name, act_args = split_args(act)
@@ -29,7 +29,7 @@ def get_acti_layer(act: Union[Tuple[str, Dict], str], nchan: int = 0):
 
 
 class LUConv(nn.Module):
-    def __init__(self, spatial_dims: int, nchan: int, act: Union[Tuple[str, Dict], str], bias: bool = False):
+    def __init__(self, spatial_dims: int, nchan: int, act: tuple[str, dict] | str, bias: bool = False):
         super().__init__()
 
         self.act_function = get_acti_layer(act, nchan)
@@ -49,7 +49,7 @@ class LUConv(nn.Module):
         return out
 
 
-def _make_nconv(spatial_dims: int, nchan: int, depth: int, act: Union[Tuple[str, Dict], str], bias: bool = False):
+def _make_nconv(spatial_dims: int, nchan: int, depth: int, act: tuple[str, dict] | str, bias: bool = False):
     layers = []
     for _ in range(depth):
         layers.append(LUConv(spatial_dims, nchan, act, bias))
@@ -58,12 +58,7 @@ def _make_nconv(spatial_dims: int, nchan: int, depth: int, act: Union[Tuple[str,
 
 class InputTransition(nn.Module):
     def __init__(
-        self,
-        spatial_dims: int,
-        in_channels: int,
-        out_channels: int,
-        act: Union[Tuple[str, Dict], str],
-        bias: bool = False,
+        self, spatial_dims: int, in_channels: int, out_channels: int, act: tuple[str, dict] | str, bias: bool = False
     ):
         super().__init__()
 
@@ -100,16 +95,16 @@ class DownTransition(nn.Module):
         spatial_dims: int,
         in_channels: int,
         nconvs: int,
-        act: Union[Tuple[str, Dict], str],
-        dropout_prob: Optional[float] = None,
+        act: tuple[str, dict] | str,
+        dropout_prob: float | None = None,
         dropout_dim: int = 3,
         bias: bool = False,
     ):
         super().__init__()
 
-        conv_type: Type[Union[nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
-        norm_type: Type[Union[nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
-        dropout_type: Type[Union[nn.Dropout, nn.Dropout2d, nn.Dropout3d]] = Dropout[Dropout.DROPOUT, dropout_dim]
+        conv_type: type[nn.Conv2d | nn.Conv3d] = Conv[Conv.CONV, spatial_dims]
+        norm_type: type[nn.BatchNorm2d | nn.BatchNorm3d] = Norm[Norm.BATCH, spatial_dims]
+        dropout_type: type[nn.Dropout | nn.Dropout2d | nn.Dropout3d] = Dropout[Dropout.DROPOUT, dropout_dim]
 
         out_channels = 2 * in_channels
         self.down_conv = conv_type(in_channels, out_channels, kernel_size=2, stride=2, bias=bias)
@@ -137,15 +132,15 @@ class UpTransition(nn.Module):
         in_channels: int,
         out_channels: int,
         nconvs: int,
-        act: Union[Tuple[str, Dict], str],
-        dropout_prob: Optional[float] = None,
+        act: tuple[str, dict] | str,
+        dropout_prob: float | None = None,
         dropout_dim: int = 3,
     ):
         super().__init__()
 
-        conv_trans_type: Type[Union[nn.ConvTranspose2d, nn.ConvTranspose3d]] = Conv[Conv.CONVTRANS, spatial_dims]
-        norm_type: Type[Union[nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
-        dropout_type: Type[Union[nn.Dropout, nn.Dropout2d, nn.Dropout3d]] = Dropout[Dropout.DROPOUT, dropout_dim]
+        conv_trans_type: type[nn.ConvTranspose2d | nn.ConvTranspose3d] = Conv[Conv.CONVTRANS, spatial_dims]
+        norm_type: type[nn.BatchNorm2d | nn.BatchNorm3d] = Norm[Norm.BATCH, spatial_dims]
+        dropout_type: type[nn.Dropout | nn.Dropout2d | nn.Dropout3d] = Dropout[Dropout.DROPOUT, dropout_dim]
 
         self.up_conv = conv_trans_type(in_channels, out_channels // 2, kernel_size=2, stride=2)
         self.bn1 = norm_type(out_channels // 2)
@@ -170,16 +165,11 @@ class UpTransition(nn.Module):
 
 class OutputTransition(nn.Module):
     def __init__(
-        self,
-        spatial_dims: int,
-        in_channels: int,
-        out_channels: int,
-        act: Union[Tuple[str, Dict], str],
-        bias: bool = False,
+        self, spatial_dims: int, in_channels: int, out_channels: int, act: tuple[str, dict] | str, bias: bool = False
     ):
         super().__init__()
 
-        conv_type: Type[Union[nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
+        conv_type: type[nn.Conv2d | nn.Conv3d] = Conv[Conv.CONV, spatial_dims]
 
         self.act_function1 = get_acti_layer(act, out_channels)
         self.conv_block = Convolution(
@@ -233,7 +223,7 @@ class VNet(nn.Module):
         spatial_dims: int = 3,
         in_channels: int = 1,
         out_channels: int = 1,
-        act: Union[Tuple[str, Dict], str] = ("elu", {"inplace": True}),
+        act: tuple[str, dict] | str = ("elu", {"inplace": True}),
         dropout_prob: float = 0.5,
         dropout_dim: int = 3,
         bias: bool = False,

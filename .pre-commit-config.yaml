@@ -54,7 +54,8 @@ repos:
         exclude: |
           (?x)^(
               monai/__init__.py|
-              docs/source/conf.py
+              docs/source/conf.py|
+              tests/utils.py
           )$
 
   - repo: https://github.com/hadialqattan/pycln

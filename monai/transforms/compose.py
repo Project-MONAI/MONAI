@@ -12,8 +12,11 @@
 A collection of generic interfaces for MONAI transforms.
 """
 
+from __future__ import annotations
+
 import warnings
-from typing import Any, Callable, Mapping, Optional, Sequence, Union
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any
 
 import numpy as np
 
@@ -116,7 +119,7 @@ class Compose(Randomizable, InvertibleTransform):
 
     def __init__(
         self,
-        transforms: Optional[Union[Sequence[Callable], Callable]] = None,
+        transforms: Sequence[Callable] | Callable | None = None,
         map_items: bool = True,
         unpack_items: bool = False,
         log_stats: bool = False,
@@ -129,7 +132,7 @@ class Compose(Randomizable, InvertibleTransform):
         self.log_stats = log_stats
         self.set_random_state(seed=get_seed())
 
-    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None) -> "Compose":
+    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> Compose:
         super().set_random_state(seed=seed, state=state)
         for _transform in self.transforms:
             if not isinstance(_transform, Randomizable):
@@ -137,7 +140,7 @@ class Compose(Randomizable, InvertibleTransform):
             _transform.set_random_state(seed=self.R.randint(MAX_SEED, dtype="uint32"))
         return self
 
-    def randomize(self, data: Optional[Any] = None) -> None:
+    def randomize(self, data: Any | None = None) -> None:
         for _transform in self.transforms:
             if not isinstance(_transform, Randomizable):
                 continue
@@ -206,8 +209,8 @@ class OneOf(Compose):
 
     def __init__(
         self,
-        transforms: Optional[Union[Sequence[Callable], Callable]] = None,
-        weights: Optional[Union[Sequence[float], float]] = None,
+        transforms: Sequence[Callable] | Callable | None = None,
+        weights: Sequence[float] | float | None = None,
         map_items: bool = True,
         unpack_items: bool = False,
         log_stats: bool = False,
@@ -218,7 +221,10 @@ class OneOf(Compose):
         elif weights is None or isinstance(weights, float):
             weights = [1.0 / len(self.transforms)] * len(self.transforms)
         if len(weights) != len(self.transforms):
-            raise AssertionError("transforms and weights should be same size if both specified as sequences.")
+            raise ValueError(
+                "transforms and weights should be same size if both specified as sequences, "
+                f"got {len(weights)} and {len(self.transforms)}."
+            )
         self.weights = ensure_tuple(self._normalize_probabilities(weights))
 
     def _normalize_probabilities(self, weights):
@@ -226,9 +232,9 @@ class OneOf(Compose):
             return weights
         weights = np.array(weights)
         if np.any(weights < 0):
-            raise AssertionError("Probabilities must be greater than or equal to zero.")
+            raise ValueError(f"Probabilities must be greater than or equal to zero, got {weights}.")
         if np.all(weights == 0):
-            raise AssertionError("At least one probability must be greater than zero.")
+            raise ValueError(f"At least one probability must be greater than zero, got {weights}.")
         weights = weights / weights.sum()
         return list(weights)
 
@@ -275,7 +281,9 @@ class OneOf(Compose):
                 if isinstance(data[key], monai.data.MetaTensor) or self.trace_key(key) in data:
                     index = self.pop_transform(data, key)[TraceKeys.EXTRA_INFO]["index"]
         else:
-            raise RuntimeError("Inverse only implemented for Mapping (dictionary) or MetaTensor data.")
+            raise RuntimeError(
+                f"Inverse only implemented for Mapping (dictionary) or MetaTensor data, got type {type(data)}."
+            )
         if index is None:
             # no invertible transforms have been applied
             return data
@@ -303,7 +311,7 @@ class RandomOrder(Compose):
 
     def __init__(
         self,
-        transforms: Optional[Union[Sequence[Callable], Callable]] = None,
+        transforms: Sequence[Callable] | Callable | None = None,
         map_items: bool = True,
         unpack_items: bool = False,
         log_stats: bool = False,
@@ -339,7 +347,9 @@ class RandomOrder(Compose):
                 if isinstance(data[key], monai.data.MetaTensor) or self.trace_key(key) in data:
                     applied_order = self.pop_transform(data, key)[TraceKeys.EXTRA_INFO]["applied_order"]
         else:
-            raise RuntimeError("Inverse only implemented for Mapping (dictionary) or MetaTensor data.")
+            raise RuntimeError(
+                f"Inverse only implemented for Mapping (dictionary) or MetaTensor data, got type {type(data)}."
+            )
         if applied_order is None:
             # no invertible transforms have been applied
             return data

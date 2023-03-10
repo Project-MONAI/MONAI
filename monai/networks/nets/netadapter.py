@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, Optional, Tuple, Union
+from __future__ import annotations
+
+from typing import Any, Dict
 
 import torch
 
@@ -52,9 +54,9 @@ class NetAdapter(torch.nn.Module):
         model: torch.nn.Module,
         num_classes: int = 1,
         dim: int = 2,
-        in_channels: Optional[int] = None,
+        in_channels: int | None = None,
         use_conv: bool = False,
-        pool: Optional[Tuple[str, Dict[str, Any]]] = ("avg", {"kernel_size": 7, "stride": 1}),
+        pool: tuple[str, dict[str, Any]] | None = ("avg", {"kernel_size": 7, "stride": 1}),
         bias: bool = True,
         fc_name: str = "fc",
         node_name: str = "",
@@ -94,7 +96,7 @@ class NetAdapter(torch.nn.Module):
             self.pool = get_pool_layer(name=pool, spatial_dims=dim)
 
         # create new fully connected layer or kernel size 1 convolutional layer
-        self.fc: Union[torch.nn.Linear, torch.nn.Conv2d, torch.nn.Conv3d]
+        self.fc: torch.nn.Linear | torch.nn.Conv2d | torch.nn.Conv3d
         if use_conv:
             self.fc = Conv[Conv.CONV, dim](in_channels=in_channels_, out_channels=num_classes, kernel_size=1, bias=bias)
         else:

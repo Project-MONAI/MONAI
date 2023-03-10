@@ -9,9 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+<<<<<<< HEAD
 import numbers
 from typing import Union
 
+=======
+from __future__ import annotations
+
+import numbers
+
+>>>>>>> 606a10339d0f932b8844ca87271294f7c52f7dec
 import numpy as np
 
 from monai.transforms.transform import Transform
@@ -75,9 +82,9 @@ class HEDJitter(Transform):
 
     def __repr__(self):
         format_string = self.__class__.__name__ + "("
-        format_string += "theta={0}".format(self.theta)
-        format_string += ",alpha={0}".format(self.alpha)
-        format_string += ",betti={0}".format(self.betti)
+        format_string += f"theta={self.theta}"
+        format_string += f",alpha={self.alpha}"
+        format_string += f",betti={self.betti}"
         return format_string
 
 
@@ -102,11 +109,7 @@ class ExtractHEStains(Transform):
     """
 
     def __init__(
-        self,
-        tli: float = 240,
-        alpha: float = 1,
-        beta: float = 0.15,
-        max_cref: Union[tuple, np.ndarray] = (1.9705, 1.0308),
+        self, tli: float = 240, alpha: float = 1, beta: float = 0.15, max_cref: tuple | np.ndarray = (1.9705, 1.0308)
     ) -> None:
         self.tli = tli
         self.alpha = alpha
@@ -210,8 +213,8 @@ class NormalizeHEStains(Transform):
         tli: float = 240,
         alpha: float = 1,
         beta: float = 0.15,
-        target_he: Union[tuple, np.ndarray] = ((0.5626, 0.2159), (0.7201, 0.8012), (0.4062, 0.5581)),
-        max_cref: Union[tuple, np.ndarray] = (1.9705, 1.0308),
+        target_he: tuple | np.ndarray = ((0.5626, 0.2159), (0.7201, 0.8012), (0.4062, 0.5581)),
+        max_cref: tuple | np.ndarray = (1.9705, 1.0308),
     ) -> None:
         self.tli = tli
         self.target_he = np.array(target_he)

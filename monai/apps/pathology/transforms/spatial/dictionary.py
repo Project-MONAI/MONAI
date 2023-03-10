@@ -9,8 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import copy
-from typing import Any, Dict, Hashable, List, Mapping, Optional, Tuple, Union
+from collections.abc import Hashable, Mapping
+from typing import Any
 
 from monai.config import KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
@@ -43,14 +46,14 @@ class SplitOnGridd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        grid_size: Union[int, Tuple[int, int]] = (2, 2),
-        patch_size: Optional[Union[int, Tuple[int, int]]] = None,
+        grid_size: int | tuple[int, int] = (2, 2),
+        patch_size: int | tuple[int, int] | None = None,
         allow_missing_keys: bool = False,
     ):
         super().__init__(keys, allow_missing_keys)
         self.splitter = SplitOnGrid(grid_size=grid_size, patch_size=patch_size)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.splitter(d[key])
@@ -87,9 +90,9 @@ class TileOnGridd(Randomizable, MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        tile_count: Optional[int] = None,
+        tile_count: int | None = None,
         tile_size: int = 256,
-        step: Optional[int] = None,
+        step: int | None = None,
         random_offset: bool = False,
         pad_full: bool = False,
         background_val: int = 255,
@@ -117,8 +120,7 @@ class TileOnGridd(Randomizable, MapTransform):
 
     def __call__(
         self, data: Mapping[Hashable, NdarrayOrTensor]
-    ) -> Union[Dict[Hashable, NdarrayOrTensor], List[Dict[Hashable, NdarrayOrTensor]]]:
-
+    ) -> dict[Hashable, NdarrayOrTensor] | list[dict[Hashable, NdarrayOrTensor]]:
         self.randomize()
 
         d = dict(data)

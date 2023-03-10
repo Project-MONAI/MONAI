@@ -9,11 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import random
 from enum import Enum
-from typing import Optional
-
-from monai.utils.deprecate_utils import deprecated
 
 __all__ = [
     "StrEnum",
@@ -35,12 +34,12 @@ __all__ = [
     "SkipMode",
     "Method",
     "TraceKeys",
-    "InverseKeys",
     "CommonKeys",
     "GanKeys",
     "PostFix",
     "ForwardMode",
     "TransformBackends",
+    "CompInitMode",
     "BoxModeName",
     "GridPatchSort",
     "FastMRIKeys",
@@ -311,25 +310,8 @@ class TraceKeys(StrEnum):
     DO_TRANSFORM: str = "do_transforms"
     KEY_SUFFIX: str = "_transforms"
     NONE: str = "none"
-
-
-@deprecated(since="0.8.0", msg_suffix="use monai.utils.enums.TraceKeys instead.")
-class InverseKeys:
-    """
-    Extra metadata keys used for inverse transforms.
-
-    .. deprecated:: 0.8.0
-        Use :class:`monai.utils.enums.TraceKeys` instead.
-
-    """
-
-    CLASS_NAME = "class"
-    ID = "id"
-    ORIG_SIZE = "orig_size"
-    EXTRA_INFO = "extra_info"
-    DO_TRANSFORM = "do_transforms"
-    KEY_SUFFIX = "_transforms"
-    NONE = "none"
+    TRACING: str = "tracing"
+    LAZY_EVALUATION: str = "lazy_evaluation"
 
 
 class CommonKeys(StrEnum):
@@ -367,19 +349,19 @@ class PostFix(StrEnum):
     """Post-fixes."""
 
     @staticmethod
-    def _get_str(prefix, suffix):
+    def _get_str(prefix: str | None, suffix: str) -> str:
         return suffix if prefix is None else f"{prefix}_{suffix}"
 
     @staticmethod
-    def meta(key: Optional[str] = None):
+    def meta(key: str | None = None) -> str:
         return PostFix._get_str(key, "meta_dict")
 
     @staticmethod
-    def orig_meta(key: Optional[str] = None):
+    def orig_meta(key: str | None = None) -> str:
         return PostFix._get_str(key, "orig_meta_dict")
 
     @staticmethod
-    def transforms(key: Optional[str] = None):
+    def transforms(key: str | None = None) -> str:
         return PostFix._get_str(key, TraceKeys.KEY_SUFFIX[1:])
 
 
@@ -395,6 +377,18 @@ class TransformBackends(StrEnum):
     TORCH = "torch"
     NUMPY = "numpy"
     CUPY = "cupy"
+
+
+class CompInitMode(StrEnum):
+    """
+    Mode names for instantiating a class or calling a callable.
+
+    See also: :py:func:`monai.utils.module.instantiate`
+    """
+
+    DEFAULT = "default"
+    PARTIAL = "partial"
+    DEBUG = "debug"
 
 
 class JITMetadataKeys(StrEnum):
@@ -468,15 +462,25 @@ class GridPatchSort(StrEnum):
             )
 
 
+class PatchKeys(StrEnum):
+    """
+    The keys to be used for metadata of patches extracted from any kind of image
+    """
+
+    LOCATION = "location"
+    SIZE = "size"
+    COUNT = "count"
+
+
 class WSIPatchKeys(StrEnum):
     """
     The keys to be used for metadata of patches extracted from whole slide images
     """
 
-    LOCATION = "location"
+    LOCATION = PatchKeys.LOCATION
+    SIZE = PatchKeys.SIZE
+    COUNT = PatchKeys.COUNT
     LEVEL = "level"
-    SIZE = "size"
-    COUNT = "count"
     PATH = "path"
 
 
@@ -631,3 +635,4 @@ class LazyAttr(StrEnum):
     PADDING_MODE = "lazy_padding_mode"
     INTERP_MODE = "lazy_interpolation_mode"
     DTYPE = "lazy_dtype"
+    ALIGN_CORNERS = "lazy_align_corners"

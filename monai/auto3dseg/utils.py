@@ -9,13 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import pickle
 import sys
 import warnings
 from copy import deepcopy
 from numbers import Number
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, cast
+from typing import Any, cast
 
 import numpy as np
 import torch
@@ -44,7 +46,7 @@ cp, has_cp = optional_import("cupy")
 cucim, has_cucim = optional_import("cucim")
 
 
-def get_foreground_image(image: MetaTensor):
+def get_foreground_image(image: MetaTensor) -> np.ndarray:
     """
     Get a foreground image by removing all-zero rectangles on the edges of the image
     Note for the developer: update select_fn if the foreground is defined differently.
@@ -61,7 +63,7 @@ def get_foreground_image(image: MetaTensor):
 
     copper = CropForeground(select_fn=lambda x: x > 0)
     image_foreground = copper(image)
-    return image_foreground
+    return cast(np.ndarray, image_foreground)
 
 
 def get_foreground_label(image: MetaTensor, label: MetaTensor) -> MetaTensor:
@@ -80,7 +82,7 @@ def get_foreground_label(image: MetaTensor, label: MetaTensor) -> MetaTensor:
     return label_foreground
 
 
-def get_label_ccp(mask_index: MetaTensor, use_gpu: bool = True) -> Tuple[List[Any], int]:
+def get_label_ccp(mask_index: MetaTensor, use_gpu: bool = True) -> tuple[list[Any], int]:
     """
     Find all connected components and their bounding shape. Backend can be cuPy/cuCIM or Numpy
     depending on the hardware.
@@ -124,12 +126,12 @@ def get_label_ccp(mask_index: MetaTensor, use_gpu: bool = True) -> Tuple[List[An
 
 
 def concat_val_to_np(
-    data_list: List[Dict],
-    fixed_keys: List[Union[str, int]],
-    ragged: Optional[bool] = False,
-    allow_missing: Optional[bool] = False,
-    **kwargs,
-):
+    data_list: list[dict],
+    fixed_keys: list[str | int],
+    ragged: bool | None = False,
+    allow_missing: bool | None = False,
+    **kwargs: Any,
+) -> np.ndarray:
     """
     Get the nested value in a list of dictionary that shares the same structure.
 
@@ -144,14 +146,14 @@ def concat_val_to_np(
 
     """
 
-    np_list: List[Optional[np.ndarray]] = []
+    np_list: list[np.ndarray | None] = []
     for data in data_list:
         parser = ConfigParser(data)
         for i, key in enumerate(fixed_keys):
             fixed_keys[i] = str(key)
 
         val: Any
-        val = parser.get(ID_SEP_KEY.join(cast(Iterable[str], fixed_keys)))
+        val = parser.get(ID_SEP_KEY.join(fixed_keys))  # type: ignore
 
         if val is None:
             if allow_missing:
@@ -181,8 +183,8 @@ def concat_val_to_np(
 
 
 def concat_multikeys_to_dict(
-    data_list: List[Dict], fixed_keys: List[Union[str, int]], keys: List[str], zero_insert: bool = True, **kwargs
-):
+    data_list: list[dict], fixed_keys: list[str | int], keys: list[str], zero_insert: bool = True, **kwargs: Any
+) -> dict[str, np.ndarray]:
     """
     Get the nested value in a list of dictionary that shares the same structure iteratively on all keys.
     It returns a dictionary with keys with the found values in nd.ndarray.
@@ -200,14 +202,14 @@ def concat_multikeys_to_dict(
 
     ret_dict = {}
     for key in keys:
-        addon: List[Union[str, int]] = [0, key] if zero_insert else [key]
+        addon: list[str | int] = [0, key] if zero_insert else [key]
         val = concat_val_to_np(data_list, fixed_keys + addon, **kwargs)
         ret_dict.update({key: val})
 
     return ret_dict
 
 
-def datafold_read(datalist: Union[str, Dict], basedir: str, fold: int = 0, key: str = "training") -> Tuple[List, List]:
+def datafold_read(datalist: str | dict, basedir: str, fold: int = 0, key: str = "training") -> tuple[list, list]:
     """
     Read a list of data dictionary `datalist`
 
@@ -246,7 +248,7 @@ def datafold_read(datalist: Union[str, Dict], basedir: str, fold: int = 0, key: 
     return tr, val
 
 
-def verify_report_format(report: dict, report_format: dict):
+def verify_report_format(report: dict, report_format: dict) -> bool:
     """
     Compares the report and the report_format that has only keys.
 
@@ -268,10 +270,10 @@ def verify_report_format(report: dict, report_format: dict):
             else:
                 return False
 
-        return True
+    return True
 
 
-def algo_to_pickle(algo: Algo, **algo_meta_data) -> str:
+def algo_to_pickle(algo: Algo, **algo_meta_data: Any) -> str:
     """
     Export the Algo object to pickle file
 
@@ -294,7 +296,7 @@ def algo_to_pickle(algo: Algo, **algo_meta_data) -> str:
     return pkl_filename
 
 
-def algo_from_pickle(pkl_filename: str, **kwargs) -> Any:
+def algo_from_pickle(pkl_filename: str, **kwargs: Any) -> Any:
     """
     Import the Algo object from a pickle file
 

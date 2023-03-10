@@ -9,13 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
+from collections.abc import Sequence
 from copy import deepcopy
-from typing import Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 
-from monai.config.type_definitions import NdarrayOrTensor
+from monai.config.type_definitions import DtypeLike, NdarrayOrTensor, NdarrayTensor
 from monai.data.box_utils import COMPUTE_DTYPE, TO_REMOVE, get_spatial_dims
 from monai.transforms import Resize
 from monai.transforms.utils import create_scale
@@ -59,7 +61,7 @@ def _apply_affine_to_points(points: torch.Tensor, affine: torch.Tensor, include_
     return points_affine
 
 
-def apply_affine_to_boxes(boxes: NdarrayOrTensor, affine: NdarrayOrTensor) -> NdarrayOrTensor:
+def apply_affine_to_boxes(boxes: NdarrayTensor, affine: NdarrayOrTensor) -> NdarrayTensor:
     """
     This function applies affine matrices to the boxes
 
@@ -96,10 +98,10 @@ def apply_affine_to_boxes(boxes: NdarrayOrTensor, affine: NdarrayOrTensor) -> Nd
     # convert tensor back to numpy if needed
     boxes_affine: NdarrayOrTensor
     boxes_affine, *_ = convert_to_dst_type(src=boxes_t_affine, dst=boxes)
-    return boxes_affine
+    return boxes_affine  # type: ignore[return-value]
 
 
-def zoom_boxes(boxes: NdarrayOrTensor, zoom: Union[Sequence[float], float]):
+def zoom_boxes(boxes: NdarrayTensor, zoom: Sequence[float] | float) -> NdarrayTensor:
     """
     Zoom boxes
 
@@ -127,8 +129,8 @@ def zoom_boxes(boxes: NdarrayOrTensor, zoom: Union[Sequence[float], float]):
 
 
 def resize_boxes(
-    boxes: NdarrayOrTensor, src_spatial_size: Union[Sequence[int], int], dst_spatial_size: Union[Sequence[int], int]
-):
+    boxes: NdarrayOrTensor, src_spatial_size: Sequence[int] | int, dst_spatial_size: Sequence[int] | int
+) -> NdarrayOrTensor:
     """
     Resize boxes when the corresponding image is resized
 
@@ -159,10 +161,8 @@ def resize_boxes(
 
 
 def flip_boxes(
-    boxes: NdarrayOrTensor,
-    spatial_size: Union[Sequence[int], int],
-    flip_axes: Optional[Union[Sequence[int], int]] = None,
-):
+    boxes: NdarrayTensor, spatial_size: Sequence[int] | int, flip_axes: Sequence[int] | int | None = None
+) -> NdarrayTensor:
     """
     Flip boxes when the corresponding image is flipped
 
@@ -185,10 +185,7 @@ def flip_boxes(
     flip_axes = ensure_tuple(flip_axes)
 
     # flip box
-    if isinstance(boxes, torch.Tensor):
-        _flip_boxes = boxes.clone()
-    else:
-        _flip_boxes = deepcopy(boxes)  # type: ignore
+    _flip_boxes: NdarrayTensor = boxes.clone() if isinstance(boxes, torch.Tensor) else deepcopy(boxes)  # type: ignore[assignment]
 
     for axis in flip_axes:
         _flip_boxes[:, axis + spatial_dims] = spatial_size[axis] - boxes[:, axis] - TO_REMOVE
@@ -200,7 +197,7 @@ def flip_boxes(
 def convert_box_to_mask(
     boxes: NdarrayOrTensor,
     labels: NdarrayOrTensor,
-    spatial_size: Union[Sequence[int], int],
+    spatial_size: Sequence[int] | int,
     bg_label: int = -1,
     ellipse_mask: bool = False,
 ) -> NdarrayOrTensor:
@@ -275,8 +272,11 @@ def convert_box_to_mask(
 
 
 def convert_mask_to_box(
-    boxes_mask: NdarrayOrTensor, bg_label: int = -1, box_dtype=torch.float32, label_dtype=torch.long
-) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
+    boxes_mask: NdarrayOrTensor,
+    bg_label: int = -1,
+    box_dtype: DtypeLike | torch.dtype = torch.float32,
+    label_dtype: DtypeLike | torch.dtype = torch.long,
+) -> tuple[NdarrayOrTensor, NdarrayOrTensor]:
     """
     Convert int16 mask image to box, which has the same size with the input image
 
@@ -325,8 +325,8 @@ def convert_mask_to_box(
 
 
 def select_labels(
-    labels: Union[Sequence[NdarrayOrTensor], NdarrayOrTensor], keep: NdarrayOrTensor
-) -> Union[Tuple, NdarrayOrTensor]:
+    labels: Sequence[NdarrayOrTensor] | NdarrayOrTensor, keep: NdarrayOrTensor
+) -> tuple | NdarrayOrTensor:
     """
     For element in labels, select indices keep from it.
 
@@ -353,7 +353,7 @@ def select_labels(
     return tuple(labels_select_list)
 
 
-def swapaxes_boxes(boxes: NdarrayOrTensor, axis1: int, axis2: int):
+def swapaxes_boxes(boxes: NdarrayTensor, axis1: int, axis2: int) -> NdarrayTensor:
     """
     Interchange two axes of boxes.
 
@@ -377,12 +377,12 @@ def swapaxes_boxes(boxes: NdarrayOrTensor, axis1: int, axis2: int):
     boxes_swap[:, [spatial_dims + axis1, spatial_dims + axis2]] = boxes_swap[
         :, [spatial_dims + axis2, spatial_dims + axis1]
     ]
-    return boxes_swap
+    return boxes_swap  # type: ignore[return-value]
 
 
 def rot90_boxes(
-    boxes: NdarrayOrTensor, spatial_size: Union[Sequence[int], int], k: int = 1, axes: Tuple[int, int] = (0, 1)
-):
+    boxes: NdarrayTensor, spatial_size: Sequence[int] | int, k: int = 1, axes: tuple[int, int] = (0, 1)
+) -> NdarrayTensor:
     """
     Rotate boxes by 90 degrees in the plane specified by axes.
     Rotation direction is from the first towards the second axis.
