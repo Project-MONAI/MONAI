@@ -34,8 +34,15 @@ from monai.bundle.workflows import ConfigWorkflow
 from monai.config import IgniteInfo, PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
 from monai.networks import convert_to_torchscript, copy_model_state, get_state_dict, save_state
-from monai.utils import check_parent_dir, get_equivalent_dtype, min_version, optional_import
-from monai.utils.misc import ensure_tuple, pprint_edges
+from monai.utils import (
+    check_parent_dir,
+    deprecated_arg,
+    ensure_tuple,
+    get_equivalent_dtype,
+    min_version,
+    optional_import,
+    pprint_edges,
+)
 
 validate, _ = optional_import("jsonschema", name="validate")
 ValidationError, _ = optional_import("jsonschema.exceptions", name="ValidationError")
@@ -572,8 +579,11 @@ def get_bundle_info(
     return bundle_info[version]
 
 
+@deprecated_arg("runner_id", since="1.1", removed="1.3", new_name="run_id", msg_suffix="please use `run_id` instead.")
 def run(
-    runner_id: str | None = None,
+    run_id: str | None = None,
+    init_id: str | None = None,
+    final_id: str | None = None,
     meta_file: str | Sequence[str] | None = None,
     config_file: str | Sequence[str] | None = None,
     logging_file: str | None = None,
@@ -675,7 +685,9 @@ def run(
 
     _args = _update_args(
         args=args_file,
-        runner_id=runner_id,
+        run_id=run_id,
+        init_id=init_id,
+        final_id=final_id,
         meta_file=meta_file,
         config_file=config_file,
         logging_file=logging_file,
@@ -685,11 +697,13 @@ def run(
     if "config_file" not in _args:
         warnings.warn("`config_file` not provided for 'monai.bundle run'.")
     _log_input_summary(tag="run", args=_args)
-    config_file_, meta_file_, runner_id_, logging_file_, tracking_ = _pop_args(
+    config_file_, meta_file_, init_id_, run_id_, final_id_, logging_file_, tracking_ = _pop_args(
         _args,
         config_file=None,
         meta_file="configs/metadata.json",
-        runner_id="run",
+        init_id="initialize",
+        run_id="run",
+        final_id="finalize",
         logging_file="configs/logging.conf",
         tracking=None,
     )
@@ -698,7 +712,9 @@ def run(
         config_file=config_file_,
         meta_file=meta_file_,
         logging_file=logging_file_,
-        run_id=runner_id_,
+        init_id=init_id_,
+        run_id=run_id_,
+        final_id=final_id_,
         tracking=tracking_,
         **_args,
     )
