@@ -1757,7 +1757,7 @@ class Resample(Transform):
         padding_mode: str = GridSamplePadMode.BORDER,
         norm_coords: bool = True,
         device: torch.device | None = None,
-        align_corners: bool = True,
+        align_corners: bool = False,
         dtype: DtypeLike = np.float64,
     ) -> None:
         """
@@ -1787,7 +1787,7 @@ class Resample(Transform):
                 `[-1, 1]` (for torch ``grid_sample`` implementation) to be compatible with the underlying
                 resampling API.
             device: device on which the tensor will be allocated.
-            align_corners: Defaults to True.
+            align_corners: Defaults to False.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             dtype: data type for resampling computation. Defaults to ``float64`` for best precision.
                 If ``None``, use the data type of input data. To be compatible with other modules,
