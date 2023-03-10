@@ -822,6 +822,56 @@ def verify_metadata(
     logger.info("metadata is verified with no error.")
 
 
+def _get_net_io_info(
+    parser: ConfigParser | None = None, prefix: str = "_meta_#network_data_format", p: int = 1, n: int = 1, any: int = 1
+) -> list[Any]:
+    """
+    Get the input and output information defined in the metadata.
+
+    Args:
+        parser: a parser of the given bundle.
+        prefix: a prefix for the input and output keys, which will be combined as `prefix#input` and
+            `prefix#output` to parse the input and output information in the `metadata.json` file of
+            bundle, default to `meta_#network_data_format`.
+        p: power factor to generate input data shape if dim of expected shape is "x**p", default to 1.
+        n: multiply factor to generate input data shape if dim of expected shape is "x*n", default to 1.
+        any: specified size to generate input data shape if dim of expected shape is "*", default to 1.
+
+    Return:
+        a sequence contains the input and output infomation.
+    """
+    if not parser:
+        raise AttributeError("Error parser to parse input shape.")
+    inputs_shape = []
+    try:
+        prefix_key = f"{prefix}#inputs"
+        # prefix_key = key
+        inputs_info_dict = parser[prefix_key]
+        for input_name in inputs_info_dict:
+            key = f"{prefix_key}#{input_name}#num_channels"
+            input_channels = parser[key]
+            key = f"{prefix_key}#{input_name}#spatial_shape"
+            input_spatial_shape = parser[key]
+            spatial_shape = _get_fake_spatial_shape(input_spatial_shape, p=p, n=n, any=any)
+            inputs_shape.append([1, input_channels, *spatial_shape])
+
+        key = f"{prefix_key}#image#num_channels"
+        input_channels = parser[key]
+        key = f"{prefix_key}#image#spatial_shape"
+        input_spatial_shape = tuple(parser[key])
+        key = f"{prefix_key}#image#dtype"
+        input_dtype = get_equivalent_dtype(parser[key], torch.Tensor)
+
+        prefix_key = f"{prefix}#outputs"
+        key = f"{prefix_key}#pred#num_channels"
+        output_channels = parser[key]
+        key = f"{prefix_key}#pred#dtype"
+        output_dtype = get_equivalent_dtype(parser[key], torch.Tensor)
+    except KeyError as e:
+        raise KeyError(f"Failed to parse due to missing expected key in the config: {key}.") from e
+    return [input_channels, input_spatial_shape, input_dtype, output_channels, output_dtype, inputs_shape]
+
+
 def verify_net_in_out(
     net_id: str | None = None,
     meta_file: str | Sequence[str] | None = None,
@@ -884,19 +934,10 @@ def verify_net_in_out(
     for k, v in _args.items():
         parser[k] = v
 
+    input_channels, input_spatial_shape, input_dtype, output_channels, output_dtype, _ = _get_net_io_info(parser=parser)
     try:
         key: str = net_id_  # mark the full id when KeyError
         net = parser.get_parsed_content(key).to(device_)
-        key = "_meta_#network_data_format#inputs#image#num_channels"
-        input_channels = parser[key]
-        key = "_meta_#network_data_format#inputs#image#spatial_shape"
-        input_spatial_shape = tuple(parser[key])
-        key = "_meta_#network_data_format#inputs#image#dtype"
-        input_dtype = get_equivalent_dtype(parser[key], torch.Tensor)
-        key = "_meta_#network_data_format#outputs#pred#num_channels"
-        output_channels = parser[key]
-        key = "_meta_#network_data_format#outputs#pred#dtype"
-        output_dtype = get_equivalent_dtype(parser[key], torch.Tensor)
     except KeyError as e:
         raise KeyError(f"Failed to verify due to missing expected key in the config: {key}.") from e
 
@@ -919,40 +960,6 @@ def verify_net_in_out(
         if output.dtype != output_dtype:
             raise ValueError(f"dtype of output data `{output.dtype}` doesn't match: {output_dtype}.")
     logger.info("data shape of network is verified with no error.")
-
-
-def get_net_input_shape(
-    parser: ConfigParser | None = None, p: int = 1, n: int = 1, any: int = 1
-) -> Sequence[Sequence[int]]:
-    """
-    Get the input shape defined in the metadata.
-
-    Args:
-        parser: a parser of the given bundle.
-        p: power factor to generate input data shape if dim of expected shape is "x**p", default to 1.
-        n: multiply factor to generate input data shape if dim of expected shape is "x*n", default to 1.
-        any: specified size to generate input data shape if dim of expected shape is "*", default to 1.
-
-    Return:
-        a sequence contains all inputs' shapes
-    """
-    if not parser:
-        raise AttributeError("Error parser to parse input shape.")
-    inputs_shape = []
-    try:
-        key = "_meta_#network_data_format#inputs"
-        prefix_key = key
-        inputs_info_dict = parser[key]
-        for input_name in inputs_info_dict:
-            key = f"{prefix_key}#{input_name}#num_channels"
-            input_channels = parser[key]
-            key = f"{prefix_key}#{input_name}#spatial_shape"
-            input_spatial_shape = parser[key]
-            spatial_shape = _get_fake_spatial_shape(input_spatial_shape, p=p, n=n, any=any)
-            inputs_shape.append([1, input_channels, *spatial_shape])
-    except KeyError as e:
-        raise KeyError(f"Failed to parse due to missing expected key in the config: {key}.") from e
-    return inputs_shape
 
 
 def _export(
@@ -1192,7 +1199,8 @@ def trt_export(
         parser.read_meta(f=meta_file_)
 
     if not inputs_shape_:
-        inputs_shape_ = get_net_input_shape(parser)
+        net_io_info = _get_net_io_info(parser)
+        inputs_shape_ = net_io_info[-1]
 
     _export(
         convert_to_trt,
