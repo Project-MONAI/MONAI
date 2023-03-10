@@ -20,8 +20,7 @@ from parameterized import parameterized
 
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import RandAffined
-from monai.utils import GridSampleMode, ensure_tuple_rep
-from tests.lazy_transforms_utils import test_resampler_lazy
+from monai.utils import GridSampleMode
 from tests.utils import assert_allclose, is_tf32_env
 
 _rtol = 1e-3 if is_tf32_env() else 1e-4
