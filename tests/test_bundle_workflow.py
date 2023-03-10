@@ -25,7 +25,7 @@ from parameterized import parameterized
 from monai.bundle import BundleWorkflow, ConfigWorkflow
 from monai.data import DataLoader, Dataset
 from monai.engines import SupervisedEvaluator
-from monai.inferers import SlidingWindowInferer
+from monai.inferers import SimpleInferer, SlidingWindowInferer
 from monai.networks.nets import UNet
 from monai.transforms import (
     Activationsd,
@@ -42,6 +42,8 @@ from monai.utils import BundleProperty, set_determinism
 TEST_CASE_1 = [os.path.join(os.path.dirname(__file__), "testing_data", "inference.json")]
 
 TEST_CASE_2 = [os.path.join(os.path.dirname(__file__), "testing_data", "inference.yaml")]
+
+TEST_CASE_3 = [os.path.join(os.path.dirname(__file__), "testing_data", "config_fl_train.json")]
 
 
 class NonConfigWorkflow(BundleWorkflow):
@@ -168,7 +170,7 @@ class TestBundleWorkflow(unittest.TestCase):
         self.assertTrue(isinstance(preprocessing, Compose))
         postprocessing = inferer.postprocessing
         self.assertTrue(isinstance(postprocessing, Compose))
-        # test optional properties
+        # test optional properties get
         self.assertTrue(inferer.key_metric is None)
         inferer.bundle_root = "/workspace/data/spleen_ct_segmentation"
         inferer.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -176,7 +178,7 @@ class TestBundleWorkflow(unittest.TestCase):
         inferer.inferer = deepcopy(sliding_window)
         inferer.preprocessing = deepcopy(preprocessing)
         inferer.postprocessing = deepcopy(postprocessing)
-        # test optional properties
+        # test optional properties set
         inferer.key_metric = "set optional properties"
 
         # should initialize and parse again as changed the bundle content
@@ -190,7 +192,7 @@ class TestBundleWorkflow(unittest.TestCase):
         os.remove(pred_file)
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
-    def test_config(self, config_file):
+    def test_inference_config(self, config_file):
         override = {
             "network": "$@network_def.to(@device)",
             "dataset#_target_": "Dataset",
@@ -206,6 +208,38 @@ class TestBundleWorkflow(unittest.TestCase):
             **override,
         )
         self._test_inferer(inferer)
+
+    @parameterized.expand([TEST_CASE_3])
+    def test_train_config(self, config_file):
+        # test standard MONAI model-zoo config workflow
+        trainer = ConfigWorkflow(
+            workflow="train",
+            config_file=config_file,
+            logging_file=os.path.join(os.path.dirname(__file__), "testing_data", "logging.conf"),
+            init_id="initialize",
+            run_id="run",
+            final_id="finalize",
+        )
+        # should initialize before parsing any bundle content
+        trainer.initialize()
+        # test required and optional properties
+        trainer.check_properties()
+        # test read / write the properties
+        dataset = trainer.train_dataset
+        self.assertTrue(isinstance(dataset, Dataset))
+        inferer = trainer.train_inferer
+        self.assertTrue(isinstance(inferer, SimpleInferer))
+        # test optional properties get
+        self.assertTrue(trainer.train_key_metric is None)
+        trainer.train_dataset = deepcopy(dataset)
+        trainer.train_inferer = deepcopy(inferer)
+        # test optional properties set
+        trainer.train_key_metric = "set optional properties"
+
+        # should initialize and parse again as changed the bundle content
+        trainer.initialize()
+        trainer.run()
+        trainer.finalize()
 
     def test_non_config(self):
         # test user defined python style workflow
