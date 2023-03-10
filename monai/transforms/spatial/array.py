@@ -41,6 +41,7 @@ from monai.transforms.spatial.functional import (
     rotate,
     rotate90,
     spatial_resample,
+    zoom,
 )
 from monai.transforms.traits import MultiSampleTrait
 from monai.transforms.transform import LazyTransform, Randomizable, RandomizableTransform, Transform
@@ -894,7 +895,7 @@ class Rotate(InvertibleTransform, LazyTransform):
         return out
 
 
-class Zoom(InvertibleTransform):
+class Zoom(InvertibleTransform, LazyTransform):
     """
     Zooms an ND image using :py:class:`torch.nn.functional.interpolate`.
     For details, please see https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html.
@@ -919,6 +920,8 @@ class Zoom(InvertibleTransform):
         align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
+        dtype: data type for resampling computation. Defaults to ``float32``.
+            If None, use the data type of input data.
         keep_size: Should keep original size (padding/slicing if needed), default is True.
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
@@ -933,6 +936,7 @@ class Zoom(InvertibleTransform):
         mode: str = InterpolateMode.AREA,
         padding_mode: str = NumpyPadMode.EDGE,
         align_corners: bool | None = None,
+        dtype: DtypeLike | torch.dtype = torch.float32,
         keep_size: bool = True,
         **kwargs,
     ) -> None:
@@ -940,6 +944,7 @@ class Zoom(InvertibleTransform):
         self.mode: InterpolateMode = InterpolateMode(mode)
         self.padding_mode = padding_mode
         self.align_corners = align_corners
+        self.dtype = dtype
         self.keep_size = keep_size
         self.kwargs = kwargs
 
@@ -949,6 +954,7 @@ class Zoom(InvertibleTransform):
         mode: str | None = None,
         padding_mode: str | None = None,
         align_corners: bool | None = None,
+        dtype: DtypeLike | torch.dtype = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -967,50 +973,19 @@ class Zoom(InvertibleTransform):
             align_corners: This only has an effect when mode is
                 'linear', 'bilinear', 'bicubic' or 'trilinear'. Defaults to ``self.align_corners``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
+            dtype: data type for resampling computation. Defaults to ``self.dtype``.
+                If None, use the data type of input data.
 
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
-        img_t = img.to(torch.float32)
-
         _zoom = ensure_tuple_rep(self.zoom, img.ndim - 1)  # match the spatial image dim
         _mode = look_up_option(self.mode if mode is None else mode, InterpolateMode).value
-        _align_corners = self.align_corners if align_corners is None else align_corners
         _padding_mode = padding_mode or self.padding_mode
-
-        zoomed: NdarrayOrTensor = torch.nn.functional.interpolate(
-            recompute_scale_factor=True,
-            input=img_t.unsqueeze(0),
-            scale_factor=list(_zoom),
-            mode=_mode,
-            align_corners=_align_corners,
+        _align_corners = self.align_corners if align_corners is None else align_corners
+        _dtype = get_equivalent_dtype(dtype or self.dtype or img.dtype, torch.Tensor)
+        return zoom(  # type: ignore
+            img, _zoom, self.keep_size, _mode, _padding_mode, _align_corners, _dtype, self.get_transform_info()
         )
-        zoomed = zoomed.squeeze(0)
-        orig_size, z_size = img_t.shape, zoomed.shape
-
-        out, *_ = convert_to_dst_type(zoomed, dst=img)
-        if get_track_meta():
-            self.update_meta(out, orig_size[1:], z_size[1:])
-        do_pad_crop = self.keep_size and not np.allclose(orig_size, z_size)
-        if do_pad_crop:
-            _pad_crop = ResizeWithPadOrCrop(spatial_size=img_t.shape[1:], mode=_padding_mode)
-            out = _pad_crop(out)
-        if get_track_meta():
-            padcrop_xform = self.pop_transform(out, check=False) if do_pad_crop else {}
-            self.push_transform(
-                out,
-                orig_size=orig_size[1:],
-                extra_info={
-                    "mode": _mode,
-                    "align_corners": _align_corners if _align_corners is not None else TraceKeys.NONE,
-                    "do_padcrop": do_pad_crop,
-                    "padcrop": padcrop_xform,
-                },
-            )
-        return out
-
-    def update_meta(self, img, spatial_size, new_spatial_size):
-        affine = convert_to_tensor(img.affine, track_meta=False)
-        img.affine = scale_affine(affine, spatial_size, new_spatial_size)
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(data)
@@ -1028,11 +1003,12 @@ class Zoom(InvertibleTransform):
         # Create inverse transform
         mode = transform[TraceKeys.EXTRA_INFO]["mode"]
         align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
+        dtype = transform[TraceKeys.EXTRA_INFO]["dtype"]
         inverse_transform = Resize(spatial_size=transform[TraceKeys.ORIG_SIZE])
         # Apply inverse
         with inverse_transform.trace_transform(False):
             out = inverse_transform(
-                data, mode=mode, align_corners=None if align_corners == TraceKeys.NONE else align_corners
+                data, mode=mode, align_corners=None if align_corners == TraceKeys.NONE else align_corners, dtype=dtype
             )
         return out
 
@@ -1359,7 +1335,7 @@ class RandAxisFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
             return flipper(data)
 
 
-class RandZoom(RandomizableTransform, InvertibleTransform):
+class RandZoom(RandomizableTransform, InvertibleTransform, LazyTransform):
     """
     Randomly zooms input arrays with given probability within given zoom range.
 
@@ -1388,6 +1364,8 @@ class RandZoom(RandomizableTransform, InvertibleTransform):
         align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
+        dtype: data type for resampling computation. Defaults to ``float32``.
+            If None, use the data type of input data.
         keep_size: Should keep original size (pad if needed), default is True.
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
@@ -1404,6 +1382,7 @@ class RandZoom(RandomizableTransform, InvertibleTransform):
         mode: str = InterpolateMode.AREA,
         padding_mode: str = NumpyPadMode.EDGE,
         align_corners: bool | None = None,
+        dtype: DtypeLike | torch.dtype = torch.float32,
         keep_size: bool = True,
         **kwargs,
     ) -> None:
@@ -1417,6 +1396,7 @@ class RandZoom(RandomizableTransform, InvertibleTransform):
         self.mode: InterpolateMode = look_up_option(mode, InterpolateMode)
         self.padding_mode = padding_mode
         self.align_corners = align_corners
+        self.dtype = dtype
         self.keep_size = keep_size
         self.kwargs = kwargs
 
@@ -1440,6 +1420,7 @@ class RandZoom(RandomizableTransform, InvertibleTransform):
         mode: str | None = None,
         padding_mode: str | None = None,
         align_corners: bool | None = None,
+        dtype: DtypeLike | torch.dtype = None,
         randomize: bool = True,
     ) -> torch.Tensor:
         """
@@ -1458,6 +1439,8 @@ class RandZoom(RandomizableTransform, InvertibleTransform):
             align_corners: This only has an effect when mode is
                 'linear', 'bilinear', 'bicubic' or 'trilinear'. Defaults to ``self.align_corners``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
+            dtype: data type for resampling computation. Defaults to ``self.dtype``.
+                If None, use the data type of input data.
             randomize: whether to execute `randomize()` function first, default to True.
 
         """
@@ -1468,17 +1451,18 @@ class RandZoom(RandomizableTransform, InvertibleTransform):
         if not self._do_transform:
             out = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)
         else:
-            out = Zoom(
+            xform = Zoom(
                 self._zoom,
                 keep_size=self.keep_size,
                 mode=look_up_option(mode or self.mode, InterpolateMode),
                 padding_mode=padding_mode or self.padding_mode,
                 align_corners=self.align_corners if align_corners is None else align_corners,
+                dtype=dtype or self.dtype,
                 **self.kwargs,
-            )(img)
-        if get_track_meta():
-            z_info = self.pop_transform(out, check=False) if self._do_transform else {}
-            self.push_transform(out, extra_info=z_info)
+            )
+            xform.lazy_evaluation = self.lazy_evaluation
+            out = xform(img)
+        self.push_transform(out, replace=True)
         return out  # type: ignore
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:

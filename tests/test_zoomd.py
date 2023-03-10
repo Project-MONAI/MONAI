@@ -14,13 +14,15 @@ from __future__ import annotations
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 from scipy.ndimage import zoom as zoom_scipy
 
 from monai.transforms import Zoomd
+from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose, test_local_inversion
 
-VALID_CASES = [(1.5, "nearest", False), (0.3, "bilinear", False), (0.8, "bilinear", False)]
+VALID_CASES = [(1.5, "nearest", False), (0.3, "bilinear", False), (0.8, "bilinear", False), (1.3, "bilinear", False)]
 
 INVALID_CASES = [("no_zoom", None, "bilinear", TypeError), ("invalid_order", 0.9, "s", ValueError)]
 
@@ -29,10 +31,19 @@ class TestZoomd(NumpyImageTestCase2D):
     @parameterized.expand(VALID_CASES)
     def test_correct_results(self, zoom, mode, keep_size):
         key = "img"
-        zoom_fn = Zoomd(key, zoom=zoom, mode=mode, keep_size=keep_size)
+        init_param = {"keys": key, "zoom": zoom, "mode": mode, "keep_size": keep_size, "dtype": torch.float64}
+        zoom_fn = Zoomd(**init_param)
         for p in TEST_NDARRAYS_ALL:
             im = p(self.imt[0])
-            zoomed = zoom_fn({key: im})
+            call_param = {"data": {key: im}}
+            zoomed = zoom_fn(**call_param)
+
+            # test lazy
+            # TODO: temporarily skip "nearest" test
+            if mode == "bilinear":
+                test_resampler_lazy(zoom_fn, zoomed, init_param, call_param, output_key=key)
+                zoom_fn.lazy_evaluation = False
+
             test_local_inversion(zoom_fn, zoomed, {key: im}, key)
             _order = 0
             if mode.endswith("linear"):
