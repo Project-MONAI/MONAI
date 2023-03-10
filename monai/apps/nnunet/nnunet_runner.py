@@ -24,9 +24,13 @@ from monai.bundle import ConfigParser
 
 
 class nnUNetRunner:
-    def __init__(self, input):
+    def __init__(self,
+        input,
+        work_dir: str = "work_dir",
+    ):
         self.input_info = []
         self.input_config_or_dict = input
+        self.work_dir = work_dir
 
         if isinstance(self.input_config_or_dict, dict):
             self.input_info = self.input_config_or_dict
@@ -35,12 +39,12 @@ class nnUNetRunner:
         else:
             raise ValueError(f"{input} is not a valid file or dict")
 
-        self.nnunet_raw = self.input_info.pop("nnunet_raw", os.path.join(".", "work_dir", "nnUNet_raw_data_base"))
+        self.nnunet_raw = self.input_info.pop("nnunet_raw", os.path.join(".", self.work_dir, "nnUNet_raw_data_base"))
         self.nnunet_preprocessed = self.input_info.pop(
-            "nnunet_preprocessed", os.path.join(".", "work_dir", "nnUNet_preprocessed")
+            "nnunet_preprocessed", os.path.join(".", self.work_dir, "nnUNet_preprocessed")
         )
         self.nnunet_results = self.input_info.pop(
-            "nnunet_results", os.path.join(".", "work_dir", "nnUNet_trained_models")
+            "nnunet_results", os.path.join(".", self.work_dir, "nnUNet_trained_models")
         )
 
         if not os.path.exists(self.nnunet_raw):
@@ -276,7 +280,7 @@ class nnUNetRunner:
         np=[8, 4, 8],
         verbose=False,
     ):
-        self.extract_fingerprints(fpe, np, verify_dataset_integrity, clean, verbose)
+        self.extract_fingerprints(fpe, npfp, verify_dataset_integrity, clean, verbose)
         self.plan_experiments(pl, gpu_memory_target, preprocessor_name, overwrite_target_spacing, overwrite_plans_name)
         self.preprocess(c, np, overwrite_plans_name, verbose)
 
