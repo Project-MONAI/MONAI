@@ -15,7 +15,7 @@ dependencies:
     - argcomplete<2.0.0
     - importlib-metadata<5,>=0.23
     - hi-ml-azure>=0.2.18
-    - monai>=1.1.0
+    - git+https://github.com/peterhessey/MONAI.git@6054-integrate-azureml-for-autorunner-training
     - pytorch-ignite==0.4.10
     - gdown>=4.4.0
     - scipy
