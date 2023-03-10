@@ -21,54 +21,13 @@ from typing import Any, Sequence
 
 from monai.apps.utils import get_logger
 from monai.bundle.config_parser import ConfigParser
+from monai.bundle.properties import InferProperties, TrainProperties
 from monai.bundle.utils import DEFAULT_EXP_MGMT_SETTINGS
 from monai.utils import BundleProperty, BundlePropertyConfig
 
 __all__ = ["BundleWorkflow", "ConfigWorkflow"]
 
 logger = get_logger(module_name=__name__)
-
-
-TrainProperties = {
-    "bundle_root": {
-        BundleProperty.DESP: "root path of the bundle.",
-        BundleProperty.REQUIRED: True,
-        BundlePropertyConfig.ID: "bundle_root",
-    },
-    "device": {
-        BundleProperty.DESP: "target device to execute the bundle workflow.",
-        BundleProperty.REQUIRED: True,
-        BundlePropertyConfig.ID: "device",
-    },
-    "train_preprocessing": {
-        BundleProperty.DESP: "preprocessing for input data.",
-        BundleProperty.REQUIRED: False,
-        BundlePropertyConfig.ID: "train#preprocessing",
-        BundlePropertyConfig.REF_ID: "train#dataset#transform",
-    },
-    # TODO: add all the required and optional properties
-}
-
-
-InferProperties = {
-    "bundle_root": {
-        BundleProperty.DESP: "root path of the bundle.",
-        BundleProperty.REQUIRED: True,
-        BundlePropertyConfig.ID: "bundle_root",
-    },
-    "network_def": {
-        BundleProperty.DESP: "network module for the inference.",
-        BundleProperty.REQUIRED: True,
-        BundlePropertyConfig.ID: "network_def",
-    },
-    "key_metric": {
-        BundleProperty.DESP: "the key metric during evaluation.",
-        BundleProperty.REQUIRED: False,
-        BundlePropertyConfig.ID: "key_metric",
-        BundlePropertyConfig.REF_ID: "evaluator#key_val_metric",
-    },
-    # TODO: add all the required and optional properties
-}
 
 
 class BundleWorkflow(ABC):
@@ -118,13 +77,13 @@ class BundleWorkflow(ABC):
         raise NotImplementedError()
 
     def __getattr__(self, name):
-        if name in self.properties:
+        if self.properties is not None and name in self.properties:
             return self._get_property(name=name, property=self.properties[name])
         else:
             return self.__getattribute__(name)  # getting regular attribute
 
     def __setattr__(self, name, value):
-        if name != "properties" and name in self.properties:
+        if name != "properties" and self.properties is not None and name in self.properties:
             self._set_property(name=name, property=self.properties[name], value=value)
         else:
             super().__setattr__(name, value)  # setting regular attribute
@@ -211,14 +170,6 @@ class ConfigWorkflow(BundleWorkflow):
                 wrong_props.append(n)
         if wrong_props:
             warnings.warn(f"Loaded bundle defines the following optional properties with wrong ID: {wrong_props}")
-        # check validation `interval` property
-        if "train#handlers" in self.parser:
-            for h in self.parser["train#handlers"]:
-                if h["_target_"] == "ValidationHandler":
-                    interval = h.get("interval", None)
-                    if interval not in (None, "val_interval"):
-                        warnings.warn("Validation interval in training must be defined with ID 'val_interval'.")
-                        wrong_props.append("val_interval")
         ret.extend(wrong_props)
         return ret
 
@@ -248,10 +199,22 @@ class ConfigWorkflow(BundleWorkflow):
             self.parser.ref_resolver.reset()
 
     def _check_optional_id(self, name: str, property: dict):
-        if BundlePropertyConfig.REF_ID not in property:
-            raise ValueError(f"Cannot find the ID of reference config item for optional property '{name}'.")
-        ret = self.parser.get(property[BundlePropertyConfig.REF_ID], None)
-        if ret is not None and ret != "@" + property[BundlePropertyConfig.ID]:
+        id = property.get(BundlePropertyConfig.ID, None)
+        ref_id = property.get(BundlePropertyConfig.REF_ID, None)
+        if ref_id is None:
+            # no ID of reference config item, skipping check for this optional property
+            return True
+        # check validation `validator` and `interval` properties as the handler index of ValidationHandler is unknown
+        if name in ("evaluator", "val_interval"):
+            if "train#handlers" in self.parser:
+                for h in self.parser["train#handlers"]:
+                    if h["_target_"] == "ValidationHandler":
+                        arg_name = h.get(ref_id, None)
+                        if arg_name != id:
+                            return False
+            return True
+        ref = self.parser.get(ref_id, None)
+        if ref is not None and ref != "@" + id:
             return False
         return True
 

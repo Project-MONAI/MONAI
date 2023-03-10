@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from .config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem, Instantiable
 from .config_parser import ConfigParser
+from .properties import InferProperties, TrainProperties
 from .reference_resolver import ReferenceResolver
 from .scripts import (
     ckpt_export,

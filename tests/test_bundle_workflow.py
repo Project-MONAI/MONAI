@@ -111,16 +111,32 @@ class NonConfigWorkflow(BundleWorkflow):
     def _get_property(self, name, property):
         if name == "bundle_root":
             return self._bundle_root
+        if name == "device":
+            return self._device
         if name == "network_def":
             return self._network_def
+        if name == "inferer":
+            return self._inferer
+        if name == "preprocessing":
+            return self._preprocessing
+        if name == "postprocessing":
+            return self._postprocessing
         if property[BundleProperty.REQUIRED]:
             raise ValueError(f"unsupported property '{name}' is required in the bundle properties.")
 
     def _set_property(self, name, property, value):
         if name == "bundle_root":
             self._bundle_root = value
+        elif name == "device":
+            self._device = value
         elif name == "network_def":
             self._network_def = value
+        elif name == "inferer":
+            self._inferer = value
+        elif name == "preprocessing":
+            self._preprocessing = value
+        elif name == "postprocessing":
+            self._postprocessing = value
         elif property[BundleProperty.REQUIRED]:
             raise ValueError(f"unsupported property '{name}' is required in the bundle properties.")
 
@@ -143,23 +159,23 @@ class TestBundleWorkflow(unittest.TestCase):
         inferer.check_properties()
         # test read / write the properties, note that we don't assume it as JSON or YAML config here
         self.assertEqual(inferer.bundle_root, "will override")
-        # self.assertEqual(inferer.device, torch.device("cpu"))
+        self.assertEqual(inferer.device, torch.device("cpu"))
         net = inferer.network_def
         self.assertTrue(isinstance(net, UNet))
-        # sliding_window = inferer.inferer
-        # self.assertTrue(isinstance(sliding_window, SlidingWindowInferer))
-        # preprocessing = inferer.preprocessing
-        # self.assertTrue(isinstance(preprocessing, Compose))
-        # postprocessing = inferer.postprocessing
-        # self.assertTrue(isinstance(postprocessing, Compose))
+        sliding_window = inferer.inferer
+        self.assertTrue(isinstance(sliding_window, SlidingWindowInferer))
+        preprocessing = inferer.preprocessing
+        self.assertTrue(isinstance(preprocessing, Compose))
+        postprocessing = inferer.postprocessing
+        self.assertTrue(isinstance(postprocessing, Compose))
         # test optional properties
         self.assertTrue(inferer.key_metric is None)
         inferer.bundle_root = "/workspace/data/spleen_ct_segmentation"
-        # inferer.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        inferer.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         inferer.network_def = deepcopy(net)
-        # inferer.inferer = deepcopy(sliding_window)
-        # inferer.preprocessing = deepcopy(preprocessing)
-        # inferer.postprocessing = deepcopy(postprocessing)
+        inferer.inferer = deepcopy(sliding_window)
+        inferer.preprocessing = deepcopy(preprocessing)
+        inferer.postprocessing = deepcopy(postprocessing)
         # test optional properties
         inferer.key_metric = "set optional properties"
 
