@@ -2307,7 +2307,8 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
         img = convert_to_tensor(img, track_meta=get_track_meta())
         if self.lazy_evaluation:
             if self._do_transform:
-                affine = self.rand_affine_grid(sp_size, randomize=randomize)  # no grid for lazy evaluation
+                # no grid for lazy evaluation, but randomize in the same way as non-lazy
+                affine = self.rand_affine_grid(sp_size, randomize=randomize if grid is None else False)
             else:
                 affine = convert_to_dst_type(torch.eye(len(sp_size) + 1), img, dtype=self.rand_affine_grid.dtype)[0]
         else:

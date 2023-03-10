@@ -926,7 +926,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             # do the transform
             if do_resampling:
-                d[key] = self.rand_affine(d[key], None, mode, padding_mode, False, grid)  # type: ignore
+                d[key] = self.rand_affine(d[key], None, mode, padding_mode, True, grid)  # type: ignore
             else:
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta(), dtype=torch.float32)
             self._do_transform = do_resampling  # TODO: unify self._do_transform and do_resampling
