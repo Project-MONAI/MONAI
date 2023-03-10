@@ -1874,7 +1874,7 @@ class Resample(Transform):
             elif _align_corners:
                 for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
                     _dim = max(2, dim)
-                    grid_t[i] = (_dim - 1) / _dim * (grid_t[i] - (_dim - 1) / 2) + (_dim - 1) / 2.0
+                    grid_t[i] = (_dim - 1) / _dim * (grid_t[i] + 0.5)
             grid_t = grid_t[:sr]
             if USE_COMPILED and self._backend == TransformBackends.TORCH:  # compiled is using torch backend param name
                 grid_t = moveaxis(grid_t, 0, -1)  # type: ignore

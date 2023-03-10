@@ -45,7 +45,6 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
                 mode=["bilinear", 0],
                 padding_mode=("border", "nearest"),
                 dtype=np.float32,
-                align_corners=True,
             ),
             # mt.RandZoomd(keys=["img", "seg"], prob=1.0, zoom_range=(0.9, 1.2), keep_size=False),
             # mt.RandRotated(

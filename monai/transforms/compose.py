@@ -47,7 +47,7 @@ def _eval_lazy_stack(
     keys: str | None = None,
     dtype=None,
     device=None,
-    align_corners: bool = True,
+    align_corners: bool = False,
 ):
     """
     Given the upcoming transform ``upcoming``, if lazy_resample is True, go through the MetaTensors and
