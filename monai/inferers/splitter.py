@@ -195,7 +195,6 @@ class WSISlidingWindowSplitter(Splitter):
         reader: str | BaseWSIReader | type[BaseWSIReader] = "cuCIM",
         reader_kwargs: dict | None = None,
     ) -> None:
-
         super().__init__(patch_size=patch_size, device=device)
         self.offset = offset
         if any(ov < 0 or ov >= 1 for ov in ensure_tuple(overlap)):
