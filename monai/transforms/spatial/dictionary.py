@@ -703,7 +703,7 @@ class Affined(MapTransform, InvertibleTransform, LazyTransform):
         padding_mode: SequenceStr = GridSamplePadMode.REFLECTION,
         device: torch.device | None = None,
         dtype: DtypeLike | torch.dtype = np.float32,
-        align_corners: bool = True,
+        align_corners: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
         """

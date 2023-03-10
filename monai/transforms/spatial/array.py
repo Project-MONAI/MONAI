@@ -307,7 +307,7 @@ class Spacing(InvertibleTransform, LazyTransform):
         diagonal: bool = False,
         mode: str | int = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.BORDER,
-        align_corners: bool = True,
+        align_corners: bool = False,
         dtype: DtypeLike = np.float64,
         scale_extent: bool = False,
         recompute_affine: bool = False,
@@ -816,7 +816,7 @@ class Rotate(InvertibleTransform, LazyTransform):
         keep_size: bool = True,
         mode: str = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.BORDER,
-        align_corners: bool = True,
+        align_corners: bool = False,
         dtype: DtypeLike | torch.dtype = torch.float32,
     ) -> None:
         self.angle = angle
@@ -1516,7 +1516,7 @@ class AffineGrid(LazyTransform):
         scale_params: Sequence[float] | float | None = None,
         device: torch.device | None = None,
         dtype: DtypeLike = np.float32,
-        align_corners: bool = True,
+        align_corners: bool = False,
         affine: NdarrayOrTensor | None = None,
     ) -> None:
         self.rotate_params = rotate_params
@@ -1578,7 +1578,7 @@ class AffineGrid(LazyTransform):
             return None, affine
 
         affine = convert_to_tensor(affine, device=grid_.device, dtype=grid_.dtype, track_meta=False)  # type: ignore
-        if not self.align_corners:
+        if self.align_corners:
             sc = create_scale(spatial_dims, [d / (d - 1) for d in grid_.shape[1:]], device=_device, backend=_b)
             sc = convert_to_dst_type(sc, affine)[0]
             grid_ = (affine @ sc @ grid_.view((grid_.shape[0], -1))).view([-1] + list(grid_.shape[1:]))
@@ -1866,11 +1866,15 @@ class Resample(Transform):
         if USE_COMPILED or self._backend == TransformBackends.NUMPY:
             if self.norm_coords:
                 for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
-                    grid_t[i] += max(dim, 2) / 2.0 - 0.5
-            elif not _align_corners:
+                    _dim = max(2, dim)
+                    if _align_corners:
+                        grid_t[i] = (_dim - 1) / _dim * grid_t[i] + (_dim - 1) / 2.0
+                    else:
+                        grid_t[i] += (_dim - 1) / 2.0
+            elif _align_corners:
                 for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
                     _dim = max(2, dim)
-                    grid_t[i] *= _dim / (_dim - 1)
+                    grid_t[i] = (_dim - 1) / _dim * (grid_t[i] - (_dim - 1) / 2) + (_dim - 1) / 2.0
             grid_t = grid_t[:sr]
             if USE_COMPILED and self._backend == TransformBackends.TORCH:  # compiled is using torch backend param name
                 grid_t = moveaxis(grid_t, 0, -1)  # type: ignore
@@ -1903,11 +1907,7 @@ class Resample(Transform):
         else:
             if self.norm_coords:
                 for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
-                    grid_t[i] *= (2.0 / (max(2, dim) - 1.0)) if _align_corners else (2.0 / max(2, dim))
-            elif not _align_corners:
-                for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
-                    _dim = max(2, dim)
-                    grid_t[i] *= _dim / (_dim - 1)
+                    grid_t[i] *= 2.0 / max(2, dim)
             index_ordering: list[int] = list(range(sr - 1, -1, -1))
             grid_t = moveaxis(grid_t[index_ordering], 0, -1)  # type: ignore
             out = torch.nn.functional.grid_sample(
@@ -1943,7 +1943,7 @@ class Affine(InvertibleTransform, LazyTransform):
         normalized: bool = False,
         device: torch.device | None = None,
         dtype: DtypeLike = np.float32,
-        align_corners: bool = True,
+        align_corners: bool = False,
         image_only: bool = False,
     ) -> None:
         """
@@ -1996,7 +1996,7 @@ class Affine(InvertibleTransform, LazyTransform):
             dtype: data type for resampling computation. Defaults to ``float32``.
                 If ``None``, use the data type of input data. To be compatible with other modules,
                 the output data type is always `float32`.
-            align_corners: Defaults to True.
+            align_corners: Defaults to False.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             image_only: if True return only the image volume, otherwise return (image, affine).
 

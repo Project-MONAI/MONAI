@@ -83,17 +83,7 @@ for p in TEST_NDARRAYS_ALL:
             [
                 dict(keys="img", padding_mode="zeros", spatial_size=(-1, 0, 0), device=device, align_corners=False),
                 {"img": p(np.arange(27).reshape((1, 3, 3, 3)))},
-                p(
-                    np.array(
-                        [
-                            [
-                                [[0.00, 0.25, 0.25], [0.75, 2.0, 1.25], [0.75, 1.75, 1.00]],
-                                [[2.25, 5.00, 2.75], [6.00, 13.0, 7.00], [3.75, 8.0, 4.25]],
-                                [[2.25, 4.75, 2.50], [5.25, 11.0, 5.75], [3.00, 6.25, 3.25]],
-                            ]
-                        ]
-                    )
-                ),
+                p(np.arange(27).reshape(1, 3, 3, 3)),
             ]
         )
         TESTS.append(

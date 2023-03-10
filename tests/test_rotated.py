@@ -42,7 +42,9 @@ for p in TEST_NDARRAYS_ALL:
 class TestRotated2D(NumpyImageTestCase2D):
     @parameterized.expand(TEST_CASES_2D)
     def test_correct_results(self, im_type, angle, keep_size, mode, padding_mode, align_corners):
-        rotate_fn = Rotated(("img", "seg"), angle, keep_size, (mode, "nearest"), padding_mode, True, dtype=np.float64)
+        rotate_fn = Rotated(
+            ("img", "seg"), angle, keep_size, (mode, "nearest"), padding_mode, align_corners, dtype=np.float64
+        )
         im = im_type(self.imt[0])
         rotated = rotate_fn({"img": im, "seg": im_type(self.segn[0])})
         if keep_size:
@@ -51,7 +53,7 @@ class TestRotated2D(NumpyImageTestCase2D):
         if padding_mode == "border":
             _mode = "nearest"
         elif padding_mode == "reflection":
-            _mode = "mirror"
+            _mode = "reflect"
         else:
             _mode = "constant"
         expected = scipy.ndimage.rotate(
@@ -76,7 +78,7 @@ class TestRotated3D(NumpyImageTestCase3D):
     @parameterized.expand(TEST_CASES_3D)
     def test_correct_results(self, im_type, angle, keep_size, mode, padding_mode, align_corners):
         rotate_fn = Rotated(
-            ("img", "seg"), [0, angle, 0], keep_size, (mode, "nearest"), padding_mode, True, dtype=np.float64
+            ("img", "seg"), [0, angle, 0], keep_size, (mode, "nearest"), padding_mode, align_corners, dtype=np.float64
         )
         rotated = rotate_fn({"img": im_type(self.imt[0]), "seg": im_type(self.segn[0])})
         if keep_size:
@@ -85,7 +87,7 @@ class TestRotated3D(NumpyImageTestCase3D):
         if padding_mode == "border":
             _mode = "nearest"
         elif padding_mode == "reflection":
-            _mode = "mirror"
+            _mode = "reflect"
         else:
             _mode = "constant"
         expected = scipy.ndimage.rotate(
@@ -109,7 +111,7 @@ class TestRotated3DXY(NumpyImageTestCase3D):
     @parameterized.expand(TEST_CASES_3D)
     def test_correct_results(self, im_type, angle, keep_size, mode, padding_mode, align_corners):
         rotate_fn = Rotated(
-            ("img", "seg"), [0, 0, angle], keep_size, (mode, "nearest"), padding_mode, True, dtype=np.float64
+            ("img", "seg"), [0, 0, angle], keep_size, (mode, "nearest"), padding_mode, align_corners, dtype=np.float64
         )
         rotated = rotate_fn({"img": im_type(self.imt[0]), "seg": im_type(self.segn[0])})
         if keep_size:
@@ -118,7 +120,7 @@ class TestRotated3DXY(NumpyImageTestCase3D):
         if padding_mode == "border":
             _mode = "nearest"
         elif padding_mode == "reflection":
-            _mode = "mirror"
+            _mode = "reflect"
         else:
             _mode = "constant"
         expected = scipy.ndimage.rotate(
