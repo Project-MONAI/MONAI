@@ -972,7 +972,7 @@ def _export(
     key_in_ckpt: str,
     update_args: dict,
     **kwargs: Any,
-):
+) -> None:
     """
     Export a model defined in the parser to a new one specified by converter.
 
