@@ -13,6 +13,20 @@ from __future__ import annotations
 
 from monai.utils import BundleProperty, BundlePropertyConfig
 
+"""
+The predefined properties for a bundle workflow, other applications can leverage the properties
+to interact with the bundle workflow.
+Some properties are required and some are optional, optional properties mean: if some component of the
+bundle workflow refer to the property, the property must be defined, otherwise, the property can be None.
+Every item in this `TrainProperties` or `InferProperties` dictionary is a property,
+the key is the property name and the values include:
+1. description.
+2. whether it's a required property.
+3. config item ID name (only applicable when the bundle workflow is defined in config).
+4. reference config item ID name (only applicable when the bundle workflow is defined in config).
+
+"""
+
 TrainProperties = {
     "bundle_root": {
         BundleProperty.DESP: "root path of the bundle.",
@@ -83,6 +97,12 @@ TrainProperties = {
         BundleProperty.REQUIRED: False,
         BundlePropertyConfig.ID: "validate#evaluator",
         BundlePropertyConfig.REF_ID: "validator",  # this REF_ID is the arg name of `ValidationHandler`
+    },
+    "val_interval": {
+        BundleProperty.DESP: "validation interval during the training.",
+        BundleProperty.REQUIRED: False,
+        BundlePropertyConfig.ID: "val_interval",
+        BundlePropertyConfig.REF_ID: "interval",  # this REF_ID is the arg name of `ValidationHandler`
     },
     "val_handlers": {
         BundleProperty.DESP: "event-handlers for the validation logic.",

@@ -158,7 +158,7 @@ class TestBundleWorkflow(unittest.TestCase):
         # should initialize before parsing any bundle content
         inferer.initialize()
         # test required and optional properties
-        inferer.check_properties()
+        self.assertListEqual(inferer.check_properties(), [])
         # test read / write the properties, note that we don't assume it as JSON or YAML config here
         self.assertEqual(inferer.bundle_root, "will override")
         self.assertEqual(inferer.device, torch.device("cpu"))
@@ -223,7 +223,7 @@ class TestBundleWorkflow(unittest.TestCase):
         # should initialize before parsing any bundle content
         trainer.initialize()
         # test required and optional properties
-        trainer.check_properties()
+        self.assertListEqual(trainer.check_properties(), [])
         # test read / write the properties
         dataset = trainer.train_dataset
         self.assertTrue(isinstance(dataset, Dataset))

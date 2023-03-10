@@ -32,7 +32,9 @@ logger = get_logger(module_name=__name__)
 
 class BundleWorkflow(ABC):
     """
-    Base class for the workflow specification in bundle.
+    Base class for the workflow specification in bundle, it can be a training, evaluation or inference workflow.
+    It defines the basic interfaces for the bundle workflow behavior: `initialize`, `run`, `finalize`, etc.
+    And also provides the interface to get / set public properties to interact with a bundle workflow.
 
     Args:
         workflow: specifies the workflow type: "train" or "training" for a training workflow,
@@ -58,22 +60,51 @@ class BundleWorkflow(ABC):
 
     @abstractmethod
     def initialize(self, *args: Any, **kwargs: Any) -> Any:
+        """
+        Initialize the bundle workflow before running.
+
+        """
         raise NotImplementedError()
 
     @abstractmethod
     def run(self, *args: Any, **kwargs: Any) -> Any:
+        """
+        Run the bundle workflow, it can be a training, evaluation or inference.
+
+        """
         raise NotImplementedError()
 
     @abstractmethod
     def finalize(self, *args: Any, **kwargs: Any) -> Any:
+        """
+        Finalize step after the running of bundle workflow.
+
+        """
         raise NotImplementedError()
 
     @abstractmethod
     def _get_property(self, name: str, property: dict) -> Any:
+        """
+        With specified property name and information, get the expected property value.
+
+        Args:
+            name: the name of target property.
+            property: other information for the target property, defined in `TrainProperties` or `InferProperties`.
+
+        """
         raise NotImplementedError()
 
     @abstractmethod
     def _set_property(self, name: str, property: dict, value: Any) -> Any:
+        """
+        With specified property name and information, set value for the expected property.
+
+        Args:
+            name: the name of target property.
+            property: other information for the target property, defined in `TrainProperties` or `InferProperties`.
+            value: value to set for the property.
+
+        """
         raise NotImplementedError()
 
     def __getattr__(self, name):
@@ -89,18 +120,104 @@ class BundleWorkflow(ABC):
             super().__setattr__(name, value)  # setting regular attribute
 
     def get_workflow_type(self):
+        """
+        Get the workflow type, it can be `None`, "train", or "infer".
+
+        """
         return self.workflow
 
     def check_properties(self) -> list[str] | None:
-        if self.get_workflow_type() is None:
+        """
+        Check whether the required properties are existing in the bundle workflow.
+        If no workflow type specified, return None, otherwise, return a list of required but missing properites.
+
+        """
+        if self.properties is None:
             warnings.warn("No available properties had been set, skipping check.")
             return None
         ret = [n for n, p in self.properties.items() if p.get(BundleProperty.REQUIRED, False) and not hasattr(self, n)]
-        warnings.warn(f"Loaded bundle does not contain the following required properties: {ret}")
+        if ret:
+            warnings.warn(f"Loaded bundle does not contain the following required properties: {ret}")
         return ret
 
 
 class ConfigWorkflow(BundleWorkflow):
+    """
+    Specification for the config-based bundle workflow.
+    Standardized the `initialize`, `run`, `finalize` behavior in a config-based training, evaluation, or infefence.
+
+    Args:
+        run_id: ID name of the expected config expression to run, default to "run".
+        init_id: ID name of the expected config expression to initialize before running, default to "initialize".
+        final_id: ID name of the expected config expression to finalize after running, default to "finalize".
+        meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
+            Default to "configs/metadata.json", which is commonly used for bundles in MONAI model zoo.
+        config_file: filepath of the config file, if it is a list of file paths, the content of them will be merged.
+        logging_file: config file for `logging` module in the program. for more details:
+            https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
+            Default to "configs/logging.conf", which is commonly used for bundles in MONAI model zoo.
+        tracking: enable the experiment tracking feature at runtime with optionally configurable and extensible.
+            if "mlflow", will add `MLFlowHandler` to the parsed bundle with default logging settings,
+            if other string, treat it as file path to load the logging settings, if `dict`,
+            treat it as logging settings, otherwise, use all the default settings.
+            will patch the target config content with `tracking handlers` and the top-level items of `configs`.
+            example of customized settings:
+
+            .. code-block:: python
+
+                tracking = {
+                    "handlers_id": {
+                        "trainer": {"id": "train#trainer", "handlers": "train#handlers"},
+                        "validator": {"id": "evaluate#evaluator", "handlers": "evaluate#handlers"},
+                        "evaluator": {"id": "evaluator", "handlers": "handlers"},
+                    },
+                    "configs": {
+                        "tracking_uri": "<path>",
+                        "experiment_name": "monai_experiment",
+                        "run_name": None,
+                        "is_not_rank0": (
+                            "$torch.distributed.is_available() \
+                                and torch.distributed.is_initialized() and torch.distributed.get_rank() > 0"
+                        ),
+                        "trainer": {
+                            "_target_": "MLFlowHandler",
+                            "_disabled_": "@is_not_rank0",
+                            "tracking_uri": "@tracking_uri",
+                            "experiment_name": "@experiment_name",
+                            "run_name": "@run_name",
+                            "iteration_log": True,
+                            "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
+                            "close_on_complete": True,
+                        },
+                        "validator": {
+                            "_target_": "MLFlowHandler",
+                            "_disabled_": "@is_not_rank0",
+                            "tracking_uri": "@tracking_uri",
+                            "experiment_name": "@experiment_name",
+                            "run_name": "@run_name",
+                            "iteration_log": False,
+                        },
+                        "evaluator": {
+                            "_target_": "MLFlowHandler",
+                            "_disabled_": "@is_not_rank0",
+                            "tracking_uri": "@tracking_uri",
+                            "experiment_name": "@experiment_name",
+                            "run_name": "@run_name",
+                            "iteration_log": False,
+                            "close_on_complete": True,
+                        },
+                    },
+                },
+
+        override: id-value pairs to override or add the corresponding config content.
+            e.g. ``--net#input_chns 42``.
+        workflow: specifies the workflow type: "train" or "training" for a training workflow,
+            or "infer", "inference", "eval", "evaluation" for a inference workflow,
+            other unsupported string will raise a ValueError.
+            default to `None` for common workflow.
+
+    """
+
     def __init__(
         self,
         config_file: str | Sequence[str],
@@ -111,7 +228,7 @@ class ConfigWorkflow(BundleWorkflow):
         final_id: str = "finalize",
         tracking: str | dict | None = None,
         workflow: str | None = None,
-        **override,
+        **override: dict,
     ) -> None:
         super().__init__(workflow=workflow)
         if logging_file is not None:
@@ -127,7 +244,7 @@ class ConfigWorkflow(BundleWorkflow):
         self.parser = ConfigParser()
         self.parser.read_config(f=config_file)
         if meta_file is not None:
-            if not os.path.exists(meta_file):
+            if isinstance(meta_file, str) and not os.path.exists(meta_file):
                 if meta_file == "configs/metadata.json":
                     warnings.warn("Default metadata file in 'configs/metadata.json' does not exist, skipping loading.")
                 else:
@@ -149,19 +266,37 @@ class ConfigWorkflow(BundleWorkflow):
             self.patch_bundle_tracking(parser=self.parser, settings=settings_)
 
     def initialize(self) -> Any:
+        """
+        Initialize the bundle workflow before running.
+
+        """
         # reset the "reference_resolver" buffer at initialization stage
         self.parser.parse(reset=True)
         return self._run_expr(id=self.init_id)
 
     def run(self) -> Any:
+        """
+        Run the bundle workflow, it can be a training, evaluation or inference.
+
+        """
         return self._run_expr(id=self.run_id)
 
     def finalize(self) -> Any:
+        """
+        Finalize step after the running of bundle workflow.
+
+        """
         return self._run_expr(id=self.final_id)
 
     def check_properties(self) -> list[str] | None:
+        """
+        Check whether the required properties are existing in the bundle workflow.
+        If the optional properties have reference in the config, will also check whether the properties are exising.
+        If no workflow type specified, return None, otherwise, return a list of required but missing properites.
+
+        """
         ret = super().check_properties()
-        if ret is None:
+        if self.properties is None:
             return None
         # also check whether the optional properties use correct ID name if existing
         wrong_props = []
@@ -170,10 +305,11 @@ class ConfigWorkflow(BundleWorkflow):
                 wrong_props.append(n)
         if wrong_props:
             warnings.warn(f"Loaded bundle defines the following optional properties with wrong ID: {wrong_props}")
-        ret.extend(wrong_props)
+        if ret is not None:
+            ret.extend(wrong_props)
         return ret
 
-    def _run_expr(self, id: str, **kwargs) -> Any:
+    def _run_expr(self, id: str, **kwargs: dict) -> Any:
         return self.parser.get_parsed_content(id, **kwargs) if id in self.parser else None
 
     def _get_prop_id(self, name: str, property: dict) -> Any:
@@ -185,20 +321,47 @@ class ConfigWorkflow(BundleWorkflow):
                 raise KeyError(f"Property '{name}' with config ID '{prop_id}' not in the config.")
         return prop_id
 
-    def _get_property(self, name: str, property: dict):
+    def _get_property(self, name: str, property: dict) -> Any:
+        """
+        With specified property name and information, get the parsed property value from config.
+
+        Args:
+            name: the name of target property.
+            property: other information for the target property, defined in `TrainProperties` or `InferProperties`.
+
+        """
         if not self.parser.ref_resolver.is_resolved():
             raise RuntimeError("Please execute 'initialize' before getting any parsed content.")
         prop_id = self._get_prop_id(name, property)
         return self.parser.get_parsed_content(id=prop_id) if prop_id is not None else None
 
-    def _set_property(self, name: str, property: dict, value: Any):
+    def _set_property(self, name: str, property: dict, value: Any) -> None:
+        """
+        With specified property name and information, set value for the expected property.
+
+        Args:
+            name: the name of target property.
+            property: other information for the target property, defined in `TrainProperties` or `InferProperties`.
+            value: value to set for the property.
+
+        """
         prop_id = self._get_prop_id(name, property)
         if prop_id is not None:
             self.parser[prop_id] = value
             # must parse the config again after changing the content
             self.parser.ref_resolver.reset()
 
-    def _check_optional_id(self, name: str, property: dict):
+    def _check_optional_id(self, name: str, property: dict) -> bool:
+        """
+        If an optional property has reference in the config, check whether the property is exising.
+        If `ValidationHandler` is defined for a training workflow, will check whether the optional properties
+        "evaluator" and "val_interval" are existing.
+
+        Args:
+            name: the name of target property.
+            property: other information for the target property, defined in `TrainProperties` or `InferProperties`.
+
+        """
         id = property.get(BundlePropertyConfig.ID, None)
         ref_id = property.get(BundlePropertyConfig.REF_ID, None)
         if ref_id is None:
@@ -209,18 +372,15 @@ class ConfigWorkflow(BundleWorkflow):
             if "train#handlers" in self.parser:
                 for h in self.parser["train#handlers"]:
                     if h["_target_"] == "ValidationHandler":
-                        arg_name = h.get(ref_id, None)
-                        if arg_name != id:
-                            return False
-            return True
-        ref = self.parser.get(ref_id, None)
+                        ref = h.get(ref_id, None)
+        else:
+            ref = self.parser.get(ref_id, None)
         if ref is not None and ref != "@" + id:
             return False
         return True
 
-    # TODO: this function is called by MONAI FL, will update it after updated MONAI FL
     @staticmethod
-    def patch_bundle_tracking(parser: ConfigParser, settings: dict):
+    def patch_bundle_tracking(parser: ConfigParser, settings: dict) -> None:
         """
         Patch the loaded bundle config with a new handler logic to enable experiment tracking features.
 
