@@ -188,7 +188,7 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, spatial_size, kwargs: 
     }
 
     axes = requires_interp(matrix, atol=atol)
-    if axes is not None and mode == "auto":
+    if axes is not None and mode == "auto" and not init_kwargs["align_corners"]:
         matrix_np = np.round(convert_to_numpy(matrix, wrap_sequence=True))
         full_transpose = np.argsort(axes).tolist()
         if not np.allclose(full_transpose, np.arange(len(full_transpose))):
