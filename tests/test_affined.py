@@ -178,9 +178,9 @@ class TestAffined(unittest.TestCase):
 
         # test lazy
         lazy_input_param = input_param.copy()
-        # TODO: need to add False after solving align corners issue
+        # TODO: need to add True after solving align corners issue
         # for align_corners in [True, False]:
-        for align_corners in [True]:
+        for align_corners in [False]:
             lazy_input_param["align_corners"] = align_corners
             resampler = Affined(**lazy_input_param)
             call_param = {"data": input_data}

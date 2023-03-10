@@ -702,7 +702,7 @@ class Affined(MapTransform, InvertibleTransform, LazyTransform):
         padding_mode: SequenceStr = GridSamplePadMode.REFLECTION,
         device: torch.device | None = None,
         dtype: DtypeLike | torch.dtype = np.float32,
-        align_corners: bool = True,
+        align_corners: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -749,7 +749,7 @@ class Affined(MapTransform, InvertibleTransform, LazyTransform):
             dtype: data type for resampling computation. Defaults to ``float32``.
                 If ``None``, use the data type of input data. To be compatible with other modules,
                 the output data type is always `float32`.
-            align_corners: Defaults to True.
+            align_corners: Defaults to False.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             allow_missing_keys: don't raise exception if key is missing.
         See also:
@@ -917,7 +917,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             # do the transform
             if do_resampling:
-                d[key] = self.rand_affine(d[key], mode=mode, padding_mode=padding_mode, grid=grid)  # type: ignore
+                d[key] = self.rand_affine(d[key], None, mode, padding_mode, True, grid)  # type: ignore
             else:
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta(), dtype=torch.float32)
             self._do_transform = do_resampling  # TODO: unify self._do_transform and do_resampling
