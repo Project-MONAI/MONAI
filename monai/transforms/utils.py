@@ -569,8 +569,9 @@ def generate_label_classes_crop_centers(
         raise ValueError(f"ratios should not contain negative number, got {ratios_}.")
 
     for i, array in enumerate(indices):
-        if len(array) == 0 and warn:
-            warnings.warn(f"no available indices of class {i} to crop, set the crop ratio of this class to zero.")
+        if len(array) == 0:
+            if warn:
+                warnings.warn(f"no available indices of class {i} to crop, set the crop ratio of this class to zero.")
             ratios_[i] = 0
 
     centers = []
