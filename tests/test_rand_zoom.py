@@ -26,13 +26,14 @@ from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose
 VALID_CASES = [
     (0.8, 1.2, "nearest", False),
     (0.8, 1.2, InterpolateMode.NEAREST, False),
-    (0.8, 1.2, InterpolateMode.BILINEAR, False),
+    (0.8, 1.2, InterpolateMode.BILINEAR, False, True),
+    (0.8, 1.2, InterpolateMode.BILINEAR, False, False),
 ]
 
 
 class TestRandZoom(NumpyImageTestCase2D):
     @parameterized.expand(VALID_CASES)
-    def test_correct_results(self, min_zoom, max_zoom, mode, keep_size):
+    def test_correct_results(self, min_zoom, max_zoom, mode, keep_size, align_corners=None):
         for p in TEST_NDARRAYS_ALL:
             init_param = {
                 "prob": 1.0,
@@ -41,6 +42,7 @@ class TestRandZoom(NumpyImageTestCase2D):
                 "mode": mode,
                 "keep_size": keep_size,
                 "dtype": torch.float64,
+                "align_corners": align_corners
             }
             random_zoom = RandZoom(**init_param)
             random_zoom.set_random_state(1234)

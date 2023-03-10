@@ -23,16 +23,22 @@ from monai.transforms import Zoom
 from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose, test_local_inversion
 
-VALID_CASES = [(1.5, "nearest"), (1.5, "nearest"), (0.8, "bilinear"), (1.5, "bilinear"), (0.8, "area")]
+VALID_CASES = [(1.5, "nearest"), (0.5, "nearest"), (0.8, "bilinear", True), (1.5, "bilinear", False), (0.8, "area")]
 
 INVALID_CASES = [((None, None), "bilinear", TypeError), ((0.9, 0.9), "s", ValueError)]
 
 
 class TestZoom(NumpyImageTestCase2D):
     @parameterized.expand(VALID_CASES)
-    def test_correct_results(self, zoom, mode):
+    def test_correct_results(self, zoom, mode, align_corners=None):
         for p in TEST_NDARRAYS_ALL:
-            init_param = {"zoom": zoom, "mode": mode, "keep_size": False, "dtype": torch.float64}
+            init_param = {
+                "zoom": zoom,
+                "mode": mode,
+                "keep_size": False,
+                "dtype": torch.float64,
+                "align_corners": align_corners
+            }
             zoom_fn = Zoom(**init_param)
             im = p(self.imt[0])
             call_param = {"img": im}

@@ -61,6 +61,7 @@ def spatial_resample(
     Functional implementation of resampling the input image to the specified ``dst_affine`` matrix and ``spatial_size``.
     This function operates eagerly or lazily according to
     ``transform_info[TraceKeys.LAZY_EVALUATION]`` (default ``False``).
+
     Args:
         img: data to be resampled, assuming `img` is channel-first.
         dst_affine: target affine matrix, if None, use the input affine matrix, effectively no resampling.
