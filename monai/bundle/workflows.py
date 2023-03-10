@@ -78,15 +78,22 @@ class BundleWorkflow(ABC):
     Args:
         workflow: specifies the workflow type: "train" or "training" for a training workflow,
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
-            anything else will raise a ValueError.
+            other unsupported string will raise a ValueError.
+            default to `None` for common workflow.
 
     """
 
-    def __init__(self, workflow: str):
+    def __init__(self, workflow: str | None = None):
+        if workflow is None:
+            self.properties = None
+            self.workflow = None
+            return
         if workflow.lower() in ("train", "training"):
             self.properties = TrainProperties
+            self.workflow = "train"
         elif workflow.lower() in ("infer", "inference", "eval", "evaluation"):
             self.properties = InferProperties
+            self.workflow = "infer"
         else:
             raise ValueError(f"Unsupported workflow type: '{workflow}'.")
 
@@ -122,16 +129,21 @@ class BundleWorkflow(ABC):
         else:
             super().__setattr__(name, value)  # setting regular attribute
 
-    def check_properties(self):
-        missing_props = [n for n, p in self.properties.items() if p[BundleProperty.REQUIRED] and not hasattr(self, n)]
-        if missing_props:
-            raise ValueError(f"Loaded bundle does not contain the following required properties: {missing_props}")
+    def get_workflow_type(self):
+        return self.workflow
+
+    def check_properties(self) -> list[str] | None:
+        if self.get_workflow_type() is None:
+            warnings.warn("No available properties had been set, skipping check.")
+            return None
+        ret = [n for n, p in self.properties.items() if p.get(BundleProperty.REQUIRED, False) and not hasattr(self, n)]
+        warnings.warn(f"Loaded bundle does not contain the following required properties: {ret}")
+        return ret
 
 
 class ConfigWorkflow(BundleWorkflow):
     def __init__(
         self,
-        workflow: str,
         config_file: str | Sequence[str],
         meta_file: str | Sequence[str] | None = "configs/metadata.json",
         logging_file: str | None = "configs/logging.conf",
@@ -139,6 +151,7 @@ class ConfigWorkflow(BundleWorkflow):
         run_id: str = "run",
         final_id: str = "finalize",
         tracking: str | dict | None = None,
+        workflow: str | None = None,
         **override,
     ) -> None:
         super().__init__(workflow=workflow)
@@ -187,22 +200,27 @@ class ConfigWorkflow(BundleWorkflow):
     def finalize(self) -> Any:
         return self._run_expr(id=self.final_id)
 
-    def check_properties(self):
-        super().check_properties()
+    def check_properties(self) -> list[str] | None:
+        ret = super().check_properties()
+        if ret is None:
+            return None
         # also check whether the optional properties use correct ID name if existing
         wrong_props = []
         for n, p in self.properties.items():
-            if not p[BundleProperty.REQUIRED] and not self._check_optional_id(name=n, property=p):
+            if not p.get(BundleProperty.REQUIRED, False) and not self._check_optional_id(name=n, property=p):
                 wrong_props.append(n)
         if wrong_props:
-            raise ValueError(f"Loaded bundle defines the following optional properties with wrong ID: {wrong_props}")
+            warnings.warn(f"Loaded bundle defines the following optional properties with wrong ID: {wrong_props}")
         # check validation `interval` property
         if "train#handlers" in self.parser:
             for h in self.parser["train#handlers"]:
                 if h["_target_"] == "ValidationHandler":
                     interval = h.get("interval", None)
                     if interval not in (None, "val_interval"):
-                        raise ValueError("Validation interval in training must be defined with ID 'val_interval'.")
+                        warnings.warn("Validation interval in training must be defined with ID 'val_interval'.")
+                        wrong_props.append("val_interval")
+        ret.extend(wrong_props)
+        return ret
 
     def _run_expr(self, id: str, **kwargs) -> Any:
         return self.parser.get_parsed_content(id, **kwargs) if id in self.parser else None
@@ -210,7 +228,7 @@ class ConfigWorkflow(BundleWorkflow):
     def _get_prop_id(self, name: str, property: dict) -> Any:
         prop_id = property[BundlePropertyConfig.ID]
         if prop_id not in self.parser:
-            if not property[BundleProperty.REQUIRED]:
+            if not property.get(BundleProperty.REQUIRED, False):
                 return None
             else:
                 raise KeyError(f"Property '{name}' with config ID '{prop_id}' not in the config.")
