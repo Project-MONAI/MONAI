@@ -395,7 +395,6 @@ def rotate90(img, axes, k, transform_info):
     Args:
         img: data to be changed, assuming `img` is channel-first.
         axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
-                Default: (0, 1), this is the first two axis in spatial dimensions.
                 If axis is negative it counts from the last to the first axis.
         k: number of times to rotate by 90 degrees.
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
@@ -449,13 +448,13 @@ def affine_func(img, affine, grid, resampler, sp_size, mode, padding_mode, do_re
         resampler: resampler function.
         sp_size: output image spatial size.
         mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
-            Interpolation mode to calculate output values. Defaults to ``self.mode``.
+            Interpolation mode to calculate output values.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
             and the value represents the order of the spline interpolation.
             See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
         padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
-            Padding mode for outside grid values. Defaults to ``self.padding_mode``.
+            Padding mode for outside grid values.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             When `mode` is an integer, using numpy/cupy backends, this argument accepts
             {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.

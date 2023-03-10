@@ -178,6 +178,8 @@ class TestAffined(unittest.TestCase):
 
         # test lazy
         lazy_input_param = input_param.copy()
+        # TODO: need to add False after solving align corners issue
+        # for align_corners in [True, False]:
         for align_corners in [True]:
             lazy_input_param["align_corners"] = align_corners
             resampler = Affined(**lazy_input_param)
