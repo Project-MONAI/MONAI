@@ -63,7 +63,7 @@ class EnsureSameShaped(MapTransform):
                     msg = f"The {key} with shape {label_shape} was resized to match the source shape {image_shape}"
                     if hasattr(d[key], "meta") and isinstance(d[key].meta, Mapping):  # type: ignore[attr-defined]
                         filename = d[key].meta.get(ImageMetaKey.FILENAME_OR_OBJ)  # type: ignore[attr-defined]
-                        msg += f", the meta-data was not updated: {filename}"
+                        msg += f", the metadata was not updated: filename={filename}"
                     warnings.warn(msg)
                     d[key] = torch.nn.functional.interpolate(
                         input=d[key].unsqueeze(0),
