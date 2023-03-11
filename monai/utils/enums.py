@@ -571,6 +571,7 @@ class ImageStatsKeys(StrEnum):
     CHANNELS = "channels"
     CROPPED_SHAPE = "cropped_shape"
     SPACING = "spacing"
+    SIZEMM = "sizemm"
     INTENSITY = "intensity"
     HISTOGRAM = "histogram"
 

@@ -115,11 +115,11 @@ class DataAnalyzer:
         self,
         datalist: str | dict,
         dataroot: str = "",
-        output_path: str = "./data_stats.yaml",
+        output_path: str = "./datastats.yaml",
         average: bool = True,
         do_ccp: bool = False,
         device: str | torch.device = "cpu",
-        worker: int = 2,
+        worker: int = 4,
         image_key: str = "image",
         label_key: str | None = "label",
         hist_bins: list | int | None = 0,
@@ -209,7 +209,7 @@ class DataAnalyzer:
         keys = list(filter(None, [self.image_key, self.label_key]))
         if transform_list is None:
             transform_list = [
-                LoadImaged(keys=keys, ensure_channel_first=True),
+                LoadImaged(keys=keys, ensure_channel_first=True, image_only=True),
                 EnsureTyped(keys=keys, data_type="tensor", dtype=torch.float),
                 Orientationd(keys=keys, axcodes="RAS"),
             ]
@@ -227,8 +227,9 @@ class DataAnalyzer:
 
         files, _ = datafold_read(datalist=self.datalist, basedir=self.dataroot, fold=-1, key=key)
         dataset = Dataset(data=files, transform=transform)
-        dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=self.worker, collate_fn=no_collation)
+        dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=self.worker, collate_fn=no_collation,  pin_memory=self.device.type=='cuda')
         result: dict[DataStatsKeys, Any] = {DataStatsKeys.SUMMARY: {}, DataStatsKeys.BY_CASE: []}
+        result_bycase: dict[DataStatsKeys, Any] = {DataStatsKeys.SUMMARY: {}, DataStatsKeys.BY_CASE: []}
 
         if not has_tqdm:
             warnings.warn("tqdm is not installed. not displaying the caching progress.")
@@ -259,16 +260,24 @@ class DataAnalyzer:
                         DataStatsKeys.LABEL_STATS: d[DataStatsKeys.LABEL_STATS],
                     }
                 )
-            result[DataStatsKeys.BY_CASE].append(stats_by_cases)
+            result_bycase[DataStatsKeys.BY_CASE].append(stats_by_cases)
+        
+        n_cases = len(result_bycase[DataStatsKeys.BY_CASE])
 
-        result[DataStatsKeys.SUMMARY] = summarizer.summarize(cast(list, result[DataStatsKeys.BY_CASE]))
+        result[DataStatsKeys.SUMMARY] = summarizer.summarize(cast(list, result_bycase[DataStatsKeys.BY_CASE]))
+        result[DataStatsKeys.SUMMARY]["n_cases"] = n_cases
+        result[DataStatsKeys.BY_CASE] = [None] * n_cases
 
         if not self._check_data_uniformity([ImageStatsKeys.SPACING], result):
             print("Data spacing is not completely uniform. MONAI transforms may provide unexpected result")
 
         if self.output_path:
+            #saving summary and by_case as 2 files, to minimize loading time when only the summary is necessary
             ConfigParser.export_config_file(
                 result, self.output_path, fmt=self.fmt, default_flow_style=None, sort_keys=False
+            )
+            ConfigParser.export_config_file(
+                result_bycase, self.output_path.replace('.yaml', '_by_case.yaml'), fmt=self.fmt, default_flow_style=None, sort_keys=False
             )
 
         # release memory

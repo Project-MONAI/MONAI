@@ -20,7 +20,7 @@ import torch
 from monai.config import KeysCollection
 from monai.networks.utils import pytorch_after
 from monai.transforms import MapTransform
-
+from monai.utils.misc import ImageMetaKey
 
 class EnsureSameShaped(MapTransform):
     """
@@ -61,7 +61,7 @@ class EnsureSameShaped(MapTransform):
                 if np.allclose(list(label_shape), list(image_shape), atol=self.allowed_shape_difference):
                     warnings.warn(
                         f"The {key} with shape {label_shape} was resized to match the source shape {image_shape},"
-                        f"the meta-data was not updated."
+                        f"the meta-data was not updated: {d[key].meta[ImageMetaKey.FILENAME_OR_OBJ]}"
                     )
                     d[key] = torch.nn.functional.interpolate(
                         input=d[key].unsqueeze(0),
