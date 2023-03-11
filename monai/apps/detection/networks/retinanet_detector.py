@@ -9,11 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 # =========================================================================
 # Adapted from https://github.com/pytorch/vision/blob/main/torchvision/models/detection/retinanet.py
 # which has the following license...
 # https://github.com/pytorch/vision/blob/main/LICENSE
-
 # BSD 3-Clause License
 
 # Copyright (c) Soumith Chintala 2016,

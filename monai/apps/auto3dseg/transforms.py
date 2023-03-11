@@ -22,6 +22,7 @@ from monai.networks.utils import pytorch_after
 from monai.transforms import MapTransform
 from monai.utils.misc import ImageMetaKey
 
+
 class EnsureSameShaped(MapTransform):
     """
     Checks if segmentation label images (in keys) have the same spatial shape as the main image (in source_key),

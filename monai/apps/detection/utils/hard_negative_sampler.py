@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 # =========================================================================
 # Adapted from https://github.com/MIC-DKFZ/nnDetection/blob/main/nndet/core/boxes/sampler.py
 # which has the following license...

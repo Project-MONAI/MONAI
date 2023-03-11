@@ -256,7 +256,8 @@ class ImageStats(Analyzer):
         )
 
         report[ImageStatsKeys.SIZEMM] = [
-            np.multiply(x,y).astype(int, copy=False).tolist() for x,y in zip(report[ImageStatsKeys.SHAPE],report[ImageStatsKeys.SPACING])
+            np.multiply(x, y).astype(int, copy=False).tolist()
+            for x, y in zip(report[ImageStatsKeys.SHAPE], report[ImageStatsKeys.SPACING])
         ]
 
         report[ImageStatsKeys.INTENSITY] = [
@@ -590,7 +591,13 @@ class ImageStatsSumm(Analyzer):
 
         report = deepcopy(self.get_report_format())
 
-        for k in [ImageStatsKeys.SHAPE, ImageStatsKeys.CHANNELS, ImageStatsKeys.CROPPED_SHAPE, ImageStatsKeys.SPACING, ImageStatsKeys.SIZEMM]:
+        for k in [
+            ImageStatsKeys.SHAPE,
+            ImageStatsKeys.CHANNELS,
+            ImageStatsKeys.CROPPED_SHAPE,
+            ImageStatsKeys.SPACING,
+            ImageStatsKeys.SIZEMM,
+        ]:
             v_np = concat_val_to_np(data, [self.stats_name, k])
             report[k] = self.ops[k].evaluate(v_np, dim=(0, 1) if v_np.ndim > 2 and self.summary_average else 0)
 

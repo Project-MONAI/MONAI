@@ -9,12 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 # =========================================================================
 # Adapted from https://github.com/vqdang/hover_net
 # which has the following license:
 # https://github.com/vqdang/hover_net/blob/master/LICENSE
 # MIT License
-
 # Original publication:
 #  @article{graham2019hover,
 #    title={Hover-net: Simultaneous segmentation and classification of nuclei in multi-tissue histology images},

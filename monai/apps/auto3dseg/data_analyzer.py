@@ -227,7 +227,14 @@ class DataAnalyzer:
 
         files, _ = datafold_read(datalist=self.datalist, basedir=self.dataroot, fold=-1, key=key)
         dataset = Dataset(data=files, transform=transform)
-        dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=self.worker, collate_fn=no_collation,  pin_memory=self.device.type=='cuda')
+        dataloader = DataLoader(
+            dataset,
+            batch_size=1,
+            shuffle=False,
+            num_workers=self.worker,
+            collate_fn=no_collation,
+            pin_memory=self.device.type == "cuda",
+        )
         result: dict[DataStatsKeys, Any] = {DataStatsKeys.SUMMARY: {}, DataStatsKeys.BY_CASE: []}
         result_bycase: dict[DataStatsKeys, Any] = {DataStatsKeys.SUMMARY: {}, DataStatsKeys.BY_CASE: []}
 
@@ -261,7 +268,7 @@ class DataAnalyzer:
                     }
                 )
             result_bycase[DataStatsKeys.BY_CASE].append(stats_by_cases)
-        
+
         n_cases = len(result_bycase[DataStatsKeys.BY_CASE])
 
         result[DataStatsKeys.SUMMARY] = summarizer.summarize(cast(list, result_bycase[DataStatsKeys.BY_CASE]))
@@ -272,12 +279,16 @@ class DataAnalyzer:
             print("Data spacing is not completely uniform. MONAI transforms may provide unexpected result")
 
         if self.output_path:
-            #saving summary and by_case as 2 files, to minimize loading time when only the summary is necessary
+            # saving summary and by_case as 2 files, to minimize loading time when only the summary is necessary
             ConfigParser.export_config_file(
                 result, self.output_path, fmt=self.fmt, default_flow_style=None, sort_keys=False
             )
             ConfigParser.export_config_file(
-                result_bycase, self.output_path.replace('.yaml', '_by_case.yaml'), fmt=self.fmt, default_flow_style=None, sort_keys=False
+                result_bycase,
+                self.output_path.replace(".yaml", "_by_case.yaml"),
+                fmt=self.fmt,
+                default_flow_style=None,
+                sort_keys=False,
             )
 
         # release memory
