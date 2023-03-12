@@ -22,6 +22,7 @@ pandas
 einops
 transformers<4.22  # https://github.com/Project-MONAI/MONAI/issues/5157
 mlflow>=1.28.0
+clearml >=1.10.0rc0
 tensorboardX
 imagecodecs; platform_system == "Linux" or platform_system == "Darwin"
 tifffile; platform_system == "Linux" or platform_system == "Darwin"

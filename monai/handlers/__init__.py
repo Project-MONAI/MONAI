@@ -14,6 +14,7 @@ from __future__ import annotations
 from .checkpoint_loader import CheckpointLoader
 from .checkpoint_saver import CheckpointSaver
 from .classification_saver import ClassificationSaver
+from .clearml_handlers import ClearMLHandler, ClearMLImageHandler, ClearMLStatsHandler
 from .confusion_matrix import ConfusionMatrix
 from .decollate_batch import DecollateBatch
 from .earlystop_handler import EarlyStopHandler
