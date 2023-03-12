@@ -295,14 +295,16 @@ class SupervisedEvaluator(Evaluator):
 
         # put iteration outputs into engine.state
         engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
-
-        # execute forward computation
-        with engine.mode(engine.network):
-            if engine.amp:
-                with torch.cuda.amp.autocast(**engine.amp_kwargs):
+        if hasattr(engine.network, "training"):
+            # execute forward computation
+            with engine.mode(engine.network):
+                if engine.amp:
+                    with torch.cuda.amp.autocast(**engine.amp_kwargs):
+                        engine.state.output[Keys.PRED] = engine.inferer(inputs, engine.network, *args, **kwargs)
+                else:
                     engine.state.output[Keys.PRED] = engine.inferer(inputs, engine.network, *args, **kwargs)
-            else:
-                engine.state.output[Keys.PRED] = engine.inferer(inputs, engine.network, *args, **kwargs)
+        else:
+            engine.state.output[Keys.PRED] = engine.inferer(inputs, engine.network, *args, **kwargs)
         engine.fire_event(IterationEvents.FORWARD_COMPLETED)
         engine.fire_event(IterationEvents.MODEL_COMPLETED)
 
