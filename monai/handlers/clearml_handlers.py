@@ -17,11 +17,6 @@ from monai.utils import optional_import
 
 from .tensorboard_handlers import TensorBoardImageHandler, TensorBoardStatsHandler
 
-if TYPE_CHECKING:
-    from clearml import Task
-else:
-    Task, _ = optional_import("clearml", name="Task")
-
 
 class ClearMLHandler:
     """
@@ -58,6 +53,11 @@ class ClearMLHandler:
 
         """
 
+        if TYPE_CHECKING:
+            from clearml import Task
+        else:
+            Task, _ = optional_import("clearml", name="Task")
+
         if Task.current_task():
             self.clearml_task = Task.current_task()
         else:
@@ -69,6 +69,7 @@ class ClearMLHandler:
                 reuse_last_task_id=reuse_last_task_id,
                 continue_last_task=continue_last_task,
                 auto_connect_frameworks=auto_connect_frameworks,
+                auto_connect_arg_parser=auto_connect_arg_parser,
             )
 
 
