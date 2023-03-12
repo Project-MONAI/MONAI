@@ -58,6 +58,8 @@ class ClearMLHandler:
         else:
             Task, _ = optional_import("clearml", name="Task")
 
+        # Always check if the user didn't already add a `task.init`` in before
+        # if so, use that task, otherwise create a new one.
         if Task.current_task():
             self.clearml_task = Task.current_task()
         else:
