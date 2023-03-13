@@ -147,7 +147,9 @@ def crop_or_pad_nd(img: torch.Tensor, translation_mat, spatial_size: tuple[int, 
     return img
 
 
-def pad_func(img: torch.Tensor, to_pad: list[tuple[int, int]], mode: str, transform_info: dict, kwargs):
+def pad_func(
+    img: torch.Tensor, to_pad: tuple[tuple[int, int]], mode: str, transform_info: dict, kwargs
+) -> torch.Tensor:
     """
     Functional implementation of padding a MetaTensor. This function operates eagerly or lazily according
     to ``transform_info[TraceKeys.LAZY_EVALUATION]`` (default ``False``).
@@ -166,17 +168,17 @@ def pad_func(img: torch.Tensor, to_pad: list[tuple[int, int]], mode: str, transf
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
     """
-    extra_info = {"padded": to_pad, "mode": str(mode)}
+    extra_info = {"padded": to_pad, "mode": f"{mode}"}
     img_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
     spatial_rank = img.peek_pending_rank() if isinstance(img, MetaTensor) else 3
     do_pad = np.asarray(to_pad).any()
     if do_pad:
-        to_pad = list(to_pad)
-        if len(to_pad) < len(img.shape):
-            to_pad = list(to_pad) + [(0, 0)] * (len(img.shape) - len(to_pad))
-        to_shift = [-s[0] for s in to_pad[1:]]  # skipping the channel pad
+        to_pad_list = [(int(p[0]), int(p[1])) for p in to_pad]
+        if len(to_pad_list) < len(img.shape):
+            to_pad_list += [(0, 0)] * (len(img.shape) - len(to_pad_list))
+        to_shift = [-s[0] for s in to_pad_list[1:]]  # skipping the channel pad
         xform = create_translate(spatial_rank, to_shift)
-        shape = [d + s + e for d, (s, e) in zip(img_size, to_pad[1:])]
+        shape = [d + s + e for d, (s, e) in zip(img_size, to_pad_list[1:])]
     else:
         shape = img_size
         xform = torch.eye(int(spatial_rank) + 1, device=torch.device("cpu"), dtype=torch.float64)
@@ -191,13 +193,13 @@ def pad_func(img: torch.Tensor, to_pad: list[tuple[int, int]], mode: str, transf
     )
     out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
     if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
-        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
-    out = pad_nd(out, to_pad, mode, **kwargs) if do_pad else out
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info  # type: ignore
+    out = pad_nd(out, to_pad_list, mode, **kwargs) if do_pad else out
     out = convert_to_tensor(out, track_meta=get_track_meta())
-    return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+    return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out  # type: ignore
 
 
-def crop_func(img: torch.Tensor, slices: tuple[slice, ...], transform_info: dict):
+def crop_func(img: torch.Tensor, slices: tuple[slice, ...], transform_info: dict) -> torch.Tensor:
     """
     Functional implementation of cropping a MetaTensor. This function operates eagerly or lazily according
     to ``transform_info[TraceKeys.LAZY_EVALUATION]`` (default ``False``).
@@ -229,6 +231,6 @@ def crop_func(img: torch.Tensor, slices: tuple[slice, ...], transform_info: dict
     )
     out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
     if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
-        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info  # type: ignore
     out = out[slices]
-    return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+    return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out  # type: ignore

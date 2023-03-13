@@ -193,7 +193,7 @@ class TraceableTransform(Transform):
                 return data
             return out_obj  # return with data_t as tensor if get_track_meta() is False
 
-        info = transform_info
+        info = transform_info.copy()
         # track the current spatial shape
         if orig_size is not None:
             info[TraceKeys.ORIG_SIZE] = orig_size
