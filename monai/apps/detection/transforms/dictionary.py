@@ -1071,7 +1071,7 @@ class RandCropBoxByPosNegLabeld(Randomizable, MapTransform):
         if len(self.image_keys) != len(self.meta_keys):
             raise ValueError("meta_keys should have the same length as keys.")
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.image_keys))
-        self.centers: list[list[int]] | None = None
+        self.centers: tuple[tuple] | None = None
         self.allow_smaller = allow_smaller
 
     def generate_fg_center_boxes_np(self, boxes: NdarrayOrTensor, image_size: Sequence[int]) -> np.ndarray:
