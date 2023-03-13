@@ -62,7 +62,7 @@ class TestFlipd(NumpyImageTestCase2D):
         init_param = {"keys": "image", "spatial_axis": spatial_axis}
         xform = Flipd(**init_param)
         call_param = {"data": {"image": img}}
-        res = xform(**call_param)
+        res = xform(**call_param)  # type: ignore
         self.assertEqual(img.shape, res["image"].shape)
         if track_meta:
             test_resampler_lazy(xform, res, init_param, call_param, output_key="image")

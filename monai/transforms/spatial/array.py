@@ -528,9 +528,12 @@ class Orientation(InvertibleTransform, LazyTransform):
             labels: optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
                 Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.
+
         Raises:
             ValueError: When ``axcodes=None`` and ``as_closest_canonical=True``. Incompatible values.
+
         See Also: `nibabel.orientations.ornt2axcodes`.
+
         """
         if axcodes is None and not as_closest_canonical:
             raise ValueError("Incompatible values: axcodes=None and as_closest_canonical=True.")
@@ -544,15 +547,19 @@ class Orientation(InvertibleTransform, LazyTransform):
         """
         If input type is `MetaTensor`, original affine is extracted with `data_array.affine`.
         If input type is `torch.Tensor`, original affine is assumed to be identity.
+
         Args:
             data_array: in shape (num_channels, H[, W, ...]).
+
         Raises:
             ValueError: When ``data_array`` has no spatial dimensions.
             ValueError: When ``axcodes`` spatiality differs from ``data_array``.
+
         Returns:
             data_array [reoriented in `self.axcodes`]. Output type will be `MetaTensor`
                 unless `get_track_meta() == False`, in which case it will be
                 `torch.Tensor`.
+
         """
         spatial_shape = data_array.peek_pending_shape() if isinstance(data_array, MetaTensor) else data_array.shape[1:]
         sr = len(spatial_shape)
@@ -669,7 +676,6 @@ class Resize(InvertibleTransform, LazyTransform):
             anti-aliasing is performed prior to rescaling.
         dtype: data type for resampling computation. Defaults to ``float32``.
             If None, use the data type of input data.
-
     """
 
     backend = [TransformBackends.TORCH]
@@ -790,6 +796,7 @@ class Resize(InvertibleTransform, LazyTransform):
 class Rotate(InvertibleTransform, LazyTransform):
     """
     Rotates an input image by given angle using :py:class:`monai.networks.layers.AffineTransform`.
+
     Args:
         angle: Rotation angle(s) in radians. should a float for 2D, three floats for 3D.
         keep_size: If it is True, the output shape is kept the same as the input.
@@ -850,8 +857,10 @@ class Rotate(InvertibleTransform, LazyTransform):
             dtype: data type for resampling computation. Defaults to ``self.dtype``.
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``float32``.
+
         Raises:
             ValueError: When ``img`` spatially is not one of [2D, 3D].
+
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         _dtype = get_equivalent_dtype(dtype or self.dtype or img.dtype, torch.Tensor)
@@ -1475,16 +1484,19 @@ class RandZoom(RandomizableTransform, InvertibleTransform, LazyTransform):
 class AffineGrid(LazyTransform):
     """
     Affine transforms on the coordinates.
+
     Args:
         rotate_params: a rotation angle in radians, a scalar for 2D image, a tuple of 3 floats for 3D.
             Defaults to no rotation.
         shear_params: shearing factors for affine matrix, take a 3D affine as example::
+
             [
                 [1.0, params[0], params[1], 0.0],
                 [params[2], 1.0, params[3], 0.0],
                 [params[4], params[5], 1.0, 0.0],
                 [0.0, 0.0, 0.0, 1.0],
             ]
+
             a tuple of 2 floats for 2D, a tuple of 6 floats for 3D. Defaults to no shearing.
         translate_params: a tuple of 2 floats for 2D, a tuple of 3 floats for 3D. Translation is in
             pixel/voxel relative to the center of the input image. Defaults to no translation.
@@ -1498,6 +1510,7 @@ class AffineGrid(LazyTransform):
         affine: If applied, ignore the params (`rotate_params`, etc.) and use the
             supplied matrix. Should be square with each side = num of image spatial
             dimensions + 1.
+
     """
 
     backend = [TransformBackends.TORCH]
@@ -1530,11 +1543,14 @@ class AffineGrid(LazyTransform):
         The grid can be initialized with a `spatial_size` parameter, or provided directly as `grid`.
         Therefore, either `spatial_size` or `grid` must be provided.
         When initialising from `spatial_size`, the backend "torch" will be used.
+
         Args:
             spatial_size: output grid size.
             grid: grid to be transformed. Shape must be (3, H, W) for 2D or (4, H, W, D) for 3D.
+
         Raises:
             ValueError: When ``grid=None`` and ``spatial_size=None``. Incompatible values.
+
         """
         if not self.lazy_evaluation:
             if grid is None:  # create grid from spatial_size
@@ -1581,6 +1597,7 @@ class AffineGrid(LazyTransform):
 class RandAffineGrid(Randomizable, LazyTransform):
     """
     Generate randomised affine grid.
+
     """
 
     backend = AffineGrid.backend
@@ -1605,12 +1622,14 @@ class RandAffineGrid(Randomizable, LazyTransform):
             shear_range: shear range with format matching `rotate_range`, it defines the range to randomly select
                 shearing factors(a tuple of 2 floats for 2D, a tuple of 6 floats for 3D) for affine matrix,
                 take a 3D affine as example::
+
                     [
                         [1.0, params[0], params[1], 0.0],
                         [params[2], 1.0, params[3], 0.0],
                         [params[4], params[5], 1.0, 0.0],
                         [0.0, 0.0, 0.0, 1.0],
                     ]
+
             translate_range: translate range with format matching `rotate_range`, it defines the range to randomly
                 select voxels to translate for every spatial dims.
             scale_range: scaling range with format matching `rotate_range`. it defines the range to randomly select
@@ -1619,11 +1638,13 @@ class RandAffineGrid(Randomizable, LazyTransform):
             device: device to store the output grid data.
             dtype: data type for the grid computation. Defaults to ``np.float32``.
                 If ``None``, use the data type of input data (if `grid` is provided).
+
         See also:
             - :py:meth:`monai.transforms.utils.create_rotate`
             - :py:meth:`monai.transforms.utils.create_shear`
             - :py:meth:`monai.transforms.utils.create_translate`
             - :py:meth:`monai.transforms.utils.create_scale`
+
         """
         self.rotate_range = ensure_tuple(rotate_range)
         self.shear_range = ensure_tuple(shear_range)
@@ -1664,6 +1685,7 @@ class RandAffineGrid(Randomizable, LazyTransform):
             spatial_size: output grid size.
             grid: grid to be transformed. Shape must be (3, H, W) for 2D or (4, H, W, D) for 3D.
             randomize: boolean as to whether the grid parameters governing the grid should be randomized.
+
         Returns:
             a 2D (3xHxW) or 3D (4xHxWxD) grid.
         """
@@ -1749,6 +1771,7 @@ class Resample(Transform):
         """
         computes output image using values from `img`, locations from `grid` using pytorch.
         supports spatially 2D or 3D (num_channels, H, W[, D]).
+
         Args:
             mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
@@ -1777,6 +1800,7 @@ class Resample(Transform):
             dtype: data type for resampling computation. Defaults to ``float64`` for best precision.
                 If ``None``, use the data type of input data. To be compatible with other modules,
                 the output data type is always `float32`.
+
         """
         self.mode = mode
         self.padding_mode = padding_mode
@@ -1822,6 +1846,7 @@ class Resample(Transform):
                 To be compatible with other modules, the output data type is always `float32`.
             align_corners: Defaults to ``self.align_corners``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+
         See also:
             :py:const:`monai.config.USE_COMPILED`
         """
@@ -1908,6 +1933,7 @@ class Affine(InvertibleTransform, LazyTransform):
     """
     Transform ``img`` given the affine parameters.
     A tutorial is available: https://github.com/Project-MONAI/tutorials/blob/0.6.0/modules/transforms_demo_2d.ipynb.
+
     """
 
     backend = list(set(AffineGrid.backend) & set(Resample.backend))
@@ -1930,16 +1956,19 @@ class Affine(InvertibleTransform, LazyTransform):
     ) -> None:
         """
         The affine transformations are applied in rotate, shear, translate, scale order.
+
         Args:
             rotate_params: a rotation angle in radians, a scalar for 2D image, a tuple of 3 floats for 3D.
                 Defaults to no rotation.
             shear_params: shearing factors for affine matrix, take a 3D affine as example::
+
                 [
                     [1.0, params[0], params[1], 0.0],
                     [params[2], 1.0, params[3], 0.0],
                     [params[4], params[5], 1.0, 0.0],
                     [0.0, 0.0, 0.0, 1.0],
                 ]
+
                 a tuple of 2 floats for 2D, a tuple of 6 floats for 3D. Defaults to no shearing.
             translate_params: a tuple of 2 floats for 2D, a tuple of 3 floats for 3D. Translation is in
                 pixel/voxel relative to the center of the input image. Defaults to no translation.
@@ -1978,6 +2007,7 @@ class Affine(InvertibleTransform, LazyTransform):
             align_corners: Defaults to False.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             image_only: if True return only the image volume, otherwise return (image, affine).
+
         """
         self.affine_grid = AffineGrid(
             rotate_params=rotate_params,
@@ -2092,6 +2122,7 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
     """
     Random affine transform.
     A tutorial is available: https://github.com/Project-MONAI/tutorials/blob/0.6.0/modules/transforms_demo_2d.ipynb.
+
     """
 
     backend = Affine.backend
@@ -2122,12 +2153,14 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
             shear_range: shear range with format matching `rotate_range`, it defines the range to randomly select
                 shearing factors(a tuple of 2 floats for 2D, a tuple of 6 floats for 3D) for affine matrix,
                 take a 3D affine as example::
+
                     [
                         [1.0, params[0], params[1], 0.0],
                         [params[2], 1.0, params[3], 0.0],
                         [params[4], params[5], 1.0, 0.0],
                         [0.0, 0.0, 0.0, 1.0],
                     ]
+
             translate_range: translate range with format matching `rotate_range`, it defines the range to randomly
                 select pixel/voxel to translate for every spatial dims.
             scale_range: scaling range with format matching `rotate_range`. it defines the range to randomly select
@@ -2155,9 +2188,11 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
                 If the spatial size is not dynamically defined by input image, enabling this option could
                 accelerate the transform.
             device: device on which the tensor will be allocated.
+
         See also:
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
+
         """
         RandomizableTransform.__init__(self, prob)
 
@@ -2208,6 +2243,7 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
     def get_identity_grid(self, spatial_size: Sequence[int]):
         """
         Return a cached or new identity grid depends on the availability.
+
         Args:
             spatial_size: non-dynamic spatial size
         """
@@ -2266,6 +2302,7 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             randomize: whether to execute `randomize()` function first, default to True.
             grid: precomputed grid to be used (mainly to accelerate `RandAffined`).
+
         """
         if randomize:
             self.randomize()

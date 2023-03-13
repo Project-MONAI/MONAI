@@ -599,6 +599,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform, La
 class Resized(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Resize`.
+
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
@@ -711,12 +712,14 @@ class Affined(MapTransform, InvertibleTransform, LazyTransform):
             rotate_params: a rotation angle in radians, a scalar for 2D image, a tuple of 3 floats for 3D.
                 Defaults to no rotation.
             shear_params: shearing factors for affine matrix, take a 3D affine as example::
+
                 [
                     [1.0, params[0], params[1], 0.0],
                     [params[2], 1.0, params[3], 0.0],
                     [params[4], params[5], 1.0, 0.0],
                     [0.0, 0.0, 0.0, 1.0],
                 ]
+
                 a tuple of 2 floats for 2D, a tuple of 6 floats for 3D. Defaults to no shearing.
             translate_params: a tuple of 2 floats for 2D, a tuple of 3 floats for 3D. Translation is in
                 pixel/voxel relative to the center of the input image. Defaults to no translation.
@@ -752,9 +755,11 @@ class Affined(MapTransform, InvertibleTransform, LazyTransform):
             align_corners: Defaults to False.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             allow_missing_keys: don't raise exception if key is missing.
+
         See also:
             - :py:class:`monai.transforms.compose.MapTransform`
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
+
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.affine = Affine(
@@ -831,12 +836,14 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
             shear_range: shear range with format matching `rotate_range`, it defines the range to randomly select
                 shearing factors(a tuple of 2 floats for 2D, a tuple of 6 floats for 3D) for affine matrix,
                 take a 3D affine as example::
+
                     [
                         [1.0, params[0], params[1], 0.0],
                         [params[2], 1.0, params[3], 0.0],
                         [params[4], params[5], 1.0, 0.0],
                         [0.0, 0.0, 0.0, 1.0],
                     ]
+
             translate_range: translate range with format matching `rotate_range`, it defines the range to randomly
                 select pixel/voxel to translate for every spatial dims.
             scale_range: scaling range with format matching `rotate_range`. it defines the range to randomly select
@@ -861,9 +868,11 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
                 accelerate the transform.
             device: device on which the tensor will be allocated.
             allow_missing_keys: don't raise exception if key is missing.
+
         See also:
             - :py:class:`monai.transforms.compose.MapTransform`
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
+
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
@@ -1371,6 +1380,7 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform, La
 class Rotated(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Rotate`.
+
     Args:
         keys: Keys to pick data for transformation.
         angle: Rotation angle(s) in radians.
