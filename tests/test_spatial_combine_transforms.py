@@ -26,6 +26,7 @@ from monai.transforms import (
     Randomizable,
     RandRotate,
     RandRotated,
+    RandSpatialCrop,
     RandZoom,
     RandZoomd,
     Resize,
@@ -42,25 +43,28 @@ TEST_2D = [
         [
             (Spacing, {"pixdim": (1.2, 1.5), "padding_mode": "zeros", "dtype": torch.float32}),
             (Orientation, {"axcodes": "RA"}),
-            (Resize, {"spatial_size": (32, 32), "mode": "bilinear"}),
-            # TODO: the RandAffine should also work?
+            (Resize, {"spatial_size": (48, 48), "mode": "bilinear"}),
+            (RandSpatialCrop, {"roi_size": (32, 32)}),
+            # TODO: the following transform should also work?
             # (RandAffine, {"prob": 0.9, "rotate_range": (np.pi / 2,), "shear_range": [1, 2], "translate_range": [2, 1], "mode": "bilinear"}),
             (RandFlip, {"prob": 0.9}),
             (RandRotate, {"prob": 0.9, "range_x": np.pi / 4}),
-            (RandZoom, {"prob": 0.9, "mode": "bilinear", "keep_size": False}),
+            (RandZoom, {"prob": 0.9, "mode": "bilinear", "keep_size": False, "align_corners": False}),
         ],
     ],
     [
         (2, 64, 64),
         [
+            # TODO: the following transform should also work?
+            # (RandSpatialCropd, {"roi_size": (32, 32), "keys": "img"}),
             (Spacingd, {"pixdim": (1.2, 1.5), "padding_mode": "zeros", "dtype": torch.float32, "keys": "img"}),
             (Orientationd, {"axcodes": "RA", "keys": "img"}),
-            (Resized, {"spatial_size": (32, 32), "mode": "bilinear", "keys": "img"}),
-            # TODO: the RandAffine should also work?
+            (Resized, {"spatial_size": (48, 48), "mode": "bilinear", "keys": "img"}),
+            # TODO: the following transform should also work?
             # (RandAffined, {"prob": 0.9, "rotate_range": (np.pi / 2,), "shear_range": [1, 2], "translate_range": [2, 1], "mode": "bilinear", "keys": "img"}),
             (RandFlipd, {"prob": 0.9, "keys": "img"}),
             (RandRotated, {"prob": 0.9, "range_x": np.pi / 4, "keys": "img"}),
-            (RandZoomd, {"prob": 0.9, "mode": "bilinear", "keep_size": False, "keys": "img"}),
+            (RandZoomd, {"prob": 0.9, "mode": "bilinear", "keep_size": False, "keys": "img", "align_corners": False}),
         ],
     ],
 ]
@@ -121,7 +125,12 @@ class CombineLazyTest(unittest.TestCase):
 
             assert_allclose(pending_result.peek_pending_affine(), expected.affine)
             assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:4])
-            # TODO: how to test final result?
+            # # TODO: how to test final result?
+            # init_param = funcs[-1][1]
+            # call_param = {}
+            # apply_param = get_apply_param(init_param, call_param)
+            # result = apply_transforms(pending_result, **apply_param)[0]
+            # assert_allclose(result, expected, atol=1e-5)
 
 
 if __name__ == "__main__":
