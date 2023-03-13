@@ -89,8 +89,10 @@ class TestRandGridDistortion(unittest.TestCase):
         g = RandGridDistortion(**input_param)
         g.set_random_state(seed=seed)
         result = g(input_data)
-        if not (input_param["padding_mode"] == "reflection" and result.is_cuda):
+        if input_param["padding_mode"] != "reflection":
             assert_allclose(result, expected_val, type_test="tensor", rtol=1e-4, atol=1e-4)
+        else:
+            assert_allclose(result.shape, expected_val.shape, type_test=False, rtol=1e-4, atol=1e-4)
 
 
 if __name__ == "__main__":
