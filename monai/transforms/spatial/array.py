@@ -285,11 +285,20 @@ class ResampleToMatch(SpatialResample):
             align_corners=align_corners,
             dtype=dtype,
         )
-        if isinstance(img, MetaTensor):
-            img.affine = dst_affine
-            if isinstance(img_dst, MetaTensor):
+        if not self.lazy_evaluation:
+            if isinstance(img, MetaTensor):
+                img.affine = dst_affine
+                if isinstance(img_dst, MetaTensor):
+                    original_fname = img.meta.get(Key.FILENAME_OR_OBJ, "resample_to_match_source")
+                    img.meta = deepcopy(img_dst.meta)
+                    img.meta[Key.FILENAME_OR_OBJ] = original_fname  # keep the original name, the others are overwritten
+        else:
+            if isinstance(img, MetaTensor) and isinstance(img_dst, MetaTensor):
                 original_fname = img.meta.get(Key.FILENAME_OR_OBJ, "resample_to_match_source")
-                img.meta = deepcopy(img_dst.meta)
+                meta_dict = deepcopy(img_dst.meta)
+                for k in ("affine", "spatial_shape"):  # keys that don't copy from img_dst in lazy evaluation
+                    meta_dict.pop(k, None)
+                img.meta.update(meta_dict)
                 img.meta[Key.FILENAME_OR_OBJ] = original_fname  # keep the original name, the others are overwritten
         return img
 
@@ -628,9 +637,7 @@ class Flip(InvertibleTransform, LazyTransform):
             img: channel first array, must have shape: (num_channels, H[, W, ..., ])
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
-        spatial_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
-        spatial_chn_shape = [1, *convert_to_numpy(spatial_shape, wrap_sequence=True).tolist()]
-        return flip(img, spatial_chn_shape, self.spatial_axis, transform_info=self.get_transform_info())  # type: ignore
+        return flip(img, self.spatial_axis, transform_info=self.get_transform_info())  # type: ignore
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         self.pop_transform(data)
