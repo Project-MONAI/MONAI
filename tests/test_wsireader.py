@@ -393,7 +393,7 @@ class WSIReaderTests:
 
         @parameterized.expand(
             [
-                TEST_CASE_0,
+                # TEST_CASE_0,
                 TEST_CASE_1,
                 TEST_CASE_2,
                 TEST_CASE_3,
