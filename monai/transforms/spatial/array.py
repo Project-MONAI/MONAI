@@ -275,11 +275,11 @@ class ResampleToMatch(SpatialResample):
         """
         if img_dst is None:
             raise RuntimeError("`img_dst` is missing.")
-        dst_affine = img_dst.affine if isinstance(img_dst, MetaTensor) else torch.eye(4)
+        dst_affine = img_dst.peek_pending_affine() if isinstance(img_dst, MetaTensor) else torch.eye(4)
         img = super().__call__(
             img=img,
             dst_affine=dst_affine,
-            spatial_size=img_dst.shape[1:],  # skip channel
+            spatial_size=img_dst.peek_pending_shape() if isinstance(img_dst, MetaTensor) else img_dst.shape[1:],
             mode=mode,
             padding_mode=padding_mode,
             align_corners=align_corners,
@@ -436,7 +436,9 @@ class Spacing(InvertibleTransform, LazyTransform):
             data tensor or MetaTensor (resampled into `self.pixdim`).
 
         """
-        original_spatial_shape = data_array.shape[1:]
+        original_spatial_shape = (
+            data_array.peek_pending_shape() if isinstance(data_array, MetaTensor) else data_array.shape[1:]
+        )
         sr = len(original_spatial_shape)
         if sr <= 0:
             raise ValueError("data_array must have at least one spatial dimension.")
@@ -471,7 +473,7 @@ class Spacing(InvertibleTransform, LazyTransform):
         # compute output affine, shape and offset
         new_affine = zoom_affine(affine_, out_d, diagonal=self.diagonal)
         scale_extent = self.scale_extent if scale_extent is None else scale_extent
-        output_shape, offset = compute_shape_offset(data_array.shape[1:], affine_, new_affine, scale_extent)
+        output_shape, offset = compute_shape_offset(original_spatial_shape, affine_, new_affine, scale_extent)
         new_affine[:sr, -1] = offset[:sr]
 
         actual_shape = list(output_shape) if output_spatial_shape is None else output_spatial_shape
@@ -1855,7 +1857,7 @@ class Resample(Transform):
 
         if self.norm_coords:
             grid_t[-1] = where(grid_t[-1] != 0, grid_t[-1], 1.0)  # type: ignore
-        sr = min(len(img_t.shape[1:]), 3)
+        sr = min(len(img_t.peek_pending_shape() if isinstance(img_t, MetaTensor) else img_t.shape[1:]), 3)
 
         _interp_mode = self.mode if mode is None else mode
         _padding_mode = self.padding_mode if padding_mode is None else padding_mode
@@ -2301,8 +2303,9 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
             self.randomize()
         # if not doing transform and spatial size doesn't change, nothing to do
         # except convert to float and device
-        sp_size = fall_back_tuple(self.spatial_size if spatial_size is None else spatial_size, img.shape[1:])
-        do_resampling = self._do_transform or (sp_size != ensure_tuple(img.shape[1:]))
+        ori_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
+        sp_size = fall_back_tuple(self.spatial_size if spatial_size is None else spatial_size, ori_size)
+        do_resampling = self._do_transform or (sp_size != ensure_tuple(ori_size))
         _mode = mode if mode is not None else self.mode
         _padding_mode = padding_mode if padding_mode is not None else self.padding_mode
         img = convert_to_tensor(img, track_meta=get_track_meta())
@@ -2765,6 +2768,8 @@ class GridDistortion(Transform):
 
         all_ranges = []
         num_cells = ensure_tuple_rep(self.num_cells, len(img.shape) - 1)
+        if isinstance(img, MetaTensor) and img.pending_operations:
+            warnings.warn("MetaTensor img has pending operations, transform may return incorrect results.")
         for dim_idx, dim_size in enumerate(img.shape[1:]):
             dim_distort_steps = distort_steps[dim_idx]
             ranges = torch.zeros(dim_size, dtype=torch.float32)
@@ -2867,6 +2872,8 @@ class RandGridDistortion(RandomizableTransform):
             randomize: whether to shuffle the random factors using `randomize()`, default to True.
         """
         if randomize:
+            if isinstance(img, MetaTensor) and img.pending_operations:
+                warnings.warn("MetaTensor img has pending operations, transform may return incorrect results.")
             self.randomize(img.shape[1:])
         if not self._do_transform:
             return convert_to_tensor(img, track_meta=get_track_meta())  # type: ignore
@@ -2907,7 +2914,8 @@ class GridSplit(Transform, MultiSampleTrait):
 
         if self.grid == (1, 1) and input_size is None:
             return [image]
-
+        if isinstance(image, MetaTensor) and image.pending_operations:
+            warnings.warn("MetaTensor img has pending operations, transform may return incorrect results.")
         split_size, steps = self._get_params(image.shape[1:], input_size)
         patches: list[NdarrayOrTensor]
         as_strided_func: Callable
