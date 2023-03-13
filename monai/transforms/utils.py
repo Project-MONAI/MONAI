@@ -409,7 +409,7 @@ def weighted_patch_samples(
     s = tuple(slice(w // 2, m - w + w // 2) if m > w else slice(m // 2, m // 2 + 1) for w, m in zip(win_size, img_size))
     v = w[s]  # weight map in the 'valid' mode
     v_size = v.shape
-    v = ravel(v)
+    v = ravel(v)  # always copy
     if (v < 0).any():
         v -= v.min()  # shifting to non-negative
     v = cumsum(v)
@@ -430,7 +430,7 @@ def correct_crop_centers(
     spatial_size: Sequence[int] | int,
     label_spatial_shape: Sequence[int],
     allow_smaller: bool = False,
-):
+) -> tuple[Any]:
     """
     Utility to correct the crop center if the crop size and centers are not compatible with the image size.
 
@@ -466,7 +466,7 @@ def correct_crop_centers(
     for c, v_s, v_e in zip(centers, valid_start, valid_end):
         center_i = min(max(c, v_s), v_e - 1)
         valid_centers.append(int(center_i))
-    return valid_centers
+    return ensure_tuple(valid_centers)  # type: ignore
 
 
 def generate_pos_neg_label_crop_centers(
@@ -478,7 +478,7 @@ def generate_pos_neg_label_crop_centers(
     bg_indices: NdarrayOrTensor,
     rand_state: np.random.RandomState | None = None,
     allow_smaller: bool = False,
-) -> list[list[int]]:
+) -> tuple[tuple]:
     """
     Generate valid sample locations based on the label with option for specifying foreground ratio
     Valid: samples sitting entirely within image, expected input shape: [C, H, W, D] or [C, H, W]
@@ -524,7 +524,7 @@ def generate_pos_neg_label_crop_centers(
         # shift center to range of valid centers
         centers.append(correct_crop_centers(center, spatial_size, label_spatial_shape, allow_smaller))
 
-    return centers
+    return ensure_tuple(centers)  # type: ignore
 
 
 def generate_label_classes_crop_centers(
@@ -536,7 +536,7 @@ def generate_label_classes_crop_centers(
     rand_state: np.random.RandomState | None = None,
     allow_smaller: bool = False,
     warn: bool = True,
-) -> list[list[int]]:
+) -> tuple[tuple]:
     """
     Generate valid sample locations based on the specified ratios of label classes.
     Valid: samples sitting entirely within image, expected input shape: [C, H, W, D] or [C, H, W]
@@ -560,7 +560,7 @@ def generate_label_classes_crop_centers(
 
     if num_samples < 1:
         raise ValueError(f"num_samples must be an int number and greater than 0, got {num_samples}.")
-    ratios_: list[float | int] = ([1] * len(indices)) if ratios is None else ratios
+    ratios_: list[float | int] = list(ensure_tuple([1] * len(indices) if ratios is None else ratios))
     if len(ratios_) != len(indices):
         raise ValueError(
             f"random crop ratios must match the number of indices of classes, got {len(ratios_)} and {len(indices)}."
@@ -569,9 +569,10 @@ def generate_label_classes_crop_centers(
         raise ValueError(f"ratios should not contain negative number, got {ratios_}.")
 
     for i, array in enumerate(indices):
-        if len(array) == 0 and warn:
-            warnings.warn(f"no available indices of class {i} to crop, set the crop ratio of this class to zero.")
+        if len(array) == 0:
             ratios_[i] = 0
+            if warn:
+                warnings.warn(f"no available indices of class {i} to crop, set the crop ratio of this class to zero.")
 
     centers = []
     classes = rand_state.choice(len(ratios_), size=num_samples, p=np.asarray(ratios_) / np.sum(ratios_))
@@ -583,7 +584,7 @@ def generate_label_classes_crop_centers(
         # shift center to range of valid centers
         centers.append(correct_crop_centers(center, spatial_size, label_spatial_shape, allow_smaller))
 
-    return centers
+    return ensure_tuple(centers)  # type: ignore
 
 
 def create_grid(
@@ -1396,7 +1397,7 @@ def compute_divisible_spatial_size(spatial_shape: Sequence[int], k: Sequence[int
         new_dim = int(np.ceil(dim / k_d) * k_d) if k_d > 0 else dim
         new_size.append(new_dim)
 
-    return new_size
+    return tuple(new_size)
 
 
 def equalize_hist(
