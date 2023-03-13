@@ -109,7 +109,7 @@ for p in TEST_NDARRAYS_ALL:
                 "label": None,
                 "num_classes": 2,
                 "spatial_size": [4, 4, 4],
-                "ratios": [1, 1],
+                "ratios": (1, 1),  # test no assignment
                 "num_samples": 2,
                 "image": p(np.random.randint(0, 2, size=[3, 3, 3, 3])),
                 "image_threshold": 0,
@@ -117,7 +117,7 @@ for p in TEST_NDARRAYS_ALL:
             },
             {
                 "img": p(np.random.randint(0, 2, size=[3, 3, 3, 3])),
-                "label": p(np.random.randint(0, 2, size=[1, 3, 3, 3])),
+                "label": p(np.random.randint(0, 1, size=[1, 3, 3, 3])),
                 "image": p(np.random.randint(0, 2, size=[3, 3, 3, 3])),
             },
             list,

@@ -698,9 +698,9 @@ class CropForegroundd(Cropd):
         self.cropper: CropForeground
         box_start, box_end = self.cropper.compute_bounding_box(img=d[self.source_key])
         if self.start_coord_key is not None:
-            d[self.start_coord_key] = box_start
+            d[self.start_coord_key] = box_start  # type: ignore
         if self.end_coord_key is not None:
-            d[self.end_coord_key] = box_end
+            d[self.end_coord_key] = box_end  # type: ignore
         for key, m in self.key_iterator(d, self.mode):
             d[key] = self.cropper.crop_pad(img=d[key], box_start=box_start, box_end=box_end, mode=m)
         return d
