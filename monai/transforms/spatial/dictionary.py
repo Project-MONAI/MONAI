@@ -566,10 +566,6 @@ class RandRotate90d(MapTransform, InvertibleTransform, LazyTransform, Randomizab
         self.randomizer = DiscreteRandomizer(0, max_k, prob, 0, seed, state)
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Mapping[Hashable, torch.Tensor]:
-        # TODO: determine whether there is anything we need to do with this comment in the lazy
-        # resampling era
-        # FIXME: here we didn't use array version `RandRotate90` transform as others, because we need
-        # to be compatible with the random status of some previous integration tests
         rd = dict(data)
 
         k = self.randomizer.sample()
