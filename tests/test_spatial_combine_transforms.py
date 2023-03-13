@@ -33,7 +33,6 @@ from monai.transforms import (
     Spacing,
     Spacingd,
 )
-from monai.transforms.lazy.functional import apply_transforms
 from monai.transforms.transform import MapTransform
 from tests.utils import assert_allclose
 
