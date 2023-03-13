@@ -93,9 +93,9 @@ TEST_CASE_DEP_5 = [
 
 TEST_CASE_0 = [
     FILE_PATH,
-    {"level": 2, "dtype": None},
+    {"level": 8, "dtype": None},
     {"location": (0, 0), "size": (2, 1)},
-    np.array([[[239], [239]], [[239], [239]], [[239], [239]]], dtype=np.float64),
+    np.array([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=np.float64),
 ]
 
 TEST_CASE_1 = [
@@ -393,7 +393,7 @@ class WSIReaderTests:
 
         @parameterized.expand(
             [
-                # TEST_CASE_0,
+                TEST_CASE_0,
                 TEST_CASE_1,
                 TEST_CASE_2,
                 TEST_CASE_3,
