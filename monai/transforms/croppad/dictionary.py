@@ -961,6 +961,8 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSa
             the requested ROI in any dimension. If `True`, any smaller dimensions will remain
             unchanged.
         allow_missing_keys: don't raise exception if key is missing.
+        warn: if `True` prints a warning if a class is not present in the label.
+
 
     """
 
@@ -979,6 +981,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSa
         indices_key: str | None = None,
         allow_smaller: bool = False,
         allow_missing_keys: bool = False,
+        warn: bool = True,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.label_key = label_key
@@ -991,6 +994,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSa
             num_samples=num_samples,
             image_threshold=image_threshold,
             allow_smaller=allow_smaller,
+            warn=warn,
         )
 
     def set_random_state(
