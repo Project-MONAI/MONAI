@@ -550,7 +550,7 @@ def affine_func(img, affine, grid, resampler, sp_size, mode, padding_mode, do_re
         "do_resampling": do_resampling,
         "align_corners": resampler.align_corners,
     }
-    affine = monai.transforms.Affine.compute_w_affine(rank, affine, img_size, sp_size, resampler.align_corners)
+    affine = monai.transforms.Affine.compute_w_affine(rank, affine, img_size, sp_size)
     meta_info = TraceableTransform.track_transform_meta(
         img,
         sp_size=sp_size,

@@ -2086,7 +2086,7 @@ class Affine(InvertibleTransform, LazyTransform):
         )
 
     @classmethod
-    def compute_w_affine(cls, spatial_rank, mat, img_size, sp_size, align_corners=True):
+    def compute_w_affine(cls, spatial_rank, mat, img_size, sp_size):
         r = int(spatial_rank)
         mat = to_affine_nd(r, mat)
         shift_1 = create_translate(r, [float(d - 1) / 2 for d in img_size[:r]])
@@ -2114,7 +2114,7 @@ class Affine(InvertibleTransform, LazyTransform):
         out.meta = data.meta  # type: ignore
         affine = convert_data_type(out.peek_pending_affine(), torch.Tensor)[0]
         xform, *_ = convert_to_dst_type(
-            Affine.compute_w_affine(len(affine) - 1, inv_affine, data.shape[1:], orig_size, align_corners), affine
+            Affine.compute_w_affine(len(affine) - 1, inv_affine, data.shape[1:], orig_size), affine
         )
         out.affine @= xform
         return out
