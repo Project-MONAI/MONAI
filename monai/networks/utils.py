@@ -198,8 +198,8 @@ def normalize_transform(
 
         - `align_corners=False`, `zero_centered=False`, normalizing from ``[-0.5, d-0.5]``.
         - `align_corners=True`, `zero_centered=False`, normalizing from ``[0, d-1]``.
-        - `align_corners=False`, `zero_centered=True`, normalizing from ``[-d/2, d/2]``.
-        - `align_corners=True`, `zero_centered=True`, normalizing from ``[-(d-1)/2, (d-1)/2]``.
+        - `align_corners=False`, `zero_centered=True`, normalizing from ``[-(d-1)/2, (d-1)/2]``.
+        - `align_corners=True`, `zero_centered=True`, normalizing from ``[-d/2, d/2]``.
 
     Args:
         shape: input spatial shape, a sequence of integers.
@@ -215,13 +215,13 @@ def normalize_transform(
     norm = shape.clone().detach().to(dtype=torch.float64, device=device)  # no in-place change
     if align_corners:
         norm[norm <= 1.0] = 2.0
-        norm = 2.0 / (norm - 1.0)
+        norm = 2.0 / (norm if zero_centered else norm - 1.0)
         norm = torch.diag(torch.cat((norm, torch.ones((1,), dtype=torch.float64, device=device))))
         if not zero_centered:  # else shift is 0
             norm[:-1, -1] = -1.0
     else:
         norm[norm <= 0.0] = 2.0
-        norm = 2.0 / norm
+        norm = 2.0 / (norm - 1.0 if zero_centered else norm)
         norm = torch.diag(torch.cat((norm, torch.ones((1,), dtype=torch.float64, device=device))))
         if not zero_centered:
             norm[:-1, -1] = 1.0 / shape - 1.0

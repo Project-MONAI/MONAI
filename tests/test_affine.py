@@ -19,10 +19,10 @@ import torch
 from parameterized import parameterized
 
 from monai.data import MetaTensor, set_track_meta
-from tests.lazy_transforms_utils import test_resampler_lazy
 from monai.transforms import Affine, Resize
 from monai.transforms.lazy.functional import apply_transforms
 from monai.utils import optional_import
+from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose, test_local_inversion
 
 TESTS = []
@@ -190,9 +190,7 @@ class TestAffine(unittest.TestCase):
 
         # test lazy
         lazy_input_param = input_param.copy()
-        # TODO: need to add True after solving align corners issue
-        # for align_corners in [True, False]:
-        for align_corners in [False]:
+        for align_corners in [True, False]:
             lazy_input_param["align_corners"] = align_corners
             resampler = Affine(**lazy_input_param)
             non_lazy_result = resampler(**input_data)

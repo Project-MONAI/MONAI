@@ -12,8 +12,9 @@
 from __future__ import annotations
 
 import unittest
-from parameterized import parameterized
+
 import numpy as np
+from parameterized import parameterized
 
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import Affine, Rotate90

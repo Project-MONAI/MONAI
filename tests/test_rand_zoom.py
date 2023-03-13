@@ -42,7 +42,7 @@ class TestRandZoom(NumpyImageTestCase2D):
                 "mode": mode,
                 "keep_size": keep_size,
                 "dtype": torch.float64,
-                "align_corners": align_corners
+                "align_corners": align_corners,
             }
             random_zoom = RandZoom(**init_param)
             random_zoom.set_random_state(1234)
