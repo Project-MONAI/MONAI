@@ -32,7 +32,6 @@ from monai.transforms import (
     RandRotated,
     RandScaleCropd,
     RandSpatialCrop,
-    RandSpatialCropd,
     RandZoom,
     RandZoomd,
     Resize,
@@ -40,9 +39,7 @@ from monai.transforms import (
     Spacing,
     Spacingd,
 )
-from monai.transforms.lazy.functional import apply_transforms
 from monai.transforms.transform import MapTransform
-from tests.lazy_transforms_utils import get_apply_param
 from tests.utils import assert_allclose
 
 TEST_2D = [
