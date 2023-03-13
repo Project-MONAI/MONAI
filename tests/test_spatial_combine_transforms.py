@@ -46,9 +46,18 @@ TEST_2D = [
     [
         (2, 90, 90),
         [
-            (Spacing, {"pixdim": (1.2, 1.5), "mode": "bilinear", "padding_mode": "reflection", "dtype": torch.float32}),
+            (
+                Spacing,
+                {
+                    "pixdim": (1.2, 1.5),
+                    "mode": "bilinear",
+                    "padding_mode": "reflection",
+                    "align_corners": True,
+                    "dtype": torch.float32,
+                },
+            ),
             (Orientation, {"axcodes": "RA"}),
-            (Resize, {"spatial_size": (64, 48), "mode": "bilinear"}),
+            (Resize, {"spatial_size": (64, 48), "mode": "bilinear", "align_corners": True}),
             (RandSpatialCrop, {"roi_size": (32, 32)}),
             (
                 RandAffine,
@@ -62,7 +71,16 @@ TEST_2D = [
                 },
             ),
             (RandFlip, {"prob": 0.9}),
-            (RandRotate, {"prob": 0.9, "range_x": np.pi / 4, "mode": "bilinear", "padding_mode": "reflection"}),
+            (
+                RandRotate,
+                {
+                    "prob": 0.9,
+                    "range_x": np.pi / 4,
+                    "mode": "bilinear",
+                    "padding_mode": "reflection",
+                    "align_corners": True,
+                },
+            ),
             (CenterScaleCrop, {"roi_scale": (0.96, 0.8)}),
             (
                 RandZoom,
@@ -71,7 +89,7 @@ TEST_2D = [
                     "mode": "bilinear",
                     "padding_mode": "reflection",
                     "keep_size": False,
-                    "align_corners": False,
+                    "align_corners": True,
                 },
             ),
         ],
@@ -82,17 +100,13 @@ TEST_2D = [
             (CenterScaleCropd, {"roi_scale": (0.96, 0.8), "keys": "img"}),
             (
                 RandRotated,
-                {"prob": 0.9, "range_x": np.pi / 4, "mode": "bilinear", "padding_mode": "border", "keys": "img"},
-            ),
-            (
-                RandZoomd,
                 {
                     "prob": 0.9,
+                    "range_x": np.pi / 4,
                     "mode": "bilinear",
                     "padding_mode": "border",
-                    "keep_size": False,
-                    "keys": "img",
                     "align_corners": False,
+                    "keys": "img",
                 },
             ),
             (
@@ -101,6 +115,7 @@ TEST_2D = [
                     "pixdim": (1.2, 1.5),
                     "mode": "bilinear",
                     "padding_mode": "border",
+                    "align_corners": False,
                     "dtype": torch.float32,
                     "keys": "img",
                 },
@@ -119,8 +134,19 @@ TEST_2D = [
                 },
             ),
             (Orientationd, {"axcodes": "RA", "keys": "img"}),
-            (Resized, {"spatial_size": (48, 48), "mode": "bilinear", "keys": "img"}),
+            (Resized, {"spatial_size": (48, 48), "mode": "bilinear", "align_corners": False, "keys": "img"}),
             (RandScaleCropd, {"roi_scale": (0.4, 1.5), "random_size": False, "keys": "img"}),
+            (
+                RandZoomd,
+                {
+                    "prob": 0.9,
+                    "mode": "bilinear",
+                    "padding_mode": "border",
+                    "keep_size": False,
+                    "keys": "img",
+                    "align_corners": False,
+                },
+            ),
         ],
     ],
 ]
@@ -144,34 +170,58 @@ TEST_3D = [
             ),
             (
                 Spacing,
-                {"pixdim": (0.9, 1.2, 1.0), "mode": "nearest", "padding_mode": "reflection", "dtype": torch.float32},
+                {
+                    "pixdim": (0.9, 1.2, 1.0),
+                    "mode": "nearest",
+                    "padding_mode": "reflection",
+                    "align_corners": None,
+                    "dtype": torch.float32,
+                },
             ),
             (RandSpatialCrop, {"roi_size": (36, 36, 38), "random_size": False}),
-            (RandZoom, {"prob": 0.9, "mode": "nearest", "padding_mode": "reflection", "keep_size": False}),
-            (Resize, {"spatial_size": (32, 32, 32), "mode": "nearest"}),
+            (
+                RandZoom,
+                {
+                    "prob": 0.9,
+                    "mode": "nearest",
+                    "padding_mode": "reflection",
+                    "align_corners": None,
+                    "keep_size": False,
+                },
+            ),
+            (Resize, {"spatial_size": (32, 32, 32), "mode": "nearest", "align_corners": None}),
             (RandFlip, {"prob": 0.9}),
-            (RandRotate, {"prob": 0.9, "range_x": np.pi / 4, "mode": "nearest", "padding_mode": "reflection"}),
+            (
+                RandRotate,
+                {
+                    "prob": 0.9,
+                    "range_x": np.pi / 4,
+                    "mode": "nearest",
+                    "padding_mode": "reflection",
+                    "align_corners": None,
+                },
+            ),
         ],
     ],
     [
         (2, 56, 64, 72),
         [
             (RandScaleCropd, {"roi_scale": (0.9, 0.7, 1.1), "random_size": False, "keys": "img"}),
+            (Orientationd, {"axcodes": "RAS", "keys": "img"}),
+            (Resized, {"spatial_size": (32, 32, 32), "mode": "nearest", "align_corners": None, "keys": "img"}),
+            (RandFlipd, {"prob": 0.9, "keys": "img"}),
+            (CenterScaleCropd, {"roi_scale": (0.96, 0.8, 1.25), "keys": "img"}),
             (
-                Spacingd,
+                RandZoomd,
                 {
-                    "pixdim": (1.2, 1.5, 0.9),
+                    "prob": 0.9,
                     "mode": "nearest",
                     "padding_mode": "zeros",
-                    "dtype": torch.float32,
+                    "align_corners": None,
+                    "keep_size": False,
                     "keys": "img",
                 },
             ),
-            (Orientationd, {"axcodes": "RAS", "keys": "img"}),
-            (Resized, {"spatial_size": (32, 32, 32), "mode": "nearest", "keys": "img"}),
-            (RandFlipd, {"prob": 0.9, "keys": "img"}),
-            (CenterScaleCropd, {"roi_scale": (0.96, 0.8, 1.25), "keys": "img"}),
-            (RandZoomd, {"prob": 0.9, "mode": "nearest", "padding_mode": "zeros", "keep_size": False, "keys": "img"}),
             (
                 RandAffined,
                 {
@@ -186,7 +236,25 @@ TEST_3D = [
             ),
             (
                 RandRotated,
-                {"prob": 0.9, "range_x": np.pi / 4, "mode": "nearest", "padding_mode": "zeros", "keys": "img"},
+                {
+                    "prob": 0.9,
+                    "range_x": np.pi / 4,
+                    "mode": "nearest",
+                    "padding_mode": "zeros",
+                    "align_corners": None,
+                    "keys": "img",
+                },
+            ),
+            (
+                Spacingd,
+                {
+                    "pixdim": (1.2, 1.5, 0.9),
+                    "mode": "nearest",
+                    "padding_mode": "zeros",
+                    "dtype": torch.float32,
+                    "align_corners": None,
+                    "keys": "img",
+                },
             ),
         ],
     ],
@@ -224,7 +292,6 @@ class CombineLazyTest(unittest.TestCase):
 
                 assert_allclose(pending_result.peek_pending_affine(), expected.affine, atol=1e-7)
                 assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:4])
-                # # TODO: how to test final result?
                 # init_param = funcs[-1][1]
                 # call_param = {}
                 # apply_param = get_apply_param(init_param, call_param)
