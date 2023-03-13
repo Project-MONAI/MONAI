@@ -17,50 +17,25 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
+import monai.transforms as mt
+from monai.data import create_test_image_2d, create_test_image_3d
 from monai.data.meta_tensor import MetaTensor
-from monai.transforms import (
-    CenterScaleCrop,
-    CenterScaleCropd,
-    Orientation,
-    Orientationd,
-    RandAffine,
-    RandAffined,
-    RandFlip,
-    RandFlipd,
-    Randomizable,
-    RandRotate,
-    RandRotated,
-    RandScaleCropd,
-    RandSpatialCrop,
-    RandZoom,
-    RandZoomd,
-    Resize,
-    Resized,
-    Spacing,
-    Spacingd,
-)
+from monai.transforms.lazy.functional import apply_transforms
 from monai.transforms.transform import MapTransform
+from monai.utils import set_determinism
+from tests.lazy_transforms_utils import get_apply_param
 from tests.utils import assert_allclose
 
 TEST_2D = [
     [
-        (2, 90, 90),
+        (2, 62, 61),
         [
+            (mt.Spacing, {"pixdim": (1.2, 1.5), "padding_mode": "zeros", "dtype": torch.float32}),
+            (mt.Orientation, {"axcodes": "RA"}),
+            (mt.Resize, {"spatial_size": (64, 48), "mode": "bilinear"}),
+            (mt.RandSpatialCrop, {"roi_size": (32, 32)}),
             (
-                Spacing,
-                {
-                    "pixdim": (1.2, 1.5),
-                    "mode": "bilinear",
-                    "padding_mode": "reflection",
-                    "align_corners": True,
-                    "dtype": torch.float32,
-                },
-            ),
-            (Orientation, {"axcodes": "RA"}),
-            (Resize, {"spatial_size": (64, 48), "mode": "bilinear", "align_corners": True}),
-            (RandSpatialCrop, {"roi_size": (32, 32)}),
-            (
-                RandAffine,
+                mt.RandAffine,
                 {
                     "prob": 0.9,
                     "rotate_range": (np.pi / 2,),
@@ -70,192 +45,87 @@ TEST_2D = [
                     "padding_mode": "reflection",
                 },
             ),
-            (RandFlip, {"prob": 0.9}),
-            (
-                RandRotate,
-                {
-                    "prob": 0.9,
-                    "range_x": np.pi / 4,
-                    "mode": "bilinear",
-                    "padding_mode": "reflection",
-                    "align_corners": True,
-                },
-            ),
-            (CenterScaleCrop, {"roi_scale": (0.96, 0.8)}),
-            (
-                RandZoom,
-                {
-                    "prob": 0.9,
-                    "mode": "bilinear",
-                    "padding_mode": "reflection",
-                    "keep_size": False,
-                    "align_corners": True,
-                },
-            ),
+            (mt.RandFlip, {"prob": 0.9}),
+            (mt.RandRotate, {"prob": 0.9, "range_x": np.pi / 4, "mode": "bilinear", "padding_mode": "reflection"}),
+            (mt.CenterScaleCrop, {"roi_scale": (0.96, 0.8)}),
+            (mt.RandZoom, {"prob": 0.9, "mode": "bilinear", "keep_size": False, "align_corners": False}),
         ],
     ],
     [
-        (2, 64, 64),
+        (2, 63, 64),
         [
-            (CenterScaleCropd, {"roi_scale": (0.96, 0.8), "keys": "img"}),
+            (mt.CenterScaleCropd, {"roi_scale": (0.96, 0.8), "keys": "img"}),
+            (mt.RandRotated, {"prob": 0.9, "range_x": np.pi / 4, "keys": "img"}),
             (
-                RandRotated,
-                {
-                    "prob": 0.9,
-                    "range_x": np.pi / 4,
-                    "mode": "bilinear",
-                    "padding_mode": "border",
-                    "align_corners": False,
-                    "keys": "img",
-                },
+                mt.RandZoomd,
+                {"prob": 0.9, "mode": "bilinear", "keep_size": False, "keys": "img", "align_corners": False},
             ),
+            (mt.Spacingd, {"pixdim": (1.2, 1.5), "padding_mode": "zeros", "dtype": torch.float32, "keys": "img"}),
+            (mt.RandFlipd, {"prob": 0.9, "keys": "img"}),
             (
-                Spacingd,
-                {
-                    "pixdim": (1.2, 1.5),
-                    "mode": "bilinear",
-                    "padding_mode": "border",
-                    "align_corners": False,
-                    "dtype": torch.float32,
-                    "keys": "img",
-                },
-            ),
-            (RandFlipd, {"prob": 0.9, "keys": "img"}),
-            (
-                RandAffined,
+                mt.RandAffined,
                 {
                     "prob": 0.9,
                     "rotate_range": (np.pi / 2,),
                     "shear_range": [1, 2],
                     "translate_range": [2, 1],
                     "mode": "bilinear",
-                    "padding_mode": "border",
                     "keys": "img",
                 },
             ),
-            (Orientationd, {"axcodes": "RA", "keys": "img"}),
-            (Resized, {"spatial_size": (48, 48), "mode": "bilinear", "align_corners": False, "keys": "img"}),
-            (RandScaleCropd, {"roi_scale": (0.4, 1.5), "random_size": False, "keys": "img"}),
-            (
-                RandZoomd,
-                {
-                    "prob": 0.9,
-                    "mode": "bilinear",
-                    "padding_mode": "border",
-                    "keep_size": False,
-                    "keys": "img",
-                    "align_corners": False,
-                },
-            ),
+            (mt.Orientationd, {"axcodes": "RA", "keys": "img"}),
+            (mt.Resized, {"spatial_size": (48, 48), "mode": "bilinear", "keys": "img"}),
+            (mt.RandScaleCropd, {"roi_scale": (0.4, 1.5), "random_size": False, "keys": "img"}),
         ],
     ],
 ]
 
 TEST_3D = [
     [
-        (2, 48, 48, 40),
+        (2, 83, 100, 67),
         [
-            (Orientation, {"axcodes": "RAS"}),
-            (CenterScaleCrop, {"roi_scale": (1.2, 0.8, 1.0)}),
+            (mt.Orientation, {"axcodes": "RAS"}),
+            (mt.CenterScaleCrop, {"roi_scale": (1.2, 0.8, 1.0)}),
             (
-                RandAffine,
+                mt.RandAffine,
                 {
                     "prob": 0.9,
                     "rotate_range": (np.pi / 2,),
                     "shear_range": [1, 2],
                     "translate_range": [2, 1],
-                    "mode": "nearest",
-                    "padding_mode": "reflection",
+                    "mode": "bilinear",
                 },
             ),
-            (
-                Spacing,
-                {
-                    "pixdim": (0.9, 1.2, 1.0),
-                    "mode": "nearest",
-                    "padding_mode": "reflection",
-                    "align_corners": None,
-                    "dtype": torch.float32,
-                },
-            ),
-            (RandSpatialCrop, {"roi_size": (36, 36, 38), "random_size": False}),
-            (
-                RandZoom,
-                {
-                    "prob": 0.9,
-                    "mode": "nearest",
-                    "padding_mode": "reflection",
-                    "align_corners": None,
-                    "keep_size": False,
-                },
-            ),
-            (Resize, {"spatial_size": (32, 32, 32), "mode": "nearest", "align_corners": None}),
-            (RandFlip, {"prob": 0.9}),
-            (
-                RandRotate,
-                {
-                    "prob": 0.9,
-                    "range_x": np.pi / 4,
-                    "mode": "nearest",
-                    "padding_mode": "reflection",
-                    "align_corners": None,
-                },
-            ),
+            (mt.Spacing, {"pixdim": (0.9, 1.2, 1.0), "padding_mode": "zeros", "dtype": torch.float32}),
+            (mt.RandSpatialCrop, {"roi_size": (36, 36, 38), "random_size": False}),
+            (mt.RandZoom, {"prob": 0.9, "mode": "nearest", "keep_size": False}),
+            (mt.Resize, {"spatial_size": (32, 32, 32), "mode": "nearest"}),
+            (mt.RandFlip, {"prob": 0.9}),
+            (mt.RandRotate, {"prob": 0.9, "range_x": np.pi / 4}),
         ],
     ],
     [
-        (2, 56, 64, 72),
+        (2, 62, 64, 72),
         [
-            (RandScaleCropd, {"roi_scale": (0.9, 0.7, 1.1), "random_size": False, "keys": "img"}),
-            (Orientationd, {"axcodes": "RAS", "keys": "img"}),
-            (Resized, {"spatial_size": (32, 32, 32), "mode": "nearest", "align_corners": None, "keys": "img"}),
-            (RandFlipd, {"prob": 0.9, "keys": "img"}),
-            (CenterScaleCropd, {"roi_scale": (0.96, 0.8, 1.25), "keys": "img"}),
+            (mt.RandScaleCropd, {"roi_scale": (0.9, 0.7, 1.1), "random_size": False, "keys": "img"}),
+            (mt.Spacingd, {"pixdim": (1.2, 1.5, 0.9), "padding_mode": "zeros", "dtype": torch.float32, "keys": "img"}),
+            (mt.Orientationd, {"axcodes": "RAS", "keys": "img"}),
+            (mt.Resized, {"spatial_size": (32, 32, 32), "mode": "nearest", "keys": "img"}),
+            (mt.RandFlipd, {"prob": 0.9, "keys": "img"}),
+            (mt.CenterScaleCropd, {"roi_scale": (0.96, 0.8, 1.25), "keys": "img"}),
+            (mt.RandZoomd, {"prob": 0.9, "mode": "nearest", "keep_size": False, "keys": "img"}),
             (
-                RandZoomd,
-                {
-                    "prob": 0.9,
-                    "mode": "nearest",
-                    "padding_mode": "zeros",
-                    "align_corners": None,
-                    "keep_size": False,
-                    "keys": "img",
-                },
-            ),
-            (
-                RandAffined,
+                mt.RandAffined,
                 {
                     "prob": 0.9,
                     "rotate_range": (np.pi / 2,),
                     "shear_range": [1, 2],
                     "translate_range": [2, 1],
-                    "mode": "nearest",
-                    "padding_mode": "zeros",
+                    "mode": "bilinear",
                     "keys": "img",
                 },
             ),
-            (
-                RandRotated,
-                {
-                    "prob": 0.9,
-                    "range_x": np.pi / 4,
-                    "mode": "nearest",
-                    "padding_mode": "zeros",
-                    "align_corners": None,
-                    "keys": "img",
-                },
-            ),
-            (
-                Spacingd,
-                {
-                    "pixdim": (1.2, 1.5, 0.9),
-                    "mode": "nearest",
-                    "padding_mode": "zeros",
-                    "dtype": torch.float32,
-                    "align_corners": None,
-                    "keys": "img",
-                },
-            ),
+            (mt.RandRotated, {"prob": 0.9, "range_x": np.pi / 4, "keys": "img"}),
         ],
     ],
 ]
@@ -266,17 +136,25 @@ class CombineLazyTest(unittest.TestCase):
     def test_combine_transforms(self, input_shape, funcs):
         for device in ["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"]:
             for seed in [10, 100, 1000, 10000]:
+                set_determinism(seed=seed)
                 _funcs = []
                 for _func, _params in funcs:
                     _funcs.append(_func(**_params))
                 is_map = isinstance(_funcs[0], MapTransform)
-                data = torch.randint(low=1, high=10, size=input_shape).float().to(device)
-                im = MetaTensor(data, meta={"a": "b", "affine": np.eye(len(input_shape))})
+                chns, sp_size = input_shape[0], input_shape[1:]
+                imgs = []
+                for _ in range(chns):
+                    if len(sp_size) == 2:
+                        imgs.append(create_test_image_2d(sp_size[0], sp_size[1])[0])
+                    else:
+                        imgs.append(create_test_image_3d(sp_size[0], sp_size[1], sp_size[2])[0])
+                data = np.stack(imgs).astype(float)
+                im = MetaTensor(data, meta={"a": "b", "affine": np.eye(len(input_shape))}).to(device)
                 input_data = {"img": im} if is_map else im
                 # non lazy
                 non_lazy_result = input_data
                 for _func in _funcs:
-                    if isinstance(_func, Randomizable):
+                    if isinstance(_func, mt.Randomizable):
                         _func.set_random_state(seed=seed)
                     non_lazy_result = _func(non_lazy_result)
                 expected = non_lazy_result["img"] if is_map else non_lazy_result
@@ -285,18 +163,22 @@ class CombineLazyTest(unittest.TestCase):
                 pending_result = input_data
                 for _func in _funcs:
                     _func.lazy_evaluation = True
-                    if isinstance(_func, Randomizable):
+                    if isinstance(_func, mt.Randomizable):
                         _func.set_random_state(seed=seed)
                     pending_result = _func(pending_result)
                 pending_result = pending_result["img"] if is_map else pending_result
 
                 assert_allclose(pending_result.peek_pending_affine(), expected.affine, atol=1e-7)
                 assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:4])
-                # init_param = funcs[-1][1]
-                # call_param = {}
-                # apply_param = get_apply_param(init_param, call_param)
-                # result = apply_transforms(pending_result, **apply_param)[0]
-                # assert_allclose(result, expected, atol=1e-5)
+
+                # test final result
+                init_param = funcs[-1][1]
+                call_param = {}
+                apply_param = get_apply_param(init_param, call_param)
+                result = apply_transforms(pending_result, **apply_param)[0]
+
+                match_ratio = np.sum(np.isclose(result.array, expected.array, atol=5e-1)) / np.prod(result.shape)
+                self.assertGreater(match_ratio, 0.5)  # at least half of the images are very close
 
 
 if __name__ == "__main__":
