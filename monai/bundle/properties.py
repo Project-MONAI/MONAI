@@ -9,10 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
-from monai.utils import BundleProperty, BundlePropertyConfig
-
 """
 The predefined properties for a bundle workflow, other applications can leverage the properties
 to interact with the bundle workflow.
@@ -26,6 +22,10 @@ the key is the property name and the values include:
 4. reference config item ID name (only applicable when the bundle workflow is defined in config).
 
 """
+
+from __future__ import annotations
+
+from monai.utils import BundleProperty, BundlePropertyConfig
 
 TrainProperties = {
     "bundle_root": {
