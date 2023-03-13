@@ -94,7 +94,7 @@ TEST_3D = [
 
 class CombineLazyTest(unittest.TestCase):
     @parameterized.expand(TEST_2D + TEST_3D)
-    def test_combine_array_transforms(self, input_shape, funcs):
+    def test_combine_transforms(self, input_shape, funcs):
         for seed in [10, 100, 1000, 10000]:
             _funcs = []
             for _func, _params in funcs:
