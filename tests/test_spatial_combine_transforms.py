@@ -46,7 +46,16 @@ TEST_2D = [
             (Resize, {"spatial_size": (48, 48), "mode": "bilinear"}),
             (RandSpatialCrop, {"roi_size": (32, 32)}),
             # TODO: the following transform should also work?
-            # (RandAffine, {"prob": 0.9, "rotate_range": (np.pi / 2,), "shear_range": [1, 2], "translate_range": [2, 1], "mode": "bilinear"}),
+            # (
+            #     RandAffine,
+            #     {
+            #         "prob": 0.9,
+            #         "rotate_range": (np.pi / 2,),
+            #         "shear_range": [1, 2],
+            #         "translate_range": [2, 1],
+            #         "mode": "bilinear",
+            #     },
+            # ),
             (RandFlip, {"prob": 0.9}),
             (RandRotate, {"prob": 0.9, "range_x": np.pi / 4}),
             (RandZoom, {"prob": 0.9, "mode": "bilinear", "keep_size": False, "align_corners": False}),
@@ -61,7 +70,17 @@ TEST_2D = [
             (Orientationd, {"axcodes": "RA", "keys": "img"}),
             (Resized, {"spatial_size": (48, 48), "mode": "bilinear", "keys": "img"}),
             # TODO: the following transform should also work?
-            # (RandAffined, {"prob": 0.9, "rotate_range": (np.pi / 2,), "shear_range": [1, 2], "translate_range": [2, 1], "mode": "bilinear", "keys": "img"}),
+            # (
+            #     RandAffined,
+            #     {
+            #         "prob": 0.9,
+            #         "rotate_range": (np.pi / 2,),
+            #         "shear_range": [1, 2],
+            #         "translate_range": [2, 1],
+            #         "mode": "bilinear",
+            #         "keys": "img",
+            #     },
+            # ),
             (RandFlipd, {"prob": 0.9, "keys": "img"}),
             (RandRotated, {"prob": 0.9, "range_x": np.pi / 4, "keys": "img"}),
             (RandZoomd, {"prob": 0.9, "mode": "bilinear", "keep_size": False, "keys": "img", "align_corners": False}),
