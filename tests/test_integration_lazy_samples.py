@@ -25,7 +25,7 @@ import monai
 import monai.transforms as mt
 from monai.data import create_test_image_3d
 from monai.utils import set_determinism
-from tests.utils import DistTestCase, skip_if_quick
+from tests.utils import DistTestCase, SkipIfBeforePyTorchVersion, skip_if_quick
 
 
 def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, None), num_workers=4, lazy=True):
@@ -46,16 +46,6 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
                 padding_mode=("border", "nearest"),
                 dtype=np.float32,
             ),
-            # mt.RandZoomd(keys=["img", "seg"], prob=1.0, zoom_range=(0.9, 1.2), keep_size=False),
-            # mt.RandRotated(
-            #     keys=["img", "seg"],
-            #     prob=1.0,
-            #     range_x=0.3,
-            #     range_y=0.3,
-            #     range_z=0.3,
-            #     mode=["bilinear", "nearest"],
-            #     padding_mode=("border", "border"),
-            # ),
             mt.Orientationd(keys=["img", "seg"], axcodes="ARS"),
             mt.RandRotate90d(keys=["img", "seg"], prob=1.0, spatial_axes=(1, 2)),
             mt.ScaleIntensityd(keys="img"),
@@ -65,6 +55,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
             ),
             mt.RandRotate90d(keys=["img", "seg"], prob=0.8, spatial_axes=[0, 2]),
             mt.ResizeWithPadOrCropD(keys=["img", "seg"], spatial_size=[80, 72, 80]),
+            mt.Rotated(keys=["img", "seg"], angle=[np.pi / 2, np.pi / 2, 0], mode="nearest", keep_size=False),
         ],
         lazy_evaluation=lazy,
         mode=("bilinear", 0),
@@ -124,7 +115,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
             epoch_len = len(train_ds) // train_loader.batch_size
             print(f"{step}/{epoch_len}, train_loss:{loss.item():0.4f}")
 
-            for item, in_img, in_seg in zip(outputs, inputs, labels):  # this decollates the batch
+            for item, in_img, in_seg in zip(outputs, inputs, labels):  # this decollates the batch, pt 1.9+
                 item.copy_meta_from(in_img)
                 np.testing.assert_array_equal(item.pending_operations, [])
                 np.testing.assert_array_equal(in_seg.pending_operations, [])
@@ -149,6 +140,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
 
 
 @skip_if_quick
+@SkipIfBeforePyTorchVersion((1, 11))
 class IntegrationLazyResampling(DistTestCase):
     def setUp(self):
         monai.config.print_config()
