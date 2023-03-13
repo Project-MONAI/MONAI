@@ -17,6 +17,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Hashable, Mapping, Sequence
 from typing import Any, cast
 
@@ -1061,6 +1062,8 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
         if device is None and isinstance(d[first_key], torch.Tensor):
             device = d[first_key].device  # type: ignore
             self.rand_2d_elastic.set_device(device)
+        if isinstance(d[first_key], MetaTensor) and d[first_key].pending_operations:  # type: ignore
+            warnings.warn(f"data['{first_key}'] has pending operations, transform may return incorrect results.")
         sp_size = fall_back_tuple(self.rand_2d_elastic.spatial_size, d[first_key].shape[1:])
 
         # all the keys share the same random elastic factor
@@ -1197,7 +1200,8 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
             return out
 
         self.randomize(None)
-
+        if isinstance(d[first_key], MetaTensor) and d[first_key].pending_operations:  # type: ignore
+            warnings.warn(f"data['{first_key}'] has pending operations, transform may return incorrect results.")
         sp_size = fall_back_tuple(self.rand_3d_elastic.spatial_size, d[first_key].shape[1:])
 
         # all the keys share the same random elastic factor
@@ -1862,7 +1866,8 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
         if first_key == ():
             out = convert_to_tensor(d, track_meta=get_track_meta())
             return out
-
+        if isinstance(d[first_key], MetaTensor) and d[first_key].pending_operations:  # type: ignore
+            warnings.warn(f"data['{first_key}'] has pending operations, transform may return incorrect results.")
         self.rand_grid_distortion.randomize(d[first_key].shape[1:])
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
