@@ -537,6 +537,8 @@ class AffineTransform(nn.Module):
             theta = torch.cat([theta, pad_affine], dim=1)
         if tuple(theta.shape[1:]) not in ((3, 3), (4, 4)):
             raise ValueError(f"theta must be Nx3x3 or Nx4x4, got {theta.shape}.")
+        if not torch.is_floating_point(theta):
+            raise ValueError(f"theta must be floating point data, got {theta.dtype}")
 
         # validate `src`
         if not isinstance(src, torch.Tensor):
