@@ -440,6 +440,7 @@ class SaveImage(Transform):
             self.meta_kwargs.update(meta_kwargs)
         if write_kwargs is not None:
             self.write_kwargs.update(write_kwargs)
+        return self
 
     def __call__(self, img: torch.Tensor | np.ndarray, meta_data: dict | None = None):
         """

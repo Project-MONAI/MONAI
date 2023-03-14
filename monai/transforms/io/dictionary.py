@@ -296,6 +296,7 @@ class SaveImaged(MapTransform):
 
     def set_options(self, init_kwargs=None, data_kwargs=None, meta_kwargs=None, write_kwargs=None):
         self.saver.set_options(init_kwargs, data_kwargs, meta_kwargs, write_kwargs)
+        return self
 
     def __call__(self, data):
         d = dict(data)

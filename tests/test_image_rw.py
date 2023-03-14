@@ -167,7 +167,7 @@ class TestLoadSaveNrrd(unittest.TestCase):
             filepath = f"testfile_{ndim}d"
             saver = SaveImage(
                 output_dir=self.test_dir, output_ext=output_ext, resample=resample, separate_folder=False, writer=writer
-            )
+            ).set_options(init_kwargs={"affine_lps_to_ras": True})
             test_data = MetaTensor(
                 p(test_data), meta={"filename_or_obj": f"{filepath}{output_ext}", "spatial_shape": test_data.shape}
             )

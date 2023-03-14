@@ -373,11 +373,11 @@ class ITKWriter(ImageWriter):
     output_dtype: DtypeLike = None
     channel_dim: int | None
 
-    def __init__(self, output_dtype: DtypeLike = np.float32, affine_lps_to_ras: bool = True, **kwargs):
+    def __init__(self, output_dtype: DtypeLike = np.float32, affine_lps_to_ras: bool | None = None, **kwargs):
         """
         Args:
             output_dtype: output data type.
-            affine_lps_to_ras: whether to convert the affine matrix from "LPS" to "RAS". Defaults to ``True``.
+            affine_lps_to_ras: whether to convert the affine matrix from "LPS" to "RAS". Defaults to ``None``.
                 Set to ``True`` to be consistent with ``NibabelWriter``,
                 otherwise the affine matrix is assumed already in the ITK convention.
             kwargs: keyword arguments passed to ``ImageWriter``.
@@ -478,7 +478,7 @@ class ITKWriter(ImageWriter):
         channel_dim: int | None = 0,
         affine: NdarrayOrTensor | None = None,
         dtype: DtypeLike = np.float32,
-        affine_lps_to_ras: bool = True,
+        affine_lps_to_ras: bool | None = None,
         **kwargs,
     ):
         """
@@ -489,7 +489,7 @@ class ITKWriter(ImageWriter):
             channel_dim: channel dimension of the data array. This is used to create a Vector Image if it is not ``None``.
             affine: affine matrix of the data array. This is used to compute `spacing`, `direction` and `origin`.
             dtype: output data type.
-            affine_lps_to_ras: whether to convert the affine matrix from "LPS" to "RAS". Defaults to ``True``.
+            affine_lps_to_ras: whether to convert the affine matrix from "LPS" to "RAS". Defaults to ``None``.
                 Set to ``True`` to be consistent with ``NibabelWriter``,
                 otherwise the affine matrix is assumed already in the ITK convention.
             kwargs: keyword arguments. Current `itk.GetImageFromArray` will read ``ttype`` from this dictionary.
@@ -497,8 +497,13 @@ class ITKWriter(ImageWriter):
         see also:
 
             - https://github.com/InsightSoftwareConsortium/ITK/blob/v5.2.1/Wrapping/Generators/Python/itk/support/extras.py#L389
+
         """
-        if isinstance(data_array, MetaTensor) and data_array.meta.get(MetaKeys.SPACE, SpaceKeys.LPS) != SpaceKeys.LPS:
+        if (
+            isinstance(data_array, MetaTensor)
+            and affine_lps_to_ras is None
+            and data_array.meta.get(MetaKeys.SPACE, SpaceKeys.LPS) != SpaceKeys.LPS
+        ):
             affine_lps_to_ras = False  # do the converting from LPS to RAS only if the space type is currently LPS.
         data_array = super().create_backend_obj(data_array)
         _is_vec = channel_dim is not None
