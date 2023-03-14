@@ -76,7 +76,12 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor, spacing: float | list | np.ndarray | None = None) -> torch.Tensor:  # type: ignore[override]
+    def _compute_tensor(
+        self,
+        y_pred: torch.Tensor,
+        y: torch.Tensor,
+        spacing: float | list | np.ndarray | None = None
+    ) -> torch.Tensor:
         """
         Args:
             y_pred: input data to compute, typical segmentation model output.
@@ -164,7 +169,7 @@ def compute_hausdorff_distance(
             Defaults to ``None``.
         directed: whether to calculate directed Hausdorff distance. Defaults to ``False``.
         spacing: spacing of pixel (or voxel) along each axis. If a sequence, must be of length equal
-            to the image dimensions; if a single number, this is used for all axes. If ``None``, 
+            to the image dimensions; if a single number, this is used for all axes. If ``None``,
             spacing of unity is used. Defaults to ``None``.
     """
 

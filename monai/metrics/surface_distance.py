@@ -69,7 +69,12 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor, spacing: float | list | np.ndarray | None = None) -> torch.Tensor:  # type: ignore[override]
+    def _compute_tensor(
+        self,
+        y_pred: torch.Tensor,
+        y: torch.Tensor,
+        spacing: float | list | np.ndarray | None = None
+    ) -> torch.Tensor:
         """
         Args:
             y_pred: input data to compute, typical segmentation model output.
