@@ -1890,31 +1890,24 @@ class Resample(Transform):
         _dtype = dtype or self.dtype or img.dtype
         _align_corners = self.align_corners if align_corners is None else align_corners
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=_dtype, device=_device)
-        grid_t, *_ = convert_to_dst_type(grid, img_t, dtype=grid.dtype, wrap_sequence=True)
-        grid_t = grid_t.clone(memory_format=torch.contiguous_format)
-
+        sr = min(len(img_t.peek_pending_shape() if isinstance(img_t, MetaTensor) else img_t.shape[1:]), 3)
         backend, _interp_mode, _padding_mode = Resample.resolve_modes(
             self.mode if mode is None else mode, self.padding_mode if padding_mode is None else padding_mode
         )
-        if self.norm_coords:
-            grid_t[-1] = where(grid_t[-1] != 0, grid_t[-1], 1.0)  # type: ignore
-        sr = min(len(img_t.peek_pending_shape() if isinstance(img_t, MetaTensor) else img_t.shape[1:]), 3)
 
         if USE_COMPILED or backend == TransformBackends.NUMPY:
+            grid_t, *_ = convert_to_dst_type(grid[:sr], img_t, dtype=grid.dtype, wrap_sequence=True)
+            if grid_t.storage().data_ptr() == grid.storage().data_ptr():
+                grid_t = grid_t.clone(memory_format=torch.contiguous_format)
             if self.norm_coords:
                 for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
                     _dim = max(2, dim)
                     t = (_dim - 1) / 2.0
-                    if _align_corners:
-                        s = (_dim - 1) / _dim
-                        grid_t[i] = s * grid_t[i] + t
-                    else:
-                        grid_t[i] += t
+                    grid_t[i] = ((_dim - 1) / _dim) * grid_t[i] + t if _align_corners else grid_t[i] + t
             elif _align_corners:
                 for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
                     _dim = max(2, dim)
                     grid_t[i] = ((_dim - 1) / _dim) * (grid_t[i] + 0.5)
-            grid_t = grid_t[:sr]
             if USE_COMPILED and backend == TransformBackends.TORCH:  # compiled is using torch backend param name
                 grid_t = moveaxis(grid_t, 0, -1)  # type: ignore
                 out = grid_pull(
@@ -1934,14 +1927,16 @@ class Resample(Transform):
                 )
                 out = convert_to_dst_type(out, img_t)[0]
         else:
+            grid_t = moveaxis(grid[list(range(sr - 1, -1, -1))], 0, -1)  # type: ignore
+            grid_t, *_ = convert_to_dst_type(grid_t, img_t, wrap_sequence=True)
+            if grid_t.storage().data_ptr() == grid.storage().data_ptr():
+                grid_t = grid_t.clone(memory_format=torch.contiguous_format)
             if self.norm_coords:
-                for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
-                    grid_t[i] *= 2.0 / max(2, dim)
-            index_ordering: list[int] = list(range(sr - 1, -1, -1))
-            grid_t = moveaxis(grid_t[index_ordering], 0, -1)  # type: ignore
+                for i, dim in enumerate(img_t.shape[sr + 1 : 0 : -1]):
+                    grid_t[..., i] *= 2.0 / max(2, dim)
             out = torch.nn.functional.grid_sample(
                 img_t.unsqueeze(0),
-                grid_t.unsqueeze(0).to(img_t),
+                grid_t.unsqueeze(0),
                 mode=_interp_mode,
                 padding_mode=_padding_mode,
                 align_corners=None if _align_corners == TraceKeys.NONE else _align_corners,  # type: ignore
