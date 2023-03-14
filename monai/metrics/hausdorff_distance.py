@@ -165,7 +165,7 @@ def compute_hausdorff_distance(
             percentile of the Hausdorff Distance rather than the maximum result will be achieved.
             Defaults to ``None``.
         directed: whether to calculate directed Hausdorff distance. Defaults to ``False``.
-        spacing:  spacing of pixel (or voxel) along each axis. If a sequence, must be of length equal
+        spacing: spacing of pixel (or voxel) along each axis. If a sequence, must be of length equal
             to the image dimensions; if a single number, this is used for all axes. If ``None``,
             spacing of unity is used. Defaults to ``None``.
     """
