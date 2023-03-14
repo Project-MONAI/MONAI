@@ -40,8 +40,8 @@ class TestAuto3DSegAzureML(unittest.TestCase):
         self.test_task_yaml = os.path.join(self.test_dir.name, "fake_task.yaml")
         azureml_test_task_src = {
             "name": "test_task",
-            "task": "segmentation",
             "modality": "MRI",
+            "task": "segmentation",
             "datalist": fake_json_datalist,
             "dataroot": self.dataroot,
             "multigpu": True,
