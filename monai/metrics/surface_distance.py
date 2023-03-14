@@ -70,10 +70,7 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
         self.get_not_nans = get_not_nans
 
     def _compute_tensor(
-        self,
-        y_pred: torch.Tensor,
-        y: torch.Tensor,
-        spacing: float | list | np.ndarray | None = None
+        self, y_pred: torch.Tensor, y: torch.Tensor, spacing: float | list | np.ndarray | None = None
     ) -> torch.Tensor:
         """
         Args:
