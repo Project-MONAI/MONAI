@@ -88,6 +88,11 @@ Generic Interfaces
 .. autoclass:: RandomOrder
     :members:
 
+`SomeOf`
+^^^^^^^^^^^^^
+.. autoclass:: SomeOf
+    :members:
+
 Functionals
 -----------
 
