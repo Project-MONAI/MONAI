@@ -450,7 +450,7 @@ class Spacing(InvertibleTransform, LazyTransform):
         )
         sr = len(original_spatial_shape)
         if sr <= 0:
-            raise ValueError("data_array must have at least one spatial dimension.")
+            raise ValueError(f"data_array must have at least one spatial dimension, got {original_spatial_shape}.")
         affine_: np.ndarray
         if affine is not None:
             warnings.warn("arg `affine` is deprecated, the affine of MetaTensor in data_array has higher priority.")
@@ -566,7 +566,7 @@ class Orientation(InvertibleTransform, LazyTransform):
         spatial_shape = data_array.peek_pending_shape() if isinstance(data_array, MetaTensor) else data_array.shape[1:]
         sr = len(spatial_shape)
         if sr <= 0:
-            raise ValueError("data_array must have at least one spatial dimension.")
+            raise ValueError(f"data_array must have at least one spatial dimension, got {spatial_shape}.")
         affine_: np.ndarray
         affine_np: np.ndarray
         if isinstance(data_array, MetaTensor):
@@ -869,7 +869,7 @@ class Rotate(InvertibleTransform, LazyTransform):
         _mode = look_up_option(mode or self.mode, GridSampleMode)
         _padding_mode = look_up_option(padding_mode or self.padding_mode, GridSamplePadMode)
         _align_corners = self.align_corners if align_corners is None else align_corners
-        im_shape = np.asarray(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:])
+        im_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
         output_shape = im_shape if self.keep_size else None
         return rotate(  # type: ignore
             img, self.angle, output_shape, _mode, _padding_mode, _align_corners, _dtype, self.get_transform_info()
@@ -1045,7 +1045,7 @@ class Rotate90(InvertibleTransform, LazyTransform):
         self.k = (4 + (k % 4)) % 4  # 0, 1, 2, 3
         spatial_axes_: tuple[int, int] = ensure_tuple(spatial_axes)  # type: ignore
         if len(spatial_axes_) != 2:
-            raise ValueError("spatial_axes must be 2 int numbers to indicate the axes to rotate 90 degrees.")
+            raise ValueError(f"spatial_axes must be 2 numbers to define the plane to rotate, got {spatial_axes_}.")
         self.spatial_axes = spatial_axes_
 
     def __call__(self, img: torch.Tensor) -> torch.Tensor:
@@ -1226,8 +1226,9 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
             self.randomize()
 
         if self._do_transform:
+            ndim = len(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:])
             rotator = Rotate(
-                angle=self.x if img.ndim == 3 else (self.x, self.y, self.z),
+                angle=self.x if ndim == 3 else (self.x, self.y, self.z),
                 keep_size=self.keep_size,
                 mode=look_up_option(mode or self.mode, GridSampleMode),
                 padding_mode=look_up_option(padding_mode or self.padding_mode, GridSamplePadMode),
@@ -1507,7 +1508,7 @@ class AffineGrid(LazyTransform):
         dtype: data type for the grid computation. Defaults to ``float32``.
             If ``None``, use the data type of input data (if `grid` is provided).
         device: device on which the tensor will be allocated, if a new grid is generated.
-        align_corners: Defaults to True.
+        align_corners: Defaults to False.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
         affine: If applied, ignore the params (`rotate_params`, etc.) and use the
             supplied matrix. Should be square with each side = num of image spatial
@@ -1667,7 +1668,7 @@ class RandAffineGrid(Randomizable, LazyTransform):
         for f in param_range:
             if issequenceiterable(f):
                 if len(f) != 2:
-                    raise ValueError("If giving range as [min,max], should only have two elements per dim.")
+                    raise ValueError(f"If giving range as [min,max], should have 2 elements per dim, got {f}.")
                 out_param.append(self.R.uniform(f[0], f[1]) + add_scalar)
             elif f is not None:
                 out_param.append(self.R.uniform(-f, f) + add_scalar)
@@ -2027,10 +2028,6 @@ class Affine(InvertibleTransform, LazyTransform):
         self.spatial_size = spatial_size
         self.mode = mode
         self.padding_mode: str = padding_mode
-
-        self._grid = None
-        self._affine = None
-        self._sp_size = None
 
     @LazyTransform.lazy_evaluation.setter  # type: ignore
     def lazy_evaluation(self, val: bool) -> None:
