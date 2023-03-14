@@ -169,7 +169,7 @@ def sliding_window_inference(
     importance_map_ = convert_data_type(importance_map_, torch.Tensor, device, compute_dtype)[0]
 
     # handle non-positive weights
-    min_non_zero = max(torch.min(importance_map_), 1e-3)
+    min_non_zero = max(torch.min(importance_map_).item(), 1e-3)
     importance_map_ = torch.clamp_(importance_map_.to(torch.float32), min=min_non_zero).to(compute_dtype)
 
     # Perform predictions
