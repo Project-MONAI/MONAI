@@ -142,7 +142,9 @@ def sliding_window_inference(
         diff = max(roi_size[k - 2] - inputs.shape[k], 0)
         half = diff // 2
         pad_size.extend([half, diff - half])
-    inputs = F.pad(inputs, pad=pad_size, mode=look_up_option(padding_mode, PytorchPadMode), value=cval)
+
+    if any(pad_size) > 0:
+        inputs = F.pad(inputs, pad=pad_size, mode=look_up_option(padding_mode, PytorchPadMode), value=cval)
 
     scan_interval = _get_scan_interval(image_size, roi_size, num_spatial_dims, overlap)
 
@@ -167,8 +169,8 @@ def sliding_window_inference(
     importance_map_ = convert_data_type(importance_map_, torch.Tensor, device, compute_dtype)[0]
 
     # handle non-positive weights
-    min_non_zero = max(importance_map_[importance_map_ != 0].min().item(), 1e-3)
-    importance_map_ = torch.clamp(importance_map_.to(torch.float32), min=min_non_zero).to(compute_dtype)
+    min_non_zero = max(torch.min(importance_map_), 1e-3)
+    importance_map_ = torch.clamp_(importance_map_.to(torch.float32), min=min_non_zero).to(compute_dtype)
 
     # Perform predictions
     dict_key, output_image_list, count_map_list = None, [], []
