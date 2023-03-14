@@ -60,8 +60,8 @@ TEST_CASE_DEP_1 = [
 
 TEST_CASE_DEP_2 = [
     FILE_PATH,
-    {"location": (0, 0), "size": (2, 1), "level": 2},
-    np.array([[[239], [239]], [[239], [239]], [[239], [239]]]),
+    {"location": (0, 0), "size": (2, 1), "level": 8},
+    np.array([[[242], [242]], [[242], [242]], [[242], [242]]]),
 ]
 
 TEST_CASE_DEP_3 = [
@@ -108,8 +108,8 @@ TEST_CASE_1 = [
 TEST_CASE_2 = [
     FILE_PATH,
     {},
-    {"location": (0, 0), "size": (2, 1), "level": 2},
-    np.array([[[239], [239]], [[239], [239]], [[239], [239]]], dtype=np.uint8),
+    {"location": (0, 0), "size": (2, 1), "level": 8},
+    np.array([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=np.uint8),
 ]
 
 TEST_CASE_3 = [
@@ -122,109 +122,109 @@ TEST_CASE_3 = [
 TEST_CASE_4 = [
     FILE_PATH,
     {"channel_dim": 2},
-    {"location": (0, 0), "size": (2, 1), "level": 2},
-    np.moveaxis(np.array([[[239], [239]], [[239], [239]], [[239], [239]]], dtype=np.uint8), 0, -1),
+    {"location": (0, 0), "size": (2, 1), "level": 8},
+    np.moveaxis(np.array([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=np.uint8), 0, -1),
 ]
 
 TEST_CASE_5 = [
     FILE_PATH,
-    {"level": 2},
+    {"level": 8},
     {"location": (0, 0), "size": (2, 1)},
-    np.array([[[239], [239]], [[239], [239]], [[239], [239]]], dtype=np.uint8),
+    np.array([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=np.uint8),
 ]
 
 TEST_CASE_6 = [
     FILE_PATH,
-    {"level": 2, "dtype": np.int32},
+    {"level": 8, "dtype": np.int32},
     {"location": (0, 0), "size": (2, 1)},
-    np.array([[[239], [239]], [[239], [239]], [[239], [239]]], dtype=np.int32),
+    np.array([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=np.int32),
 ]
 
 TEST_CASE_7 = [
     FILE_PATH,
-    {"level": 2, "dtype": np.float32},
+    {"level": 8, "dtype": np.float32},
     {"location": (0, 0), "size": (2, 1)},
-    np.array([[[239], [239]], [[239], [239]], [[239], [239]]], dtype=np.float32),
+    np.array([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=np.float32),
 ]
 
 TEST_CASE_8 = [
     FILE_PATH,
-    {"level": 2, "dtype": torch.uint8},
+    {"level": 8, "dtype": torch.uint8},
     {"location": (0, 0), "size": (2, 1)},
-    torch.tensor([[[239], [239]], [[239], [239]], [[239], [239]]], dtype=torch.uint8),
+    torch.tensor([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=torch.uint8),
 ]
 
 TEST_CASE_9 = [
     FILE_PATH,
-    {"level": 2, "dtype": torch.float32},
+    {"level": 8, "dtype": torch.float32},
     {"location": (0, 0), "size": (2, 1)},
-    torch.tensor([[[239], [239]], [[239], [239]], [[239], [239]]], dtype=torch.float32),
+    torch.tensor([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=torch.float32),
 ]
 
 # device tests
 TEST_CASE_DEVICE_1 = [
     FILE_PATH,
-    {"level": 2, "dtype": torch.float32, "device": "cpu"},
+    {"level": 8, "dtype": torch.float32, "device": "cpu"},
     {"location": (0, 0), "size": (2, 1)},
-    torch.tensor([[[239], [239]], [[239], [239]], [[239], [239]]], dtype=torch.float32),
+    torch.tensor([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=torch.float32),
     "cpu",
 ]
 
 TEST_CASE_DEVICE_2 = [
     FILE_PATH,
-    {"level": 2, "dtype": torch.float32, "device": "cuda"},
+    {"level": 8, "dtype": torch.float32, "device": "cuda"},
     {"location": (0, 0), "size": (2, 1)},
-    torch.tensor([[[239], [239]], [[239], [239]], [[239], [239]]], dtype=torch.float32),
+    torch.tensor([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=torch.float32),
     "cuda",
 ]
 
 TEST_CASE_DEVICE_3 = [
     FILE_PATH,
-    {"level": 2, "dtype": np.float32, "device": "cpu"},
+    {"level": 8, "dtype": np.float32, "device": "cpu"},
     {"location": (0, 0), "size": (2, 1)},
-    np.array([[[239], [239]], [[239], [239]], [[239], [239]]], dtype=np.float32),
+    np.array([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=np.float32),
     "cpu",
 ]
 
 TEST_CASE_DEVICE_4 = [
     FILE_PATH,
-    {"level": 2, "dtype": np.float32, "device": "cuda"},
+    {"level": 8, "dtype": np.float32, "device": "cuda"},
     {"location": (0, 0), "size": (2, 1)},
-    torch.tensor([[[239], [239]], [[239], [239]], [[239], [239]]], dtype=torch.float32),
+    torch.tensor([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=torch.float32),
     "cuda",
 ]
 
 TEST_CASE_DEVICE_5 = [
     FILE_PATH,
-    {"level": 2, "device": "cuda"},
+    {"level": 8, "device": "cuda"},
     {"location": (0, 0), "size": (2, 1)},
-    torch.tensor([[[239], [239]], [[239], [239]], [[239], [239]]], dtype=torch.uint8),
+    torch.tensor([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=torch.uint8),
     "cuda",
 ]
 
 TEST_CASE_DEVICE_6 = [
     FILE_PATH,
-    {"level": 2},
+    {"level": 8},
     {"location": (0, 0), "size": (2, 1)},
-    np.array([[[239], [239]], [[239], [239]], [[239], [239]]], dtype=np.uint8),
+    np.array([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=np.uint8),
     "cpu",
 ]
 
 TEST_CASE_DEVICE_7 = [
     FILE_PATH,
-    {"level": 2, "device": None},
+    {"level": 8, "device": None},
     {"location": (0, 0), "size": (2, 1)},
-    np.array([[[239], [239]], [[239], [239]], [[239], [239]]], dtype=np.uint8),
+    np.array([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=np.uint8),
     "cpu",
 ]
 
 TEST_CASE_MULTI_WSI = [
     [FILE_PATH, FILE_PATH],
-    {"location": (0, 0), "size": (2, 1), "level": 2},
+    {"location": (0, 0), "size": (2, 1), "level": 8},
     np.concatenate(
         [
-            np.array([[[239], [239]], [[239], [239]], [[239], [239]]]),
-            np.array([[[239], [239]], [[239], [239]], [[239], [239]]]),
+            np.array([[[242], [242]], [[242], [242]], [[242], [242]]]),
+            np.array([[[242], [242]], [[242], [242]], [[242], [242]]]),
         ],
         axis=0,
     ),
