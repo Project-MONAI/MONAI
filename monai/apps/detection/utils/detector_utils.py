@@ -149,7 +149,7 @@ def pad_images(
     max_spatial_size = compute_divisible_spatial_size(spatial_shape=list(max_spatial_size_t), k=size_divisible)
 
     # allocate memory for the padded images
-    images = torch.zeros([len(image_sizes), in_channels] + max_spatial_size, dtype=dtype, device=device)
+    images = torch.zeros([len(image_sizes), in_channels] + list(max_spatial_size), dtype=dtype, device=device)
 
     # Use `SpatialPad` to match sizes, padding in the end will not affect boxes
     padder = SpatialPad(spatial_size=max_spatial_size, method="end", mode=mode, **kwargs)
