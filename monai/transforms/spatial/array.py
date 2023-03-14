@@ -15,6 +15,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 from __future__ import annotations
 
+import functools
 import warnings
 from collections.abc import Callable
 from copy import deepcopy
@@ -1591,7 +1592,7 @@ class AffineGrid(LazyTransform):
         if self.align_corners:
             sc = create_scale(spatial_dims, [d / (d - 1) for d in grid_.shape[1:]], device=_device, backend=_b)
             sc = convert_to_dst_type(sc, affine)[0]
-            grid_ = (affine @ sc @ grid_.view((grid_.shape[0], -1))).view([-1] + list(grid_.shape[1:]))
+            grid_ = ((affine @ sc) @ grid_.view((grid_.shape[0], -1))).view([-1] + list(grid_.shape[1:]))
         else:
             grid_ = (affine @ grid_.view((grid_.shape[0], -1))).view([-1] + list(grid_.shape[1:]))
         return grid_, affine
@@ -1812,6 +1813,35 @@ class Resample(Transform):
         self.align_corners = align_corners
         self.dtype = dtype
 
+    @staticmethod
+    @functools.lru_cache(None)
+    def resolve_modes(interp_mode, padding_mode):
+        """compute the backend and the corresponding mode for the given interpolation mode and padding mode."""
+        _interp_mode = None
+        _padding_mode = None
+        if look_up_option(str(interp_mode), SplineMode, default=None) is not None:
+            backend = TransformBackends.NUMPY
+        else:
+            backend = TransformBackends.TORCH
+
+        if (not USE_COMPILED) and (backend == TransformBackends.TORCH):
+            if str(interp_mode).lower().endswith("linear"):
+                _interp_mode = GridSampleMode("bilinear")
+            _interp_mode = GridSampleMode(interp_mode)
+            _padding_mode = GridSamplePadMode(padding_mode)
+        elif USE_COMPILED and backend == TransformBackends.TORCH:  # compiled is using torch backend param name
+            _padding_mode = 1 if padding_mode == "reflection" else padding_mode  # type: ignore
+            if interp_mode == "bicubic":
+                _interp_mode = 3  # type: ignore
+            elif interp_mode == "bilinear":
+                _interp_mode = 1  # type: ignore
+            else:
+                _interp_mode = GridSampleMode(interp_mode)  # type: ignore
+        else:  # TransformBackends.NUMPY
+            _interp_mode = int(interp_mode)  # type: ignore
+            _padding_mode = look_up_option(padding_mode, NdimageMode)
+        return backend, _interp_mode, _padding_mode
+
     def __call__(
         self,
         img: torch.Tensor,
@@ -1863,56 +1893,44 @@ class Resample(Transform):
         grid_t, *_ = convert_to_dst_type(grid, img_t, dtype=grid.dtype, wrap_sequence=True)
         grid_t = grid_t.clone(memory_format=torch.contiguous_format)
 
+        backend, _interp_mode, _padding_mode = Resample.resolve_modes(
+            self.mode if mode is None else mode, self.padding_mode if padding_mode is None else padding_mode
+        )
         if self.norm_coords:
             grid_t[-1] = where(grid_t[-1] != 0, grid_t[-1], 1.0)  # type: ignore
         sr = min(len(img_t.peek_pending_shape() if isinstance(img_t, MetaTensor) else img_t.shape[1:]), 3)
 
-        _interp_mode = self.mode if mode is None else mode
-        _padding_mode = self.padding_mode if padding_mode is None else padding_mode
-        if look_up_option(str(_interp_mode), SplineMode, default=None) is not None:
-            self._backend = TransformBackends.NUMPY
-        else:
-            self._backend = TransformBackends.TORCH
-
-        if USE_COMPILED or self._backend == TransformBackends.NUMPY:
+        if USE_COMPILED or backend == TransformBackends.NUMPY:
             if self.norm_coords:
                 for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
                     _dim = max(2, dim)
+                    t = (_dim - 1) / 2.0
                     if _align_corners:
-                        grid_t[i] = (_dim - 1) / _dim * grid_t[i] + (_dim - 1) / 2.0
+                        s = (_dim - 1) / _dim
+                        grid_t[i] = s * grid_t[i] + t
                     else:
-                        grid_t[i] += (_dim - 1) / 2.0
+                        grid_t[i] += t
             elif _align_corners:
                 for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
                     _dim = max(2, dim)
-                    grid_t[i] = (_dim - 1) / _dim * (grid_t[i] + 0.5)
+                    grid_t[i] = ((_dim - 1) / _dim) * (grid_t[i] + 0.5)
             grid_t = grid_t[:sr]
-            if USE_COMPILED and self._backend == TransformBackends.TORCH:  # compiled is using torch backend param name
+            if USE_COMPILED and backend == TransformBackends.TORCH:  # compiled is using torch backend param name
                 grid_t = moveaxis(grid_t, 0, -1)  # type: ignore
-                bound = 1 if _padding_mode == "reflection" else _padding_mode
-                if _interp_mode == "bicubic":
-                    interp = 3
-                elif _interp_mode == "bilinear":
-                    interp = 1
-                else:
-                    interp = GridSampleMode(_interp_mode)  # type: ignore
                 out = grid_pull(
                     img_t.unsqueeze(0),
                     grid_t.unsqueeze(0).to(img_t),
-                    bound=bound,
+                    bound=_padding_mode,
                     extrapolate=True,
-                    interpolation=interp,
+                    interpolation=_interp_mode,
                 )[0]
-            elif self._backend == TransformBackends.NUMPY:
+            elif backend == TransformBackends.NUMPY:
                 is_cuda = img_t.is_cuda
                 img_np = (convert_to_cupy if is_cuda else convert_to_numpy)(img_t, wrap_sequence=True)
                 grid_np, *_ = convert_to_dst_type(grid_t, img_np, dtype=grid_t.dtype, wrap_sequence=True)
                 _map_coord = (cupy_ndi if is_cuda else np_ndi).map_coordinates
                 out = (cupy if is_cuda else np).stack(
-                    [
-                        _map_coord(c, grid_np, order=int(_interp_mode), mode=look_up_option(_padding_mode, NdimageMode))
-                        for c in img_np
-                    ]
+                    [_map_coord(c, grid_np, order=_interp_mode, mode=_padding_mode) for c in img_np]
                 )
                 out = convert_to_dst_type(out, img_t)[0]
         else:
@@ -1924,8 +1942,8 @@ class Resample(Transform):
             out = torch.nn.functional.grid_sample(
                 img_t.unsqueeze(0),
                 grid_t.unsqueeze(0).to(img_t),
-                mode=GridSampleMode(_interp_mode),
-                padding_mode=GridSamplePadMode(_padding_mode),
+                mode=_interp_mode,
+                padding_mode=_padding_mode,
                 align_corners=None if _align_corners == TraceKeys.NONE else _align_corners,  # type: ignore
             )[0]
         out_val, *_ = convert_to_dst_type(out, dst=img, dtype=np.float32)
