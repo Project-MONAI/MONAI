@@ -840,12 +840,12 @@ def _get_net_io_info(
     Return:
         a sequence contains the input and output infomation.
     """
-    if not parser:
-        raise AttributeError("Error parser to parse input shape.")
+    if not isinstance(parser, ConfigParser):
+        raise AttributeError(f"'parser' should be a ConfigParser, got {type(parser)}.")
+
     inputs_shape = []
     try:
         prefix_key = f"{prefix}#inputs"
-        # prefix_key = key
         inputs_info_dict = parser[prefix_key]
         for input_name in inputs_info_dict:
             key = f"{prefix_key}#{input_name}#num_channels"
