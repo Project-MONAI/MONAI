@@ -101,12 +101,8 @@ class BaseWSIReader(ImageReader):
             self.dtype = np.dtype(dtype)
 
     def set_device(self, device):
-        if device is None:
-            self.device = None
-        elif isinstance(device, torch.device):
+        if device is None or isinstance(device, (torch.device, str)):
             self.device = device
-        elif isinstance(device, str):
-            self.device = torch.device(device)
         else:
             raise ValueError(f"`device` must be `torch.device`, `str` or `None` but {type(device)} is given.")
 
@@ -275,7 +271,9 @@ class BaseWSIReader(ImageReader):
             patch = self._get_patch(each_wsi, location=location, size=size, level=level, dtype=dtype_np, mode=mode)
 
             # Convert the patch to torch.Tensor if dtype is torch
-            if isinstance(self.dtype, torch.dtype) or (self.device is not None and self.device.type == "cuda"):
+            if isinstance(self.dtype, torch.dtype) or (
+                self.device is not None and torch.device(self.device).type == "cuda"
+            ):
                 # Ensure dtype is torch.dtype if the device is not "cpu"
                 dtype_torch = (
                     dtype_numpy_to_torch(self.dtype) if not isinstance(self.dtype, torch.dtype) else self.dtype
