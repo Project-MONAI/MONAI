@@ -35,7 +35,8 @@ def apply_transforms(
     mode: str | int | None = None,
     padding_mode: str | None = None,
     dtype=np.float64,
-    align_corners: bool | None = None,
+    align_corners: bool = False,
+    resample_mode: str | None = None,
 ):
     """
     This method applies pending transforms to `data` tensors.
@@ -59,8 +60,10 @@ def apply_transforms(
         dtype: data type for resampling computation. Defaults to ``float64``.
             If ``None``, use the data type of input data`.
         align_corners: Geometrically, we consider the pixels of the input as squares rather than points, when using
-            the PyTorch resampling backend. Defaults to ``None``.
+            the PyTorch resampling backend. Defaults to ``False``.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+        resample_mode: the mode of resampling, currently support ``"auto"``. Setting to other values will use the
+               `monai.transforms.SpatialResample` for resampling (instead of potentially crop/pad).
     """
     if isinstance(data, MetaTensor) and pending is None:
         pending = data.pending_operations.copy()
@@ -79,6 +82,8 @@ def apply_transforms(
         override_kwargs[LazyAttr.PADDING_MODE] = padding_mode
     if align_corners is not None:
         override_kwargs[LazyAttr.ALIGN_CORNERS] = align_corners
+    if resample_mode is not None:
+        override_kwargs["resample_mode"] = resample_mode
     override_kwargs[LazyAttr.DTYPE] = data.dtype if dtype is None else dtype
 
     for p in pending[1:]:

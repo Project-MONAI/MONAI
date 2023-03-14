@@ -157,7 +157,7 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, spatial_size, kwargs: 
             - "lazy_interpolation_mode" (this option might be ignored when ``mode="auto"``.)
             - "lazy_align_corners"
             - "atol" for tolerance for matrix floating point comparison.
-            - "mode" for resampling backend, default to `"auto"`. Setting to other values will use the
+            - "resample_mode" for resampling backend, default to `"auto"`. Setting to other values will use the
                `monai.transforms.SpatialResample` for resampling.
 
     See Also:
@@ -169,11 +169,11 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, spatial_size, kwargs: 
         warnings.warn("data.pending_operations is not empty, the resampling output may be incorrect.")
     kwargs = {} if kwargs is None else kwargs
     atol = kwargs.pop("atol", AFFINE_TOL)
-    mode = kwargs.pop("mode", "auto")
+    mode = kwargs.pop("resample_mode", "auto")
 
     init_kwargs = {
         "dtype": kwargs.pop(LazyAttr.DTYPE, data.dtype),
-        "align_corners": kwargs.pop(LazyAttr.ALIGN_CORNERS, None),
+        "align_corners": kwargs.pop(LazyAttr.ALIGN_CORNERS, False),
     }
     ndim = len(matrix) - 1
     img = convert_to_tensor(data=data, track_meta=monai.data.get_track_meta())

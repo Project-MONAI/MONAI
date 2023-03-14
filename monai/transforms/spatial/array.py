@@ -1229,7 +1229,7 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
         if self._do_transform:
             ndim = len(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:])
             rotator = Rotate(
-                angle=self.x if ndim == 3 else (self.x, self.y, self.z),
+                angle=self.x if ndim == 2 else (self.x, self.y, self.z),
                 keep_size=self.keep_size,
                 mode=look_up_option(mode or self.mode, GridSampleMode),
                 padding_mode=look_up_option(padding_mode or self.padding_mode, GridSamplePadMode),
