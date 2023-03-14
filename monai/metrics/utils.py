@@ -172,7 +172,12 @@ def get_mask_edges(
     return edges_pred, edges_gt
 
 
-def get_surface_distance(seg_pred: np.ndarray, seg_gt: np.ndarray, distance_metric: str = "euclidean") -> np.ndarray:
+def get_surface_distance(
+    seg_pred: np.ndarray,
+    seg_gt: np.ndarray,
+    distance_metric: str = "euclidean",
+    spacing: float | list | np.ndarray | None = None,
+) -> np.ndarray:
     """
     This function is used to compute the surface distances from `seg_pred` to `seg_gt`.
 
@@ -185,6 +190,7 @@ def get_surface_distance(seg_pred: np.ndarray, seg_gt: np.ndarray, distance_metr
             - ``"euclidean"``, uses Exact Euclidean distance transform.
             - ``"chessboard"``, uses `chessboard` metric in chamfer type of transform.
             - ``"taxicab"``, uses `taxicab` metric in chamfer type of transform.
+        spacing: spacing of pixel (or voxel) along each axis. If a sequence, must be of length equal to the image dimensions; if a single number, this is used for all axes. If ``None``, spacing of unity is used. Defaults to ``None``.
 
     Note:
         If seg_pred or seg_gt is all 0, may result in nan/inf distance.
@@ -198,7 +204,7 @@ def get_surface_distance(seg_pred: np.ndarray, seg_gt: np.ndarray, distance_metr
             dis = np.inf * np.ones_like(seg_gt)
             return np.asarray(dis[seg_gt])
         if distance_metric == "euclidean":
-            dis = distance_transform_edt(~seg_gt)
+            dis = distance_transform_edt(~seg_gt, sampling=spacing)
         elif distance_metric in {"chessboard", "taxicab"}:
             dis = distance_transform_cdt(~seg_gt, metric=distance_metric)
         else:

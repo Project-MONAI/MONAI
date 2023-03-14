@@ -67,13 +67,14 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor, spacing: float | list | np.ndarray | None = None) -> torch.Tensor:  # type: ignore[override]
         r"""
         Args:
             y_pred: Predicted segmentation, typically segmentation model output.
                 It must be a one-hot encoded, batch-first tensor [B,C,H,W].
             y: Reference segmentation.
                 It must be a one-hot encoded, batch-first tensor [B,C,H,W].
+            spacing: spacing of pixel (or voxel) along each axis. If a sequence, must be of length equal to the image dimensions; if a single number, this is used for all axes. If ``None``, spacing of unity is used. Defaults to ``None``.
 
         Returns:
             Pytorch Tensor of shape [B,C], containing the NSD values :math:`\operatorname {NSD}_{b,c}` for each batch
@@ -85,6 +86,7 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
             class_thresholds=self.class_thresholds,
             include_background=self.include_background,
             distance_metric=self.distance_metric,
+            spacing=spacing,
         )
 
     def aggregate(
@@ -117,6 +119,7 @@ def compute_surface_dice(
     class_thresholds: list[float],
     include_background: bool = False,
     distance_metric: str = "euclidean",
+    spacing: float | list | np.ndarray | None = None,
 ) -> torch.Tensor:
     r"""
     This function computes the (Normalized) Surface Dice (NSD) between the two tensors `y_pred` (referred to as
@@ -167,6 +170,7 @@ def compute_surface_dice(
         distance_metric: The metric used to compute surface distances.
             One of [``"euclidean"``, ``"chessboard"``, ``"taxicab"``].
             Defaults to ``"euclidean"``.
+        spacing: spacing of pixel (or voxel) along each axis. If a sequence, must be of length equal to the image dimensions; if a single number, this is used for all axes. If ``None``, spacing of unity is used. Defaults to ``None``.
 
     Raises:
         ValueError: If `y_pred` and/or `y` are not PyTorch tensors.
@@ -195,6 +199,12 @@ def compute_surface_dice(
         raise ValueError(
             f"y_pred and y should have same shape, but instead, shapes are {y_pred.shape} (y_pred) and {y.shape} (y)."
         )
+
+    if spacing is not None:
+        # dims - 2 because we don't want to include the batch and channel dimension
+        assert (
+            len(spacing) == y_pred.dim() - 2
+        ), "spacing should have the same length as ``y_pred`` without batch and channel dimensions"
 
     if not torch.all(y_pred.byte() == y_pred) or not torch.all(y.byte() == y):
         raise ValueError("y_pred and y should be binarized tensors (e.g. torch.int64).")
@@ -226,8 +236,8 @@ def compute_surface_dice(
         if not np.any(edges_pred):
             warnings.warn(f"the prediction of class {c} is all 0, this may result in nan/inf distance.")
 
-        distances_pred_gt = get_surface_distance(edges_pred, edges_gt, distance_metric=distance_metric)
-        distances_gt_pred = get_surface_distance(edges_gt, edges_pred, distance_metric=distance_metric)
+        distances_pred_gt = get_surface_distance(edges_pred, edges_gt, distance_metric=distance_metric, spacing=spacing)
+        distances_gt_pred = get_surface_distance(edges_gt, edges_pred, distance_metric=distance_metric, spacing=spacing)
 
         boundary_complete = len(distances_pred_gt) + len(distances_gt_pred)
         boundary_correct = np.sum(distances_pred_gt <= class_thresholds[c]) + np.sum(
