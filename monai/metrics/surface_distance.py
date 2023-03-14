@@ -77,7 +77,9 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
                 should be binarized.
             y: ground truth to compute the distance. It must be one-hot format and first dim is batch.
                 The values should be binarized.
-            spacing: spacing of pixel (or voxel) along each axis. If a sequence, must be of length equal to the image dimensions; if a single number, this is used for all axes. If ``None``, spacing of unity is used. Defaults to ``None``.
+            spacing: spacing of pixel (or voxel) along each axis. If a sequence, must be of length equal to
+                the image dimensions; if a single number, this is used for all axes. If ``None``,
+                spacing of unity is used. Defaults to ``None``.
 
         Raises:
             ValueError: when `y` is not a binarized tensor.
@@ -152,7 +154,9 @@ def compute_average_surface_distance(
             `seg_pred` and `seg_gt`. Defaults to ``False``.
         distance_metric: : [``"euclidean"``, ``"chessboard"``, ``"taxicab"``]
             the metric used to compute surface distance. Defaults to ``"euclidean"``.
-        spacing: spacing of pixel (or voxel) along each axis. If a sequence, must be of length equal to the image dimensions; if a single number, this is used for all axes. If ``None``, spacing of unity is used. Defaults to ``None``.
+        spacing: spacing of pixel (or voxel) along each axis. If a sequence, must be of length equal to
+            the image dimensions; if a single number, this is used for all axes. If ``None``,
+            spacing of unity is used. Defaults to ``None``.
     """
 
     if not include_background:

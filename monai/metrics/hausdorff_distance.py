@@ -84,7 +84,9 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
                 should be binarized.
             y: ground truth to compute the distance. It must be one-hot format and first dim is batch.
                 The values should be binarized.
-            spacing: spacing of pixel (or voxel) along each axis. If a sequence, must be of length equal to the image dimensions; if a single number, this is used for all axes. If ``None``, spacing of unity is used. Defaults to ``None``.
+            spacing: spacing of pixel (or voxel) along each axis. If a sequence, must be of length equal to
+                the image dimensions; if a single number, this is used for all axes. If ``None``,
+                spacing of unity is used. Defaults to ``None``.
 
         Raises:
             ValueError: when `y` is not a binarized tensor.
@@ -161,7 +163,9 @@ def compute_hausdorff_distance(
             percentile of the Hausdorff Distance rather than the maximum result will be achieved.
             Defaults to ``None``.
         directed: whether to calculate directed Hausdorff distance. Defaults to ``False``.
-        spacing: spacing of pixel (or voxel) along each axis. If a sequence, must be of length equal to the image dimensions; if a single number, this is used for all axes. If ``None``, spacing of unity is used. Defaults to ``None``.
+        spacing: spacing of pixel (or voxel) along each axis. If a sequence, must be of length equal
+            to the image dimensions; if a single number, this is used for all axes. If ``None``, 
+            spacing of unity is used. Defaults to ``None``.
     """
 
     if not include_background:
