@@ -96,7 +96,7 @@ def get_testing_algo_template_path():
 
 
 def generate_fake_segmentation_data(
-        dataroot: str, fake_datalist: dict[str, Any] = DEFAULT_FAKE_SEGMENTATION_DATALIST
+    dataroot: str, fake_datalist: dict[str, Any] = DEFAULT_FAKE_SEGMENTATION_DATALIST
 ) -> None:
     for d in fake_datalist["testing"] + fake_datalist["training"]:
         im, seg = create_test_image_3d(24, 24, 24, rad_max=10, num_seg_classes=1)
@@ -113,7 +113,7 @@ def generate_fake_segmentation_data(
 def export_fake_data_config_file(
     dataroot: str,
     fake_datalist: dict[str, Any] = DEFAULT_FAKE_SEGMENTATION_DATALIST,
-    fake_json_datalist_filename: str = "fake_input.json"
+    fake_json_datalist_filename: str = "fake_input.json",
 ) -> str:
     fake_json_datalist = os.path.join(dataroot, fake_json_datalist_filename)
     ConfigParser.export_config_file(fake_datalist, fake_json_datalist)

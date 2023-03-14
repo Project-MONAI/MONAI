@@ -146,9 +146,6 @@ setup(
     cmdclass=get_cmds(),
     packages=find_packages(exclude=("docs", "examples", "tests")),
     zip_safe=False,
-    package_data={
-        "monai": ["py.typed", *jit_extension_source],
-        "azureml_env": ["environment-azureml.yml"],
-    },
+    package_data={"monai": ["py.typed", *jit_extension_source], "azureml_env": ["environment-azureml.yml"]},
     ext_modules=get_extensions(),
 )

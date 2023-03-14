@@ -15,11 +15,10 @@ import os
 import tempfile
 import unittest
 
-
 from monai.apps.auto3dseg import AutoRunner
 from monai.bundle.config_parser import ConfigParser
 from monai.utils import optional_import
-from tests.utils import generate_fake_segmentation_data, export_fake_data_config_file, skip_if_quick
+from tests.utils import export_fake_data_config_file, generate_fake_segmentation_data, skip_if_quick
 
 health_azure, has_health_azure = optional_import("health_azure")
 
@@ -33,7 +32,6 @@ class TestAuto3DSegAzureML(unittest.TestCase):
         os.makedirs(self.dataroot)
 
     def test_submit_autorunner_job_to_azureml(self) -> None:
-
         # generate fake data and datalist
         generate_fake_segmentation_data(self.dataroot)
         fake_json_datalist = export_fake_data_config_file(self.dataroot)
@@ -47,12 +45,11 @@ class TestAuto3DSegAzureML(unittest.TestCase):
             "datalist": fake_json_datalist,
             "dataroot": self.dataroot,
             "multigpu": True,
-
             "azureml_config": {
                 "compute_cluster_name": "dedicated-nc24s-v2",
                 "default_datastore": "himldatasets",
-                "wait_for_completion": True
-            }
+                "wait_for_completion": True,
+            },
         }
         ConfigParser.export_config_file(azureml_test_task_src, self.test_task_yaml)
 
@@ -61,21 +58,24 @@ class TestAuto3DSegAzureML(unittest.TestCase):
             "num_epochs_per_validation": 1,
             "num_images_per_batch": 1,
             "num_epochs": 2,
-            "num_warmup_epochs": 1
+            "num_warmup_epochs": 1,
         }
         test_num_fold = 2
 
         # run AutoRunner in AzureML
         with self.assertRaises(SystemExit) as cm:
-            with unittest.mock.patch('sys.argv', [
-                '__main__.py',
-                'AutoRunner',
-                'run',
-                f'--input={self.test_task_yaml}',
-                f'--training_params={test_params}',
-                f'--num_fold={test_num_fold}',
-                '--azureml'
-            ]):
+            with unittest.mock.patch(
+                "sys.argv",
+                [
+                    "__main__.py",
+                    "AutoRunner",
+                    "run",
+                    f"--input={self.test_task_yaml}",
+                    f"--training_params={test_params}",
+                    f"--num_fold={test_num_fold}",
+                    "--azureml",
+                ],
+            ):
                 AutoRunner(input=self.test_task_yaml, training_params=test_params, num_fold=test_num_fold)
 
         self.assertEqual(cm.exception.code, 0)
