@@ -15,6 +15,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 from __future__ import annotations
 
+import functools
 import warnings
 from collections.abc import Callable
 from copy import deepcopy
@@ -56,7 +57,7 @@ from monai.transforms.utils import (
     map_spatial_axes,
     scale_affine,
 )
-from monai.transforms.utils_pytorch_numpy_unification import linalg_inv, moveaxis, where
+from monai.transforms.utils_pytorch_numpy_unification import linalg_inv, moveaxis
 from monai.utils import (
     GridSampleMode,
     GridSamplePadMode,
@@ -450,7 +451,7 @@ class Spacing(InvertibleTransform, LazyTransform):
         )
         sr = len(original_spatial_shape)
         if sr <= 0:
-            raise ValueError("data_array must have at least one spatial dimension.")
+            raise ValueError(f"data_array must have at least one spatial dimension, got {original_spatial_shape}.")
         affine_: np.ndarray
         if affine is not None:
             warnings.warn("arg `affine` is deprecated, the affine of MetaTensor in data_array has higher priority.")
@@ -566,7 +567,7 @@ class Orientation(InvertibleTransform, LazyTransform):
         spatial_shape = data_array.peek_pending_shape() if isinstance(data_array, MetaTensor) else data_array.shape[1:]
         sr = len(spatial_shape)
         if sr <= 0:
-            raise ValueError("data_array must have at least one spatial dimension.")
+            raise ValueError(f"data_array must have at least one spatial dimension, got {spatial_shape}.")
         affine_: np.ndarray
         affine_np: np.ndarray
         if isinstance(data_array, MetaTensor):
@@ -869,7 +870,7 @@ class Rotate(InvertibleTransform, LazyTransform):
         _mode = look_up_option(mode or self.mode, GridSampleMode)
         _padding_mode = look_up_option(padding_mode or self.padding_mode, GridSamplePadMode)
         _align_corners = self.align_corners if align_corners is None else align_corners
-        im_shape = np.asarray(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:])
+        im_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
         output_shape = im_shape if self.keep_size else None
         return rotate(  # type: ignore
             img, self.angle, output_shape, _mode, _padding_mode, _align_corners, _dtype, self.get_transform_info()
@@ -1045,7 +1046,7 @@ class Rotate90(InvertibleTransform, LazyTransform):
         self.k = (4 + (k % 4)) % 4  # 0, 1, 2, 3
         spatial_axes_: tuple[int, int] = ensure_tuple(spatial_axes)  # type: ignore
         if len(spatial_axes_) != 2:
-            raise ValueError("spatial_axes must be 2 int numbers to indicate the axes to rotate 90 degrees.")
+            raise ValueError(f"spatial_axes must be 2 numbers to define the plane to rotate, got {spatial_axes_}.")
         self.spatial_axes = spatial_axes_
 
     def __call__(self, img: torch.Tensor) -> torch.Tensor:
@@ -1226,8 +1227,9 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
             self.randomize()
 
         if self._do_transform:
+            ndim = len(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:])
             rotator = Rotate(
-                angle=self.x if img.ndim == 3 else (self.x, self.y, self.z),
+                angle=self.x if ndim == 2 else (self.x, self.y, self.z),
                 keep_size=self.keep_size,
                 mode=look_up_option(mode or self.mode, GridSampleMode),
                 padding_mode=look_up_option(padding_mode or self.padding_mode, GridSamplePadMode),
@@ -1507,7 +1509,7 @@ class AffineGrid(LazyTransform):
         dtype: data type for the grid computation. Defaults to ``float32``.
             If ``None``, use the data type of input data (if `grid` is provided).
         device: device on which the tensor will be allocated, if a new grid is generated.
-        align_corners: Defaults to True.
+        align_corners: Defaults to False.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
         affine: If applied, ignore the params (`rotate_params`, etc.) and use the
             supplied matrix. Should be square with each side = num of image spatial
@@ -1590,7 +1592,7 @@ class AffineGrid(LazyTransform):
         if self.align_corners:
             sc = create_scale(spatial_dims, [d / (d - 1) for d in grid_.shape[1:]], device=_device, backend=_b)
             sc = convert_to_dst_type(sc, affine)[0]
-            grid_ = (affine @ sc @ grid_.view((grid_.shape[0], -1))).view([-1] + list(grid_.shape[1:]))
+            grid_ = ((affine @ sc) @ grid_.view((grid_.shape[0], -1))).view([-1] + list(grid_.shape[1:]))
         else:
             grid_ = (affine @ grid_.view((grid_.shape[0], -1))).view([-1] + list(grid_.shape[1:]))
         return grid_, affine
@@ -1667,7 +1669,7 @@ class RandAffineGrid(Randomizable, LazyTransform):
         for f in param_range:
             if issequenceiterable(f):
                 if len(f) != 2:
-                    raise ValueError("If giving range as [min,max], should only have two elements per dim.")
+                    raise ValueError(f"If giving range as [min,max], should have 2 elements per dim, got {f}.")
                 out_param.append(self.R.uniform(f[0], f[1]) + add_scalar)
             elif f is not None:
                 out_param.append(self.R.uniform(-f, f) + add_scalar)
@@ -1811,6 +1813,35 @@ class Resample(Transform):
         self.align_corners = align_corners
         self.dtype = dtype
 
+    @staticmethod
+    @functools.lru_cache(None)
+    def resolve_modes(interp_mode, padding_mode):
+        """compute the backend and the corresponding mode for the given interpolation mode and padding mode."""
+        _interp_mode = None
+        _padding_mode = None
+        if look_up_option(str(interp_mode), SplineMode, default=None) is not None:
+            backend = TransformBackends.NUMPY
+        else:
+            backend = TransformBackends.TORCH
+
+        if (not USE_COMPILED) and (backend == TransformBackends.TORCH):
+            if str(interp_mode).lower().endswith("linear"):
+                _interp_mode = GridSampleMode("bilinear")
+            _interp_mode = GridSampleMode(interp_mode)
+            _padding_mode = GridSamplePadMode(padding_mode)
+        elif USE_COMPILED and backend == TransformBackends.TORCH:  # compiled is using torch backend param name
+            _padding_mode = 1 if padding_mode == "reflection" else padding_mode  # type: ignore
+            if interp_mode == "bicubic":
+                _interp_mode = 3  # type: ignore
+            elif interp_mode == "bilinear":
+                _interp_mode = 1  # type: ignore
+            else:
+                _interp_mode = GridSampleMode(interp_mode)  # type: ignore
+        else:  # TransformBackends.NUMPY
+            _interp_mode = int(interp_mode)  # type: ignore
+            _padding_mode = look_up_option(padding_mode, NdimageMode)
+        return backend, _interp_mode, _padding_mode
+
     def __call__(
         self,
         img: torch.Tensor,
@@ -1855,76 +1886,58 @@ class Resample(Transform):
         img = convert_to_tensor(img, track_meta=get_track_meta())
         if grid is None:
             return img
+
         _device = img.device if isinstance(img, torch.Tensor) else self.device
         _dtype = dtype or self.dtype or img.dtype
         _align_corners = self.align_corners if align_corners is None else align_corners
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=_dtype, device=_device)
-        grid_t, *_ = convert_to_dst_type(grid, img_t, dtype=grid.dtype, wrap_sequence=True)
-        grid_t = grid_t.clone(memory_format=torch.contiguous_format)
-
-        if self.norm_coords:
-            grid_t[-1] = where(grid_t[-1] != 0, grid_t[-1], 1.0)  # type: ignore
         sr = min(len(img_t.peek_pending_shape() if isinstance(img_t, MetaTensor) else img_t.shape[1:]), 3)
+        backend, _interp_mode, _padding_mode = Resample.resolve_modes(
+            self.mode if mode is None else mode, self.padding_mode if padding_mode is None else padding_mode
+        )
 
-        _interp_mode = self.mode if mode is None else mode
-        _padding_mode = self.padding_mode if padding_mode is None else padding_mode
-        if look_up_option(str(_interp_mode), SplineMode, default=None) is not None:
-            self._backend = TransformBackends.NUMPY
-        else:
-            self._backend = TransformBackends.TORCH
-
-        if USE_COMPILED or self._backend == TransformBackends.NUMPY:
-            if self.norm_coords:
-                for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
-                    _dim = max(2, dim)
-                    if _align_corners:
-                        grid_t[i] = (_dim - 1) / _dim * grid_t[i] + (_dim - 1) / 2.0
-                    else:
-                        grid_t[i] += (_dim - 1) / 2.0
-            elif _align_corners:
-                for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
-                    _dim = max(2, dim)
-                    grid_t[i] = (_dim - 1) / _dim * (grid_t[i] + 0.5)
-            grid_t = grid_t[:sr]
-            if USE_COMPILED and self._backend == TransformBackends.TORCH:  # compiled is using torch backend param name
+        if USE_COMPILED or backend == TransformBackends.NUMPY:
+            grid_t, *_ = convert_to_dst_type(grid[:sr], img_t, dtype=grid.dtype, wrap_sequence=True)
+            if hasattr(grid, "storage") and grid_t.storage().data_ptr() == grid.storage().data_ptr():
+                grid_t = grid_t.clone(memory_format=torch.contiguous_format)
+            for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
+                _dim = max(2, dim)
+                t = (_dim - 1) / 2.0
+                if self.norm_coords:
+                    grid_t[i] = ((_dim - 1) / _dim) * grid_t[i] + t if _align_corners else grid_t[i] + t
+                elif _align_corners:
+                    grid_t[i] = ((_dim - 1) / _dim) * (grid_t[i] + 0.5)
+            if USE_COMPILED and backend == TransformBackends.TORCH:  # compiled is using torch backend param name
                 grid_t = moveaxis(grid_t, 0, -1)  # type: ignore
-                bound = 1 if _padding_mode == "reflection" else _padding_mode
-                if _interp_mode == "bicubic":
-                    interp = 3
-                elif _interp_mode == "bilinear":
-                    interp = 1
-                else:
-                    interp = GridSampleMode(_interp_mode)  # type: ignore
                 out = grid_pull(
                     img_t.unsqueeze(0),
                     grid_t.unsqueeze(0).to(img_t),
-                    bound=bound,
+                    bound=_padding_mode,
                     extrapolate=True,
-                    interpolation=interp,
+                    interpolation=_interp_mode,
                 )[0]
-            elif self._backend == TransformBackends.NUMPY:
+            elif backend == TransformBackends.NUMPY:
                 is_cuda = img_t.is_cuda
                 img_np = (convert_to_cupy if is_cuda else convert_to_numpy)(img_t, wrap_sequence=True)
                 grid_np, *_ = convert_to_dst_type(grid_t, img_np, dtype=grid_t.dtype, wrap_sequence=True)
                 _map_coord = (cupy_ndi if is_cuda else np_ndi).map_coordinates
                 out = (cupy if is_cuda else np).stack(
-                    [
-                        _map_coord(c, grid_np, order=int(_interp_mode), mode=look_up_option(_padding_mode, NdimageMode))
-                        for c in img_np
-                    ]
+                    [_map_coord(c, grid_np, order=_interp_mode, mode=_padding_mode) for c in img_np]
                 )
                 out = convert_to_dst_type(out, img_t)[0]
         else:
+            grid_t = moveaxis(grid[list(range(sr - 1, -1, -1))], 0, -1)  # type: ignore
+            grid_t = convert_to_dst_type(grid_t, img_t, wrap_sequence=True)[0].unsqueeze(0)
+            if hasattr(grid, "storage") and grid_t.storage().data_ptr() == grid.storage().data_ptr():
+                grid_t = grid_t.clone(memory_format=torch.contiguous_format)
             if self.norm_coords:
-                for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
-                    grid_t[i] *= 2.0 / max(2, dim)
-            index_ordering: list[int] = list(range(sr - 1, -1, -1))
-            grid_t = moveaxis(grid_t[index_ordering], 0, -1)  # type: ignore
+                for i, dim in enumerate(img_t.shape[sr + 1 : 0 : -1]):
+                    grid_t[0, ..., i] *= 2.0 / max(2, dim)
             out = torch.nn.functional.grid_sample(
                 img_t.unsqueeze(0),
-                grid_t.unsqueeze(0).to(img_t),
-                mode=GridSampleMode(_interp_mode),
-                padding_mode=GridSamplePadMode(_padding_mode),
+                grid_t,
+                mode=_interp_mode,
+                padding_mode=_padding_mode,
                 align_corners=None if _align_corners == TraceKeys.NONE else _align_corners,  # type: ignore
             )[0]
         out_val, *_ = convert_to_dst_type(out, dst=img, dtype=np.float32)
@@ -2028,10 +2041,6 @@ class Affine(InvertibleTransform, LazyTransform):
         self.mode = mode
         self.padding_mode: str = padding_mode
 
-        self._grid = None
-        self._affine = None
-        self._sp_size = None
-
     @LazyTransform.lazy_evaluation.setter  # type: ignore
     def lazy_evaluation(self, val: bool) -> None:
         self.affine_grid.lazy_evaluation = val
@@ -2086,7 +2095,7 @@ class Affine(InvertibleTransform, LazyTransform):
         )
 
     @classmethod
-    def compute_w_affine(cls, spatial_rank, mat, img_size, sp_size, align_corners=True):
+    def compute_w_affine(cls, spatial_rank, mat, img_size, sp_size):
         r = int(spatial_rank)
         mat = to_affine_nd(r, mat)
         shift_1 = create_translate(r, [float(d - 1) / 2 for d in img_size[:r]])
@@ -2114,7 +2123,7 @@ class Affine(InvertibleTransform, LazyTransform):
         out.meta = data.meta  # type: ignore
         affine = convert_data_type(out.peek_pending_affine(), torch.Tensor)[0]
         xform, *_ = convert_to_dst_type(
-            Affine.compute_w_affine(len(affine) - 1, inv_affine, data.shape[1:], orig_size, align_corners), affine
+            Affine.compute_w_affine(len(affine) - 1, inv_affine, data.shape[1:], orig_size), affine
         )
         out.affine @= xform
         return out

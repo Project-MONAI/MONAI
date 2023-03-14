@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-A collection of "vanilla" transforms for spatial operations
+A collection of "functional" transforms for spatial operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
@@ -177,7 +177,8 @@ def orientation(img, original_affine, spatial_ornt, transform_info):
     Args:
         img: data to be changed, assuming `img` is channel-first.
         original_affine: original affine of the input image.
-        spatial_ornt: orientation.
+        spatial_ornt: orientations of the spatial axes,
+            see also https://nipy.org/nibabel/reference/nibabel.orientations.html
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
     """
     spatial_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
@@ -352,6 +353,8 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, t
         corners = np.asarray(np.meshgrid(*[(0, dim) for dim in im_shape], indexing="ij")).reshape((len(im_shape), -1))
         corners = transform[:-1, :-1] @ corners  # type: ignore
         output_shape = np.asarray(corners.ptp(axis=1) + 0.5, dtype=int)
+    else:
+        output_shape = np.asarray(output_shape, dtype=int)
     shift = create_translate(input_ndim, ((np.array(im_shape) - 1) / 2).tolist())
     shift_1 = create_translate(input_ndim, (-(np.asarray(output_shape, dtype=int) - 1) / 2).tolist())
     transform = shift @ transform @ shift_1
@@ -470,7 +473,7 @@ def rotate90(img, axes, k, transform_info):
     Args:
         img: data to be changed, assuming `img` is channel-first.
         axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
-                If axis is negative it counts from the last to the first axis.
+            If axis is negative it counts from the last to the first axis.
         k: number of times to rotate by 90 degrees.
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
     """
@@ -518,9 +521,10 @@ def affine_func(img, affine, grid, resampler, sp_size, mode, padding_mode, do_re
 
     Args:
         img: data to be changed, assuming `img` is channel-first.
-        affine:
-        grid:
-        resampler: resampler function.
+        affine: the affine transformation to be applied, it can be a 3x3 or 4x4 matrix. This should be defined
+            for the voxel space spatial centers (``float(size - 1)/2``).
+        grid: used in non-lazy mode to pre-compute the grid to do the resampling.
+        resampler: the resampler function, see also: :py:class:`monai.transforms.Resample`.
         sp_size: output image spatial size.
         mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
             Interpolation mode to calculate output values.
@@ -534,7 +538,8 @@ def affine_func(img, affine, grid, resampler, sp_size, mode, padding_mode, do_re
             When `mode` is an integer, using numpy/cupy backends, this argument accepts
             {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
             See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
-        do_resampling:
+        do_resampling: whether to do the resampling, this is a flag for the use case of updating metadata but
+            skipping the actual (potentially heavy) resampling operation.
         image_only: if True return only the image volume, otherwise return (image, affine).
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
 
@@ -550,7 +555,7 @@ def affine_func(img, affine, grid, resampler, sp_size, mode, padding_mode, do_re
         "do_resampling": do_resampling,
         "align_corners": resampler.align_corners,
     }
-    affine = monai.transforms.Affine.compute_w_affine(rank, affine, img_size, sp_size, resampler.align_corners)
+    affine = monai.transforms.Affine.compute_w_affine(rank, affine, img_size, sp_size)
     meta_info = TraceableTransform.track_transform_meta(
         img,
         sp_size=sp_size,
