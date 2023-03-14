@@ -57,7 +57,7 @@ from monai.transforms.utils import (
     map_spatial_axes,
     scale_affine,
 )
-from monai.transforms.utils_pytorch_numpy_unification import linalg_inv, moveaxis, where
+from monai.transforms.utils_pytorch_numpy_unification import linalg_inv, moveaxis
 from monai.utils import (
     GridSampleMode,
     GridSamplePadMode,
@@ -1886,6 +1886,7 @@ class Resample(Transform):
         img = convert_to_tensor(img, track_meta=get_track_meta())
         if grid is None:
             return img
+
         _device = img.device if isinstance(img, torch.Tensor) else self.device
         _dtype = dtype or self.dtype or img.dtype
         _align_corners = self.align_corners if align_corners is None else align_corners
@@ -1899,14 +1900,12 @@ class Resample(Transform):
             grid_t, *_ = convert_to_dst_type(grid[:sr], img_t, dtype=grid.dtype, wrap_sequence=True)
             if grid_t.storage().data_ptr() == grid.storage().data_ptr():
                 grid_t = grid_t.clone(memory_format=torch.contiguous_format)
-            if self.norm_coords:
-                for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
-                    _dim = max(2, dim)
-                    t = (_dim - 1) / 2.0
+            for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
+                _dim = max(2, dim)
+                t = (_dim - 1) / 2.0
+                if self.norm_coords:
                     grid_t[i] = ((_dim - 1) / _dim) * grid_t[i] + t if _align_corners else grid_t[i] + t
-            elif _align_corners:
-                for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
-                    _dim = max(2, dim)
+                elif _align_corners:
                     grid_t[i] = ((_dim - 1) / _dim) * (grid_t[i] + 0.5)
             if USE_COMPILED and backend == TransformBackends.TORCH:  # compiled is using torch backend param name
                 grid_t = moveaxis(grid_t, 0, -1)  # type: ignore
@@ -1928,15 +1927,15 @@ class Resample(Transform):
                 out = convert_to_dst_type(out, img_t)[0]
         else:
             grid_t = moveaxis(grid[list(range(sr - 1, -1, -1))], 0, -1)  # type: ignore
-            grid_t, *_ = convert_to_dst_type(grid_t, img_t, wrap_sequence=True)
+            grid_t, *_ = convert_to_dst_type(grid_t.unsqueeze(0), img_t, wrap_sequence=True)
             if grid_t.storage().data_ptr() == grid.storage().data_ptr():
                 grid_t = grid_t.clone(memory_format=torch.contiguous_format)
             if self.norm_coords:
                 for i, dim in enumerate(img_t.shape[sr + 1 : 0 : -1]):
-                    grid_t[..., i] *= 2.0 / max(2, dim)
+                    grid_t[0, ..., i] *= 2.0 / max(2, dim)
             out = torch.nn.functional.grid_sample(
                 img_t.unsqueeze(0),
-                grid_t.unsqueeze(0),
+                grid_t,
                 mode=_interp_mode,
                 padding_mode=_padding_mode,
                 align_corners=None if _align_corners == TraceKeys.NONE else _align_corners,  # type: ignore
