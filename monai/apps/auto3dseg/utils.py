@@ -74,7 +74,8 @@ def export_bundle_algo_history(history: list[dict[str, BundleAlgo]]) -> None:
             algo_to_pickle(algo, template_path=algo.template_path)
 
 
-def submit_auto3dseg_module_to_azureml_if_needed(azure_cfg: dict[str, Any]) -> health_azure.AzureRunInfo:
+# can't give actual return type from health_azure because it's an optional import
+def submit_auto3dseg_module_to_azureml_if_needed(azure_cfg: dict[str, Any]) -> Any:
     """
     Submit Auto3dSeg modules to run as AzureML jobs if the user has requested it.
 
