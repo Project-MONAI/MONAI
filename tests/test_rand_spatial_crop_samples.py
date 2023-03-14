@@ -119,7 +119,7 @@ class TestRandSpatialCropSamples(CropTest):
                 assert_allclose(_pending_result.peek_pending_affine(), expected[i].affine)
                 assert_allclose(_pending_result.peek_pending_shape(), expected[i].shape[1:])
                 # only support nearest
-                result = apply_transforms(_pending_result, mode="nearest", align_corners=True)[0]
+                result = apply_transforms(_pending_result, mode="nearest", align_corners=False)[0]
                 # compare
                 assert_allclose(result, expected[i], rtol=1e-5)
 
