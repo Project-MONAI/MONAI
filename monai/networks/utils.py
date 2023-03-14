@@ -418,7 +418,7 @@ def train_mode(*nets: nn.Module):
     try:
         # set to train mode
         with torch.set_grad_enabled(True):
-            yield [n.train() if hasattr(n, "train") else n for n in nets if hasattr(n, "train")]
+            yield [n.train() if hasattr(n, "train") else n for n in nets]
     finally:
         # Return required networks to eval_list
         for n in eval_list:
