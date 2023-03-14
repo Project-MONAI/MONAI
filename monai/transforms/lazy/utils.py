@@ -164,7 +164,7 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, spatial_size, kwargs: 
         :py:class:`monai.transforms.SpatialResample`
     """
     if not Affine.is_affine_shaped(matrix):
-        raise NotImplementedError("Calling the dense grid resample API directly not implemented.")
+        raise NotImplementedError(f"Calling the dense grid resample API directly not implemented, {matrix.shape}.")
     if isinstance(data, monai.data.MetaTensor) and data.pending_operations:
         warnings.warn("data.pending_operations is not empty, the resampling output may be incorrect.")
     kwargs = {} if kwargs is None else kwargs
@@ -203,7 +203,7 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, spatial_size, kwargs: 
                 matrix_np[ind_f, ind_f] = 1
                 matrix_np[ind_f, -1] = in_shape[ind_f] - 1 - matrix_np[ind_f, -1]
         if not np.all(out_spatial_size > 0):
-            raise ValueError("Resampling out_spatial_size should be positive, got {out_spatial_size}.")
+            raise ValueError(f"Resampling out_spatial_size should be positive, got {out_spatial_size}.")
         if (
             allclose(matrix_np, np.eye(len(matrix_np)), atol=atol)
             and len(in_shape) == len(out_spatial_size)

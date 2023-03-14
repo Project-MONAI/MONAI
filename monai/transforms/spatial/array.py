@@ -1927,7 +1927,7 @@ class Resample(Transform):
                 out = convert_to_dst_type(out, img_t)[0]
         else:
             grid_t = moveaxis(grid[list(range(sr - 1, -1, -1))], 0, -1)  # type: ignore
-            grid_t, *_ = convert_to_dst_type(grid_t.unsqueeze(0), img_t, wrap_sequence=True)
+            grid_t = convert_to_dst_type(grid_t, img_t, wrap_sequence=True)[0].unsqueeze(0)
             if grid_t.storage().data_ptr() == grid.storage().data_ptr():
                 grid_t = grid_t.clone(memory_format=torch.contiguous_format)
             if self.norm_coords:
