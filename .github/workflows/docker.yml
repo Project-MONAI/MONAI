@@ -9,7 +9,6 @@ on:
   push:
     branches:
       - dev
-      - auto-update
   # Allows you to run this workflow manually from the Actions tab
   # This is to trigger building/testing docker image from dev only.
   workflow_dispatch:
