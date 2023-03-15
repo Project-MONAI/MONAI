@@ -8,7 +8,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """
 The predefined properties for a bundle workflow, other applications can leverage the properties
 to interact with the bundle workflow.
@@ -148,7 +147,6 @@ TrainProperties = {
         BundlePropertyConfig.REF_ID: f"validate{ID_SEP_KEY}evaluator{ID_SEP_KEY}key_val_metric",
     },
 }
-
 
 InferProperties = {
     "bundle_root": {

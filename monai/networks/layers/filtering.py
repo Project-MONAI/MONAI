@@ -49,6 +49,7 @@ class BilateralFilter(torch.autograd.Function):
 
     @staticmethod
     def forward(ctx, input, spatial_sigma=5, color_sigma=0.5, fast_approx=True):
+        """autograd forward"""
         ctx.ss = spatial_sigma
         ctx.cs = color_sigma
         ctx.fa = fast_approx
@@ -57,6 +58,7 @@ class BilateralFilter(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_output):
+        """autograd backward"""
         spatial_sigma, color_sigma, fast_approx = ctx.ss, ctx.cs, ctx.fa
         grad_input = _C.bilateral_filter(grad_output, spatial_sigma, color_sigma, fast_approx)
         return grad_input, None, None, None
