@@ -129,22 +129,18 @@ class BundleWorkflow(ABC):
     def check_properties(self) -> list[str] | None:
         """
         Check whether the required properties are existing in the bundle workflow.
-        If no workflow type specified, return None, otherwise, return a list of required but missing properites.
+        If no workflow type specified, return None, otherwise, return a list of required but missing properties.
 
         """
         if self.properties is None:
-            warnings.warn("No available properties had been set, skipping check.")
             return None
-        ret = [n for n, p in self.properties.items() if p.get(BundleProperty.REQUIRED, False) and not hasattr(self, n)]
-        if ret:
-            warnings.warn(f"Loaded bundle does not contain the following required properties: {ret}")
-        return ret
+        return [n for n, p in self.properties.items() if p.get(BundleProperty.REQUIRED, False) and not hasattr(self, n)]
 
 
 class ConfigWorkflow(BundleWorkflow):
     """
     Specification for the config-based bundle workflow.
-    Standardized the `initialize`, `run`, `finalize` behavior in a config-based training, evaluation, or infefence.
+    Standardized the `initialize`, `run`, `finalize` behavior in a config-based training, evaluation, or inference.
 
     Args:
         run_id: ID name of the expected config expression to run, default to "run".
@@ -307,7 +303,7 @@ class ConfigWorkflow(BundleWorkflow):
 
     def _check_optional_id(self, name: str, property: dict) -> bool:
         """
-        If an optional property has reference in the config, check whether the property is exising.
+        If an optional property has reference in the config, check whether the property is existing.
         If `ValidationHandler` is defined for a training workflow, will check whether the optional properties
         "evaluator" and "val_interval" are existing.
 
