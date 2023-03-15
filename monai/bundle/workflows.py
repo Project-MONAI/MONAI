@@ -22,7 +22,7 @@ from typing import Any, Sequence
 from monai.apps.utils import get_logger
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.properties import InferProperties, TrainProperties
-from monai.bundle.utils import DEFAULT_EXP_MGMT_SETTINGS
+from monai.bundle.utils import DEFAULT_EXP_MGMT_SETTINGS, EXPR_KEY, ID_REF_KEY, ID_SEP_KEY
 from monai.utils import BundleProperty, BundlePropertyConfig
 
 __all__ = ["BundleWorkflow", "ConfigWorkflow"]
@@ -247,7 +247,10 @@ class ConfigWorkflow(BundleWorkflow):
         """
         ret = super().check_properties()
         if self.properties is None:
+            warnings.warn("No available properties had been set, skipping check.")
             return None
+        if ret:
+            warnings.warn(f"Loaded bundle does not contain the following required properties: {ret}")
         # also check whether the optional properties use correct ID name if existing
         wrong_props = []
         for n, p in self.properties.items():
@@ -319,13 +322,13 @@ class ConfigWorkflow(BundleWorkflow):
             return True
         # check validation `validator` and `interval` properties as the handler index of ValidationHandler is unknown
         if name in ("evaluator", "val_interval"):
-            if "train#handlers" in self.parser:
-                for h in self.parser["train#handlers"]:
+            if f"train{ID_SEP_KEY}handlers" in self.parser:
+                for h in self.parser[f"train{ID_SEP_KEY}handlers"]:
                     if h["_target_"] == "ValidationHandler":
                         ref = h.get(ref_id, None)
         else:
             ref = self.parser.get(ref_id, None)
-        if ref is not None and ref != "@" + id:
+        if ref is not None and ref != ID_REF_KEY + id:
             return False
         return True
 
@@ -356,7 +359,7 @@ class ConfigWorkflow(BundleWorkflow):
         if filepath is None:
             if "output_dir" not in parser:
                 # if no "output_dir" in the bundle config, default to "<bundle root>/eval"
-                parser["output_dir"] = "$@bundle_root + '/eval'"
+                parser["output_dir"] = f"{EXPR_KEY}{ID_REF_KEY}bundle_root + '/eval'"
             # experiment management tools can refer to this config item to track the config info
             parser["execute_config"] = parser["output_dir"] + f" + '/{default_name}'"
             filepath = os.path.join(parser.get_parsed_content("output_dir"), default_name)

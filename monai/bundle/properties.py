@@ -25,6 +25,7 @@ the key is the property name and the values include:
 
 from __future__ import annotations
 
+from monai.bundle.utils import ID_SEP_KEY
 from monai.utils import BundleProperty, BundlePropertyConfig
 
 TrainProperties = {
@@ -46,56 +47,56 @@ TrainProperties = {
     "trainer": {
         BundleProperty.DESC: "training workflow engine.",
         BundleProperty.REQUIRED: True,
-        BundlePropertyConfig.ID: "train#trainer",
+        BundlePropertyConfig.ID: f"train{ID_SEP_KEY}trainer",
     },
     "max_epochs": {
         BundleProperty.DESC: "max number of epochs to execute the training.",
         BundleProperty.REQUIRED: True,
-        BundlePropertyConfig.ID: "train#trainer#max_epochs",
+        BundlePropertyConfig.ID: f"train{ID_SEP_KEY}trainer{ID_SEP_KEY}max_epochs",
     },
     "train_dataset": {
         BundleProperty.DESC: "PyTorch dataset object for the training logic.",
         BundleProperty.REQUIRED: True,
-        BundlePropertyConfig.ID: "train#dataset",
+        BundlePropertyConfig.ID: f"train{ID_SEP_KEY}dataset",
     },
     "train_dataset_data": {
         BundleProperty.DESC: "data source for the training dataset.",
         BundleProperty.REQUIRED: True,
-        BundlePropertyConfig.ID: "train#dataset#data",
+        BundlePropertyConfig.ID: f"train{ID_SEP_KEY}dataset{ID_SEP_KEY}data",
     },
     "train_inferer": {
         BundleProperty.DESC: "MONAI Inferer object to execute the model computation in training.",
         BundleProperty.REQUIRED: True,
-        BundlePropertyConfig.ID: "train#inferer",
+        BundlePropertyConfig.ID: f"train{ID_SEP_KEY}inferer",
     },
     "train_handlers": {
         BundleProperty.DESC: "event-handlers for the training logic.",
         BundleProperty.REQUIRED: False,
-        BundlePropertyConfig.ID: "train#handlers",
-        BundlePropertyConfig.REF_ID: "train#trainer#train_handlers",
+        BundlePropertyConfig.ID: f"train{ID_SEP_KEY}handlers",
+        BundlePropertyConfig.REF_ID: f"train{ID_SEP_KEY}trainer{ID_SEP_KEY}train_handlers",
     },
     "train_preprocessing": {
         BundleProperty.DESC: "preprocessing for the training input data.",
         BundleProperty.REQUIRED: False,
-        BundlePropertyConfig.ID: "train#preprocessing",
-        BundlePropertyConfig.REF_ID: "train#dataset#transform",
+        BundlePropertyConfig.ID: f"train{ID_SEP_KEY}preprocessing",
+        BundlePropertyConfig.REF_ID: f"train{ID_SEP_KEY}dataset{ID_SEP_KEY}transform",
     },
     "train_postprocessing": {
         BundleProperty.DESC: "postprocessing for the training model output data.",
         BundleProperty.REQUIRED: False,
-        BundlePropertyConfig.ID: "train#postprocessing",
-        BundlePropertyConfig.REF_ID: "train#trainer#postprocessing",
+        BundlePropertyConfig.ID: f"train{ID_SEP_KEY}postprocessing",
+        BundlePropertyConfig.REF_ID: f"train{ID_SEP_KEY}trainer{ID_SEP_KEY}postprocessing",
     },
     "train_key_metric": {
         BundleProperty.DESC: "key metric to compute on the training data.",
         BundleProperty.REQUIRED: False,
-        BundlePropertyConfig.ID: "train#key_metric",
-        BundlePropertyConfig.REF_ID: "train#trainer#key_train_metric",
+        BundlePropertyConfig.ID: f"train{ID_SEP_KEY}key_metric",
+        BundlePropertyConfig.REF_ID: f"train{ID_SEP_KEY}trainer{ID_SEP_KEY}key_train_metric",
     },
     "evaluator": {
         BundleProperty.DESC: "validation workflow engine.",
         BundleProperty.REQUIRED: False,
-        BundlePropertyConfig.ID: "validate#evaluator",
+        BundlePropertyConfig.ID: f"validate{ID_SEP_KEY}evaluator",
         BundlePropertyConfig.REF_ID: "validator",  # this REF_ID is the arg name of `ValidationHandler`
     },
     "val_interval": {
@@ -107,44 +108,44 @@ TrainProperties = {
     "val_handlers": {
         BundleProperty.DESC: "event-handlers for the validation logic.",
         BundleProperty.REQUIRED: False,
-        BundlePropertyConfig.ID: "validate#handlers",
-        BundlePropertyConfig.REF_ID: "validate#evaluator#val_handlers",
+        BundlePropertyConfig.ID: f"validate{ID_SEP_KEY}handlers",
+        BundlePropertyConfig.REF_ID: f"validate{ID_SEP_KEY}evaluator{ID_SEP_KEY}val_handlers",
     },
     "val_dataset": {
         BundleProperty.DESC: "PyTorch dataset object for the validation logic.",
         BundleProperty.REQUIRED: False,
-        BundlePropertyConfig.ID: "validate#dataset",
-        BundlePropertyConfig.REF_ID: "validate#dataloader#dataset",
+        BundlePropertyConfig.ID: f"validate{ID_SEP_KEY}dataset",
+        BundlePropertyConfig.REF_ID: f"validate{ID_SEP_KEY}dataloader{ID_SEP_KEY}dataset",
     },
     "val_dataset_data": {
         BundleProperty.DESC: "data source for the validation dataset.",
         BundleProperty.REQUIRED: False,
-        BundlePropertyConfig.ID: "validate#dataset#data",
+        BundlePropertyConfig.ID: f"validate{ID_SEP_KEY}dataset{ID_SEP_KEY}data",
         BundlePropertyConfig.REF_ID: None,  # no reference to this ID
     },
     "val_inferer": {
         BundleProperty.DESC: "MONAI Inferer object to execute the model computation in validation.",
         BundleProperty.REQUIRED: False,
-        BundlePropertyConfig.ID: "validate#inferer",
-        BundlePropertyConfig.REF_ID: "validate#evaluator#inferer",
+        BundlePropertyConfig.ID: f"validate{ID_SEP_KEY}inferer",
+        BundlePropertyConfig.REF_ID: f"validate{ID_SEP_KEY}evaluator{ID_SEP_KEY}inferer",
     },
     "val_preprocessing": {
         BundleProperty.DESC: "preprocessing for the validation input data.",
         BundleProperty.REQUIRED: False,
-        BundlePropertyConfig.ID: "validate#preprocessing",
-        BundlePropertyConfig.REF_ID: "validate#dataset#transform",
+        BundlePropertyConfig.ID: f"validate{ID_SEP_KEY}preprocessing",
+        BundlePropertyConfig.REF_ID: f"validate{ID_SEP_KEY}dataset{ID_SEP_KEY}transform",
     },
     "val_postprocessing": {
         BundleProperty.DESC: "postprocessing for the validation model output data.",
         BundleProperty.REQUIRED: False,
-        BundlePropertyConfig.ID: "validate#postprocessing",
-        BundlePropertyConfig.REF_ID: "validate#evaluator#postprocessing",
+        BundlePropertyConfig.ID: f"validate{ID_SEP_KEY}postprocessing",
+        BundlePropertyConfig.REF_ID: f"validate{ID_SEP_KEY}evaluator{ID_SEP_KEY}postprocessing",
     },
     "val_key_metric": {
         BundleProperty.DESC: "key metric to compute on the validation data.",
         BundleProperty.REQUIRED: False,
-        BundlePropertyConfig.ID: "validate#key_metric",
-        BundlePropertyConfig.REF_ID: "validate#evaluator#key_val_metric",
+        BundlePropertyConfig.ID: f"validate{ID_SEP_KEY}key_metric",
+        BundlePropertyConfig.REF_ID: f"validate{ID_SEP_KEY}evaluator{ID_SEP_KEY}key_val_metric",
     },
 }
 
@@ -174,18 +175,18 @@ InferProperties = {
         BundleProperty.DESC: "preprocessing for the input data.",
         BundleProperty.REQUIRED: False,
         BundlePropertyConfig.ID: "preprocessing",
-        BundlePropertyConfig.REF_ID: "dataset#transform",
+        BundlePropertyConfig.REF_ID: f"dataset{ID_SEP_KEY}transform",
     },
     "postprocessing": {
         BundleProperty.DESC: "postprocessing for the model output data.",
         BundleProperty.REQUIRED: False,
         BundlePropertyConfig.ID: "postprocessing",
-        BundlePropertyConfig.REF_ID: "evaluator#postprocessing",
+        BundlePropertyConfig.REF_ID: f"evaluator{ID_SEP_KEY}postprocessing",
     },
     "key_metric": {
         BundleProperty.DESC: "the key metric during evaluation.",
         BundleProperty.REQUIRED: False,
         BundlePropertyConfig.ID: "key_metric",
-        BundlePropertyConfig.REF_ID: "evaluator#key_val_metric",
+        BundlePropertyConfig.REF_ID: f"evaluator{ID_SEP_KEY}key_val_metric",
     },
 }
