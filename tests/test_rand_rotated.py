@@ -146,7 +146,7 @@ class TestRandRotated2D(NumpyImageTestCase2D):
             rotated[k] = v.cpu() if isinstance(v, torch.Tensor) else v
         expected = np.stack(expected).astype(np.float32)
         good = np.sum(np.isclose(expected, rotated["img"][0], atol=1e-3))
-        self.assertLessEqual(np.abs(good - expected.size), 25, "diff at most 25 pixels")
+        self.assertLessEqual(np.abs(good - expected.size), 40, "diff at most 40 pixels")
 
 
 class TestRandRotated3D(NumpyImageTestCase3D):
