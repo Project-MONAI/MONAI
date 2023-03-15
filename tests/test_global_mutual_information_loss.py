@@ -86,7 +86,7 @@ class TestGlobalMutualInformationLoss(unittest.TestCase):
             transform_list = [
                 transforms.LoadImaged(keys="img", image_only=True),
                 transforms.Affined(
-                    keys="img", translate_params=translate_params, rotate_params=rotate_params, device=None,
+                    keys="img", translate_params=translate_params, rotate_params=rotate_params, device=None
                 ),
                 transforms.NormalizeIntensityd(keys=["img"]),
             ]
