@@ -193,6 +193,7 @@ def run_testsuit():
         "test_fastmri_reader",
         "test_metrics_reloaded",
         "test_spatial_combine_transforms",
+        "test_bundle_workflow",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 
