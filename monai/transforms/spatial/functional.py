@@ -295,10 +295,12 @@ def resize(img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing,
         lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
     )
     out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
-    if transform_info.get(TraceKeys.LAZY_EVALUATION, False) or tuple(convert_to_numpy(orig_size)) == out_size:
+    if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
         if anti_aliasing and transform_info.get(TraceKeys.LAZY_EVALUATION, False):
             warnings.warn("anti-aliasing is not compatible with lazy evaluation.")
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+    if tuple(convert_to_numpy(orig_size)) == out_size:
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
     img_ = convert_to_tensor(out, dtype=dtype, track_meta=False)  # convert to a regular tensor
     if anti_aliasing and any(x < y for x, y in zip(out_size, img_.shape[1:])):
         factors = torch.div(torch.Tensor(list(img_.shape[1:])), torch.Tensor(out_size))
