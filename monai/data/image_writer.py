@@ -380,6 +380,7 @@ class ITKWriter(ImageWriter):
             affine_lps_to_ras: whether to convert the affine matrix from "LPS" to "RAS". Defaults to ``True``.
                 Set to ``True`` to be consistent with ``NibabelWriter``,
                 otherwise the affine matrix is assumed already in the ITK convention.
+                Set to ``None`` to use ``data_array.meta[MetaKeys.SPACE]`` to determine the flag.
             kwargs: keyword arguments passed to ``ImageWriter``.
 
         The constructor will create ``self.output_dtype`` internally.
@@ -495,6 +496,7 @@ class ITKWriter(ImageWriter):
             affine_lps_to_ras: whether to convert the affine matrix from "LPS" to "RAS". Defaults to ``True``.
                 Set to ``True`` to be consistent with ``NibabelWriter``,
                 otherwise the affine matrix is assumed already in the ITK convention.
+                Set to ``None`` to use ``data_array.meta[MetaKeys.SPACE]`` to determine the flag.
             kwargs: keyword arguments. Current `itk.GetImageFromArray` will read ``ttype`` from this dictionary.
 
         see also:
@@ -502,12 +504,10 @@ class ITKWriter(ImageWriter):
             - https://github.com/InsightSoftwareConsortium/ITK/blob/v5.2.1/Wrapping/Generators/Python/itk/support/extras.py#L389
 
         """
-        if (
-            isinstance(data_array, MetaTensor)
-            and affine_lps_to_ras is None
-            and data_array.meta.get(MetaKeys.SPACE, SpaceKeys.LPS) != SpaceKeys.LPS
-        ):
-            affine_lps_to_ras = False  # do the converting from LPS to RAS only if the space type is currently LPS.
+        if isinstance(data_array, MetaTensor) and affine_lps_to_ras is None:
+            affine_lps_to_ras = (
+                data_array.meta.get(MetaKeys.SPACE, SpaceKeys.LPS) != SpaceKeys.LPS
+            )  # do the converting from LPS to RAS only if the space type is currently LPS.
         data_array = super().create_backend_obj(data_array)
         _is_vec = channel_dim is not None
         if _is_vec:
