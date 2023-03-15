@@ -26,9 +26,9 @@ from monai.bundle import ConfigParser
 
 class nnUNetRunner:
     def __init__(self,
-        input,
-        work_dir: str = "work_dir",
-    ):
+                 input,
+                 work_dir: str = "work_dir",
+                 ):
         self.input_info = []
         self.input_config_or_dict = input
         self.work_dir = work_dir
@@ -70,7 +70,7 @@ class nnUNetRunner:
 
         try:
             self.dataset_name = maybe_convert_to_dataset_name(int(self.dataset_name_or_id))
-        except:
+        except BaseException:
             print("Dataset ID does not exist! Check input '.yaml' if this is unexpected.")
 
         from nnunetv2.configuration import default_num_processes
@@ -120,7 +120,7 @@ class nnUNetRunner:
             if "test" in datalist_json or "testing" in datalist_json:
                 os.makedirs(os.path.join(raw_data_foldername, "imagesTr"))
                 test_key = "test" if "test" in datalist_json else "testing"
-                if type(datalist_json[test_key][0]) == dict and "label" in datalist_json[test_key][0]:
+                if isinstance(datalist_json[test_key][0], dict) and "label" in datalist_json[test_key][0]:
                     os.makedirs(os.path.join(raw_data_foldername, "labelsTr"))
 
             img = monai.transforms.LoadImage(image_only=True, ensure_channel_first=True, simple_keys=True)(
@@ -140,7 +140,7 @@ class nnUNetRunner:
             new_json_data = {}
 
             modality = self.input_info.pop("modality")
-            if type(modality) != list:
+            if not isinstance(modality, list):
                 modality = [modality]
 
             new_json_data["channel_names"] = {}
@@ -172,13 +172,13 @@ class nnUNetRunner:
             for _key, _folder, _label_folder in list(
                 zip(["training", test_key], ["imagesTs", "imagesTr"], ["labelsTs", "labelsTr"])
             ):
-                if _key == None:
+                if _key is None:
                     continue
 
                 for _k in range(len(datalist_json[_key])):
                     orig_img_name = (
                         datalist_json[_key][_k]["image"]
-                        if type(datalist_json[_key][_k]) == dict
+                        if isinstance(datalist_json[_key][_k], dict)
                         else datalist_json[_key][_k]
                     )
                     img_name = f"image_{_index}"
@@ -196,7 +196,7 @@ class nnUNetRunner:
                         nib.save(outimg, os.path.join(raw_data_foldername, _folder, img_name + index + ".nii.gz"))
 
                     # copy label
-                    if type(datalist_json[_key][_k]) == dict and "label" in datalist_json[_key][_k]:
+                    if isinstance(datalist_json[_key][_k], dict) and "label" in datalist_json[_key][_k]:
                         nda = monai.transforms.LoadImage(image_only=True, ensure_channel_first=True, simple_keys=True)(
                             os.path.join(data_dir, datalist_json[_key][_k]["label"])
                         )
@@ -207,7 +207,7 @@ class nnUNetRunner:
                             os.path.join(raw_data_foldername, "labelsTs", img_name + ".nii.gz"),
                         )
 
-                    if type(datalist_json[_key][_k]) == dict:
+                    if isinstance(datalist_json[_key][_k], dict):
                         _val = copy.deepcopy(datalist_json[_key][_k])
                         _val["new_name"] = img_name
                         new_datalist_json[_key].append(_val)
@@ -222,7 +222,7 @@ class nnUNetRunner:
                 indent=4,
                 ensure_ascii=False,
             )
-        except:
+        except BaseException:
             print("Input '.yaml' is incorrect.")
             return
 
@@ -291,7 +291,7 @@ class nnUNetRunner:
         self.plan_experiments(pl, gpu_memory_target, preprocessor_name, overwrite_target_spacing, overwrite_plans_name)
         self.preprocess(c, np, overwrite_plans_name, verbose)
 
-    def train_single_model(self, config, fold, gpu_id : int = 0, **kwargs):
+    def train_single_model(self, config, fold, gpu_id: int = 0, **kwargs):
         """
         Args:
             config: configuration that should be trained.
@@ -313,7 +313,7 @@ class nnUNetRunner:
         run_training(dataset_name_or_id=self.dataset_name_or_id, configuration=config, fold=fold, **kwargs)
 
     def train(self, configs=["3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"], **kwargs):
-        if type(configs) == str:
+        if isinstance(configs, str):
             configs = [configs]
 
         if self.num_gpus > 1:
@@ -325,7 +325,7 @@ class nnUNetRunner:
                     self.train_single_model(config=_config, fold=_fold, **kwargs)
 
     def train_parallel(self, configs=["3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"], **kwargs):
-        if type(configs) == str:
+        if isinstance(configs, str):
             configs = [configs]
 
         cmds = []
@@ -381,7 +381,7 @@ class nnUNetRunner:
         self.train_single_model(config=config, fold=fold, only_run_validation=True)
 
     def validate(self, configs=["3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"]):
-        if type(configs) == str:
+        if isinstance(configs, str):
             configs = [configs]
 
         for _i in range(len(configs)):
@@ -506,6 +506,7 @@ class nnUNetRunner:
         )
 
     def run(self):
+        self.convert_dataset()
         self.plan_and_process()
         self.train()
         self.find_best_configuration()
