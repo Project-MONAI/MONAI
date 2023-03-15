@@ -643,11 +643,11 @@ class LazyAttr(StrEnum):
 class BundleProperty(StrEnum):
     """
     Bundle property fields:
-    `DESP` is the description of the property.
+    `DESC` is the description of the property.
     `REQUIRED` is flag to indicate whether the property is required or optional.
     """
 
-    DESP = "description"
+    DESC = "description"
     REQUIRED = "required"
 
 
