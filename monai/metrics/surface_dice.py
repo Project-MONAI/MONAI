@@ -206,12 +206,6 @@ def compute_surface_dice(
             f"y_pred and y should have same shape, but instead, shapes are {y_pred.shape} (y_pred) and {y.shape} (y)."
         )
 
-    if spacing is not None:
-        # dims - 2 because we don't want to include the batch and channel dimension
-        assert (
-            len(spacing) == y_pred.dim() - 2
-        ), "spacing should have the same length as ``y_pred`` without batch and channel dimensions"
-
     if not torch.all(y_pred.byte() == y_pred) or not torch.all(y.byte() == y):
         raise ValueError("y_pred and y should be binarized tensors (e.g. torch.int64).")
     if torch.any(y_pred > 1) or torch.any(y > 1):

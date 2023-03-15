@@ -92,12 +92,6 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
         if y_pred.dim() < 3:
             raise ValueError("y_pred should have at least three dimensions.")
 
-        if spacing is not None:
-            # dims - 2 because we don't want to include the batch and channel dimension
-            assert (
-                len(spacing) == y_pred.dim() - 2
-            ), "spacing should have the same length as ``y_pred`` without batch and channel dimensions"
-
         # compute (BxC) for each channel for each batch
         return compute_average_surface_distance(
             y_pred=y_pred,
