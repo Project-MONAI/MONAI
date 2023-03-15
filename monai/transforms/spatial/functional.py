@@ -587,9 +587,9 @@ def affine_func(img, affine, grid, resampler, sp_size, mode, padding_mode, do_re
         out = out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
         return out if image_only else (out, affine)
     if do_resampling:
-        out = resampler(img=_maybe_new_metatensor(img), grid=grid, mode=mode, padding_mode=padding_mode)
+        out = resampler(img=img, grid=grid, mode=mode, padding_mode=padding_mode)
+        out = _maybe_new_metatensor(out)
     else:
         out = _maybe_new_metatensor(img, dtype=torch.float32, device=resampler.device)
-    out = convert_to_tensor(out, track_meta=get_track_meta())
     out = out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
     return out if image_only else (out, affine)
