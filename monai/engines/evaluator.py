@@ -295,7 +295,6 @@ class SupervisedEvaluator(Evaluator):
 
         # put iteration outputs into engine.state
         engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
-
         # execute forward computation
         with engine.mode(engine.network):
             if engine.amp:
