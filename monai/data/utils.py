@@ -875,15 +875,14 @@ def compute_shape_offset(
     in_coords = [(-0.5, dim - 0.5) if scale_extent else (0.0, dim - 1.0) for dim in shape]
     corners: np.ndarray = np.asarray(np.meshgrid(*in_coords, indexing="ij")).reshape((len(shape), -1))
     corners = np.concatenate((corners, np.ones_like(corners[:1])))
-    corners = in_affine_ @ corners
     try:
-        inv_mat = np.linalg.inv(out_affine_)
+        corners_out = np.linalg.solve(out_affine_, in_affine_) @ corners
     except np.linalg.LinAlgError as e:
         raise ValueError(f"Affine {out_affine_} is not invertible") from e
-    corners_out = inv_mat @ corners
+    corners = in_affine_ @ corners
+    all_dist = corners_out[:-1].copy()
     corners_out = corners_out[:-1] / corners_out[-1]
     out_shape = np.round(corners_out.ptp(axis=1)) if scale_extent else np.round(corners_out.ptp(axis=1) + 1.0)
-    all_dist = inv_mat[:-1, :-1] @ corners[:-1, :]
     offset = None
     for i in range(corners.shape[1]):
         min_corner = np.min(all_dist - all_dist[:, i : i + 1], 1)
