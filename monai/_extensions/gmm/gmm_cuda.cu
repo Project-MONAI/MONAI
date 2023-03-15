@@ -82,13 +82,19 @@ __global__ void CovarianceReductionKernel(
 
   for (int i = 0; i < MATRIX_COMPONENT_COUNT; i++) {
     float matrix_component = matrix[i];
-
+#ifdef __HIP_PLATFORM_AMD__
+    matrix_component += __shfl_down(matrix_component, 16);
+    matrix_component += __shfl_down(matrix_component, 8);
+    matrix_component += __shfl_down(matrix_component, 4);
+    matrix_component += __shfl_down(matrix_component, 2);
+    matrix_component += __shfl_down(matrix_component, 1);
+#else
     matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 16);
     matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 8);
     matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 4);
     matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 2);
     matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 1);
-
+#endif
     if (lane_index == 0) {
       s_matrix_component[warp_index] = matrix_component;
     }
@@ -97,7 +103,23 @@ __global__ void CovarianceReductionKernel(
 
     if (warp_index == 0) {
       matrix_component = s_matrix_component[lane_index];
-
+#ifdef __HIP_PLATFORM_AMD__
+      if (warp_count >= 32) {
+        matrix_component += __shfl_down(matrix_component, 16);
+      }
+      if (warp_count >= 16) {
+        matrix_component += __shfl_down(matrix_component, 8);
+      }
+      if (warp_count >= 8) {
+        matrix_component += __shfl_down(matrix_component, 4);
+      }
+      if (warp_count >= 4) {
+        matrix_component += __shfl_down(matrix_component, 2);
+      }
+      if (warp_count >= 2) {
+        matrix_component += __shfl_down(matrix_component, 1);
+      }
+#else
       if (warp_count >= 32) {
         matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 16);
       }
@@ -113,7 +135,7 @@ __global__ void CovarianceReductionKernel(
       if (warp_count >= 2) {
         matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 1);
       }
-
+#endif
       if (lane_index == 0) {
         g_batch_matrices[matrix_offset + i] = matrix_component;
       }
@@ -156,13 +178,19 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
           matrix_component += g_batch_matrices[(matrix_offset + matrix_index) * GMM_COMPONENT_COUNT + index];
         }
       }
-
+#ifdef __HIP_PLATFORM_AMD__
+      matrix_component += __shfl_down(matrix_component, 16);
+      matrix_component += __shfl_down(matrix_component, 8);
+      matrix_component += __shfl_down(matrix_component, 4);
+      matrix_component += __shfl_down(matrix_component, 2);
+      matrix_component += __shfl_down(matrix_component, 1);
+#else      
       matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 16);
       matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 8);
       matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 4);
       matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 2);
       matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 1);
-
+#endif
       if (lane_index == 0) {
         s_matrix_component[warp_index] = matrix_component;
       }
@@ -171,7 +199,23 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
 
       if (warp_index == 0) {
         matrix_component = s_matrix_component[lane_index];
-
+#ifdef __HIP_PLATFORM_AMD__
+        if (warp_count >= 32) {
+          matrix_component += __shfl_down(matrix_component, 16);
+        }
+        if (warp_count >= 16) {
+          matrix_component += __shfl_down(matrix_component, 8);
+        }
+        if (warp_count >= 8) {
+          matrix_component += __shfl_down(matrix_component, 4);
+        }
+        if (warp_count >= 4) {
+          matrix_component += __shfl_down(matrix_component, 2);
+        }
+        if (warp_count >= 2) {
+          matrix_component += __shfl_down(matrix_component, 1);
+        }
+#else	
         if (warp_count >= 32) {
           matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 16);
         }
@@ -187,7 +231,7 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
         if (warp_count >= 2) {
           matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 1);
         }
-
+#endif
         if (lane_index == 0) {
           float constant = i == 0 ? 0.0f : s_gmm[i] * s_gmm[j];
 
@@ -261,13 +305,19 @@ __global__ void GMMFindSplit(GMMSplit_t* gmmSplit, int gmmK, float* gmm) {
   }
 
   float max_value = eigenvalue;
-
+#ifdef __HIP_PLATFORM_AMD__
+  max_value = max(max_value, __shfl_xor(max_value, 16));
+  max_value = max(max_value, __shfl_xor(max_value, 8));
+  max_value = max(max_value, __shfl_xor(max_value, 4));
+  max_value = max(max_value, __shfl_xor(max_value, 2));
+  max_value = max(max_value, __shfl_xor(max_value, 1));
+#else
   max_value = max(max_value, __shfl_xor_sync(0xffffffff, max_value, 16));
   max_value = max(max_value, __shfl_xor_sync(0xffffffff, max_value, 8));
   max_value = max(max_value, __shfl_xor_sync(0xffffffff, max_value, 4));
   max_value = max(max_value, __shfl_xor_sync(0xffffffff, max_value, 2));
   max_value = max(max_value, __shfl_xor_sync(0xffffffff, max_value, 1));
-
+#endif
   if (max_value == eigenvalue) {
     GMMSplit_t split;
 
@@ -347,13 +397,20 @@ __global__ void GMMcommonTerm(float* g_gmm) {
   float gmm_n = threadIdx.x < MIXTURE_SIZE ? g_batch_gmm[gmm_index * GMM_COMPONENT_COUNT] : 0.0f;
 
   float sum = gmm_n;
+#ifdef __HIP_PLATFORM_AMD__
+  sum += __shfl_xor(sum, 1);
+  sum += __shfl_xor(sum, 2);
+  sum += __shfl_xor(sum, 4);
+  sum += __shfl_xor(sum, 8);
+  sum += __shfl_xor(sum, 16);
 
+#else  
   sum += __shfl_xor_sync(0xffffffff, sum, 1);
   sum += __shfl_xor_sync(0xffffffff, sum, 2);
   sum += __shfl_xor_sync(0xffffffff, sum, 4);
   sum += __shfl_xor_sync(0xffffffff, sum, 8);
   sum += __shfl_xor_sync(0xffffffff, sum, 16);
-
+#endif
   if (threadIdx.x < MIXTURE_SIZE) {
     float det = g_batch_gmm[gmm_index * GMM_COMPONENT_COUNT + MATRIX_COMPONENT_COUNT] + EPSILON;
     float commonTerm = det > 0.0f ? gmm_n / (sqrtf(det) * sum) : gmm_n / sum;
@@ -446,13 +503,13 @@ void GMMInitialize(
   for (unsigned int k = MIXTURE_COUNT; k < gmm_N; k += MIXTURE_COUNT) {
     for (unsigned int i = 0; i < k; ++i) {
       CovarianceReductionKernel<WARPS, LOAD>
-          <<<{block_count, 1, batch_count}, BLOCK>>>(i, image, alpha, block_gmm_scratch, element_count);
+          <<<dim3(block_count, 1, batch_count), BLOCK>>>(i, image, alpha, block_gmm_scratch, element_count);
     }
 
-    CovarianceFinalizationKernel<WARPS, false><<<{k, 1, batch_count}, BLOCK>>>(block_gmm_scratch, gmm, block_count);
+    CovarianceFinalizationKernel<WARPS, false><<<dim3(k, 1, batch_count), BLOCK>>>(block_gmm_scratch, gmm, block_count);
 
-    GMMFindSplit<<<{1, 1, batch_count}, dim3(BLOCK_SIZE, MIXTURE_COUNT)>>>(gmm_split_scratch, k / MIXTURE_COUNT, gmm);
-    GMMDoSplit<<<{TILE(element_count, BLOCK_SIZE * DO_SPLIT_DEGENERACY), 1, batch_count}, BLOCK_SIZE>>>(
+    GMMFindSplit<<<dim3(1, 1, batch_count), dim3(BLOCK_SIZE, MIXTURE_COUNT)>>>(gmm_split_scratch, k / MIXTURE_COUNT, gmm);
+    GMMDoSplit<<<dim3(TILE(element_count, BLOCK_SIZE * DO_SPLIT_DEGENERACY), 1, batch_count), BLOCK_SIZE>>>(
         gmm_split_scratch, (k / MIXTURE_COUNT) << 4, image, alpha, element_count);
   }
 }
@@ -472,12 +529,12 @@ void GMMUpdate(
 
   for (unsigned int i = 0; i < gmm_N; ++i) {
     CovarianceReductionKernel<WARPS, LOAD>
-        <<<{block_count, 1, batch_count}, BLOCK>>>(i, image, alpha, block_gmm_scratch, element_count);
+        <<<dim3(block_count, 1, batch_count), BLOCK>>>(i, image, alpha, block_gmm_scratch, element_count);
   }
 
-  CovarianceFinalizationKernel<WARPS, true><<<{gmm_N, 1, batch_count}, BLOCK>>>(block_gmm_scratch, gmm, block_count);
+  CovarianceFinalizationKernel<WARPS, true><<<dim3(gmm_N, 1, batch_count), BLOCK>>>(block_gmm_scratch, gmm, block_count);
 
-  GMMcommonTerm<<<{1, 1, batch_count}, dim3(BLOCK_SIZE, MIXTURE_COUNT)>>>(gmm);
+  GMMcommonTerm<<<dim3(1, 1, batch_count), dim3(BLOCK_SIZE, MIXTURE_COUNT)>>>(gmm);
 }
 
 void GMMDataTerm(
