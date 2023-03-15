@@ -134,6 +134,30 @@ class TestSpacingDCase(unittest.TestCase):
             self.assertNotIsInstance(res, MetaTensor)
             self.assertNotEqual(img.shape, res.shape)
 
+    def test_space_same_shape(self):
+        affine_1 = np.array(
+            [
+                [1.499277e00, 2.699563e-02, 3.805804e-02, -1.948635e02],
+                [-2.685805e-02, 1.499757e00, -2.635604e-12, 4.438188e01],
+                [-3.805194e-02, -5.999028e-04, 1.499517e00, 4.036536e01],
+                [0.000000e00, 0.000000e00, 0.000000e00, 1.000000e00],
+            ]
+        )
+        affine_2 = np.array(
+            [
+                [1.499275e00, 2.692252e-02, 3.805728e-02, -1.948635e02],
+                [-2.693010e-02, 1.499758e00, -4.260525e-05, 4.438188e01],
+                [-3.805190e-02, -6.406730e-04, 1.499517e00, 4.036536e01],
+                [0.000000e00, 0.000000e00, 0.000000e00, 1.000000e00],
+            ]
+        )
+        img_1 = MetaTensor(np.zeros((1, 238, 145, 315)), affine=affine_1)
+        img_2 = MetaTensor(np.zeros((1, 238, 145, 315)), affine=affine_2)
+        out = Spacingd(("img_1", "img_2"), pixdim=1)({"img_1": img_1, "img_2": img_2})
+        self.assertEqual(out["img_1"].shape, out["img_2"].shape)  # ensure_same_shape True
+        out = Spacingd(("img_1", "img_2"), pixdim=1, ensure_same_shape=False)({"img_1": img_1, "img_2": img_2})
+        self.assertNotEqual(out["img_1"].shape, out["img_2"].shape)  # ensure_same_shape False
+
 
 if __name__ == "__main__":
     unittest.main()

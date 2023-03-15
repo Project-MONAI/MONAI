@@ -339,6 +339,7 @@ class Spacingd(MapTransform, InvertibleTransform, LazyTransform):
         recompute_affine: bool = False,
         min_pixdim: Sequence[float] | float | None = None,
         max_pixdim: Sequence[float] | float | None = None,
+        ensure_same_shape: bool = True,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -396,6 +397,8 @@ class Spacingd(MapTransform, InvertibleTransform, LazyTransform):
             max_pixdim: maximal input spacing to be resampled. If provided, input image with a smaller spacing than this
                 value will be kept in its original spacing (not be resampled to `pixdim`). Set it to `None` to use the
                 value of `pixdim`. Default to `None`.
+            ensure_same_shape: when the inputs have the same spatial shape, and almost the same pixdim,
+                whether to ensure exactly the same output spatial shape.  Default to True.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
@@ -408,6 +411,7 @@ class Spacingd(MapTransform, InvertibleTransform, LazyTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.scale_extent = ensure_tuple_rep(scale_extent, len(self.keys))
+        self.ensure_same_shape = ensure_same_shape
 
     @LazyTransform.lazy_evaluation.setter  # type: ignore
     def lazy_evaluation(self, val: bool) -> None:
@@ -416,10 +420,20 @@ class Spacingd(MapTransform, InvertibleTransform, LazyTransform):
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d: dict = dict(data)
+
+        _init_shape, _pixdim, should_match = None, None, False
+        output_shape_k = None  # tracking output shape
+
         for key, mode, padding_mode, align_corners, dtype, scale_extent in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype, self.scale_extent
         ):
-            # resample array of each corresponding key
+            if self.ensure_same_shape and isinstance(d[key], MetaTensor):
+                if _init_shape is None and _pixdim is None:
+                    _init_shape, _pixdim = d[key].peek_pending_shape(), d[key].pixdim
+                else:
+                    should_match = np.allclose(_init_shape, d[key].peek_pending_shape()) and np.allclose(
+                        _pixdim, d[key].pixdim, atol=1e-3
+                    )
             d[key] = self.spacing_transform(
                 data_array=d[key],
                 mode=mode,
@@ -427,7 +441,9 @@ class Spacingd(MapTransform, InvertibleTransform, LazyTransform):
                 align_corners=align_corners,
                 dtype=dtype,
                 scale_extent=scale_extent,
+                output_spatial_shape=output_shape_k if should_match else None,
             )
+            output_shape_k = d[key].peek_pending_shape() if isinstance(d[key], MetaTensor) else d[key].shape[1:]
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:

@@ -255,7 +255,11 @@ def sliding_window_inference(
                             "Tips: if overlap*roi_size*zoom_scale is an integer, it usually works."
                         )
                     original_idx_zoom[axis] = slice(int(zoomed_start), int(zoomed_end), None)
-                importance_map_zoom = resizer(importance_map.unsqueeze(0))[0].to(compute_dtype)
+                importance_map_zoom = (
+                    resizer(importance_map.unsqueeze(0))[0].to(compute_dtype)
+                    if seg_prob.shape[2:] != importance_map.shape
+                    else importance_map.to(compute_dtype)
+                )
                 # store results and weights
                 output_image_list[ss][original_idx_zoom] += importance_map_zoom * seg_prob[idx - slice_g]
                 count_map_list[ss][original_idx_zoom] += (
