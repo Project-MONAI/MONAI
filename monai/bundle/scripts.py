@@ -1128,27 +1128,30 @@ def trt_export(
 
     .. code-block:: bash
 
-        python -m monai.bundle trt_export network --filepath <export path> --ckpt_file <checkpoint path> \
-                --input_shape <input shape> ...
+        python -m monai.bundle trt_export --net_id <network definition> --filepath <export path> \
+            --ckpt_file <checkpoint path> --input_shape <input shape> ...
 
     Args:
         net_id: ID name of the network component in the config, it must be `torch.nn.Module`.
         filepath: filepath to export, if filename has no extension it becomes `.ts`.
         ckpt_file: filepath of the model checkpoint to load.
         meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
-        config_file: filepath of the config file to save in TorchScript model and extract network information,
-            the saved key in the TorchScript model is the config filename without extension, and the saved config
+        config_file: filepath of the config file to save in the TensorRT based torchscript model and extract network
+            information, the saved key in the model is the config filename without extension, and the saved config
             value is always serialized in JSON format no matter the original file format is JSON or YAML.
             it can be a single file or a list of files. if `None`, must be provided in `args_file`.
         key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
             weights. if not nested checkpoint, no need to set.
         precision: the weight precision of converted TensorRT engine based torchscript models. Should be 'fp32' or 'fp16'.
         inputs_shape: the inputs' shape that is used to generate random input during the convert. Should be a list with elements
-            like [N, C, H, W] or [N, C, H, W, D].
+            like [[N1, C1, H1, W1], ... ,[Nk, Ck, Hk, Wk]] or [[N1, C1, H1, W1, D1], ...,[Nk, Ck, Hk, Wk, Dk]] for k inputs.
         ir: the intermediate representation way to transform a pytorch module to a TensorRT engine based torchscript. Could
             be choose from `(script, trace)`.
-        dynamic_batchsize: a list contains three number list elements to define the batch size range of inputs for
+        dynamic_batchsize: a list contains range lists with three elements to define the batch size range of inputs for
             the converted model. In each element, the three number means `MIN_BATCH, OPT_BATCH, MAX_BATCH` in order.
+            Please notice that if you have m inputs that need dynamic_batchsize, you should input m range lists like
+            [[MIN_BATCH_1, OPT_BATCH_1, MAX_BATCH_1], ..., [MIN_BATCH_m, OPT_BATCH_m, MAX_BATCH_m]] corresponding to the
+            shape in the `inputs_shape` parameter.
         args_file: a JSON or YAML file to provide default values for `meta_file`, `config_file`,
             `net_id` and override pairs. so that the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.

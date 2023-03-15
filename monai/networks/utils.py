@@ -563,7 +563,7 @@ def convert_to_torchscript(
     device: torch.device | None = None,
     rtol: float = 1e-4,
     atol: float = 0.0,
-    is_trace: bool = False,
+    use_trace: bool = False,
     **kwargs,
 ):
     """
@@ -583,7 +583,7 @@ def convert_to_torchscript(
         device: target device to verify the model, if None, use CUDA if available.
         rtol: the relative tolerance when comparing the outputs of PyTorch model and TorchScript model.
         atol: the absolute tolerance when comparing the outputs of PyTorch model and TorchScript model.
-        is_trace: whether to use `torch.jit.trace` to get the torchscript model.
+        use_trace: whether to use `torch.jit.trace` to get the torchscript model.
 
         kwargs: other arguments except `obj` for `torch.jit.script()` to convert model, for more details:
             https://pytorch.org/docs/master/generated/torch.jit.script.html.
@@ -591,7 +591,7 @@ def convert_to_torchscript(
     """
     model.eval()
     with torch.no_grad():
-        if is_trace:
+        if use_trace:
             if inputs is None:
                 raise ValueError("missing input data for tracing convert.")
             script_module = torch.jit.trace(model, example_inputs=inputs)
@@ -632,17 +632,17 @@ def convert_to_trt(
     inputs_shape: Sequence[Sequence[int]],
     dynamic_batchsize: Sequence[Sequence[int]],
     ir: str,
+    filename_or_obj: Any | None = None,
     verify: bool = False,
     device: torch.device | None = None,
     rtol: float = 1e-4,
     atol: float = 0.0,
 ):
     """
-    Utility to convert a model into TorchScript model and save to file,
-    with optional input / output data verification.
+    Utility to convert a model into a TensorRT engine based torchscript model with optional input / output data verification.
 
     Args:
-        model: source PyTorch model to save.
+        model: a source PyTorch model to save.
         precision: the weight precision of converted TensorRT engine based torchscript models. Should be 'fp32' or 'fp16'.
         inputs_shape: the inputs' shape that is used to generate random input during the convert. Should be a list with elements
             like [N, C, H, W] or [N, C, H, W, D].
@@ -650,15 +650,16 @@ def convert_to_trt(
             converted model. In each element, the three number means `MIN_BATCH, OPT_BATCH, MAX_BATCH` in order.
         ir: the intermediate representation way to transform a pytorch module to a TensorRT engine based torchscript. Could
             be choose from `(script, trace)`.
-        verify: whether to verify the input and output of TorchScript model.
-            if `filename_or_obj` is not None, load the saved TorchScript model and verify.
+        filename_or_obj: if not None, specify a file-like object (has to implement write and flush) or a string containing a
+            file path name to load the TensorRT engine based torchscript model for verifying.
+        verify: whether to verify the input and output of the TensorRT engine based torchscript model.
         device: target device to verify the model, if None, use CUDA if available.
-        rtol: the relative tolerance when comparing the outputs of PyTorch model and TorchScript model.
-        atol: the absolute tolerance when comparing the outputs of PyTorch model and TorchScript model.
+        rtol: the relative tolerance when comparing the outputs of PyTorch model and TensorRT model.
+        atol: the absolute tolerance when comparing the outputs of PyTorch model and TensorRT model.
     """
 
     if not has_torch_tensorrt:
-        raise ImportError("Cannot find torch_tensorrt module, please install it before converting.")
+        raise ImportError("Cannot find the torch_tensorrt module, please install it before converting.")
 
     if not torch.cuda.is_available():
         raise Exception("Cannot find any GPU devices.")
@@ -668,7 +669,7 @@ def convert_to_trt(
 
     device = torch.device("cuda")
     inputs = [torch.rand(ensure_tuple(cur_shape)) for cur_shape in inputs_shape]
-    ir_model = convert_to_torchscript(model, device=device, inputs=inputs, is_trace=(ir == "trace"))
+    ir_model = convert_to_torchscript(model, device=device, inputs=inputs, use_trace=(ir == "trace"))
 
     convert_precision = torch.float32 if precision == "fp32" else torch.half
     ir_model.eval().to(device)
@@ -705,6 +706,7 @@ def convert_to_trt(
 
         inputs = [i.to(device) if isinstance(i, torch.Tensor) else i for i in inputs]
         model = model.to(device)
+        trt_model = torch.jit.load(filename_or_obj) if filename_or_obj is not None else trt_model
 
         with torch.no_grad():
             set_determinism(seed=0)
