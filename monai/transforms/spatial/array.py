@@ -1898,7 +1898,7 @@ class Resample(Transform):
 
         if USE_COMPILED or backend == TransformBackends.NUMPY:
             grid_t, *_ = convert_to_dst_type(grid[:sr], img_t, dtype=grid.dtype, wrap_sequence=True)
-            if grid_t.data_ptr() == grid.data_ptr():
+            if hasattr(grid, "data_ptr") and grid_t.data_ptr() == grid.data_ptr():
                 grid_t = grid_t.clone(memory_format=torch.contiguous_format)
             for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
                 _dim = max(2, dim)
