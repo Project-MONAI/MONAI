@@ -667,7 +667,7 @@ def worker_init_fn(worker_id: int) -> None:
 
     """
     worker_info = torch.utils.data.get_worker_info()
-    set_rnd(worker_info.dataset, seed=worker_info.seed)
+    set_rnd(worker_info.dataset, seed=worker_info.seed)  # type: ignore[union-attr]
 
 
 def set_rnd(obj, seed: int) -> int:
