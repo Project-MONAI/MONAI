@@ -157,23 +157,23 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, spatial_size, kwargs: 
             - "lazy_interpolation_mode" (this option might be ignored when ``mode="auto"``.)
             - "lazy_align_corners"
             - "atol" for tolerance for matrix floating point comparison.
-            - "mode" for resampling backend, default to `"auto"`. Setting to other values will use the
+            - "resample_mode" for resampling backend, default to `"auto"`. Setting to other values will use the
                `monai.transforms.SpatialResample` for resampling.
 
     See Also:
         :py:class:`monai.transforms.SpatialResample`
     """
     if not Affine.is_affine_shaped(matrix):
-        raise NotImplementedError("Calling the dense grid resample API directly not implemented.")
+        raise NotImplementedError(f"Calling the dense grid resample API directly not implemented, {matrix.shape}.")
     if isinstance(data, monai.data.MetaTensor) and data.pending_operations:
         warnings.warn("data.pending_operations is not empty, the resampling output may be incorrect.")
     kwargs = {} if kwargs is None else kwargs
     atol = kwargs.pop("atol", AFFINE_TOL)
-    mode = kwargs.pop("mode", "auto")
+    mode = kwargs.pop("resample_mode", "auto")
 
     init_kwargs = {
         "dtype": kwargs.pop(LazyAttr.DTYPE, data.dtype),
-        "align_corners": kwargs.pop(LazyAttr.ALIGN_CORNERS, None),
+        "align_corners": kwargs.pop(LazyAttr.ALIGN_CORNERS, False),
     }
     ndim = len(matrix) - 1
     img = convert_to_tensor(data=data, track_meta=monai.data.get_track_meta())
@@ -188,7 +188,7 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, spatial_size, kwargs: 
     }
 
     axes = requires_interp(matrix, atol=atol)
-    if axes is not None and mode == "auto":
+    if axes is not None and mode == "auto" and not init_kwargs["align_corners"]:
         matrix_np = np.round(convert_to_numpy(matrix, wrap_sequence=True))
         full_transpose = np.argsort(axes).tolist()
         if not np.allclose(full_transpose, np.arange(len(full_transpose))):
@@ -203,7 +203,7 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, spatial_size, kwargs: 
                 matrix_np[ind_f, ind_f] = 1
                 matrix_np[ind_f, -1] = in_shape[ind_f] - 1 - matrix_np[ind_f, -1]
         if not np.all(out_spatial_size > 0):
-            raise ValueError("Resampling out_spatial_size should be positive, got {out_spatial_size}.")
+            raise ValueError(f"Resampling out_spatial_size should be positive, got {out_spatial_size}.")
         if (
             allclose(matrix_np, np.eye(len(matrix_np)), atol=atol)
             and len(in_shape) == len(out_spatial_size)
