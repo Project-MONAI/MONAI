@@ -141,6 +141,7 @@ class ConfigWorkflow(BundleWorkflow):
     """
     Specification for the config-based bundle workflow.
     Standardized the `initialize`, `run`, `finalize` behavior in a config-based training, evaluation, or inference.
+    For more information: https://docs.monai.io/en/latest/mb_specification.html.
 
     Args:
         run_id: ID name of the expected config expression to run, default to "run".
