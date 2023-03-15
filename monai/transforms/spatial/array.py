@@ -1898,7 +1898,7 @@ class Resample(Transform):
 
         if USE_COMPILED or backend == TransformBackends.NUMPY:
             grid_t, *_ = convert_to_dst_type(grid[:sr], img_t, dtype=grid.dtype, wrap_sequence=True)
-            if hasattr(grid, "storage") and grid_t.storage().data_ptr() == grid.storage().data_ptr():
+            if grid_t.data_ptr() == grid.data_ptr():
                 grid_t = grid_t.clone(memory_format=torch.contiguous_format)
             for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
                 _dim = max(2, dim)
@@ -1928,7 +1928,7 @@ class Resample(Transform):
         else:
             grid_t = moveaxis(grid[list(range(sr - 1, -1, -1))], 0, -1)  # type: ignore
             grid_t = convert_to_dst_type(grid_t, img_t, wrap_sequence=True)[0].unsqueeze(0)
-            if hasattr(grid, "storage") and grid_t.storage().data_ptr() == grid.storage().data_ptr():
+            if grid_t.data_ptr() == grid.data_ptr():
                 grid_t = grid_t.clone(memory_format=torch.contiguous_format)
             if self.norm_coords:
                 for i, dim in enumerate(img_t.shape[sr + 1 : 0 : -1]):

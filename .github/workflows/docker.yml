@@ -9,6 +9,7 @@ on:
   push:
     branches:
       - dev
+      - auto-update
   # Allows you to run this workflow manually from the Actions tab
   # This is to trigger building/testing docker image from dev only.
   workflow_dispatch:
@@ -32,6 +33,7 @@ jobs:
       - shell: bash
         run: |
           git describe
+          python -m pip install -U pip wheel setuptools
           python setup.py build
           cat build/lib/monai/_version.py
       - name: Upload version
