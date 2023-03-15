@@ -38,25 +38,31 @@ TEST_CASE_8 = [{"patch_size": (2, 2), "num_patches": 3, "sort_fn": "max"}, A, [A
 TEST_CASE_9 = [{"patch_size": (2, 2), "num_patches": 4, "sort_fn": "min"}, A, [A11, A12, A21, A22]]
 TEST_CASE_10 = [{"patch_size": (2, 2), "overlap": 0.5, "num_patches": 3}, A, [A11, A[:, :2, 1:3], A12]]
 TEST_CASE_11 = [
-    {"patch_size": (3, 3), "num_patches": 2, "constant_values": 255},
+    {"patch_size": (3, 3), "num_patches": 2, "constant_values": 255, "pad_mode": "constant"},
     A,
     [A[:, :3, :3], np.pad(A[:, :3, 3:], ((0, 0), (0, 0), (0, 2)), mode="constant", constant_values=255)],
 ]
 TEST_CASE_12 = [
-    {"patch_size": (3, 3), "offset": (-2, -2), "num_patches": 2},
+    {"patch_size": (3, 3), "offset": (-2, -2), "num_patches": 2, "pad_mode": "constant"},
     A,
     [np.zeros((3, 3, 3)), np.pad(A[:, :1, 1:4], ((0, 0), (2, 0), (0, 0)), mode="constant")],
 ]
+# Only threshold filtering
 TEST_CASE_13 = [{"patch_size": (2, 2), "threshold": 50.0}, A, [A11]]
+TEST_CASE_14 = [{"patch_size": (2, 2), "threshold": 150.0}, A, [A11, A12, A21]]
+# threshold filtering with num_patches more than available patches (no effect)
+TEST_CASE_15 = [{"patch_size": (2, 2), "num_patches": 3, "threshold": 50.0}, A, [A11]]
+# threshold filtering with num_patches less than available patches (count filtering)
+TEST_CASE_16 = [{"patch_size": (2, 2), "num_patches": 2, "threshold": 150.0}, A, [A11, A12]]
 
-TEST_CASE_MEAT_0 = [
+TEST_CASE_META_0 = [
     {"patch_size": (2, 2)},
     A,
     [A11, A12, A21, A22],
     [{"location": [0, 0]}, {"location": [0, 2]}, {"location": [2, 0]}, {"location": [2, 2]}],
 ]
 
-TEST_CASE_MEAT_1 = [
+TEST_CASE_META_1 = [
     {"patch_size": (2, 2)},
     MetaTensor(x=A, meta={"path": "path/to/file"}),
     [A11, A12, A21, A22],
@@ -84,6 +90,9 @@ for p in TEST_NDARRAYS:
     TEST_CASES.append([p, *TEST_CASE_11])
     TEST_CASES.append([p, *TEST_CASE_12])
     TEST_CASES.append([p, *TEST_CASE_13])
+    TEST_CASES.append([p, *TEST_CASE_14])
+    TEST_CASES.append([p, *TEST_CASE_15])
+    TEST_CASES.append([p, *TEST_CASE_16])
 
 
 class TestGridPatch(unittest.TestCase):
@@ -96,7 +105,7 @@ class TestGridPatch(unittest.TestCase):
         for output_patch, expected_patch in zip(output, expected):
             assert_allclose(output_patch, expected_patch, type_test=False)
 
-    @parameterized.expand([TEST_CASE_MEAT_0, TEST_CASE_MEAT_1])
+    @parameterized.expand([TEST_CASE_META_0, TEST_CASE_META_1])
     @SkipIfBeforePyTorchVersion((1, 9, 1))
     def test_grid_patch_meta(self, input_parameters, image, expected, expected_meta):
         set_track_meta(True)

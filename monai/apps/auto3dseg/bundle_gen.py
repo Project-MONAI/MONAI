@@ -326,7 +326,7 @@ def _download_algos_url(url: str, at_path: str) -> dict[str, dict[str, str]]:
 def _copy_algos_folder(folder, at_path):
     """
     Copies the algorithm templates folder to at_path.
-    Returns a dictionary of of algorithm templates.
+    Returns a dictionary of algorithm templates.
     """
     folder = os.path.abspath(folder)
     at_path = os.path.abspath(at_path)
@@ -342,7 +342,8 @@ def _copy_algos_folder(folder, at_path):
             algos_all[name] = dict(
                 _target_=f"{name}.scripts.algo.{name.capitalize()}Algo", template_path=os.path.join(at_path, name)
             )
-    if len(algos_all) == 0:
+            logger.info(f"{name} -- {algos_all[name]}")
+    if not algos_all:
         raise ValueError(f"Unable to find any algos in {folder}")
 
     return algos_all
@@ -385,9 +386,11 @@ class BundleGen(AlgoGen):
 
             if os.path.isdir(templates_path_or_url):
                 # if a local folder, copy if necessary
+                logger.info(f"BundleGen from directory {templates_path_or_url}")
                 algos_all = _copy_algos_folder(folder=templates_path_or_url, at_path=at_path)
             elif urlparse(templates_path_or_url).scheme in ("http", "https"):
                 # if url, trigger the download and extract process
+                logger.info(f"BundleGen from {templates_path_or_url}")
                 algos_all = _download_algos_url(url=templates_path_or_url, at_path=at_path)
             else:
                 raise ValueError(f"{self.__class__} received invalid templates_path_or_url: {templates_path_or_url}")

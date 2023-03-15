@@ -116,9 +116,9 @@ class LoadImage(Transform):
         - Current default readers: (nii, nii.gz -> NibabelReader), (png, jpg, bmp -> PILReader),
           (npz, npy -> NumpyReader), (nrrd -> NrrdReader), (DICOM file -> ITKReader).
 
-    Please note that for png, jpg, bmp, and other 2D formats, readers often swap axis 0 and 1 after
-    loading the array because the `HW` definition for non-medical specific file formats is different
-    from other common medical packages.
+    Please note that for png, jpg, bmp, and other 2D formats, readers by default swap axis 0 and 1 after
+    loading the array with ``reverse_indexing`` set to ``True`` because the spatial axes definition
+    for non-medical specific file formats is different from other common medical packages.
 
     See also:
 
@@ -367,6 +367,7 @@ class SaveImage(Transform):
             see also: :py:func:`monai.data.folder_layout.default_name_formatter`.
     """
 
+    @deprecated_arg_default("resample", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         output_dir: PathLike = "./",

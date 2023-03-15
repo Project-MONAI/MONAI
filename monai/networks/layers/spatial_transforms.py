@@ -439,7 +439,7 @@ class AffineTransform(nn.Module):
         normalized: bool = False,
         mode: str = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.ZEROS,
-        align_corners: bool = False,
+        align_corners: bool = True,
         reverse_indexing: bool = True,
         zero_centered: bool | None = None,
     ) -> None:
@@ -537,6 +537,8 @@ class AffineTransform(nn.Module):
             theta = torch.cat([theta, pad_affine], dim=1)
         if tuple(theta.shape[1:]) not in ((3, 3), (4, 4)):
             raise ValueError(f"theta must be Nx3x3 or Nx4x4, got {theta.shape}.")
+        if not torch.is_floating_point(theta):
+            raise ValueError(f"theta must be floating point data, got {theta.dtype}")
 
         # validate `src`
         if not isinstance(src, torch.Tensor):
@@ -559,7 +561,7 @@ class AffineTransform(nn.Module):
                 affine=theta,
                 src_size=src_size[2:],
                 dst_size=dst_size[2:],
-                align_corners=self.align_corners,
+                align_corners=False,
                 zero_centered=self.zero_centered,
             )
         if self.reverse_indexing:

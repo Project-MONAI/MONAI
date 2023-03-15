@@ -174,7 +174,7 @@ def deprecated_arg(
     else:
         # compare the numbers
         is_deprecated = since is not None and version_leq(since, version_val)
-        is_removed = removed is not None and version_leq(removed, version_val)
+        is_removed = removed is not None and version_val != f"{sys.maxsize}" and version_leq(removed, version_val)
 
     def _decorator(func):
         argname = f"{func.__module__} {func.__qualname__}:{name}"
@@ -284,7 +284,7 @@ def deprecated_arg_default(
     else:
         # compare the numbers
         is_deprecated = since is not None and version_leq(since, version_val)
-        is_replaced = replaced is not None and version_leq(replaced, version_val)
+        is_replaced = replaced is not None and version_val != f"{sys.maxsize}" and version_leq(replaced, version_val)
 
     def _decorator(func):
         argname = f"{func.__module__} {func.__qualname__}:{name}"

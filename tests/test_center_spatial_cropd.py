@@ -54,6 +54,10 @@ class TestCenterSpatialCropd(CropTest):
     def test_value(self, input_param, input_data, expected_value):
         self.crop_test_value(input_param, input_data, expected_value)
 
+    @parameterized.expand(TEST_SHAPES)
+    def test_pending_ops(self, input_param, input_shape, _expected_shape, _same_area):
+        self.crop_test_pending_ops(input_param, input_shape)
+
 
 if __name__ == "__main__":
     unittest.main()

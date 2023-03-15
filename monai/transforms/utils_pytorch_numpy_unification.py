@@ -55,7 +55,7 @@ __all__ = [
 
 def allclose(a: NdarrayTensor, b: NdarrayOrTensor, rtol=1e-5, atol=1e-8, equal_nan=False) -> bool:
     """`np.allclose` with equivalent implementation for torch."""
-    b, *_ = convert_to_dst_type(b, a)
+    b, *_ = convert_to_dst_type(b, a, wrap_sequence=True)
     if isinstance(a, np.ndarray):
         return np.allclose(a, b, rtol=rtol, atol=atol, equal_nan=equal_nan)
     return torch.allclose(a, b, rtol=rtol, atol=atol, equal_nan=equal_nan)  # type: ignore

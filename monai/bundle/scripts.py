@@ -14,7 +14,6 @@ from __future__ import annotations
 import ast
 import json
 import os
-import pprint
 import re
 import time
 import warnings
@@ -37,7 +36,7 @@ from monai.config import IgniteInfo, PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
 from monai.networks import convert_to_torchscript, copy_model_state, get_state_dict, save_state
 from monai.utils import check_parent_dir, get_equivalent_dtype, min_version, optional_import
-from monai.utils.misc import ensure_tuple
+from monai.utils.misc import ensure_tuple, pprint_edges
 
 validate, _ = optional_import("jsonschema", name="validate")
 ValidationError, _ = optional_import("jsonschema.exceptions", name="ValidationError")
@@ -48,6 +47,7 @@ logger = get_logger(module_name=__name__)
 
 # set BUNDLE_DOWNLOAD_SRC="ngc" to use NGC source in default for bundle download
 download_source = os.environ.get("BUNDLE_DOWNLOAD_SRC", "github")
+PPRINT_CONFIG_N = 5
 
 
 def _update_args(args: str | dict | None = None, ignore_none: bool = True, **kwargs: Any) -> dict:
@@ -88,7 +88,7 @@ def _pop_args(src: dict, *args: Any, **kwargs: Any) -> tuple:
 def _log_input_summary(tag: str, args: dict) -> None:
     logger.info(f"--- input summary of monai.bundle.scripts.{tag} ---")
     for name, val in args.items():
-        logger.info(f"> {name}: {pprint.pformat(val)}")
+        logger.info(f"> {name}: {pprint_edges(val, PPRINT_CONFIG_N)}")
     logger.info("---\n\n")
 
 
@@ -617,7 +617,7 @@ def run(
     **override: Any,
 ) -> list:
     """
-    Specify `meta_file` and `config_file` to run monai bundle components and workflows.
+    Specify `config_file` to run monai bundle components and workflows.
 
     Typical usage examples:
 
@@ -642,10 +642,12 @@ def run(
     Args:
         runner_id: ID name of the expected config expression to run, can also be a list of IDs to run in order.
         meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
+            Default to "configs/metadata.json", which is commonly used for bundles in MONAI model zoo.
         config_file: filepath of the config file, if `None`, must be provided in `args_file`.
             if it is a list of file paths, the content of them will be merged.
-        logging_file: config file for `logging` module in the program, default to `None`. for more details:
+        logging_file: config file for `logging` module in the program. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
+            Default to "configs/logging.conf", which is commonly used for bundles in MONAI model zoo.
         tracking: enable the experiment tracking feature at runtime with optionally configurable and extensible.
             if "mlflow", will add `MLFlowHandler` to the parsed bundle with default logging settings,
             if other string, treat it as file path to load the logging settings, if `dict`,
@@ -719,18 +721,30 @@ def run(
         warnings.warn("`config_file` not provided for 'monai.bundle run'.")
     _log_input_summary(tag="run", args=_args)
     config_file_, meta_file_, runner_id_, logging_file_, tracking_ = _pop_args(
-        _args, config_file=None, meta_file=None, runner_id="", logging_file=None, tracking=None
+        _args,
+        config_file=None,
+        meta_file="configs/metadata.json",
+        runner_id="",
+        logging_file="configs/logging.conf",
+        tracking=None,
     )
     if logging_file_ is not None:
         if not os.path.exists(logging_file_):
-            raise FileNotFoundError(f"can't find the logging config file: {logging_file_}.")
-        logger.info(f"set logging properties based on config: {logging_file_}.")
-        fileConfig(logging_file_, disable_existing_loggers=False)
+            if logging_file_ == "configs/logging.conf":
+                warnings.warn("default logging file in 'configs/logging.conf' not exists, skip logging.")
+            else:
+                raise FileNotFoundError(f"can't find the logging config file: {logging_file_}.")
+        else:
+            logger.info(f"set logging properties based on config: {logging_file_}.")
+            fileConfig(logging_file_, disable_existing_loggers=False)
 
     parser = ConfigParser()
     parser.read_config(f=config_file_)
     if meta_file_ is not None:
-        parser.read_meta(f=meta_file_)
+        if not os.path.exists(meta_file_):
+            warnings.warn("default meta file in 'configs/metadata.json' not exists.")
+        else:
+            parser.read_meta(f=meta_file_)
 
     # the rest key-values in the _args are to override config content
     parser.update(pairs=_args)
