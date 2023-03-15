@@ -350,37 +350,13 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         multi_gpu: whether to run MonaiAlgo in a multi-GPU setting; defaults to `False`.
         backend: backend to use for torch.distributed; defaults to "nccl".
         init_method: init_method for torch.distributed; defaults to "env://".
-        tracking: enable the experiment tracking feature at runtime with optionally configurable and extensible.
-            if "mlflow", will add `MLFlowHandler` to the parsed bundle with default logging settings,
-            if other string, treat it as file path to load the logging settings, if `dict`,
-            treat it as logging settings, otherwise, use all the default settings.
+        tracking: if not None, enable the experiment tracking at runtime with optionally configurable and extensible.
+            if "mlflow", will add `MLFlowHandler` to the parsed bundle with default tracking settings,
+            if other string, treat it as file path to load the tracking settings.
+            if `dict`, treat it as tracking settings.
             will patch the target config content with `tracking handlers` and the top-level items of `configs`.
-            example of customized settings:
-
-            .. code-block:: python
-
-                tracking = {
-                    "handlers_id": {
-                        "trainer": {"id": "train#trainer", "handlers": "train#handlers"},
-                        "validator": {"id": "evaluate#evaluator", "handlers": "evaluate#handlers"},
-                        "evaluator": {"id": "evaluator", "handlers": "handlers"},
-                    },
-                    "configs": {
-                        "tracking_uri": "<path>",
-                        "trainer": {
-                            "_target_": "MLFlowHandler",
-                            "tracking_uri": "@tracking_uri",
-                            "iteration_log": True,
-                            "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
-                        },
-                        "validator": {
-                            "_target_": "MLFlowHandler", "tracking_uri": "@tracking_uri", "iteration_log": False,
-                        },
-                        "evaluator": {
-                            "_target_": "MLFlowHandler", "tracking_uri": "@tracking_uri", "iteration_log": False,
-                        },
-                    },
-                },
+            for detailed usage examples, plesae check the tutorial:
+            https://github.com/Project-MONAI/tutorials/blob/main/experiment_management/bundle_integrate_mlflow.ipynb.
 
     """
 

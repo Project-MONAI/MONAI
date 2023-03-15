@@ -156,59 +156,13 @@ class ConfigWorkflow(BundleWorkflow):
         logging_file: config file for `logging` module in the program. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
             Default to "configs/logging.conf", which is commonly used for bundles in MONAI model zoo.
-        tracking: enable the experiment tracking feature at runtime with optionally configurable and extensible.
-            if "mlflow", will add `MLFlowHandler` to the parsed bundle with default logging settings,
-            if other string, treat it as file path to load the logging settings, if `dict`,
-            treat it as logging settings, otherwise, use all the default settings.
+        tracking: if not None, enable the experiment tracking at runtime with optionally configurable and extensible.
+            if "mlflow", will add `MLFlowHandler` to the parsed bundle with default tracking settings,
+            if other string, treat it as file path to load the tracking settings.
+            if `dict`, treat it as tracking settings.
             will patch the target config content with `tracking handlers` and the top-level items of `configs`.
-            example of customized settings:
-
-            .. code-block:: python
-
-                tracking = {
-                    "handlers_id": {
-                        "trainer": {"id": "train#trainer", "handlers": "train#handlers"},
-                        "validator": {"id": "evaluate#evaluator", "handlers": "evaluate#handlers"},
-                        "evaluator": {"id": "evaluator", "handlers": "handlers"},
-                    },
-                    "configs": {
-                        "tracking_uri": "<path>",
-                        "experiment_name": "monai_experiment",
-                        "run_name": None,
-                        "is_not_rank0": (
-                            "$torch.distributed.is_available() \
-                                and torch.distributed.is_initialized() and torch.distributed.get_rank() > 0"
-                        ),
-                        "trainer": {
-                            "_target_": "MLFlowHandler",
-                            "_disabled_": "@is_not_rank0",
-                            "tracking_uri": "@tracking_uri",
-                            "experiment_name": "@experiment_name",
-                            "run_name": "@run_name",
-                            "iteration_log": True,
-                            "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
-                            "close_on_complete": True,
-                        },
-                        "validator": {
-                            "_target_": "MLFlowHandler",
-                            "_disabled_": "@is_not_rank0",
-                            "tracking_uri": "@tracking_uri",
-                            "experiment_name": "@experiment_name",
-                            "run_name": "@run_name",
-                            "iteration_log": False,
-                        },
-                        "evaluator": {
-                            "_target_": "MLFlowHandler",
-                            "_disabled_": "@is_not_rank0",
-                            "tracking_uri": "@tracking_uri",
-                            "experiment_name": "@experiment_name",
-                            "run_name": "@run_name",
-                            "iteration_log": False,
-                            "close_on_complete": True,
-                        },
-                    },
-                },
-
+            for detailed usage examples, plesae check the tutorial:
+            https://github.com/Project-MONAI/tutorials/blob/main/experiment_management/bundle_integrate_mlflow.ipynb.
         override: id-value pairs to override or add the corresponding config content.
             e.g. ``--net#input_chns 42``.
         workflow: specifies the workflow type: "train" or "training" for a training workflow,
