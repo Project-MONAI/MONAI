@@ -160,12 +160,12 @@ class ConfigWorkflow(BundleWorkflow):
             will patch the target config content with `tracking handlers` and the top-level items of `configs`.
             for detailed usage examples, plesae check the tutorial:
             https://github.com/Project-MONAI/tutorials/blob/main/experiment_management/bundle_integrate_mlflow.ipynb.
-        override: id-value pairs to override or add the corresponding config content.
-            e.g. ``--net#input_chns 42``.
         workflow: specifies the workflow type: "train" or "training" for a training workflow,
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
             default to `None` for common workflow.
+        override: id-value pairs to override or add the corresponding config content.
+            e.g. ``--net#input_chns 42``.
 
     """
 
