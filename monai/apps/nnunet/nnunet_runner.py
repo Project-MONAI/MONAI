@@ -25,10 +25,11 @@ from monai.bundle import ConfigParser
 
 
 class nnUNetRunner:
-    def __init__(self,
-                 input,
-                 work_dir: str = "work_dir",
-                 ):
+    def __init__(
+        self,
+        input,
+        work_dir: str = "work_dir",
+    ):
         self.input_info = []
         self.input_config_or_dict = input
         self.work_dir = work_dir
@@ -328,54 +329,57 @@ class nnUNetRunner:
         if isinstance(configs, str):
             configs = [configs]
 
-        cmds = []
-        _index = 0
+        # unpack compressed files
+        folder_names = []
+        for root, dirs, files in os.walk(os.path.join(self.nnunet_preprocessed, self.dataset_name)):
+            if any(file.endswith(".npz") for file in files):
+                folder_names.append(root)
 
-        if "3d_fullres" in configs:
-            for _i in range(self.num_folds):
-                cmd = "python -m monai.apps.nnunet nnUNetRunner train_single_model " + \
-                    f"--input '{self.input_config_or_dict}' --config '3d_fullres' --fold {_i} --gpu_id {_index%self.num_gpus}"
-                cmds.append(cmd)
-                _index += 1
+        from nnunetv2.training.dataloading.utils import unpack_dataset
+        for folder_name in folder_names:
+            _ = unpack_dataset(
+                folder=os.path.join(self.nnunet_preprocessed, folder_name),
+                unpack_segmentation=True,
+                overwrite_existing=False,
+                num_processes=self.default_num_processes
+            )
 
-        if "2d" in configs:
-            for _i in range(self.num_folds):
-                cmd = "python -m monai.apps.nnunet nnUNetRunner train_single_model " + \
-                    f"--input '{self.input_config_or_dict}' --config '2d' --fold {_i} --gpu_id {_index%self.num_gpus}"
-                cmds.append(cmd)
-                _index += 1
+        # model training
+        _configs = [["3d_fullres", "2d", "3d_lowres"], ["3d_cascade_fullres"]]
+        for _stage in range(2):
+            cmds = []
+            _index = 0
 
-        if "3d_lowres" in configs:
-            for _i in range(self.num_folds):
-                cmd = "python -m monai.apps.nnunet nnUNetRunner train_single_model " + \
-                    f"--input '{self.input_config_or_dict}' --config '3d_lowres' --fold {_i} --gpu_id {_index%self.num_gpus}"
+            for _config in _configs[_stage]:
+                if _config in configs:
+                    for _i in range(self.num_folds):
+                        cmd = "python -m monai.apps.nnunet nnUNetRunner train_single_model " + \
+                            f"--input '{self.input_config_or_dict}' --config '{_config}' --fold {_i} --gpu_id {_index%self.num_gpus}"
+                        cmds.append(cmd)
+                        _index += 1
 
-                if "3d_cascade_fullres" in configs:
-                    cmd += "; python -m monai.apps.nnunet nnUNetRunner train_single_model " + \
-                        f"--input '{self.input_config_or_dict}' --config '3d_cascade_fullres' --fold {_i} --gpu_id {_index%self.num_gpus}"
-                cmds.append(cmd)
-                _index += 1
+            if len(cmds) > 0:
+                gpu_cmds = {}
+                for _j in range(self.num_gpus):
+                    gpu_cmds[f"gpu_{_j}"] = ""
 
-        gpu_cmds = {}
-        for _j in range(self.num_gpus):
-            gpu_cmds[f"gpu_{_j}"] = ""
+                for _k in range(len(cmds)):
+                    for _j in range(self.num_gpus):
+                        if f"--gpu_id {_j}" in cmds[_k]:
+                            gpu_cmds[f"gpu_{_j}"] += cmds[_k]
+                            gpu_cmds[f"gpu_{_j}"] += "; "
+                            break
+                gpu_cmds = list(gpu_cmds.values())
 
-        for _k in range(len(cmds)):
-            for _j in range(self.num_gpus):
-                if f"--gpu_id {_j}" in cmds[_k]:
-                    gpu_cmds[f"gpu_{_j}"] += cmds[_k]
-                    gpu_cmds[f"gpu_{_j}"] += "; "
-                    break
-        gpu_cmds = list(gpu_cmds.values())
+                processes = []
+                for _i in range(len(gpu_cmds)):
+                    gpu_cmd = gpu_cmds[_i]
+                    print(f"\n[info] training - stage {_stage + 1}:\n[info] commands: {gpu_cmd}")
+                    print(f"[info] log '.txt' inside '{os.path.join(self.nnunet_results, folder_name)}'")
+                    processes.append(subprocess.Popen(gpu_cmd, shell=True, stdout=subprocess.DEVNULL))
 
-        processes = []
-        for _i in range(len(gpu_cmds)):
-            gpu_cmd = gpu_cmds[_i]
-            print(f"training:\n{gpu_cmd}\n")
-            processes.append(subprocess.Popen(gpu_cmd, shell=True, stdout=subprocess.DEVNULL))
-
-        for p in processes:
-            p.wait()
+                for p in processes:
+                    p.wait()
 
     def validate_single_model(self, config, fold):
         self.train_single_model(config=config, fold=fold, only_run_validation=True)
