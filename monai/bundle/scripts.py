@@ -973,7 +973,6 @@ def _export(
     ckpt_file: str,
     config_file: str,
     key_in_ckpt: str,
-    update_args: dict,
     **kwargs: Any,
 ) -> None:
     """
@@ -992,14 +991,9 @@ def _export(
             it can be a single file or a list of files. if `None`, must be provided in `args_file`.
         key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
             weights. if not nested checkpoint, no need to set.
-        update_args: a dict that contains key to be updated.
         kwargs: key arguments for the converter.
 
     """
-    # the rest key-values in the _args are to override config content
-    for k, v in update_args.items():
-        parser[k] = v
-
     net = parser.get_parsed_content(net_id)
     if has_ignite:
         # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
@@ -1094,6 +1088,10 @@ def ckpt_export(
     if meta_file_ is not None:
         parser.read_meta(f=meta_file_)
 
+    # the rest key-values in the _args are to override config content
+    for k, v in _args.items():
+        parser[k] = v
+
     _export(
         convert_to_torchscript,
         parser,
@@ -1102,7 +1100,6 @@ def ckpt_export(
         ckpt_file=ckpt_file_,
         config_file=config_file_,
         key_in_ckpt=key_in_ckpt_,
-        update_args=_args,
     )
 
 
@@ -1204,6 +1201,10 @@ def trt_export(
     if meta_file_ is not None:
         parser.read_meta(f=meta_file_)
 
+    # the rest key-values in the _args are to override config content
+    for k, v in _args.items():
+        parser[k] = v
+
     if not inputs_shape_:
         net_io_info = _get_net_io_info(parser)
         inputs_shape_ = net_io_info[-1]
@@ -1216,7 +1217,6 @@ def trt_export(
         ckpt_file=ckpt_file_,
         config_file=config_file_,
         key_in_ckpt=key_in_ckpt_,
-        update_args=_args,
         precision=precision_,
         inputs_shape=inputs_shape_,
         dynamic_batchsize=dynamic_batchsize_,
