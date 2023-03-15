@@ -830,45 +830,48 @@ def _get_net_io_info(
 
     Args:
         parser: a parser of the given bundle.
-        prefix: a prefix for the input and output keys, which will be combined as `prefix#input` and
+        prefix: a prefix for the input and output id, which will be combined as `prefix#input` and
             `prefix#output` to parse the input and output information in the `metadata.json` file of
             bundle, default to `meta_#network_data_format`.
         p: power factor to generate input data shape if dim of expected shape is "x**p", default to 1.
         n: multiply factor to generate input data shape if dim of expected shape is "x*n", default to 1.
         any: specified size to generate input data shape if dim of expected shape is "*", default to 1.
 
-    Return:
-        a tuple contains the input and output infomation.
+    Returns:
+        input_channels: the channel number of the first input.
+        input_spatial_shape: the spatial shape of the first input.
+        input_dtype: the data type of the first input.
+        output_channels: the channel number of the first output.
+        output_dtype: the data type of the first output.
+        inputs_shape: a list contains the shape of every input.
     """
     if not isinstance(parser, ConfigParser):
         raise AttributeError(f"'parser' should be a ConfigParser, got {type(parser)}.")
 
     inputs_shape = []
-    try:
-        prefix_key = f"{prefix}#inputs"
-        inputs_info_dict = parser[prefix_key]
-        for input_name in inputs_info_dict:
-            key = f"{prefix_key}#{input_name}#num_channels"
-            input_channels = parser[key]
-            key = f"{prefix_key}#{input_name}#spatial_shape"
-            input_spatial_shape = parser[key]
-            spatial_shape = _get_fake_spatial_shape(input_spatial_shape, p=p, n=n, any=any)
-            inputs_shape.append([1, input_channels, *spatial_shape])
+    prefix_key = f"{prefix}#inputs"
+    inputs_info_dict = parser.get(prefix_key)
+    for input_name in inputs_info_dict:
+        key = f"{prefix_key}#{input_name}#num_channels"
+        input_channels = parser.get(key)
+        key = f"{prefix_key}#{input_name}#spatial_shape"
+        input_spatial_shape = parser.get(key)
+        spatial_shape = _get_fake_spatial_shape(input_spatial_shape, p=p, n=n, any=any)
+        inputs_shape.append([1, input_channels, *spatial_shape])
 
-        key = f"{prefix_key}#image#num_channels"
-        input_channels = parser[key]
-        key = f"{prefix_key}#image#spatial_shape"
-        input_spatial_shape = tuple(parser[key])
-        key = f"{prefix_key}#image#dtype"
-        input_dtype = get_equivalent_dtype(parser[key], torch.Tensor)
+    key = f"{prefix_key}#image#num_channels"
+    input_channels = parser.get(key)
+    key = f"{prefix_key}#image#spatial_shape"
+    input_spatial_shape = tuple(parser.get(key))
+    key = f"{prefix_key}#image#dtype"
+    input_dtype = get_equivalent_dtype(parser.get(key), torch.Tensor)
 
-        prefix_key = f"{prefix}#outputs"
-        key = f"{prefix_key}#pred#num_channels"
-        output_channels = parser[key]
-        key = f"{prefix_key}#pred#dtype"
-        output_dtype = get_equivalent_dtype(parser[key], torch.Tensor)
-    except KeyError as e:
-        raise KeyError(f"Failed to parse due to missing expected key in the config: {key}.") from e
+    prefix_key = f"{prefix}#outputs"
+    key = f"{prefix_key}#pred#num_channels"
+    output_channels = parser.get(key)
+    key = f"{prefix_key}#pred#dtype"
+    output_dtype = get_equivalent_dtype(parser.get(key), torch.Tensor)
+
     return (input_channels, input_spatial_shape, input_dtype, output_channels, output_dtype, inputs_shape)
 
 
