@@ -824,7 +824,7 @@ def verify_metadata(
 
 def _get_net_io_info(
     parser: ConfigParser | None = None, prefix: str = "_meta_#network_data_format", p: int = 1, n: int = 1, any: int = 1
-) -> list[Any]:
+) -> tuple:
     """
     Get the input and output information defined in the metadata.
 
@@ -838,7 +838,7 @@ def _get_net_io_info(
         any: specified size to generate input data shape if dim of expected shape is "*", default to 1.
 
     Return:
-        a sequence contains the input and output infomation.
+        a tuple contains the input and output infomation.
     """
     if not isinstance(parser, ConfigParser):
         raise AttributeError(f"'parser' should be a ConfigParser, got {type(parser)}.")
@@ -869,7 +869,7 @@ def _get_net_io_info(
         output_dtype = get_equivalent_dtype(parser[key], torch.Tensor)
     except KeyError as e:
         raise KeyError(f"Failed to parse due to missing expected key in the config: {key}.") from e
-    return [input_channels, input_spatial_shape, input_dtype, output_channels, output_dtype, inputs_shape]
+    return (input_channels, input_spatial_shape, input_dtype, output_channels, output_dtype, inputs_shape)
 
 
 def verify_net_in_out(
