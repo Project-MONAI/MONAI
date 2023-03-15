@@ -80,6 +80,11 @@ class nnUNetRunner:
         self.num_folds = 5
         self.best_configuration = None
 
+        result = subprocess.run(['nvidia-smi', '--list-gpus'], stdout=subprocess.PIPE)
+        output = result.stdout.decode('utf-8')
+        self.num_gpus = len(output.strip().split('\n'))
+        print(f"[info] number of gpus is {self.num_gpus}")
+
     def convert_dataset(self):
         try:
             raw_data_foldername_perfix = str(int(self.dataset_name_or_id) + 1000)
@@ -219,6 +224,7 @@ class nnUNetRunner:
             )
         except:
             print("Input '.yaml' is incorrect.")
+            return
 
     def convert_msd_dataset(self, data_dir, overwrite_id=None, np=-1):
         from nnunetv2.dataset_conversion.convert_MSD_dataset import convert_msd_dataset
@@ -310,76 +316,66 @@ class nnUNetRunner:
         if type(configs) == str:
             configs = [configs]
 
-        for _i in range(len(configs)):
-            _config = configs[_i]
-            for _fold in range(self.num_folds):
-                self.train_single_model(config=_config, fold=_fold, **kwargs)
-
-    def train_serial(self, settings: list, **kwargs):
-        for _i in range(len(settings)):
-            _setting = settings[_i]
-            self.train_single_model(_setting["config"], _setting["fold"], _setting["gpu_id"], **kwargs)
+        if self.num_gpus > 1:
+            self.train_parallel(configs=configs, **kwargs)
+        else:
+            for _i in range(len(configs)):
+                _config = configs[_i]
+                for _fold in range(self.num_folds):
+                    self.train_single_model(config=_config, fold=_fold, **kwargs)
 
     def train_parallel(self, configs=["3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"], **kwargs):
-        self.num_gpus = 4
-        _settings = []
-        for _i in range(len(configs)):
-            for _j in range(len(self.num_folds)):
-                _setting = {}
-                
+        if type(configs) == str:
+            configs = [configs]
 
-    #     # if type(configs) == str:
-    #     #     configs = [configs]
+        cmds = []
+        _index = 0
 
-    #     # for _i in range(len(configs)):
-    #     #     _config = configs[_i]
-    #     #     for _fold in range(self.num_folds):
-    #     #         self.train_single_model(config=_config, fold=_fold, **kwargs)
+        if "3d_fullres" in configs:
+            for _i in range(self.num_folds):
+                cmd = "python -m monai.apps.nnunet nnUNetRunner train_single_model " + \
+                    f"--input '{self.input_config_or_dict}' --config '3d_fullres' --fold {_i} --gpu_id {_index%self.num_gpus}"
+                cmds.append(cmd)
+                _index += 1
 
-    #     # from subprocess import Popen
-    #     # commands = ['command1', 'command2']
-    #     # procs = [ Popen(i) for i in commands ]
-    #     # for p in procs:
-    #     # p.wait()
-    #     # cmd = f"python -m monai.apps.nnunet nnUNetRunner train_parallel --input './input.yaml'"
-    #     # p = subprocess.run(cmd.split(), check=True)
-    #     cmds = []
-    #     for _i in range(self.num_folds):
-    #         cmd = f"CUDA_VISIBLE_DEVICES=x python -m monai.apps.nnunet nnUNetRunner train_single_model --input './input.yaml' --config '3d_fullres' --fold {_i}"
-    #         cmds.append(cmd)
+        if "2d" in configs:
+            for _i in range(self.num_folds):
+                cmd = "python -m monai.apps.nnunet nnUNetRunner train_single_model " + \
+                    f"--input '{self.input_config_or_dict}' --config '2d' --fold {_i} --gpu_id {_index%self.num_gpus}"
+                cmds.append(cmd)
+                _index += 1
 
-    #     for _i in range(self.num_folds):
-    #         cmd = f"CUDA_VISIBLE_DEVICES=x python -m monai.apps.nnunet nnUNetRunner train_single_model --input './input.yaml' --config '2d' --fold {_i}"
-    #         cmds.append(cmd)
+        if "3d_lowres" in configs:
+            for _i in range(self.num_folds):
+                cmd = "python -m monai.apps.nnunet nnUNetRunner train_single_model " + \
+                    f"--input '{self.input_config_or_dict}' --config '3d_lowres' --fold {_i} --gpu_id {_index%self.num_gpus}"
 
-    #     for _i in range(self.num_folds):
-    #         cmd = f"CUDA_VISIBLE_DEVICES=x python -m monai.apps.nnunet nnUNetRunner train_single_model --input './input.yaml' --config '3d_lowres' --fold {_i}; "
-    #         cmd += f"CUDA_VISIBLE_DEVICES=x python -m monai.apps.nnunet nnUNetRunner train_single_model --input './input.yaml' --config '3d_cascade_fullres' --fold {_i}"
-    #         cmds.append(cmd)
+                if "3d_cascade_fullres" in configs:
+                    cmd += "; python -m monai.apps.nnunet nnUNetRunner train_single_model " + \
+                        f"--input '{self.input_config_or_dict}' --config '3d_cascade_fullres' --fold {_i} --gpu_id {_index%self.num_gpus}"
+                cmds.append(cmd)
+                _index += 1
 
-    #     num_gpus = 4
-    #     for _k in range(len(cmds)):
-    #         cmds[_k] = cmds[_k].replace("CUDA_VISIBLE_DEVICES=x", f"CUDA_VISIBLE_DEVICES={_k%num_gpus}")
+        gpu_cmds = {}
+        for _j in range(self.num_gpus):
+            gpu_cmds[f"gpu_{_j}"] = ""
 
-    #     final_cmds = {}
-    #     for _j in range(num_gpus):
-    #         final_cmds[f"CUDA_VISIBLE_DEVICES={_j}"] = ""
+        for _k in range(len(cmds)):
+            for _j in range(self.num_gpus):
+                if f"--gpu_id {_j}" in cmds[_k]:
+                    gpu_cmds[f"gpu_{_j}"] += cmds[_k]
+                    gpu_cmds[f"gpu_{_j}"] += "; "
+                    break
+        gpu_cmds = list(gpu_cmds.values())
 
-    #     for _k in range(len(cmds)):
-    #         for _j in range(num_gpus):
-    #             if f"CUDA_VISIBLE_DEVICES={_j}" in cmds[_k]:
-    #                 final_cmds[f"CUDA_VISIBLE_DEVICES={_j}"] += cmds[_k]
-    #                 final_cmds[f"CUDA_VISIBLE_DEVICES={_j}"] += "; "
-    #                 break
-    #     final_cmds = list(final_cmds.values())
-    #     # print(type(final_cmds), final_cmds)
+        processes = []
+        for _i in range(len(gpu_cmds)):
+            gpu_cmd = gpu_cmds[_i]
+            print(f"training:\n{gpu_cmd}\n")
+            processes.append(subprocess.Popen(gpu_cmd, shell=True, stdout=subprocess.DEVNULL))
 
-    #     # p = subprocess.run(cmd.split(), check=True)
-    #     from subprocess import Popen
-    #     procs = [ Popen(i.split()) for i in final_cmds ]
-    #     for p in procs:
-    #         print(p)
-    #         p.wait()
+        for p in processes:
+            p.wait()
 
     def validate_single_model(self, config, fold):
         self.train_single_model(config=config, fold=fold, only_run_validation=True)
