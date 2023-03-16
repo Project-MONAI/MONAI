@@ -92,7 +92,7 @@ class DiceMetric(CumulativeIterationMetric):
         self, reduction: MetricReduction | str | None = None
     ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """
-        Execute reduction logic for the output of `compute_meandice`.
+        Execute reduction and aggregation logic for the output of `compute_dice`.
 
         Args:
             reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
