@@ -298,4 +298,6 @@ class DataAnalyzer:
             # limitation: https://github.com/pytorch/pytorch/issues/12873#issuecomment-482916237
             torch.cuda.empty_cache()
 
+        # return combined
+        result[DataStatsKeys.BY_CASE] = result_bycase[DataStatsKeys.BY_CASE]
         return result
