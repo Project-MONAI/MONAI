@@ -68,7 +68,7 @@ EXPECTED_ANSWERS = [
                 0.19005874127683337,
                 0.07462121515702229,
             ],
-        },
+        }
     },
     {  # test answers for PyTorch 1.12.1
         "integration_classification_2d": {
