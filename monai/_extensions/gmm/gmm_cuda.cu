@@ -184,7 +184,7 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
       matrix_component += __shfl_down(matrix_component, 4);
       matrix_component += __shfl_down(matrix_component, 2);
       matrix_component += __shfl_down(matrix_component, 1);
-#else      
+#else
       matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 16);
       matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 8);
       matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 4);
@@ -215,7 +215,7 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
         if (warp_count >= 2) {
           matrix_component += __shfl_down(matrix_component, 1);
         }
-#else	
+#else
         if (warp_count >= 32) {
           matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 16);
         }
@@ -404,7 +404,7 @@ __global__ void GMMcommonTerm(float* g_gmm) {
   sum += __shfl_xor(sum, 8);
   sum += __shfl_xor(sum, 16);
 
-#else  
+#else
   sum += __shfl_xor_sync(0xffffffff, sum, 1);
   sum += __shfl_xor_sync(0xffffffff, sum, 2);
   sum += __shfl_xor_sync(0xffffffff, sum, 4);

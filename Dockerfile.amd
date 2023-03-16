@@ -25,7 +25,7 @@ RUN cp /tmp/requirements.txt /tmp/req.bak \
   && sed -i '/cucim/d'  /tmp/requirements-dev.txt  \
   && awk '!/torch/' /tmp/requirements.txt > /tmp/tmp && mv /tmp/tmp /tmp/requirements.txt \
   && python -m pip install --upgrade --no-cache-dir pip \
-  && python -m pip install --no-cache-dir -r /tmp/requirements-dev.txt 
+  && python -m pip install --no-cache-dir -r /tmp/requirements-dev.txt
 
 
 # compile ext and remove temp files
