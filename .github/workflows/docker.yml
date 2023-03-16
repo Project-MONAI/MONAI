@@ -32,6 +32,7 @@ jobs:
       - shell: bash
         run: |
           git describe
+          python -m pip install -U pip wheel setuptools
           python setup.py build
           cat build/lib/monai/_version.py
       - name: Upload version
