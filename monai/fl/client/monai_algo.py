@@ -23,7 +23,7 @@ import monai
 from monai.apps.auto3dseg.data_analyzer import DataAnalyzer
 from monai.apps.utils import get_logger
 from monai.auto3dseg import SegSummarizer
-from monai.bundle import DEFAULT_EXP_MGMT_SETTINGS, ConfigComponent, ConfigItem, ConfigParser, ConfigWorkflow
+from monai.bundle import BundleWorkflow, ConfigItem, ConfigParser
 from monai.engines import SupervisedTrainer, Trainer
 from monai.fl.client import ClientAlgo, ClientAlgoStats
 from monai.fl.utils.constants import (
@@ -80,55 +80,38 @@ def compute_weight_diff(global_weights, local_var_dict):
     return weight_diff
 
 
-def check_bundle_config(parser):
-    for k in RequiredBundleKeys:
-        if parser.get(k, None) is None:
-            raise KeyError(f"Bundle config misses required key `{k}`")
-
-
-def disable_ckpt_loaders(parser):
-    if BundleKeys.VALIDATE_HANDLERS in parser:
-        for h in parser[BundleKeys.VALIDATE_HANDLERS]:
-            if ConfigComponent.is_instantiable(h):
-                if "CheckpointLoader" in h["_target_"]:
-                    h["_disabled_"] = True
-
-
 class MonaiAlgoStats(ClientAlgoStats):
     """
     Implementation of ``ClientAlgoStats`` to allow federated learning with MONAI bundle configurations.
 
     Args:
-        bundle_root: path of bundle.
-        config_train_filename: bundle training config path relative to bundle_root. Can be a list of files;
-            defaults to "configs/train.json".
+        workflow: the bundle workflow to execute, usually it's training, evaluation or inference.
         config_filters_filename: filter configuration file. Can be a list of files; defaults to `None`.
+        data_stats_transform_list: transforms to apply for the data stats result.
         histogram_only: whether to only compute histograms. Defaults to False.
     """
 
     def __init__(
         self,
-        bundle_root: str,
-        config_train_filename: str | list | None = "configs/train.json",
+        workflow: BundleWorkflow,
         config_filters_filename: str | list | None = None,
-        train_data_key: str | None = BundleKeys.TRAIN_DATA,
-        eval_data_key: str | None = BundleKeys.VALID_DATA,
         data_stats_transform_list: list | None = None,
         histogram_only: bool = False,
     ):
         self.logger = logger
-        self.bundle_root = bundle_root
-        self.config_train_filename = config_train_filename
+        if not isinstance(workflow, BundleWorkflow):
+            raise ValueError("workflow must be a subclass of MONAI BundleWorkflow.")
+        if workflow.get_workflow_type() is None:
+            raise ValueError("workflow doesn't specify the type.")
+        self.workflow = workflow
         self.config_filters_filename = config_filters_filename
-        self.train_data_key = train_data_key
-        self.eval_data_key = eval_data_key
+        self.train_data_key = "train"
+        self.eval_data_key = "eval"
         self.data_stats_transform_list = data_stats_transform_list
         self.histogram_only = histogram_only
 
         self.client_name: str | None = None
         self.app_root: str = ""
-        self.train_parser: ConfigParser | None = None
-        self.filter_parser: ConfigParser | None = None
         self.post_statistics_filters: Any = None
         self.phase = FlPhase.IDLE
         self.dataset_root: Any = None
@@ -147,37 +130,21 @@ class MonaiAlgoStats(ClientAlgoStats):
         self.client_name = extra.get(ExtraItems.CLIENT_NAME, "noname")
         self.logger.info(f"Initializing {self.client_name} ...")
 
+        self.workflow.initialize()
         # FL platform needs to provide filepath to configuration files
         self.app_root = extra.get(ExtraItems.APP_ROOT, "")
+        self.workflow.bundle_root = os.path.join(self.app_root, self.workflow.bundle_root)
+        # initialize the workflow as the content changed
+        self.workflow.initialize()
 
-        # Read bundle config files
-        self.bundle_root = os.path.join(self.app_root, self.bundle_root)
-
-        config_train_files = self._add_config_files(self.config_train_filename)
         config_filter_files = self._add_config_files(self.config_filters_filename)
-
-        # Parse
-        self.train_parser = ConfigParser()
-        self.filter_parser = ConfigParser()
-        if len(config_train_files) > 0:
-            self.train_parser.read_config(config_train_files)
-            check_bundle_config(self.train_parser)
+        filter_parser = ConfigParser()
         if len(config_filter_files) > 0:
-            self.filter_parser.read_config(config_filter_files)
-
-        # override some config items
-        self.train_parser[RequiredBundleKeys.BUNDLE_ROOT] = self.bundle_root
-
-        # Get data location
-        self.dataset_root = self.train_parser.get_parsed_content(
-            BundleKeys.DATASET_DIR, default=ConfigItem(None, BundleKeys.DATASET_DIR)
-        )
-
-        # Get filters
-        self.post_statistics_filters = self.filter_parser.get_parsed_content(
-            FiltersType.POST_STATISTICS_FILTERS, default=ConfigItem(None, FiltersType.POST_STATISTICS_FILTERS)
-        )
-
+            filter_parser.read_config(config_filter_files)
+            # Get filters
+            self.post_statistics_filters = filter_parser.get_parsed_content(
+                FiltersType.POST_STATISTICS_FILTERS, default=ConfigItem(None, FiltersType.POST_STATISTICS_FILTERS)
+            )
         self.logger.info(f"Initialized {self.client_name}.")
 
     def get_data_stats(self, extra: dict | None = None) -> ExchangeObject:
@@ -195,9 +162,9 @@ class MonaiAlgoStats(ClientAlgoStats):
         if extra is None:
             raise ValueError("`extra` has to be set")
 
-        if self.dataset_root:
+        if self.workflow.dataset_dir:
             self.phase = FlPhase.GET_DATA_STATS
-            self.logger.info(f"Computing statistics on {self.dataset_root}")
+            self.logger.info(f"Computing statistics on {self.workflow.dataset_dir}")
 
             if FlStatistics.HIST_BINS not in extra:
                 raise ValueError("FlStatistics.NUM_OF_BINS not specified in `extra`")
@@ -212,7 +179,7 @@ class MonaiAlgoStats(ClientAlgoStats):
 
             # train data stats
             train_summary_stats, train_case_stats = self._get_data_key_stats(
-                parser=self.train_parser,
+                data=self.workflow.train_dataset_data,
                 data_key=self.train_data_key,
                 hist_bins=hist_bins,
                 hist_range=hist_range,
@@ -223,13 +190,18 @@ class MonaiAlgoStats(ClientAlgoStats):
                 stats_dict.update({self.train_data_key: train_summary_stats})
 
             # eval data stats
-            eval_summary_stats, eval_case_stats = self._get_data_key_stats(
-                parser=self.train_parser,
-                data_key=self.eval_data_key,
-                hist_bins=hist_bins,
-                hist_range=hist_range,
-                output_path=os.path.join(self.app_root, "eval_data_stats.yaml"),
-            )
+            eval_summary_stats = None
+            eval_case_stats = None
+            if self.workflow.val_dataset_data is not None:
+                eval_summary_stats, eval_case_stats = self._get_data_key_stats(
+                    data=self.workflow.val_dataset_data,
+                    data_key=self.eval_data_key,
+                    hist_bins=hist_bins,
+                    hist_range=hist_range,
+                    output_path=os.path.join(self.app_root, "eval_data_stats.yaml"),
+                )
+            else:
+                self.logger.warning("the datalist doesn't contain validation section.")
             if eval_summary_stats:
                 # Only return summary statistics to FL server
                 stats_dict.update({self.eval_data_key: eval_summary_stats})
@@ -252,17 +224,10 @@ class MonaiAlgoStats(ClientAlgoStats):
         else:
             raise ValueError("data_root not set!")
 
-    def _get_data_key_stats(self, parser, data_key, hist_bins, hist_range, output_path=None):
-        if data_key not in parser:
-            self.logger.warning(f"Data key {data_key} not available in bundle configs.")
-            return None, None
-        data = parser.get_parsed_content(data_key)
-
-        datalist = {data_key: data}
-
+    def _get_data_key_stats(self, data, data_key, hist_bins, hist_range, output_path=None):
         analyzer = DataAnalyzer(
-            datalist=datalist,
-            dataroot=self.dataset_root,
+            datalist={data_key: data},
+            dataroot=self.workflow.dataset_dir,
             hist_bins=hist_bins,
             hist_range=hist_range,
             output_path=output_path,
@@ -307,11 +272,11 @@ class MonaiAlgoStats(ClientAlgoStats):
         files = []
         if config_files:
             if isinstance(config_files, str):
-                files.append(os.path.join(self.bundle_root, config_files))
+                files.append(os.path.join(self.workflow.bundle_root, config_files))
             elif isinstance(config_files, list):
                 for file in config_files:
                     if isinstance(file, str):
-                        files.append(os.path.join(self.bundle_root, file))
+                        files.append(os.path.join(self.workflow.bundle_root, file))
                     else:
                         raise ValueError(f"Expected config file to be of type str but got {type(file)}: {file}")
             else:
@@ -465,10 +430,8 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         self.filter_parser = ConfigParser()
         if len(config_train_files) > 0:
             self.train_parser.read_config(config_train_files)
-            check_bundle_config(self.train_parser)
         if len(config_eval_files) > 0:
             self.eval_parser.read_config(config_eval_files)
-            check_bundle_config(self.eval_parser)
         if len(config_filter_files) > 0:
             self.filter_parser.read_config(config_filter_files)
 
@@ -478,20 +441,6 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         # number of training epochs for each round
         if BundleKeys.TRAIN_TRAINER_MAX_EPOCHS in self.train_parser:
             self.train_parser[BundleKeys.TRAIN_TRAINER_MAX_EPOCHS] = self.local_epochs
-
-        # remove checkpoint loaders
-        if self.disable_ckpt_loading:
-            disable_ckpt_loaders(self.train_parser)
-            disable_ckpt_loaders(self.eval_parser)
-
-        # set tracking configs for experiment management
-        if self.tracking is not None:
-            if isinstance(self.tracking, str) and self.tracking in DEFAULT_EXP_MGMT_SETTINGS:
-                settings_ = DEFAULT_EXP_MGMT_SETTINGS[self.tracking]
-            else:
-                settings_ = ConfigParser.load_config_files(self.tracking)
-            ConfigWorkflow.patch_bundle_tracking(parser=self.train_parser, settings=settings_)
-            ConfigWorkflow.patch_bundle_tracking(parser=self.eval_parser, settings=settings_)
 
         # Get trainer, evaluator
         self.trainer = self.train_parser.get_parsed_content(

@@ -215,6 +215,7 @@ class ConfigWorkflow(BundleWorkflow):
             else:
                 settings_ = ConfigParser.load_config_files(tracking)
             self.patch_bundle_tracking(parser=self.parser, settings=settings_)
+        self._is_initialized: bool = False
 
     def initialize(self) -> Any:
         """
@@ -223,6 +224,7 @@ class ConfigWorkflow(BundleWorkflow):
         """
         # reset the "reference_resolver" buffer at initialization stage
         self.parser.parse(reset=True)
+        self._is_initialized = True
         return self._run_expr(id=self.init_id)
 
     def run(self) -> Any:
@@ -284,7 +286,7 @@ class ConfigWorkflow(BundleWorkflow):
             property: other information for the target property, defined in `TrainProperties` or `InferProperties`.
 
         """
-        if not self.parser.ref_resolver.is_resolved():
+        if not self._is_initialized:
             raise RuntimeError("Please execute 'initialize' before getting any parsed content.")
         prop_id = self._get_prop_id(name, property)
         return self.parser.get_parsed_content(id=prop_id) if prop_id is not None else None
@@ -303,6 +305,7 @@ class ConfigWorkflow(BundleWorkflow):
         if prop_id is not None:
             self.parser[prop_id] = value
             # must parse the config again after changing the content
+            self._is_initialized = False
             self.parser.ref_resolver.reset()
 
     def _check_optional_id(self, name: str, property: dict) -> bool:
