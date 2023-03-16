@@ -24,6 +24,7 @@ __all__ = ["DiceMetric", "compute_dice", "DiceHelper"]
 class DiceMetric(CumulativeIterationMetric):
     """
     Compute average Dice score for a set of pairs of prediction-groundtruth segmentations.
+
     It supports both multi-classes and multi-labels tasks.
     Input `y_pred` is compared with ground truth `y`.
     `y_preds` is expected to have binarized predictions and `y` should be in one-hot format. You can use suitable
@@ -141,7 +142,7 @@ def compute_dice(
 class DiceHelper:
     """
     Compute Dice score between two tensors `y_pred` and `y`.
-    Different from `monai.metrics.DiceMetric`, this class compues.
+    `y_pred` must have N channels, `y` can be single channel class indices or one-hot.
 
     Example:
 
@@ -155,6 +156,7 @@ class DiceHelper:
 
         y_pred = torch.rand(batch_size, n_classes, *spatial_shape).float()  # predictions
         y = torch.randint(0, n_classes, size=(batch_size, 1, *spatial_shape)).long()  # ground truth
+
         score, not_nans = DiceHelper(include_background=False, sigmoid=True, softmax=True)(y_pred, y)
         print(score, not_nans)
 
