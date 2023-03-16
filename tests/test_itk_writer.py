@@ -60,8 +60,8 @@ class TestITKWriter(unittest.TestCase):
             writer.write(fname)
 
             output = np.asarray(itk.imread(fname))
-            np.testing.assert_allclose(output.shape, (4, 3, 4))
-            np.testing.assert_allclose(output[1, 1], (20, 21, 22, 23))
+            np.testing.assert_allclose(output.shape, (4, 4, 3))
+            np.testing.assert_allclose(output[1, 1], (5, 21, 37))
 
 
 if __name__ == "__main__":

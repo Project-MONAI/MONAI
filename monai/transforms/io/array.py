@@ -40,6 +40,7 @@ from monai.data.image_reader import (
     PydicomReader,
 )
 from monai.data.meta_tensor import MetaTensor
+from monai.data.utils import is_no_channel
 from monai.transforms.transform import Transform
 from monai.transforms.utility.array import EnsureChannelFirst
 from monai.utils import GridSamplePadMode
@@ -451,8 +452,15 @@ class SaveImage(Transform):
         meta_data = img.meta if isinstance(img, MetaTensor) else meta_data
         kw = self.fname_formatter(meta_data, self)
         filename = self.folder_layout.filename(**kw)
-        if meta_data and len(ensure_tuple(meta_data.get("spatial_shape", ()))) == len(img.shape):
-            self.data_kwargs["channel_dim"] = None
+        if meta_data:
+            meta_spatial_shape = ensure_tuple(meta_data.get("spatial_shape", ()))
+            if len(meta_spatial_shape) >= len(img.shape):
+                self.data_kwargs["channel_dim"] = None
+            elif is_no_channel(self.data_kwargs.get("channel_dim")):
+                warnings.warn(
+                    f"data shape {img.shape} (with spatial shape {meta_spatial_shape}) "
+                    f"but SaveImage `channel_dim` is set to {self.data_kwargs.get('channel_dim')} no channel."
+                )
 
         err = []
         for writer_cls in self.writers:

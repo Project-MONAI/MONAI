@@ -407,7 +407,7 @@ class ITKWriter(ImageWriter):
             kwargs: keyword arguments passed to ``self.convert_to_channel_last``,
                 currently support ``spatial_ndim`` and ``contiguous``, defauting to ``3`` and ``False`` respectively.
         """
-        _r = len(data_array.shape)
+        n_chns = data_array.shape[channel_dim] if channel_dim is not None else 0
         self.data_obj = self.convert_to_channel_last(
             data=data_array,
             channel_dim=channel_dim,
@@ -415,10 +415,12 @@ class ITKWriter(ImageWriter):
             spatial_ndim=kwargs.pop("spatial_ndim", 3),
             contiguous=kwargs.pop("contiguous", True),
         )
-        if self.data_obj is not None and len(self.data_obj.shape) <= _r:  # squeezed end dims
+        self.channel_dim = -1  # in most cases, the data is set to channel last
+        if squeeze_end_dims and n_chns <= 1:  # num_channel==1 squeezed
             self.channel_dim = None
-        else:
-            self.channel_dim = -1 if channel_dim is None else channel_dim
+        if not squeeze_end_dims and n_chns < 1:  # originally no channel and convert_to_channel_last added a channel
+            self.channel_dim = None
+            self.data_obj = self.data_obj[..., 0]
 
     def set_metadata(self, meta_dict: Mapping | None = None, resample: bool = True, **options):
         """
