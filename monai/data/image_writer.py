@@ -415,12 +415,10 @@ class ITKWriter(ImageWriter):
             spatial_ndim=kwargs.pop("spatial_ndim", 3),
             contiguous=kwargs.pop("contiguous", True),
         )
-        if channel_dim is None:
-            self.channel_dim = -1  # after convert_to_channel_last the last dim is the channel
+        if self.data_obj is not None and len(self.data_obj.shape) <= _r:  # squeezed end dims
+            self.channel_dim = None
         else:
-            self.channel_dim = (
-                channel_dim if self.data_obj is not None and len(self.data_obj.shape) >= _r else None
-            )  # channel dim is at the end
+            self.channel_dim = -1 if channel_dim is None else channel_dim
 
     def set_metadata(self, meta_dict: Mapping | None = None, resample: bool = True, **options):
         """
