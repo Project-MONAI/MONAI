@@ -73,7 +73,6 @@ class DiceMetric(CumulativeIterationMetric):
                 The values should be binarized.
 
         Raises:
-            ValueError: when `y` is not a binarized tensor.
             ValueError: when `y_pred` has less than three dimensions.
         """
         dims = y_pred.ndimension()

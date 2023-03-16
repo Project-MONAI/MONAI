@@ -85,7 +85,6 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
             y: ground truth to compute the metric. It must be one-hot format and first dim is batch.
                 The values should be binarized.
         Raises:
-            ValueError: when `y` is not a binarized tensor.
             ValueError: when `y_pred` has less than two dimensions.
         """
         # check dimension

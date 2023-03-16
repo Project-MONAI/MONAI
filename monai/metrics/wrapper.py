@@ -147,7 +147,6 @@ class MetricsReloadedBinary(MetricsReloadedWrapper):
                 The values should be binarized.
 
         Raises:
-            ValueError: when `y` or `y_pred` is not a binarized tensor.
             ValueError: when `y_pred` has less than three dimensions.
             ValueError: when second dimension ~= 1
 
@@ -255,7 +254,6 @@ class MetricsReloadedCategorical(MetricsReloadedWrapper):
                 one-hot encoded and binarized.
 
         Raises:
-            ValueError: when `y` or `y_pred` is not a binarized tensor.
             ValueError: when `y_pred` has less than three dimensions.
 
         """

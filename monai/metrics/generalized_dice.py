@@ -72,8 +72,7 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
             y (torch.Tensor): binarized ground-truth. It must be in one-hot format and have the same shape as `y_pred`.
 
         Raises:
-            ValueError: if `y_pred` or `y` is not a binarized PyTorch tensor, if `y_pred` and `y` have less than
-            three dimensions, or `y_pred` and `y` don't have the same shape.
+            ValueError: if `y_pred` and `y` have less than 3 dimensions, or `y_pred` and `y` don't have the same shape.
         """
         return compute_generalized_dice(
             y_pred=y_pred, y=y, include_background=self.include_background, weight_type=self.weight_type
