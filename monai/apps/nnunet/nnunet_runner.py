@@ -23,6 +23,8 @@ from batchgenerators.utilities.file_and_folder_operations import join, load_pick
 import monai
 from monai.bundle import ConfigParser
 
+from tqdm import tqdm
+
 
 class nnUNetRunner:
     def __init__(
@@ -67,12 +69,11 @@ class nnUNetRunner:
         # dataset_name_or_id has to be a string
         self.dataset_name_or_id = str(self.input_info.pop("dataset_name_or_id", 1))
 
-        from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
-
         try:
+            from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
             self.dataset_name = maybe_convert_to_dataset_name(int(self.dataset_name_or_id))
         except BaseException:
-            print("Dataset ID does not exist! Check input '.yaml' if this is unexpected.")
+            print("[warning] Dataset ID does not exist! Check input '.yaml' if this is unexpected.")
 
         from nnunetv2.configuration import default_num_processes
 
@@ -108,27 +109,30 @@ class nnUNetRunner:
             if not os.path.exists(raw_data_foldername):
                 os.makedirs(raw_data_foldername)
 
+            from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
+            self.dataset_name = maybe_convert_to_dataset_name(int(self.dataset_name_or_id))
+
             datalist_json = ConfigParser.load_config_file(self.input_info.pop("datalist"))
 
             if "training" in datalist_json:
-                os.makedirs(os.path.join(raw_data_foldername, "imagesTs"))
-                os.makedirs(os.path.join(raw_data_foldername, "labelsTs"))
+                os.makedirs(os.path.join(raw_data_foldername, "imagesTr"))
+                os.makedirs(os.path.join(raw_data_foldername, "labelsTr"))
             else:
                 print("Input '.json' data list is incorrect.")
                 return
 
             test_key = None
             if "test" in datalist_json or "testing" in datalist_json:
-                os.makedirs(os.path.join(raw_data_foldername, "imagesTr"))
+                os.makedirs(os.path.join(raw_data_foldername, "imagesTs"))
                 test_key = "test" if "test" in datalist_json else "testing"
                 if isinstance(datalist_json[test_key][0], dict) and "label" in datalist_json[test_key][0]:
-                    os.makedirs(os.path.join(raw_data_foldername, "labelsTr"))
+                    os.makedirs(os.path.join(raw_data_foldername, "labelsTs"))
 
             img = monai.transforms.LoadImage(image_only=True, ensure_channel_first=True, simple_keys=True)(
                 os.path.join(data_dir, datalist_json["training"][0]["image"])
             )
             num_input_channels = img.size()[0] if img.dim() == 4 else 1
-            print(f"num_input_channels: {num_input_channels}")
+            print(f"[info] num_input_channels: {num_input_channels}")
 
             num_foreground_classes = 0
             for _i in range(len(datalist_json["training"])):
@@ -136,7 +140,7 @@ class nnUNetRunner:
                     os.path.join(data_dir, datalist_json["training"][_i]["label"])
                 )
                 num_foreground_classes = max(num_foreground_classes, int(seg.max()))
-            print(f"num_foreground_classes: {num_foreground_classes}")
+            print(f"[info] num_foreground_classes: {num_foreground_classes}")
 
             new_json_data = {}
 
@@ -171,18 +175,19 @@ class nnUNetRunner:
             new_datalist_json[test_key] = []
 
             for _key, _folder, _label_folder in list(
-                zip(["training", test_key], ["imagesTs", "imagesTr"], ["labelsTs", "labelsTr"])
+                zip(["training", test_key], ["imagesTr", "imagesTs"], ["labelsTr", "labelsTs"])
             ):
                 if _key is None:
                     continue
 
-                for _k in range(len(datalist_json[_key])):
+                print(f"[info] converting data section: {_key}...")
+                for _k in tqdm(range(len(datalist_json[_key]))):
                     orig_img_name = (
                         datalist_json[_key][_k]["image"]
                         if isinstance(datalist_json[_key][_k], dict)
                         else datalist_json[_key][_k]
                     )
-                    img_name = f"image_{_index}"
+                    img_name = f"case_{_index}"
                     _index += 1
 
                     # copy image
@@ -203,9 +208,10 @@ class nnUNetRunner:
                         )
                         affine = nda.meta["original_affine"]
                         nda = nda.numpy().astype(np.uint8)
+                        nda = nda[0, ...] if nda.ndim == 4 and nda.shape[0] == 1 else nda
                         nib.save(
                             nib.Nifti1Image(nda, affine),
-                            os.path.join(raw_data_foldername, "labelsTs", img_name + ".nii.gz"),
+                            os.path.join(raw_data_foldername, _label_folder, img_name + ".nii.gz"),
                         )
 
                     if isinstance(datalist_json[_key][_k], dict):
@@ -263,7 +269,7 @@ class nnUNetRunner:
         )
 
     def preprocess(
-        self, c=["2d", "3d_fullres", "3d_lowres"], np=[8, 4, 8], overwrite_plans_name="nnUNetPlans", verbose=False
+        self, c=["2d", "3d_fullres", "3d_lowres"], np=[8, 8, 8], overwrite_plans_name="nnUNetPlans", verbose=False
     ):
         from nnunetv2.experiment_planning.plan_and_preprocess_api import preprocess
 
@@ -285,7 +291,7 @@ class nnUNetRunner:
         overwrite_target_spacing=None,
         overwrite_plans_name="nnUNetPlans",
         c=["2d", "3d_fullres", "3d_lowres"],
-        np=[8, 4, 8],
+        np=[8, 8, 8],
         verbose=False,
     ):
         self.extract_fingerprints(fpe, npfp, verify_dataset_integrity, clean, verbose)
@@ -337,8 +343,9 @@ class nnUNetRunner:
 
         from nnunetv2.training.dataloading.utils import unpack_dataset
         for folder_name in folder_names:
+            print(f"[info] unpacking '{folder_name}'...")
             _ = unpack_dataset(
-                folder=os.path.join(self.nnunet_preprocessed, folder_name),
+                folder=folder_name,
                 unpack_segmentation=True,
                 overwrite_existing=False,
                 num_processes=self.default_num_processes
@@ -355,6 +362,11 @@ class nnUNetRunner:
                     for _i in range(self.num_folds):
                         cmd = "python -m monai.apps.nnunet nnUNetRunner train_single_model " + \
                             f"--input '{self.input_config_or_dict}' --config '{_config}' --fold {_i} --gpu_id {_index%self.num_gpus}"
+
+                        if isinstance(kwargs, dict):
+                            for _key, _value in kwargs.items():
+                                cmd += f" --{_key} {_value}"
+
                         cmds.append(cmd)
                         _index += 1
 
@@ -375,7 +387,7 @@ class nnUNetRunner:
                 for _i in range(len(gpu_cmds)):
                     gpu_cmd = gpu_cmds[_i]
                     print(f"\n[info] training - stage {_stage + 1}:\n[info] commands: {gpu_cmd}")
-                    print(f"[info] log '.txt' inside '{os.path.join(self.nnunet_results, folder_name)}'")
+                    print(f"[info] log '.txt' inside '{os.path.join(self.nnunet_results, self.dataset_name)}'")
                     processes.append(subprocess.Popen(gpu_cmd, shell=True, stdout=subprocess.DEVNULL))
 
                 for p in processes:
