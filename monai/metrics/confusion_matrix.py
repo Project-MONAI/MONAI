@@ -16,7 +16,7 @@ from collections.abc import Sequence
 
 import torch
 
-from monai.metrics.utils import do_metric_reduction, ignore_background, is_binary_tensor
+from monai.metrics.utils import do_metric_reduction, ignore_background
 from monai.utils import MetricReduction, ensure_tuple
 
 from .metric import CumulativeIterationMetric
@@ -88,9 +88,6 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
             ValueError: when `y` is not a binarized tensor.
             ValueError: when `y_pred` has less than two dimensions.
         """
-        is_binary_tensor(y_pred, "y_pred")
-        is_binary_tensor(y, "y")
-
         # check dimension
         dims = y_pred.ndimension()
         if dims < 2:

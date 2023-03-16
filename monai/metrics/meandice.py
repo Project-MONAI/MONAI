@@ -13,18 +13,21 @@ from __future__ import annotations
 
 import torch
 
-from monai.metrics.utils import do_metric_reduction, ignore_background, is_binary_tensor
-from monai.utils import MetricReduction, deprecated
+from monai.metrics.utils import do_metric_reduction
+from monai.utils import MetricReduction
 
 from .metric import CumulativeIterationMetric
+
+__all__ = ["DiceMetric", "compute_dice", "DiceHelper"]
 
 
 class DiceMetric(CumulativeIterationMetric):
     """
-    Compute average Dice score between two tensors. It can support both multi-classes and multi-labels tasks.
+    Compute average Dice score for a set of pairs of prediction-groundtruth segmentations.
+    It supports both multi-classes and multi-labels tasks.
     Input `y_pred` is compared with ground truth `y`.
-    `y_preds` is expected to have binarized predictions and `y` should be in one-hot format. You can use suitable transforms
-    in ``monai.transforms.post`` first to achieve binarized values.
+    `y_preds` is expected to have binarized predictions and `y` should be in one-hot format. You can use suitable
+    transforms in ``monai.transforms.post`` first to achieve binarized values.
     The `include_background` parameter can be set to ``False`` to exclude
     the first category (channel index 0) which is by convention assumed to be background. If the non-background
     segmentations are small compared to the total image size they can get overwhelmed by the signal from the
@@ -73,16 +76,17 @@ class DiceMetric(CumulativeIterationMetric):
             ValueError: when `y` is not a binarized tensor.
             ValueError: when `y_pred` has less than three dimensions.
         """
-        is_binary_tensor(y_pred, "y_pred")
-        is_binary_tensor(y, "y")
-
         dims = y_pred.ndimension()
         if dims < 3:
             raise ValueError(f"y_pred should have at least 3 dimensions (batch, channel, spatial), got {dims}.")
         # compute dice (BxC) for each channel for each batch
-        return compute_dice(
-            y_pred=y_pred, y=y, include_background=self.include_background, ignore_empty=self.ignore_empty
-        )
+        return DiceHelper(  # type: ignore
+            include_background=self.include_background,
+            reduction=MetricReduction.NONE,
+            get_not_nans=False,
+            softmax=False,
+            ignore_empty=self.ignore_empty,
+        )(y_pred=y_pred, y=y)
 
     def aggregate(
         self, reduction: MetricReduction | str | None = None
@@ -98,7 +102,7 @@ class DiceMetric(CumulativeIterationMetric):
         """
         data = self.get_buffer()
         if not isinstance(data, torch.Tensor):
-            raise ValueError("the data to aggregate must be PyTorch Tensor.")
+            raise ValueError(f"the data to aggregate must be PyTorch Tensor, got {type(data)}.")
 
         # do metric reduction
         f, not_nans = do_metric_reduction(data, reduction or self.reduction)
@@ -125,34 +129,103 @@ def compute_dice(
     Returns:
         Dice scores per batch and per class, (shape [batch_size, num_classes]).
 
-    Raises:
-        ValueError: when `y_pred` and `y` have different shapes.
+    """
+    return DiceHelper(  # type: ignore
+        include_background=include_background,
+        reduction=MetricReduction.NONE,
+        get_not_nans=False,
+        softmax=False,
+        ignore_empty=ignore_empty,
+    )(y_pred=y_pred, y=y)
+
+
+class DiceHelper:
+    """
+    Compute Dice score between two tensors `y_pred` and `y`.
+    Different from `monai.metrics.DiceMetric`, this class compues.
+
+    Example:
+
+    .. code-block:: python
+
+        import torch
+        from monai.metrics import DiceHelper
+
+        n_classes, batch_size = 5, 16
+        spatial_shape = (128, 128, 128)
+
+        y_pred = torch.rand(batch_size, n_classes, *spatial_shape).float()  # predictions
+        y = torch.randint(0, n_classes, size=(batch_size, 1, *spatial_shape)).long()  # ground truth
+        score, not_nans = DiceHelper(include_background=False, sigmoid=True, softmax=True)(y_pred, y)
+        print(score, not_nans)
 
     """
 
-    if not include_background:
-        y_pred, y = ignore_background(y_pred=y_pred, y=y)
+    def __init__(
+        self,
+        include_background: bool | None = None,
+        sigmoid: bool = False,
+        softmax: bool | None = None,
+        activate: bool = False,
+        get_not_nans: bool = True,
+        reduction: MetricReduction | str = MetricReduction.MEAN_BATCH,
+        ignore_empty: bool = True,
+    ) -> None:
+        """
 
-    y = y.float()
-    y_pred = y_pred.float()
+        Args:
+            include_background: whether to skip the score on the first channel (default to `sigmoid`).
+            sigmoid: whether ``y_pred`` are/will be sigmoid activated outputs. If True, thesholding at 0.5
+                will be performed to get the discrete prediction.
+            softmax: whether ``y_pred`` are softmax activated outputs. If True, `argmax` will be performed to
+                get the discrete prediction.
+            activate: whether to apply sigmoid to ``y_pred`` if ``sigmoid`` is True.
+            get_not_nans: whether to return the number of not-nan values.
+            reduction: define mode of reduction to the metrics
+            ignore_empty: if `True`, NaN value will be set for empty ground truth cases.
+                If `False`, 1 will be set if the Union of ``y_pred`` and ``y`` is empty.
+        """
+        self.sigmoid = sigmoid
+        self.reduction = reduction
+        self.get_not_nans = get_not_nans
+        self.include_background = sigmoid if include_background is None else include_background
+        self.softmax = not sigmoid if softmax is None else softmax
+        self.activate = activate
+        self.ignore_empty = ignore_empty
 
-    if y.shape != y_pred.shape:
-        raise ValueError(f"y_pred and y should have same shapes, got {y_pred.shape} and {y.shape}.")
+    def compute_channel(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        y_o = torch.sum(y)
+        if y_o > 0:
+            return (2.0 * torch.sum(torch.masked_select(y, y_pred))) / (y_o + torch.sum(y_pred))
+        if self.ignore_empty:
+            return torch.tensor(float("nan"), device=y_o.device)
+        denorm = y_o + torch.sum(y_pred)
+        if denorm <= 0:
+            return torch.tensor(1.0, device=y_o.device)
+        return (2.0 * torch.sum(torch.masked_select(y, y_pred))) / denorm
 
-    # reducing only spatial dimensions (not batch nor channels)
-    n_len = len(y_pred.shape)
-    reduce_axis = list(range(2, n_len))
-    intersection = torch.sum(y * y_pred, dim=reduce_axis)
+    def __call__(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+        n_pred_ch = y_pred.shape[1]
 
-    y_o = torch.sum(y, reduce_axis)
-    y_pred_o = torch.sum(y_pred, dim=reduce_axis)
-    denominator = y_o + y_pred_o
+        if self.softmax:
+            if n_pred_ch > 1:
+                y_pred = torch.argmax(y_pred, dim=1, keepdim=True)
 
-    if ignore_empty:
-        return torch.where(y_o > 0, (2.0 * intersection) / denominator, torch.tensor(float("nan"), device=y_o.device))
-    return torch.where(denominator > 0, (2.0 * intersection) / denominator, torch.tensor(1.0, device=y_o.device))
+        elif self.sigmoid:
+            if self.activate:
+                y_pred = torch.sigmoid(y_pred)
+            y_pred = y_pred > 0.5
 
+        first_ch = 0 if self.include_background else 1
+        data = []
+        for b in range(y_pred.shape[0]):
+            c_list = []
+            for c in range(first_ch, n_pred_ch) if n_pred_ch > 1 else [1]:
+                x_pred = (y_pred[b, 0] == c) if (y_pred.shape[1] == 1) else y_pred[b, c].bool()
+                x = (y[b, 0] == c) if (y.shape[1] == 1) else y[b, c]
+                c_list.append(self.compute_channel(x_pred, x))
+            data.append(torch.stack(c_list))
+        data = torch.stack(data, dim=0).contiguous()  # type: ignore
 
-@deprecated(since="1.0.0", msg_suffix="use `compute_dice` instead.")
-def compute_meandice(*args, **kwargs):
-    return compute_dice(*args, **kwargs)
+        f, not_nans = do_metric_reduction(data, self.reduction)  # type: ignore
+        return (f, not_nans) if self.get_not_nans else f

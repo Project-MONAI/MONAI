@@ -17,7 +17,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.metrics import DiceMetric, compute_dice, compute_meandice
+from monai.metrics import DiceMetric, compute_dice
 
 _device = "cuda:0" if torch.cuda.is_available() else "cpu"
 # keep background
@@ -195,13 +195,13 @@ class TestComputeMeanDice(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_3])
     def test_nans(self, input_data, expected_value):
-        result = compute_meandice(**input_data)
+        result = compute_dice(**input_data)
         self.assertTrue(np.allclose(np.isnan(result.cpu().numpy()), expected_value))
 
     # DiceMetric class tests
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_10])
     def test_value_class(self, input_data, expected_value):
-        # same test as for compute_meandice
+        # same test as for compute_dice
         vals = {}
         vals["y_pred"] = input_data.pop("y_pred")
         vals["y"] = input_data.pop("y")

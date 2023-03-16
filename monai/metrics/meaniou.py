@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import torch
 
-from monai.metrics.utils import do_metric_reduction, ignore_background, is_binary_tensor
+from monai.metrics.utils import do_metric_reduction, ignore_background
 from monai.utils import MetricReduction, deprecated
 
 from .metric import CumulativeIterationMetric
@@ -74,9 +74,6 @@ class MeanIoU(CumulativeIterationMetric):
             ValueError: when `y` is not a binarized tensor.
             ValueError: when `y_pred` has less than three dimensions.
         """
-        is_binary_tensor(y_pred, "y_pred")
-        is_binary_tensor(y, "y")
-
         dims = y_pred.ndimension()
         if dims < 3:
             raise ValueError(f"y_pred should have at least 3 dimensions (batch, channel, spatial), got {dims}.")

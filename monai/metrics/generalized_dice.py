@@ -17,7 +17,6 @@ from monai.metrics.utils import do_metric_reduction, ignore_background
 from monai.utils import MetricReduction, Weight, look_up_option
 
 from .metric import CumulativeIterationMetric
-from .utils import is_binary_tensor
 
 
 class GeneralizedDiceScore(CumulativeIterationMetric):
@@ -127,10 +126,6 @@ def compute_generalized_dice(
         ValueError: if `y_pred` or `y` are not PyTorch tensors, if `y_pred` and `y` have less than three dimensions,
             or `y_pred` and `y` don't have the same shape.
     """
-    # Ensure tensors are binarized
-    is_binary_tensor(y_pred, "y_pred")
-    is_binary_tensor(y, "y")
-
     # Ensure tensors have at least 3 dimensions and have the same shape
     dims = y_pred.dim()
     if dims < 3:

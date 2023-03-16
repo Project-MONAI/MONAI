@@ -15,7 +15,7 @@ from typing import cast
 
 import torch
 
-from monai.metrics.utils import do_metric_reduction, ignore_background, is_binary_tensor
+from monai.metrics.utils import do_metric_reduction, ignore_background
 from monai.utils import MetricReduction, convert_to_numpy, convert_to_tensor, optional_import
 
 from .metric import CumulativeIterationMetric
@@ -69,8 +69,6 @@ class MetricsReloadedWrapper(CumulativeIterationMetric):
 
     def prepare_onehot(self, y_pred, y):
         """Prepares onehot encoded input for metric call."""
-        is_binary_tensor(y_pred, "y_pred")
-        is_binary_tensor(y, "y")
         y = y.float()
         y_pred = y_pred.float()
         if not self.include_background:
