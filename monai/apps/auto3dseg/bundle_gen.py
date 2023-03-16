@@ -50,7 +50,7 @@ class BundleAlgo(Algo):
 
         from monai.apps.auto3dseg import BundleAlgo
 
-        data_stats_yaml = "/workspace/data_stats.yaml"
+        data_stats_yaml = "/workspace/datastats.yaml"
         algo = BundleAlgo(template_path=../algorithms/templates/segresnet2d/configs)
         algo.set_data_stats(data_stats_yaml)
         # algo.set_data_src("../data_src.json")
@@ -367,7 +367,7 @@ class BundleGen(AlgoGen):
 
     .. code-block:: bash
 
-        python -m monai.apps.auto3dseg BundleGen generate --data_stats_filename="../algorithms/data_stats.yaml"
+        python -m monai.apps.auto3dseg BundleGen generate --data_stats_filename="../algorithms/datastats.yaml"
     """
 
     def __init__(

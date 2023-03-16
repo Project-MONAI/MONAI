@@ -209,6 +209,7 @@ class ImageStats(Analyzer):
             ImageStatsKeys.CHANNELS: None,
             ImageStatsKeys.CROPPED_SHAPE: None,
             ImageStatsKeys.SPACING: None,
+            ImageStatsKeys.SIZEMM: None,
             ImageStatsKeys.INTENSITY: None,
         }
 
@@ -253,6 +254,12 @@ class ImageStats(Analyzer):
             if isinstance(data[self.image_key], MetaTensor)
             else [1.0] * min(3, data[self.image_key].ndim)
         )
+
+        report[ImageStatsKeys.SIZEMM] = [
+            np.multiply(x, y).astype(int, copy=False).tolist()
+            for x, y in zip(report[ImageStatsKeys.SHAPE], report[ImageStatsKeys.SPACING])
+        ]
+
         report[ImageStatsKeys.INTENSITY] = [
             self.ops[ImageStatsKeys.INTENSITY].evaluate(nda_c) for nda_c in nda_croppeds
         ]
@@ -534,6 +541,7 @@ class ImageStatsSumm(Analyzer):
             ImageStatsKeys.CHANNELS: None,
             ImageStatsKeys.CROPPED_SHAPE: None,
             ImageStatsKeys.SPACING: None,
+            ImageStatsKeys.SIZEMM: None,
             ImageStatsKeys.INTENSITY: None,
         }
         super().__init__(stats_name, report_format)
@@ -542,6 +550,7 @@ class ImageStatsSumm(Analyzer):
         self.update_ops(ImageStatsKeys.CHANNELS, SampleOperations())
         self.update_ops(ImageStatsKeys.CROPPED_SHAPE, SampleOperations())
         self.update_ops(ImageStatsKeys.SPACING, SampleOperations())
+        self.update_ops(ImageStatsKeys.SIZEMM, SampleOperations())
         self.update_ops(ImageStatsKeys.INTENSITY, SummaryOperations())
 
     def __call__(self, data: list[dict]) -> dict:
@@ -563,6 +572,7 @@ class ImageStatsSumm(Analyzer):
                 ImageStatsKeys.CHANNELS: {...},
                 ImageStatsKeys.CROPPED_SHAPE: {...},
                 ImageStatsKeys.SPACING: {...},
+                ImageStatsKeys.SIZEMM: {...},
                 ImageStatsKeys.INTENSITY: {...},
                 }
 
@@ -581,7 +591,13 @@ class ImageStatsSumm(Analyzer):
 
         report = deepcopy(self.get_report_format())
 
-        for k in [ImageStatsKeys.SHAPE, ImageStatsKeys.CHANNELS, ImageStatsKeys.CROPPED_SHAPE, ImageStatsKeys.SPACING]:
+        for k in [
+            ImageStatsKeys.SHAPE,
+            ImageStatsKeys.CHANNELS,
+            ImageStatsKeys.CROPPED_SHAPE,
+            ImageStatsKeys.SPACING,
+            ImageStatsKeys.SIZEMM,
+        ]:
             v_np = concat_val_to_np(data, [self.stats_name, k])
             report[k] = self.ops[k].evaluate(v_np, dim=(0, 1) if v_np.ndim > 2 and self.summary_average else 0)
 
@@ -974,6 +990,7 @@ class ImageHistogramSumm(Analyzer):
                 ImageStatsKeys.CHANNELS: {...},
                 ImageStatsKeys.CROPPED_SHAPE: {...},
                 ImageStatsKeys.SPACING: {...},
+                ImageStatsKeys.SIZEMM: {...},
                 ImageStatsKeys.INTENSITY: {...},
                 }
 
