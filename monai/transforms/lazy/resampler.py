@@ -48,22 +48,27 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = 
     is_grid = is_grid_shaped(matrix)
     is_ortho, unit_scale = check_matrix(matrix)
     unit_shift = check_unit_translate(matrix, data.shape, kwargs[LazyAttr.OUT_SHAPE])
+
     # TODO: extract coefficients from the matrix for tensor-ops / interpolate
     if not is_grid:
         if is_ortho:
             if unit_scale and unit_shift:
+                # print("tensor resample")
                 # TODO: change to use flips/permutations
                 resampler = Resampler(affine=matrix, image_only=True, **init_kwargs)
                 return resampler(img=data, **call_kwargs)
             else:  # interpolate
+                # print("interpolate resample")
                 # TODO: change to use interpolator
                 resampler = Resampler(affine=matrix, image_only=True, **init_kwargs)
                 return resampler(img=data, **call_kwargs)
         else:  # affine matrix resample
+            # print("grid resample")
             # TODO: change to use affine resampler
             resampler = Resampler(affine=matrix, image_only=True, **init_kwargs)
             return resampler(img=data, **call_kwargs)
     else:  # grid resample
+        # print("grid resample")
         resampler = Resampler(affine=matrix, image_only=True, **init_kwargs)
         return resampler(img=data, **call_kwargs)
 

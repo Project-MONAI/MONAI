@@ -1193,12 +1193,12 @@ class Flipd(MapTransform, InvertibleTransform, LazyTransform):
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         LazyTransform.__init__(self, lazy_evaluation)
-        self.flipper = Flip(spatial_axis=spatial_axis)
+        self.spatial_axis = spatial_axis
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         rd = dict(data)
         for key in self.key_iterator(rd):
-            rd[key] = self.flipper(rd[key])
+            rd[key] = flip(rd[key], self.spatial_axis, lazy_evaluation=self.lazy_evaluation)
         return rd
 
     def inverse(self, data):

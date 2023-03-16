@@ -1072,6 +1072,41 @@ class BoundingRectd(MapTransform):
         return d
 
 
+class CropPadd(MapTransform, InvertibleTransform, LazyTransform):
+
+    def __init__(
+            self,
+            keys,
+            slices=None,
+            starts=None,
+            ends=None,
+            padding_mode=GridSamplePadMode.BORDER,
+            allow_missing_keys=False,
+            lazy_evaluation: bool = True
+            ):
+        MapTransform.__init__(self, keys, allow_missing_keys=allow_missing_keys)
+        LazyTransform.__init__(self, lazy_evaluation)
+        self.slices = slices
+        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
+
+    def __call__(self, data):
+
+        rd = dict(data)
+
+        for key, _padding_mode in self.key_iterator(rd, self.padding_mode):
+            rd[key] = croppad(rd[key], slices=self.slices, padding_mode=_padding_mode,
+                              lazy_evaluation=self.lazy_evaluation)
+
+        return rd
+
+    def inverse(self, data):
+        rd = dict(data)
+
+        for key in self.key_iterator(rd):
+            rd[key] = invert(rd[key], self.lazy_evaluation)
+        return rd
+
+
 class RandCropPadd(MapTransform, InvertibleTransform, LazyTransform, RandomizableTrait):
 
     def __init__(
@@ -1102,13 +1137,20 @@ class RandCropPadd(MapTransform, InvertibleTransform, LazyTransform, Randomizabl
 
         for key_, padding_mode_, in self.key_iterator(rd, self.padding_mode):
             if extents is None:
-                img_shape = data[key_].shape[1:]
-                print(img_shape)
+                img_shape = data[key_].peek_pending_shape()[1:]
                 extents = self.randomizer.sample(img_shape)
 
             rd[key_] = croppad(data[key_], extents, padding_mode_, lazy_evaluation=self.lazy_evaluation)
 
         return rd
+
+    def set_random_state(
+            self,
+            seed: int | None = None,
+            state: np.random.RandomState | None = None
+    ):
+        self.randomizer.set_random_state(seed, state)
+        return self
 
     def inverse(self, data):
         return invert(data, self.lazy_evaluation)
