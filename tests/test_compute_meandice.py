@@ -17,7 +17,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.metrics import DiceMetric, compute_dice
+from monai.metrics import DiceHelper, DiceMetric, compute_dice
 
 _device = "cuda:0" if torch.cuda.is_available() else "cpu"
 # keep background
@@ -197,6 +197,15 @@ class TestComputeMeanDice(unittest.TestCase):
     def test_nans(self, input_data, expected_value):
         result = compute_dice(**input_data)
         self.assertTrue(np.allclose(np.isnan(result.cpu().numpy()), expected_value))
+
+    @parameterized.expand([TEST_CASE_3])
+    def test_helper(self, input_data, _unused):
+        vals = {"y_pred": dict(input_data).pop("y_pred"), "y": dict(input_data).pop("y")}
+        result = DiceHelper(sigmoid=True)(**vals)
+        np.testing.assert_allclose(result[0].cpu().numpy(), [0.0, 0.0, 0.0], atol=1e-4)
+        np.testing.assert_allclose(sorted(result[1].cpu().numpy()), [0.0, 1.0, 2.0], atol=1e-4)
+        result = DiceHelper(softmax=True, get_not_nans=False)(**vals)
+        np.testing.assert_allclose(result[0].cpu().numpy(), [0.0, 0.0], atol=1e-4)
 
     # DiceMetric class tests
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_10])

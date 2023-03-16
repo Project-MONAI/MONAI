@@ -174,12 +174,14 @@ class DiceHelper:
         """
 
         Args:
-            include_background: whether to skip the score on the first channel (default to `sigmoid`).
+            include_background: whether to skip the score on the first channel
+                (default to the value of `sigmoid`, False).
             sigmoid: whether ``y_pred`` are/will be sigmoid activated outputs. If True, thesholding at 0.5
-                will be performed to get the discrete prediction.
+                will be performed to get the discrete prediction. Defaults to False.
             softmax: whether ``y_pred`` are softmax activated outputs. If True, `argmax` will be performed to
-                get the discrete prediction.
-            activate: whether to apply sigmoid to ``y_pred`` if ``sigmoid`` is True.
+                get the discrete prediction. Defaults to the value of ``not sigmoid``.
+            activate: whether to apply sigmoid to ``y_pred`` if ``sigmoid`` is True. Defaults to False.
+                This option is only valid when ``sigmoid`` is True.
             get_not_nans: whether to return the number of not-nan values.
             reduction: define mode of reduction to the metrics
             ignore_empty: if `True`, NaN value will be set for empty ground truth cases.
