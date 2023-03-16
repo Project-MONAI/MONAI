@@ -9,16 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
-from typing import Dict, List, Optional
 
 from monai.apps.auto3dseg.bundle_gen import BundleAlgo
 from monai.auto3dseg import algo_from_pickle, algo_to_pickle
 
 
 def import_bundle_algo_history(
-    output_folder: str = ".", template_path: Optional[str] = None, only_trained: bool = True
-) -> List:
+    output_folder: str = ".", template_path: str | None = None, only_trained: bool = True
+) -> list:
     """
     import the history of the bundleAlgo object with their names/identifiers
 
@@ -55,7 +56,7 @@ def import_bundle_algo_history(
     return history
 
 
-def export_bundle_algo_history(history: List[Dict[str, BundleAlgo]]):
+def export_bundle_algo_history(history: list[dict[str, BundleAlgo]]) -> None:
     """
     Save all the BundleAlgo in the history to algo_object.pkl in each individual folder
 

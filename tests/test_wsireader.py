@@ -9,12 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import unittest
-from typing import Any, Tuple
+from typing import Any
 from unittest import skipUnless
 
 import numpy as np
+import torch
 from numpy.testing import assert_array_equal
 from parameterized import parameterized
 
@@ -25,7 +28,7 @@ from monai.data.wsi_reader import WSIReader
 from monai.transforms import Compose, LoadImaged, ToTensord
 from monai.utils import deprecated, first, optional_import
 from monai.utils.enums import PostFix, WSIPatchKeys
-from tests.utils import assert_allclose, download_url_or_skip_test, testing_data_config
+from tests.utils import assert_allclose, download_url_or_skip_test, skip_if_no_cuda, testing_data_config
 
 cucim, has_cucim = optional_import("cucim")
 has_cucim = has_cucim and hasattr(cucim, "CuImage")
@@ -42,10 +45,13 @@ FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + ba
 HEIGHT = 32914
 WIDTH = 46000
 
-TEST_CASE_0 = [FILE_PATH, 2, (3, HEIGHT // 4, WIDTH // 4)]
+TEST_CASE_WHOLE_0 = [FILE_PATH, 2, (3, HEIGHT // 4, WIDTH // 4)]
 
 TEST_CASE_TRANSFORM_0 = [FILE_PATH, 4, (HEIGHT // 16, WIDTH // 16), (1, 3, HEIGHT // 16, WIDTH // 16)]
 
+# ----------------------------------------------------------------------------
+# Test cases for *deprecated* monai.data.image_reader.WSIReader
+# ----------------------------------------------------------------------------
 TEST_CASE_DEP_1 = [
     FILE_PATH,
     {"location": (HEIGHT // 2, WIDTH // 2), "size": (2, 1), "level": 0},
@@ -54,8 +60,8 @@ TEST_CASE_DEP_1 = [
 
 TEST_CASE_DEP_2 = [
     FILE_PATH,
-    {"location": (0, 0), "size": (2, 1), "level": 2},
-    np.array([[[239], [239]], [[239], [239]], [[239], [239]]]),
+    {"location": (0, 0), "size": (2, 1), "level": 8},
+    np.array([[[242], [242]], [[242], [242]], [[242], [242]]]),
 ]
 
 TEST_CASE_DEP_3 = [
@@ -81,48 +87,144 @@ TEST_CASE_DEP_5 = [
     np.array([[[239, 239], [239, 239]], [[239, 239], [239, 239]], [[237, 237], [237, 237]]]),
 ]
 
+# ----------------------------------------------------------------------------
+# Test cases for monai.data.wsi_reader.WSIReader
+# ----------------------------------------------------------------------------
+
+TEST_CASE_0 = [
+    FILE_PATH,
+    {"level": 8, "dtype": None},
+    {"location": (0, 0), "size": (2, 1)},
+    np.array([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=np.float64),
+]
+
 TEST_CASE_1 = [
     FILE_PATH,
     {},
     {"location": (HEIGHT // 2, WIDTH // 2), "size": (2, 1), "level": 0},
-    np.array([[[246], [246]], [[246], [246]], [[246], [246]]]),
+    np.array([[[246], [246]], [[246], [246]], [[246], [246]]], dtype=np.uint8),
 ]
 
 TEST_CASE_2 = [
     FILE_PATH,
     {},
-    {"location": (0, 0), "size": (2, 1), "level": 2},
-    np.array([[[239], [239]], [[239], [239]], [[239], [239]]]),
+    {"location": (0, 0), "size": (2, 1), "level": 8},
+    np.array([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=np.uint8),
 ]
 
 TEST_CASE_3 = [
     FILE_PATH,
     {"channel_dim": -1},
     {"location": (HEIGHT // 2, WIDTH // 2), "size": (2, 1), "level": 0},
-    np.moveaxis(np.array([[[246], [246]], [[246], [246]], [[246], [246]]]), 0, -1),
+    np.moveaxis(np.array([[[246], [246]], [[246], [246]], [[246], [246]]], dtype=np.uint8), 0, -1),
 ]
 
 TEST_CASE_4 = [
     FILE_PATH,
     {"channel_dim": 2},
-    {"location": (0, 0), "size": (2, 1), "level": 2},
-    np.moveaxis(np.array([[[239], [239]], [[239], [239]], [[239], [239]]]), 0, -1),
+    {"location": (0, 0), "size": (2, 1), "level": 8},
+    np.moveaxis(np.array([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=np.uint8), 0, -1),
 ]
 
 TEST_CASE_5 = [
     FILE_PATH,
-    {"level": 2},
+    {"level": 8},
     {"location": (0, 0), "size": (2, 1)},
-    np.array([[[239], [239]], [[239], [239]], [[239], [239]]]),
+    np.array([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=np.uint8),
+]
+
+TEST_CASE_6 = [
+    FILE_PATH,
+    {"level": 8, "dtype": np.int32},
+    {"location": (0, 0), "size": (2, 1)},
+    np.array([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=np.int32),
+]
+
+TEST_CASE_7 = [
+    FILE_PATH,
+    {"level": 8, "dtype": np.float32},
+    {"location": (0, 0), "size": (2, 1)},
+    np.array([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=np.float32),
+]
+
+TEST_CASE_8 = [
+    FILE_PATH,
+    {"level": 8, "dtype": torch.uint8},
+    {"location": (0, 0), "size": (2, 1)},
+    torch.tensor([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=torch.uint8),
+]
+
+TEST_CASE_9 = [
+    FILE_PATH,
+    {"level": 8, "dtype": torch.float32},
+    {"location": (0, 0), "size": (2, 1)},
+    torch.tensor([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=torch.float32),
+]
+
+# device tests
+TEST_CASE_DEVICE_1 = [
+    FILE_PATH,
+    {"level": 8, "dtype": torch.float32, "device": "cpu"},
+    {"location": (0, 0), "size": (2, 1)},
+    torch.tensor([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=torch.float32),
+    "cpu",
+]
+
+TEST_CASE_DEVICE_2 = [
+    FILE_PATH,
+    {"level": 8, "dtype": torch.float32, "device": "cuda"},
+    {"location": (0, 0), "size": (2, 1)},
+    torch.tensor([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=torch.float32),
+    "cuda",
+]
+
+TEST_CASE_DEVICE_3 = [
+    FILE_PATH,
+    {"level": 8, "dtype": np.float32, "device": "cpu"},
+    {"location": (0, 0), "size": (2, 1)},
+    np.array([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=np.float32),
+    "cpu",
+]
+
+TEST_CASE_DEVICE_4 = [
+    FILE_PATH,
+    {"level": 8, "dtype": np.float32, "device": "cuda"},
+    {"location": (0, 0), "size": (2, 1)},
+    torch.tensor([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=torch.float32),
+    "cuda",
+]
+
+TEST_CASE_DEVICE_5 = [
+    FILE_PATH,
+    {"level": 8, "device": "cuda"},
+    {"location": (0, 0), "size": (2, 1)},
+    torch.tensor([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=torch.uint8),
+    "cuda",
+]
+
+TEST_CASE_DEVICE_6 = [
+    FILE_PATH,
+    {"level": 8},
+    {"location": (0, 0), "size": (2, 1)},
+    np.array([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=np.uint8),
+    "cpu",
+]
+
+TEST_CASE_DEVICE_7 = [
+    FILE_PATH,
+    {"level": 8, "device": None},
+    {"location": (0, 0), "size": (2, 1)},
+    np.array([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=np.uint8),
+    "cpu",
 ]
 
 TEST_CASE_MULTI_WSI = [
     [FILE_PATH, FILE_PATH],
-    {"location": (0, 0), "size": (2, 1), "level": 2},
+    {"location": (0, 0), "size": (2, 1), "level": 8},
     np.concatenate(
         [
-            np.array([[[239], [239]], [[239], [239]], [[239], [239]]]),
-            np.array([[[239], [239]], [[239], [239]], [[239], [239]]]),
+            np.array([[[242], [242]], [[242], [242]], [[242], [242]]]),
+            np.array([[[242], [242]], [[242], [242]], [[242], [242]]]),
         ],
         axis=0,
     ),
@@ -184,7 +286,7 @@ class WSIReaderDeprecatedTests:
     class Tests(unittest.TestCase):
         backend = None
 
-        @parameterized.expand([TEST_CASE_0])
+        @parameterized.expand([TEST_CASE_WHOLE_0])
         def test_read_whole_image(self, file_path, level, expected_shape):
             reader = WSIReaderDeprecated(self.backend, level=level)
             with reader.read(file_path) as img_obj:
@@ -255,17 +357,19 @@ class WSIReaderDeprecatedTests:
 
         @parameterized.expand([TEST_CASE_TRANSFORM_0])
         def test_with_dataloader(
-            self, file_path: PathLike, level: int, expected_spatial_shape: Any, expected_shape: Tuple[int, ...]
+            self, file_path: PathLike, level: int, expected_spatial_shape: Any, expected_shape: tuple[int, ...]
         ):
             train_transform = Compose(
                 [
-                    LoadImaged(keys=["image"], reader=WSIReaderDeprecated, backend=self.backend, level=level),
+                    LoadImaged(
+                        keys=["image"], reader=WSIReaderDeprecated, backend=self.backend, level=level, image_only=False
+                    ),
                     ToTensord(keys=["image"]),
                 ]
             )
             dataset = Dataset([{"image": file_path}], transform=train_transform)
             data_loader = DataLoader(dataset)
-            data: dict = first(data_loader)
+            data: dict = first(data_loader, {})
             for s in data[PostFix.meta("image")]["spatial_shape"]:
                 assert_allclose(s, expected_spatial_shape, type_test=False)
             self.assertTupleEqual(data["image"].shape, expected_shape)
@@ -275,7 +379,7 @@ class WSIReaderTests:
     class Tests(unittest.TestCase):
         backend = None
 
-        @parameterized.expand([TEST_CASE_0])
+        @parameterized.expand([TEST_CASE_WHOLE_0])
         def test_read_whole_image(self, file_path, level, expected_shape):
             reader = WSIReader(self.backend, level=level)
             with reader.read(file_path) as img_obj:
@@ -284,10 +388,23 @@ class WSIReaderTests:
             self.assertEqual(meta["backend"], self.backend)
             self.assertEqual(meta[WSIPatchKeys.PATH].lower(), str(os.path.abspath(file_path)).lower())
             self.assertEqual(meta[WSIPatchKeys.LEVEL], level)
-            assert_array_equal(meta[WSIPatchKeys.SIZE], expected_shape[1:])
-            assert_array_equal(meta[WSIPatchKeys.LOCATION], (0, 0))
+            assert_allclose(meta[WSIPatchKeys.SIZE], expected_shape[1:], type_test=False)
+            assert_allclose(meta[WSIPatchKeys.LOCATION], (0, 0), type_test=False)
 
-        @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
+        @parameterized.expand(
+            [
+                TEST_CASE_0,
+                TEST_CASE_1,
+                TEST_CASE_2,
+                TEST_CASE_3,
+                TEST_CASE_4,
+                TEST_CASE_5,
+                TEST_CASE_6,
+                TEST_CASE_7,
+                TEST_CASE_8,
+                TEST_CASE_9,
+            ]
+        )
         def test_read_region(self, file_path, kwargs, patch_info, expected_img):
             reader = WSIReader(self.backend, **kwargs)
             level = patch_info.get("level", kwargs.get("level"))
@@ -298,14 +415,15 @@ class WSIReaderTests:
                 img, meta = reader.get_data(img_obj, **patch_info)
                 img2 = reader.get_data(img_obj, **patch_info)[0]
             self.assertTupleEqual(img.shape, img2.shape)
-            self.assertIsNone(assert_array_equal(img, img2))
+            assert_allclose(img, img2)
             self.assertTupleEqual(img.shape, expected_img.shape)
-            self.assertIsNone(assert_array_equal(img, expected_img))
+            assert_allclose(img, expected_img)
+            self.assertEqual(img.dtype, expected_img.dtype)
             self.assertEqual(meta["backend"], self.backend)
             self.assertEqual(meta[WSIPatchKeys.PATH].lower(), str(os.path.abspath(file_path)).lower())
             self.assertEqual(meta[WSIPatchKeys.LEVEL], level)
-            assert_array_equal(meta[WSIPatchKeys.SIZE], patch_info["size"])
-            assert_array_equal(meta[WSIPatchKeys.LOCATION], patch_info["location"])
+            assert_allclose(meta[WSIPatchKeys.SIZE], patch_info["size"], type_test=False)
+            assert_allclose(meta[WSIPatchKeys.LOCATION], patch_info["location"], type_test=False)
 
         @parameterized.expand([TEST_CASE_MULTI_WSI])
         def test_read_region_multi_wsi(self, file_path_list, patch_info, expected_img):
@@ -318,14 +436,14 @@ class WSIReaderTests:
             for img_obj in img_obj_list:
                 img_obj.close()
             self.assertTupleEqual(img.shape, img2.shape)
-            self.assertIsNone(assert_array_equal(img, img2))
+            assert_allclose(img, img2)
             self.assertTupleEqual(img.shape, expected_img.shape)
-            self.assertIsNone(assert_array_equal(img, expected_img))
+            assert_allclose(img, expected_img)
             self.assertEqual(meta["backend"], self.backend)
             self.assertEqual(meta[WSIPatchKeys.PATH][0].lower(), str(os.path.abspath(file_path_list[0])).lower())
             self.assertEqual(meta[WSIPatchKeys.LEVEL][0], patch_info["level"])
-            assert_array_equal(meta[WSIPatchKeys.SIZE][0], expected_img.shape[1:])
-            assert_array_equal(meta[WSIPatchKeys.LOCATION][0], patch_info["location"])
+            assert_allclose(meta[WSIPatchKeys.SIZE][0], expected_img.shape[1:], type_test=False)
+            assert_allclose(meta[WSIPatchKeys.LOCATION][0], patch_info["location"], type_test=False)
 
         @parameterized.expand([TEST_CASE_RGB_0, TEST_CASE_RGB_1])
         @skipUnless(has_tiff, "Requires tifffile.")
@@ -344,8 +462,8 @@ class WSIReaderTests:
                 with reader.read(file_path) as img_obj:
                     image[mode], _ = reader.get_data(img_obj)
 
-            self.assertIsNone(assert_array_equal(image["RGB"], img_expected))
-            self.assertIsNone(assert_array_equal(image["RGBA"], img_expected))
+            assert_allclose(image["RGB"], img_expected)
+            assert_allclose(image["RGBA"], img_expected)
 
         @parameterized.expand([TEST_CASE_ERROR_0C, TEST_CASE_ERROR_1C, TEST_CASE_ERROR_2C, TEST_CASE_ERROR_3D])
         @skipUnless(has_tiff, "Requires tifffile.")
@@ -362,40 +480,40 @@ class WSIReaderTests:
 
         @parameterized.expand([TEST_CASE_TRANSFORM_0])
         def test_with_dataloader(
-            self, file_path: PathLike, level: int, expected_spatial_shape: Any, expected_shape: Tuple[int, ...]
+            self, file_path: PathLike, level: int, expected_spatial_shape: Any, expected_shape: tuple[int, ...]
         ):
             train_transform = Compose(
                 [
-                    LoadImaged(keys=["image"], reader=WSIReader, backend=self.backend, level=level),
+                    LoadImaged(keys=["image"], reader=WSIReader, backend=self.backend, level=level, image_only=False),
                     ToTensord(keys=["image"]),
                 ]
             )
             dataset = Dataset([{"image": file_path}], transform=train_transform)
             data_loader = DataLoader(dataset)
-            data: dict = first(data_loader)
+            data: dict = first(data_loader, {})
             for s in data[PostFix.meta("image")]["spatial_shape"]:
                 assert_allclose(s, expected_spatial_shape, type_test=False)
             self.assertTupleEqual(data["image"].shape, expected_shape)
 
         @parameterized.expand([TEST_CASE_TRANSFORM_0])
         def test_with_dataloader_batch(
-            self, file_path: PathLike, level: int, expected_spatial_shape: Any, expected_shape: Tuple[int, ...]
+            self, file_path: PathLike, level: int, expected_spatial_shape: Any, expected_shape: tuple[int, ...]
         ):
             train_transform = Compose(
                 [
-                    LoadImaged(keys=["image"], reader=WSIReader, backend=self.backend, level=level),
+                    LoadImaged(keys=["image"], reader=WSIReader, backend=self.backend, level=level, image_only=False),
                     ToTensord(keys=["image"]),
                 ]
             )
             dataset = Dataset([{"image": file_path}, {"image": file_path}], transform=train_transform)
             batch_size = 2
             data_loader = DataLoader(dataset, batch_size=batch_size)
-            data: dict = first(data_loader)
+            data: dict = first(data_loader, {})
             for s in data[PostFix.meta("image")]["spatial_shape"]:
                 assert_allclose(s, expected_spatial_shape, type_test=False)
             self.assertTupleEqual(data["image"].shape, (batch_size, *expected_shape[1:]))
 
-        @parameterized.expand([TEST_CASE_0])
+        @parameterized.expand([TEST_CASE_WHOLE_0])
         def test_read_whole_image_multi_thread(self, file_path, level, expected_shape):
             if self.backend == "cucim":
                 reader = WSIReader(self.backend, level=level, num_workers=4)
@@ -405,8 +523,8 @@ class WSIReaderTests:
                 self.assertEqual(meta["backend"], self.backend)
                 self.assertEqual(meta[WSIPatchKeys.PATH].lower(), str(os.path.abspath(file_path)).lower())
                 self.assertEqual(meta[WSIPatchKeys.LEVEL], level)
-                assert_array_equal(meta[WSIPatchKeys.SIZE], expected_shape[1:])
-                assert_array_equal(meta[WSIPatchKeys.LOCATION], (0, 0))
+                assert_allclose(meta[WSIPatchKeys.SIZE], expected_shape[1:], type_test=False)
+                assert_allclose(meta[WSIPatchKeys.LOCATION], (0, 0), type_test=False)
 
         @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
         def test_read_region_multi_thread(self, file_path, kwargs, patch_info, expected_img):
@@ -417,14 +535,14 @@ class WSIReaderTests:
                     img, meta = reader.get_data(img_obj, **patch_info)
                     img2 = reader.get_data(img_obj, **patch_info)[0]
                     self.assertTupleEqual(img.shape, img2.shape)
-                    self.assertIsNone(assert_array_equal(img, img2))
+                    assert_allclose(img, img2)
                     self.assertTupleEqual(img.shape, expected_img.shape)
-                    self.assertIsNone(assert_array_equal(img, expected_img))
+                    assert_allclose(img, expected_img)
                     self.assertEqual(meta["backend"], self.backend)
                     self.assertEqual(meta[WSIPatchKeys.PATH].lower(), str(os.path.abspath(file_path)).lower())
                     self.assertEqual(meta[WSIPatchKeys.LEVEL], patch_info["level"])
-                    assert_array_equal(meta[WSIPatchKeys.SIZE], patch_info["size"])
-                    assert_array_equal(meta[WSIPatchKeys.LOCATION], patch_info["location"])
+                    assert_allclose(meta[WSIPatchKeys.SIZE], patch_info["size"], type_test=False)
+                    assert_allclose(meta[WSIPatchKeys.LOCATION], patch_info["location"], type_test=False)
 
         @parameterized.expand([TEST_CASE_MPP_0])
         def test_resolution_mpp(self, file_path, level, expected_mpp):
@@ -432,6 +550,42 @@ class WSIReaderTests:
             with reader.read(file_path) as img_obj:
                 mpp = reader.get_mpp(img_obj, level)
             self.assertTupleEqual(mpp, expected_mpp)
+
+        @parameterized.expand(
+            [
+                TEST_CASE_DEVICE_1,
+                TEST_CASE_DEVICE_2,
+                TEST_CASE_DEVICE_3,
+                TEST_CASE_DEVICE_4,
+                TEST_CASE_DEVICE_5,
+                TEST_CASE_DEVICE_6,
+                TEST_CASE_DEVICE_7,
+            ]
+        )
+        @skip_if_no_cuda
+        def test_read_region_device(self, file_path, kwargs, patch_info, expected_img, device):
+            reader = WSIReader(self.backend, **kwargs)
+            level = patch_info.get("level", kwargs.get("level"))
+            if self.backend == "tifffile" and level < 2:
+                return
+            with reader.read(file_path) as img_obj:
+                # Read twice to check multiple calls
+                img, meta = reader.get_data(img_obj, **patch_info)
+                img2 = reader.get_data(img_obj, **patch_info)[0]
+            self.assertTupleEqual(img.shape, img2.shape)
+            assert_allclose(img, img2)
+            self.assertTupleEqual(img.shape, expected_img.shape)
+            assert_allclose(img, expected_img)
+            self.assertEqual(img.dtype, expected_img.dtype)
+            if isinstance(img, torch.Tensor):
+                self.assertEqual(img.device.type, device)
+            else:
+                self.assertEqual("cpu", device)
+            self.assertEqual(meta["backend"], self.backend)
+            self.assertEqual(meta[WSIPatchKeys.PATH].lower(), str(os.path.abspath(file_path)).lower())
+            self.assertEqual(meta[WSIPatchKeys.LEVEL], level)
+            assert_allclose(meta[WSIPatchKeys.SIZE], patch_info["size"], type_test=False)
+            assert_allclose(meta[WSIPatchKeys.LOCATION], patch_info["location"], type_test=False)
 
 
 @skipUnless(has_cucim, "Requires cucim")

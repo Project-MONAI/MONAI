@@ -9,8 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any
 
 import torch
 import torch.nn.functional as F
@@ -36,22 +39,22 @@ __all__ = ["sliding_window_inference"]
 
 def sliding_window_inference(
     inputs: torch.Tensor,
-    roi_size: Union[Sequence[int], int],
+    roi_size: Sequence[int] | int,
     sw_batch_size: int,
-    predictor: Callable[..., Union[torch.Tensor, Sequence[torch.Tensor], Dict[Any, torch.Tensor]]],
+    predictor: Callable[..., torch.Tensor | Sequence[torch.Tensor] | dict[Any, torch.Tensor]],
     overlap: float = 0.25,
-    mode: Union[BlendMode, str] = BlendMode.CONSTANT,
-    sigma_scale: Union[Sequence[float], float] = 0.125,
-    padding_mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
+    mode: BlendMode | str = BlendMode.CONSTANT,
+    sigma_scale: Sequence[float] | float = 0.125,
+    padding_mode: PytorchPadMode | str = PytorchPadMode.CONSTANT,
     cval: float = 0.0,
-    sw_device: Union[torch.device, str, None] = None,
-    device: Union[torch.device, str, None] = None,
+    sw_device: torch.device | str | None = None,
+    device: torch.device | str | None = None,
     progress: bool = False,
-    roi_weight_map: Optional[torch.Tensor] = None,
-    process_fn: Optional[Callable] = None,
+    roi_weight_map: torch.Tensor | None = None,
+    process_fn: Callable | None = None,
     *args: Any,
     **kwargs: Any,
-) -> Union[torch.Tensor, Tuple[torch.Tensor, ...], Dict[Any, torch.Tensor]]:
+) -> torch.Tensor | tuple[torch.Tensor, ...] | dict[Any, torch.Tensor]:
     """
     Sliding window inference on `inputs` with `predictor`.
 
@@ -139,7 +142,9 @@ def sliding_window_inference(
         diff = max(roi_size[k - 2] - inputs.shape[k], 0)
         half = diff // 2
         pad_size.extend([half, diff - half])
-    inputs = F.pad(inputs, pad=pad_size, mode=look_up_option(padding_mode, PytorchPadMode), value=cval)
+
+    if max(pad_size) > 0:
+        inputs = F.pad(inputs, pad=pad_size, mode=look_up_option(padding_mode, PytorchPadMode), value=cval)
 
     scan_interval = _get_scan_interval(image_size, roi_size, num_spatial_dims, overlap)
 
@@ -164,8 +169,8 @@ def sliding_window_inference(
     importance_map_ = convert_data_type(importance_map_, torch.Tensor, device, compute_dtype)[0]
 
     # handle non-positive weights
-    min_non_zero = max(importance_map_[importance_map_ != 0].min().item(), 1e-3)
-    importance_map_ = torch.clamp(importance_map_.to(torch.float32), min=min_non_zero).to(compute_dtype)
+    min_non_zero = max(torch.min(importance_map_).item(), 1e-3)
+    importance_map_ = torch.clamp_(importance_map_.to(torch.float32), min=min_non_zero).to(compute_dtype)
 
     # Perform predictions
     dict_key, output_image_list, count_map_list = None, [], []
@@ -185,7 +190,7 @@ def sliding_window_inference(
         seg_prob_out = predictor(window_data, *args, **kwargs)  # batched patch segmentation
 
         # convert seg_prob_out to tuple seg_prob_tuple, this does not allocate new memory.
-        seg_prob_tuple: Tuple[torch.Tensor, ...]
+        seg_prob_tuple: tuple[torch.Tensor, ...]
         if isinstance(seg_prob_out, torch.Tensor):
             seg_prob_tuple = (seg_prob_out,)
         elif isinstance(seg_prob_out, Mapping):
@@ -250,7 +255,11 @@ def sliding_window_inference(
                             "Tips: if overlap*roi_size*zoom_scale is an integer, it usually works."
                         )
                     original_idx_zoom[axis] = slice(int(zoomed_start), int(zoomed_end), None)
-                importance_map_zoom = resizer(importance_map.unsqueeze(0))[0].to(compute_dtype)
+                importance_map_zoom = (
+                    resizer(importance_map.unsqueeze(0))[0].to(compute_dtype)
+                    if seg_prob.shape[2:] != importance_map.shape
+                    else importance_map.to(compute_dtype)
+                )
                 # store results and weights
                 output_image_list[ss][original_idx_zoom] += importance_map_zoom * seg_prob[idx - slice_g]
                 count_map_list[ss][original_idx_zoom] += (
@@ -259,18 +268,19 @@ def sliding_window_inference(
 
     # account for any overlapping sections
     for ss in range(len(output_image_list)):
-        output_image_list[ss] = (output_image_list[ss] / count_map_list.pop(0)).to(compute_dtype)
+        output_image_list[ss] = output_image_list[ss]
+        _map = count_map_list.pop(0)
+        for _i in range(output_image_list[ss].shape[1]):
+            output_image_list[ss][:, _i : _i + 1, ...] /= _map
+        output_image_list[ss] = output_image_list[ss].to(compute_dtype)
 
     # remove padding if image_size smaller than roi_size
     for ss, output_i in enumerate(output_image_list):
-        if torch.isnan(output_i).any() or torch.isinf(output_i).any():
-            warnings.warn("Sliding window inference results contain NaN or Inf.")
-
         zoom_scale = [
             seg_prob_map_shape_d / roi_size_d for seg_prob_map_shape_d, roi_size_d in zip(output_i.shape[2:], roi_size)
         ]
 
-        final_slicing: List[slice] = []
+        final_slicing: list[slice] = []
         for sp in range(num_spatial_dims):
             slice_dim = slice(pad_size[sp * 2], image_size_[num_spatial_dims - sp - 1] + pad_size[sp * 2])
             slice_dim = slice(
@@ -295,7 +305,7 @@ def sliding_window_inference(
 
 def _get_scan_interval(
     image_size: Sequence[int], roi_size: Sequence[int], num_spatial_dims: int, overlap: float
-) -> Tuple[int, ...]:
+) -> tuple[int, ...]:
     """
     Compute scan interval according to the image size, roi size and overlap.
     Scan interval will be `int((1 - overlap) * roi_size)`, if interval is 0,

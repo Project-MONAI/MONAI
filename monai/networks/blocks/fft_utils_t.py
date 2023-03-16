@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List
+from __future__ import annotations
 
 import torch
 from torch import Tensor
@@ -42,7 +42,7 @@ def roll_1d(x: Tensor, shift: int, shift_dim: int) -> Tensor:
     return torch.cat((right, left), dim=shift_dim)
 
 
-def roll(x: Tensor, shift: List[int], shift_dims: List[int]) -> Tensor:
+def roll(x: Tensor, shift: list[int], shift_dims: list[int]) -> Tensor:
     """
     Similar to np.roll but applies to PyTorch Tensors
 
@@ -66,7 +66,7 @@ def roll(x: Tensor, shift: List[int], shift_dims: List[int]) -> Tensor:
     return x
 
 
-def fftshift(x: Tensor, shift_dims: List[int]) -> Tensor:
+def fftshift(x: Tensor, shift_dims: list[int]) -> Tensor:
     """
     Similar to np.fft.fftshift but applies to PyTorch Tensors
 
@@ -88,7 +88,7 @@ def fftshift(x: Tensor, shift_dims: List[int]) -> Tensor:
     return roll(x, shift, shift_dims)
 
 
-def ifftshift(x: Tensor, shift_dims: List[int]) -> Tensor:
+def ifftshift(x: Tensor, shift_dims: list[int]) -> Tensor:
     """
     Similar to np.fft.ifftshift but applies to PyTorch Tensors
 

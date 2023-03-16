@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from collections import UserDict
 from functools import partial
 from typing import Any
@@ -23,7 +25,7 @@ class Operations(UserDict):
     Base class of operation interface
     """
 
-    def evaluate(self, data: Any, **kwargs) -> dict:
+    def evaluate(self, data: Any, **kwargs: Any) -> dict:
         """
         For key-value pairs in the self.data, if the value is a callable,
         then this function will apply the callable to the input data.
@@ -81,7 +83,7 @@ class SampleOperations(Operations):
             "percentile_99_5": ("percentile", 3),
         }
 
-    def evaluate(self, data: Any, **kwargs) -> dict:
+    def evaluate(self, data: Any, **kwargs: Any) -> dict:
         """
         Applies the callables to the data, and convert the
         numerics to list or Python numeric types (int/float).
@@ -139,7 +141,7 @@ class SummaryOperations(Operations):
             "percentile_99_5": mean,
         }
 
-    def evaluate(self, data: Any, **kwargs) -> dict:
+    def evaluate(self, data: Any, **kwargs: Any) -> dict:
         """
         Applies the callables to the data, and convert the numerics to list or Python
         numeric types (int/float).

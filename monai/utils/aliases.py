@@ -12,6 +12,8 @@
 This module is written for configurable workflow, not currently in use.
 """
 
+from __future__ import annotations
+
 import importlib
 import inspect
 import sys

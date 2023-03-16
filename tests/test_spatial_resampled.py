@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -18,6 +20,7 @@ from parameterized import parameterized
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
 from monai.transforms.spatial.dictionary import SpatialResampled
+from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.utils import TEST_DEVICES, assert_allclose
 
 TESTS = []
@@ -88,14 +91,21 @@ class TestSpatialResample(unittest.TestCase):
     def test_flips_inverse(self, img, device, dst_affine, kwargs, expected_output):
         img = MetaTensor(img, affine=torch.eye(4)).to(device)
         data = {"img": img, "dst_affine": dst_affine}
-
-        xform = SpatialResampled(keys="img", **kwargs)
-        output_data = xform(data)
+        init_param = kwargs.copy()
+        init_param["keys"] = "img"
+        call_param = {"data": data}
+        xform = SpatialResampled(**init_param)
+        output_data = xform(**call_param)
         out = output_data["img"]
 
         assert_allclose(out, expected_output, rtol=1e-2, atol=1e-2)
-        assert_allclose(out.affine, dst_affine, rtol=1e-2, atol=1e-2)
+        assert_allclose(to_affine_nd(len(out.shape) - 1, out.affine), dst_affine, rtol=1e-2, atol=1e-2)
 
+        # check lazy
+        lazy_xform = SpatialResampled(**init_param)
+        test_resampler_lazy(lazy_xform, output_data, init_param, call_param, output_key="img")
+
+        # check inverse
         inverted = xform.inverse(output_data)["img"]
         self.assertEqual(inverted.applied_operations, [])  # no further invert after inverting
         expected_affine = to_affine_nd(len(out.affine) - 1, torch.eye(4))

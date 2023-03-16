@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -26,13 +28,13 @@ def rotate_90_2d():
     return t
 
 
-RESAMPLE_FUNCTION_CASES = [(get_arange_img((3, 3)), rotate_90_2d(), [[2, 5, 8], [1, 4, 7], [0, 3, 6]])]
+RESAMPLE_FUNCTION_CASES = [(get_arange_img((3, 3)), rotate_90_2d(), [[0, 3, 6], [0, 3, 6], [0, 3, 6]])]
 
 
 class TestResampleFunction(unittest.TestCase):
     @parameterized.expand(RESAMPLE_FUNCTION_CASES)
     def test_resample_function_impl(self, img, matrix, expected):
-        out = resample(convert_to_tensor(img), matrix)
+        out = resample(convert_to_tensor(img), matrix, img.shape[1:], {"lazy_padding_mode": "border"})
         assert_allclose(out[0], expected, type_test=False)
 
 

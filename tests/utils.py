@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import copy
 import datetime
 import functools
@@ -28,7 +30,7 @@ import warnings
 from contextlib import contextmanager
 from functools import partial, reduce
 from subprocess import PIPE, Popen
-from typing import Callable, Optional, Tuple, Union
+from typing import Callable
 from urllib.error import ContentTooShortError, HTTPError
 
 import numpy as np
@@ -47,7 +49,7 @@ from monai.utils.module import pytorch_after, version_leq
 from monai.utils.type_conversion import convert_data_type
 
 nib, _ = optional_import("nibabel")
-http_error, has_requests = optional_import("requests", name="HTTPError")
+http_error, has_req = optional_import("requests", name="HTTPError")
 
 quick_test_var = "QUICKTEST"
 _tf32_enabled = None
@@ -62,6 +64,16 @@ def testing_data_config(*keys):
             for k, v in _config.items():
                 _test_data_config[k] = v
     return reduce(operator.getitem, keys, _test_data_config)
+
+
+def get_testing_algo_template_path():
+    """
+    a local folder to the testing algorithm template or a url to the compressed template file.
+    Default to None, which effectively uses bundle_gen's ``default_algo_zip`` path.
+
+    https://github.com/Project-MONAI/MONAI/blob/1.1.0/monai/apps/auto3dseg/bundle_gen.py#L380-L381
+    """
+    return os.environ.get("MONAI_TESTING_ALGO_TEMPLATE", None)
 
 
 def clone(data: NdarrayTensor) -> NdarrayTensor:
@@ -80,7 +92,7 @@ def clone(data: NdarrayTensor) -> NdarrayTensor:
 def assert_allclose(
     actual: NdarrayOrTensor,
     desired: NdarrayOrTensor,
-    type_test: Union[bool, str] = True,
+    type_test: bool | str = True,
     device_test: bool = False,
     *args,
     **kwargs,
@@ -124,7 +136,7 @@ def assert_allclose(
 def skip_if_downloading_fails():
     try:
         yield
-    except (ContentTooShortError, HTTPError, ConnectionError) + (http_error,) if has_requests else () as e:
+    except (ContentTooShortError, HTTPError, ConnectionError) + (http_error,) if has_req else () as e:  # noqa: B030
         raise unittest.SkipTest(f"error while downloading: {e}") from e
     except ssl.SSLError as ssl_e:
         if "decryption failed" in str(ssl_e):
@@ -307,7 +319,9 @@ def has_cupy():
 HAS_CUPY = has_cupy()
 
 
-def make_nifti_image(array: NdarrayOrTensor, affine=None, dir=None, fname=None, suffix=".nii.gz", verbose=False):
+def make_nifti_image(
+    array: NdarrayOrTensor, affine=None, dir=None, fname=None, suffix=".nii.gz", verbose=False, dtype=float
+):
     """
     Create a temporary nifti image on the disk and return the image name.
     User is responsible for deleting the temporary file when done with it.
@@ -318,7 +332,7 @@ def make_nifti_image(array: NdarrayOrTensor, affine=None, dir=None, fname=None, 
         affine, *_ = convert_data_type(affine, np.ndarray)
     if affine is None:
         affine = np.eye(4)
-    test_image = nib.Nifti1Image(array, affine)
+    test_image = nib.Nifti1Image(array.astype(dtype), affine)  # type: ignore
 
     # if dir not given, create random. Else, make sure it exists.
     if dir is None:
@@ -339,7 +353,7 @@ def make_nifti_image(array: NdarrayOrTensor, affine=None, dir=None, fname=None, 
     return fname
 
 
-def make_rand_affine(ndim: int = 3, random_state: Optional[np.random.RandomState] = None):
+def make_rand_affine(ndim: int = 3, random_state: np.random.RandomState | None = None):
     """Create random affine transformation (with values == -1, 0 or 1)."""
     rs = np.random.random.__self__ if random_state is None else random_state  # type: ignore
 
@@ -401,13 +415,13 @@ class DistCall:
         nnodes: int = 1,
         nproc_per_node: int = 1,
         master_addr: str = "localhost",
-        master_port: Optional[int] = None,
-        node_rank: Optional[int] = None,
+        master_port: int | None = None,
+        node_rank: int | None = None,
         timeout=60,
         init_method=None,
-        backend: Optional[str] = None,
-        daemon: Optional[bool] = None,
-        method: Optional[str] = "spawn",
+        backend: str | None = None,
+        daemon: bool | None = None,
+        method: str | None = "spawn",
         verbose: bool = False,
     ):
         """
@@ -537,8 +551,8 @@ class TimedCall:
     def __init__(
         self,
         seconds: float = 60.0,
-        daemon: Optional[bool] = None,
-        method: Optional[str] = "spawn",
+        daemon: bool | None = None,
+        method: str | None = "spawn",
         force_quit: bool = True,
         skip_timing=False,
     ):
@@ -571,7 +585,6 @@ class TimedCall:
             results.put(e)
 
     def __call__(self, obj):
-
         if self.skip_timing:
             return obj
 
@@ -780,7 +793,7 @@ def command_line_tests(cmd, copy_env=True):
         raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}") from e
 
 
-TEST_TORCH_TENSORS: Tuple = (torch.as_tensor,)
+TEST_TORCH_TENSORS: tuple = (torch.as_tensor,)
 if torch.cuda.is_available():
     gpu_tensor: Callable = partial(torch.as_tensor, device="cuda")
     TEST_TORCH_TENSORS = TEST_TORCH_TENSORS + (gpu_tensor,)
@@ -789,9 +802,9 @@ DEFAULT_TEST_AFFINE = torch.tensor(
     [[2.0, 0.0, 0.0, 0.0], [0.0, 2.0, 0.0, 0.0], [0.0, 0.0, 2.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
 )
 _metatensor_creator = partial(MetaTensor, meta={"a": "b", "affine": DEFAULT_TEST_AFFINE})
-TEST_NDARRAYS_NO_META_TENSOR: Tuple[Callable] = (np.array,) + TEST_TORCH_TENSORS  # type: ignore
-TEST_NDARRAYS: Tuple[Callable] = TEST_NDARRAYS_NO_META_TENSOR + (_metatensor_creator,)  # type: ignore
-TEST_TORCH_AND_META_TENSORS: Tuple[Callable] = TEST_TORCH_TENSORS + (_metatensor_creator,)  # type: ignore
+TEST_NDARRAYS_NO_META_TENSOR: tuple[Callable] = (np.array,) + TEST_TORCH_TENSORS  # type: ignore
+TEST_NDARRAYS: tuple[Callable] = TEST_NDARRAYS_NO_META_TENSOR + (_metatensor_creator,)  # type: ignore
+TEST_TORCH_AND_META_TENSORS: tuple[Callable] = TEST_TORCH_TENSORS + (_metatensor_creator,)  # type: ignore
 # alias for branch tests
 TEST_NDARRAYS_ALL = TEST_NDARRAYS
 

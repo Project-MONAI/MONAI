@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import io
 import os
 import random
@@ -18,7 +20,6 @@ import unittest
 import warnings
 from copy import deepcopy
 from multiprocessing.reduction import ForkingPickler
-from typing import Optional, Union
 
 import numpy as np
 import torch
@@ -86,7 +87,7 @@ class TestMetaTensor(unittest.TestCase):
         shape: bool = True,
         vals: bool = True,
         ids: bool = True,
-        device: Optional[Union[str, torch.device]] = None,
+        device: str | torch.device | None = None,
         meta: bool = True,
         check_ids: bool = True,
         **kwargs,
@@ -246,7 +247,7 @@ class TestMetaTensor(unittest.TestCase):
                     "your pytorch version if this is important to you."
                 )
                 im_conv = im_conv.as_tensor()
-            self.check(out, im_conv, ids=False)
+        self.check(out, im_conv, ids=False)
 
     def test_pickling(self):
         m, _ = self.get_im()
@@ -257,7 +258,7 @@ class TestMetaTensor(unittest.TestCase):
             if not isinstance(m2, MetaTensor) and not pytorch_after(1, 8, 1):
                 warnings.warn("Old version of pytorch. pickling converts `MetaTensor` to `torch.Tensor`.")
                 m = m.as_tensor()
-            self.check(m2, m, ids=False)
+        self.check(m2, m, ids=False)
 
     @skip_if_no_cuda
     def test_amp(self):
@@ -405,6 +406,13 @@ class TestMetaTensor(unittest.TestCase):
         for _d in d:
             self.check_meta(_d, data)
 
+    def test_slicing(self):
+        x = MetaTensor(np.zeros((10, 3, 4)))
+        self.assertEqual(x[slice(4, 1)].shape[0], 0)
+        x.is_batch = True
+        with self.assertRaises(ValueError):
+            x[slice(0, 8)]
+
     @parameterized.expand(DTYPES)
     @SkipIfBeforePyTorchVersion((1, 8))
     def test_decollate(self, dtype):
@@ -507,9 +515,11 @@ class TestMetaTensor(unittest.TestCase):
         self.assertEqual(m.pending_operations, [])
         self.assertEqual(m.peek_pending_shape(), (10, 8))
         self.assertIsInstance(m.peek_pending_affine(), torch.Tensor)
+        self.assertTrue(m.peek_pending_rank() >= 1)
         m.push_pending_operation({})
         self.assertEqual(m.peek_pending_shape(), (10, 8))
         self.assertIsInstance(m.peek_pending_affine(), torch.Tensor)
+        self.assertTrue(m.peek_pending_rank() >= 1)
 
     @parameterized.expand(TESTS)
     def test_multiprocessing(self, device=None, dtype=None):
