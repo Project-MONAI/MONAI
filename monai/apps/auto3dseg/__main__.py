@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 from monai.apps.auto3dseg.auto_runner import AutoRunner
+from monai.apps.auto3dseg.azureml_auto_runner import AzureMLAutoRunner
 from monai.apps.auto3dseg.bundle_gen import BundleAlgo, BundleGen
 from monai.apps.auto3dseg.data_analyzer import DataAnalyzer
 from monai.apps.auto3dseg.ensemble_builder import AlgoEnsembleBuilder
@@ -28,6 +29,7 @@ if __name__ == "__main__":
             "BundleAlgo": BundleAlgo,
             "AlgoEnsembleBuilder": AlgoEnsembleBuilder,
             "AutoRunner": AutoRunner,
+            "AzureMLAutoRunner": AzureMLAutoRunner,
             "NNIGen": NNIGen,
             "OptunaGen": OptunaGen,
         }

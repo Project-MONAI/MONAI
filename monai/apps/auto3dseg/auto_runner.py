@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import os
 import subprocess
-import sys
 from copy import deepcopy
 from time import sleep
 from typing import Any, cast
@@ -31,10 +30,8 @@ from monai.apps.auto3dseg.ensemble_builder import (
 )
 from monai.apps.auto3dseg.hpo_gen import NNIGen
 from monai.apps.auto3dseg.utils import (
-    AZUREML_CONFIG_KEY,
     export_bundle_algo_history,
     import_bundle_algo_history,
-    submit_auto3dseg_module_to_azureml_if_needed,
 )
 from monai.apps.utils import get_logger
 from monai.auto3dseg.utils import algo_to_pickle
@@ -46,7 +43,6 @@ from monai.utils.module import look_up_option, optional_import
 logger = get_logger(module_name=__name__)
 
 nni, has_nni = optional_import("nni")
-health_azure, has_health_azure = optional_import("health_azure")
 
 
 class AutoRunner:
@@ -231,44 +227,17 @@ class AutoRunner:
         templates_path_or_url: str | None = None,
         **kwargs: Any,
     ):
-        if health_azure.utils.is_running_in_azure_ml():
-            work_dir = "outputs"
-
-        logger.info(f"AutoRunner using work directory {work_dir}")
-
         self.work_dir = os.path.abspath(work_dir)
-        self.data_src_cfg_name = os.path.join(self.work_dir, "input.yaml")
-        self.algos = algos
-        self.templates_path_or_url = templates_path_or_url
-
-        if input is None and os.path.isfile(self.data_src_cfg_name):
-            input = self.data_src_cfg_name
-            logger.info(f"Input config is not provided, using the default {input}")
-
-        if isinstance(input, dict):
-            self.data_src_cfg = input
-        elif isinstance(input, str) and os.path.isfile(input):
-            logger.info(f"Loading input config {input}")
-            self.data_src_cfg = ConfigParser.load_config_file(input)
-        else:
-            raise ValueError(f"Input: {input} is not a valid file or dict")
+        logger.info(f"AutoRunner using work directory {self.work_dir}")
+        self._set_up_data_src_cfg(input, algos, templates_path_or_url)
 
         missing_keys = {"dataroot", "datalist", "modality"}.difference(self.data_src_cfg.keys())
         if len(missing_keys) > 0:
             raise ValueError(f"Config keys are missing {missing_keys}")
 
-        if health_azure.himl.AZUREML_FLAG in sys.argv or health_azure.utils.is_running_in_azure_ml():
-            run_info = submit_auto3dseg_module_to_azureml_if_needed(self.data_src_cfg[AZUREML_CONFIG_KEY])
-            if run_info.input_datasets:
-                self.dataroot = run_info.input_datasets[0]
-                self.data_src_cfg["dataroot"] = str(self.dataroot)
-            else:
-                self.dataroot = self.data_src_cfg["dataroot"]
-        else:
-            self.dataroot = self.data_src_cfg["dataroot"]
+        self.dataroot = self.data_src_cfg["dataroot"]
 
-        os.makedirs(work_dir, exist_ok=True)
-        self.write_data_src_cfg()
+        self._create_work_dir_and_data_src_cfg()
 
         self.datalist_filename = self.data_src_cfg["datalist"]
         self.datastats_filename = os.path.join(self.work_dir, "datastats.yaml")
@@ -307,7 +276,30 @@ class AutoRunner:
         self.search_space: dict[str, dict[str, Any]] = {}
         self.hpo_tasks = 0
 
-    def write_data_src_cfg(self, data_src_cfg: dict[str, Any] | None = None) -> None:
+    def _set_up_data_src_cfg(
+        self,
+        input: dict[str, Any] | str | None = None,
+        algos: dict | list | str | None = None,
+        templates_path_or_url: str | None = None,
+    ):
+        self.data_src_cfg_name = os.path.join(self.work_dir, "input.yaml")
+        self.algos = algos
+        self.templates_path_or_url = templates_path_or_url
+
+        if input is None and os.path.isfile(self.data_src_cfg_name):
+            input = self.data_src_cfg_name
+            logger.info(f"Input config is not provided, using the default {input}")
+
+        if isinstance(input, dict):
+            self.data_src_cfg = input
+        elif isinstance(input, str) and os.path.isfile(input):
+            logger.info(f"Loading input config {input}")
+            self.data_src_cfg = ConfigParser.load_config_file(input)
+        else:
+            raise ValueError(f"Input: {input} is not a valid file or dict")
+
+    def _create_work_dir_and_data_src_cfg(self, data_src_cfg: dict[str, Any] | None = None) -> None:
+        os.makedirs(self.work_dir, exist_ok=True)
         output_data_src_cfg = data_src_cfg if data_src_cfg is not None else self.data_src_cfg
         ConfigParser.export_config_file(
             config=output_data_src_cfg,
