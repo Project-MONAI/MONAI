@@ -670,18 +670,21 @@ def convert_to_trt(
     if not dynamic_batchsize:
         warnings.warn(f"There is no dynamic batch range. The converted model only takes {input_shape} shape input.")
 
-    device = torch.device(f"cuda:{device}") if device else torch.device("cuda:0")
-    inputs = [torch.rand(ensure_tuple(input_shape))]
-    ir_model = convert_to_torchscript(model, device=device, inputs=inputs, use_trace=(ir == "trace"))
-
+    target_device = torch.device(f"cuda:{device}") if device else torch.device("cuda:0")
     convert_precision = torch.float32 if precision == "fp32" else torch.half
-    ir_model.eval().to(device)
+    inputs = [torch.rand(ensure_tuple(input_shape)).to(target_device)]
+
+    # convert the torch model, torchscript model and input to target device
+    model = model.eval().to(target_device)
+    ir_model = convert_to_torchscript(model, device=target_device, inputs=inputs, use_trace=(ir == "trace"))
+    ir_model.eval().to(target_device)
 
     def scale_batch_size(input_shape: Sequence[int], scale_num: int):
         scale_shape = [*input_shape]
         scale_shape[0] *= scale_num
         return scale_shape
 
+    # Use the dynamic batchsize range to generate compiler input and compile the model
     if dynamic_batchsize:
         min_input_shape = scale_batch_size(input_shape, dynamic_batchsize[0])
         opt_input_shape = scale_batch_size(input_shape, dynamic_batchsize[1])
@@ -690,26 +693,29 @@ def convert_to_trt(
         min_input_shape = opt_input_shape = max_input_shape = input_shape
 
     with torch.no_grad():
+        torch_tensorrt.set_device(device)
         input_placeholder = [
             torch_tensorrt.Input(min_shape=min_input_shape, opt_shape=opt_input_shape, max_shape=max_input_shape)
         ]
-        trt_model = torch_tensorrt.compile(ir_model, inputs=input_placeholder, enabled_precisions=convert_precision)
+        trt_model = torch_tensorrt.compile(
+            ir_model, inputs=input_placeholder, enabled_precisions=convert_precision, device=target_device
+        )
+
+    # verify the outputs between the trt model and torch model
     if verify:
         if inputs is None:
             raise ValueError("Missing input data for verification.")
 
-        inputs = [i.to(device) if isinstance(i, torch.Tensor) else i for i in inputs]
-        model = model.to(device)
         trt_model = torch.jit.load(filename_or_obj) if filename_or_obj is not None else trt_model
 
         with torch.no_grad():
             set_determinism(seed=0)
             torch_out = ensure_tuple(model(*inputs))
             set_determinism(seed=0)
-            torchscript_out = ensure_tuple(trt_model(*inputs))
+            trt_out = ensure_tuple(trt_model(*inputs))
             set_determinism(seed=None)
         # compare TorchScript and PyTorch results
-        for r1, r2 in zip(torch_out, torchscript_out):
+        for r1, r2 in zip(torch_out, trt_out):
             if isinstance(r1, torch.Tensor) or isinstance(r2, torch.Tensor):
                 assert_fn = torch.testing.assert_close if pytorch_after(1, 11) else torch.testing.assert_allclose
                 assert_fn(r1, r2, rtol=rtol, atol=atol)  # type: ignore
