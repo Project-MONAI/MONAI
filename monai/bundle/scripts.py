@@ -755,12 +755,12 @@ def _get_net_io_info(
         any: specified size to generate input data shape if dim of expected shape is "*", default to 1.
 
     Returns:
+        input_shape: the shape of `image` input with batch size 1.
         input_channels: the channel number of the `image` input.
         input_spatial_shape: the spatial shape of the `image` input.
         input_dtype: the data type of the `image` input.
         output_channels: the channel number of the output.
         output_dtype: the data type of the output.
-        input_shape: the shape of `image` input with 1 as batchsize.
     """
     if not isinstance(parser, ConfigParser):
         raise AttributeError(f"Parameter parser should be a ConfigParser, got {type(parser)}.")
@@ -781,7 +781,7 @@ def _get_net_io_info(
     key = f"{prefix_key}#pred#dtype"
     output_dtype = get_equivalent_dtype(parser.get(key), torch.Tensor)
 
-    return (input_channels, input_spatial_shape, input_dtype, output_channels, output_dtype, input_shape)
+    return (input_shape, input_channels, input_spatial_shape, input_dtype, output_channels, output_dtype)
 
 
 def verify_net_in_out(
@@ -846,7 +846,7 @@ def verify_net_in_out(
     for k, v in _args.items():
         parser[k] = v
 
-    input_channels, input_spatial_shape, input_dtype, output_channels, output_dtype, _ = _get_net_io_info(parser=parser)
+    _, input_channels, input_spatial_shape, input_dtype, output_channels, output_dtype = _get_net_io_info(parser=parser)
     try:
         key: str = net_id_  # mark the full id when KeyError
         net = parser.get_parsed_content(key).to(device_)
@@ -1118,7 +1118,7 @@ def trt_export(
 
     if not input_shape_:
         net_io_info = _get_net_io_info(parser)
-        input_shape_ = net_io_info[-1]
+        input_shape_ = net_io_info[0]
 
     _export(
         convert_to_trt,
