@@ -584,6 +584,10 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         if isinstance(self.evaluator, Trainer):
             self.logger.info(f"Terminating {self.client_name} evaluator...")
             self.evaluator.terminate()
+        if self.train_workflow is not None:
+            self.train_workflow.finalize()
+        if self.eval_workflow is not None:
+            self.eval_workflow.finalize()
 
     def _check_converted(self, global_weights, local_var_dict, n_converted):
         if n_converted == 0:
