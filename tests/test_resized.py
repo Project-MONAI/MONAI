@@ -68,6 +68,15 @@ class TestResized(NumpyImageTestCase2D):
             resize = Resized(keys="img", spatial_size=(128,), mode="order")
             resize({"img": self.imt[0]})
 
+    def test_unchange(self):
+        resize = Resized(keys="img", spatial_size=(128, 64), mode="bilinear")
+        set_track_meta(False)
+        for p in TEST_NDARRAYS_ALL:
+            im = p(self.imt[0])
+            result = resize({"img": im})["img"]
+            assert_allclose(im, result, type_test=False)
+        set_track_meta(True)
+
     @parameterized.expand(TEST_CORRECT_CASES)
     def test_correct_results(self, spatial_size, mode, anti_aliasing):
         init_param = {

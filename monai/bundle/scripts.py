@@ -15,10 +15,8 @@ import ast
 import json
 import os
 import re
-import time
 import warnings
 from collections.abc import Mapping, Sequence
-from logging.config import fileConfig
 from pathlib import Path
 from shutil import copyfile
 from textwrap import dedent
@@ -31,12 +29,20 @@ from monai.apps.mmars.mmars import _get_all_ngc_models
 from monai.apps.utils import _basename, download_url, extractall, get_logger
 from monai.bundle.config_item import ConfigComponent
 from monai.bundle.config_parser import ConfigParser
-from monai.bundle.utils import DEFAULT_EXP_MGMT_SETTINGS, DEFAULT_INFERENCE, DEFAULT_METADATA
+from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA
+from monai.bundle.workflows import ConfigWorkflow
 from monai.config import IgniteInfo, PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
 from monai.networks import convert_to_torchscript, convert_to_trt, copy_model_state, get_state_dict, save_state
-from monai.utils import check_parent_dir, get_equivalent_dtype, min_version, optional_import
-from monai.utils.misc import ensure_tuple, pprint_edges
+from monai.utils import (
+    check_parent_dir,
+    deprecated_arg,
+    ensure_tuple,
+    get_equivalent_dtype,
+    min_version,
+    optional_import,
+    pprint_edges,
+)
 
 validate, _ = optional_import("jsonschema", name="validate")
 ValidationError, _ = optional_import("jsonschema.exceptions", name="ValidationError")
@@ -573,49 +579,18 @@ def get_bundle_info(
     return bundle_info[version]
 
 
-def patch_bundle_tracking(parser: ConfigParser, settings: dict) -> None:
-    """
-    Patch the loaded bundle config with a new handler logic to enable experiment tracking features.
-
-    Args:
-        parser: loaded config content to patch the handler.
-        settings: settings for the experiment tracking, should follow the pattern of default settings.
-
-    """
-    for k, v in settings["configs"].items():
-        if k in settings["handlers_id"]:
-            engine = parser.get(settings["handlers_id"][k]["id"])
-            if engine is not None:
-                handlers = parser.get(settings["handlers_id"][k]["handlers"])
-                if handlers is None:
-                    engine["train_handlers" if k == "trainer" else "val_handlers"] = [v]
-                else:
-                    handlers.append(v)
-        elif k not in parser:
-            parser[k] = v
-    # save the executed config into file
-    default_name = f"config_{time.strftime('%Y%m%d_%H%M%S')}.json"
-    filepath = parser.get("execute_config", None)
-    if filepath is None:
-        if "output_dir" not in parser:
-            # if no "output_dir" in the bundle config, default to "<bundle root>/eval"
-            parser["output_dir"] = "$@bundle_root + '/eval'"
-        # experiment management tools can refer to this config item to track the config info
-        parser["execute_config"] = parser["output_dir"] + f" + '/{default_name}'"
-        filepath = os.path.join(parser.get_parsed_content("output_dir"), default_name)
-    Path(filepath).parent.mkdir(parents=True, exist_ok=True)
-    parser.export_config_file(parser.get(), filepath)
-
-
+@deprecated_arg("runner_id", since="1.1", removed="1.3", new_name="run_id", msg_suffix="please use `run_id` instead.")
 def run(
-    runner_id: str | Sequence[str] | None = None,
+    run_id: str | None = None,
+    init_id: str | None = None,
+    final_id: str | None = None,
     meta_file: str | Sequence[str] | None = None,
     config_file: str | Sequence[str] | None = None,
     logging_file: str | None = None,
     tracking: str | dict | None = None,
     args_file: str | None = None,
     **override: Any,
-) -> list:
+) -> None:
     """
     Specify `config_file` to run monai bundle components and workflows.
 
@@ -640,7 +615,9 @@ def run(
         python -m monai.bundle run --args_file "/workspace/data/args.json" --config_file <config path>
 
     Args:
-        runner_id: ID name of the expected config expression to run, can also be a list of IDs to run in order.
+        run_id: ID name of the expected config expression to run, default to "run".
+        init_id: ID name of the expected config expression to initialize before running, default to "initialize".
+        final_id: ID name of the expected config expression to finalize after running, default to "finalize".
         meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
             Default to "configs/metadata.json", which is commonly used for bundles in MONAI model zoo.
         config_file: filepath of the config file, if `None`, must be provided in `args_file`.
@@ -648,59 +625,13 @@ def run(
         logging_file: config file for `logging` module in the program. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
             Default to "configs/logging.conf", which is commonly used for bundles in MONAI model zoo.
-        tracking: enable the experiment tracking feature at runtime with optionally configurable and extensible.
-            if "mlflow", will add `MLFlowHandler` to the parsed bundle with default logging settings,
-            if other string, treat it as file path to load the logging settings, if `dict`,
-            treat it as logging settings, otherwise, use all the default settings.
+        tracking: if not None, enable the experiment tracking at runtime with optionally configurable and extensible.
+            if "mlflow", will add `MLFlowHandler` to the parsed bundle with default tracking settings,
+            if other string, treat it as file path to load the tracking settings.
+            if `dict`, treat it as tracking settings.
             will patch the target config content with `tracking handlers` and the top-level items of `configs`.
-            example of customized settings:
-
-            .. code-block:: python
-
-                tracking = {
-                    "handlers_id": {
-                        "trainer": {"id": "train#trainer", "handlers": "train#handlers"},
-                        "validator": {"id": "evaluate#evaluator", "handlers": "evaluate#handlers"},
-                        "evaluator": {"id": "evaluator", "handlers": "handlers"},
-                    },
-                    "configs": {
-                        "tracking_uri": "<path>",
-                        "experiment_name": "monai_experiment",
-                        "run_name": None,
-                        "is_not_rank0": (
-                            "$torch.distributed.is_available() \
-                                and torch.distributed.is_initialized() and torch.distributed.get_rank() > 0"
-                        ),
-                        "trainer": {
-                            "_target_": "MLFlowHandler",
-                            "_disabled_": "@is_not_rank0",
-                            "tracking_uri": "@tracking_uri",
-                            "experiment_name": "@experiment_name",
-                            "run_name": "@run_name",
-                            "iteration_log": True,
-                            "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
-                            "close_on_complete": True,
-                        },
-                        "validator": {
-                            "_target_": "MLFlowHandler",
-                            "_disabled_": "@is_not_rank0",
-                            "tracking_uri": "@tracking_uri",
-                            "experiment_name": "@experiment_name",
-                            "run_name": "@run_name",
-                            "iteration_log": False,
-                        },
-                        "evaluator": {
-                            "_target_": "MLFlowHandler",
-                            "_disabled_": "@is_not_rank0",
-                            "tracking_uri": "@tracking_uri",
-                            "experiment_name": "@experiment_name",
-                            "run_name": "@run_name",
-                            "iteration_log": False,
-                            "close_on_complete": True,
-                        },
-                    },
-                },
-
+            for detailed usage examples, plesae check the tutorial:
+            https://github.com/Project-MONAI/tutorials/blob/main/experiment_management/bundle_integrate_mlflow.ipynb.
         args_file: a JSON or YAML file to provide default values for `runner_id`, `meta_file`,
             `config_file`, `logging`, and override pairs. so that the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.
@@ -710,7 +641,9 @@ def run(
 
     _args = _update_args(
         args=args_file,
-        runner_id=runner_id,
+        run_id=run_id,
+        init_id=init_id,
+        final_id=final_id,
         meta_file=meta_file,
         config_file=config_file,
         logging_file=logging_file,
@@ -720,45 +653,29 @@ def run(
     if "config_file" not in _args:
         warnings.warn("`config_file` not provided for 'monai.bundle run'.")
     _log_input_summary(tag="run", args=_args)
-    config_file_, meta_file_, runner_id_, logging_file_, tracking_ = _pop_args(
+    config_file_, meta_file_, init_id_, run_id_, final_id_, logging_file_, tracking_ = _pop_args(
         _args,
         config_file=None,
         meta_file="configs/metadata.json",
-        runner_id="",
+        init_id="initialize",
+        run_id="run",
+        final_id="finalize",
         logging_file="configs/logging.conf",
         tracking=None,
     )
-    if logging_file_ is not None:
-        if not os.path.exists(logging_file_):
-            if logging_file_ == "configs/logging.conf":
-                warnings.warn("default logging file in 'configs/logging.conf' not exists, skip logging.")
-            else:
-                raise FileNotFoundError(f"can't find the logging config file: {logging_file_}.")
-        else:
-            logger.info(f"set logging properties based on config: {logging_file_}.")
-            fileConfig(logging_file_, disable_existing_loggers=False)
-
-    parser = ConfigParser()
-    parser.read_config(f=config_file_)
-    if meta_file_ is not None:
-        if not os.path.exists(meta_file_):
-            warnings.warn("default meta file in 'configs/metadata.json' not exists.")
-        else:
-            parser.read_meta(f=meta_file_)
-
-    # the rest key-values in the _args are to override config content
-    parser.update(pairs=_args)
-
-    # set tracking configs for experiment management
-    if tracking_ is not None:
-        if isinstance(tracking_, str) and tracking_ in DEFAULT_EXP_MGMT_SETTINGS:
-            settings_ = DEFAULT_EXP_MGMT_SETTINGS[tracking_]
-        else:
-            settings_ = ConfigParser.load_config_files(tracking_)
-        patch_bundle_tracking(parser=parser, settings=settings_)
-
-    # resolve and execute the specified runner expressions in the config, return the results
-    return [parser.get_parsed_content(i, lazy=True, eval_expr=True, instantiate=True) for i in ensure_tuple(runner_id_)]
+    workflow = ConfigWorkflow(
+        config_file=config_file_,
+        meta_file=meta_file_,
+        logging_file=logging_file_,
+        init_id=init_id_,
+        run_id=run_id_,
+        final_id=final_id_,
+        tracking=tracking_,
+        **_args,
+    )
+    workflow.initialize()
+    workflow.run()
+    workflow.finalize()
 
 
 def verify_metadata(

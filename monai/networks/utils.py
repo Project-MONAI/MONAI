@@ -621,7 +621,7 @@ def convert_to_torchscript(
         for r1, r2 in zip(torch_out, torchscript_out):
             if isinstance(r1, torch.Tensor) or isinstance(r2, torch.Tensor):
                 assert_fn = torch.testing.assert_close if pytorch_after(1, 11) else torch.testing.assert_allclose
-                assert_fn(r1, r2, rtol=rtol, atol=atol)
+                assert_fn(r1, r2, rtol=rtol, atol=atol)  # type: ignore
 
     return script_module
 
