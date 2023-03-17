@@ -583,7 +583,7 @@ def convert_to_torchscript(
         device: target device to verify the model, if None, use CUDA if available.
         rtol: the relative tolerance when comparing the outputs of PyTorch model and TorchScript model.
         atol: the absolute tolerance when comparing the outputs of PyTorch model and TorchScript model.
-        use_trace: whether to use `torch.jit.trace` to get the torchscript model.
+        use_trace: whether to use `torch.jit.trace` to export the torchscript model.
 
         kwargs: other arguments except `obj` for `torch.jit.script()` to convert model, for more details:
             https://pytorch.org/docs/master/generated/torch.jit.script.html.
