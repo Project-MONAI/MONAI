@@ -373,13 +373,14 @@ class ITKWriter(ImageWriter):
     output_dtype: DtypeLike = None
     channel_dim: int | None
 
-    def __init__(self, output_dtype: DtypeLike = np.float32, affine_lps_to_ras: bool = True, **kwargs):
+    def __init__(self, output_dtype: DtypeLike = np.float32, affine_lps_to_ras: bool | None = True, **kwargs):
         """
         Args:
             output_dtype: output data type.
             affine_lps_to_ras: whether to convert the affine matrix from "LPS" to "RAS". Defaults to ``True``.
                 Set to ``True`` to be consistent with ``NibabelWriter``,
                 otherwise the affine matrix is assumed already in the ITK convention.
+                Set to ``None`` to use ``data_array.meta[MetaKeys.SPACE]`` to determine the flag.
             kwargs: keyword arguments passed to ``ImageWriter``.
 
         The constructor will create ``self.output_dtype`` internally.
@@ -406,7 +407,7 @@ class ITKWriter(ImageWriter):
             kwargs: keyword arguments passed to ``self.convert_to_channel_last``,
                 currently support ``spatial_ndim`` and ``contiguous``, defauting to ``3`` and ``False`` respectively.
         """
-        _r = len(data_array.shape)
+        n_chns = data_array.shape[channel_dim] if channel_dim is not None else 0
         self.data_obj = self.convert_to_channel_last(
             data=data_array,
             channel_dim=channel_dim,
@@ -414,9 +415,12 @@ class ITKWriter(ImageWriter):
             spatial_ndim=kwargs.pop("spatial_ndim", 3),
             contiguous=kwargs.pop("contiguous", True),
         )
-        self.channel_dim = (
-            channel_dim if self.data_obj is not None and len(self.data_obj.shape) >= _r else None
-        )  # channel dim is at the end
+        self.channel_dim = -1  # in most cases, the data is set to channel last
+        if squeeze_end_dims and n_chns <= 1:  # num_channel==1 squeezed
+            self.channel_dim = None
+        if not squeeze_end_dims and n_chns < 1:  # originally no channel and convert_to_channel_last added a channel
+            self.channel_dim = None
+            self.data_obj = self.data_obj[..., 0]
 
     def set_metadata(self, meta_dict: Mapping | None = None, resample: bool = True, **options):
         """
@@ -478,7 +482,7 @@ class ITKWriter(ImageWriter):
         channel_dim: int | None = 0,
         affine: NdarrayOrTensor | None = None,
         dtype: DtypeLike = np.float32,
-        affine_lps_to_ras: bool = True,
+        affine_lps_to_ras: bool | None = True,
         **kwargs,
     ):
         """
@@ -492,14 +496,18 @@ class ITKWriter(ImageWriter):
             affine_lps_to_ras: whether to convert the affine matrix from "LPS" to "RAS". Defaults to ``True``.
                 Set to ``True`` to be consistent with ``NibabelWriter``,
                 otherwise the affine matrix is assumed already in the ITK convention.
+                Set to ``None`` to use ``data_array.meta[MetaKeys.SPACE]`` to determine the flag.
             kwargs: keyword arguments. Current `itk.GetImageFromArray` will read ``ttype`` from this dictionary.
 
         see also:
 
             - https://github.com/InsightSoftwareConsortium/ITK/blob/v5.2.1/Wrapping/Generators/Python/itk/support/extras.py#L389
+
         """
-        if isinstance(data_array, MetaTensor) and data_array.meta.get(MetaKeys.SPACE, SpaceKeys.LPS) != SpaceKeys.LPS:
-            affine_lps_to_ras = False  # do the converting from LPS to RAS only if the space type is currently LPS.
+        if isinstance(data_array, MetaTensor) and affine_lps_to_ras is None:
+            affine_lps_to_ras = (
+                data_array.meta.get(MetaKeys.SPACE, SpaceKeys.LPS) != SpaceKeys.LPS
+            )  # do the converting from LPS to RAS only if the space type is currently LPS.
         data_array = super().create_backend_obj(data_array)
         _is_vec = channel_dim is not None
         if _is_vec:

@@ -32,13 +32,10 @@ class BilateralFilter(torch.autograd.Function):
 
     Args:
         input: input tensor.
-
         spatial_sigma: the standard deviation of the spatial blur. Higher values can
             hurt performance when not using the approximate method (see fast approx).
-
         color_sigma: the standard deviation of the color blur. Lower values preserve
             edges better whilst higher values tend to a simple gaussian spatial blur.
-
         fast approx: This flag chooses between two implementations. The approximate method may
             produce artifacts in some scenarios whereas the exact solution may be intolerably
             slow for high spatial standard deviations.
@@ -76,9 +73,7 @@ class PHLFilter(torch.autograd.Function):
 
     Args:
         input: input tensor to be filtered.
-
         features: feature tensor used to filter the input.
-
         sigmas: the standard deviations of each feature in the filter.
 
     Returns:
@@ -114,13 +109,9 @@ class TrainableBilateralFilterFunction(torch.autograd.Function):
 
     Args:
         input: input tensor to be filtered.
-
         sigma x: trainable standard deviation of the spatial filter kernel in x direction.
-
         sigma y: trainable standard deviation of the spatial filter kernel in y direction.
-
         sigma z: trainable standard deviation of the spatial filter kernel in z direction.
-
         color sigma: trainable standard deviation of the intensity range kernel. This filter
             parameter determines the degree of edge preservation.
 
@@ -200,11 +191,9 @@ class TrainableBilateralFilter(torch.nn.Module):
 
     Args:
         input: input tensor to be filtered.
-
         spatial_sigma: tuple (sigma_x, sigma_y, sigma_z) initializing the trainable standard
             deviations of the spatial filter kernels. Tuple length must equal the number of
             spatial input dimensions.
-
         color_sigma: trainable standard deviation of the intensity range kernel. This filter
             parameter determines the degree of edge preservation.
 
@@ -280,15 +269,10 @@ class TrainableJointBilateralFilterFunction(torch.autograd.Function):
 
     Args:
         input: input tensor to be filtered.
-
         guide: guidance image tensor to be used during filtering.
-
         sigma x: trainable standard deviation of the spatial filter kernel in x direction.
-
         sigma y: trainable standard deviation of the spatial filter kernel in y direction.
-
         sigma z: trainable standard deviation of the spatial filter kernel in z direction.
-
         color sigma: trainable standard deviation of the intensity range kernel. This filter
             parameter determines the degree of edge preservation.
 
@@ -373,13 +357,10 @@ class TrainableJointBilateralFilter(torch.nn.Module):
 
     Args:
         input: input tensor to be filtered.
-
         guide: guidance image tensor to be used during filtering.
-
         spatial_sigma: tuple (sigma_x, sigma_y, sigma_z) initializing the trainable standard
             deviations of the spatial filter kernels. Tuple length must equal the number of
             spatial input dimensions.
-
         color_sigma: trainable standard deviation of the intensity range kernel. This filter
             parameter determines the degree of edge preservation.
 
