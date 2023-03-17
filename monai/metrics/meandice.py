@@ -27,13 +27,14 @@ class DiceMetric(CumulativeIterationMetric):
 
     It supports both multi-classes and multi-labels tasks.
     Input `y_pred` is compared with ground truth `y`.
-    `y_preds` is expected to have binarized predictions and `y` should be in one-hot format. You can use suitable
-    transforms in ``monai.transforms.post`` first to achieve binarized values.
+    `y_pred` is expected to have binarized predictions and `y` can be single-channel class indices or in the
+    one-hot format.
     The `include_background` parameter can be set to ``False`` to exclude
     the first category (channel index 0) which is by convention assumed to be background. If the non-background
     segmentations are small compared to the total image size they can get overwhelmed by the signal from the
     background.
-    `y_preds` and `y` can be a list of channel-first Tensor (CHW[D]) or a batch-first Tensor (BCHW[D]).
+    `y_preds` and `y` can be a list of channel-first Tensor (CHW[D]) or a batch-first Tensor (BCHW[D]), `y` can
+    also be in the format of `B1HW[D]`.
 
     Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
 
@@ -70,8 +71,8 @@ class DiceMetric(CumulativeIterationMetric):
             y_pred: input data to compute, typical segmentation model output.
                 It must be one-hot format and first dim is batch, example shape: [16, 3, 32, 32]. The values
                 should be binarized.
-            y: ground truth to compute mean dice metric. It must be one-hot format and first dim is batch.
-                The values should be binarized.
+            y: ground truth to compute mean Dice metric. `y` can be single-channel class indices or
+                in the one-hot format.
 
         Raises:
             ValueError: when `y_pred` has less than three dimensions.
@@ -118,8 +119,7 @@ def compute_dice(
         y_pred: input data to compute, typical segmentation model output.
             It must be one-hot format and first dim is batch, example shape: [16, 3, 32, 32]. The values
             should be binarized.
-        y: ground truth to compute mean dice metric. It must be one-hot format and first dim is batch.
-            The values should be binarized.
+        y: ground truth to compute mean dice metric. `y` can be single-channel class indices or in the one-hot format.
         include_background: whether to skip Dice computation on the first channel of
             the predicted output. Defaults to True.
         ignore_empty: whether to ignore empty ground truth cases during calculation.
@@ -127,7 +127,7 @@ def compute_dice(
             If `False`, 1 will be set if the predictions of empty ground truth cases are also empty.
 
     Returns:
-        Dice scores per batch and per class, (shape [batch_size, num_classes]).
+        Dice scores per batch and per class, (shape: [batch_size, num_classes]).
 
     """
     return DiceHelper(  # type: ignore
@@ -142,7 +142,7 @@ def compute_dice(
 class DiceHelper:
     """
     Compute Dice score between two tensors `y_pred` and `y`.
-    `y_pred` must have N channels, `y` can be single channel class indices or one-hot.
+    `y_pred` must have N channels, `y` can be single-channel class indices or in the one-hot format.
 
     Example:
 
@@ -177,7 +177,7 @@ class DiceHelper:
         Args:
             include_background: whether to skip the score on the first channel
                 (default to the value of `sigmoid`, False).
-            sigmoid: whether ``y_pred`` are/will be sigmoid activated outputs. If True, thesholding at 0.5
+            sigmoid: whether ``y_pred`` are/will be sigmoid activated outputs. If True, thresholding at 0.5
                 will be performed to get the discrete prediction. Defaults to False.
             softmax: whether ``y_pred`` are softmax activated outputs. If True, `argmax` will be performed to
                 get the discrete prediction. Defaults to the value of ``not sigmoid``.
