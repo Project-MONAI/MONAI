@@ -749,7 +749,7 @@ def _get_net_io_info(
         parser: a parser of the given bundle.
         prefix: a prefix for the input and output ID, which will be combined as `prefix#inputs` and
             `prefix#outputs` to parse the input and output information in the `metadata.json` file of
-            bundle, default to `meta_#network_data_format`.
+            a bundle, default to `meta_#network_data_format`.
         p: power factor to generate input data shape if dim of expected shape is "x**p", default to 1.
         n: multiply factor to generate input data shape if dim of expected shape is "x*n", default to 1.
         any: specified size to generate input data shape if dim of expected shape is "*", default to 1.
@@ -885,16 +885,16 @@ def _export(
     **kwargs: Any,
 ) -> None:
     """
-    Export a model defined in the parser to a new one specified by converter.
+    Export a model defined in the parser to a new one specified by the converter.
 
     Args:
         converter: a callable object that takes a torch.nn.module and kwargs as input and
             converts the module to another type.
-        parser: a parser of the bundle to be converted.
+        parser: a ConfigParser of the bundle to be converted.
         net_id: ID name of the network component in the config, it must be `torch.nn.Module`.
         filepath: filepath to export, if filename has no extension, it becomes `.ts`.
         ckpt_file: filepath of the model checkpoint to load.
-        config_file: filepath of the config file to save in converted model and extract network information,
+        config_file: filepath of the config file to save in the converted model and extract network information,
             the saved key in the converted model is the config filename without extension, and the saved config
             value is always serialized in JSON format no matter the original file format is JSON or YAML.
             it can be a single file or a list of files. if `None`, must be provided in `args_file`.
@@ -1049,14 +1049,14 @@ def trt_export(
             it can be a single file or a list of files. if `None`, must be provided in `args_file`.
         key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
             weights. if not nested checkpoint, no need to set.
-        precision: the weight precision of converted TensorRT engine based torchscript models. Should be 'fp32' or 'fp16'.
+        precision: the weight precision of the converted TensorRT engine based torchscript models. Should be 'fp32' or 'fp16'.
         input_shape: the input shape that is used to convert the model. Should be a list like [N, C, H, W] or
             [N, C, H, W, D].
         ir: the intermediate representation way to transform a pytorch module to a TensorRT engine based torchscript. Could
             be chosen from `(script, trace)`.
         dynamic_batchsize: a list with three elements to define the batch size range of the input for the model to be converted.
             Should be a list like [MIN_BATCH, OPT_BATCH, MAX_BATCH].
-        device: the index of GPU on which the model is converted.
+        device: the target GPU index to convert and verify the model.
         args_file: a JSON or YAML file to provide default values for `meta_file`, `config_file`,
             `net_id` and override pairs. so that the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.

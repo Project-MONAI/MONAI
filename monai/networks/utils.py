@@ -642,18 +642,18 @@ def convert_to_trt(
     Utility to convert a model into a TensorRT engine based torchscript model with optional input / output data verification.
 
     Args:
-        model: a source PyTorch model to save.
-        precision: the weight precision of converted TensorRT engine based torchscript models. Should be 'fp32' or 'fp16'.
-        input_shape: the input shape that is used to generate random input during the convert. Should be a list like
-            [N, C, H, W] or [N, C, H, W, D].
+        model: a source PyTorch model to convert.
+        precision: the weight precision of the converted TensorRT engine based torchscript models. Should be 'fp32' or 'fp16'.
+        input_shape: the input shape that is used to convert the model. Should be a list like [N, C, H, W] or
+            [N, C, H, W, D].
         dynamic_batchsize: a list with three elements to define the batch size range of the input for the model to be converted.
-            The three number means [MIN_BATCH, OPT_BATCH, MAX_BATCH], default to None.
+            Should be a list like [MIN_BATCH, OPT_BATCH, MAX_BATCH], default to None.
         ir: the intermediate representation way to transform a pytorch module to a TensorRT engine based torchscript. Could
             be chosen from `(script, trace)`, default to "script.
         filename_or_obj: if not None, specify a file-like object (has to implement write and flush) or a string containing a
             file path name to load the TensorRT engine based torchscript model for verifying.
         verify: whether to verify the input and output of the TensorRT engine based torchscript model.
-        device: target GPU index to verify the model, if None, use #0 GPU.
+        device: the target GPU index to convert and verify the model. If None, use #0 GPU.
         rtol: the relative tolerance when comparing the outputs of PyTorch model and TensorRT model.
         atol: the absolute tolerance when comparing the outputs of PyTorch model and TensorRT model.
     """
