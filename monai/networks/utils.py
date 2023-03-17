@@ -593,7 +593,7 @@ def convert_to_torchscript(
     with torch.no_grad():
         if use_trace:
             if inputs is None:
-                raise ValueError("missing input data for tracing convert.")
+                raise ValueError("Missing input data for tracing convert.")
             script_module = torch.jit.trace(model, example_inputs=inputs)
         else:
             script_module = torch.jit.script(model, **kwargs)
@@ -604,7 +604,7 @@ def convert_to_torchscript(
         if device is None:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         if inputs is None:
-            raise ValueError("missing input data for verification.")
+            raise ValueError("Missing input data for verification.")
 
         inputs = [i.to(device) if isinstance(i, torch.Tensor) else i for i in inputs]
         ts_model = torch.jit.load(filename_or_obj) if filename_or_obj is not None else script_module
@@ -629,12 +629,12 @@ def convert_to_torchscript(
 def convert_to_trt(
     model: nn.Module,
     precision: str,
-    inputs_shape: Sequence[int],
+    input_shape: Sequence[int],
     dynamic_batchsize: Sequence[int] | None = None,
     ir: str = "script",
     filename_or_obj: Any | None = None,
     verify: bool = False,
-    device: torch.device | None = None,
+    device: int | None = None,
     rtol: float = 1e-2,
     atol: float = 0.0,
 ):
@@ -644,16 +644,16 @@ def convert_to_trt(
     Args:
         model: a source PyTorch model to save.
         precision: the weight precision of converted TensorRT engine based torchscript models. Should be 'fp32' or 'fp16'.
-        inputs_shape: the input shape that is used to generate random input during the convert. Should be a list like
+        input_shape: the input shape that is used to generate random input during the convert. Should be a list like
             [N, C, H, W] or [N, C, H, W, D].
-        dynamic_batchsize: a list with three elements to define the batch size range of inputs for the model to be converted.
+        dynamic_batchsize: a list with three elements to define the batch size range of the input for the model to be converted.
             The three number means [MIN_BATCH, OPT_BATCH, MAX_BATCH], default to None.
         ir: the intermediate representation way to transform a pytorch module to a TensorRT engine based torchscript. Could
-            be choose from `(script, trace)`, default to "script.
+            be chosen from `(script, trace)`, default to "script.
         filename_or_obj: if not None, specify a file-like object (has to implement write and flush) or a string containing a
             file path name to load the TensorRT engine based torchscript model for verifying.
         verify: whether to verify the input and output of the TensorRT engine based torchscript model.
-        device: target device to verify the model, if None, use CUDA if available.
+        device: target GPU index to verify the model, if None, use #0 GPU.
         rtol: the relative tolerance when comparing the outputs of PyTorch model and TensorRT model.
         atol: the absolute tolerance when comparing the outputs of PyTorch model and TensorRT model.
     """
@@ -664,14 +664,14 @@ def convert_to_trt(
     if not torch.cuda.is_available():
         raise Exception("Cannot find any GPU devices.")
 
-    if not inputs_shape:
-        raise ValueError("Missing inputs shape for model convert.")
+    if not input_shape:
+        raise ValueError("Missing the input shape for model convert.")
 
     if not dynamic_batchsize:
-        warnings.warn(f"There is no dynamic batch range. The converted model only takes {inputs_shape} shape input.")
+        warnings.warn(f"There is no dynamic batch range. The converted model only takes {input_shape} shape input.")
 
-    device = device if device else torch.device("cuda")
-    inputs = [torch.rand(ensure_tuple(inputs_shape))]
+    device = torch.device(f"cuda:{device}") if device else torch.device("cuda:0")
+    inputs = [torch.rand(ensure_tuple(input_shape))]
     ir_model = convert_to_torchscript(model, device=device, inputs=inputs, use_trace=(ir == "trace"))
 
     convert_precision = torch.float32 if precision == "fp32" else torch.half
@@ -683,11 +683,11 @@ def convert_to_trt(
         return scale_shape
 
     if dynamic_batchsize:
-        min_input_shape = scale_batch_size(inputs_shape, dynamic_batchsize[0])
-        opt_input_shape = scale_batch_size(inputs_shape, dynamic_batchsize[1])
-        max_input_shape = scale_batch_size(inputs_shape, dynamic_batchsize[2])
+        min_input_shape = scale_batch_size(input_shape, dynamic_batchsize[0])
+        opt_input_shape = scale_batch_size(input_shape, dynamic_batchsize[1])
+        max_input_shape = scale_batch_size(input_shape, dynamic_batchsize[2])
     else:
-        min_input_shape = opt_input_shape = max_input_shape = inputs_shape
+        min_input_shape = opt_input_shape = max_input_shape = input_shape
 
     with torch.no_grad():
         input_placeholder = [
@@ -696,7 +696,7 @@ def convert_to_trt(
         trt_model = torch_tensorrt.compile(ir_model, inputs=input_placeholder, enabled_precisions=convert_precision)
     if verify:
         if inputs is None:
-            raise ValueError("missing input data for verification.")
+            raise ValueError("Missing input data for verification.")
 
         inputs = [i.to(device) if isinstance(i, torch.Tensor) else i for i in inputs]
         model = model.to(device)

@@ -747,23 +747,23 @@ def _get_net_io_info(
 
     Args:
         parser: a parser of the given bundle.
-        prefix: a prefix for the input and output id, which will be combined as `prefix#input` and
-            `prefix#output` to parse the input and output information in the `metadata.json` file of
+        prefix: a prefix for the input and output ID, which will be combined as `prefix#inputs` and
+            `prefix#outputs` to parse the input and output information in the `metadata.json` file of
             bundle, default to `meta_#network_data_format`.
         p: power factor to generate input data shape if dim of expected shape is "x**p", default to 1.
         n: multiply factor to generate input data shape if dim of expected shape is "x*n", default to 1.
         any: specified size to generate input data shape if dim of expected shape is "*", default to 1.
 
     Returns:
-        input_channels: the channel number of the first input.
-        input_spatial_shape: the spatial shape of the first input.
+        input_channels: the channel number of the `image` input.
+        input_spatial_shape: the spatial shape of the `image` input.
         input_dtype: the data type of the `image` input.
-        output_channels: the channel number of the `image` output.
-        output_dtype: the data type of the `image` output.
-        inputs_shape: the shape of `image` input with 1 as batchsize.
+        output_channels: the channel number of the output.
+        output_dtype: the data type of the output.
+        input_shape: the shape of `image` input with 1 as batchsize.
     """
     if not isinstance(parser, ConfigParser):
-        raise AttributeError(f"'parser' should be a ConfigParser, got {type(parser)}.")
+        raise AttributeError(f"Parameter parser should be a ConfigParser, got {type(parser)}.")
 
     prefix_key = f"{prefix}#inputs"
     key = f"{prefix_key}#image#num_channels"
@@ -773,7 +773,7 @@ def _get_net_io_info(
     key = f"{prefix_key}#image#dtype"
     input_dtype = get_equivalent_dtype(parser.get(key), torch.Tensor)
     spatial_shape = _get_fake_spatial_shape(input_spatial_shape, p=p, n=n, any=any)
-    inputs_shape = [1, input_channels, *spatial_shape]
+    input_shape = [1, input_channels, *spatial_shape]
 
     prefix_key = f"{prefix}#outputs"
     key = f"{prefix_key}#pred#num_channels"
@@ -781,7 +781,7 @@ def _get_net_io_info(
     key = f"{prefix_key}#pred#dtype"
     output_dtype = get_equivalent_dtype(parser.get(key), torch.Tensor)
 
-    return (input_channels, input_spatial_shape, input_dtype, output_channels, output_dtype, inputs_shape)
+    return (input_channels, input_spatial_shape, input_dtype, output_channels, output_dtype, input_shape)
 
 
 def verify_net_in_out(
@@ -889,13 +889,13 @@ def _export(
 
     Args:
         converter: a callable object that takes a torch.nn.module and kwargs as input and
-            convert to another type.
-        parser: a parser of the model to be converted.
+            converts the module to another type.
+        parser: a parser of the bundle to be converted.
         net_id: ID name of the network component in the config, it must be `torch.nn.Module`.
-        filepath: filepath to export, if filename has no extension it becomes `.ts`.
+        filepath: filepath to export, if filename has no extension, it becomes `.ts`.
         ckpt_file: filepath of the model checkpoint to load.
-        config_file: filepath of the config file to save in TorchScript model and extract network information,
-            the saved key in the TorchScript model is the config filename without extension, and the saved config
+        config_file: filepath of the config file to save in converted model and extract network information,
+            the saved key in the converted model is the config filename without extension, and the saved config
             value is always serialized in JSON format no matter the original file format is JSON or YAML.
             it can be a single file or a list of files. if `None`, must be provided in `args_file`.
         key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
@@ -1020,7 +1020,7 @@ def trt_export(
     config_file: str | Sequence[str] | None = None,
     key_in_ckpt: str | None = None,
     precision: str | None = None,
-    inputs_shape: Sequence[int] | None = None,
+    input_shape: Sequence[int] | None = None,
     ir: str | None = None,
     dynamic_batchsize: Sequence[int] | None = None,
     device: int | None = None,
@@ -1036,7 +1036,7 @@ def trt_export(
     .. code-block:: bash
 
         python -m monai.bundle trt_export --net_id <network definition> --filepath <export path> \
-            --ckpt_file <checkpoint path> --input_shape <input shape> ...
+            --ckpt_file <checkpoint path> --input_shape <input shape> --dynamic_batchsize <batch range> ...
 
     Args:
         net_id: ID name of the network component in the config, it must be `torch.nn.Module`.
@@ -1050,11 +1050,11 @@ def trt_export(
         key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
             weights. if not nested checkpoint, no need to set.
         precision: the weight precision of converted TensorRT engine based torchscript models. Should be 'fp32' or 'fp16'.
-        inputs_shape: the input shape that is used to convert the model. Should be a list like [N, C, H, W] or
+        input_shape: the input shape that is used to convert the model. Should be a list like [N, C, H, W] or
             [N, C, H, W, D].
         ir: the intermediate representation way to transform a pytorch module to a TensorRT engine based torchscript. Could
-            be choose from `(script, trace)`.
-        dynamic_batchsize: a list with three elements to define the batch size range of inputs for the model to be converted.
+            be chosen from `(script, trace)`.
+        dynamic_batchsize: a list with three elements to define the batch size range of the input for the model to be converted.
             Should be a list like [MIN_BATCH, OPT_BATCH, MAX_BATCH].
         device: the index of GPU on which the model is converted.
         args_file: a JSON or YAML file to provide default values for `meta_file`, `config_file`,
@@ -1072,9 +1072,10 @@ def trt_export(
         ckpt_file=ckpt_file,
         key_in_ckpt=key_in_ckpt,
         precision=precision,
-        inputs_shape=inputs_shape,
+        input_shape=input_shape,
         ir=ir,
         dynamic_batchsize=dynamic_batchsize,
+        device=device,
         **override,
     )
     _log_input_summary(tag="trt_export", args=_args)
@@ -1086,10 +1087,10 @@ def trt_export(
         meta_file_,
         key_in_ckpt_,
         precision_,
-        inputs_shape_,
+        input_shape_,
         ir_,
         dynamic_batchsize_,
-        device,
+        device_,
     ) = _pop_args(
         _args,
         "filepath",
@@ -1099,7 +1100,7 @@ def trt_export(
         meta_file=None,
         key_in_ckpt="",
         precision="fp32",
-        inputs_shape=[],
+        input_shape=[],
         ir="script",
         dynamic_batchsize=[],
         device=None,
@@ -1115,9 +1116,9 @@ def trt_export(
     for k, v in _args.items():
         parser[k] = v
 
-    if not inputs_shape_:
+    if not input_shape_:
         net_io_info = _get_net_io_info(parser)
-        inputs_shape_ = net_io_info[-1]
+        input_shape_ = net_io_info[-1]
 
     _export(
         convert_to_trt,
@@ -1128,10 +1129,10 @@ def trt_export(
         config_file=config_file_,
         key_in_ckpt=key_in_ckpt_,
         precision=precision_,
-        inputs_shape=inputs_shape_,
+        input_shape=input_shape_,
         dynamic_batchsize=dynamic_batchsize_,
         ir=ir_,
-        device=device,
+        device=device_,
     )
 
 

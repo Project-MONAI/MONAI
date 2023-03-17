@@ -54,11 +54,11 @@ class TestConvertToTRT(unittest.TestCase):
             torchscript_model = convert_to_trt(
                 model=model,
                 precision=precision,
-                inputs_shape=[[1, 1, 96, 96, 96]],
-                dynamic_batchsize=[[1, 4, 8]],
+                input_shape=[1, 1, 96, 96, 96],
+                dynamic_batchsize=[1, 4, 8],
                 ir="script",
                 verify=True,
-                device="cuda" if torch.cuda.is_available() else "cpu",
+                device=0,
                 rtol=1e-2,
                 atol=1e-2,
             )
