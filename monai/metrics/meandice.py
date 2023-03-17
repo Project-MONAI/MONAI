@@ -28,13 +28,11 @@ class DiceMetric(CumulativeIterationMetric):
     It supports both multi-classes and multi-labels tasks.
     Input `y_pred` is compared with ground truth `y`.
     `y_pred` is expected to have binarized predictions and `y` can be single-channel class indices or in the
-    one-hot format.
-    The `include_background` parameter can be set to ``False`` to exclude
+    one-hot format. The `include_background` parameter can be set to ``False`` to exclude
     the first category (channel index 0) which is by convention assumed to be background. If the non-background
     segmentations are small compared to the total image size they can get overwhelmed by the signal from the
-    background.
-    `y_preds` and `y` can be a list of channel-first Tensor (CHW[D]) or a batch-first Tensor (BCHW[D]), `y` can
-    also be in the format of `B1HW[D]`.
+    background. `y_preds` and `y` can be a list of channel-first Tensor (CHW[D]) or a batch-first Tensor (BCHW[D]),
+    `y` can also be in the format of `B1HW[D]`.
 
     Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
 
@@ -197,6 +195,7 @@ class DiceHelper:
         self.ignore_empty = ignore_empty
 
     def compute_channel(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        """"""
         y_o = torch.sum(y)
         if y_o > 0:
             return (2.0 * torch.sum(torch.masked_select(y, y_pred))) / (y_o + torch.sum(y_pred))
@@ -208,6 +207,13 @@ class DiceHelper:
         return (2.0 * torch.sum(torch.masked_select(y, y_pred))) / denorm
 
     def __call__(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+        """
+
+        Args:
+            y_pred: input predictions with shape (batch_size, num_classes, spatial_dims...).
+                the number of channels is inferred from ``y_pred.shape[1]``.
+            y: ground truth with shape (batch_size, num_classes or 1, spatial_dims...).
+        """
         n_pred_ch = y_pred.shape[1]
 
         if self.softmax:
