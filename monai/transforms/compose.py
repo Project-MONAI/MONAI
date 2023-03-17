@@ -378,9 +378,8 @@ class SomeOf(Compose):
             for NumPy array and PyTorch Tensor, log the data shape and value range,
             for other metadata, log the values directly. Default to `False`.
         num_transforms: a 2-tuple, int, or None. The 2-tuple specifies the minimum and maximum (inclusive) number of
-            transforms to sample at each iteration.
-        If an int is given, the lower and upper bounds are set equal. None sets it to `len(transforms)`.
-            Default to `None`.
+            transforms to sample at each iteration. If an int is given, the lower and upper bounds are set equal.
+            None sets it to `len(transforms)`. Default to `None`.
         replace: whether to sample with replacement. Defaults to `False`.
         weights: weights to use in for sampling transforms. Will be normalized to 1. Default: None (uniform).
     """
