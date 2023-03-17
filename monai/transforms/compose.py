@@ -400,7 +400,7 @@ class SomeOf(Compose):
         self.replace = replace
         self.weights = self._normalize_probabilities(weights)
 
-    def _ensure_valid_num_transforms(self, num_transforms: int | tuple[int, int]) -> tuple:
+    def _ensure_valid_num_transforms(self, num_transforms: int | tuple[int, int] | None) -> tuple:
         if (
             not isinstance(num_transforms, tuple)
             and not isinstance(num_transforms, list)
