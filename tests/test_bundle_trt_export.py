@@ -47,7 +47,7 @@ class TestTRTExport(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     @unittest.skipUnless(has_torchtrt, "Torch-TensorRT is required for convert!")
     @unittest.skipUnless(has_tensorrt, "TensorRT is required for convert!")
-    def test_trt_export(self, convert_precision, input_shape, dynamic_batch, device):
+    def test_trt_export(self, convert_precision, input_shape, dynamic_batch):
         meta_file = os.path.join(os.path.dirname(__file__), "testing_data", "metadata.json")
         config_file = os.path.join(os.path.dirname(__file__), "testing_data", "inference.json")
         with tempfile.TemporaryDirectory() as tempdir:

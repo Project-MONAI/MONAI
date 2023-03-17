@@ -670,6 +670,7 @@ def convert_to_trt(
     if not dynamic_batchsize:
         warnings.warn(f"There is no dynamic batch range. The converted model only takes {input_shape} shape input.")
 
+    device = device if device else 0
     target_device = torch.device(f"cuda:{device}") if device else torch.device("cuda:0")
     convert_precision = torch.float32 if precision == "fp32" else torch.half
     inputs = [torch.rand(ensure_tuple(input_shape)).to(target_device)]
