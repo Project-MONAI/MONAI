@@ -757,24 +757,13 @@ def _get_net_io_info(
     Returns:
         input_channels: the channel number of the first input.
         input_spatial_shape: the spatial shape of the first input.
-        input_dtype: the data type of the first input.
-        output_channels: the channel number of the first output.
-        output_dtype: the data type of the first output.
-        inputs_shape: a list contains the shape of every input.
+        input_dtype: the data type of the `image` input.
+        output_channels: the channel number of the `image` output.
+        output_dtype: the data type of the `image` output.
+        inputs_shape: the shape of `image` input with 1 as batchsize.
     """
     if not isinstance(parser, ConfigParser):
         raise AttributeError(f"'parser' should be a ConfigParser, got {type(parser)}.")
-
-    inputs_shape = []
-    prefix_key = f"{prefix}#inputs"
-    inputs_info_dict = parser.get(prefix_key)
-    for input_name in inputs_info_dict:
-        key = f"{prefix_key}#{input_name}#num_channels"
-        input_channels = parser.get(key)
-        key = f"{prefix_key}#{input_name}#spatial_shape"
-        input_spatial_shape = parser.get(key)
-        spatial_shape = _get_fake_spatial_shape(input_spatial_shape, p=p, n=n, any=any)
-        inputs_shape.append([1, input_channels, *spatial_shape])
 
     key = f"{prefix_key}#image#num_channels"
     input_channels = parser.get(key)
@@ -782,6 +771,8 @@ def _get_net_io_info(
     input_spatial_shape = tuple(parser.get(key))
     key = f"{prefix_key}#image#dtype"
     input_dtype = get_equivalent_dtype(parser.get(key), torch.Tensor)
+    spatial_shape = _get_fake_spatial_shape(input_spatial_shape, p=p, n=n, any=any)
+    inputs_shape = [1, input_channels, *spatial_shape]
 
     prefix_key = f"{prefix}#outputs"
     key = f"{prefix_key}#pred#num_channels"
@@ -1028,9 +1019,10 @@ def trt_export(
     config_file: str | Sequence[str] | None = None,
     key_in_ckpt: str | None = None,
     precision: str | None = None,
-    inputs_shape: Sequence[Sequence[int]] | None = None,
+    inputs_shape: Sequence[int] | None = None,
     ir: str | None = None,
-    dynamic_batchsize: Sequence[Sequence[int]] | None = None,
+    dynamic_batchsize: Sequence[int] | None = None,
+    device: int | None = None,
     args_file: str | None = None,
     **override: Any,
 ) -> None:
@@ -1057,15 +1049,13 @@ def trt_export(
         key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
             weights. if not nested checkpoint, no need to set.
         precision: the weight precision of converted TensorRT engine based torchscript models. Should be 'fp32' or 'fp16'.
-        inputs_shape: the inputs' shape that is used to generate random input during the convert. Should be a list with elements
-            like [[N1, C1, H1, W1], ... ,[Nk, Ck, Hk, Wk]] or [[N1, C1, H1, W1, D1], ...,[Nk, Ck, Hk, Wk, Dk]] for k inputs.
+        inputs_shape: the input shape that is used to generate random input during the convert. Should be a list like
+            [N, C, H, W] or [N, C, H, W, D].
         ir: the intermediate representation way to transform a pytorch module to a TensorRT engine based torchscript. Could
             be choose from `(script, trace)`.
-        dynamic_batchsize: a list contains range lists with three elements to define the batch size range of inputs for
-            the converted model. In each element, the three number means `MIN_BATCH, OPT_BATCH, MAX_BATCH` in order.
-            Please notice that if you have m inputs that need dynamic_batchsize, you should input m range lists like
-            [[MIN_BATCH_1, OPT_BATCH_1, MAX_BATCH_1], ..., [MIN_BATCH_m, OPT_BATCH_m, MAX_BATCH_m]] corresponding to the
-            shape in the `inputs_shape` parameter.
+        dynamic_batchsize: a list with three elements to define the batch size range of inputs for the model to be converted.
+            The three number means [MIN_BATCH, OPT_BATCH, MAX_BATCH].
+        device: the index of GPU on which the model is converted.
         args_file: a JSON or YAML file to provide default values for `meta_file`, `config_file`,
             `net_id` and override pairs. so that the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.
@@ -1096,8 +1086,9 @@ def trt_export(
         key_in_ckpt_,
         precision_,
         inputs_shape_,
-        dynamic_batchsize_,
         ir_,
+        dynamic_batchsize_,
+        device,
     ) = _pop_args(
         _args,
         "filepath",
@@ -1108,8 +1099,9 @@ def trt_export(
         key_in_ckpt="",
         precision="fp32",
         inputs_shape=[],
-        dynamic_batchsize=[[1, 4, 8]],
         ir="script",
+        dynamic_batchsize=[],
+        device=None,
     )
 
     parser = ConfigParser()
@@ -1138,6 +1130,7 @@ def trt_export(
         inputs_shape=inputs_shape_,
         dynamic_batchsize=dynamic_batchsize_,
         ir=ir_,
+        device=device,
     )
 
 

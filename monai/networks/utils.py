@@ -629,13 +629,13 @@ def convert_to_torchscript(
 def convert_to_trt(
     model: nn.Module,
     precision: str,
-    inputs_shape: Sequence[Sequence[int]],
-    dynamic_batchsize: Sequence[Sequence[int]],
-    ir: str,
+    inputs_shape: Sequence[int],
+    dynamic_batchsize: Sequence[int] | None = None,
+    ir: str = "script",
     filename_or_obj: Any | None = None,
     verify: bool = False,
     device: torch.device | None = None,
-    rtol: float = 1e-4,
+    rtol: float = 1e-2,
     atol: float = 0.0,
 ):
     """
@@ -644,12 +644,12 @@ def convert_to_trt(
     Args:
         model: a source PyTorch model to save.
         precision: the weight precision of converted TensorRT engine based torchscript models. Should be 'fp32' or 'fp16'.
-        inputs_shape: the inputs' shape that is used to generate random input during the convert. Should be a list with elements
-            like [N, C, H, W] or [N, C, H, W, D].
-        dynamic_batchsize: a list contains three number list elements to define the batch size range of inputs for the
-            converted model. In each element, the three number means `MIN_BATCH, OPT_BATCH, MAX_BATCH` in order.
+        inputs_shape: the input shape that is used to generate random input during the convert. Should be a list like
+            [N, C, H, W] or [N, C, H, W, D].
+        dynamic_batchsize: a list with three elements to define the batch size range of inputs for the model to be converted.
+            The three number means [MIN_BATCH, OPT_BATCH, MAX_BATCH], default to None.
         ir: the intermediate representation way to transform a pytorch module to a TensorRT engine based torchscript. Could
-            be choose from `(script, trace)`.
+            be choose from `(script, trace)`, default to "script.
         filename_or_obj: if not None, specify a file-like object (has to implement write and flush) or a string containing a
             file path name to load the TensorRT engine based torchscript model for verifying.
         verify: whether to verify the input and output of the TensorRT engine based torchscript model.
@@ -667,37 +667,31 @@ def convert_to_trt(
     if not inputs_shape:
         raise ValueError("Missing inputs shape for model convert.")
 
-    device = torch.device("cuda")
-    inputs = [torch.rand(ensure_tuple(cur_shape)) for cur_shape in inputs_shape]
+    if not dynamic_batchsize:
+        warnings.warn(f"There is no dynamic batch range. The converted model only takes {inputs_shape} shape input.")
+
+    device = device if device else torch.device("cuda")
+    inputs = [torch.rand(ensure_tuple(inputs_shape))]
     ir_model = convert_to_torchscript(model, device=device, inputs=inputs, use_trace=(ir == "trace"))
 
     convert_precision = torch.float32 if precision == "fp32" else torch.half
     ir_model.eval().to(device)
-    min_input_shape = []
-    opt_input_shape = []
-    max_input_shape = []
 
     def scale_batch_size(input_shape: Sequence[int], scale_num: int):
         scale_shape = [*input_shape]
         scale_shape[0] *= scale_num
         return scale_shape
 
-    for i in range(len(inputs_shape)):
-        if i < len(dynamic_batchsize):
-            cur_min_shape = scale_batch_size(inputs_shape[i], dynamic_batchsize[i][0])
-            cur_opt_shape = scale_batch_size(inputs_shape[i], dynamic_batchsize[i][1])
-            cur_max_shape = scale_batch_size(inputs_shape[i], dynamic_batchsize[i][2])
-        else:
-            cur_min_shape = cur_opt_shape = cur_max_shape = inputs_shape[i]
-        min_input_shape.append(cur_min_shape)
-        opt_input_shape.append(cur_opt_shape)
-        max_input_shape.append(cur_max_shape)
+    if dynamic_batchsize:
+        min_input_shape = scale_batch_size(inputs_shape, dynamic_batchsize[0])
+        opt_input_shape = scale_batch_size(inputs_shape, dynamic_batchsize[1])
+        max_input_shape = scale_batch_size(inputs_shape, dynamic_batchsize[2])
+    else:
+        min_input_shape = opt_input_shape = max_input_shape = inputs_shape
+
     with torch.no_grad():
         input_placeholder = [
-            torch_tensorrt.Input(
-                min_shape=min_input_shape[i], opt_shape=opt_input_shape[i], max_shape=max_input_shape[i]
-            )
-            for i in range(len(inputs_shape))
+            torch_tensorrt.Input(min_shape=min_input_shape, opt_shape=opt_input_shape, max_shape=max_input_shape)
         ]
         trt_model = torch_tensorrt.compile(ir_model, inputs=input_placeholder, enabled_precisions=convert_precision)
     if verify:
