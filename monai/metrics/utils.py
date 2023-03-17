@@ -222,7 +222,7 @@ def is_binary_tensor(input: torch.Tensor, name: str) -> None:
     """
     if not isinstance(input, torch.Tensor):
         raise ValueError(f"{name} must be of type PyTorch Tensor.")
-    if not torch.all(input.byte() == input):
+    if not torch.all(input.byte() == input) or input.max() > 1 or input.min() < 0:
         warnings.warn(f"{name} should be a binarized tensor.")
 
 

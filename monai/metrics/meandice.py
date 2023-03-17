@@ -62,6 +62,13 @@ class DiceMetric(CumulativeIterationMetric):
         self.reduction = reduction
         self.get_not_nans = get_not_nans
         self.ignore_empty = ignore_empty
+        self.dice_helper = DiceHelper(
+            include_background=self.include_background,
+            reduction=MetricReduction.NONE,
+            get_not_nans=False,
+            softmax=False,
+            ignore_empty=self.ignore_empty,
+        )
 
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         """
@@ -79,13 +86,7 @@ class DiceMetric(CumulativeIterationMetric):
         if dims < 3:
             raise ValueError(f"y_pred should have at least 3 dimensions (batch, channel, spatial), got {dims}.")
         # compute dice (BxC) for each channel for each batch
-        return DiceHelper(  # type: ignore
-            include_background=self.include_background,
-            reduction=MetricReduction.NONE,
-            get_not_nans=False,
-            softmax=False,
-            ignore_empty=self.ignore_empty,
-        )(y_pred=y_pred, y=y)
+        return self.dice_helper(y_pred=y_pred, y=y)  # type: ignore
 
     def aggregate(
         self, reduction: MetricReduction | str | None = None
