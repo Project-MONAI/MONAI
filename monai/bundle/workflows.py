@@ -44,15 +44,18 @@ class BundleWorkflow(ABC):
 
     """
 
+    supported_train_type: tuple = ("train", "training")
+    supported_infer_type: tuple = ("infer", "inference", "eval", "evaluation")
+
     def __init__(self, workflow: str | None = None):
         if workflow is None:
             self.properties = None
             self.workflow = None
             return
-        if workflow.lower() in ("train", "training"):
+        if workflow.lower() in self.supported_train_type:
             self.properties = TrainProperties
             self.workflow = "train"
-        elif workflow.lower() in ("infer", "inference", "eval", "evaluation"):
+        elif workflow.lower() in self.supported_infer_type:
             self.properties = InferProperties
             self.workflow = "infer"
         else:

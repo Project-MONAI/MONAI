@@ -44,7 +44,7 @@ TEST_GET_DATA_STATS_3 = [
             config_file=[
                 os.path.join(_data_dir, "config_fl_stats_1.json"),
                 os.path.join(_data_dir, "config_fl_stats_2.json"),
-            ]
+            ],
         ),
         "config_filters_filename": [
             os.path.join(_data_dir, "config_fl_filters.json"),

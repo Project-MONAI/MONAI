@@ -11,31 +11,19 @@
 
 from __future__ import annotations
 
-import logging
 import os
 from collections.abc import Mapping, MutableMapping
 from typing import Any, cast
 
 import torch
-import torch.distributed as dist
 
-import monai
 from monai.apps.auto3dseg.data_analyzer import DataAnalyzer
 from monai.apps.utils import get_logger
 from monai.auto3dseg import SegSummarizer
 from monai.bundle import BundleWorkflow, ConfigItem, ConfigParser
-from monai.engines import SupervisedTrainer, Trainer
+from monai.engines import SupervisedEvaluator, SupervisedTrainer, Trainer
 from monai.fl.client import ClientAlgo, ClientAlgoStats
-from monai.fl.utils.constants import (
-    BundleKeys,
-    ExtraItems,
-    FiltersType,
-    FlPhase,
-    FlStatistics,
-    ModelType,
-    RequiredBundleKeys,
-    WeightType,
-)
+from monai.fl.utils.constants import ExtraItems, FiltersType, FlPhase, FlStatistics, ModelType, WeightType
 from monai.fl.utils.exchange_object import ExchangeObject
 from monai.networks.utils import copy_model_state, get_state_dict
 from monai.utils import min_version, require_pkg
@@ -100,7 +88,7 @@ class MonaiAlgoStats(ClientAlgoStats):
     ):
         self.logger = logger
         if not isinstance(workflow, BundleWorkflow):
-            raise ValueError("workflow must be a subclass of MONAI BundleWorkflow.")
+            raise ValueError("workflow must be a subclass of BundleWorkflow.")
         if workflow.get_workflow_type() is None:
             raise ValueError("workflow doesn't specify the type.")
         self.workflow = workflow
@@ -293,95 +281,61 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
     FIXME: reimplement this class based on the bundle "ConfigWorkflow".
 
     Args:
-        bundle_root: path of bundle.
+        train_workflow: the bundle workflow to execute training.
+        eval_workflow: the bundle workflow to execute evaluation.
         local_epochs: number of local epochs to execute during each round of local training; defaults to 1.
         send_weight_diff: whether to send weight differences rather than full weights; defaults to `True`.
-        config_train_filename: bundle training config path relative to bundle_root. Can be a list of files;
-            defaults to "configs/train.json".
-        config_evaluate_filename: bundle evaluation config path relative to bundle_root. Can be a list of files.
-            If "default", config_evaluate_filename = ["configs/train.json", "configs/evaluate.json"] will be used;
         config_filters_filename: filter configuration file. Can be a list of files; defaults to `None`.
-        disable_ckpt_loading: do not use any CheckpointLoader if defined in train/evaluate configs; defaults to `True`.
         best_model_filepath: location of best model checkpoint; defaults "models/model.pt" relative to `bundle_root`.
         final_model_filepath: location of final model checkpoint; defaults "models/model_final.pt" relative to `bundle_root`.
         save_dict_key: If a model checkpoint contains several state dicts,
             the one defined by `save_dict_key` will be returned by `get_weights`; defaults to "model".
             If all state dicts should be returned, set `save_dict_key` to None.
-        seed: set random seed for modules to enable or disable deterministic training; defaults to `None`,
-            i.e., non-deterministic training.
-        benchmark: set benchmark to `False` for full deterministic behavior in cuDNN components.
-            Note, full determinism in federated learning depends also on deterministic behavior of other FL components,
-            e.g., the aggregator, which is not controlled by this class.
-        multi_gpu: whether to run MonaiAlgo in a multi-GPU setting; defaults to `False`.
-        backend: backend to use for torch.distributed; defaults to "nccl".
-        init_method: init_method for torch.distributed; defaults to "env://".
-        tracking: if not None, enable the experiment tracking at runtime with optionally configurable and extensible.
-            if "mlflow", will add `MLFlowHandler` to the parsed bundle with default tracking settings,
-            if other string, treat it as file path to load the tracking settings.
-            if `dict`, treat it as tracking settings.
-            will patch the target config content with `tracking handlers` and the top-level items of `configs`.
-            for detailed usage examples, plesae check the tutorial:
-            https://github.com/Project-MONAI/tutorials/blob/main/experiment_management/bundle_integrate_mlflow.ipynb.
+        data_stats_transform_list: transforms to apply for the data stats result.
 
     """
 
     def __init__(
         self,
-        bundle_root: str,
+        train_workflow: BundleWorkflow | None = None,
+        eval_workflow: BundleWorkflow | None = None,
         local_epochs: int = 1,
         send_weight_diff: bool = True,
-        config_train_filename: str | list | None = "configs/train.json",
-        config_evaluate_filename: str | list | None = "default",
         config_filters_filename: str | list | None = None,
-        disable_ckpt_loading: bool = True,
         best_model_filepath: str | None = "models/model.pt",
         final_model_filepath: str | None = "models/model_final.pt",
         save_dict_key: str | None = "model",
-        seed: int | None = None,
-        benchmark: bool = True,
-        multi_gpu: bool = False,
-        backend: str = "nccl",
-        init_method: str = "env://",
-        train_data_key: str | None = BundleKeys.TRAIN_DATA,
-        eval_data_key: str | None = BundleKeys.VALID_DATA,
         data_stats_transform_list: list | None = None,
-        tracking: str | dict | None = None,
     ):
         self.logger = logger
-        if config_evaluate_filename == "default":
-            # by default, evaluator needs both training and evaluate to be instantiated.
-            config_evaluate_filename = ["configs/train.json", "configs/evaluate.json"]
-        self.bundle_root = bundle_root
+        if train_workflow is not None:
+            if not isinstance(train_workflow, BundleWorkflow) or train_workflow.get_workflow_type() != "train":
+                raise ValueError(
+                    f"train workflow must be BundleWorkflow and set type in {BundleWorkflow.supported_train_type}."
+                )
+            # only necessary to initialize AlgoStats when train workflow exists
+            MonaiAlgoStats.__init__(self, workflow=train_workflow, data_stats_transform_list=data_stats_transform_list)
+        if eval_workflow is not None:
+            # evaluation workflow can be "train" type or "infer" type
+            if not isinstance(eval_workflow, BundleWorkflow) or eval_workflow.get_workflow_type() is None:
+                raise ValueError("train workflow must be BundleWorkflow and set type.")
+        self.train_workflow = train_workflow
+        self.eval_workflow = eval_workflow
         self.local_epochs = local_epochs
         self.send_weight_diff = send_weight_diff
-        self.config_train_filename = config_train_filename
-        self.config_evaluate_filename = config_evaluate_filename
         self.config_filters_filename = config_filters_filename
-        self.disable_ckpt_loading = disable_ckpt_loading
         self.model_filepaths = {ModelType.BEST_MODEL: best_model_filepath, ModelType.FINAL_MODEL: final_model_filepath}
         self.save_dict_key = save_dict_key
-        self.seed = seed
-        self.benchmark = benchmark
-        self.multi_gpu = multi_gpu
-        self.backend = backend
-        self.init_method = init_method
-        self.train_data_key = train_data_key
-        self.eval_data_key = eval_data_key
-        self.data_stats_transform_list = data_stats_transform_list
-        self.tracking = tracking
 
         self.app_root = ""
-        self.train_parser: ConfigParser | None = None
-        self.eval_parser: ConfigParser | None = None
         self.filter_parser: ConfigParser | None = None
         self.trainer: SupervisedTrainer | None = None
-        self.evaluator: Any | None = None
+        self.evaluator: SupervisedEvaluator | None = None
         self.pre_filters = None
         self.post_weight_filters = None
         self.post_evaluate_filters = None
         self.iter_of_start_time = 0
         self.global_weights: Mapping | None = None
-        self.rank = 0
 
         self.phase = FlPhase.IDLE
         self.client_name = None
@@ -400,80 +354,46 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             extra = {}
         self.client_name = extra.get(ExtraItems.CLIENT_NAME, "noname")
         self.logger.info(f"Initializing {self.client_name} ...")
-
-        if self.multi_gpu:
-            dist.init_process_group(backend=self.backend, init_method=self.init_method)
-            self._set_cuda_device()
-            self.logger.info(
-                f"Using multi-gpu training on rank {self.rank} (available devices: {torch.cuda.device_count()})"
-            )
-            if self.rank > 0:
-                self.logger.setLevel(logging.WARNING)
-
-        if self.seed:
-            monai.utils.set_determinism(seed=self.seed)
-        torch.backends.cudnn.benchmark = self.benchmark
-
         # FL platform needs to provide filepath to configuration files
         self.app_root = extra.get(ExtraItems.APP_ROOT, "")
 
-        # Read bundle config files
-        self.bundle_root = os.path.join(self.app_root, self.bundle_root)
+        if self.train_workflow is not None:
+            self.train_workflow.initialize()
+            self.train_workflow.bundle_root = os.path.join(self.app_root, self.train_workflow.bundle_root)
+            self.train_workflow.max_epochs = self.local_epochs
+            # initialize the workflow as the content changed
+            self.train_workflow.initialize()
+            self.trainer = self.train_workflow.trainer
+            if not isinstance(self.trainer, SupervisedTrainer):
+                raise ValueError(f"trainer must be SupervisedTrainer, but got: {type(self.trainer)}.")
 
-        config_train_files = self._add_config_files(self.config_train_filename)
-        config_eval_files = self._add_config_files(self.config_evaluate_filename)
-        config_filter_files = self._add_config_files(self.config_filters_filename)
+            config_filter_files = self._add_config_files(self.config_filters_filename)
+            self.filter_parser = ConfigParser()
+            if len(config_filter_files) > 0:
+                self.filter_parser.read_config(config_filter_files)
 
-        # Parse
-        self.train_parser = ConfigParser()
-        self.eval_parser = ConfigParser()
-        self.filter_parser = ConfigParser()
-        if len(config_train_files) > 0:
-            self.train_parser.read_config(config_train_files)
-        if len(config_eval_files) > 0:
-            self.eval_parser.read_config(config_eval_files)
-        if len(config_filter_files) > 0:
-            self.filter_parser.read_config(config_filter_files)
+            # Get filters
+            self.pre_filters = self.filter_parser.get_parsed_content(
+                FiltersType.PRE_FILTERS, default=ConfigItem(None, FiltersType.PRE_FILTERS)
+            )
+            self.post_weight_filters = self.filter_parser.get_parsed_content(
+                FiltersType.POST_WEIGHT_FILTERS, default=ConfigItem(None, FiltersType.POST_WEIGHT_FILTERS)
+            )
+            self.post_evaluate_filters = self.filter_parser.get_parsed_content(
+                FiltersType.POST_EVALUATE_FILTERS, default=ConfigItem(None, FiltersType.POST_EVALUATE_FILTERS)
+            )
+            self.post_statistics_filters = self.filter_parser.get_parsed_content(
+                FiltersType.POST_STATISTICS_FILTERS, default=ConfigItem(None, FiltersType.POST_STATISTICS_FILTERS)
+            )
 
-        # override some config items
-        self.train_parser[RequiredBundleKeys.BUNDLE_ROOT] = self.bundle_root
-        self.eval_parser[RequiredBundleKeys.BUNDLE_ROOT] = self.bundle_root
-        # number of training epochs for each round
-        if BundleKeys.TRAIN_TRAINER_MAX_EPOCHS in self.train_parser:
-            self.train_parser[BundleKeys.TRAIN_TRAINER_MAX_EPOCHS] = self.local_epochs
+        if self.eval_workflow is not None:
+            self.eval_workflow.initialize()
+            self.eval_workflow.bundle_root = os.path.join(self.app_root, self.eval_workflow.bundle_root)
+            self.eval_workflow.initialize()
+            self.evaluator = self.eval_workflow.evaluator
+            if not isinstance(self.evaluator, SupervisedEvaluator):
+                raise ValueError(f"evaluator must be SupervisedEvaluator, but got: {type(self.evaluator)}.")
 
-        # Get trainer, evaluator
-        self.trainer = self.train_parser.get_parsed_content(
-            BundleKeys.TRAINER, default=ConfigItem(None, BundleKeys.TRAINER)
-        )
-        self.evaluator = self.eval_parser.get_parsed_content(
-            BundleKeys.EVALUATOR, default=ConfigItem(None, BundleKeys.EVALUATOR)
-        )
-
-        # Get filters
-        self.pre_filters = self.filter_parser.get_parsed_content(
-            FiltersType.PRE_FILTERS, default=ConfigItem(None, FiltersType.PRE_FILTERS)
-        )
-        self.post_weight_filters = self.filter_parser.get_parsed_content(
-            FiltersType.POST_WEIGHT_FILTERS, default=ConfigItem(None, FiltersType.POST_WEIGHT_FILTERS)
-        )
-        self.post_evaluate_filters = self.filter_parser.get_parsed_content(
-            FiltersType.POST_EVALUATE_FILTERS, default=ConfigItem(None, FiltersType.POST_EVALUATE_FILTERS)
-        )
-        self.post_statistics_filters = self.filter_parser.get_parsed_content(
-            FiltersType.POST_STATISTICS_FILTERS, default=ConfigItem(None, FiltersType.POST_STATISTICS_FILTERS)
-        )
-
-        # Get data location
-        self.dataset_root = self.train_parser.get_parsed_content(
-            BundleKeys.DATASET_DIR, default=ConfigItem(None, BundleKeys.DATASET_DIR)
-        )
-
-        if self.multi_gpu:
-            if self.rank > 0 and self.trainer:
-                self.trainer.logger.setLevel(logging.WARNING)
-            if self.rank > 0 and self.evaluator:
-                self.evaluator.logger.setLevel(logging.WARNING)
         self.logger.info(f"Initialized {self.client_name}.")
 
     def train(self, data: ExchangeObject, extra: dict | None = None) -> None:
@@ -485,7 +405,6 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             extra: Dict with additional information that can be provided by the FL system.
 
         """
-        self._set_cuda_device()
 
         if extra is None:
             extra = {}
@@ -528,10 +447,11 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
                 or load requested model type from disk (`ModelType.BEST_MODEL` or `ModelType.FINAL_MODEL`).
 
         """
-        self._set_cuda_device()
 
         if extra is None:
             extra = {}
+        if self.train_workflow is None or self.trainer is None:
+            raise ValueError("self.trainer should not be None.")
 
         # by default return current weights, return best if requested via model type.
         self.phase = FlPhase.GET_WEIGHTS
@@ -543,7 +463,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
                     f"Expected requested model type to be of type `ModelType` but received {type(model_type)}"
                 )
             if model_type in self.model_filepaths:
-                model_path = os.path.join(self.bundle_root, cast(str, self.model_filepaths[model_type]))
+                model_path = os.path.join(self.train_workflow.bundle_root, cast(str, self.model_filepaths[model_type]))
                 if not os.path.isfile(model_path):
                     raise ValueError(f"No best model checkpoint exists at {model_path}")
                 weights = torch.load(model_path, map_location="cpu")
@@ -558,26 +478,21 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
                     f"Requested model type {model_type} not specified in `model_filepaths`: {self.model_filepaths}"
                 )
         else:
-            if self.trainer:
-                weights = get_state_dict(self.trainer.network)
-                # returned weights will be on the cpu
-                for k in weights.keys():
-                    weights[k] = weights[k].cpu()
-                weigh_type = WeightType.WEIGHTS
-                stats = self.trainer.get_stats()
-                # calculate current iteration and epoch data after training.
-                stats[FlStatistics.NUM_EXECUTED_ITERATIONS] = self.trainer.state.iteration - self.iter_of_start_time
-                # compute weight differences
-                if self.send_weight_diff:
-                    weights = compute_weight_diff(global_weights=self.global_weights, local_var_dict=weights)
-                    weigh_type = WeightType.WEIGHT_DIFF
-                    self.logger.info("Returning current weight differences.")
-                else:
-                    self.logger.info("Returning current weights.")
+            weights = get_state_dict(self.trainer.network)
+            # returned weights will be on the cpu
+            for k in weights.keys():
+                weights[k] = weights[k].cpu()
+            weigh_type = WeightType.WEIGHTS
+            stats = self.trainer.get_stats()
+            # calculate current iteration and epoch data after training.
+            stats[FlStatistics.NUM_EXECUTED_ITERATIONS] = self.trainer.state.iteration - self.iter_of_start_time
+            # compute weight differences
+            if self.send_weight_diff:
+                weights = compute_weight_diff(global_weights=self.global_weights, local_var_dict=weights)
+                weigh_type = WeightType.WEIGHT_DIFF
+                self.logger.info("Returning current weight differences.")
             else:
-                weights = None
-                weigh_type = None
-                stats = dict()
+                self.logger.info("Returning current weights.")
 
         if not isinstance(stats, dict):
             raise ValueError(f"stats is not a dict, {stats}")
@@ -607,7 +522,6 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             return_metrics: `ExchangeObject` containing evaluation metrics.
 
         """
-        self._set_cuda_device()
 
         if extra is None:
             extra = {}
@@ -671,9 +585,6 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             self.logger.info(f"Terminating {self.client_name} evaluator...")
             self.evaluator.terminate()
 
-        if self.multi_gpu:
-            dist.destroy_process_group()
-
     def _check_converted(self, global_weights, local_var_dict, n_converted):
         if n_converted == 0:
             self.logger.warning(
@@ -683,8 +594,3 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             self.logger.info(
                 f"Converted {n_converted} global variables to match {len(local_var_dict)} local variables."
             )
-
-    def _set_cuda_device(self):
-        if self.multi_gpu:
-            self.rank = int(os.environ["LOCAL_RANK"])
-            torch.cuda.set_device(self.rank)

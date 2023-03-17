@@ -51,20 +51,6 @@ class FlStatistics(StrEnum):
     FEATURE_NAMES = "feature_names"
 
 
-class RequiredBundleKeys(StrEnum):
-    BUNDLE_ROOT = "bundle_root"
-
-
-class BundleKeys(StrEnum):
-    TRAINER = "train#trainer"
-    EVALUATOR = "validate#evaluator"
-    TRAIN_TRAINER_MAX_EPOCHS = "train#trainer#max_epochs"
-    VALIDATE_HANDLERS = "validate#handlers"
-    DATASET_DIR = "dataset_dir"
-    TRAIN_DATA = "train#dataset#data"
-    VALID_DATA = "validate#dataset#data"
-
-
 class FiltersType(StrEnum):
     PRE_FILTERS = "pre_filters"
     POST_WEIGHT_FILTERS = "post_weight_filters"
