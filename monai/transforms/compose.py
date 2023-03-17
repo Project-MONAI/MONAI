@@ -391,7 +391,7 @@ class SomeOf(Compose):
         unpack_items: bool = False,
         log_stats: bool = False,
         *,
-        num_transforms: int | tuple[int, int] = None,
+        num_transforms: int | tuple[int, int] | None = None,
         replace: bool = False,
         weights: list[int] | None = None,
     ) -> None:
