@@ -765,6 +765,7 @@ def _get_net_io_info(
     if not isinstance(parser, ConfigParser):
         raise AttributeError(f"'parser' should be a ConfigParser, got {type(parser)}.")
 
+    prefix_key = f"{prefix}#inputs"
     key = f"{prefix_key}#image#num_channels"
     input_channels = parser.get(key)
     key = f"{prefix_key}#image#spatial_shape"
