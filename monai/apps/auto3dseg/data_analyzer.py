@@ -17,6 +17,7 @@ from typing import Any, cast
 
 import numpy as np
 import torch
+from torch.multiprocessing import Process, set_start_method, Manager
 
 from monai.apps.auto3dseg.transforms import EnsureSameShaped
 from monai.apps.utils import get_logger
@@ -24,12 +25,15 @@ from monai.auto3dseg import SegSummarizer
 from monai.auto3dseg.utils import datafold_read
 from monai.bundle import config_parser
 from monai.bundle.config_parser import ConfigParser
-from monai.data import DataLoader, Dataset
+from monai.data import DataLoader, Dataset, partition_dataset
 from monai.data.utils import no_collation
 from monai.transforms import Compose, EnsureTyped, LoadImaged, Orientationd
 from monai.utils import StrEnum, min_version, optional_import
 from monai.utils.enums import DataStatsKeys, ImageStatsKeys
 
+import warnings
+# remove the warning "warnings.warn(f"Modifying image pixdim from {pixdim} to {norm}")"
+warnings.filterwarnings("ignore", category=UserWarning, module='monai')
 
 def strenum_representer(dumper, data):
     return dumper.represent_scalar("tag:yaml.org,2002:str", data.value)
@@ -115,10 +119,10 @@ class DataAnalyzer:
         self,
         datalist: str | dict,
         dataroot: str = "",
-        output_path: str = "./datastats.yaml",
+        output_path: str = "./data_stats.yaml",
         average: bool = True,
         do_ccp: bool = False,
-        device: str | torch.device = "cpu",
+        device: str | torch.device = "cuda",
         worker: int = 4,
         image_key: str = "image",
         label_key: str | None = "label",
@@ -169,6 +173,58 @@ class DataAnalyzer:
         return True
 
     def get_all_case_stats(self, key="training", transform_list=None):
+        """ Wrapper for the internal _get_all_case_stats to perform multi-gpu processing
+        """
+        if self.device.type == 'cpu':
+            nprocs = 1
+            print(f'Using CPU for data analyzing!')
+        else:
+            nprocs = torch.cuda.device_count()
+            print(f'Found {nprocs} GPUs for data analyzing!')
+        set_start_method('forkserver', force=True)  
+        with Manager() as manager:
+            manager_list = manager.list()
+            processes = []
+            for rank in range(nprocs):
+                p = Process(target=self._get_all_case_stats, args=(rank, nprocs, manager_list, key, transform_list))
+                processes.append(p)
+            for p in processes:
+                p.start()
+            for p in processes:
+                p.join()
+            # merge DataStatsKeys.BY_CASE
+            result: dict[DataStatsKeys, Any] = {DataStatsKeys.SUMMARY: {}, DataStatsKeys.BY_CASE: []}
+            for _ in manager_list:
+                result[DataStatsKeys.BY_CASE].extend(_[DataStatsKeys.BY_CASE])
+            summarizer = SegSummarizer(
+                self.image_key,
+                self.label_key,
+                average=self.average,
+                do_ccp=self.do_ccp,
+                hist_bins=self.hist_bins,
+                hist_range=self.hist_range,
+                histogram_only=self.histogram_only,
+            )
+            result[DataStatsKeys.SUMMARY] = summarizer.summarize(cast(list, result[DataStatsKeys.BY_CASE]))
+
+            if not self._check_data_uniformity([ImageStatsKeys.SPACING], result):
+                print("Data spacing is not completely uniform. MONAI transforms may provide unexpected result")
+
+            if self.output_path:
+                ConfigParser.export_config_file(
+                    result, self.output_path, fmt=self.fmt, default_flow_style=None, sort_keys=False
+                )
+
+            # release memory
+            d = None
+            if self.device.type == "cuda":
+                # release unreferenced tensors to mitigate OOM
+                # limitation: https://github.com/pytorch/pytorch/issues/12873#issuecomment-482916237
+                torch.cuda.empty_cache()
+
+            return result
+
+    def _get_all_case_stats(self, rank: int=0, world_size: int=1, manager_list: Manager.list=[], key="training", transform_list=None):
         """
         Get all case stats. Caller of the DataAnalyser class. The function iterates datalist and
         call get_case_stats to generate stats. Then get_case_summary is called to combine results.
@@ -224,31 +280,23 @@ class DataAnalyzer:
                 )
 
         transform = Compose(transform_list)
-
         files, _ = datafold_read(datalist=self.datalist, basedir=self.dataroot, fold=-1, key=key)
+        files = partition_dataset(data=files, num_partitions=world_size)[rank]
         dataset = Dataset(data=files, transform=transform)
-        dataloader = DataLoader(
-            dataset,
-            batch_size=1,
-            shuffle=False,
-            num_workers=self.worker,
-            collate_fn=no_collation,
-            pin_memory=self.device.type == "cuda",
-        )
+        dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=self.worker, collate_fn=no_collation)
         result: dict[DataStatsKeys, Any] = {DataStatsKeys.SUMMARY: {}, DataStatsKeys.BY_CASE: []}
-        result_bycase: dict[DataStatsKeys, Any] = {DataStatsKeys.SUMMARY: {}, DataStatsKeys.BY_CASE: []}
-
+        device = self.device if self.device.type == 'cpu' else torch.device(f'cuda',rank)
         if not has_tqdm:
             warnings.warn("tqdm is not installed. not displaying the caching progress.")
 
-        for batch_data in tqdm(dataloader) if has_tqdm else dataloader:
+        for batch_data in tqdm(dataloader) if (has_tqdm and rank==0) else dataloader:
             batch_data = batch_data[0]
-            batch_data[self.image_key] = batch_data[self.image_key].to(self.device)
+            batch_data[self.image_key] = batch_data[self.image_key].to(device)
 
             if self.label_key is not None:
                 label = batch_data[self.label_key]
                 label = torch.argmax(label, dim=0) if label.shape[0] > 1 else label[0]
-                batch_data[self.label_key] = label.to(self.device)
+                batch_data[self.label_key] = label.to(device)
 
             d = summarizer(batch_data)
 
@@ -267,37 +315,7 @@ class DataAnalyzer:
                         DataStatsKeys.LABEL_STATS: d[DataStatsKeys.LABEL_STATS],
                     }
                 )
-            result_bycase[DataStatsKeys.BY_CASE].append(stats_by_cases)
+            result[DataStatsKeys.BY_CASE].append(stats_by_cases)
+        manager_list.append(result)
 
-        n_cases = len(result_bycase[DataStatsKeys.BY_CASE])
 
-        result[DataStatsKeys.SUMMARY] = summarizer.summarize(cast(list, result_bycase[DataStatsKeys.BY_CASE]))
-        result[DataStatsKeys.SUMMARY]["n_cases"] = n_cases
-        result[DataStatsKeys.BY_CASE] = [None] * n_cases
-
-        if not self._check_data_uniformity([ImageStatsKeys.SPACING], result):
-            print("Data spacing is not completely uniform. MONAI transforms may provide unexpected result")
-
-        if self.output_path:
-            # saving summary and by_case as 2 files, to minimize loading time when only the summary is necessary
-            ConfigParser.export_config_file(
-                result, self.output_path, fmt=self.fmt, default_flow_style=None, sort_keys=False
-            )
-            ConfigParser.export_config_file(
-                result_bycase,
-                self.output_path.replace(".yaml", "_by_case.yaml"),
-                fmt=self.fmt,
-                default_flow_style=None,
-                sort_keys=False,
-            )
-
-        # release memory
-        d = None
-        if self.device.type == "cuda":
-            # release unreferenced tensors to mitigate OOM
-            # limitation: https://github.com/pytorch/pytorch/issues/12873#issuecomment-482916237
-            torch.cuda.empty_cache()
-
-        # return combined
-        result[DataStatsKeys.BY_CASE] = result_bycase[DataStatsKeys.BY_CASE]
-        return result
