@@ -910,7 +910,7 @@ def _export(
         ckpt = torch.load(ckpt_file)
         copy_model_state(dst=net, src=ckpt if key_in_ckpt == "" else ckpt[key_in_ckpt])
 
-    # convert to TorchScript model and save with metadata, config content
+    # Use the given converter to convert a model and save with metadata, config content
     net = converter(model=net, **kwargs)
 
     extra_files: dict = {}
@@ -936,7 +936,7 @@ def _export(
         meta_values=parser.get().pop("_meta_", None),
         more_extra_files=extra_files,
     )
-    logger.info(f"exported to TorchScript file: {filepath}.")
+    logger.info(f"exported to file: {filepath}.")
 
 
 def ckpt_export(
@@ -1049,12 +1049,12 @@ def trt_export(
         key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
             weights. if not nested checkpoint, no need to set.
         precision: the weight precision of converted TensorRT engine based torchscript models. Should be 'fp32' or 'fp16'.
-        inputs_shape: the input shape that is used to generate random input during the convert. Should be a list like
-            [N, C, H, W] or [N, C, H, W, D].
+        inputs_shape: the input shape that is used to convert the model. Should be a list like [N, C, H, W] or
+            [N, C, H, W, D].
         ir: the intermediate representation way to transform a pytorch module to a TensorRT engine based torchscript. Could
             be choose from `(script, trace)`.
         dynamic_batchsize: a list with three elements to define the batch size range of inputs for the model to be converted.
-            The three number means [MIN_BATCH, OPT_BATCH, MAX_BATCH].
+            Should be a list like [MIN_BATCH, OPT_BATCH, MAX_BATCH].
         device: the index of GPU on which the model is converted.
         args_file: a JSON or YAML file to provide default values for `meta_file`, `config_file`,
             `net_id` and override pairs. so that the command line inputs can be simplified.
