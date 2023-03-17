@@ -891,13 +891,13 @@ def _export(
         converter: a callable object that takes a torch.nn.module and kwargs as input and
             converts the module to another type.
         parser: a ConfigParser of the bundle to be converted.
-        net_id: ID name of the network component in the config, it must be `torch.nn.Module`.
+        net_id: ID name of the network component in the parser, it must be `torch.nn.Module`.
         filepath: filepath to export, if filename has no extension, it becomes `.ts`.
         ckpt_file: filepath of the model checkpoint to load.
-        config_file: filepath of the config file to save in the converted model and extract network information,
-            the saved key in the converted model is the config filename without extension, and the saved config
-            value is always serialized in JSON format no matter the original file format is JSON or YAML.
-            it can be a single file or a list of files. if `None`, must be provided in `args_file`.
+        config_file: filepath of the config file to save in the converted model,the saved key in the converted
+            model is the config filename without extension, and the saved config value is always serialized in
+            JSON format no matter the original file format is JSON or YAML. it can be a single file or a list
+            of files.
         key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
             weights. if not nested checkpoint, no need to set.
         kwargs: key arguments for the converter.

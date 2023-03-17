@@ -654,8 +654,8 @@ def convert_to_trt(
             file path name to load the TensorRT engine based torchscript model for verifying.
         verify: whether to verify the input and output of the TensorRT engine based torchscript model.
         device: the target GPU index to convert and verify the model. If None, use #0 GPU.
-        rtol: the relative tolerance when comparing the outputs of PyTorch model and TensorRT model.
-        atol: the absolute tolerance when comparing the outputs of PyTorch model and TensorRT model.
+        rtol: the relative tolerance when comparing the outputs between the PyTorch model and TensorRT model.
+        atol: the absolute tolerance when comparing the outputs between the PyTorch model and TensorRT model.
     """
 
     if not has_torch_tensorrt:
