@@ -739,23 +739,17 @@ def verify_metadata(
     logger.info("metadata is verified with no error.")
 
 
-def _get_net_io_info(
-    parser: ConfigParser | None = None, prefix: str = "_meta_#network_data_format", p: int = 1, n: int = 1, any: int = 1
-) -> tuple:
+def _get_net_io_info(parser: ConfigParser | None = None, prefix: str = "_meta_#network_data_format") -> tuple:
     """
     Get the input and output information defined in the metadata.
 
     Args:
-        parser: a parser of the given bundle.
+        parser: a ConfigParser of the given bundle.
         prefix: a prefix for the input and output ID, which will be combined as `prefix#inputs` and
             `prefix#outputs` to parse the input and output information in the `metadata.json` file of
             a bundle, default to `meta_#network_data_format`.
-        p: power factor to generate input data shape if dim of expected shape is "x**p", default to 1.
-        n: multiply factor to generate input data shape if dim of expected shape is "x*n", default to 1.
-        any: specified size to generate input data shape if dim of expected shape is "*", default to 1.
 
     Returns:
-        input_shape: the shape of `image` input with batch size 1.
         input_channels: the channel number of the `image` input.
         input_spatial_shape: the spatial shape of the `image` input.
         input_dtype: the data type of the `image` input.
@@ -772,8 +766,6 @@ def _get_net_io_info(
     input_spatial_shape = tuple(parser.get(key))
     key = f"{prefix_key}#image#dtype"
     input_dtype = get_equivalent_dtype(parser.get(key), torch.Tensor)
-    spatial_shape = _get_fake_spatial_shape(input_spatial_shape, p=p, n=n, any=any)
-    input_shape = [1, input_channels, *spatial_shape]
 
     prefix_key = f"{prefix}#outputs"
     key = f"{prefix_key}#pred#num_channels"
@@ -781,7 +773,7 @@ def _get_net_io_info(
     key = f"{prefix_key}#pred#dtype"
     output_dtype = get_equivalent_dtype(parser.get(key), torch.Tensor)
 
-    return (input_shape, input_channels, input_spatial_shape, input_dtype, output_channels, output_dtype)
+    return (input_channels, input_spatial_shape, input_dtype, output_channels, output_dtype)
 
 
 def verify_net_in_out(
@@ -846,7 +838,7 @@ def verify_net_in_out(
     for k, v in _args.items():
         parser[k] = v
 
-    _, input_channels, input_spatial_shape, input_dtype, output_channels, output_dtype = _get_net_io_info(parser=parser)
+    input_channels, input_spatial_shape, input_dtype, output_channels, output_dtype = _get_net_io_info(parser=parser)
     try:
         key: str = net_id_  # mark the full id when KeyError
         net = parser.get_parsed_content(key).to(device_)
@@ -1117,8 +1109,9 @@ def trt_export(
         parser[k] = v
 
     if not input_shape_:
-        net_io_info = _get_net_io_info(parser)
-        input_shape_ = net_io_info[0]
+        input_channels, input_spatial_shape, _, _, _ = _get_net_io_info(parser=parser)
+        spatial_shape = _get_fake_spatial_shape(input_spatial_shape, p=1, n=1, any=1)
+        input_shape_ = [1, input_channels, *spatial_shape]
 
     _export(
         convert_to_trt,
