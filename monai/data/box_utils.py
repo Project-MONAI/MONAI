@@ -494,7 +494,7 @@ def get_boxmode(mode: str | BoxMode | type[BoxMode] | None = None, *args, **kwar
     return StandardMode(*args, **kwargs)
 
 
-def standardize_empty_box(boxes: NdarrayOrTensor, spatial_dims: int):
+def standardize_empty_box(boxes: NdarrayOrTensor, spatial_dims: int) -> NdarrayOrTensor:
     """
     When boxes are empty, this function standardize it to shape of (0,4) or (0,6).
 

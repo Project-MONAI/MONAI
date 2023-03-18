@@ -75,7 +75,7 @@ class StandardizeEmptyBox(Transform):
     def __init__(self, spatial_dims: int) -> None:
         self.spatial_dims = spatial_dims
 
-    def __call__(self, boxes: NdarrayOrTensor) -> NdarrayOrTensor:  # type: ignore
+    def __call__(self, boxes: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             boxes: source bounding boxes, Nx4 or Nx6 or 0xM torch tensor or ndarray.

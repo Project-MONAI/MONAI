@@ -140,7 +140,7 @@ class StandardizeEmptyBoxd(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
-        return data
+        return dict(data)
 
 
 class ConvertBoxModed(MapTransform, InvertibleTransform):
