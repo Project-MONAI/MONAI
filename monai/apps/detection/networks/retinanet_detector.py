@@ -877,7 +877,7 @@ class RetinaNetDetector(nn.Module):
 
         foreground_idxs_per_image = matched_idxs_per_image >= 0
 
-        num_foreground = foreground_idxs_per_image.sum()
+        num_foreground = int(foreground_idxs_per_image.sum())
         num_gt_box = targets_per_image[self.target_box_key].shape[0]
 
         if self.debug:

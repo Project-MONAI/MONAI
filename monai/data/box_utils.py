@@ -394,20 +394,20 @@ def get_spatial_dims(
     spatial_dims_set = set()
 
     # Check the validity of each input and add its corresponding spatial_dims to spatial_dims_set
-    if boxes is not None:
-        if int(boxes.shape[1]) not in [4, 6]:
+    if boxes is not None and len(boxes.shape) == 2:
+        if int(boxes.shape[1] / 2) not in SUPPORTED_SPATIAL_DIMS:
             raise ValueError(
                 f"Currently we support only boxes with shape [N,4] or [N,6], got boxes with shape {boxes.shape}."
             )
         spatial_dims_set.add(int(boxes.shape[1] / 2))
-    if points is not None:
+    if points is not None and len(points.shape) == 2:
         if int(points.shape[1]) not in SUPPORTED_SPATIAL_DIMS:
             raise ValueError(
                 f"Currently we support only points with shape [N,2] or [N,3], got boxes with shape {points.shape}."
             )
         spatial_dims_set.add(int(points.shape[1]))
     if corners is not None:
-        if len(corners) not in [4, 6]:
+        if len(corners) // 2 not in SUPPORTED_SPATIAL_DIMS:
             raise ValueError(
                 f"Currently we support only boxes with shape [N,4] or [N,6], got box corner tuple with length {len(corners)}."
             )
@@ -494,6 +494,33 @@ def get_boxmode(mode: str | BoxMode | type[BoxMode] | None = None, *args, **kwar
     return StandardMode(*args, **kwargs)
 
 
+def standardize_empty_box(boxes: NdarrayOrTensor, spatial_dims: int):
+    """
+    When boxes are empty, this function standardize it to shape of (0,4) or (0,6).
+
+    Args:
+        boxes: bounding boxes, Nx4 or Nx6 or empty torch tensor or ndarray
+        spatial_dims: number of spatial dimensions of the bounding boxes.
+
+    Returns:
+        bounding boxes with shape (N,4) or (N,6), N can be 0.
+
+    Example:
+        .. code-block:: python
+
+            boxes = torch.ones(0,)
+            standardize_empty_box(boxes, 3)
+    """
+    # convert numpy to tensor if needed
+    boxes_t, *_ = convert_data_type(boxes, torch.Tensor)
+    # handle empty box
+    if boxes_t.shape[0] == 0:
+        boxes_t = torch.reshape(boxes_t, [0, spatial_dims * 2])
+    # convert tensor back to numpy if needed
+    boxes_dst, *_ = convert_to_dst_type(src=boxes_t, dst=boxes)
+    return boxes_dst
+
+
 def convert_box_mode(
     boxes: NdarrayOrTensor,
     src_mode: str | BoxMode | type[BoxMode] | None = None,
@@ -522,6 +549,10 @@ def convert_box_mode(
             convert_box_mode(boxes=boxes, src_mode="xyxy", dst_mode=monai.data.box_utils.CenterSizeMode)
             convert_box_mode(boxes=boxes, src_mode="xyxy", dst_mode=monai.data.box_utils.CenterSizeMode())
     """
+    # handle empty box
+    if boxes.shape[0] == 0:
+        return boxes
+
     src_boxmode = get_boxmode(src_mode)
     dst_boxmode = get_boxmode(dst_mode)
 

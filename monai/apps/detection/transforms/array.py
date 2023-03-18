@@ -28,6 +28,7 @@ from monai.data.box_utils import (
     convert_box_to_standard_mode,
     get_spatial_dims,
     spatial_crop_boxes,
+    standardize_empty_box,
 )
 from monai.transforms import Rotate90, SpatialCrop
 from monai.transforms.transform import Transform
@@ -46,6 +47,7 @@ from .box_ops import (
 )
 
 __all__ = [
+    "StandardizeEmptyBox",
     "ConvertBoxToStandardMode",
     "ConvertBoxMode",
     "AffineBox",
@@ -58,6 +60,27 @@ __all__ = [
     "SpatialCropBox",
     "RotateBox90",
 ]
+
+
+class StandardizeEmptyBox(Transform):
+    """
+    When boxes are empty, this transform standardize it to shape of (0,4) or (0,6).
+
+    Args:
+        spatial_dims: number of spatial dimensions of the bounding boxes.
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(self, spatial_dims: int) -> None:
+        self.spatial_dims = spatial_dims
+
+    def __call__(self, boxes: NdarrayOrTensor) -> NdarrayOrTensor:  # type: ignore
+        """
+        Args:
+            boxes: source bounding boxes, Nx4 or Nx6 or 0xM torch tensor or ndarray.
+        """
+        return standardize_empty_box(boxes, spatial_dims=self.spatial_dims)
 
 
 class ConvertBoxMode(Transform):
