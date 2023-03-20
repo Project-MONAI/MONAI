@@ -646,8 +646,8 @@ def convert_to_trt(
         precision: the weight precision of the converted TensorRT engine based torchscript models. Should be 'fp32' or 'fp16'.
         input_shape: the input shape that is used to convert the model. Should be a list like [N, C, H, W] or
             [N, C, H, W, D].
-        dynamic_batchsize: a list with three elements to define the batch size range of the input for the model to be converted.
-            Should be a list like [MIN_BATCH, OPT_BATCH, MAX_BATCH], default to None.
+        dynamic_batchsize: a sequence with three elements to define the batch size range of the input for the model to be converted.
+            Should be a sequence like [MIN_BATCH, OPT_BATCH, MAX_BATCH], default to None.
         use_trace: whether using `torch.jit.trace` to convert the pytorch model to torchscript model and then convert to
             a TensorRT engine based torchscript model, default to False.
         filename_or_obj: if not None, specify a file-like object (has to implement write and flush) or a string containing a
@@ -669,6 +669,9 @@ def convert_to_trt(
 
     if not dynamic_batchsize:
         warnings.warn(f"There is no dynamic batch range. The converted model only takes {input_shape} shape input.")
+
+    if (not (dynamic_batchsize is None)) and (len(dynamic_batchsize) != 3):
+        warnings.warn(f"The dynamic batch range sequence should have 3 elements, but got {dynamic_batchsize} elements.")
 
     device = device if device else 0
     target_device = torch.device(f"cuda:{device}") if device else torch.device("cuda:0")

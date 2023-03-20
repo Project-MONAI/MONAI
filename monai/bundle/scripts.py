@@ -1065,8 +1065,8 @@ def trt_export(
             [N, C, H, W, D].
         use_trace: whether using `torch.jit.trace` to convert the pytorch model to torchscript model and then convert to
             a TensorRT engine based torchscript model.
-        dynamic_batchsize: a list with three elements to define the batch size range of the input for the model to be converted.
-            Should be a list like [MIN_BATCH, OPT_BATCH, MAX_BATCH].
+        dynamic_batchsize: a sequence with three elements to define the batch size range of the input for the model to be converted.
+            Should be a sequence like [MIN_BATCH, OPT_BATCH, MAX_BATCH].
         device: the target GPU index to convert and verify the model.
         args_file: a JSON or YAML file to provide default values for `meta_file`, `config_file`,
             `net_id` and override pairs. so that the command line inputs can be simplified.
