@@ -25,9 +25,10 @@ from monai.networks.blocks.dints_block import (
     FactorizedReduceBlock,
     P3DActiConvNormBlock,
 )
+from monai.networks.blocks.upsample import UpSample
 from monai.networks.layers.factories import Conv
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
-from monai.utils import optional_import
+from monai.utils import UpsampleMode, optional_import
 
 # solving shortest path problem
 csr_matrix, _ = optional_import("scipy.sparse", name="csr_matrix")
@@ -345,6 +346,13 @@ class DiNTS(nn.Module):
         node_a: node activation numpy matrix. Its shape is `(num_depths, num_blocks + 1)`.
             +1 for multi-resolution inputs.
             In model searching stage, ``node_a`` can be None. In deployment stage, ``node_a`` cannot be None.
+        upsample_mode: [``"deconv"``, ``"nontrainable"``, ``"pixelshuffle"``]
+            The mode of upsampling manipulations.
+            Using the ``nontrainable`` modes cannot guarantee the model's reproducibility. Defaults to``nontrainable``.
+
+            - ``deconv``, uses transposed convolution layers.
+            - ``nontrainable``, uses non-trainable `linear` interpolation.
+            - ``pixelshuffle``, uses :py:class:`monai.networks.blocks.SubpixelUpsample`.
     """
 
     def __init__(
@@ -357,6 +365,7 @@ class DiNTS(nn.Module):
         spatial_dims: int = 3,
         use_downsample: bool = True,
         node_a=None,
+        upsample_mode: UpsampleMode | str = UpsampleMode.NONTRAINABLE,
     ):
         super().__init__()
 
@@ -400,7 +409,7 @@ class DiNTS(nn.Module):
             # define downsample stems before DiNTS search
             if use_downsample:
                 self.stem_down[str(res_idx)] = StemTS(
-                    nn.Upsample(scale_factor=1 / (2**res_idx), mode=mode, align_corners=True),
+                    UpSample(self._spatial_dims, scale_factor=1 / (2**res_idx), mode=upsample_mode, interp_mode=mode),
                     conv_type(
                         in_channels=in_channels,
                         out_channels=self.filter_nums[res_idx],
@@ -438,12 +447,12 @@ class DiNTS(nn.Module):
                         dilation=1,
                     ),
                     get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=self.filter_nums[res_idx]),
-                    nn.Upsample(scale_factor=2, mode=mode, align_corners=True),
+                    UpSample(self._spatial_dims, scale_factor=2, mode=upsample_mode, interp_mode=mode),
                 )
 
             else:
                 self.stem_down[str(res_idx)] = StemTS(
-                    nn.Upsample(scale_factor=1 / (2**res_idx), mode=mode, align_corners=True),
+                    UpSample(self._spatial_dims, scale_factor=1 / (2**res_idx), mode=upsample_mode, interp_mode=mode),
                     conv_type(
                         in_channels=in_channels,
                         out_channels=self.filter_nums[res_idx],
@@ -471,7 +480,9 @@ class DiNTS(nn.Module):
                     get_norm_layer(
                         name=norm_name, spatial_dims=spatial_dims, channels=self.filter_nums[max(res_idx - 1, 0)]
                     ),
-                    nn.Upsample(scale_factor=2 ** (res_idx != 0), mode=mode, align_corners=True),
+                    UpSample(
+                        self._spatial_dims, scale_factor=2 ** (res_idx != 0), mode=upsample_mode, interp_mode=mode
+                    ),
                 )
 
     def weight_parameters(self):
