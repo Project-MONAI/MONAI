@@ -33,7 +33,7 @@ __all__ = ["nnUNetV2Runner"]
 
 
 class nnUNetV2Runner:  # noqa: N801
-    def __init__(self, input, work_dir: str = "work_dir"):
+    def __init__(self, input, work_dir: str = "work_dir") -> None:
         """
         An interface for handling nnU-Net V2 with minimal inputs and understanding of the internal states in nnU-Net.
         The users can run the nnU-Net V2 with default settings in one line of code. They can also run parts of the process
@@ -51,7 +51,7 @@ class nnUNetV2Runner:  # noqa: N801
             input: the configuration dictionary or the file path to the configuration in form of YAML.
                 The configuration should contain datalist, dataroot, modality.
         """
-        self.input_info = []
+        self.input_info: dict = {}
         self.input_config_or_dict = input
         self.work_dir = work_dir
 
@@ -164,7 +164,7 @@ class nnUNetV2Runner:  # noqa: N801
                 num_foreground_classes = max(num_foreground_classes, int(seg.max()))
             logger.warning(f"[info] num_foreground_classes: {num_foreground_classes}")
 
-            new_json_data = {}
+            new_json_data: dict = {}
 
             modality = self.input_info.pop("modality")
             if not isinstance(modality, list):
@@ -192,9 +192,7 @@ class nnUNetV2Runner:  # noqa: N801
             )
 
             _index = 0
-            new_datalist_json = {}
-            new_datalist_json["training"] = []
-            new_datalist_json[test_key] = []
+            new_datalist_json = {"training": [], test_key: []}
 
             for _key, _folder, _label_folder in list(
                 zip(["training", test_key], ["imagesTr", "imagesTs"], ["labelsTr", "labelsTs"])
@@ -255,18 +253,18 @@ class nnUNetV2Runner:  # noqa: N801
             logger.warning("Input '.yaml' is incorrect.")
             return
 
-    def convert_msd_dataset(self, data_dir: str, overwrite_id=None, np: int = -1):
+    def convert_msd_dataset(self, data_dir: str, overwrite_id=None, n_proc: int = -1) -> None:
         """
         Args:
             data_dir: downloaded and extracted MSD dataset folder. CANNOT be nnUNetv1 dataset! Example:
                 "/workspace/downloads/Task05_Prostate")
             overwrite_id: Overwrite the dataset id. If not set then use the id of the MSD task (inferred from
                 folder name). Only use this if you already have an equivalently numbered dataset!
-            np: Number of processes used
+            n_proc: Number of processes used
         """
         from nnunetv2.dataset_conversion.convert_MSD_dataset import convert_msd_dataset
 
-        num_processes = None if np < 0 else self.default_num_processes
+        num_processes = None if n_proc < 0 else self.default_num_processes
         convert_msd_dataset(data_dir, overwrite_id, num_processes)
 
     def extract_fingerprints(
@@ -276,7 +274,7 @@ class nnUNetV2Runner:  # noqa: N801
         verify_dataset_integrity: bool = False,
         clean: bool = False,
         verbose: bool = False,
-    ):
+    ) -> None:
         """
         Args:
             fpe: [OPTIONAL] Name of the Dataset Fingerprint Extractor class that should be used. Default is
@@ -342,11 +340,11 @@ class nnUNetV2Runner:  # noqa: N801
 
     def preprocess(
         self,
-        c: list = ["2d", "3d_fullres", "3d_lowres"],
-        np: list = [8, 8, 8],
+        c: tuple = ("2d", "3d_fullres", "3d_lowres"),
+        n_proc: tuple = (8, 8, 8),
         overwrite_plans_name: str = "nnUNetPlans",
         verbose: bool = False,
-    ):
+    ) -> None:
         """
         Args:
             overwrite_plans_name: [OPTIONAL] You can use this to specify a custom plans file that you may have
@@ -354,16 +352,16 @@ class nnUNetV2Runner:  # noqa: N801
             c: [OPTIONAL] Configurations for which the preprocessing should be run. Default: 2d 3f_fullres
                 3d_lowres. 3d_cascade_fullres does not need to be specified because it uses the data
                 from 3f_fullres. Configurations that do not exist for some dataset will be skipped)
-            np: [OPTIONAL] Use this to define how many processes are to be used. If this is just one number then
+            n_proc: [OPTIONAL] Use this to define how many processes are to be used. If this is just one number then
                 this number of processes is used for all configurations specified with -c. If it's a
                 list of numbers this list must have as many elements as there are configurations. We
                 then iterate over zip(configs, num_processes) to determine then umber of processes
                 used for each configuration. More processes is always faster (up to the number of
                 threads your PC can support, so 8 for a 4 core CPU with hyperthreading. If you don't
-                know what that is then dont touch it, or at least don't increase it!). DANGER: More
+                know what that is then don't touch it, or at least don't increase it!). DANGER: More
                 often than not the number of processes that can be used is limited by the amount of
                 RAM available. Image resampling takes up a lot of RAM. MONITOR RAM USAGE AND
-                DECREASE -np IF YOUR RAM FILLS UP TOO MUCH!. Default: 8 4 8 (=8 processes for 2d, 4
+                DECREASE -n_proc IF YOUR RAM FILLS UP TOO MUCH!. Default: 8 4 8 (=8 processes for 2d, 4
                 for 3d_fullres and 8 for 3d_lowres if -c is at its default)
             verbose:Set this to print a lot of stuff. Useful for debugging. Will disable progrewss bar!
                 Recommended for cluster environments
@@ -372,7 +370,11 @@ class nnUNetV2Runner:  # noqa: N801
 
         logger.warning("Preprocessing...")
         preprocess(
-            [int(self.dataset_name_or_id)], overwrite_plans_name, configurations=c, num_processes=np, verbose=verbose
+            [int(self.dataset_name_or_id)],
+            overwrite_plans_name,
+            configurations=c,
+            num_processes=n_proc,
+            verbose=verbose,
         )
 
     def plan_and_process(
@@ -387,10 +389,10 @@ class nnUNetV2Runner:  # noqa: N801
         preprocessor_name="DefaultPreprocessor",
         overwrite_target_spacing=None,
         overwrite_plans_name="nnUNetPlans",
-        c=["2d", "3d_fullres", "3d_lowres"],
-        np: list = [8, 8, 8],
+        c=("2d", "3d_fullres", "3d_lowres"),
+        n_proc: tuple = (8, 8, 8),
         verbose: bool = False,
-    ):
+    ) -> None:
         """
         Args:
             fpe: [OPTIONAL] Name of the Dataset Fingerprint Extractor class that should be used. Default is
@@ -428,25 +430,25 @@ class nnUNetV2Runner:  # noqa: N801
             c: [OPTIONAL] Configurations for which the preprocessing should be run. Default: 2d 3f_fullres
                 3d_lowres. 3d_cascade_fullres does not need to be specified because it uses the data
                 from 3f_fullres. Configurations that do not exist for some dataset will be skipped.
-            np: [OPTIONAL] Use this to define how many processes are to be used. If this is just one number then
+            n_proc: [OPTIONAL] Use this to define how many processes are to be used. If this is just one number then
                 this number of processes is used for all configurations specified with -c. If it's a
                 list of numbers this list must have as many elements as there are configurations. We
                 then iterate over zip(configs, num_processes) to determine then umber of processes
                 used for each configuration. More processes is always faster (up to the number of
                 threads your PC can support, so 8 for a 4 core CPU with hyperthreading. If you don't
-                know what that is then dont touch it, or at least don't increase it!). DANGER: More
+                know what that is then don't touch it, or at least don't increase it!). DANGER: More
                 often than not the number of processes that can be used is limited by the amount of
                 RAM available. Image resampling takes up a lot of RAM. MONITOR RAM USAGE AND
-                DECREASE -np IF YOUR RAM FILLS UP TOO MUCH!. Default: 8 4 8 (=8 processes for 2d, 4
+                DECREASE -n_proc IF YOUR RAM FILLS UP TOO MUCH!. Default: 8 4 8 (=8 processes for 2d, 4
                 for 3d_fullres and 8 for 3d_lowres if -c is at its default)
-            verbose: Set this to print a lot of stuff. Useful for debugging. Will disable progrewss bar!
-                Recommended for cluster environments')
+            verbose: Set this to print a lot of stuff. Useful for debugging. Will disable progress bar!
+                (Recommended for cluster environments')
         """
         self.extract_fingerprints(fpe, npfp, verify_dataset_integrity, clean, verbose)
         self.plan_experiments(pl, gpu_memory_target, preprocessor_name, overwrite_target_spacing, overwrite_plans_name)
-        self.preprocess(c, np, overwrite_plans_name, verbose)
+        self.preprocess(c, n_proc, overwrite_plans_name, verbose)
 
-    def train_single_model(self, config, fold, gpu_id: int = 0, **kwargs):
+    def train_single_model(self, config, fold, gpu_id: int = 0, **kwargs) -> None:
         """
         Args:
             config: configuration that should be trained.
@@ -471,7 +473,7 @@ class nnUNetV2Runner:  # noqa: N801
 
         run_training(dataset_name_or_id=self.dataset_name_or_id, configuration=config, fold=fold, **kwargs)
 
-    def train(self, configs=["3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"], **kwargs):
+    def train(self, configs=("3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"), **kwargs):
         """
         Args:
             configs: configurations that should be trained.
@@ -487,7 +489,7 @@ class nnUNetV2Runner:  # noqa: N801
                 for _fold in range(self.num_folds):
                     self.train_single_model(config=_config, fold=_fold, **kwargs)
 
-    def train_parallel(self, configs=["3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"], **kwargs):
+    def train_parallel(self, configs=("3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"), **kwargs):
         """
         Args:
             configs: configurations that should be trained.
@@ -497,7 +499,7 @@ class nnUNetV2Runner:  # noqa: N801
 
         # unpack compressed files
         folder_names = []
-        for root, dirs, files in os.walk(os.path.join(self.nnunet_preprocessed, self.dataset_name)):
+        for root, _, files in os.walk(os.path.join(self.nnunet_preprocessed, self.dataset_name)):
             if any(file.endswith(".npz") for file in files):
                 folder_names.append(root)
 
@@ -535,9 +537,7 @@ class nnUNetV2Runner:  # noqa: N801
                         _index += 1
 
             if len(cmds) > 0:
-                gpu_cmds = {}
-                for _j in range(self.num_gpus):
-                    gpu_cmds[f"gpu_{_j}"] = ""
+                gpu_cmds = {f"gpu_{_j}": "" for _j in range(self.num_gpus)}
 
                 for _k in range(len(cmds)):
                     for _j in range(self.num_gpus):
@@ -545,11 +545,8 @@ class nnUNetV2Runner:  # noqa: N801
                             gpu_cmds[f"gpu_{_j}"] += cmds[_k]
                             gpu_cmds[f"gpu_{_j}"] += "; "
                             break
-                gpu_cmds = list(gpu_cmds.values())
-
                 processes = []
-                for _i in range(len(gpu_cmds)):
-                    gpu_cmd = gpu_cmds[_i]
+                for gpu_cmd in list(gpu_cmds.values()):
                     logger.warning(
                         f"\n[info] training - stage {_stage + 1}:\n"
                         f"[info] commands: {gpu_cmd}\n"
@@ -560,7 +557,7 @@ class nnUNetV2Runner:  # noqa: N801
                 for p in processes:
                     p.wait()
 
-    def validate_single_model(self, config: str, fold: int, **kwargs):
+    def validate_single_model(self, config: str, fold: int, **kwargs) -> None:
         """
         Args:
             config: configuration that should be trained.
@@ -568,7 +565,7 @@ class nnUNetV2Runner:  # noqa: N801
         """
         self.train_single_model(config=config, fold=fold, only_run_validation=True, **kwargs)
 
-    def validate(self, configs: list = ["3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"], **kwargs):
+    def validate(self, configs: tuple = ("3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"), **kwargs) -> None:
         """
         Args:
             configs: configurations that should be trained.
@@ -584,7 +581,7 @@ class nnUNetV2Runner:  # noqa: N801
     def find_best_configuration(
         self,
         plans="nnUNetPlans",
-        configs=["2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres"],
+        configs=("2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres"),
         trainers="nnUNetTrainer",
         allow_ensembling: bool = True,
         num_processes: int = -1,
@@ -630,7 +627,7 @@ class nnUNetV2Runner:  # noqa: N801
         list_of_lists_or_source_folder: str | list[list[str]],
         output_folder: str,
         model_training_output_dir: str,
-        use_folds: tuple[int, ...] | str = None,
+        use_folds: tuple[int, ...] | str | None = None,
         tile_step_size: float = 0.5,
         use_gaussian: bool = True,
         use_mirroring: bool = True,
@@ -645,29 +642,28 @@ class nnUNetV2Runner:  # noqa: N801
         num_processes_preprocessing: int = -1,
         num_processes_segmentation_export: int = -1,
         gpu_id: int = 0,
-    ):
+    ) -> None:
         """
         Use this to run inference with nnU-Net. This function is used when you want to manually specify a folder containing
             a trained nnU-Net model. This is useful when the nnunet environment variables (nnUNet_results) are not set.
         Args:
             list_of_lists_or_source_folder: input folder. Remember to use the correct channel numberings for your files (_0000 etc).
                 File endings must be the same as the training dataset!
-            o: Output folder. If it does not exist it will be created. Predicted segmentations will
+            output_folder: Output folder. If it does not exist it will be created. Predicted segmentations will
                 have the same name as their source images.
-            m: Folder in which the trained model is. Must have subfolders fold_X for the different
+            model_training_output_dir: Folder in which the trained model is. Must have subfolders fold_X for the different
                 folds you trained
-            f: Specify the folds of the trained model that should be used for prediction
+            use_folds: Specify the folds of the trained model that should be used for prediction
                 Default: (0, 1, 2, 3, 4)
-            step_size: step size for sliding window prediction. The larger it is the faster but less accurate
+            tile_step_size: step size for sliding window prediction. The larger it is the faster but less accurate
                 the prediction. Default: 0.5. Cannot be larger than 1. We recommend the default.
             disable_tta: set this flag to disable test time data augmentation in the form of mirroring. Faster,
                 but less accurate inference. Not recommended.
-            verbose: "Set this if you like being talked to. You will have
-                to be a good listener/reader.
+            verbose: Set this if you like being talked to. You will have to be a good listener/reader.
             save_probabilities: set this to export predicted class "probabilities". Required if you want to ensemble '
                 multiple configurations.
             continue_prediction: continue an aborted previous prediction (will not overwrite existing files)
-            chk: Name of the checkpoint you want to use. Default: checkpoint_final.pth
+            checkpoint_name: Name of the checkpoint you want to use. Default: checkpoint_final.pth
             npp: out-of-RAM issues. Default: 3
             nps: Number of processes used for segmentation export. More is not always better. Beware of '
                 'out-of-RAM issues. Default: 3
@@ -709,7 +705,7 @@ class nnUNetV2Runner:  # noqa: N801
 
     def predict_ensemble_postprocessing(
         self,
-        folds=[0, 1, 2, 3, 4],
+        folds=(0, 1, 2, 3, 4),
         disable_ensemble: bool = False,
         disable_predict: bool = False,
         disable_postprocessing: bool = False,
@@ -729,7 +725,7 @@ class nnUNetV2Runner:  # noqa: N801
         source_dir = join(self.nnunet_raw, self.dataset_name, "imagesTs")
         target_dir_base = join(self.nnunet_results, self.dataset_name)
 
-        self.best_configuration = ConfigParser.load_config_file(
+        self.best_configuration: dict = ConfigParser.load_config_file(
             os.path.join(self.nnunet_results, self.dataset_name, "inference_information.json")
         )
 
