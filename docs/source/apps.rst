@@ -280,5 +280,7 @@ FastMRIReader
 
 `nnUNet`
 --------
+.. automodule:: monai.apps.nnunet.__main__
+
 .. autoclass:: monai.apps.nnunet.nnUNetV2Runner
   :members:
