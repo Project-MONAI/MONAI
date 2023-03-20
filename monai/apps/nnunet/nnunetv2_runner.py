@@ -27,6 +27,7 @@ join, _ = optional_import("batchgenerators.utilities.file_and_folder_operations"
 tqdm, has_tqdm = optional_import("tqdm", name="tqdm")
 nib, _ = optional_import("nibabel", name="nib")
 
+logger = monai.apps.utils.get_logger(__name__)
 
 class nnUNetV2Runner:
     def __init__(self, input, work_dir: str = "work_dir"):
@@ -90,7 +91,7 @@ class nnUNetV2Runner:
 
             self.dataset_name = maybe_convert_to_dataset_name(int(self.dataset_name_or_id))
         except BaseException:
-            print("[warning] Dataset ID does not exist! Check input '.yaml' if this is unexpected.")
+            logger.warning("Dataset ID does not exist! Check input '.yaml' if this is unexpected.")
 
         from nnunetv2.configuration import default_num_processes
 
@@ -102,7 +103,7 @@ class nnUNetV2Runner:
         result = subprocess.run(["nvidia-smi", "--list-gpus"], stdout=subprocess.PIPE)
         output = result.stdout.decode("utf-8")
         self.num_gpus = len(output.strip().split("\n"))
-        print(f"[info] number of gpus is {self.num_gpus}")
+        logger.warning(f"number of gpus is {self.num_gpus}")
 
     def convert_dataset(self):
         try:
@@ -114,7 +115,7 @@ class nnUNetV2Runner:
             dataset_ids = [_item.split(os.sep)[-1] for _item in subdirs]
             dataset_ids = [_item.split("_")[0] for _item in dataset_ids]
             if raw_data_foldername_perfix in dataset_ids:
-                print("Dataset with the same ID exists!")
+                logging.warning("Dataset with the same ID exists!")
                 return
 
             data_dir = self.input_info.pop("dataroot")
@@ -136,7 +137,7 @@ class nnUNetV2Runner:
                 os.makedirs(os.path.join(raw_data_foldername, "imagesTr"))
                 os.makedirs(os.path.join(raw_data_foldername, "labelsTr"))
             else:
-                print("Input '.json' data list is incorrect.")
+                logger.warning("Input '.json' data list is incorrect.")
                 return
 
             test_key = None
@@ -150,7 +151,7 @@ class nnUNetV2Runner:
                 os.path.join(data_dir, datalist_json["training"][0]["image"])
             )
             num_input_channels = img.size()[0] if img.dim() == 4 else 1
-            print(f"[info] num_input_channels: {num_input_channels}")
+            logger.warning(f"[info] num_input_channels: {num_input_channels}")
 
             num_foreground_classes = 0
             for _i in range(len(datalist_json["training"])):
@@ -158,7 +159,7 @@ class nnUNetV2Runner:
                     os.path.join(data_dir, datalist_json["training"][_i]["label"])
                 )
                 num_foreground_classes = max(num_foreground_classes, int(seg.max()))
-            print(f"[info] num_foreground_classes: {num_foreground_classes}")
+            logger.warning(f"[info] num_foreground_classes: {num_foreground_classes}")
 
             new_json_data = {}
 
@@ -198,7 +199,7 @@ class nnUNetV2Runner:
                 if _key is None:
                     continue
 
-                print(f"[info] converting data section: {_key}...")
+                logger.warning(f"[info] converting data section: {_key}...")
                 for _k in tqdm(range(len(datalist_json[_key]))) if has_tqdm else range(len(datalist_json[_key])):
                     orig_img_name = (
                         datalist_json[_key][_k]["image"]
@@ -248,7 +249,7 @@ class nnUNetV2Runner:
                 ensure_ascii=False,
             )
         except BaseException:
-            print("Input '.yaml' is incorrect.")
+            logger.warning("Input '.yaml' is incorrect.")
             return
 
     def convert_msd_dataset(self, data_dir, overwrite_id=None, np=-1):
@@ -262,7 +263,7 @@ class nnUNetV2Runner:
     ):
         from nnunetv2.experiment_planning.plan_and_preprocess_api import extract_fingerprints
 
-        print("Fingerprint extraction...")
+        logger.warning("Fingerprint extraction...")
         extract_fingerprints([int(self.dataset_name_or_id)], fpe, npfp, verify_dataset_integrity, clean, verbose)
 
     def plan_experiments(
@@ -276,7 +277,7 @@ class nnUNetV2Runner:
     ):
         from nnunetv2.experiment_planning.plan_and_preprocess_api import plan_experiments
 
-        print("Experiment planning...")
+        logger.warning("Experiment planning...")
         plan_experiments(
             [int(self.dataset_name_or_id)],
             pl,
@@ -291,7 +292,7 @@ class nnUNetV2Runner:
     ):
         from nnunetv2.experiment_planning.plan_and_preprocess_api import preprocess
 
-        print("Preprocessing...")
+        logger.warning("Preprocessing...")
         preprocess(
             [int(self.dataset_name_or_id)], overwrite_plans_name, configurations=c, num_processes=np, verbose=verbose
         )
@@ -362,7 +363,7 @@ class nnUNetV2Runner:
         from nnunetv2.training.dataloading.utils import unpack_dataset
 
         for folder_name in folder_names:
-            print(f"[info] unpacking '{folder_name}'...")
+            logger.warning(f"[info] unpacking '{folder_name}'...")
             _ = unpack_dataset(
                 folder=folder_name,
                 unpack_segmentation=True,
@@ -407,8 +408,9 @@ class nnUNetV2Runner:
                 processes = []
                 for _i in range(len(gpu_cmds)):
                     gpu_cmd = gpu_cmds[_i]
-                    print(f"\n[info] training - stage {_stage + 1}:\n[info] commands: {gpu_cmd}")
-                    print(f"[info] log '.txt' inside '{os.path.join(self.nnunet_results, self.dataset_name)}'")
+                    logger.warning(f"\n[info] training - stage {_stage + 1}:\n"
+                          f"[info] commands: {gpu_cmd}\n"
+                          f"[info] log '.txt' inside '{os.path.join(self.nnunet_results, self.dataset_name)}'")
                     processes.append(subprocess.Popen(gpu_cmd, shell=True, stdout=subprocess.DEVNULL))
 
                 for p in processes:
