@@ -56,7 +56,7 @@ class TestConvertToTRT(unittest.TestCase):
                 precision=precision,
                 input_shape=[1, 1, 96, 96, 96],
                 dynamic_batchsize=[1, 4, 8],
-                ir="script",
+                use_trace=False,
                 verify=True,
                 device=0,
                 rtol=1e-2,
