@@ -25,7 +25,6 @@ from monai.utils import optional_import
 from tests.utils import SkipIfBeforePyTorchVersion, skip_if_downloading_fails, skip_if_no_cuda, skip_if_quick
 
 _, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
-_, has_nni = optional_import("nni")
 
 sim_datalist: dict[str, list[dict]] = {
     "testing": [{"image": "val_001.fake.nii.gz"}, {"image": "val_002.fake.nii.gz"}],
