@@ -16,13 +16,17 @@ import glob
 import os
 import subprocess
 
-import nibabel as nib
 import numpy as np
-from batchgenerators.utilities.file_and_folder_operations import join, load_pickle
-from tqdm import tqdm
+
 
 import monai
 from monai.bundle import ConfigParser
+from monai.utils import optional_import
+
+load_pickle, _ = optional_import("batchgenerators.utilities.file_and_folder_operations", name="load_pickle")
+join, _ = optional_import("batchgenerators.utilities.file_and_folder_operations", name="join")
+tqdm, has_tqdm = optional_import("tqdm", name="tqdm")
+nib, _ = optional_import("nibabel", name="nib")
 
 
 class nnUNetRunner:
@@ -178,7 +182,7 @@ class nnUNetRunner:
                     continue
 
                 print(f"[info] converting data section: {_key}...")
-                for _k in tqdm(range(len(datalist_json[_key]))):
+                for _k in tqdm(range(len(datalist_json[_key]))) if has_tqdm else range(len(datalist_json[_key])):
                     orig_img_name = (
                         datalist_json[_key][_k]["image"]
                         if isinstance(datalist_json[_key][_k], dict)

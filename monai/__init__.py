@@ -50,6 +50,7 @@ excludes = "|".join(
         "(^(monai._C))",
         "(.*(__main__)$)",
         "(.*(video_dataset)$)",
+        "(.*(nnunet)$)",
     ]
 )
 
