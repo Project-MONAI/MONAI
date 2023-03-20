@@ -12,4 +12,4 @@
 from __future__ import annotations
 
 from .nnunetv2_runner import nnUNetV2Runner
-from .utils import analyze_data, create_new_data_copy, create_new_dataset_json
+from .utils import NNUNETMode, analyze_data, create_new_data_copy, create_new_dataset_json
