@@ -939,7 +939,7 @@ def ckpt_export(
     meta_file: str | Sequence[str] | None = None,
     config_file: str | Sequence[str] | None = None,
     key_in_ckpt: str | None = None,
-    ir: str | None = None,
+    use_trace: bool | None = None,
     input_shape: Sequence[int] | None = None,
     args_file: str | None = None,
     **override: Any,
@@ -964,8 +964,8 @@ def ckpt_export(
             it can be a single file or a list of files. if `None`, must be provided in `args_file`.
         key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
             weights. if not nested checkpoint, no need to set.
-        ir: the way to transform a pytorch module to a torchscript model. Could be chosen from `(script, trace)`.
-        input_shape: must specify the `input_shape` of the network to convert the model when using `trace` as ir.
+        use_trace: whether using `torch.jit.trace` to convert the pytorch model to torchscript model.
+        input_shape: must specify the `input_shape` of the network to convert the model when `use_trace` is True.
             Should be a list like [N, C, H, W] or [N, C, H, W, D].
         args_file: a JSON or YAML file to provide default values for `meta_file`, `config_file`,
             `net_id` and override pairs. so that the command line inputs can be simplified.
@@ -981,12 +981,12 @@ def ckpt_export(
         config_file=config_file,
         ckpt_file=ckpt_file,
         key_in_ckpt=key_in_ckpt,
-        ir=ir,
+        use_trace=use_trace,
         input_shape=input_shape,
         **override,
     )
     _log_input_summary(tag="ckpt_export", args=_args)
-    filepath_, ckpt_file_, config_file_, net_id_, meta_file_, key_in_ckpt_, ir_, input_shape_ = _pop_args(
+    filepath_, ckpt_file_, config_file_, net_id_, meta_file_, key_in_ckpt_, use_trace_, input_shape_ = _pop_args(
         _args,
         "filepath",
         "ckpt_file",
@@ -994,7 +994,7 @@ def ckpt_export(
         net_id="",
         meta_file=None,
         key_in_ckpt="",
-        ir="script",
+        use_trace=False,
         input_shape=None,
     )
 
@@ -1018,7 +1018,7 @@ def ckpt_export(
         ckpt_file=ckpt_file_,
         config_file=config_file_,
         key_in_ckpt=key_in_ckpt_,
-        use_trace=(ir_ == "trace"),
+        use_trace=use_trace_,
         inputs=inputs_,
     )
 
@@ -1032,7 +1032,7 @@ def trt_export(
     key_in_ckpt: str | None = None,
     precision: str | None = None,
     input_shape: Sequence[int] | None = None,
-    ir: str | None = None,
+    use_trace: bool | None = None,
     dynamic_batchsize: Sequence[int] | None = None,
     device: int | None = None,
     args_file: str | None = None,
@@ -1063,8 +1063,8 @@ def trt_export(
         precision: the weight precision of the converted TensorRT engine based torchscript models. Should be 'fp32' or 'fp16'.
         input_shape: the input shape that is used to convert the model. Should be a list like [N, C, H, W] or
             [N, C, H, W, D].
-        ir: the intermediate representation way to transform a pytorch module to a TensorRT engine based torchscript. Could
-            be chosen from `(script, trace)`.
+        use_trace: whether using `torch.jit.trace` to convert the pytorch model to torchscript model and then convert to
+            a TensorRT engine based torchscript model.
         dynamic_batchsize: a list with three elements to define the batch size range of the input for the model to be converted.
             Should be a list like [MIN_BATCH, OPT_BATCH, MAX_BATCH].
         device: the target GPU index to convert and verify the model.
@@ -1084,7 +1084,7 @@ def trt_export(
         key_in_ckpt=key_in_ckpt,
         precision=precision,
         input_shape=input_shape,
-        ir=ir,
+        use_trace=use_trace,
         dynamic_batchsize=dynamic_batchsize,
         device=device,
         **override,
@@ -1099,7 +1099,7 @@ def trt_export(
         key_in_ckpt_,
         precision_,
         input_shape_,
-        ir_,
+        use_trace_,
         dynamic_batchsize_,
         device_,
     ) = _pop_args(
@@ -1112,7 +1112,7 @@ def trt_export(
         key_in_ckpt="",
         precision="fp32",
         input_shape=[],
-        ir="script",
+        use_trace=False,
         dynamic_batchsize=[],
         device=None,
     )
@@ -1143,7 +1143,7 @@ def trt_export(
         precision=precision_,
         input_shape=input_shape_,
         dynamic_batchsize=dynamic_batchsize_,
-        ir=ir_,
+        use_trace=use_trace_,
         device=device_,
     )
 

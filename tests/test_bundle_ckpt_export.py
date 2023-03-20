@@ -27,13 +27,13 @@ TEST_CASE_1 = ["", ""]
 
 TEST_CASE_2 = ["model", ""]
 
-TEST_CASE_3 = ["model", "trace"]
+TEST_CASE_3 = ["model", "True"]
 
 
 @skip_if_windows
 class TestCKPTExport(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
-    def test_export(self, key_in_ckpt, ir):
+    def test_export(self, key_in_ckpt, use_trace):
         meta_file = os.path.join(os.path.dirname(__file__), "testing_data", "metadata.json")
         config_file = os.path.join(os.path.dirname(__file__), "testing_data", "inference.json")
         with tempfile.TemporaryDirectory() as tempdir:
@@ -52,8 +52,8 @@ class TestCKPTExport(unittest.TestCase):
             cmd = ["coverage", "run", "-m", "monai.bundle", "ckpt_export", "network_def", "--filepath", ts_file]
             cmd += ["--meta_file", meta_file, "--config_file", f"['{config_file}','{def_args_file}']", "--ckpt_file"]
             cmd += [ckpt_file, "--key_in_ckpt", key_in_ckpt, "--args_file", def_args_file]
-            if ir == "trace":
-                cmd += ["--ir", ir, "--input_shape", "[1, 1, 96, 96, 96]"]
+            if use_trace == "True":
+                cmd += ["--use_trace", use_trace, "--input_shape", "[1, 1, 96, 96, 96]"]
             command_line_tests(cmd)
             self.assertTrue(os.path.exists(ts_file))
 

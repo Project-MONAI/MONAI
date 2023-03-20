@@ -631,7 +631,7 @@ def convert_to_trt(
     precision: str,
     input_shape: Sequence[int],
     dynamic_batchsize: Sequence[int] | None = None,
-    ir: str = "script",
+    use_trace: bool = False,
     filename_or_obj: Any | None = None,
     verify: bool = False,
     device: int | None = None,
@@ -648,8 +648,8 @@ def convert_to_trt(
             [N, C, H, W, D].
         dynamic_batchsize: a list with three elements to define the batch size range of the input for the model to be converted.
             Should be a list like [MIN_BATCH, OPT_BATCH, MAX_BATCH], default to None.
-        ir: the intermediate representation way to transform a pytorch module to a TensorRT engine based torchscript. Could
-            be chosen from `(script, trace)`, default to "script.
+        use_trace: whether using `torch.jit.trace` to convert the pytorch model to torchscript model and then convert to
+            a TensorRT engine based torchscript model, default to False.
         filename_or_obj: if not None, specify a file-like object (has to implement write and flush) or a string containing a
             file path name to load the TensorRT engine based torchscript model for verifying.
         verify: whether to verify the input and output of the TensorRT engine based torchscript model.
@@ -677,7 +677,7 @@ def convert_to_trt(
 
     # convert the torch model, torchscript model and input to target device
     model = model.eval().to(target_device)
-    ir_model = convert_to_torchscript(model, device=target_device, inputs=inputs, use_trace=(ir == "trace"))
+    ir_model = convert_to_torchscript(model, device=target_device, inputs=inputs, use_trace=use_trace)
     ir_model.eval().to(target_device)
 
     def scale_batch_size(input_shape: Sequence[int], scale_num: int):
