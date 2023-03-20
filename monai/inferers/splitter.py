@@ -18,7 +18,6 @@ from typing import Any
 
 import torch
 
-from monai.config import PathLike
 from monai.data.utils import iter_patch_position
 from monai.data.wsi_reader import BaseWSIReader, WSIReader
 from monai.transforms import ToTensor
