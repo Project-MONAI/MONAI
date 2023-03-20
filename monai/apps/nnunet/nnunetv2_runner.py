@@ -487,9 +487,8 @@ class nnUNetV2Runner:  # noqa: N801
             self.train_parallel(configs=configs, **kwargs)
         else:
             for _i in range(len(configs)):
-                _config = configs[_i]
                 for _fold in range(self.num_folds):
-                    self.train_single_model(config=_config, fold=_fold, **kwargs)
+                    self.train_single_model(config=configs[_i], fold=_fold, **kwargs)
 
     def train_parallel(self, configs=("3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"), **kwargs):
         """
@@ -576,9 +575,8 @@ class nnUNetV2Runner:  # noqa: N801
             configs = [configs]
 
         for _i in range(len(configs)):
-            _config = configs[_i]
             for _fold in range(self.num_folds):
-                self.validate_single_model(config=_config, fold=_fold, **kwargs)
+                self.validate_single_model(config=configs[_i], fold=_fold, **kwargs)
 
     def find_best_configuration(
         self,
@@ -598,7 +596,7 @@ class nnUNetV2Runner:  # noqa: N801
             trainers: list of trainers. Default: nnUNetTrainer
             num_processes: number of processes to use for ensembling, postprocessing etc
             folds: folds to use. Default: 0 1 2 3 4
-            disable_ensembling: Set this flag to disable ensembling
+            allow_ensembling: Set this flag to enable ensembling
             overwrite: If set we will overwrite already ensembled files etc. May speed up concecutive
                 runs of this command (why would oyu want to do that?) at the risk of not updating
                 outdated results.
