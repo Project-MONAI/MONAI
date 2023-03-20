@@ -16,7 +16,6 @@ import os
 import subprocess
 from typing import Any
 
-import numpy as np
 
 import monai
 from monai.apps.nnunet.utils import analyze_data, create_new_data_copy, create_new_dataset_json
