@@ -29,6 +29,7 @@ nib, _ = optional_import("nibabel", name="nib")
 
 logger = monai.apps.utils.get_logger(__name__)
 
+
 class nnUNetV2Runner:
     def __init__(self, input, work_dir: str = "work_dir"):
         """
@@ -251,10 +252,10 @@ class nnUNetV2Runner:
             logger.warning("Input '.yaml' is incorrect.")
             return
 
-    def convert_msd_dataset(self, data_dir: str, overwrite_id=None, np: int=-1):
+    def convert_msd_dataset(self, data_dir: str, overwrite_id=None, np: int = -1):
         """
         Args:
-            data_dir: downloaded and extracted MSD dataset folder. CANNOT be nnUNetv1 dataset! Example: 
+            data_dir: downloaded and extracted MSD dataset folder. CANNOT be nnUNetv1 dataset! Example:
                 "/workspace/downloads/Task05_Prostate")
             overwrite_id: Overwrite the dataset id. If not set then use the id of the MSD task (inferred from
                 folder name). Only use this if you already have an equivalently numbered dataset!
@@ -266,9 +267,28 @@ class nnUNetV2Runner:
         convert_msd_dataset(data_dir, overwrite_id, num_processes)
 
     def extract_fingerprints(
-        self, fpe="DatasetFingerprintExtractor", npfp=8, verify_dataset_integrity=False, clean=False, verbose=False
+        self,
+        fpe: str = "DatasetFingerprintExtractor",
+        npfp: int = -1,
+        verify_dataset_integrity: bool = False,
+        clean: bool = False,
+        verbose: bool = False
     ):
+        """
+        Args:
+            fpe: [OPTIONAL] Name of the Dataset Fingerprint Extractor class that should be used. Default is
+                            'DatasetFingerprintExtractor'
+            npfp: [OPTIONAL] Number of processes used for fingerprint extraction.
+            verify_dataset_integrity: [RECOMMENDED] set this flag to check the dataset integrity. This is
+                useful and should be done once for each dataset!
+            clean: [OPTIONAL] Set this flag to overwrite existing fingerprints. If this flag is not set and a
+                fingerprint already exists, the fingerprint extractor will not run.
+            verbose: set this to print a lot of stuff. Useful for debugging. Will disable progrewss bar!
+                Recommended for cluster environments
+        """
         from nnunetv2.experiment_planning.plan_and_preprocess_api import extract_fingerprints
+
+        npfp = None if np < 0 else self.default_num_processes
 
         logger.warning("Fingerprint extraction...")
         extract_fingerprints([int(self.dataset_name_or_id)], fpe, npfp, verify_dataset_integrity, clean, verbose)
@@ -400,9 +420,8 @@ class nnUNetV2Runner:
                 if _config in configs:
                     for _i in range(self.num_folds):
                         cmd = (
-                            "python -m monai.apps.nnunet nnUNetV2Runner train_single_model "
-                            + f"--input '{self.input_config_or_dict}' --config '{_config}' --fold {_i} --gpu_id {_index%self.num_gpus}"
-                        )
+                            "python -m monai.apps.nnunet nnUNetV2Runner train_single_model " +
+                            f"--input '{self.input_config_or_dict}' --config '{_config}' --fold {_i} --gpu_id {_index%self.num_gpus}")
 
                         if isinstance(kwargs, dict):
                             for _key, _value in kwargs.items():
@@ -428,8 +447,8 @@ class nnUNetV2Runner:
                 for _i in range(len(gpu_cmds)):
                     gpu_cmd = gpu_cmds[_i]
                     logger.warning(f"\n[info] training - stage {_stage + 1}:\n"
-                          f"[info] commands: {gpu_cmd}\n"
-                          f"[info] log '.txt' inside '{os.path.join(self.nnunet_results, self.dataset_name)}'")
+                                   f"[info] commands: {gpu_cmd}\n"
+                                   f"[info] log '.txt' inside '{os.path.join(self.nnunet_results, self.dataset_name)}'")
                     processes.append(subprocess.Popen(gpu_cmd, shell=True, stdout=subprocess.DEVNULL))
 
                 for p in processes:
