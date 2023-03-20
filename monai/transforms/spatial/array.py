@@ -1836,7 +1836,7 @@ class Resample(Transform):
             elif interp_mode == "bilinear":
                 _interp_mode = 1  # type: ignore
             else:
-                _interp_mode = GridSampleMode(interp_mode)  # type: ignore
+                _interp_mode = GridSampleMode(interp_mode)
         else:  # TransformBackends.NUMPY
             _interp_mode = int(interp_mode)  # type: ignore
             _padding_mode = look_up_option(padding_mode, NdimageMode)
@@ -1898,7 +1898,7 @@ class Resample(Transform):
 
         if USE_COMPILED or backend == TransformBackends.NUMPY:
             grid_t, *_ = convert_to_dst_type(grid[:sr], img_t, dtype=grid.dtype, wrap_sequence=True)
-            if hasattr(grid, "storage") and grid_t.storage().data_ptr() == grid.storage().data_ptr():
+            if isinstance(grid, torch.Tensor) and grid_t.data_ptr() == grid.data_ptr():
                 grid_t = grid_t.clone(memory_format=torch.contiguous_format)
             for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
                 _dim = max(2, dim)
@@ -1928,7 +1928,7 @@ class Resample(Transform):
         else:
             grid_t = moveaxis(grid[list(range(sr - 1, -1, -1))], 0, -1)  # type: ignore
             grid_t = convert_to_dst_type(grid_t, img_t, wrap_sequence=True)[0].unsqueeze(0)
-            if hasattr(grid, "storage") and grid_t.storage().data_ptr() == grid.storage().data_ptr():
+            if isinstance(grid, torch.Tensor) and grid_t.data_ptr() == grid.data_ptr():
                 grid_t = grid_t.clone(memory_format=torch.contiguous_format)
             if self.norm_coords:
                 for i, dim in enumerate(img_t.shape[sr + 1 : 0 : -1]):
@@ -2079,7 +2079,7 @@ class Affine(InvertibleTransform, LazyTransform):
         sp_size = fall_back_tuple(self.spatial_size if spatial_size is None else spatial_size, img_size)
         _mode = mode if mode is not None else self.mode
         _padding_mode = padding_mode if padding_mode is not None else self.padding_mode
-        grid, affine = self.affine_grid(spatial_size=sp_size)  # type: ignore
+        grid, affine = self.affine_grid(spatial_size=sp_size)
 
         return affine_func(  # type: ignore
             img,
@@ -2327,7 +2327,7 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
         img = convert_to_tensor(img, track_meta=get_track_meta())
         if self.lazy_evaluation:
             if self._do_transform:
-                affine = self.rand_affine_grid.get_transformation_matrix()  # type: ignore
+                affine = self.rand_affine_grid.get_transformation_matrix()
             else:
                 affine = convert_to_dst_type(torch.eye(len(sp_size) + 1), img, dtype=self.rand_affine_grid.dtype)[0]
         else:
@@ -2335,7 +2335,7 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
                 grid = self.get_identity_grid(sp_size)
                 if self._do_transform:
                     grid = self.rand_affine_grid(grid=grid, randomize=randomize)
-            affine = self.rand_affine_grid.get_transformation_matrix()  # type: ignore
+            affine = self.rand_affine_grid.get_transformation_matrix()
         return affine_func(  # type: ignore
             img,
             affine,

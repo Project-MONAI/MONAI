@@ -17,7 +17,6 @@ from monai.metrics.utils import do_metric_reduction, ignore_background
 from monai.utils import MetricReduction, Weight, look_up_option
 
 from .metric import CumulativeIterationMetric
-from .utils import is_binary_tensor
 
 
 class GeneralizedDiceScore(CumulativeIterationMetric):
@@ -73,8 +72,7 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
             y (torch.Tensor): binarized ground-truth. It must be in one-hot format and have the same shape as `y_pred`.
 
         Raises:
-            ValueError: if `y_pred` or `y` is not a binarized PyTorch tensor, if `y_pred` and `y` have less than
-            three dimensions, or `y_pred` and `y` don't have the same shape.
+            ValueError: if `y_pred` and `y` have less than 3 dimensions, or `y_pred` and `y` don't have the same shape.
         """
         return compute_generalized_dice(
             y_pred=y_pred, y=y, include_background=self.include_background, weight_type=self.weight_type
@@ -127,10 +125,6 @@ def compute_generalized_dice(
         ValueError: if `y_pred` or `y` are not PyTorch tensors, if `y_pred` and `y` have less than three dimensions,
             or `y_pred` and `y` don't have the same shape.
     """
-    # Ensure tensors are binarized
-    is_binary_tensor(y_pred, "y_pred")
-    is_binary_tensor(y, "y")
-
     # Ensure tensors have at least 3 dimensions and have the same shape
     dims = y_pred.dim()
     if dims < 3:

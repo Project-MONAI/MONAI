@@ -222,6 +222,14 @@ class TestSpatialResample(unittest.TestCase):
         expected_affine = to_affine_nd(len(out.affine) - 1, torch.eye(4))
         assert_allclose(out.affine, expected_affine)
 
+    def test_unchange(self):
+        for i, p in enumerate(TEST_NDARRAYS_ALL):
+            set_track_meta(i % 2)
+            img = p(np.arange(12).reshape(1, 3, 4))
+            result = SpatialResample()(img)
+            assert_allclose(result, img, type_test=False)
+        set_track_meta(True)
+
 
 if __name__ == "__main__":
     unittest.main()

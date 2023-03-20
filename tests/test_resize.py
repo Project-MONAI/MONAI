@@ -46,6 +46,15 @@ class TestResize(NumpyImageTestCase2D):
             resize = Resize(spatial_size=(128,), mode="order")
             resize(self.imt[0])
 
+    def test_unchange(self):
+        resize = Resize(spatial_size=(128, 64), mode="bilinear")
+        set_track_meta(False)
+        for p in TEST_NDARRAYS_ALL:
+            im = p(self.imt[0])
+            result = resize(im)
+            assert_allclose(im, result, type_test=False)
+        set_track_meta(True)
+
     @parameterized.expand(
         [
             ((32, -1), "area", True),
