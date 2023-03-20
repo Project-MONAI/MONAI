@@ -18,12 +18,19 @@ import numpy as np
 
 import monai
 from monai.bundle import ConfigParser
-from monai.utils import ensure_tuple, optional_import
+from monai.utils import StrEnum, ensure_tuple, optional_import
 
 tqdm, has_tqdm = optional_import("tqdm", name="tqdm")
 nib, _ = optional_import("nibabel")
 
 logger = monai.apps.utils.get_logger(__name__)
+
+
+class NNUNETMode(StrEnum):
+    N_2D = "2d"
+    N_3D_FULLRES = "3d_fullres"
+    N_3D_LOWRES = "3d_lowres"
+    N_3D_CASCADE_FULLRES = "3d_cascade_fullres"
 
 
 def analyze_data(datalist_json: dict, data_dir: str) -> tuple[int, int]:

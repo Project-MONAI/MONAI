@@ -17,6 +17,7 @@ import subprocess
 from typing import Any
 
 import monai
+from monai.apps.nnunet.utils import NNUNETMode as M  # noqa: N814
 from monai.apps.nnunet.utils import analyze_data, create_new_data_copy, create_new_dataset_json
 from monai.bundle import ConfigParser
 from monai.utils import ensure_tuple, optional_import
@@ -217,7 +218,6 @@ class nnUNetV2Runner:  # noqa: N801
         preprocessor_name: str = "DefaultPreprocessor",
         overwrite_target_spacing: Any = None,
         overwrite_plans_name: str = "nnUNetPlans",
-        verbose: bool = False,
     ) -> None:
         """
         Args:
@@ -256,7 +256,7 @@ class nnUNetV2Runner:  # noqa: N801
 
     def preprocess(
         self,
-        c: tuple = ("2d", "3d_fullres", "3d_lowres"),
+        c: tuple = (M.N_2D, M.N_3D_FULLRES, M.N_3D_LOWRES),
         n_proc: tuple = (8, 8, 8),
         overwrite_plans_name: str = "nnUNetPlans",
         verbose: bool = False,
@@ -305,7 +305,7 @@ class nnUNetV2Runner:  # noqa: N801
         preprocessor_name: str = "DefaultPreprocessor",
         overwrite_target_spacing: Any = None,
         overwrite_plans_name: str = "nnUNetPlans",
-        c: tuple = ("2d", "3d_fullres", "3d_lowres"),
+        c: tuple = (M.N_2D, M.N_3D_FULLRES, M.N_3D_LOWRES),
         n_proc: tuple = (8, 8, 8),
         verbose: bool = False,
     ) -> None:
@@ -393,13 +393,15 @@ class nnUNetV2Runner:  # noqa: N801
 
     def train(
         self,
-        configs: tuple | str = ("3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"),
+        configs: tuple | str = (M.N_3D_FULLRES, M.N_2D, M.N_3D_LOWRES, M.N_3D_CASCADE_FULLRES),
         device_ids: tuple | None = None,
         **kwargs: Any,
     ) -> None:
         """
         Args:
             configs: configurations that should be trained.
+                default: ("2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres").
+            device_ids: ids of GPUs to use for training. default: None (all available GPUs).
         """
 
         if device_ids is None:
@@ -417,7 +419,7 @@ class nnUNetV2Runner:  # noqa: N801
 
     def train_parallel_cmd(
         self,
-        configs: tuple | str = ("3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"),
+        configs: tuple | str = (M.N_3D_FULLRES, M.N_2D, M.N_3D_LOWRES, M.N_3D_CASCADE_FULLRES),
         device_ids: tuple | None = None,
         **kwargs: Any,
     ) -> list:
@@ -442,7 +444,7 @@ class nnUNetV2Runner:  # noqa: N801
         kwargs = kwargs or {}
         devices = ensure_tuple(device_ids)
         n_devices = len(devices)
-        _configs = [["3d_fullres", "2d", "3d_lowres"], ["3d_cascade_fullres"]]
+        _configs = [[M.N_3D_FULLRES, M.N_2D, M.N_3D_LOWRES], [M.N_3D_CASCADE_FULLRES]]
         all_cmds: list = []
         for _stage in range(len(_configs)):
             all_cmds.append({_j: [] for _j in devices})
@@ -465,13 +467,15 @@ class nnUNetV2Runner:  # noqa: N801
 
     def train_parallel(
         self,
-        configs: tuple | str = ("3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"),
+        configs: tuple | str = (M.N_3D_FULLRES, M.N_2D, M.N_3D_LOWRES, M.N_3D_CASCADE_FULLRES),
         device_ids: tuple | None = None,
         **kwargs: Any,
     ) -> None:
         """
         Args:
             configs: configurations that should be trained.
+                default: ("2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres").
+            device_ids: device ids to use for training. default: None.
         """
         all_cmds = self.train_parallel_cmd(configs=configs, device_ids=device_ids, **kwargs)
         for s, cmds in enumerate(all_cmds):
@@ -502,10 +506,13 @@ class nnUNetV2Runner:  # noqa: N801
         """
         self.train_single_model(config=config, fold=fold, only_run_validation=True, **kwargs)
 
-    def validate(self, configs: tuple = ("3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"), **kwargs: Any) -> None:
+    def validate(
+        self, configs: tuple = (M.N_3D_FULLRES, M.N_2D, M.N_3D_LOWRES, M.N_3D_CASCADE_FULLRES), **kwargs: Any
+    ) -> None:
         """
         Args:
             configs: configurations that should be trained.
+                default: ("2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres").
         """
         for cfg in ensure_tuple(configs):
             for _fold in range(self.num_folds):
@@ -514,7 +521,7 @@ class nnUNetV2Runner:  # noqa: N801
     def find_best_configuration(
         self,
         plans: tuple | str = "nnUNetPlans",
-        configs: tuple | str = ("2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres"),
+        configs: tuple | str = (M.N_2D, M.N_3D_FULLRES, M.N_3D_LOWRES, M.N_3D_CASCADE_FULLRES),
         trainers: tuple | str = "nnUNetTrainer",
         allow_ensembling: bool = True,
         num_processes: int = -1,
