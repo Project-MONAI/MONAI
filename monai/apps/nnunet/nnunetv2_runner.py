@@ -480,24 +480,18 @@ class nnUNetV2Runner:  # noqa: N801
         Args:
             configs: configurations that should be trained.
         """
-        if isinstance(configs, str):
-            configs = [configs]
-
         if self.num_gpus > 1:
-            self.train_parallel(configs=configs, **kwargs)
+            self.train_parallel(configs=ensure_tuple(configs), **kwargs)
         else:
-            for _i in range(len(configs)):
+            for cfg in ensure_tuple(configs):
                 for _fold in range(self.num_folds):
-                    self.train_single_model(config=configs[_i], fold=_fold, **kwargs)
+                    self.train_single_model(config=cfg, fold=_fold, **kwargs)
 
     def train_parallel(self, configs=("3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"), **kwargs):
         """
         Args:
             configs: configurations that should be trained.
         """
-        if isinstance(configs, str):
-            configs = [configs]
-
         # unpack compressed files
         folder_names = []
         for root, _, files in os.walk(os.path.join(self.nnunet_preprocessed, self.dataset_name)):
@@ -522,7 +516,7 @@ class nnUNetV2Runner:  # noqa: N801
             _index = 0
 
             for _config in _configs[_stage]:
-                if _config in configs:
+                if _config in ensure_tuple(configs):
                     for _i in range(self.num_folds):
                         cmd = (
                             "python -m monai.apps.nnunet nnUNetV2Runner train_single_model "
@@ -571,12 +565,9 @@ class nnUNetV2Runner:  # noqa: N801
         Args:
             configs: configurations that should be trained.
         """
-        if isinstance(configs, str):
-            configs = [configs]
-
-        for _i in range(len(configs)):
+        for cfg in ensure_tuple(configs):
             for _fold in range(self.num_folds):
-                self.validate_single_model(config=configs[_i], fold=_fold, **kwargs)
+                self.validate_single_model(config=cfg, fold=_fold, **kwargs)
 
     def find_best_configuration(
         self,
@@ -708,17 +699,17 @@ class nnUNetV2Runner:  # noqa: N801
     def predict_ensemble_postprocessing(
         self,
         folds: tuple = (0, 1, 2, 3, 4),
-        disable_ensemble: bool = False,
-        disable_predict: bool = False,
-        disable_postprocessing: bool = False,
+        run_ensemble: bool = False,
+        run_predict: bool = False,
+        run_postprocessing: bool = False,
         **kwargs: Any,
     ) -> None:
         """
         Args:
             folds: which folds to use
-            disable_ensemble: whether to disable ensemble
-            disable_predict: whether to predict using trained checkpoints
-            disable_postprocessing: whether to conduct post-processing
+            run_ensemble: whether to run ensembling.
+            run_predict: whether to predict using trained checkpoints
+            run_postprocessing: whether to conduct post-processing
         """
         from nnunetv2.ensembling.ensemble import ensemble_folders
         from nnunetv2.postprocessing.remove_connected_components import apply_postprocessing_to_folder
@@ -731,10 +722,9 @@ class nnUNetV2Runner:  # noqa: N801
             os.path.join(self.nnunet_results, self.dataset_name, "inference_information.json")
         )
 
-        if not disable_ensemble:
-            has_ensemble = len(self.best_configuration["best_model_or_ensemble"]["selected_model_or_models"]) > 1
-        else:
-            has_ensemble = False
+        run_ensemble = (
+            run_ensemble and len(self.best_configuration["best_model_or_ensemble"]["selected_model_or_models"]) > 1
+        )
 
         used_folds = folds
         output_folders = []
@@ -742,7 +732,7 @@ class nnUNetV2Runner:  # noqa: N801
             output_dir = join(target_dir_base, f"pred_{im['configuration']}")
             output_folders.append(output_dir)
 
-            if not disable_predict:
+            if run_predict:
                 model_folder = get_output_folder(
                     int(self.dataset_name_or_id), im["trainer"], im["plans_identifier"], im["configuration"]
                 )
@@ -751,25 +741,24 @@ class nnUNetV2Runner:  # noqa: N801
                     output_folder=output_dir,
                     model_training_output_dir=model_folder,
                     use_folds=used_folds,
-                    save_probabilities=has_ensemble,
+                    save_probabilities=run_ensemble,
                     verbose=False,
                     overwrite=True,
                     **kwargs,
                 )
 
         # if we have an ensemble, we need to ensemble the results
-        if has_ensemble:
+        if run_ensemble:
             ensemble_folders(
                 output_folders, join(target_dir_base, "ensemble_predictions"), save_merged_probabilities=False
             )
-            if not disable_postprocessing:
+            if run_postprocessing:
                 folder_for_pp = join(target_dir_base, "ensemble_predictions")
-        else:
-            if not disable_postprocessing:
-                folder_for_pp = output_folders[0]
+        elif run_postprocessing:
+            folder_for_pp = output_folders[0]
 
         # apply postprocessing
-        if not disable_postprocessing:
+        if run_postprocessing:
             pp_fns, pp_fn_kwargs = load_pickle(self.best_configuration["best_model_or_ensemble"]["postprocessing_file"])
             apply_postprocessing_to_folder(
                 folder_for_pp,
