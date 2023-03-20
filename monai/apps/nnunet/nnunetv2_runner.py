@@ -489,11 +489,7 @@ class nnUNetV2Runner:  # noqa: N801
                 for _fold in range(self.num_folds):
                     self.train_single_model(config=cfg, fold=_fold, **kwargs)
 
-    def train_parallel(self, configs=("3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"), **kwargs):
-        """
-        Args:
-            configs: configurations that should be trained.
-        """
+    def train_parallel_cmd(self, configs=("3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"), **kwargs):
         # unpack compressed files
         folder_names = []
         for root, _, files in os.walk(os.path.join(self.nnunet_preprocessed, self.dataset_name)):
@@ -512,9 +508,11 @@ class nnUNetV2Runner:  # noqa: N801
             )
 
         # model training
+        kwargs = kwargs or {}
         _configs = [["3d_fullres", "2d", "3d_lowres"], ["3d_cascade_fullres"]]
-        for _stage in range(2):
-            cmds = []
+        all_cmds: list = []
+        for _stage in range(len(_configs)):
+            all_cmds.append({_j: [] for _j in range(self.num_gpus)})
             _index = 0
 
             for _config in _configs[_stage]:
@@ -525,34 +523,32 @@ class nnUNetV2Runner:  # noqa: N801
                             + f"--input_config '{self.input_config_or_dict}' --config '{_config}' "
                             + f"--fold {_i} --gpu_id {_index%self.num_gpus}"
                         )
-
-                        if isinstance(kwargs, dict):
-                            for _key, _value in kwargs.items():
-                                cmd += f" --{_key} {_value}"
-
-                        cmds.append(cmd)
+                        for _key, _value in kwargs.items():
+                            cmd += f" --{_key} {_value}"
+                        all_cmds[-1][_index % self.num_gpus].append(cmd)
                         _index += 1
 
-            if len(cmds) > 0:
-                gpu_cmds = {f"gpu_{_j}": "" for _j in range(self.num_gpus)}
+        for s, cmds in enumerate(all_cmds):
+            for gpu_id, gpu_cmd in cmds.items():
+                logger.warning(
+                    f"\n[info] training - stage {s + 1}:\n"
+                    f"[info] for gpu {gpu_id}, commands: {gpu_cmd}\n"
+                    f"[info] log '.txt' inside '{os.path.join(self.nnunet_results, self.dataset_name)}'"
+                )
+        return all_cmds
 
-                for _k in range(len(cmds)):
-                    for _j in range(self.num_gpus):
-                        if f"--gpu_id {_j}" in cmds[_k]:
-                            gpu_cmds[f"gpu_{_j}"] += cmds[_k]
-                            gpu_cmds[f"gpu_{_j}"] += "; "
-                            break
-                processes = []
-                for gpu_cmd in list(gpu_cmds.values()):
-                    logger.warning(
-                        f"\n[info] training - stage {_stage + 1}:\n"
-                        f"[info] commands: {gpu_cmd}\n"
-                        f"[info] log '.txt' inside '{os.path.join(self.nnunet_results, self.dataset_name)}'"
-                    )
-                    processes.append(subprocess.Popen(gpu_cmd, shell=True, stdout=subprocess.DEVNULL))
-
-                for p in processes:
-                    p.wait()
+    def train_parallel(self, configs=("3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"), **kwargs):
+        """
+        Args:
+            configs: configurations that should be trained.
+        """
+        for stage in self.train_parallel_cmd(configs=configs, **kwargs):
+            processes = []
+            for cmds in stage:
+                cmd_str = "; ".join(cmds)
+                processes.append(subprocess.Popen(cmd_str, shell=True, stdout=subprocess.DEVNULL))
+            for p in processes:
+                p.wait()
 
     def validate_single_model(self, config: str, fold: int, **kwargs: Any) -> None:
         """
