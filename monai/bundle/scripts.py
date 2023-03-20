@@ -773,7 +773,7 @@ def _get_net_io_info(parser: ConfigParser | None = None, prefix: str = "_meta_#n
     key = f"{prefix_key}#pred#dtype"
     output_dtype = get_equivalent_dtype(parser.get(key), torch.Tensor)
 
-    return (input_channels, input_spatial_shape, input_dtype, output_channels, output_dtype)
+    return input_channels, input_spatial_shape, input_dtype, output_channels, output_dtype
 
 
 def verify_net_in_out(
