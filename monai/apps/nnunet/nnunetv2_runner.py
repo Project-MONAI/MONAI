@@ -25,7 +25,7 @@ from monai.utils import optional_import
 load_pickle, _ = optional_import("batchgenerators.utilities.file_and_folder_operations", name="load_pickle")
 join, _ = optional_import("batchgenerators.utilities.file_and_folder_operations", name="join")
 tqdm, has_tqdm = optional_import("tqdm", name="tqdm")
-nib, _ = optional_import("nibabel", name="nib")
+nib, _ = optional_import("nibabel")
 
 logger = monai.apps.utils.get_logger(__name__)
 
