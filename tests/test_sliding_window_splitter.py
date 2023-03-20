@@ -54,7 +54,7 @@ TEST_CASE_1 = [
     ],
 ]
 
-# overlapping 2x2
+# overlapping 2x2 with fraction
 TEST_CASE_2 = [
     TENSOR_4x4,
     {"patch_size": (2, 2), "overlap": (0.5, 0.5)},
@@ -71,7 +71,7 @@ TEST_CASE_2 = [
     ],
 ]
 
-# overlapping 3x3 (non-divisible)
+# overlapping 3x3 with fraction (non-divisible)
 TEST_CASE_3 = [
     TENSOR_4x4,
     {"patch_size": (3, 3), "overlap": 2.0 / 3.0},
@@ -83,8 +83,36 @@ TEST_CASE_3 = [
     ],
 ]
 
-# non-overlapping 2x2 with positive offset
+# overlapping 2x2 with number of pixels
 TEST_CASE_4 = [
+    TENSOR_4x4,
+    {"patch_size": (2, 2), "overlap": (1, 1)},
+    [
+        (TENSOR_4x4[..., 0:2, 0:2], (0, 0)),
+        (TENSOR_4x4[..., 0:2, 1:3], (0, 1)),
+        (TENSOR_4x4[..., 0:2, 2:4], (0, 2)),
+        (TENSOR_4x4[..., 1:3, 0:2], (1, 0)),
+        (TENSOR_4x4[..., 1:3, 1:3], (1, 1)),
+        (TENSOR_4x4[..., 1:3, 2:4], (1, 2)),
+        (TENSOR_4x4[..., 2:4, 0:2], (2, 0)),
+        (TENSOR_4x4[..., 2:4, 1:3], (2, 1)),
+        (TENSOR_4x4[..., 2:4, 2:4], (2, 2)),
+    ],
+]
+
+# overlapping 3x3 with number of pixels (non-divisible)
+TEST_CASE_5 = [
+    TENSOR_4x4,
+    {"patch_size": (3, 3), "overlap": 2},
+    [
+        (TENSOR_4x4[..., :3, :3], (0, 0)),
+        (TENSOR_4x4[..., :3, 1:], (0, 1)),
+        (TENSOR_4x4[..., 1:, :3], (1, 0)),
+        (TENSOR_4x4[..., 1:, 1:], (1, 1)),
+    ],
+]
+# non-overlapping 2x2 with positive offset
+TEST_CASE_6 = [
     TENSOR_4x4,
     {"patch_size": (2, 2), "offset": 1, "pad_kwargs": {"mode": "constant"}},
     [
@@ -96,7 +124,7 @@ TEST_CASE_4 = [
 ]
 
 # non-overlapping 2x2 with negative offset
-TEST_CASE_5 = [
+TEST_CASE_7 = [
     TENSOR_4x4,
     {"patch_size": (2, 2), "offset": -1, "pad_kwargs": {"mode": "constant"}},
     [
@@ -113,7 +141,7 @@ TEST_CASE_5 = [
 ]
 
 # non-overlapping 2x2 with positive offset and no padding
-TEST_CASE_6 = [TENSOR_4x4, {"patch_size": (2, 2), "offset": 1}, [(TENSOR_4x4[..., 1:3, 1:3], (1, 1))]]
+TEST_CASE_8 = [TENSOR_4x4, {"patch_size": (2, 2), "offset": 1}, [(TENSOR_4x4[..., 1:3, 1:3], (1, 1))]]
 
 
 # ----------------------------------------------------------------------------
@@ -209,6 +237,8 @@ class SlidingWindowSplitterTests(unittest.TestCase):
             TEST_CASE_4,
             TEST_CASE_5,
             TEST_CASE_6,
+            TEST_CASE_7,
+            TEST_CASE_8,
             TEST_CASE_FILTER_FN_0,
             TEST_CASE_FILTER_FN_1,
             TEST_CASE_FILTER_FN_2,

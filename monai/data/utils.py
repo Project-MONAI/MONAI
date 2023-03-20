@@ -207,7 +207,7 @@ def iter_patch_position(
     image_size: Sequence[int],
     patch_size: Sequence[int] | int | np.ndarray,
     start_pos: Sequence[int] = (),
-    overlap: Sequence[float] | float = 0.0,
+    overlap: Sequence[float] | float | Sequence[int] | int = 0.0,
     padded: bool = False,
 ):
     """
@@ -234,7 +234,10 @@ def iter_patch_position(
     overlap = ensure_tuple_rep(overlap, ndim)
 
     # calculate steps, which depends on the amount of overlap
-    steps = tuple(round(p * (1.0 - o)) for p, o in zip(patch_size_, overlap))
+    if isinstance(overlap[0], float):
+        steps = tuple(round(p * (1.0 - o)) for p, o in zip(patch_size_, overlap))
+    else:
+        steps = tuple(p - o for p, o in zip(patch_size_, overlap))
 
     # calculate the last starting location (depending on the padding)
     end_pos = image_size if padded else tuple(s - round(p) + 1 for s, p in zip(image_size, patch_size_))

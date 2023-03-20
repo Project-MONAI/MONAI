@@ -21,7 +21,7 @@ import torch
 from monai.data.utils import iter_patch_position
 from monai.data.wsi_reader import BaseWSIReader, WSIReader
 from monai.transforms import ToTensor
-from monai.utils.misc import ensure_tuple, ensure_tuple_rep
+from monai.utils.misc import PathLike, ensure_tuple, ensure_tuple_rep
 
 __all__ = ["Splitter", "SlidingWindowSplitter"]
 
@@ -92,7 +92,7 @@ class SlidingWindowSplitter(Splitter):
         patch_size: Sequence[int] | int,
         patch_level: int = 0,
         offset: Sequence[int] | int = 0,
-        overlap: Sequence[float] | float = 0.0,
+        overlap: Sequence[float] | float | Sequence[int] | int = 0.0,
         filter_fn: Callable | None = None,
         device: torch.device | str | None = None,
         non_spatial_ndim: int = 2,
@@ -102,8 +102,11 @@ class SlidingWindowSplitter(Splitter):
     ) -> None:
         super().__init__(patch_size=patch_size, device=device)
         self.offset = offset
-        if any(ov < 0 or ov >= 1 for ov in ensure_tuple(overlap)):
-            raise ValueError(f"Overlap must be between 0 and 1 but {overlap} is given.")
+        if isinstance(ensure_tuple(overlap)[0], float) and any(ov < 0 or ov >= 1 for ov in ensure_tuple(overlap)):
+            raise ValueError(
+                f"Fraction overlaps must be between 0.0 and 1.0 but {overlap} is given. "
+                "If you wish to use number of pixels as overlap, please provide integer numbers."
+            )
         self.overlap = overlap
         self.filter_fn = self._validate_patch_filter_fn(filter_fn)
         self.non_spatial_ndim = non_spatial_ndim
@@ -145,19 +148,21 @@ class SlidingWindowSplitter(Splitter):
         pad_size[1::2] = (-min(off, 0) for off in offset)
         # set the ending pad size only if it is not divisible by the patch size
         pad_size[::2] = (
-            0 if ps == 0 else (off - sh + ps) % round(ps * (1.0 - ov))
+            0 if ps == 0 else (off - sh + ps) % round(ps - (ps * ov if isinstance(ov, float) else ov))
             for sh, off, ps, ov in zip(spatial_shape, offset, patch_size, overlap)
         )
         return pad_size, any(pad_size[1::2])
 
     @staticmethod
-    def _get_valid_sliding_window_params(patch_size, overlap, offset, spatial_shape):
+    def _get_valid_sliding_window_params(
+        patch_size, overlap, offset, spatial_shape
+    ) -> tuple[tuple[int, ...], tuple[float | int, ...], tuple[int, ...]]:
         spatial_ndim = len(spatial_shape)
         # patch_size
         patch_size = ensure_tuple_rep(patch_size, spatial_ndim)
         # overlap
         overlap = ensure_tuple_rep(overlap, spatial_ndim)
-        overlap = tuple(o if p else 0.0 for o, p in zip(overlap, patch_size))
+        overlap = tuple(o if p else type(overlap[0])(0) for o, p in zip(overlap, patch_size))
         # offset
         offset = ensure_tuple_rep(offset, spatial_ndim)
         for off, ps, sh in zip(offset, patch_size, spatial_shape):
@@ -168,7 +173,9 @@ class SlidingWindowSplitter(Splitter):
 
         return patch_size, overlap, offset
 
-    def _get_patch_tensor(self, inputs, location, patch_size):
+    def _get_patch_tensor(
+        self, inputs: torch.Tensor, location: tuple[int, ...], patch_size: tuple[int, ...]
+    ) -> torch.Tensor:
         slices = (slice(None),) * self.non_spatial_ndim + tuple(
             slice(loc, loc + ps) for loc, ps in zip(location, patch_size)
         )
@@ -177,12 +184,12 @@ class SlidingWindowSplitter(Splitter):
         patch.to(self.device)
         return patch
 
-    def _get_patch_wsi(self, inputs, location, patch_size):
+    def _get_patch_wsi(self, inputs: Any, location: tuple[int, int], patch_size: tuple[int, int]) -> torch.Tensor:
         patch, _ = self.reader.get_data(wsi=inputs, location=location, size=patch_size, level=self.patch_level)
         # send the patch to target device
         return ToTensor(device=self.device)(patch)
 
-    def _set_reader(self, reader: str | BaseWSIReader | type[BaseWSIReader], reader_kwargs: dict | None) -> None:
+    def _set_reader(self, reader: str | BaseWSIReader | type[BaseWSIReader] | None, reader_kwargs: dict | None) -> None:
         """
         Set the WSI reader object based on the input reader
 
@@ -193,7 +200,7 @@ class SlidingWindowSplitter(Splitter):
                 - a class (inherited from `BaseWSIReader`), it is initialized and set as wsi_reader.
                 - an instance of a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
         """
-        self.reader: WSIReader | BaseWSIReader | None = None
+        self.reader: WSIReader | BaseWSIReader
         self.reader_kwargs = {} if reader_kwargs is None else reader_kwargs
         if isinstance(reader, str):
             self.reader = WSIReader(backend=reader, level=self.patch_level, **self.reader_kwargs)
