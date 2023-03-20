@@ -18,7 +18,7 @@ import numpy as np
 
 import monai
 from monai.bundle import ConfigParser
-from monai.utils import optional_import
+from monai.utils import optional_import, ensure_tuple
 
 tqdm, has_tqdm = optional_import("tqdm", name="tqdm")
 nib, _ = optional_import("nibabel")
@@ -26,7 +26,7 @@ nib, _ = optional_import("nibabel")
 logger = monai.apps.utils.get_logger(__name__)
 
 
-def analyze_data(datalist_json: str, data_dir: str):
+def analyze_data(datalist_json: dict, data_dir: str) -> tuple[int, int]:
     """
     Analyze (training) data
 
@@ -52,8 +52,8 @@ def analyze_data(datalist_json: str, data_dir: str):
 
 
 def create_new_data_copy(
-    test_key: str, datalist_json: str, data_dir: str, num_input_channels: int, output_datafolder: str
-):
+    test_key: str, datalist_json: dict, data_dir: str, num_input_channels: int, output_datafolder: str
+) -> None:
     """
     Create and organize a new copy of data to meet the requirements of nnU-Net V2
 
@@ -126,8 +126,8 @@ def create_new_data_copy(
 
 
 def create_new_dataset_json(
-    modality, num_foreground_classes: int, num_input_channels: int, num_training_data: int, output_filepath: str
-):
+        modality: str, num_foreground_classes: int, num_input_channels: int, num_training_data: int, output_filepath: str
+) -> None:
     """
     Create a new copy of dataset .json to meet the requirements of nnU-Net V2
 
@@ -141,8 +141,7 @@ def create_new_dataset_json(
     new_json_data: dict = {}
 
     # modality = self.input_info.pop("modality")
-    if not isinstance(modality, list):
-        modality = [modality]
+    modality = ensure_tuple(modality)  # type: ignore
 
     new_json_data["channel_names"] = {}
     for _j in range(num_input_channels):

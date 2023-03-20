@@ -159,7 +159,7 @@ class nnUNetV2Runner:  # noqa: N801
             )
 
             create_new_data_copy(
-                test_key=test_key,
+                test_key=test_key,  # type: ignore
                 datalist_json=datalist_json,
                 data_dir=data_dir,
                 num_input_channels=num_input_channels,
@@ -392,7 +392,10 @@ class nnUNetV2Runner:  # noqa: N801
         run_training(dataset_name_or_id=self.dataset_name_or_id, configuration=config, fold=fold, **kwargs)
 
     def train(
-        self, configs=("3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"), device_ids: tuple | None = None, **kwargs
+        self,
+        configs: tuple | str = ("3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"),
+        device_ids: tuple | None = None,
+        **kwargs: Any,
     ) -> None:
         """
         Args:
@@ -413,7 +416,10 @@ class nnUNetV2Runner:  # noqa: N801
                     self.train_single_model(config=cfg, fold=_fold, **kwargs)
 
     def train_parallel_cmd(
-        self, configs=("3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"), device_ids: tuple | None = None, **kwargs
+        self,
+        configs: tuple | str = ("3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"),
+        device_ids: tuple | None = None,
+        **kwargs: Any,
     ) -> list:
         # unpack compressed files
         folder_names = []
@@ -445,11 +451,11 @@ class nnUNetV2Runner:  # noqa: N801
             for _config in _configs[_stage]:
                 if _config in ensure_tuple(configs):
                     for _i in range(self.num_folds):
-                        the_device = device_ids[_index % n_devices]
+                        the_device = device_ids[_index % n_devices]  # type: ignore
                         cmd = (
                             "python -m monai.apps.nnunet nnUNetV2Runner train_single_model "
                             + f"--input_config '{self.input_config_or_dict}' --config '{_config}' "
-                            + f"--fold {_i} --gpu_id {the_device}"  # type: ignore
+                            + f"--fold {_i} --gpu_id {the_device}"
                         )
                         for _key, _value in kwargs.items():
                             cmd += f" --{_key} {_value}"
@@ -458,8 +464,11 @@ class nnUNetV2Runner:  # noqa: N801
         return all_cmds
 
     def train_parallel(
-        self, configs=("3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"), device_ids: tuple | None = None, **kwargs
-    ):
+        self,
+        configs: tuple | str = ("3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"),
+        device_ids: tuple | None = None,
+        **kwargs: Any,
+    ) -> None:
         """
         Args:
             configs: configurations that should be trained.
