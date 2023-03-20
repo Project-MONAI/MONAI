@@ -254,7 +254,7 @@ class nnUNetV2Runner:
     def convert_msd_dataset(self, data_dir: str, overwrite_id=None, np: int=-1):
         """
         Args:
-            data_dir: downloaded and extracted MSD dataset folder. CANNOT be nnUNetv1 dataset! Example: 
+            data_dir: downloaded and extracted MSD dataset folder. CANNOT be nnUNetv1 dataset! Example:
                 "/workspace/downloads/Task05_Prostate")
             overwrite_id: Overwrite the dataset id. If not set then use the id of the MSD task (inferred from
                 folder name). Only use this if you already have an equivalently numbered dataset!
