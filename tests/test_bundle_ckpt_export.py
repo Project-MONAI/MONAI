@@ -23,15 +23,17 @@ from monai.data import load_net_with_metadata
 from monai.networks import save_state
 from tests.utils import command_line_tests, skip_if_windows
 
-TEST_CASE_1 = [""]
+TEST_CASE_1 = ["", ""]
 
-TEST_CASE_2 = ["model"]
+TEST_CASE_2 = ["model", ""]
+
+TEST_CASE_3 = ["model", "trace"]
 
 
 @skip_if_windows
 class TestCKPTExport(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
-    def test_export(self, key_in_ckpt):
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+    def test_export(self, key_in_ckpt, ir):
         meta_file = os.path.join(os.path.dirname(__file__), "testing_data", "metadata.json")
         config_file = os.path.join(os.path.dirname(__file__), "testing_data", "inference.json")
         with tempfile.TemporaryDirectory() as tempdir:
@@ -50,6 +52,8 @@ class TestCKPTExport(unittest.TestCase):
             cmd = ["coverage", "run", "-m", "monai.bundle", "ckpt_export", "network_def", "--filepath", ts_file]
             cmd += ["--meta_file", meta_file, "--config_file", f"['{config_file}','{def_args_file}']", "--ckpt_file"]
             cmd += [ckpt_file, "--key_in_ckpt", key_in_ckpt, "--args_file", def_args_file]
+            if ir == "trace":
+                cmd += ["--ir", ir, "--input_shape", "[1, 1, 96, 96, 96]"]
             command_line_tests(cmd)
             self.assertTrue(os.path.exists(ts_file))
 

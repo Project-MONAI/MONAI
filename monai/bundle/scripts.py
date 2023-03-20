@@ -939,6 +939,8 @@ def ckpt_export(
     meta_file: str | Sequence[str] | None = None,
     config_file: str | Sequence[str] | None = None,
     key_in_ckpt: str | None = None,
+    ir: str | None = None,
+    input_shape: Sequence[int] | None = None,
     args_file: str | None = None,
     **override: Any,
 ) -> None:
@@ -962,6 +964,9 @@ def ckpt_export(
             it can be a single file or a list of files. if `None`, must be provided in `args_file`.
         key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
             weights. if not nested checkpoint, no need to set.
+        ir: the way to transform a pytorch module to a torchscript model. Could be chosen from `(script, trace)`.
+        input_shape: must specify the `input_shape` of the network to convert the model when using `trace` as ir.
+            Should be a list like [N, C, H, W] or [N, C, H, W, D].
         args_file: a JSON or YAML file to provide default values for `meta_file`, `config_file`,
             `net_id` and override pairs. so that the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.
@@ -976,11 +981,21 @@ def ckpt_export(
         config_file=config_file,
         ckpt_file=ckpt_file,
         key_in_ckpt=key_in_ckpt,
+        ir=ir,
+        input_shape=input_shape,
         **override,
     )
     _log_input_summary(tag="ckpt_export", args=_args)
-    filepath_, ckpt_file_, config_file_, net_id_, meta_file_, key_in_ckpt_ = _pop_args(
-        _args, "filepath", "ckpt_file", "config_file", net_id="", meta_file=None, key_in_ckpt=""
+    filepath_, ckpt_file_, config_file_, net_id_, meta_file_, key_in_ckpt_, ir_, input_shape_ = _pop_args(
+        _args,
+        "filepath",
+        "ckpt_file",
+        "config_file",
+        net_id="",
+        meta_file=None,
+        key_in_ckpt="",
+        ir="script",
+        input_shape=None,
     )
 
     parser = ConfigParser()
@@ -993,6 +1008,8 @@ def ckpt_export(
     for k, v in _args.items():
         parser[k] = v
 
+    inputs_: Sequence[Any] | None = [torch.rand(input_shape_)] if input_shape_ else None
+
     _export(
         convert_to_torchscript,
         parser,
@@ -1001,6 +1018,8 @@ def ckpt_export(
         ckpt_file=ckpt_file_,
         config_file=config_file_,
         key_in_ckpt=key_in_ckpt_,
+        use_trace=(ir_ == "trace"),
+        inputs=inputs_,
     )
 
 
