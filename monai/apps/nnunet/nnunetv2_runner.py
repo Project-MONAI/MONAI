@@ -448,7 +448,9 @@ class nnUNetV2Runner:  # noqa: N801
         """
         self.extract_fingerprints(fpe, npfp, verify_dataset_integrity, clean, verbose)
         self.plan_experiments(pl, gpu_memory_target, preprocessor_name, overwrite_target_spacing, overwrite_plans_name)
-        self.preprocess(c, n_proc, overwrite_plans_name, verbose)
+
+        if not no_pp:
+            self.preprocess(c, n_proc, overwrite_plans_name, verbose)
 
     def train_single_model(self, config: Any, fold: int, gpu_id: int = 0, **kwargs: Any) -> None:
         """
