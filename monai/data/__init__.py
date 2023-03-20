@@ -61,6 +61,14 @@ from .image_writer import (
     resolve_writer,
 )
 from .iterable_dataset import CSVIterableDataset, IterableDataset, ShuffleBuffer
+from .itk_torch_bridge import (
+    get_itk_image_center,
+    itk_image_to_metatensor,
+    itk_to_monai_affine,
+    metatensor_to_itk_image,
+    monai_to_itk_affine,
+    monai_to_itk_ddf,
+)
 from .meta_obj import MetaObj, get_track_meta, set_track_meta
 from .meta_tensor import MetaTensor
 from .samplers import DistributedSampler, DistributedWeightedRandomSampler
@@ -114,18 +122,31 @@ with contextlib.suppress(BaseException):
     from multiprocessing.reduction import ForkingPickler
 
     def _rebuild_meta(cls, storage, dtype, metadata):
-        storage_offset, size, stride, meta_dict = metadata
+        storage_offset, size, stride, requires_grad, meta_dict = metadata
+        storage = storage._untyped_storage if hasattr(storage, "_untyped_storage") else storage
         t = cls([], dtype=dtype, device=storage.device)
-        t.set_(storage._untyped() if hasattr(storage, "_untyped") else storage, storage_offset, size, stride)
+        t.set_(storage, storage_offset, size, stride)
+        t.requires_grad = requires_grad
         t.__dict__ = meta_dict
         return t
 
     def reduce_meta_tensor(meta_tensor):
-        storage = meta_tensor.untyped_storage() if hasattr(meta_tensor, "untyped_storage") else meta_tensor.storage()
+        if hasattr(meta_tensor, "untyped_storage"):
+            storage = meta_tensor.untyped_storage()
+        elif hasattr(meta_tensor, "_typed_storage"):  # gh pytorch 44dac51/torch/_tensor.py#L231-L233
+            storage = meta_tensor._typed_storage()
+        else:
+            storage = meta_tensor.storage()
         dtype = meta_tensor.dtype
-        if storage.is_cuda:
+        if meta_tensor.is_cuda:
             raise NotImplementedError("sharing CUDA metatensor across processes not implemented")
-        metadata = (meta_tensor.storage_offset(), meta_tensor.size(), meta_tensor.stride(), meta_tensor.__dict__)
+        metadata = (
+            meta_tensor.storage_offset(),
+            meta_tensor.size(),
+            meta_tensor.stride(),
+            meta_tensor.requires_grad,
+            meta_tensor.__dict__,
+        )
         return _rebuild_meta, (type(meta_tensor), storage, dtype, metadata)
 
     ForkingPickler.register(MetaTensor, reduce_meta_tensor)

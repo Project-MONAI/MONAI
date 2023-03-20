@@ -221,7 +221,7 @@ class AutoRunner:
         ensemble: bool = True,
         not_use_cache: bool = False,
         templates_path_or_url: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ):
         logger.info(f"AutoRunner using work directory {work_dir}")
         os.makedirs(work_dir, exist_ok=True)
@@ -338,7 +338,7 @@ class AutoRunner:
 
     def set_gpu_customization(
         self, gpu_customization: bool = False, gpu_customization_specs: dict[str, Any] | None = None
-    ):
+    ) -> None:
         """
         Set options for GPU-based parameter customization/optimization.
 
@@ -373,7 +373,7 @@ class AutoRunner:
         if gpu_customization_specs is not None:
             self.gpu_customization_specs = gpu_customization_specs
 
-    def set_num_fold(self, num_fold: int = 5):
+    def set_num_fold(self, num_fold: int = 5) -> None:
         """
         Set the number of cross validation folds for all algos.
 
@@ -390,7 +390,7 @@ class AutoRunner:
         if self.ensemble_method_name == "AlgoEnsembleBestByFold":
             self.ensemble_method.n_fold = self.num_fold  # type: ignore
 
-    def set_training_params(self, params: dict[str, Any] | None = None):
+    def set_training_params(self, params: dict[str, Any] | None = None) -> None:
         """
         Set the training params for all algos.
 
@@ -405,7 +405,7 @@ class AutoRunner:
         """
         self.train_params = deepcopy(params) if params is not None else {}
 
-    def set_prediction_params(self, params: dict[str, Any] | None = None):
+    def set_prediction_params(self, params: dict[str, Any] | None = None) -> None:
         """
         Set the prediction params for all algos.
 
@@ -421,7 +421,7 @@ class AutoRunner:
         """
         self.pred_params = deepcopy(params) if params is not None else {}
 
-    def set_analyze_params(self, params: dict[str, Any] | None = None):
+    def set_analyze_params(self, params: dict[str, Any] | None = None) -> None:
         """
         Set the data analysis extra params.
 
@@ -439,7 +439,7 @@ class AutoRunner:
         else:
             self.analyze_params = deepcopy(params)
 
-    def set_hpo_params(self, params: dict[str, Any] | None = None):
+    def set_hpo_params(self, params: dict[str, Any] | None = None) -> None:
         """
         Set parameters for the HPO module and the algos before the training. It will attempt to (1) override bundle
         templates with the key-value pairs in ``params`` (2) change the config of the HPO module (e.g. NNI) if the
@@ -514,7 +514,7 @@ class AutoRunner:
             output_dir=output_dir, output_postfix=output_postfix, output_dtype=output_dtype, resample=resample, **kwargs
         )
 
-    def set_ensemble_method(self, ensemble_method_name: str = "AlgoEnsembleBestByFold", **kwargs):
+    def set_ensemble_method(self, ensemble_method_name: str = "AlgoEnsembleBestByFold", **kwargs: Any) -> None:
         """
         Set the bundle ensemble method
 
@@ -537,7 +537,7 @@ class AutoRunner:
         else:
             raise NotImplementedError(f"Ensemble method {self.ensemble_method_name} is not implemented.")
 
-    def _train_algo_in_sequence(self, history: list[dict[str, Any]]):
+    def _train_algo_in_sequence(self, history: list[dict[str, Any]]) -> None:
         """
         Train the Algos in a sequential scheme. The order of training is randomized.
 

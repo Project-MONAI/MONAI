@@ -14,6 +14,7 @@ from __future__ import annotations
 from typing import Any
 
 from monai.auto3dseg.analyzer import (
+    Analyzer,
     FgImageStats,
     FgImageStatsSumm,
     FilenameStats,
@@ -83,7 +84,7 @@ class SegSummarizer(Compose):
         self,
         image_key: str,
         label_key: str | None,
-        average=True,
+        average: bool = True,
         do_ccp: bool = True,
         hist_bins: list[int] | int | None = None,
         hist_range: list | None = None,
@@ -119,7 +120,7 @@ class SegSummarizer(Compose):
                 ImageHistogram(image_key=image_key, hist_bins=hist_bins, hist_range=hist_range), ImageHistogramSumm()
             )
 
-    def add_analyzer(self, case_analyzer, summary_analyzer) -> None:
+    def add_analyzer(self, case_analyzer: Analyzer, summary_analyzer: Analyzer | None) -> None:
         """
         Add new analyzers to the engine so that the callable and summarize functions will
         utilize the new analyzers for stats computations.
@@ -166,9 +167,10 @@ class SegSummarizer(Compose):
 
         """
         self.transforms += (case_analyzer,)
-        self.summary_analyzers.append(summary_analyzer)
+        if summary_analyzer is not None:
+            self.summary_analyzers.append(summary_analyzer)
 
-    def summarize(self, data: list[dict]):
+    def summarize(self, data: list[dict]) -> dict[str, dict]:
         """
         Summarize the input list of data and generates a report ready for json/yaml export.
 

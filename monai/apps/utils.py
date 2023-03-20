@@ -21,7 +21,7 @@ import tempfile
 import warnings
 import zipfile
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from urllib.error import ContentTooShortError, HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import urlretrieve
@@ -49,7 +49,7 @@ def get_logger(
     fmt: str = DEFAULT_FMT,
     datefmt: str | None = None,
     logger_handler: logging.Handler | None = None,
-):
+) -> logging.Logger:
     """
     Get a `module_name` logger with the specified format and date format.
     By default, the logger will print to `stdout` at the INFO level.
@@ -58,13 +58,15 @@ def get_logger(
     (https://docs.python.org/3/library/logging.html#formatter-objects).
     `logger_handler` can be used to add an additional handler.
     """
+    adds_stdout_handler = module_name is not None and module_name not in logging.root.manager.loggerDict
     logger = logging.getLogger(module_name)
     logger.propagate = False
     logger.setLevel(logging.INFO)
-    handler = logging.StreamHandler(sys.stdout)
-    formatter = logging.Formatter(fmt=fmt, datefmt=datefmt)
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
+    if adds_stdout_handler:  # don't add multiple stdout or add to the root
+        handler = logging.StreamHandler(sys.stdout)
+        formatter = logging.Formatter(fmt=fmt, datefmt=datefmt)
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
     if logger_handler is not None:
         logger.addHandler(logger_handler)
     return logger
@@ -81,7 +83,7 @@ def _basename(p: PathLike) -> str:
     return Path(f"{p}".rstrip(sep)).name
 
 
-def _download_with_progress(url, filepath, progress: bool = True):
+def _download_with_progress(url: str, filepath: Path, progress: bool = True) -> None:
     """
     Retrieve file from `url` to `filepath`, optionally showing a progress bar.
     """
@@ -94,7 +96,7 @@ def _download_with_progress(url, filepath, progress: bool = True):
                 Inspired by the example in https://github.com/tqdm/tqdm.
                 """
 
-                def update_to(self, b: int = 1, bsize: int = 1, tsize: int | None = None):
+                def update_to(self, b: int = 1, bsize: int = 1, tsize: int | None = None) -> None:
                     """
                     Args:
                         b: number of blocks transferred so far, default: 1.
@@ -154,7 +156,7 @@ def download_url(
     hash_val: str | None = None,
     hash_type: str = "md5",
     progress: bool = True,
-    **gdown_kwargs,
+    **gdown_kwargs: Any,
 ) -> None:
     """
     Download file from specified URL link, support process bar and hash check.

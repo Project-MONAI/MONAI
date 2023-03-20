@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Hashable, Mapping, Sequence
 from copy import deepcopy
+from typing import Any
 
 import numpy as np
 import torch
@@ -37,7 +38,7 @@ from monai.apps.detection.transforms.array import (
 )
 from monai.apps.detection.transforms.box_ops import convert_box_to_mask
 from monai.config import KeysCollection, SequenceStr
-from monai.config.type_definitions import NdarrayOrTensor
+from monai.config.type_definitions import DtypeLike, NdarrayOrTensor
 from monai.data.box_utils import COMPUTE_DTYPE, BoxMode, clip_boxes_to_image
 from monai.data.meta_tensor import MetaTensor, get_track_meta
 from monai.data.utils import orientation_ras_lps
@@ -235,7 +236,7 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
         allow_missing_keys: bool = False,
         image_meta_key: str | None = None,
         image_meta_key_postfix: str | None = DEFAULT_POST_FIX,
-        affine_lps_to_ras=False,
+        affine_lps_to_ras: bool = False,
     ) -> None:
         super().__init__(box_keys, allow_missing_keys)
         box_ref_image_keys_tuple = ensure_tuple(box_ref_image_keys)
@@ -327,7 +328,7 @@ class AffineBoxToWorldCoordinated(AffineBoxToImageCoordinated):
         allow_missing_keys: bool = False,
         image_meta_key: str | None = None,
         image_meta_key_postfix: str | None = DEFAULT_POST_FIX,
-        affine_lps_to_ras=False,
+        affine_lps_to_ras: bool = False,
     ) -> None:
         super().__init__(
             box_keys, box_ref_image_keys, allow_missing_keys, image_meta_key, image_meta_key_postfix, affine_lps_to_ras
@@ -388,7 +389,7 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
         align_corners: Sequence[bool | None] | bool | None = None,
         keep_size: bool = True,
         allow_missing_keys: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         self.image_keys = ensure_tuple(image_keys)
         self.box_keys = ensure_tuple(box_keys)
@@ -402,7 +403,7 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
         self.keep_size = keep_size
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
-        d = dict(data)
+        d: dict[Hashable, torch.Tensor] = dict(data)
 
         # zoom box
         for box_key, box_ref_image_key in zip(self.box_keys, self.box_ref_image_keys):
@@ -427,7 +428,7 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
-        d = dict(data)
+        d: dict[Hashable, torch.Tensor] = dict(data)
 
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key, check=False)
@@ -503,7 +504,7 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
         align_corners: Sequence[bool | None] | bool | None = None,
         keep_size: bool = True,
         allow_missing_keys: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         self.image_keys = ensure_tuple(image_keys)
         self.box_keys = ensure_tuple(box_keys)
@@ -939,8 +940,8 @@ class MaskToBoxd(MapTransform):
         box_mask_keys: KeysCollection,
         label_keys: KeysCollection,
         min_fg_label: int,
-        box_dtype=torch.float32,
-        label_dtype=torch.long,
+        box_dtype: DtypeLike | torch.dtype = torch.float32,
+        label_dtype: DtypeLike | torch.dtype = torch.long,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(box_keys, allow_missing_keys)
@@ -1070,7 +1071,7 @@ class RandCropBoxByPosNegLabeld(Randomizable, MapTransform):
         if len(self.image_keys) != len(self.meta_keys):
             raise ValueError("meta_keys should have the same length as keys.")
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.image_keys))
-        self.centers: list[list[int]] | None = None
+        self.centers: tuple[tuple] | None = None
         self.allow_smaller = allow_smaller
 
     def generate_fg_center_boxes_np(self, boxes: NdarrayOrTensor, image_size: Sequence[int]) -> np.ndarray:

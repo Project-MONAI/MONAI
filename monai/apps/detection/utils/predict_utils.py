@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 import torch
-from torch import Tensor
+from torch import Tensor, nn
 
 from monai.inferers import SlidingWindowInferer
 
@@ -60,7 +60,7 @@ def check_dict_values_same_length(head_outputs: dict[str, list[Tensor]], keys: l
         raise ValueError(f"The values in the input dict should have the same length, Got {num_output_levels_list}.")
 
 
-def _network_sequence_output(images: Tensor, network, keys: list[str] | None = None) -> list[Tensor]:
+def _network_sequence_output(images: Tensor, network: nn.Module, keys: list[str] | None = None) -> list[Tensor]:
     """
     Decompose the output of network (a dict) into a list.
 
@@ -84,7 +84,7 @@ def _network_sequence_output(images: Tensor, network, keys: list[str] | None = N
 
 
 def predict_with_inferer(
-    images: Tensor, network, keys: list[str], inferer: SlidingWindowInferer | None = None
+    images: Tensor, network: nn.Module, keys: list[str], inferer: SlidingWindowInferer | None = None
 ) -> dict[str, list[Tensor]]:
     """
     Predict network dict output with an inferer. Compared with directly output network(images),

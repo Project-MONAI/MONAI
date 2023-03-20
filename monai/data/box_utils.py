@@ -29,7 +29,7 @@ from copy import deepcopy
 import numpy as np
 import torch
 
-from monai.config.type_definitions import NdarrayOrTensor
+from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 from monai.utils import look_up_option
 from monai.utils.enums import BoxModeName
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
@@ -939,11 +939,11 @@ def box_pair_giou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOr
 
 
 def spatial_crop_boxes(
-    boxes: NdarrayOrTensor,
+    boxes: NdarrayTensor,
     roi_start: Sequence[int] | NdarrayOrTensor,
     roi_end: Sequence[int] | NdarrayOrTensor,
     remove_empty: bool = True,
-) -> tuple[NdarrayOrTensor, NdarrayOrTensor]:
+) -> tuple[NdarrayTensor, NdarrayOrTensor]:
     """
     This function generate the new boxes when the corresponding image is cropped to the given ROI.
     When ``remove_empty=True``, it makes sure the bounding boxes are within the new cropped image.

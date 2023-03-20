@@ -54,7 +54,7 @@ class Interaction:
         self.train = train
         self.key_probability = key_probability
 
-    def __call__(self, engine: SupervisedTrainer | SupervisedEvaluator, batchdata: dict[str, torch.Tensor]):
+    def __call__(self, engine: SupervisedTrainer | SupervisedEvaluator, batchdata: dict[str, torch.Tensor]) -> dict:
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
 

@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Any
 
 import torch
 import torch.nn.functional as F
@@ -95,7 +96,7 @@ def pad_images(
     spatial_dims: int,
     size_divisible: int | Sequence[int],
     mode: PytorchPadMode | str = PytorchPadMode.CONSTANT,
-    **kwargs,
+    **kwargs: Any,
 ) -> tuple[Tensor, list[list[int]]]:
     """
     Pad the input images, so that the output spatial sizes are divisible by `size_divisible`.
@@ -148,7 +149,7 @@ def pad_images(
     max_spatial_size = compute_divisible_spatial_size(spatial_shape=list(max_spatial_size_t), k=size_divisible)
 
     # allocate memory for the padded images
-    images = torch.zeros([len(image_sizes), in_channels] + max_spatial_size, dtype=dtype, device=device)
+    images = torch.zeros([len(image_sizes), in_channels] + list(max_spatial_size), dtype=dtype, device=device)
 
     # Use `SpatialPad` to match sizes, padding in the end will not affect boxes
     padder = SpatialPad(spatial_size=max_spatial_size, method="end", mode=mode, **kwargs)
@@ -163,7 +164,7 @@ def preprocess_images(
     spatial_dims: int,
     size_divisible: int | Sequence[int],
     mode: PytorchPadMode | str = PytorchPadMode.CONSTANT,
-    **kwargs,
+    **kwargs: Any,
 ) -> tuple[Tensor, list[list[int]]]:
     """
     Preprocess the input images, including

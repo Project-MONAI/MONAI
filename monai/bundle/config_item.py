@@ -138,7 +138,7 @@ class ConfigItem:
         """
         return self.id
 
-    def update_config(self, config: Any):
+    def update_config(self, config: Any) -> None:
         """
         Replace the content of `self.config` with new `config`.
         A typical usage is to modify the initial config content at runtime.
@@ -271,7 +271,7 @@ class ConfigComponent(ConfigItem, Instantiable):
         _is_disabled = self.get_config().get("_disabled_", False)
         return _is_disabled.lower().strip() == "true" if isinstance(_is_disabled, str) else bool(_is_disabled)
 
-    def instantiate(self, **kwargs) -> object:
+    def instantiate(self, **kwargs: Any) -> object:
         """
         Instantiate component based on ``self.config`` content.
         The target component must be a `class` or a `function`, otherwise, return `None`.
@@ -328,7 +328,7 @@ class ConfigExpression(ConfigItem):
         super().__init__(config=config, id=id)
         self.globals = globals if globals is not None else {}
 
-    def _parse_import_string(self, import_string: str):
+    def _parse_import_string(self, import_string: str) -> Any | None:
         """parse single import statement such as "from monai.transforms import Resize"""
         node = first(ast.iter_child_nodes(ast.parse(import_string)))
         if not isinstance(node, (ast.Import, ast.ImportFrom)):
@@ -347,7 +347,7 @@ class ConfigExpression(ConfigItem):
             return self.globals[asname]
         return None
 
-    def evaluate(self, globals: dict | None = None, locals: dict | None = None):
+    def evaluate(self, globals: dict | None = None, locals: dict | None = None) -> str | Any | None:
         """
         Execute the current config content and return the result if it is expression, based on Python `eval()`.
         For more details: https://docs.python.org/3/library/functions.html#eval.
@@ -379,7 +379,8 @@ class ConfigExpression(ConfigItem):
         )
         import pdb
 
-        return pdb.run(value[len(self.prefix) :], globals_, locals)
+        pdb.run(value[len(self.prefix) :], globals_, locals)
+        return None
 
     @classmethod
     def is_expression(cls, config: dict | list | str) -> bool:

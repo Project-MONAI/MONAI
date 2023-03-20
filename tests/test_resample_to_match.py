@@ -21,12 +21,15 @@ import unittest
 
 import nibabel as nib
 import numpy as np
+import torch
 from parameterized import parameterized
 
+from monai.data import MetaTensor
 from monai.data.image_reader import ITKReader, NibabelReader
 from monai.data.image_writer import ITKWriter
-from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, ResampleToMatch, SaveImaged
+from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, ResampleToMatch, SaveImage, SaveImaged
 from monai.utils import optional_import
+from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.utils import assert_allclose, download_url_or_skip_test, testing_data_config
 
 _, has_itk = optional_import("itk", allow_namespace_pkg=True)
@@ -65,8 +68,14 @@ class TestResampleToMatch(unittest.TestCase):
     def test_correct(self, reader, writer):
         loader = Compose([LoadImaged(("im1", "im2"), reader=reader), EnsureChannelFirstd(("im1", "im2"))])
         data = loader({"im1": self.fnames[0], "im2": self.fnames[1]})
+        tr = ResampleToMatch()
+        im_mod = tr(data["im2"], data["im1"])
 
-        im_mod = ResampleToMatch()(data["im2"], data["im1"])
+        # check lazy resample
+        tr_lazy = ResampleToMatch()
+        call_param = {"img": data["im2"], "img_dst": data["im1"]}
+        test_resampler_lazy(tr_lazy, im_mod, init_param={}, call_param=call_param)
+
         saver = SaveImaged(
             "im3", output_dir=self.tmpdir, output_postfix="", separate_folder=False, writer=writer, resample=False
         )
@@ -89,6 +98,13 @@ class TestResampleToMatch(unittest.TestCase):
         self.assertEqual(im_mod2.shape, data["im2"].shape)
         self.assertLess(((im_mod2.affine - data["im2"].affine) ** 2).sum() ** 0.5, 1e-2)
         self.assertEqual(im_mod2.applied_operations, [])
+
+    def test_no_name(self):
+        img_1 = MetaTensor(torch.zeros(1, 2, 2, 2))
+        img_2 = MetaTensor(torch.zeros(1, 3, 3, 3))
+        im_mod = ResampleToMatch()(img_1, img_2)
+        self.assertEqual(im_mod.meta["filename_or_obj"], "resample_to_match_source")
+        SaveImage(output_dir=self.tmpdir, output_postfix="", separate_folder=False, resample=False)(im_mod)
 
 
 if __name__ == "__main__":

@@ -16,13 +16,7 @@ import warnings
 import numpy as np
 import torch
 
-from monai.metrics.utils import (
-    do_metric_reduction,
-    get_mask_edges,
-    get_surface_distance,
-    ignore_background,
-    is_binary_tensor,
-)
+from monai.metrics.utils import do_metric_reduction, get_mask_edges, get_surface_distance, ignore_background
 from monai.utils import MetricReduction, convert_data_type
 
 from .metric import CumulativeIterationMetric
@@ -69,7 +63,7 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         """
         Args:
             y_pred: input data to compute, typical segmentation model output.
@@ -79,11 +73,8 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
                 The values should be binarized.
 
         Raises:
-            ValueError: when `y` is not a binarized tensor.
             ValueError: when `y_pred` has less than three dimensions.
         """
-        is_binary_tensor(y_pred, "y_pred")
-        is_binary_tensor(y, "y")
         if y_pred.dim() < 3:
             raise ValueError("y_pred should have at least three dimensions.")
         # compute (BxC) for each channel for each batch
@@ -95,7 +86,9 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
             distance_metric=self.distance_metric,
         )
 
-    def aggregate(self, reduction: MetricReduction | str | None = None):
+    def aggregate(
+        self, reduction: MetricReduction | str | None = None
+    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """
         Execute reduction logic for the output of `compute_average_surface_distance`.
 
@@ -120,7 +113,7 @@ def compute_average_surface_distance(
     include_background: bool = False,
     symmetric: bool = False,
     distance_metric: str = "euclidean",
-):
+) -> torch.Tensor:
     """
     This function is used to compute the Average Surface Distance from `y_pred` to `y`
     under the default setting.

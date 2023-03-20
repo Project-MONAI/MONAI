@@ -83,7 +83,7 @@ class EarlyStopHandler:
         else:
             engine.add_event_handler(Events.ITERATION_COMPLETED, self)
 
-    def set_trainer(self, trainer: Engine):
+    def set_trainer(self, trainer: Engine) -> None:
         """
         Set trainer to execute early stop if not setting properly in `__init__()`.
         """

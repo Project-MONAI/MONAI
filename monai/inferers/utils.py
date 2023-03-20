@@ -142,7 +142,9 @@ def sliding_window_inference(
         diff = max(roi_size[k - 2] - inputs.shape[k], 0)
         half = diff // 2
         pad_size.extend([half, diff - half])
-    inputs = F.pad(inputs, pad=pad_size, mode=look_up_option(padding_mode, PytorchPadMode), value=cval)
+
+    if max(pad_size) > 0:
+        inputs = F.pad(inputs, pad=pad_size, mode=look_up_option(padding_mode, PytorchPadMode), value=cval)
 
     scan_interval = _get_scan_interval(image_size, roi_size, num_spatial_dims, overlap)
 
@@ -167,8 +169,8 @@ def sliding_window_inference(
     importance_map_ = convert_data_type(importance_map_, torch.Tensor, device, compute_dtype)[0]
 
     # handle non-positive weights
-    min_non_zero = max(importance_map_[importance_map_ != 0].min().item(), 1e-3)
-    importance_map_ = torch.clamp(importance_map_.to(torch.float32), min=min_non_zero).to(compute_dtype)
+    min_non_zero = max(torch.min(importance_map_).item(), 1e-3)
+    importance_map_ = torch.clamp_(importance_map_.to(torch.float32), min=min_non_zero).to(compute_dtype)
 
     # Perform predictions
     dict_key, output_image_list, count_map_list = None, [], []
@@ -253,7 +255,11 @@ def sliding_window_inference(
                             "Tips: if overlap*roi_size*zoom_scale is an integer, it usually works."
                         )
                     original_idx_zoom[axis] = slice(int(zoomed_start), int(zoomed_end), None)
-                importance_map_zoom = resizer(importance_map.unsqueeze(0))[0].to(compute_dtype)
+                importance_map_zoom = (
+                    resizer(importance_map.unsqueeze(0))[0].to(compute_dtype)
+                    if seg_prob.shape[2:] != importance_map.shape
+                    else importance_map.to(compute_dtype)
+                )
                 # store results and weights
                 output_image_list[ss][original_idx_zoom] += importance_map_zoom * seg_prob[idx - slice_g]
                 count_map_list[ss][original_idx_zoom] += (
@@ -262,13 +268,14 @@ def sliding_window_inference(
 
     # account for any overlapping sections
     for ss in range(len(output_image_list)):
-        output_image_list[ss] = (output_image_list[ss] / count_map_list.pop(0)).to(compute_dtype)
+        output_image_list[ss] = output_image_list[ss]
+        _map = count_map_list.pop(0)
+        for _i in range(output_image_list[ss].shape[1]):
+            output_image_list[ss][:, _i : _i + 1, ...] /= _map
+        output_image_list[ss] = output_image_list[ss].to(compute_dtype)
 
     # remove padding if image_size smaller than roi_size
     for ss, output_i in enumerate(output_image_list):
-        if torch.isnan(output_i).any() or torch.isinf(output_i).any():
-            warnings.warn("Sliding window inference results contain NaN or Inf.")
-
         zoom_scale = [
             seg_prob_map_shape_d / roi_size_d for seg_prob_map_shape_d, roi_size_d in zip(output_i.shape[2:], roi_size)
         ]

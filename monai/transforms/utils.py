@@ -67,7 +67,6 @@ morphology, has_morphology = optional_import("skimage.morphology")
 ndimage, _ = optional_import("scipy.ndimage")
 cp, has_cp = optional_import("cupy")
 cp_ndarray, _ = optional_import("cupy", name="ndarray")
-cucim, has_cucim = optional_import("cucim")
 exposure, has_skimage = optional_import("skimage.exposure")
 
 __all__ = [
@@ -401,7 +400,7 @@ def weighted_patch_samples(
 
     """
     if w is None:
-        raise ValueError("w must be an ND array.")
+        raise ValueError("w must be an ND array, got None.")
     if r_state is None:
         r_state = np.random.RandomState()
     img_size = np.asarray(w.shape, dtype=int)
@@ -410,7 +409,7 @@ def weighted_patch_samples(
     s = tuple(slice(w // 2, m - w + w // 2) if m > w else slice(m // 2, m // 2 + 1) for w, m in zip(win_size, img_size))
     v = w[s]  # weight map in the 'valid' mode
     v_size = v.shape
-    v = ravel(v)
+    v = ravel(v)  # always copy
     if (v < 0).any():
         v -= v.min()  # shifting to non-negative
     v = cumsum(v)
@@ -431,7 +430,7 @@ def correct_crop_centers(
     spatial_size: Sequence[int] | int,
     label_spatial_shape: Sequence[int],
     allow_smaller: bool = False,
-):
+) -> tuple[Any]:
     """
     Utility to correct the crop center if the crop size and centers are not compatible with the image size.
 
@@ -447,7 +446,10 @@ def correct_crop_centers(
     spatial_size = fall_back_tuple(spatial_size, default=label_spatial_shape)
     if any(np.subtract(label_spatial_shape, spatial_size) < 0):
         if not allow_smaller:
-            raise ValueError("The size of the proposed random crop ROI is larger than the image size.")
+            raise ValueError(
+                "The size of the proposed random crop ROI is larger than the image size, "
+                f"got ROI size {spatial_size} and label image size {label_spatial_shape} respectively."
+            )
         spatial_size = tuple(min(l, s) for l, s in zip(label_spatial_shape, spatial_size))
 
     # Select subregion to assure valid roi
@@ -464,7 +466,7 @@ def correct_crop_centers(
     for c, v_s, v_e in zip(centers, valid_start, valid_end):
         center_i = min(max(c, v_s), v_e - 1)
         valid_centers.append(int(center_i))
-    return valid_centers
+    return ensure_tuple(valid_centers)  # type: ignore
 
 
 def generate_pos_neg_label_crop_centers(
@@ -476,7 +478,7 @@ def generate_pos_neg_label_crop_centers(
     bg_indices: NdarrayOrTensor,
     rand_state: np.random.RandomState | None = None,
     allow_smaller: bool = False,
-) -> list[list[int]]:
+) -> tuple[tuple]:
     """
     Generate valid sample locations based on the label with option for specifying foreground ratio
     Valid: samples sitting entirely within image, expected input shape: [C, H, W, D] or [C, H, W]
@@ -522,7 +524,7 @@ def generate_pos_neg_label_crop_centers(
         # shift center to range of valid centers
         centers.append(correct_crop_centers(center, spatial_size, label_spatial_shape, allow_smaller))
 
-    return centers
+    return ensure_tuple(centers)  # type: ignore
 
 
 def generate_label_classes_crop_centers(
@@ -533,7 +535,8 @@ def generate_label_classes_crop_centers(
     ratios: list[float | int] | None = None,
     rand_state: np.random.RandomState | None = None,
     allow_smaller: bool = False,
-) -> list[list[int]]:
+    warn: bool = True,
+) -> tuple[tuple]:
     """
     Generate valid sample locations based on the specified ratios of label classes.
     Valid: samples sitting entirely within image, expected input shape: [C, H, W, D] or [C, H, W]
@@ -549,23 +552,27 @@ def generate_label_classes_crop_centers(
         allow_smaller: if `False`, an exception will be raised if the image is smaller than
             the requested ROI in any dimension. If `True`, any smaller dimensions will be set to
             match the cropped size (i.e., no cropping in that dimension).
+        warn: if `True` prints a warning if a class is not present in the label.
 
     """
     if rand_state is None:
         rand_state = np.random.random.__self__  # type: ignore
 
     if num_samples < 1:
-        raise ValueError("num_samples must be an int number and greater than 0.")
-    ratios_: list[float | int] = ([1] * len(indices)) if ratios is None else ratios
+        raise ValueError(f"num_samples must be an int number and greater than 0, got {num_samples}.")
+    ratios_: list[float | int] = list(ensure_tuple([1] * len(indices) if ratios is None else ratios))
     if len(ratios_) != len(indices):
-        raise ValueError("random crop ratios must match the number of indices of classes.")
+        raise ValueError(
+            f"random crop ratios must match the number of indices of classes, got {len(ratios_)} and {len(indices)}."
+        )
     if any(i < 0 for i in ratios_):
-        raise ValueError("ratios should not contain negative number.")
+        raise ValueError(f"ratios should not contain negative number, got {ratios_}.")
 
     for i, array in enumerate(indices):
         if len(array) == 0:
-            warnings.warn(f"no available indices of class {i} to crop, set the crop ratio of this class to zero.")
             ratios_[i] = 0
+            if warn:
+                warnings.warn(f"no available indices of class {i} to crop, set the crop ratio of this class to zero.")
 
     centers = []
     classes = rand_state.choice(len(ratios_), size=num_samples, p=np.asarray(ratios_) / np.sum(ratios_))
@@ -577,7 +584,7 @@ def generate_label_classes_crop_centers(
         # shift center to range of valid centers
         centers.append(correct_crop_centers(center, spatial_size, label_spatial_shape, allow_smaller))
 
-    return centers
+    return ensure_tuple(centers)  # type: ignore
 
 
 def create_grid(
@@ -823,7 +830,7 @@ def _create_shear(spatial_dims: int, coefs: Sequence[float] | float, eye_func=np
 def create_scale(
     spatial_dims: int,
     scaling_factor: Sequence[float] | float,
-    device: torch.device | None = None,
+    device: torch.device | str | None = None,
     backend=TransformBackends.NUMPY,
 ) -> NdarrayOrTensor:
     """
@@ -868,6 +875,7 @@ def create_translate(
         backend: APIs to use, ``numpy`` or ``torch``.
     """
     _backend = look_up_option(backend, TransformBackends)
+    spatial_dims = int(spatial_dims)
     if _backend == TransformBackends.NUMPY:
         return _create_translate(spatial_dims=spatial_dims, shift=shift, eye_func=np.eye, array_func=np.asarray)
     if _backend == TransformBackends.TORCH:
@@ -925,7 +933,7 @@ def generate_spatial_bounding_box(
     margin = ensure_tuple_rep(margin, ndim)
     for m in margin:
         if m < 0:
-            raise ValueError("margin value should not be negative number.")
+            raise ValueError(f"margin value should not be negative number, got {margin}.")
 
     box_start = [0] * ndim
     box_end = [0] * ndim
@@ -968,6 +976,7 @@ def get_largest_connected_component_mask(
     """
     # use skimage/cucim.skimage and np/cp depending on whether packages are
     # available and input is non-cpu torch.tensor
+    cucim, has_cucim = optional_import("cucim")
     use_cp = has_cp and has_cucim and isinstance(img, torch.Tensor) and img.device != torch.device("cpu")
     if use_cp:
         img_ = convert_to_cupy(img.short())  # type: ignore
@@ -1065,7 +1074,7 @@ def get_unique_labels(img: NdarrayOrTensor, is_onehot: bool, discard: int | Iter
         applied_labels = {i for i, s in enumerate(img) if s.sum() > 0}
     else:
         if n_channels != 1:
-            raise ValueError("If input not one-hotted, should only be 1 channel.")
+            raise ValueError(f"If input not one-hotted, should only be 1 channel, got {n_channels}.")
         applied_labels = set(unique(img).tolist())
     if discard is not None:
         for i in ensure_tuple(discard):
@@ -1388,7 +1397,7 @@ def compute_divisible_spatial_size(spatial_shape: Sequence[int], k: Sequence[int
         new_dim = int(np.ceil(dim / k_d) * k_d) if k_d > 0 else dim
         new_size.append(new_dim)
 
-    return new_size
+    return tuple(new_size)
 
 
 def equalize_hist(
@@ -1622,13 +1631,13 @@ def convert_pad_mode(dst: NdarrayOrTensor, mode: str | None):
     if isinstance(dst, torch.Tensor):
         if mode == "wrap":
             mode = "circular"
-        if mode == "edge":
+        elif mode == "edge":
             mode = "replicate"
         return look_up_option(mode, PytorchPadMode)
     if isinstance(dst, np.ndarray):
         if mode == "circular":
             mode = "wrap"
-        if mode == "replicate":
+        elif mode == "replicate":
             mode = "edge"
         return look_up_option(mode, NumpyPadMode)
     raise ValueError(f"unsupported data type: {type(dst)}.")
@@ -1656,29 +1665,27 @@ def convert_to_contiguous(
         return data
 
 
-def scale_affine(affine, spatial_size, new_spatial_size, centered: bool = True):
+def scale_affine(spatial_size, new_spatial_size, centered: bool = True):
     """
-    Scale the affine matrix according to the new spatial size.
+    Compute the scaling matrix according to the new spatial size
 
     Args:
-        affine: affine matrix to scale.
         spatial_size: original spatial size.
         new_spatial_size: new spatial size.
-        centered: whether the scaling is with respect to
-            the image center (True, default) or corner (False).
+        centered: whether the scaling is with respect to the image center (True, default) or corner (False).
 
     Returns:
-        Scaled affine matrix.
+        the scaling matrix.
 
     """
+    r = max(len(new_spatial_size), len(spatial_size))
     if spatial_size == new_spatial_size:
-        return affine
-    r = len(affine) - 1
-    s = np.array([float(o) / float(max(n, 1)) for o, n in zip(spatial_size, new_spatial_size)])
+        return np.eye(r + 1)
+    s = np.array([float(o) / float(max(n, 1)) for o, n in zip(spatial_size, new_spatial_size)], dtype=float)
     scale = create_scale(r, s.tolist())
     if centered:
-        scale[:r, -1] = (np.diag(scale)[:r] - 1) / 2  # type: ignore
-    return affine @ convert_to_dst_type(scale, affine)[0]
+        scale[:r, -1] = (np.diag(scale)[:r] - 1) / 2.0  # type: ignore
+    return scale
 
 
 def attach_hook(func, hook, mode="pre"):

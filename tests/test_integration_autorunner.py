@@ -23,7 +23,13 @@ from monai.apps.auto3dseg import AutoRunner
 from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
 from monai.utils import optional_import
-from tests.utils import SkipIfBeforePyTorchVersion, skip_if_downloading_fails, skip_if_no_cuda, skip_if_quick
+from tests.utils import (
+    SkipIfBeforePyTorchVersion,
+    get_testing_algo_template_path,
+    skip_if_downloading_fails,
+    skip_if_no_cuda,
+    skip_if_quick,
+)
 
 _, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 _, has_nni = optional_import("nni")
@@ -63,7 +69,7 @@ pred_param = {"files_slices": slice(0, 1), "mode": "mean", "sigmoid": True}
 
 
 @skip_if_quick
-@SkipIfBeforePyTorchVersion((1, 9, 1))
+@SkipIfBeforePyTorchVersion((1, 13, 0))
 @unittest.skipIf(not has_tb, "no tensorboard summary writer")
 class TestAutoRunner(unittest.TestCase):
     def setUp(self) -> None:
@@ -107,7 +113,9 @@ class TestAutoRunner(unittest.TestCase):
     @skip_if_no_cuda
     def test_autorunner(self) -> None:
         work_dir = os.path.join(self.test_path, "work_dir")
-        runner = AutoRunner(work_dir=work_dir, input=self.data_src_cfg)
+        runner = AutoRunner(
+            work_dir=work_dir, input=self.data_src_cfg, templates_path_or_url=get_testing_algo_template_path()
+        )
         runner.set_training_params(train_param)  # 2 epochs
         runner.set_num_fold(1)
         with skip_if_downloading_fails():
@@ -116,7 +124,9 @@ class TestAutoRunner(unittest.TestCase):
     @skip_if_no_cuda
     def test_autorunner_ensemble(self) -> None:
         work_dir = os.path.join(self.test_path, "work_dir")
-        runner = AutoRunner(work_dir=work_dir, input=self.data_src_cfg)
+        runner = AutoRunner(
+            work_dir=work_dir, input=self.data_src_cfg, templates_path_or_url=get_testing_algo_template_path()
+        )
         runner.set_training_params(train_param)  # 2 epochs
         runner.set_ensemble_method("AlgoEnsembleBestByFold")
         runner.set_num_fold(1)
@@ -126,7 +136,9 @@ class TestAutoRunner(unittest.TestCase):
     @skip_if_no_cuda
     def test_autorunner_gpu_customization(self) -> None:
         work_dir = os.path.join(self.test_path, "work_dir")
-        runner = AutoRunner(work_dir=work_dir, input=self.data_src_cfg)
+        runner = AutoRunner(
+            work_dir=work_dir, input=self.data_src_cfg, templates_path_or_url=get_testing_algo_template_path()
+        )
         gpu_customization_specs = {
             "universal": {"num_trials": 1, "range_num_images_per_batch": [1, 2], "range_num_sw_batch_size": [1, 2]}
         }
@@ -140,7 +152,13 @@ class TestAutoRunner(unittest.TestCase):
     @unittest.skipIf(not has_nni, "nni required")
     def test_autorunner_hpo(self) -> None:
         work_dir = os.path.join(self.test_path, "work_dir")
-        runner = AutoRunner(work_dir=work_dir, input=self.data_src_cfg, hpo=True, ensemble=False)
+        runner = AutoRunner(
+            work_dir=work_dir,
+            input=self.data_src_cfg,
+            hpo=True,
+            ensemble=False,
+            templates_path_or_url=get_testing_algo_template_path(),
+        )
         hpo_param = {
             "num_epochs_per_validation": train_param["num_epochs_per_validation"],
             "num_images_per_batch": train_param["num_images_per_batch"],

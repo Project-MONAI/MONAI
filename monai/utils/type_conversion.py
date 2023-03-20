@@ -355,7 +355,7 @@ def convert_to_dst_type(
 
     device = dst.device if device is None and isinstance(dst, torch.Tensor) else device
     if dtype is None:
-        dtype = dst.dtype
+        dtype = getattr(dst, "dtype", None)  # sequence has no dtype
 
     copy_meta = False
     output_type: Any

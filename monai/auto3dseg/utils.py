@@ -17,7 +17,7 @@ import sys
 import warnings
 from copy import deepcopy
 from numbers import Number
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import torch
@@ -43,10 +43,9 @@ __all__ = [
 
 measure_np, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
 cp, has_cp = optional_import("cupy")
-cucim, has_cucim = optional_import("cucim")
 
 
-def get_foreground_image(image: MetaTensor):
+def get_foreground_image(image: MetaTensor) -> np.ndarray:
     """
     Get a foreground image by removing all-zero rectangles on the edges of the image
     Note for the developer: update select_fn if the foreground is defined differently.
@@ -63,7 +62,7 @@ def get_foreground_image(image: MetaTensor):
 
     copper = CropForeground(select_fn=lambda x: x > 0)
     image_foreground = copper(image)
-    return image_foreground
+    return cast(np.ndarray, image_foreground)
 
 
 def get_foreground_label(image: MetaTensor, label: MetaTensor) -> MetaTensor:
@@ -93,7 +92,7 @@ def get_label_ccp(mask_index: MetaTensor, use_gpu: bool = True) -> tuple[list[An
             regardless of this setting.
 
     """
-
+    cucim, has_cucim = optional_import("cucim")
     shape_list = []
     if mask_index.device.type == "cuda" and has_cp and has_cucim and use_gpu:
         mask_cupy = ToCupy()(mask_index.short())
@@ -130,8 +129,8 @@ def concat_val_to_np(
     fixed_keys: list[str | int],
     ragged: bool | None = False,
     allow_missing: bool | None = False,
-    **kwargs,
-):
+    **kwargs: Any,
+) -> np.ndarray:
     """
     Get the nested value in a list of dictionary that shares the same structure.
 
@@ -183,8 +182,8 @@ def concat_val_to_np(
 
 
 def concat_multikeys_to_dict(
-    data_list: list[dict], fixed_keys: list[str | int], keys: list[str], zero_insert: bool = True, **kwargs
-):
+    data_list: list[dict], fixed_keys: list[str | int], keys: list[str], zero_insert: bool = True, **kwargs: Any
+) -> dict[str, np.ndarray]:
     """
     Get the nested value in a list of dictionary that shares the same structure iteratively on all keys.
     It returns a dictionary with keys with the found values in nd.ndarray.
@@ -248,7 +247,7 @@ def datafold_read(datalist: str | dict, basedir: str, fold: int = 0, key: str = 
     return tr, val
 
 
-def verify_report_format(report: dict, report_format: dict):
+def verify_report_format(report: dict, report_format: dict) -> bool:
     """
     Compares the report and the report_format that has only keys.
 
@@ -270,10 +269,10 @@ def verify_report_format(report: dict, report_format: dict):
             else:
                 return False
 
-        return True
+    return True
 
 
-def algo_to_pickle(algo: Algo, **algo_meta_data) -> str:
+def algo_to_pickle(algo: Algo, **algo_meta_data: Any) -> str:
     """
     Export the Algo object to pickle file
 
@@ -296,7 +295,7 @@ def algo_to_pickle(algo: Algo, **algo_meta_data) -> str:
     return pkl_filename
 
 
-def algo_from_pickle(pkl_filename: str, **kwargs) -> Any:
+def algo_from_pickle(pkl_filename: str, **kwargs: Any) -> Any:
     """
     Import the Algo object from a pickle file
 

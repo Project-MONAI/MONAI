@@ -13,17 +13,21 @@ from __future__ import annotations
 
 import warnings
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from pydoc import locate
 from typing import Any
 
 import torch
 import torch.nn as nn
 
+from monai.data.meta_tensor import MetaTensor
+from monai.inferers.merger import AvgMerger, Merger
+from monai.inferers.splitter import Splitter
 from monai.inferers.utils import compute_importance_map, sliding_window_inference
-from monai.utils import BlendMode, PytorchPadMode, ensure_tuple
+from monai.utils import BlendMode, PatchKeys, PytorchPadMode, ensure_tuple, optional_import
 from monai.visualize import CAM, GradCAM, GradCAMpp
 
-__all__ = ["Inferer", "SimpleInferer", "SlidingWindowInferer", "SaliencyInferer", "SliceInferer"]
+__all__ = ["Inferer", "PatchInferer", "SimpleInferer", "SlidingWindowInferer", "SaliencyInferer", "SliceInferer"]
 
 
 class Inferer(ABC):
@@ -47,7 +51,7 @@ class Inferer(ABC):
     """
 
     @abstractmethod
-    def __call__(self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any):
+    def __call__(self, inputs: torch.Tensor, network: Callable, *args: Any, **kwargs: Any) -> Any:
         """
         Run inference on `inputs` with the `network` model.
 
@@ -64,6 +68,238 @@ class Inferer(ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
+class PatchInferer(Inferer):
+    """
+    Inference on patches instead of the whole image based on Splitter and Merger.
+    This splits the input image into patches and then merge the resulted patches.
+
+    Args:
+        splitter: a `Splitter` object that split the inputs into patches. Defaults to None.
+            If not provided or None, the inputs are considered to be already split into patches.
+        merger_cls: a `Merger` subclass that can be instantiated to merges patch outputs.
+            It can also be a string that matches the name of a class inherited from `Merger` class.
+            Defaults to `AvgMerger`.
+        batch_size: batch size for patches. If the input tensor is already batched [BxCxWxH],
+            this adds additional batching [(Bp*B)xCxWpxHp] for inference on patches.
+            Defaults to 1.
+        preprocessing: a callable that process patches before the being fed to the network.
+            Defaults to None.
+        postprocessing: a callable that process the output of the network.
+            Defaults to None.
+        output_keys: if the network output is a dictionary, this defines the keys of
+            the output dictionary to be used for merging.
+            Defaults to None, where all the keys are used.
+        merger_kwargs: arguments to be passed to `merger_cls` for instantiation.
+            `output_shape` is calculated automatically based on the input shape and
+            the output patch shape unless it is passed here.
+    """
+
+    def __init__(
+        self,
+        splitter: Splitter | Callable | None = None,
+        merger_cls: type[Merger] | str = AvgMerger,
+        batch_size: int = 1,
+        preprocessing: Callable | None = None,
+        postprocessing: Callable | None = None,
+        output_keys: Sequence | None = None,
+        **merger_kwargs: Any,
+    ) -> None:
+        Inferer.__init__(self)
+
+        # splitter
+        if splitter is not None and not isinstance(splitter, Splitter):
+            if callable(splitter):
+                warnings.warn(
+                    "`splitter` is a callable instead of `Splitter` object, please make sure that it returns "
+                    "the correct values. Either Iterable[tuple[torch.Tensor, Sequence[int]]], or "
+                    "a MetaTensor with defined `PatchKey.LOCATION` metadata."
+                )
+            else:
+                raise TypeError(
+                    f"'splitter' should be a `Splitter` object  (or a callable that returns "
+                    "an iterable of pairs of (patch, location) or a MetaTensor that has `PatchKeys.LOCATION` metadata)."
+                    f"{type(splitter)} is given."
+                )
+        self.splitter = splitter
+
+        # merger
+        if isinstance(merger_cls, str):
+            valid_merger_cls: type[Merger]
+            # search amongst implemented mergers in MONAI
+            valid_merger_cls, merger_found = optional_import("monai.inferers.merger", name=merger_cls)
+            if not merger_found:
+                # try to locate the requested merger class (with dotted path)
+                valid_merger_cls = locate(merger_cls)  # type: ignore
+            if valid_merger_cls is None:
+                raise ValueError(f"The requested `merger_cls` ['{merger_cls}'] does not exist.")
+            merger_cls = valid_merger_cls
+        if not issubclass(merger_cls, Merger):
+            raise TypeError(f"'merger' should be a subclass of `Merger`, {merger_cls} is given.")
+        self.merger_cls = merger_cls
+        self.merger_kwargs = merger_kwargs
+
+        # pre-processor (process patch before the network)
+        if preprocessing is not None and not callable(preprocessing):
+            raise TypeError(f"'preprocessing' should be a callable object, {type(preprocessing)} is given.")
+        self.preprocessing = preprocessing
+
+        # post-processor (process the output of the network)
+        if postprocessing is not None and not callable(postprocessing):
+            raise TypeError(f"'postprocessing' should be a callable object, {type(postprocessing)} is given.")
+        self.postprocessing = postprocessing
+
+        # batch size for patches
+        self.batch_size = batch_size
+
+        # model output keys
+        self.output_keys = output_keys
+
+    def _batch_sampler(
+        self, patches: Iterable[tuple[torch.Tensor, Sequence[int]]] | MetaTensor
+    ) -> Iterator[tuple[torch.Tensor, Sequence, int]]:
+        """Generate batch of patches and locations
+
+        Args:
+            patches: a tensor or list of tensors
+
+        Yields:
+            A batch of patches (torch.Tensor or MetaTensor), a sequence of location tuples, and the batch size
+        """
+        if isinstance(patches, MetaTensor):
+            total_size = len(patches)
+            for i in range(0, total_size, self.batch_size):
+                batch_size = min(self.batch_size, total_size - i)
+                yield patches[i : i + batch_size], patches[i : i + batch_size].meta[PatchKeys.LOCATION], batch_size  # type: ignore
+        else:
+            patch_batch: list[Any] = [None] * self.batch_size
+            location_batch: list[Any] = [None] * self.batch_size
+            idx_in_batch = 0
+            for sample in patches:
+                patch_batch[idx_in_batch] = sample[0]
+                location_batch[idx_in_batch] = sample[1]
+                idx_in_batch += 1
+                if idx_in_batch == self.batch_size:
+                    # concatenate batch of patches to create a tensor
+                    yield torch.cat(patch_batch), location_batch, idx_in_batch
+                    patch_batch = [None] * self.batch_size
+                    location_batch = [None] * self.batch_size
+                    idx_in_batch = 0
+            if idx_in_batch > 0:
+                # concatenate batch of patches to create a tensor
+                yield torch.cat(patch_batch[:idx_in_batch]), location_batch, idx_in_batch
+
+    def _ensure_tuple_outputs(self, outputs: Any) -> tuple:
+        if isinstance(outputs, dict):
+            if self.output_keys is None:
+                self.output_keys = list(outputs.keys())  # model's output keys
+            return tuple(outputs[k] for k in self.output_keys)
+        return ensure_tuple(outputs, wrap_array=True)
+
+    def _run_inference(self, network: Callable, patch: torch.Tensor, *args: Any, **kwargs: Any) -> tuple:
+        # pre-process
+        if self.preprocessing:
+            patch = self.preprocessing(patch)
+        # inference
+        outputs = network(patch, *args, **kwargs)
+        # post-process
+        if self.postprocessing:
+            outputs = self.postprocessing(outputs)
+        # ensure we have a tuple of model outputs to support multiple outputs
+        return self._ensure_tuple_outputs(outputs)
+
+    def _initialize_mergers(self, inputs, outputs, patches, batch_size):
+        in_patch = torch.chunk(patches, batch_size)[0]
+        mergers = []
+        ratios = []
+        for out_patch_batch in outputs:
+            out_patch = torch.chunk(out_patch_batch, batch_size)[0]
+            # calculate the ratio of input and output patch sizes
+            ratio = tuple(op / ip for ip, op in zip(in_patch.shape[2:], out_patch.shape[2:]))
+            ratios.append(ratio)
+            # calculate output_shape only if it is not provided and splitter is not None.
+            if self.splitter is not None and "output_shape" not in self.merger_kwargs:
+                output_shape = self._get_output_shape(inputs, out_patch, ratio)
+                merger = self.merger_cls(output_shape=output_shape, **self.merger_kwargs)
+            else:
+                merger = self.merger_cls(**self.merger_kwargs)
+            mergers.append(merger)
+        return mergers, ratios
+
+    def _aggregate(self, outputs, locations, batch_size, mergers, ratios):
+        for output_patches, merger, ratio in zip(outputs, mergers, ratios):
+            # split batched output into individual patches and then aggregate
+            for in_loc, out_patch in zip(locations, torch.chunk(output_patches, batch_size)):
+                out_loc = [round(l * r) for l, r in zip(in_loc, ratio)]
+                merger.aggregate(out_patch, out_loc)
+
+    def _get_output_shape(self, inputs, out_patch, ratio):
+        """Define the shape of output merged tensors"""
+        in_spatial_shape = inputs.shape[2:]
+        out_spatial_shape = tuple(round(s * r) for s, r in zip(in_spatial_shape, ratio))
+        output_shape = out_patch.shape[:2] + out_spatial_shape
+        return output_shape
+
+    def __call__(
+        self,
+        inputs: torch.Tensor,
+        network: Callable[..., torch.Tensor | Sequence[torch.Tensor] | dict[Any, torch.Tensor]],
+        *args: Any,
+        **kwargs: Any,
+    ) -> Any:
+        """
+        Args:
+            inputs: input data for inference, a torch.Tensor, representing an image or batch of images.
+                However if the data is already split, it can be fed by providing a list of tuple (patch, location),
+                or a MetaTensor that has metadata for `PatchKeys.LOCATION`. In both cases no splitter should be provided.
+            network: target model to execute inference.
+                supports callables such as ``lambda x: my_torch_model(x, additional_config)``
+            args: optional args to be passed to ``network``.
+            kwargs: optional keyword args to be passed to ``network``.
+
+        """
+        patches_locations: Iterable[tuple[torch.Tensor, Sequence[int]]] | MetaTensor
+        if self.splitter is None:
+            if isinstance(inputs, torch.Tensor):
+                if isinstance(inputs, MetaTensor):
+                    if PatchKeys.LOCATION not in inputs.meta:
+                        raise ValueError(
+                            "`PatchKey.LOCATION` does not exists in `inputs.meta`. "
+                            "If the inputs are already split into patches, the location of patches needs to be "
+                            "provided as `PatchKey.LOCATION` metadata in a MetaTensor. "
+                            "If the input is not already split, please provide `splitter`."
+                        )
+                else:
+                    raise ValueError(
+                        "`splitter` should be set if the input is not already split into patches. "
+                        "For inputs that are split, the location of patches needs to be provided as "
+                        "(image, location) pairs, or as `PatchKey.LOCATION` metadata in a MetaTensor. "
+                        f"The provided inputs type is {type(inputs)}."
+                    )
+            patches_locations = inputs
+        else:
+            patches_locations = self.splitter(inputs)
+
+        ratios: list[float] = []
+        mergers: list[Merger] = []
+        for patches, locations, batch_size in self._batch_sampler(patches_locations):
+            # run inference
+            outputs = self._run_inference(network, patches, *args, **kwargs)
+            # initialize the mergers
+            if not mergers:
+                mergers, ratios = self._initialize_mergers(inputs, outputs, patches, batch_size)
+            # aggregate outputs
+            self._aggregate(outputs, locations, batch_size, mergers, ratios)
+
+        # finalize the mergers and get the results
+        merged_outputs = tuple(merger.finalize() for merger in mergers)
+        # return according to the model output
+        if self.output_keys:
+            return dict(zip(self.output_keys, merged_outputs))
+        if len(merged_outputs) == 1:
+            return merged_outputs[0]
+        return merged_outputs
+
+
 class SimpleInferer(Inferer):
     """
     SimpleInferer is the normal inference method that run model forward() directly.
@@ -74,7 +310,9 @@ class SimpleInferer(Inferer):
     def __init__(self) -> None:
         Inferer.__init__(self)
 
-    def __call__(self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any):
+    def __call__(
+        self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any
+    ) -> torch.Tensor:
         """Unified callable function API of Inferers.
 
         Args:
@@ -235,7 +473,9 @@ class SaliencyInferer(Inferer):
 
     """
 
-    def __init__(self, cam_name: str, target_layers: str, class_idx: int | None = None, *args, **kwargs) -> None:
+    def __init__(
+        self, cam_name: str, target_layers: str, class_idx: int | None = None, *args: Any, **kwargs: Any
+    ) -> None:
         Inferer.__init__(self)
         if cam_name.lower() not in ("cam", "gradcam", "gradcampp"):
             raise ValueError("cam_name should be: 'CAM', 'GradCAM' or 'GradCAMpp'.")
@@ -289,7 +529,7 @@ class SliceInferer(SlidingWindowInferer):
 
     """
 
-    def __init__(self, spatial_dim: int = 0, *args, **kwargs) -> None:
+    def __init__(self, spatial_dim: int = 0, *args: Any, **kwargs: Any) -> None:
         self.spatial_dim = spatial_dim
         super().__init__(*args, **kwargs)
         self.orig_roi_size = ensure_tuple(self.roi_size)
@@ -327,8 +567,8 @@ class SliceInferer(SlidingWindowInferer):
         self,
         network: Callable[..., torch.Tensor | Sequence[torch.Tensor] | dict[Any, torch.Tensor]],
         x: torch.Tensor,
-        *args,
-        **kwargs,
+        *args: Any,
+        **kwargs: Any,
     ) -> torch.Tensor | tuple[torch.Tensor, ...] | dict[Any, torch.Tensor]:
         """
         Wrapper handles inference for 2D models over 3D volume inputs.

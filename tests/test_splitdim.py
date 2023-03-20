@@ -40,13 +40,12 @@ class TestSplitDim(unittest.TestCase):
             arr[0, 0, 0, 0] *= 2
             self.assertEqual(arr.flatten()[0], out[0].flatten()[0])
 
-    def test_error(self):
-        """Should fail because splitting along singleton dimension"""
+    def test_singleton(self):
         shape = (2, 1, 8, 7)
         for p in TEST_NDARRAYS:
             arr = p(np.random.rand(*shape))
-            with self.assertRaises(RuntimeError):
-                _ = SplitDim(dim=1)(arr)
+            out = SplitDim(dim=1)(arr)
+            self.assertEqual(out[0].shape, shape)
 
 
 if __name__ == "__main__":

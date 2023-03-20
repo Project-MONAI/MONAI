@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 import torch
 
@@ -21,7 +23,7 @@ measure, _ = optional_import("skimage.measure")
 ndimage, _ = optional_import("scipy.ndimage")
 
 
-def compute_multi_instance_mask(mask: np.ndarray, threshold: float):
+def compute_multi_instance_mask(mask: np.ndarray, threshold: float) -> Any:
     """
     This method computes the segmentation mask according to the binary tumor mask.
 
@@ -50,7 +52,7 @@ def compute_isolated_tumor_cells(tumor_mask: np.ndarray, threshold: float) -> li
             A region with the longest diameter less than this threshold is considered as an ITC.
     """
     max_label = np.amax(tumor_mask)
-    properties = measure.regionprops(tumor_mask, coordinates="rc")
+    properties = measure.regionprops(tumor_mask)
     itc_list = [i + 1 for i in range(max_label) if properties[i].major_axis_length < threshold]
 
     return itc_list
@@ -62,7 +64,7 @@ class PathologyProbNMS(ProbNMS):
     Pathology.
     """
 
-    def __call__(self, probs_map: np.ndarray | torch.Tensor, resolution_level: int = 0):
+    def __call__(self, probs_map: np.ndarray | torch.Tensor, resolution_level: int = 0) -> list[list]:
         """
         probs_map: the input probabilities map, it must have shape (H[, W, ...]).
         resolution_level: the level at which the probabilities map is made.

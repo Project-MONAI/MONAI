@@ -16,7 +16,7 @@ from collections.abc import Sequence
 
 import torch
 
-from monai.metrics.utils import do_metric_reduction, ignore_background, is_binary_tensor
+from monai.metrics.utils import do_metric_reduction, ignore_background
 from monai.utils import MetricReduction, ensure_tuple
 
 from .metric import CumulativeIterationMetric
@@ -77,7 +77,7 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         """
         Args:
             y_pred: input data to compute. It must be one-hot format and first dim is batch.
@@ -85,12 +85,8 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
             y: ground truth to compute the metric. It must be one-hot format and first dim is batch.
                 The values should be binarized.
         Raises:
-            ValueError: when `y` is not a binarized tensor.
             ValueError: when `y_pred` has less than two dimensions.
         """
-        is_binary_tensor(y_pred, "y_pred")
-        is_binary_tensor(y, "y")
-
         # check dimension
         dims = y_pred.ndimension()
         if dims < 2:
@@ -102,7 +98,9 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
 
         return get_confusion_matrix(y_pred=y_pred, y=y, include_background=self.include_background)
 
-    def aggregate(self, compute_sample: bool = False, reduction: MetricReduction | str | None = None):
+    def aggregate(
+        self, compute_sample: bool = False, reduction: MetricReduction | str | None = None
+    ) -> list[torch.Tensor | tuple[torch.Tensor, torch.Tensor]]:
         """
         Execute reduction for the confusion matrix values.
 
@@ -118,7 +116,7 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
         if not isinstance(data, torch.Tensor):
             raise ValueError("the data to aggregate must be PyTorch Tensor.")
 
-        results = []
+        results: list[torch.Tensor | tuple[torch.Tensor, torch.Tensor]] = []
         for metric_name in self.metric_name:
             if compute_sample or self.compute_sample:
                 sub_confusion_matrix = compute_confusion_matrix_metric(metric_name, data)
@@ -133,7 +131,7 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
         return results
 
 
-def get_confusion_matrix(y_pred: torch.Tensor, y: torch.Tensor, include_background: bool = True):
+def get_confusion_matrix(y_pred: torch.Tensor, y: torch.Tensor, include_background: bool = True) -> torch.Tensor:
     """
     Compute confusion matrix. A tensor with the shape [BC4] will be returned. Where, the third dimension
     represents the number of true positive, false positive, true negative and false negative values for
@@ -181,7 +179,7 @@ def get_confusion_matrix(y_pred: torch.Tensor, y: torch.Tensor, include_backgrou
     return torch.stack([tp, fp, tn, fn], dim=-1)
 
 
-def compute_confusion_matrix_metric(metric_name: str, confusion_matrix: torch.Tensor):
+def compute_confusion_matrix_metric(metric_name: str, confusion_matrix: torch.Tensor) -> torch.Tensor:
     """
     This function is used to compute confusion matrix related metric.
 
@@ -276,7 +274,7 @@ def compute_confusion_matrix_metric(metric_name: str, confusion_matrix: torch.Te
     return numerator / denominator
 
 
-def check_confusion_matrix_metric_name(metric_name: str):
+def check_confusion_matrix_metric_name(metric_name: str) -> str:
     """
     There are many metrics related to confusion matrix, and some of the metrics have
     more than one names. In addition, some of the names are very long.

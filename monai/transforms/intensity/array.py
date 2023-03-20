@@ -206,12 +206,12 @@ class RandRicianNoise(RandomizableTransform):
                 img[i] = self._add_noise(d, mean=_mean[i], std=_std[i] * d.std() if self.relative else _std[i])
         else:
             if not isinstance(self.mean, (int, float)):
-                raise RuntimeError("If channel_wise is False, mean must be a float or int number.")
+                raise RuntimeError(f"If channel_wise is False, mean must be a float or int, got {type(self.mean)}.")
             if not isinstance(self.std, (int, float)):
-                raise RuntimeError("If channel_wise is False, std must be a float or int number.")
+                raise RuntimeError(f"If channel_wise is False, std must be a float or int, got {type(self.std)}.")
             std = self.std * img.std().item() if self.relative else self.std
             if not isinstance(std, (int, float)):
-                raise RuntimeError("std must be a float or int number.")
+                raise RuntimeError(f"std must be a float or int number, got {type(std)}.")
             img = self._add_noise(img, mean=self.mean, std=std)
         return img
 
@@ -265,7 +265,7 @@ class RandShiftIntensity(RandomizableTransform):
         if isinstance(offsets, (int, float)):
             self.offsets = (min(-offsets, offsets), max(-offsets, offsets))
         elif len(offsets) != 2:
-            raise ValueError("offsets should be a number or pair of numbers.")
+            raise ValueError(f"offsets should be a number or pair of numbers, got {offsets}.")
         else:
             self.offsets = (min(offsets), max(offsets))
         self._offset = self.offsets[0]
@@ -381,7 +381,7 @@ class RandStdShiftIntensity(RandomizableTransform):
         if isinstance(factors, (int, float)):
             self.factors = (min(-factors, factors), max(-factors, factors))
         elif len(factors) != 2:
-            raise ValueError("factors should be a number or pair of numbers.")
+            raise ValueError(f"factors should be a number or pair of numbers, got {factors}.")
         else:
             self.factors = (min(factors), max(factors))
         self.factor = self.factors[0]
@@ -488,7 +488,7 @@ class RandScaleIntensity(RandomizableTransform):
         if isinstance(factors, (int, float)):
             self.factors = (min(-factors, factors), max(-factors, factors))
         elif len(factors) != 2:
-            raise ValueError("factors should be a number or pair of numbers.")
+            raise ValueError(f"factors should be a number or pair of numbers, got {factors}.")
         else:
             self.factors = (min(factors), max(factors))
         self.factor = self.factors[0]
@@ -545,7 +545,7 @@ class RandBiasField(RandomizableTransform):
     ) -> None:
         RandomizableTransform.__init__(self, prob)
         if degree < 1:
-            raise ValueError("degree should be no less than 1.")
+            raise ValueError(f"degree should be no less than 1, got {degree}.")
         self.degree = degree
         self.coeff_range = coeff_range
         self.dtype = dtype
@@ -725,7 +725,7 @@ class ThresholdIntensity(Transform):
 
     def __init__(self, threshold: float, above: bool = True, cval: float = 0.0) -> None:
         if not isinstance(threshold, (int, float)):
-            raise ValueError("threshold must be a float or int number.")
+            raise ValueError(f"threshold must be a float or int number, got {type(threshold)} {threshold}.")
         self.threshold = threshold
         self.above = above
         self.cval = cval
@@ -812,7 +812,7 @@ class AdjustContrast(Transform):
 
     def __init__(self, gamma: float) -> None:
         if not isinstance(gamma, (int, float)):
-            raise ValueError("gamma must be a float or int number.")
+            raise ValueError(f"gamma must be a float or int number, got {type(gamma)} {gamma}.")
         self.gamma = gamma
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
@@ -847,7 +847,7 @@ class RandAdjustContrast(RandomizableTransform):
         if isinstance(gamma, (int, float)):
             if gamma <= 0.5:
                 raise ValueError(
-                    "if gamma is single number, must greater than 0.5 and value is picked from (0.5, gamma)"
+                    f"if gamma is a number, must greater than 0.5 and value is picked from (0.5, gamma), got {gamma}"
                 )
             self.gamma = (0.5, gamma)
         elif len(gamma) != 2:
@@ -1254,7 +1254,7 @@ class RandGaussianSmooth(RandomizableTransform):
         if not self._do_transform:
             return img
 
-        sigma = ensure_tuple_size(tup=(self.x, self.y, self.z), dim=img.ndim - 1)
+        sigma = ensure_tuple_size(vals=(self.x, self.y, self.z), dim=img.ndim - 1)
         return GaussianSmooth(sigma=sigma, approx=self.approx)(img)
 
 
@@ -1392,8 +1392,8 @@ class RandGaussianSharpen(RandomizableTransform):
 
         if self.x2 is None or self.y2 is None or self.z2 is None or self.a is None:
             raise RuntimeError("please call the `randomize()` function first.")
-        sigma1 = ensure_tuple_size(tup=(self.x1, self.y1, self.z1), dim=img.ndim - 1)
-        sigma2 = ensure_tuple_size(tup=(self.x2, self.y2, self.z2), dim=img.ndim - 1)
+        sigma1 = ensure_tuple_size(vals=(self.x1, self.y1, self.z1), dim=img.ndim - 1)
+        sigma2 = ensure_tuple_size(vals=(self.x2, self.y2, self.z2), dim=img.ndim - 1)
         return GaussianSharpen(sigma1=sigma1, sigma2=sigma2, alpha=self.a, approx=self.approx)(img)
 
 

@@ -14,7 +14,7 @@ from __future__ import annotations
 import os
 import sys
 from collections.abc import Callable, Sequence
-from typing import Tuple, cast
+from typing import Any, Tuple, cast
 
 import numpy as np
 
@@ -61,7 +61,7 @@ class PatchWSIDataset(Dataset):
         patch_size: int | tuple[int, int],
         transform: Callable | None = None,
         image_reader_name: str = "cuCIM",
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(data, transform)
 
@@ -157,7 +157,7 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
         progress: bool = True,
         copy_cache: bool = True,
         as_contiguous: bool = True,
-        **kwargs,
+        **kwargs: Any,
     ):
         patch_wsi_dataset = PatchWSIDataset(
             data=data,
@@ -208,7 +208,7 @@ class MaskedInferenceWSIDataset(Dataset):
         patch_size: int | tuple[int, int],
         transform: Callable | None = None,
         image_reader_name: str = "cuCIM",
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         super().__init__(data, transform)
 

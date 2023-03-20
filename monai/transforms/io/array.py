@@ -40,6 +40,7 @@ from monai.data.image_reader import (
     PydicomReader,
 )
 from monai.data.meta_tensor import MetaTensor
+from monai.data.utils import is_no_channel
 from monai.transforms.transform import Transform
 from monai.transforms.utility.array import EnsureChannelFirst
 from monai.utils import GridSamplePadMode
@@ -116,9 +117,9 @@ class LoadImage(Transform):
         - Current default readers: (nii, nii.gz -> NibabelReader), (png, jpg, bmp -> PILReader),
           (npz, npy -> NumpyReader), (nrrd -> NrrdReader), (DICOM file -> ITKReader).
 
-    Please note that for png, jpg, bmp, and other 2D formats, readers often swap axis 0 and 1 after
-    loading the array because the `HW` definition for non-medical specific file formats is different
-    from other common medical packages.
+    Please note that for png, jpg, bmp, and other 2D formats, readers by default swap axis 0 and 1 after
+    loading the array with ``reverse_indexing`` set to ``True`` because the spatial axes definition
+    for non-medical specific file formats is different from other common medical packages.
 
     See also:
 
@@ -289,7 +290,7 @@ class LoadImage(Transform):
         img_array, meta_data = reader.get_data(img)
         img_array = convert_to_dst_type(img_array, dst=img_array, dtype=self.dtype)[0]
         if not isinstance(meta_data, dict):
-            raise ValueError("`meta_data` must be a dict.")
+            raise ValueError(f"`meta_data` must be a dict, got type {type(meta_data)}.")
         # make sure all elements in metadata are little endian
         meta_data = switch_endianness(meta_data, "<")
 
@@ -367,6 +368,7 @@ class SaveImage(Transform):
             see also: :py:func:`monai.data.folder_layout.default_name_formatter`.
     """
 
+    @deprecated_arg_default("resample", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         output_dir: PathLike = "./",
@@ -439,6 +441,7 @@ class SaveImage(Transform):
             self.meta_kwargs.update(meta_kwargs)
         if write_kwargs is not None:
             self.write_kwargs.update(write_kwargs)
+        return self
 
     def __call__(self, img: torch.Tensor | np.ndarray, meta_data: dict | None = None):
         """
@@ -449,8 +452,15 @@ class SaveImage(Transform):
         meta_data = img.meta if isinstance(img, MetaTensor) else meta_data
         kw = self.fname_formatter(meta_data, self)
         filename = self.folder_layout.filename(**kw)
-        if meta_data and len(ensure_tuple(meta_data.get("spatial_shape", ()))) == len(img.shape):
-            self.data_kwargs["channel_dim"] = None
+        if meta_data:
+            meta_spatial_shape = ensure_tuple(meta_data.get("spatial_shape", ()))
+            if len(meta_spatial_shape) >= len(img.shape):
+                self.data_kwargs["channel_dim"] = None
+            elif is_no_channel(self.data_kwargs.get("channel_dim")):
+                warnings.warn(
+                    f"data shape {img.shape} (with spatial shape {meta_spatial_shape}) "
+                    f"but SaveImage `channel_dim` is set to {self.data_kwargs.get('channel_dim')} no channel."
+                )
 
         err = []
         for writer_cls in self.writers:
