@@ -527,7 +527,7 @@ class nnUNetV2Runner:  # noqa: N801
                     for _i in range(self.num_folds):
                         cmd = (
                             "python -m monai.apps.nnunet nnUNetV2Runner train_single_model "
-                            + f"--input '{self.input_config_or_dict}' --config '{_config}' "
+                            + f"--input_config '{self.input_config_or_dict}' --config '{_config}' "
                             + f"--fold {_i} --gpu_id {_index%self.num_gpus}"
                         )
 
