@@ -47,7 +47,6 @@ class nnUNetV2Runner:
             input: the configuration dictionary or the file path to the configuration in form of YAML.
                 The configuration should contain datalist, dataroot, modality.
         """
-
         self.input_info = []
         self.input_config_or_dict = input
         self.work_dir = work_dir
@@ -323,13 +322,17 @@ class nnUNetV2Runner:
             fold: fold of the 5-fold cross-validation. Should be an int between 0 and 4.
             trainer_class_name: name of the custom trainer class. default: 'nnUNetTrainer'.
             plans_identifier: custom plans identifier. default: 'nnUNetPlans'.
-            pretrained_weights: path to nnU-Net checkpoint file to be used as pretrained model. Will only be used when actually training. Beta. Use with caution. default: False.
+            pretrained_weights: path to nnU-Net checkpoint file to be used as pretrained model. Will only be used
+                when actually training. Beta. Use with caution. default: False.
             num_gpus: number of GPUs to use for training. default: 1.
-            use_compressed_data: true to use compressed data for training. Reading compressed data is much more CPU and (potentially) RAM intensive and should only be used if you know what you are doing default: False.
-            export_validation_probabilities: true to save softmax predictions from final validation as npz files (in addition to predicted segmentations). Needed for finding the best ensemble. default: False.
+            use_compressed_data: true to use compressed data for training. Reading compressed data is much more CPU and
+                (potentially) RAM intensive and should only be used if you know what you are doing default: False.
+            export_validation_probabilities: true to save softmax predictions from final validation as npz files
+                (in addition to predicted segmentations). Needed for finding the best ensemble. default: False.
             continue_training: continue training from latest checkpoint. default: False.
             only_run_validation: true to run the validation only. Requires training to have finished. default: False.
-            disable_checkpointing: true to disable checkpointing. Ideal for testing things out and you dont want to flood your hard drive with checkpoints. default: False.
+            disable_checkpointing: true to disable checkpointing. Ideal for testing things out and you dont want to
+                flood your hard drive with checkpoints. default: False.
         """
         os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_id}"
 
@@ -338,6 +341,10 @@ class nnUNetV2Runner:
         run_training(dataset_name_or_id=self.dataset_name_or_id, configuration=config, fold=fold, **kwargs)
 
     def train(self, configs=["3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"], **kwargs):
+        """
+        Args:
+            configs: configurations that should be trained.
+        """
         if isinstance(configs, str):
             configs = [configs]
 
@@ -350,6 +357,10 @@ class nnUNetV2Runner:
                     self.train_single_model(config=_config, fold=_fold, **kwargs)
 
     def train_parallel(self, configs=["3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"], **kwargs):
+        """
+        Args:
+            configs: configurations that should be trained.
+        """
         if isinstance(configs, str):
             configs = [configs]
 
@@ -415,9 +426,18 @@ class nnUNetV2Runner:
                     p.wait()
 
     def validate_single_model(self, config, fold, **kwargs):
+        """
+        Args:
+            config: configuration that should be trained.
+            fold: fold of the 5-fold cross-validation. Should be an int between 0 and 4.
+        """
         self.train_single_model(config=config, fold=fold, only_run_validation=True, **kwargs)
 
     def validate(self, configs=["3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"], **kwargs):
+        """
+        Args:
+            configs: configurations that should be trained.
+        """
         if isinstance(configs, str):
             configs = [configs]
 
@@ -518,6 +538,13 @@ class nnUNetV2Runner:
         disable_postprocessing: bool = False,
         **kwargs,
     ):
+        """
+        Args:
+            folds: which folds to use
+            disable_ensemble: whether to disable ensemble
+            disable_predict: whether to predict using trained checkpoints
+            disable_postprocessing: whether to conduct post-processing
+        """
         from nnunetv2.ensembling.ensemble import ensemble_folders
         from nnunetv2.postprocessing.remove_connected_components import apply_postprocessing_to_folder
         from nnunetv2.utilities.file_path_utilities import get_output_folder
