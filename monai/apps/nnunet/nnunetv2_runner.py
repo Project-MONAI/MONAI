@@ -25,7 +25,7 @@ import monai
 from monai.bundle import ConfigParser
 
 
-class nnUNetRunner:
+class nnUNetV2Runner:
     def __init__(self, input, work_dir: str = "work_dir"):
         self.input_info = []
         self.input_config_or_dict = input
@@ -359,7 +359,7 @@ class nnUNetRunner:
                 if _config in configs:
                     for _i in range(self.num_folds):
                         cmd = (
-                            "python -m monai.apps.nnunet nnUNetRunner train_single_model "
+                            "python -m monai.apps.nnunet nnUNetV2Runner train_single_model "
                             + f"--input '{self.input_config_or_dict}' --config '{_config}' --fold {_i} --gpu_id {_index%self.num_gpus}"
                         )
 
@@ -393,37 +393,58 @@ class nnUNetRunner:
                 for p in processes:
                     p.wait()
 
-    def validate_single_model(self, config, fold):
-        self.train_single_model(config=config, fold=fold, only_run_validation=True)
+    def validate_single_model(self, config, fold, **kwargs):
+        self.train_single_model(config=config, fold=fold, only_run_validation=True, **kwargs)
 
-    def validate(self, configs=["3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"]):
+    def validate(self, configs=["3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"], **kwargs):
         if isinstance(configs, str):
             configs = [configs]
 
         for _i in range(len(configs)):
             _config = configs[_i]
             for _fold in range(self.num_folds):
-                self.validate_single_model(config=_config, fold=_fold)
+                self.validate_single_model(config=_config, fold=_fold, **kwargs)
 
-    def find_best_configuration(self):
+    def find_best_configuration(
+        self,
+        # dataset_name_or_id,
+        # allowed_trained_models: Union[List[dict], Tuple[dict, ...]] = default_trained_models,
+        plans="nnUNetPlans",
+        configs=["2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres"],
+        trainers="nnUNetTrainer",
+        # parser.add_argument('-p', nargs='+', required=False, default=['nnUNetPlans'],
+        #             help='List of plan identifiers. Default: nnUNetPlans')
+        # parser.add_argument('-c', nargs='+', required=False, default=['2d', '3d_fullres', '3d_lowres', '3d_cascade_fullres'],
+        #                     help="List of configs. Default: ['2d', '3d_fullres', '3d_lowres', '3d_cascade_fullres']")
+        # parser.add_argument('-tr', nargs='+', required=False, default=['nnUNetTrainer'],
+        #                     help='List of trainers. Default: nnUNetTrainer')
+        allow_ensembling: bool = True,
+        num_processes: int = -1,
+        overwrite: bool = True,
+        folds: Union[List[int], Tuple[int, ...]] = (0, 1, 2, 3, 4),
+        strict: bool = False,
+    ):
         from nnunetv2.evaluation.find_best_configuration import (
             dumb_trainer_config_plans_to_trained_models_dict,
             find_best_configuration,
         )
 
-        models = dumb_trainer_config_plans_to_trained_models_dict(
-            ["nnUNetTrainer_5epochs"], ["2d", "3d_lowres", "3d_cascade_fullres", "3d_fullres"], ["nnUNetPlans"]
-        )
-        ret = find_best_configuration(
+        configs = [configs] if isinstance(configs, str) else configs
+        plans = [plans] if isinstance(plans, str) else plans
+        trainers = [trainers] if isinstance(trainers, str) else trainers
+
+        models = dumb_trainer_config_plans_to_trained_models_dict(trainers, configs, plans)
+        num_processes = self.default_num_processes if num_processes < 0 else num_processes
+        _ = find_best_configuration(
             int(self.dataset_name_or_id),
             models,
-            allow_ensembling=True,
-            num_processes=8,
-            overwrite=True,
-            folds=(0, 1, 2, 3, 4),
-            strict=True,
+            allow_ensembling=allow_ensembling,
+            num_processes=num_processes,
+            overwrite=overwrite,
+            folds=folds,
+            strict=strict,
         )
-        self.best_configuration = ret
+        # self.best_configuration = ret
 
     def predict(
         self,
@@ -474,7 +495,13 @@ class nnUNetRunner:
             part_id=part_id,
         )
 
-    def predict_ensemble(self, folds=[0, 3]):
+    def ensemble(
+        self, 
+        folds: list = [0, 1, 2, 3, 4],
+        if_predict: bool = True,
+        if_postprocessing: bool = True,
+        **kwargs,
+    ):
         from nnunetv2.ensembling.ensemble import ensemble_folders
         from nnunetv2.postprocessing.remove_connected_components import apply_postprocessing_to_folder
         from nnunetv2.utilities.file_path_utilities import get_output_folder
@@ -482,24 +509,29 @@ class nnUNetRunner:
         source_dir = join(self.nnunet_raw, self.dataset_name, "imagesTs")
         target_dir_base = join(self.nnunet_results, self.dataset_name)
 
+        self.best_configuration = ConfigParser.load_config_file(
+            os.path.join(self.nnunet_results, self.dataset_name, "inference_information.json")
+        )
         has_ensemble = len(self.best_configuration["best_model_or_ensemble"]["selected_model_or_models"]) > 1
 
         used_folds = folds
         output_folders = []
         for im in self.best_configuration["best_model_or_ensemble"]["selected_model_or_models"]:
             output_dir = join(target_dir_base, f"pred_{im['configuration']}")
-            model_folder = get_output_folder(
-                int(self.dataset_name_or_id), im["trainer"], im["plans_identifier"], im["configuration"]
-            )
-            self.predict(
-                list_of_lists_or_source_folder=source_dir,
-                output_folder=output_dir,
-                model_training_output_dir=model_folder,
-                use_folds=used_folds,
-                save_probabilities=has_ensemble,
-                verbose=False,
-                overwrite=True,
-            )
+            if if_predict:
+                model_folder = get_output_folder(
+                    int(self.dataset_name_or_id), im["trainer"], im["plans_identifier"], im["configuration"]
+                )
+                self.predict(
+                    list_of_lists_or_source_folder=source_dir,
+                    output_folder=output_dir,
+                    model_training_output_dir=model_folder,
+                    use_folds=used_folds,
+                    save_probabilities=has_ensemble,
+                    verbose=False,
+                    overwrite=True,
+                    **kwargs,
+                )
             output_folders.append(output_dir)
 
         # if we have an ensemble, we need to ensemble the results
@@ -507,23 +539,44 @@ class nnUNetRunner:
             ensemble_folders(
                 output_folders, join(target_dir_base, "ensemble_predictions"), save_merged_probabilities=False
             )
-            folder_for_pp = join(target_dir_base, "ensemble_predictions")
+            if if_postprocessing:
+                folder_for_pp = join(target_dir_base, "ensemble_predictions")
         else:
-            folder_for_pp = output_folders[0]
+            if if_postprocessing:
+                folder_for_pp = output_folders[0]
 
         # apply postprocessing
-        pp_fns, pp_fn_kwargs = load_pickle(self.best_configuration["best_model_or_ensemble"]["postprocessing_file"])
-        apply_postprocessing_to_folder(
-            folder_for_pp,
-            join(target_dir_base, "ensemble_predictions_postprocessed"),
-            pp_fns,
-            pp_fn_kwargs,
-            plans_file_or_dict=self.best_configuration["best_model_or_ensemble"]["some_plans_file"],
-        )
+        if if_postprocessing:
+            pp_fns, pp_fn_kwargs = load_pickle(self.best_configuration["best_model_or_ensemble"]["postprocessing_file"])
+            apply_postprocessing_to_folder(
+                folder_for_pp,
+                join(target_dir_base, "ensemble_predictions_postprocessed"),
+                pp_fns,
+                pp_fn_kwargs,
+                plans_file_or_dict=self.best_configuration["best_model_or_ensemble"]["some_plans_file"],
+            )
 
-    def run(self):
-        self.convert_dataset()
-        self.plan_and_process()
-        self.train()
-        self.find_best_configuration()
-        self.predict_ensemble()
+    def run(
+        self,
+        if_convert_dataset: bool = False,
+        if_plan_and_process: bool = False,
+        if_train: bool = False,
+        if_find_best_configuration: bool = False,
+        if_ensemble: bool = False,
+    ):
+        if if_convert_dataset:
+            self.convert_dataset()
+
+        if if_plan_and_process:
+            self.plan_and_process()
+
+        if if_train:
+            self.train()
+
+        if if_find_best_configuration:
+            self.find_best_configuration()
+
+        if if_ensemble:
+            self.ensemble()
+
+        return

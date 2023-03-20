@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from monai.apps.nnunet.nnunet_runner import nnUNetRunner
+from monai.apps.nnunet.nnunetv2_runner import nnUNetV2Runner
 
 """
 Examples:
@@ -19,19 +19,19 @@ Examples:
 
     .. code-block:: bash
 
-        python -m monai.apps.nnunet nnUNetRunner run --input "./input.yaml"
+        python -m monai.apps.nnunet nnUNetV2Runner run --input "./input.yaml"
 
     - single-gpu training for all 20 models
 
     .. code-block:: bash
 
-        python -m monai.apps.nnunet nnUNetRunner train --input "./input.yaml"
+        python -m monai.apps.nnunet nnUNetV2Runner train --input "./input.yaml"
 
     - single-gpu training for a single model
 
     .. code-block:: bash
 
-        python -m monai.apps.nnunet nnUNetRunner train_single_model --input "./input.yaml" \
+        python -m monai.apps.nnunet nnUNetV2Runner train_single_model --input "./input.yaml" \
             --config "3d_fullres" \
             --fold 0 \
             --trainer_class_name "nnUNetTrainer_5epochs" \
@@ -42,14 +42,14 @@ Examples:
     .. code-block:: bash
 
         export CUDA_VISIBLE_DEVICES=0,1 # optional
-        python -m monai.apps.nnunet nnUNetRunner train --input "./input.yaml" --num_gpus 2
+        python -m monai.apps.nnunet nnUNetV2Runner train --input "./input.yaml" --num_gpus 2
 
     - multi-gpu training for a single model
 
     .. code-block:: bash
 
         export CUDA_VISIBLE_DEVICES=0,1 # optional
-        python -m monai.apps.nnunet nnUNetRunner train_single_model --input "./input.yaml" \
+        python -m monai.apps.nnunet nnUNetV2Runner train_single_model --input "./input.yaml" \
             --config "3d_fullres" \
             --fold 0 \
             --trainer_class_name "nnUNetTrainer_5epochs" \
@@ -61,4 +61,4 @@ if __name__ == "__main__":
     from monai.utils import optional_import
 
     fire, _ = optional_import("fire")
-    fire.Fire({"nnUNetRunner": nnUNetRunner})
+    fire.Fire({"nnUNetV2Runner": nnUNetV2Runner})

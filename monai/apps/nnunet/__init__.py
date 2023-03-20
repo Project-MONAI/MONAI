@@ -11,4 +11,4 @@
 
 from __future__ import annotations
 
-from .nnunet_runner import nnUNetRunner
+from .nnunetv2_runner import nnUNetV2Runner

@@ -50,3 +50,5 @@ h5py
 nni
 optuna
 git+https://github.com/Project-MONAI/MetricsReloaded@monai-support#egg=MetricsReloaded
+nnunetv2 # nnunetv2
+git+https://github.com/julien-blanchon/hiddenlayer.git # nnunetv2
