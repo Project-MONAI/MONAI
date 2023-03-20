@@ -48,7 +48,6 @@ class nnUNetV2Runner:  # noqa: N801
             - validation accuracy in each fold of cross-validation
             - the predictions on the testing datasets from the final algorithm ensemble and potential post-processing
 
-
         Args:
             input_config: the configuration dictionary or the file path to the configuration in form of YAML.
                 The configuration should contain ``datalist``, ``dataroot``, ``modality``.
@@ -649,6 +648,7 @@ class nnUNetV2Runner:  # noqa: N801
         """
         Use this to run inference with nnU-Net. This function is used when you want to manually specify a folder containing
             a trained nnU-Net model. This is useful when the nnunet environment variables (nnUNet_results) are not set.
+
         Args:
             list_of_lists_or_source_folder: input folder. Remember to use the correct channel numberings for
                 your files (_0000 etc). File endings must be the same as the training dataset!
