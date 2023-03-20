@@ -181,7 +181,7 @@ class DataAnalyzer:
         else:
             nprocs = torch.cuda.device_count()
             print(f'Found {nprocs} GPUs for data analyzing!')
-        set_start_method('forkserver', force=True)  
+        set_start_method('forkserver', force=True)
         with Manager() as manager:
             manager_list = manager.list()
             processes = []
@@ -317,5 +317,3 @@ class DataAnalyzer:
                 )
             result[DataStatsKeys.BY_CASE].append(stats_by_cases)
         manager_list.append(result)
-
-
