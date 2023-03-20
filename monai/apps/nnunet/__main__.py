@@ -21,6 +21,24 @@ Examples:
 
         python -m monai.apps.nnunet nnUNetV2Runner run --input "./input.yaml"
 
+    - convert dataset
+    
+    .. code-block:: bash
+
+        python -m monai.apps.nnunet nnUNetRunner convert_dataset --input "./input_new.yaml"
+
+    - convert msd datasets
+
+    .. code-block:: bash
+
+        python -m monai.apps.nnunet nnUNetRunner convert_msd_dataset --input "./input.yaml" --data_dir "/home/dongy/Data/MSD/NGC/Task05_Prostate"
+
+    - experiment planning and data pre-processing
+    
+    .. code-block:: bash
+
+        python -m monai.apps.nnunet nnUNetRunner plan_and_process --input "./input.yaml"
+
     - single-gpu training for all 20 models
 
     .. code-block:: bash
@@ -55,6 +73,17 @@ Examples:
             --trainer_class_name "nnUNetTrainer_5epochs" \
             --export_validation_probabilities true \
             --num_gpus 2
+
+    - find best configuration
+
+    .. code-block:: bash
+        python -m monai.apps.nnunet nnUNetRunner find_best_configuration --input "./input.yaml"
+
+
+    - predict, ensemble, and post-process
+
+    .. code-block:: bash
+        python -m monai.apps.nnunet nnUNetRunner predict_ensemble_postprocessing --input "./input.yaml"
 """
 
 if __name__ == "__main__":
