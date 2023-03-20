@@ -17,7 +17,6 @@ import unittest
 
 import nibabel as nib
 import numpy as np
-import torch
 
 from monai.apps.nnunet import nnUNetV2Runner
 from monai.bundle.config_parser import ConfigParser
@@ -25,7 +24,6 @@ from monai.data import create_test_image_3d
 from monai.utils import optional_import
 from tests.utils import (
     SkipIfBeforePyTorchVersion,
-    get_testing_algo_template_path,
     skip_if_downloading_fails,
     skip_if_no_cuda,
     skip_if_quick,
