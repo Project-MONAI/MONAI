@@ -80,9 +80,9 @@ class TestnnUNetV2Runner(unittest.TestCase):
 
     @skip_if_no_cuda
     def test_nnunetv2runner(self) -> None:
-        runner = nnUNetV2Runner(input=self.data_src_cfg)
+        runner = nnUNetV2Runner(input_config=self.data_src_cfg)
         with skip_if_downloading_fails():
-            runner.run(if_convert_dataset=True, if_plan_and_process=True)
+            runner.run(run_convert_dataset=True, run_plan_and_process=True)
             runner.train(configs="3d_fullres", trainer_class_name="nnUNetTrainer_1epoch")
             runner.find_best_configuration(configs="3d_fullres", trainers="nnUNetTrainer_1epoch")
             runner.predict_ensemble_postprocessing()

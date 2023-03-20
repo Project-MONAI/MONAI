@@ -15,12 +15,13 @@ import copy
 import glob
 import os
 import subprocess
+from typing import Any
 
 import numpy as np
 
 import monai
 from monai.bundle import ConfigParser
-from monai.utils import optional_import
+from monai.utils import ensure_tuple, optional_import
 
 load_pickle, _ = optional_import("batchgenerators.utilities.file_and_folder_operations", name="load_pickle")
 join, _ = optional_import("batchgenerators.utilities.file_and_folder_operations", name="join")
@@ -33,7 +34,7 @@ __all__ = ["nnUNetV2Runner"]
 
 
 class nnUNetV2Runner:  # noqa: N801
-    def __init__(self, input, work_dir: str = "work_dir") -> None:
+    def __init__(self, input_config: Any, work_dir: str = "work_dir") -> None:
         """
         An interface for handling nnU-Net V2 with minimal inputs and understanding of the internal states in nnU-Net.
         The users can run the nnU-Net V2 with default settings in one line of code. They can also run parts of the process
@@ -47,12 +48,12 @@ class nnUNetV2Runner:  # noqa: N801
             - the predictions on the testing datasets from the final algorithm ensemble and potential post-processing
 
         Args:
-            work_dir: working directory to save the intermediate and final results.
-            input: the configuration dictionary or the file path to the configuration in form of YAML.
+            input_config: the configuration dictionary or the file path to the configuration in form of YAML.
                 The configuration should contain datalist, dataroot, modality.
+            work_dir: working directory to save the intermediate and final results.
         """
         self.input_info: dict = {}
-        self.input_config_or_dict = input
+        self.input_config_or_dict = input_config
         self.work_dir = work_dir
 
         if isinstance(self.input_config_or_dict, dict):
@@ -60,7 +61,7 @@ class nnUNetV2Runner:  # noqa: N801
         elif isinstance(self.input_config_or_dict, str) and os.path.isfile(self.input_config_or_dict):
             self.input_info = ConfigParser.load_config_file(self.input_config_or_dict)
         else:
-            raise ValueError(f"{input} is not a valid file or dict")
+            raise ValueError(f"{input_config} is not a valid file or dict")
 
         self.nnunet_raw = self.input_info.pop("nnunet_raw", os.path.join(".", self.work_dir, "nnUNet_raw_data_base"))
         self.nnunet_preprocessed = self.input_info.pop(
@@ -100,7 +101,7 @@ class nnUNetV2Runner:  # noqa: N801
         self.default_num_processes = default_num_processes
 
         self.num_folds = 5
-        self.best_configuration = None
+        self.best_configuration: dict = {}
 
         result = subprocess.run(["nvidia-smi", "--list-gpus"], stdout=subprocess.PIPE)
         output = result.stdout.decode("utf-8")
@@ -192,7 +193,7 @@ class nnUNetV2Runner:  # noqa: N801
             )
 
             _index = 0
-            new_datalist_json = {"training": [], test_key: []}
+            new_datalist_json: dict = {"training": [], test_key: []}
 
             for _key, _folder, _label_folder in list(
                 zip(["training", test_key], ["imagesTr", "imagesTs"], ["labelsTr", "labelsTs"])
@@ -253,7 +254,7 @@ class nnUNetV2Runner:  # noqa: N801
             logger.warning("Input '.yaml' is incorrect.")
             return
 
-    def convert_msd_dataset(self, data_dir: str, overwrite_id=None, n_proc: int = -1) -> None:
+    def convert_msd_dataset(self, data_dir: str, overwrite_id: str | None = None, n_proc: int = -1) -> None:
         """
         Args:
             data_dir: downloaded and extracted MSD dataset folder. CANNOT be nnUNetv1 dataset! Example:
@@ -299,10 +300,10 @@ class nnUNetV2Runner:  # noqa: N801
         pl: str = "ExperimentPlanner",
         gpu_memory_target: float = 8,
         preprocessor_name: str = "DefaultPreprocessor",
-        overwrite_target_spacing=None,
+        overwrite_target_spacing: Any = None,
         overwrite_plans_name: str = "nnUNetPlans",
         verbose: bool = False,
-    ):
+    ) -> None:
         """
         Args:
             pl: [OPTIONAL] Name of the Experiment Planner class that should be used. Default is 'ExperimentPlanner'.
@@ -379,17 +380,17 @@ class nnUNetV2Runner:  # noqa: N801
 
     def plan_and_process(
         self,
-        fpe="DatasetFingerprintExtractor",
-        npfp=8,
-        verify_dataset_integrity=False,
-        no_pp=False,
-        clean=False,
-        pl="ExperimentPlanner",
-        gpu_memory_target=8,
-        preprocessor_name="DefaultPreprocessor",
-        overwrite_target_spacing=None,
-        overwrite_plans_name="nnUNetPlans",
-        c=("2d", "3d_fullres", "3d_lowres"),
+        fpe: str = "DatasetFingerprintExtractor",
+        npfp: int = 8,
+        verify_dataset_integrity: bool = False,
+        no_pp: bool = False,
+        clean: bool = False,
+        pl: str = "ExperimentPlanner",
+        gpu_memory_target: int = 8,
+        preprocessor_name: str = "DefaultPreprocessor",
+        overwrite_target_spacing: Any = None,
+        overwrite_plans_name: str = "nnUNetPlans",
+        c: tuple = ("2d", "3d_fullres", "3d_lowres"),
         n_proc: tuple = (8, 8, 8),
         verbose: bool = False,
     ) -> None:
@@ -448,7 +449,7 @@ class nnUNetV2Runner:  # noqa: N801
         self.plan_experiments(pl, gpu_memory_target, preprocessor_name, overwrite_target_spacing, overwrite_plans_name)
         self.preprocess(c, n_proc, overwrite_plans_name, verbose)
 
-    def train_single_model(self, config, fold, gpu_id: int = 0, **kwargs) -> None:
+    def train_single_model(self, config: Any, fold: int, gpu_id: int = 0, **kwargs: Any) -> None:
         """
         Args:
             config: configuration that should be trained.
@@ -557,7 +558,7 @@ class nnUNetV2Runner:  # noqa: N801
                 for p in processes:
                     p.wait()
 
-    def validate_single_model(self, config: str, fold: int, **kwargs) -> None:
+    def validate_single_model(self, config: str, fold: int, **kwargs: Any) -> None:
         """
         Args:
             config: configuration that should be trained.
@@ -565,7 +566,7 @@ class nnUNetV2Runner:  # noqa: N801
         """
         self.train_single_model(config=config, fold=fold, only_run_validation=True, **kwargs)
 
-    def validate(self, configs: tuple = ("3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"), **kwargs) -> None:
+    def validate(self, configs: tuple = ("3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"), **kwargs: Any) -> None:
         """
         Args:
             configs: configurations that should be trained.
@@ -580,15 +581,15 @@ class nnUNetV2Runner:  # noqa: N801
 
     def find_best_configuration(
         self,
-        plans="nnUNetPlans",
-        configs=("2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres"),
-        trainers="nnUNetTrainer",
+        plans: tuple | str = "nnUNetPlans",
+        configs: tuple | str = ("2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres"),
+        trainers: tuple | str = "nnUNetTrainer",
         allow_ensembling: bool = True,
         num_processes: int = -1,
         overwrite: bool = True,
         folds: list[int] | tuple[int, ...] = (0, 1, 2, 3, 4),
         strict: bool = False,
-    ):
+    ) -> None:
         """
         Args:
             plans: list of plan identifiers. Default: nnUNetPlans
@@ -606,13 +607,13 @@ class nnUNetV2Runner:  # noqa: N801
             find_best_configuration,
         )
 
-        configs = [configs] if isinstance(configs, str) else configs
-        plans = [plans] if isinstance(plans, str) else plans
-        trainers = [trainers] if isinstance(trainers, str) else trainers
+        configs = ensure_tuple(configs)
+        plans = ensure_tuple(plans)
+        trainers = ensure_tuple(trainers)
 
         models = dumb_trainer_config_plans_to_trained_models_dict(trainers, configs, plans)
         num_processes = self.default_num_processes if num_processes < 0 else num_processes
-        _ = find_best_configuration(
+        find_best_configuration(
             int(self.dataset_name_or_id),
             models,
             allow_ensembling=allow_ensembling,
@@ -636,7 +637,7 @@ class nnUNetV2Runner:  # noqa: N801
         save_probabilities: bool = False,
         overwrite: bool = True,
         checkpoint_name: str = "checkpoint_final.pth",
-        folder_with_segs_from_prev_stage: str = None,
+        folder_with_segs_from_prev_stage: str | None = None,
         num_parts: int = 1,
         part_id: int = 0,
         num_processes_preprocessing: int = -1,
@@ -705,12 +706,12 @@ class nnUNetV2Runner:  # noqa: N801
 
     def predict_ensemble_postprocessing(
         self,
-        folds=(0, 1, 2, 3, 4),
+        folds: tuple = (0, 1, 2, 3, 4),
         disable_ensemble: bool = False,
         disable_predict: bool = False,
         disable_postprocessing: bool = False,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         """
         Args:
             folds: which folds to use
@@ -725,7 +726,7 @@ class nnUNetV2Runner:  # noqa: N801
         source_dir = join(self.nnunet_raw, self.dataset_name, "imagesTs")
         target_dir_base = join(self.nnunet_results, self.dataset_name)
 
-        self.best_configuration: dict = ConfigParser.load_config_file(
+        self.best_configuration = ConfigParser.load_config_file(
             os.path.join(self.nnunet_results, self.dataset_name, "inference_information.json")
         )
 
@@ -779,33 +780,33 @@ class nnUNetV2Runner:  # noqa: N801
 
     def run(
         self,
-        if_convert_dataset: bool = False,
-        if_plan_and_process: bool = False,
-        if_train: bool = False,
-        if_find_best_configuration: bool = False,
-        if_predict_ensemble_postprocessing: bool = False,
-    ):
+        run_convert_dataset: bool = False,
+        run_plan_and_process: bool = False,
+        run_train: bool = False,
+        run_find_best_configuration: bool = False,
+        run_predict_ensemble_postprocessing: bool = False,
+    ) -> None:
         """
         Args:
-            if_convert_dataset: whether to convert datasets
-            if_plan_and_process: whether to preprocess and analyze the dataset
-            if_train: whether to train models
-            if_find_best_configuration: whether to find the best model (ensemble) configurations
-            if_predict_ensemble_postprocessing: whether to make predictions on test datasets
+            run_convert_dataset: whether to convert datasets, defaults to False.
+            run_plan_and_process: whether to preprocess and analyze the dataset, defaults to False.
+            run_train: whether to train models, defaults to False.
+            run_find_best_configuration: whether to find the best model (ensemble) configurations, defaults to False.
+            run_predict_ensemble_postprocessing: whether to make predictions on test datasets, defaults to False.
         """
-        if if_convert_dataset:
+        if run_convert_dataset:
             self.convert_dataset()
 
-        if if_plan_and_process:
+        if run_plan_and_process:
             self.plan_and_process()
 
-        if if_train:
+        if run_train:
             self.train()
 
-        if if_find_best_configuration:
+        if run_find_best_configuration:
             self.find_best_configuration()
 
-        if if_predict_ensemble_postprocessing:
+        if run_predict_ensemble_postprocessing:
             self.predict_ensemble_postprocessing()
 
         return
