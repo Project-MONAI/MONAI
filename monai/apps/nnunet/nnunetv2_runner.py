@@ -715,9 +715,9 @@ class nnUNetV2Runner:  # noqa: N801
     def predict_ensemble_postprocessing(
         self,
         folds: tuple = (0, 1, 2, 3, 4),
-        disable_ensemble: bool = False,
-        disable_predict: bool = False,
-        disable_postprocessing: bool = False,
+        run_ensemble: bool = True,
+        run_predict: bool = True,
+        run_postprocessing: bool = True,
         **kwargs: Any,
     ) -> None:
         """
@@ -738,7 +738,7 @@ class nnUNetV2Runner:  # noqa: N801
             os.path.join(self.nnunet_results, self.dataset_name, "inference_information.json")
         )
 
-        if not disable_ensemble:
+        if run_ensemble:
             has_ensemble = len(self.best_configuration["best_model_or_ensemble"]["selected_model_or_models"]) > 1
         else:
             has_ensemble = False
@@ -749,7 +749,7 @@ class nnUNetV2Runner:  # noqa: N801
             output_dir = join(target_dir_base, f"pred_{im['configuration']}")
             output_folders.append(output_dir)
 
-            if not disable_predict:
+            if run_predict:
                 model_folder = get_output_folder(
                     int(self.dataset_name_or_id), im["trainer"], im["plans_identifier"], im["configuration"]
                 )
@@ -769,14 +769,14 @@ class nnUNetV2Runner:  # noqa: N801
             ensemble_folders(
                 output_folders, join(target_dir_base, "ensemble_predictions"), save_merged_probabilities=False
             )
-            if not disable_postprocessing:
+            if run_postprocessing:
                 folder_for_pp = join(target_dir_base, "ensemble_predictions")
         else:
-            if not disable_postprocessing:
+            if run_postprocessing:
                 folder_for_pp = output_folders[0]
 
         # apply postprocessing
-        if not disable_postprocessing:
+        if run_postprocessing:
             pp_fns, pp_fn_kwargs = load_pickle(self.best_configuration["best_model_or_ensemble"]["postprocessing_file"])
             apply_postprocessing_to_folder(
                 folder_for_pp,
