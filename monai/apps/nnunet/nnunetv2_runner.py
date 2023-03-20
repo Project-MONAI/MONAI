@@ -30,7 +30,7 @@ nib, _ = optional_import("nibabel", name="nib")
 
 class nnUNetV2Runner:
     def __init__(self, input, work_dir: str = "work_dir"):
-        
+
         self.input_info = []
         self.input_config_or_dict = input
         self.work_dir = work_dir
