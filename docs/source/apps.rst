@@ -274,14 +274,11 @@ FastMRIReader
 
 `auto3dseg`
 -----------
-
 .. automodule:: monai.apps.auto3dseg
   :members:
   :imported-members:
 
 `nnUNet`
 --------
-
-.. automodule:: monai.apps.nnunet
+.. autoclass:: monai.apps.nnunet.nnUNetV2Runner
   :members:
-  :imported-members:

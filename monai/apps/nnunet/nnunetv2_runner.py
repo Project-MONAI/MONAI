@@ -36,20 +36,22 @@ __all__ = ["nnUNetV2Runner"]
 class nnUNetV2Runner:  # noqa: N801
     def __init__(self, input_config: Any, work_dir: str = "work_dir") -> None:
         """
-        An interface for handling nnU-Net V2 with minimal inputs and understanding of the internal states in nnU-Net.
-        The users can run the nnU-Net V2 with default settings in one line of code. They can also run parts of the process
-        of nnU-Net V2 instead of the complete pipeline.
+        An interface for handling `nnU-Net` V2.
+        The users can run the nnU-Net V2 with default settings in one line of code.
+        They can also run parts of the process of nnU-Net V2 instead of the complete pipeline.
 
-        The output of the interface is a directory that contains
+        The output of the interface is a directory that contains:
+
             - converted dataset met requirement of nnU-Net V2
             - data analysis results
             - checkpoints from the trained U-Net models
             - validation accuracy in each fold of cross-validation
             - the predictions on the testing datasets from the final algorithm ensemble and potential post-processing
 
+
         Args:
             input_config: the configuration dictionary or the file path to the configuration in form of YAML.
-                The configuration should contain datalist, dataroot, modality.
+                The configuration should contain ``datalist``, ``dataroot``, ``modality``.
             work_dir: working directory to save the intermediate and final results.
         """
         self.input_info: dict = {}
@@ -257,11 +259,11 @@ class nnUNetV2Runner:  # noqa: N801
     def convert_msd_dataset(self, data_dir: str, overwrite_id: str | None = None, n_proc: int = -1) -> None:
         """
         Args:
-            data_dir: downloaded and extracted MSD dataset folder. CANNOT be nnUNetv1 dataset! Example:
-                "/workspace/downloads/Task05_Prostate")
+            data_dir: downloaded and extracted MSD dataset folder. CANNOT be nnUNetv1 dataset!
+                Example: "/workspace/downloads/Task05_Prostate".
             overwrite_id: Overwrite the dataset id. If not set then use the id of the MSD task (inferred from
                 folder name). Only use this if you already have an equivalently numbered dataset!
-            n_proc: Number of processes used
+            n_proc: Number of processes used.
         """
         from nnunetv2.dataset_conversion.convert_MSD_dataset import convert_msd_dataset
 
@@ -279,7 +281,7 @@ class nnUNetV2Runner:  # noqa: N801
         """
         Args:
             fpe: [OPTIONAL] Name of the Dataset Fingerprint Extractor class that should be used. Default is
-                            'DatasetFingerprintExtractor'
+                'DatasetFingerprintExtractor'
             npfp: [OPTIONAL] Number of processes used for fingerprint extraction.
             verify_dataset_integrity: [RECOMMENDED] set this flag to check the dataset integrity. This is
                 useful and should be done once for each dataset!
@@ -648,14 +650,14 @@ class nnUNetV2Runner:  # noqa: N801
         Use this to run inference with nnU-Net. This function is used when you want to manually specify a folder containing
             a trained nnU-Net model. This is useful when the nnunet environment variables (nnUNet_results) are not set.
         Args:
-            list_of_lists_or_source_folder: input folder. Remember to use the correct channel numberings for your files (_0000 etc).
-                File endings must be the same as the training dataset!
+            list_of_lists_or_source_folder: input folder. Remember to use the correct channel numberings for
+                your files (_0000 etc). File endings must be the same as the training dataset!
             output_folder: Output folder. If it does not exist it will be created. Predicted segmentations will
                 have the same name as their source images.
-            model_training_output_dir: Folder in which the trained model is. Must have subfolders fold_X for the different
-                folds you trained
+            model_training_output_dir: Folder in which the trained model is. Must have subfolders fold_X for the
+                different folds you trained.
             use_folds: Specify the folds of the trained model that should be used for prediction
-                Default: (0, 1, 2, 3, 4)
+                Default: (0, 1, 2, 3, 4).
             tile_step_size: step size for sliding window prediction. The larger it is the faster but less accurate
                 the prediction. Default: 0.5. Cannot be larger than 1. We recommend the default.
             disable_tta: set this flag to disable test time data augmentation in the form of mirroring. Faster,
@@ -668,7 +670,8 @@ class nnUNetV2Runner:  # noqa: N801
             npp: out-of-RAM issues. Default: 3
             nps: Number of processes used for segmentation export. More is not always better. Beware of '
                 'out-of-RAM issues. Default: 3
-            prev_stage_predictions: Folder containing the predictions of the previous stage. Required for cascaded models.
+            prev_stage_predictions: Folder containing the predictions of the previous stage.
+                Required for cascaded models.
             device: Use this to set the device the inference should run with. Available options are 'cuda'
                 "(GPU), 'cpu' (CPU) and 'mps' (Apple M1/M2). Do NOT use this to set which GPU ID!
                 "Use CUDA_VISIBLE_DEVICES=X nnUNetv2_predict [...] instead!")
