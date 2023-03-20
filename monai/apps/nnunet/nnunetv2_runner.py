@@ -103,11 +103,6 @@ class nnUNetV2Runner:  # noqa: N801
         self.num_folds = 5
         self.best_configuration: dict = {}
 
-        result = subprocess.run(["nvidia-smi", "--list-gpus"], stdout=subprocess.PIPE)
-        output = result.stdout.decode("utf-8")
-        self.num_gpus = len(output.strip().split("\n"))
-        logger.warning(f"number of gpus is {self.num_gpus}")
-
     def convert_dataset(self):
         try:
             raw_data_foldername_perfix = str(int(self.dataset_name_or_id) + 1000)
@@ -397,23 +392,30 @@ class nnUNetV2Runner:  # noqa: N801
 
         run_training(dataset_name_or_id=self.dataset_name_or_id, configuration=config, fold=fold, **kwargs)
 
-    def train(self, configs=("3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"), **kwargs):
+    def train(
+        self, configs=("3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"), device_ids: tuple | None = None, **kwargs
+    ) -> None:
         """
         Args:
             configs: configurations that should be trained.
         """
-        if self.num_gpus > 1:
-            self.train_parallel(configs=ensure_tuple(configs), **kwargs)
+
+        if device_ids is None:
+            result = subprocess.run(["nvidia-smi", "--list-gpus"], stdout=subprocess.PIPE)
+            output = result.stdout.decode("utf-8")
+            num_gpus = len(output.strip().split("\n"))
+            device_ids = tuple(range(num_gpus))
+        logger.warning(f"number of gpus is {len(device_ids)}, device ids are {device_ids}")
+        if len(device_ids) > 1:
+            self.train_parallel(configs=ensure_tuple(configs), device_ids=device_ids, **kwargs)
         else:
             for cfg in ensure_tuple(configs):
                 for _fold in range(self.num_folds):
                     self.train_single_model(config=cfg, fold=_fold, **kwargs)
 
-    def train_parallel(self, configs=("3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"), **kwargs):
-        """
-        Args:
-            configs: configurations that should be trained.
-        """
+    def train_parallel_cmd(
+        self, configs=("3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"), device_ids: tuple | None = None, **kwargs
+    ) -> list:
         # unpack compressed files
         folder_names = []
         for root, _, files in os.walk(os.path.join(self.nnunet_preprocessed, self.dataset_name)):
@@ -432,47 +434,55 @@ class nnUNetV2Runner:  # noqa: N801
             )
 
         # model training
+        kwargs = kwargs or {}
+        devices = ensure_tuple(device_ids)
+        n_devices = len(devices)
         _configs = [["3d_fullres", "2d", "3d_lowres"], ["3d_cascade_fullres"]]
-        for _stage in range(2):
-            cmds = []
+        all_cmds: list = []
+        for _stage in range(len(_configs)):
+            all_cmds.append({_j: [] for _j in devices})
             _index = 0
 
             for _config in _configs[_stage]:
                 if _config in ensure_tuple(configs):
                     for _i in range(self.num_folds):
+                        the_device = device_ids[_index % n_devices]
                         cmd = (
                             "python -m monai.apps.nnunet nnUNetV2Runner train_single_model "
                             + f"--input_config '{self.input_config_or_dict}' --config '{_config}' "
-                            + f"--fold {_i} --gpu_id {_index%self.num_gpus}"
+                            + f"--fold {_i} --gpu_id {the_device}"  # type: ignore
                         )
-
-                        if isinstance(kwargs, dict):
-                            for _key, _value in kwargs.items():
-                                cmd += f" --{_key} {_value}"
-
-                        cmds.append(cmd)
+                        for _key, _value in kwargs.items():
+                            cmd += f" --{_key} {_value}"
+                        all_cmds[-1][the_device].append(cmd)
                         _index += 1
+        return all_cmds
 
-            if len(cmds) > 0:
-                gpu_cmds = {f"gpu_{_j}": "" for _j in range(self.num_gpus)}
-
-                for _k in range(len(cmds)):
-                    for _j in range(self.num_gpus):
-                        if f"--gpu_id {_j}" in cmds[_k]:
-                            gpu_cmds[f"gpu_{_j}"] += cmds[_k]
-                            gpu_cmds[f"gpu_{_j}"] += "; "
-                            break
-                processes = []
-                for gpu_cmd in list(gpu_cmds.values()):
-                    logger.warning(
-                        f"\n[info] training - stage {_stage + 1}:\n"
-                        f"[info] commands: {gpu_cmd}\n"
-                        f"[info] log '.txt' inside '{os.path.join(self.nnunet_results, self.dataset_name)}'"
-                    )
-                    processes.append(subprocess.Popen(gpu_cmd, shell=True, stdout=subprocess.DEVNULL))
-
-                for p in processes:
-                    p.wait()
+    def train_parallel(
+        self, configs=("3d_fullres", "2d", "3d_lowres", "3d_cascade_fullres"), device_ids: tuple | None = None, **kwargs
+    ):
+        """
+        Args:
+            configs: configurations that should be trained.
+        """
+        all_cmds = self.train_parallel_cmd(configs=configs, device_ids=device_ids, **kwargs)
+        for s, cmds in enumerate(all_cmds):
+            for gpu_id, gpu_cmd in cmds.items():
+                logger.warning(
+                    f"\n[info] training - stage {s + 1}:\n"
+                    f"[info] for gpu {gpu_id}, commands: {gpu_cmd}\n"
+                    f"[info] log '.txt' inside '{os.path.join(self.nnunet_results, self.dataset_name)}'"
+                )
+        for stage in all_cmds:
+            processes = []
+            for device_id in stage:
+                if not stage[device_id]:
+                    continue
+                cmd_str = "; ".join(stage[device_id])
+                processes.append(subprocess.Popen(cmd_str, shell=True, stdout=subprocess.DEVNULL))
+            # finish this stage first
+            for p in processes:
+                p.wait()
 
     def validate_single_model(self, config: str, fold: int, **kwargs: Any) -> None:
         """
