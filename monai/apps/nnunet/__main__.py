@@ -22,7 +22,7 @@ Examples:
         python -m monai.apps.nnunet nnUNetV2Runner run --input "./input.yaml"
 
     - convert dataset
-    
+
     .. code-block:: bash
 
         python -m monai.apps.nnunet nnUNetRunner convert_dataset --input "./input_new.yaml"
@@ -34,7 +34,7 @@ Examples:
         python -m monai.apps.nnunet nnUNetRunner convert_msd_dataset --input "./input.yaml" --data_dir "/home/dongy/Data/MSD/NGC/Task05_Prostate"
 
     - experiment planning and data pre-processing
-    
+
     .. code-block:: bash
 
         python -m monai.apps.nnunet nnUNetRunner plan_and_process --input "./input.yaml"
