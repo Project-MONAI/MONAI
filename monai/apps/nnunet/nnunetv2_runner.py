@@ -105,14 +105,14 @@ class nnUNetV2Runner:  # noqa: N801
 
     def convert_dataset(self):
         try:
-            raw_data_foldername_perfix = str(int(self.dataset_name_or_id) + 1000)
-            raw_data_foldername_perfix = "Dataset" + raw_data_foldername_perfix[-3:]
+            raw_data_foldername_prefix = str(int(self.dataset_name_or_id) + 1000)
+            raw_data_foldername_prefix = "Dataset" + raw_data_foldername_prefix[-3:]
 
             # check if dataset is created
             subdirs = glob.glob(f"{self.nnunet_raw}/*")
             dataset_ids = [_item.split(os.sep)[-1] for _item in subdirs]
             dataset_ids = [_item.split("_")[0] for _item in dataset_ids]
-            if raw_data_foldername_perfix in dataset_ids:
+            if raw_data_foldername_prefix in dataset_ids:
                 logger.warning("Dataset with the same ID exists!")
                 return
 
@@ -120,7 +120,7 @@ class nnUNetV2Runner:  # noqa: N801
             if data_dir[-1] == os.sep:
                 data_dir = data_dir[:-1]
 
-            raw_data_foldername = raw_data_foldername_perfix + "_" + data_dir.split(os.sep)[-1]
+            raw_data_foldername = raw_data_foldername_prefix + "_" + data_dir.split(os.sep)[-1]
             raw_data_foldername = os.path.join(self.nnunet_raw, raw_data_foldername)
             if not os.path.exists(raw_data_foldername):
                 os.makedirs(raw_data_foldername)
@@ -201,7 +201,7 @@ class nnUNetV2Runner:  # noqa: N801
                 useful and should be done once for each dataset!
             clean: [OPTIONAL] Set this flag to overwrite existing fingerprints. If this flag is not set and a
                 fingerprint already exists, the fingerprint extractor will not run.
-            verbose: set this to print a lot of stuff. Useful for debugging. Will disable progrewss bar!
+            verbose: set this to print a lot of stuff. Useful for debugging. Will disable progress bar!
                 Recommended for cluster environments
         """
         from nnunetv2.experiment_planning.plan_and_preprocess_api import extract_fingerprints
@@ -279,7 +279,7 @@ class nnUNetV2Runner:  # noqa: N801
                 RAM available. Image resampling takes up a lot of RAM. MONITOR RAM USAGE AND
                 DECREASE -n_proc IF YOUR RAM FILLS UP TOO MUCH!. Default: 8 4 8 (=8 processes for 2d, 4
                 for 3d_fullres and 8 for 3d_lowres if -c is at its default)
-            verbose:Set this to print a lot of stuff. Useful for debugging. Will disable progrewss bar!
+            verbose:Set this to print a lot of stuff. Useful for debugging. Will disable progress bar!
                 Recommended for cluster environments
         """
         from nnunetv2.experiment_planning.plan_and_preprocess_api import preprocess
@@ -317,13 +317,13 @@ class nnUNetV2Runner:  # noqa: N801
             verify_dataset_integrity: [RECOMMENDED] set this flag to check the dataset integrity.
                 This is useful and should be done once for each dataset!
             no_pp: [OPTIONAL] Set this to only run fingerprint extraction and experiment planning (no
-                preprocesing). Useful for debugging.
+                preprocessing). Useful for debugging.
             clean:[OPTIONAL] Set this flag to overwrite existing fingerprints. If this flag is not set and a
                 fingerprint already exists, the fingerprint extractor will not run. REQUIRED IF YOU
                 CHANGE THE DATASET FINGERPRINT EXTRACTOR OR MAKE CHANGES TO THE DATASET!
             pl: [OPTIONAL] Name of the Experiment Planner class that should be used. Default is
                 ExperimentPlanner'. Note: There is no longer a distinction between 2d and 3d planner.
-                It's an all in one solution now. Wuch. Such amazing.
+                It's an all in one solution now.
             gpu_memory_target: [OPTIONAL] DANGER ZONE! Sets a custom GPU memory target. Default: 8 [GB].
                 Changing this will affect patch and batch size and will
                 definitely affect your models performance! Only use this if you really know what you
@@ -382,7 +382,7 @@ class nnUNetV2Runner:  # noqa: N801
                 (in addition to predicted segmentations). Needed for finding the best ensemble. default: False.
             continue_training: continue training from latest checkpoint. default: False.
             only_run_validation: true to run the validation only. Requires training to have finished. default: False.
-            disable_checkpointing: true to disable checkpointing. Ideal for testing things out and you dont want to
+            disable_checkpointing: true to disable checkpointing. Ideal for testing things out and you don't want to
                 flood your hard drive with checkpoints. default: False.
         """
         os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_id}"
@@ -537,7 +537,7 @@ class nnUNetV2Runner:  # noqa: N801
             num_processes: number of processes to use for ensembling, postprocessing etc
             folds: folds to use. Default: 0 1 2 3 4
             allow_ensembling: Set this flag to enable ensembling
-            overwrite: If set we will overwrite already ensembled files etc. May speed up concecutive
+            overwrite: If set we will overwrite already ensembled files etc. May speed up consecutive
                 runs of this command (why would oyu want to do that?) at the risk of not updating
                 outdated results.
         """
@@ -601,7 +601,7 @@ class nnUNetV2Runner:  # noqa: N801
             use_gaussian: use Gaussian smoothing as test-time augmentation.
             use_mirroring: use mirroring/flipping as test-time augmentation.
             verbose: set this if you like being talked to. You will have to be a good listener/reader.
-            save_probabilities: set this to export predicted class "probabilities". Required if you want to ensemble '
+            save_probabilities: set this to export predicted class "probabilities". Required if you want to ensemble
                 multiple configurations.
             overwrite: overwrite an existing previous prediction (will not overwrite existing files)
             checkpoint_name: name of the checkpoint you want to use. Default: checkpoint_final.pth.
