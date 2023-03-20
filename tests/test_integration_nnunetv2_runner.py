@@ -22,12 +22,7 @@ from monai.apps.nnunet import nnUNetV2Runner
 from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
 from monai.utils import optional_import
-from tests.utils import (
-    SkipIfBeforePyTorchVersion,
-    skip_if_downloading_fails,
-    skip_if_no_cuda,
-    skip_if_quick,
-)
+from tests.utils import SkipIfBeforePyTorchVersion, skip_if_downloading_fails, skip_if_no_cuda, skip_if_quick
 
 _, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 _, has_nni = optional_import("nni")
@@ -85,7 +80,6 @@ class TestnnUNetV2Runner(unittest.TestCase):
 
     @skip_if_no_cuda
     def test_nnunetv2runner(self) -> None:
-        work_dir = os.path.join(self.test_path, "work_dir")
         runner = nnUNetV2Runner(input=self.data_src_cfg)
         with skip_if_downloading_fails():
             runner.run(if_convert_dataset=True, if_plan_and_process=True)
