@@ -509,7 +509,7 @@ class nnUNetV2Runner:  # noqa: N801
 
         for folder_name in folder_names:
             logger.warning(f"[info] unpacking '{folder_name}'...")
-            _ = unpack_dataset(
+            unpack_dataset(
                 folder=folder_name,
                 unpack_segmentation=True,
                 overwrite_existing=False,
