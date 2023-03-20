@@ -29,8 +29,10 @@ nib, _ = optional_import("nibabel")
 
 logger = monai.apps.utils.get_logger(__name__)
 
+__all__ = ["nnUNetV2Runner"]
 
-class nnUNetV2Runner:
+
+class nnUNetV2Runner:  # noqa: N801
     def __init__(self, input, work_dir: str = "work_dir"):
         """
         An interface for handling nnU-Net V2 with minimal inputs and understanding of the internal states in nnU-Net.
@@ -115,7 +117,7 @@ class nnUNetV2Runner:
             dataset_ids = [_item.split(os.sep)[-1] for _item in subdirs]
             dataset_ids = [_item.split("_")[0] for _item in dataset_ids]
             if raw_data_foldername_perfix in dataset_ids:
-                logging.warning("Dataset with the same ID exists!")
+                logger.warning("Dataset with the same ID exists!")
                 return
 
             data_dir = self.input_info.pop("dataroot")
@@ -307,20 +309,24 @@ class nnUNetV2Runner:
         Args:
             pl: [OPTIONAL] Name of the Experiment Planner class that should be used. Default is 'ExperimentPlanner'.
                 Note: There is no longer a distinction between 2d and 3d planner. It's an all in one solution now.
-            gpu_memory_target:[OPTIONAL] DANGER ZONE! Sets a custom GPU memory target. Default: 8 [GB]. Changing this will
-                affect patch and batch size and will definitely affect your models performance! Only use this if you really
-                know what you are doing and NEVER use this without running the default nnU-Net first (as a baseline).
+            gpu_memory_target:[OPTIONAL] DANGER ZONE! Sets a custom GPU memory target. Default: 8 [GB].
+                Changing this will affect patch and batch size and will definitely affect your models performance!
+                Only use this if you really know what you are doing and NEVER use this without running the
+                default nnU-Net first (as a baseline).
             preprocessor_name:[OPTIONAL] DANGER ZONE! Sets a custom preprocessor class. This class must be located in
                 nnunetv2.preprocessing. Default: 'DefaultPreprocessor'. Changing this may affect your models performance!
-                Only use this if you really know what you are doing and NEVER use this without running the default nnU-Net first
-                (as a baseline).
-            overwrite_target_spacing':[OPTIONAL] DANGER ZONE! Sets a custom target spacing for the 3d_fullres and 3d_cascade_fullres
-                configurations. Default: None [no changes]. Changing this will affect image size and potentially patch and batch
-                size. This will definitely affect your models performance! Only use this if you really know what you are doing and
-                NEVER use this without running the default nnU-Net first (as a baseline). Changing the target spacing for the other configurations is currently not implemented. New target spacing must be a list of three numbers!
+                Only use this if you really know what you are doing and NEVER use this without running the
+                default nnU-Net first (as a baseline).
+            overwrite_target_spacing':[OPTIONAL] DANGER ZONE! Sets a custom target spacing for the 3d_fullres
+                and 3d_cascade_fullres configurations. Default: None [no changes]. Changing this will affect
+                image size and potentially patch and batch size. This will definitely affect your models performance!
+                Only use this if you really know what you are doing and NEVER use this without running the
+                default nnU-Net first (as a baseline). Changing the target spacing for the other configurations
+                is currently not implemented. New target spacing must be a list of three numbers!
             overwrite_plans_name':[OPTIONAL] DANGER ZONE! If you used -gpu_memory_target, -preprocessor_name or
-                -overwrite_target_spacing it is best practice to use -overwrite_plans_name to generate a differently named plans
-                file such that the nnunet default plans are not overwritten. You will then need to specify your custom plan
+                -overwrite_target_spacing it is best practice to use -overwrite_plans_name to generate
+                a differently named plans file such that the nnunet default plans are not overwritten.
+                You will then need to specify your custom plan
         """
         from nnunetv2.experiment_planning.plan_and_preprocess_api import plan_experiments
 
@@ -343,7 +349,8 @@ class nnUNetV2Runner:
     ):
         """
         Args:
-            overwrite_plans_name: [OPTIONAL] You can use this to specify a custom plans file that you may have generated
+            overwrite_plans_name: [OPTIONAL] You can use this to specify a custom plans file that you may have
+                generated.
             c: [OPTIONAL] Configurations for which the preprocessing should be run. Default: 2d 3f_fullres
                 3d_lowres. 3d_cascade_fullres does not need to be specified because it uses the data
                 from 3f_fullres. Configurations that do not exist for some dataset will be skipped)
@@ -389,8 +396,8 @@ class nnUNetV2Runner:
             fpe: [OPTIONAL] Name of the Dataset Fingerprint Extractor class that should be used. Default is
                 'DatasetFingerprintExtractor'
             npfp: [OPTIONAL] Number of processes used for fingerprint extraction. Default: 8
-            verify_dataset_integrity: [RECOMMENDED] set this flag to check the dataset integrity. This is useful and should be done once for
-                each dataset!
+            verify_dataset_integrity: [RECOMMENDED] set this flag to check the dataset integrity.
+                This is useful and should be done once for each dataset!
             no_pp: [OPTIONAL] Set this to only run fingerprint extraction and experiment planning (no
                 preprocesing). Useful for debugging.
             clean:[OPTIONAL] Set this flag to overwrite existing fingerprints. If this flag is not set and a
@@ -399,24 +406,23 @@ class nnUNetV2Runner:
             pl: [OPTIONAL] Name of the Experiment Planner class that should be used. Default is
                 ExperimentPlanner'. Note: There is no longer a distinction between 2d and 3d planner.
                 It's an all in one solution now. Wuch. Such amazing.
-            gpu_memory_target: [OPTIONAL] DANGER ZONE! Sets a custom GPU memory target. Default: 8 [GB]. Changing this will
-                affect patch and batch size and will
+            gpu_memory_target: [OPTIONAL] DANGER ZONE! Sets a custom GPU memory target. Default: 8 [GB].
+                Changing this will affect patch and batch size and will
                 definitely affect your models performance! Only use this if you really know what you
                 are doing and NEVER use this without running the default nnU-Net first (as a baseline).
             preprocessor_name: [OPTIONAL] DANGER ZONE! Sets a custom preprocessor class. This class must be located in
                 nnunetv2.preprocessing. Default: 'DefaultPreprocessor'. Changing this may affect your
                 models performance! Only use this if you really know what you
                 are doing and NEVER use this without running the default nnU-Net first (as a baseline).
-            overwrite_target_spacing: [OPTIONAL] DANGER ZONE! Sets a custom target spacing for the 3d_fullres and 3d_cascade_fullres
-                configurations. Default: None [no changes]. Changing this will affect image size and
-                potentially patch and batch
-                size. This will definitely affect your models performance! Only use this if you really
-                know what you are doing and NEVER use this without running the default nnU-Net first
-                (as a baseline). Changing the target spacing for the other configurations is currently
-                not implemented. New target spacing must be a list of three numbers!
+            overwrite_target_spacing: [OPTIONAL] DANGER ZONE! Sets a custom target spacing for the 3d_fullres and
+                3d_cascade_fullres configurations. Default: None [no changes]. Changing this will affect image size and
+                potentially patch and batch size. This will definitely affect your models performance!
+                Only use this if you really know what you are doing and NEVER use this without running the
+                default nnU-Net first (as a baseline). Changing the target spacing for the other
+                configurations is currently not implemented. New target spacing must be a list of three numbers!
             overwrite_plans_name: [OPTIONAL] uSE A CUSTOM PLANS IDENTIFIER. If you used -gpu_memory_target,
-                -preprocessor_name or -overwrite_target_spacing it is best practice to use -overwrite_plans_name to generate a
-                differently named plans file such that the nnunet default plans are not
+                -preprocessor_name or -overwrite_target_spacing it is best practice to use -overwrite_plans_name to
+                generate a differently named plans file such that the nnunet default plans are not
                 overwritten. You will then need to specify your custom plans file with -p whenever
                 running other nnunet commands (training, inference etc)
             c: [OPTIONAL] Configurations for which the preprocessing should be run. Default: 2d 3f_fullres
@@ -517,7 +523,8 @@ class nnUNetV2Runner:
                     for _i in range(self.num_folds):
                         cmd = (
                             "python -m monai.apps.nnunet nnUNetV2Runner train_single_model "
-                            + f"--input '{self.input_config_or_dict}' --config '{_config}' --fold {_i} --gpu_id {_index%self.num_gpus}"
+                            + f"--input '{self.input_config_or_dict}' --config '{_config}' "
+                            + f"--fold {_i} --gpu_id {_index%self.num_gpus}"
                         )
 
                         if isinstance(kwargs, dict):
@@ -582,7 +589,7 @@ class nnUNetV2Runner:
         allow_ensembling: bool = True,
         num_processes: int = -1,
         overwrite: bool = True,
-        folds: Union[List[int], Tuple[int, ...]] = (0, 1, 2, 3, 4),
+        folds: list[int] | tuple[int, ...] = (0, 1, 2, 3, 4),
         strict: bool = False,
     ):
         """
@@ -620,10 +627,10 @@ class nnUNetV2Runner:
 
     def predict(
         self,
-        list_of_lists_or_source_folder: Union[str, List[List[str]]],
+        list_of_lists_or_source_folder: str | list[list[str]],
         output_folder: str,
         model_training_output_dir: str,
-        use_folds: Union[Tuple[int, ...], str] = None,
+        use_folds: tuple[int, ...] | str = None,
         tile_step_size: float = 0.5,
         use_gaussian: bool = True,
         use_mirroring: bool = True,
