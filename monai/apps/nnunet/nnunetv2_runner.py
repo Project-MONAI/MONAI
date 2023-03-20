@@ -654,27 +654,30 @@ class nnUNetV2Runner:  # noqa: N801
                 your files (_0000 etc). File endings must be the same as the training dataset!
             output_folder: Output folder. If it does not exist it will be created. Predicted segmentations will
                 have the same name as their source images.
-            model_training_output_dir: Folder in which the trained model is. Must have subfolders fold_X for the
+            model_training_output_dir: folder in which the trained model is. Must have subfolders fold_X for the
                 different folds you trained.
-            use_folds: Specify the folds of the trained model that should be used for prediction
+            use_folds: specify the folds of the trained model that should be used for prediction
                 Default: (0, 1, 2, 3, 4).
             tile_step_size: step size for sliding window prediction. The larger it is the faster but less accurate
                 the prediction. Default: 0.5. Cannot be larger than 1. We recommend the default.
-            disable_tta: set this flag to disable test time data augmentation in the form of mirroring. Faster,
-                but less accurate inference. Not recommended.
-            verbose: Set this if you like being talked to. You will have to be a good listener/reader.
+            use_gaussian: use Gaussian smoothing as test-time augmentation.
+            use_mirroring: use mirroring/flipping as test-time augmentation.
+            verbose: set this if you like being talked to. You will have to be a good listener/reader.
             save_probabilities: set this to export predicted class "probabilities". Required if you want to ensemble '
                 multiple configurations.
-            continue_prediction: continue an aborted previous prediction (will not overwrite existing files)
-            checkpoint_name: Name of the checkpoint you want to use. Default: checkpoint_final.pth
-            npp: out-of-RAM issues. Default: 3
-            nps: Number of processes used for segmentation export. More is not always better. Beware of '
-                'out-of-RAM issues. Default: 3
-            prev_stage_predictions: Folder containing the predictions of the previous stage.
+            overwrite: overwrite an existing previous prediction (will not overwrite existing files)
+            checkpoint_name: name of the checkpoint you want to use. Default: checkpoint_final.pth.
+            folder_with_segs_from_prev_stage: folder containing the predictions of the previous stage.
                 Required for cascaded models.
-            device: Use this to set the device the inference should run with. Available options are 'cuda'
-                "(GPU), 'cpu' (CPU) and 'mps' (Apple M1/M2). Do NOT use this to set which GPU ID!
-                "Use CUDA_VISIBLE_DEVICES=X nnUNetv2_predict [...] instead!")
+            num_parts: number of separate nnUNetv2_predict call that you will be making. Default: 1 (= this one
+                call predicts everything).
+            part_id: if multiple nnUNetv2_predict exist, which one is this? IDs start with 0 can end with
+                num_parts - 1. So when you submit 5 nnUNetv2_predict calls you need to set -num_parts
+                5 and use -part_id 0, 1, 2, 3 and 4.
+            num_processes_preprocessing: out-of-RAM issues.
+            num_processes_segmentation_export: Number of processes used for segmentation export. More is not always better. Beware of
+                out-of-RAM issues.
+            gpu_id: which gpu to use for prediction.
         """
         os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_id}"
 
