@@ -22,7 +22,7 @@ from monai.bundle import ConfigParser
 from monai.data import load_net_with_metadata
 from monai.networks import save_state
 from monai.utils import min_version, optional_import, require_pkg
-from tests.utils import command_line_tests, skip_if_no_cuda, SkipIfNoModule, skip_if_quick, skip_if_windows
+from tests.utils import SkipIfNoModule, command_line_tests, skip_if_no_cuda, skip_if_quick, skip_if_windows
 
 _, has_torchtrt = optional_import(
     "torch_tensorrt", descriptor="Torch-TRT is not installed. Are you sure you have a Torch-TensorRT compilation?"
