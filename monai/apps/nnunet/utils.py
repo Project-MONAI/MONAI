@@ -18,7 +18,7 @@ import numpy as np
 
 import monai
 from monai.bundle import ConfigParser
-from monai.utils import optional_import, ensure_tuple
+from monai.utils import ensure_tuple, optional_import
 
 tqdm, has_tqdm = optional_import("tqdm", name="tqdm")
 nib, _ = optional_import("nibabel")
@@ -126,7 +126,7 @@ def create_new_data_copy(
 
 
 def create_new_dataset_json(
-        modality: str, num_foreground_classes: int, num_input_channels: int, num_training_data: int, output_filepath: str
+    modality: str, num_foreground_classes: int, num_input_channels: int, num_training_data: int, output_filepath: str
 ) -> None:
     """
     Create a new copy of dataset .json to meet the requirements of nnU-Net V2
