@@ -666,8 +666,8 @@ class nnUNetV2Runner:  # noqa: N801
                 num_parts - 1. So when you submit 5 nnUNetv2_predict calls you need to set -num_parts
                 5 and use -part_id 0, 1, 2, 3 and 4.
             num_processes_preprocessing: out-of-RAM issues.
-            num_processes_segmentation_export: Number of processes used for segmentation export. More is not always better. Beware of
-                out-of-RAM issues.
+            num_processes_segmentation_export: Number of processes used for segmentation export.
+                More is not always better. Beware of out-of-RAM issues.
             gpu_id: which gpu to use for prediction.
         """
         os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_id}"
