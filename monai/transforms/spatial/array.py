@@ -2937,7 +2937,7 @@ class GridSplit(Transform, MultiSampleTrait):
         as_strided_func: Callable
         if isinstance(image, torch.Tensor):
             as_strided_func = torch.as_strided
-            c_stride, x_stride, y_stride = image.stride()  # type: ignore
+            c_stride, x_stride, y_stride = image.stride()
         elif isinstance(image, np.ndarray):
             as_strided_func = np.lib.stride_tricks.as_strided
             c_stride, x_stride, y_stride = image.strides
