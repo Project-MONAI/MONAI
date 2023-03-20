@@ -783,11 +783,11 @@ class nnUNetV2Runner:  # noqa: N801
 
     def run(
         self,
-        run_convert_dataset: bool = False,
-        run_plan_and_process: bool = False,
-        run_train: bool = False,
-        run_find_best_configuration: bool = False,
-        run_predict_ensemble_postprocessing: bool = False,
+        run_convert_dataset: bool = True,
+        run_plan_and_process: bool = True,
+        run_train: bool = True,
+        run_find_best_configuration: bool = True,
+        run_predict_ensemble_postprocessing: bool = True,
     ) -> None:
         """
         Args:
