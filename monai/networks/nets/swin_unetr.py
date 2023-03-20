@@ -65,7 +65,7 @@ class SwinUNETR(nn.Module):
         use_checkpoint: bool = False,
         spatial_dims: int = 3,
         downsample="merging",
-        use_v2=True
+        use_v2=False
     ) -> None:
         """
         Args:
