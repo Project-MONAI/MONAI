@@ -22,8 +22,8 @@ from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
 from monai.transforms import SpatialResample
-from monai.transforms.lazy.functional import apply_transforms
 from monai.utils import optional_import
+from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.utils import TEST_DEVICES, TEST_NDARRAYS_ALL, assert_allclose
 
 TESTS = []
@@ -132,28 +132,6 @@ for track_meta in (True,):
         TEST_TORCH_INPUT.append(t + [track_meta])
 
 
-def get_apply_param(init_param=None, call_param=None):
-    apply_param = {}
-    for key in ["pending", "mode", "padding_mode", "dtype", "align_corners"]:
-        if init_param:
-            if key in init_param.keys():
-                apply_param[key] = init_param[key]
-        if call_param:
-            if key in call_param.keys():
-                apply_param[key] = call_param[key]
-    return apply_param
-
-
-def test_resampler_lazy(resampler, non_lazy_out, init_param=None, call_param=None):
-    resampler.lazy_evaluation = True
-    pending_out = resampler(**call_param)
-    assert_allclose(pending_out.peek_pending_affine(), non_lazy_out.affine)
-    assert_allclose(pending_out.peek_pending_shape(), non_lazy_out.shape[1:4])
-    apply_param = get_apply_param(init_param, call_param)
-    lazy_out = apply_transforms(pending_out, **apply_param)[0]
-    assert_allclose(lazy_out, non_lazy_out, rtol=1e-5)
-
-
 class TestSpatialResample(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_flips(self, img, device, data_param, expected_output):
@@ -243,6 +221,14 @@ class TestSpatialResample(unittest.TestCase):
         assert_allclose(img, out)
         expected_affine = to_affine_nd(len(out.affine) - 1, torch.eye(4))
         assert_allclose(out.affine, expected_affine)
+
+    def test_unchange(self):
+        for i, p in enumerate(TEST_NDARRAYS_ALL):
+            set_track_meta(i % 2)
+            img = p(np.arange(12).reshape(1, 3, 4))
+            result = SpatialResample()(img)
+            assert_allclose(result, img, type_test=False)
+        set_track_meta(True)
 
 
 if __name__ == "__main__":
