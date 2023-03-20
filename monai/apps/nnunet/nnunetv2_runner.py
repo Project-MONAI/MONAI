@@ -273,7 +273,7 @@ class nnUNetV2Runner:
         npfp: int = -1,
         verify_dataset_integrity: bool = False,
         clean: bool = False,
-        verbose: bool = False
+        verbose: bool = False,
     ):
         """
         Args:
@@ -299,7 +299,7 @@ class nnUNetV2Runner:
         pl: str = "ExperimentPlanner",
         gpu_memory_target: float = 8,
         preprocessor_name: str = "DefaultPreprocessor",
-        overwrite_target_spacing = None,
+        overwrite_target_spacing=None,
         overwrite_plans_name: str = "nnUNetPlans",
         verbose: bool = False,
     ):
@@ -335,7 +335,11 @@ class nnUNetV2Runner:
         )
 
     def preprocess(
-        self, c: list = ["2d", "3d_fullres", "3d_lowres"], np: list = [8, 8, 8], overwrite_plans_name: str = "nnUNetPlans", verbose: bool = False
+        self,
+        c: list = ["2d", "3d_fullres", "3d_lowres"],
+        np: list = [8, 8, 8],
+        overwrite_plans_name: str = "nnUNetPlans",
+        verbose: bool = False,
     ):
         """
         Args:
@@ -512,8 +516,9 @@ class nnUNetV2Runner:
                 if _config in configs:
                     for _i in range(self.num_folds):
                         cmd = (
-                            "python -m monai.apps.nnunet nnUNetV2Runner train_single_model " +
-                            f"--input '{self.input_config_or_dict}' --config '{_config}' --fold {_i} --gpu_id {_index%self.num_gpus}")
+                            "python -m monai.apps.nnunet nnUNetV2Runner train_single_model "
+                            + f"--input '{self.input_config_or_dict}' --config '{_config}' --fold {_i} --gpu_id {_index%self.num_gpus}"
+                        )
 
                         if isinstance(kwargs, dict):
                             for _key, _value in kwargs.items():
@@ -538,9 +543,11 @@ class nnUNetV2Runner:
                 processes = []
                 for _i in range(len(gpu_cmds)):
                     gpu_cmd = gpu_cmds[_i]
-                    logger.warning(f"\n[info] training - stage {_stage + 1}:\n"
-                                   f"[info] commands: {gpu_cmd}\n"
-                                   f"[info] log '.txt' inside '{os.path.join(self.nnunet_results, self.dataset_name)}'")
+                    logger.warning(
+                        f"\n[info] training - stage {_stage + 1}:\n"
+                        f"[info] commands: {gpu_cmd}\n"
+                        f"[info] log '.txt' inside '{os.path.join(self.nnunet_results, self.dataset_name)}'"
+                    )
                     processes.append(subprocess.Popen(gpu_cmd, shell=True, stdout=subprocess.DEVNULL))
 
                 for p in processes:
