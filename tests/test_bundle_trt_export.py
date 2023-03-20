@@ -21,7 +21,7 @@ from parameterized import parameterized
 from monai.bundle import ConfigParser
 from monai.data import load_net_with_metadata
 from monai.networks import save_state
-from monai.utils import optional_import, min_version, require_pkg
+from monai.utils import min_version, optional_import, require_pkg
 from tests.utils import command_line_tests, skip_if_no_cuda, skip_if_quick, skip_if_windows
 
 _, has_torchtrt = optional_import(
