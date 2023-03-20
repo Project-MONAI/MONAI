@@ -47,13 +47,13 @@ WIDTH = 46000
 # ----------------------------------------------------------------------------
 # Primary use test cases
 # ----------------------------------------------------------------------------
-TEST_CASE_0_BASE = [
+TEST_CASE_WSI_0_BASE = [
     FILE_PATH,
     {"patch_size": (1000, 1000), "reader": WSI_READER_STR},
     {"locations": [(0, 0), (0, 1000), (0, 2000), (0, 3000)]},
 ]
 
-TEST_CASE_1_BASE = [
+TEST_CASE_WSI_1_BASE = [
     FILE_PATH,
     {"patch_size": (1000, 1000), "patch_level": 1, "reader": WSI_READER_STR},
     {"locations": [(0, 0), (0, 1000), (0, 2000), (0, 3000)]},
@@ -61,41 +61,41 @@ TEST_CASE_1_BASE = [
 
 # Check readers
 if WSI_READER_STR is not None:
-    TEST_CASE_2_READER = [
+    TEST_CASE_WSI_2_READER = [
         FILE_PATH,
         {"patch_size": (1000, 1000), "reader": WSIReader(backend=WSI_READER_STR)},
         {"locations": [(0, 0), (0, 1000), (0, 2000), (0, 3000)]},
     ]
 else:
-    TEST_CASE_2_READER = []
-TEST_CASE_3_READER = [
+    TEST_CASE_WSI_2_READER = []
+TEST_CASE_WSI_3_READER = [
     FILE_PATH,
     {"patch_size": (1000, 1000), "overlap": 0.0, "reader": WSIReader, "reader_kwargs": dict(backend=WSI_READER_STR)},
     {"locations": [(0, 0), (0, 1000), (0, 2000), (0, 3000)]},
 ]
-TEST_CASE_4_READER = [
+TEST_CASE_WSI_4_READER = [
     FILE_PATH,
     {"patch_size": (1000, 1000), "overlap": 0.0, "reader": WSI_READER_CLASS},
     {"locations": [(0, 0), (0, 1000), (0, 2000), (0, 3000)]},
 ]
-TEST_CASE_5_READER = [
+TEST_CASE_WSI_5_READER = [
     FILE_PATH,
     {"patch_size": (1000, 1000), "overlap": 0.0, "patch_level": 1, "reader": WSI_READER_STR},
     {"locations": [(0, 0), (0, 1000), (0, 2000), (0, 3000)]},
 ]
 
 # Check overlaps
-TEST_CASE_6_OVERLAP = [
+TEST_CASE_WSI_6_OVERLAP = [
     FILE_PATH,
     {"patch_size": (1000, 1000), "overlap": 0.0, "reader": WSI_READER_STR},
     {"locations": [(0, 0), (0, 1000), (0, 2000), (0, 3000)]},
 ]
-TEST_CASE_7_OVERLAP = [
+TEST_CASE_WSI_7_OVERLAP = [
     FILE_PATH,
     {"patch_size": (1000, 1000), "overlap": 0.5, "reader": WSI_READER_STR},
     {"locations": [(0, 0), (0, 500), (0, 1000), (0, 1500)]},
 ]
-TEST_CASE_8_OVERLAP = [
+TEST_CASE_WSI_8_OVERLAP = [
     FILE_PATH,
     {"patch_size": (1000, 1000), "overlap": 0.999, "reader": WSI_READER_STR},
     {"locations": [(0, 0), (0, 1), (0, 2), (0, 3)]},
@@ -112,7 +112,7 @@ def gen_location_filter(locations):
     return my_filter
 
 
-TEST_CASE_9_FILTER = [
+TEST_CASE_WSI_9_FILTER = [
     FILE_PATH,
     {"patch_size": (1000, 1000), "reader": WSI_READER_STR, "filter_fn": gen_location_filter([(0, 0), (0, 2000)])},
     {"locations": [(0, 1000), (0, 3000)]},
@@ -131,36 +131,36 @@ def missing_parameter_filter(patch):
 
 
 # invalid overlap: 1.0
-TEST_CASE_ERROR_0 = [FILE_PATH, {"patch_size": (2, 2), "overlap": 1.0, "reader": WSI_READER_STR}, ValueError]
+TEST_CASE_WSI_ERROR_0 = [FILE_PATH, {"patch_size": (2, 2), "overlap": 1.0, "reader": WSI_READER_STR}, ValueError]
 # invalid overlap: negative
-TEST_CASE_ERROR_1 = [FILE_PATH, {"patch_size": (2, 2), "overlap": -0.1, "reader": WSI_READER_STR}, ValueError]
+TEST_CASE_WSI_ERROR_1 = [FILE_PATH, {"patch_size": (2, 2), "overlap": -0.1, "reader": WSI_READER_STR}, ValueError]
 
 # invalid offset: positive and larger than image size
-TEST_CASE_ERROR_2 = [
+TEST_CASE_WSI_ERROR_2 = [
     FILE_PATH,
     {"patch_size": (2, 2), "offset": max(HEIGHT, WIDTH), "reader": WSI_READER_STR},
     ValueError,
 ]
 # invalid offset: negative and larger than patch size (in magnitude)
-TEST_CASE_ERROR_3 = [FILE_PATH, {"patch_size": (2, 2), "offset": -3, "reader": WSI_READER_STR}, ValueError]
+TEST_CASE_WSI_ERROR_3 = [FILE_PATH, {"patch_size": (2, 2), "offset": -3, "reader": WSI_READER_STR}, ValueError]
 
 # invalid reader
-TEST_CASE_ERROR_4 = [FILE_PATH, {"patch_size": (2, 2), "offset": -3, "reader": ImageReader}, ValueError]
+TEST_CASE_WSI_ERROR_4 = [FILE_PATH, {"patch_size": (2, 2), "offset": -3, "reader": ImageReader}, ValueError]
 
 # invalid filter function: with more than two positional parameters
-TEST_CASE_ERROR_5 = [
+TEST_CASE_WSI_ERROR_5 = [
     FILE_PATH,
     {"patch_size": (2, 2), "filter_fn": extra_parameter_filter, "reader": WSI_READER_STR},
     ValueError,
 ]
 # invalid filter function: with less than two positional parameters
-TEST_CASE_ERROR_6 = [
+TEST_CASE_WSI_ERROR_6 = [
     FILE_PATH,
     {"patch_size": (2, 2), "filter_fn": missing_parameter_filter, "reader": WSI_READER_STR},
     ValueError,
 ]
 # invalid filter function: non-callable
-TEST_CASE_ERROR_7 = [FILE_PATH, {"patch_size": (2, 2), "filter_fn": 1, "reader": WSI_READER_STR}, ValueError]
+TEST_CASE_WSI_ERROR_7 = [FILE_PATH, {"patch_size": (2, 2), "filter_fn": 1, "reader": WSI_READER_STR}, ValueError]
 
 
 @skipUnless(WSI_READER_STR, "Requires cucim or openslide!")
@@ -173,20 +173,20 @@ def setUpModule():
 class SlidingWindowSplitterTests(unittest.TestCase):
     @parameterized.expand(
         [
-            TEST_CASE_0_BASE,
-            TEST_CASE_1_BASE,
-            TEST_CASE_2_READER,
-            TEST_CASE_3_READER,
-            TEST_CASE_4_READER,
-            TEST_CASE_5_READER,
-            TEST_CASE_6_OVERLAP,
-            TEST_CASE_7_OVERLAP,
-            TEST_CASE_8_OVERLAP,
-            TEST_CASE_9_FILTER,
+            TEST_CASE_WSI_0_BASE,
+            TEST_CASE_WSI_1_BASE,
+            TEST_CASE_WSI_2_READER,
+            TEST_CASE_WSI_3_READER,
+            TEST_CASE_WSI_4_READER,
+            TEST_CASE_WSI_5_READER,
+            TEST_CASE_WSI_6_OVERLAP,
+            TEST_CASE_WSI_7_OVERLAP,
+            TEST_CASE_WSI_8_OVERLAP,
+            TEST_CASE_WSI_9_FILTER,
         ]
     )
-    def test_split_patches(self, image, arguments, expected):
-        patches = SlidingWindowSplitter(**arguments)(image)
+    def test_split_patches_wsi(self, filepath, arguments, expected):
+        patches = SlidingWindowSplitter(**arguments)(filepath)
         for sample, expected_loc in zip(patches, expected["locations"]):
             patch = sample[0]
             loc = sample[1]
@@ -197,14 +197,14 @@ class SlidingWindowSplitterTests(unittest.TestCase):
 
     @parameterized.expand(
         [
-            TEST_CASE_ERROR_0,
-            TEST_CASE_ERROR_1,
-            TEST_CASE_ERROR_2,
-            TEST_CASE_ERROR_3,
-            TEST_CASE_ERROR_4,
-            TEST_CASE_ERROR_5,
-            TEST_CASE_ERROR_6,
-            TEST_CASE_ERROR_7,
+            TEST_CASE_WSI_ERROR_0,
+            TEST_CASE_WSI_ERROR_1,
+            TEST_CASE_WSI_ERROR_2,
+            TEST_CASE_WSI_ERROR_3,
+            TEST_CASE_WSI_ERROR_4,
+            TEST_CASE_WSI_ERROR_5,
+            TEST_CASE_WSI_ERROR_6,
+            TEST_CASE_WSI_ERROR_7,
         ]
     )
     def test_split_patches_errors(self, image, arguments, expected_error):

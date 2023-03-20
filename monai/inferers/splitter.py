@@ -215,7 +215,8 @@ class SlidingWindowSplitter(Splitter):
         """Split the input tensor into patches and return patches and locations.
 
         Args:
-            inputs: a torch.Tensor with BCHW[D] dimensions, representing an image or a batch of images.
+            inputs: either a torch.Tensor with BCHW[D] dimensions, representing an image or a batch of images,
+                or the file path to a whole slide image.
 
         Yields:
             tuple[torch.Tensor, Sequence[int]]: yields tuple of patch and location
@@ -226,17 +227,7 @@ class SlidingWindowSplitter(Splitter):
         elif isinstance(inputs, PathLike):
             self.get_patch = self._get_patch_wsi
             inputs = self.reader.read(inputs)
-            if not isinstance(inputs, list):
-                inputs = [inputs]
-            spatial_shape = self.reader.get_size(inputs[0])
-            for wsi in inputs[1:]:
-                if self.reader.get_size(wsi) != spatial_shape:
-                    raise RuntimeError(
-                        "Spatial shape of the batched inputs should be the same."
-                        f" {self.reader.get_size(wsi)} != {spatial_shape}."
-                        "Please either provide one filename for whole slide image at a time "
-                        "or make sure that the list of whole slides has the same spatial size."
-                    )
+            spatial_shape = self.reader.get_size(inputs)
         spatial_ndim = len(spatial_shape)
         patch_size, overlap, offset = self._get_valid_sliding_window_params(
             patch_size=self.patch_size, overlap=self.overlap, offset=self.offset, spatial_shape=spatial_shape
