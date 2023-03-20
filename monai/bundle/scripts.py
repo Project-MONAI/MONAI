@@ -1115,7 +1115,7 @@ def trt_export(
         precision="fp32",
         input_shape=[],
         use_trace=False,
-        dynamic_batchsize=[],
+        dynamic_batchsize=None,
         device=None,
     )
 
