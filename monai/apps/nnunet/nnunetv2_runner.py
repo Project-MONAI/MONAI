@@ -468,6 +468,8 @@ class nnUNetV2Runner:  # noqa: N801
         all_cmds = self.train_parallel_cmd(configs=configs, device_ids=device_ids, **kwargs)
         for s, cmds in enumerate(all_cmds):
             for gpu_id, gpu_cmd in cmds.items():
+                if not gpu_cmd:
+                    continue
                 logger.warning(
                     f"\n[info] training - stage {s + 1}:\n"
                     f"[info] for gpu {gpu_id}, commands: {gpu_cmd}\n"
