@@ -19,7 +19,7 @@ import torch
 from parameterized import parameterized
 
 from monai.data import CuCIMWSIReader, ImageReader, OpenSlideWSIReader, WSIReader
-from monai.inferers import WSISlidingWindowSplitter
+from monai.inferers import SlidingWindowSplitter
 from tests.utils import download_url_or_skip_test, optional_import, testing_data_config
 
 cucim, has_cucim = optional_import("cucim")
@@ -170,7 +170,7 @@ def setUpModule():
     download_url_or_skip_test(FILE_URL, FILE_PATH, hash_type=hash_type, hash_val=hash_val)
 
 
-class WSISlidingWindowSplitterTests(unittest.TestCase):
+class SlidingWindowSplitterTests(unittest.TestCase):
     @parameterized.expand(
         [
             TEST_CASE_0_BASE,
@@ -186,7 +186,7 @@ class WSISlidingWindowSplitterTests(unittest.TestCase):
         ]
     )
     def test_split_patches(self, image, arguments, expected):
-        patches = WSISlidingWindowSplitter(**arguments)(image)
+        patches = SlidingWindowSplitter(**arguments)(image)
         for sample, expected_loc in zip(patches, expected["locations"]):
             patch = sample[0]
             loc = sample[1]
@@ -209,7 +209,7 @@ class WSISlidingWindowSplitterTests(unittest.TestCase):
     )
     def test_split_patches_errors(self, image, arguments, expected_error):
         with self.assertRaises(expected_error):
-            patches = WSISlidingWindowSplitter(**arguments)(image)
+            patches = SlidingWindowSplitter(**arguments)(image)
             patches = list(patches)
 
 

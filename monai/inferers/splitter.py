@@ -57,29 +57,6 @@ class Splitter(ABC):
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    @staticmethod
-    def _validate_patch_filter_fn(filter_fn):
-        if callable(filter_fn):
-            sig = signature(filter_fn)
-            n_params = len(sig.parameters)
-            n_pos_params = len([v for v in sig.parameters.values() if v.default is _empty])
-            if n_params < 2:
-                raise ValueError(
-                    f"`patch_filter_fn` requires to accept at least two parameters (patch, location)."
-                    f"The provided callable ({filter_fn}) has {n_params} parameters."
-                )
-            elif n_pos_params > 2:
-                raise ValueError(
-                    f"`patch_filter_fn` can have at most two positional parameters (patch, location)."
-                    f"The provided callable ({filter_fn}) has {n_pos_params} positional parameters."
-                )
-        elif filter_fn is not None:
-            raise ValueError(
-                "`patch_filter_fn` should be a callable with two input parameters (patch, location). "
-                f"{type(filter_fn)} is given."
-            )
-        return filter_fn
-
 
 class SlidingWindowSplitter(Splitter):
     """Split the input into patches with sliding window strategy and a possible overlap.
@@ -93,6 +70,7 @@ class SlidingWindowSplitter(Splitter):
         filter_fn: a callable to filter patches. It should accepts exactly two parameters (patch, location), and
             return True for a patch to keep. Defaults to no filtering.
         device: the device where the patches are generated. Defaults to the device of inputs.
+        non_spatial_ndim: number of non-spatial dimensions (e.g. batch, color)
         pad_kwargs: arguments for `torch.nn.functional.pad`.
             To pad the input images in order to capture the patches crossing the border of the image
             (either when the offset is negative or the image is non-divisible by the patch_size),
@@ -118,8 +96,9 @@ class SlidingWindowSplitter(Splitter):
         overlap: Sequence[float] | float = 0.0,
         filter_fn: Callable | None = None,
         device: torch.device | str | None = None,
+        non_spatial_ndim: int = 2,
         pad_kwargs: dict | None = None,
-        reader: str | BaseWSIReader | type[BaseWSIReader] = "cuCIM",
+        reader: str | BaseWSIReader | type[BaseWSIReader] | None = None,
         reader_kwargs: dict | None = None,
     ) -> None:
         super().__init__(patch_size=patch_size, device=device)
@@ -128,12 +107,35 @@ class SlidingWindowSplitter(Splitter):
             raise ValueError(f"Overlap must be between 0 and 1 but {overlap} is given.")
         self.overlap = overlap
         self.filter_fn = self._validate_patch_filter_fn(filter_fn)
+        self.non_spatial_ndim = non_spatial_ndim
         self.pad_kwargs = pad_kwargs if pad_kwargs else {}
         if "mode" not in self.pad_kwargs:
             self.pad_kwargs["mode"] = None
         self.patch_level = patch_level
-        self.reader_kwargs = reader_kwargs if reader_kwargs else {}
-        self.set_reader(reader)
+        self._set_reader(reader, reader_kwargs)
+
+    @staticmethod
+    def _validate_patch_filter_fn(filter_fn):
+        if callable(filter_fn):
+            sig = signature(filter_fn)
+            n_params = len(sig.parameters)
+            num_pos_params = len([v for v in sig.parameters.values() if v.default is _empty])
+            if n_params < 2:
+                raise ValueError(
+                    f"`patch_filter_fn` requires to accept at least two parameters (patch, location)."
+                    f"The provided callable ({filter_fn}) has {n_params} parameters."
+                )
+            elif num_pos_params > 2:
+                raise ValueError(
+                    f"`patch_filter_fn` can have at most two positional parameters (patch, location)."
+                    f"The provided callable ({filter_fn}) has {num_pos_params} positional parameters."
+                )
+        elif filter_fn is not None:
+            raise ValueError(
+                "`patch_filter_fn` should be a callable with two input parameters (patch, location). "
+                f"{type(filter_fn)} is given."
+            )
+        return filter_fn
 
     def _calculate_pad_size(self, spatial_shape, spatial_ndim, patch_size, offset, overlap):
         if not self.pad_kwargs["mode"]:
@@ -167,20 +169,21 @@ class SlidingWindowSplitter(Splitter):
 
         return patch_size, overlap, offset
 
-    def _get_patch(self, inputs, location, patch_size):
-        if isinstance(inputs, torch.Tensor):
-            slices = (slice(None),) * 2 + tuple(slice(loc, loc + ps) for loc, ps in zip(location, patch_size))
-            patch = inputs[slices]
-            # send the patch to target device
-            if self.device:
-                patch.to(self.device)
-        else:
-            patch, _ = self.reader.get_data(wsi=inputs, location=location, size=patch_size, level=self.patch_level)
-            # send the patch to target device
-            patch = ToTensor(device=self.device)(patch)
+    def _get_patch_tensor(self, inputs, location, patch_size):
+        slices = (slice(None),) * self.non_spatial_ndim + tuple(
+            slice(loc, loc + ps) for loc, ps in zip(location, patch_size)
+        )
+        patch = inputs[slices]
+        # send the patch to target device
+        patch.to(self.device)
         return patch
 
-    def set_reader(self, reader: str | BaseWSIReader | type[BaseWSIReader]) -> None:
+    def _get_patch_wsi(self, inputs, location, patch_size):
+        patch, _ = self.reader.get_data(wsi=inputs, location=location, size=patch_size, level=self.patch_level)
+        # send the patch to target device
+        return ToTensor(device=self.device)(patch)
+
+    def _set_reader(self, reader: str | BaseWSIReader | type[BaseWSIReader], reader_kwargs: dict | None) -> None:
         """
         Set the WSI reader object based on the input reader
 
@@ -191,17 +194,18 @@ class SlidingWindowSplitter(Splitter):
                 - a class (inherited from `BaseWSIReader`), it is initialized and set as wsi_reader.
                 - an instance of a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
         """
-        self.reader: WSIReader | BaseWSIReader
+        self.reader: WSIReader | BaseWSIReader | None = None
+        self.reader_kwargs = {} if reader_kwargs is None else reader_kwargs
         if isinstance(reader, str):
             self.reader = WSIReader(backend=reader, level=self.patch_level, **self.reader_kwargs)
         elif isclass(reader) and issubclass(reader, BaseWSIReader):
             self.reader = reader(level=self.patch_level, **self.reader_kwargs)
         elif isinstance(reader, BaseWSIReader):
             self.reader = reader
-        else:
+        elif reader is not None:
             raise ValueError(f"Unsupported reader type: {reader}.")
 
-    def __call__(self, inputs: torch.Tensor) -> Iterable[tuple[torch.Tensor, Sequence[int]]]:
+    def __call__(self, inputs: torch.Tensor | PathLike) -> Iterable[tuple[torch.Tensor, Sequence[int]]]:
         """Split the input tensor into patches and return patches and locations.
 
         Args:
@@ -210,11 +214,12 @@ class SlidingWindowSplitter(Splitter):
         Yields:
             tuple[torch.Tensor, Sequence[int]]: yields tuple of patch and location
         """
-        n_non_spatial_dims = 2
         if isinstance(inputs, torch.Tensor):
-            spatial_shape = inputs.shape[n_non_spatial_dims:]
-        elif isinstance(inputs, str):
-            inputs = ensure_tuple(self.reader.read(inputs))
+            self.get_patch = self._get_patch_tensor
+            spatial_shape = inputs.shape[self.non_spatial_ndim :]
+        elif isinstance(inputs, PathLike):
+            self.get_patch = self._get_patch_wsi
+            inputs = self.reader.read(inputs)
             if not isinstance(inputs, list):
                 inputs = [inputs]
             spatial_shape = self.reader.get_size(inputs[0])
@@ -242,7 +247,7 @@ class SlidingWindowSplitter(Splitter):
                 # pad the inputs
                 inputs = torch.nn.functional.pad(inputs, pad_size[::-1], **self.pad_kwargs)
                 # update spatial shape
-                spatial_shape = inputs.shape[n_non_spatial_dims:]
+                spatial_shape = inputs.shape[self.non_spatial_ndim :]
             else:
                 spatial_shape = [ss + ps for ss, ps in zip(spatial_shape, pad_size)]
             # correct the offset with respect to the padded image
@@ -250,7 +255,7 @@ class SlidingWindowSplitter(Splitter):
                 offset = tuple(off + p for off, p in zip(offset, pad_size[1::2]))
 
         for location in iter_patch_position(spatial_shape, patch_size, offset, overlap, False):
-            patch = self._get_patch(inputs, location, patch_size)
+            patch = self.get_patch(inputs, location, patch_size)
             # correct the location with respect to original inputs (remove starting pads)
             if is_start_padded:
                 location = tuple(loc - p for loc, p in zip(location, pad_size[1::2]))
