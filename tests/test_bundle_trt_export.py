@@ -21,7 +21,7 @@ from parameterized import parameterized
 from monai.bundle import ConfigParser
 from monai.data import load_net_with_metadata
 from monai.networks import save_state
-from monai.utils import optional_import
+from monai.utils import optional_import, min_version, require_pkg
 from tests.utils import command_line_tests, skip_if_no_cuda, skip_if_quick, skip_if_windows
 
 _, has_torchtrt = optional_import(
@@ -43,6 +43,7 @@ TEST_CASE_4 = ["fp16", [1, 1, 96, 96, 96], [1, 4, 8]]
 @skip_if_windows
 @skip_if_no_cuda
 @skip_if_quick
+@require_pkg(pkg_name="torch_tensorrt", version="1.4.0", version_checker=min_version)
 class TestTRTExport(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     @unittest.skipUnless(has_torchtrt, "Torch-TensorRT is required for convert!")
