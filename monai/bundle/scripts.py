@@ -1111,7 +1111,7 @@ def trt_export(
     if not input_shape_:
         input_channels, input_spatial_shape, _, _, _ = _get_net_io_info(parser=parser)
         spatial_shape = _get_fake_spatial_shape(input_spatial_shape, p=1, n=1, any=1)
-        input_shape_ = [1, input_channels, *spatial_shape]
+        input_shape_ = (1, input_channels, *spatial_shape)
 
     _export(
         convert_to_trt,
