@@ -93,7 +93,7 @@ class TestnnUNetV2Runner(unittest.TestCase):
             runner.run(if_convert_dataset=True, if_plan_and_process=True)
             runner.train(configs="3d_fullres", trainer_class_name="nnUNetTrainer_1epoch")
             runner.find_best_configuration(configs="3d_fullres", trainers="nnUNetTrainer_1epoch")
-            runner.ensemble()
+            runner.predict_ensemble_postprocessing()
 
     def tearDown(self) -> None:
         self.test_dir.cleanup()

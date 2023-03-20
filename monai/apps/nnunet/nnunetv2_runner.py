@@ -407,17 +407,9 @@ class nnUNetV2Runner:
 
     def find_best_configuration(
         self,
-        # dataset_name_or_id,
-        # allowed_trained_models: Union[List[dict], Tuple[dict, ...]] = default_trained_models,
         plans="nnUNetPlans",
         configs=["2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres"],
         trainers="nnUNetTrainer",
-        # parser.add_argument('-p', nargs='+', required=False, default=['nnUNetPlans'],
-        #             help='List of plan identifiers. Default: nnUNetPlans')
-        # parser.add_argument('-c', nargs='+', required=False, default=['2d', '3d_fullres', '3d_lowres', '3d_cascade_fullres'],
-        #                     help="List of configs. Default: ['2d', '3d_fullres', '3d_lowres', '3d_cascade_fullres']")
-        # parser.add_argument('-tr', nargs='+', required=False, default=['nnUNetTrainer'],
-        #                     help='List of trainers. Default: nnUNetTrainer')
         allow_ensembling: bool = True,
         num_processes: int = -1,
         overwrite: bool = True,
@@ -444,7 +436,6 @@ class nnUNetV2Runner:
             folds=folds,
             strict=strict,
         )
-        # self.best_configuration = ret
 
     def predict(
         self,
@@ -465,7 +456,10 @@ class nnUNetV2Runner:
         part_id: int = 0,
         num_processes_preprocessing: int = -1,
         num_processes_segmentation_export: int = -1,
+        gpu_id: int = 0,
     ):
+        os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_id}"
+
         from nnunetv2.inference.predict_from_raw_data import predict_from_raw_data
 
         n_processes_preprocessing = (
@@ -495,11 +489,12 @@ class nnUNetV2Runner:
             part_id=part_id,
         )
 
-    def ensemble(
-        self, 
+    def predict_ensemble_postprocessing(
+        self,
         folds: list = [0, 1, 2, 3, 4],
-        if_predict: bool = True,
-        if_postprocessing: bool = True,
+        disable_ensemble: bool = False,
+        disable_predict: bool = False,
+        disable_postprocessing: bool = False,
         **kwargs,
     ):
         from nnunetv2.ensembling.ensemble import ensemble_folders
@@ -512,13 +507,19 @@ class nnUNetV2Runner:
         self.best_configuration = ConfigParser.load_config_file(
             os.path.join(self.nnunet_results, self.dataset_name, "inference_information.json")
         )
-        has_ensemble = len(self.best_configuration["best_model_or_ensemble"]["selected_model_or_models"]) > 1
+
+        if not disable_ensemble:
+            has_ensemble = len(self.best_configuration["best_model_or_ensemble"]["selected_model_or_models"]) > 1
+        else:
+            has_ensemble = False
 
         used_folds = folds
         output_folders = []
         for im in self.best_configuration["best_model_or_ensemble"]["selected_model_or_models"]:
             output_dir = join(target_dir_base, f"pred_{im['configuration']}")
-            if if_predict:
+            output_folders.append(output_dir)
+
+            if not disable_predict:
                 model_folder = get_output_folder(
                     int(self.dataset_name_or_id), im["trainer"], im["plans_identifier"], im["configuration"]
                 )
@@ -532,21 +533,20 @@ class nnUNetV2Runner:
                     overwrite=True,
                     **kwargs,
                 )
-            output_folders.append(output_dir)
 
         # if we have an ensemble, we need to ensemble the results
         if has_ensemble:
             ensemble_folders(
                 output_folders, join(target_dir_base, "ensemble_predictions"), save_merged_probabilities=False
             )
-            if if_postprocessing:
+            if not disable_postprocessing:
                 folder_for_pp = join(target_dir_base, "ensemble_predictions")
         else:
-            if if_postprocessing:
+            if not disable_postprocessing:
                 folder_for_pp = output_folders[0]
 
         # apply postprocessing
-        if if_postprocessing:
+        if not disable_postprocessing:
             pp_fns, pp_fn_kwargs = load_pickle(self.best_configuration["best_model_or_ensemble"]["postprocessing_file"])
             apply_postprocessing_to_folder(
                 folder_for_pp,
@@ -562,7 +562,7 @@ class nnUNetV2Runner:
         if_plan_and_process: bool = False,
         if_train: bool = False,
         if_find_best_configuration: bool = False,
-        if_ensemble: bool = False,
+        if_predict_ensemble_postprocessing: bool = False,
     ):
         if if_convert_dataset:
             self.convert_dataset()
@@ -576,7 +576,7 @@ class nnUNetV2Runner:
         if if_find_best_configuration:
             self.find_best_configuration()
 
-        if if_ensemble:
-            self.ensemble()
+        if if_predict_ensemble_postprocessing:
+            self.predict_ensemble_postprocessing()
 
         return
