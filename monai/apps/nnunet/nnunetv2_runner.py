@@ -30,7 +30,24 @@ nib, _ = optional_import("nibabel", name="nib")
 
 class nnUNetV2Runner:
     def __init__(self, input, work_dir: str = "work_dir"):
-        
+        """
+        An interface for handling nnU-Net V2 with minimal inputs and understanding of the internal states in nnU-Net.
+        The users can run the nnU-Net V2 with default settings in one line of code. They can also run parts of the process
+        of nnU-Net V2 instead of the complete pipeline.
+
+        The output of the interface is a directory that contains
+            - converted dataset met requirement of nnU-Net V2
+            - data analysis results
+            - checkpoints from the trained U-Net models
+            - validation accuracy in each fold of cross-validation
+            - the predictions on the testing datasets from the final algorithm ensemble and potential post-processing
+
+        Args:
+            work_dir: working directory to save the intermediate and final results.
+            input: the configuration dictionary or the file path to the configuration in form of YAML.
+                The configuration should contain datalist, dataroot, modality.
+        """
+
         self.input_info = []
         self.input_config_or_dict = input
         self.work_dir = work_dir
