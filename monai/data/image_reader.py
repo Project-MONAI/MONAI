@@ -9,13 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import glob
 import os
 import warnings
 from abc import ABC, abstractmethod
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Iterator, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
@@ -24,6 +27,7 @@ from monai.config import DtypeLike, KeysCollection, PathLike
 from monai.data.utils import (
     affine_to_spacing,
     correct_nifti_header_if_necessary,
+    is_no_channel,
     is_supported_format,
     orientation_ras_lps,
 )
@@ -58,7 +62,6 @@ else:
     nrrd, has_nrrd = optional_import("nrrd", allow_namespace_pkg=True)
 
 OpenSlide, _ = optional_import("openslide", name="OpenSlide")
-CuImage, _ = optional_import("cucim", name="CuImage")
 TiffFile, _ = optional_import("tifffile", name="TiffFile")
 
 __all__ = [
@@ -93,7 +96,7 @@ class ImageReader(ABC):
     """
 
     @abstractmethod
-    def verify_suffix(self, filename: Union[Sequence[PathLike], PathLike]) -> bool:
+    def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
         """
         Verify whether the specified `filename` is supported by the current reader.
         This method should return True if the reader is able to read the format suggested by the
@@ -107,7 +110,7 @@ class ImageReader(ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def read(self, data: Union[Sequence[PathLike], PathLike], **kwargs) -> Union[Sequence[Any], Any]:
+    def read(self, data: Sequence[PathLike] | PathLike, **kwargs) -> Sequence[Any] | Any:
         """
         Read image data from specified file or files.
         Note that it returns a data object or a sequence of data objects.
@@ -120,7 +123,7 @@ class ImageReader(ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def get_data(self, img) -> Tuple[np.ndarray, Dict]:
+    def get_data(self, img) -> tuple[np.ndarray, dict]:
         """
         Extract data array and metadata from loaded image and return them.
         This function must return two objects, the first is a numpy array of image data,
@@ -133,7 +136,7 @@ class ImageReader(ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
-def _copy_compatible_dict(from_dict: Dict, to_dict: Dict):
+def _copy_compatible_dict(from_dict: dict, to_dict: dict):
     if not isinstance(to_dict, dict):
         raise ValueError(f"to_dict must be a Dict, got {type(to_dict)}.")
     if not to_dict:
@@ -156,10 +159,10 @@ def _copy_compatible_dict(from_dict: Dict, to_dict: Dict):
             )
 
 
-def _stack_images(image_list: List, meta_dict: Dict):
+def _stack_images(image_list: list, meta_dict: dict):
     if len(image_list) <= 1:
         return image_list[0]
-    if meta_dict.get(MetaKeys.ORIGINAL_CHANNEL_DIM, None) not in ("no_channel", None):
+    if not is_no_channel(meta_dict.get(MetaKeys.ORIGINAL_CHANNEL_DIM, None)):
         channel_dim = int(meta_dict[MetaKeys.ORIGINAL_CHANNEL_DIM])
         return np.concatenate(image_list, axis=channel_dim)
     # stack at a new first dim as the channel dim, if `'original_channel_dim'` is unspecified
@@ -201,7 +204,7 @@ class ITKReader(ImageReader):
 
     def __init__(
         self,
-        channel_dim: Optional[int] = None,
+        channel_dim: str | int | None = None,
         series_name: str = "",
         reverse_indexing: bool = False,
         series_meta: bool = False,
@@ -210,13 +213,13 @@ class ITKReader(ImageReader):
     ):
         super().__init__()
         self.kwargs = kwargs
-        self.channel_dim = channel_dim
+        self.channel_dim = float("nan") if channel_dim == "no_channel" else channel_dim
         self.series_name = series_name
         self.reverse_indexing = reverse_indexing
         self.series_meta = series_meta
         self.affine_lps_to_ras = affine_lps_to_ras
 
-    def verify_suffix(self, filename: Union[Sequence[PathLike], PathLike]) -> bool:
+    def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
         """
         Verify whether the specified file or files format is supported by ITK reader.
 
@@ -227,7 +230,7 @@ class ITKReader(ImageReader):
         """
         return has_itk
 
-    def read(self, data: Union[Sequence[PathLike], PathLike], **kwargs):
+    def read(self, data: Sequence[PathLike] | PathLike, **kwargs):
         """
         Read image data from specified file or files, it can read a list of images
         and stack them together as multi-channel data in `get_data()`.
@@ -277,7 +280,7 @@ class ITKReader(ImageReader):
                 img_.append(itk.imread(name, **kwargs_))
         return img_ if len(filenames) > 1 else img_[0]
 
-    def get_data(self, img) -> Tuple[np.ndarray, Dict]:
+    def get_data(self, img) -> tuple[np.ndarray, dict]:
         """
         Extract data array and metadata from loaded image and return them.
         This function returns two objects, first is numpy array of image data, second is dict of metadata.
@@ -289,8 +292,8 @@ class ITKReader(ImageReader):
             img: an ITK image object loaded from an image file or a list of ITK image objects.
 
         """
-        img_array: List[np.ndarray] = []
-        compatible_meta: Dict = {}
+        img_array: list[np.ndarray] = []
+        compatible_meta: dict = {}
 
         for i in ensure_tuple(img):
             data = self._get_array_data(i)
@@ -302,7 +305,7 @@ class ITKReader(ImageReader):
             header[MetaKeys.SPATIAL_SHAPE] = self._get_spatial_shape(i)
             if self.channel_dim is None:  # default to "no_channel" or -1
                 header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
-                    "no_channel" if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
+                    float("nan") if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
                 )
             else:
                 header[MetaKeys.ORIGINAL_CHANNEL_DIM] = self.channel_dim
@@ -310,7 +313,7 @@ class ITKReader(ImageReader):
 
         return _stack_images(img_array, compatible_meta), compatible_meta
 
-    def _get_meta_dict(self, img) -> Dict:
+    def _get_meta_dict(self, img) -> dict:
         """
         Get all the metadata of the image and convert to dict type.
 
@@ -363,7 +366,7 @@ class ITKReader(ImageReader):
         sr = itk.array_from_matrix(img.GetDirection()).shape[0]
         sr = max(min(sr, 3), 1)
         _size = list(itk.size(img))
-        if self.channel_dim is not None:
+        if isinstance(self.channel_dim, int):
             _size.pop(self.channel_dim)
         return np.asarray(_size[:sr])
 
@@ -432,22 +435,22 @@ class PydicomReader(ImageReader):
 
     def __init__(
         self,
-        channel_dim: Optional[int] = None,
+        channel_dim: str | int | None = None,
         affine_lps_to_ras: bool = True,
         swap_ij: bool = True,
         prune_metadata: bool = True,
-        label_dict: Optional[Dict] = None,
+        label_dict: dict | None = None,
         **kwargs,
     ):
         super().__init__()
         self.kwargs = kwargs
-        self.channel_dim = channel_dim
+        self.channel_dim = float("nan") if channel_dim == "no_channel" else channel_dim
         self.affine_lps_to_ras = affine_lps_to_ras
         self.swap_ij = swap_ij
         self.prune_metadata = prune_metadata
         self.label_dict = label_dict
 
-    def verify_suffix(self, filename: Union[Sequence[PathLike], PathLike]) -> bool:
+    def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
         """
         Verify whether the specified file or files format is supported by Pydicom reader.
 
@@ -458,7 +461,7 @@ class PydicomReader(ImageReader):
         """
         return has_pydicom
 
-    def read(self, data: Union[Sequence[PathLike], PathLike], **kwargs):
+    def read(self, data: Sequence[PathLike] | PathLike, **kwargs):
         """
         Read image data from specified file or files, it can read a list of images
         and stack them together as multi-channel data in `get_data()`.
@@ -515,7 +518,7 @@ class PydicomReader(ImageReader):
         Returns:
             a tuple that consisted with data array and metadata.
         """
-        slices: List = []
+        slices: list = []
         # for a dicom series
         for slc_ds in data:
             if hasattr(slc_ds, "InstanceNumber"):
@@ -564,7 +567,7 @@ class PydicomReader(ImageReader):
 
         return stack_array, stack_metadata
 
-    def get_data(self, data) -> Tuple[np.ndarray, Dict]:
+    def get_data(self, data) -> tuple[np.ndarray, dict]:
         """
         Extract data array and metadata from loaded image and return them.
         This function returns two objects, first is numpy array of image data, second is dict of metadata.
@@ -591,7 +594,7 @@ class PydicomReader(ImageReader):
         # combine dicom series if exists
         if self.has_series is True:
             # a list, all objects within a list belong to one dicom series
-            if not isinstance(data[0], List):
+            if not isinstance(data[0], list):
                 dicom_data.append(self._combine_dicom_series(data))
             # a list of list, each inner list represents a dicom series
             else:
@@ -599,7 +602,7 @@ class PydicomReader(ImageReader):
                     dicom_data.append(self._combine_dicom_series(series))
         else:
             # a single pydicom dataset object
-            if not isinstance(data, List):
+            if not isinstance(data, list):
                 data = [data]
             for d in data:
                 if hasattr(d, "SegmentSequence"):
@@ -610,10 +613,10 @@ class PydicomReader(ImageReader):
                     metadata[MetaKeys.SPATIAL_SHAPE] = data_array.shape
                 dicom_data.append((data_array, metadata))
 
-        img_array: List[np.ndarray] = []
-        compatible_meta: Dict = {}
+        img_array: list[np.ndarray] = []
+        compatible_meta: dict = {}
 
-        for (data_array, metadata) in ensure_tuple(dicom_data):
+        for data_array, metadata in ensure_tuple(dicom_data):
             img_array.append(np.ascontiguousarray(np.swapaxes(data_array, 0, 1) if self.swap_ij else data_array))
             affine = self._get_affine(metadata, self.affine_lps_to_ras)
             metadata[MetaKeys.SPACE] = SpaceKeys.RAS if self.affine_lps_to_ras else SpaceKeys.LPS
@@ -626,7 +629,7 @@ class PydicomReader(ImageReader):
             metadata[MetaKeys.AFFINE] = affine.copy()
             if self.channel_dim is None:  # default to "no_channel" or -1
                 metadata[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
-                    "no_channel" if len(data_array.shape) == len(metadata[MetaKeys.SPATIAL_SHAPE]) else -1
+                    float("nan") if len(data_array.shape) == len(metadata[MetaKeys.SPATIAL_SHAPE]) else -1
                 )
             else:
                 metadata[MetaKeys.ORIGINAL_CHANNEL_DIM] = self.channel_dim
@@ -638,7 +641,7 @@ class PydicomReader(ImageReader):
 
         return _stack_images(img_array, compatible_meta), compatible_meta
 
-    def _get_meta_dict(self, img) -> Dict:
+    def _get_meta_dict(self, img) -> dict:
         """
         Get all the metadata of the image and convert to dict type.
 
@@ -664,7 +667,7 @@ class PydicomReader(ImageReader):
 
         return metadata  # type: ignore
 
-    def _get_affine(self, metadata: Dict, lps_to_ras: bool = True):
+    def _get_affine(self, metadata: dict, lps_to_ras: bool = True):
         """
         Get or construct the affine matrix of the image, it can be used to correct
         spacing, orientation or execute spatial transforms.
@@ -880,20 +883,20 @@ class NibabelReader(ImageReader):
     @deprecated_arg("dtype", since="1.0", msg_suffix="please modify dtype of the returned by ``get_data`` instead.")
     def __init__(
         self,
-        channel_dim: Optional[int] = None,
+        channel_dim: str | int | None = None,
         as_closest_canonical: bool = False,
         squeeze_non_spatial_dims: bool = False,
         dtype: DtypeLike = np.float32,
         **kwargs,
     ):
         super().__init__()
-        self.channel_dim = channel_dim
+        self.channel_dim = float("nan") if channel_dim == "no_channel" else channel_dim
         self.as_closest_canonical = as_closest_canonical
         self.squeeze_non_spatial_dims = squeeze_non_spatial_dims
         self.dtype = dtype  # deprecated
         self.kwargs = kwargs
 
-    def verify_suffix(self, filename: Union[Sequence[PathLike], PathLike]) -> bool:
+    def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
         """
         Verify whether the specified file or files format is supported by Nibabel reader.
 
@@ -905,7 +908,7 @@ class NibabelReader(ImageReader):
         suffixes: Sequence[str] = ["nii", "nii.gz"]
         return has_nib and is_supported_format(filename, suffixes)
 
-    def read(self, data: Union[Sequence[PathLike], PathLike], **kwargs):
+    def read(self, data: Sequence[PathLike] | PathLike, **kwargs):
         """
         Read image data from specified file or files, it can read a list of images
         and stack them together as multi-channel data in `get_data()`.
@@ -918,7 +921,7 @@ class NibabelReader(ImageReader):
                 https://github.com/nipy/nibabel/blob/master/nibabel/loadsave.py
 
         """
-        img_: List[Nifti1Image] = []
+        img_: list[Nifti1Image] = []
 
         filenames: Sequence[PathLike] = ensure_tuple(data)
         kwargs_ = self.kwargs.copy()
@@ -929,7 +932,7 @@ class NibabelReader(ImageReader):
             img_.append(img)
         return img_ if len(filenames) > 1 else img_[0]
 
-    def get_data(self, img) -> Tuple[np.ndarray, Dict]:
+    def get_data(self, img) -> tuple[np.ndarray, dict]:
         """
         Extract data array and metadata from loaded image and return them.
         This function returns two objects, first is numpy array of image data, second is dict of metadata.
@@ -941,8 +944,8 @@ class NibabelReader(ImageReader):
             img: a Nibabel image object loaded from an image file or a list of Nibabel image objects.
 
         """
-        img_array: List[np.ndarray] = []
-        compatible_meta: Dict = {}
+        img_array: list[np.ndarray] = []
+        compatible_meta: dict = {}
 
         for i in ensure_tuple(img):
             header = self._get_meta_dict(i)
@@ -962,7 +965,7 @@ class NibabelReader(ImageReader):
             img_array.append(data)
             if self.channel_dim is None:  # default to "no_channel" or -1
                 header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
-                    "no_channel" if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
+                    float("nan") if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
                 )
             else:
                 header[MetaKeys.ORIGINAL_CHANNEL_DIM] = self.channel_dim
@@ -970,7 +973,7 @@ class NibabelReader(ImageReader):
 
         return _stack_images(img_array, compatible_meta), compatible_meta
 
-    def _get_meta_dict(self, img) -> Dict:
+    def _get_meta_dict(self, img) -> dict:
         """
         Get the all the metadata of the image and convert to dict type.
 
@@ -1015,8 +1018,8 @@ class NibabelReader(ImageReader):
             dim = np.insert(dim, 0, 3)
         ndim = dim[0]
         size = list(dim[1:])
-        if self.channel_dim is not None:
-            size.pop(self.channel_dim)
+        if not is_no_channel(self.channel_dim):
+            size.pop(int(self.channel_dim))  # type: ignore
         spatial_rank = max(min(ndim, 3), 1)
         return np.asarray(size[:spatial_rank])
 
@@ -1028,7 +1031,7 @@ class NibabelReader(ImageReader):
             img: a Nibabel image object loaded from an image file.
 
         """
-        return np.asanyarray(img.dataobj)
+        return np.asanyarray(img.dataobj, order="C")
 
 
 class NumpyReader(ImageReader):
@@ -1046,15 +1049,15 @@ class NumpyReader(ImageReader):
 
     """
 
-    def __init__(self, npz_keys: Optional[KeysCollection] = None, channel_dim: Optional[int] = None, **kwargs):
+    def __init__(self, npz_keys: KeysCollection | None = None, channel_dim: str | int | None = None, **kwargs):
         super().__init__()
         if npz_keys is not None:
             npz_keys = ensure_tuple(npz_keys)
         self.npz_keys = npz_keys
-        self.channel_dim = channel_dim
+        self.channel_dim = float("nan") if channel_dim == "no_channel" else channel_dim
         self.kwargs = kwargs
 
-    def verify_suffix(self, filename: Union[Sequence[PathLike], PathLike]) -> bool:
+    def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
         """
         Verify whether the specified file or files format is supported by Numpy reader.
 
@@ -1065,7 +1068,7 @@ class NumpyReader(ImageReader):
         suffixes: Sequence[str] = ["npz", "npy"]
         return is_supported_format(filename, suffixes)
 
-    def read(self, data: Union[Sequence[PathLike], PathLike], **kwargs):
+    def read(self, data: Sequence[PathLike] | PathLike, **kwargs):
         """
         Read image data from specified file or files, it can read a list of data files
         and stack them together as multi-channel data in `get_data()`.
@@ -1078,7 +1081,7 @@ class NumpyReader(ImageReader):
                 https://numpy.org/doc/stable/reference/generated/numpy.load.html
 
         """
-        img_: List[Nifti1Image] = []
+        img_: list[Nifti1Image] = []
 
         filenames: Sequence[PathLike] = ensure_tuple(data)
         kwargs_ = self.kwargs.copy()
@@ -1095,7 +1098,7 @@ class NumpyReader(ImageReader):
 
         return img_ if len(img_) > 1 else img_[0]
 
-    def get_data(self, img) -> Tuple[np.ndarray, Dict]:
+    def get_data(self, img) -> tuple[np.ndarray, dict]:
         """
         Extract data array and metadata from loaded image and return them.
         This function returns two objects, first is numpy array of image data, second is dict of metadata.
@@ -1107,13 +1110,13 @@ class NumpyReader(ImageReader):
             img: a Numpy array loaded from a file or a list of Numpy arrays.
 
         """
-        img_array: List[np.ndarray] = []
-        compatible_meta: Dict = {}
+        img_array: list[np.ndarray] = []
+        compatible_meta: dict = {}
         if isinstance(img, np.ndarray):
             img = (img,)
 
         for i in ensure_tuple(img):
-            header: Dict[MetaKeys, Any] = {}
+            header: dict[MetaKeys, Any] = {}
             if isinstance(i, np.ndarray):
                 # if `channel_dim` is None, can not detect the channel dim, use all the dims as spatial_shape
                 spatial_shape = np.asarray(i.shape)
@@ -1123,7 +1126,7 @@ class NumpyReader(ImageReader):
                 header[MetaKeys.SPACE] = SpaceKeys.RAS
             img_array.append(i)
             header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
-                self.channel_dim if isinstance(self.channel_dim, int) else "no_channel"
+                self.channel_dim if isinstance(self.channel_dim, int) else float("nan")
             )
             _copy_compatible_dict(header, compatible_meta)
 
@@ -1138,16 +1141,20 @@ class PILReader(ImageReader):
     Args:
         converter: additional function to convert the image data after `read()`.
             for example, use `converter=lambda image: image.convert("LA")` to convert image format.
+        reverse_indexing: whether to swap axis 0 and 1 after loading the array, this is enabled by default,
+            so that output of the reader is consistent with the other readers. Set this option to ``False`` to use
+            the PIL backend's original spatial axes convention.
         kwargs: additional args for `Image.open` API in `read()`, mode details about available args:
             https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.open
     """
 
-    def __init__(self, converter: Optional[Callable] = None, **kwargs):
+    def __init__(self, converter: Callable | None = None, reverse_indexing: bool = True, **kwargs):
         super().__init__()
         self.converter = converter
+        self.reverse_indexing = reverse_indexing
         self.kwargs = kwargs
 
-    def verify_suffix(self, filename: Union[Sequence[PathLike], PathLike]) -> bool:
+    def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
         """
         Verify whether the specified file or files format is supported by PIL reader.
 
@@ -1158,7 +1165,7 @@ class PILReader(ImageReader):
         suffixes: Sequence[str] = ["png", "jpg", "jpeg", "bmp"]
         return has_pil and is_supported_format(filename, suffixes)
 
-    def read(self, data: Union[Sequence[PathLike], PathLike, np.ndarray], **kwargs):
+    def read(self, data: Sequence[PathLike] | PathLike | np.ndarray, **kwargs):
         """
         Read image data from specified file or files, it can read a list of images
         and stack them together as multi-channel data in `get_data()`.
@@ -1171,7 +1178,7 @@ class PILReader(ImageReader):
                 https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.open
 
         """
-        img_: List[PILImage.Image] = []
+        img_: list[PILImage.Image] = []
 
         filenames: Sequence[PathLike] = ensure_tuple(data)
         kwargs_ = self.kwargs.copy()
@@ -1184,36 +1191,36 @@ class PILReader(ImageReader):
 
         return img_ if len(filenames) > 1 else img_[0]
 
-    def get_data(self, img) -> Tuple[np.ndarray, Dict]:
+    def get_data(self, img) -> tuple[np.ndarray, dict]:
         """
         Extract data array and metadata from loaded image and return them.
         This function returns two objects, first is numpy array of image data, second is dict of metadata.
         It computes `spatial_shape` and stores it in meta dict.
         When loading a list of files, they are stacked together at a new dimension as the first dimension,
         and the metadata of the first image is used to represent the output metadata.
-        Note that it will swap axis 0 and 1 after loading the array because the `HW` definition in PIL
-        is different from other common medical packages.
+        Note that by default `self.reverse_indexing` is set to ``True``, which swaps axis 0 and 1 after loading
+        the array because the spatial axes definition in PIL is different from other common medical packages.
 
         Args:
             img: a PIL Image object loaded from a file or a list of PIL Image objects.
 
         """
-        img_array: List[np.ndarray] = []
-        compatible_meta: Dict = {}
+        img_array: list[np.ndarray] = []
+        compatible_meta: dict = {}
 
         for i in ensure_tuple(img):
             header = self._get_meta_dict(i)
             header[MetaKeys.SPATIAL_SHAPE] = self._get_spatial_shape(i)
-            data = np.moveaxis(np.asarray(i), 0, 1)
+            data = np.moveaxis(np.asarray(i), 0, 1) if self.reverse_indexing else np.asarray(i)
             img_array.append(data)
             header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
-                "no_channel" if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
+                float("nan") if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
             )
             _copy_compatible_dict(header, compatible_meta)
 
         return _stack_images(img_array, compatible_meta), compatible_meta
 
-    def _get_meta_dict(self, img) -> Dict:
+    def _get_meta_dict(self, img) -> dict:
         """
         Get the all the metadata of the image and convert to dict type.
         Args:
@@ -1266,12 +1273,12 @@ class WSIReader(ImageReader):
         if backend == "openslide":
             return OpenSlide
         if backend == "cucim":
-            return CuImage
+            return optional_import("cucim", name="CuImage")[0]
         if backend == "tifffile":
             return TiffFile
         raise ValueError("`backend` should be 'cuCIM', 'OpenSlide' or 'TiffFile'.")
 
-    def verify_suffix(self, filename: Union[Sequence[PathLike], PathLike]) -> bool:
+    def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
         """
         Verify whether the specified file or files format is supported by WSI reader.
 
@@ -1281,7 +1288,7 @@ class WSIReader(ImageReader):
         """
         return is_supported_format(filename, ["tif", "tiff"])
 
-    def read(self, data: Union[Sequence[PathLike], PathLike, np.ndarray], **kwargs):
+    def read(self, data: Sequence[PathLike] | PathLike | np.ndarray, **kwargs):
         """
         Read image data from given file or list of files.
 
@@ -1297,7 +1304,7 @@ class WSIReader(ImageReader):
             image object or list of image objects
 
         """
-        img_: List = []
+        img_: list = []
 
         filenames: Sequence[PathLike] = ensure_tuple(data)
         kwargs_ = self.kwargs.copy()
@@ -1313,12 +1320,12 @@ class WSIReader(ImageReader):
     def get_data(
         self,
         img,
-        location: Tuple[int, int] = (0, 0),
-        size: Optional[Tuple[int, int]] = None,
-        level: Optional[int] = None,
+        location: tuple[int, int] = (0, 0),
+        size: tuple[int, int] | None = None,
+        level: int | None = None,
         dtype: DtypeLike = np.uint8,
-        grid_shape: Tuple[int, int] = (1, 1),
-        patch_size: Optional[Union[int, Tuple[int, int]]] = None,
+        grid_shape: tuple[int, int] = (1, 1),
+        patch_size: int | tuple[int, int] | None = None,
     ):
         """
         Extract regions as numpy array from WSI image and return them.
@@ -1345,7 +1352,7 @@ class WSIReader(ImageReader):
         region = self._extract_region(img, location=location, size=size, level=level, dtype=dtype)
 
         # Add necessary metadata
-        metadata: Dict = {}
+        metadata: dict = {}
         metadata[MetaKeys.SPATIAL_SHAPE] = np.asarray(region.shape[:-1])
         metadata[MetaKeys.ORIGINAL_CHANNEL_DIM] = -1
 
@@ -1403,8 +1410,8 @@ class WSIReader(ImageReader):
     def _extract_region(
         self,
         img_obj,
-        size: Optional[Tuple[int, int]],
-        location: Tuple[int, int] = (0, 0),
+        size: tuple[int, int] | None,
+        location: tuple[int, int] = (0, 0),
         level: int = 0,
         dtype: DtypeLike = np.uint8,
     ):
@@ -1464,8 +1471,8 @@ class WSIReader(ImageReader):
     def _extract_patches(
         self,
         region: np.ndarray,
-        grid_shape: Tuple[int, int] = (1, 1),
-        patch_size: Optional[Tuple[int, int]] = None,
+        grid_shape: tuple[int, int] = (1, 1),
+        patch_size: tuple[int, int] | None = None,
         dtype: DtypeLike = np.uint8,
     ):
         if patch_size is None and grid_shape == (1, 1):
@@ -1515,6 +1522,9 @@ class NrrdReader(ImageReader):
         dtype: dtype of the data array when loading image.
         index_order: Specify whether the returned data array should be in C-order (‘C’) or Fortran-order (‘F’).
             Numpy is usually in C-order, but default on the NRRD header is F
+        affine_lps_to_ras: whether to convert the affine matrix from "LPS" to "RAS". Defaults to ``True``.
+            Set to ``True`` to be consistent with ``NibabelReader``, otherwise the affine matrix is unmodified.
+
         kwargs: additional args for `nrrd.read` API. more details about available args:
             https://github.com/mhe/pynrrd/blob/master/nrrd/reader.py
 
@@ -1522,17 +1532,19 @@ class NrrdReader(ImageReader):
 
     def __init__(
         self,
-        channel_dim: Optional[int] = None,
-        dtype: Union[np.dtype, type, str, None] = np.float32,
+        channel_dim: str | int | None = None,
+        dtype: np.dtype | type | str | None = np.float32,
         index_order: str = "F",
+        affine_lps_to_ras: bool = True,
         **kwargs,
     ):
-        self.channel_dim = channel_dim
+        self.channel_dim = float("nan") if channel_dim == "no_channel" else channel_dim
         self.dtype = dtype
         self.index_order = index_order
+        self.affine_lps_to_ras = affine_lps_to_ras
         self.kwargs = kwargs
 
-    def verify_suffix(self, filename: Union[Sequence[PathLike], PathLike]) -> bool:
+    def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
         """
         Verify whether the specified `filename` is supported by pynrrd reader.
 
@@ -1544,7 +1556,7 @@ class NrrdReader(ImageReader):
         suffixes: Sequence[str] = ["nrrd", "seg.nrrd"]
         return has_nrrd and is_supported_format(filename, suffixes)
 
-    def read(self, data: Union[Sequence[PathLike], PathLike], **kwargs) -> Union[Sequence[Any], Any]:
+    def read(self, data: Sequence[PathLike] | PathLike, **kwargs) -> Sequence[Any] | Any:
         """
         Read image data from specified file or files.
         Note that it returns a data object or a sequence of data objects.
@@ -1554,7 +1566,7 @@ class NrrdReader(ImageReader):
             kwargs: additional args for actual `read` API of 3rd party libs.
 
         """
-        img_: List = []
+        img_: list = []
         filenames: Sequence[PathLike] = ensure_tuple(data)
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
@@ -1563,7 +1575,7 @@ class NrrdReader(ImageReader):
             img_.append(nrrd_image)
         return img_ if len(filenames) > 1 else img_[0]
 
-    def get_data(self, img: Union[NrrdImage, List[NrrdImage]]) -> Tuple[np.ndarray, Dict]:
+    def get_data(self, img: NrrdImage | list[NrrdImage]) -> tuple[np.ndarray, dict]:
         """
         Extract data array and metadata from loaded image and return them.
         This function must return two objects, the first is a numpy array of image data,
@@ -1573,8 +1585,8 @@ class NrrdReader(ImageReader):
             img: a `NrrdImage` loaded from an image file or a list of image objects.
 
         """
-        img_array: List[np.ndarray] = []
-        compatible_meta: Dict = {}
+        img_array: list[np.ndarray] = []
+        compatible_meta: dict = {}
 
         for i in ensure_tuple(img):
             data = i.array.astype(self.dtype)
@@ -1583,14 +1595,17 @@ class NrrdReader(ImageReader):
             if self.index_order == "C":
                 header = self._convert_f_to_c_order(header)
             header[MetaKeys.ORIGINAL_AFFINE] = self._get_affine(i)
-            header = self._switch_lps_ras(header)
+
+            if self.affine_lps_to_ras:
+                header = self._switch_lps_ras(header)
+
             header[MetaKeys.AFFINE] = header[MetaKeys.ORIGINAL_AFFINE].copy()
             header[MetaKeys.SPATIAL_SHAPE] = header["sizes"]
             [header.pop(k) for k in ("sizes", "space origin", "space directions")]  # rm duplicated data in header
 
             if self.channel_dim is None:  # default to "no_channel" or -1
                 header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
-                    "no_channel" if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else 0
+                    float("nan") if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else 0
                 )
             else:
                 header[MetaKeys.ORIGINAL_CHANNEL_DIM] = self.channel_dim

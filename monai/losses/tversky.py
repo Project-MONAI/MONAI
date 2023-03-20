@@ -9,8 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
-from typing import Callable, List, Optional, Union
+from collections.abc import Callable
 
 import torch
 from torch.nn.modules.loss import _Loss
@@ -37,10 +39,10 @@ class TverskyLoss(_Loss):
         to_onehot_y: bool = False,
         sigmoid: bool = False,
         softmax: bool = False,
-        other_act: Optional[Callable] = None,
+        other_act: Callable | None = None,
         alpha: float = 0.5,
         beta: float = 0.5,
-        reduction: Union[LossReduction, str] = LossReduction.MEAN,
+        reduction: LossReduction | str = LossReduction.MEAN,
         smooth_nr: float = 1e-5,
         smooth_dr: float = 1e-5,
         batch: bool = False,
@@ -138,7 +140,7 @@ class TverskyLoss(_Loss):
         g1 = 1 - g0
 
         # reducing only spatial dimensions (not batch nor channels)
-        reduce_axis: List[int] = torch.arange(2, len(input.shape)).tolist()
+        reduce_axis: list[int] = torch.arange(2, len(input.shape)).tolist()
         if self.batch:
             # reducing spatial dimensions and batch
             reduce_axis = [0] + reduce_axis

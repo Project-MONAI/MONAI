@@ -9,20 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
-from typing import Optional, Union
 
 import numpy as np
 import torch
 
-from monai.metrics.utils import (
-    do_metric_reduction,
-    get_mask_edges,
-    get_surface_distance,
-    ignore_background,
-    is_binary_tensor,
-)
-from monai.utils import MetricReduction
+from monai.metrics.utils import do_metric_reduction, get_mask_edges, get_surface_distance, ignore_background
+from monai.utils import MetricReduction, convert_data_type
 
 from .metric import CumulativeIterationMetric
 
@@ -62,9 +57,9 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
         self,
         include_background: bool = False,
         distance_metric: str = "euclidean",
-        percentile: Optional[float] = None,
+        percentile: float | None = None,
         directed: bool = False,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        reduction: MetricReduction | str = MetricReduction.MEAN,
         get_not_nans: bool = False,
     ) -> None:
         super().__init__()
@@ -75,7 +70,7 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         """
         Args:
             y_pred: input data to compute, typical segmentation model output.
@@ -85,12 +80,8 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
                 The values should be binarized.
 
         Raises:
-            ValueError: when `y` is not a binarized tensor.
             ValueError: when `y_pred` has less than three dimensions.
         """
-        is_binary_tensor(y_pred, "y_pred")
-        is_binary_tensor(y, "y")
-
         dims = y_pred.ndimension()
         if dims < 3:
             raise ValueError("y_pred should have at least three dimensions.")
@@ -104,7 +95,9 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
             directed=self.directed,
         )
 
-    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):
+    def aggregate(
+        self, reduction: MetricReduction | str | None = None
+    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """
         Execute reduction logic for the output of `compute_hausdorff_distance`.
 
@@ -124,13 +117,13 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
 
 
 def compute_hausdorff_distance(
-    y_pred: Union[np.ndarray, torch.Tensor],
-    y: Union[np.ndarray, torch.Tensor],
+    y_pred: np.ndarray | torch.Tensor,
+    y: np.ndarray | torch.Tensor,
     include_background: bool = False,
     distance_metric: str = "euclidean",
-    percentile: Optional[float] = None,
+    percentile: float | None = None,
     directed: bool = False,
-):
+) -> torch.Tensor:
     """
     Compute the Hausdorff distance.
 
@@ -152,10 +145,8 @@ def compute_hausdorff_distance(
 
     if not include_background:
         y_pred, y = ignore_background(y_pred=y_pred, y=y)
-    if isinstance(y, torch.Tensor):
-        y = y.float()
-    if isinstance(y_pred, torch.Tensor):
-        y_pred = y_pred.float()
+    y_pred = convert_data_type(y_pred, output_type=torch.Tensor, dtype=torch.float)[0]
+    y = convert_data_type(y, output_type=torch.Tensor, dtype=torch.float)[0]
 
     if y.shape != y_pred.shape:
         raise ValueError(f"y_pred and y should have same shapes, got {y_pred.shape} and {y.shape}.")
@@ -175,12 +166,12 @@ def compute_hausdorff_distance(
         else:
             distance_2 = compute_percent_hausdorff_distance(edges_gt, edges_pred, distance_metric, percentile)
             hd[b, c] = max(distance_1, distance_2)
-    return torch.from_numpy(hd)
+    return convert_data_type(hd, output_type=torch.Tensor, device=y_pred.device, dtype=torch.float)[0]
 
 
 def compute_percent_hausdorff_distance(
-    edges_pred: np.ndarray, edges_gt: np.ndarray, distance_metric: str = "euclidean", percentile: Optional[float] = None
-):
+    edges_pred: np.ndarray, edges_gt: np.ndarray, distance_metric: str = "euclidean", percentile: float | None = None
+) -> float:
     """
     This function is used to compute the directed Hausdorff distance.
     """
@@ -192,8 +183,8 @@ def compute_percent_hausdorff_distance(
         return np.nan
 
     if not percentile:
-        return surface_distance.max()
+        return surface_distance.max()  # type: ignore[no-any-return]
 
     if 0 <= percentile <= 100:
-        return np.percentile(surface_distance, percentile)
+        return np.percentile(surface_distance, percentile)  # type: ignore[no-any-return]
     raise ValueError(f"percentile should be a value between 0 and 100, get {percentile}.")

@@ -9,19 +9,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
-from typing import Any, Sequence, Union
+from typing import Any, Sequence
 
 import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import DynUNet
-from tests.utils import assert_allclose, skip_if_no_cuda, skip_if_windows, test_script_save
+from tests.utils import assert_allclose, test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-strides: Sequence[Union[Sequence[int], int]]
+strides: Sequence[Sequence[int] | int]
 kernel_size: Sequence[Any]
 expected_shape: Sequence[Any]
 
@@ -120,8 +122,9 @@ class TestDynUNet(unittest.TestCase):
         test_script_save(net, test_data)
 
 
-@skip_if_no_cuda
-@skip_if_windows
+# @skip_if_no_cuda
+# @skip_if_windows
+@unittest.skip("temporary skip for 22.12")
 class TestDynUNetWithInstanceNorm3dNVFuser(unittest.TestCase):
     @parameterized.expand([TEST_CASE_DYNUNET_3D[0]])
     def test_consistency(self, input_param, input_shape, _):

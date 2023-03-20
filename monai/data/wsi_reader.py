@@ -9,18 +9,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from abc import abstractmethod
+from collections.abc import Sequence
 from os.path import abspath
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any
 
 import numpy as np
+import torch
 
-from monai.config import DtypeLike, PathLike
+from monai.config import DtypeLike, NdarrayOrTensor, PathLike
 from monai.data.image_reader import ImageReader, _stack_images
 from monai.data.utils import is_supported_format
-from monai.utils import WSIPatchKeys, ensure_tuple, optional_import, require_pkg
+from monai.utils import (
+    WSIPatchKeys,
+    dtype_numpy_to_torch,
+    dtype_torch_to_numpy,
+    ensure_tuple,
+    optional_import,
+    require_pkg,
+)
 
-CuImage, _ = optional_import("cucim", name="CuImage")
 OpenSlide, _ = optional_import("openslide", name="OpenSlide")
 TiffFile, _ = optional_import("tifffile", name="TiffFile")
 
@@ -31,12 +41,21 @@ class BaseWSIReader(ImageReader):
     """
     An abstract class that defines APIs to load patches from whole slide image files.
 
+    Args:
+        level: the whole slide image level at which the image is extracted.
+        channel_dim: the desired dimension for color channel.
+        dtype: the data type of output image.
+        device: target device to put the extracted patch. Note that if device is "cuda"",
+            the output will be converted to torch tenor and sent to the gpu even if the dtype is numpy.
+        mode: the output image color mode, e.g., "RGB" or "RGBA".
+        kwargs: additional args for the reader
+
     Typical usage of a concrete implementation of this class is:
 
     .. code-block:: python
 
         image_reader = MyWSIReader()
-        wsi = image_reader.read(, **kwargs)
+        wsi = image_reader.read(filepath, **kwargs)
         img_data, meta_data = image_reader.get_data(wsi)
 
     - The `read` call converts an image filename into whole slide image object,
@@ -53,18 +72,42 @@ class BaseWSIReader(ImageReader):
 
     """
 
-    supported_suffixes: List[str] = []
+    supported_suffixes: list[str] = []
     backend = ""
 
-    def __init__(self, level: int = 0, channel_dim: int = 0, **kwargs):
+    def __init__(
+        self,
+        level: int,
+        channel_dim: int,
+        dtype: DtypeLike | torch.dtype,
+        device: torch.device | str | None,
+        mode: str,
+        **kwargs,
+    ):
         super().__init__()
         self.level = level
         self.channel_dim = channel_dim
+        self.set_dtype(dtype)
+        self.set_device(device)
+        self.mode = mode
         self.kwargs = kwargs
-        self.metadata: Dict[Any, Any] = {}
+        self.metadata: dict[Any, Any] = {}
+
+    def set_dtype(self, dtype):
+        self.dtype: torch.dtype | np.dtype
+        if isinstance(dtype, torch.dtype):
+            self.dtype = dtype
+        else:
+            self.dtype = np.dtype(dtype)
+
+    def set_device(self, device):
+        if device is None or isinstance(device, (torch.device, str)):
+            self.device = device
+        else:
+            raise ValueError(f"`device` must be `torch.device`, `str` or `None` but {type(device)} is given.")
 
     @abstractmethod
-    def get_size(self, wsi, level: Optional[int] = None) -> Tuple[int, int]:
+    def get_size(self, wsi, level: int | None = None) -> tuple[int, int]:
         """
         Returns the size (height, width) of the whole slide image at a given level.
 
@@ -87,7 +130,7 @@ class BaseWSIReader(ImageReader):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def get_downsample_ratio(self, wsi, level: Optional[int] = None) -> float:
+    def get_downsample_ratio(self, wsi, level: int | None = None) -> float:
         """
         Returns the down-sampling ratio of the whole slide image at a given level.
 
@@ -105,7 +148,7 @@ class BaseWSIReader(ImageReader):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def get_mpp(self, wsi, level: Optional[int] = None) -> Tuple[float, float]:
+    def get_mpp(self, wsi, level: int | None = None) -> tuple[float, float]:
         """
         Returns the micro-per-pixel resolution of the whole slide image at a given level.
 
@@ -118,7 +161,7 @@ class BaseWSIReader(ImageReader):
 
     @abstractmethod
     def _get_patch(
-        self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str
+        self, wsi, location: tuple[int, int], size: tuple[int, int], level: int, dtype: DtypeLike, mode: str
     ) -> np.ndarray:
         """
         Extracts and returns a patch image form the whole slide image.
@@ -136,8 +179,8 @@ class BaseWSIReader(ImageReader):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     def _get_metadata(
-        self, wsi, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int
-    ) -> Dict:
+        self, wsi, patch: NdarrayOrTensor, location: tuple[int, int], size: tuple[int, int], level: int
+    ) -> dict:
         """
         Returns metadata of the extracted patch from the whole slide image.
 
@@ -155,7 +198,7 @@ class BaseWSIReader(ImageReader):
                 f"The desired channel_dim ({self.channel_dim}) is out of bound for image shape: {patch.shape}"
             )
         channel_dim: int = self.channel_dim + (len(patch.shape) if self.channel_dim < 0 else 0)
-        metadata: Dict = {
+        metadata: dict = {
             "backend": self.backend,
             "original_channel_dim": channel_dim,
             "spatial_shape": np.array(patch.shape[:channel_dim] + patch.shape[channel_dim + 1 :]),
@@ -170,12 +213,11 @@ class BaseWSIReader(ImageReader):
     def get_data(
         self,
         wsi,
-        location: Tuple[int, int] = (0, 0),
-        size: Optional[Tuple[int, int]] = None,
-        level: Optional[int] = None,
-        dtype: DtypeLike = np.uint8,
-        mode: str = "RGB",
-    ) -> Tuple[np.ndarray, Dict]:
+        location: tuple[int, int] = (0, 0),
+        size: tuple[int, int] | None = None,
+        level: int | None = None,
+        mode: str | None = None,
+    ) -> tuple[np.ndarray, dict]:
         """
         Verifies inputs, extracts patches from WSI image and generates metadata, and return them.
 
@@ -183,19 +225,20 @@ class BaseWSIReader(ImageReader):
             wsi: a whole slide image object loaded from a file or a list of such objects
             location: (top, left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
             size: (height, width) tuple giving the patch size at the given level (`level`).
-                If None, it is set to the full image size at the given level.
+                If not provided or None, it is set to the full image size at the given level.
             level: the level number. Defaults to 0
-            dtype: the data type of output image
-            mode: the output image mode, 'RGB' or 'RGBA'
+            mode: the output image color mode, "RGB" or "RGBA". If not provided the default of "RGB" is used.
 
         Returns:
             a tuples, where the first element is an image patch [CxHxW] or stack of patches,
                 and second element is a dictionary of metadata
         """
-        patch_list: List = []
-        metadata_list: List = []
+        if mode is None:
+            mode = self.mode
+        patch_list: list = []
+        metadata_list: list = []
         # CuImage object is iterable, so ensure_tuple won't work on single object
-        if not isinstance(wsi, List):
+        if not isinstance(wsi, list):
             wsi = [wsi]
         for each_wsi in ensure_tuple(wsi):
             # Verify magnification level
@@ -221,8 +264,25 @@ class BaseWSIReader(ImageReader):
                 if size[0] <= 0 or size[1] <= 0:
                     raise ValueError(f"Patch size should be greater than zero, provided: patch size = {size}")
 
+            # Get numpy dtype if it is not already.
+            dtype_np = dtype_torch_to_numpy(self.dtype) if isinstance(self.dtype, torch.dtype) else self.dtype
             # Extract a patch or the entire image
-            patch = self._get_patch(each_wsi, location=location, size=size, level=level, dtype=dtype, mode=mode)
+            patch: NdarrayOrTensor
+            patch = self._get_patch(each_wsi, location=location, size=size, level=level, dtype=dtype_np, mode=mode)
+
+            # Convert the patch to torch.Tensor if dtype is torch
+            if isinstance(self.dtype, torch.dtype) or (
+                self.device is not None and torch.device(self.device).type == "cuda"
+            ):
+                # Ensure dtype is torch.dtype if the device is not "cpu"
+                dtype_torch = (
+                    dtype_numpy_to_torch(self.dtype) if not isinstance(self.dtype, torch.dtype) else self.dtype
+                )
+                # Copy the numpy array if it is not writable
+                if patch.flags["WRITEABLE"]:
+                    patch = torch.as_tensor(patch, dtype=dtype_torch, device=self.device)
+                else:
+                    patch = torch.tensor(patch, dtype=dtype_torch, device=self.device)
 
             # check if the image has three dimensions (2D + color)
             if patch.ndim != 3:
@@ -257,7 +317,7 @@ class BaseWSIReader(ImageReader):
                 metadata[key] = [m[key] for m in metadata_list]
         return _stack_images(patch_list, metadata), metadata
 
-    def verify_suffix(self, filename: Union[Sequence[PathLike], PathLike]) -> bool:
+    def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
         """
         Verify whether the specified file or files format is supported by WSI reader.
 
@@ -278,26 +338,53 @@ class WSIReader(BaseWSIReader):
         backend: the name of backend whole slide image reader library, the default is cuCIM.
         level: the level at which patches are extracted.
         channel_dim: the desired dimension for color channel. Default to 0 (channel first).
+        dtype: the data type of output image. Defaults to `np.uint8`.
+        mode: the output image color mode, "RGB" or "RGBA". Defaults to "RGB".
+        device: target device to put the extracted patch. Note that if device is "cuda"",
+            the output will be converted to torch tenor and sent to the gpu even if the dtype is numpy.
         num_workers: number of workers for multi-thread image loading (cucim backend only).
         kwargs: additional arguments to be passed to the backend library
 
     """
 
-    def __init__(self, backend="cucim", level: int = 0, channel_dim: int = 0, **kwargs):
-        super().__init__(level, channel_dim, **kwargs)
+    supported_backends = ["cucim", "openslide", "tifffile"]
+
+    def __init__(
+        self,
+        backend="cucim",
+        level: int = 0,
+        channel_dim: int = 0,
+        dtype: DtypeLike | torch.dtype = np.uint8,
+        device: torch.device | str | None = None,
+        mode: str = "RGB",
+        **kwargs,
+    ):
         self.backend = backend.lower()
-        self.reader: Union[CuCIMWSIReader, OpenSlideWSIReader, TiffFileWSIReader]
+        self.reader: CuCIMWSIReader | OpenSlideWSIReader | TiffFileWSIReader
         if self.backend == "cucim":
-            self.reader = CuCIMWSIReader(level=level, channel_dim=channel_dim, **kwargs)
+            self.reader = CuCIMWSIReader(
+                level=level, channel_dim=channel_dim, dtype=dtype, device=device, mode=mode, **kwargs
+            )
         elif self.backend == "openslide":
-            self.reader = OpenSlideWSIReader(level=level, channel_dim=channel_dim, **kwargs)
+            self.reader = OpenSlideWSIReader(
+                level=level, channel_dim=channel_dim, dtype=dtype, device=device, mode=mode, **kwargs
+            )
         elif self.backend == "tifffile":
-            self.reader = TiffFileWSIReader(level=level, channel_dim=channel_dim, **kwargs)
+            self.reader = TiffFileWSIReader(
+                level=level, channel_dim=channel_dim, dtype=dtype, device=device, mode=mode, **kwargs
+            )
         else:
             raise ValueError(
                 f"The supported backends are cucim, openslide, and tifffile but '{self.backend}' was given."
             )
         self.supported_suffixes = self.reader.supported_suffixes
+        self.level = self.reader.level
+        self.channel_dim = self.reader.channel_dim
+        self.dtype = self.reader.dtype
+        self.device = self.reader.device
+        self.mode = self.reader.mode
+        self.kwargs = self.reader.kwargs
+        self.metadata = self.reader.metadata
 
     def get_level_count(self, wsi) -> int:
         """
@@ -309,7 +396,7 @@ class WSIReader(BaseWSIReader):
         """
         return self.reader.get_level_count(wsi)
 
-    def get_size(self, wsi, level: Optional[int] = None) -> Tuple[int, int]:
+    def get_size(self, wsi, level: int | None = None) -> tuple[int, int]:
         """
         Returns the size (height, width) of the whole slide image at a given level.
 
@@ -324,7 +411,7 @@ class WSIReader(BaseWSIReader):
 
         return self.reader.get_size(wsi, level)
 
-    def get_downsample_ratio(self, wsi, level: Optional[int] = None) -> float:
+    def get_downsample_ratio(self, wsi, level: int | None = None) -> float:
         """
         Returns the down-sampling ratio of the whole slide image at a given level.
 
@@ -343,7 +430,7 @@ class WSIReader(BaseWSIReader):
         """Return the file path for the WSI object"""
         return self.reader.get_file_path(wsi)
 
-    def get_mpp(self, wsi, level: Optional[int] = None) -> Tuple[float, float]:
+    def get_mpp(self, wsi, level: int | None = None) -> tuple[float, float]:
         """
         Returns the micro-per-pixel resolution of the whole slide image at a given level.
 
@@ -359,7 +446,7 @@ class WSIReader(BaseWSIReader):
         return self.reader.get_mpp(wsi, level)
 
     def _get_patch(
-        self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str
+        self, wsi, location: tuple[int, int], size: tuple[int, int], level: int, dtype: DtypeLike, mode: str
     ) -> np.ndarray:
         """
         Extracts and returns a patch image form the whole slide image.
@@ -376,7 +463,7 @@ class WSIReader(BaseWSIReader):
         """
         return self.reader._get_patch(wsi=wsi, location=location, size=size, level=level, dtype=dtype, mode=mode)
 
-    def read(self, data: Union[Sequence[PathLike], PathLike, np.ndarray], **kwargs):
+    def read(self, data: Sequence[PathLike] | PathLike | np.ndarray, **kwargs):
         """
         Read whole slide image objects from given file or list of files.
 
@@ -400,6 +487,10 @@ class CuCIMWSIReader(BaseWSIReader):
         level: the whole slide image level at which the image is extracted. (default=0)
             This is overridden if the level argument is provided in `get_data`.
         channel_dim: the desired dimension for color channel. Default to 0 (channel first).
+        dtype: the data type of output image. Defaults to `np.uint8`.
+        device: target device to put the extracted patch. Note that if device is "cuda"",
+            the output will be converted to torch tenor and sent to the gpu even if the dtype is numpy.
+        mode: the output image color mode, "RGB" or "RGBA". Defaults to "RGB".
         num_workers: number of workers for multi-thread image loading
         kwargs: additional args for `cucim.CuImage` module:
             https://github.com/rapidsai/cucim/blob/main/cpp/include/cucim/cuimage.h
@@ -409,8 +500,17 @@ class CuCIMWSIReader(BaseWSIReader):
     supported_suffixes = ["tif", "tiff", "svs"]
     backend = "cucim"
 
-    def __init__(self, level: int = 0, channel_dim: int = 0, num_workers: int = 0, **kwargs):
-        super().__init__(level, channel_dim, **kwargs)
+    def __init__(
+        self,
+        level: int = 0,
+        channel_dim: int = 0,
+        dtype: DtypeLike | torch.dtype = np.uint8,
+        device: torch.device | str | None = None,
+        mode: str = "RGB",
+        num_workers: int = 0,
+        **kwargs,
+    ):
+        super().__init__(level=level, channel_dim=channel_dim, dtype=dtype, device=device, mode=mode, **kwargs)
         self.num_workers = num_workers
 
     @staticmethod
@@ -424,7 +524,7 @@ class CuCIMWSIReader(BaseWSIReader):
         """
         return wsi.resolutions["level_count"]  # type: ignore
 
-    def get_size(self, wsi, level: Optional[int] = None) -> Tuple[int, int]:
+    def get_size(self, wsi, level: int | None = None) -> tuple[int, int]:
         """
         Returns the size (height, width) of the whole slide image at a given level.
 
@@ -439,7 +539,7 @@ class CuCIMWSIReader(BaseWSIReader):
 
         return (wsi.resolutions["level_dimensions"][level][1], wsi.resolutions["level_dimensions"][level][0])
 
-    def get_downsample_ratio(self, wsi, level: Optional[int] = None) -> float:
+    def get_downsample_ratio(self, wsi, level: int | None = None) -> float:
         """
         Returns the down-sampling ratio of the whole slide image at a given level.
 
@@ -459,7 +559,7 @@ class CuCIMWSIReader(BaseWSIReader):
         """Return the file path for the WSI object"""
         return str(abspath(wsi.path))
 
-    def get_mpp(self, wsi, level: Optional[int] = None) -> Tuple[float, float]:
+    def get_mpp(self, wsi, level: int | None = None) -> tuple[float, float]:
         """
         Returns the micro-per-pixel resolution of the whole slide image at a given level.
 
@@ -475,7 +575,7 @@ class CuCIMWSIReader(BaseWSIReader):
         factor = float(wsi.resolutions["level_downsamples"][level])
         return (wsi.metadata["cucim"]["spacing"][1] * factor, wsi.metadata["cucim"]["spacing"][0] * factor)
 
-    def read(self, data: Union[Sequence[PathLike], PathLike, np.ndarray], **kwargs):
+    def read(self, data: Sequence[PathLike] | PathLike | np.ndarray, **kwargs):
         """
         Read whole slide image objects from given file or list of files.
 
@@ -488,19 +588,20 @@ class CuCIMWSIReader(BaseWSIReader):
             whole slide image object or list of such objects
 
         """
-        wsi_list: List = []
+        cuimage_cls, _ = optional_import("cucim", name="CuImage")
+        wsi_list: list = []
 
         filenames: Sequence[PathLike] = ensure_tuple(data)
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
         for filename in filenames:
-            wsi = CuImage(filename, **kwargs_)
+            wsi = cuimage_cls(filename, **kwargs_)
             wsi_list.append(wsi)
 
         return wsi_list if len(filenames) > 1 else wsi_list[0]
 
     def _get_patch(
-        self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str
+        self, wsi, location: tuple[int, int], size: tuple[int, int], level: int, dtype: DtypeLike, mode: str
     ) -> np.ndarray:
         """
         Extracts and returns a patch image form the whole slide image.
@@ -548,12 +649,27 @@ class OpenSlideWSIReader(BaseWSIReader):
         level: the whole slide image level at which the image is extracted. (default=0)
             This is overridden if the level argument is provided in `get_data`.
         channel_dim: the desired dimension for color channel. Default to 0 (channel first).
+        dtype: the data type of output image. Defaults to `np.uint8`.
+        device: target device to put the extracted patch. Note that if device is "cuda"",
+            the output will be converted to torch tenor and sent to the gpu even if the dtype is numpy.
+        mode: the output image color mode, "RGB" or "RGBA". Defaults to "RGB".
         kwargs: additional args for `openslide.OpenSlide` module.
 
     """
 
     supported_suffixes = ["tif", "tiff", "svs"]
     backend = "openslide"
+
+    def __init__(
+        self,
+        level: int = 0,
+        channel_dim: int = 0,
+        dtype: DtypeLike | torch.dtype = np.uint8,
+        device: torch.device | str | None = None,
+        mode: str = "RGB",
+        **kwargs,
+    ):
+        super().__init__(level=level, channel_dim=channel_dim, dtype=dtype, device=device, mode=mode, **kwargs)
 
     @staticmethod
     def get_level_count(wsi) -> int:
@@ -566,7 +682,7 @@ class OpenSlideWSIReader(BaseWSIReader):
         """
         return wsi.level_count  # type: ignore
 
-    def get_size(self, wsi, level: Optional[int] = None) -> Tuple[int, int]:
+    def get_size(self, wsi, level: int | None = None) -> tuple[int, int]:
         """
         Returns the size (height, width) of the whole slide image at a given level.
 
@@ -581,7 +697,7 @@ class OpenSlideWSIReader(BaseWSIReader):
 
         return (wsi.level_dimensions[level][1], wsi.level_dimensions[level][0])
 
-    def get_downsample_ratio(self, wsi, level: Optional[int] = None) -> float:
+    def get_downsample_ratio(self, wsi, level: int | None = None) -> float:
         """
         Returns the down-sampling ratio of the whole slide image at a given level.
 
@@ -601,7 +717,7 @@ class OpenSlideWSIReader(BaseWSIReader):
         """Return the file path for the WSI object"""
         return str(abspath(wsi._filename))
 
-    def get_mpp(self, wsi, level: Optional[int] = None) -> Tuple[float, float]:
+    def get_mpp(self, wsi, level: int | None = None) -> tuple[float, float]:
         """
         Returns the micro-per-pixel resolution of the whole slide image at a given level.
 
@@ -628,7 +744,7 @@ class OpenSlideWSIReader(BaseWSIReader):
         factor *= wsi.level_downsamples[level]
         return (factor / float(wsi.properties["tiff.YResolution"]), factor / float(wsi.properties["tiff.XResolution"]))
 
-    def read(self, data: Union[Sequence[PathLike], PathLike, np.ndarray], **kwargs):
+    def read(self, data: Sequence[PathLike] | PathLike | np.ndarray, **kwargs):
         """
         Read whole slide image objects from given file or list of files.
 
@@ -640,7 +756,7 @@ class OpenSlideWSIReader(BaseWSIReader):
             whole slide image object or list of such objects
 
         """
-        wsi_list: List = []
+        wsi_list: list = []
 
         filenames: Sequence[PathLike] = ensure_tuple(data)
         kwargs_ = self.kwargs.copy()
@@ -652,7 +768,7 @@ class OpenSlideWSIReader(BaseWSIReader):
         return wsi_list if len(filenames) > 1 else wsi_list[0]
 
     def _get_patch(
-        self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str
+        self, wsi, location: tuple[int, int], size: tuple[int, int], level: int, dtype: DtypeLike, mode: str
     ) -> np.ndarray:
         """
         Extracts and returns a patch image form the whole slide image.
@@ -692,12 +808,27 @@ class TiffFileWSIReader(BaseWSIReader):
         level: the whole slide image level at which the image is extracted. (default=0)
             This is overridden if the level argument is provided in `get_data`.
         channel_dim: the desired dimension for color channel. Default to 0 (channel first).
+        dtype: the data type of output image. Defaults to `np.uint8`.
+        device: target device to put the extracted patch. Note that if device is "cuda"",
+            the output will be converted to torch tenor and sent to the gpu even if the dtype is numpy.
+        mode: the output image color mode, "RGB" or "RGBA". Defaults to "RGB".
         kwargs: additional args for `tifffile.TiffFile` module.
 
     """
 
     supported_suffixes = ["tif", "tiff", "svs"]
     backend = "tifffile"
+
+    def __init__(
+        self,
+        level: int = 0,
+        channel_dim: int = 0,
+        dtype: DtypeLike | torch.dtype = np.uint8,
+        device: torch.device | str | None = None,
+        mode: str = "RGB",
+        **kwargs,
+    ):
+        super().__init__(level=level, channel_dim=channel_dim, dtype=dtype, device=device, mode=mode, **kwargs)
 
     @staticmethod
     def get_level_count(wsi) -> int:
@@ -710,7 +841,7 @@ class TiffFileWSIReader(BaseWSIReader):
         """
         return len(wsi.pages)
 
-    def get_size(self, wsi, level: Optional[int] = None) -> Tuple[int, int]:
+    def get_size(self, wsi, level: int | None = None) -> tuple[int, int]:
         """
         Returns the size (height, width) of the whole slide image at a given level.
 
@@ -725,7 +856,7 @@ class TiffFileWSIReader(BaseWSIReader):
 
         return (wsi.pages[level].imagelength, wsi.pages[level].imagewidth)
 
-    def get_downsample_ratio(self, wsi, level: Optional[int] = None) -> float:
+    def get_downsample_ratio(self, wsi, level: int | None = None) -> float:
         """
         Returns the down-sampling ratio of the whole slide image at a given level.
 
@@ -745,7 +876,7 @@ class TiffFileWSIReader(BaseWSIReader):
         """Return the file path for the WSI object"""
         return str(abspath(wsi.filehandle.path))
 
-    def get_mpp(self, wsi, level: Optional[int] = None) -> Tuple[float, float]:
+    def get_mpp(self, wsi, level: int | None = None) -> tuple[float, float]:
         """
         Returns the micro-per-pixel resolution of the whole slide image at a given level.
 
@@ -775,7 +906,7 @@ class TiffFileWSIReader(BaseWSIReader):
         xres = wsi.pages[level].tags["XResolution"].value
         return (factor * yres[1] / yres[0], factor * xres[1] / xres[0])
 
-    def read(self, data: Union[Sequence[PathLike], PathLike, np.ndarray], **kwargs):
+    def read(self, data: Sequence[PathLike] | PathLike | np.ndarray, **kwargs):
         """
         Read whole slide image objects from given file or list of files.
 
@@ -787,7 +918,7 @@ class TiffFileWSIReader(BaseWSIReader):
             whole slide image object or list of such objects
 
         """
-        wsi_list: List = []
+        wsi_list: list = []
 
         filenames: Sequence[PathLike] = ensure_tuple(data)
         kwargs_ = self.kwargs.copy()
@@ -799,7 +930,7 @@ class TiffFileWSIReader(BaseWSIReader):
         return wsi_list if len(filenames) > 1 else wsi_list[0]
 
     def _get_patch(
-        self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str
+        self, wsi, location: tuple[int, int], size: tuple[int, int], level: int, dtype: DtypeLike, mode: str
     ) -> np.ndarray:
         """
         Extracts and returns a patch image form the whole slide image.
@@ -822,7 +953,7 @@ class TiffFileWSIReader(BaseWSIReader):
         # Extract patch
         downsampling_ratio = self.get_downsample_ratio(wsi=wsi, level=level)
         location_ = [round(location[i] / downsampling_ratio) for i in range(len(location))]
-        patch = wsi_image[location_[0] : location_[0] + size[0], location_[1] : location_[1] + size[1], :].copy()
+        patch = wsi_image[location_[0] : location_[0] + size[0], location_[1] : location_[1] + size[1], :]
 
         # Make the channel to desired dimensions
         patch = np.moveaxis(patch, -1, self.channel_dim)

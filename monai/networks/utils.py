@@ -11,26 +11,29 @@
 """
 Utilities and types for defining networks, these depend on PyTorch.
 """
+
+from __future__ import annotations
+
 import re
 import warnings
 from collections import OrderedDict
+from collections.abc import Callable, Mapping, Sequence
 from contextlib import contextmanager
 from copy import deepcopy
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any
 
+import numpy as np
 import torch
 import torch.nn as nn
 
 from monai.apps.utils import get_logger
 from monai.config import PathLike
-from monai.utils.deprecate_utils import deprecated
 from monai.utils.misc import ensure_tuple, save_obj, set_determinism
 from monai.utils.module import look_up_option, pytorch_after
-from monai.utils.type_conversion import convert_to_tensor
+from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
 
 __all__ = [
     "one_hot",
-    "slice_channels",
     "predict_segmentation",
     "normalize_transform",
     "to_norm_affine",
@@ -161,19 +164,6 @@ def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.f
     return labels
 
 
-@deprecated(since="0.8.0", msg_suffix="use `monai.utils.misc.sample_slices` instead.")
-def slice_channels(tensor: torch.Tensor, *slicevals: Optional[int]) -> torch.Tensor:
-    """
-    .. deprecated:: 0.8.0
-        Use `monai.utils.misc.sample_slices` instead.
-
-    """
-    slices = [slice(None)] * len(tensor.shape)
-    slices[1] = slice(*slicevals)
-
-    return tensor[slices]
-
-
 def predict_segmentation(logits: torch.Tensor, mutually_exclusive: bool = False, threshold: float = 0.0) -> Any:
     """
     Given the logits from a network, computing the segmentation by thresholding all values above 0
@@ -196,8 +186,8 @@ def predict_segmentation(logits: torch.Tensor, mutually_exclusive: bool = False,
 
 def normalize_transform(
     shape,
-    device: Optional[torch.device] = None,
-    dtype: Optional[torch.dtype] = None,
+    device: torch.device | str | None = None,
+    dtype: torch.dtype | None = None,
     align_corners: bool = False,
     zero_centered: bool = False,
 ) -> torch.Tensor:
@@ -208,8 +198,8 @@ def normalize_transform(
 
         - `align_corners=False`, `zero_centered=False`, normalizing from ``[-0.5, d-0.5]``.
         - `align_corners=True`, `zero_centered=False`, normalizing from ``[0, d-1]``.
-        - `align_corners=False`, `zero_centered=True`, normalizing from ``[-(d+1)/2, (d-1)/2]``.
-        - `align_corners=True`, `zero_centered=True`, normalizing from ``[-(d-1)/2, (d-1)/2]``.
+        - `align_corners=False`, `zero_centered=True`, normalizing from ``[-(d-1)/2, (d-1)/2]``.
+        - `align_corners=True`, `zero_centered=True`, normalizing from ``[-d/2, d/2]``.
 
     Args:
         shape: input spatial shape, a sequence of integers.
@@ -225,15 +215,16 @@ def normalize_transform(
     norm = shape.clone().detach().to(dtype=torch.float64, device=device)  # no in-place change
     if align_corners:
         norm[norm <= 1.0] = 2.0
-        norm = 2.0 / (norm - 1.0)
+        norm = 2.0 / (norm if zero_centered else norm - 1.0)
         norm = torch.diag(torch.cat((norm, torch.ones((1,), dtype=torch.float64, device=device))))
         if not zero_centered:  # else shift is 0
             norm[:-1, -1] = -1.0
     else:
         norm[norm <= 0.0] = 2.0
-        norm = 2.0 / norm
+        norm = 2.0 / (norm - 1.0 if zero_centered else norm)
         norm = torch.diag(torch.cat((norm, torch.ones((1,), dtype=torch.float64, device=device))))
-        norm[:-1, -1] = 1.0 / shape - (0.0 if zero_centered else 1.0)
+        if not zero_centered:
+            norm[:-1, -1] = 1.0 / shape - 1.0
     norm = norm.unsqueeze(0).to(dtype=dtype)
     norm.requires_grad = False
     return norm  # type: ignore
@@ -275,8 +266,8 @@ def to_norm_affine(
         raise ValueError(f"affine suggests {sr}D, got src={len(src_size)}D, dst={len(dst_size)}D.")
 
     src_xform = normalize_transform(src_size, affine.device, affine.dtype, align_corners, zero_centered)
-    dst_xform = normalize_transform(dst_size, affine.device, affine.dtype, align_corners, zero_centered)
-    return src_xform @ affine @ torch.inverse(dst_xform)
+    dst_xform = normalize_transform(dst_size, "cpu", affine.dtype, align_corners, zero_centered)
+    return src_xform @ affine @ convert_to_dst_type(np.linalg.inv(dst_xform.numpy()), dst=affine)[0]  # monai#5983
 
 
 def normal_init(
@@ -385,17 +376,19 @@ def eval_mode(*nets: nn.Module):
             print(p(t).sum().backward())  # will correctly raise an exception as gradients are calculated
     """
 
-    # Get original state of network(s)
-    training = [n for n in nets if n.training]
+    # Get original state of network(s).
+    # Check the training attribute in case it's TensorRT based models which don't have this attribute.
+    training = [n for n in nets if hasattr(n, "training") and n.training]
 
     try:
         # set to eval mode
         with torch.no_grad():
-            yield [n.eval() for n in nets]
+            yield [n.eval() if hasattr(n, "eval") else n for n in nets]
     finally:
         # Return required networks to training
         for n in training:
-            n.train()
+            if hasattr(n, "train"):
+                n.train()
 
 
 @contextmanager
@@ -420,19 +413,21 @@ def train_mode(*nets: nn.Module):
     """
 
     # Get original state of network(s)
-    eval_list = [n for n in nets if not n.training]
+    # Check the training attribute in case it's TensorRT based models which don't have this attribute.
+    eval_list = [n for n in nets if hasattr(n, "training") and (not n.training)]
 
     try:
         # set to train mode
         with torch.set_grad_enabled(True):
-            yield [n.train() for n in nets]
+            yield [n.train() if hasattr(n, "train") else n for n in nets]
     finally:
         # Return required networks to eval_list
         for n in eval_list:
-            n.eval()
+            if hasattr(n, "eval"):
+                n.eval()
 
 
-def get_state_dict(obj: Union[torch.nn.Module, Mapping]):
+def get_state_dict(obj: torch.nn.Module | Mapping):
     """
     Get the state dict of input object if has `state_dict`, otherwise, return object directly.
     For data parallel model, automatically convert it to regular model first.
@@ -447,8 +442,8 @@ def get_state_dict(obj: Union[torch.nn.Module, Mapping]):
 
 
 def copy_model_state(
-    dst: Union[torch.nn.Module, Mapping],
-    src: Union[torch.nn.Module, Mapping],
+    dst: torch.nn.Module | Mapping,
+    src: torch.nn.Module | Mapping,
     dst_prefix="",
     mapping=None,
     exclude_vars=None,
@@ -522,7 +517,7 @@ def copy_model_state(
     return dst_dict, updated_keys, unchanged_keys
 
 
-def save_state(src: Union[torch.nn.Module, Dict], path: PathLike, **kwargs):
+def save_state(src: torch.nn.Module | dict, path: PathLike, **kwargs):
     """
     Save the state dict of input source data with PyTorch `save`.
     It can save `nn.Module`, `state_dict`, a dictionary of `nn.Module` or `state_dict`.
@@ -546,7 +541,7 @@ def save_state(src: Union[torch.nn.Module, Dict], path: PathLike, **kwargs):
 
     """
 
-    ckpt: Dict = {}
+    ckpt: dict = {}
     if isinstance(src, dict):
         for k, v in src.items():
             ckpt[k] = get_state_dict(v)
@@ -558,11 +553,11 @@ def save_state(src: Union[torch.nn.Module, Dict], path: PathLike, **kwargs):
 
 def convert_to_torchscript(
     model: nn.Module,
-    filename_or_obj: Optional[Any] = None,
-    extra_files: Optional[Dict] = None,
+    filename_or_obj: Any | None = None,
+    extra_files: dict | None = None,
     verify: bool = False,
-    inputs: Optional[Sequence[Any]] = None,
-    device: Optional[torch.device] = None,
+    inputs: Sequence[Any] | None = None,
+    device: torch.device | None = None,
     rtol: float = 1e-4,
     atol: float = 0.0,
     **kwargs,
@@ -615,7 +610,7 @@ def convert_to_torchscript(
         for r1, r2 in zip(torch_out, torchscript_out):
             if isinstance(r1, torch.Tensor) or isinstance(r2, torch.Tensor):
                 assert_fn = torch.testing.assert_close if pytorch_after(1, 11) else torch.testing.assert_allclose
-                assert_fn(r1, r2, rtol=rtol, atol=atol)
+                assert_fn(r1, r2, rtol=rtol, atol=atol)  # type: ignore
 
     return script_module
 
@@ -638,7 +633,7 @@ def _replace_modules(
     parent: torch.nn.Module,
     name: str,
     new_module: torch.nn.Module,
-    out: List[Tuple[str, torch.nn.Module]],
+    out: list[tuple[str, torch.nn.Module]],
     strict_match: bool = True,
     match_device: bool = True,
 ) -> None:
@@ -656,7 +651,7 @@ def _replace_modules(
         parent_name = name[:idx]
         parent = getattr(parent, parent_name)
         name = name[idx + 1 :]
-        _out: List[Tuple[str, torch.nn.Module]] = []
+        _out: list[tuple[str, torch.nn.Module]] = []
         _replace_modules(parent, name, new_module, _out)
         # prepend the parent name
         out += [(f"{parent_name}.{r[0]}", r[1]) for r in _out]
@@ -678,7 +673,7 @@ def replace_modules(
     new_module: torch.nn.Module,
     strict_match: bool = True,
     match_device: bool = True,
-) -> List[Tuple[str, torch.nn.Module]]:
+) -> list[tuple[str, torch.nn.Module]]:
     """
     Replace sub-module(s) in a parent module.
 
@@ -704,7 +699,7 @@ def replace_modules(
     Raises:
         AttributeError: if `strict_match` is `True` and `name` is not a named module in `parent`.
     """
-    out: List[Tuple[str, torch.nn.Module]] = []
+    out: list[tuple[str, torch.nn.Module]] = []
     _replace_modules(parent, name, new_module, out, strict_match, match_device)
     return out
 
@@ -722,7 +717,7 @@ def replace_modules_temp(
 
     See :py:class:`monai.networks.utils.replace_modules`.
     """
-    replaced: List[Tuple[str, torch.nn.Module]] = []
+    replaced: list[tuple[str, torch.nn.Module]] = []
     try:
         # replace
         _replace_modules(parent, name, new_module, replaced, strict_match, match_device)

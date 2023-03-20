@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import hashlib
 import json
 import logging
@@ -17,11 +19,12 @@ import os
 import pickle
 import warnings
 from collections import abc, defaultdict
+from collections.abc import Generator, Iterable, Mapping, Sequence, Sized
 from copy import deepcopy
 from functools import reduce
 from itertools import product, starmap, zip_longest
 from pathlib import PurePath
-from typing import Any, Dict, Generator, Iterable, List, Mapping, Optional, Sequence, Sized, Tuple, Union
+from typing import Any
 
 import numpy as np
 import torch
@@ -43,6 +46,7 @@ from monai.utils import (
     ensure_tuple_size,
     fall_back_tuple,
     first,
+    get_equivalent_dtype,
     issequenceiterable,
     look_up_option,
     optional_import,
@@ -90,6 +94,7 @@ __all__ = [
     "remove_extra_metadata",
     "get_extra_metadata_keys",
     "PICKLE_KEY_SUFFIX",
+    "is_no_channel",
 ]
 
 # module to be used by `torch.save`
@@ -100,8 +105,8 @@ AFFINE_TOL = 1e-3
 
 
 def get_random_patch(
-    dims: Sequence[int], patch_size: Sequence[int], rand_state: Optional[np.random.RandomState] = None
-) -> Tuple[slice, ...]:
+    dims: Sequence[int], patch_size: Sequence[int], rand_state: np.random.RandomState | None = None
+) -> tuple[slice, ...]:
     """
     Returns a tuple of slices to define a random patch in an array of shape `dims` with size `patch_size` or the as
     close to it as possible within the given dimension. It is expected that `patch_size` is a valid patch for a source
@@ -126,11 +131,11 @@ def get_random_patch(
 
 def iter_patch_slices(
     image_size: Sequence[int],
-    patch_size: Union[Sequence[int], int],
+    patch_size: Sequence[int] | int,
     start_pos: Sequence[int] = (),
-    overlap: Union[Sequence[float], float] = 0.0,
+    overlap: Sequence[float] | float = 0.0,
     padded: bool = True,
-) -> Generator[Tuple[slice, ...], None, None]:
+) -> Generator[tuple[slice, ...], None, None]:
     """
     Yield successive tuples of slices defining patches of size `patch_size` from an array of dimensions `image_size`.
     The iteration starts from position `start_pos` in the array, or starting at the origin if this isn't provided. Each
@@ -160,7 +165,7 @@ def iter_patch_slices(
 
 def dense_patch_slices(
     image_size: Sequence[int], patch_size: Sequence[int], scan_interval: Sequence[int]
-) -> List[Tuple[slice, ...]]:
+) -> list[tuple[slice, ...]]:
     """
     Enumerate all slices defining ND patches of size `patch_size` from an `image_size` input image.
 
@@ -200,9 +205,9 @@ def dense_patch_slices(
 
 def iter_patch_position(
     image_size: Sequence[int],
-    patch_size: Union[Sequence[int], int, np.ndarray],
+    patch_size: Sequence[int] | int | np.ndarray,
     start_pos: Sequence[int] = (),
-    overlap: Union[Sequence[float], float] = 0.0,
+    overlap: Sequence[float] | float = 0.0,
     padded: bool = False,
 ):
     """
@@ -243,12 +248,12 @@ def iter_patch_position(
 
 def iter_patch(
     arr: np.ndarray,
-    patch_size: Union[Sequence[int], int] = 0,
+    patch_size: Sequence[int] | int = 0,
     start_pos: Sequence[int] = (),
-    overlap: Union[Sequence[float], float] = 0.0,
+    overlap: Sequence[float] | float = 0.0,
     copy_back: bool = True,
-    mode: Optional[str] = NumpyPadMode.WRAP,
-    **pad_opts: Dict,
+    mode: str | None = NumpyPadMode.WRAP,
+    **pad_opts: dict,
 ):
     """
     Yield successive patches from `arr` of size `patch_size`. The iteration can start from position `start_pos` in `arr`
@@ -317,9 +322,7 @@ def iter_patch(
         arr[...] = arrpad[slices]
 
 
-def get_valid_patch_size(
-    image_size: Sequence[int], patch_size: Union[Sequence[int], int, np.ndarray]
-) -> Tuple[int, ...]:
+def get_valid_patch_size(image_size: Sequence[int], patch_size: Sequence[int] | int | np.ndarray) -> tuple[int, ...]:
     """
     Given an image of dimensions `image_size`, return a patch size tuple taking the dimension from `patch_size` if this is
     not 0/None. Otherwise, or if `patch_size` is shorter than `image_size`, the dimension from `image_size` is taken. This ensures
@@ -495,14 +498,14 @@ def list_data_collate(batch: Sequence):
         raise TypeError(re_str) from re
 
 
-def _non_zipping_check(batch_data: Union[Mapping, Iterable], detach: bool, pad: bool, fill_value):
+def _non_zipping_check(batch_data: Mapping | Iterable, detach: bool, pad: bool, fill_value):
     """
     Utility function based on `decollate_batch`, to identify the largest batch size from the collated data.
     returns batch_size, the list of non-iterable items, and the dictionary or list with their items decollated.
 
     See `decollate_batch` for more details.
     """
-    _deco: Union[Mapping, Sequence]
+    _deco: Mapping | Sequence
     if isinstance(batch_data, Mapping):
         _deco = {key: decollate_batch(batch_data[key], detach, pad=pad, fill_value=fill_value) for key in batch_data}
     elif isinstance(batch_data, Iterable):
@@ -664,7 +667,7 @@ def worker_init_fn(worker_id: int) -> None:
 
     """
     worker_info = torch.utils.data.get_worker_info()
-    set_rnd(worker_info.dataset, seed=worker_info.seed)
+    set_rnd(worker_info.dataset, seed=worker_info.seed)  # type: ignore[union-attr]
 
 
 def set_rnd(obj, seed: int) -> int:
@@ -779,7 +782,7 @@ def rectify_header_sform_qform(img_nii):
     return img_nii
 
 
-def zoom_affine(affine: np.ndarray, scale: Union[np.ndarray, Sequence[float]], diagonal: bool = True):
+def zoom_affine(affine: np.ndarray, scale: np.ndarray | Sequence[float], diagonal: bool = True):
     """
     To make column norm of `affine` the same as `scale`.  If diagonal is False,
     returns an affine that combines orthogonal rotation and the new scale.
@@ -832,11 +835,11 @@ def zoom_affine(affine: np.ndarray, scale: Union[np.ndarray, Sequence[float]], d
 
 
 def compute_shape_offset(
-    spatial_shape: Union[np.ndarray, Sequence[int]],
+    spatial_shape: np.ndarray | Sequence[int],
     in_affine: NdarrayOrTensor,
     out_affine: NdarrayOrTensor,
     scale_extent: bool = False,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Given input and output affine, compute appropriate shapes
     in the output space based on the input array's shape.
@@ -872,15 +875,14 @@ def compute_shape_offset(
     in_coords = [(-0.5, dim - 0.5) if scale_extent else (0.0, dim - 1.0) for dim in shape]
     corners: np.ndarray = np.asarray(np.meshgrid(*in_coords, indexing="ij")).reshape((len(shape), -1))
     corners = np.concatenate((corners, np.ones_like(corners[:1])))
-    corners = in_affine_ @ corners
     try:
-        inv_mat = np.linalg.inv(out_affine_)
+        corners_out = np.linalg.solve(out_affine_, in_affine_) @ corners
     except np.linalg.LinAlgError as e:
         raise ValueError(f"Affine {out_affine_} is not invertible") from e
-    corners_out = inv_mat @ corners
+    corners = in_affine_ @ corners
+    all_dist = corners_out[:-1].copy()
     corners_out = corners_out[:-1] / corners_out[-1]
     out_shape = np.round(corners_out.ptp(axis=1)) if scale_extent else np.round(corners_out.ptp(axis=1) + 1.0)
-    all_dist = inv_mat[:-1, :-1] @ corners[:-1, :]
     offset = None
     for i in range(corners.shape[1]):
         min_corner = np.min(all_dist - all_dist[:, i : i + 1], 1)
@@ -895,7 +897,7 @@ def compute_shape_offset(
     return out_shape.astype(int, copy=False), offset  # type: ignore
 
 
-def to_affine_nd(r: Union[np.ndarray, int], affine: NdarrayTensor, dtype=np.float64) -> NdarrayTensor:
+def to_affine_nd(r: np.ndarray | int, affine: NdarrayTensor, dtype=np.float64) -> NdarrayTensor:
     """
     Using elements from affine, to create a new affine matrix by
     assigning the rotation/zoom/scaling matrix and the translation vector.
@@ -923,6 +925,7 @@ def to_affine_nd(r: Union[np.ndarray, int], affine: NdarrayTensor, dtype=np.floa
         an (r+1) x (r+1) matrix (tensor or ndarray depends on the input ``affine`` data type)
 
     """
+    dtype = get_equivalent_dtype(dtype, np.ndarray)
     affine_np = convert_data_type(affine, output_type=np.ndarray, dtype=dtype, wrap_sequence=True)[0]
     affine_np = affine_np.copy()
     if affine_np.ndim != 2:
@@ -943,7 +946,7 @@ def to_affine_nd(r: Union[np.ndarray, int], affine: NdarrayTensor, dtype=np.floa
 
 def reorient_spatial_axes(
     data_shape: Sequence[int], init_affine: NdarrayOrTensor, target_affine: NdarrayOrTensor
-) -> Tuple[np.ndarray, NdarrayOrTensor]:
+) -> tuple[np.ndarray, NdarrayOrTensor]:
     """
     Given the input ``init_affine``, compute the orientation transform between
     it and ``target_affine`` by rearranging/flipping the axes.
@@ -1041,10 +1044,10 @@ def create_file_basename(
 
 
 def compute_importance_map(
-    patch_size: Tuple[int, ...],
-    mode: Union[BlendMode, str] = BlendMode.CONSTANT,
-    sigma_scale: Union[Sequence[float], float] = 0.125,
-    device: Union[torch.device, int, str] = "cpu",
+    patch_size: tuple[int, ...],
+    mode: BlendMode | str = BlendMode.CONSTANT,
+    sigma_scale: Sequence[float] | float = 0.125,
+    device: torch.device | int | str = "cpu",
 ) -> torch.Tensor:
     """Get importance map for different weight modes.
 
@@ -1072,7 +1075,6 @@ def compute_importance_map(
     if mode == BlendMode.CONSTANT:
         importance_map = torch.ones(patch_size, device=device, dtype=torch.float)
     elif mode == BlendMode.GAUSSIAN:
-
         sigma_scale = ensure_tuple_rep(sigma_scale, len(patch_size))
         sigmas = [i * sigma_s for i, sigma_s in zip(patch_size, sigma_scale)]
 
@@ -1089,7 +1091,7 @@ def compute_importance_map(
     return importance_map
 
 
-def is_supported_format(filename: Union[Sequence[PathLike], PathLike], suffixes: Sequence[str]) -> bool:
+def is_supported_format(filename: Sequence[PathLike] | PathLike, suffixes: Sequence[str]) -> bool:
     """
     Verify whether the specified file or files format match supported suffixes.
     If supported suffixes is None, skip the verification and return True.
@@ -1111,8 +1113,8 @@ def is_supported_format(filename: Union[Sequence[PathLike], PathLike], suffixes:
 
 def partition_dataset(
     data: Sequence,
-    ratios: Optional[Sequence[float]] = None,
-    num_partitions: Optional[int] = None,
+    ratios: Sequence[float] | None = None,
+    num_partitions: int | None = None,
     shuffle: bool = False,
     seed: int = 0,
     drop_last: bool = False,
@@ -1222,8 +1224,8 @@ def partition_dataset(
 def partition_dataset_classes(
     data: Sequence,
     classes: Sequence[int],
-    ratios: Optional[Sequence[float]] = None,
-    num_partitions: Optional[int] = None,
+    ratios: Sequence[float] | None = None,
+    num_partitions: int | None = None,
     shuffle: bool = False,
     seed: int = 0,
     drop_last: bool = False,
@@ -1261,7 +1263,7 @@ def partition_dataset_classes(
     for i, c in enumerate(classes):
         class_indices[c].append(i)
 
-    class_partition_indices: List[Sequence] = []
+    class_partition_indices: list[Sequence] = []
     for _, per_class_indices in sorted(class_indices.items()):
         per_class_partition_indices = partition_dataset(
             data=per_class_indices,
@@ -1302,7 +1304,7 @@ def resample_datalist(data: Sequence, factor: float, random_pick: bool = False, 
 
     """
     scale, repeats = math.modf(factor)
-    ret: List = list()
+    ret: list = list()
 
     for _ in range(int(repeats)):
         ret.extend(list(deepcopy(data)))
@@ -1312,7 +1314,7 @@ def resample_datalist(data: Sequence, factor: float, random_pick: bool = False, 
     return ret
 
 
-def select_cross_validation_folds(partitions: Sequence[Iterable], folds: Union[Sequence[int], int]) -> List:
+def select_cross_validation_folds(partitions: Sequence[Iterable], folds: Sequence[int] | int) -> list:
     """
     Select cross validation data based on data partitions and specified fold index.
     if a list of fold indices is provided, concatenate the partitions of these folds.
@@ -1375,12 +1377,12 @@ def sorted_dict(item, key=None, reverse=False):
 
 def convert_tables_to_dicts(
     dfs,
-    row_indices: Optional[Sequence[Union[int, str]]] = None,
-    col_names: Optional[Sequence[str]] = None,
-    col_types: Optional[Dict[str, Optional[Dict[str, Any]]]] = None,
-    col_groups: Optional[Dict[str, Sequence[str]]] = None,
+    row_indices: Sequence[int | str] | None = None,
+    col_names: Sequence[str] | None = None,
+    col_types: dict[str, dict[str, Any] | None] | None = None,
+    col_groups: dict[str, Sequence[str]] | None = None,
     **kwargs,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Utility to join pandas tables, select rows, columns and generate groups.
     Will return a list of dictionaries, every dictionary maps to a row of data in tables.
@@ -1414,7 +1416,7 @@ def convert_tables_to_dicts(
     """
     df = reduce(lambda l, r: pd.merge(l, r, **kwargs), ensure_tuple(dfs))
     # parse row indices
-    rows: List[Union[int, str]] = []
+    rows: list[int | str] = []
     if row_indices is None:
         rows = slice(df.shape[0])  # type: ignore
     else:
@@ -1437,11 +1439,11 @@ def convert_tables_to_dicts(
         types = {k: v["type"] for k, v in col_types.items() if v is not None and "type" in v}
         if types:
             data_ = data_.astype(dtype=types, copy=False)
-    data: List[Dict] = data_.to_dict(orient="records")
+    data: list[dict] = data_.to_dict(orient="records")
 
     # group columns to generate new column
     if col_groups is not None:
-        groups: Dict[str, List] = {}
+        groups: dict[str, list] = {}
         for name, cols in col_groups.items():
             groups[name] = df.loc[rows, cols].values
         # invert items of groups to every row of data
@@ -1466,7 +1468,7 @@ def orientation_ras_lps(affine: NdarrayTensor) -> NdarrayTensor:
     return np.diag(flip_diag).astype(affine.dtype) @ affine  # type: ignore
 
 
-def remove_keys(data: dict, keys: List[str]) -> None:
+def remove_keys(data: dict, keys: list[str]) -> None:
     """
     Remove keys from a dictionary. Operates in-place so nothing is returned.
 
@@ -1495,7 +1497,7 @@ def remove_extra_metadata(meta: dict) -> None:
     remove_keys(data=meta, keys=keys)
 
 
-def get_extra_metadata_keys() -> List[str]:
+def get_extra_metadata_keys() -> list[str]:
     """
     Get a list of unnecessary keys for metadata that can be removed.
 
@@ -1527,3 +1529,14 @@ def get_extra_metadata_keys() -> List[str]:
     # ]
 
     return keys
+
+
+def is_no_channel(val) -> bool:
+    """Returns whether `val` indicates "no_channel", for MetaKeys.ORIGINAL_CHANNEL_DIM."""
+    if isinstance(val, torch.Tensor):
+        return bool(torch.isnan(val))
+    if isinstance(val, str):
+        return val == "no_channel"
+    if np.isscalar(val):
+        return bool(np.isnan(val))
+    return val is None

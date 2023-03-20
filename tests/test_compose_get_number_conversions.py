@@ -9,9 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 from copy import deepcopy
-from typing import List, Tuple
 
 import numpy as np
 import torch
@@ -69,7 +70,7 @@ class TGPU(Transform):
         return _apply(x, lambda x: convert_to_tensor(x).cuda())
 
 
-TESTS: List[Tuple] = []
+TESTS: list[tuple] = []
 for is_dict in (False, True):
     # same type depends on input
     TESTS.append(((N(), N()), is_dict, NP_ARR, 0))

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 from copy import deepcopy
 
@@ -38,7 +40,7 @@ class TestSplitDimd(unittest.TestCase):
         affine = make_rand_affine()
         data = {"i": make_nifti_image(arr, affine)}
 
-        loader = LoadImaged("i")
+        loader = LoadImaged("i", image_only=True)
         cls.data = loader(data)
 
     @parameterized.expand(TESTS)
@@ -82,13 +84,12 @@ class TestSplitDimd(unittest.TestCase):
             arr[0, 0, 0, 0] *= 2
             self.assertEqual(arr.flatten()[0], out.flatten()[0])
 
-    def test_error(self):
-        """Should fail because splitting along singleton dimension"""
+    def test_singleton(self):
         shape = (2, 1, 8, 7)
         for p in TEST_NDARRAYS:
             arr = p(np.random.rand(*shape))
-            with self.assertRaises(RuntimeError):
-                _ = SplitDimd("i", dim=1)({"i": arr})
+            out = SplitDimd("i", dim=1)({"i": arr})
+            self.assertEqual(out["i"].shape, shape)
 
 
 if __name__ == "__main__":

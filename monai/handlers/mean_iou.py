@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Union
+from __future__ import annotations
+
+from collections.abc import Callable
 
 from monai.handlers.ignite_metric import IgniteMetric
 from monai.metrics import MeanIoU
@@ -24,7 +26,7 @@ class MeanIoUHandler(IgniteMetric):
     def __init__(
         self,
         include_background: bool = True,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        reduction: MetricReduction | str = MetricReduction.MEAN,
         output_transform: Callable = lambda x: x,
         save_details: bool = True,
     ) -> None:

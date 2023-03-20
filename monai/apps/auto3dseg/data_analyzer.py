@@ -9,9 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
 from os import path
-from typing import Any, Dict, List, Optional, Union, cast
+from typing import Any, cast
 
 import numpy as np
 import torch
@@ -111,20 +113,20 @@ class DataAnalyzer:
 
     def __init__(
         self,
-        datalist: Union[str, Dict],
+        datalist: str | dict,
         dataroot: str = "",
-        output_path: str = "./data_stats.yaml",
+        output_path: str = "./datastats.yaml",
         average: bool = True,
         do_ccp: bool = False,
-        device: Union[str, torch.device] = "cpu",
-        worker: int = 2,
+        device: str | torch.device = "cpu",
+        worker: int = 4,
         image_key: str = "image",
-        label_key: Optional[str] = "label",
-        hist_bins: Optional[Union[list, int]] = 0,
-        hist_range: Optional[list] = None,
-        fmt: Optional[str] = "yaml",
+        label_key: str | None = "label",
+        hist_bins: list | int | None = 0,
+        hist_range: list | None = None,
+        fmt: str = "yaml",
         histogram_only: bool = False,
-        **extra_params,
+        **extra_params: Any,
     ):
         if path.isfile(output_path):
             warnings.warn(f"File {output_path} already exists and will be overwritten.")
@@ -146,7 +148,7 @@ class DataAnalyzer:
         self.extra_params = extra_params
 
     @staticmethod
-    def _check_data_uniformity(keys: List[str], result: Dict):
+    def _check_data_uniformity(keys: list[str], result: dict) -> bool:
         """
         Check data uniformity since DataAnalyzer provides no support to multi-modal images with different
         affine matrices/spacings due to monai transforms.
@@ -207,12 +209,11 @@ class DataAnalyzer:
         keys = list(filter(None, [self.image_key, self.label_key]))
         if transform_list is None:
             transform_list = [
-                LoadImaged(keys=keys, ensure_channel_first=True),
+                LoadImaged(keys=keys, ensure_channel_first=True, image_only=True),
                 EnsureTyped(keys=keys, data_type="tensor", dtype=torch.float),
                 Orientationd(keys=keys, axcodes="RAS"),
             ]
             if self.label_key is not None:
-
                 allowed_shape_difference = self.extra_params.pop("allowed_shape_difference", 5)
                 transform_list.append(
                     EnsureSameShaped(
@@ -226,14 +227,21 @@ class DataAnalyzer:
 
         files, _ = datafold_read(datalist=self.datalist, basedir=self.dataroot, fold=-1, key=key)
         dataset = Dataset(data=files, transform=transform)
-        dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=self.worker, collate_fn=no_collation)
-        result: Dict[DataStatsKeys, Any] = {DataStatsKeys.SUMMARY: {}, DataStatsKeys.BY_CASE: []}
+        dataloader = DataLoader(
+            dataset,
+            batch_size=1,
+            shuffle=False,
+            num_workers=self.worker,
+            collate_fn=no_collation,
+            pin_memory=self.device.type == "cuda",
+        )
+        result: dict[DataStatsKeys, Any] = {DataStatsKeys.SUMMARY: {}, DataStatsKeys.BY_CASE: []}
+        result_bycase: dict[DataStatsKeys, Any] = {DataStatsKeys.SUMMARY: {}, DataStatsKeys.BY_CASE: []}
 
         if not has_tqdm:
             warnings.warn("tqdm is not installed. not displaying the caching progress.")
 
         for batch_data in tqdm(dataloader) if has_tqdm else dataloader:
-
             batch_data = batch_data[0]
             batch_data[self.image_key] = batch_data[self.image_key].to(self.device)
 
@@ -259,16 +267,28 @@ class DataAnalyzer:
                         DataStatsKeys.LABEL_STATS: d[DataStatsKeys.LABEL_STATS],
                     }
                 )
-            result[DataStatsKeys.BY_CASE].append(stats_by_cases)
+            result_bycase[DataStatsKeys.BY_CASE].append(stats_by_cases)
 
-        result[DataStatsKeys.SUMMARY] = summarizer.summarize(cast(List, result[DataStatsKeys.BY_CASE]))
+        n_cases = len(result_bycase[DataStatsKeys.BY_CASE])
+
+        result[DataStatsKeys.SUMMARY] = summarizer.summarize(cast(list, result_bycase[DataStatsKeys.BY_CASE]))
+        result[DataStatsKeys.SUMMARY]["n_cases"] = n_cases
+        result[DataStatsKeys.BY_CASE] = [None] * n_cases
 
         if not self._check_data_uniformity([ImageStatsKeys.SPACING], result):
             print("Data spacing is not completely uniform. MONAI transforms may provide unexpected result")
 
         if self.output_path:
+            # saving summary and by_case as 2 files, to minimize loading time when only the summary is necessary
             ConfigParser.export_config_file(
                 result, self.output_path, fmt=self.fmt, default_flow_style=None, sort_keys=False
+            )
+            ConfigParser.export_config_file(
+                result_bycase,
+                self.output_path.replace(".yaml", "_by_case.yaml"),
+                fmt=self.fmt,
+                default_flow_style=None,
+                sort_keys=False,
             )
 
         # release memory
@@ -278,4 +298,6 @@ class DataAnalyzer:
             # limitation: https://github.com/pytorch/pytorch/issues/12873#issuecomment-482916237
             torch.cuda.empty_cache()
 
+        # return combined
+        result[DataStatsKeys.BY_CASE] = result_bycase[DataStatsKeys.BY_CASE]
         return result

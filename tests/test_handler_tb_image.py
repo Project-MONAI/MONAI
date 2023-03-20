@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import glob
 import tempfile
 import unittest
@@ -32,7 +34,6 @@ class TestHandlerTBImage(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_tb_image_shape(self, shape):
         with tempfile.TemporaryDirectory() as tempdir:
-
             # set up engine
             def _train_func(engine, batch):
                 engine.state.batch = decollate_batch(list(batch))

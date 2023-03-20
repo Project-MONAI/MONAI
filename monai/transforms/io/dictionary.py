@@ -15,8 +15,9 @@ defined in :py:class:`monai.transforms.io.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Optional, Type, Union
 
 import numpy as np
 
@@ -26,6 +27,7 @@ from monai.data.image_reader import ImageReader
 from monai.transforms.io.array import LoadImage, SaveImage
 from monai.transforms.transform import MapTransform
 from monai.utils import GridSamplePadMode, ensure_tuple, ensure_tuple_rep
+from monai.utils.deprecate_utils import deprecated_arg_default
 from monai.utils.enums import PostFix
 
 __all__ = ["LoadImaged", "LoadImageD", "LoadImageDict", "SaveImaged", "SaveImageD", "SaveImageDict"]
@@ -51,9 +53,9 @@ class LoadImaged(MapTransform):
         - Current default readers: (nii, nii.gz -> NibabelReader), (png, jpg, bmp -> PILReader),
           (npz, npy -> NumpyReader), (dcm, DICOM series and others -> ITKReader).
 
-    Please note that for png, jpg, bmp, and other 2D formats, readers often swap axis 0 and 1 after
-    loading the array because the `HW` definition for non-medical specific file formats is different
-    from other common medical packages.
+    Please note that for png, jpg, bmp, and other 2D formats, readers by default swap axis 0 and 1 after
+    loading the array with ``reverse_indexing`` set to ``True`` because the spatial axes definition
+    for non-medical specific file formats is different from other common medical packages.
 
     Note:
 
@@ -68,20 +70,22 @@ class LoadImaged(MapTransform):
 
     """
 
+    @deprecated_arg_default("image_only", False, True, since="1.1", replaced="1.3")
     def __init__(
         self,
         keys: KeysCollection,
-        reader: Union[Type[ImageReader], str, None] = None,
+        reader: type[ImageReader] | str | None = None,
         dtype: DtypeLike = np.float32,
-        meta_keys: Optional[KeysCollection] = None,
+        meta_keys: KeysCollection | None = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
         overwriting: bool = False,
         image_only: bool = False,
         ensure_channel_first: bool = False,
         simple_keys: bool = False,
-        prune_meta_pattern: Optional[str] = None,
+        prune_meta_pattern: str | None = None,
         prune_meta_sep: str = ".",
         allow_missing_keys: bool = False,
+        expanduser: bool = True,
         *args,
         **kwargs,
     ) -> None:
@@ -117,6 +121,7 @@ class LoadImaged(MapTransform):
                 in the metadata (nested dictionary). default is ".", see also :py:class:`monai.transforms.DeleteItemsd`.
                 e.g. ``prune_meta_pattern=".*_code$", prune_meta_sep=" "`` removes meta keys that ends with ``"_code"``.
             allow_missing_keys: don't raise exception if key is missing.
+            expanduser: if True cast filename to Path and call .expanduser on it, otherwise keep filename as is.
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
         """
@@ -129,6 +134,7 @@ class LoadImaged(MapTransform):
             simple_keys,
             prune_meta_pattern,
             prune_meta_sep,
+            expanduser,
             *args,
             **kwargs,
         )
@@ -136,14 +142,16 @@ class LoadImaged(MapTransform):
             raise TypeError(f"meta_key_postfix must be a str but is {type(meta_key_postfix).__name__}.")
         self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
         if len(self.keys) != len(self.meta_keys):
-            raise ValueError("meta_keys should have the same length as keys.")
+            raise ValueError(
+                f"meta_keys should have the same length as keys, got {len(self.keys)} and {len(self.meta_keys)}."
+            )
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.overwriting = overwriting
 
     def register(self, reader: ImageReader):
         self._loader.register(reader)
 
-    def __call__(self, data, reader: Optional[ImageReader] = None):
+    def __call__(self, data, reader: ImageReader | None = None):
         """
         Raises:
             KeyError: When not ``self.overwriting`` and key already exists in ``data``.
@@ -156,10 +164,12 @@ class LoadImaged(MapTransform):
                 d[key] = data
             else:
                 if not isinstance(data, (tuple, list)):
-                    raise ValueError("loader must return a tuple or list (because image_only=False was used).")
+                    raise ValueError(
+                        f"loader must return a tuple or list (because image_only=False was used), got {type(data)}."
+                    )
                 d[key] = data[0]
                 if not isinstance(data[1], dict):
-                    raise ValueError("metadata must be a dict.")
+                    raise ValueError(f"metadata must be a dict, got {type(data[1])}.")
                 meta_key = meta_key or f"{key}_{meta_key_postfix}"
                 if meta_key in d and not self.overwriting:
                     raise KeyError(f"Metadata with key {meta_key} already exists and overwriting=False.")
@@ -238,27 +248,28 @@ class SaveImaged(MapTransform):
 
     """
 
+    @deprecated_arg_default("resample", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         keys: KeysCollection,
-        meta_keys: Optional[KeysCollection] = None,
+        meta_keys: KeysCollection | None = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
-        output_dir: Union[Path, str] = "./",
+        output_dir: Path | str = "./",
         output_postfix: str = "trans",
         output_ext: str = ".nii.gz",
         resample: bool = True,
         mode: str = "nearest",
         padding_mode: str = GridSamplePadMode.BORDER,
-        scale: Optional[int] = None,
+        scale: int | None = None,
         dtype: DtypeLike = np.float64,
-        output_dtype: Optional[DtypeLike] = np.float32,
+        output_dtype: DtypeLike | None = np.float32,
         allow_missing_keys: bool = False,
         squeeze_end_dims: bool = True,
         data_root_dir: str = "",
         separate_folder: bool = True,
         print_log: bool = True,
         output_format: str = "",
-        writer: Union[Type[image_writer.ImageWriter], str, None] = None,
+        writer: type[image_writer.ImageWriter] | str | None = None,
         output_name_formatter=None,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -285,6 +296,7 @@ class SaveImaged(MapTransform):
 
     def set_options(self, init_kwargs=None, data_kwargs=None, meta_kwargs=None, write_kwargs=None):
         self.saver.set_options(init_kwargs, data_kwargs, meta_kwargs, write_kwargs)
+        return self
 
     def __call__(self, data):
         d = dict(data)
