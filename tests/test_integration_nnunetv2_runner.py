@@ -25,6 +25,7 @@ from monai.utils import optional_import
 from tests.utils import SkipIfBeforePyTorchVersion, skip_if_downloading_fails, skip_if_no_cuda, skip_if_quick
 
 _, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
+_, has_nnunet = optional_import("nnunetv2")
 
 sim_datalist: dict[str, list[dict]] = {
     "testing": [{"image": "val_001.fake.nii.gz"}, {"image": "val_002.fake.nii.gz"}],
@@ -46,6 +47,7 @@ sim_datalist: dict[str, list[dict]] = {
 @skip_if_quick
 @SkipIfBeforePyTorchVersion((1, 13, 0))
 @unittest.skipIf(not has_tb, "no tensorboard summary writer")
+@unittest.skipIf(not has_nnunet, "no nnunetv2")
 class TestnnUNetV2Runner(unittest.TestCase):
     def setUp(self) -> None:
         self.test_dir = tempfile.TemporaryDirectory()
