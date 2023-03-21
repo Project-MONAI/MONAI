@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -19,7 +20,6 @@ import torch.nn as nn
 from monai.networks.blocks import Convolution, UpSample
 from monai.networks.layers.factories import Conv, Pool
 from monai.utils import ensure_tuple_rep
-from typing import Optional
 
 __all__ = ["BasicUnet", "Basicunet", "basicunet", "BasicUNet"]
 
