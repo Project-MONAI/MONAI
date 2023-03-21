@@ -228,6 +228,7 @@ class AutoRunner:
         os.makedirs(work_dir, exist_ok=True)
 
         self.work_dir = os.path.abspath(work_dir)
+        self.data_src_cfg = dict()
         self.data_src_cfg_name = os.path.join(self.work_dir, "input.yaml")
         self.algos = algos
         self.templates_path_or_url = templates_path_or_url
@@ -260,9 +261,10 @@ class AutoRunner:
         # inspect and update folds
         num_fold = self.inspect_datalist_folds(datalist_filename=datalist_filename)
 
-        input = dict(input)
-        input["datalist"] = datalist_filename  # update path to a version in work_dir and save user input
-        ConfigParser.export_config_file(config=input, filepath=self.data_src_cfg_name, fmt="yaml", sort_keys=False)
+        self.data_src_cfg["datalist"] = datalist_filename  # update path to a version in work_dir and save user input
+        ConfigParser.export_config_file(
+            config=self.data_src_cfg, filepath=self.data_src_cfg_name, fmt="yaml", sort_keys=False
+        )
 
         self.dataroot = self.data_src_cfg["dataroot"]
         self.datastats_filename = os.path.join(self.work_dir, "datastats.yaml")
@@ -286,7 +288,7 @@ class AutoRunner:
         self.save_image = self.set_image_save_transform(kwargs)
 
         self.ensemble_method: AlgoEnsemble
-        self.ensemble_method_name: str = None
+        self.ensemble_method_name: str | None = None
 
         self.set_num_fold(num_fold=num_fold)
         self.set_ensemble_method("AlgoEnsembleBestByFold")
@@ -348,7 +350,7 @@ class AutoRunner:
             self.cache, self.cache_filename, fmt="yaml", default_flow_style=None, sort_keys=False
         )
 
-    def inspect_datalist_folds(self, datalist_filename) -> int:
+    def inspect_datalist_folds(self, datalist_filename: str) -> int:
         """
         Returns number of folds in the datalist file, and assigns fold numbers if not provided.
 
