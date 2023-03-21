@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Union
 
 import torch
 import torch.nn as nn
@@ -150,12 +149,12 @@ class UpCat(nn.Module):
         self.convs = TwoConv(spatial_dims, cat_chns + up_chns, out_chns, act, norm, bias, dropout)
         self.is_pad = is_pad
 
-    def forward(self, x: torch.Tensor, x_e: Union[torch.Tensor, None]):
+    def forward(self, x: torch.Tensor, x_e: torch.Tensor):
         """
 
         Args:
             x: features to be upsampled.
-            x_e: features from the encoder.
+            x_e: optional features from the encoder, if None, this branch is not in use.
         """
         x_0 = self.upsample(x)
 
