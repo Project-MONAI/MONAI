@@ -699,13 +699,13 @@ def convert_to_trt(
         min_input_shape = opt_input_shape = max_input_shape = input_shape
 
     with torch.no_grad():
-        torch_tensorrt.set_device(device)
-        input_placeholder = [
-            torch_tensorrt.Input(min_shape=min_input_shape, opt_shape=opt_input_shape, max_shape=max_input_shape)
-        ]
-        trt_model = torch_tensorrt.compile(
-            ir_model, inputs=input_placeholder, enabled_precisions=convert_precision, device=target_device
-        )
+        with torch.cuda.device(device=device):
+            input_placeholder = [
+                torch_tensorrt.Input(min_shape=min_input_shape, opt_shape=opt_input_shape, max_shape=max_input_shape)
+            ]
+            trt_model = torch_tensorrt.compile(
+                ir_model, inputs=input_placeholder, enabled_precisions=convert_precision, device=target_device
+            )
 
     # verify the outputs between the trt model and torch model
     if verify:
