@@ -34,10 +34,14 @@ TEST_CASE_3 = ["model", "True"]
 class TestCKPTExport(unittest.TestCase):
     def setUp(self):
         self.device = os.environ.get("CUDA_VISIBLE_DEVICES")
+        if not self.device:
+            os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # default
 
     def tearDown(self):
-        if self.device:
+        if self.device is not None:
             os.environ["CUDA_VISIBLE_DEVICES"] = self.device
+        else:
+            del os.environ["CUDA_VISIBLE_DEVICES"]  # previously unset
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_export(self, key_in_ckpt, use_trace):

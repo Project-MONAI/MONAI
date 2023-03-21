@@ -25,7 +25,7 @@ from monai.utils import optional_import
 from tests.utils import command_line_tests, skip_if_no_cuda, skip_if_quick, skip_if_windows
 
 _, has_torchtrt = optional_import(
-    "torch_tensorrt", descriptor="Torch-TRT is not installed. Are you sure you have a Torch-TensorRT compilation?"
+    "torch_tensorrt", version="1.4.0", descriptor="Torch-TRT is not installed. Are you sure you have a Torch-TensorRT compilation?"
 )
 _, has_tensorrt = optional_import(
     "tensorrt", descriptor="TensorRT is not installed. Are you sure you have a TensorRT compilation?"
@@ -46,10 +46,14 @@ TEST_CASE_4 = ["fp16", [1, 1, 96, 96, 96], [1, 4, 8]]
 class TestTRTExport(unittest.TestCase):
     def setUp(self):
         self.device = os.environ.get("CUDA_VISIBLE_DEVICES")
+        if not self.device:
+            os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # default
 
     def tearDown(self):
-        if self.device:
+        if self.device is not None:
             os.environ["CUDA_VISIBLE_DEVICES"] = self.device
+        else:
+            del os.environ["CUDA_VISIBLE_DEVICES"]  # previously unset
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     @unittest.skipUnless(has_torchtrt, "Torch-TensorRT is required for convert!")
