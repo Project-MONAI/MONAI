@@ -247,7 +247,7 @@ class AutoRunner:
         missing_keys = {"dataroot", "datalist", "modality"}.difference(self.data_src_cfg.keys())
         if len(missing_keys) > 0:
             raise ValueError(f"Config keys are missing {missing_keys}")
-        
+
         if not os.path.exists(self.data_src_cfg["datalist"]):
             raise ValueError(f"Datalist file is not found {self.data_src_cfg['datalist']}")
 
@@ -405,7 +405,7 @@ class AutoRunner:
             for i, (train_idx, valid_idx) in enumerate(kf.split(datalist["training"])):
                 for vi in valid_idx:
                     datalist["training"][vi]['fold']=i
-            
+
             ConfigParser.export_config_file(datalist, datalist_filename, fmt="json", indent=4)
 
 
