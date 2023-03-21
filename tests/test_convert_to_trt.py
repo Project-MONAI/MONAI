@@ -37,6 +37,14 @@ TEST_CASE_2 = ["fp16"]
 @skip_if_no_cuda
 @skip_if_quick
 class TestConvertToTRT(unittest.TestCase):
+    def setUp(self):
+        self.gpu_device = torch.cuda.current_device()
+
+    def tearDown(self):
+        current_device = torch.cuda.current_device()
+        if current_device != self.gpu_device:
+            torch.cuda.set_device(self.gpu_device)
+
     @unittest.skipUnless(has_torchtrt, "Torch-TensorRT is required for convert!")
     @unittest.skipUnless(has_tensorrt, "TensorRT is required for convert!")
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
