@@ -351,6 +351,17 @@ class AutoRunner:
 
     def inspect_datalist_folds(self, datalist_filename) -> int:
 
+        """
+        Returns number of folds in the datalist file, and assigns fold numbers if not provided.
+
+        Args:
+            datalist_filename: path to the datalist file.
+
+        Notes:
+            If the fold key is not provided, it auto generates 5 folds assignments in the training key list.
+            If validation key list is available, then it assumes a single fold validation.
+        """
+
         datalist = ConfigParser.load_config_file(datalist_filename)
         if "training" not in datalist:
             raise ValueError("Datalist files has no training key:" + str(datalist_filename))
@@ -437,7 +448,7 @@ class AutoRunner:
         if gpu_customization_specs is not None:
             self.gpu_customization_specs = gpu_customization_specs
 
-    def set_num_fold(self, num_fold: int = None) -> None:
+    def set_num_fold(self, num_fold: int = 5) -> None:
         """
         Set the number of cross validation folds for all algos.
 
