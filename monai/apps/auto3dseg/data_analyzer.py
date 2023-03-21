@@ -276,7 +276,10 @@ class DataAnalyzer:
         result[DataStatsKeys.BY_CASE] = [None] * n_cases
 
         if not self._check_data_uniformity([ImageStatsKeys.SPACING], result):
-            print("Data spacing is not completely uniform. MONAI transforms may provide unexpected result")
+            logger.info("Data spacing is not completely uniform. MONAI transforms may provide unexpected result")
+
+        # return combined
+        result[DataStatsKeys.BY_CASE] = result_bycase[DataStatsKeys.BY_CASE]
 
         if self.output_path:
             # saving summary and by_case as 2 files, to minimize loading time when only the summary is necessary
@@ -298,6 +301,4 @@ class DataAnalyzer:
             # limitation: https://github.com/pytorch/pytorch/issues/12873#issuecomment-482916237
             torch.cuda.empty_cache()
 
-        # return combined
-        result[DataStatsKeys.BY_CASE] = result_bycase[DataStatsKeys.BY_CASE]
         return result
