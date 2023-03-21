@@ -260,6 +260,7 @@ class AutoRunner:
         # inspect and update folds
         num_fold = self.inspect_datalist_folds(datalist_filename=datalist_filename)
 
+        input = dict(input)
         input["datalist"] = datalist_filename  # update path to a version in work_dir and save user input
         ConfigParser.export_config_file(config=input, filepath=self.data_src_cfg_name, fmt="yaml", sort_keys=False)
 
