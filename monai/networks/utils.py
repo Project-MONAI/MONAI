@@ -32,8 +32,6 @@ from monai.utils.misc import ensure_tuple, save_obj, set_determinism
 from monai.utils.module import look_up_option, pytorch_after
 from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
 
-torch_tensorrt, has_torch_tensorrt = optional_import("torch_tensorrt")
-
 __all__ = [
     "one_hot",
     "predict_segmentation",
@@ -660,8 +658,7 @@ def convert_to_trt(
         atol: the absolute tolerance when comparing the outputs between the PyTorch model and TensorRT model.
     """
 
-    if not has_torch_tensorrt:
-        raise ImportError("Cannot find the torch_tensorrt module, please install it before converting.")
+    torch_tensorrt, _ = optional_import("torch_tensorrt", version="1.4.0")
 
     if not torch.cuda.is_available():
         raise Exception("Cannot find any GPU devices.")

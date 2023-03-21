@@ -42,7 +42,6 @@ from monai.utils import (
     min_version,
     optional_import,
     pprint_edges,
-    require_pkg,
 )
 
 validate, _ = optional_import("jsonschema", name="validate")
@@ -1024,7 +1023,6 @@ def ckpt_export(
     )
 
 
-@require_pkg(pkg_name="torch_tensorrt", version="1.4.0", version_checker=min_version)
 def trt_export(
     net_id: str | None = None,
     filepath: PathLike | None = None,
