@@ -275,8 +275,8 @@ class SaveImaged(MapTransform):
         print_log: bool = True,
         output_format: str = "",
         writer: type[image_writer.ImageWriter] | str | None = None,
-        output_name_formatter: Callable[[dict, Transform], dict] = None,
-        folder_layout: monai.data.FolderLayoutBase = None,
+        output_name_formatter: Callable[[dict, Transform], dict] | None = None,
+        folder_layout: monai.data.FolderLayoutBase | None = None,
         savepath_in_metadict: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)

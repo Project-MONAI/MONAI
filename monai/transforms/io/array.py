@@ -395,10 +395,11 @@ class SaveImage(Transform):
         output_format: str = "",
         writer: type[image_writer.ImageWriter] | str | None = None,
         channel_dim: int | None = 0,
-        output_name_formatter: Callable[[dict, Transform], dict] = None,
-        folder_layout: FolderLayoutBase = None,
+        output_name_formatter: Callable[[dict, Transform], dict] | None = None,
+        folder_layout: FolderLayoutBase | None = None,
         savepath_in_metadict: bool = False,
     ) -> None:
+        self.folder_layout: FolderLayoutBase
         if folder_layout is None:
             self.folder_layout = FolderLayout(
                 output_dir=output_dir,
@@ -411,6 +412,7 @@ class SaveImage(Transform):
         else:
             self.folder_layout = folder_layout
 
+        self.fname_formatter: Callable
         if output_name_formatter is None:
             self.fname_formatter = default_name_formatter
         else:
@@ -496,7 +498,7 @@ class SaveImage(Transform):
                 )
             else:
                 self._data_index += 1
-                if self.savepath_in_metadict:
+                if self.savepath_in_metadict and meta_data is not None:
                     meta_data["saved_to"] = filename
                 return img
         msg = "\n".join([f"{e}" for e in err])
