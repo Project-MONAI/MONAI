@@ -22,8 +22,9 @@ from typing import Callable
 
 import numpy as np
 
+import monai
 from monai.config import DtypeLike, KeysCollection
-from monai.data import FolderLayoutBase, image_writer
+from monai.data import image_writer
 from monai.data.image_reader import ImageReader
 from monai.transforms.io.array import LoadImage, SaveImage
 from monai.transforms.transform import MapTransform, Transform
@@ -275,7 +276,7 @@ class SaveImaged(MapTransform):
         output_format: str = "",
         writer: type[image_writer.ImageWriter] | str | None = None,
         output_name_formatter: Callable[[dict, Transform], dict] = None,
-        folder_layout: FolderLayoutBase = None,
+        folder_layout: monai.data.FolderLayoutBase = None,
         savepath_in_metadict: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
