@@ -26,7 +26,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from monai.apps.utils import get_logger
+from monai.apps.utils import get_logger, optional_import
 from monai.config import PathLike
 from monai.utils.misc import ensure_tuple, save_obj, set_determinism
 from monai.utils.module import look_up_option, pytorch_after
@@ -46,6 +46,7 @@ __all__ = [
     "copy_model_state",
     "save_state",
     "convert_to_torchscript",
+    "convert_to_trt",
     "meshgrid_ij",
     "meshgrid_xy",
     "replace_modules",
@@ -560,6 +561,7 @@ def convert_to_torchscript(
     device: torch.device | None = None,
     rtol: float = 1e-4,
     atol: float = 0.0,
+    use_trace: bool = False,
     **kwargs,
 ):
     """
@@ -579,13 +581,20 @@ def convert_to_torchscript(
         device: target device to verify the model, if None, use CUDA if available.
         rtol: the relative tolerance when comparing the outputs of PyTorch model and TorchScript model.
         atol: the absolute tolerance when comparing the outputs of PyTorch model and TorchScript model.
+        use_trace: whether to use `torch.jit.trace` to export the torchscript model.
+
         kwargs: other arguments except `obj` for `torch.jit.script()` to convert model, for more details:
             https://pytorch.org/docs/master/generated/torch.jit.script.html.
 
     """
     model.eval()
     with torch.no_grad():
-        script_module = torch.jit.script(model, **kwargs)
+        if use_trace:
+            if inputs is None:
+                raise ValueError("Missing input data for tracing convert.")
+            script_module = torch.jit.trace(model, example_inputs=inputs)
+        else:
+            script_module = torch.jit.script(model, **kwargs)
         if filename_or_obj is not None:
             torch.jit.save(m=script_module, f=filename_or_obj, _extra_files=extra_files)
 
@@ -593,7 +602,7 @@ def convert_to_torchscript(
         if device is None:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         if inputs is None:
-            raise ValueError("missing input data for verification.")
+            raise ValueError("Missing input data for verification.")
 
         inputs = [i.to(device) if isinstance(i, torch.Tensor) else i for i in inputs]
         ts_model = torch.jit.load(filename_or_obj) if filename_or_obj is not None else script_module
@@ -613,6 +622,108 @@ def convert_to_torchscript(
                 assert_fn(r1, r2, rtol=rtol, atol=atol)  # type: ignore
 
     return script_module
+
+
+def convert_to_trt(
+    model: nn.Module,
+    precision: str,
+    input_shape: Sequence[int],
+    dynamic_batchsize: Sequence[int] | None = None,
+    use_trace: bool = False,
+    filename_or_obj: Any | None = None,
+    verify: bool = False,
+    device: int | None = None,
+    rtol: float = 1e-2,
+    atol: float = 0.0,
+):
+    """
+    Utility to convert a model into a TensorRT engine based torchscript model with optional input / output data verification.
+
+    Args:
+        model: a source PyTorch model to convert.
+        precision: the weight precision of the converted TensorRT engine based torchscript models. Should be 'fp32' or 'fp16'.
+        input_shape: the input shape that is used to convert the model. Should be a list like [N, C, H, W] or
+            [N, C, H, W, D].
+        dynamic_batchsize: a sequence with three elements to define the batch size range of the input for the model to be converted.
+            Should be a sequence like [MIN_BATCH, OPT_BATCH, MAX_BATCH]. After converted, the batchsize of model input should
+            between `MIN_BATCH` and `MAX_BATCH` and the `OPT_BATCH` is the best peformance batchsize that the TensorRT trys to fit.
+            We suggest the `OPT_BATCH` to be the most frequently used input batchsize in your application, default to None.
+        use_trace: whether using `torch.jit.trace` to convert the pytorch model to torchscript model and then convert to
+            a TensorRT engine based torchscript model, default to False.
+        filename_or_obj: if not None, specify a file-like object (has to implement write and flush) or a string containing a
+            file path name to load the TensorRT engine based torchscript model for verifying.
+        verify: whether to verify the input and output of the TensorRT engine based torchscript model.
+        device: the target GPU index to convert and verify the model. If None, use #0 GPU.
+        rtol: the relative tolerance when comparing the outputs between the PyTorch model and TensorRT model.
+        atol: the absolute tolerance when comparing the outputs between the PyTorch model and TensorRT model.
+    """
+
+    torch_tensorrt, _ = optional_import("torch_tensorrt", version="1.4.0")
+
+    if not torch.cuda.is_available():
+        raise Exception("Cannot find any GPU devices.")
+
+    if not input_shape:
+        raise ValueError("Missing the input shape for model convert.")
+
+    if not dynamic_batchsize:
+        warnings.warn(f"There is no dynamic batch range. The converted model only takes {input_shape} shape input.")
+
+    if (not (dynamic_batchsize is None)) and (len(dynamic_batchsize) != 3):
+        warnings.warn(f"The dynamic batch range sequence should have 3 elements, but got {dynamic_batchsize} elements.")
+
+    device = device if device else 0
+    target_device = torch.device(f"cuda:{device}") if device else torch.device("cuda:0")
+    convert_precision = torch.float32 if precision == "fp32" else torch.half
+    inputs = [torch.rand(ensure_tuple(input_shape)).to(target_device)]
+
+    # convert the torch model, torchscript model and input to target device
+    model = model.eval().to(target_device)
+    ir_model = convert_to_torchscript(model, device=target_device, inputs=inputs, use_trace=use_trace)
+    ir_model.eval().to(target_device)
+
+    def scale_batch_size(input_shape: Sequence[int], scale_num: int):
+        scale_shape = [*input_shape]
+        scale_shape[0] *= scale_num
+        return scale_shape
+
+    # Use the dynamic batchsize range to generate compiler input and compile the model
+    if dynamic_batchsize:
+        min_input_shape = scale_batch_size(input_shape, dynamic_batchsize[0])
+        opt_input_shape = scale_batch_size(input_shape, dynamic_batchsize[1])
+        max_input_shape = scale_batch_size(input_shape, dynamic_batchsize[2])
+    else:
+        min_input_shape = opt_input_shape = max_input_shape = input_shape
+
+    with torch.no_grad():
+        with torch.cuda.device(device=device):
+            input_placeholder = [
+                torch_tensorrt.Input(min_shape=min_input_shape, opt_shape=opt_input_shape, max_shape=max_input_shape)
+            ]
+            trt_model = torch_tensorrt.compile(
+                ir_model, inputs=input_placeholder, enabled_precisions=convert_precision, device=target_device
+            )
+
+    # verify the outputs between the trt model and torch model
+    if verify:
+        if inputs is None:
+            raise ValueError("Missing input data for verification.")
+
+        trt_model = torch.jit.load(filename_or_obj) if filename_or_obj is not None else trt_model
+
+        with torch.no_grad():
+            set_determinism(seed=0)
+            torch_out = ensure_tuple(model(*inputs))
+            set_determinism(seed=0)
+            trt_out = ensure_tuple(trt_model(*inputs))
+            set_determinism(seed=None)
+        # compare TorchScript and PyTorch results
+        for r1, r2 in zip(torch_out, trt_out):
+            if isinstance(r1, torch.Tensor) or isinstance(r2, torch.Tensor):
+                assert_fn = torch.testing.assert_close if pytorch_after(1, 11) else torch.testing.assert_allclose
+                assert_fn(r1, r2, rtol=rtol, atol=atol)  # type: ignore
+
+    return trt_model
 
 
 def meshgrid_ij(*tensors):
