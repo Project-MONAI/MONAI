@@ -21,7 +21,7 @@ from torch.nn.functional import pad
 
 from monai.data import CuCIMWSIReader, ImageReader, OpenSlideWSIReader, WSIReader
 from monai.inferers import SlidingWindowSplitter
-from tests.utils import download_url_or_skip_test, optional_import, testing_data_config, assert_allclose
+from tests.utils import assert_allclose, download_url_or_skip_test, optional_import, testing_data_config
 
 cucim, has_cucim = optional_import("cucim")
 has_cucim = has_cucim and hasattr(cucim, "CuImage")
@@ -278,6 +278,8 @@ TEST_CASE_WSI_8_OVERLAP = [
     {"patch_size": (1000, 1000), "overlap": 0.999, "reader": WSI_READER_STR},
     {"locations": [(0, 0), (0, 1), (0, 2), (0, 3)]},
 ]
+
+
 # Filtering functions test cases
 def gen_location_filter(locations):
     def my_filter(patch, loc):
@@ -293,6 +295,7 @@ TEST_CASE_WSI_9_FILTER = [
     {"patch_size": (1000, 1000), "reader": WSI_READER_STR, "filter_fn": gen_location_filter([(0, 0), (0, 2000)])},
     {"locations": [(0, 1000), (0, 3000)]},
 ]
+
 
 # ----------------------------------------------------------------------------
 # Error test cases
