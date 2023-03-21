@@ -16,12 +16,11 @@ from abc import ABC, abstractmethod
 import monai
 from monai.config import PathLike
 from monai.data.utils import create_file_basename
-from monai.transforms import Transform
 
 __all__ = ["FolderLayoutBase", "FolderLayout", "default_name_formatter"]
 
 
-def default_name_formatter(metadict: dict, saver: Transform) -> dict:
+def default_name_formatter(metadict: dict, saver: monai.transforms.Transform) -> dict:
     """Returns a kwargs dict for :py:meth:`FolderLayout.filename`,
     according to the input metadata and SaveImage transform."""
     subject = (
