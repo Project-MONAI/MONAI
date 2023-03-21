@@ -136,6 +136,18 @@ class TestBundleRun(unittest.TestCase):
         # test the saved execution configs
         self.assertTrue(len(glob(f"{tempdir}/config_*.json")), 2)
 
+    def test_customize_workflow(self):
+        expected_shape = (64, 64, 64)
+        test_image = np.random.rand(*expected_shape)
+        filename = os.path.join(self.data_dir, "image.nii")
+        nib.save(nib.Nifti1Image(test_image, np.eye(4)), filename)
+
+        cmd = "-m fire monai.bundle.scripts run --workflow tests.nonconfig_workflow.NonConfigWorkflow"
+        cmd += f" --filename {filename} --output_dir {self.data_dir}"
+        command_line_tests(["coverage", "run"] + cmd.split(" "))
+        loader = LoadImage(image_only=True)
+        self.assertTupleEqual(loader(os.path.join(self.data_dir, "image", "image_seg.nii.gz")).shape, expected_shape)
+
 
 if __name__ == "__main__":
     unittest.main()

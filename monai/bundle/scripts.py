@@ -589,7 +589,7 @@ def run(workflow: str | BundleWorkflow | None = None, args_file: str | None = No
 
     .. code-block:: bash
 
-        # Execute this module as a CLI entry:
+        # Execute this module as a CLI entry with default ConfigWorkflow:
         python -m monai.bundle run --meta_file <meta path> --config_file <config path>
 
         # Override config values at runtime by specifying the component id and its new value:
@@ -605,8 +605,11 @@ def run(workflow: str | BundleWorkflow | None = None, args_file: str | None = No
         # Other args still can override the default args at runtime:
         python -m monai.bundle run --args_file "/workspace/data/args.json" --config_file <config path>
 
+        # Set the workflow to other customized BundleWorkflow subclass:
+        python -m monai.bundle run --workflow CustomizedWorkflow ...
+
     Args:
-        workflow: specified bundle workflow name, default to "ConfigWorkflow".
+        workflow: specified bundle workflow name, should be a string or class, default to "ConfigWorkflow".
         args_file: a JSON or YAML file to provide default values for this API.
             so that the command line inputs can be simplified.
         kwargs: arguments to instantiate the workflow class.
@@ -615,13 +618,13 @@ def run(workflow: str | BundleWorkflow | None = None, args_file: str | None = No
 
     _args = _update_args(args=args_file, workflow=workflow, **kwargs)
     _log_input_summary(tag="run", args=_args)
-    workflow_name = _pop_args(_args, workflow=ConfigWorkflow)
+    (workflow_name,) = _pop_args(_args, workflow=ConfigWorkflow)
     if isinstance(workflow_name, str):
         workflow_class, has_built_in = optional_import("monai.bundle", name=f"{workflow_name}")  # search built-in
         if not has_built_in:
             workflow_class = locate(f"{workflow_name}")  # search dotted path
-            if workflow_class is None:
-                raise ValueError(f"can not locate specified workflow class: {workflow_name}.")
+        if workflow_class is None:
+            raise ValueError(f"can not locate specified workflow class: {workflow_name}.")
     elif issubclass(workflow_name, BundleWorkflow):
         workflow_class = workflow_name
     else:
