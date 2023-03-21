@@ -33,8 +33,9 @@ class TestHandlerClearMLImageHandler(unittest.TestCase):
     def test_task_init(self):
         handle, path = tempfile.mkstemp()
         with open(handle, "w") as new_config:
-            with open(get_active_config_file()) as old_config:
-                new_config.write(old_config.read())
+            if get_active_config_file():
+                with open(get_active_config_file()) as old_config:
+                    new_config.write(old_config.read())
             new_config.write(
                 "\nsdk.development.vcs_repo_detect_async: false\nsdk.development.report_use_subprocess: false\n"
             )
