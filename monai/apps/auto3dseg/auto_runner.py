@@ -255,7 +255,7 @@ class AutoRunner:
         datalist_filename = os.path.join(self.work_dir, os.path.basename(self.data_src_cfg["datalist"]))
         if datalist_filename != self.data_src_cfg["datalist"]:
             shutil.copyfile(self.data_src_cfg["datalist"], datalist_filename)
-            print(f"Datalist was copied to work_dir: {datalist_filename}")
+            logger.info(f"Datalist was copied to work_dir: {datalist_filename}")
 
         # inspect and update folds
         num_fold = self.inspect_datalist_folds(datalist_filename=datalist_filename)
@@ -370,9 +370,9 @@ class AutoRunner:
 
         if len(fold_list) > 0:
             num_fold = max(fold_list) + 1
-            print(f"Setting num_fold {num_fold} based on the input datalist {datalist_filename}.")
+            logger.info(f"Setting num_fold {num_fold} based on the input datalist {datalist_filename}.")
         elif "validation" in datalist and len(datalist["validation"]) > 0:
-            print("No fold numbers provided, attempting to use a single fold based on the validation key")
+            logger.info("No fold numbers provided, attempting to use a single fold based on the validation key")
             # update the datalist file
             for d in datalist["training"]:
                 d["fold"] = 1
@@ -380,7 +380,7 @@ class AutoRunner:
                 d["fold"] = 0
 
             val_labels = {d["label"]: d for d in datalist["validation"] if "label" in d}
-            print(f"Found {len(val_labels)} items in the validation key, saving updated datalist to", datalist_filename)
+            logger.info(f"Found {len(val_labels)} items in the validation key, saving updated datalist to", datalist_filename)
 
             # check for duplicates
             for d in datalist["training"]:
@@ -779,9 +779,9 @@ class AutoRunner:
             ensembler = builder.get_ensemble()
             preds = ensembler(pred_param=self.pred_params)
             if len(preds) > 0:
-                print("Auto3Dseg picked the following networks to ensemble:")
+                logger.info("Auto3Dseg picked the following networks to ensemble:")
                 for algo in ensembler.get_algo_ensemble():
-                    print(algo[AlgoEnsembleKeys.ID])
+                    logger.info(algo[AlgoEnsembleKeys.ID])
 
                 for pred in preds:
                     self.save_image(pred)
