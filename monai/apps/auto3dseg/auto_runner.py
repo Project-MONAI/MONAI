@@ -261,9 +261,7 @@ class AutoRunner:
         num_fold = self.inspect_datalist_folds(datalist_filename=datalist_filename)
 
         input["datalist"] = datalist_filename  # update path to a version in work_dir and save user input
-        ConfigParser.export_config_file(
-            config=input, filepath=self.data_src_cfg_name, fmt="yaml", sort_keys=False
-        )
+        ConfigParser.export_config_file(config=input, filepath=self.data_src_cfg_name, fmt="yaml", sort_keys=False)
 
         self.dataroot = self.data_src_cfg["dataroot"]
         self.datastats_filename = os.path.join(self.work_dir, "datastats.yaml")
@@ -380,7 +378,9 @@ class AutoRunner:
                 d["fold"] = 0
 
             val_labels = {d["label"]: d for d in datalist["validation"] if "label" in d}
-            logger.info(f"Found {len(val_labels)} items in the validation key, saving updated datalist to", datalist_filename)
+            logger.info(
+                f"Found {len(val_labels)} items in the validation key, saving updated datalist to", datalist_filename
+            )
 
             # check for duplicates
             for d in datalist["training"]:
@@ -396,18 +396,20 @@ class AutoRunner:
         else:
             num_fold = 5
 
-            warnings.warn(f"Datalist has no folds specified {datalist_filename}..."
-                          f"Generating {num_fold} folds randomly."
-                          f"Please consider presaving fold numbers beforehand for repeated experiments.")
+            warnings.warn(
+                f"Datalist has no folds specified {datalist_filename}..."
+                f"Generating {num_fold} folds randomly."
+                f"Please consider presaving fold numbers beforehand for repeated experiments."
+            )
 
-            from sklearn.model_selection import  KFold
-            kf =  KFold(n_splits=num_fold, shuffle=True, random_state=0)
+            from sklearn.model_selection import KFold
+
+            kf = KFold(n_splits=num_fold, shuffle=True, random_state=0)
             for i, (train_idx, valid_idx) in enumerate(kf.split(datalist["training"])):
                 for vi in valid_idx:
-                    datalist["training"][vi]['fold']=i
+                    datalist["training"][vi]["fold"] = i
 
             ConfigParser.export_config_file(datalist, datalist_filename, fmt="json", indent=4)
-
 
         return num_fold
 
