@@ -569,14 +569,16 @@ class MetaTensor(MetaObj, torch.Tensor):
 
     def __repr__(self):
         """
-        Prints a representation of the tensor identical to ``torch.Tensor.__repr__``.
+        Prints a representation of the tensor.
+        Prepends "meta" to ``torch.Tensor.__repr__``.
         Use ``print_verbose`` for associated metadata.
         """
         return f"meta{self.as_tensor().__repr__()}"
 
     def __str__(self):
         """
-        Prints a representation of the tensor identical to ``torch.Tensor.__str__``.
+        Prints a representation of the tensor.
+        Prepends "meta" to ``torch.Tensor.__str__``.
         Use ``print_verbose`` for associated metadata.
         """
         return f"meta{str(self.as_tensor())}"
