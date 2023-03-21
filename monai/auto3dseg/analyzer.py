@@ -256,7 +256,7 @@ class ImageStats(Analyzer):
         )
 
         report[ImageStatsKeys.SIZEMM] = [
-            [int(a*b) for a,b in zip(x,y)] 
+            [int(a*b) for a,b in zip(x,y)]
             for x, y in zip(report[ImageStatsKeys.SHAPE], report[ImageStatsKeys.SPACING])
         ]
 
