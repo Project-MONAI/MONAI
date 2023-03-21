@@ -348,7 +348,6 @@ class AutoRunner:
         )
 
     def inspect_datalist_folds(self, datalist_filename) -> int:
-
         """
         Returns number of folds in the datalist file, and assigns fold numbers if not provided.
 
