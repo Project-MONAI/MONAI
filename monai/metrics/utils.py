@@ -16,7 +16,7 @@ import warnings
 import numpy as np
 import torch
 
-from monai.transforms.croppad.array import SpatialCrop
+from monai.transforms.croppad.old_array import SpatialCrop
 from monai.transforms.utils import generate_spatial_bounding_box
 from monai.utils import MetricReduction, convert_data_type, look_up_option, optional_import
 

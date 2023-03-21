@@ -475,15 +475,13 @@ class MetaTensor(MetaObj, torch.Tensor):
         res = None
         if self.pending_operations:
             res = self.pending_operations[-1].metadata.get(LazyAttr.OUT_SHAPE, None)
-        # default to spatial shape (assuming channel-first input)
-        return tuple(convert_to_numpy(self.shape, wrap_sequence=True).tolist()[1:]) if res is None else res
+        return tuple(convert_to_numpy(self.shape, wrap_sequence=True).tolist()) if res is None else res
 
     def peek_pending_dtype(self):
         """Get the currently expected spatial shape as if all the pending operations are executed."""
         res = None
         if self.pending_operations:
             res = self.pending_operations[-1].metadata.get(LazyAttr.OUT_DTYPE, None)
-        # default to spatial shape (assuming channel-first input)
         return res
 
     def peek_pending_affine(self):

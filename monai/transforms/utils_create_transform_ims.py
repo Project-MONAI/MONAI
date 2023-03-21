@@ -54,7 +54,7 @@ from monai.transforms import (
     Zoom,
     Zoomd,
 )
-from monai.transforms.croppad.array import (
+from monai.transforms.croppad.old_array import (
     BorderPad,
     CenterScaleCrop,
     CenterSpatialCrop,
@@ -70,7 +70,7 @@ from monai.transforms.croppad.array import (
     SpatialCrop,
     SpatialPad,
 )
-from monai.transforms.croppad.dictionary import (
+from monai.transforms.croppad.old_dictionary import (
     BorderPadd,
     CenterScaleCropd,
     CenterSpatialCropd,

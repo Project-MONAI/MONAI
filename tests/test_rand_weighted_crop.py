@@ -16,7 +16,7 @@ import unittest
 import numpy as np
 from parameterized.parameterized import parameterized
 
-from monai.transforms.croppad.array import RandWeightedCrop
+from monai.transforms.croppad.old_array import RandWeightedCrop
 from tests.croppers import CropTest
 from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, NumpyImageTestCase3D, assert_allclose
 

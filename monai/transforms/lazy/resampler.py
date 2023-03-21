@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import warnings
+
 from typing import Sequence
 
 import numpy as np
 
 import torch
+
+import monai
 # from monai.transforms.inverse import InvertibleTransform
 
 from monai.transforms.utils import create_translate, create_grid, Transform
@@ -15,11 +19,12 @@ from monai.networks.layers import grid_pull
 
 from monai.transforms.utils_pytorch_numpy_unification import linalg_inv, moveaxis, where
 
-from monai.data.utils import to_affine_nd
+from monai.data.utils import to_affine_nd, AFFINE_TOL
 from monai.data.meta_tensor import MetaTensor, get_track_meta
 
 from monai.config import NdarrayOrTensor, DtypeLike, USE_COMPILED
-from monai.transforms.lazy.utils import AffineMatrix, check_matrix, is_grid_shaped, check_unit_translate
+from monai.transforms.lazy.utils import AffineMatrix, check_matrix, is_grid_shaped, check_unit_translate, \
+    is_matrix_shaped, check_axes, get_scaling_factors
 from monai.utils import LazyAttr, convert_data_type, convert_to_dst_type, TraceKeys, convert_to_tensor, fall_back_tuple, \
     GridSampleMode, GridSamplePadMode, TransformBackends, look_up_option, convert_to_cupy, convert_to_numpy, \
     optional_import, SplineMode, NdimageMode
@@ -29,43 +34,157 @@ cupy_ndi, _ = optional_import("cupyx.scipy.ndimage")
 np_ndi, _ = optional_import("scipy.ndimage")
 
 
-def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = None):
+class ResampleMode:
+    TENSOR = "tensor"
+    INTERPOLATE = "interpolate"
+    MATRIX_RESAMPLE = "matrix_resample"
+    GRID_RESAMPLE = "grid_resample"
+
+
+def get_resample_mode(matrix, input_shape, output_shape, atol):
+    if not is_matrix_shaped(matrix):
+        return ResampleMode.GRID_RESAMPLE
+
+    is_ortho, unit_scale, is_unskewed = check_matrix(matrix, atol)
+    unit_shift = check_unit_translate(matrix, input_shape, output_shape)
+
+    if not is_ortho:
+        return ResampleMode.MATRIX_RESAMPLE
+
+    if unit_scale and unit_shift:
+        return ResampleMode.TENSOR
+
+    return ResampleMode.INTERPOLATE
+
+
+# def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = None):
+#     """
+#     This is a minimal implementation of resample that always uses Affine.
+#     """
+#     if not AffineMatrix.is_affine_shaped(matrix):
+#         raise NotImplementedError("calling dense grid resample API not implemented")
+#     kwargs = {} if kwargs is None else kwargs
+#     init_kwargs = {
+#         "spatial_size": kwargs.get(LazyAttr.OUT_SHAPE, data.shape)[1:],
+#         "dtype": kwargs.get(LazyAttr.OUT_DTYPE, data.dtype),
+#     }
+#     call_kwargs = {
+#         "mode": kwargs.get(LazyAttr.INTERP_MODE, None),
+#         "padding_mode": kwargs.get(LazyAttr.PADDING_MODE, None),
+#     }
+#
+#     is_grid = is_grid_shaped(matrix)
+#     is_ortho, unit_scale, is_unskewed = check_matrix(matrix)
+#     unit_shift = check_unit_translate(matrix, data.shape, kwargs[LazyAttr.OUT_SHAPE])
+#
+#     # TODO: extract coefficients from the matrix for tensor-ops / interpolate
+#     if not is_grid:
+#         if is_ortho:
+#             if unit_scale and unit_shift:
+#                 # print("tensor resample")
+#                 # TODO: change to use flips/permutations
+#                 resampler = Resampler(affine=matrix, image_only=True, **init_kwargs)
+#                 return resampler(img=data, **call_kwargs)
+#             else:  # interpolate
+#                 # print("interpolate resample")
+#                 # TODO: change to use interpolator
+#                 resampler = Resampler(affine=matrix, image_only=True, **init_kwargs)
+#                 return resampler(img=data, **call_kwargs)
+#         else:  # affine matrix resample
+#             # print("grid resample")
+#             # TODO: change to use affine resampler
+#             resampler = Resampler(affine=matrix, image_only=True, **init_kwargs)
+#             return resampler(img=data, **call_kwargs)
+#     else:  # grid resample
+#         # print("grid resample")
+#         resampler = Resampler(affine=matrix, image_only=True, **init_kwargs)
+#         return resampler(img=data, **call_kwargs)
+
+
+# def resample(data: torch.Tensor, matrix: NdarrayOrTensor, spatial_size, kwargs: dict | None = None):
+
+def resample(
+        data: torch.Tensor,
+        matrix: NdarrayOrTensor,
+        kwargs: dict | None = None
+):
     """
-    This is a minimal implementation of resample that always uses Affine.
+    Resample `data` using the affine transformation defined by ``matrix`` and output spatial size ``spatial_size``.
+
+    Args:
+        data: input data to be resampled.
+        matrix: affine transformation matrix.
+        spatial_size: output spatial size.
+        kwargs: currently supports (see also: ``monai.utils.enums.LazyAttr``)
+            - "lazy_dtype"
+            - "lazy_padding_mode"
+            - "lazy_interpolation_mode" (this option might be ignored when ``mode="auto"``.)
+            - "lazy_align_corners"
+            - "atol" for tolerance for matrix floating point comparison.
+            - "resample_mode" for resampling backend, default to `"auto"`. Setting to other values will use the
+               `monai.transforms.SpatialResample` for resampling.
+
+    See Also:
+        :py:class:`monai.transforms.SpatialResample`
     """
-    if not AffineMatrix.is_affine_shaped(matrix):
-        raise NotImplementedError("calling dense grid resample API not implemented")
+    print("kwargs:", kwargs)
+    if not is_matrix_shaped(matrix):
+        raise NotImplementedError(f"Calling the dense grid resample API directly not implemented, {matrix.shape}.")
+    if isinstance(data, monai.data.MetaTensor) and data.pending_operations:
+        warnings.warn("data.pending_operations is not empty, the resampling output may be incorrect.")
     kwargs = {} if kwargs is None else kwargs
+    atol = kwargs.pop("atol", AFFINE_TOL)
+    mode = kwargs.pop("resample_mode", "auto")
+
     init_kwargs = {
-        "spatial_size": kwargs.get(LazyAttr.OUT_SHAPE, data.shape)[1:],
-        "dtype": kwargs.get(LazyAttr.OUT_DTYPE, data.dtype),
+        "dtype": kwargs.pop(LazyAttr.OUT_DTYPE, data.dtype),
+        # "align_corners": kwargs.pop(LazyAttr.ALIGN_CORNERS, False),
     }
+    ndim = len(matrix) - 1
+    img = convert_to_tensor(data=data, track_meta=monai.data.get_track_meta())
+    init_affine = monai.data.to_affine_nd(ndim, img.affine)
+    # out_spatial_size = img.peek_pending_shape() if spatial_size is None else spatial_size
+    out_spatial_size = kwargs.get(LazyAttr.OUT_SHAPE, data.shape)
+    out_spatial_size = convert_to_numpy(out_spatial_size, wrap_sequence=True)
     call_kwargs = {
-        "mode": kwargs.get(LazyAttr.INTERP_MODE, None),
-        "padding_mode": kwargs.get(LazyAttr.PADDING_MODE, None),
+        "spatial_size": out_spatial_size[1:],
+        # "dst_affine": init_affine @ monai.utils.convert_to_dst_type(matrix, init_affine)[0],
+        "mode": kwargs.pop(LazyAttr.INTERP_MODE, None),
+        "padding_mode": kwargs.pop(LazyAttr.PADDING_MODE, None),
     }
 
-    is_grid = is_grid_shaped(matrix)
-    is_ortho, unit_scale = check_matrix(matrix)
-    unit_shift = check_unit_translate(matrix, data.shape, kwargs[LazyAttr.OUT_SHAPE])
-    # TODO: extract coefficients from the matrix for tensor-ops / interpolate
-    if not is_grid:
-        if is_ortho:
-            if unit_scale and unit_shift:
-                # TODO: change to use flips/permutations
-                resampler = Resampler(affine=matrix, image_only=True, **init_kwargs)
-                return resampler(img=data, **call_kwargs)
-            else:  # interpolate
-                # TODO: change to use interpolator
-                resampler = Resampler(affine=matrix, image_only=True, **init_kwargs)
-                return resampler(img=data, **call_kwargs)
-        else:  # affine matrix resample
-            # TODO: change to use affine resampler
-            resampler = Resampler(affine=matrix, image_only=True, **init_kwargs)
-            return resampler(img=data, **call_kwargs)
-    else:  # grid resample
-        resampler = Resampler(affine=matrix, image_only=True, **init_kwargs)
-        return resampler(img=data, **call_kwargs)
+    resample_mode = get_resample_mode(matrix, img.shape, out_spatial_size, atol)
+
+    print("resample mode:", resample_mode)
+
+    if resample_mode == ResampleMode.TENSOR:
+
+        flips, permutes = check_axes(matrix)
+        if len(flips) > 0:
+            img = torch.flip(img, flips)
+
+        if not sorted(permutes) != permutes:
+            img = torch.permute(img, permutes)
+
+        return img
+
+    if resample_mode == ResampleMode.INTERPOLATE:
+
+        # flip the pre-interpolated image
+        flips, permutes = check_axes(matrix)
+        scaling_factors = get_scaling_factors(matrix)
+        img = torch.flip(img, flips)
+        # interpolate the image
+        img = torch.nn.functional.interpolate(img.unsqueeze(axis=0),
+                                              scale_factor=scaling_factors,
+                                              recompute_scale_factor=True).squeeze(axis=0)
+        return img
+
+    # ResampleMode.MATRIX_RESAMPLE, ResampleMode.GRID_RESAMPLE
+
+    resampler = Resampler(affine=matrix, image_only=True, **init_kwargs)
+    return resampler(img=data, **call_kwargs)
+
 
 
 class ResampleImpl:
@@ -166,6 +285,7 @@ class ResampleImpl:
         _dtype = dtype or self.dtype or img.dtype
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=_dtype, device=_device)
         grid_t, *_ = convert_to_dst_type(grid, img_t, dtype=grid.dtype, wrap_sequence=True)
+        # TODO: this is very expensive, is it actually needed?
         grid_t = grid_t.clone(memory_format=torch.contiguous_format)
 
         if self.norm_coords:
@@ -327,7 +447,6 @@ class GridResampler(Transform):
         return grid_, affine  # type: ignore
 
 
-# class Resampler(InvertibleTransform):
 class Resampler:
     """
     TODO: refactor for lazy resampling
@@ -482,26 +601,26 @@ class Resampler:
         mat = shift_1 @ convert_data_type(mat, np.ndarray)[0] @ shift_2
         return affine @ convert_to_dst_type(mat, affine)[0]
 
-    def update_meta(self, img, mat, img_size, sp_size):
-        affine = convert_data_type(img.affine, torch.Tensor)[0]
-        img.affine = Resampler.compute_w_affine(affine, mat, img_size, sp_size)
+    # def update_meta(self, img, mat, img_size, sp_size):
+    #     affine = convert_data_type(img.affine, torch.Tensor)[0]
+    #     img.affine = Resampler.compute_w_affine(affine, mat, img_size, sp_size)
 
-    def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        transform = self.pop_transform(data)
-        orig_size = transform[TraceKeys.ORIG_SIZE]
-        # Create inverse transform
-        fwd_affine = transform[TraceKeys.EXTRA_INFO]["affine"]
-        mode = transform[TraceKeys.EXTRA_INFO]["mode"]
-        padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
-        inv_affine = linalg_inv(fwd_affine)
-        inv_affine = convert_to_dst_type(inv_affine, data, dtype=inv_affine.dtype)[0]
-
-        affine_grid = GridResampler(affine=inv_affine)
-        grid, _ = affine_grid(orig_size)
-        # Apply inverse transform
-        out = self.resampler(data, grid, mode, padding_mode)
-        if not isinstance(out, MetaTensor):
-            out = MetaTensor(out)
-        out.meta = data.meta  # type: ignore
-        self.update_meta(out, inv_affine, data.shape[1:], orig_size)
-        return out
+    # def inverse(self, data: torch.Tensor) -> torch.Tensor:
+    #     transform = self.pop_transform(data)
+    #     orig_size = transform[TraceKeys.ORIG_SIZE]
+    #     # Create inverse transform
+    #     fwd_affine = transform[TraceKeys.EXTRA_INFO]["affine"]
+    #     mode = transform[TraceKeys.EXTRA_INFO]["mode"]
+    #     padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
+    #     inv_affine = linalg_inv(fwd_affine)
+    #     inv_affine = convert_to_dst_type(inv_affine, data, dtype=inv_affine.dtype)[0]
+    #
+    #     affine_grid = GridResampler(affine=inv_affine)
+    #     grid, _ = affine_grid(orig_size)
+    #     # Apply inverse transform
+    #     out = self.resampler(data, grid, mode, padding_mode)
+    #     if not isinstance(out, MetaTensor):
+    #         out = MetaTensor(out)
+    #     out.meta = data.meta  # type: ignore
+    #     self.update_meta(out, inv_affine, data.shape[1:], orig_size)
+    #     return out

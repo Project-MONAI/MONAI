@@ -20,8 +20,8 @@ from torch import Tensor
 from monai.apps.reconstruction.transforms.array import EquispacedKspaceMask, RandomKspaceMask
 from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.transforms.croppad.array import SpatialCrop
-from monai.transforms.croppad.dictionary import Cropd
+from monai.transforms.croppad.old_array import SpatialCrop
+from monai.transforms.croppad.old_dictionary import Cropd
 from monai.transforms.intensity.array import NormalizeIntensity
 from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.utils import FastMRIKeys

@@ -33,7 +33,7 @@ from monai.transforms import (
     RandAffined,
     RandScaleIntensityd,
 )
-from monai.transforms.croppad.dictionary import SpatialPadd
+from monai.transforms.croppad.old_dictionary import SpatialPadd
 from monai.transforms.spatial.dictionary import RandFlipd
 from monai.utils import optional_import, set_determinism
 from monai.utils.enums import PostFix

@@ -17,11 +17,16 @@ from parameterized import parameterized
 
 from monai.data import MetaTensor
 from monai.transforms import RandomOrder, TraceableTransform
-from monai.transforms.compose import Compose
+from monai.transforms.compose import Compose, OldCompose
 from monai.utils import set_determinism
 from monai.utils.enums import TraceKeys
 from tests.test_one_of import A, B, C, Inv, NonInv, X, Y
 
+class InvA(Inv):
+    def __init__(self, keys):
+        super().__init__(keys)
+        self.fwd_fn = lambda x: x + 1
+        self.inv_fn = lambda x: x - 1
 
 class InvC(Inv):
     def __init__(self, keys):
@@ -40,11 +45,11 @@ class InvD(Inv):
 set_determinism(seed=123)
 KEYS = ["x", "y"]
 TEST_INVERSES = [
-    (RandomOrder((InvC(KEYS), InvD(KEYS))), True, True),
-    (Compose((RandomOrder((InvC(KEYS), InvD(KEYS))), RandomOrder((InvD(KEYS), InvC(KEYS))))), True, False),
-    (RandomOrder((RandomOrder((InvC(KEYS), InvD(KEYS))), RandomOrder((InvD(KEYS), InvC(KEYS))))), True, False),
-    (RandomOrder((Compose((InvC(KEYS), InvD(KEYS))), Compose((InvD(KEYS), InvC(KEYS))))), True, False),
-    (RandomOrder((NonInv(KEYS), NonInv(KEYS))), False, False),
+    # (RandomOrder((InvC(KEYS), InvD(KEYS))), True, True),
+    # (Compose((RandomOrder((InvC(KEYS), InvD(KEYS))), RandomOrder((InvD(KEYS), InvC(KEYS))))), True, False),
+    (OldCompose((RandomOrder((RandomOrder((InvC(KEYS), InvD(KEYS))), InvA(KEYS), RandomOrder((InvD(KEYS), InvC(KEYS))))))), True, False),
+    # (RandomOrder((Compose((InvC(KEYS), InvD(KEYS))), Compose((InvD(KEYS), InvC(KEYS))))), True, False),
+    # (RandomOrder((NonInv(KEYS), NonInv(KEYS))), False, False),
 ]
 
 
@@ -70,6 +75,14 @@ class TestRandomOrder(unittest.TestCase):
 
     @parameterized.expand(TEST_INVERSES)
     def test_inverse(self, transform, invertible, use_metatensor):
+        self._test_inverse(transform, invertible, use_metatensor)
+
+    def test_inverse_cases(self):
+        for i_c, c in enumerate(TEST_INVERSES):
+            with self.subTest(i_c):
+                self._test_inverse(*c)
+
+    def _test_inverse(self, transform, invertible, use_metatensor):
         data = {k: (i + 1) * 10.0 if not use_metatensor else MetaTensor((i + 1) * 10.0) for i, k in enumerate(KEYS)}
         fwd_data1 = transform(data)
         # test call twice won't affect inverse

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from .adaptors import FunctionSignature, adaptor, apply_alias, to_kwargs
 from .compose import Compose, OneOf, RandomOrder, allow_missing_keys_mode
-from .croppad.array import (
+from .croppad.old_array import (
     BorderPad,
     BoundingRect,
     CenterScaleCrop,
@@ -33,7 +33,7 @@ from .croppad.array import (
     SpatialPad,
 )
 from .croppad.batch import PadListDataCollate
-from .croppad.dictionary import (
+from .croppad.old_dictionary import (
     BorderPadd,
     BorderPadD,
     BorderPadDict,

@@ -51,6 +51,17 @@ from monai.utils import (
 # TODO: overriding of the operation name in the case that the function is being called from a random array / dict transform
 
 
+def get_pending_shape(data):
+
+    if isinstance(data, MetaTensor):
+        return data.peek_pending_shape()
+
+    if not hasattr(data, 'shape'):
+        raise TypeError(f"data must be a type that supports a 'shape' property (type is {type(data)})")
+
+    return data.shape
+
+
 def transform_shape(input_shape: Sequence[int], matrix: torch.Tensor):
     """
     TODO: this method should accept Matrix and Grid types also

@@ -28,7 +28,7 @@ from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.networks.layers.simplelayers import GaussianFilter
-from monai.transforms.croppad.array import CenterSpatialCrop
+from monai.transforms.croppad.old_array import CenterSpatialCrop
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.spatial.old_array import (
     Affine,

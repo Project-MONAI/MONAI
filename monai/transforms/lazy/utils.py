@@ -167,26 +167,29 @@ def matrix_to_eulers(matrix):
     return np.asarray([res_0, res_1, res_2])
 
 
-def check_matrix(matrix):
-    x = matrix[0, :-1]
-    y = matrix[1, :-1]
-    z = matrix[2, :-1]
+def check_matrix(matrix, atol=1e-5):
+    if not is_matrix_shaped(matrix):
+        raise ValueError(f"'matrix' must be (3,3) or (4,4) but has shape {matrix.shape}")
 
-    norm_x = np.linalg.norm(x)
-    norm_y = np.linalg.norm(y)
-    norm_z = np.linalg.norm(z)
-
-    unit_scale = np.isclose(norm_x, 1.0) and np.isclose(norm_y, 1.0) and np.isclose(norm_z, 1.0)
-
-    is_ortho = (np.isclose(np.abs(x).max(), norm_x) and np.isclose(np.abs(y).max(), norm_y) and
-                np.isclose(np.abs(z).max(), norm_z))
-
-    is_unskewed = np.isclose(np.dot(x, y), 0.0) and np.isclose(np.dot(x, z), 0.0) and np.isclose(np.dot(y, z), 0.0)
+    spatial_dims = matrix.shape[0] - 1
+    unit_scale = True
+    is_ortho = True
+    for d in range(spatial_dims):
+        vec = matrix[d, :-1]
+        norm_vec = np.linalg.norm(vec)
+        unit_scale = unit_scale and np.isclose(norm_vec, 1.0, atol)
+        is_ortho = is_ortho and np.isclose(np.abs(vec).max(), norm_vec, atol)
+    if spatial_dims == 2:
+        is_unskewed = np.isclose(np.dot(matrix[0, :-1], matrix[1, :-1]), 0.0, atol)
+    else:
+        is_unskewed = np.isclose(np.dot(matrix[0, :-1], matrix[1, :-1]), 0.0, atol) and \
+                      np.isclose(np.dot(matrix[0, :-1], matrix[2, :-1]), 0.0, atol) and \
+                      np.isclose(np.dot(matrix[1, :-1], matrix[2, :-1]), 0.0, atol)
 
     return (
         is_ortho,
-        unit_scale
-#        is_unskewed,
+        unit_scale,
+        is_unskewed,
     )
 
 
@@ -211,21 +214,69 @@ def check_unit_translate(matrix, src_image_shape, dst_image_shape):
     return True
 
 
+# def check_axes(matrix):
+#     is_ortho, is_scaled = check_matrix(matrix)
+#
+#     if not is_ortho:
+#         raise ValueError(f"check_axes only accepts orthogonally aligned matrices (matrix is {matrix}")
+#
+#     x = matrix[0, :-1]
+#     y = matrix[1, :-1]
+#     z = matrix[2, :-1]
+#     x_ind = np.argwhere(np.abs(x) > 1e-6)[0, 0]
+#     y_ind = np.argwhere(np.abs(y) > 1e-6)[0, 0]
+#     z_ind = np.argwhere(np.abs(z) > 1e-6)[0, 0]
+#     return ((x_ind, 1 if x[x_ind] > 0.0 else -1),
+#             (y_ind, 1 if y[y_ind] > 0.0 else -1),
+#             (z_ind, 1 if z[z_ind] > 0.0 else -1))
+
+
 def check_axes(matrix):
-    is_ortho, is_scaled = check_matrix(matrix)
+    if not is_matrix_shaped(matrix):
+        raise ValueError(f"'matrix' must be (3,3) or (4,4) but has shape {matrix.shape}")
 
-    if not is_ortho:
-        raise ValueError(f"check_axes only accepts orthogonally aligned matrices (matrix is {matrix}")
+    spatial_dims = matrix.shape[0] - 1
 
-    x = matrix[0, :-1]
-    y = matrix[1, :-1]
-    z = matrix[2, :-1]
-    x_ind = np.argwhere(np.abs(x) > 1e-6)[0, 0]
-    y_ind = np.argwhere(np.abs(y) > 1e-6)[0, 0]
-    z_ind = np.argwhere(np.abs(z) > 1e-6)[0, 0]
-    return ((x_ind, 1 if x[x_ind] > 0.0 else -1),
-            (y_ind, 1 if y[y_ind] > 0.0 else -1),
-            (z_ind, 1 if z[z_ind] > 0.0 else -1))
+    is_ortho, is_scaled, is_unskewed = check_matrix(matrix)
+
+    if not is_ortho or not is_unskewed:
+        raise ValueError(f"check_axes only accepts orthogonally aligned, unskewed matrices (matrix is {matrix}")
+
+    indices = list()
+    flips = list()
+    for d in range(spatial_dims):
+        vec = matrix[d, :-1]
+        index = np.argwhere(np.abs(vec) > 1e-6)[0, 0]
+        indices.append(index)
+        if vec[index] < 0.0:
+            flips.append(d)
+
+    return tuple(flips), tuple(indices)
+
+
+def get_scaling_factors(matrix):
+
+    if not is_matrix_shaped(matrix):
+        raise ValueError(f"'matrix' must be (3,3) or (4,4) but has shape {matrix.shape}")
+
+    spatial_dims = matrix.shape[0] - 1
+
+    is_ortho, is_scaled, is_unskewed = check_matrix(matrix)
+
+    if not is_ortho or not is_unskewed:
+        raise ValueError(f"check_axes only accepts orthogonally aligned, unskewed matrices (matrix is {matrix}")
+
+    indices = list()
+    for d in range(spatial_dims):
+        vec = matrix[d, :-1]
+        index = np.argwhere(np.abs(vec) > 1e-6)[0, 0]
+        indices.append(index)
+
+    zooms = list()
+    for i_d, d in enumerate(indices):
+        zooms.append(matrix[i_d, d])
+
+    return tuple(zooms)
 
 
 class Matrix:

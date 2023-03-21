@@ -23,7 +23,7 @@ import torch
 
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import list_data_collate
-from monai.transforms.croppad.array import CenterSpatialCrop, SpatialPad
+from monai.transforms.croppad.old_array import CenterSpatialCrop, SpatialPad
 from monai.transforms.inverse import InvertibleTransform
 from monai.utils.enums import Method, PytorchPadMode, TraceKeys
 

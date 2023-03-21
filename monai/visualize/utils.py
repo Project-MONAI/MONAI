@@ -17,7 +17,7 @@ import numpy as np
 import torch
 
 from monai.config.type_definitions import DtypeLike, NdarrayOrTensor
-from monai.transforms.croppad.array import SpatialPad
+from monai.transforms.croppad.old_array import SpatialPad
 from monai.transforms.utils import rescale_array
 from monai.transforms.utils_pytorch_numpy_unification import repeat
 from monai.utils.module import optional_import

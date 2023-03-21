@@ -239,7 +239,7 @@ class Compose(RandomizableTrait, InvertibleTrait, LazyTrait):
         return data
 
 
-class OneOf(Compose):
+class OneOf(OldCompose):
     """
     ``OneOf`` provides the ability to randomly choose one transform out of a
     list of callables with pre-defined probabilities for each.
@@ -286,21 +286,21 @@ class OneOf(Compose):
         weights = weights / weights.sum()
         return list(weights)
 
-    def flatten(self):
-        transforms = []
-        weights = []
-        for t, w in zip(self.transforms, self.weights):
-            # if nested, probability is the current weight multiplied by the nested weights,
-            # and so on recursively
-            if isinstance(t, OneOf):
-                tr = t.flatten()
-                for t_, w_ in zip(tr.transforms, tr.weights):
-                    transforms.append(t_)
-                    weights.append(w_ * w)
-            else:
-                transforms.append(t)
-                weights.append(w)
-        return OneOf(transforms, weights, self.map_items, self.unpack_items)
+    # def flatten(self):
+    #     transforms = []
+    #     weights = []
+    #     for t, w in zip(self.transforms, self.weights):
+    #         # if nested, probability is the current weight multiplied by the nested weights,
+    #         # and so on recursively
+    #         if isinstance(t, OneOf):
+    #             tr = t.flatten()
+    #             for t_, w_ in zip(tr.transforms, tr.weights):
+    #                 transforms.append(t_)
+    #                 weights.append(w_ * w)
+    #         else:
+    #             transforms.append(t)
+    #             weights.append(w)
+    #     return OneOf(transforms, weights, self.map_items, self.unpack_items)
 
     def __call__(self, data):
         if len(self.transforms) == 0:
@@ -339,7 +339,7 @@ class OneOf(Compose):
         return _transform.inverse(data) if isinstance(_transform, InvertibleTransform) else data
 
 
-class RandomOrder(Compose):
+class RandomOrder(OldCompose):
     """
     ``RandomOrder`` provides the ability to apply a list of transformations in random order.
 
