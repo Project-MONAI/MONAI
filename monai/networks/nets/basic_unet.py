@@ -19,6 +19,7 @@ import torch.nn as nn
 from monai.networks.blocks import Convolution, UpSample
 from monai.networks.layers.factories import Conv, Pool
 from monai.utils import ensure_tuple_rep
+from typing import Optional
 
 __all__ = ["BasicUnet", "Basicunet", "basicunet", "BasicUNet"]
 
@@ -149,7 +150,7 @@ class UpCat(nn.Module):
         self.convs = TwoConv(spatial_dims, cat_chns + up_chns, out_chns, act, norm, bias, dropout)
         self.is_pad = is_pad
 
-    def forward(self, x: torch.Tensor, x_e: torch.Tensor | None):
+    def forward(self, x: torch.Tensor, x_e: Optional[torch.Tensor]):
         """
 
         Args:
