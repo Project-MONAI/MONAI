@@ -32,6 +32,13 @@ TEST_CASE_3 = ["model", "True"]
 
 @skip_if_windows
 class TestCKPTExport(unittest.TestCase):
+    def setUp(self):
+        self.device = os.environ.get("CUDA_VISIBLE_DEVICES")
+
+    def tearDown(self):
+        if self.device:
+            os.environ["CUDA_VISIBLE_DEVICES"] = self.device
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_export(self, key_in_ckpt, use_trace):
         meta_file = os.path.join(os.path.dirname(__file__), "testing_data", "metadata.json")

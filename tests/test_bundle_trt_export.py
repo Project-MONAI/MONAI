@@ -44,6 +44,13 @@ TEST_CASE_4 = ["fp16", [1, 1, 96, 96, 96], [1, 4, 8]]
 @skip_if_no_cuda
 @skip_if_quick
 class TestTRTExport(unittest.TestCase):
+    def setUp(self):
+        self.device = os.environ.get("CUDA_VISIBLE_DEVICES")
+
+    def tearDown(self):
+        if self.device:
+            os.environ["CUDA_VISIBLE_DEVICES"] = self.device
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     @unittest.skipUnless(has_torchtrt, "Torch-TensorRT is required for convert!")
     @unittest.skipUnless(has_tensorrt, "TensorRT is required for convert!")
