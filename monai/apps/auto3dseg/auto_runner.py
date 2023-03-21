@@ -404,7 +404,7 @@ class AutoRunner:
             from sklearn.model_selection import KFold
 
             kf = KFold(n_splits=num_fold, shuffle=True, random_state=0)
-            for i, (train_idx, valid_idx) in enumerate(kf.split(datalist["training"])):
+            for i, (_, valid_idx) in enumerate(kf.split(datalist["training"])):
                 for vi in valid_idx:
                     datalist["training"][vi]["fold"] = i
 
