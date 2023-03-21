@@ -187,10 +187,7 @@ class SlidingWindowSplitter(Splitter):
 
     def _get_valid_shape_parameters(
         self, spatial_shape: Sequence[int]
-    ) -> (
-        tuple[tuple[int, ...], tuple[float, ...] | tuple[int, ...], tuple[int, ...]]
-        | tuple[tuple[int, int], tuple[float, float] | tuple[int, int], tuple[int, int]]
-    ):
+    ) -> tuple[tuple[int, ...], tuple[float, ...] | tuple[int, ...], tuple[int, ...]]:
         spatial_ndim = len(spatial_shape)
         # patch_size
         patch_size = ensure_tuple_rep(self.patch_size, spatial_ndim)
