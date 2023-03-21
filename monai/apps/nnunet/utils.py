@@ -25,7 +25,6 @@ nib, _ = optional_import("nibabel")
 
 logger = monai.apps.utils.get_logger(__name__)
 
-
 __all__ = ["analyze_data", "create_new_data_copy", "create_new_dataset_json", "NNUNETMode"]
 
 

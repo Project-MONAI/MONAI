@@ -205,7 +205,7 @@ class DiceHelper:
         denorm = y_o + torch.sum(y_pred)
         if denorm <= 0:
             return torch.tensor(1.0, device=y_o.device)
-        return (2.0 * torch.sum(torch.masked_select(y, y_pred))) / denorm
+        return torch.tensor(0.0, device=y_o.device)
 
     def __call__(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """
