@@ -25,7 +25,9 @@ from monai.utils import optional_import
 from tests.utils import command_line_tests, skip_if_no_cuda, skip_if_quick, skip_if_windows
 
 _, has_torchtrt = optional_import(
-    "torch_tensorrt", version="1.4.0", descriptor="Torch-TRT is not installed. Are you sure you have a Torch-TensorRT compilation?"
+    "torch_tensorrt",
+    version="1.4.0",
+    descriptor="Torch-TRT is not installed. Are you sure you have a Torch-TensorRT compilation?",
 )
 _, has_tensorrt = optional_import(
     "tensorrt", descriptor="TensorRT is not installed. Are you sure you have a TensorRT compilation?"
