@@ -23,13 +23,14 @@ import warnings
 from collections.abc import Sequence
 from pathlib import Path
 from pydoc import locate
+from typing import Callable
 
 import numpy as np
 import torch
 
 from monai.config import DtypeLike, NdarrayOrTensor, PathLike
 from monai.data import image_writer
-from monai.data.folder_layout import FolderLayout, default_name_formatter
+from monai.data.folder_layout import FolderLayout, FolderLayoutBase, default_name_formatter
 from monai.data.image_reader import (
     ImageReader,
     ITKReader,
@@ -319,7 +320,7 @@ class SaveImage(Transform):
         output_ext: output file extension name.
         output_dtype: data type (if not None) for saving data. Defaults to ``np.float32``.
         resample: whether to resample image (if needed) before saving the data array,
-            based on the `spatial_shape` (and `original_affine`) from metadata.
+            based on the ``"spatial_shape"`` (and ``"original_affine"``) from metadata.
         mode: This option is used when ``resample=True``. Defaults to ``"nearest"``.
             Depending on the writers, the possible options are
 
@@ -332,40 +333,47 @@ class SaveImage(Transform):
             Possible options are {``"zeros"``, ``"border"``, ``"reflection"``}
             See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         scale: {``255``, ``65535``} postprocess data by clipping to [0, 1] and scaling
-            [0, 255] (uint8) or [0, 65535] (uint16). Default is `None` (no scaling).
+            [0, 255] (``uint8``) or [0, 65535] (``uint16``). Default is ``None`` (no scaling).
         dtype: data type during resampling computation. Defaults to ``np.float64`` for best precision.
-            if None, use the data type of input data. To set the output data type, use `output_dtype`.
-        squeeze_end_dims: if True, any trailing singleton dimensions will be removed (after the channel
+            if ``None``, use the data type of input data. To set the output data type, use ``output_dtype``.
+        squeeze_end_dims: if ``True``, any trailing singleton dimensions will be removed (after the channel
             has been moved to the end). So if input is (C,H,W,D), this will be altered to (H,W,D,C), and
-            then if C==1, it will be saved as (H,W,D). If D is also 1, it will be saved as (H,W). If `false`,
+            then if C==1, it will be saved as (H,W,D). If D is also 1, it will be saved as (H,W). If ``False``,
             image will always be saved as (H,W,D,C).
         data_root_dir: if not empty, it specifies the beginning parts of the input file's
-            absolute path. It's used to compute `input_file_rel_path`, the relative path to the file from
-            `data_root_dir` to preserve folder structure when saving in case there are files in different
+            absolute path. It's used to compute ``input_file_rel_path``, the relative path to the file from
+            ``data_root_dir`` to preserve folder structure when saving in case there are files in different
             folders with the same file names. For example, with the following inputs:
 
-            - input_file_name: `/foo/bar/test1/image.nii`
-            - output_postfix: `seg`
-            - output_ext: `.nii.gz`
-            - output_dir: `/output`
-            - data_root_dir: `/foo/bar`
+            - input_file_name: ``/foo/bar/test1/image.nii``
+            - output_postfix: ``seg``
+            - output_ext: ``.nii.gz``
+            - output_dir: ``/output``
+            - data_root_dir: ``/foo/bar``
 
-            The output will be: /output/test1/image/image_seg.nii.gz
+            The output will be: ``/output/test1/image/image_seg.nii.gz``
 
         separate_folder: whether to save every file in a separate folder. For example: for the input filename
-            `image.nii`, postfix `seg` and folder_path `output`, if `separate_folder=True`, it will be saved as:
-            `output/image/image_seg.nii`, if `False`, saving as `output/image_seg.nii`. Default to `True`.
-        print_log: whether to print logs when saving. Default to `True`.
+            ``image.nii``, postfix ``seg`` and ``folder_path`` ``output``, if ``separate_folder=True``, it will be
+            saved as: ``output/image/image_seg.nii``, if ``False``, saving as ``output/image_seg.nii``.
+            Default to ``True``.
+        print_log: whether to print logs when saving. Default to ``True``.
         output_format: an optional string of filename extension to specify the output image writer.
-            see also: `monai.data.image_writer.SUPPORTED_WRITERS`.
-        writer: a customised `monai.data.ImageWriter` subclass to save data arrays.
-            if `None`, use the default writer from `monai.data.image_writer` according to `output_ext`.
+            see also: ``monai.data.image_writer.SUPPORTED_WRITERS``.
+        writer: a customised ``monai.data.ImageWriter`` subclass to save data arrays.
+            if ``None``, use the default writer from ``monai.data.image_writer`` according to ``output_ext``.
             if it's a string, it's treated as a class name or dotted path (such as ``"monai.data.ITKWriter"``);
             the supported built-in writer classes are ``"NibabelWriter"``, ``"ITKWriter"``, ``"PILWriter"``.
-        channel_dim: the index of the channel dimension. Default to `0`.
-            `None` to indicate no channel dimension.
+        channel_dim: the index of the channel dimension. Default to ``0``.
+            ``None`` to indicate no channel dimension.
         output_name_formatter: a callable function (returning a kwargs dict) to format the output file name.
+            If using a custom ``monai.data.FolderLayoutBase`` class in ``folder_layout``, consider providing
+            your own formatter.
             see also: :py:func:`monai.data.folder_layout.default_name_formatter`.
+        folder_layout: A customized ``monai.data.FolderLayoutBase`` subclass to define file naming schemes.
+            if ``None``, uses the default ``FolderLayout``
+        savepath_in_metadict: if ``True``, adds a key ``"saved_to"`` to the metadata, which contains the path
+            to where the input image has been saved.
     """
 
     @deprecated_arg_default("resample", True, False, since="1.1", replaced="1.3")
@@ -387,16 +395,26 @@ class SaveImage(Transform):
         output_format: str = "",
         writer: type[image_writer.ImageWriter] | str | None = None,
         channel_dim: int | None = 0,
-        output_name_formatter=None,
+        output_name_formatter: Callable[[dict, Transform], dict] = None,
+        folder_layout: FolderLayoutBase = None,
+        savepath_in_metadict: bool = False,
     ) -> None:
-        self.folder_layout = FolderLayout(
-            output_dir=output_dir,
-            postfix=output_postfix,
-            extension=output_ext,
-            parent=separate_folder,
-            makedirs=True,
-            data_root_dir=data_root_dir,
-        )
+        if folder_layout is None:
+            self.folder_layout = FolderLayout(
+                output_dir=output_dir,
+                postfix=output_postfix,
+                extension=output_ext,
+                parent=separate_folder,
+                makedirs=True,
+                data_root_dir=data_root_dir,
+            )
+        else:
+            self.folder_layout = folder_layout
+
+        if output_name_formatter is None:
+            self.fname_formatter = default_name_formatter
+        else:
+            self.fname_formatter = output_name_formatter
 
         self.output_ext = output_ext.lower() or output_format.lower()
         if isinstance(writer, str):
@@ -418,8 +436,8 @@ class SaveImage(Transform):
         self.data_kwargs = {"squeeze_end_dims": squeeze_end_dims, "channel_dim": channel_dim}
         self.meta_kwargs = {"resample": resample, "mode": mode, "padding_mode": padding_mode, "dtype": dtype}
         self.write_kwargs = {"verbose": print_log}
-        self.fname_formatter = default_name_formatter if output_name_formatter is None else output_name_formatter
         self._data_index = 0
+        self.savepath_in_metadict = savepath_in_metadict
 
     def set_options(self, init_kwargs=None, data_kwargs=None, meta_kwargs=None, write_kwargs=None):
         """
@@ -478,6 +496,8 @@ class SaveImage(Transform):
                 )
             else:
                 self._data_index += 1
+                if self.savepath_in_metadict:
+                    meta_data["saved_to"] = filename
                 return img
         msg = "\n".join([f"{e}" for e in err])
         raise RuntimeError(
