@@ -37,6 +37,7 @@ Model Bundle
 `Scripts`
 ---------
 .. autofunction:: ckpt_export
+.. autofunction:: trt_export
 .. autofunction:: download
 .. autofunction:: load
 .. autofunction:: get_all_bundles_list
