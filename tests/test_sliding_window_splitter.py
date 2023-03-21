@@ -233,7 +233,7 @@ TEST_CASE_WSI_0_BASE = [
 
 TEST_CASE_WSI_1_BASE = [
     FILE_PATH,
-    {"patch_size": (1000, 1000), "patch_level": 1, "reader": WSI_READER_STR},
+    {"patch_size": (1000, 1000), "level": 1, "reader": WSI_READER_STR},
     {"locations": [(0, 0), (0, 1000), (0, 2000), (0, 3000)]},
 ]
 
@@ -248,7 +248,7 @@ else:
     TEST_CASE_WSI_2_READER = []
 TEST_CASE_WSI_3_READER = [
     FILE_PATH,
-    {"patch_size": (1000, 1000), "overlap": 0.0, "reader": WSIReader, "reader_kwargs": dict(backend=WSI_READER_STR)},
+    {"patch_size": (1000, 1000), "overlap": 0.0, "reader": WSIReader, "backend": WSI_READER_STR},
     {"locations": [(0, 0), (0, 1000), (0, 2000), (0, 3000)]},
 ]
 TEST_CASE_WSI_4_READER = [
@@ -258,7 +258,7 @@ TEST_CASE_WSI_4_READER = [
 ]
 TEST_CASE_WSI_5_READER = [
     FILE_PATH,
-    {"patch_size": (1000, 1000), "overlap": 0.0, "patch_level": 1, "reader": WSI_READER_STR},
+    {"patch_size": (1000, 1000), "overlap": 0.0, "level": 1, "reader": WSI_READER_STR},
     {"locations": [(0, 0), (0, 1000), (0, 2000), (0, 3000)]},
 ]
 
