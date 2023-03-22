@@ -23,8 +23,8 @@ import numpy as np
 
 import monai
 from monai.config import NdarrayOrTensor
-from monai.transforms.traits import ThreadUnsafe
 from monai.transforms.inverse import InvertibleTransform
+from monai.transforms.traits import ThreadUnsafe
 
 # For backwards compatibility (so this still works: from monai.transforms.compose import MapTransform)
 from monai.transforms.transform import (  # noqa: F401
@@ -183,15 +183,15 @@ class Compose(Randomizable, InvertibleTransform):
 
     @classmethod
     def execute(
-            cls,
-            input_: NdarrayOrTensor,
-            transforms: Sequence[Any],
-            map_items: bool = True,
-            unpack_items: bool = False,
-            log_stats: bool = False,
-            start: int = 0,
-            end: int | None = None,
-            threading: bool = False
+        cls,
+        input_: NdarrayOrTensor,
+        transforms: Sequence[Any],
+        map_items: bool = True,
+        unpack_items: bool = False,
+        log_stats: bool = False,
+        start: int = 0,
+        end: int | None = None,
+        threading: bool = False,
     ):
         end_ = len(transforms) if end is None else None
         if start > end_:
@@ -206,13 +206,19 @@ class Compose(Randomizable, InvertibleTransform):
         for _transform in transforms[start:end]:
             if threading:
                 _transform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
-            input_ = apply_transform(_transform, input_, map_items,  unpack_items,  log_stats)
+            input_ = apply_transform(_transform, input_, map_items, unpack_items, log_stats)
         return input_
 
     def __call__(self, input_, start=0, end=None, threading=False):
-        return Compose.execute(input_, self.transforms,
-                               map_items=self.map_items, unpack_items=self.unpack_items,
-                               start=start, end=end, threading=threading)
+        return Compose.execute(
+            input_,
+            self.transforms,
+            map_items=self.map_items,
+            unpack_items=self.unpack_items,
+            start=start,
+            end=end,
+            threading=threading,
+        )
 
     def inverse(self, data):
         invertible_transforms = [t for t in self.flatten().transforms if isinstance(t, InvertibleTransform)]
@@ -298,9 +304,15 @@ class OneOf(Compose):
         index = self.R.multinomial(1, self.weights).argmax()
         _transform = self.transforms[index]
 
-        data = Compose.execute(data, [_transform],
-                               map_items=self.map_items, unpack_items=self.unpack_items,
-                               start=start, end=end, threading=threading)
+        data = Compose.execute(
+            data,
+            [_transform],
+            map_items=self.map_items,
+            unpack_items=self.unpack_items,
+            start=start,
+            end=end,
+            threading=threading,
+        )
 
         # if the data is a mapping (dictionary), append the OneOf transform to the end
         if isinstance(data, monai.data.MetaTensor):
@@ -366,9 +378,15 @@ class RandomOrder(Compose):
         num = len(self.transforms)
         applied_order = self.R.permutation(range(num))
 
-        input_ = Compose.execute(input_, [self.transforms[ind] for ind in applied_order],
-                                 map_items=self.map_items, unpack_items=self.unpack_items,
-                                 start=start, end=end, threading=threading)
+        input_ = Compose.execute(
+            input_,
+            [self.transforms[ind] for ind in applied_order],
+            map_items=self.map_items,
+            unpack_items=self.unpack_items,
+            start=start,
+            end=end,
+            threading=threading,
+        )
 
         # if the data is a mapping (dictionary), append the RandomOrder transform to the end
         if isinstance(input_, monai.data.MetaTensor):
