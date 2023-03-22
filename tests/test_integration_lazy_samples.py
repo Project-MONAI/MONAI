@@ -35,6 +35,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
     train_files = [{"img": img, "seg": seg} for img, seg in zip(images[:20], segs[:20])]
 
     # define transforms for image and segmentation
+    lazy_kwargs = dict(mode=("bilinear", 0), padding_mode=("border", "nearest"), dtype=(torch.float32, torch.uint8))
     train_transforms = mt.Compose(
         [
             mt.LoadImaged(keys=["img", "seg"], reader=readers[0], image_only=True),
@@ -53,15 +54,13 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
             mt.RandCropByPosNegLabeld(
                 keys=["img", "seg"], label_key="seg", spatial_size=[76, 82, 80], pos=1, neg=1, num_samples=4
             ),
-            mt.RandRotate90d(keys=["img", "seg"], prob=0.8, spatial_axes=[0, 2]),
+            mt.RandRotate90d(keys=["img", "seg"], prob=0.8, spatial_axes=(0, 2)),
             mt.ResizeWithPadOrCropD(keys=["img", "seg"], spatial_size=[80, 72, 80]),
             mt.Rotated(keys=["img", "seg"], angle=[np.pi / 2, np.pi / 2, 0], mode="nearest", keep_size=False),
         ],
         lazy_evaluation=lazy,
-        mode=("bilinear", 0),
-        padding_mode=("border", "nearest"),
-        lazy_keys=("img", "seg"),
-        lazy_dtype=(torch.float32, torch.uint8),
+        overrides=lazy_kwargs,
+        override_keys=("img", "seg"),
     )
 
     # create a training data loader

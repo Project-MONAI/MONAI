@@ -470,6 +470,14 @@ class MetaTensor(MetaObj, torch.Tensor):
             return [affine_to_spacing(a) for a in self.affine]
         return affine_to_spacing(self.affine)
 
+    def has_pending_operations(self):
+        """
+        Determine whether there are pending operations.
+        Returns:
+            True if there are pending operations; False if not
+        """
+        return self.pending_operations is not None and len(self.pending_operations) > 0
+
     def peek_pending_shape(self):
         """
         Get the currently expected spatial shape as if all the pending operations are executed.

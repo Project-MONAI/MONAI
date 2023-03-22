@@ -33,21 +33,19 @@ from monai.transforms.transform import (  # noqa: F401
     Transform,
     apply_transform,
 )
-from monai.utils import MAX_SEED, GridSampleMode, GridSamplePadMode, TraceKeys, ensure_tuple, ensure_tuple_rep, get_seed
+from monai.utils import MAX_SEED, TraceKeys, ensure_tuple, get_seed
 
 __all__ = ["Compose", "OneOf", "RandomOrder"]
 
+from monai.utils.misc import to_tuple_of_dictionaries
 
-def _eval_lazy_stack(
+
+def _evaluate_with_overrides(
     data,
     upcoming,
     lazy_evaluation: bool | None = False,
-    mode=GridSampleMode.BILINEAR,
-    padding_mode=GridSamplePadMode.BORDER,
-    keys: str | None = None,
-    dtype=None,
-    device=None,
-    align_corners: bool = False,
+    overrides: dict | None = None,
+    override_keys: Sequence[str] | None = None,
 ):
     """
     Given the upcoming transform ``upcoming``, if lazy_resample is True, go through the MetaTensors and
@@ -55,37 +53,28 @@ def _eval_lazy_stack(
     """
     if not lazy_evaluation:
         return data  # eager evaluation
+    overrides = (overrides or {}).copy()
     if isinstance(data, monai.data.MetaTensor):
-        if (data.pending_operations and len(data.pending_operations) > 0) and (
-            (isinstance(upcoming, (mt.Identityd, mt.Identity))) or upcoming is None
-        ):
+        if data.has_pending_operations() and ((isinstance(upcoming, (mt.Identityd, mt.Identity))) or upcoming is None):
+            device = overrides.pop("device", None)
             if device is not None:
                 data = mt.EnsureType(device=device)(data)
-            data, _ = mt.apply_transforms(
-                data, mode=mode, padding_mode=padding_mode, dtype=dtype, align_corners=align_corners
-            )
+            data, _ = mt.apply_transforms(data, None, overrides=overrides)
         return data
+    override_keys = ensure_tuple(override_keys)
     if isinstance(data, dict):
-        _mode = ensure_tuple_rep(mode, len(keys))  # type: ignore
-        _padding_mode = ensure_tuple_rep(padding_mode, len(keys))  # type: ignore
-        _dtype = ensure_tuple_rep(dtype, len(keys))  # type: ignore
-        _device = ensure_tuple_rep(device, len(keys))  # type: ignore
-        _align_corners = ensure_tuple_rep(align_corners, len(keys))  # type: ignore
         if isinstance(upcoming, MapTransform):
-            _keys = [k if k in upcoming.keys and k in data else None for k in keys]  # type: ignore
+            _keys = [k if k in upcoming.keys and k in data else None for k in override_keys]  # type: ignore
         else:
-            _keys = [k if k in data else None for k in keys]  # type: ignore
-        for k, m, p, dt, dve, ac in zip(_keys, _mode, _padding_mode, _dtype, _device, _align_corners):
+            _keys = [k if k in data else None for k in override_keys]  # type: ignore
+        # generate a list of dictionaries with the appropriate override value per key
+        dict_overrides = to_tuple_of_dictionaries(overrides, _keys)
+        for k, ov in zip(_keys, dict_overrides):
             if k is not None:
-                data[k] = _eval_lazy_stack(
-                    data[k], upcoming, lazy_evaluation, mode=m, padding_mode=p, dtype=dt, device=dve, align_corners=ac
-                )
+                data[k] = _evaluate_with_overrides(data[k], upcoming, lazy_evaluation, ov)
         return data
     if isinstance(data, (list, tuple)):
-        return [
-            _eval_lazy_stack(v, upcoming, lazy_evaluation, mode, padding_mode, keys, dtype, device, align_corners)
-            for v in data
-        ]
+        return [_evaluate_with_overrides(v, upcoming, lazy_evaluation, overrides, override_keys) for v in data]
     return data
 
 
@@ -166,7 +155,18 @@ class Compose(Randomizable, InvertibleTransform):
         log_stats: whether to log the detailed information of data and applied transform when error happened,
             for NumPy array and PyTorch Tensor, log the data shape and value range,
             for other metadata, log the values directly. default to `False`.
-
+        lazy_evaluation: whether to enable lazy evaluation for lazy transforms. If True, all lazy transforms will
+            be executed by accumulating changes and resampling as few times as possible. If False, transforms will be
+            carried out on a transform by transform basis.
+        overrides: this optional parameter allows you to specify a dictionary of parameters that should be overridden
+            when executing a pipeline. These each parameter that is compatible with a given transform is then applied
+            to that transform before it is executed. Note that overrides are currently only applied when lazy_evaluation
+            is True. If lazy_evaluation is False they are ignored.
+            currently supported args are:
+            {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``}, please see also
+            :py:func:`monai.transforms.lazy.apply_transforms` for more details.
+        override_keys: this optional parameter specifies the keys to which ``overrides`` are to be applied. If
+            ``overrides`` is set, ``override_keys`` must also be set.
     """
 
     def __init__(
@@ -176,11 +176,8 @@ class Compose(Randomizable, InvertibleTransform):
         unpack_items: bool = False,
         log_stats: bool = False,
         lazy_evaluation: bool | None = None,
-        mode=GridSampleMode.BILINEAR,
-        padding_mode=GridSamplePadMode.BORDER,
-        lazy_keys=None,
-        lazy_dtype=None,
-        lazy_device=None,
+        overrides: dict | None = None,
+        override_keys: Sequence[str] | None = None,
     ) -> None:
         if transforms is None:
             transforms = []
@@ -191,11 +188,9 @@ class Compose(Randomizable, InvertibleTransform):
         self.set_random_state(seed=get_seed())
 
         self.lazy_evaluation = lazy_evaluation
-        self.mode = mode
-        self.padding_mode = padding_mode
-        self.lazy_keys = lazy_keys
-        self.lazy_dtype = lazy_dtype
-        self.lazy_device = lazy_device
+        self.overrides = overrides
+        self.override_keys = override_keys
+
         if self.lazy_evaluation is not None:
             for t in self.flatten().transforms:  # TODO: test Compose of Compose/OneOf
                 if isinstance(t, LazyTransform):
@@ -241,25 +236,28 @@ class Compose(Randomizable, InvertibleTransform):
         """Return number of transformations."""
         return len(self.flatten().transforms)
 
-    def lazy_config(self):
-        """Return the lazy config to be passed to eval_lazy_stack."""
-        return {
-            "lazy_evaluation": self.lazy_evaluation,
-            "mode": self.mode,
-            "padding_mode": self.padding_mode,
-            "keys": self.lazy_keys,
-            "dtype": self.lazy_dtype,
-            "device": self.lazy_device,
-        }
+    def evaluate_with_overrides(self, input_, upcoming_xform):
+        """
+        Args:
+            input_: input data to be transformed.
+            upcoming_xform: a transform used to determine whether to evaluate with override
+        """
+        if self.overrides is None:
+            return input_
 
-    def eval_lazy_stack(self, input_, upcoming_xform):
-        return _eval_lazy_stack(input_, upcoming_xform, **self.lazy_config())
+        return _evaluate_with_overrides(
+            input_,
+            upcoming_xform,
+            lazy_evaluation=self.lazy_evaluation,
+            overrides=self.overrides,
+            override_keys=self.override_keys,
+        )
 
     def __call__(self, input_):
         for _transform in self.transforms:
-            input_ = self.eval_lazy_stack(input_, _transform)
+            input_ = self.evaluate_with_overrides(input_, _transform)
             input_ = apply_transform(_transform, input_, self.map_items, self.unpack_items, self.log_stats)
-        input_ = self.eval_lazy_stack(input_, None)
+        input_ = self.evaluate_with_overrides(input_, None)
         return input_
 
     def inverse(self, data):
@@ -289,7 +287,18 @@ class OneOf(Compose):
         log_stats: whether to log the detailed information of data and applied transform when error happened,
             for NumPy array and PyTorch Tensor, log the data shape and value range,
             for other metadata, log the values directly. default to `False`.
-
+        lazy_evaluation: whether to enable lazy evaluation for lazy transforms. If True, all lazy transforms will
+            be executed by accumulating changes and resampling as few times as possible. If False, transforms will be
+            carried out on a transform by transform basis.
+        overrides: this optional parameter allows you to specify a dictionary of parameters that should be overridden
+            when executing a pipeline. These each parameter that is compatible with a given transform is then applied
+            to that transform before it is executed. Note that overrides are currently only applied when lazy_evaluation
+            is True. If lazy_evaluation is False they are ignored.
+            currently supported args are:
+            {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``}, please see also
+            :py:func:`monai.transforms.lazy.apply_transforms` for more details.
+        override_keys: this optional parameter specifies the keys to which ``overrides`` are to be applied. If
+            ``overrides`` is set, ``override_keys`` must also be set.
     """
 
     def __init__(
@@ -299,8 +308,11 @@ class OneOf(Compose):
         map_items: bool = True,
         unpack_items: bool = False,
         log_stats: bool = False,
+        lazy_evaluation: bool | None = None,
+        overrides: dict | None = None,
+        override_keys: Sequence[str] | None = None,
     ) -> None:
-        super().__init__(transforms, map_items, unpack_items, log_stats)
+        super().__init__(transforms, map_items, unpack_items, log_stats, lazy_evaluation, overrides, override_keys)
         if len(self.transforms) == 0:
             weights = []
         elif weights is None or isinstance(weights, float):
@@ -391,7 +403,18 @@ class RandomOrder(Compose):
         log_stats: whether to log the detailed information of data and applied transform when error happened,
             for NumPy array and PyTorch Tensor, log the data shape and value range,
             for other metadata, log the values directly. default to `False`.
-
+        lazy_evaluation: whether to enable lazy evaluation for lazy transforms. If True, all lazy transforms will
+            be executed by accumulating changes and resampling as few times as possible. If False, transforms will be
+            carried out on a transform by transform basis.
+        overrides: this optional parameter allows you to specify a dictionary of parameters that should be overridden
+            when executing a pipeline. These each parameter that is compatible with a given transform is then applied
+            to that transform before it is executed. Note that overrides are currently only applied when lazy_evaluation
+            is True. If lazy_evaluation is False they are ignored.
+            currently supported args are:
+            {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``}, please see also
+            :py:func:`monai.transforms.lazy.apply_transforms` for more details.
+        override_keys: this optional parameter specifies the keys to which ``overrides`` are to be applied. If
+            ``overrides`` is set, ``override_keys`` must also be set.
     """
 
     def __init__(
@@ -400,8 +423,11 @@ class RandomOrder(Compose):
         map_items: bool = True,
         unpack_items: bool = False,
         log_stats: bool = False,
+        lazy_evaluation: bool | None = None,
+        overrides: dict | None = None,
+        override_keys: Sequence[str] | None = None,
     ) -> None:
-        super().__init__(transforms, map_items, unpack_items, log_stats)
+        super().__init__(transforms, map_items, unpack_items, log_stats, lazy_evaluation, overrides, override_keys)
 
     def __call__(self, input_):
         if len(self.transforms) == 0:
