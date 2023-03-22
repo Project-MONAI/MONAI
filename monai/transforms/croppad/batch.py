@@ -117,7 +117,7 @@ class PadListDataCollate(InvertibleTransform):
     @staticmethod
     def inverse(data: dict) -> dict[Hashable, np.ndarray]:
         if not isinstance(data, Mapping):
-            raise RuntimeError("Inverse can only currently be applied on dictionaries.")
+            raise RuntimeError(f"Inverse can only currently be applied on dictionaries, got type {type(data)}.")
 
         d = dict(data)
         for key in d:

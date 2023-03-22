@@ -25,7 +25,7 @@ from monai.data.meta_obj import MetaObj, get_track_meta
 from monai.data.utils import affine_to_spacing, decollate_batch, list_data_collate, remove_extra_metadata
 from monai.utils import look_up_option
 from monai.utils.enums import LazyAttr, MetaKeys, PostFix, SpaceKeys
-from monai.utils.type_conversion import convert_data_type, convert_to_numpy, convert_to_tensor
+from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, convert_to_numpy, convert_to_tensor
 
 __all__ = ["MetaTensor"]
 
@@ -461,7 +461,7 @@ class MetaTensor(MetaObj, torch.Tensor):
     @affine.setter
     def affine(self, d: NdarrayTensor) -> None:
         """Set the affine."""
-        self.meta[MetaKeys.AFFINE] = torch.as_tensor(d, device=torch.device("cpu"))
+        self.meta[MetaKeys.AFFINE] = torch.as_tensor(d, device=torch.device("cpu"), dtype=torch.float64)
 
     @property
     def pixdim(self):
@@ -471,7 +471,10 @@ class MetaTensor(MetaObj, torch.Tensor):
         return affine_to_spacing(self.affine)
 
     def peek_pending_shape(self):
-        """Get the currently expected spatial shape as if all the pending operations are executed."""
+        """
+        Get the currently expected spatial shape as if all the pending operations are executed.
+        For tensors that have more than 3 spatial dimensions, only the shapes of the top 3 dimensions will be returned.
+        """
         res = None
         if self.pending_operations:
             res = self.pending_operations[-1].get(LazyAttr.SHAPE, None)
@@ -479,10 +482,22 @@ class MetaTensor(MetaObj, torch.Tensor):
         return tuple(convert_to_numpy(self.shape, wrap_sequence=True).tolist()[1:]) if res is None else res
 
     def peek_pending_affine(self):
-        res = None
-        if self.pending_operations:
-            res = self.pending_operations[-1].get(LazyAttr.AFFINE, None)
-        return self.affine if res is None else res
+        res = self.affine
+        r = len(res) - 1
+        if r not in (2, 3):
+            warnings.warn(f"Only 2d and 3d affine are supported, got {r}d input.")
+        for p in self.pending_operations:
+            next_matrix = convert_to_tensor(p.get(LazyAttr.AFFINE), dtype=torch.float64)
+            if next_matrix is None:
+                continue
+            res = convert_to_dst_type(res, next_matrix)[0]
+            next_matrix = monai.data.utils.to_affine_nd(r, next_matrix)
+            res = monai.transforms.lazy.utils.combine_transforms(res, next_matrix)
+        return res
+
+    def peek_pending_rank(self):
+        a = self.pending_operations[-1].get(LazyAttr.AFFINE, None) if self.pending_operations else self.affine
+        return 1 if a is None else int(max(1, len(a) - 1))
 
     def new_empty(self, size, dtype=None, device=None, requires_grad=False):
         """
@@ -554,17 +569,19 @@ class MetaTensor(MetaObj, torch.Tensor):
 
     def __repr__(self):
         """
-        Prints a representation of the tensor identical to ``torch.Tensor.__repr__``.
+        Prints a representation of the tensor.
+        Prepends "meta" to ``torch.Tensor.__repr__``.
         Use ``print_verbose`` for associated metadata.
         """
-        return self.as_tensor().__repr__()
+        return f"meta{self.as_tensor().__repr__()}"
 
     def __str__(self):
         """
-        Prints a representation of the tensor identical to ``torch.Tensor.__str__``.
+        Prints a representation of the tensor.
+        Prepends "meta" to ``torch.Tensor.__str__``.
         Use ``print_verbose`` for associated metadata.
         """
-        return str(self.as_tensor())
+        return f"meta{str(self.as_tensor())}"
 
     def print_verbose(self) -> None:
         """Verbose print with meta data."""

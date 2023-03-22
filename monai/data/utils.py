@@ -94,6 +94,7 @@ __all__ = [
     "remove_extra_metadata",
     "get_extra_metadata_keys",
     "PICKLE_KEY_SUFFIX",
+    "is_no_channel",
 ]
 
 # module to be used by `torch.save`
@@ -666,7 +667,7 @@ def worker_init_fn(worker_id: int) -> None:
 
     """
     worker_info = torch.utils.data.get_worker_info()
-    set_rnd(worker_info.dataset, seed=worker_info.seed)
+    set_rnd(worker_info.dataset, seed=worker_info.seed)  # type: ignore[union-attr]
 
 
 def set_rnd(obj, seed: int) -> int:
@@ -874,15 +875,14 @@ def compute_shape_offset(
     in_coords = [(-0.5, dim - 0.5) if scale_extent else (0.0, dim - 1.0) for dim in shape]
     corners: np.ndarray = np.asarray(np.meshgrid(*in_coords, indexing="ij")).reshape((len(shape), -1))
     corners = np.concatenate((corners, np.ones_like(corners[:1])))
-    corners = in_affine_ @ corners
     try:
-        inv_mat = np.linalg.inv(out_affine_)
+        corners_out = np.linalg.solve(out_affine_, in_affine_) @ corners
     except np.linalg.LinAlgError as e:
         raise ValueError(f"Affine {out_affine_} is not invertible") from e
-    corners_out = inv_mat @ corners
+    corners = in_affine_ @ corners
+    all_dist = corners_out[:-1].copy()
     corners_out = corners_out[:-1] / corners_out[-1]
     out_shape = np.round(corners_out.ptp(axis=1)) if scale_extent else np.round(corners_out.ptp(axis=1) + 1.0)
-    all_dist = inv_mat[:-1, :-1] @ corners[:-1, :]
     offset = None
     for i in range(corners.shape[1]):
         min_corner = np.min(all_dist - all_dist[:, i : i + 1], 1)
@@ -1529,3 +1529,14 @@ def get_extra_metadata_keys() -> list[str]:
     # ]
 
     return keys
+
+
+def is_no_channel(val) -> bool:
+    """Returns whether `val` indicates "no_channel", for MetaKeys.ORIGINAL_CHANNEL_DIM."""
+    if isinstance(val, torch.Tensor):
+        return bool(torch.isnan(val))
+    if isinstance(val, str):
+        return val == "no_channel"
+    if np.isscalar(val):
+        return bool(np.isnan(val))
+    return val is None

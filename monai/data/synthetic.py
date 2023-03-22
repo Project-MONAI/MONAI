@@ -54,12 +54,12 @@ def create_test_image_2d(
     """
 
     if rad_max <= rad_min:
-        raise ValueError("`rad_min` should be less than `rad_max`.")
+        raise ValueError(f"`rad_min` {rad_min} should be less than `rad_max` {rad_max}.")
     if rad_min < 1:
-        raise ValueError("`rad_min` should be no less than 1.")
+        raise ValueError(f"`rad_min` {rad_min} should be no less than 1.")
     min_size = min(height, width)
     if min_size <= 2 * rad_max:
-        raise ValueError("the minimal size of the image should be larger than `2 * rad_max`.")
+        raise ValueError(f"the minimal size {min_size} of the image should be larger than `2 * rad_max` 2x{rad_max}.")
 
     image = np.zeros((height, width))
     rs: np.random.RandomState = np.random.random.__self__ if random_state is None else random_state  # type: ignore
@@ -131,12 +131,12 @@ def create_test_image_3d(
     """
 
     if rad_max <= rad_min:
-        raise ValueError("`rad_min` should be less than `rad_max`.")
+        raise ValueError(f"`rad_min` {rad_min} should be less than `rad_max` {rad_max}.")
     if rad_min < 1:
-        raise ValueError("`rad_min` should be no less than 1.")
+        raise ValueError("f`rad_min` {rad_min} should be no less than 1.")
     min_size = min(height, width, depth)
     if min_size <= 2 * rad_max:
-        raise ValueError("the minimal size of the image should be larger than `2 * rad_max`.")
+        raise ValueError(f"the minimal size {min_size} of the image should be larger than `2 * rad_max` 2x{rad_max}.")
 
     image = np.zeros((height, width, depth))
     rs: np.random.RandomState = np.random.random.__self__ if random_state is None else random_state  # type: ignore

@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.7', '3.8', '3.9', '3.10']
+        python-version: ['3.7', '3.8', '3.9', '3.10', '3.11']
     steps:
     - uses: actions/checkout@v3
       with:
@@ -65,7 +65,7 @@ jobs:
 
     - if: matrix.python-version == '3.8' && startsWith(github.ref, 'refs/tags/')
       name: Upload artifacts
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v3
       with:
         name: dist
         path: dist/
@@ -102,10 +102,11 @@ jobs:
       - shell: bash
         run: |
           git describe
+          python -m pip install --user --upgrade setuptools wheel
           python setup.py build
           cat build/lib/monai/_version.py
       - name: Upload version
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: _version.py
           path: build/lib/monai/_version.py
@@ -122,7 +123,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Download version
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: _version.py
       - name: Set tag
@@ -134,13 +135,6 @@ jobs:
         run: |
           echo "$RELEASE_VERSION"
           cat _version.py
-      - if: startsWith(github.ref, 'refs/tags/')
-        name: Install latest docker
-        run: |
-          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-          sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu  $(lsb_release -cs)  stable"
-          sudo apt-get update
-          sudo apt-get install docker-ce
       - if: startsWith(github.ref, 'refs/tags/')
         name: build with the tag
         env:

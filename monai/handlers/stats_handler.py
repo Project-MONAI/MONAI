@@ -18,8 +18,9 @@ from typing import TYPE_CHECKING, Any
 
 import torch
 
+from monai.apps import get_logger
 from monai.config import IgniteInfo
-from monai.utils import is_scalar, min_version, optional_import
+from monai.utils import deprecated_arg_default, is_scalar, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:
@@ -39,11 +40,11 @@ class StatsHandler:
     It can be used for any Ignite Engine(trainer, validator and evaluator).
     And it can support logging for epoch level and iteration level with pre-defined loggers.
 
-    Note that if `name` arg is None, will leverage `engine.logger` as default logger directly, otherwise,
-    get logger from `logging.getLogger(name)`, we can setup a logger outside first with the same `name`.
-    As the default log level of `RootLogger` is `WARNING`, may need to call
-    `logging.basicConfig(stream=sys.stdout, level=logging.INFO)` before running this handler to enable
-    the stats logging.
+    Note that if ``name`` is None, this class will leverage `engine.logger` as the logger, otherwise,
+    ``logging.getLogger(name)`` is used. In both cases, it's important to make sure that the logging level is at least
+    ``INFO``. To change the level of logging, please call ``import ignite; ignite.utils.setup_logger(name)``
+    (when ``name`` is not None) or ``engine.logger = ignite.utils.setup_logger(engine.logger.name, reset=True)``
+    (when ``name`` is None) before running the engine with this handler attached.
 
     Default behaviors:
         - When EPOCH_COMPLETED, logs ``engine.state.metrics`` using ``self.logger``.
@@ -52,22 +53,24 @@ class StatsHandler:
 
     Usage example::
 
-        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+        import ignite
+        import monai
 
-        trainer = SupervisedTrainer(...)
-        StatsHandler(name="train_stats").attach(trainer)
+        trainer = ignite.engine.Engine(lambda x, y: [0.0])  # an example trainer
+        monai.handlers.StatsHandler(name="train_stats").attach(trainer)
 
-        trainer.run()
+        trainer.run(range(3), max_epochs=4)
 
     More details of example is available in the tutorial:
     https://github.com/Project-MONAI/tutorials/blob/master/modules/engines/unet_training_dict.py.
 
     """
 
+    @deprecated_arg_default("name", old_default=None, new_default="StatsHandler", since="1.1", replaced="1.3")
     def __init__(
         self,
-        iteration_log: bool = True,
-        epoch_log: bool = True,
+        iteration_log: bool | Callable[[Engine, int], bool] = True,
+        epoch_log: bool | Callable[[Engine, int], bool] = True,
         epoch_print_logger: Callable[[Engine], Any] | None = None,
         iteration_print_logger: Callable[[Engine], Any] | None = None,
         output_transform: Callable = lambda x: x[0],
@@ -80,8 +83,14 @@ class StatsHandler:
         """
 
         Args:
-            iteration_log: whether to log data when iteration completed, default to `True`.
-            epoch_log: whether to log data when epoch completed, default to `True`.
+            iteration_log: whether to log data when iteration completed, default to `True`. ``iteration_log`` can
+                be also a function and it will be interpreted as an event filter
+                (see https://pytorch.org/ignite/generated/ignite.engine.events.Events.html for details).
+                Event filter function accepts as input engine and event value (iteration) and should return True/False.
+                Event filtering can be helpful to customize iteration logging frequency.
+            epoch_log: whether to log data when epoch completed, default to `True`. ``epoch_log`` can be
+                also a function and it will be interpreted as an event filter. See ``iteration_log`` argument for more
+                details.
             epoch_print_logger: customized callable printer for epoch level logging.
                 Must accept parameter "engine", use default printer if None.
             iteration_print_logger: customized callable printer for iteration level logging.
@@ -116,7 +125,7 @@ class StatsHandler:
         self.state_attributes = state_attributes
         self.tag_name = tag_name
         self.key_var_format = key_var_format
-        self.logger = logging.getLogger(name)  # if `name` is None, will default to `engine.logger` when attached
+        self.logger = get_logger(name)  # type: ignore
         self.name = name
 
     def attach(self, engine: Engine) -> None:
@@ -129,15 +138,25 @@ class StatsHandler:
         """
         if self.name is None:
             self.logger = engine.logger
-        if self.logger.getEffectiveLevel() > logging.INFO or logging.root.getEffectiveLevel() > logging.INFO:
+        if self.logger.getEffectiveLevel() > logging.INFO:
+            suggested = f"\n\nimport ignite\nignite.utils.setup_logger('{self.logger.name}', reset=True)"
+            if self.logger.name != engine.logger.name:
+                suggested += f"\nignite.utils.setup_logger('{engine.logger.name}', reset=True)"
+            suggested += "\n\n"
             warnings.warn(
-                "the effective log level of engine logger or RootLogger is higher than INFO, may not record log,"
-                " please call `logging.basicConfig(stream=sys.stdout, level=logging.INFO)` to enable it."
+                f"the effective log level of {self.logger.name} is higher than INFO, StatsHandler may not output logs,"
+                f"\nplease use the following code before running the engine to enable it: {suggested}"
             )
         if self.iteration_log and not engine.has_event_handler(self.iteration_completed, Events.ITERATION_COMPLETED):
-            engine.add_event_handler(Events.ITERATION_COMPLETED, self.iteration_completed)
+            event = Events.ITERATION_COMPLETED
+            if callable(self.iteration_log):  # substitute event with new one using filter callable
+                event = event(event_filter=self.iteration_log)
+            engine.add_event_handler(event, self.iteration_completed)
         if self.epoch_log and not engine.has_event_handler(self.epoch_completed, Events.EPOCH_COMPLETED):
-            engine.add_event_handler(Events.EPOCH_COMPLETED, self.epoch_completed)
+            event = Events.EPOCH_COMPLETED
+            if callable(self.epoch_log):  # substitute event with new one using filter callable
+                event = event(event_filter=self.epoch_log)
+            engine.add_event_handler(event, self.epoch_completed)
         if not engine.has_event_handler(self.exception_raised, Events.EXCEPTION_RAISED):
             engine.add_event_handler(Events.EXCEPTION_RAISED, self.exception_raised)
 

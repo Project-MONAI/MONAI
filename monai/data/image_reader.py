@@ -27,6 +27,7 @@ from monai.config import DtypeLike, KeysCollection, PathLike
 from monai.data.utils import (
     affine_to_spacing,
     correct_nifti_header_if_necessary,
+    is_no_channel,
     is_supported_format,
     orientation_ras_lps,
 )
@@ -61,7 +62,6 @@ else:
     nrrd, has_nrrd = optional_import("nrrd", allow_namespace_pkg=True)
 
 OpenSlide, _ = optional_import("openslide", name="OpenSlide")
-CuImage, _ = optional_import("cucim", name="CuImage")
 TiffFile, _ = optional_import("tifffile", name="TiffFile")
 
 __all__ = [
@@ -162,7 +162,7 @@ def _copy_compatible_dict(from_dict: dict, to_dict: dict):
 def _stack_images(image_list: list, meta_dict: dict):
     if len(image_list) <= 1:
         return image_list[0]
-    if meta_dict.get(MetaKeys.ORIGINAL_CHANNEL_DIM, None) not in ("no_channel", None):
+    if not is_no_channel(meta_dict.get(MetaKeys.ORIGINAL_CHANNEL_DIM, None)):
         channel_dim = int(meta_dict[MetaKeys.ORIGINAL_CHANNEL_DIM])
         return np.concatenate(image_list, axis=channel_dim)
     # stack at a new first dim as the channel dim, if `'original_channel_dim'` is unspecified
@@ -204,7 +204,7 @@ class ITKReader(ImageReader):
 
     def __init__(
         self,
-        channel_dim: int | None = None,
+        channel_dim: str | int | None = None,
         series_name: str = "",
         reverse_indexing: bool = False,
         series_meta: bool = False,
@@ -213,7 +213,7 @@ class ITKReader(ImageReader):
     ):
         super().__init__()
         self.kwargs = kwargs
-        self.channel_dim = channel_dim
+        self.channel_dim = float("nan") if channel_dim == "no_channel" else channel_dim
         self.series_name = series_name
         self.reverse_indexing = reverse_indexing
         self.series_meta = series_meta
@@ -305,7 +305,7 @@ class ITKReader(ImageReader):
             header[MetaKeys.SPATIAL_SHAPE] = self._get_spatial_shape(i)
             if self.channel_dim is None:  # default to "no_channel" or -1
                 header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
-                    "no_channel" if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
+                    float("nan") if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
                 )
             else:
                 header[MetaKeys.ORIGINAL_CHANNEL_DIM] = self.channel_dim
@@ -366,7 +366,7 @@ class ITKReader(ImageReader):
         sr = itk.array_from_matrix(img.GetDirection()).shape[0]
         sr = max(min(sr, 3), 1)
         _size = list(itk.size(img))
-        if self.channel_dim is not None:
+        if isinstance(self.channel_dim, int):
             _size.pop(self.channel_dim)
         return np.asarray(_size[:sr])
 
@@ -435,7 +435,7 @@ class PydicomReader(ImageReader):
 
     def __init__(
         self,
-        channel_dim: int | None = None,
+        channel_dim: str | int | None = None,
         affine_lps_to_ras: bool = True,
         swap_ij: bool = True,
         prune_metadata: bool = True,
@@ -444,7 +444,7 @@ class PydicomReader(ImageReader):
     ):
         super().__init__()
         self.kwargs = kwargs
-        self.channel_dim = channel_dim
+        self.channel_dim = float("nan") if channel_dim == "no_channel" else channel_dim
         self.affine_lps_to_ras = affine_lps_to_ras
         self.swap_ij = swap_ij
         self.prune_metadata = prune_metadata
@@ -629,7 +629,7 @@ class PydicomReader(ImageReader):
             metadata[MetaKeys.AFFINE] = affine.copy()
             if self.channel_dim is None:  # default to "no_channel" or -1
                 metadata[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
-                    "no_channel" if len(data_array.shape) == len(metadata[MetaKeys.SPATIAL_SHAPE]) else -1
+                    float("nan") if len(data_array.shape) == len(metadata[MetaKeys.SPATIAL_SHAPE]) else -1
                 )
             else:
                 metadata[MetaKeys.ORIGINAL_CHANNEL_DIM] = self.channel_dim
@@ -883,14 +883,14 @@ class NibabelReader(ImageReader):
     @deprecated_arg("dtype", since="1.0", msg_suffix="please modify dtype of the returned by ``get_data`` instead.")
     def __init__(
         self,
-        channel_dim: int | None = None,
+        channel_dim: str | int | None = None,
         as_closest_canonical: bool = False,
         squeeze_non_spatial_dims: bool = False,
         dtype: DtypeLike = np.float32,
         **kwargs,
     ):
         super().__init__()
-        self.channel_dim = channel_dim
+        self.channel_dim = float("nan") if channel_dim == "no_channel" else channel_dim
         self.as_closest_canonical = as_closest_canonical
         self.squeeze_non_spatial_dims = squeeze_non_spatial_dims
         self.dtype = dtype  # deprecated
@@ -965,7 +965,7 @@ class NibabelReader(ImageReader):
             img_array.append(data)
             if self.channel_dim is None:  # default to "no_channel" or -1
                 header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
-                    "no_channel" if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
+                    float("nan") if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
                 )
             else:
                 header[MetaKeys.ORIGINAL_CHANNEL_DIM] = self.channel_dim
@@ -1018,8 +1018,8 @@ class NibabelReader(ImageReader):
             dim = np.insert(dim, 0, 3)
         ndim = dim[0]
         size = list(dim[1:])
-        if self.channel_dim is not None:
-            size.pop(self.channel_dim)
+        if not is_no_channel(self.channel_dim):
+            size.pop(int(self.channel_dim))  # type: ignore
         spatial_rank = max(min(ndim, 3), 1)
         return np.asarray(size[:spatial_rank])
 
@@ -1049,12 +1049,12 @@ class NumpyReader(ImageReader):
 
     """
 
-    def __init__(self, npz_keys: KeysCollection | None = None, channel_dim: int | None = None, **kwargs):
+    def __init__(self, npz_keys: KeysCollection | None = None, channel_dim: str | int | None = None, **kwargs):
         super().__init__()
         if npz_keys is not None:
             npz_keys = ensure_tuple(npz_keys)
         self.npz_keys = npz_keys
-        self.channel_dim = channel_dim
+        self.channel_dim = float("nan") if channel_dim == "no_channel" else channel_dim
         self.kwargs = kwargs
 
     def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
@@ -1126,7 +1126,7 @@ class NumpyReader(ImageReader):
                 header[MetaKeys.SPACE] = SpaceKeys.RAS
             img_array.append(i)
             header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
-                self.channel_dim if isinstance(self.channel_dim, int) else "no_channel"
+                self.channel_dim if isinstance(self.channel_dim, int) else float("nan")
             )
             _copy_compatible_dict(header, compatible_meta)
 
@@ -1141,13 +1141,17 @@ class PILReader(ImageReader):
     Args:
         converter: additional function to convert the image data after `read()`.
             for example, use `converter=lambda image: image.convert("LA")` to convert image format.
+        reverse_indexing: whether to swap axis 0 and 1 after loading the array, this is enabled by default,
+            so that output of the reader is consistent with the other readers. Set this option to ``False`` to use
+            the PIL backend's original spatial axes convention.
         kwargs: additional args for `Image.open` API in `read()`, mode details about available args:
             https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.open
     """
 
-    def __init__(self, converter: Callable | None = None, **kwargs):
+    def __init__(self, converter: Callable | None = None, reverse_indexing: bool = True, **kwargs):
         super().__init__()
         self.converter = converter
+        self.reverse_indexing = reverse_indexing
         self.kwargs = kwargs
 
     def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
@@ -1194,8 +1198,8 @@ class PILReader(ImageReader):
         It computes `spatial_shape` and stores it in meta dict.
         When loading a list of files, they are stacked together at a new dimension as the first dimension,
         and the metadata of the first image is used to represent the output metadata.
-        Note that it will swap axis 0 and 1 after loading the array because the `HW` definition in PIL
-        is different from other common medical packages.
+        Note that by default `self.reverse_indexing` is set to ``True``, which swaps axis 0 and 1 after loading
+        the array because the spatial axes definition in PIL is different from other common medical packages.
 
         Args:
             img: a PIL Image object loaded from a file or a list of PIL Image objects.
@@ -1207,10 +1211,10 @@ class PILReader(ImageReader):
         for i in ensure_tuple(img):
             header = self._get_meta_dict(i)
             header[MetaKeys.SPATIAL_SHAPE] = self._get_spatial_shape(i)
-            data = np.moveaxis(np.asarray(i), 0, 1)
+            data = np.moveaxis(np.asarray(i), 0, 1) if self.reverse_indexing else np.asarray(i)
             img_array.append(data)
             header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
-                "no_channel" if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
+                float("nan") if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
             )
             _copy_compatible_dict(header, compatible_meta)
 
@@ -1269,7 +1273,7 @@ class WSIReader(ImageReader):
         if backend == "openslide":
             return OpenSlide
         if backend == "cucim":
-            return CuImage
+            return optional_import("cucim", name="CuImage")[0]
         if backend == "tifffile":
             return TiffFile
         raise ValueError("`backend` should be 'cuCIM', 'OpenSlide' or 'TiffFile'.")
@@ -1518,6 +1522,9 @@ class NrrdReader(ImageReader):
         dtype: dtype of the data array when loading image.
         index_order: Specify whether the returned data array should be in C-order (‘C’) or Fortran-order (‘F’).
             Numpy is usually in C-order, but default on the NRRD header is F
+        affine_lps_to_ras: whether to convert the affine matrix from "LPS" to "RAS". Defaults to ``True``.
+            Set to ``True`` to be consistent with ``NibabelReader``, otherwise the affine matrix is unmodified.
+
         kwargs: additional args for `nrrd.read` API. more details about available args:
             https://github.com/mhe/pynrrd/blob/master/nrrd/reader.py
 
@@ -1525,14 +1532,16 @@ class NrrdReader(ImageReader):
 
     def __init__(
         self,
-        channel_dim: int | None = None,
+        channel_dim: str | int | None = None,
         dtype: np.dtype | type | str | None = np.float32,
         index_order: str = "F",
+        affine_lps_to_ras: bool = True,
         **kwargs,
     ):
-        self.channel_dim = channel_dim
+        self.channel_dim = float("nan") if channel_dim == "no_channel" else channel_dim
         self.dtype = dtype
         self.index_order = index_order
+        self.affine_lps_to_ras = affine_lps_to_ras
         self.kwargs = kwargs
 
     def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
@@ -1586,14 +1595,17 @@ class NrrdReader(ImageReader):
             if self.index_order == "C":
                 header = self._convert_f_to_c_order(header)
             header[MetaKeys.ORIGINAL_AFFINE] = self._get_affine(i)
-            header = self._switch_lps_ras(header)
+
+            if self.affine_lps_to_ras:
+                header = self._switch_lps_ras(header)
+
             header[MetaKeys.AFFINE] = header[MetaKeys.ORIGINAL_AFFINE].copy()
             header[MetaKeys.SPATIAL_SHAPE] = header["sizes"]
             [header.pop(k) for k in ("sizes", "space origin", "space directions")]  # rm duplicated data in header
 
             if self.channel_dim is None:  # default to "no_channel" or -1
                 header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
-                    "no_channel" if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else 0
+                    float("nan") if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else 0
                 )
             else:
                 header[MetaKeys.ORIGINAL_CHANNEL_DIM] = self.channel_dim

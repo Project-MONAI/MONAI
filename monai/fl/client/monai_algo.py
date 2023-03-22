@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import logging
 import os
-import sys
 from collections.abc import Mapping, MutableMapping
 from typing import Any, cast
 
@@ -22,8 +21,9 @@ import torch.distributed as dist
 
 import monai
 from monai.apps.auto3dseg.data_analyzer import DataAnalyzer
+from monai.apps.utils import get_logger
 from monai.auto3dseg import SegSummarizer
-from monai.bundle import DEFAULT_EXP_MGMT_SETTINGS, ConfigComponent, ConfigItem, ConfigParser, patch_bundle_tracking
+from monai.bundle import DEFAULT_EXP_MGMT_SETTINGS, ConfigComponent, ConfigItem, ConfigParser, ConfigWorkflow
 from monai.engines import SupervisedTrainer, Trainer
 from monai.fl.client import ClientAlgo, ClientAlgoStats
 from monai.fl.utils.constants import (
@@ -41,7 +41,7 @@ from monai.networks.utils import copy_model_state, get_state_dict
 from monai.utils import min_version, require_pkg
 from monai.utils.enums import DataStatsKeys
 
-logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(asctime)s - %(message)s")
+logger = get_logger(__name__)
 
 
 def convert_global_weights(global_weights: Mapping, local_var_dict: MutableMapping) -> tuple[MutableMapping, int]:
@@ -116,7 +116,7 @@ class MonaiAlgoStats(ClientAlgoStats):
         data_stats_transform_list: list | None = None,
         histogram_only: bool = False,
     ):
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger = logger
         self.bundle_root = bundle_root
         self.config_train_filename = config_train_filename
         self.config_filters_filename = config_filters_filename
@@ -325,6 +325,7 @@ class MonaiAlgoStats(ClientAlgoStats):
 class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
     """
     Implementation of ``ClientAlgo`` to allow federated learning with MONAI bundle configurations.
+    FIXME: reimplement this class based on the bundle "ConfigWorkflow".
 
     Args:
         bundle_root: path of bundle.
@@ -349,37 +350,13 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         multi_gpu: whether to run MonaiAlgo in a multi-GPU setting; defaults to `False`.
         backend: backend to use for torch.distributed; defaults to "nccl".
         init_method: init_method for torch.distributed; defaults to "env://".
-        tracking: enable the experiment tracking feature at runtime with optionally configurable and extensible.
-            if "mlflow", will add `MLFlowHandler` to the parsed bundle with default logging settings,
-            if other string, treat it as file path to load the logging settings, if `dict`,
-            treat it as logging settings, otherwise, use all the default settings.
+        tracking: if not None, enable the experiment tracking at runtime with optionally configurable and extensible.
+            if "mlflow", will add `MLFlowHandler` to the parsed bundle with default tracking settings,
+            if other string, treat it as file path to load the tracking settings.
+            if `dict`, treat it as tracking settings.
             will patch the target config content with `tracking handlers` and the top-level items of `configs`.
-            example of customized settings:
-
-            .. code-block:: python
-
-                tracking = {
-                    "handlers_id": {
-                        "trainer": {"id": "train#trainer", "handlers": "train#handlers"},
-                        "validator": {"id": "evaluate#evaluator", "handlers": "evaluate#handlers"},
-                        "evaluator": {"id": "evaluator", "handlers": "handlers"},
-                    },
-                    "configs": {
-                        "tracking_uri": "<path>",
-                        "trainer": {
-                            "_target_": "MLFlowHandler",
-                            "tracking_uri": "@tracking_uri",
-                            "iteration_log": True,
-                            "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
-                        },
-                        "validator": {
-                            "_target_": "MLFlowHandler", "tracking_uri": "@tracking_uri", "iteration_log": False,
-                        },
-                        "evaluator": {
-                            "_target_": "MLFlowHandler", "tracking_uri": "@tracking_uri", "iteration_log": False,
-                        },
-                    },
-                },
+            for detailed usage examples, plesae check the tutorial:
+            https://github.com/Project-MONAI/tutorials/blob/main/experiment_management/bundle_integrate_mlflow.ipynb.
 
     """
 
@@ -405,7 +382,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         data_stats_transform_list: list | None = None,
         tracking: str | dict | None = None,
     ):
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger = logger
         if config_evaluate_filename == "default":
             # by default, evaluator needs both training and evaluate to be instantiated.
             config_evaluate_filename = ["configs/train.json", "configs/evaluate.json"]
@@ -513,8 +490,8 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
                 settings_ = DEFAULT_EXP_MGMT_SETTINGS[self.tracking]
             else:
                 settings_ = ConfigParser.load_config_files(self.tracking)
-            patch_bundle_tracking(parser=self.train_parser, settings=settings_)
-            patch_bundle_tracking(parser=self.eval_parser, settings=settings_)
+            ConfigWorkflow.patch_bundle_tracking(parser=self.train_parser, settings=settings_)
+            ConfigWorkflow.patch_bundle_tracking(parser=self.eval_parser, settings=settings_)
 
         # Get trainer, evaluator
         self.trainer = self.train_parser.get_parsed_content(

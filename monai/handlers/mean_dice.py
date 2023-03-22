@@ -48,7 +48,7 @@ class MeanDice(IgniteMetric):
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
         See also:
-            :py:meth:`monai.metrics.meandice.compute_meandice`
+            :py:meth:`monai.metrics.meandice.compute_dice`
         """
         metric_fn = DiceMetric(include_background=include_background, reduction=reduction)
         super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)
