@@ -143,6 +143,12 @@ Tensorboard handlers
     :members:
 
 
+NVFlare stats handlers
+--------------------
+.. autoclass:: FLStatsHandler
+    :members:
+
+
 LR Schedule handler
 -------------------
 .. autoclass:: LrScheduleHandler
