@@ -88,7 +88,8 @@ def check_training_targets(
             if boxes.numel() == 0:
                 raise ValueError(
                     f"Expected target boxes to be a tensor "
-                    f"of shape [N, {2* spatial_dims}], got {boxes.shape}. Please reshape it with boxes = torch.reshape(boxes, [0, {2* spatial_dims}])."
+                    f"of shape [N, {2* spatial_dims}], got {boxes.shape}. "
+                    f"Please reshape it with boxes = torch.reshape(boxes, [0, {2* spatial_dims}])."
                 )
             else:
                 raise ValueError(
