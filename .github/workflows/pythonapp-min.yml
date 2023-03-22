@@ -75,7 +75,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.7', '3.8', '3.9', '3.10', '3.11']
+        python-version: ['3.8', '3.9', '3.10', '3.11']
     timeout-minutes: 40
     steps:
     - uses: actions/checkout@v3
@@ -120,7 +120,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        pytorch-version: ['1.8.2', '1.9.1', '1.10.2', '1.11.0', '1.12.1', 'latest']
+        pytorch-version: ['1.9.1', '1.10.2', '1.11.0', '1.12.1', '1.13', 'latest']
     timeout-minutes: 40
     steps:
     - uses: actions/checkout@v3
@@ -149,16 +149,8 @@ jobs:
         # min. requirements
         if [ ${{ matrix.pytorch-version }} == "latest" ]; then
           python -m pip install torch
-        elif [ ${{ matrix.pytorch-version }} == "1.8.2" ]; then
-          python -m pip install torch==1.8.2 --extra-index-url https://download.pytorch.org/whl/lts/1.8/cpu
-        elif [ ${{ matrix.pytorch-version }} == "1.9.1" ]; then
-          python -m pip install torch==1.9.1
-        elif [ ${{ matrix.pytorch-version }} == "1.10.2" ]; then
-          python -m pip install torch==1.10.2
-        elif [ ${{ matrix.pytorch-version }} == "1.11.0" ]; then
-          python -m pip install torch==1.11.0
-        elif [ ${{ matrix.pytorch-version }} == "1.12.1" ]; then
-          python -m pip install torch==1.12.1
+        else
+          python -m pip install torch==${{ matrix.pytorch-version }}
         fi
         python -m pip install -r requirements-min.txt
         python -m pip list
