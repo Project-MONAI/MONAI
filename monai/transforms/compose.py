@@ -16,11 +16,14 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Callable, Mapping, Sequence
+from copy import deepcopy
 from typing import Any
 
 import numpy as np
 
 import monai
+from monai.config import NdarrayOrTensor
+from monai.transforms.traits import ThreadUnsafe
 from monai.transforms.inverse import InvertibleTransform
 
 # For backwards compatibility (so this still works: from monai.transforms.compose import MapTransform)
@@ -152,6 +155,12 @@ class Compose(Randomizable, InvertibleTransform):
                     f'Transform "{tfm_name}" in Compose not randomized\n{tfm_name}.{type_error}.', RuntimeWarning
                 )
 
+    def get_index_of_first(self, predicate):
+        for i in range(len(self.transforms)):
+            if predicate(self.transforms[i]):
+                return i
+        return None
+
     def flatten(self):
         """Return a Composition with a simple list of transforms, as opposed to any nested Compositions.
 
@@ -172,10 +181,38 @@ class Compose(Randomizable, InvertibleTransform):
         """Return number of transformations."""
         return len(self.flatten().transforms)
 
-    def __call__(self, input_):
-        for _transform in self.transforms:
-            input_ = apply_transform(_transform, input_, self.map_items, self.unpack_items, self.log_stats)
+    @classmethod
+    def execute(
+            cls,
+            input_: NdarrayOrTensor,
+            transforms: Sequence[Any],
+            map_items: bool = True,
+            unpack_items: bool = False,
+            log_stats: bool = False,
+            start: int = 0,
+            end: int | None = None,
+            threading: bool = False
+    ):
+        end_ = len(transforms) if end is None else None
+        if start > end_:
+            raise ValueError(f"'start' ({start})must be less than 'end' ({end_})")
+        if end_ > len(transforms):
+            raise ValueError(f"'end' must be less than or equal to the transform count ({len(transforms)}")
+
+        # no-op if the range is empty
+        if start == end:
+            return input_
+
+        for _transform in transforms[start:end]:
+            if threading:
+                _transform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
+            input_ = apply_transform(_transform, input_, map_items,  unpack_items,  log_stats)
         return input_
+
+    def __call__(self, input_, start=0, end=None, threading=False):
+        return Compose.execute(input_, self.transforms,
+                               map_items=self.map_items, unpack_items=self.unpack_items,
+                               start=start, end=end, threading=threading)
 
     def inverse(self, data):
         invertible_transforms = [t for t in self.flatten().transforms if isinstance(t, InvertibleTransform)]
@@ -254,12 +291,17 @@ class OneOf(Compose):
                 weights.append(w)
         return OneOf(transforms, weights, self.map_items, self.unpack_items)
 
-    def __call__(self, data):
+    def __call__(self, data, start=0, end=None, threading=False):
         if len(self.transforms) == 0:
             return data
+
         index = self.R.multinomial(1, self.weights).argmax()
         _transform = self.transforms[index]
-        data = apply_transform(_transform, data, self.map_items, self.unpack_items, self.log_stats)
+
+        data = Compose.execute(data, [_transform],
+                               map_items=self.map_items, unpack_items=self.unpack_items,
+                               start=start, end=end, threading=threading)
+
         # if the data is a mapping (dictionary), append the OneOf transform to the end
         if isinstance(data, monai.data.MetaTensor):
             self.push_transform(data, extra_info={"index": index})
@@ -318,14 +360,16 @@ class RandomOrder(Compose):
     ) -> None:
         super().__init__(transforms, map_items, unpack_items, log_stats)
 
-    def __call__(self, input_):
+    def __call__(self, input_, start=0, end=None, threading=False):
         if len(self.transforms) == 0:
             return input_
         num = len(self.transforms)
         applied_order = self.R.permutation(range(num))
 
-        for index in applied_order:
-            input_ = apply_transform(self.transforms[index], input_, self.map_items, self.unpack_items, self.log_stats)
+        input_ = Compose.execute(input_, [self.transforms[ind] for ind in applied_order],
+                                 map_items=self.map_items, unpack_items=self.unpack_items,
+                                 start=start, end=end, threading=threading)
+
         # if the data is a mapping (dictionary), append the RandomOrder transform to the end
         if isinstance(input_, monai.data.MetaTensor):
             self.push_transform(input_, extra_info={"applied_order": applied_order})
