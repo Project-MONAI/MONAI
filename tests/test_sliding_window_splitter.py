@@ -308,27 +308,31 @@ def missing_parameter_filter(patch):
     return
 
 
-# invalid overlap: 1.0
+# invalid overlap: float 1.0
 TEST_CASE_ERROR_0 = [TENSOR_4x4, {"patch_size": (2, 2), "overlap": 1.0}, ValueError]
-# invalid overlap: negative
+# invalid overlap: negative float
 TEST_CASE_ERROR_1 = [TENSOR_4x4, {"patch_size": (2, 2), "overlap": -0.1}, ValueError]
+# invalid overlap: negative integer
+TEST_CASE_ERROR_2 = [TENSOR_4x4, {"patch_size": (2, 2), "overlap": -1}, ValueError]
+# invalid overlap: integer larger than patch size
+TEST_CASE_ERROR_3 = [TENSOR_4x4, {"patch_size": (2, 2), "overlap": 3}, ValueError]
 
 # invalid offset: positive and larger than image size
-TEST_CASE_ERROR_2 = [TENSOR_4x4, {"patch_size": (2, 2), "offset": 4}, ValueError]
+TEST_CASE_ERROR_4 = [TENSOR_4x4, {"patch_size": (2, 2), "offset": 4}, ValueError]
 # invalid offset: negative and larger than patch size (in magnitude)
-TEST_CASE_ERROR_3 = [TENSOR_4x4, {"patch_size": (2, 2), "offset": -3, "pad_kwargs": {"mode": "constant"}}, ValueError]
+TEST_CASE_ERROR_5 = [TENSOR_4x4, {"patch_size": (2, 2), "offset": -3, "pad_kwargs": {"mode": "constant"}}, ValueError]
 # invalid offset: negative and no padding
-TEST_CASE_ERROR_4 = [TENSOR_4x4, {"patch_size": (2, 2), "offset": -1}, ValueError]
+TEST_CASE_ERROR_6 = [TENSOR_4x4, {"patch_size": (2, 2), "offset": -1}, ValueError]
 
 # invalid filter function: with more than two positional parameters
-TEST_CASE_ERROR_5 = [TENSOR_4x4, {"patch_size": (2, 2), "filter_fn": extra_parameter_filter}, ValueError]
+TEST_CASE_ERROR_7 = [TENSOR_4x4, {"patch_size": (2, 2), "filter_fn": extra_parameter_filter}, ValueError]
 # invalid filter function: with less than two positional parameters
-TEST_CASE_ERROR_6 = [TENSOR_4x4, {"patch_size": (2, 2), "filter_fn": missing_parameter_filter}, ValueError]
+TEST_CASE_ERROR_8 = [TENSOR_4x4, {"patch_size": (2, 2), "filter_fn": missing_parameter_filter}, ValueError]
 # invalid filter function: non-callable
-TEST_CASE_ERROR_7 = [TENSOR_4x4, {"patch_size": (2, 2), "filter_fn": 1}, ValueError]
+TEST_CASE_ERROR_9 = [TENSOR_4x4, {"patch_size": (2, 2), "filter_fn": 1}, ValueError]
 
 # invalid reader
-TEST_CASE_ERROR_8 = [FILE_PATH, {"patch_size": (2, 2), "offset": -3, "reader": ImageReader}, ValueError]
+TEST_CASE_ERROR_10 = [FILE_PATH, {"patch_size": (2, 2), "offset": -3, "reader": ImageReader}, ValueError]
 
 
 def setUpModule():
@@ -399,6 +403,8 @@ class SlidingWindowSplitterTests(unittest.TestCase):
             TEST_CASE_ERROR_6,
             TEST_CASE_ERROR_7,
             TEST_CASE_ERROR_8,
+            TEST_CASE_ERROR_9,
+            TEST_CASE_ERROR_10,
         ]
     )
     def test_split_patches_errors(self, image, arguments, expected_error):

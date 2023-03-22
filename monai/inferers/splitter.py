@@ -128,11 +128,14 @@ class SlidingWindowSplitter(Splitter):
         super().__init__(patch_size=patch_size, device=device)
         self.offset = offset
         # check if fraction overlaps are within the range of [0, 1)
-        if isinstance(ensure_tuple(overlap)[0], float) and any(ov < 0 or ov >= 1 for ov in ensure_tuple(overlap)):
+        if isinstance(ensure_tuple(overlap)[0], float) and any(ov < 0.0 or ov >= 1.0 for ov in ensure_tuple(overlap)):
             raise ValueError(
-                f"Fraction overlaps must be between 0.0 and 1.0 but {overlap} is given. "
+                f"Relative overlap must be between 0.0 and 1.0 but {overlap} is given. "
                 "If you wish to use number of pixels as overlap, please provide integer numbers."
             )
+        elif any(ov < 0 for ov in ensure_tuple(overlap)):
+            raise ValueError(f"Number of pixels for overlap cannot be negative. {overlap} is given. ")
+
         self.overlap = overlap
         self.filter_fn = self._validate_filter_fn(filter_fn)
         self.non_spatial_ndim = non_spatial_ndim
@@ -197,6 +200,8 @@ class SlidingWindowSplitter(Splitter):
         # overlap
         overlap = ensure_tuple_rep(self.overlap, spatial_ndim)
         overlap = tuple(o if p else type(overlap[0])(0) for o, p in zip(overlap, patch_size))
+        if any(ov > ps for ov, ps in zip(overlap, patch_size)):
+            raise ValueError(f"`overlap` ({overlap}) cannot be larger than patch size ({patch_size}).")
         # offset
         offset = ensure_tuple_rep(self.offset, spatial_ndim)
         for off, ps, sh in zip(offset, patch_size, spatial_shape):
