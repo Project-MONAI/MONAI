@@ -65,7 +65,7 @@ class SwinUNETR(nn.Module):
         use_checkpoint: bool = False,
         spatial_dims: int = 3,
         downsample="merging",
-        use_v2=False
+        use_v2=False,
     ) -> None:
         """
         Args:
@@ -144,7 +144,7 @@ class SwinUNETR(nn.Module):
             use_checkpoint=use_checkpoint,
             spatial_dims=spatial_dims,
             downsample=look_up_option(downsample, MERGING_MODE) if isinstance(downsample, str) else downsample,
-            use_v2=use_v2
+            use_v2=use_v2,
         )
 
         self.encoder1 = UnetrBasicBlock(
@@ -924,7 +924,7 @@ class SwinTransformer(nn.Module):
         use_checkpoint: bool = False,
         spatial_dims: int = 3,
         downsample="merging",
-        use_v2=False
+        use_v2=False,
     ) -> None:
         """
         Args:
@@ -1005,7 +1005,7 @@ class SwinTransformer(nn.Module):
                     out_channels=embed_dim * 2**i_layer,
                     kernel_size=3,
                     stride=1,
-                    norm_name='instance',
+                    norm_name="instance",
                     res_block=True,
                 )
                 if i_layer == 0:
