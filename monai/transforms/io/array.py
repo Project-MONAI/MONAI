@@ -316,8 +316,11 @@ class SaveImage(Transform):
 
     Args:
         output_dir: output image directory.
+        Handled by ``folder_layout`` instead, if ``folder_layout`` not ``None``.
         output_postfix: a string appended to all output file names, default to `trans`.
+        Handled by ``folder_layout`` instead, if ``folder_layout`` not ``None``.
         output_ext: output file extension name.
+        Handled by ``folder_layout`` instead, if ``folder_layout`` not ``None``.
         output_dtype: data type (if not None) for saving data. Defaults to ``np.float32``.
         resample: whether to resample image (if needed) before saving the data array,
             based on the ``"spatial_shape"`` (and ``"original_affine"``) from metadata.
@@ -353,10 +356,12 @@ class SaveImage(Transform):
 
             The output will be: ``/output/test1/image/image_seg.nii.gz``
 
+            Handled by ``folder_layout`` instead, if ``folder_layout`` not ``None``.
         separate_folder: whether to save every file in a separate folder. For example: for the input filename
             ``image.nii``, postfix ``seg`` and ``folder_path`` ``output``, if ``separate_folder=True``, it will be
             saved as: ``output/image/image_seg.nii``, if ``False``, saving as ``output/image_seg.nii``.
             Default to ``True``.
+            Handled by ``folder_layout`` instead, if ``folder_layout`` not ``None``.
         print_log: whether to print logs when saving. Default to ``True``.
         output_format: an optional string of filename extension to specify the output image writer.
             see also: ``monai.data.image_writer.SUPPORTED_WRITERS``.

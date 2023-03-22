@@ -197,8 +197,11 @@ class SaveImaged(MapTransform):
             If ``None``, will try to construct ``meta_keys`` by ``key_{meta_key_postfix}``.
         meta_key_postfix: if ``meta_keys`` is ``None``, use ``key_{meta_key_postfix}`` to retrieve the metadict.
         output_dir: output image directory.
+                    Handled by ``folder_layout`` instead, if ``folder_layout`` not ``None``.
         output_postfix: a string appended to all output file names, default to ``trans``.
+                        Handled by ``folder_layout`` instead, if ``folder_layout`` not ``None``.
         output_ext: output file extension name, available extensions: ``.nii.gz``, ``.nii``, ``.png``.
+                    Handled by ``folder_layout`` instead, if ``folder_layout`` not ``None``.
         resample: whether to resample image (if needed) before saving the data array,
             based on the ``spatial_shape`` (and ``original_affine``) from metadata.
         mode: This option is used when ``resample=True``. Defaults to ``"nearest"``.
@@ -235,9 +238,11 @@ class SaveImaged(MapTransform):
 
             The output will be: ``/output/test1/image/image_seg.nii.gz``
 
+            Handled by ``folder_layout`` instead, if ``folder_layout`` not ``None``.
         separate_folder: whether to save every file in a separate folder. For example: for the input filename
             ``image.nii``, postfix ``seg`` and folder_path ``output``, if ``separate_folder=True``, it will be saved as:
             ``output/image/image_seg.nii``, if ``False``, saving as ``output/image_seg.nii``. Default to ``True``.
+            Handled by ``folder_layout`` instead, if ``folder_layout`` not ``None``.
         print_log: whether to print logs when saving. Default to ``True``.
         output_format: an optional string to specify the output image writer.
             see also: ``monai.data.image_writer.SUPPORTED_WRITERS``.
@@ -247,6 +252,7 @@ class SaveImaged(MapTransform):
             the supported built-in writer classes are ``"NibabelWriter"``, ``"ITKWriter"``, ``"PILWriter"``.
         output_name_formatter: a callable function (returning a kwargs dict) to format the output file name.
             see also: :py:func:`monai.data.folder_layout.default_name_formatter`.
+            If using a custom ``folder_layout``, consider providing your own formatter.
         folder_layout: A customized ``monai.data.FolderLayoutBase`` subclass to define file naming schemes.
             if ``None``, uses the default ``FolderLayout``
         savepath_in_metadict: if ``True``, adds a key ``saved_to`` to the metadata, which contains the path
