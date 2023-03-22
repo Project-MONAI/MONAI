@@ -469,7 +469,7 @@ class ToTensor(Transform):
         self.wrap_sequence = wrap_sequence
         self.track_meta = get_track_meta() if track_meta is None else bool(track_meta)
 
-    def __call__(self, img: NdarrayOrTensor) -> torch.Tensor:
+    def __call__(self, img: NdarrayOrTensor):
         """
         Apply the transform to `img` and make it contiguous.
         """

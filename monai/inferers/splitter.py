@@ -58,24 +58,24 @@ class Splitter(ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @staticmethod
-    def _validate_patch_filter_fn(filter_fn):
+    def _validate_filter_fn(filter_fn):
         if callable(filter_fn):
             sig = signature(filter_fn)
             n_params = len(sig.parameters)
             num_pos_params = len([v for v in sig.parameters.values() if v.default is _empty])
             if n_params < 2:
                 raise ValueError(
-                    f"`patch_filter_fn` requires to accept at least two parameters (patch, location)."
+                    f"`filter_fn` requires to accept at least two parameters (patch, location)."
                     f"The provided callable ({filter_fn}) has {n_params} parameters."
                 )
             elif num_pos_params > 2:
                 raise ValueError(
-                    f"`patch_filter_fn` can have at most two positional parameters (patch, location)."
+                    f"`filter_fn` can have at most two positional parameters (patch, location)."
                     f"The provided callable ({filter_fn}) has {num_pos_params} positional parameters."
                 )
         elif filter_fn is not None:
             raise ValueError(
-                "`patch_filter_fn` should be a callable with two input parameters (patch, location). "
+                "`filter_fn` should be a callable with two input parameters (patch, location). "
                 f"{type(filter_fn)} is given."
             )
         return filter_fn
@@ -88,7 +88,9 @@ class SlidingWindowSplitter(Splitter):
     Args:
         patch_size : the size of the patches to be generated.
         offset: the amount of offset for the patches with respect to the original input.  Defaults to 0.
-        overlap: the amount of overlap between patches in each dimension [0, 1). Defaults to 0.0.
+        overlap: the amount of overlap between patches in each dimension. It can be either a float in
+            the range of [0.0, 1.0) that define relative overlap to the patch size, or it can be a non-negative int
+            that defines number of pixels for overlap. Defaults to 0.0.
         filter_fn: a callable to filter patches. It should accepts exactly two parameters (patch, location), and
             return True for a patch to keep. Defaults to no filtering.
         device: the device where the patches are generated. Defaults to the device of inputs.
@@ -103,7 +105,8 @@ class SlidingWindowSplitter(Splitter):
             - a class (inherited from `BaseWSIReader`), it is initialized and set as wsi_reader.
             - an instance of a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
 
-        reader_kwargs: the arguments to pass to `WSIReader` or provided whole slide reader class
+        reader_kwargs: the arguments to pass to `WSIReader` or provided whole slide reader class.
+            For instance to set the WSI level, you can set {"level": 2}.
 
     Note:
         If only one scaler value is provided for `patch_size`, `offset`, or `overlap`,
@@ -131,7 +134,7 @@ class SlidingWindowSplitter(Splitter):
                 "If you wish to use number of pixels as overlap, please provide integer numbers."
             )
         self.overlap = overlap
-        self.filter_fn = self._validate_patch_filter_fn(filter_fn)
+        self.filter_fn = self._validate_filter_fn(filter_fn)
         self.non_spatial_ndim = non_spatial_ndim
         # wsi reader
         self._set_reader(reader, reader_kwargs)
@@ -217,7 +220,7 @@ class SlidingWindowSplitter(Splitter):
     def _get_patch_wsi(self, inputs: Any, location: tuple[int, int], patch_size: tuple[int, int]) -> torch.Tensor:
         patch, _ = self.reader.get_data(wsi=inputs, location=location, size=patch_size)
         # send the patch to target device
-        return ToTensor(device=self.device)(patch)
+        return ToTensor(device=self.device)(patch)  # type: ignore
 
     def __call__(self, inputs: torch.Tensor | PathLike) -> Iterable[tuple[torch.Tensor, Sequence[int]]]:
         """Split the input tensor into patches and return patches and locations.
