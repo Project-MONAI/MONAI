@@ -47,9 +47,8 @@ class TestConvertToTRT(unittest.TestCase):
         if current_device != self.gpu_device:
             torch.cuda.set_device(self.gpu_device)
 
-    @unittest.skipUnless(has_torchtrt, "Torch-TensorRT is required for convert!")
-    @unittest.skipUnless(has_tensorrt, "TensorRT is required for convert!")
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    @unittest.skipUnless(has_torchtrt and has_tensorrt, "Torch-TensorRT is required for convert!")
     def test_value(self, precision):
         model = UNet(
             spatial_dims=3,
