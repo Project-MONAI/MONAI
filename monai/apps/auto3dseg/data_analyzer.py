@@ -173,8 +173,8 @@ class DataAnalyzer:
 
     def get_all_case_stats(self, key="training", transform_list=None):
         """
-        Get all case stats. Caller of the DataAnalyser class. The function initiates multiple GPU or CPU processes of the internal 
-        _get_all_case_stats functions, which iterates datalist and call SegSummarizer to generate stats for each case. 
+        Get all case stats. Caller of the DataAnalyser class. The function initiates multiple GPU or CPU processes of the internal
+        _get_all_case_stats functions, which iterates datalist and call SegSummarizer to generate stats for each case.
         After all case stats are generated, SegSummarizer is called to combine results.
 
         Args:
@@ -330,7 +330,7 @@ class DataAnalyzer:
                     if self.label_key is not None:
                         batch_data[self.label_key] = label.to('cpu')
                     d = summarizer(batch_data)
-                    
+
             stats_by_cases = {
                 DataStatsKeys.BY_CASE_IMAGE_PATH: d[DataStatsKeys.BY_CASE_IMAGE_PATH],
                 DataStatsKeys.BY_CASE_LABEL_PATH: d[DataStatsKeys.BY_CASE_LABEL_PATH],
