@@ -200,7 +200,7 @@ class Compose(Randomizable, InvertibleTransform):
         sequence of transforms is if it were executed by Compose. For the most part, it
         is recommended to use Compose instances, however.
         Args:
-            input_: a tensor-like object to be transformed
+            `input_`: a tensor-like object to be transformed
             transforms: a sequence of transforms to be carried out
             map_items: whether to apply the transform to each item in ``data```.
             Defaults to True if not set.
@@ -217,11 +217,11 @@ class Compose(Randomizable, InvertibleTransform):
         """
         end_ = len(transforms) if end is None else end
         if start is None:
-            raise ValueError(f"'start' cannot be None")
+            raise ValueError(f"'start' ({start}) cannot be None")
         if start > end_:
-            raise ValueError(f"'start' ({start})must be less than 'end' ({end_})")
+            raise ValueError(f"'start' ({start}) must be less than 'end' ({end_})")
         if end_ > len(transforms):
-            raise ValueError(f"'end' must be less than or equal to the transform count ({len(transforms)}")
+            raise ValueError(f"'end' ({end_}) must be less than or equal to the transform count ({len(transforms)}")
 
         # no-op if the range is empty
         if start == end:
@@ -230,7 +230,7 @@ class Compose(Randomizable, InvertibleTransform):
         for _transform in transforms[start:end]:
             if threading:
                 _transform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
-            input_ = apply_transform(_transform, input_, map_items, unpack_items, log_stats)
+            input_ = apply_transform(_transform, input_, map_items, unpack_items, log_stats)  # type: ignore
         return input_
 
     def __call__(self, input_, start=0, end=None, threading=False):
