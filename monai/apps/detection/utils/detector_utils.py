@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from typing import Any
+import warnings
 
 import torch
 import torch.nn.functional as F
@@ -85,9 +86,20 @@ def check_training_targets(
         if not isinstance(boxes, torch.Tensor):
             raise ValueError(f"Expected target boxes to be of type Tensor, got {type(boxes)}.")
         if len(boxes.shape) != 2 or boxes.shape[-1] != 2 * spatial_dims:
-            raise ValueError(
-                f"Expected target boxes to be a tensor " f"of shape [N, {2* spatial_dims}], got {boxes.shape}."
-            )
+            if boxes.numel() == 0:
+                raise ValueError(
+                    f"Expected target boxes to be a tensor " f"of shape [N, {2* spatial_dims}], got {boxes.shape}. Please reshape it with boxes = torch.reshape(boxes, [0, {2* spatial_dims}])."
+                )
+            else:
+                raise ValueError(
+                    f"Expected target boxes to be a tensor " f"of shape [N, {2* spatial_dims}], got {boxes.shape}.)."
+                )
+        if not torch.is_floating_point(boxes):
+            raise ValueError(f"Expected target boxes should be float tensor, got {boxes.dtype}.")
+
+        labels = target[target_label_key]
+        if torch.is_floating_point(labels):
+            raise ValueError(f"Expected target labels should be torch.long, got {labels.dtype}.")
     return
 
 
