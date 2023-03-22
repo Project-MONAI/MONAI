@@ -39,7 +39,6 @@ from monai.transforms import (
     Compose,
     Randomizable,
     RandomizableTrait,
-    ThreadUnsafe,
     Transform,
     apply_transform,
     convert_to_contiguous,
