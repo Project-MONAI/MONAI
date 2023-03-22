@@ -973,7 +973,7 @@ class SwinTransformer(nn.Module):
             self.layers1c = nn.ModuleList()
             self.layers2c = nn.ModuleList()
             self.layers3c = nn.ModuleList()
-            self.layers4c = nn.ModuleList()            
+            self.layers4c = nn.ModuleList()
         down_sample_mod = look_up_option(downsample, MERGING_MODE) if isinstance(downsample, str) else downsample
         for i_layer in range(self.num_layers):
             layer = BasicLayer(
@@ -1015,7 +1015,7 @@ class SwinTransformer(nn.Module):
                 elif i_layer == 2:
                     self.layers3c.append(layerc)
                 elif i_layer == 3:
-                    self.layers4c.append(layerc)     
+                    self.layers4c.append(layerc)
 
         self.num_features = int(embed_dim * 2 ** (self.num_layers - 1))
 
