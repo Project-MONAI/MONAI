@@ -13,7 +13,6 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from typing import Any
-import warnings
 
 import torch
 import torch.nn.functional as F
