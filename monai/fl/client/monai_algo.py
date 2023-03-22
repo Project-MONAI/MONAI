@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 import os
 from collections.abc import Mapping, MutableMapping
-from typing import Any, cast
+from typing import Any, cast, Callable
 
 import torch
 import torch.distributed as dist
@@ -381,6 +381,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         eval_data_key: str | None = BundleKeys.VALID_DATA,
         data_stats_transform_list: list | None = None,
         tracking: str | dict | None = None,
+        stats_sender: Callable | None = None
     ):
         self.logger = logger
         if config_evaluate_filename == "default":
@@ -404,6 +405,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         self.eval_data_key = eval_data_key
         self.data_stats_transform_list = data_stats_transform_list
         self.tracking = tracking
+        self.stats_sender = stats_sender
 
         self.app_root = ""
         self.train_parser: ConfigParser | None = None
@@ -500,6 +502,12 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         self.evaluator = self.eval_parser.get_parsed_content(
             BundleKeys.EVALUATOR, default=ConfigItem(None, BundleKeys.EVALUATOR)
         )
+
+        # set stats sender for nvflare
+        self.stats_sender = extra.get(ExtraItems.STATS_SENDER, self.stats_sender)
+        if self.stats_sender is not None:
+            self.trainer.state.extra[ExtraItems.STATS_SENDER] = self.stats_sender
+            self.evaluator.state.extra[ExtraItems.STATS_SENDER] = self.stats_sender
 
         # Get filters
         self.pre_filters = self.filter_parser.get_parsed_content(
