@@ -421,11 +421,11 @@ def get_spatial_dims(
                 )
             else:
                 raise ValueError(
-                    f"Currently we support only points with shape [N,2] or [N,3], got boxes with shape {points.shape}."
+                    f"Currently we support only points with shape [N,2] or [N,3], got points with shape {points.shape}."
                 )
         if int(points.shape[1]) not in SUPPORTED_SPATIAL_DIMS:
             raise ValueError(
-                f"Currently we support only points with shape [N,2] or [N,3], got boxes with shape {points.shape}."
+                f"Currently we support only points with shape [N,2] or [N,3], got points with shape {points.shape}."
             )
         spatial_dims_set.add(int(points.shape[1]))
     if corners is not None:
