@@ -161,6 +161,22 @@ TEST_CASE_9 = [
     torch.tensor([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=torch.float32),
 ]
 
+TEST_CASE_10_MPP = [
+    FILE_PATH,
+    {},
+    {"location": (HEIGHT // 2, WIDTH // 2), "size": (2, 1), "mpp": 1000},
+    np.array([[[246], [246]], [[246], [246]], [[246], [246]]], dtype=np.uint8),
+    {"level": 0},
+]
+
+TEST_CASE_11_MPP = [
+    FILE_PATH,
+    {},
+    {"location": (HEIGHT // 2, WIDTH // 2), "size": (2, 1), "mpp": 256000},
+    np.array([[[246], [246]], [[246], [246]], [[246], [246]]], dtype=np.uint8),
+    {"level": 8},
+]
+
 # device tests
 TEST_CASE_DEVICE_1 = [
     FILE_PATH,
@@ -216,13 +232,6 @@ TEST_CASE_DEVICE_7 = [
     {"location": (0, 0), "size": (2, 1)},
     np.array([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=np.uint8),
     "cpu",
-]
-
-TEST_CASE_6 = [
-    FILE_PATH,
-    {},
-    {"location": (HEIGHT // 2, WIDTH // 2), "size": (2, 1), "mpp": 0.25},
-    np.array([[[246], [246]], [[246], [246]], [[246], [246]]]),
 ]
 
 TEST_CASE_MULTI_WSI = [
@@ -410,12 +419,16 @@ class WSIReaderTests:
                 TEST_CASE_7,
                 TEST_CASE_8,
                 TEST_CASE_9,
+                TEST_CASE_10_MPP,
+                TEST_CASE_11_MPP,
             ]
         )
-        def test_read_region(self, file_path, kwargs, patch_info, expected_img):
-            reader = WSIReader(self.backend, **kwargs)
-            level = patch_info.get("level", kwargs.get("level"))
-            if self.backend == "tifffile" and level < 2:
+        def test_read_region(self, file_path, reader_kwargs, patch_info, expected_img, *args):
+            reader = WSIReader(self.backend, **reader_kwargs)
+            level = patch_info.get("level", reader_kwargs.get("level"))
+            if level is None:
+                level = args[0].get("level")
+            if (self.backend == "tifffile" and level < 2) or patch_info.get("mpp", reader_kwargs.get("mpp")):
                 return
             with reader.read(file_path) as img_obj:
                 # Read twice to check multiple calls

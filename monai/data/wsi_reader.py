@@ -27,6 +27,7 @@ from monai.utils import (
     dtype_numpy_to_torch,
     dtype_torch_to_numpy,
     ensure_tuple,
+    ensure_tuple_rep,
     optional_import,
     require_pkg,
 )
@@ -48,6 +49,12 @@ class BaseWSIReader(ImageReader):
         device: target device to put the extracted patch. Note that if device is "cuda"",
             the output will be converted to torch tenor and sent to the gpu even if the dtype is numpy.
         mode: the output image color mode, e.g., "RGB" or "RGBA".
+        mpp:
+        power:
+        mpp_rtol:
+        mpp_atol:
+        power_rtol:
+        power_atol:
         kwargs: additional args for the reader
 
     Typical usage of a concrete implementation of this class is:
@@ -77,11 +84,17 @@ class BaseWSIReader(ImageReader):
 
     def __init__(
         self,
-        level: int,
+        level: int | None,
+        mpp: float | tuple[float, float] | None,
+        power: int | None,
         channel_dim: int,
         dtype: DtypeLike | torch.dtype,
         device: torch.device | str | None,
         mode: str,
+        mpp_rtol: float,
+        mpp_atol: float,
+        power_rtol: float,
+        power_atol: float,
         **kwargs,
     ):
         super().__init__()
@@ -91,6 +104,12 @@ class BaseWSIReader(ImageReader):
         self.set_device(device)
         self.mode = mode
         self.kwargs = kwargs
+        self.mpp = mpp if mpp is None else ensure_tuple_rep(mpp, 2)
+        self.power = power
+        self.mpp_rtol = mpp_rtol
+        self.mpp_atol = mpp_atol
+        self.power_rtol = power_rtol
+        self.power_atol = power_atol
         self.metadata: dict[Any, Any] = {}
 
     def set_dtype(self, dtype):
@@ -124,65 +143,69 @@ class BaseWSIReader(ImageReader):
         level: int | None,
         mpp: tuple[float, float] | None,
         power: int | None,
-        mpp_rtol: float,
-        mpp_atol: float,
-        power_rtol: float,
-        power_atol: float,
     ) -> int:
         """
         Returns the level associated to the resolution parameter in the whole slide image.
-
-        Args:
-            resolution:  a dictionary containing resolution information: `level`, `mpp` or `power`.
-
         """
 
-        # Check if not more than one resolution parameter is provided.
+        if mpp is not None:
+            mpp = ensure_tuple_rep(mpp, 2)
+
+        # Try instance parameters if no resolution is provided
+        if mpp is None and power is None and level is None:
+            mpp = self.mpp
+            power = self.power
+            level = self.level
+
         resolution = [val[0] for val in [("level", level), ("mpp", mpp), ("power", power)] if val[1] is not None]
+        # Check if only one resolution parameter is provided
         if len(resolution) > 1:
             raise ValueError(f"Only one of `level`, `mpp`, or `power` should be provided. {resolution} are provided.")
+        # Set the default value if no resolution parameter is provided.
+        if len(resolution) < 1:
+            level = 0
 
         n_levels = self.get_level_count(wsi)
 
-        if mpp is not None:
+        if level is not None:
+            if level >= n_levels:
+                raise ValueError(f"The maximum level of this image is {n_levels-1} while level={level} is requested)!")
+
+        elif mpp is not None:
             if self.get_mpp(wsi, 0) is None:
                 raise ValueError(
                     "mpp is not defined in this whole slide image, please use `level` (or `power`) instead."
                 )
-            available_mpps = [self.get_mpp(wsi, level) for level in range(n_levels)]  # FIXME: not ordered maybe!
+            available_mpps = [self.get_mpp(wsi, level) for level in range(n_levels)]
             if mpp in available_mpps:
                 valid_mpp = mpp
             else:
-                valid_mpp = min(available_mpps, key=lambda x: abs(x[0] - mpp[0]) + abs(x[1] - mpp[1]))  # type: ignore
+                valid_mpp = min(available_mpps, key=lambda x: abs(x[0] - mpp[0]) + abs(x[1] - mpp[1]))
                 for i in range(2):
-                    if abs(valid_mpp[i] - mpp[i]) > mpp_atol + mpp_rtol * abs(mpp[i]):
+                    if abs(valid_mpp[i] - mpp[i]) > self.mpp_atol + self.mpp_rtol * abs(mpp[i]):
                         raise ValueError(
-                            f"The requested mpp ({mpp}) does not exist in this whole slide image"
-                            f"(with mpp_rtol={mpp_rtol} and mpp_atol={mpp_atol})."
-                            f" The closest matching available mpp is {valid_mpp}."
+                            f"The requested mpp {mpp} does not exist in this whole slide image"
+                            f"(with mpp_rtol={self.mpp_rtol} and mpp_atol={self.mpp_atol}). "
+                            f"Here is the list of available mpps: {available_mpps}. "
+                            f"The closest matching available mpp is {valid_mpp}."
                             "Please consider changing the tolerances or use another mpp."
                         )
             level = available_mpps.index(valid_mpp)
 
         elif power is not None:
-            available_powers = [self.get_power(wsi, level) for level in range(n_levels)]  # FIXME: not ordered maybe!
+            available_powers = [self.get_power(wsi, level) for level in range(n_levels)]
             if power in available_powers:
                 valid_power = power
             else:
                 valid_power = min(available_powers, key=lambda x: abs(x - power))  # type: ignore
-                if abs(valid_power - power) > power_atol + power_rtol * abs(power):
+                if abs(valid_power - power) > self.power_atol + self.power_rtol * abs(power):
                     raise ValueError(
                         f"The requested power ({power}) does not exist in this whole slide image"
-                        f"(with power_rtol={power_rtol} and power_atol={power_atol})."
+                        f"(with power_rtol={self.power_rtol} and power_atol={self.power_atol})."
                         f" The closest matching available power is {valid_power}."
                         "Please consider changing the tolerances or use another power."
                     )
             level = available_powers.index(valid_power)
-        else:
-            if level is None:
-                level = self.level
-            if level >= n_levels:
-                raise ValueError(f"The maximum level of this image is {n_levels-1} while level={level} is requested)!")
 
         return level
 
@@ -298,10 +321,6 @@ class BaseWSIReader(ImageReader):
         level: int | None = None,
         mpp: float | tuple[float, float] | None = None,
         power: int | None = None,
-        mpp_rtol: float = 0.05,
-        mpp_atol: float = 0.0,
-        power_rtol: float = 0.05,
-        power_atol: float = 0.0,
         mode: str | None = None,
     ) -> tuple[np.ndarray, dict]:
         """
@@ -313,7 +332,9 @@ class BaseWSIReader(ImageReader):
             size: (height, width) tuple giving the patch size at the given level (`level`).
                 If not provided or None, it is set to the full image size at the given level.
             level: the level number. Defaults to 0
-            ==: the data type of output image
+            mpp: micron per pixel
+            power: objective power
+            dtype: the data type of output image
             mode: the output image mode, 'RGB' or 'RGBA'
 
 
@@ -331,7 +352,7 @@ class BaseWSIReader(ImageReader):
             wsi = (wsi,)
         for each_wsi in ensure_tuple(wsi):
             # get the valid level based on resolution info
-            level = self._get_valid_level(wsi, level, mpp, power, mpp_rtol, mpp_atol, power_rtol, power_atol)
+            level = self._get_valid_level(each_wsi, level, mpp, power)
 
             # Verify location
             if location is None:
@@ -437,26 +458,65 @@ class WSIReader(BaseWSIReader):
     def __init__(
         self,
         backend="cucim",
-        level: int = 0,
+        level: int | None = None,
+        mpp: float | tuple[float, float] | None = None,
+        power: int | None = None,
         channel_dim: int = 0,
         dtype: DtypeLike | torch.dtype = np.uint8,
         device: torch.device | str | None = None,
         mode: str = "RGB",
+        mpp_rtol: float = 0.05,
+        mpp_atol: float = 0.0,
+        power_rtol: float = 0.05,
+        power_atol: float = 0.0,
         **kwargs,
     ):
         self.backend = backend.lower()
         self.reader: CuCIMWSIReader | OpenSlideWSIReader | TiffFileWSIReader
         if self.backend == "cucim":
             self.reader = CuCIMWSIReader(
-                level=level, channel_dim=channel_dim, dtype=dtype, device=device, mode=mode, **kwargs
+                level=level,
+                mpp=mpp,
+                power=power,
+                channel_dim=channel_dim,
+                dtype=dtype,
+                device=device,
+                mode=mode,
+                mpp_rtol=mpp_rtol,
+                mpp_atol=mpp_atol,
+                power_rtol=power_rtol,
+                power_atol=power_atol,
+                **kwargs,
             )
         elif self.backend == "openslide":
             self.reader = OpenSlideWSIReader(
-                level=level, channel_dim=channel_dim, dtype=dtype, device=device, mode=mode, **kwargs
+                level=level,
+                mpp=mpp,
+                power=power,
+                channel_dim=channel_dim,
+                dtype=dtype,
+                device=device,
+                mode=mode,
+                mpp_rtol=mpp_rtol,
+                mpp_atol=mpp_atol,
+                power_rtol=power_rtol,
+                power_atol=power_atol,
+                **kwargs,
             )
         elif self.backend == "tifffile":
             self.reader = TiffFileWSIReader(
-                level=level, channel_dim=channel_dim, dtype=dtype, device=device, mode=mode, **kwargs
+                level=level,
+                mpp=mpp,
+                power=power,
+                channel_dim=channel_dim,
+                dtype=dtype,
+                device=device,
+                mode=mode,
+                mpp_rtol=mpp_rtol,
+                mpp_atol=mpp_atol,
+                power_rtol=power_rtol,
+                power_atol=power_atol,
+                **kwargs,
             )
         else:
             raise ValueError(
@@ -470,6 +530,12 @@ class WSIReader(BaseWSIReader):
         self.mode = self.reader.mode
         self.kwargs = self.reader.kwargs
         self.metadata = self.reader.metadata
+        self.mpp = self.reader.mpp
+        self.power = self.reader.power
+        self.mpp_rtol = self.reader.mpp_rtol
+        self.mpp_atol = self.reader.mpp_atol
+        self.power_rtol = self.reader.power_rtol
+        self.power_atol = self.reader.power_atol
 
     def get_level_count(self, wsi) -> int:
         """
@@ -602,15 +668,10 @@ class CuCIMWSIReader(BaseWSIReader):
 
     def __init__(
         self,
-        level: int = 0,
-        channel_dim: int = 0,
-        dtype: DtypeLike | torch.dtype = np.uint8,
-        device: torch.device | str | None = None,
-        mode: str = "RGB",
         num_workers: int = 0,
         **kwargs,
     ):
-        super().__init__(level=level, channel_dim=channel_dim, dtype=dtype, device=device, mode=mode, **kwargs)
+        super().__init__(**kwargs)
         self.num_workers = num_workers
 
     @staticmethod
@@ -784,16 +845,8 @@ class OpenSlideWSIReader(BaseWSIReader):
     supported_suffixes = ["tif", "tiff", "svs"]
     backend = "openslide"
 
-    def __init__(
-        self,
-        level: int = 0,
-        channel_dim: int = 0,
-        dtype: DtypeLike | torch.dtype = np.uint8,
-        device: torch.device | str | None = None,
-        mode: str = "RGB",
-        **kwargs,
-    ):
-        super().__init__(level=level, channel_dim=channel_dim, dtype=dtype, device=device, mode=mode, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
     @staticmethod
     def get_level_count(wsi) -> int:
@@ -963,16 +1016,8 @@ class TiffFileWSIReader(BaseWSIReader):
     supported_suffixes = ["tif", "tiff", "svs"]
     backend = "tifffile"
 
-    def __init__(
-        self,
-        level: int = 0,
-        channel_dim: int = 0,
-        dtype: DtypeLike | torch.dtype = np.uint8,
-        device: torch.device | str | None = None,
-        mode: str = "RGB",
-        **kwargs,
-    ):
-        super().__init__(level=level, channel_dim=channel_dim, dtype=dtype, device=device, mode=mode, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
     @staticmethod
     def get_level_count(wsi) -> int:
