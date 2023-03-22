@@ -192,7 +192,26 @@ class Compose(Randomizable, InvertibleTransform):
         start: int = 0,
         end: int | None = None,
         threading: bool = False,
-    ):
+    ) -> NdarrayOrTensor:
+        """
+        ``execute`` provides the implementation that Compose uses to execute a sequence
+        of transforms. As well as being used by Compose, it can be used by subclasses of
+        Compose and by code that doesn't have a Compose instance but needs to execute a
+        sequence of transforms is if it were executed by Compose. For the most part, it
+        is recommended to use Compose instances, however.
+        Args:
+            input_:
+            transforms:
+            map_items:
+            unpack_items:
+            log_stats:
+            start:
+            end:
+            threading:
+
+        Returns:
+
+        """
         end_ = len(transforms) if end is None else None
         if start > end_:
             raise ValueError(f"'start' ({start})must be less than 'end' ({end_})")
