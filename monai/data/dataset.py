@@ -346,7 +346,7 @@ class PersistentDataset(Dataset):
             lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
         )
         if first_random is not None:
-            item_transformed =  self.transform(item_transformed, start=first_random)
+            item_transformed = self.transform(item_transformed, start=first_random)
         return item_transformed
 
     def _cachecheck(self, item_transformed):

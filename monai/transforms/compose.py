@@ -200,11 +200,14 @@ class Compose(Randomizable, InvertibleTransform):
         sequence of transforms is if it were executed by Compose. For the most part, it
         is recommended to use Compose instances, however.
         Args:
-            input_:
-            transforms:
-            map_items:
-            unpack_items:
-            log_stats:
+            input_: a tensor-like object to be transformed
+            transforms: a sequence of transforms to be carried out
+            map_items: whether to apply the transform to each item in ``data```.
+            Defaults to True if not set.
+            unpack_items: whether to unpack parameters using '*'. Defaults to False if not set
+            log_stats: whether to log detailed information about the application of ``transforms``
+            to ``input_``. For NumPy ndarrays and PyTorch tensors, log only the data shape and
+            value range. Defaults to False if not set.
             start:
             end:
             threading:
