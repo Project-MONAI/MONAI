@@ -202,6 +202,7 @@ class BaseWSIReader(ImageReader):
                     raise ValueError(
                         f"The requested power ({power}) does not exist in this whole slide image"
                         f"(with power_rtol={self.power_rtol} and power_atol={self.power_atol})."
+                        f"Here is the list of available objective powers: {available_powers}. "
                         f" The closest matching available power is {valid_power}."
                         "Please consider changing the tolerances or use another power."
                     )
