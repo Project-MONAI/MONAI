@@ -67,12 +67,14 @@ def _evaluate_with_overrides(
             _keys = [k if k in upcoming.keys and k in data else None for k in override_keys]  # type: ignore
         else:
             _keys = [k if k in data else None for k in override_keys]  # type: ignore
+
         # generate a list of dictionaries with the appropriate override value per key
-        dict_overrides = to_tuple_of_dictionaries(overrides, _keys)
-        for k, ov in zip(_keys, dict_overrides):
+        dict_overrides = to_tuple_of_dictionaries(overrides, override_keys)
+        for k in _keys:
             if k is not None:
-                data[k] = _evaluate_with_overrides(data[k], upcoming, lazy_evaluation, ov)
-        return data
+                dict_for_key = dict_overrides[override_keys.index(k)] if k in override_keys else None
+                data[k] = _evaluate_with_overrides(data[k], upcoming, lazy_evaluation, dict_for_key)
+
     if isinstance(data, (list, tuple)):
         return [_evaluate_with_overrides(v, upcoming, lazy_evaluation, overrides, override_keys) for v in data]
     return data
