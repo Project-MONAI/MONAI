@@ -134,7 +134,7 @@ class TestRetinaNetDetector(unittest.TestCase):
 
         detector.set_atss_matcher()
         detector.set_hard_negative_sampler(10, 0.5)
-        for num_gt_box in [0,3]: # test for both empty and non-empty boxes
+        for num_gt_box in [0, 3]:  # test for both empty and non-empty boxes
             gt_box_start = torch.randint(2, (num_gt_box, input_param["spatial_dims"])).to(torch.float16)
             gt_box_end = gt_box_start + torch.randint(1, 10, (num_gt_box, input_param["spatial_dims"]))
             one_target = {
