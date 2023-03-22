@@ -158,6 +158,7 @@ class Workflow(Engine):
             key_metric_name=None,  # we can set many metrics, only use key_metric to compare and save the best model
             best_metric=-1,
             best_metric_epoch=-1,
+            extra={},  # extra sharable data for the workflow based on Ignite engine.state
         )
         self.data_loader = data_loader
         self.non_blocking = non_blocking
