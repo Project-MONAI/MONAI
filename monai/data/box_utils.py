@@ -396,7 +396,7 @@ def get_spatial_dims(
     # Check the validity of each input and add its corresponding spatial_dims to spatial_dims_set
     if boxes is not None:
         if len(boxes.shape) != 2:
-            if boxes.numel() == 0:
+            if boxes.shape[0] == 0:
                 raise ValueError(
                     f"Currently we support only boxes with shape [N,4] or [N,6], "
                     f"got boxes with shape {boxes.shape}. "
@@ -413,7 +413,7 @@ def get_spatial_dims(
         spatial_dims_set.add(int(boxes.shape[1] / 2))
     if points is not None:
         if len(points.shape) != 2:
-            if points.numel() == 0:
+            if points.shape[0] == 0:
                 raise ValueError(
                     f"Currently we support only points with shape [N,2] or [N,3], "
                     f"got points with shape {points.shape}. "
