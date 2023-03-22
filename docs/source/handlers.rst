@@ -143,8 +143,8 @@ Tensorboard handlers
     :members:
 
 
-NVFlare stats handlers
-----------------------
+NVFlare stats handler
+---------------------
 .. autoclass:: FLStatsHandler
     :members:
 
