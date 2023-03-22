@@ -144,7 +144,7 @@ Tensorboard handlers
 
 
 NVFlare stats handlers
---------------------
+----------------------
 .. autoclass:: FLStatsHandler
     :members:
 

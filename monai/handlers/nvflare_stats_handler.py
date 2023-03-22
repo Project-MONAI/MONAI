@@ -17,8 +17,8 @@ from typing import TYPE_CHECKING, Any
 
 import torch
 
-from monai.fl.utils.constants import ExtraItems
 from monai.config import IgniteInfo
+from monai.fl.utils.constants import ExtraItems
 from monai.utils import is_scalar, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
@@ -183,7 +183,9 @@ class FLStatsHandler:
 
         if self.state_attributes is not None:
             for attr in self.state_attributes:
-                self._send_stats(engine, sender, attr, getattr(engine.state, attr, None), self.state_attributes_type, current_epoch)
+                self._send_stats(
+                    engine, sender, attr, getattr(engine.state, attr, None), self.state_attributes_type, current_epoch
+                )
         sender.flush()
 
     def _default_iteration_sender(self, engine: Engine, sender: Widget) -> None:

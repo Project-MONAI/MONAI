@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 import os
 from collections.abc import Mapping, MutableMapping
-from typing import Any, cast, Callable
+from typing import Any, Callable, cast
 
 import torch
 import torch.distributed as dist
@@ -381,7 +381,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         eval_data_key: str | None = BundleKeys.VALID_DATA,
         data_stats_transform_list: list | None = None,
         tracking: str | dict | None = None,
-        stats_sender: Callable | None = None
+        stats_sender: Callable | None = None,
     ):
         self.logger = logger
         if config_evaluate_filename == "default":

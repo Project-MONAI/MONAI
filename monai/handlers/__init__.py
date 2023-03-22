@@ -29,6 +29,7 @@ from .metric_logger import MetricLogger, MetricLoggerKeys
 from .metrics_reloaded_handler import MetricsReloadedBinaryHandler, MetricsReloadedCategoricalHandler
 from .metrics_saver import MetricsSaver
 from .mlflow_handler import MLFlowHandler
+from .nvflare_stats_handler import FLStatsHandler
 from .nvtx_handlers import MarkHandler, RangeHandler, RangePopHandler, RangePushHandler
 from .panoptic_quality import PanopticQuality
 from .parameter_scheduler import ParamSchedulerHandler
@@ -40,6 +41,5 @@ from .smartcache_handler import SmartCacheHandler
 from .stats_handler import StatsHandler
 from .surface_distance import SurfaceDistance
 from .tensorboard_handlers import TensorBoardHandler, TensorBoardImageHandler, TensorBoardStatsHandler
-from .nvflare_stats_handler import FLStatsHandler
 from .utils import from_engine, ignore_data, stopping_fn_from_loss, stopping_fn_from_metric, write_metrics_reports
 from .validation_handler import ValidationHandler
