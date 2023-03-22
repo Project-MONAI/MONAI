@@ -394,13 +394,35 @@ def get_spatial_dims(
     spatial_dims_set = set()
 
     # Check the validity of each input and add its corresponding spatial_dims to spatial_dims_set
-    if boxes is not None and len(boxes.shape) == 2:
+    if boxes is not None:
+        if len(boxes.shape) != 2:
+            if boxes.numel() == 0:
+                raise ValueError(
+                    f"Currently we support only boxes with shape [N,4] or [N,6], "
+                    f"got boxes with shape {boxes.shape}. "
+                    f"Please reshape it with boxes = torch.reshape(boxes, [0, 4]) or torch.reshape(boxes, [0, 6])."
+                )
+            else:
+                raise ValueError(
+                    f"Currently we support only boxes with shape [N,4] or [N,6], got boxes with shape {boxes.shape}."
+                )
         if int(boxes.shape[1] / 2) not in SUPPORTED_SPATIAL_DIMS:
             raise ValueError(
                 f"Currently we support only boxes with shape [N,4] or [N,6], got boxes with shape {boxes.shape}."
             )
         spatial_dims_set.add(int(boxes.shape[1] / 2))
-    if points is not None and len(points.shape) == 2:
+    if points is not None:
+        if len(points.shape) != 2:
+            if points.numel() == 0:
+                raise ValueError(
+                    f"Currently we support only points with shape [N,2] or [N,3], "
+                    f"got points with shape {points.shape}. "
+                    f"Please reshape it with points = torch.reshape(points, [0, 2]) or torch.reshape(points, [0, 3])."
+                )
+            else:
+                raise ValueError(
+                    f"Currently we support only points with shape [N,2] or [N,3], got boxes with shape {points.shape}."
+                )
         if int(points.shape[1]) not in SUPPORTED_SPATIAL_DIMS:
             raise ValueError(
                 f"Currently we support only points with shape [N,2] or [N,3], got boxes with shape {points.shape}."
