@@ -27,8 +27,6 @@ Widget, _ = optional_import("nvflare.widgets.widget", name="Widget")
 
 if TYPE_CHECKING:
     from ignite.engine import Engine
-    from tensorboardX import SummaryWriter as SummaryWriterX
-    from torch.utils.tensorboard import SummaryWriter
 else:
     Engine, _ = optional_import(
         "ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine", as_type="decorator"
