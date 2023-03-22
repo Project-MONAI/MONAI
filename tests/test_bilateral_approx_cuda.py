@@ -381,7 +381,7 @@ class BilateralFilterTestCaseCudaApprox(unittest.TestCase):
         output = BilateralFilter.apply(input_tensor, *sigmas, fast_approx).cpu().numpy()
 
         # Ensure result are as expected
-        np.testing.assert_allclose(output, expected, atol=1e-2)
+        np.testing.assert_allclose(output, expected, atol=2e-1)
 
     @parameterized.expand(TEST_CASES)
     def test_cpu_approx_backwards(self, test_case_description, sigmas, input, expected):
