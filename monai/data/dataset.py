@@ -345,7 +345,9 @@ class PersistentDataset(Dataset):
         first_random = self.transform.get_index_of_first(
             lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
         )
-        return self.transform(item_transformed, start=first_random)
+        if first_random is not None:
+            item_transformed =  self.transform(item_transformed, start=first_random)
+        return item_transformed
 
     def _cachecheck(self, item_transformed):
         """
@@ -909,7 +911,8 @@ class CacheDataset(Dataset):
         first_random = self.transform.get_index_of_first(
             lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
         )
-        self.transform(deepcopy(data), start=first_random)
+        if first_random is not None:
+            data = self.transform(deepcopy(data), start=first_random)
 
         return data
 

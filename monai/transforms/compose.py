@@ -212,7 +212,9 @@ class Compose(Randomizable, InvertibleTransform):
         Returns:
 
         """
-        end_ = len(transforms) if end is None else None
+        end_ = len(transforms) if end is None else end
+        if start is None:
+            raise ValueError(f"'start' cannot be None")
         if start > end_:
             raise ValueError(f"'start' ({start})must be less than 'end' ({end_})")
         if end_ > len(transforms):
