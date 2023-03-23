@@ -41,6 +41,10 @@ jobs:
           - environment: PT113+CUDA116
             pytorch: "torch==1.13.1 torchvision==0.14.1"
             base: "nvcr.io/nvidia/cuda:11.6.1-devel-ubuntu18.04"
+          - environment: PT114+CUDA120DOCKER
+            # 23.02: 1.14.0a0+44dac51
+            pytorch: "-h"  # we explicitly set pytorch to -h to avoid pip install error
+            base: "nvcr.io/nvidia/pytorch:23.02-py3"
     container:
       image: ${{ matrix.base }}
       options: --gpus all --env NVIDIA_DISABLE_REQUIRE=true  # workaround for unsatisfied condition: cuda>=11.6
