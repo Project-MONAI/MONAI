@@ -221,7 +221,7 @@ EXPECTED_ANSWERS = [
             ],
         },
     },
-    {  # test answers for PyTorch 1.8
+    {  # test answers for cuda 10.x
         "integration_classification_2d": {
             "losses": [0.777176220515731, 0.16019743723664315, 0.07480076164197011, 0.045643698364780966],
             "best_metric": 0.9999418774120775,
