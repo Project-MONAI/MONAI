@@ -71,7 +71,7 @@ TEST_CASE_TENSOR_0 = [
 # no-overlapping 3x3 with pad
 TEST_CASE_TENSOR_1 = [
     TENSOR_4x4,
-    {"patch_size": (3, 3), "overlap": 0.0, "pad_kwargs": {"mode": "constant"}},
+    {"patch_size": (3, 3), "overlap": 0.0, "pad_mode": "constant"},
     [
         (TENSOR_4x4[..., :3, :3], (0, 0)),
         (pad(TENSOR_4x4[..., :3, 3:], (0, 2)), (0, 3)),
@@ -140,7 +140,7 @@ TEST_CASE_TENSOR_5 = [
 # non-overlapping 2x2 with positive offset
 TEST_CASE_TENSOR_6 = [
     TENSOR_4x4,
-    {"patch_size": (2, 2), "offset": 1, "pad_kwargs": {"mode": "constant"}},
+    {"patch_size": (2, 2), "offset": 1, "pad_mode": "constant"},
     [
         (TENSOR_4x4[..., 1:3, 1:3], (1, 1)),
         (pad(TENSOR_4x4[..., 1:3, 3:], (0, 1)), (1, 3)),
@@ -152,7 +152,7 @@ TEST_CASE_TENSOR_6 = [
 # non-overlapping 2x2 with negative offset
 TEST_CASE_TENSOR_7 = [
     TENSOR_4x4,
-    {"patch_size": (2, 2), "offset": -1, "pad_kwargs": {"mode": "constant"}},
+    {"patch_size": (2, 2), "offset": -1, "pad_mode": "constant"},
     [
         (pad(TENSOR_4x4[..., :1, :1], (1, 0, 1, 0)), (-1, -1)),
         (pad(TENSOR_4x4[..., :1, 1:3], (0, 0, 1, 0)), (-1, 1)),
@@ -222,82 +222,6 @@ TEST_CASE_FILTER_FN_2 = [
 
 
 # ----------------------------------------------------------------------------
-# WSI test cases
-# ----------------------------------------------------------------------------
-
-TEST_CASE_WSI_0_BASE = [
-    FILE_PATH,
-    {"patch_size": (1000, 1000), "reader": WSI_READER_STR},
-    {"locations": [(0, 0), (0, 1000), (0, 2000), (0, 3000)]},
-]
-
-TEST_CASE_WSI_1_BASE = [
-    FILE_PATH,
-    {"patch_size": (1000, 1000), "level": 1, "reader": WSI_READER_STR},
-    {"locations": [(0, 0), (0, 1000), (0, 2000), (0, 3000)]},
-]
-
-# Check readers
-if WSI_READER_STR is not None:
-    TEST_CASE_WSI_2_READER = [
-        FILE_PATH,
-        {"patch_size": (1000, 1000), "reader": WSIReader(backend=WSI_READER_STR)},
-        {"locations": [(0, 0), (0, 1000), (0, 2000), (0, 3000)]},
-    ]
-else:
-    TEST_CASE_WSI_2_READER = []
-TEST_CASE_WSI_3_READER = [
-    FILE_PATH,
-    {"patch_size": (1000, 1000), "overlap": 0.0, "reader": WSIReader, "backend": WSI_READER_STR},
-    {"locations": [(0, 0), (0, 1000), (0, 2000), (0, 3000)]},
-]
-TEST_CASE_WSI_4_READER = [
-    FILE_PATH,
-    {"patch_size": (1000, 1000), "overlap": 0.0, "reader": WSI_READER_CLASS},
-    {"locations": [(0, 0), (0, 1000), (0, 2000), (0, 3000)]},
-]
-TEST_CASE_WSI_5_READER = [
-    FILE_PATH,
-    {"patch_size": (1000, 1000), "overlap": 0.0, "level": 1, "reader": WSI_READER_STR},
-    {"locations": [(0, 0), (0, 1000), (0, 2000), (0, 3000)]},
-]
-
-# Check overlaps
-TEST_CASE_WSI_6_OVERLAP = [
-    FILE_PATH,
-    {"patch_size": (1000, 1000), "overlap": 0.0, "reader": WSI_READER_STR},
-    {"locations": [(0, 0), (0, 1000), (0, 2000), (0, 3000)]},
-]
-TEST_CASE_WSI_7_OVERLAP = [
-    FILE_PATH,
-    {"patch_size": (1000, 1000), "overlap": 0.5, "reader": WSI_READER_STR},
-    {"locations": [(0, 0), (0, 500), (0, 1000), (0, 1500)]},
-]
-TEST_CASE_WSI_8_OVERLAP = [
-    FILE_PATH,
-    {"patch_size": (1000, 1000), "overlap": 0.999, "reader": WSI_READER_STR},
-    {"locations": [(0, 0), (0, 1), (0, 2), (0, 3)]},
-]
-
-
-# Filtering functions test cases
-def gen_location_filter(locations):
-    def my_filter(patch, loc):
-        if loc in locations:
-            return False
-        return True
-
-    return my_filter
-
-
-TEST_CASE_WSI_9_FILTER = [
-    FILE_PATH,
-    {"patch_size": (1000, 1000), "reader": WSI_READER_STR, "filter_fn": gen_location_filter([(0, 0), (0, 2000)])},
-    {"locations": [(0, 1000), (0, 3000)]},
-]
-
-
-# ----------------------------------------------------------------------------
 # Error test cases
 # ----------------------------------------------------------------------------
 def extra_parameter_filter(patch, location, extra):
@@ -320,7 +244,7 @@ TEST_CASE_ERROR_3 = [TENSOR_4x4, {"patch_size": (2, 2), "overlap": 3}, ValueErro
 # invalid offset: positive and larger than image size
 TEST_CASE_ERROR_4 = [TENSOR_4x4, {"patch_size": (2, 2), "offset": 4}, ValueError]
 # invalid offset: negative and larger than patch size (in magnitude)
-TEST_CASE_ERROR_5 = [TENSOR_4x4, {"patch_size": (2, 2), "offset": -3, "pad_kwargs": {"mode": "constant"}}, ValueError]
+TEST_CASE_ERROR_5 = [TENSOR_4x4, {"patch_size": (2, 2), "offset": -3, "pad_mode": "constant"}, ValueError]
 # invalid offset: negative and no padding
 TEST_CASE_ERROR_6 = [TENSOR_4x4, {"patch_size": (2, 2), "offset": -1}, ValueError]
 
@@ -330,9 +254,6 @@ TEST_CASE_ERROR_7 = [TENSOR_4x4, {"patch_size": (2, 2), "filter_fn": extra_param
 TEST_CASE_ERROR_8 = [TENSOR_4x4, {"patch_size": (2, 2), "filter_fn": missing_parameter_filter}, ValueError]
 # invalid filter function: non-callable
 TEST_CASE_ERROR_9 = [TENSOR_4x4, {"patch_size": (2, 2), "filter_fn": 1}, ValueError]
-
-# invalid reader
-TEST_CASE_ERROR_10 = [FILE_PATH, {"patch_size": (2, 2), "offset": -3, "reader": ImageReader}, ValueError]
 
 
 def setUpModule():
@@ -369,31 +290,6 @@ class SlidingWindowSplitterTests(unittest.TestCase):
 
     @parameterized.expand(
         [
-            TEST_CASE_WSI_0_BASE,
-            TEST_CASE_WSI_1_BASE,
-            TEST_CASE_WSI_2_READER,
-            TEST_CASE_WSI_3_READER,
-            TEST_CASE_WSI_4_READER,
-            TEST_CASE_WSI_5_READER,
-            TEST_CASE_WSI_6_OVERLAP,
-            TEST_CASE_WSI_7_OVERLAP,
-            TEST_CASE_WSI_8_OVERLAP,
-            TEST_CASE_WSI_9_FILTER,
-        ]
-    )
-    @skipUnless(WSI_READER_STR, "Requires cucim or openslide!")
-    def test_split_patches_wsi(self, filepath, arguments, expected):
-        patches = SlidingWindowSplitter(**arguments)(filepath)
-        for sample, expected_loc in zip(patches, expected["locations"]):
-            patch = sample[0]
-            loc = sample[1]
-            self.assertTrue(isinstance(patch, torch.Tensor))
-            self.assertTupleEqual(patch.shape[1:], arguments["patch_size"])
-            self.assertTrue(isinstance(loc, tuple))
-            self.assertTupleEqual(loc, expected_loc)
-
-    @parameterized.expand(
-        [
             TEST_CASE_ERROR_0,
             TEST_CASE_ERROR_1,
             TEST_CASE_ERROR_2,
@@ -404,7 +300,6 @@ class SlidingWindowSplitterTests(unittest.TestCase):
             TEST_CASE_ERROR_7,
             TEST_CASE_ERROR_8,
             TEST_CASE_ERROR_9,
-            TEST_CASE_ERROR_10,
         ]
     )
     def test_split_patches_errors(self, image, arguments, expected_error):

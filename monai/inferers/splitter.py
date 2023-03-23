@@ -24,7 +24,7 @@ from monai.data.wsi_reader import BaseWSIReader, WSIReader
 from monai.transforms import ToTensor
 from monai.utils.misc import PathLike, ensure_tuple, ensure_tuple_rep
 
-__all__ = ["Splitter", "SlidingWindowSplitter"]
+__all__ = ["Splitter", "SlidingWindowSplitter", "WSISlidingWindowSplitter"]
 
 
 class Splitter(ABC):
@@ -57,6 +57,64 @@ class Splitter(ABC):
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
+
+class SlidingWindowSplitter(Splitter):
+    """Split the input into patches with sliding window strategy and a possible overlap.
+    It also allows to offset the starting position and filter the patches.
+
+    Args:
+        patch_size : the size of the patches to be generated.
+        offset: the amount of offset for the patches with respect to the original input.  Defaults to 0.
+        overlap: the amount of overlap between patches in each dimension. It can be either a float in
+            the range of [0.0, 1.0) that define relative overlap to the patch size, or it can be a non-negative int
+            that defines number of pixels for overlap. Defaults to 0.0.
+        filter_fn: a callable to filter patches. It should accepts exactly two parameters (patch, location), and
+            return True for a patch to keep. Defaults to no filtering.
+        non_spatial_ndim: number of non-spatial dimensions (e.g. batch, color)
+        pad_mode: string define the mode for `torch.nn.functional.pad`. The acceptable values are
+            `"constant"`, `"reflect"`, `"replicate"`, `"circular"` or None. Default to `"constant"`.
+            If None, no padding will be applied, so it will drop the patches crossing the border of
+            the image (either when the offset is negative or the image is non-divisible by the patch_size).
+        pad_value: the value for `"constant"` padding. Defaults to 0.
+        device: the device where the patches are generated. Defaults to the device of inputs.
+
+    Note:
+        When only a scaler value is provided for `patch_size`, `offset`, or `overlap`,
+        it is broadcasted to all the spatial dimensions.
+    """
+
+    def __init__(
+        self,
+        patch_size: Sequence[int] | int,
+        overlap: Sequence[float] | float | Sequence[int] | int = 0.0,
+        offset: Sequence[int] | int = 0,
+        filter_fn: Callable | None = None,
+        device: torch.device | str | None = None,
+        non_spatial_ndim: int = 2,
+        pad_mode: str | None = None,
+        pad_value: float | int = 0,
+    ) -> None:
+        super().__init__(patch_size=patch_size, device=device)
+        self.offset = offset
+        # check if fraction overlaps are within the range of [0, 1)
+        if isinstance(ensure_tuple(overlap)[0], float) and any(ov < 0.0 or ov >= 1.0 for ov in ensure_tuple(overlap)):
+            raise ValueError(
+                f"Relative overlap must be between 0.0 and 1.0 but {overlap} is given. "
+                "If you wish to use number of pixels as overlap, please provide integer numbers."
+            )
+        elif any(ov < 0 for ov in ensure_tuple(overlap)):
+            raise ValueError(f"Number of pixels for overlap cannot be negative. {overlap} is given. ")
+
+        self.overlap = overlap
+        self.filter_fn = self._validate_filter_fn(filter_fn)
+        self.non_spatial_ndim = non_spatial_ndim
+        # padding
+        self.pad_mode = pad_mode
+        self.pad_value = pad_value
+        # check a valid padding mode is provided if there is any negative offset.
+        if not self.pad_mode and any(off < 0 for off in ensure_tuple(offset)):
+            raise ValueError(f"Negative `offset`requires a valid padding mode but `mode` is set to {self.pad_mode}.")
+
     @staticmethod
     def _validate_filter_fn(filter_fn):
         if callable(filter_fn):
@@ -80,105 +138,8 @@ class Splitter(ABC):
             )
         return filter_fn
 
-
-class SlidingWindowSplitter(Splitter):
-    """Split the input into patches with sliding window strategy and a possible overlap.
-    It also allows to offset the starting position and filter the patches.
-
-    Args:
-        patch_size : the size of the patches to be generated.
-        offset: the amount of offset for the patches with respect to the original input.  Defaults to 0.
-        overlap: the amount of overlap between patches in each dimension. It can be either a float in
-            the range of [0.0, 1.0) that define relative overlap to the patch size, or it can be a non-negative int
-            that defines number of pixels for overlap. Defaults to 0.0.
-        filter_fn: a callable to filter patches. It should accepts exactly two parameters (patch, location), and
-            return True for a patch to keep. Defaults to no filtering.
-        device: the device where the patches are generated. Defaults to the device of inputs.
-        non_spatial_ndim: number of non-spatial dimensions (e.g. batch, color)
-        pad_kwargs: arguments for `torch.nn.functional.pad`.
-            For padding the input images in order to capture the patches crossing the border of the image
-            (either when the offset is negative or the image is non-divisible by the patch_size),
-            "mode" need to be set, e.g., {"mode": "constant"}.
-        reader: the module to be used for loading whole slide imaging. If `reader` is
-
-            - a string, it defines the backend of `monai.data.WSIReader`. Defaults to cuCIM.
-            - a class (inherited from `BaseWSIReader`), it is initialized and set as wsi_reader.
-            - an instance of a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
-
-        reader_kwargs: the arguments to pass to `WSIReader` or provided whole slide reader class.
-            For instance to set the WSI level, you can set {"level": 2}.
-
-    Note:
-        If only one scaler value is provided for `patch_size`, `offset`, or `overlap`,
-            it will be broadcasted to all the spatial dimensions.
-    """
-
-    def __init__(
-        self,
-        patch_size: Sequence[int] | int,
-        overlap: Sequence[float] | float | Sequence[int] | int = 0.0,
-        offset: Sequence[int] | int = 0,
-        filter_fn: Callable | None = None,
-        device: torch.device | str | None = None,
-        non_spatial_ndim: int = 2,
-        pad_kwargs: dict | None = None,
-        reader: str | BaseWSIReader | type[BaseWSIReader] | None = None,
-        **reader_kwargs: dict,
-    ) -> None:
-        super().__init__(patch_size=patch_size, device=device)
-        self.offset = offset
-        # check if fraction overlaps are within the range of [0, 1)
-        if isinstance(ensure_tuple(overlap)[0], float) and any(ov < 0.0 or ov >= 1.0 for ov in ensure_tuple(overlap)):
-            raise ValueError(
-                f"Relative overlap must be between 0.0 and 1.0 but {overlap} is given. "
-                "If you wish to use number of pixels as overlap, please provide integer numbers."
-            )
-        elif any(ov < 0 for ov in ensure_tuple(overlap)):
-            raise ValueError(f"Number of pixels for overlap cannot be negative. {overlap} is given. ")
-
-        self.overlap = overlap
-        self.filter_fn = self._validate_filter_fn(filter_fn)
-        self.non_spatial_ndim = non_spatial_ndim
-        # wsi reader
-        self._set_reader(reader, reader_kwargs)
-        self.get_patch: (
-            Callable[[Any, tuple[int, int], tuple[int, int]], torch.Tensor]
-            | Callable[[torch.Tensor, tuple[int, ...], tuple[int, ...]], torch.Tensor]
-        )
-        # padding
-        self.pad_kwargs = pad_kwargs if pad_kwargs else {}
-        if "mode" not in self.pad_kwargs:
-            self.pad_kwargs["mode"] = None
-        # check a valid padding mode is provided if there is any negative offset.
-        if any(off < 0 for off in ensure_tuple(offset)) and not self.pad_kwargs["mode"]:
-            raise ValueError(
-                f"Negative `offset`requires a valid padding mode but `mode` is set to {self.pad_kwargs['mode']}."
-            )
-
-    def _set_reader(self, reader: str | BaseWSIReader | type[BaseWSIReader] | None, reader_kwargs: dict | None) -> None:
-        """
-        Set the WSI reader object based on the input reader
-
-        Args:
-            reader: the module to be used for loading whole slide imaging. If `reader` is
-
-                - a string, it defines the backend of `monai.data.WSIReader`. Defaults to cuCIM.
-                - a class (inherited from `BaseWSIReader`), it is initialized and set as wsi_reader.
-                - an instance of a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
-        """
-        self.reader: WSIReader | BaseWSIReader
-        self.reader_kwargs = {} if reader_kwargs is None else reader_kwargs
-        if isinstance(reader, str):
-            self.reader = WSIReader(backend=reader, **self.reader_kwargs)
-        elif isclass(reader) and issubclass(reader, BaseWSIReader):
-            self.reader = reader(**self.reader_kwargs)
-        elif isinstance(reader, BaseWSIReader):
-            self.reader = reader
-        elif reader is not None:
-            raise ValueError(f"Unsupported reader type: {reader}.")
-
     def _calculate_pad_size(self, spatial_shape, spatial_ndim, patch_size, offset, overlap):
-        if not self.pad_kwargs["mode"]:
+        if not self.pad_mode:
             return [], False
         # initialize with zero
         pad_size = [0] * 2 * spatial_ndim
@@ -211,60 +172,163 @@ class SlidingWindowSplitter(Splitter):
                 raise ValueError(f"`offset` ({off}) cannot be larger than inputs size ({sh}).")
         return patch_size, overlap, offset
 
-    def _get_patch_tensor(
-        self, inputs: torch.Tensor, location: tuple[int, ...], patch_size: tuple[int, ...]
-    ) -> torch.Tensor:
+    def _get_patch(self, inputs: Any, location: tuple[int, ...], patch_size: tuple[int, ...]) -> Any:
         slices = (slice(None),) * self.non_spatial_ndim + tuple(
             slice(loc, loc + ps) for loc, ps in zip(location, patch_size)
         )
-        patch = inputs[slices]
-        # send the patch to target device
-        patch.to(self.device)
-        return patch
+        return inputs[slices]
 
-    def _get_patch_wsi(self, inputs: Any, location: tuple[int, int], patch_size: tuple[int, int]) -> torch.Tensor:
-        patch, _ = self.reader.get_data(wsi=inputs, location=location, size=patch_size)
-        # send the patch to target device
-        return ToTensor(device=self.device)(patch)  # type: ignore
-
-    def __call__(self, inputs: torch.Tensor | PathLike) -> Iterable[tuple[torch.Tensor, Sequence[int]]]:
+    def __call__(self, inputs: Any) -> Iterable[tuple[torch.Tensor, Sequence[int]]]:
         """Split the input tensor into patches and return patches and locations.
 
         Args:
-            inputs: either a torch.Tensor with BCHW[D] dimensions, representing an image or a batch of images,
-                or the file path to a whole slide image.
+            inputs: either a torch.Tensor with BCHW[D] dimensions, representing an image or a batch of images
 
         Yields:
             tuple[torch.Tensor, Sequence[int]]: yields tuple of patch and location
         """
-        spatial_shape: tuple
-        processed_input: Any
-        if isinstance(inputs, torch.Tensor):
-            processed_input = inputs
-            self.get_patch = self._get_patch_tensor
-            spatial_shape = inputs.shape[self.non_spatial_ndim :]
-        elif isinstance(inputs, (str, os.PathLike)):
-            self.get_patch = self._get_patch_wsi
-            processed_input = self.reader.read(inputs)
-            spatial_shape = self.reader.get_size(processed_input)
+
+        if not isinstance(inputs, torch.Tensor):
+            raise ValueError(f"The input should be a tensor. {type(inputs)} is given.")
+
+        spatial_shape = inputs.shape[self.non_spatial_ndim :]
         spatial_ndim = len(spatial_shape)
         patch_size, overlap, offset = self._get_valid_shape_parameters(spatial_shape)
         pad_size, is_start_padded = self._calculate_pad_size(spatial_shape, spatial_ndim, patch_size, offset, overlap)
 
+        # Padding
+        if self.pad_mode and any(pad_size):
+            # pad the inputs
+            inputs = torch.nn.functional.pad(inputs, pad_size[::-1], mode=self.pad_mode, value=self.pad_value)
+            # update spatial shape
+            spatial_shape = inputs.shape[self.non_spatial_ndim :]
+            # correct the offset with respect to the padded image
+            if is_start_padded:
+                offset = tuple(off + p for off, p in zip(offset, pad_size[1::2]))
+
+        # Splitting
+        for location in iter_patch_position(spatial_shape, patch_size, offset, overlap, False):
+            patch = self._get_patch(inputs, location, patch_size)  # type: ignore
+            patch = ToTensor(device=self.device)(patch)  # type: ignore
+            # correct the location with respect to original inputs (remove starting pads)
+            if is_start_padded:
+                location = tuple(loc - p for loc, p in zip(location, pad_size[1::2]))
+            # filter patch and yield
+            if self.filter_fn is None:
+                yield patch, location
+            elif self.filter_fn(patch, location):
+                yield patch, location
+
+
+class WSISlidingWindowSplitter(SlidingWindowSplitter):
+    """Split the input into patches with sliding window strategy and a possible overlap.
+    It also allows to offset the starting position and filter the patches.
+
+    Args:
+        patch_size : the size of the patches to be generated.
+        offset: the amount of offset for the patches with respect to the original input.  Defaults to 0.
+        overlap: the amount of overlap between patches in each dimension. It can be either a float in
+            the range of [0.0, 1.0) that define relative overlap to the patch size, or it can be a non-negative int
+            that defines number of pixels for overlap. Defaults to 0.0.
+        filter_fn: a callable to filter patches. It should accepts exactly two parameters (patch, location), and
+            return True for a patch to keep. Defaults to no filtering.
+        device: the device where the patches are generated. Defaults to the device of inputs.
+        non_spatial_ndim: number of non-spatial dimensions (e.g. batch, color)
+        pad_mode: define the mode for padding. Either "constant" or None. Default to "constant".
+            Depending on the reader
+        reader: the module to be used for loading whole slide imaging. If `reader` is
+
+            - a string, it defines the backend of `monai.data.WSIReader`. Defaults to cuCIM.
+            - a class (inherited from `BaseWSIReader`), it is initialized and set as wsi_reader.
+            - an instance of a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
+
+        reader_kwargs: the arguments to pass to `WSIReader` or provided whole slide reader class.
+            For instance to set the WSI level, you can set {"level": 2}.
+
+    Note:
+        If only one scaler value is provided for `patch_size`, `offset`, or `overlap`,
+            it will be broadcasted to all the spatial dimensions.
+    """
+
+    def __init__(
+        self,
+        patch_size: Sequence[int] | int,
+        overlap: Sequence[float] | float | Sequence[int] | int = 0.0,
+        offset: Sequence[int] | int = 0,
+        filter_fn: Callable | None = None,
+        device: torch.device | str | None = None,
+        non_spatial_ndim: int = 2,
+        pad_mode: str | None = None,
+        reader: str | BaseWSIReader | type[BaseWSIReader] | None = None,
+        **reader_kwargs: dict,
+    ) -> None:
+        super().__init__(
+            patch_size=patch_size,
+            overlap=overlap,
+            offset=offset,
+            filter_fn=filter_fn,
+            device=device,
+            non_spatial_ndim=non_spatial_ndim,
+            pad_mode=pad_mode,
+        )
+        # Set WSI reader
+        self._set_reader(reader, reader_kwargs)
+
+    def _set_reader(self, reader: str | BaseWSIReader | type[BaseWSIReader] | None, reader_kwargs: dict) -> None:
+        """
+        Set the WSI reader object based on the input reader
+
+        Args:
+            reader: the module to be used for loading whole slide imaging. If `reader` is
+
+                - a string, it defines the backend of `monai.data.WSIReader`. Defaults to cuCIM.
+                - a class (inherited from `BaseWSIReader`), it is initialized and set as wsi_reader.
+                - an instance of a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
+        """
+        self.reader: WSIReader | BaseWSIReader
+        self.reader_kwargs = reader_kwargs
+        if isinstance(reader, str):
+            self.reader = WSIReader(backend=reader, **self.reader_kwargs)
+        elif isclass(reader) and issubclass(reader, BaseWSIReader):
+            self.reader = reader(**self.reader_kwargs)
+        elif isinstance(reader, BaseWSIReader):
+            self.reader = reader
+        else:
+            raise ValueError(f"Unsupported reader type: {reader}.")
+
+    def _get_patch(self, inputs: Any, location: tuple[int, ...], patch_size: tuple[int, ...]) -> Any:
+        patch, _ = self.reader.get_data(wsi=inputs, location=location, size=patch_size)  # type: ignore
+        return patch
+
+    def __call__(self, inputs: PathLike) -> Iterable[tuple[torch.Tensor, Sequence[int]]]:
+        """Split the input tensor into patches and return patches and locations.
+
+        Args:
+            inputs: the file path to a whole slide image.
+
+        Yields:
+            tuple[torch.Tensor, Sequence[int]]: yields tuple of patch and location
+        """
+        if not isinstance(inputs, (str, os.PathLike)):
+            raise ValueError(f"The input should be the path to the whole slide image. {type(inputs)} is given.")
+
+        wsi = self.reader.read(inputs)
+        spatial_shape: tuple = self.reader.get_size(wsi)
+        spatial_ndim = len(spatial_shape)
+        if spatial_ndim != 2:
+            raise ValueError(f"WSIReader only support 2D images. {spatial_ndim} spatial dimension is provided.")
+        patch_size, overlap, offset = self._get_valid_shape_parameters(spatial_shape)
+        pad_size, is_start_padded = self._calculate_pad_size(spatial_shape, spatial_ndim, patch_size, offset, overlap)
+
         if any(pad_size):
-            if isinstance(inputs, torch.Tensor):
-                # pad the inputs
-                processed_input = torch.nn.functional.pad(inputs, pad_size[::-1], **self.pad_kwargs)
-                # update spatial shape
-                spatial_shape = processed_input.shape[self.non_spatial_ndim :]
-            else:
-                spatial_shape = tuple(ss + ps for ss, ps in zip(spatial_shape, pad_size))
+            spatial_shape = tuple(ss + ps for ss, ps in zip(spatial_shape, pad_size))
             # correct the offset with respect to the padded image
             if is_start_padded:
                 offset = tuple(off + p for off, p in zip(offset, pad_size[1::2]))
 
         for location in iter_patch_position(spatial_shape, patch_size, offset, overlap, False):
-            patch = self.get_patch(processed_input, location, patch_size)  # type: ignore
+            patch = self._get_patch(wsi, location, patch_size)
+            patch = ToTensor(device=self.device)(patch)  # type: ignore
             # correct the location with respect to original inputs (remove starting pads)
             if is_start_padded:
                 location = tuple(loc - p for loc, p in zip(location, pad_size[1::2]))
