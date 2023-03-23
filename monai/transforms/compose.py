@@ -35,12 +35,12 @@ from monai.transforms.transform import (  # noqa: F401
 )
 from monai.utils import MAX_SEED, TraceKeys, ensure_tuple, get_seed
 
-__all__ = ["Compose", "OneOf", "RandomOrder"]
+__all__ = ["Compose", "OneOf", "RandomOrder", "evaluate_with_overrides"]
 
 from monai.utils.misc import to_tuple_of_dictionaries
 
 
-def _evaluate_with_overrides(
+def evaluate_with_overrides(
     data,
     upcoming,
     lazy_evaluation: bool | None = False,
@@ -48,8 +48,16 @@ def _evaluate_with_overrides(
     override_keys: Sequence[str] | None = None,
 ):
     """
-    Given the upcoming transform ``upcoming``, if `lazy_evaluation` is True, go through the MetaTensors and
-    evaluate the lazy applied operations.
+    The previously applied transform may have been lazily applied to MetaTensor `data` and
+    made `data.has_pending_operations` equals to True. Given the upcoming transform ``upcoming``,
+    this function determines whether `data.pending_operations` should be evaluated. If so, it will
+    evaluate the lazily applied transforms.
+
+    Currently, the conditions for evaluation are:
+
+        - ``lazy_evaluation`` is ``True``, AND
+        - the data is a ``MetaTensor`` and has pending operations, AND
+        - the upcoming transform is an instance of ``Identity`` or ``IdentityD`` or ``None``.
 
     The returned `data` will then be ready for the ``upcoming`` transform.
     """
@@ -57,13 +65,16 @@ def _evaluate_with_overrides(
         return data  # eager evaluation
     overrides = (overrides or {}).copy()
     if isinstance(data, monai.data.MetaTensor):
-        if data.has_pending_operations() and ((isinstance(upcoming, (mt.Identityd, mt.Identity))) or upcoming is None):
+        if data.has_pending_operations and ((isinstance(upcoming, (mt.Identityd, mt.Identity))) or upcoming is None):
             data, _ = mt.apply_transforms(data, None, overrides=overrides)
         return data
     override_keys = ensure_tuple(override_keys)
     if isinstance(data, dict):
         if isinstance(upcoming, MapTransform):
-            keys_to_override = {k for k in data if k in upcoming.keys and k in override_keys}  # type: ignore
+            applied_keys = {k for k in data if k in upcoming.keys}
+            if not applied_keys:
+                return data
+            keys_to_override = {k for k in applied_keys if k in override_keys}  # type: ignore
         else:
             keys_to_override = {k for k in data if k in override_keys}  # type: ignore
 
@@ -72,12 +83,12 @@ def _evaluate_with_overrides(
         for k in data:
             if k in keys_to_override:
                 dict_for_key = dict_overrides[override_keys.index(k)]
-                data[k] = _evaluate_with_overrides(data[k], upcoming, lazy_evaluation, dict_for_key, None)
+                data[k] = evaluate_with_overrides(data[k], upcoming, lazy_evaluation, dict_for_key, None)
             else:
-                data[k] = _evaluate_with_overrides(data[k], upcoming, lazy_evaluation, None, None)
+                data[k] = evaluate_with_overrides(data[k], upcoming, lazy_evaluation, None, None)
 
     if isinstance(data, (list, tuple)):
-        return [_evaluate_with_overrides(v, upcoming, lazy_evaluation, overrides, override_keys) for v in data]
+        return [evaluate_with_overrides(v, upcoming, lazy_evaluation, overrides, override_keys) for v in data]
     return data
 
 
@@ -250,7 +261,7 @@ class Compose(Randomizable, InvertibleTransform):
         if self.overrides is None:
             return input_
 
-        return _evaluate_with_overrides(
+        return evaluate_with_overrides(
             input_,
             upcoming_xform,
             lazy_evaluation=self.lazy_evaluation,
