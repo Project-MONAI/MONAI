@@ -48,8 +48,10 @@ def _evaluate_with_overrides(
     override_keys: Sequence[str] | None = None,
 ):
     """
-    Given the upcoming transform ``upcoming``, if lazy_resample is True, go through the MetaTensors and
-    evaluate the lazy applied operations. The returned `data` will then be ready for the ``upcoming`` transform.
+    Given the upcoming transform ``upcoming``, if `lazy_evaluation` is True, go through the MetaTensors and
+    evaluate the lazy applied operations.
+
+    The returned `data` will then be ready for the ``upcoming`` transform.
     """
     if not lazy_evaluation:
         return data  # eager evaluation
@@ -61,16 +63,18 @@ def _evaluate_with_overrides(
     override_keys = ensure_tuple(override_keys)
     if isinstance(data, dict):
         if isinstance(upcoming, MapTransform):
-            _keys = [k if k in upcoming.keys and k in data else None for k in override_keys]  # type: ignore
+            keys_to_override = {k for k in data if k in upcoming.keys and k in override_keys}  # type: ignore
         else:
-            _keys = [k if k in data else None for k in override_keys]  # type: ignore
+            keys_to_override = {k for k in data if k in override_keys}  # type: ignore
 
         # generate a list of dictionaries with the appropriate override value per key
         dict_overrides = to_tuple_of_dictionaries(overrides, override_keys)
-        for k in _keys:
-            if k is not None:
-                dict_for_key = dict_overrides[override_keys.index(k)] if k in override_keys else None
-                data[k] = _evaluate_with_overrides(data[k], upcoming, lazy_evaluation, dict_for_key)
+        for k in data:
+            if k in keys_to_override:
+                dict_for_key = dict_overrides[override_keys.index(k)]
+                data[k] = _evaluate_with_overrides(data[k], upcoming, lazy_evaluation, dict_for_key, None)
+            else:
+                data[k] = _evaluate_with_overrides(data[k], upcoming, lazy_evaluation, None, None)
 
     if isinstance(data, (list, tuple)):
         return [_evaluate_with_overrides(v, upcoming, lazy_evaluation, overrides, override_keys) for v in data]
@@ -154,9 +158,11 @@ class Compose(Randomizable, InvertibleTransform):
         log_stats: whether to log the detailed information of data and applied transform when error happened,
             for NumPy array and PyTorch Tensor, log the data shape and value range,
             for other metadata, log the values directly. default to `False`.
-        lazy_evaluation: whether to enable lazy evaluation for lazy transforms. If True, all lazy transforms will
-            be executed by accumulating changes and resampling as few times as possible. If False, transforms will be
-            carried out on a transform by transform basis.
+        lazy_evaluation: whether to enable lazy evaluation for lazy transforms. If False, transforms will be
+            carried out on a transform by transform basis. If True, all lazy transforms will
+            be executed by accumulating changes and resampling as few times as possible.
+            A `monai.transforms.Identity[D]` transform in the pipeline will trigger the evaluation of
+            the pending operations and make the primary data up-to-date.
         overrides: this optional parameter allows you to specify a dictionary of parameters that should be overridden
             when executing a pipeline. These each parameter that is compatible with a given transform is then applied
             to that transform before it is executed. Note that overrides are currently only applied when lazy_evaluation
@@ -289,6 +295,8 @@ class OneOf(Compose):
         lazy_evaluation: whether to enable lazy evaluation for lazy transforms. If True, all lazy transforms will
             be executed by accumulating changes and resampling as few times as possible. If False, transforms will be
             carried out on a transform by transform basis.
+            A `monai.transforms.Identity[D]` transform in the pipeline will trigger the evaluation of
+            the pending operations and make the primary data up-to-date.
         overrides: this optional parameter allows you to specify a dictionary of parameters that should be overridden
             when executing a pipeline. These each parameter that is compatible with a given transform is then applied
             to that transform before it is executed. Note that overrides are currently only applied when lazy_evaluation
@@ -405,6 +413,8 @@ class RandomOrder(Compose):
         lazy_evaluation: whether to enable lazy evaluation for lazy transforms. If True, all lazy transforms will
             be executed by accumulating changes and resampling as few times as possible. If False, transforms will be
             carried out on a transform by transform basis.
+            A `monai.transforms.Identity[D]` transform in the pipeline will trigger the evaluation of
+            the pending operations and make the primary data up-to-date.
         overrides: this optional parameter allows you to specify a dictionary of parameters that should be overridden
             when executing a pipeline. These each parameter that is compatible with a given transform is then applied
             to that transform before it is executed. Note that overrides are currently only applied when lazy_evaluation
