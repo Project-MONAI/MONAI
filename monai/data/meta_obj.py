@@ -214,6 +214,15 @@ class MetaObj:
             return self._pending_operations
         return MetaObj.get_default_applied_operations()  # the same default as applied_ops
 
+    @property
+    def has_pending_operations(self) -> bool:
+        """
+        Determine whether there are pending operations.
+        Returns:
+            True if there are pending operations; False if not
+        """
+        return self.pending_operations is not None and len(self.pending_operations) > 0
+
     def push_pending_operation(self, t: Any) -> None:
         self._pending_operations.append(t)
 
