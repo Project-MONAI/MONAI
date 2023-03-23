@@ -110,7 +110,12 @@ class TestSaveImaged(unittest.TestCase):
     def test_includes_metadata(self, test_data, output_ext, resample):
         with tempfile.TemporaryDirectory() as tempdir:
             trans = SaveImaged(
-                keys=["img", "pred"], resample=resample, allow_missing_keys=True, savepath_in_metadict=True
+                keys=["img", "pred"],
+                output_dir=tempdir,
+                output_ext=output_ext,
+                resample=resample,
+                allow_missing_keys=True,
+                savepath_in_metadict=True
             )
             trans(test_data)
 
