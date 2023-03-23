@@ -99,7 +99,7 @@ def check_training_targets(
                 )
         if not torch.is_floating_point(boxes):
             raise ValueError(f"Expected target boxes to be a float tensor, got {boxes.dtype}.")
-        targets[i][target_box_key] = standardize_empty_box(boxes, spatial_dims=spatial_dims) # type: ignore
+        targets[i][target_box_key] = standardize_empty_box(boxes, spatial_dims=spatial_dims)  # type: ignore
 
         labels = target[target_label_key]
         if torch.is_floating_point(labels):
