@@ -115,7 +115,7 @@ class TestSaveImaged(unittest.TestCase):
                 output_ext=output_ext,
                 resample=resample,
                 allow_missing_keys=True,
-                savepath_in_metadict=True
+                savepath_in_metadict=True,
             )
             trans(test_data)
 
