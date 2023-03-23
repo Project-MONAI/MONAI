@@ -20,34 +20,22 @@ import torch
 from parameterized import parameterized
 
 from monai.config import PathLike
-from monai.data.meta_tensor import MetaTensor
 from monai.data.folder_layout import FolderLayoutBase
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms import SaveImaged
 from monai.utils import optional_import
 
 _, has_itk = optional_import("itk", allow_namespace_pkg=True)
 
 TEST_CASE_1 = [
-    {
-        "img": MetaTensor(
-            torch.randint(0, 255, (1, 2, 3, 4)),
-            meta={
-                "filename_or_obj": "testfile0.nii.gz"
-            }
-        )
-    },
+    {"img": MetaTensor(torch.randint(0, 255, (1, 2, 3, 4)), meta={"filename_or_obj": "testfile0.nii.gz"})},
     ".nii.gz",
     False,
 ]
 
 TEST_CASE_2 = [
     {
-        "img": MetaTensor(
-            torch.randint(0, 255, (1, 2, 3, 4)),
-            meta={
-                "filename_or_obj": "testfile0.nii.gz"
-            }
-        ),
+        "img": MetaTensor(torch.randint(0, 255, (1, 2, 3, 4)), meta={"filename_or_obj": "testfile0.nii.gz"}),
         "patch_index": 6,
     },
     ".nii.gz",
@@ -56,12 +44,7 @@ TEST_CASE_2 = [
 
 TEST_CASE_3 = [
     {
-        "img": MetaTensor(
-            torch.randint(0, 255, (1, 2, 3, 4)),
-            meta={
-                "filename_or_obj": "testfile0.nrrd"
-            }
-        ),
+        "img": MetaTensor(torch.randint(0, 255, (1, 2, 3, 4)), meta={"filename_or_obj": "testfile0.nrrd"}),
         "patch_index": 6,
     },
     ".nrrd",
@@ -96,11 +79,7 @@ class TestSaveImaged(unittest.TestCase):
                 self.ext = extension
                 self.makedirs = makedirs
 
-            def filename(
-                self,
-                subdirectory: str,
-                filename: str,
-            ) -> PathLike:
+            def filename(self, subdirectory: str, filename: str) -> PathLike:
                 p = self.basepath / subdirectory
                 if not p.exists() and self.makedirs:
                     p.mkdir()
@@ -112,10 +91,7 @@ class TestSaveImaged(unittest.TestCase):
             # quick and dirty split on .
             base_filename = metadict["filename_or_obj"].split(".")[0]
 
-            return {
-                "subdirectory": base_filename,
-                "filename": "image",
-            }
+            return {"subdirectory": base_filename, "filename": "image"}
 
         with tempfile.TemporaryDirectory() as tempdir:
             trans = SaveImaged(
@@ -134,10 +110,7 @@ class TestSaveImaged(unittest.TestCase):
     def test_includes_metadata(self, test_data, output_ext, resample):
         with tempfile.TemporaryDirectory() as tempdir:
             trans = SaveImaged(
-                keys=["img", "pred"],
-                resample=resample,
-                allow_missing_keys=True,
-                savepath_in_metadict=True
+                keys=["img", "pred"], resample=resample, allow_missing_keys=True, savepath_in_metadict=True
             )
             trans(test_data)
 
