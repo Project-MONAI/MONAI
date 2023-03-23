@@ -22,6 +22,7 @@ import numpy as np
 
 import monai
 import monai.transforms as mt
+from monai.apps.utils import get_logger
 from monai.transforms.inverse import InvertibleTransform
 
 # For backwards compatibility (so this still works: from monai.transforms.compose import MapTransform)
@@ -34,10 +35,11 @@ from monai.transforms.transform import (  # noqa: F401
     apply_transform,
 )
 from monai.utils import MAX_SEED, TraceKeys, ensure_tuple, get_seed
+from monai.utils.misc import to_tuple_of_dictionaries
+
+logger = get_logger(__name__)
 
 __all__ = ["Compose", "OneOf", "RandomOrder", "evaluate_with_overrides"]
-
-from monai.utils.misc import to_tuple_of_dictionaries
 
 
 def evaluate_with_overrides(
@@ -46,6 +48,7 @@ def evaluate_with_overrides(
     lazy_evaluation: bool | None = False,
     overrides: dict | None = None,
     override_keys: Sequence[str] | None = None,
+    verbose: bool = True,
 ):
     """
     The previously applied transform may have been lazily applied to MetaTensor `data` and
@@ -60,6 +63,15 @@ def evaluate_with_overrides(
         - the upcoming transform is an instance of ``Identity`` or ``IdentityD`` or ``None``.
 
     The returned `data` will then be ready for the ``upcoming`` transform.
+
+    Args:
+        data: data to be evaluated.
+        upcoming: the upcoming transform.
+        lazy_evaluation: whether to evaluate the pending operations.
+        override: keyword arguments to apply transforms.
+        override_keys: to which the override arguments are used when apply transforms.
+        verbose: whether to print debugging info when evaluate MetaTensor with pending operations.
+
     """
     if not lazy_evaluation:
         return data  # eager evaluation
@@ -67,6 +79,14 @@ def evaluate_with_overrides(
     if isinstance(data, monai.data.MetaTensor):
         if data.has_pending_operations and ((isinstance(upcoming, (mt.Identityd, mt.Identity))) or upcoming is None):
             data, _ = mt.apply_transforms(data, None, overrides=overrides)
+            if verbose:
+                next_name = "final output" if upcoming is None else f"'{upcoming.__class__.__name__}'"
+                logger.info(f"Evaluated - '{override_keys}' - up-to-date for - {next_name}")
+        elif verbose:
+            logger.info(
+                f"Lazy - '{override_keys}' - upcoming: '{upcoming.__class__.__name__}'"
+                f"- pending {len(data.pending_operations)}"
+            )
         return data
     override_keys = ensure_tuple(override_keys)
     if isinstance(data, dict):
@@ -74,18 +94,18 @@ def evaluate_with_overrides(
             applied_keys = {k for k in data if k in upcoming.keys}
             if not applied_keys:
                 return data
-            keys_to_override = {k for k in applied_keys if k in override_keys}  # type: ignore
         else:
-            keys_to_override = {k for k in data if k in override_keys}  # type: ignore
+            applied_keys = set(data.keys())
 
+        keys_to_override = {k for k in applied_keys if k in override_keys}
         # generate a list of dictionaries with the appropriate override value per key
         dict_overrides = to_tuple_of_dictionaries(overrides, override_keys)
         for k in data:
             if k in keys_to_override:
                 dict_for_key = dict_overrides[override_keys.index(k)]
-                data[k] = evaluate_with_overrides(data[k], upcoming, lazy_evaluation, dict_for_key, None)
+                data[k] = evaluate_with_overrides(data[k], upcoming, lazy_evaluation, dict_for_key, k)
             else:
-                data[k] = evaluate_with_overrides(data[k], upcoming, lazy_evaluation, None, None)
+                data[k] = evaluate_with_overrides(data[k], upcoming, lazy_evaluation, None, k)
 
     if isinstance(data, (list, tuple)):
         return [evaluate_with_overrides(v, upcoming, lazy_evaluation, overrides, override_keys) for v in data]
@@ -183,6 +203,7 @@ class Compose(Randomizable, InvertibleTransform):
             please see also :py:func:`monai.transforms.lazy.apply_transforms` for more details.
         override_keys: this optional parameter specifies the keys to which ``overrides`` are to be applied. If
             ``overrides`` is set, ``override_keys`` must also be set.
+        verbose: whether to print debugging info when lazy_evaluation=True.
     """
 
     def __init__(
@@ -194,6 +215,7 @@ class Compose(Randomizable, InvertibleTransform):
         lazy_evaluation: bool | None = None,
         overrides: dict | None = None,
         override_keys: Sequence[str] | None = None,
+        verbose: bool = False,
     ) -> None:
         if transforms is None:
             transforms = []
@@ -206,6 +228,7 @@ class Compose(Randomizable, InvertibleTransform):
         self.lazy_evaluation = lazy_evaluation
         self.overrides = overrides
         self.override_keys = override_keys
+        self.verbose = verbose
 
         if self.lazy_evaluation is not None:
             for t in self.flatten().transforms:  # TODO: test Compose of Compose/OneOf
@@ -258,15 +281,13 @@ class Compose(Randomizable, InvertibleTransform):
             input_: input data to be transformed.
             upcoming_xform: a transform used to determine whether to evaluate with override
         """
-        if self.overrides is None:
-            return input_
-
         return evaluate_with_overrides(
             input_,
             upcoming_xform,
             lazy_evaluation=self.lazy_evaluation,
             overrides=self.overrides,
             override_keys=self.override_keys,
+            verbose=self.verbose,
         )
 
     def __call__(self, input_):
@@ -317,6 +338,7 @@ class OneOf(Compose):
             please see also :py:func:`monai.transforms.lazy.apply_transforms` for more details.
         override_keys: this optional parameter specifies the keys to which ``overrides`` are to be applied. If
             ``overrides`` is set, ``override_keys`` must also be set.
+        verbose: whether to print debugging info when lazy_evaluation=True.
     """
 
     def __init__(
@@ -329,8 +351,11 @@ class OneOf(Compose):
         lazy_evaluation: bool | None = None,
         overrides: dict | None = None,
         override_keys: Sequence[str] | None = None,
+        verbose: bool = False,
     ) -> None:
-        super().__init__(transforms, map_items, unpack_items, log_stats, lazy_evaluation, overrides, override_keys)
+        super().__init__(
+            transforms, map_items, unpack_items, log_stats, lazy_evaluation, overrides, override_keys, verbose
+        )
         if len(self.transforms) == 0:
             weights = []
         elif weights is None or isinstance(weights, float):
@@ -435,6 +460,7 @@ class RandomOrder(Compose):
             please see also :py:func:`monai.transforms.lazy.apply_transforms` for more details.
         override_keys: this optional parameter specifies the keys to which ``overrides`` are to be applied. If
             ``overrides`` is set, ``override_keys`` must also be set.
+        verbose: whether to print debugging info when lazy_evaluation=True.
     """
 
     def __init__(
@@ -446,8 +472,11 @@ class RandomOrder(Compose):
         lazy_evaluation: bool | None = None,
         overrides: dict | None = None,
         override_keys: Sequence[str] | None = None,
+        verbose: bool = False,
     ) -> None:
-        super().__init__(transforms, map_items, unpack_items, log_stats, lazy_evaluation, overrides, override_keys)
+        super().__init__(
+            transforms, map_items, unpack_items, log_stats, lazy_evaluation, overrides, override_keys, verbose
+        )
 
     def __call__(self, input_):
         if len(self.transforms) == 0:

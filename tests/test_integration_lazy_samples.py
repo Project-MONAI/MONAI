@@ -64,7 +64,8 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
         ],
         lazy_evaluation=lazy,
         overrides=lazy_kwargs,
-        override_keys=("imge", "seg"),
+        override_keys=("img", "seg"),
+        verbose=num_workers > 0,  # testing both flags
     )
 
     # create a training data loader
