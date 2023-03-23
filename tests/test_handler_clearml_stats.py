@@ -11,22 +11,37 @@
 
 from __future__ import annotations
 
+import tempfile
 import unittest
+from os import environ
 
 from monai.handlers import ClearMLStatsHandler
 from monai.utils import optional_import
 
 Task, has_clearml = optional_import("clearml", name="Task")
+get_active_config_file, has_get_active_config_file = optional_import(
+    "clearml.backend_config.defs", name="get_active_config_file"
+)
 _, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
 
 @unittest.skipUnless(has_clearml, "Requires 'clearml' installation")
 @unittest.skipUnless(has_tb, "Requires SummaryWriter installation")
-@unittest.skip("temp mute clearml tests https://github.com/Project-MONAI/MONAI/issues/6148")
+@unittest.skipIf(not has_get_active_config_file, "ClearML 'get_active_config_file' not found")
 class TestHandlerClearMLStatsHandler(unittest.TestCase):
     def test_task_init(self):
-        Task.set_offline(offline_mode=True)
+        handle, path = tempfile.mkstemp()
+        with open(handle, "w") as new_config:
+            if get_active_config_file():
+                with open(get_active_config_file()) as old_config:
+                    new_config.write(old_config.read())
+            new_config.write(
+                "\nsdk.development.vcs_repo_detect_async: false\nsdk.development.report_use_subprocess: false\n"
+            )
+        environ["CLEARML_CONFIG_FILE"] = path
         try:
+            Task.force_store_standalone_script(True)
+            Task.set_offline(offline_mode=True)
             ClearMLStatsHandler(
                 project_name="MONAI",
                 task_name="monai_experiment",

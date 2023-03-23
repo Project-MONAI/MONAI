@@ -21,17 +21,31 @@ from parameterized import parameterized
 from monai.bundle import ConfigParser
 from monai.data import load_net_with_metadata
 from monai.networks import save_state
-from tests.utils import command_line_tests, skip_if_windows
+from monai.utils import optional_import
+from tests.utils import command_line_tests, skip_if_no_cuda, skip_if_quick, skip_if_windows
 
-TEST_CASE_1 = ["", ""]
+_, has_torchtrt = optional_import(
+    "torch_tensorrt",
+    version="1.4.0",
+    descriptor="Torch-TRT is not installed. Are you sure you have a Torch-TensorRT compilation?",
+)
+_, has_tensorrt = optional_import(
+    "tensorrt", descriptor="TensorRT is not installed. Are you sure you have a TensorRT compilation?"
+)
 
-TEST_CASE_2 = ["model", ""]
+TEST_CASE_1 = ["fp32", [], []]
 
-TEST_CASE_3 = ["model", "True"]
+TEST_CASE_2 = ["fp16", [], []]
+
+TEST_CASE_3 = ["fp32", [1, 1, 96, 96, 96], [1, 4, 8]]
+
+TEST_CASE_4 = ["fp16", [1, 1, 96, 96, 96], [1, 4, 8]]
 
 
 @skip_if_windows
-class TestCKPTExport(unittest.TestCase):
+@skip_if_no_cuda
+@skip_if_quick
+class TestTRTExport(unittest.TestCase):
     def setUp(self):
         self.device = os.environ.get("CUDA_VISIBLE_DEVICES")
         if not self.device:
@@ -43,8 +57,9 @@ class TestCKPTExport(unittest.TestCase):
         else:
             del os.environ["CUDA_VISIBLE_DEVICES"]  # previously unset
 
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
-    def test_export(self, key_in_ckpt, use_trace):
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
+    @unittest.skipUnless(has_torchtrt and has_tensorrt, "Torch-TensorRT is required for convert!")
+    def test_trt_export(self, convert_precision, input_shape, dynamic_batch):
         meta_file = os.path.join(os.path.dirname(__file__), "testing_data", "metadata.json")
         config_file = os.path.join(os.path.dirname(__file__), "testing_data", "inference.json")
         with tempfile.TemporaryDirectory() as tempdir:
@@ -52,19 +67,21 @@ class TestCKPTExport(unittest.TestCase):
             def_args_file = os.path.join(tempdir, "def_args.yaml")
 
             ckpt_file = os.path.join(tempdir, "model.pt")
-            ts_file = os.path.join(tempdir, "model.ts")
+            ts_file = os.path.join(tempdir, f"model_trt_{convert_precision}.ts")
 
             parser = ConfigParser()
             parser.export_config_file(config=def_args, filepath=def_args_file)
             parser.read_config(config_file)
             net = parser.get_parsed_content("network_def")
-            save_state(src=net if key_in_ckpt == "" else {key_in_ckpt: net}, path=ckpt_file)
+            save_state(src=net, path=ckpt_file)
 
-            cmd = ["coverage", "run", "-m", "monai.bundle", "ckpt_export", "network_def", "--filepath", ts_file]
+            cmd = ["python", "-m", "monai.bundle", "trt_export", "network_def", "--filepath", ts_file]
             cmd += ["--meta_file", meta_file, "--config_file", f"['{config_file}','{def_args_file}']", "--ckpt_file"]
-            cmd += [ckpt_file, "--key_in_ckpt", key_in_ckpt, "--args_file", def_args_file]
-            if use_trace == "True":
-                cmd += ["--use_trace", use_trace, "--input_shape", "[1, 1, 96, 96, 96]"]
+            cmd += [ckpt_file, "--args_file", def_args_file, "--precision", convert_precision]
+            if input_shape:
+                cmd += ["--input_shape", str(input_shape)]
+            if dynamic_batch:
+                cmd += ["--dynamic_batch", str(dynamic_batch)]
             command_line_tests(cmd)
             self.assertTrue(os.path.exists(ts_file))
 
