@@ -19,7 +19,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import DynUNet
-from tests.utils import assert_allclose, test_script_save, skip_if_no_cuda, skip_if_windows
+from tests.utils import assert_allclose, skip_if_no_cuda, skip_if_windows, test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
