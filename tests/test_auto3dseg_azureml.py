@@ -15,7 +15,7 @@ import os
 import tempfile
 import unittest
 
-from monai.apps.auto3dseg import AutoRunner
+from monai.apps.auto3dseg import AzureMLAutoRunner
 from monai.bundle.config_parser import ConfigParser
 from monai.utils import optional_import
 from tests.utils import export_fake_data_config_file, generate_fake_segmentation_data, skip_if_quick
@@ -76,7 +76,7 @@ class TestAuto3DSegAzureML(unittest.TestCase):
                     "--azureml",
                 ],
             ):
-                AutoRunner(input=self.test_task_yaml, training_params=test_params, num_fold=test_num_fold)
+                AzureMLAutoRunner(input=self.test_task_yaml, training_params=test_params, num_fold=test_num_fold)
 
         self.assertEqual(cm.exception.code, 0)
 

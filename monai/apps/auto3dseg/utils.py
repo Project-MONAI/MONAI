@@ -82,7 +82,7 @@ def submit_auto3dseg_module_to_azureml_if_needed(azure_cfg: dict[str, Any]) -> h
         azure_cfg: Dictionary containing arguments to be used for AzureML job submission.
     """
     azureml_args = {
-        "workspace_config_file": "azureml_configs/azureml_config.json",
+        "workspace_config_file": "config.json",
         "docker_base_image": "mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04",
         "snapshot_root_directory": os.getcwd(),
         "conda_environment_file": "environment-azureml.yml",
