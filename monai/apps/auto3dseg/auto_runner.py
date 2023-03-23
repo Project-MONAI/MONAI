@@ -282,6 +282,13 @@ class AutoRunner:
         algos: dict | list | str | None = None,
         templates_path_or_url: str | None = None,
     ):
+        """Sets up the AutoRunner data source config using the provided input.
+
+        Args:
+            input: The input to parse for AutoRunner configuration, defaults to None
+            algos: The algorithms to use during AutoRunner training, defaults to None
+            templates_path_or_url: The URL or filepath to the algorithm templates, defaults to None
+        """
         self.data_src_cfg_name = os.path.join(self.work_dir, "input.yaml")
         self.algos = algos
         self.templates_path_or_url = templates_path_or_url
@@ -299,6 +306,12 @@ class AutoRunner:
             raise ValueError(f"Input: {input} is not a valid file or dict")
 
     def _create_work_dir_and_data_src_cfg(self, data_src_cfg: dict[str, Any] | None = None) -> None:
+        """
+        Creates the work dir to be used by AutoRunner and exports the data source config to the specified filename
+
+        Args
+            param data_src_cfg: dictionary containing the configuration for the AutoRunner, defaults to None
+        """
         os.makedirs(self.work_dir, exist_ok=True)
         output_data_src_cfg = data_src_cfg if data_src_cfg is not None else self.data_src_cfg
         ConfigParser.export_config_file(

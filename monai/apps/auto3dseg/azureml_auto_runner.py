@@ -25,6 +25,13 @@ health_azure, has_health_azure = optional_import("health_azure")
 
 
 class AzureMLAutoRunner(AutoRunner):
+    """
+    Subclass of AutoRunner that runs the training in AzureML instead of on local resources. Inputs are idnetical to
+    those of AutoRunner, but the `input` argument must be a dictionary or input.yaml file with a key `azureml_config`
+    that contains the configuration for the AzureML run.
+
+    """
+
     def __init__(
         self,
         input: dict[str, Any] | str | None = None,
