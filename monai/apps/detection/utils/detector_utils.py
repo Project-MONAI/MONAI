@@ -58,7 +58,7 @@ def check_training_targets(
     spatial_dims: int,
     target_label_key: str,
     target_box_key: str,
-) -> None:
+) -> list[dict[str, Tensor]]:
     """
     Validate the input images/targets during training (raise a `ValueError` if invalid).
 
@@ -99,7 +99,7 @@ def check_training_targets(
                 )
         if not torch.is_floating_point(boxes):
             raise ValueError(f"Expected target boxes to be a float tensor, got {boxes.dtype}.")
-        targets[i][target_box_key] = standardize_empty_box(boxes, spatial_dims=spatial_dims)
+        targets[i][target_box_key] = standardize_empty_box(boxes, spatial_dims=spatial_dims) # type: ignore
 
         labels = target[target_label_key]
         if torch.is_floating_point(labels):
