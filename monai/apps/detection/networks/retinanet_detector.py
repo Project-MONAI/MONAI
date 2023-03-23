@@ -485,7 +485,9 @@ class RetinaNetDetector(nn.Module):
         """
         # 1. Check if input arguments are valid
         if self.training:
-            targets = check_training_targets(input_images, targets, self.spatial_dims, self.target_label_key, self.target_box_key)
+            targets = check_training_targets(
+                input_images, targets, self.spatial_dims, self.target_label_key, self.target_box_key
+            )
             self._check_detector_training_components()
 
         # 2. Pad list of images to a single Tensor `images` with spatial size divisible by self.size_divisible.
