@@ -12,7 +12,8 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+
+from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -150,7 +151,7 @@ class UpCat(nn.Module):
         self.convs = TwoConv(spatial_dims, cat_chns + up_chns, out_chns, act, norm, bias, dropout)
         self.is_pad = is_pad
 
-    def forward(self, x: torch.Tensor, x_e: Any):
+    def forward(self, x: torch.Tensor, x_e: Optional[torch.Tensor]):
         """
 
         Args:
