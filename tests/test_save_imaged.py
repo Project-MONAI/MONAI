@@ -79,12 +79,12 @@ class TestSaveImaged(unittest.TestCase):
                 self.ext = extension
                 self.makedirs = makedirs
 
-            def filename(self, subdirectory: str, filename: str) -> PathLike:
-                p = self.basepath / subdirectory
+            def filename(self, **kwargs) -> PathLike:
+                p = self.basepath / str(kwargs["subdirectory"])
                 if not p.exists() and self.makedirs:
                     p.mkdir()
 
-                return p / (filename + self.ext)
+                return p / (str(kwargs["filename"]) + self.ext)
 
         def name_formatter(metadict: dict, _) -> dict:
             # "[filename].[ext]"
