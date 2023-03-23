@@ -33,10 +33,12 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
     images = sorted(glob(os.path.join(root_dir, "img*.nii.gz")))
     segs = sorted(glob(os.path.join(root_dir, "seg*.nii.gz")))
     train_files = [{"img": img, "seg": seg} for img, seg in zip(images[:20], segs[:20])]
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    num_workers = 0 if torch.cuda.is_available() else num_workers
 
     # define transforms for image and segmentation
     lazy_kwargs = dict(
-        mode=("bilinear", 0), device="cpu", padding_mode=("border", "nearest"), dtype=(torch.float32, torch.uint8)
+        mode=("bilinear", 0), device=device, padding_mode=("border", "nearest"), dtype=(torch.float32, torch.uint8)
     )
     train_transforms = mt.Compose(
         [
