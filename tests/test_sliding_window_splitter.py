@@ -13,29 +13,13 @@ from __future__ import annotations
 
 import os
 import unittest
-from unittest import skipUnless
 
 import torch
 from parameterized import parameterized
 from torch.nn.functional import pad
 
-from monai.data import CuCIMWSIReader, ImageReader, OpenSlideWSIReader, WSIReader
 from monai.inferers import SlidingWindowSplitter
-from tests.utils import assert_allclose, download_url_or_skip_test, optional_import, testing_data_config
-
-cucim, has_cucim = optional_import("cucim")
-has_cucim = has_cucim and hasattr(cucim, "CuImage")
-_, has_osl = optional_import("openslide")
-
-WSI_READER_STR = None
-WSI_READER_CLASS: type[CuCIMWSIReader] | type[OpenSlideWSIReader] | None = None
-if has_cucim:
-    WSI_READER_STR = "cuCIM"
-    WSI_READER_CLASS = CuCIMWSIReader
-elif has_osl:
-    WSI_READER_STR = "OpenSlide"
-    WSI_READER_CLASS = OpenSlideWSIReader
-
+from tests.utils import assert_allclose, testing_data_config
 
 FILE_KEY = "wsi_img"
 FILE_URL = testing_data_config("images", FILE_KEY, "url")
@@ -254,13 +238,6 @@ TEST_CASE_ERROR_7 = [TENSOR_4x4, {"patch_size": (2, 2), "filter_fn": extra_param
 TEST_CASE_ERROR_8 = [TENSOR_4x4, {"patch_size": (2, 2), "filter_fn": missing_parameter_filter}, ValueError]
 # invalid filter function: non-callable
 TEST_CASE_ERROR_9 = [TENSOR_4x4, {"patch_size": (2, 2), "filter_fn": 1}, ValueError]
-
-
-def setUpModule():
-    if WSI_READER_STR:
-        hash_type = testing_data_config("images", FILE_KEY, "hash_type")
-        hash_val = testing_data_config("images", FILE_KEY, "hash_val")
-        download_url_or_skip_test(FILE_URL, FILE_PATH, hash_type=hash_type, hash_val=hash_val)
 
 
 class SlidingWindowSplitterTests(unittest.TestCase):
