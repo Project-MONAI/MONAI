@@ -35,7 +35,9 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
     train_files = [{"img": img, "seg": seg} for img, seg in zip(images[:20], segs[:20])]
 
     # define transforms for image and segmentation
-    lazy_kwargs = dict(mode=("bilinear", 0), padding_mode=("border", "nearest"), dtype=(torch.float32, torch.uint8))
+    lazy_kwargs = dict(
+        mode=("bilinear", 0), device="cpu", padding_mode=("border", "nearest"), dtype=(torch.float32, torch.uint8)
+    )
     train_transforms = mt.Compose(
         [
             mt.LoadImaged(keys=["img", "seg"], reader=readers[0], image_only=True),

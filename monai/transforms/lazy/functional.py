@@ -27,7 +27,7 @@ from monai.utils import LazyAttr, look_up_option
 
 __all__ = ["apply_transforms"]
 
-__override_keywords = {"mode", "padding_mode", "dtype", "align_corners", "resample_mode"}
+__override_keywords = {"mode", "padding_mode", "dtype", "align_corners", "resample_mode", "device"}
 
 
 def apply_transforms(
@@ -59,6 +59,7 @@ def apply_transforms(
             align_corners: Geometrically, we consider the pixels of the input as squares rather than points, when using
                 the PyTorch resampling backend. Defaults to ``False``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+            device: device for resampling computation. Defaults to ``None``.
             resample_mode: the mode of resampling, currently support ``"auto"``. Setting to other values will use the
                    `monai.transforms.SpatialResample` for resampling (instead of potentially crop/pad).
 
@@ -89,6 +90,7 @@ def apply_transforms(
         override_kwargs["resample_mode"] = overrides["resample_mode"]
     override_dtype = overrides.get("dtype", torch.float64)
     override_kwargs[LazyAttr.DTYPE] = data.dtype if override_dtype is None else override_dtype
+    device = overrides.get("device")
 
     for p in pending[1:]:
         new_kwargs = kwargs_from_pending(p)
@@ -96,14 +98,13 @@ def apply_transforms(
             # carry out an intermediate resample here due to incompatibility between arguments
             _cur_kwargs = cur_kwargs.copy()
             _cur_kwargs.update(override_kwargs)
-            data = resample(data, cumulative_xform, _cur_kwargs)
+            data = resample(data.to(device), cumulative_xform, _cur_kwargs)
         next_matrix = affine_from_pending(p)
         cumulative_xform = combine_transforms(cumulative_xform, next_matrix)
         cur_kwargs.update(new_kwargs)
     cur_kwargs.update(override_kwargs)
-    data = resample(data, cumulative_xform, cur_kwargs)
+    data = resample(data.to(device), cumulative_xform, cur_kwargs)
     if isinstance(data, MetaTensor):
         for p in pending:
             data.push_applied_operation(p)
-
     return data, pending

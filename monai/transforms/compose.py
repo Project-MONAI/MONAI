@@ -56,9 +56,6 @@ def _evaluate_with_overrides(
     overrides = (overrides or {}).copy()
     if isinstance(data, monai.data.MetaTensor):
         if data.has_pending_operations() and ((isinstance(upcoming, (mt.Identityd, mt.Identity))) or upcoming is None):
-            device = overrides.pop("device", None)
-            if device is not None:
-                data = mt.EnsureType(device=device)(data)
             data, _ = mt.apply_transforms(data, None, overrides=overrides)
         return data
     override_keys = ensure_tuple(override_keys)
@@ -165,8 +162,8 @@ class Compose(Randomizable, InvertibleTransform):
             to that transform before it is executed. Note that overrides are currently only applied when lazy_evaluation
             is True. If lazy_evaluation is False they are ignored.
             currently supported args are:
-            {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``}, please see also
-            :py:func:`monai.transforms.lazy.apply_transforms` for more details.
+            {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``},
+            please see also :py:func:`monai.transforms.lazy.apply_transforms` for more details.
         override_keys: this optional parameter specifies the keys to which ``overrides`` are to be applied. If
             ``overrides`` is set, ``override_keys`` must also be set.
     """
@@ -297,8 +294,8 @@ class OneOf(Compose):
             to that transform before it is executed. Note that overrides are currently only applied when lazy_evaluation
             is True. If lazy_evaluation is False they are ignored.
             currently supported args are:
-            {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``}, please see also
-            :py:func:`monai.transforms.lazy.apply_transforms` for more details.
+            {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``},
+            please see also :py:func:`monai.transforms.lazy.apply_transforms` for more details.
         override_keys: this optional parameter specifies the keys to which ``overrides`` are to be applied. If
             ``overrides`` is set, ``override_keys`` must also be set.
     """
@@ -413,8 +410,8 @@ class RandomOrder(Compose):
             to that transform before it is executed. Note that overrides are currently only applied when lazy_evaluation
             is True. If lazy_evaluation is False they are ignored.
             currently supported args are:
-            {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``}, please see also
-            :py:func:`monai.transforms.lazy.apply_transforms` for more details.
+            {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``},
+            please see also :py:func:`monai.transforms.lazy.apply_transforms` for more details.
         override_keys: this optional parameter specifies the keys to which ``overrides`` are to be applied. If
             ``overrides`` is set, ``override_keys`` must also be set.
     """
