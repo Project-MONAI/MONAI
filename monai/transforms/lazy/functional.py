@@ -40,28 +40,28 @@ def apply_transforms(
     Args:
         data: A torch Tensor or a monai MetaTensor.
         pending: pending transforms. This must be set if data is a Tensor, but is optional if data is a MetaTensor.
-        overrides: a dictionary of overrides for the transform arguments. The keys must be one of
+        overrides: a dictionary of overrides for the transform arguments. The keys must be one of:
 
-            mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order ``0-5`` (integers).
+            - mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order ``0-5`` (integers).
                 Interpolation mode to calculate output values. Defaults to None.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 When it's `an integer`, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
                 and the value represents the order of the spline interpolation.
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
-            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+            - padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to None.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 When `mode` is an integer, using numpy/cupy backends, this argument accepts
                 {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
-            dtype: data type for resampling computation. Defaults to ``float64``.
+            - dtype: data type for resampling computation. Defaults to ``float64``.
                 If ``None``, use the data type of input data, this option may not be compatible the resampling backend.
-            align_corners: Geometrically, we consider the pixels of the input as squares rather than points, when using
+            - align_corners: Geometrically, we consider the pixels of the input as squares rather than points, when using
                 the PyTorch resampling backend. Defaults to ``False``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-            device: device for resampling computation. Defaults to ``None``.
-            resample_mode: the mode of resampling, currently support ``"auto"``. Setting to other values will use the
-                   `monai.transforms.SpatialResample` for resampling (instead of potentially crop/pad).
+            - device: device for resampling computation. Defaults to ``None``.
+            - resample_mode: the mode of resampling, currently support ``"auto"``. Setting to other values will use the
+                :py:class:`monai.transforms.SpatialResample` for resampling (instead of potentially crop/pad).
 
     """
     overrides = (overrides or {}).copy()
@@ -87,7 +87,7 @@ def apply_transforms(
     if "align_corners" in overrides:
         override_kwargs[LazyAttr.ALIGN_CORNERS] = overrides["align_corners"]
     if "resample_mode" in overrides:
-        override_kwargs["resample_mode"] = overrides["resample_mode"]
+        override_kwargs[LazyAttr.RESAMPLE_MODE] = overrides["resample_mode"]
     override_dtype = overrides.get("dtype", torch.float64)
     override_kwargs[LazyAttr.DTYPE] = data.dtype if override_dtype is None else override_dtype
     device = overrides.get("device")

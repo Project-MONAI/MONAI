@@ -142,7 +142,7 @@ def requires_interp(matrix, atol=AFFINE_TOL):
     return oy
 
 
-__override_lazy_keywords = {*list(LazyAttr), "atol", "resample_mode"}
+__override_lazy_keywords = {*list(LazyAttr), "atol"}
 
 
 def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = None):
@@ -160,8 +160,8 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = 
             - "lazy_align_corners"
             - "lazy_dtype"
             - "atol" for tolerance for matrix floating point comparison.
-            - "resample_mode" for resampling backend, default to `"auto"`. Setting to other values will use the
-               `monai.transforms.SpatialResample` for resampling.
+            - "lazy_resample_mode" for resampling backend, default to `"auto"`. Setting to other values will use the
+              `monai.transforms.SpatialResample` for resampling.
 
     See Also:
         :py:class:`monai.transforms.SpatialResample`
@@ -174,7 +174,7 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = 
     for k in kwargs:
         look_up_option(k, __override_lazy_keywords)
     atol = kwargs.get("atol", AFFINE_TOL)
-    mode = kwargs.get("resample_mode", "auto")
+    mode = kwargs.get(LazyAttr.RESAMPLE_MODE, "auto")
 
     init_kwargs = {
         "dtype": kwargs.get(LazyAttr.DTYPE, data.dtype),
