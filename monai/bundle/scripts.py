@@ -581,7 +581,105 @@ def get_bundle_info(
 
 
 @deprecated_arg("runner_id", since="1.1", removed="1.3", new_name="run_id", msg_suffix="please use `run_id` instead.")
-def run(workflow: str | BundleWorkflow | None = None, args_file: str | None = None, **kwargs: Any) -> None:
+def run(
+    run_id: str | None = None,
+    init_id: str | None = None,
+    final_id: str | None = None,
+    meta_file: str | Sequence[str] | None = None,
+    config_file: str | Sequence[str] | None = None,
+    logging_file: str | None = None,
+    tracking: str | dict | None = None,
+    args_file: str | None = None,
+    **override: Any,
+) -> None:
+    """
+    Specify `config_file` to run monai bundle components and workflows.
+
+    Typical usage examples:
+
+    .. code-block:: bash
+
+        # Execute this module as a CLI entry:
+        python -m monai.bundle run training --meta_file <meta path> --config_file <config path>
+
+        # Override config values at runtime by specifying the component id and its new value:
+        python -m monai.bundle run training --net#input_chns 1 ...
+
+        # Override config values with another config file `/path/to/another.json`:
+        python -m monai.bundle run evaluating --net %/path/to/another.json ...
+
+        # Override config values with part content of another config file:
+        python -m monai.bundle run training --net %/data/other.json#net_arg ...
+
+        # Set default args of `run` in a JSON / YAML file, help to record and simplify the command line.
+        # Other args still can override the default args at runtime:
+        python -m monai.bundle run --args_file "/workspace/data/args.json" --config_file <config path>
+
+    Args:
+        run_id: ID name of the expected config expression to run, default to "run".
+        init_id: ID name of the expected config expression to initialize before running, default to "initialize".
+        final_id: ID name of the expected config expression to finalize after running, default to "finalize".
+        meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
+            Default to "configs/metadata.json", which is commonly used for bundles in MONAI model zoo.
+        config_file: filepath of the config file, if `None`, must be provided in `args_file`.
+            if it is a list of file paths, the content of them will be merged.
+        logging_file: config file for `logging` module in the program. for more details:
+            https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
+            Default to "configs/logging.conf", which is commonly used for bundles in MONAI model zoo.
+        tracking: if not None, enable the experiment tracking at runtime with optionally configurable and extensible.
+            if "mlflow", will add `MLFlowHandler` to the parsed bundle with default tracking settings,
+            if other string, treat it as file path to load the tracking settings.
+            if `dict`, treat it as tracking settings.
+            will patch the target config content with `tracking handlers` and the top-level items of `configs`.
+            for detailed usage examples, plesae check the tutorial:
+            https://github.com/Project-MONAI/tutorials/blob/main/experiment_management/bundle_integrate_mlflow.ipynb.
+        args_file: a JSON or YAML file to provide default values for `runner_id`, `meta_file`,
+            `config_file`, `logging`, and override pairs. so that the command line inputs can be simplified.
+        override: id-value pairs to override or add the corresponding config content.
+            e.g. ``--net#input_chns 42``.
+
+    """
+
+    _args = _update_args(
+        args=args_file,
+        run_id=run_id,
+        init_id=init_id,
+        final_id=final_id,
+        meta_file=meta_file,
+        config_file=config_file,
+        logging_file=logging_file,
+        tracking=tracking,
+        **override,
+    )
+    if "config_file" not in _args:
+        warnings.warn("`config_file` not provided for 'monai.bundle run'.")
+    _log_input_summary(tag="run", args=_args)
+    config_file_, meta_file_, init_id_, run_id_, final_id_, logging_file_, tracking_ = _pop_args(
+        _args,
+        config_file=None,
+        meta_file="configs/metadata.json",
+        init_id="initialize",
+        run_id="run",
+        final_id="finalize",
+        logging_file="configs/logging.conf",
+        tracking=None,
+    )
+    workflow = ConfigWorkflow(
+        config_file=config_file_,
+        meta_file=meta_file_,
+        logging_file=logging_file_,
+        init_id=init_id_,
+        run_id=run_id_,
+        final_id=final_id_,
+        tracking=tracking_,
+        **_args,
+    )
+    workflow.initialize()
+    workflow.run()
+    workflow.finalize()
+
+
+def run_workflow(workflow: str | BundleWorkflow | None = None, args_file: str | None = None, **kwargs: Any) -> None:
     """
     Specify `bundle workflow` to run monai bundle components and workflows.
 
