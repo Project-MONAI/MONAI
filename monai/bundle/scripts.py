@@ -21,7 +21,7 @@ from pathlib import Path
 from pydoc import locate
 from shutil import copyfile
 from textwrap import dedent
-from typing import Any
+from typing import Any, Callable
 
 import torch
 from torch.cuda import is_available
@@ -34,7 +34,7 @@ from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA
 from monai.bundle.workflows import BundleWorkflow, ConfigWorkflow
 from monai.config import IgniteInfo, PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
-from monai.networks import convert_to_torchscript, copy_model_state, get_state_dict, save_state
+from monai.networks import convert_to_torchscript, convert_to_trt, copy_model_state, get_state_dict, save_state
 from monai.utils import (
     check_parent_dir,
     deprecated_arg,
@@ -697,6 +697,43 @@ def verify_metadata(
     logger.info("metadata is verified with no error.")
 
 
+def _get_net_io_info(parser: ConfigParser | None = None, prefix: str = "_meta_#network_data_format") -> tuple:
+    """
+    Get the input and output information defined in the metadata.
+
+    Args:
+        parser: a ConfigParser of the given bundle.
+        prefix: a prefix for the input and output ID, which will be combined as `prefix#inputs` and
+            `prefix#outputs` to parse the input and output information in the `metadata.json` file of
+            a bundle, default to `meta_#network_data_format`.
+
+    Returns:
+        input_channels: the channel number of the `image` input.
+        input_spatial_shape: the spatial shape of the `image` input.
+        input_dtype: the data type of the `image` input.
+        output_channels: the channel number of the output.
+        output_dtype: the data type of the output.
+    """
+    if not isinstance(parser, ConfigParser):
+        raise AttributeError(f"Parameter parser should be a ConfigParser, got {type(parser)}.")
+
+    prefix_key = f"{prefix}#inputs"
+    key = f"{prefix_key}#image#num_channels"
+    input_channels = parser.get(key)
+    key = f"{prefix_key}#image#spatial_shape"
+    input_spatial_shape = tuple(parser.get(key))
+    key = f"{prefix_key}#image#dtype"
+    input_dtype = get_equivalent_dtype(parser.get(key), torch.Tensor)
+
+    prefix_key = f"{prefix}#outputs"
+    key = f"{prefix_key}#pred#num_channels"
+    output_channels = parser.get(key)
+    key = f"{prefix_key}#pred#dtype"
+    output_dtype = get_equivalent_dtype(parser.get(key), torch.Tensor)
+
+    return input_channels, input_spatial_shape, input_dtype, output_channels, output_dtype
+
+
 def verify_net_in_out(
     net_id: str | None = None,
     meta_file: str | Sequence[str] | None = None,
@@ -759,19 +796,10 @@ def verify_net_in_out(
     for k, v in _args.items():
         parser[k] = v
 
+    input_channels, input_spatial_shape, input_dtype, output_channels, output_dtype = _get_net_io_info(parser=parser)
     try:
         key: str = net_id_  # mark the full id when KeyError
         net = parser.get_parsed_content(key).to(device_)
-        key = "_meta_#network_data_format#inputs#image#num_channels"
-        input_channels = parser[key]
-        key = "_meta_#network_data_format#inputs#image#spatial_shape"
-        input_spatial_shape = tuple(parser[key])
-        key = "_meta_#network_data_format#inputs#image#dtype"
-        input_dtype = get_equivalent_dtype(parser[key], torch.Tensor)
-        key = "_meta_#network_data_format#outputs#pred#num_channels"
-        output_channels = parser[key]
-        key = "_meta_#network_data_format#outputs#pred#dtype"
-        output_dtype = get_equivalent_dtype(parser[key], torch.Tensor)
     except KeyError as e:
         raise KeyError(f"Failed to verify due to missing expected key in the config: {key}.") from e
 
@@ -796,6 +824,72 @@ def verify_net_in_out(
     logger.info("data shape of network is verified with no error.")
 
 
+def _export(
+    converter: Callable,
+    parser: ConfigParser,
+    net_id: str,
+    filepath: str,
+    ckpt_file: str,
+    config_file: str,
+    key_in_ckpt: str,
+    **kwargs: Any,
+) -> None:
+    """
+    Export a model defined in the parser to a new one specified by the converter.
+
+    Args:
+        converter: a callable object that takes a torch.nn.module and kwargs as input and
+            converts the module to another type.
+        parser: a ConfigParser of the bundle to be converted.
+        net_id: ID name of the network component in the parser, it must be `torch.nn.Module`.
+        filepath: filepath to export, if filename has no extension, it becomes `.ts`.
+        ckpt_file: filepath of the model checkpoint to load.
+        config_file: filepath of the config file to save in the converted model,the saved key in the converted
+            model is the config filename without extension, and the saved config value is always serialized in
+            JSON format no matter the original file format is JSON or YAML. it can be a single file or a list
+            of files.
+        key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
+            weights. if not nested checkpoint, no need to set.
+        kwargs: key arguments for the converter.
+
+    """
+    net = parser.get_parsed_content(net_id)
+    if has_ignite:
+        # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
+        Checkpoint.load_objects(to_load={key_in_ckpt: net}, checkpoint=ckpt_file)
+    else:
+        ckpt = torch.load(ckpt_file)
+        copy_model_state(dst=net, src=ckpt if key_in_ckpt == "" else ckpt[key_in_ckpt])
+
+    # Use the given converter to convert a model and save with metadata, config content
+    net = converter(model=net, **kwargs)
+
+    extra_files: dict = {}
+    for i in ensure_tuple(config_file):
+        # split the filename and directory
+        filename = os.path.basename(i)
+        # remove extension
+        filename, _ = os.path.splitext(filename)
+        # because all files are stored as JSON their name parts without extension must be unique
+        if filename in extra_files:
+            raise ValueError(f"Filename part '{filename}' is given multiple times in config file list.")
+        # the file may be JSON or YAML but will get loaded and dumped out again as JSON
+        extra_files[filename] = json.dumps(ConfigParser.load_config_file(i)).encode()
+
+    # add .json extension to all extra files which are always encoded as JSON
+    extra_files = {k + ".json": v for k, v in extra_files.items()}
+
+    save_net_with_metadata(
+        jit_obj=net,
+        filename_prefix_or_stream=filepath,
+        include_config_vals=False,
+        append_timestamp=False,
+        meta_values=parser.get().pop("_meta_", None),
+        more_extra_files=extra_files,
+    )
+    logger.info(f"exported to file: {filepath}.")
+
+
 def ckpt_export(
     net_id: str | None = None,
     filepath: PathLike | None = None,
@@ -803,6 +897,8 @@ def ckpt_export(
     meta_file: str | Sequence[str] | None = None,
     config_file: str | Sequence[str] | None = None,
     key_in_ckpt: str | None = None,
+    use_trace: bool | None = None,
+    input_shape: Sequence[int] | None = None,
     args_file: str | None = None,
     **override: Any,
 ) -> None:
@@ -826,6 +922,9 @@ def ckpt_export(
             it can be a single file or a list of files. if `None`, must be provided in `args_file`.
         key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
             weights. if not nested checkpoint, no need to set.
+        use_trace: whether using `torch.jit.trace` to convert the pytorch model to torchscript model.
+        input_shape: must specify the `input_shape` of the network to convert the model when `use_trace` is True.
+            Should be a list like [N, C, H, W] or [N, C, H, W, D].
         args_file: a JSON or YAML file to provide default values for `meta_file`, `config_file`,
             `net_id` and override pairs. so that the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.
@@ -840,11 +939,21 @@ def ckpt_export(
         config_file=config_file,
         ckpt_file=ckpt_file,
         key_in_ckpt=key_in_ckpt,
+        use_trace=use_trace,
+        input_shape=input_shape,
         **override,
     )
     _log_input_summary(tag="ckpt_export", args=_args)
-    filepath_, ckpt_file_, config_file_, net_id_, meta_file_, key_in_ckpt_ = _pop_args(
-        _args, "filepath", "ckpt_file", "config_file", net_id="", meta_file=None, key_in_ckpt=""
+    filepath_, ckpt_file_, config_file_, net_id_, meta_file_, key_in_ckpt_, use_trace_, input_shape_ = _pop_args(
+        _args,
+        "filepath",
+        "ckpt_file",
+        "config_file",
+        net_id="",
+        meta_file=None,
+        key_in_ckpt="",
+        use_trace=False,
+        input_shape=None,
     )
 
     parser = ConfigParser()
@@ -857,41 +966,146 @@ def ckpt_export(
     for k, v in _args.items():
         parser[k] = v
 
-    net = parser.get_parsed_content(net_id_)
-    if has_ignite:
-        # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
-        Checkpoint.load_objects(to_load={key_in_ckpt_: net}, checkpoint=ckpt_file_)
-    else:
-        ckpt = torch.load(ckpt_file_)
-        copy_model_state(dst=net, src=ckpt if key_in_ckpt_ == "" else ckpt[key_in_ckpt_])
+    inputs_: Sequence[Any] | None = [torch.rand(input_shape_)] if input_shape_ else None
 
-    # convert to TorchScript model and save with metadata, config content
-    net = convert_to_torchscript(model=net)
-
-    extra_files: dict = {}
-    for i in ensure_tuple(config_file_):
-        # split the filename and directory
-        filename = os.path.basename(i)
-        # remove extension
-        filename, _ = os.path.splitext(filename)
-        # because all files are stored as JSON their name parts without extension must be unique
-        if filename in extra_files:
-            raise ValueError(f"Filename part '{filename}' is given multiple times in config file list.")
-        # the file may be JSON or YAML but will get loaded and dumped out again as JSON
-        extra_files[filename] = json.dumps(ConfigParser.load_config_file(i)).encode()
-
-    # add .json extension to all extra files which are always encoded as JSON
-    extra_files = {k + ".json": v for k, v in extra_files.items()}
-
-    save_net_with_metadata(
-        jit_obj=net,
-        filename_prefix_or_stream=filepath_,
-        include_config_vals=False,
-        append_timestamp=False,
-        meta_values=parser.get().pop("_meta_", None),
-        more_extra_files=extra_files,
+    _export(
+        convert_to_torchscript,
+        parser,
+        net_id=net_id_,
+        filepath=filepath_,
+        ckpt_file=ckpt_file_,
+        config_file=config_file_,
+        key_in_ckpt=key_in_ckpt_,
+        use_trace=use_trace_,
+        inputs=inputs_,
     )
-    logger.info(f"exported to TorchScript file: {filepath_}.")
+
+
+def trt_export(
+    net_id: str | None = None,
+    filepath: PathLike | None = None,
+    ckpt_file: str | None = None,
+    meta_file: str | Sequence[str] | None = None,
+    config_file: str | Sequence[str] | None = None,
+    key_in_ckpt: str | None = None,
+    precision: str | None = None,
+    input_shape: Sequence[int] | None = None,
+    use_trace: bool | None = None,
+    dynamic_batchsize: Sequence[int] | None = None,
+    device: int | None = None,
+    args_file: str | None = None,
+    **override: Any,
+) -> None:
+    """
+    Export the model checkpoint to the given filepath as a TensorRT engine based torchscript.
+    Currently, this API only supports to convert models whose inputs are all tensors.
+
+    Typical usage examples:
+
+    .. code-block:: bash
+
+        python -m monai.bundle trt_export --net_id <network definition> --filepath <export path> \
+            --ckpt_file <checkpoint path> --input_shape <input shape> --dynamic_batchsize <batch range> ...
+
+    Args:
+        net_id: ID name of the network component in the config, it must be `torch.nn.Module`.
+        filepath: filepath to export, if filename has no extension it becomes `.ts`.
+        ckpt_file: filepath of the model checkpoint to load.
+        meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
+        config_file: filepath of the config file to save in the TensorRT based torchscript model and extract network
+            information, the saved key in the model is the config filename without extension, and the saved config
+            value is always serialized in JSON format no matter the original file format is JSON or YAML.
+            it can be a single file or a list of files. if `None`, must be provided in `args_file`.
+        key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
+            weights. if not nested checkpoint, no need to set.
+        precision: the weight precision of the converted TensorRT engine based torchscript models. Should be 'fp32' or 'fp16'.
+        input_shape: the input shape that is used to convert the model. Should be a list like [N, C, H, W] or
+            [N, C, H, W, D].
+        use_trace: whether using `torch.jit.trace` to convert the pytorch model to torchscript model and then convert to
+            a TensorRT engine based torchscript model.
+        dynamic_batchsize: a sequence with three elements to define the batch size range of the input for the model to be converted.
+            Should be a sequence like [MIN_BATCH, OPT_BATCH, MAX_BATCH]. After converted, the batchsize of model input should
+            between `MIN_BATCH` and `MAX_BATCH` and the `OPT_BATCH` is the best peformance batchsize that the TensorRT trys to fit.
+            We suggest the `OPT_BATCH` to be the most frequently used input batchsize in your application.
+        device: the target GPU index to convert and verify the model.
+        args_file: a JSON or YAML file to provide default values for `meta_file`, `config_file`,
+            `net_id` and override pairs. so that the command line inputs can be simplified.
+        override: id-value pairs to override or add the corresponding config content.
+            e.g. ``--_meta#network_data_format#inputs#image#num_channels 3``.
+
+    """
+    _args = _update_args(
+        args=args_file,
+        net_id=net_id,
+        filepath=filepath,
+        meta_file=meta_file,
+        config_file=config_file,
+        ckpt_file=ckpt_file,
+        key_in_ckpt=key_in_ckpt,
+        precision=precision,
+        input_shape=input_shape,
+        use_trace=use_trace,
+        dynamic_batchsize=dynamic_batchsize,
+        device=device,
+        **override,
+    )
+    _log_input_summary(tag="trt_export", args=_args)
+    (
+        filepath_,
+        ckpt_file_,
+        config_file_,
+        net_id_,
+        meta_file_,
+        key_in_ckpt_,
+        precision_,
+        input_shape_,
+        use_trace_,
+        dynamic_batchsize_,
+        device_,
+    ) = _pop_args(
+        _args,
+        "filepath",
+        "ckpt_file",
+        "config_file",
+        net_id="",
+        meta_file=None,
+        key_in_ckpt="",
+        precision="fp32",
+        input_shape=[],
+        use_trace=False,
+        dynamic_batchsize=None,
+        device=None,
+    )
+
+    parser = ConfigParser()
+
+    parser.read_config(f=config_file_)
+    if meta_file_ is not None:
+        parser.read_meta(f=meta_file_)
+
+    # the rest key-values in the _args are to override config content
+    for k, v in _args.items():
+        parser[k] = v
+
+    if not input_shape_:
+        input_channels, input_spatial_shape, _, _, _ = _get_net_io_info(parser=parser)
+        spatial_shape = _get_fake_spatial_shape(input_spatial_shape, p=1, n=1, any=1)
+        input_shape_ = (1, input_channels, *spatial_shape)
+
+    _export(
+        convert_to_trt,
+        parser,
+        net_id=net_id_,
+        filepath=filepath_,
+        ckpt_file=ckpt_file_,
+        config_file=config_file_,
+        key_in_ckpt=key_in_ckpt_,
+        precision=precision_,
+        input_shape=input_shape_,
+        dynamic_batchsize=dynamic_batchsize_,
+        use_trace=use_trace_,
+        device=device_,
+    )
 
 
 def init_bundle(
