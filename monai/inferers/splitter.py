@@ -79,8 +79,8 @@ class SlidingWindowSplitter(Splitter):
         device: the device where the patches are generated. Defaults to the device of inputs.
 
     Note:
-        When only a scaler value is provided for `patch_size`, `offset`, or `overlap`,
-        it is broadcasted to all the spatial dimensions.
+        When a scaler value is provided for `patch_size`, `offset`, or `overlap`,
+            it is broadcasted to all the spatial dimensions.
     """
 
     def __init__(
@@ -246,7 +246,7 @@ class WSISlidingWindowSplitter(SlidingWindowSplitter):
             For instance, level=2, dtype=torch.float32, etc.
 
     Note:
-        When only a scaler value is provided for `patch_size`, `offset`, or `overlap`,
+        When a scaler value is provided for `patch_size`, `offset`, or `overlap`,
         it is broadcasted to all the spatial dimensions.
     """
 
