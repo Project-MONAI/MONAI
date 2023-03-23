@@ -191,6 +191,37 @@ def ensure_tuple_rep(tup: Any, dim: int) -> tuple[Any, ...]:
     raise ValueError(f"Sequence must have length {dim}, got {len(tup)}.")
 
 
+def to_tuple_of_dictionaries(dictionary_of_tuples: dict, keys: Any) -> tuple[dict[Any, Any], ...]:
+    """
+    Given a dictionary whose values contain scalars or tuples (with the same length as ``keys``),
+    Create a dictionary for each key containing the scalar values mapping to that key.
+
+    Args:
+        dictionary_of_tuples: a dictionary whose values are scalars or tuples whose length is
+            the length of ``keys``
+        keys: a tuple of string values representing the keys in question
+
+    Returns:
+        a tuple of dictionaries that contain scalar values, one dictionary for each key
+
+    Raises:
+        ValueError: when values in the dictionary are tuples but not the same length as the length
+        of ``keys``
+
+    Examples:
+        >>> to_tuple_of_dictionaries({'a': 1 'b': (2, 3), 'c': (4, 4)}, ("x", "y"))
+        ({'a':1, 'b':2, 'c':4}, {'a':1, 'b':3, 'c':4})
+
+    """
+
+    keys = ensure_tuple(keys)
+    if len(keys) == 0:
+        return tuple({})
+
+    dict_overrides = {k: ensure_tuple_rep(v, len(keys)) for k, v in dictionary_of_tuples.items()}
+    return tuple({k: v[ik] for (k, v) in dict_overrides.items()} for ik in range(len(keys)))
+
+
 def fall_back_tuple(
     user_provided: Any, default: Sequence | NdarrayTensor, func: Callable = lambda x: x and x > 0
 ) -> tuple[Any, ...]:

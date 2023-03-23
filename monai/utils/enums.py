@@ -631,6 +631,7 @@ class LazyAttr(StrEnum):
     MetaTensor with pending operations requires some key attributes tracked especially when the primary array
     is not up-to-date due to lazy evaluation.
     This class specifies the set of key attributes to be tracked for each MetaTensor.
+    See also: :py:func:`monai.transforms.lazy.utils.resample` for more details.
     """
 
     SHAPE = "lazy_shape"  # spatial shape
@@ -639,6 +640,7 @@ class LazyAttr(StrEnum):
     INTERP_MODE = "lazy_interpolation_mode"
     DTYPE = "lazy_dtype"
     ALIGN_CORNERS = "lazy_align_corners"
+    RESAMPLE_MODE = "lazy_resample_mode"
 
 
 class BundleProperty(StrEnum):
