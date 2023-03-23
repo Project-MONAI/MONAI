@@ -98,6 +98,13 @@ def get_testing_algo_template_path():
 def generate_fake_segmentation_data(
     dataroot: str, fake_datalist: dict[str, Any] = DEFAULT_FAKE_SEGMENTATION_DATALIST
 ) -> None:
+    """
+    Given a fake datalist, generate fake data and save it to the specified dataroot.
+
+    Args:
+        dataroot: The folder where fake data will be saved.
+        fake_datalist: The datalist used to generate the fake data.
+    """
     for d in fake_datalist["testing"] + fake_datalist["training"]:
         im, seg = create_test_image_3d(24, 24, 24, rad_max=10, num_seg_classes=1)
         nib_image = nib.Nifti1Image(im, affine=np.eye(4))
