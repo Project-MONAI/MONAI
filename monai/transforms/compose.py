@@ -48,7 +48,7 @@ def evaluate_with_overrides(
     lazy_evaluation: bool | None = False,
     overrides: dict | None = None,
     override_keys: Sequence[str] | None = None,
-    verbose: bool = True,
+    verbose: bool = False,
 ):
     """
     The previously applied transform may have been lazily applied to MetaTensor `data` and
@@ -103,12 +103,12 @@ def evaluate_with_overrides(
         for k in data:
             if k in keys_to_override:
                 dict_for_key = dict_overrides[override_keys.index(k)]
-                data[k] = evaluate_with_overrides(data[k], upcoming, lazy_evaluation, dict_for_key, k)
+                data[k] = evaluate_with_overrides(data[k], upcoming, lazy_evaluation, dict_for_key, k, verbose)
             else:
-                data[k] = evaluate_with_overrides(data[k], upcoming, lazy_evaluation, None, k)
+                data[k] = evaluate_with_overrides(data[k], upcoming, lazy_evaluation, None, k, verbose)
 
     if isinstance(data, (list, tuple)):
-        return [evaluate_with_overrides(v, upcoming, lazy_evaluation, overrides, override_keys) for v in data]
+        return [evaluate_with_overrides(v, upcoming, lazy_evaluation, overrides, override_keys, verbose) for v in data]
     return data
 
 
