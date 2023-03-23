@@ -66,16 +66,16 @@ class SlidingWindowSplitter(Splitter):
         patch_size : the size of the patches to be generated.
         offset: the amount of offset for the patches with respect to the original input.  Defaults to 0.
         overlap: the amount of overlap between patches in each dimension. It can be either a float in
-            the range of [0.0, 1.0) that define relative overlap to the patch size, or it can be a non-negative int
+            the range of [0.0, 1.0) that defines relative overlap to the patch size, or it can be a non-negative int
             that defines number of pixels for overlap. Defaults to 0.0.
         filter_fn: a callable to filter patches. It should accepts exactly two parameters (patch, location), and
             return True for a patch to keep. Defaults to no filtering.
-        non_spatial_ndim: number of non-spatial dimensions (e.g. batch, color)
         pad_mode: string define the mode for `torch.nn.functional.pad`. The acceptable values are
             `"constant"`, `"reflect"`, `"replicate"`, `"circular"` or None. Default to `"constant"`.
             If None, no padding will be applied, so it will drop the patches crossing the border of
             the image (either when the offset is negative or the image is non-divisible by the patch_size).
         pad_value: the value for `"constant"` padding. Defaults to 0.
+        non_spatial_ndim: number of non-spatial dimensions (e.g. batch, color)
         device: the device where the patches are generated. Defaults to the device of inputs.
 
     Note:
@@ -89,10 +89,10 @@ class SlidingWindowSplitter(Splitter):
         overlap: Sequence[float] | float | Sequence[int] | int = 0.0,
         offset: Sequence[int] | int = 0,
         filter_fn: Callable | None = None,
-        device: torch.device | str | None = None,
-        non_spatial_ndim: int = 2,
         pad_mode: str | None = None,
         pad_value: float | int = 0,
+        non_spatial_ndim: int = 2,
+        device: torch.device | str | None = None,
     ) -> None:
         super().__init__(patch_size=patch_size, device=device)
         self.offset = offset
@@ -221,33 +221,33 @@ class SlidingWindowSplitter(Splitter):
 
 
 class WSISlidingWindowSplitter(SlidingWindowSplitter):
-    """Split the input into patches with sliding window strategy and a possible overlap.
+    """Split the whole slide image input into patches with sliding window strategy and a possible overlap.
     It also allows to offset the starting position and filter the patches.
 
     Args:
         patch_size : the size of the patches to be generated.
         offset: the amount of offset for the patches with respect to the original input.  Defaults to 0.
         overlap: the amount of overlap between patches in each dimension. It can be either a float in
-            the range of [0.0, 1.0) that define relative overlap to the patch size, or it can be a non-negative int
+            the range of [0.0, 1.0) that defines relative overlap to the patch size, or it can be a non-negative int
             that defines number of pixels for overlap. Defaults to 0.0.
         filter_fn: a callable to filter patches. It should accepts exactly two parameters (patch, location), and
             return True for a patch to keep. Defaults to no filtering.
-        device: the device where the patches are generated. Defaults to the device of inputs.
-        non_spatial_ndim: number of non-spatial dimensions (e.g. batch, color)
         pad_mode: define the mode for padding. Either "constant" or None. Default to "constant".
             Depending on the reader
+        non_spatial_ndim: number of non-spatial dimensions (e.g. batch, color)
+        device: the device where the patches are generated. Defaults to the device of inputs.
         reader: the module to be used for loading whole slide imaging. If `reader` is
 
             - a string, it defines the backend of `monai.data.WSIReader`. Defaults to cuCIM.
             - a class (inherited from `BaseWSIReader`), it is initialized and set as wsi_reader.
             - an instance of a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
 
-        reader_kwargs: the arguments to pass to `WSIReader` or provided whole slide reader class.
-            For instance to set the WSI level, you can set {"level": 2}.
+        reader_kwargs: the arguments to pass to `WSIReader` or the provided whole slide reader class.
+            For instance, level=2, dtype=torch.float32, etc.
 
     Note:
-        If only one scaler value is provided for `patch_size`, `offset`, or `overlap`,
-            it will be broadcasted to all the spatial dimensions.
+        When only a scaler value is provided for `patch_size`, `offset`, or `overlap`,
+        it is broadcasted to all the spatial dimensions.
     """
 
     def __init__(
@@ -256,12 +256,17 @@ class WSISlidingWindowSplitter(SlidingWindowSplitter):
         overlap: Sequence[float] | float | Sequence[int] | int = 0.0,
         offset: Sequence[int] | int = 0,
         filter_fn: Callable | None = None,
-        device: torch.device | str | None = None,
         non_spatial_ndim: int = 2,
         pad_mode: str | None = None,
+        device: torch.device | str | None = None,
         reader: str | BaseWSIReader | type[BaseWSIReader] | None = None,
         **reader_kwargs: dict,
     ) -> None:
+        if pad_mode and pad_mode != "constant":
+            raise ValueError(
+                f"The underlying wsi readers only support for constant padding. pad_mod={pad_mode} is given."
+            )
+
         super().__init__(
             patch_size=patch_size,
             overlap=overlap,
@@ -320,12 +325,14 @@ class WSISlidingWindowSplitter(SlidingWindowSplitter):
         patch_size, overlap, offset = self._get_valid_shape_parameters(spatial_shape)
         pad_size, is_start_padded = self._calculate_pad_size(spatial_shape, spatial_ndim, patch_size, offset, overlap)
 
+        # Padding (extend the spatial shape)
         if any(pad_size):
             spatial_shape = tuple(ss + ps for ss, ps in zip(spatial_shape, pad_size))
             # correct the offset with respect to the padded image
             if is_start_padded:
                 offset = tuple(off + p for off, p in zip(offset, pad_size[1::2]))
 
+        # Splitting (extracting patches)
         for location in iter_patch_position(spatial_shape, patch_size, offset, overlap, False):
             patch = self._get_patch(wsi, location, patch_size)
             patch = ToTensor(device=self.device)(patch)  # type: ignore
