@@ -11,18 +11,18 @@
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Sequence
 from typing import Any
-import warnings
 
 import torch
 import torch.nn.functional as F
 from torch import Tensor
 
+from monai.data.box_utils import standardize_empty_box
 from monai.transforms.croppad.array import SpatialPad
 from monai.transforms.utils import compute_divisible_spatial_size, convert_pad_mode
 from monai.utils import PytorchPadMode, ensure_tuple_rep
-from monai.data.box_utils import standardize_empty_box
 
 
 def check_input_images(input_images: list[Tensor] | Tensor, spatial_dims: int) -> None:
