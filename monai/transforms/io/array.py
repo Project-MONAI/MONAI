@@ -376,7 +376,7 @@ class SaveImage(Transform):
             your own formatter.
             see also: :py:func:`monai.data.folder_layout.default_name_formatter`.
         folder_layout: A customized ``monai.data.FolderLayoutBase`` subclass to define file naming schemes.
-            if ``None``, uses the default ``FolderLayout``
+            if ``None``, uses the default ``FolderLayout``.
         savepath_in_metadict: if ``True``, adds a key ``"saved_to"`` to the metadata, which contains the path
             to where the input image has been saved.
     """

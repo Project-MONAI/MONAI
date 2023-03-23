@@ -201,7 +201,7 @@ class SaveImaged(MapTransform):
         output_postfix: a string appended to all output file names, default to ``trans``.
                         Handled by ``folder_layout`` instead, if ``folder_layout`` is not ``None``.
         output_ext: output file extension name, available extensions: ``.nii.gz``, ``.nii``, ``.png``.
-                    Handled by ``folder_layout`` instead, if ``folder_layout`` is not ``None``.
+                    Handled by ``folder_layout`` instead, if ``folder_layout`` not ``None``.
         resample: whether to resample image (if needed) before saving the data array,
             based on the ``spatial_shape`` (and ``original_affine``) from metadata.
         mode: This option is used when ``resample=True``. Defaults to ``"nearest"``.
@@ -254,7 +254,7 @@ class SaveImaged(MapTransform):
             see also: :py:func:`monai.data.folder_layout.default_name_formatter`.
             If using a custom ``folder_layout``, consider providing your own formatter.
         folder_layout: A customized ``monai.data.FolderLayoutBase`` subclass to define file naming schemes.
-            if ``None``, uses the default ``FolderLayout``
+            if ``None``, uses the default ``FolderLayout``.
         savepath_in_metadict: if ``True``, adds a key ``saved_to`` to the metadata, which contains the path
             to where the input image has been saved.
     """
