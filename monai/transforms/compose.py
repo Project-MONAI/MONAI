@@ -22,6 +22,8 @@ from typing import Any
 import numpy as np
 
 import monai
+import monai.transforms as mt
+from monai.apps.utils import get_logger
 from monai.config import NdarrayOrTensor
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.traits import ThreadUnsafe
@@ -288,10 +290,14 @@ class Compose(Randomizable, InvertibleTransform):
         transforms: Sequence[Any],
         map_items: bool = True,
         unpack_items: bool = False,
-        log_stats: bool = False,
         start: int = 0,
         end: int | None = None,
+        lazy_evaluation: bool = False,
+        overrides: dict = None,
+        override_keys: tuple = None,
         threading: bool = False,
+        log_stats: bool = False,
+        verbose: bool = False,
     ) -> NdarrayOrTensor:
         """
         ``execute`` provides the implementation that Compose uses to execute a sequence
@@ -332,7 +338,18 @@ class Compose(Randomizable, InvertibleTransform):
         for _transform in transforms[start:end]:
             if threading:
                 _transform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
-            input_ = apply_transform(_transform, input_, map_items, unpack_items, log_stats)  # type: ignore
+            input_ = evaluate_with_overrides(input_, _transform,
+                                             lazy_evaluation=lazy_evaluation,
+                                             overrides=overrides,
+                                             override_keys=override_keys,
+                                             verbose=verbose)
+            input_ = apply_transform(_transform, input_, map_items, unpack_items, log_stats)
+        input_ = evaluate_with_overrides(input_, None,
+                                         lazy_evaluation=lazy_evaluation,
+                                         overrides=overrides,
+                                         override_keys=override_keys,
+                                         verbose=verbose)
+        return input_
 
     def evaluate_with_overrides(self, input_, upcoming_xform):
         """
@@ -348,17 +365,21 @@ class Compose(Randomizable, InvertibleTransform):
             override_keys=self.override_keys,
             verbose=self.verbose,
         )
-        return input_
 
     def __call__(self, input_, start=0, end=None, threading=False):
         return Compose.execute(
             input_,
             self.transforms,
-            map_items=self.map_items,
-            unpack_items=self.unpack_items,
             start=start,
             end=end,
+            map_items=self.map_items,
+            unpack_items=self.unpack_items,
+            lazy_evaluation=self.lazy_evaluation,
+            overrides=self.overrides,
+            override_keys=self.override_keys,
             threading=threading,
+            log_stats=self.log_stats,
+            verbose=self.verbose
         )
 
     def inverse(self, data):
