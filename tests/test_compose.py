@@ -15,13 +15,12 @@ import sys
 import unittest
 from copy import deepcopy
 
-from parameterized import parameterized
-
 import numpy as np
 import torch
+from parameterized import parameterized
 
 from monai.data import DataLoader, Dataset
-from monai.transforms import AddChannel, Compose, Flip, Rotate90, Zoom, NormalizeIntensity, Rotate, Rotated
+from monai.transforms import AddChannel, Compose, Flip, NormalizeIntensity, Rotate, Rotate90, Rotated, Zoom
 from monai.transforms.transform import Randomizable
 from monai.utils import set_determinism
 
@@ -150,7 +149,6 @@ class TestCompose(unittest.TestCase):
         for item in value:
             self.assertDictEqual(item, expected)
 
-
     def test_random_compose(self):
         class _Acc(Randomizable):
             self.rand = 0.0
@@ -249,29 +247,25 @@ class TestCompose(unittest.TestCase):
 
 TEST_COMPOSE_EXECUTE_TEST_CASES = [
     [None, tuple()],
-    [None, (Rotate(np.pi/8),)],
+    [None, (Rotate(np.pi / 8),)],
     [None, (Flip(0), Flip(1), Rotate90(1), Zoom(0.8), NormalizeIntensity())],
-    [('a',), (Rotated(('a',), np.pi/8),)],
+    [("a",), (Rotated(("a",), np.pi / 8),)],
 ]
 
 
 class TestComposeExecute(unittest.TestCase):
-
     @parameterized.expand(TEST_COMPOSE_EXECUTE_TEST_CASES)
     def test_compose_execute_equivalence(self, keys, pipeline):
-
         if keys is None:
-            data = torch.unsqueeze(torch.tensor(np.arange(24*32).reshape(24, 32)), axis=0)
+            data = torch.unsqueeze(torch.tensor(np.arange(24 * 32).reshape(24, 32)), axis=0)
         else:
             data = {}
             for i_k, k in enumerate(keys):
-                data[k] = torch.unsqueeze(torch.tensor(np.arange(24*32)).reshape(24, 32) + i_k * 768,
-                                          axis=0)
+                data[k] = torch.unsqueeze(torch.tensor(np.arange(24 * 32)).reshape(24, 32) + i_k * 768, axis=0)
 
         expected = Compose(deepcopy(pipeline))(data)
 
         for cutoff in range(len(pipeline)):
-
             c = Compose(deepcopy(pipeline))
             actual = c(c(data, end=cutoff), start=cutoff)
             if isinstance(actual, dict):
@@ -281,8 +275,7 @@ class TestComposeExecute(unittest.TestCase):
                 self.assertTrue(torch.allclose(expected, actual))
 
             p = deepcopy(pipeline)
-            actual = Compose.execute(
-                Compose.execute(data, p, start=0, end=cutoff), p, start=cutoff)
+            actual = Compose.execute(Compose.execute(data, p, start=0, end=cutoff), p, start=cutoff)
             if isinstance(actual, dict):
                 for k in actual.keys():
                     self.assertTrue(torch.allclose(expected[k], actual[k]))
@@ -291,7 +284,6 @@ class TestComposeExecute(unittest.TestCase):
 
 
 class TestOps:
-
     @staticmethod
     def concat(value):
         def _inner(data):
@@ -315,21 +307,19 @@ class TestOps:
 
 
 TEST_COMPOSE_EXECUTE_FLAG_TEST_CASES = [
-    [{}, ("",), (TestOps.concat('a'), TestOps.concat('b'))],
-    [{"unpack_items": True}, ("x", "y"), (TestOps.concat('a'), TestOps.concat('b'))],
-    [{"map_items": False}, {"x": "1", "y": "2"}, (TestOps.concatd('a'), TestOps.concatd('b'))],
-    [{"unpack_items": True, "map_items": False}, ("x", "y"), (TestOps.concata('a'), TestOps.concata('b'))],
+    [{}, ("",), (TestOps.concat("a"), TestOps.concat("b"))],
+    [{"unpack_items": True}, ("x", "y"), (TestOps.concat("a"), TestOps.concat("b"))],
+    [{"map_items": False}, {"x": "1", "y": "2"}, (TestOps.concatd("a"), TestOps.concatd("b"))],
+    [{"unpack_items": True, "map_items": False}, ("x", "y"), (TestOps.concata("a"), TestOps.concata("b"))],
 ]
 
 
 class TestComposeExecuteWithFlags(unittest.TestCase):
-
     @parameterized.expand(TEST_COMPOSE_EXECUTE_FLAG_TEST_CASES)
     def test_compose_execute_equivalence_with_flags(self, flags, data, pipeline):
         expected = Compose(pipeline, **flags)(data)
 
         for cutoff in range(len(pipeline)):
-
             c = Compose(deepcopy(pipeline), **flags)
             actual = c(c(data, end=cutoff), start=cutoff)
             if isinstance(actual, dict):
@@ -339,8 +329,7 @@ class TestComposeExecuteWithFlags(unittest.TestCase):
                 self.assertTrue(expected, actual)
 
             p = deepcopy(pipeline)
-            actual = Compose.execute(
-                Compose.execute(data, p, start=0, end=cutoff, **flags), p, start=cutoff, **flags)
+            actual = Compose.execute(Compose.execute(data, p, start=0, end=cutoff, **flags), p, start=cutoff, **flags)
             if isinstance(actual, dict):
                 for k in actual.keys():
                     self.assertTrue(expected[k], actual[k])

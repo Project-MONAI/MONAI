@@ -338,17 +338,23 @@ class Compose(Randomizable, InvertibleTransform):
         for _transform in transforms[start:end]:
             if threading:
                 _transform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
-            input_ = evaluate_with_overrides(input_, _transform,
-                                             lazy_evaluation=lazy_evaluation,
-                                             overrides=overrides,
-                                             override_keys=override_keys,
-                                             verbose=verbose)
+            input_ = evaluate_with_overrides(
+                input_,
+                _transform,
+                lazy_evaluation=lazy_evaluation,
+                overrides=overrides,
+                override_keys=override_keys,
+                verbose=verbose,
+            )
             input_ = apply_transform(_transform, input_, map_items, unpack_items, log_stats)
-        input_ = evaluate_with_overrides(input_, None,
-                                         lazy_evaluation=lazy_evaluation,
-                                         overrides=overrides,
-                                         override_keys=override_keys,
-                                         verbose=verbose)
+        input_ = evaluate_with_overrides(
+            input_,
+            None,
+            lazy_evaluation=lazy_evaluation,
+            overrides=overrides,
+            override_keys=override_keys,
+            verbose=verbose,
+        )
         return input_
 
     def evaluate_with_overrides(self, input_, upcoming_xform):
@@ -379,7 +385,7 @@ class Compose(Randomizable, InvertibleTransform):
             override_keys=self.override_keys,
             threading=threading,
             log_stats=self.log_stats,
-            verbose=self.verbose
+            verbose=self.verbose,
         )
 
     def inverse(self, data):
