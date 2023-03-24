@@ -18,6 +18,7 @@ import torch
 from parameterized import parameterized
 from scipy.ndimage import zoom as zoom_scipy
 
+from monai.config import USE_COMPILED
 from monai.transforms import RandZoomd
 from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose, test_local_inversion
@@ -54,7 +55,9 @@ class TestRandZoomd(NumpyImageTestCase2D):
             # test lazy
             # TODO: temporarily skip "nearest" test
             if mode == "bilinear":
-                test_resampler_lazy(random_zoom, zoomed, init_param, call_param, key, seed=1234)
+                test_resampler_lazy(
+                    random_zoom, zoomed, init_param, call_param, key, seed=1234, atol=1e-4 if USE_COMPILED else 1e-6
+                )
                 random_zoom.lazy_evaluation = False
 
             test_local_inversion(random_zoom, zoomed, {key: im}, key)
