@@ -2206,3 +2206,9 @@ Utilities
 
 .. automodule:: monai.transforms.utils_pytorch_numpy_unification
     :members:
+
+Lazy
+----
+.. automodule:: monai.transforms.lazy
+    :members:
+    :imported-members:
