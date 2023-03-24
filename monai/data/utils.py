@@ -219,8 +219,10 @@ def iter_patch_position(
         image_size: dimensions of array to iterate over
         patch_size: size of patches to generate slices for, 0 or None selects whole dimension
         start_pos: starting position in the array, default is 0 for each dimension
-        overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
-            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
+        overlap: the amount of overlap of neighboring patches in each dimension.
+            Either a float or list of floats between 0.0 and 1.0 to define relative overlap to patch size, or
+            an int or list of ints to define number of pixels for overlap.
+            If only one float/int number is given, it will be applied to all dimensions. Defaults to 0.0.
         padded: if the image is padded so the patches can go beyond the borders. Defaults to False.
 
     Yields:

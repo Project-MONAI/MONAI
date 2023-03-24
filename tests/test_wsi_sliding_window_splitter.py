@@ -187,7 +187,7 @@ class WSISlidingWindowSplitterTests(unittest.TestCase):
             patch = sample[0]
             loc = sample[1]
             self.assertTrue(isinstance(patch, torch.Tensor))
-            self.assertTupleEqual(patch.shape[1:], arguments["patch_size"])
+            self.assertTupleEqual(patch.shape[2:], arguments["patch_size"])
             self.assertTrue(isinstance(loc, tuple))
             self.assertTupleEqual(loc, expected_loc)
 

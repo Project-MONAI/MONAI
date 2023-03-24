@@ -91,7 +91,6 @@ class SlidingWindowSplitter(Splitter):
         filter_fn: Callable | None = None,
         pad_mode: str | None = None,
         pad_value: float | int = 0,
-        non_spatial_ndim: int = 2,
         device: torch.device | str | None = None,
     ) -> None:
         super().__init__(patch_size=patch_size, device=device)
@@ -107,13 +106,14 @@ class SlidingWindowSplitter(Splitter):
 
         self.overlap = overlap
         self.filter_fn = self._validate_filter_fn(filter_fn)
-        self.non_spatial_ndim = non_spatial_ndim
         # padding
         self.pad_mode = pad_mode
         self.pad_value = pad_value
         # check a valid padding mode is provided if there is any negative offset.
         if not self.pad_mode and any(off < 0 for off in ensure_tuple(offset)):
             raise ValueError(f"Negative `offset`requires a valid padding mode but `mode` is set to {self.pad_mode}.")
+        # batch and color are non-spatial dimensions
+        self.non_spatial_ndim = 2
 
     @staticmethod
     def _validate_filter_fn(filter_fn):
@@ -234,7 +234,6 @@ class WSISlidingWindowSplitter(SlidingWindowSplitter):
             return True for a patch to keep. Defaults to no filtering.
         pad_mode: define the mode for padding. Either "constant" or None. Default to "constant".
             Depending on the reader
-        non_spatial_ndim: number of non-spatial dimensions (e.g. batch, color)
         device: the device where the patches are generated. Defaults to the device of inputs.
         reader: the module to be used for loading whole slide imaging. If `reader` is
 
@@ -256,7 +255,6 @@ class WSISlidingWindowSplitter(SlidingWindowSplitter):
         overlap: Sequence[float] | float | Sequence[int] | int = 0.0,
         offset: Sequence[int] | int = 0,
         filter_fn: Callable | None = None,
-        non_spatial_ndim: int = 2,
         pad_mode: str | None = None,
         device: torch.device | str | None = None,
         reader: str | BaseWSIReader | type[BaseWSIReader] | None = None,
@@ -273,7 +271,6 @@ class WSISlidingWindowSplitter(SlidingWindowSplitter):
             offset=offset,
             filter_fn=filter_fn,
             device=device,
-            non_spatial_ndim=non_spatial_ndim,
             pad_mode=pad_mode,
         )
         # Set WSI reader
@@ -303,7 +300,7 @@ class WSISlidingWindowSplitter(SlidingWindowSplitter):
 
     def _get_patch(self, inputs: Any, location: tuple[int, ...], patch_size: tuple[int, ...]) -> Any:
         patch, _ = self.reader.get_data(wsi=inputs, location=location, size=patch_size)  # type: ignore
-        return patch
+        return patch[None]
 
     def __call__(self, inputs: PathLike) -> Iterable[tuple[torch.Tensor, Sequence[int]]]:
         """Split the input tensor into patches and return patches and locations.
