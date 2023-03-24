@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# isort: dont-add-import: from __future__ import annotations
+
 from typing import List, Optional, Sequence, Tuple, Union
 
 import torch
@@ -303,14 +305,20 @@ class DynUNet(nn.Module):
     def get_downsamples(self):
         inp, out = self.filters[:-2], self.filters[1:-1]
         strides, kernel_size = self.strides[1:-1], self.kernel_size[1:-1]
-        return self.get_module_list(inp, out, kernel_size, strides, self.conv_block)
+        return self.get_module_list(inp, out, kernel_size, strides, self.conv_block)  # type: ignore
 
     def get_upsamples(self):
         inp, out = self.filters[1:][::-1], self.filters[:-1][::-1]
         strides, kernel_size = self.strides[1:][::-1], self.kernel_size[1:][::-1]
         upsample_kernel_size = self.upsample_kernel_size[::-1]
         return self.get_module_list(
-            inp, out, kernel_size, strides, UnetUpBlock, upsample_kernel_size, trans_bias=self.trans_bias
+            inp,  # type: ignore
+            out,  # type: ignore
+            kernel_size,
+            strides,
+            UnetUpBlock,  # type: ignore
+            upsample_kernel_size,
+            trans_bias=self.trans_bias,
         )
 
     def get_module_list(
