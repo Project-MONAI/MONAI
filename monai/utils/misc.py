@@ -41,6 +41,7 @@ __all__ = [
     "ensure_tuple",
     "ensure_tuple_size",
     "ensure_tuple_rep",
+    "to_tuple_of_dictionaries",
     "fall_back_tuple",
     "is_scalar_tensor",
     "is_scalar",
