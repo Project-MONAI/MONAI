@@ -41,7 +41,7 @@ for p in TEST_NDARRAYS_ALL:
     TEST_CASES_3D.append((p, np.pi / 2, False, "bilinear", "zeros", True))
 
 
-@unittest.SkipIf(USE_COMPILED, "unittests are not designed for both USE_COMPILED=True/False")
+@unittest.skipIf(USE_COMPILED, "unittests are not designed for both USE_COMPILED=True/False")
 class TestRotated2D(NumpyImageTestCase2D):
     @parameterized.expand(TEST_CASES_2D)
     def test_correct_results(self, im_type, angle, keep_size, mode, padding_mode, align_corners):
