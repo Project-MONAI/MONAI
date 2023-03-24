@@ -912,7 +912,8 @@ class CacheDataset(Dataset):
             lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
         )
         if first_random is not None:
-            data = self.transform(deepcopy(data), start=first_random)
+            data = deepcopy(data) if self.copy_cache is True else data
+            data = self.transform(data, start=first_random)
 
         return data
 
