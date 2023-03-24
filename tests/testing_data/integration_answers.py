@@ -488,6 +488,20 @@ EXPECTED_ANSWERS = [
             "infer_metric": 0.9316383600234985,
         },
     },
+    {  # test answers for cuda 12
+        "integration_segmentation_3d": {  # for the mixed readers
+            "losses": [
+                0.5362162500619888,
+                0.4704935997724533,
+                0.4335438072681427,
+                0.4507470965385437,
+                0.45187077224254607,
+                0.4363303750753403,
+            ],
+            "best_metric": 0.9334161877632141,
+            "infer_metric": 0.9335371851921082,
+        },
+    },
 ]
 
 
