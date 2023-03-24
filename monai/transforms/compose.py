@@ -77,7 +77,11 @@ def evaluate_with_overrides(
         return data  # eager evaluation
     overrides = (overrides or {}).copy()
     if isinstance(data, monai.data.MetaTensor):
-        if data.has_pending_operations and ((isinstance(upcoming, (mt.Identityd, mt.Identity))) or upcoming is None):
+        if data.has_pending_operations and (
+            (upcoming is None)  # final transform
+            or (isinstance(upcoming, mt.Identity))  # Identity -> eval all keys
+            or (isinstance(upcoming, mt.Identityd) and override_keys in upcoming.keys)
+        ):
             data, _ = mt.apply_transforms(data, None, overrides=overrides)
             if verbose:
                 next_name = "final output" if upcoming is None else f"'{upcoming.__class__.__name__}'"
