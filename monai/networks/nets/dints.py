@@ -18,6 +18,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from typing import Optional
 
 from monai.networks.blocks.dints_block import (
     ActiConvNormBlock,
@@ -40,7 +41,7 @@ __all__ = ["DiNTS", "TopologyConstruction", "TopologyInstance", "TopologySearch"
 class CellInterface(torch.nn.Module):
     """interface for torchscriptable Cell"""
 
-    def forward(self, x: torch.Tensor, weight) -> torch.Tensor:  # type: ignore
+    def forward(self, x: torch.Tensor, weight: Optional[torch.Tensor]) -> torch.Tensor:  # type: ignore
         pass
 
 
@@ -170,7 +171,7 @@ class MixedOp(nn.Module):
             if arch_c > 0:
                 self.ops.append(ops[op_name](c))
 
-    def forward(self, x: torch.Tensor, weight: torch.Tensor | None = None):
+    def forward(self, x: torch.Tensor, weight: Optional[torch.Tensor] = None):
         """
         Args:
             x: input tensor.
@@ -298,7 +299,7 @@ class Cell(CellInterface):
 
         self.op = MixedOp(c, self.OPS, arch_code_c)
 
-    def forward(self, x: torch.Tensor, weight: torch.Tensor | None) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, weight: Optional[torch.Tensor]) -> torch.Tensor:
         """
         Args:
             x: input tensor
