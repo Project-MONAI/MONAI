@@ -71,11 +71,10 @@ class SlidingWindowSplitter(Splitter):
         filter_fn: a callable to filter patches. It should accepts exactly two parameters (patch, location), and
             return True for a patch to keep. Defaults to no filtering.
         pad_mode: string define the mode for `torch.nn.functional.pad`. The acceptable values are
-            `"constant"`, `"reflect"`, `"replicate"`, `"circular"` or None. Default to `"constant"`.
+            `"constant"`, `"reflect"`, `"replicate"`, `"circular"` or `None`. Default to `None`.
             If None, no padding will be applied, so it will drop the patches crossing the border of
             the image (either when the offset is negative or the image is non-divisible by the patch_size).
         pad_value: the value for `"constant"` padding. Defaults to 0.
-        non_spatial_ndim: number of non-spatial dimensions (e.g. batch, color)
         device: the device where the patches are generated. Defaults to the device of inputs.
 
     Note:
@@ -222,6 +221,7 @@ class SlidingWindowSplitter(Splitter):
 
 class WSISlidingWindowSplitter(SlidingWindowSplitter):
     """Split the whole slide image input into patches with sliding window strategy and a possible overlap.
+    This extract patches from file without loading the entire slide into memory.
     It also allows to offset the starting position and filter the patches.
 
     Args:
@@ -232,8 +232,8 @@ class WSISlidingWindowSplitter(SlidingWindowSplitter):
             that defines number of pixels for overlap. Defaults to 0.0.
         filter_fn: a callable to filter patches. It should accepts exactly two parameters (patch, location), and
             return True for a patch to keep. Defaults to no filtering.
-        pad_mode: define the mode for padding. Either "constant" or None. Default to "constant".
-            Depending on the reader
+        pad_mode: define the mode for padding. Either "constant" or None. Default to None.
+            Padding is only supported with "OpenSlide" or "cuCIM" backend, and the filling value is 256.
         device: the device where the patches are generated. Defaults to the device of inputs.
         reader: the module to be used for loading whole slide imaging. If `reader` is
 
@@ -257,7 +257,7 @@ class WSISlidingWindowSplitter(SlidingWindowSplitter):
         filter_fn: Callable | None = None,
         pad_mode: str | None = None,
         device: torch.device | str | None = None,
-        reader: str | BaseWSIReader | type[BaseWSIReader] | None = None,
+        reader: str | BaseWSIReader | type[BaseWSIReader] | None = "cuCIM",
         **reader_kwargs: dict,
     ) -> None:
         if pad_mode and pad_mode != "constant":
@@ -270,6 +270,11 @@ class WSISlidingWindowSplitter(SlidingWindowSplitter):
         )
         # Set WSI reader
         self._set_reader(reader, reader_kwargs)
+        if self.pad_mode and self.reader.backend.lower() == "tifffile":
+            raise ValueError(
+                "Padding is not supported with 'TiffFile' reader. "
+                "Please either set the padding to `None` or use 'OpenSlide' or 'cuCIM' reader."
+            )
 
     def _set_reader(self, reader: str | BaseWSIReader | type[BaseWSIReader] | None, reader_kwargs: dict) -> None:
         """
