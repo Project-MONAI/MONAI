@@ -110,6 +110,7 @@ class TestRandRotate2D(NumpyImageTestCase2D):
         self.assertLessEqual(np.abs(good - expected.size), 40, "diff at most 40 pixels")
 
 
+@unittest.skipIf(USE_COMPILED, "unit tests not for compiled version.")
 class TestRandRotate3D(NumpyImageTestCase3D):
     @parameterized.expand(TEST_CASES_3D)
     def test_correct_results(self, im_type, x, y, z, keep_size, mode, padding_mode, align_corners, expected):
