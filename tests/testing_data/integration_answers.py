@@ -489,7 +489,7 @@ EXPECTED_ANSWERS = [
         },
     },
     {  # test answers for cuda 12
-        "integration_segmentation_3d": {  # for the mixed readers
+        "integration_segmentation_3d": {
             "losses": [
                 0.5362162500619888,
                 0.4704935997724533,
@@ -500,6 +500,20 @@ EXPECTED_ANSWERS = [
             ],
             "best_metric": 0.9334161877632141,
             "infer_metric": 0.9335371851921082,
+        }
+    },
+    {  # test answers for 23.02
+        "integration_segmentation_3d": {
+            "losses": [
+                0.5401686698198318,
+                0.4789864182472229,
+                0.4417317628860474,
+                0.44183324575424193,
+                0.4418945342302322,
+                0.44213996827602386,
+            ],
+            "best_metric": 0.9316274523735046,
+            "infer_metric": 0.9321609735488892,
         }
     },
 ]
