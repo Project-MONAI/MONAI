@@ -23,6 +23,7 @@ import numpy as np
 import torch
 
 import monai
+from monai.config import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
@@ -156,7 +157,7 @@ def spatial_resample(
         xform_shape = [-1] + in_sp_size
         img = img.reshape(xform_shape)
     img = img.to(dtype_pt)
-    if isinstance(mode, int):
+    if isinstance(mode, int) or USE_COMPILED:
         dst_xform = create_translate(spatial_rank, [float(d - 1) / 2 for d in spatial_size])
         xform = xform @ convert_to_dst_type(dst_xform, xform)[0]
         affine_xform = monai.transforms.Affine(
