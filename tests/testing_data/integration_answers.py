@@ -500,7 +500,7 @@ EXPECTED_ANSWERS = [
             ],
             "best_metric": 0.9334161877632141,
             "infer_metric": 0.9335371851921082,
-        },
+        }
     },
 ]
 
