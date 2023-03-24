@@ -92,6 +92,7 @@ class TestRotated2D(NumpyImageTestCase2D):
         self.assertLessEqual(np.count_nonzero(expected != rotated["seg"][0]), 30)
 
 
+@unittest.skipIf(USE_COMPILED, "unittests are not designed for both USE_COMPILED=True/False")
 class TestRotated3D(NumpyImageTestCase3D):
     @parameterized.expand(TEST_CASES_3D)
     def test_correct_results(self, im_type, angle, keep_size, mode, padding_mode, align_corners):
@@ -140,6 +141,7 @@ class TestRotated3D(NumpyImageTestCase3D):
         self.assertLessEqual(np.count_nonzero(expected != rotated["seg"][0]), 160)
 
 
+@unittest.skipIf(USE_COMPILED, "unittests are not designed for both USE_COMPILED=True/False")
 class TestRotated3DXY(NumpyImageTestCase3D):
     @parameterized.expand(TEST_CASES_3D)
     def test_correct_results(self, im_type, angle, keep_size, mode, padding_mode, align_corners):
