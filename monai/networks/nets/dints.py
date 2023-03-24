@@ -13,12 +13,12 @@ from __future__ import annotations
 
 import datetime
 import warnings
+from typing import Optional
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Optional
 
 from monai.networks.blocks.dints_block import (
     ActiConvNormBlock,
