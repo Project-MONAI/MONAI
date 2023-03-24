@@ -197,20 +197,22 @@ class Compose(Randomizable, InvertibleTransform):
         ``execute`` provides the implementation that Compose uses to execute a sequence
         of transforms. As well as being used by Compose, it can be used by subclasses of
         Compose and by code that doesn't have a Compose instance but needs to execute a
-        sequence of transforms is if it were executed by Compose. For the most part, it
-        is recommended to use Compose instances, however.
+        sequence of transforms is if it were executed by Compose. It should only be used directly
+        when it is not possible to use ``Compose.__call__`` to achieve the same goal.
         Args:
             input_: a tensor-like object to be transformed
             transforms: a sequence of transforms to be carried out
-            map_items: whether to apply the transform to each item in ``data```.
+            map_items: whether to apply the transform to each item in ``data``.
             Defaults to True if not set.
             unpack_items: whether to unpack parameters using '*'. Defaults to False if not set
             log_stats: whether to log detailed information about the application of ``transforms``
             to ``input_``. For NumPy ndarrays and PyTorch tensors, log only the data shape and
             value range. Defaults to False if not set.
-            start:
-            end:
-            threading:
+            start: the index of the first transform to be executed. If not set, this defaults to 0
+            end: the index after the last transform to be exectued. If set, the transform at index-1
+            is the last transform that is executed. If this is not set, it defaults to len(transforms)
+            threading: whether executing is happening in a threaded environment. If set, copies are made
+            of transforms that have the ``RandomizedTrait`` interface.
 
         Returns:
 
