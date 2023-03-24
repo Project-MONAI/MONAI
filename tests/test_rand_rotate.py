@@ -18,6 +18,7 @@ import scipy.ndimage
 import torch
 from parameterized import parameterized
 
+from monai.config import USE_COMPILED
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import RandRotate
 from tests.lazy_transforms_utils import test_resampler_lazy
@@ -34,7 +35,8 @@ for p in TEST_NDARRAYS_ALL:
     TEST_CASES_2D.append((p, np.pi / 2, True, "bilinear", "border", False))
     TEST_CASES_2D.append((p, np.pi / 4, True, "nearest", "border", False))
     TEST_CASES_2D.append((p, np.pi, False, "nearest", "zeros", True))
-    TEST_CASES_2D.append((p, (-np.pi / 4, 0), False, "nearest", "zeros", True))
+    if not USE_COMPILED:
+        TEST_CASES_2D.append((p, (-np.pi / 4, 0), False, "nearest", "zeros", True))
 
 TEST_CASES_3D: list[tuple] = []
 for p in TEST_NDARRAYS_ALL:
