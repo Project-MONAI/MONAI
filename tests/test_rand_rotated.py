@@ -18,6 +18,7 @@ import scipy.ndimage
 import torch
 from parameterized import parameterized
 
+from monai.config import USE_COMPILED
 from monai.transforms import RandRotated
 from monai.utils import GridSampleMode, GridSamplePadMode
 from tests.lazy_transforms_utils import test_resampler_lazy
@@ -149,6 +150,7 @@ class TestRandRotated2D(NumpyImageTestCase2D):
         self.assertLessEqual(np.abs(good - expected.size), 40, "diff at most 40 pixels")
 
 
+@unittest.skipIf(USE_COMPILED, "unit tests not for compiled version.")
 class TestRandRotated3D(NumpyImageTestCase3D):
     @parameterized.expand(TEST_CASES_3D)
     def test_correct_shapes(self, im_type, x, y, z, keep_size, mode, padding_mode, align_corners, expected):
