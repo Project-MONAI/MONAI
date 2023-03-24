@@ -266,12 +266,7 @@ class WSISlidingWindowSplitter(SlidingWindowSplitter):
             )
 
         super().__init__(
-            patch_size=patch_size,
-            overlap=overlap,
-            offset=offset,
-            filter_fn=filter_fn,
-            device=device,
-            pad_mode=pad_mode,
+            patch_size=patch_size, overlap=overlap, offset=offset, filter_fn=filter_fn, device=device, pad_mode=pad_mode
         )
         # Set WSI reader
         self._set_reader(reader, reader_kwargs)
