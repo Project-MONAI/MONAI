@@ -134,20 +134,21 @@ class TestRetinaNetDetector(unittest.TestCase):
 
         detector.set_atss_matcher()
         detector.set_hard_negative_sampler(10, 0.5)
-        gt_box_start = torch.randint(2, (3, input_param["spatial_dims"])).to(torch.float16)
-        gt_box_end = gt_box_start + torch.randint(1, 10, (3, input_param["spatial_dims"]))
-        one_target = {
-            "boxes": torch.cat((gt_box_start, gt_box_end), dim=1),
-            "labels": torch.randint(input_param["num_classes"], (3,)),
-        }
-        with train_mode(detector):
-            input_data = torch.randn(input_shape)
-            targets = [one_target] * len(input_data)
-            result = detector.forward(input_data, targets)
+        for num_gt_box in [0, 3]:  # test for both empty and non-empty boxes
+            gt_box_start = torch.randint(2, (num_gt_box, input_param["spatial_dims"])).to(torch.float16)
+            gt_box_end = gt_box_start + torch.randint(1, 10, (num_gt_box, input_param["spatial_dims"]))
+            one_target = {
+                "boxes": torch.cat((gt_box_start, gt_box_end), dim=1),
+                "labels": torch.randint(input_param["num_classes"], (num_gt_box,)),
+            }
+            with train_mode(detector):
+                input_data = torch.randn(input_shape)
+                targets = [one_target] * len(input_data)
+                result = detector.forward(input_data, targets)
 
-            input_data = [torch.randn(input_shape[1:]) for _ in range(random.randint(1, 9))]
-            targets = [one_target] * len(input_data)
-            result = detector.forward(input_data, targets)
+                input_data = [torch.randn(input_shape[1:]) for _ in range(random.randint(1, 9))]
+                targets = [one_target] * len(input_data)
+                result = detector.forward(input_data, targets)
 
     @parameterized.expand(TEST_CASES)
     def test_naive_retina_detector_shape(self, input_param, input_shape):
