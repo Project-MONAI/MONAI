@@ -22,6 +22,7 @@ from shutil import copyfile
 from textwrap import dedent
 from typing import Any, Callable
 
+import onnx
 import torch
 from torch.cuda import is_available
 
@@ -33,7 +34,7 @@ from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA
 from monai.bundle.workflows import ConfigWorkflow
 from monai.config import IgniteInfo, PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
-from monai.networks import convert_to_torchscript, convert_to_trt, copy_model_state, get_state_dict, save_state
+from monai.networks import convert_to_onnx, convert_to_torchscript, convert_to_trt, copy_model_state, get_state_dict, save_state
 from monai.utils import (
     check_parent_dir,
     deprecated_arg,
@@ -1010,17 +1011,30 @@ def ckpt_export(
 
     inputs_: Sequence[Any] | None = [torch.rand(input_shape_)] if input_shape_ else None
 
-    _export(
-        convert_to_torchscript,
-        parser,
-        net_id=net_id_,
-        filepath=filepath_,
-        ckpt_file=ckpt_file_,
-        config_file=config_file_,
-        key_in_ckpt=key_in_ckpt_,
-        use_trace=use_trace_,
-        inputs=inputs_,
-    )
+    export_onnx = filepath_.endswith(".onnx")
+    if export_onnx:
+        net = parser.get_parsed_content(net_id_)
+        if has_ignite:
+            # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
+            Checkpoint.load_objects(to_load={key_in_ckpt: net}, checkpoint=ckpt_file)
+        else:
+            ckpt = torch.load(ckpt_file)
+            copy_model_state(dst=net, src=ckpt if key_in_ckpt == "" else ckpt[key_in_ckpt])
+        onnx_model = convert_to_onnx(model=net, inputs=inputs_)
+        onnx.save(onnx_model, filepath)
+    else:
+        # Use the given converter to convert a model and save with metadata, config content
+        _export(
+            convert_to_torchscript,
+            parser,
+            net_id=net_id_,
+            filepath=filepath_,
+            ckpt_file=ckpt_file_,
+            config_file=config_file_,
+            key_in_ckpt=key_in_ckpt_,
+            use_trace=use_trace_,
+            inputs=inputs_,
+        )
 
 
 def trt_export(

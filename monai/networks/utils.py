@@ -21,8 +21,10 @@ from collections.abc import Callable, Mapping, Sequence
 from contextlib import contextmanager
 from copy import deepcopy
 from typing import Any
+import io
 
 import numpy as np
+import onnx
 import torch
 import torch.nn as nn
 
@@ -45,6 +47,7 @@ __all__ = [
     "get_state_dict",
     "copy_model_state",
     "save_state",
+    "convert_to_onnx",
     "convert_to_torchscript",
     "convert_to_trt",
     "meshgrid_ij",
@@ -550,6 +553,80 @@ def save_state(src: torch.nn.Module | dict, path: PathLike, **kwargs):
         ckpt = get_state_dict(src)
 
     save_obj(obj=ckpt, path=path, **kwargs)
+
+
+def convert_to_onnx(
+    model: nn.Module,
+    inputs: Sequence[Any],
+    input_names: Sequence[str] | None = None,
+    output_names: Sequence[str] | None = None,
+    verify: bool = False,
+    device: torch.device | None = None,
+    use_ort: bool = False,
+    ort_provider: str = "CPUExecutionProvider",
+    rtol: float = 1e-4,
+    atol: float = 0.0,
+    use_trace: bool = False,
+    **kwargs,
+):
+    """
+    Utility to convert a model into ONNX model and optionally verify with ONNX or onnxruntime.
+    See also: https://pytorch.org/docs/stable/onnx.html for how to convert a PyTorch model to ONNX.
+
+    Args:
+        model: source PyTorch model to save.
+        inputs: input sample data used by pytorch.onnx.export. It is also used in ONNX model verification.
+        input_names: optional input names of the ONNX model.
+        output_names: optional output names of the ONNX model.
+        verify: whether to verify the ONNX model with ONNX or onnxruntime.
+        device: target PyTorch device to verify the model, if None, use CUDA if available.
+        use_ort: whether to use onnxruntime to verify the model.
+        ort_provider": the onnxruntime provider to use, default is "CPUExecutionProvider".
+        rtol: the relative tolerance when comparing the outputs of PyTorch model and TorchScript model.
+        atol: the absolute tolerance when comparing the outputs of PyTorch model and TorchScript model.
+        use_trace: whether to use `torch.jit.trace` to export the torchscript model.
+
+        kwargs: other arguments except `obj` for `torch.jit.script()` to convert model, for more details:
+            https://pytorch.org/docs/master/generated/torch.jit.script.html.
+
+    """
+    model.eval()
+    with torch.no_grad():
+        if use_trace:
+            script_module = torch.jit.trace(model, example_inputs=inputs)
+        else:
+            script_module = torch.jit.script(model, **kwargs)
+        f = io.BytesIO()
+        torch.onnx.export(script_module, inputs, f=f, input_names=input_names, output_names=output_names)
+        onnx_model = onnx.load_model_from_string(f.getvalue())
+
+    if verify:
+        if device is None:
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        inputs = [i.to(device) if isinstance(i, torch.Tensor) else i for i in inputs]
+        model = model.to(device)
+
+        with torch.no_grad():
+            set_determinism(seed=0)
+            torch_out = ensure_tuple(model(*inputs), True)
+
+        set_determinism(seed=0)
+        input_dict = dict(zip(input_names, [i.cpu().numpy() for i in inputs]))
+        if use_ort:
+            import onnxruntime
+            ort_sess = onnxruntime.InferenceSession(onnx_model.SerializeToString(), providers=[ort_provider])
+            onnx_out = ort_sess.run(None, input_dict)
+        else:
+            from onnx.reference import ReferenceEvaluator
+            sess = ReferenceEvaluator(onnx_model)
+            onnx_out = sess.run(None, input_dict)
+        set_determinism(seed=None)
+        # compare onnx/ort and PyTorch results
+        for r1, r2 in zip(torch_out, onnx_out):
+            torch.testing.assert_allclose(r1.cpu(), r2, rtol=rtol, atol=atol)  # type: ignore
+
+    return onnx_model
 
 
 def convert_to_torchscript(
