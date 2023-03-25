@@ -78,8 +78,8 @@ def evaluate_with_overrides(
     if isinstance(data, monai.data.MetaTensor):
         if data.has_pending_operations and (
             (upcoming is None)
-            or (isinstance(upcoming, mt.Identity))  # final transform
-            or (isinstance(upcoming, mt.Identityd) and override_keys in upcoming.keys)  # Identity -> eval all keys
+            or (isinstance(upcoming, mt.Identity))
+            or (isinstance(upcoming, mt.Identityd) and override_keys in upcoming.keys)
         ):
             data, _ = mt.apply_transforms(data, None, overrides=overrides)
             if verbose:
