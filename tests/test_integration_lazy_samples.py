@@ -59,6 +59,9 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
                 keys=["img", "seg"], label_key="seg", spatial_size=[76, 82, 80], pos=1, neg=1, num_samples=4
             ),
             mt.RandRotate90d(keys=["img", "seg"], prob=0.8, spatial_axes=(0, 2)),
+            mt.RandZoomd(
+                keys=["img", "seg"], prob=1.0, min_zoom=0.9, max_zoom=1.1, mode=("trilinear", 0), keep_size=True
+            ),
             mt.ResizeWithPadOrCropD(keys=["img", "seg"], spatial_size=[80, 72, 80]),
             mt.Rotated(keys=["img", "seg"], angle=[np.pi / 2, np.pi / 2, 0], mode="nearest", keep_size=False),
         ],
