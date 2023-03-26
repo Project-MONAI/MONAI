@@ -447,11 +447,12 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype,
         if do_pad_crop and transform_info.get(TraceKeys.LAZY_EVALUATION, False):  # update for lazy evaluation
             _pad_crop = ResizeWithPadOrCrop(spatial_size=im_shape, mode=padding_mode)
             _pad_crop.lazy_evaluation = True
-            _tmp_img = MetaTensor([], affine=np.eye(len(output_size) + 1))
+            _tmp_img = MetaTensor([], affine=torch.eye(len(output_size) + 1))
             _tmp_img.push_pending_operation({LazyAttr.SHAPE: list(output_size), LazyAttr.AFFINE: xform})
             lazy_cropped = _pad_crop(_tmp_img)
             if isinstance(lazy_cropped, MetaTensor):
                 xform = lazy_cropped.peek_pending_affine()
+                extra_info["padcrop"] = lazy_cropped.pending_operations[-1]
             extra_info["do_padcrop"] = do_pad_crop
         output_size = [int(i) for i in im_shape]
     meta_info = TraceableTransform.track_transform_meta(
