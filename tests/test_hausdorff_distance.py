@@ -128,7 +128,6 @@ TEST_CASES = [
             test_spacing,
         ],
         [2.0808651447296143, 2.2671568, 2, 2, 3, 4],
-        # np.sqrt((np.array(test_spacing)**2).sum())
     ],
     [
         [
