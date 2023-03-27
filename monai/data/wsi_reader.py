@@ -43,11 +43,11 @@ class BaseWSIReader(ImageReader):
     An abstract class that defines APIs to load patches from whole slide image files.
 
     Args:
-        level: the whole slide image level at which the image is extracted.
-        mpp: the resolution in micron per pixel at which the image is extracted.
+        level: the whole slide image level at which the patches are extracted.
+        mpp: the resolution in micron per pixel at which the patches are extracted.
         mpp_rtol: the acceptable relative tolerance for resolution in micro per pixel.
         mpp_atol: the acceptable absolute tolerance for resolution in micro per pixel.
-        power: objective power at which the image is extracted.
+        power: objective power at which the patches are extracted.
         power_rtol: the acceptable relative tolerance for objective power.
         power_atol: the acceptable absolute tolerance for objective power.
         channel_dim: the desired dimension for color channel.
@@ -56,6 +56,11 @@ class BaseWSIReader(ImageReader):
             the output will be converted to torch tenor and sent to the gpu even if the dtype is numpy.
         mode: the output image color mode, e.g., "RGB" or "RGBA".
         kwargs: additional args for the reader
+
+        Notes:
+            Only one of resolution parameters, `level`, `mpp`, or `power`, should be provided.
+            If such parameters are provided in `get_data` method, those will override the values provided here.
+            If none of them are provided here or in `get_data`, `level=0` will be used.
 
     Typical usage of a concrete implementation of this class is:
 
@@ -326,9 +331,9 @@ class BaseWSIReader(ImageReader):
             location: (top, left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
             size: (height, width) tuple giving the patch size at the given level (`level`).
                 If not provided or None, it is set to the full image size at the given level.
-            level: the whole slide image level at which the image is extracted. Defaults to 0.
-            mpp: the resolution in micron per pixel at which the image is extracted.
-            power: objective power at which the image is extracted.
+            level: the whole slide image level at which the patches are extracted.
+            mpp: the resolution in micron per pixel at which the patches are extracted.
+            power: objective power at which the patches are extracted.
             dtype: the data type of output image.
             mode: the output image mode, 'RGB' or 'RGBA'.
 
@@ -336,6 +341,11 @@ class BaseWSIReader(ImageReader):
         Returns:
             a tuples, where the first element is an image patch [CxHxW] or stack of patches,
                 and second element is a dictionary of metadata.
+
+        Notes:
+            Only one of resolution parameters, `level`, `mpp`, or `power`, should be provided.
+            If none of the are provided, it uses the defaults that are set during class instantiation.
+            If none of the are set here or during class instantiation, `level=0` will be used.
         """
         if mode is None:
             mode = self.mode
@@ -437,12 +447,18 @@ class WSIReader(BaseWSIReader):
 
     Args:
         backend: the name of backend whole slide image reader library, the default is cuCIM.
-        level: the level at which patches are extracted.
+        level: the whole slide image level at which the patches are extracted.
+        mpp: the resolution in micron per pixel at which the patches are extracted.
+        mpp_rtol: the acceptable relative tolerance for resolution in micro per pixel.
+        mpp_atol: the acceptable absolute tolerance for resolution in micro per pixel.
+        power: objective power at which the patches are extracted.
+        power_rtol: the acceptable relative tolerance for objective power.
+        power_atol: the acceptable absolute tolerance for objective power.
         channel_dim: the desired dimension for color channel. Default to 0 (channel first).
         dtype: the data type of output image. Defaults to `np.uint8`.
-        mode: the output image color mode, "RGB" or "RGBA". Defaults to "RGB".
         device: target device to put the extracted patch. Note that if device is "cuda"",
             the output will be converted to torch tenor and sent to the gpu even if the dtype is numpy.
+        mode: the output image color mode, "RGB" or "RGBA". Defaults to "RGB".
         num_workers: number of workers for multi-thread image loading (cucim backend only).
         kwargs: additional arguments to be passed to the backend library
 
@@ -645,14 +661,19 @@ class CuCIMWSIReader(BaseWSIReader):
     Read whole slide images and extract patches using cuCIM library.
 
     Args:
-        level: the whole slide image level at which the image is extracted. (default=0)
-            This is overridden if the level argument is provided in `get_data`.
+        level: the whole slide image level at which the patches are extracted.
+        mpp: the resolution in micron per pixel at which the patches are extracted.
+        mpp_rtol: the acceptable relative tolerance for resolution in micro per pixel.
+        mpp_atol: the acceptable absolute tolerance for resolution in micro per pixel.
+        power: objective power at which the patches are extracted.
+        power_rtol: the acceptable relative tolerance for objective power.
+        power_atol: the acceptable absolute tolerance for objective power.
         channel_dim: the desired dimension for color channel. Default to 0 (channel first).
         dtype: the data type of output image. Defaults to `np.uint8`.
         device: target device to put the extracted patch. Note that if device is "cuda"",
             the output will be converted to torch tenor and sent to the gpu even if the dtype is numpy.
         mode: the output image color mode, "RGB" or "RGBA". Defaults to "RGB".
-        num_workers: number of workers for multi-thread image loading
+        num_workers: number of workers for multi-thread image loading.
         kwargs: additional args for `cucim.CuImage` module:
             https://github.com/rapidsai/cucim/blob/main/cpp/include/cucim/cuimage.h
 
@@ -822,8 +843,13 @@ class OpenSlideWSIReader(BaseWSIReader):
     Read whole slide images and extract patches using OpenSlide library.
 
     Args:
-        level: the whole slide image level at which the image is extracted. (default=0)
-            This is overridden if the level argument is provided in `get_data`.
+        level: the whole slide image level at which the patches are extracted.
+        mpp: the resolution in micron per pixel at which the patches are extracted.
+        mpp_rtol: the acceptable relative tolerance for resolution in micro per pixel.
+        mpp_atol: the acceptable absolute tolerance for resolution in micro per pixel.
+        power: objective power at which the patches are extracted.
+        power_rtol: the acceptable relative tolerance for objective power.
+        power_atol: the acceptable absolute tolerance for objective power.
         channel_dim: the desired dimension for color channel. Default to 0 (channel first).
         dtype: the data type of output image. Defaults to `np.uint8`.
         device: target device to put the extracted patch. Note that if device is "cuda"",
@@ -993,8 +1019,13 @@ class TiffFileWSIReader(BaseWSIReader):
     Read whole slide images and extract patches using TiffFile library.
 
     Args:
-        level: the whole slide image level at which the image is extracted. (default=0)
-            This is overridden if the level argument is provided in `get_data`.
+        level: the whole slide image level at which the patches are extracted.
+        mpp: the resolution in micron per pixel at which the patches are extracted.
+        mpp_rtol: the acceptable relative tolerance for resolution in micro per pixel.
+        mpp_atol: the acceptable absolute tolerance for resolution in micro per pixel.
+        power: objective power at which the patches are extracted.
+        power_rtol: the acceptable relative tolerance for objective power.
+        power_atol: the acceptable absolute tolerance for objective power.
         channel_dim: the desired dimension for color channel. Default to 0 (channel first).
         dtype: the data type of output image. Defaults to `np.uint8`.
         device: target device to put the extracted patch. Note that if device is "cuda"",
