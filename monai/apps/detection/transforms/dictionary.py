@@ -34,6 +34,7 @@ from monai.apps.detection.transforms.array import (
     MaskToBox,
     RotateBox90,
     SpatialCropBox,
+    StandardizeEmptyBox,
     ZoomBox,
 )
 from monai.apps.detection.transforms.box_ops import convert_box_to_mask
@@ -51,6 +52,9 @@ from monai.utils.enums import PostFix, TraceKeys
 from monai.utils.type_conversion import convert_data_type, convert_to_tensor
 
 __all__ = [
+    "StandardizeEmptyBoxd",
+    "StandardizeEmptyBoxD",
+    "StandardizeEmptyBoxDict",
     "ConvertBoxModed",
     "ConvertBoxModeD",
     "ConvertBoxModeDict",
@@ -93,6 +97,50 @@ __all__ = [
 ]
 
 DEFAULT_POST_FIX = PostFix.meta()
+
+
+class StandardizeEmptyBoxd(MapTransform, InvertibleTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.apps.detection.transforms.array.StandardizeEmptyBox`.
+
+    When boxes are empty, this transform standardize it to shape of (0,4) or (0,6).
+
+    Example:
+        .. code-block:: python
+
+            data = {"boxes": torch.ones(0,), "image": torch.ones(1, 128, 128, 128)}
+            box_converter = StandardizeEmptyBoxd(box_keys=["boxes"], box_ref_image_keys="image")
+            box_converter(data)
+    """
+
+    def __init__(self, box_keys: KeysCollection, box_ref_image_keys: str, allow_missing_keys: bool = False) -> None:
+        """
+        Args:
+            box_keys: Keys to pick data for transformation.
+            box_ref_image_keys: The single key that represents the reference image to which ``box_keys`` are attached.
+            allow_missing_keys: don't raise exception if key is missing.
+
+        See also :py:class:`monai.apps.detection,transforms.array.ConvertBoxToStandardMode`
+        """
+        super().__init__(box_keys, allow_missing_keys)
+        box_ref_image_keys_tuple = ensure_tuple(box_ref_image_keys)
+        if len(box_ref_image_keys_tuple) > 1:
+            raise ValueError(
+                "Please provide a single key for box_ref_image_keys.\
+                All boxes of box_keys are attached to box_ref_image_keys."
+            )
+        self.box_ref_image_keys = box_ref_image_keys
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        spatial_dims = len(d[self.box_ref_image_keys].shape) - 1
+        self.converter = StandardizeEmptyBox(spatial_dims=spatial_dims)
+        for key in self.key_iterator(d):
+            d[key] = self.converter(d[key])
+        return d
+
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
+        return dict(data)
 
 
 class ConvertBoxModed(MapTransform, InvertibleTransform):
@@ -1353,3 +1401,4 @@ MaskToBoxD = MaskToBoxDict = MaskToBoxd
 RandCropBoxByPosNegLabelD = RandCropBoxByPosNegLabelDict = RandCropBoxByPosNegLabeld
 RotateBox90D = RotateBox90Dict = RotateBox90d
 RandRotateBox90D = RandRotateBox90Dict = RandRotateBox90d
+StandardizeEmptyBoxD = StandardizeEmptyBoxDict = StandardizeEmptyBoxd
