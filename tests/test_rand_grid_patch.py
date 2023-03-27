@@ -100,7 +100,7 @@ class TestRandGridPatch(unittest.TestCase):
 
     def tearDown(self):
         set_determinism(None)
-    
+
     @parameterized.expand(TEST_SINGLE)
     def test_rand_grid_patch(self, in_type, input_parameters, image, expected):
         input_image = in_type(image)

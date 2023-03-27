@@ -3132,7 +3132,7 @@ class GridPatch(Transform, MultiSampleTrait):
                         patched_image = np.concatenate([patched_image, constant_padding], axis=0)
                     else:
                         constant_padding = torch.full(
-                            padding_shape, constant_values, 
+                            padding_shape, constant_values,
                             dtype=patched_image.dtype, layout=patched_image.layout, device=patched_image.device
                         )
                         patched_image = torch.cat([patched_image, constant_padding], dim=0)

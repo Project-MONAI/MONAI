@@ -80,8 +80,8 @@ def _pt_pad(img: NdarrayTensor, pad_width: list[tuple[int, int]], mode: str, **k
 
 def pad_nd(img: NdarrayTensor, to_pad: list[tuple[int, int]], mode: str=PytorchPadMode.CONSTANT, **kwargs) -> NdarrayTensor:
     """
-    Pad `img` for a given an amount of padding in each dimension. 
-    
+    Pad `img` for a given an amount of padding in each dimension.
+
     `torch.nn.functional.pad` is used unless the mode or kwargs are not available in torch,
     in which case `np.pad` will be used.
 
