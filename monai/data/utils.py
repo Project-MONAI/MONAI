@@ -164,7 +164,7 @@ def iter_patch_slices(
 
 
 def dense_patch_slices(
-    image_size: Sequence[int], patch_size: Sequence[int], scan_interval: Sequence[int]
+    image_size: Sequence[int], patch_size: Sequence[int], scan_interval: Sequence[int], return_slice: bool = True
 ) -> list[tuple[slice, ...]]:
     """
     Enumerate all slices defining ND patches of size `patch_size` from an `image_size` input image.
@@ -173,6 +173,7 @@ def dense_patch_slices(
         image_size: dimensions of image to iterate over
         patch_size: size of patches to generate slices
         scan_interval: dense patch sampling interval
+        return_slice: whether to return a list of slices (or tuples of indices), defaults to True
 
     Returns:
         a list of slice objects defining each patch
@@ -200,7 +201,9 @@ def dense_patch_slices(
             dim_starts.append(start_idx)
         starts.append(dim_starts)
     out = np.asarray([x.flatten() for x in np.meshgrid(*starts, indexing="ij")]).T
-    return [tuple(slice(s, s + patch_size[d]) for d, s in enumerate(x)) for x in out]
+    if return_slice:
+        return [tuple(slice(s, s + patch_size[d]) for d, s in enumerate(x)) for x in out]
+    return [tuple((s, s + patch_size[d]) for d, s in enumerate(x)) for x in out]
 
 
 def iter_patch_position(
@@ -1058,6 +1061,7 @@ def compute_importance_map(
     mode: BlendMode | str = BlendMode.CONSTANT,
     sigma_scale: Sequence[float] | float = 0.125,
     device: torch.device | int | str = "cpu",
+    dtype: torch.dtype | str | None = torch.float32,
 ) -> torch.Tensor:
     """Get importance map for different weight modes.
 
@@ -1072,6 +1076,7 @@ def compute_importance_map(
         sigma_scale: Sigma_scale to calculate sigma for each dimension
             (sigma = sigma_scale * dim_size). Used for gaussian mode only.
         device: Device to put importance map on.
+        dtype: Data type of the output importance map.
 
     Raises:
         ValueError: When ``mode`` is not one of ["constant", "gaussian"].
@@ -1098,6 +1103,9 @@ def compute_importance_map(
         raise ValueError(
             f"Unsupported mode: {mode}, available options are [{BlendMode.CONSTANT}, {BlendMode.CONSTANT}]."
         )
+    # handle non-positive weights
+    min_non_zero = max(torch.min(importance_map).item(), 1e-3)
+    importance_map = torch.clamp_(importance_map.to(torch.float), min=min_non_zero).to(dtype)
     return importance_map
 
 

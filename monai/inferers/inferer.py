@@ -415,7 +415,8 @@ class SlidingWindowInferer(Inferer):
                 warnings.warn("cache_roi_weight_map=True, but cache is not created. (dynamic roi_size?)")
         except BaseException as e:
             raise RuntimeError(
-                "Seems to be OOM. Please try smaller roi_size, or use mode='constant' instead of mode='gaussian'. "
+                f"roi size {self.roi_size}, mode={mode}, sigma_scale={sigma_scale}, device={device}\n"
+                "Seems to be OOM. Please try smaller patch size or mode='constant' instead of mode='gaussian'."
             ) from e
 
     def __call__(
