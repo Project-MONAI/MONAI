@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import warnings
 from typing import Any
+from collections.abc import Sequence
 
 import numpy as np
 import torch
@@ -176,7 +177,7 @@ def get_surface_distance(
     seg_pred: np.ndarray,
     seg_gt: np.ndarray,
     distance_metric: str = "euclidean",
-    spacing: float | list | np.ndarray | None = None,
+    spacing: int | float | np.ndarray | Sequence[int | float] | None = None,
 ) -> np.ndarray:
     """
     This function is used to compute the surface distances from `seg_pred` to `seg_gt`.
@@ -193,6 +194,11 @@ def get_surface_distance(
         spacing: spacing of pixel (or voxel) along each axis. If a sequence, must be of
             length equal to the image dimensions; if a single number, this is used for all axes.
             If ``None``, spacing of unity is used. Defaults to ``None``.
+        spacing: spacing of pixel (or voxel). This parameter is relevant only if ``distance_metric`` is set to ``"euclidean"``.
+            Several input options are allowed:
+            - If a single number, isotropic spacing with that value is used.
+            - If a sequence of numbers, the length of the sequence must be equal to the image dimensions.
+            - If ``None``, spacing of unity is used. Defaults to ``None``.
 
     Note:
         If seg_pred or seg_gt is all 0, may result in nan/inf distance.
@@ -269,3 +275,51 @@ def remap_instance_id(pred: torch.Tensor, by_size: bool = False) -> torch.Tensor
     for idx, instance_id in enumerate(pred_id):
         new_pred[pred == instance_id] = idx + 1
     return new_pred
+
+
+def prepare_spacing(
+    spacing: int | float | np.ndarray | Sequence[int | float | np.ndarray | Sequence[float]] | None,
+    batch_size: int,
+    img_dim: int,
+):
+    """
+    This function is used to prepare the `spacing` parameter to include batch dimension for the computation of
+    surface distance, hausdorff distance or surface dice.
+
+    An example with batch_size = 4 and img_dim = 3:
+    input spacing = None -> output spacing = [None, None, None, None]
+    input spacing = 0.8 -> output spacing = [0.8, 0.8, 0.8, 0.8]
+    input spacing = [0.8, 0.5, 0.9] -> output spacing = [[0.8, 0.5, 0.9], [0.8, 0.5, 0.9], [0.8, 0.5, 0.9], [0.8, 0.5, 0.9]]
+    input spacing = [0.8, 0.7, 1.2, 0.8] -> output spacing = [0.8, 0.7, 1.2, 0.8] (same as input)
+
+    Args:
+        spacing: can be a float, a sequence of length `img_dim`, or a sequence with length `batch_size`
+        that includes floats or sequences of length `img_dim`.
+
+    Raises:
+        AssertionError: when `spacing` is a sequence of sequence, where the outer sequence length does not
+        equal `batch_size` or inner sequence length does not equal `img_dim`.
+
+    Returns:
+        spacing: a sequence with length `batch_size` that includes integers, floats or sequences of length `img_dim`.
+    """
+    if spacing is None or isinstance(spacing, (int, float)):
+        spacing = [spacing] * batch_size
+    elif isinstance(spacing, (tuple, list, np.ndarray)):
+        if isinstance(spacing[0], (tuple, list, np.ndarray)):
+            assert (
+                len(spacing) == batch_size
+            ), "if spacing is a sequence of sequences, the outer sequence should have same length as batch size."
+            assert (
+                len(spacing[0]) == 1 or len(spacing[0]) == img_dim
+            ), "each element of spacing list should either have length of one of same as image dim."
+        else:
+            assert (
+                len(spacing) == img_dim
+            ), "if spacing is a sequence of numbers, it should have same length as image dim."
+            spacing = [spacing] * batch_size
+    else:
+        raise AssertionError(
+            "spacing should either be an integer, float, a sequence of numbers or a sequence of sequences."
+        )
+    return spacing
