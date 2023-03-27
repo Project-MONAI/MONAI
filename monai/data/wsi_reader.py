@@ -43,18 +43,18 @@ class BaseWSIReader(ImageReader):
     An abstract class that defines APIs to load patches from whole slide image files.
 
     Args:
-        level: the whole slide image level at which the image is extracted.
+        level: the whole slide image level at which the image should be extracted.
+        mpp: the resolution in micron per pixel at which the image should be extracted.
+        mpp_rtol: the acceptable relative tolerance for resolution in micro per pixel.
+        mpp_atol: the acceptable absolute tolerance for resolution in micro per pixel.
+        power: objective power at which the image should be extracted.
+        power_rtol: the acceptable relative tolerance for objective power.
+        power_atol: the acceptable absolute tolerance for objective power.
         channel_dim: the desired dimension for color channel.
         dtype: the data type of output image.
         device: target device to put the extracted patch. Note that if device is "cuda"",
             the output will be converted to torch tenor and sent to the gpu even if the dtype is numpy.
         mode: the output image color mode, e.g., "RGB" or "RGBA".
-        mpp:
-        power:
-        mpp_rtol:
-        mpp_atol:
-        power_rtol:
-        power_atol:
         kwargs: additional args for the reader
 
     Typical usage of a concrete implementation of this class is:
@@ -86,15 +86,15 @@ class BaseWSIReader(ImageReader):
         self,
         level: int | None,
         mpp: float | tuple[float, float] | None,
+        mpp_rtol: float,
+        mpp_atol: float,
         power: int | None,
+        power_rtol: float,
+        power_atol: float,
         channel_dim: int,
         dtype: DtypeLike | torch.dtype,
         device: torch.device | str | None,
         mode: str,
-        mpp_rtol: float,
-        mpp_atol: float,
-        power_rtol: float,
-        power_atol: float,
         **kwargs,
     ):
         super().__init__()
@@ -319,23 +319,23 @@ class BaseWSIReader(ImageReader):
         mode: str | None = None,
     ) -> tuple[np.ndarray, dict]:
         """
-        Verifies inputs, extracts patches from WSI image and generates metadata, and return them.
+        Verifies inputs, extracts patches from WSI image and generates metadata.
 
         Args:
-            wsi: a whole slide image object loaded from a file or a list of such objects
+            wsi: a whole slide image object loaded from a file or a list of such objects.
             location: (top, left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
             size: (height, width) tuple giving the patch size at the given level (`level`).
                 If not provided or None, it is set to the full image size at the given level.
-            level: the level number. Defaults to 0
-            mpp: micron per pixel
-            power: objective power
-            dtype: the data type of output image
-            mode: the output image mode, 'RGB' or 'RGBA'
+            level: the whole slide image level at which the image should be extracted. Defaults to 0.
+            mpp: the resolution in micron per pixel at which the image should be extracted.
+            power: objective power at which the image should be extracted.
+            dtype: the data type of output image.
+            mode: the output image mode, 'RGB' or 'RGBA'.
 
 
         Returns:
             a tuples, where the first element is an image patch [CxHxW] or stack of patches,
-                and second element is a dictionary of metadata
+                and second element is a dictionary of metadata.
         """
         if mode is None:
             mode = self.mode
@@ -455,15 +455,15 @@ class WSIReader(BaseWSIReader):
         backend="cucim",
         level: int | None = None,
         mpp: float | tuple[float, float] | None = None,
+        mpp_rtol: float = 0.05,
+        mpp_atol: float = 0.0,
         power: int | None = None,
+        power_rtol: float = 0.05,
+        power_atol: float = 0.0,
         channel_dim: int = 0,
         dtype: DtypeLike | torch.dtype = np.uint8,
         device: torch.device | str | None = None,
         mode: str = "RGB",
-        mpp_rtol: float = 0.05,
-        mpp_atol: float = 0.0,
-        power_rtol: float = 0.05,
-        power_atol: float = 0.0,
         **kwargs,
     ):
         self.backend = backend.lower()
@@ -472,45 +472,45 @@ class WSIReader(BaseWSIReader):
             self.reader = CuCIMWSIReader(
                 level=level,
                 mpp=mpp,
+                mpp_rtol=mpp_rtol,
+                mpp_atol=mpp_atol,
                 power=power,
+                power_rtol=power_rtol,
+                power_atol=power_atol,
                 channel_dim=channel_dim,
                 dtype=dtype,
                 device=device,
                 mode=mode,
-                mpp_rtol=mpp_rtol,
-                mpp_atol=mpp_atol,
-                power_rtol=power_rtol,
-                power_atol=power_atol,
                 **kwargs,
             )
         elif self.backend == "openslide":
             self.reader = OpenSlideWSIReader(
                 level=level,
                 mpp=mpp,
+                mpp_rtol=mpp_rtol,
+                mpp_atol=mpp_atol,
                 power=power,
+                power_rtol=power_rtol,
+                power_atol=power_atol,
                 channel_dim=channel_dim,
                 dtype=dtype,
                 device=device,
                 mode=mode,
-                mpp_rtol=mpp_rtol,
-                mpp_atol=mpp_atol,
-                power_rtol=power_rtol,
-                power_atol=power_atol,
                 **kwargs,
             )
         elif self.backend == "tifffile":
             self.reader = TiffFileWSIReader(
                 level=level,
                 mpp=mpp,
+                mpp_rtol=mpp_rtol,
+                mpp_atol=mpp_atol,
                 power=power,
+                power_rtol=power_rtol,
+                power_atol=power_atol,
                 channel_dim=channel_dim,
                 dtype=dtype,
                 device=device,
                 mode=mode,
-                mpp_rtol=mpp_rtol,
-                mpp_atol=mpp_atol,
-                power_rtol=power_rtol,
-                power_atol=power_atol,
                 **kwargs,
             )
         else:
@@ -519,6 +519,11 @@ class WSIReader(BaseWSIReader):
             )
         self.supported_suffixes = self.reader.supported_suffixes
         self.level = self.reader.level
+        self.mpp_rtol = self.reader.mpp_rtol
+        self.mpp_atol = self.reader.mpp_atol
+        self.power = self.reader.power
+        self.power_rtol = self.reader.power_rtol
+        self.power_atol = self.reader.power_atol
         self.channel_dim = self.reader.channel_dim
         self.dtype = self.reader.dtype
         self.device = self.reader.device
@@ -526,11 +531,6 @@ class WSIReader(BaseWSIReader):
         self.kwargs = self.reader.kwargs
         self.metadata = self.reader.metadata
         self.mpp = self.reader.mpp
-        self.power = self.reader.power
-        self.mpp_rtol = self.reader.mpp_rtol
-        self.mpp_atol = self.reader.mpp_atol
-        self.power_rtol = self.reader.power_rtol
-        self.power_atol = self.reader.power_atol
 
     def get_level_count(self, wsi) -> int:
         """
