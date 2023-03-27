@@ -277,7 +277,7 @@ class SSIMMetric(RegressionMetric):
         k2: float = 0.03,
         reduction: MetricReduction | str = MetricReduction.MEAN,
         get_not_nans: bool = False,
-    ):
+    ) -> None:
         super().__init__(reduction=reduction, get_not_nans=get_not_nans)
 
         self.spatial_dims = spatial_dims
@@ -383,7 +383,7 @@ def compute_ssim_and_cs(
     kernel_sigma: Sequence[int, ...] = 1.5,
     k1: float = 0.01,
     k2: float = 0.03,
-):
+) -> tuple[torch.Tensor, torch.Tensor]:
     """
     Function to compute the Structural Similarity Index Measure (SSIM) and Contrast Sensitivity (CS) for a batch
     of images.
