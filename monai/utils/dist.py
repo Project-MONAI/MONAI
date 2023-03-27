@@ -198,7 +198,4 @@ class RankFilter(Filter):
             raise ValueError("The torch.distributed is either unavailable and uninitiated.")
 
     def filter(self, *_args):
-        if self.filter_fn(self.rank):
-            return True
-        else:
-            return False
+        return self.filter_fn(self.rank)
