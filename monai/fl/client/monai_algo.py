@@ -506,8 +506,8 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         # set stats sender for nvflare
         self.stats_sender = extra.get(ExtraItems.STATS_SENDER, self.stats_sender)
         if self.stats_sender is not None:
-            self.trainer.state.extra[ExtraItems.STATS_SENDER] = self.stats_sender
-            self.evaluator.state.extra[ExtraItems.STATS_SENDER] = self.stats_sender
+            self.stats_sender.attach(self.trainer)
+            self.stats_sender.attach(self.evaluator)
 
         # Get filters
         self.pre_filters = self.filter_parser.get_parsed_content(
