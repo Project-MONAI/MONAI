@@ -194,17 +194,11 @@ def compute_average_surface_distance(
         if not np.any(edges_pred):
             warnings.warn(f"the prediction of class {c} is all 0, this may result in nan/inf distance.")
         surface_distance = get_surface_distance(
-            edges_pred,
-            edges_gt,
-            distance_metric=distance_metric,
-            spacing=spacing[b],
+            edges_pred, edges_gt, distance_metric=distance_metric, spacing=spacing[b]
         )
         if symmetric:
             surface_distance_2 = get_surface_distance(
-                edges_gt,
-                edges_pred,
-                distance_metric=distance_metric,
-                spacing=spacing[b],
+                edges_gt, edges_pred, distance_metric=distance_metric, spacing=spacing[b]
             )
             surface_distance = np.concatenate([surface_distance, surface_distance_2])
         asd[b, c] = np.nan if surface_distance.shape == (0,) else surface_distance.mean()
