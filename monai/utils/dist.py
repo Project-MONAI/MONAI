@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import sys
+import warnings
 from collections.abc import Callable
 from logging import Filter
 
@@ -184,18 +185,23 @@ class RankFilter(Filter):
     The purpose is to control which log records are processed based on the rank in a distributed environment.
 
     Args:
-        filter_fn: an optional lambda function func used as the filtering criteria.
+        rank: the rank of the process in the torch.distributed. Default is None and then it will use dist.get_rank().
+        filter_fn: an optional lambda function used as the filtering criteria.
             The default function logs only if the rank of the process is 0,
             but the user can define their own function to implement custom filtering logic.
     """
 
-    def __init__(self, filter_fn: Callable = lambda rank: rank == 0):
+    def __init__(self, rank: int | None = None, filter_fn: Callable = lambda rank: rank == 0):
         super().__init__()
         self.filter_fn: Callable = filter_fn
         if dist.is_available() and dist.is_initialized():
-            self.rank: int = dist.get_rank()
+            self.rank: int = rank if rank else dist.get_rank()
         else:
-            raise ValueError("The torch.distributed is either unavailable and uninitiated.")
+            warnings.warn(
+                "The torch.distributed is either unavailable and uninitiated when RankFilter is instiantiated. "
+                "If torch.distributed is used, please ensure that the RankFilter() is called "
+                "after torch.distributed.init_process_group() in the script."
+            )
 
     def filter(self, *_args):
         return self.filter_fn(self.rank)
