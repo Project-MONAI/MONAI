@@ -281,7 +281,7 @@ def prepare_spacing(
     spacing: int | float | np.ndarray | Sequence[int | float | np.ndarray | Sequence[float]] | None,
     batch_size: int,
     img_dim: int,
-):
+) -> Sequence[int | float | np.ndarray | Sequence[float]]:
     """
     This function is used to prepare the `spacing` parameter to include batch dimension for the computation of
     surface distance, hausdorff distance or surface dice.
