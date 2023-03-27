@@ -150,7 +150,7 @@ class Pad(InvertibleTransform, LazyTransform):
         kwargs_.update(kwargs)
 
         img_t = convert_to_tensor(data=img, track_meta=get_track_meta())
-        return pad_func(img_t, to_pad_, mode_, self.get_transform_info(), kwargs_)
+        return pad_func(img_t, to_pad_, self.get_transform_info(), mode_, **kwargs_)
 
     def inverse(self, data: MetaTensor) -> MetaTensor:
         transform = self.pop_transform(data)

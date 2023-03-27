@@ -28,6 +28,8 @@ __all__ = [
     "clip",
     "percentile",
     "where",
+    "argwhere",
+    "argsort",
     "nonzero",
     "floor_divide",
     "unravel_index",
@@ -137,6 +139,42 @@ def where(condition: NdarrayOrTensor, x=None, y=None) -> NdarrayOrTensor:
             result = torch.where(condition, x, y)
         else:
             result = torch.where(condition)  # type: ignore
+    return result
+
+
+def argwhere(a: NdarrayTensor) -> NdarrayTensor:
+    """`np.argwhere` with equivalent implementation for torch.
+
+    Args:
+        a: input data.
+
+    Returns:
+        Indices of elements that are non-zero. Indices are grouped by element.
+        This array will have shape (N, a.ndim) where N is the number of non-zero items.
+    """
+    result: NdarrayTensor
+    if isinstance(a, np.ndarray):
+        result = np.argwhere(a)
+    else:
+        result = torch.argwhere(a)
+    return result
+
+
+def argsort(a: NdarrayTensor, axis: int | None=-1) -> NdarrayTensor:
+    """`np.argsort` with equivalent implementation for torch.
+
+    Args:
+        a: the array/tensor to sort.
+        axis: axis along which to sort.
+
+    Returns:
+        Array/Tensor of indices that sort a along the specified axis.
+    """
+    result: NdarrayOrTensor
+    if isinstance(a, np.ndarray):
+        result = np.argsort(a, axis=axis)
+    else:
+        result = torch.argsort(a, axis=axis)
     return result
 
 
