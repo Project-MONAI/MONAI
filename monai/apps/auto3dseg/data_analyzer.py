@@ -31,10 +31,6 @@ from monai.transforms import Compose, EnsureTyped, LoadImaged, Orientationd
 from monai.utils import StrEnum, min_version, optional_import
 from monai.utils.enums import DataStatsKeys, ImageStatsKeys
 
-import warnings
-# remove the warning "warnings.warn(f"Modifying image pixdim from {pixdim} to {norm}")"
-warnings.filterwarnings("ignore", category=UserWarning, module='monai')
-
 def strenum_representer(dumper, data):
     return dumper.represent_scalar("tag:yaml.org,2002:str", data.value)
 
