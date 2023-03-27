@@ -79,15 +79,17 @@ class BundleAlgo(Algo):
         self.best_metric = None
         # track records when filling template config: {"<config name>": {"<placeholder key>": value, ...}, ...}
         self.fill_records: dict = {}
+        # skip generating bundles for this algo
+        self.skip_bundlegen = False
+        # info to print when skipped
+        self.skip_info = ''
 
     def pre_check_skip_algo(self):
         """
         Analyse the data analysis report and check if the algorithm needs to be skipped.
         """
-        # skip generating bundles for this algo
-        self.skip_bundlegen = False
-        # info to print when skipped
-        self.skip_info = ''
+        pass
+
 
     def set_data_stats(self, data_stats_files: str) -> None:
         """
@@ -519,19 +521,20 @@ class BundleGen(AlgoGen):
                 gen_algo.set_data_source(data_src_cfg)
                 name = f"{gen_algo.name}_{f_id}"
                 gen_algo.pre_check_skip_algo()
-                if not gen_algo.skip_bundlegen:
-                    if gpu_customization:
-                        gen_algo.export_to_disk(
-                            output_folder,
-                            name,
-                            fold=f_id,
-                            gpu_customization=True,
-                            gpu_customization_specs=gpu_customization_specs,
-                        )
-                    else:
-                        gen_algo.export_to_disk(output_folder, name, fold=f_id)
-                    
-                    algo_to_pickle(gen_algo, template_path=algo.template_path)
-                    self.history.append({name: gen_algo})  # track the previous, may create a persistent history
+                if gen_algo.skip_bundlegen:
+                    logger.info(f'{name} is skipped! {gen_algo.skip_info}')
+                    continue
+                if gpu_customization:
+                    gen_algo.export_to_disk(
+                        output_folder,
+                        name,
+                        fold=f_id,
+                        gpu_customization=True,
+                        gpu_customization_specs=gpu_customization_specs,
+                    )
                 else:
-                    logger.info(f'{name} is skipped! Msg:{gen_algo.skip_info}')
+                    gen_algo.export_to_disk(output_folder, name, fold=f_id)
+                
+                algo_to_pickle(gen_algo, template_path=algo.template_path)
+                self.history.append({name: gen_algo})  # track the previous, may create a persistent history
+                    
