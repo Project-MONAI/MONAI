@@ -91,14 +91,12 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
             y: ground truth to compute the distance. It must be one-hot format and first dim is batch.
                 The values should be binarized.
             spacing: spacing of pixel (or voxel). This parameter is relevant only if ``distance_metric`` is set to ``"euclidean"``.
-                Several input options are allowed:
-                - If a single number, isotropic spacing with that value is used for all images in the batch.
-                - If a sequence of numbers, the length of the sequence must be equal to the image dimensions.
-                  This spacing will be used for all images in the batch.
-                - If a sequence of sequences, the length of the outer sequence must be equal to the batch size. If
-                  inner sequence has length 1, isotropic spacing with that value is used for all images in the batch,
-                  else the inner sequence length must be equal to the image dimensions.
-                - If ``None``, spacing of unity is used for all images in batch. Defaults to ``None``.
+                If a single number, isotropic spacing with that value is used for all images in the batch. If a sequence of numbers,
+                the length of the sequence must be equal to the image dimensions. This spacing will be used for all images in the batch.
+                If a sequence of sequences, the length of the outer sequence must be equal to the batch size.
+                If inner sequence has length 1, isotropic spacing with that value is used for all images in the batch,
+                else the inner sequence length must be equal to the image dimensions. If ``None``, spacing of unity is used
+                for all images in batch. Defaults to ``None``.
 
         Raises:
             ValueError: when `y_pred` has less than three dimensions.
@@ -166,14 +164,12 @@ def compute_hausdorff_distance(
             Defaults to ``None``.
         directed: whether to calculate directed Hausdorff distance. Defaults to ``False``.
         spacing: spacing of pixel (or voxel). This parameter is relevant only if ``distance_metric`` is set to ``"euclidean"``.
-            Several input options are allowed:
-            - If a single number, isotropic spacing with that value is used for all images in the batch.
-            - If a sequence of numbers, the length of the sequence must be equal to the image dimensions.
-                This spacing will be used for all images in the batch.
-            - If a sequence of sequences, the length of the outer sequence must be equal to the batch size. If
-                inner sequence has length 1, isotropic spacing with that value is used for all images in the batch,
-                else the inner sequence length must be equal to the image dimensions.
-            - If ``None``, spacing of unity is used for all images in batch. Defaults to ``None``.
+            If a single number, isotropic spacing with that value is used for all images in the batch. If a sequence of numbers,
+            the length of the sequence must be equal to the image dimensions. This spacing will be used for all images in the batch.
+            If a sequence of sequences, the length of the outer sequence must be equal to the batch size.
+            If inner sequence has length 1, isotropic spacing with that value is used for all images in the batch,
+            else the inner sequence length must be equal to the image dimensions. If ``None``, spacing of unity is used
+            for all images in batch. Defaults to ``None``.
     """
 
     if not include_background:

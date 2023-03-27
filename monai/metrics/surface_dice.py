@@ -87,14 +87,12 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
             y: Reference segmentation.
                 It must be a one-hot encoded, batch-first tensor [B,C,H,W].
             spacing: spacing of pixel (or voxel). This parameter is relevant only if ``distance_metric`` is set to ``"euclidean"``.
-                Several input options are allowed:
-                - If a single number, isotropic spacing with that value is used for all images in the batch.
-                - If a sequence of numbers, the length of the sequence must be equal to the image dimensions.
-                  This spacing will be used for all images in the batch.
-                - If a sequence of sequences, the length of the outer sequence must be equal to the batch size. If
-                  inner sequence has length 1, isotropic spacing with that value is used for all images in the batch,
-                  else the inner sequence length must be equal to the image dimensions.
-                - If ``None``, spacing of unity is used for all images in batch. Defaults to ``None``.
+                If a single number, isotropic spacing with that value is used for all images in the batch. If a sequence of numbers,
+                the length of the sequence must be equal to the image dimensions. This spacing will be used for all images in the batch.
+                If a sequence of sequences, the length of the outer sequence must be equal to the batch size.
+                If inner sequence has length 1, isotropic spacing with that value is used for all images in the batch,
+                else the inner sequence length must be equal to the image dimensions. If ``None``, spacing of unity is used
+                for all images in batch. Defaults to ``None``.
 
         Returns:
             Pytorch Tensor of shape [B,C], containing the NSD values :math:`\operatorname {NSD}_{b,c}` for each batch
@@ -191,14 +189,12 @@ def compute_surface_dice(
             One of [``"euclidean"``, ``"chessboard"``, ``"taxicab"``].
             Defaults to ``"euclidean"``.
         spacing: spacing of pixel (or voxel). This parameter is relevant only if ``distance_metric`` is set to ``"euclidean"``.
-            Several input options are allowed:
-            - If a single number, isotropic spacing with that value is used for all images in the batch.
-            - If a sequence of numbers, the length of the sequence must be equal to the image dimensions.
-                This spacing will be used for all images in the batch.
-            - If a sequence of sequences, the length of the outer sequence must be equal to the batch size. If
-                inner sequence has length 1, isotropic spacing with that value is used for all images in the batch,
-                else the inner sequence length must be equal to the image dimensions.
-            - If ``None``, spacing of unity is used for all images in batch. Defaults to ``None``.
+            If a single number, isotropic spacing with that value is used for all images in the batch. If a sequence of numbers,
+            the length of the sequence must be equal to the image dimensions. This spacing will be used for all images in the batch.
+            If a sequence of sequences, the length of the outer sequence must be equal to the batch size.
+            If inner sequence has length 1, isotropic spacing with that value is used for all images in the batch,
+            else the inner sequence length must be equal to the image dimensions. If ``None``, spacing of unity is used
+            for all images in batch. Defaults to ``None``.
 
     Raises:
         ValueError: If `y_pred` and/or `y` are not PyTorch tensors.
