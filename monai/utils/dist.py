@@ -12,6 +12,8 @@
 from __future__ import annotations
 
 import sys
+from collections.abc import Callable
+from logging import Filter
 
 if sys.version_info >= (3, 8):
     from typing import Literal
@@ -26,7 +28,7 @@ from monai.utils.module import min_version, optional_import
 
 idist, has_ignite = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, min_version, "distributed")
 
-__all__ = ["get_dist_device", "evenly_divisible_all_gather", "string_list_all_gather"]
+__all__ = ["get_dist_device", "evenly_divisible_all_gather", "string_list_all_gather", "RankFilter"]
 
 
 def get_dist_device():
@@ -174,3 +176,29 @@ def string_list_all_gather(strings: list[str], delimiter: str = "\t") -> list[st
     _gathered = [bytearray(g.tolist()).decode("utf-8").split(delimiter) for g in gathered]
 
     return [i for k in _gathered for i in k]
+
+
+class RankFilter(Filter):
+    """
+    The RankFilter class is a convenient filter that extends the Filter class in the Python logging module.
+    The purpose is to control which log records are processed based on the rank in a distributed environment.
+
+    Args:
+        filter_fn: an optional lambda function func used as the filtering criteria.
+            The default function logs only if the rank of the process is 0,
+            but the user can define their own function to implement custom filtering logic.
+    """
+
+    def __init__(self, filter_fn: Callable = lambda rank: rank == 0):
+        super().__init__()
+        self.filter_fn: Callable = filter_fn
+        if dist.is_available() and dist.is_initialized():
+            self.rank: int = dist.get_rank()
+        else:
+            raise ValueError("The torch.distributed is either unavailable and uninitiated.")
+
+    def filter(self, *_args):
+        if self.filter_fn(self.rank):
+            return True
+        else:
+            return False
