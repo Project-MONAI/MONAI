@@ -232,6 +232,7 @@ class FlexibleUNet(nn.Module):
         dropout: float | tuple = 0.0,
         decoder_bias: bool = False,
         upsample: str = "nontrainable",
+        pre_conv: str = "default",
         interp_mode: str = "nearest",
         is_pad: bool = True,
     ) -> None:
@@ -262,6 +263,8 @@ class FlexibleUNet(nn.Module):
             decoder_bias: whether to have a bias term in decoder's convolution blocks.
             upsample: upsampling mode, available options are``"deconv"``, ``"pixelshuffle"``,
                 ``"nontrainable"``.
+            pre_conv:a conv block applied before upsampling. Only used in the "nontrainable" or
+                "pixelshuffle" mode, default to `default`.
             interp_mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``}
                 Only used in the "nontrainable" mode.
             is_pad: whether to pad upsampling features to fit features from encoder. Default to True.
@@ -309,7 +312,7 @@ class FlexibleUNet(nn.Module):
             bias=decoder_bias,
             upsample=upsample,
             interp_mode=interp_mode,
-            pre_conv="default",
+            pre_conv=pre_conv,
             align_corners=None,
             is_pad=is_pad,
         )

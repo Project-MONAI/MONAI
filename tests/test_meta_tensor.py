@@ -430,8 +430,8 @@ class TestMetaTensor(unittest.TestCase):
 
     def test_str(self):
         t = MetaTensor([1.0], affine=torch.tensor(1), meta={"fname": "filename"})
-        self.assertEqual(str(t), "tensor([1.])")
-        self.assertEqual(t.__repr__(), "tensor([1.])")
+        self.assertEqual(str(t), "metatensor([1.])")
+        self.assertEqual(t.__repr__(), "metatensor([1.])")
 
     def test_shape(self):
         s = MetaTensor([1])

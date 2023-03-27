@@ -20,6 +20,8 @@ from .enums import (
     Average,
     BlendMode,
     BoxModeName,
+    BundleProperty,
+    BundlePropertyConfig,
     ChannelMatching,
     ColorOrder,
     CommonKeys,
@@ -86,6 +88,7 @@ from .misc import (
     star_zip_with,
     str2bool,
     str2list,
+    to_tuple_of_dictionaries,
     zip_with,
 )
 from .module import (

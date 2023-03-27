@@ -23,6 +23,7 @@ import numpy as np
 import torch
 
 import monai
+from monai.config import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
@@ -34,8 +35,8 @@ from monai.transforms.inverse import TraceableTransform
 from monai.transforms.utils import create_rotate, create_translate, scale_affine
 from monai.transforms.utils_pytorch_numpy_unification import allclose
 from monai.utils import (
+    LazyAttr,
     TraceKeys,
-    convert_data_type,
     convert_to_dst_type,
     convert_to_numpy,
     convert_to_tensor,
@@ -51,6 +52,17 @@ cupy_ndi, _ = optional_import("cupyx.scipy.ndimage")
 np_ndi, _ = optional_import("scipy.ndimage")
 
 __all__ = ["spatial_resample", "orientation", "flip", "resize", "rotate", "zoom", "rotate90", "affine_func"]
+
+
+def _maybe_new_metatensor(img, dtype=None, device=None):
+    """create a metatensor with fresh metadata if track_meta is True otherwise convert img into a torch tensor"""
+    return convert_to_tensor(
+        img.as_tensor() if isinstance(img, MetaTensor) else img,
+        dtype=dtype,
+        device=device,
+        track_meta=get_track_meta(),
+        wrap_sequence=True,
+    )
 
 
 def spatial_resample(
@@ -130,12 +142,15 @@ def spatial_resample(
         transform_info=transform_info,
         lazy_evaluation=lazy_evaluation,
     )
-    # drop current meta first since line 102 is a shallow copy
-    img = img.as_tensor() if isinstance(img, MetaTensor) else img
-    if affine_unchanged or lazy_evaluation:
-        # no significant change or lazy change, return original image
-        out = convert_to_tensor(img, track_meta=get_track_meta())
+    if lazy_evaluation:
+        out = _maybe_new_metatensor(img)
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info  # type: ignore
+    if affine_unchanged:
+        # no significant change or lazy change, return original image
+        out = _maybe_new_metatensor(img, dtype=torch.float32)
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out  # type: ignore
+    # drop current meta first
+    img = img.as_tensor() if isinstance(img, MetaTensor) else img
     im_size = list(img.shape)
     chns, in_sp_size, additional_dims = im_size[0], im_size[1 : spatial_rank + 1], im_size[spatial_rank + 1 :]
 
@@ -143,7 +158,7 @@ def spatial_resample(
         xform_shape = [-1] + in_sp_size
         img = img.reshape(xform_shape)
     img = img.to(dtype_pt)
-    if isinstance(mode, int):
+    if isinstance(mode, int) or USE_COMPILED:
         dst_xform = create_translate(spatial_rank, [float(d - 1) / 2 for d in spatial_size])
         xform = xform @ convert_to_dst_type(dst_xform, xform)[0]
         affine_xform = monai.transforms.Affine(
@@ -164,7 +179,7 @@ def spatial_resample(
     if additional_dims:
         full_shape = (chns, *spatial_size, *additional_dims)
         img = img.reshape(full_shape)
-    out = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)
+    out = _maybe_new_metatensor(img, dtype=torch.float32)
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out  # type: ignore
 
 
@@ -203,7 +218,7 @@ def orientation(img, original_affine, spatial_ornt, transform_info):
         transform_info=transform_info,
         lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
     )
-    out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
+    out = _maybe_new_metatensor(img)
     if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     if axes:
@@ -246,7 +261,7 @@ def flip(img, sp_axes, transform_info):
         transform_info=transform_info,
         lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
     )
-    out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
+    out = _maybe_new_metatensor(img)
     if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     out = torch.flip(out, axes)
@@ -294,11 +309,15 @@ def resize(img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing,
         transform_info=transform_info,
         lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
     )
-    out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
-    if transform_info.get(TraceKeys.LAZY_EVALUATION, False) or tuple(convert_to_numpy(orig_size)) == out_size:
+    if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
         if anti_aliasing and transform_info.get(TraceKeys.LAZY_EVALUATION, False):
             warnings.warn("anti-aliasing is not compatible with lazy evaluation.")
+        out = _maybe_new_metatensor(img)
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+    if tuple(convert_to_numpy(orig_size)) == out_size:
+        out = _maybe_new_metatensor(img, dtype=torch.float32)
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+    out = _maybe_new_metatensor(img)
     img_ = convert_to_tensor(out, dtype=dtype, track_meta=False)  # convert to a regular tensor
     if anti_aliasing and any(x < y for x, y in zip(out_size, img_.shape[1:])):
         factors = torch.div(torch.Tensor(list(img_.shape[1:])), torch.Tensor(out_size))
@@ -374,7 +393,7 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, t
         transform_info=transform_info,
         lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
     )
-    out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
+    out = _maybe_new_metatensor(img)
     if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     xform = AffineTransform(
@@ -414,10 +433,7 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype,
 
     """
     im_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
-    output_size = [
-        int(math.floor(float(i) * z))
-        for i, z in zip(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:], scale_factor)
-    ]
+    output_size = [int(math.floor(float(i) * z)) for i, z in zip(im_shape, scale_factor)]
     xform = scale_affine(im_shape, output_size)
     extra_info = {
         "mode": mode,
@@ -427,9 +443,18 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype,
         "padcrop": {},
     }
     if keep_size:
-        if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
-            raise NotImplementedError("keep_size=True is not supported for lazy evaluation.")
-        output_size = [int(i) for i in img.shape[1:]]
+        do_pad_crop = not np.allclose(output_size, im_shape)
+        if do_pad_crop and transform_info.get(TraceKeys.LAZY_EVALUATION, False):  # update for lazy evaluation
+            _pad_crop = ResizeWithPadOrCrop(spatial_size=im_shape, mode=padding_mode)
+            _pad_crop.lazy_evaluation = True
+            _tmp_img = MetaTensor([], affine=torch.eye(len(output_size) + 1))
+            _tmp_img.push_pending_operation({LazyAttr.SHAPE: list(output_size), LazyAttr.AFFINE: xform})
+            lazy_cropped = _pad_crop(_tmp_img)
+            if isinstance(lazy_cropped, MetaTensor):
+                xform = lazy_cropped.peek_pending_affine()
+                extra_info["padcrop"] = lazy_cropped.pending_operations[-1]
+            extra_info["do_padcrop"] = do_pad_crop
+        output_size = [int(i) for i in im_shape]
     meta_info = TraceableTransform.track_transform_meta(
         img,
         sp_size=output_size,
@@ -439,7 +464,7 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype,
         transform_info=transform_info,
         lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
     )
-    out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
+    out = _maybe_new_metatensor(img)
     if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     img_t = out.to(dtype)
@@ -506,7 +531,7 @@ def rotate90(img, axes, k, transform_info):
         transform_info=transform_info,
         lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
     )
-    out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
+    out = _maybe_new_metatensor(img)
     if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     out = torch.rot90(out, k, axes)
@@ -565,14 +590,14 @@ def affine_func(img, affine, grid, resampler, sp_size, mode, padding_mode, do_re
         transform_info=transform_info,
         lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
     )
-    out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
     if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
+        out = _maybe_new_metatensor(img)
         out = out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
         return out if image_only else (out, affine)
     if do_resampling:
-        out = resampler(img=out, grid=grid, mode=mode, padding_mode=padding_mode)
+        out = resampler(img=img, grid=grid, mode=mode, padding_mode=padding_mode)
+        out = _maybe_new_metatensor(out)
     else:
-        out = convert_data_type(out, dtype=torch.float32, device=resampler.device)[0]
-    out = convert_to_tensor(out, track_meta=get_track_meta())
+        out = _maybe_new_metatensor(img, dtype=torch.float32, device=resampler.device)
     out = out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
     return out if image_only else (out, affine)

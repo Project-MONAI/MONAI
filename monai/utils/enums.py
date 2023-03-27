@@ -54,6 +54,8 @@ __all__ = [
     "HoVerNetMode",
     "HoVerNetBranch",
     "LazyAttr",
+    "BundleProperty",
+    "BundlePropertyConfig",
 ]
 
 
@@ -571,6 +573,7 @@ class ImageStatsKeys(StrEnum):
     CHANNELS = "channels"
     CROPPED_SHAPE = "cropped_shape"
     SPACING = "spacing"
+    SIZEMM = "sizemm"
     INTENSITY = "intensity"
     HISTOGRAM = "histogram"
 
@@ -628,6 +631,7 @@ class LazyAttr(StrEnum):
     MetaTensor with pending operations requires some key attributes tracked especially when the primary array
     is not up-to-date due to lazy evaluation.
     This class specifies the set of key attributes to be tracked for each MetaTensor.
+    See also: :py:func:`monai.transforms.lazy.utils.resample` for more details.
     """
 
     SHAPE = "lazy_shape"  # spatial shape
@@ -636,3 +640,27 @@ class LazyAttr(StrEnum):
     INTERP_MODE = "lazy_interpolation_mode"
     DTYPE = "lazy_dtype"
     ALIGN_CORNERS = "lazy_align_corners"
+    RESAMPLE_MODE = "lazy_resample_mode"
+
+
+class BundleProperty(StrEnum):
+    """
+    Bundle property fields:
+    `DESC` is the description of the property.
+    `REQUIRED` is flag to indicate whether the property is required or optional.
+    """
+
+    DESC = "description"
+    REQUIRED = "required"
+
+
+class BundlePropertyConfig(StrEnum):
+    """
+    additional bundle property fields for config based bundle workflow:
+    `ID` is the config item ID of the property.
+    `REF_ID` is the ID of config item which is supposed to refer to this property.
+    this field is only useful to check the optional property ID.
+    """
+
+    ID = "id"
+    REF_ID = "refer_id"

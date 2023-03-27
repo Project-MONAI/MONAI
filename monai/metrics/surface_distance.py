@@ -22,7 +22,6 @@ from monai.metrics.utils import (
     get_mask_edges,
     get_surface_distance,
     ignore_background,
-    is_binary_tensor,
     prepare_spacing,
 )
 from monai.utils import MetricReduction, convert_data_type
@@ -95,11 +94,8 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
                 - If ``None``, spacing of unity is used for all images in batch. Defaults to ``None``.
 
         Raises:
-            ValueError: when `y` is not a binarized tensor.
             ValueError: when `y_pred` has less than three dimensions.
         """
-        is_binary_tensor(y_pred, "y_pred")
-        is_binary_tensor(y, "y")
         if y_pred.dim() < 3:
             raise ValueError("y_pred should have at least three dimensions.")
 
