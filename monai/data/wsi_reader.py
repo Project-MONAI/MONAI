@@ -89,17 +89,17 @@ class BaseWSIReader(ImageReader):
 
     def __init__(
         self,
-        level: int | None,
-        mpp: float | tuple[float, float] | None,
-        mpp_rtol: float,
-        mpp_atol: float,
-        power: int | None,
-        power_rtol: float,
-        power_atol: float,
-        channel_dim: int,
-        dtype: DtypeLike | torch.dtype,
-        device: torch.device | str | None,
-        mode: str,
+        level: int | None = None,
+        mpp: float | tuple[float, float] | None = None,
+        mpp_rtol: float = 0.05,
+        mpp_atol: float = 0.0,
+        power: int | None = None,
+        power_rtol: float = 0.05,
+        power_atol: float = 0.0,
+        channel_dim: int = 0,
+        dtype: DtypeLike | torch.dtype = np.uint8,
+        device: torch.device | str | None = None,
+        mode: str = "RGB",
         **kwargs,
     ):
         super().__init__()
