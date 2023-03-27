@@ -262,8 +262,8 @@ class Compose(Randomizable, InvertibleTransform):
                 )
 
     def get_index_of_first(self, predicate):
-        for i in range(len(self.transforms)):
-            if predicate(self.transforms[i]):
+        for i, xform in enumerate(self.transforms):
+            if predicate(xform):
                 return i
         return None
 

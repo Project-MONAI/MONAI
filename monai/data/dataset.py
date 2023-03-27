@@ -322,10 +322,7 @@ class PersistentDataset(Dataset):
             lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
         )
 
-        if first_random is None:
-            item_transformed = self.transform(item_transformed, end=first_random, threading=True)
-        else:
-            item_transformed = self.transform(item_transformed, start=None, threading=True)
+        item_transformed = self.transform(item_transformed, end=first_random, threading=True)
 
         if self.reset_ops_id:
             reset_ops_id(item_transformed)
