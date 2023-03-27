@@ -316,13 +316,16 @@ class PersistentDataset(Dataset):
 
         """
         if not isinstance(self.transform, Compose):
-            raise ValueError("transform must be an instance of monai.transforms.Compose.")
+            raise ValueError(f"transform must be an instance of monai.transforms.Compose, got {type(self.transform)}.")
 
         first_random = self.transform.get_index_of_first(
             lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
         )
 
-        item_transformed = self.transform(item_transformed, end=first_random, threading=True)
+        if first_random is None:
+            item_transformed = self.transform(item_transformed, end=first_random, threading=True)
+        else:
+            item_transformed = self.transform(item_transformed, start=None, threading=True)
 
         if self.reset_ops_id:
             reset_ops_id(item_transformed)
@@ -345,8 +348,7 @@ class PersistentDataset(Dataset):
         first_random = self.transform.get_index_of_first(
             lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
         )
-        if first_random is not None:
-            item_transformed = self.transform(item_transformed, start=first_random)
+        item_transformed = self.transform(item_transformed, start=first_random)
         return item_transformed
 
     def _cachecheck(self, item_transformed):
@@ -489,7 +491,7 @@ class CacheNTransDataset(PersistentDataset):
             the transformed element up to the N transform object
         """
         if not isinstance(self.transform, Compose):
-            raise ValueError("transform must be an instance of monai.transforms.Compose.")
+            raise ValueError(f"transform must be an instance of monai.transforms.Compose, got {type(self.transform)}.")
 
         item_transformed = self.transform(item_transformed, end=self.cache_n_trans, threading=True)
 
@@ -906,14 +908,14 @@ class CacheDataset(Dataset):
 
         # load data from cache and execute from the first random transform
         if not isinstance(self.transform, Compose):
-            raise ValueError("transform must be an instance of monai.transforms.Compose.")
+            raise ValueError(f"transform must be an instance of monai.transforms.Compose, got {type(self.transform)}.")
 
         first_random = self.transform.get_index_of_first(
             lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
         )
         if first_random is not None:
             data = deepcopy(data) if self.copy_cache is True else data
-            data = self.transform(data, start=first_random)
+        data = self.transform(data, start=first_random)
 
         return data
 

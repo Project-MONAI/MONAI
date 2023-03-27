@@ -294,11 +294,11 @@ class Compose(Randomizable, InvertibleTransform):
         transforms: Sequence[Any],
         map_items: bool = True,
         unpack_items: bool = False,
-        start: int = 0,
+        start: int | None = 0,
         end: int | None = None,
         lazy_evaluation: bool = False,
-        overrides: dict = None,
-        override_keys: tuple = None,
+        overrides: dict | None = None,
+        override_keys: Sequence[str] | None = None,
         threading: bool = False,
         log_stats: bool = False,
         verbose: bool = False,
@@ -309,27 +309,48 @@ class Compose(Randomizable, InvertibleTransform):
         Compose and by code that doesn't have a Compose instance but needs to execute a
         sequence of transforms is if it were executed by Compose. It should only be used directly
         when it is not possible to use ``Compose.__call__`` to achieve the same goal.
+
         Args:
-            `input_`: a tensor-like object to be transformed
+            input_: a tensor-like object to be transformed
             transforms: a sequence of transforms to be carried out
             map_items: whether to apply the transform to each item in ``data``.
-            Defaults to True if not set.
+                Defaults to True if not set.
             unpack_items: whether to unpack parameters using '*'. Defaults to False if not set
-            log_stats: whether to log detailed information about the application of ``transforms``
-            to ``input_``. For NumPy ndarrays and PyTorch tensors, log only the data shape and
-            value range. Defaults to False if not set.
             start: the index of the first transform to be executed. If not set, this defaults to 0
-            end: the index after the last transform to be exectued. If set, the transform at index-1
-            is the last transform that is executed. If this is not set, it defaults to len(transforms)
-            threading: whether executing is happening in a threaded environment. If set, copies are made
-            of transforms that have the ``RandomizedTrait`` interface.
-
-        Returns:
-
+            end: the index after the last transform to be exectued. If set, the transform at ``end-1``
+                is the last transform that is executed. If this is not set, it defaults to len(transforms)
+            lazy_evaluation: whether to enable lazy evaluation for lazy transforms. If False, transforms will be
+                carried out on a transform by transform basis. If True, all lazy transforms will
+                be executed by accumulating changes and resampling as few times as possible.
+                A `monai.transforms.Identity[D]` transform in the pipeline will trigger the evaluation of
+                the pending operations and make the primary data up-to-date.
+            overrides: this optional parameter allows you to specify a dictionary of parameters that should be overridden
+                when executing a pipeline. These each parameter that is compatible with a given transform is then applied
+                to that transform before it is executed. Note that overrides are currently only applied when lazy_evaluation
+                is True. If lazy_evaluation is False they are ignored.
+                currently supported args are:
+                {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``},
+                please see also :py:func:`monai.transforms.lazy.apply_transforms` for more details.
+            override_keys: this optional parameter specifies the keys to which ``overrides`` are to be applied. If
+                ``overrides`` is set, ``override_keys`` must also be set.
+            threading: whether executing is happening in a threaded environment. If set, deepcopies are made
+                of transforms that have the ``RandomizedTrait`` interface.
+            log_stats: whether to log detailed information about the application of ``transforms``
+                to ``input_``. For NumPy ndarrays and PyTorch tensors, log only the data shape and
+                value range. Defaults to False if not set.
+            verbose: whether to print debugging info when lazy_evaluation=True.
         """
         end_ = len(transforms) if end is None else end
         if start is None:
-            raise ValueError(f"'start' ({start}) cannot be None")
+            input_ = evaluate_with_overrides(
+                input_,
+                None,
+                lazy_evaluation=lazy_evaluation,
+                overrides=overrides,
+                override_keys=override_keys,
+                verbose=verbose,
+            )
+            return input_
         if start > end_:
             raise ValueError(f"'start' ({start}) must be less than 'end' ({end_})")
         if end_ > len(transforms):
@@ -350,7 +371,7 @@ class Compose(Randomizable, InvertibleTransform):
                 override_keys=override_keys,
                 verbose=verbose,
             )
-            input_ = apply_transform(_transform, input_, map_items, unpack_items, log_stats)
+            input_ = apply_transform(_transform, input_, map_items, unpack_items, log_stats)  # type: ignore
         input_ = evaluate_with_overrides(
             input_,
             None,
@@ -370,13 +391,24 @@ class Compose(Randomizable, InvertibleTransform):
         return evaluate_with_overrides(
             input_,
             upcoming_xform,
-            lazy_evaluation=self.lazy_evaluation,
+            lazy_evaluation=bool(self.lazy_evaluation),
             overrides=self.overrides,
             override_keys=self.override_keys,
             verbose=self.verbose,
         )
 
-    def __call__(self, input_, start=0, end=None, threading=False):
+    def __call__(self, input_, start: int | None = 0, end: int | None = None, threading: bool = False):
+        """
+        apply the ``self.transforms`` to ``input_``.
+
+        Args:
+            input_: input data to be transformed.
+            start: the index of the first transform to be executed. If not set, this defaults to 0.
+            end: the index after the last transform to be exectued. If set, the transform at ``end-1``
+                is the last transform that is executed. If this is not set, it defaults to len(transforms).
+            threading: whether executing is happening in a threaded environment. If set, deepcopies are made
+                of transforms that have the ``RandomizedTrait`` interface.
+        """
         return Compose.execute(
             input_,
             self.transforms,
@@ -384,7 +416,7 @@ class Compose(Randomizable, InvertibleTransform):
             end=end,
             map_items=self.map_items,
             unpack_items=self.unpack_items,
-            lazy_evaluation=self.lazy_evaluation,
+            lazy_evaluation=bool(self.lazy_evaluation),
             overrides=self.overrides,
             override_keys=self.override_keys,
             threading=threading,
