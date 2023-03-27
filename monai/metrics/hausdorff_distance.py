@@ -92,7 +92,8 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
                 The values should be binarized.
             spacing: spacing of pixel (or voxel). This parameter is relevant only if ``distance_metric`` is set to ``"euclidean"``.
                 If a single number, isotropic spacing with that value is used for all images in the batch. If a sequence of numbers,
-                the length of the sequence must be equal to the image dimensions. This spacing will be used for all images in the batch.
+                the length of the sequence must be equal to the image dimensions.
+                This spacing will be used for all images in the batch.
                 If a sequence of sequences, the length of the outer sequence must be equal to the batch size.
                 If inner sequence has length 1, isotropic spacing with that value is used for all images in the batch,
                 else the inner sequence length must be equal to the image dimensions. If ``None``, spacing of unity is used
