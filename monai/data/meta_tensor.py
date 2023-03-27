@@ -492,7 +492,7 @@ class MetaTensor(MetaObj, torch.Tensor):
                 continue
             res = convert_to_dst_type(res, next_matrix)[0]
             next_matrix = monai.data.utils.to_affine_nd(r, next_matrix)
-            res = monai.transforms.lazy.utils.combine_transforms(res, next_matrix)  # type: ignore
+            res = monai.transforms.lazy.utils.combine_transforms(res, next_matrix)
         return res
 
     def peek_pending_rank(self):
