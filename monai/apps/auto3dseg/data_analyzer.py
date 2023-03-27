@@ -201,68 +201,75 @@ class DataAnalyzer:
             dictionary will include .nan/.inf in the statistics.
 
         """
+        result: dict[DataStatsKeys, Any] = {DataStatsKeys.SUMMARY: {}, DataStatsKeys.BY_CASE: []}
+        result_bycase: dict[DataStatsKeys, Any] = {DataStatsKeys.SUMMARY: {}, DataStatsKeys.BY_CASE: []}
         if self.device.type == 'cpu':
             nprocs = 1
             logger.info(f'Using CPU for data analyzing!')
         else:
             nprocs = torch.cuda.device_count()
             logger.info(f'Found {nprocs} GPUs for data analyzing!')
-        set_start_method('forkserver', force=True)
-        with Manager() as manager:
-            manager_list = manager.list()
-            processes = []
-            for rank in range(nprocs):
-                p = Process(target=self._get_all_case_stats, args=(rank, nprocs, manager_list, key, transform_list))
-                processes.append(p)
-            for p in processes:
-                p.start()
-            for p in processes:
-                p.join()
-            # merge DataStatsKeys.BY_CASE
-            result: dict[DataStatsKeys, Any] = {DataStatsKeys.SUMMARY: {}, DataStatsKeys.BY_CASE: []}
-            result_bycase: dict[DataStatsKeys, Any] = {DataStatsKeys.SUMMARY: {}, DataStatsKeys.BY_CASE: []}
-            for _ in manager_list:
-                result_bycase[DataStatsKeys.BY_CASE].extend(_[DataStatsKeys.BY_CASE])
-            summarizer = SegSummarizer(
-                self.image_key,
-                self.label_key,
-                average=self.average,
-                do_ccp=self.do_ccp,
-                hist_bins=self.hist_bins,
-                hist_range=self.hist_range,
-                histogram_only=self.histogram_only,
+        if nprocs > 1:
+            set_start_method('forkserver', force=True)
+            with Manager() as manager:
+                manager_list = manager.list()
+                processes = []
+                for rank in range(nprocs):
+                    p = Process(target=self._get_all_case_stats, args=(rank, nprocs, manager_list, key, transform_list))
+                    processes.append(p)
+                print('mp time', time.time() - start)
+                for p in processes:
+                    p.start()
+                for p in processes:
+                    p.join()
+                # merge DataStatsKeys.BY_CASE
+                for _ in manager_list:
+                    result_bycase[DataStatsKeys.BY_CASE].extend(_[DataStatsKeys.BY_CASE])
+        else:
+            result_bycase = self._get_all_case_stats(0, 1, None, key, transform_list)
+    
+        summarizer = SegSummarizer(
+            self.image_key,
+            self.label_key,
+            average=self.average,
+            do_ccp=self.do_ccp,
+            hist_bins=self.hist_bins,
+            hist_range=self.hist_range,
+            histogram_only=self.histogram_only,
+        )
+        n_cases = len(result_bycase[DataStatsKeys.BY_CASE])
+        result[DataStatsKeys.SUMMARY] = summarizer.summarize(cast(list, result_bycase[DataStatsKeys.BY_CASE]))
+        result[DataStatsKeys.SUMMARY]["n_cases"] = n_cases
+        result_bycase[DataStatsKeys.SUMMARY] = result[DataStatsKeys.SUMMARY]
+        if not self._check_data_uniformity([ImageStatsKeys.SPACING], result):
+            logger.info("Data spacing is not completely uniform. MONAI transforms may provide unexpected result")
+        if self.output_path:
+            ConfigParser.export_config_file(
+                result, self.output_path, fmt=self.fmt, default_flow_style=None, sort_keys=False
             )
-            n_cases = len(result_bycase[DataStatsKeys.BY_CASE])
-            result[DataStatsKeys.SUMMARY] = summarizer.summarize(cast(list, result_bycase[DataStatsKeys.BY_CASE]))
-            result[DataStatsKeys.SUMMARY]["n_cases"] = n_cases
-            result_bycase[DataStatsKeys.SUMMARY] = result[DataStatsKeys.SUMMARY]
-            if not self._check_data_uniformity([ImageStatsKeys.SPACING], result):
-                logger.info("Data spacing is not completely uniform. MONAI transforms may provide unexpected result")
+            ConfigParser.export_config_file(
+                result_bycase,
+                self.output_path.replace(".yaml", "_by_case.yaml"),
+                fmt=self.fmt,
+                default_flow_style=None,
+                sort_keys=False,
+            )
+        # release memory
+        d = None
+        if self.device.type == "cuda":
+            # release unreferenced tensors to mitigate OOM
+            # limitation: https://github.com/pytorch/pytorch/issues/12873#issuecomment-482916237
+            torch.cuda.empty_cache()
+        result[DataStatsKeys.BY_CASE] = result_bycase[DataStatsKeys.BY_CASE]
+        return result
 
-            if self.output_path:
-                ConfigParser.export_config_file(
-                    result, self.output_path, fmt=self.fmt, default_flow_style=None, sort_keys=False
-                )
-                ConfigParser.export_config_file(
-                    result_bycase,
-                    self.output_path.replace(".yaml", "_by_case.yaml"),
-                    fmt=self.fmt,
-                    default_flow_style=None,
-                    sort_keys=False,
-                )
-            # release memory
-            d = None
-            if self.device.type == "cuda":
-                # release unreferenced tensors to mitigate OOM
-                # limitation: https://github.com/pytorch/pytorch/issues/12873#issuecomment-482916237
-                torch.cuda.empty_cache()
-            result[DataStatsKeys.BY_CASE] = result_bycase[DataStatsKeys.BY_CASE]
-            return result
-
-    def _get_all_case_stats(self, rank: int=0, world_size: int=1, manager_list: Manager.list=[], key="training", transform_list=None):
+    def _get_all_case_stats(self, rank: int=0, world_size: int=1, manager_list=None, key="training", transform_list=None):
         """
         Get all case stats from a partitioned datalist. The function can only be called internally by get_all_case_stats.
         Args:
+            rank: GPU process rank, 0 for CPU process
+            world_size: total number of GPUs, 1 for CPU process
+            manager_list: multiprocessing manager list object, if using multi-GPU. 
             key: dataset key
             transform_list: option list of transforms before SegSummarizer
         """
@@ -347,4 +354,7 @@ class DataAnalyzer:
                     }
                 )
             result_bycase[DataStatsKeys.BY_CASE].append(stats_by_cases)
-        manager_list.append(result_bycase)
+        if manager_list is None:
+            return result_bycase
+        else:
+            manager_list.append(result_bycase)
