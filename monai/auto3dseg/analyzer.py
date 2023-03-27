@@ -256,8 +256,7 @@ class ImageStats(Analyzer):
         )
 
         report[ImageStatsKeys.SIZEMM] = [
-            np.multiply(x, y).astype(int, copy=False).tolist()
-            for x, y in zip(report[ImageStatsKeys.SHAPE], report[ImageStatsKeys.SPACING])
+            int(a * b) for a, b in zip(report[ImageStatsKeys.SHAPE][0], report[ImageStatsKeys.SPACING])
         ]
 
         report[ImageStatsKeys.INTENSITY] = [

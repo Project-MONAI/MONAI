@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 from .adaptors import FunctionSignature, adaptor, apply_alias, to_kwargs
-from .compose import Compose, OneOf, RandomOrder
+from .compose import Compose, OneOf, RandomOrder, SomeOf
 from .croppad.array import (
     BorderPad,
     BoundingRect,
