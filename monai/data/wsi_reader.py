@@ -104,7 +104,7 @@ class BaseWSIReader(ImageReader):
         self.set_device(device)
         self.mode = mode
         self.kwargs = kwargs
-        self.mpp = mpp if mpp is None else ensure_tuple_rep(mpp, 2)
+        self.mpp: tuple[float, float] | None = ensure_tuple_rep(mpp, 2) if mpp is not None else None  # type: ignore
         self.power = power
         self.mpp_rtol = mpp_rtol
         self.mpp_atol = mpp_atol
@@ -138,18 +138,11 @@ class BaseWSIReader(ImageReader):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     def _get_valid_level(
-        self,
-        wsi,
-        level: int | None,
-        mpp: tuple[float, float] | None,
-        power: int | None,
+        self, wsi, level: int | None, mpp: float | tuple[float, float] | None, power: int | None
     ) -> int:
         """
         Returns the level associated to the resolution parameter in the whole slide image.
         """
-
-        if mpp is not None:
-            mpp = ensure_tuple_rep(mpp, 2)
 
         # Try instance parameters if no resolution is provided
         if mpp is None and power is None and level is None:
@@ -157,34 +150,29 @@ class BaseWSIReader(ImageReader):
             power = self.power
             level = self.level
 
+        # Ensure that at most one resolution parameter is provided.
         resolution = [val[0] for val in [("level", level), ("mpp", mpp), ("power", power)] if val[1] is not None]
-        # Check if only one resolution parameter is provided
         if len(resolution) > 1:
             raise ValueError(f"Only one of `level`, `mpp`, or `power` should be provided. {resolution} are provided.")
-        # Set the default value if no resolution parameter is provided.
-        if len(resolution) < 1:
-            level = 0
 
         n_levels = self.get_level_count(wsi)
 
-        if level is not None:
-            if level >= n_levels:
-                raise ValueError(f"The maximum level of this image is {n_levels-1} while level={level} is requested)!")
+        if mpp is not None:
+            mpp_: tuple[float, float] = ensure_tuple_rep(mpp, 2)  # type: ignore
 
-        elif mpp is not None:
             if self.get_mpp(wsi, 0) is None:
                 raise ValueError(
                     "mpp is not defined in this whole slide image, please use `level` (or `power`) instead."
                 )
             available_mpps = [self.get_mpp(wsi, level) for level in range(n_levels)]
-            if mpp in available_mpps:
-                valid_mpp = mpp
+            if mpp_ in available_mpps:
+                valid_mpp = mpp_
             else:
-                valid_mpp = min(available_mpps, key=lambda x: abs(x[0] - mpp[0]) + abs(x[1] - mpp[1]))
+                valid_mpp = min(available_mpps, key=lambda x: abs(x[0] - mpp_[0]) + abs(x[1] - mpp_[1]))
                 for i in range(2):
-                    if abs(valid_mpp[i] - mpp[i]) > self.mpp_atol + self.mpp_rtol * abs(mpp[i]):
+                    if abs(valid_mpp[i] - mpp_[i]) > self.mpp_atol + self.mpp_rtol * abs(mpp_[i]):
                         raise ValueError(
-                            f"The requested mpp {mpp} does not exist in this whole slide image"
+                            f"The requested mpp {mpp_} does not exist in this whole slide image"
                             f"(with mpp_rtol={self.mpp_rtol} and mpp_atol={self.mpp_atol}). "
                             f"Here is the list of available mpps: {available_mpps}. "
                             f"The closest matching available mpp is {valid_mpp}."
@@ -207,6 +195,12 @@ class BaseWSIReader(ImageReader):
                         "Please consider changing the tolerances or use another power."
                     )
             level = available_powers.index(valid_power)
+        else:
+            if level is None:
+                # Set the default value if no resolution parameter is provided.
+                level = 0
+            if level >= n_levels:
+                raise ValueError(f"The maximum level of this image is {n_levels-1} while level={level} is requested)!")
 
         return level
 
@@ -667,11 +661,7 @@ class CuCIMWSIReader(BaseWSIReader):
     supported_suffixes = ["tif", "tiff", "svs"]
     backend = "cucim"
 
-    def __init__(
-        self,
-        num_workers: int = 0,
-        **kwargs,
-    ):
+    def __init__(self, num_workers: int = 0, **kwargs):
         super().__init__(**kwargs)
         self.num_workers = num_workers
 
