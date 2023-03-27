@@ -43,11 +43,11 @@ class BaseWSIReader(ImageReader):
     An abstract class that defines APIs to load patches from whole slide image files.
 
     Args:
-        level: the whole slide image level at which the image should be extracted.
-        mpp: the resolution in micron per pixel at which the image should be extracted.
+        level: the whole slide image level at which the image is extracted.
+        mpp: the resolution in micron per pixel at which the image is extracted.
         mpp_rtol: the acceptable relative tolerance for resolution in micro per pixel.
         mpp_atol: the acceptable absolute tolerance for resolution in micro per pixel.
-        power: objective power at which the image should be extracted.
+        power: objective power at which the image is extracted.
         power_rtol: the acceptable relative tolerance for objective power.
         power_atol: the acceptable absolute tolerance for objective power.
         channel_dim: the desired dimension for color channel.
@@ -326,9 +326,9 @@ class BaseWSIReader(ImageReader):
             location: (top, left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
             size: (height, width) tuple giving the patch size at the given level (`level`).
                 If not provided or None, it is set to the full image size at the given level.
-            level: the whole slide image level at which the image should be extracted. Defaults to 0.
-            mpp: the resolution in micron per pixel at which the image should be extracted.
-            power: objective power at which the image should be extracted.
+            level: the whole slide image level at which the image is extracted. Defaults to 0.
+            mpp: the resolution in micron per pixel at which the image is extracted.
+            power: objective power at which the image is extracted.
             dtype: the data type of output image.
             mode: the output image mode, 'RGB' or 'RGBA'.
 
