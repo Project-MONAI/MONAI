@@ -37,9 +37,13 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
     num_workers = 0 if torch.cuda.is_available() else num_workers
 
     # define transforms for image and segmentation
-    lazy_kwargs = dict(
-        mode=("bilinear", 0), device=device, padding_mode=("border", "nearest"), dtype=(torch.float32, torch.uint8)
-    )
+    # lazy_kwargs = dict(
+    #     mode=("bilinear", 0), device=device, padding_mode=("border", "nearest"), dtype=(torch.float32, torch.uint8)
+    # )
+    lazy_kwargs = {
+        "img": {"mode": "bilinear", "device": device, "padding_mode": "border", "dtype": torch.float32},
+        "seg": {"mode": 0, "device": device, "padding_mode": "nearest", "dtype": torch.uint8}
+    }
     train_transforms = mt.Compose(
         [
             mt.LoadImaged(keys=["img", "seg"], reader=readers[0], image_only=True),
@@ -67,7 +71,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
         ],
         lazy_evaluation=lazy,
         overrides=lazy_kwargs,
-        override_keys=("img", "seg"),
+        # override_keys=("img", "seg"),
         verbose=num_workers > 0,  # testing both flags
     )
 

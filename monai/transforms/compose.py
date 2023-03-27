@@ -26,6 +26,7 @@ from monai.apps.utils import get_logger
 from monai.transforms.inverse import InvertibleTransform
 
 # For backwards compatibility (so this still works: from monai.transforms.compose import MapTransform)
+from monai.transforms.lazy.functional import execute_pending_transforms
 from monai.transforms.transform import (  # noqa: F401
     LazyTransform,
     MapTransform,
@@ -38,7 +39,7 @@ from monai.utils import MAX_SEED, TraceKeys, ensure_tuple, get_seed, to_tuple_of
 
 logger = get_logger(__name__)
 
-__all__ = ["Compose", "OneOf", "RandomOrder", "evaluate_with_overrides", "SomeOf"]
+__all__ = ["Compose", "OneOf", "RandomOrder", "SomeOf"]
 
 
 def evaluate_with_overrides(
@@ -76,11 +77,7 @@ def evaluate_with_overrides(
         return data  # eager evaluation
     overrides = (overrides or {}).copy()
     if isinstance(data, monai.data.MetaTensor):
-        if data.has_pending_operations and (
-            (upcoming is None)
-            or (isinstance(upcoming, mt.Identity))
-            or (isinstance(upcoming, mt.Identityd) and override_keys in upcoming.keys)
-        ):
+        if data.has_pending_operations and ((isinstance(upcoming, (mt.Identityd, mt.Identity))) or upcoming is None):
             data, _ = mt.apply_transforms(data, None, overrides=overrides)
             if verbose:
                 next_name = "final output" if upcoming is None else f"'{upcoming.__class__.__name__}'"
@@ -204,8 +201,6 @@ class Compose(Randomizable, InvertibleTransform):
             currently supported args are:
             {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``},
             please see also :py:func:`monai.transforms.lazy.apply_transforms` for more details.
-        override_keys: this optional parameter specifies the keys to which ``overrides`` are to be applied. If
-            ``overrides`` is set, ``override_keys`` must also be set.
         verbose: whether to print debugging info when lazy_evaluation=True.
     """
 
@@ -278,26 +273,11 @@ class Compose(Randomizable, InvertibleTransform):
         """Return number of transformations."""
         return len(self.flatten().transforms)
 
-    def evaluate_with_overrides(self, input_, upcoming_xform):
-        """
-        Args:
-            input_: input data to be transformed.
-            upcoming_xform: a transform used to determine whether to evaluate with override
-        """
-        return evaluate_with_overrides(
-            input_,
-            upcoming_xform,
-            lazy_evaluation=self.lazy_evaluation,
-            overrides=self.overrides,
-            override_keys=self.override_keys,
-            verbose=self.verbose,
-        )
-
     def __call__(self, input_):
         for _transform in self.transforms:
-            input_ = self.evaluate_with_overrides(input_, _transform)
-            input_ = apply_transform(_transform, input_, self.map_items, self.unpack_items, self.log_stats)
-        input_ = self.evaluate_with_overrides(input_, None)
+            input_ = apply_transform(_transform, input_, self.map_items, self.unpack_items, self.log_stats,
+                                     lazy_evaluation=self.lazy_evaluation, overrides=self.overrides)
+        input_ = execute_pending_transforms(input_, self.overrides)
         return input_
 
     def inverse(self, data):

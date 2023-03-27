@@ -25,6 +25,7 @@ import torch
 from monai import config, transforms
 from monai.config import KeysCollection
 from monai.data.meta_tensor import MetaTensor
+from monai.transforms.lazy.functional import execute_pending_transforms
 from monai.transforms.traits import LazyTrait, RandomizableTrait, ThreadUnsafe
 from monai.utils import MAX_SEED, ensure_tuple, first
 from monai.utils.enums import TransformBackends
@@ -44,7 +45,12 @@ ReturnType = TypeVar("ReturnType")
 
 
 def _apply_transform(
-    transform: Callable[..., ReturnType], parameters: Any, unpack_parameters: bool = False
+        transform: Callable[..., ReturnType],
+        parameters: Any,
+        unpack_parameters: bool = False,
+        lazy_evaluation: bool = False,
+        overrides: dict = None,
+        verbose: bool = False,
 ) -> ReturnType:
     """
     Perform transformation `transform` with the provided parameters `parameters`.
@@ -61,10 +67,28 @@ def _apply_transform(
     Returns:
         ReturnType: The return type of `transform`.
     """
+
     if isinstance(parameters, tuple) and unpack_parameters:
+        data = parameters[0]
+    else:
+        data = parameters
+
+    # For the 1.2 release, we are limited here to having executing transforms that
+    # are lazy but set to not be lazy _after_ we have applied the pending list. This
+    # is because the transform implementations for 1.2 don't have unified code paths for
+    # lazy and non-lazy operation, so it is not possible to pass a tensor with pending
+    # operations and have the transform handle them correctly.
+    # In order to have this functionality for 1.2, we need to provide lazy_evaluation
+    # overrides on __call__ methods for lazy array and dictionary transforms.
+    if not isinstance(transform, LazyTrait) or transform.lazy_evaluation is False:
+        # must evaluate outstanding pending transforms before we proceed
+        data = execute_pending_transforms(data, overrides, verbose)
+
+    if isinstance(parameters, tuple) and unpack_parameters:
+        parameters_ = (data,) + parameters[1:]
         return transform(*parameters)
 
-    return transform(parameters)
+    return transform(data)
 
 
 def apply_transform(
@@ -73,6 +97,9 @@ def apply_transform(
     map_items: bool = True,
     unpack_items: bool = False,
     log_stats: bool = False,
+    lazy_evaluation: bool = False,
+    overrides: dict = {},
+    verbose: bool = False,
 ) -> list[ReturnType] | ReturnType:
     """
     Transform `data` with `transform`.
@@ -99,8 +126,9 @@ def apply_transform(
     """
     try:
         if isinstance(data, (list, tuple)) and map_items:
-            return [_apply_transform(transform, item, unpack_items) for item in data]
-        return _apply_transform(transform, data, unpack_items)
+            return [_apply_transform(transform, item, unpack_items, lazy_evaluation, overrides)
+                    for item in data]
+        return _apply_transform(transform, data, unpack_items, lazy_evaluation, overrides)
     except Exception as e:
         # if in debug mode, don't swallow exception so that the breakpoint
         # appears where the exception was raised.

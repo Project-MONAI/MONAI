@@ -45,6 +45,7 @@ from monai.transforms import (
     convert_to_contiguous,
     reset_ops_id,
 )
+from monai.transforms.lazy.functional import execute_pending_transforms
 from monai.utils import MAX_SEED, get_seed, look_up_option, min_version, optional_import
 from monai.utils.misc import first
 
@@ -322,9 +323,13 @@ class PersistentDataset(Dataset):
                 break
             # this is to be consistent with CacheDataset even though it's not in a multi-thread situation.
             _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
-            item_transformed = self.transform.evaluate_with_overrides(item_transformed, _xform)
-            item_transformed = apply_transform(_xform, item_transformed)
-        item_transformed = self.transform.evaluate_with_overrides(item_transformed, None)
+        #     item_transformed = self.transform.evaluate_with_overrides(item_transformed, _xform)
+        #     item_transformed = apply_transform(_xform, item_transformed)
+        # item_transformed = self.transform.evaluate_with_overrides(item_transformed, None)
+            item_transformed = apply_transform(_transform, item_transformed,
+                                     lazy_evaluation=self.transform.lazy_evaluation,
+                                     overrides=self.transform.overrides)
+        item_transformed = execute_pending_transforms(item_transformed, self.transform.overrides)
         if self.reset_ops_id:
             reset_ops_id(item_transformed)
         return item_transformed
@@ -350,9 +355,13 @@ class PersistentDataset(Dataset):
                 or not isinstance(_transform, Transform)
             ):
                 start_post_randomize_run = True
-                item_transformed = self.transform.evaluate_with_overrides(item_transformed, _transform)
-                item_transformed = apply_transform(_transform, item_transformed)
-        item_transformed = self.transform.evaluate_with_overrides(item_transformed, None)
+        #         item_transformed = self.transform.evaluate_with_overrides(item_transformed, _transform)
+        #         item_transformed = apply_transform(_transform, item_transformed)
+        # item_transformed = self.transform.evaluate_with_overrides(item_transformed, None)
+                item_transformed = apply_transform(_transform, item_transformed,
+                                         lazy_evaluation=self.transform.lazy_evaluation,
+                                         overrides=self.transform.overrides)
+        item_transformed = execute_pending_transforms(item_transformed, self.transform.overrides)
         return item_transformed
 
     def _cachecheck(self, item_transformed):
@@ -500,9 +509,13 @@ class CacheNTransDataset(PersistentDataset):
             if i == self.cache_n_trans:
                 break
             _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
-            item_transformed = self.transform.evaluate_with_overrides(item_transformed, _xform)
-            item_transformed = apply_transform(_xform, item_transformed)
-        item_transformed = self.transform.evaluate_with_overrides(item_transformed, None)
+        #     item_transformed = self.transform.evaluate_with_overrides(item_transformed, _xform)
+        #     item_transformed = apply_transform(_xform, item_transformed)
+        # item_transformed = self.transform.evaluate_with_overrides(item_transformed, None)
+            item_transformed = apply_transform(_transform, item_transformed,
+                                     lazy_evaluation=self.transform.lazy_evaluation,
+                                     overrides=self.transform.overrides)
+        item_transformed = execute_pending_transforms(item_transformed, self.transform.overrides)
         reset_ops_id(item_transformed)
         return item_transformed
 
@@ -520,9 +533,13 @@ class CacheNTransDataset(PersistentDataset):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
         for i, _transform in enumerate(self.transform.transforms):
             if i >= self.cache_n_trans:
-                item_transformed = self.transform.evaluate_with_overrides(item_transformed, item_transformed)
-                item_transformed = apply_transform(_transform, item_transformed)
-        item_transformed = self.transform.evaluate_with_overrides(item_transformed, None)
+        #         item_transformed = self.transform.evaluate_with_overrides(item_transformed, item_transformed)
+        #         item_transformed = apply_transform(_transform, item_transformed)
+        # item_transformed = self.transform.evaluate_with_overrides(item_transformed, None)
+                item_transformed = apply_transform(_transform, item_transformed,
+                                         lazy_evaluation=self.transform.lazy_evaluation,
+                                         overrides=self.transform.overrides)
+        item_transformed = execute_pending_transforms(item_transformed, self.transform.overrides)
         return item_transformed
 
 
@@ -892,9 +909,13 @@ class CacheDataset(Dataset):
             if isinstance(_transform, RandomizableTrait) or not isinstance(_transform, Transform):
                 break
             _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
-            item = self.transform.evaluate_with_overrides(item, _xform)
-            item = apply_transform(_xform, item)
-        item = self.transform.evaluate_with_overrides(item, None)
+        #     item = self.transform.evaluate_with_overrides(item, _xform)
+        #     item = apply_transform(_xform, item)
+        # item = self.transform.evaluate_with_overrides(item, None)
+            item = apply_transform(_transform, item,
+                                     lazy_evaluation=self.transform.lazy_evaluation,
+                                     overrides=self.transform.overrides)
+        item = execute_pending_transforms(item, self.transform.overrides)
         if self.as_contiguous:
             item = convert_to_contiguous(item, memory_format=torch.contiguous_format)
         return item
@@ -931,9 +952,14 @@ class CacheDataset(Dataset):
                     start_run = True
                     if self.copy_cache:
                         data = deepcopy(data)
-                data = self.transform.evaluate_with_overrides(data, _transform)
-                data = apply_transform(_transform, data)
-        data = self.transform.evaluate_with_overrides(data, None)
+        #         data = self.transform.evaluate_with_overrides(data, _transform)
+        #         data = apply_transform(_transform, data)
+        # data = self.transform.evaluate_with_overrides(data, None)
+
+                data = apply_transform(_transform, data,
+                                       lazy_evaluation=self.transform.lazy_evaluation,
+                                       overrides=self.transform.overrides)
+        data = execute_pending_transforms(data, self.transform.overrides)
         return data
 
 
