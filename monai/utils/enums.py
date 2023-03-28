@@ -54,6 +54,7 @@ __all__ = [
     "HoVerNetMode",
     "HoVerNetBranch",
     "LazyAttr",
+    "LazyMode",
     "BundleProperty",
     "BundlePropertyConfig",
 ]
@@ -641,6 +642,36 @@ class LazyAttr(StrEnum):
     DTYPE = "lazy_dtype"
     ALIGN_CORNERS = "lazy_align_corners"
     RESAMPLE_MODE = "lazy_resample_mode"
+
+
+class LazyMode(StrEnum):
+    """
+    Lazy evaluation modes for executing processing pipelines (ie. Compose). These modes control how transforms
+    that can execute lazily are executed by the pipeline:
+    'OFF' indicates that the pipeline should not be executed lazily
+    'ENABLED' indicates that the pipeline can be executed lazily, but this will only be done for transforms
+    that have ``lazy_evaluation`` set to True
+    'ON' indicates that all transforms capable of being executed lazily will be executed lazily
+    See: :py:class: monai.transforms.compose.Compose for more details.
+    """
+    OFF = 'off'
+    ENABLED = 'enabled'
+    ON = 'on'
+
+
+    @classmethod
+    def __bool__(cls, lazy_mode):
+        if lazy_mode == LazyMode.OFF:
+            return False
+
+        if lazy_mode == LazyMode.ON:
+            return True
+
+        if lazy_mode == LazyMode.ENABLED:
+            return None
+
+        raise ValueError("'lazy_mode' must be one of LazyMode.OFF, LazyMode.ENABLED or LazyMode.ON, "
+                         f"but is {lazy_mode}")
 
 
 class BundleProperty(StrEnum):

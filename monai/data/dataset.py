@@ -913,8 +913,8 @@ class CacheDataset(Dataset):
         #     item = apply_transform(_xform, item)
         # item = self.transform.evaluate_with_overrides(item, None)
             item = apply_transform(_transform, item,
-                                     lazy_evaluation=self.transform.lazy_evaluation,
-                                     overrides=self.transform.overrides)
+                                   lazy_evaluation=self.transform.lazy_evaluation,
+                                   overrides=self.transform.overrides)
         item = execute_pending_transforms(item, self.transform.overrides)
         if self.as_contiguous:
             item = convert_to_contiguous(item, memory_format=torch.contiguous_format)

@@ -28,7 +28,7 @@ from monai.data.meta_tensor import MetaTensor
 from monai.transforms.lazy.functional import execute_pending_transforms
 from monai.transforms.traits import LazyTrait, RandomizableTrait, ThreadUnsafe
 from monai.utils import MAX_SEED, ensure_tuple, first
-from monai.utils.enums import TransformBackends
+from monai.utils.enums import TransformBackends, LazyMode
 from monai.utils.misc import MONAIEnvVars
 
 __all__ = [
@@ -48,9 +48,8 @@ def _apply_transform(
         transform: Callable[..., ReturnType],
         parameters: Any,
         unpack_parameters: bool = False,
-        lazy_evaluation: bool = False,
+        lazy_evaluation: bool = LazyMode.OFF,
         overrides: dict = None,
-        verbose: bool = False,
 ) -> ReturnType:
     """
     Perform transformation `transform` with the provided parameters `parameters`.
@@ -80,15 +79,17 @@ def _apply_transform(
     # operations and have the transform handle them correctly.
     # In order to have this functionality for 1.2, we need to provide lazy_evaluation
     # overrides on __call__ methods for lazy array and dictionary transforms.
-    if not isinstance(transform, LazyTrait) or transform.lazy_evaluation is False:
+
+    lazy_tx = isinstance(transform, LazyTrait)
+
+    if not lazy_tx or transform.lazy_evaluation is False:
         # must evaluate outstanding pending transforms before we proceed
-        data = execute_pending_transforms(data, overrides, verbose)
+        data = execute_pending_transforms(data, overrides)
 
     if isinstance(parameters, tuple) and unpack_parameters:
-        parameters_ = (data,) + parameters[1:]
-        return transform(*parameters)
+            return transform(*parameters, lazy_evaluation=bool(lazy_evaluation)) if lazy_tx else transform(*parameters)
 
-    return transform(data)
+    return transform(data, lazy_evaluation=bool(lazy_evaluation)) if lazy_tx else transform(parameters)
 
 
 def apply_transform(
@@ -96,10 +97,8 @@ def apply_transform(
     data: Any,
     map_items: bool = True,
     unpack_items: bool = False,
-    log_stats: bool = False,
-    lazy_evaluation: bool = False,
+    lazy_evaluation: LazyMode = LazyMode.OFF,
     overrides: dict = {},
-    verbose: bool = False,
 ) -> list[ReturnType] | ReturnType:
     """
     Transform `data` with `transform`.
@@ -134,7 +133,7 @@ def apply_transform(
         # appears where the exception was raised.
         if MONAIEnvVars.debug():
             raise
-        if log_stats and not isinstance(transform, transforms.compose.Compose):
+        if not isinstance(transform, transforms.compose.Compose):
             # log the input data information of exact transform in the transform chain
             datastats = transforms.utility.array.DataStats(data_shape=False, value_range=False)
             logger = logging.getLogger(datastats._logger_name)

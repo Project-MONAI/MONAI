@@ -30,20 +30,23 @@ __all__ = ["apply_transforms"]
 __override_keywords = {"mode", "padding_mode", "dtype", "align_corners", "resample_mode", "device"}
 
 
-def execute_pending_transforms(data, overrides: dict = None, verbose: bool = False):
-    if isinstance(data, (tuple, list)):
+def execute_pending_transforms(data, overrides: dict = None):
+    if isinstance(data, list):
         return [execute_pending_transforms(d) for d in data]
+
+    if isinstance(data, tuple):
+        return tuple(execute_pending_transforms(d) for d in data)
 
     if isinstance(data, dict):
         d = dict(data)
         for k, v in d.items():
             if isinstance(v, MetaTensor) and v.has_pending_operations:
                 overrides_ = None if overrides is None else overrides[k]
-                d[k], _ = apply_transforms(d[k], overrides=overrides_, verbose=verbose)
+                d[k], _ = apply_transforms(d[k], overrides=overrides_)
         return d
 
     if isinstance(data, MetaTensor) and data.has_pending_operations:
-        data, _ = apply_transforms(data, overrides=overrides, verbose=verbose)
+        data, _ = apply_transforms(data, overrides=overrides)
         return data
 
 
@@ -51,8 +54,6 @@ def apply_transforms(
         data: torch.Tensor | MetaTensor,
         pending: list | None = None,
         overrides: dict | None = None,
-        verbose: bool | None = None,
-        # **kwargs: Any
 ):
     """
     This method applies pending transforms to `data` tensors.
@@ -86,7 +87,6 @@ def apply_transforms(
 
     """
     overrides = (overrides or {}).copy()
-    # overrides.update((kwargs or {}).copy())
     for k in overrides:
         look_up_option(k, __override_keywords)  # check existence of the key
 

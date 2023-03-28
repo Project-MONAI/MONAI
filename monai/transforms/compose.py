@@ -36,6 +36,7 @@ from monai.transforms.transform import (  # noqa: F401
     apply_transform,
 )
 from monai.utils import MAX_SEED, TraceKeys, ensure_tuple, get_seed, to_tuple_of_dictionaries
+from monai.utils.enums import LazyMode
 
 logger = get_logger(__name__)
 
@@ -45,7 +46,7 @@ __all__ = ["Compose", "OneOf", "RandomOrder", "SomeOf"]
 def evaluate_with_overrides(
     data,
     upcoming,
-    lazy_evaluation: bool | None = False,
+    lazy_evaluation: LazyMode = LazyMode.OFF,
     overrides: dict | None = None,
     override_keys: Sequence[str] | None = None,
     verbose: bool = False,
@@ -186,9 +187,6 @@ class Compose(Randomizable, InvertibleTransform):
             defaults to `True`.
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             defaults to `False`.
-        log_stats: whether to log the detailed information of data and applied transform when error happened,
-            for NumPy array and PyTorch Tensor, log the data shape and value range,
-            for other metadata, log the values directly. default to `False`.
         lazy_evaluation: whether to enable lazy evaluation for lazy transforms. If False, transforms will be
             carried out on a transform by transform basis. If True, all lazy transforms will
             be executed by accumulating changes and resampling as few times as possible.
@@ -201,7 +199,6 @@ class Compose(Randomizable, InvertibleTransform):
             currently supported args are:
             {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``},
             please see also :py:func:`monai.transforms.lazy.apply_transforms` for more details.
-        verbose: whether to print debugging info when lazy_evaluation=True.
     """
 
     def __init__(
@@ -209,29 +206,23 @@ class Compose(Randomizable, InvertibleTransform):
         transforms: Sequence[Callable] | Callable | None = None,
         map_items: bool = True,
         unpack_items: bool = False,
-        log_stats: bool = False,
         lazy_evaluation: bool | None = None,
         overrides: dict | None = None,
-        override_keys: Sequence[str] | None = None,
-        verbose: bool = False,
     ) -> None:
         if transforms is None:
             transforms = []
         self.transforms = ensure_tuple(transforms)
         self.map_items = map_items
         self.unpack_items = unpack_items
-        self.log_stats = log_stats
         self.set_random_state(seed=get_seed())
 
         self.lazy_evaluation = lazy_evaluation
         self.overrides = overrides
-        self.override_keys = override_keys
-        self.verbose = verbose
 
-        if self.lazy_evaluation is not None:
-            for t in self.flatten().transforms:  # TODO: test Compose of Compose/OneOf
-                if isinstance(t, LazyTransform):
-                    t.lazy_evaluation = self.lazy_evaluation
+        # if self.lazy_evaluation is not None:
+        #     for t in self.flatten().transforms:  # TODO: test Compose of Compose/OneOf
+        #         if isinstance(t, LazyTransform):
+        #             t.lazy_evaluation = self.lazy_evaluation
 
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> Compose:
         super().set_random_state(seed=seed, state=state)
@@ -275,7 +266,7 @@ class Compose(Randomizable, InvertibleTransform):
 
     def __call__(self, input_):
         for _transform in self.transforms:
-            input_ = apply_transform(_transform, input_, self.map_items, self.unpack_items, self.log_stats,
+            input_ = apply_transform(_transform, input_, self.map_items, self.unpack_items,
                                      lazy_evaluation=self.lazy_evaluation, overrides=self.overrides)
         input_ = execute_pending_transforms(input_, self.overrides)
         return input_
@@ -287,7 +278,7 @@ class Compose(Randomizable, InvertibleTransform):
 
         # loop backwards over transforms
         for t in reversed(invertible_transforms):
-            data = apply_transform(t.inverse, data, self.map_items, self.unpack_items, self.log_stats)
+            data = apply_transform(t.inverse, data, self.map_items, self.unpack_items)
         return data
 
 
