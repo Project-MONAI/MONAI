@@ -16,7 +16,6 @@ import os
 import tempfile
 import unittest
 
-import torch
 import torch.distributed as dist
 
 from monai.utils import RankFilter
