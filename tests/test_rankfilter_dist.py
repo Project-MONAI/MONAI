@@ -28,7 +28,7 @@ class DistributedRankFilterTest(DistTestCase):
         self.log_dir = tempfile.TemporaryDirectory()
 
     @DistCall(nnodes=1, nproc_per_node=2)
-    def test_even(self):
+    def test_rankfilter(self):
         logger = logging.getLogger(__name__)
         log_filename = os.path.join(self.log_dir.name, "records.log")
         h1 = logging.FileHandler(filename=log_filename)
@@ -36,11 +36,7 @@ class DistributedRankFilterTest(DistTestCase):
 
         logger.addHandler(h1)
 
-        if torch.cuda.device_count() > 1:
-            dist.init_process_group(backend="nccl", init_method="env://")
-            rank_filer = RankFilter()
-            logger.addFilter(rank_filer)
-
+        logger.addFilter(RankFilter())
         logger.warning("test_warnings")
 
         dist.barrier()
@@ -48,7 +44,6 @@ class DistributedRankFilterTest(DistTestCase):
             with open(log_filename) as file:
                 lines = [line.rstrip() for line in file]
             log_message = " ".join(lines)
-
             assert log_message.count("test_warnings") == 1
 
     def tearDown(self) -> None:
