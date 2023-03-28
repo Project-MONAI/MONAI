@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import warnings
 from copy import deepcopy
 from time import sleep
 from typing import Any, cast
@@ -235,12 +236,18 @@ class AutoRunner:
         if len(missing_keys) > 0:
             raise ValueError(f"Config keys are missing {missing_keys}")
 
+        if not os.path.exists(self.data_src_cfg["datalist"]):
+            raise ValueError(f"Datalist file is not found {self.data_src_cfg['datalist']}")
+
         self.dataroot = self.data_src_cfg["dataroot"]
 
         self._create_work_dir_and_data_src_cfg()
 
         self.datalist_filename = self.data_src_cfg["datalist"]
         self.datastats_filename = os.path.join(self.work_dir, "datastats.yaml")
+
+        # inspect and update folds
+        num_fold = self.inspect_datalist_folds(datalist_filename=self.datalist_filename)
 
         self.not_use_cache = not_use_cache
         self.cache_filename = os.path.join(self.work_dir, "cache.yaml")
@@ -261,9 +268,12 @@ class AutoRunner:
         self.set_analyze_params()
 
         self.save_image = self.set_image_save_transform(kwargs)
+
         self.ensemble_method: AlgoEnsemble
-        self.set_ensemble_method(self.ensemble_method_name)
-        self.set_num_fold(num_fold=self.num_fold)
+        self.ensemble_method_name: str | None = None
+
+        self.set_num_fold(num_fold=num_fold)
+        self.set_ensemble_method("AlgoEnsembleBestByFold")
 
         self.gpu_customization = False
         self.gpu_customization_specs: dict[str, Any] = {}
@@ -368,6 +378,71 @@ class AutoRunner:
             self.cache, self.cache_filename, fmt="yaml", default_flow_style=None, sort_keys=False
         )
 
+    def inspect_datalist_folds(self, datalist_filename: str) -> int:
+        """
+        Returns number of folds in the datalist file, and assigns fold numbers if not provided.
+
+        Args:
+            datalist_filename: path to the datalist file.
+
+        Notes:
+            If the fold key is not provided, it auto generates 5 folds assignments in the training key list.
+            If validation key list is available, then it assumes a single fold validation.
+        """
+
+        datalist = ConfigParser.load_config_file(datalist_filename)
+        if "training" not in datalist:
+            raise ValueError("Datalist files has no training key:" + str(datalist_filename))
+
+        fold_list = [int(d["fold"]) for d in datalist["training"] if "fold" in d]
+
+        if len(fold_list) > 0:
+            num_fold = max(fold_list) + 1
+            logger.info(f"Setting num_fold {num_fold} based on the input datalist {datalist_filename}.")
+        elif "validation" in datalist and len(datalist["validation"]) > 0:
+            logger.info("No fold numbers provided, attempting to use a single fold based on the validation key")
+            # update the datalist file
+            for d in datalist["training"]:
+                d["fold"] = 1
+            for d in datalist["validation"]:
+                d["fold"] = 0
+
+            val_labels = {d["label"]: d for d in datalist["validation"] if "label" in d}
+            logger.info(
+                f"Found {len(val_labels)} items in the validation key, saving updated datalist to", datalist_filename
+            )
+
+            # check for duplicates
+            for d in datalist["training"]:
+                if d["label"] in val_labels:
+                    d["fold"] = 0
+                    del val_labels[d["label"]]
+
+            datalist["training"] = datalist["training"] + list(val_labels.values())
+
+            ConfigParser.export_config_file(datalist, datalist_filename, fmt="json", indent=4)
+            num_fold = 1
+
+        else:
+            num_fold = 5
+
+            warnings.warn(
+                f"Datalist has no folds specified {datalist_filename}..."
+                f"Generating {num_fold} folds randomly."
+                f"Please consider presaving fold numbers beforehand for repeated experiments."
+            )
+
+            from sklearn.model_selection import KFold
+
+            kf = KFold(n_splits=num_fold, shuffle=True, random_state=0)
+            for i, (_, valid_idx) in enumerate(kf.split(datalist["training"])):
+                for vi in valid_idx:
+                    datalist["training"][vi]["fold"] = i
+
+            ConfigParser.export_config_file(datalist, datalist_filename, fmt="json", indent=4)
+
+        return num_fold
+
     def set_gpu_customization(
         self, gpu_customization: bool = False, gpu_customization_specs: dict[str, Any] | None = None
     ) -> None:
@@ -416,8 +491,10 @@ class AutoRunner:
             If the ensemble method is ``AlgoEnsembleBestByFold``, this function automatically updates the ``n_fold``
             parameter in the ``ensemble_method`` to avoid inconsistency between the training and the ensemble.
         """
+
         if num_fold <= 0:
             raise ValueError(f"num_fold is expected to be an integer greater than zero. Now it gets {num_fold}")
+
         self.num_fold = num_fold
         if self.ensemble_method_name == "AlgoEnsembleBestByFold":
             self.ensemble_method.n_fold = self.num_fold  # type: ignore
@@ -736,9 +813,9 @@ class AutoRunner:
             ensembler = builder.get_ensemble()
             preds = ensembler(pred_param=self.pred_params)
             if len(preds) > 0:
-                print("Auto3Dseg picked the following networks to ensemble:")
+                logger.info("Auto3Dseg picked the following networks to ensemble:")
                 for algo in ensembler.get_algo_ensemble():
-                    print(algo[AlgoEnsembleKeys.ID])
+                    logger.info(algo[AlgoEnsembleKeys.ID])
 
                 for pred in preds:
                     self.save_image(pred)

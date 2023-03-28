@@ -168,11 +168,11 @@ class DiceLoss(_Loss):
         intersection = torch.sum(target * input, dim=reduce_axis)
 
         if self.squared_pred:
-            target = torch.pow(target, 2)
-            input = torch.pow(input, 2)
-
-        ground_o = torch.sum(target, dim=reduce_axis)
-        pred_o = torch.sum(input, dim=reduce_axis)
+            ground_o = torch.sum(target**2, dim=reduce_axis)
+            pred_o = torch.sum(input**2, dim=reduce_axis)
+        else:
+            ground_o = torch.sum(target, dim=reduce_axis)
+            pred_o = torch.sum(input, dim=reduce_axis)
 
         denominator = ground_o + pred_o
 

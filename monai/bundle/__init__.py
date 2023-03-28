@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from .config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem, Instantiable
 from .config_parser import ConfigParser
+from .properties import InferProperties, TrainProperties
 from .reference_resolver import ReferenceResolver
 from .scripts import (
     ckpt_export,
@@ -22,8 +23,8 @@ from .scripts import (
     get_bundle_versions,
     init_bundle,
     load,
-    patch_bundle_tracking,
     run,
+    trt_export,
     verify_metadata,
     verify_net_in_out,
 )
@@ -36,3 +37,4 @@ from .utils import (
     MACRO_KEY,
     load_bundle_config,
 )
+from .workflows import BundleWorkflow, ConfigWorkflow

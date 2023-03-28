@@ -170,7 +170,7 @@ class TestDataAnalyzer(unittest.TestCase):
         work_dir = self.test_dir.name
         self.dataroot_dir = os.path.join(work_dir, "sim_dataroot")
         self.datalist_file = os.path.join(work_dir, "sim_datalist.json")
-        self.datastat_file = os.path.join(work_dir, "data_stats.yaml")
+        self.datastat_file = os.path.join(work_dir, "datastats.yaml")
         ConfigParser.export_config_file(sim_datalist, self.datalist_file)
 
     @parameterized.expand(SIM_CPU_TEST_CASES)

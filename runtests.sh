@@ -120,11 +120,11 @@ fi
 
 function check_import {
     echo "Python: ${PY_EXE}"
-    ${cmdPrefix}${PY_EXE} -W error -W ignore::DeprecationWarning -c "import monai"
+    ${cmdPrefix}${PY_EXE} -W error -W ignore::DeprecationWarning -W ignore::ResourceWarning -c "import monai"
 }
 
 function print_version {
-    ${cmdPrefix}${PY_EXE} -c 'import monai; monai.config.print_config()'
+    ${cmdPrefix}${PY_EXE} -c 'import monai; monai.config.print_config()'  # project-monai/monai#6167
 }
 
 function install_deps {
@@ -623,6 +623,7 @@ fi
 if [ $doMinTests = true ]
 then
     echo "${separator}${blue}min${noColor}"
+    doCoverage=false
     ${cmdPrefix}${PY_EXE} -m tests.min_tests
 fi
 
