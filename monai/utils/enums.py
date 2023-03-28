@@ -659,8 +659,8 @@ class LazyMode(StrEnum):
     ON = 'on'
 
 
-    @classmethod
-    def __bool__(cls, lazy_mode):
+    @staticmethod
+    def as_bool(lazy_mode):
         if lazy_mode == LazyMode.OFF:
             return False
 

@@ -25,6 +25,7 @@ import monai
 import monai.transforms as mt
 from monai.data import create_test_image_3d
 from monai.utils import set_determinism
+from monai.utils.enums import LazyMode
 from tests.utils import HAS_CUPY, DistTestCase, SkipIfBeforePyTorchVersion, skip_if_quick
 
 
@@ -71,8 +72,6 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
         ],
         lazy_evaluation=lazy,
         overrides=lazy_kwargs,
-        # override_keys=("img", "seg"),
-        verbose=num_workers > 0,  # testing both flags
     )
 
     # create a training data loader
@@ -182,10 +181,10 @@ class IntegrationLazyResampling(DistTestCase):
             _readers = ("itkreader", "nibabelreader")
             _w = 0
         results = run_training_test(
-            self.data_dir, device=self.device, cachedataset=idx, readers=_readers, num_workers=_w, lazy=True
+            self.data_dir, device=self.device, cachedataset=idx, readers=_readers, num_workers=_w, lazy=LazyMode.ON
         )
         results_expected = run_training_test(
-            self.data_dir, device=self.device, cachedataset=0, readers=_readers, num_workers=_w, lazy=False
+            self.data_dir, device=self.device, cachedataset=0, readers=_readers, num_workers=_w, lazy=LazyMode.OFF
         )
         self.assertFalse(np.allclose(results, [0]))
         self.assertFalse(np.allclose(results_expected, [0]))

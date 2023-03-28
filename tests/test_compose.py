@@ -156,7 +156,7 @@ class TestCompose(unittest.TestCase):
             c.randomize()
 
     def test_err_msg(self):
-        transforms = Compose([abs, AddChannel(), round], log_stats=False)
+        transforms = Compose([abs, AddChannel(), round])
         with self.assertRaisesRegex(Exception, "AddChannel"):
             transforms(42.1)
 

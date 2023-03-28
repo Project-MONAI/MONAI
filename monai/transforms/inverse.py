@@ -93,7 +93,7 @@ class TraceableTransform(Transform):
             self.__class__.__name__,
             id(self),
             self.tracing,
-            self.lazy_evaluation if isinstance(self, LazyTransform) else False,
+            # self.lazy_evaluation if isinstance(self, LazyTransform) else False,
             self._do_transform if hasattr(self, "_do_transform") else True,
         )
         return dict(zip(self.transform_info_keys(), vals))

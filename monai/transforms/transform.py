@@ -46,7 +46,7 @@ ReturnType = TypeVar("ReturnType")
 
 def _apply_transform(
         transform: Callable[..., ReturnType],
-        parameters: Any,
+        data: Any,
         unpack_parameters: bool = False,
         lazy_evaluation: bool = LazyMode.OFF,
         overrides: dict = None,
@@ -67,11 +67,6 @@ def _apply_transform(
         ReturnType: The return type of `transform`.
     """
 
-    if isinstance(parameters, tuple) and unpack_parameters:
-        data = parameters[0]
-    else:
-        data = parameters
-
     # For the 1.2 release, we are limited here to having executing transforms that
     # are lazy but set to not be lazy _after_ we have applied the pending list. This
     # is because the transform implementations for 1.2 don't have unified code paths for
@@ -86,10 +81,10 @@ def _apply_transform(
         # must evaluate outstanding pending transforms before we proceed
         data = execute_pending_transforms(data, overrides)
 
-    if isinstance(parameters, tuple) and unpack_parameters:
-            return transform(*parameters, lazy_evaluation=bool(lazy_evaluation)) if lazy_tx else transform(*parameters)
+    if isinstance(data, tuple) and unpack_parameters:
+        return transform(*data, lazy_evaluation=LazyMode.as_bool(lazy_evaluation)) if lazy_tx else transform(*data)
 
-    return transform(data, lazy_evaluation=bool(lazy_evaluation)) if lazy_tx else transform(parameters)
+    return transform(data, lazy_evaluation=LazyMode.as_bool(lazy_evaluation)) if lazy_tx else transform(data)
 
 
 def apply_transform(

@@ -47,7 +47,8 @@ def execute_pending_transforms(data, overrides: dict = None):
 
     if isinstance(data, MetaTensor) and data.has_pending_operations:
         data, _ = apply_transforms(data, overrides=overrides)
-        return data
+
+    return data
 
 
 def apply_transforms(
