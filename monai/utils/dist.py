@@ -195,7 +195,7 @@ class RankFilter(Filter):
         super().__init__()
         self.filter_fn: Callable = filter_fn
         if dist.is_available() and dist.is_initialized():
-            self.rank: int = rank if rank else dist.get_rank()
+            self.rank: int = rank if rank is not None else dist.get_rank()
         else:
             warnings.warn(
                 "The torch.distributed is either unavailable and uninitiated when RankFilter is instiantiated. "
