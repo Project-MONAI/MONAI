@@ -14,6 +14,7 @@ from __future__ import annotations
 import os
 import tempfile
 import unittest
+from pathlib import Path
 from unittest import skipUnless
 
 import numpy as np
@@ -108,6 +109,8 @@ TEST_CASE_3 = [
 TEST_CASE_4 = [{"A": 1, "B": "@A", "C": "@D", "E": "$'test' + '@F'"}]
 
 TEST_CASE_5 = [{"training": {"A": 1, "A_B": 2}, "total": "$@training#A + @training#A_B + 1"}, 4]
+
+TEST_CASE_DUPLICATED_KEY = ["""{"key": {"unique": 1, "duplicate": 0, "duplicate": 4 } }"""]
 
 
 class TestConfigParser(unittest.TestCase):
@@ -302,6 +305,18 @@ class TestConfigParser(unittest.TestCase):
     def test_substring_reference(self, config, expected):
         parser = ConfigParser(config=config)
         self.assertEqual(parser.get_parsed_content("total"), expected)
+
+    @parameterized.expand([TEST_CASE_DUPLICATED_KEY])
+    def test_parse_json(self, config_string):
+        with tempfile.TemporaryDirectory() as tempdir:
+            config_path = Path(tempdir) / "config.json"
+            config_path.write_text(config_string)
+            parser = ConfigParser()
+
+            with self.assertRaises(ValueError) as context:
+                parser.read_config(config_path)
+
+            self.assertTrue("Duplicate key: `duplicate`" in str(context.exception))
 
 
 if __name__ == "__main__":
