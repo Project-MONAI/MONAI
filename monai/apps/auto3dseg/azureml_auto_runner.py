@@ -16,8 +16,8 @@ from typing import Any, Optional
 from monai.apps.auto3dseg import AutoRunner
 from monai.apps.auto3dseg.utils import AZUREML_CONFIG_KEY, submit_auto3dseg_module_to_azureml_if_needed
 from monai.apps.utils import get_logger
-from monai.utils.module import optional_import
 from monai.transforms import SaveImage
+from monai.utils.module import optional_import
 
 logger = get_logger(module_name=__name__)
 
@@ -49,7 +49,6 @@ class AzureMLAutoRunner(AutoRunner):
         templates_path_or_url: str | None = None,
         **kwargs: Any,
     ):
-
         work_dir = "outputs"
         super().__init__(
             work_dir=work_dir,

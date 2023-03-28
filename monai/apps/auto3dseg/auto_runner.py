@@ -30,10 +30,7 @@ from monai.apps.auto3dseg.ensemble_builder import (
     AlgoEnsembleBuilder,
 )
 from monai.apps.auto3dseg.hpo_gen import NNIGen
-from monai.apps.auto3dseg.utils import (
-    export_bundle_algo_history,
-    import_bundle_algo_history,
-)
+from monai.apps.auto3dseg.utils import export_bundle_algo_history, import_bundle_algo_history
 from monai.apps.utils import get_logger
 from monai.auto3dseg.utils import algo_to_pickle
 from monai.bundle import ConfigParser
