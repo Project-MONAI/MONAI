@@ -79,7 +79,7 @@ class AzureMLAutoRunner(AutoRunner):
     def _create_work_dir_and_data_src_cfg(self, data_src_cfg: dict[str, Any] | None = None) -> None:
         """
         Creates the work dir to be used by AutoRunner and exports the data source config to the specified filename if
-        running in AzureML, otherwise do nothing.
+        running in AzureML, do nothing otherwise.
 
         Args
             param data_src_cfg: dictionary containing the configuration for the AutoRunner, defaults to None
