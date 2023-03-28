@@ -19,7 +19,7 @@ from parameterized import parameterized
 
 from monai.transforms.spatial.dictionary import RandGridPatchd
 from monai.utils import set_determinism
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS, SkipIfBeforePyTorchVersion, assert_allclose
 
 A = np.arange(16).repeat(3).reshape(4, 4, 3).transpose(2, 0, 1)
 A11 = A[:, :2, :2]
@@ -82,6 +82,7 @@ class TestRandGridPatchd(unittest.TestCase):
         set_determinism(None)
 
     @parameterized.expand(TEST_SINGLE)
+    @SkipIfBeforePyTorchVersion((1, 11, 1))
     def test_rand_grid_patchd(self, in_type, input_parameters, image_dict, expected):
         image_key = "image"
         input_dict = {}
