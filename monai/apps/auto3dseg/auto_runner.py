@@ -518,7 +518,7 @@ class AutoRunner:
         self.search_space = search_space
         self.hpo_tasks = value_combinations
 
-    def set_image_save_transform(self, kwargs):
+    def set_image_save_transform(self, kwargs) -> SaveImage:
         """
         Set the ensemble output transform.
 
