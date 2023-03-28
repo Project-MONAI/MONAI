@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from monai.apps.auto3dseg import AutoRunner
 from monai.apps.auto3dseg.utils import AZUREML_CONFIG_KEY, submit_auto3dseg_module_to_azureml_if_needed
@@ -88,7 +88,7 @@ class AzureMLAutoRunner(AutoRunner):
         else:
             pass
 
-    def set_image_save_transform(self, kwargs) -> Optional[SaveImage]:
+    def set_image_save_transform(self, kwargs) -> SaveImage | None:
         """
         Set the ensemble output transform if running in AzureML, otherwise do nothing.
 
