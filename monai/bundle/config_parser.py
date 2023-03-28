@@ -16,7 +16,7 @@ import re
 from collections.abc import Sequence
 from copy import deepcopy
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Tuple
+from typing import TYPE_CHECKING, Any
 
 from monai.bundle.config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem
 from monai.bundle.reference_resolver import ReferenceResolver
@@ -384,7 +384,7 @@ class ConfigParser:
             self.ref_resolver.add_item(ConfigItem(config=item_conf, id=id))
 
     @staticmethod
-    def raise_error_on_key_duplicates(ordered_pairs: Sequence[Tuple[Any, Any]]):
+    def raise_error_on_key_duplicates(ordered_pairs: Sequence[tuple[Any, Any]]):
         """
         Raises ValueError if there is a duplicated key in the sequence of `ordered_pairs`.
         Otherwise, it returns the dict made from this sequence.
