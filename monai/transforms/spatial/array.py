@@ -3125,15 +3125,18 @@ class GridPatch(Transform, MultiSampleTrait):
                 padding = self.num_patches - len(patched_image)
                 if padding > 0:
                     # pad constant patches to the end of the first dim
-                    constant_values=self.pad_kwargs.get("constant_values", 0)
+                    constant_values = self.pad_kwargs.get("constant_values", 0)
                     padding_shape = (padding, *list(patched_image.shape)[1:])
                     if isinstance(patched_image, np.ndarray):
                         constant_padding = np.full(padding_shape, constant_values, dtype=patched_image.dtype)
                         patched_image = np.concatenate([patched_image, constant_padding], axis=0)
                     else:
                         constant_padding = torch.full(
-                            padding_shape, constant_values,
-                            dtype=patched_image.dtype, layout=patched_image.layout, device=patched_image.device
+                            padding_shape,
+                            constant_values,
+                            dtype=patched_image.dtype,
+                            layout=patched_image.layout,
+                            device=patched_image.device,
                         )
                         patched_image = torch.cat([patched_image, constant_padding], dim=0)
                     locations = np.pad(locations, [[0, padding], [0, 0]], constant_values=0)

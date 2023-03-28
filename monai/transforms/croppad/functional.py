@@ -78,7 +78,9 @@ def _pt_pad(img: NdarrayTensor, pad_width: list[tuple[int, int]], mode: str, **k
     return convert_to_dst_type(img_pt, dst=img)[0]
 
 
-def pad_nd(img: NdarrayTensor, to_pad: list[tuple[int, int]], mode: str=PytorchPadMode.CONSTANT, **kwargs) -> NdarrayTensor:
+def pad_nd(
+    img: NdarrayTensor, to_pad: list[tuple[int, int]], mode: str = PytorchPadMode.CONSTANT, **kwargs
+) -> NdarrayTensor:
     """
     Pad `img` for a given an amount of padding in each dimension.
 
@@ -102,8 +104,12 @@ def pad_nd(img: NdarrayTensor, to_pad: list[tuple[int, int]], mode: str=PytorchP
         return _np_pad(img, pad_width=to_pad, mode=mode, **kwargs)
     try:
         _pad = _np_pad
-        if (mode in {"constant", "reflect", "edge", "replicate", "wrap", "circular"} and
-            img.dtype not in {torch.int16, torch.int64, torch.bool, torch.uint8}):
+        if mode in {"constant", "reflect", "edge", "replicate", "wrap", "circular"} and img.dtype not in {
+            torch.int16,
+            torch.int64,
+            torch.bool,
+            torch.uint8,
+        }:
             _pad = _pt_pad
         return _pad(img, pad_width=to_pad, mode=mode, **kwargs)
     except (ValueError, TypeError, RuntimeError) as err:
@@ -149,7 +155,11 @@ def crop_or_pad_nd(img: torch.Tensor, translation_mat, spatial_size: tuple[int, 
 
 
 def pad_func(
-    img: torch.Tensor, to_pad: tuple[tuple[int, int]], transform_info: dict, mode: str=PytorchPadMode.CONSTANT, **kwargs
+    img: torch.Tensor,
+    to_pad: tuple[tuple[int, int]],
+    transform_info: dict,
+    mode: str = PytorchPadMode.CONSTANT,
+    **kwargs,
 ) -> torch.Tensor:
     """
     Functional implementation of padding a MetaTensor. This function operates eagerly or lazily according

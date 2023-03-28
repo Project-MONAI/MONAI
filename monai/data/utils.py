@@ -293,7 +293,7 @@ def iter_patch(
 
     """
 
-    from monai.transforms.croppad.functional import pad_nd # needs to be here to avoid circular import
+    from monai.transforms.croppad.functional import pad_nd  # needs to be here to avoid circular import
 
     # ensure patchSize and startPos are the right length
     patch_size_ = get_valid_patch_size(arr.shape, patch_size)

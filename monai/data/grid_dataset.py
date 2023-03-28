@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Generator, Callable, Hashable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Generator, Hashable, Iterable, Mapping, Sequence
 from copy import deepcopy
 
 import numpy as np
@@ -126,7 +126,9 @@ class PatchIterd:
         self.keys = ensure_tuple(keys)
         self.patch_iter = PatchIter(patch_size=patch_size, start_pos=start_pos, mode=mode, **pad_opts)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Generator[tuple[Mapping[Hashable, NdarrayTensor], np.ndarray], None, None]:
+    def __call__(
+        self, data: Mapping[Hashable, NdarrayTensor]
+    ) -> Generator[tuple[Mapping[Hashable, NdarrayTensor], np.ndarray], None, None]:
         d = dict(data)
         original_spatial_shape = d[first(self.keys)].shape[1:]
 

@@ -160,7 +160,7 @@ def argwhere(a: NdarrayTensor) -> NdarrayTensor:
     return result
 
 
-def argsort(a: NdarrayTensor, axis: int | None=-1) -> NdarrayTensor:
+def argsort(a: NdarrayTensor, axis: int | None = -1) -> NdarrayTensor:
     """`np.argsort` with equivalent implementation for torch.
 
     Args:
