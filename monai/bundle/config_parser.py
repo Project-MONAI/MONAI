@@ -384,7 +384,7 @@ class ConfigParser:
             self.ref_resolver.add_item(ConfigItem(config=item_conf, id=id))
 
     @staticmethod
-    def raise_error_on_key_duplicates(ordered_pairs: Sequence[tuple[Any, Any]]):
+    def raise_error_on_key_duplicates(ordered_pairs: Sequence[tuple[Any, Any]]) -> dict[Any, Any]:
         """
         Raises ValueError if there is a duplicated key in the sequence of `ordered_pairs`.
         Otherwise, it returns the dict made from this sequence.
@@ -417,9 +417,9 @@ class ConfigParser:
             raise ValueError(f'unknown file input: "{filepath}"')
         with open(_filepath) as f:
             if _filepath.lower().endswith(cls.suffixes[0]):
-                return json.load(
+                return json.load(  # type: ignore[no-any-return]
                     f, object_pairs_hook=cls.raise_error_on_key_duplicates, **kwargs
-                )  # type: ignore[no-any-return]
+                )
             if _filepath.lower().endswith(cls.suffixes[1:]):
                 return yaml.safe_load(f, **kwargs)  # type: ignore[no-any-return]
             raise ValueError(f"only support JSON or YAML config file so far, got name {_filepath}.")
