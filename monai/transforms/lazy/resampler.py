@@ -13,7 +13,7 @@ import monai
 
 from monai.transforms.utils import create_translate, create_grid, Transform
 
-from monai.utils import deprecated_arg
+from monai.utils import deprecated_arg, InterpolateMode
 
 from monai.networks.layers import grid_pull
 
@@ -55,6 +55,48 @@ def get_resample_mode(matrix, input_shape, output_shape, atol):
         return ResampleMode.TENSOR
 
     return ResampleMode.INTERPOLATE
+
+
+def resampling_parameter_map(keyword, first, second, resample_policy, ndims):
+    """
+    "resample policies: strict, equivalent, relaxed
+
+    mode - relaxed:
+    InterpolateMode.NEAREST -> (GridSampleMode.NEAREST,)
+    InterpolateMode.NEAREST_EXACT -> (GridSampleMode.NEAREST,)
+    InterpolateMode.LINEAR -> () (no 1d for grid sample)
+    InterpolateMode.BILINEAR -> (InterpolateMode.AREA(2d), GridSampleMode.BILINEAR)
+    InterpolateMode.TRILINEAR -> (InterpolateMode.AREA(3d), GridSampleMode.BILINEAR)
+    InterpolateMode.BICUBIC -> (GridSampleMode.BICUBIC(2d),)
+    InterpolateMode.AREA -> (GridSampleMode.BILINEAR,)
+
+    padding_mode - relaxed:
+    NumpyPadMode.CONSTANT -> (NdimageMode.CONSTANT, PytorchPadMode.CONSTANT)
+    NumpyPadMode.CONSTANT(0) -> (NdimageMode.CONSTANT(0), PytorchPadMode.CONSTANT(0), GridSamplePadMode.ZEROS)
+    NumpyPadMode.EDGE -> (NdimageMode.NEAREST, PytorchPadMode.REPLICATE, GridSamplePadMode.BORDER)
+    NumpyPadMode.LINEAR_RAMP -> ()
+    NumpyPadMode.MAXIMUM -> ()
+    NumpyPadMode.MEAN -> ()
+    NumpyPadMode.MEDIAN -> ()
+    NumpyPadMode.MINIMUM -> ()
+    NumpyPadMode.REFLECT -> (NdimageMode.MIRROR,)
+    NumpyPadMode.SYMMETRIC -> (NdimageMode.REFLECT, NdimageMode.GRID_MIRROR)
+    NumpyPadMode.REFLECT -> (NumpyPadMode.SYMMETRIC, NdimageMode.REFLECT,
+                             NdimageMode.MIRROR, NdImageMode.GRID_MIRROR,
+                             PytorchPadMode.REFLECT, GridSamplePadMode.REFLECTION)
+    """
+    keywords = ['mode', 'padding_mode']
+    resample_modes = [ResampleMode.TENSOR, ResampleMode.INTERPOLATE,
+                      ResampleMode.MATRIX_RESAMPLE, ResampleMode.GRID_RESAMPLE]
+    strict_mode_mappings = {
+        ResampleMode.TENSOR: {
+            ResampleMode.INTERPOLATE: {
+                InterpolateMode.NEAREST: InterpolateMode.NEAREST,
+                InterpolateMode.NEAREST_EXACT: InterpolateMode.NEAREST_EXACT,
+                InterpolateMode.AREA: InterpolateMode.AREA
+            }
+        }
+    }
 
 
 # def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = None):
@@ -160,25 +202,37 @@ def resample(
     if resample_mode == ResampleMode.TENSOR:
 
         flips, permutes = check_axes(matrix)
+        flips = [f + 1 for f in flips]
+        permutes = [0] + [p + 1 for p in permutes]
+
         if len(flips) > 0:
             img = torch.flip(img, flips)
 
-        if not sorted(permutes) != permutes:
+        if sorted(permutes) != permutes:
             img = torch.permute(img, permutes)
 
         return img
 
-    if resample_mode == ResampleMode.INTERPOLATE:
-
-        # flip the pre-interpolated image
-        flips, permutes = check_axes(matrix)
-        scaling_factors = get_scaling_factors(matrix)
-        img = torch.flip(img, flips)
-        # interpolate the image
-        img = torch.nn.functional.interpolate(img.unsqueeze(axis=0),
-                                              scale_factor=scaling_factors,
-                                              recompute_scale_factor=True).squeeze(axis=0)
-        return img
+    # if resample_mode == ResampleMode.INTERPOLATE:
+    #
+    #     # flip the pre-interpolated image
+    #     flips, permutes = check_axes(matrix)
+    #     flips = [f + 1 for f in flips]
+    #     permutes = [0] + [p + 1 for p in permutes]
+    #
+    #     if len(flips) > 0:
+    #         img = torch.flip(img, flips)
+    #
+    #     if sorted(permutes) != permutes:
+    #         img = torch.permute(img, permutes)
+    #
+    #     scaling_factors = get_scaling_factors(matrix)
+    #
+    #     # interpolate the image
+    #     img = torch.nn.functional.interpolate(img.unsqueeze(axis=0),
+    #                                           scale_factor=scaling_factors,
+    #                                           recompute_scale_factor=True).squeeze(axis=0)
+    #     return img
 
     # ResampleMode.MATRIX_RESAMPLE, ResampleMode.GRID_RESAMPLE
 
