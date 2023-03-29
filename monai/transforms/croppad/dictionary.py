@@ -47,7 +47,7 @@ from monai.transforms.croppad.array import (
     SpatialPad,
 )
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.traits import MultiSampleTrait
+from monai.transforms.traits import MultiSampleTrait, LazyTrait
 from monai.transforms.transform import LazyTransform, MapTransform, Randomizable
 from monai.transforms.utils import is_positive
 from monai.utils import MAX_SEED, Method, PytorchPadMode, deprecated_arg_default, ensure_tuple_rep
@@ -124,6 +124,7 @@ class Padd(MapTransform, InvertibleTransform, LazyTransform):
         padder: Pad,
         mode: SequenceStr = PytorchPadMode.CONSTANT,
         allow_missing_keys: bool = False,
+        lazy_evaluation: bool = False,
     ) -> None:
         """
         Args:
@@ -140,20 +141,31 @@ class Padd(MapTransform, InvertibleTransform, LazyTransform):
             allow_missing_keys: don't raise exception if key is missing.
 
         """
-        super().__init__(keys, allow_missing_keys)
+        super().__init__(keys, allow_missing_keys, lazy_evaluation=lazy_evaluation)
+        if lazy_evaluation is True and not isinstance(padder, LazyTrait):
+            raise ValueError("'padder' must inherit LazyTrait if lazy_evaluation is True "
+                             f"'padder' is of type({type(padder)})")
         self.padder = padder
         self.mode = ensure_tuple_rep(mode, len(self.keys))
 
-    @LazyTransform.lazy_evaluation.setter  # type: ignore
-    def lazy_evaluation(self, value: bool) -> None:
-        self._lazy_evaluation = value
-        if isinstance(self.padder, LazyTransform):
-            self.padder.lazy_evaluation = value
+    # @LazyTransform.lazy_evaluation.setter  # type: ignore
+    # def lazy_evaluation(self, value: bool) -> None:
+    #     self._lazy_evaluation = value
+    #     if isinstance(self.padder, LazyTransform):
+    #         self.padder.lazy_evaluation = value
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy_evaluation: bool | None = None) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
+        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
+        if lazy_evaluation_ is True and not isinstance(self.padder, LazyTrait):
+            raise ValueError("'self.padder' must inherit LazyTrait if lazy_evaluation is True "
+                             f"'self.padder' is of type({type(self.padder)}")
         for key, m in self.key_iterator(d, self.mode):
-            d[key] = self.padder(d[key], mode=m)
+            if isinstance(self.padder, LazyTrait):
+                d[key] = self.padder(d[key], mode=m, lazy_evaluation=lazy_evaluation_)
+            else:
+                d[key] = self.padder(d[key], mode=m)
+
         return d
 
     def inverse(self, data: Mapping[Hashable, MetaTensor]) -> dict[Hashable, MetaTensor]:
@@ -177,6 +189,7 @@ class SpatialPadd(Padd):
         method: str = Method.SYMMETRIC,
         mode: SequenceStr = PytorchPadMode.CONSTANT,
         allow_missing_keys: bool = False,
+        lazy_evaluation: bool | None = None,
         **kwargs,
     ) -> None:
         """
@@ -202,8 +215,11 @@ class SpatialPadd(Padd):
                 note that `np.pad` treats channel dimension as the first dimension.
 
         """
-        padder = SpatialPad(spatial_size, method, **kwargs)
-        super().__init__(keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys)
+        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
+        padder = SpatialPad(spatial_size, method, lazy_evaluation=lazy_evaluation_, **kwargs)
+        super().__init__(
+            keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys, lazy_evaluation=lazy_evaluation_
+        )
 
 
 class BorderPadd(Padd):
@@ -220,6 +236,7 @@ class BorderPadd(Padd):
         spatial_border: Sequence[int] | int,
         mode: SequenceStr = PytorchPadMode.CONSTANT,
         allow_missing_keys: bool = False,
+        lazy_evaluation: bool = False,
         **kwargs,
     ) -> None:
         """
@@ -249,8 +266,11 @@ class BorderPadd(Padd):
                 note that `np.pad` treats channel dimension as the first dimension.
 
         """
-        padder = BorderPad(spatial_border=spatial_border, **kwargs)
-        super().__init__(keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys)
+        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
+        padder = BorderPad(spatial_border=spatial_border, lazy_evaluation=lazy_evaluation_, **kwargs)
+        super().__init__(
+            keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys, lazy_evaluation=lazy_evaluation_
+        )
 
 
 class DivisiblePadd(Padd):
@@ -268,6 +288,7 @@ class DivisiblePadd(Padd):
         mode: SequenceStr = PytorchPadMode.CONSTANT,
         method: str = Method.SYMMETRIC,
         allow_missing_keys: bool = False,
+        lazy_evaluation: bool = False,
         **kwargs,
     ) -> None:
         """
@@ -293,8 +314,10 @@ class DivisiblePadd(Padd):
         See also :py:class:`monai.transforms.SpatialPad`
 
         """
-        padder = DivisiblePad(k=k, method=method, **kwargs)
-        super().__init__(keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys)
+        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
+        padder = DivisiblePad(k=k, method=method, lazy_evaluation=lazy_evaluation_, **kwargs)
+        super().__init__(keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys,
+                         lazy_evaluation=lazy_evaluation_)
 
 
 class Cropd(MapTransform, InvertibleTransform, LazyTransform):
@@ -311,20 +334,23 @@ class Cropd(MapTransform, InvertibleTransform, LazyTransform):
 
     backend = Crop.backend
 
-    def __init__(self, keys: KeysCollection, cropper: Crop, allow_missing_keys: bool = False):
-        super().__init__(keys, allow_missing_keys)
+    def __init__(
+        self, keys: KeysCollection, cropper: Crop, allow_missing_keys: bool = False, lazy_evaluation: bool = False
+    ):
+        super().__init__(keys, allow_missing_keys, lazy_evaluation=lazy_evaluation)
         self.cropper = cropper
 
-    @LazyTransform.lazy_evaluation.setter  # type: ignore
-    def lazy_evaluation(self, value: bool) -> None:
-        self._lazy_evaluation = value
-        if isinstance(self.cropper, LazyTransform):
-            self.cropper.lazy_evaluation = value
+    # @LazyTransform.lazy_evaluation.setter  # type: ignore
+    # def lazy_evaluation(self, value: bool) -> None:
+    #     self._lazy_evaluation = value
+    #     if isinstance(self.cropper, LazyTransform):
+    #         self.cropper.lazy_evaluation = value
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy_evaluation: bool | None = None) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
+        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         for key in self.key_iterator(d):
-            d[key] = self.cropper(d[key])  # type: ignore
+            d[key] = self.cropper(d[key], lazy_evaluation=lazy_evaluation_)  # type: ignore
         return d
 
     def inverse(self, data: Mapping[Hashable, MetaTensor]) -> dict[Hashable, MetaTensor]:
@@ -348,8 +374,10 @@ class RandCropd(Cropd, Randomizable):
 
     backend = Crop.backend
 
-    def __init__(self, keys: KeysCollection, cropper: Crop, allow_missing_keys: bool = False):
-        super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys)
+    def __init__(
+        self, keys: KeysCollection, cropper: Crop, allow_missing_keys: bool = False, lazy_evaluation: bool = False
+    ):
+        super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys, lazy_evaluation=lazy_evaluation)
 
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandCropd:
         super().set_random_state(seed, state)
@@ -361,13 +389,19 @@ class RandCropd(Cropd, Randomizable):
         if isinstance(self.cropper, Randomizable):
             self.cropper.randomize(img_size)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy_evaluation: bool | None = None) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         # the first key must exist to execute random operations
         first_item = d[self.first_key(d)]
         self.randomize(first_item.peek_pending_shape() if isinstance(first_item, MetaTensor) else first_item.shape[1:])
+        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
+        if lazy_evaluation_ is True and not isinstance(self.cropper, LazyTrait):
+            raise ValueError("'self.cropper' must inherit LazyTrait if lazy_evaluation is True "
+                             f"'self.cropper' is of type({type(self.cropper)}")
         for key in self.key_iterator(d):
             kwargs = {"randomize": False} if isinstance(self.cropper, Randomizable) else {}
+            if isinstance(self.cropper, LazyTrait):
+                kwargs["lazy_evaluation"] = lazy_evaluation_
             d[key] = self.cropper(d[key], **kwargs)  # type: ignore
         return d
 
@@ -396,6 +430,7 @@ class SpatialCropd(Cropd):
         roi_end: Sequence[int] | None = None,
         roi_slices: Sequence[slice] | None = None,
         allow_missing_keys: bool = False,
+        lazy_evaluation: bool = False,
     ) -> None:
         """
         Args:
@@ -411,8 +446,8 @@ class SpatialCropd(Cropd):
             allow_missing_keys: don't raise exception if key is missing.
 
         """
-        cropper = SpatialCrop(roi_center, roi_size, roi_start, roi_end, roi_slices)
-        super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys)
+        cropper = SpatialCrop(roi_center, roi_size, roi_start, roi_end, roi_slices, lazy_evaluation=lazy_evaluation)
+        super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys, lazy_evaluation=lazy_evaluation)
 
 
 class CenterSpatialCropd(Cropd):
@@ -433,9 +468,11 @@ class CenterSpatialCropd(Cropd):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
-    def __init__(self, keys: KeysCollection, roi_size: Sequence[int] | int, allow_missing_keys: bool = False) -> None:
-        cropper = CenterSpatialCrop(roi_size)
-        super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys)
+    def __init__(
+        self, keys: KeysCollection, roi_size: Sequence[int] | int, allow_missing_keys: bool = False, lazy_evaluation: bool = False
+    ) -> None:
+        cropper = CenterSpatialCrop(roi_size, lazy_evaluation=lazy_evaluation)
+        super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys, lazy_evaluation=lazy_evaluation)
 
 
 class CenterScaleCropd(Cropd):
@@ -453,10 +490,10 @@ class CenterScaleCropd(Cropd):
     """
 
     def __init__(
-        self, keys: KeysCollection, roi_scale: Sequence[float] | float, allow_missing_keys: bool = False
+        self, keys: KeysCollection, roi_scale: Sequence[float] | float, allow_missing_keys: bool = False, lazy_evaluation: bool = False
     ) -> None:
-        cropper = CenterScaleCrop(roi_scale)
-        super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys)
+        cropper = CenterScaleCrop(roi_scale, lazy_evaluation=lazy_evaluation)
+        super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys, lazy_evaluation=lazy_evaluation)
 
 
 class RandSpatialCropd(RandCropd):
@@ -498,9 +535,10 @@ class RandSpatialCropd(RandCropd):
         random_center: bool = True,
         random_size: bool = True,
         allow_missing_keys: bool = False,
+        lazy_evaluation: bool = False,
     ) -> None:
-        cropper = RandSpatialCrop(roi_size, max_roi_size, random_center, random_size)
-        super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys)
+        cropper = RandSpatialCrop(roi_size, max_roi_size, random_center, random_size, lazy_evaluation=lazy_evaluation)
+        super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys, lazy_evaluation=lazy_evaluation)
 
 
 class RandScaleCropd(RandCropd):
@@ -537,9 +575,10 @@ class RandScaleCropd(RandCropd):
         random_center: bool = True,
         random_size: bool = True,
         allow_missing_keys: bool = False,
+        lazy_evaluation: bool = False
     ) -> None:
-        cropper = RandScaleCrop(roi_scale, max_roi_scale, random_center, random_size)
-        super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys)
+        cropper = RandScaleCrop(roi_scale, max_roi_scale, random_center, random_size, lazy_evaluation=lazy_evaluation)
+        super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys, lazy_evaluation=lazy_evaluation)
 
 
 class RandSpatialCropSamplesd(Randomizable, MapTransform, LazyTransform, MultiSampleTrait):
@@ -590,19 +629,22 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, LazyTransform, MultiSa
         random_center: bool = True,
         random_size: bool = True,
         allow_missing_keys: bool = False,
+        lazy_evaluation: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
-        self.cropper = RandSpatialCropSamples(roi_size, num_samples, max_roi_size, random_center, random_size)
+        LazyTransform.__init__(self, lazy_evaluation)
+        self.cropper = RandSpatialCropSamples(roi_size, num_samples, max_roi_size, random_center, random_size,
+                                              lazy_evaluation=lazy_evaluation)
 
-    @LazyTransform.lazy_evaluation.setter  # type: ignore
-    def lazy_evaluation(self, value: bool) -> None:
-        self._lazy_evaluation = value
-        self.cropper.lazy_evaluation = value
+    # @LazyTransform.lazy_evaluation.setter  # type: ignore
+    # def lazy_evaluation(self, value: bool) -> None:
+    #     self._lazy_evaluation = value
+    #     self.cropper.lazy_evaluation = value
 
     def randomize(self, data: Any | None = None) -> None:
         self.sub_seed = self.R.randint(MAX_SEED, dtype="uint32")
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> list[dict[Hashable, torch.Tensor]]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy_evaluation: bool | None = None) -> list[dict[Hashable, torch.Tensor]]:
         ret: list[dict[Hashable, torch.Tensor]] = [dict(data) for _ in range(self.cropper.num_samples)]
         # deep copy all the unmodified data
         for i in range(self.cropper.num_samples):
@@ -611,9 +653,11 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, LazyTransform, MultiSa
 
         # for each key we reset the random state to ensure crops are the same
         self.randomize()
+
+        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         for key in self.key_iterator(dict(data)):
             self.cropper.set_random_state(seed=self.sub_seed)
-            for i, im in enumerate(self.cropper(data[key])):
+            for i, im in enumerate(self.cropper(data[key], lazy_evaluation=lazy_evaluation_)):
                 ret[i][key] = im
         return ret
 
@@ -644,6 +688,7 @@ class CropForegroundd(Cropd):
         start_coord_key: str = "foreground_start_coord",
         end_coord_key: str = "foreground_end_coord",
         allow_missing_keys: bool = False,
+        lazy_evaluation: bool = False,
         **pad_kwargs,
     ) -> None:
         """
@@ -683,17 +728,18 @@ class CropForegroundd(Cropd):
             margin=margin,
             allow_smaller=allow_smaller,
             k_divisible=k_divisible,
+            lazy_evaluation=lazy_evaluation,
             **pad_kwargs,
         )
-        super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys)
+        super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys, lazy_evaluation=lazy_evaluation)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
 
-    @LazyTransform.lazy_evaluation.setter  # type: ignore
-    def lazy_evaluation(self, value: bool) -> None:
-        self._lazy_evaluation = value
-        self.cropper.lazy_evaluation = value
+    # @LazyTransform.lazy_evaluation.setter  # type: ignore
+    # def lazy_evaluation(self, value: bool) -> None:
+    #     self._lazy_evaluation = value
+    #     self.cropper.lazy_evaluation = value
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy_evaluation: bool | None = None) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         self.cropper: CropForeground
         box_start, box_end = self.cropper.compute_bounding_box(img=d[self.source_key])
@@ -701,8 +747,11 @@ class CropForegroundd(Cropd):
             d[self.start_coord_key] = box_start  # type: ignore
         if self.end_coord_key is not None:
             d[self.end_coord_key] = box_end  # type: ignore
+
+        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         for key, m in self.key_iterator(d, self.mode):
-            d[key] = self.cropper.crop_pad(img=d[key], box_start=box_start, box_end=box_end, mode=m)
+            d[key] = self.cropper.crop_pad(img=d[key], box_start=box_start, box_end=box_end, mode=m,
+                                           lazy_evaluation=lazy_evaluation_)
         return d
 
 
@@ -733,10 +782,12 @@ class RandWeightedCropd(Randomizable, MapTransform, LazyTransform, MultiSampleTr
         spatial_size: Sequence[int] | int,
         num_samples: int = 1,
         allow_missing_keys: bool = False,
+        lazy_evaluation: bool = False,
     ):
         MapTransform.__init__(self, keys, allow_missing_keys)
+        LazyTransform.__init__(self, lazy_evaluation)
         self.w_key = w_key
-        self.cropper = RandWeightedCrop(spatial_size, num_samples)
+        self.cropper = RandWeightedCrop(spatial_size, num_samples, lazy_evaluation=lazy_evaluation)
 
     def set_random_state(
         self, seed: int | None = None, state: np.random.RandomState | None = None
@@ -748,12 +799,12 @@ class RandWeightedCropd(Randomizable, MapTransform, LazyTransform, MultiSampleTr
     def randomize(self, weight_map: NdarrayOrTensor) -> None:
         self.cropper.randomize(weight_map)
 
-    @LazyTransform.lazy_evaluation.setter  # type: ignore
-    def lazy_evaluation(self, value: bool) -> None:
-        self._lazy_evaluation = value
-        self.cropper.lazy_evaluation = value
+    # @LazyTransform.lazy_evaluation.setter  # type: ignore
+    # def lazy_evaluation(self, value: bool) -> None:
+    #     self._lazy_evaluation = value
+    #     self.cropper.lazy_evaluation = value
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> list[dict[Hashable, torch.Tensor]]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy_evaluation: bool | None = None) -> list[dict[Hashable, torch.Tensor]]:
         # output starts as empty list of dictionaries
         ret: list = [dict(data) for _ in range(self.cropper.num_samples)]
         # deep copy all the unmodified data
@@ -762,8 +813,9 @@ class RandWeightedCropd(Randomizable, MapTransform, LazyTransform, MultiSampleTr
                 ret[i][key] = deepcopy(data[key])
 
         self.randomize(weight_map=data[self.w_key])
+        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         for key in self.key_iterator(data):
-            for i, im in enumerate(self.cropper(data[key], randomize=False)):
+            for i, im in enumerate(self.cropper(data[key], randomize=False, lazy_evaluation=lazy_evaluation_)):
                 ret[i][key] = im
         return ret
 
@@ -836,8 +888,10 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, LazyTransform, MultiSam
         bg_indices_key: str | None = None,
         allow_smaller: bool = False,
         allow_missing_keys: bool = False,
+        lazy_evaluation: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
+        LazyTransform.__init__(self, lazy_evaluation)
         self.label_key = label_key
         self.image_key = image_key
         self.fg_indices_key = fg_indices_key
@@ -849,6 +903,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, LazyTransform, MultiSam
             num_samples=num_samples,
             image_threshold=image_threshold,
             allow_smaller=allow_smaller,
+            lazy_evaluation=lazy_evaluation,
         )
 
     def set_random_state(
@@ -867,12 +922,12 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, LazyTransform, MultiSam
     ) -> None:
         self.cropper.randomize(label=label, fg_indices=fg_indices, bg_indices=bg_indices, image=image)
 
-    @LazyTransform.lazy_evaluation.setter  # type: ignore
-    def lazy_evaluation(self, value: bool) -> None:
-        self._lazy_evaluation = value
-        self.cropper.lazy_evaluation = value
+    # @LazyTransform.lazy_evaluation.setter  # type: ignore
+    # def lazy_evaluation(self, value: bool) -> None:
+    #     self._lazy_evaluation = value
+    #     self.cropper.lazy_evaluation = value
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> list[dict[Hashable, torch.Tensor]]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy_evaluation: bool | None = None) -> list[dict[Hashable, torch.Tensor]]:
         d = dict(data)
         fg_indices = d.pop(self.fg_indices_key, None)
         bg_indices = d.pop(self.bg_indices_key, None)
@@ -886,8 +941,9 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, LazyTransform, MultiSam
             for key in set(d.keys()).difference(set(self.keys)):
                 ret[i][key] = deepcopy(d[key])
 
+        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         for key in self.key_iterator(d):
-            for i, im in enumerate(self.cropper(d[key], randomize=False)):
+            for i, im in enumerate(self.cropper(d[key], randomize=False, lazy_evaluation=lazy_evaluation_)):
                 ret[i][key] = im
         return ret
 
@@ -982,8 +1038,10 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSa
         allow_smaller: bool = False,
         allow_missing_keys: bool = False,
         warn: bool = True,
+        lazy_evaluation: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
+        LazyTransform.__init__(self, lazy_evaluation)
         self.label_key = label_key
         self.image_key = image_key
         self.indices_key = indices_key
@@ -995,6 +1053,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSa
             image_threshold=image_threshold,
             allow_smaller=allow_smaller,
             warn=warn,
+            lazy_evaluation=lazy_evaluation
         )
 
     def set_random_state(
@@ -1009,12 +1068,12 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSa
     ) -> None:
         self.cropper.randomize(label=label, indices=indices, image=image)
 
-    @LazyTransform.lazy_evaluation.setter  # type: ignore
-    def lazy_evaluation(self, value: bool) -> None:
-        self._lazy_evaluation = value
-        self.cropper.lazy_evaluation = value
+    # @LazyTransform.lazy_evaluation.setter  # type: ignore
+    # def lazy_evaluation(self, value: bool) -> None:
+    #     self._lazy_evaluation = value
+    #     self.cropper.lazy_evaluation = value
 
-    def __call__(self, data: Mapping[Hashable, Any]) -> list[dict[Hashable, torch.Tensor]]:
+    def __call__(self, data: Mapping[Hashable, Any], lazy_evaluation: bool | None = None) -> list[dict[Hashable, torch.Tensor]]:
         d = dict(data)
         self.randomize(d.get(self.label_key), d.pop(self.indices_key, None), d.get(self.image_key))  # type: ignore
 
@@ -1025,8 +1084,9 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSa
             for key in set(d.keys()).difference(set(self.keys)):
                 ret[i][key] = deepcopy(d[key])
 
+        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         for key in self.key_iterator(d):
-            for i, im in enumerate(self.cropper(d[key], randomize=False)):
+            for i, im in enumerate(self.cropper(d[key], randomize=False, lazy_evaluation=lazy_evaluation_)):
                 ret[i][key] = im
         return ret
 
@@ -1062,10 +1122,13 @@ class ResizeWithPadOrCropd(Padd):
         mode: SequenceStr = PytorchPadMode.CONSTANT,
         allow_missing_keys: bool = False,
         method: str = Method.SYMMETRIC,
+        lazy_evaluation: bool = False,
         **pad_kwargs,
     ) -> None:
-        padcropper = ResizeWithPadOrCrop(spatial_size=spatial_size, method=method, **pad_kwargs)
-        super().__init__(keys, padder=padcropper, mode=mode, allow_missing_keys=allow_missing_keys)  # type: ignore
+        padcropper = ResizeWithPadOrCrop(spatial_size=spatial_size, method=method, **pad_kwargs, lazy_evaluation=lazy_evaluation)
+        super().__init__(
+            keys, padder=padcropper, mode=mode, allow_missing_keys=allow_missing_keys, lazy_evaluation=lazy_evaluation   # type: ignore
+        )
 
 
 class BoundingRectd(MapTransform):

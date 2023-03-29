@@ -276,7 +276,8 @@ class LazyTransform(Transform, LazyTrait):
     dictionary transforms to simplify implementation of new lazy transforms.
     """
 
-    _lazy_evaluation: bool = False
+    def __init__(self, lazy_evaluation: bool = False):
+        self._lazy_evaluation = lazy_evaluation
 
     @property
     def lazy_evaluation(self):

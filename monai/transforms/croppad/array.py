@@ -109,7 +109,7 @@ class Pad(InvertibleTransform, LazyTransform):
         self, to_pad: tuple[tuple[int, int]] | None = None, mode: str = PytorchPadMode.CONSTANT,
         lazy_evaluation: bool = False, **kwargs
     ) -> None:
-        LazyTransform.__init__(lazy_evaluation)
+        LazyTransform.__init__(self, lazy_evaluation)
         self.to_pad = to_pad
         self.mode = mode
         self.kwargs = kwargs
@@ -330,7 +330,7 @@ class Crop(InvertibleTransform, LazyTransform):
     backend = [TransformBackends.TORCH]
 
     def __init__(self, lazy_evaluation: bool = False):
-        LazyTransform.__init__(lazy_evaluation)
+        LazyTransform.__init__(self, lazy_evaluation)
 
     @staticmethod
     def compute_slices(
@@ -509,7 +509,7 @@ class CenterScaleCrop(Crop):
     """
 
     def __init__(self, roi_scale: Sequence[float] | float, lazy_evaluation: bool = False):
-        super().__init__(lazy_evaluation)
+        super().__init__(lazy_evaluation=lazy_evaluation)
         self.roi_scale = roi_scale
 
     def __call__(self, img: torch.Tensor, lazy_evaluation: bool | None = None) -> torch.Tensor:  # type: ignore[override]
@@ -796,7 +796,7 @@ class CropForeground(Crop):
                 note that `np.pad` treats channel dimension as the first dimension.
 
         """
-        LazyTransform.__init__(lazy_evaluation)
+        LazyTransform.__init__(self, lazy_evaluation)
         self.select_fn = select_fn
         self.channel_indices = ensure_tuple(channel_indices) if channel_indices is not None else None
         self.margin = margin
@@ -904,7 +904,7 @@ class RandWeightedCrop(Randomizable, TraceableTransform, LazyTransform, MultiSam
         self, spatial_size: Sequence[int] | int, num_samples: int = 1, weight_map: NdarrayOrTensor | None = None,
         lazy_evaluation: bool = False
     ):
-        LazyTransform.__init__(lazy_evaluation)
+        LazyTransform.__init__(self, lazy_evaluation)
         self.spatial_size = ensure_tuple(spatial_size)
         self.num_samples = int(num_samples)
         self.weight_map = weight_map
@@ -1034,7 +1034,7 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
         allow_smaller: bool = False,
         lazy_evaluation: bool = False,
     ) -> None:
-        LazyTransform.__init__(lazy_evaluation)
+        LazyTransform.__init__(self, lazy_evaluation)
         self.spatial_size = spatial_size
         self.label = label
         if pos < 0 or neg < 0:
@@ -1218,7 +1218,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
         warn: bool = True,
         lazy_evaluation: bool = False,
     ) -> None:
-        LazyTransform.__init__(lazy_evaluation)
+        LazyTransform.__init__(self, lazy_evaluation)
         self.spatial_size = spatial_size
         self.ratios = ratios
         self.label = label
@@ -1338,7 +1338,7 @@ class ResizeWithPadOrCrop(InvertibleTransform, LazyTransform):
         lazy_evaluation: bool = False,
         **pad_kwargs,
     ):
-        LazyTransform.__init__(lazy_evaluation)
+        LazyTransform.__init__(self, lazy_evaluation)
         self.padder = SpatialPad(
             spatial_size=spatial_size, method=method, mode=mode, lazy_evaluation=lazy_evaluation, **pad_kwargs
         )
