@@ -534,6 +534,7 @@ class Orientationd(MapTransform, InvertibleTransform, LazyTransform):
         super().__init__(keys, allow_missing_keys)
         self.ornt_transform = Orientation(
             axcodes=axcodes, as_closest_canonical=as_closest_canonical, labels=labels, lazy_evaluation=lazy_evaluation)
+        self.lazy_evaluation = lazy_evaluation
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy_evaluation: bool | None = None) -> dict[Hashable, torch.Tensor]:
         """
@@ -548,8 +549,8 @@ class Orientationd(MapTransform, InvertibleTransform, LazyTransform):
         Returns:
             a dictionary containing the transformed data, as well as any other data present in the dictionary
         """
-        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         d: dict = dict(data)
+        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         for key in self.key_iterator(d):
             d[key] = self.ornt_transform(d[key], lazy_evaluation=lazy_evaluation_)
         return d
@@ -603,8 +604,9 @@ class Rotate90d(MapTransform, InvertibleTransform, LazyTransform):
             a dictionary containing the transformed data, as well as any other data present in the dictionary
         """
         d = dict(data)
+        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         for key in self.key_iterator(d):
-            d[key] = self.rotator(d[key], lazy_evaluation=lazy_evaluation)
+            d[key] = self.rotator(d[key], lazy_evaluation=lazy_evaluation_)
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
@@ -681,6 +683,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform, La
         rotator = Rotate90(self._rand_k, self.spatial_axes, lazy_evaluation=lazy_evaluation_)
         for key in self.key_iterator(d):
             if self._do_transform:
+                # no need to override lazy_evaluation here as we already set it on the initializer
                 d[key] = rotator(d[key])
             else:
                 convert_to_tensor(d[key], track_meta=get_track_meta())
@@ -775,8 +778,8 @@ class Resized(MapTransform, InvertibleTransform, LazyTransform):
         Returns:
             a dictionary containing the transformed data, as well as any other data present in the dictionary
         """
-        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         d = dict(data)
+        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         for key, mode, align_corners, anti_aliasing, anti_aliasing_sigma, dtype in self.key_iterator(
             d, self.mode, self.align_corners, self.anti_aliasing, self.anti_aliasing_sigma, self.dtype
         ):
