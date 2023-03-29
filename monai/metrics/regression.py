@@ -365,7 +365,7 @@ def _gaussian_kernel(
     gaussian_kernel_y = gaussian_1d(kernel_size[1], kernel_sigma[1])
     kernel = torch.matmul(gaussian_kernel_x.t(), gaussian_kernel_y)  # (kernel_size, 1) * (1, kernel_size)
 
-    kernel_dimensions = (num_channels, 1, kernel_size[0], kernel_size[1])
+    kernel_dimensions: tuple[int, ...] = (num_channels, 1, kernel_size[0], kernel_size[1])
 
     if spatial_dims == 3:
         gaussian_kernel_z = gaussian_1d(kernel_size[2], kernel_sigma[2])[None,]
