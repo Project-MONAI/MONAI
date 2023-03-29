@@ -102,6 +102,7 @@ class TestRandGridPatch(unittest.TestCase):
         set_determinism(None)
 
     @parameterized.expand(TEST_SINGLE)
+    @SkipIfBeforePyTorchVersion((1, 11, 1))
     def test_rand_grid_patch(self, in_type, input_parameters, image, expected):
         input_image = in_type(image)
         splitter = RandGridPatch(**input_parameters)
