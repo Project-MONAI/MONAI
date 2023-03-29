@@ -87,6 +87,7 @@ def submit_auto3dseg_module_to_azureml_if_needed(azure_cfg: dict[str, Any]) -> h
         "snapshot_root_directory": os.getcwd(),
         "conda_environment_file": "environment-azureml.yml",
         "entry_script": "-m monai.apps.auto3dseg",
+        "submit_to_azureml": True,
         "strictly_aml_v1": False,
     }
     azureml_args.update(azure_cfg)
