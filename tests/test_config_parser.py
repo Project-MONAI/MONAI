@@ -29,6 +29,7 @@ from monai.utils import min_version, optional_import
 from tests.utils import TimedCall
 
 _, has_tv = optional_import("torchvision", "0.8.0", min_version)
+_, has_yaml = optional_import("yaml")
 
 
 @TimedCall(seconds=100, force_quit=True)
@@ -319,6 +320,7 @@ class TestConfigParser(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_DUPLICATED_KEY_JSON, TEST_CASE_DUPLICATED_KEY_YAML])
     @mock.patch.dict(os.environ, {"MONAI_FAIL_ON_DUPLICATE_CONFIG": "1"})
+    @skipUnless(has_yaml, "Requires pyyaml")
     def test_parse_json_raise(self, config_string, extension, _, __):
         with tempfile.TemporaryDirectory() as tempdir:
             config_path = Path(tempdir) / f"config.{extension}"
@@ -331,6 +333,7 @@ class TestConfigParser(unittest.TestCase):
             self.assertTrue("Duplicate key: `duplicate`" in str(context.exception))
 
     @parameterized.expand([TEST_CASE_DUPLICATED_KEY_JSON, TEST_CASE_DUPLICATED_KEY_YAML])
+    @skipUnless(has_yaml, "Requires pyyaml")
     def test_parse_json_warn(self, config_string, extension, expected_unique_val, expected_duplicate_vals):
         with tempfile.TemporaryDirectory() as tempdir:
             config_path = Path(tempdir) / f"config.{extension}"

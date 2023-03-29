@@ -714,7 +714,7 @@ def check_key_duplicates(ordered_pairs: Sequence[tuple[Any, Any]]) -> dict[Any, 
 class CheckKeyDuplicatesYamlLoader(SafeLoader):
     def construct_mapping(self, node, deep=False):
         mapping = set()
-        for key_node, value_node in node.value:
+        for key_node, _ in node.value:
             key = self.construct_object(key_node, deep=deep)
             if key in mapping:
                 if os.environ.get("MONAI_FAIL_ON_DUPLICATE_CONFIG", "0") == "1":
