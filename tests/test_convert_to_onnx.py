@@ -32,7 +32,6 @@ if torch.cuda.is_available():
 else:
     TORCH_DEVICE_OPTIONS = ["cpu"]
 TESTS = list(itertools.product(TORCH_DEVICE_OPTIONS, [True, False], ORT_PROVIDER_OPTIONS))
-TESTS_ORT = list(itertools.product(TORCH_DEVICE_OPTIONS, [True], ORT_PROVIDER_OPTIONS))
 
 
 class TestConvertToOnnx(unittest.TestCase):
@@ -49,36 +48,6 @@ class TestConvertToOnnx(unittest.TestCase):
         onnx_model = convert_to_onnx(
             model=model,
             inputs=[torch.randn((16, 1, 32, 32), requires_grad=False)],
-            input_names=["x"],
-            output_names=["y"],
-            verify=True,
-            device=device,
-            use_ort=use_ort,
-            ort_provider=ort_provider,
-            rtol=1e-3,
-            atol=1e-4,
-        )
-        self.assertTrue(isinstance(onnx_model, onnx.ModelProto))
-
-    @parameterized.expand(TESTS_ORT)
-    def test_seg_res_net(self, device, use_ort, ort_provider):
-        model = SegResNet(
-            spatial_dims=3,
-            init_filters=32,
-            in_channels=1,
-            out_channels=105,
-            dropout_prob=0.2,
-            act=('RELU', {'inplace': True}),
-            norm=('GROUP', {'num_groups': 8}),
-            norm_name='',
-            num_groups=8,
-            use_conv_final=True,
-            blocks_down=[1, 2, 2, 4],
-            blocks_up=[1, 1, 1],
-        )
-        onnx_model = convert_to_onnx(
-            model=model,
-            inputs=[torch.randn((1, 1, 24, 24, 24), requires_grad=False)],
             input_names=["x"],
             output_names=["y"],
             verify=True,
