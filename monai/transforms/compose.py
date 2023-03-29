@@ -366,10 +366,6 @@ class Compose(Randomizable, InvertibleTransform):
         satisfies the predicate (ie. makes the predicate return True). If it is unable to find
         a transform that satisfies the ``predicate``, it returns None.
 
-        Note: This is only performed on the transforms directly held by this instance. If this
-        instance has nested ``Compose`` transforms or other transforms that contain transforms,
-        it does not iterate into them.
-
         Example:
             c = Compose([Flip(...), Rotate90(...), Zoom(...), RandRotate(...), Resize(...)])
 
@@ -378,13 +374,20 @@ class Compose(Randomizable, InvertibleTransform):
             print(c.get_index_of_first(lambda t: isinstance(t, Compose)))
             >>> None
 
+        Note:
+            This is only performed on the transforms directly held by this instance. If this
+            instance has nested ``Compose`` transforms or other transforms that contain transforms,
+            it does not iterate into them.
+
+
         Args:
             predicate: a callable that takes a single argument and returns a bool. When called
             it is passed a transform from the sequence of transforms contained by this compose
             instance.
 
-        Returns: The index of the first transform in the sequence for which ``predicate`` returns
-        True. None if no transform satisfies the ``predicate``
+        Returns:
+            The index of the first transform in the sequence for which ``predicate`` returns
+            True. None if no transform satisfies the ``predicate``
 
         """
         for i in range(len(self.transforms)):
