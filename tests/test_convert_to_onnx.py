@@ -20,7 +20,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import convert_to_onnx
-from monai.networks.nets import SegResNet, UNet
+from monai.networks.nets import UNet
 
 if "CUDAExecutionProvider" in ort.get_available_providers():
     ORT_PROVIDER_OPTIONS = [["CPUExecutionProvider"], ["CUDAExecutionProvider", "CPUExecutionProvider"]]
