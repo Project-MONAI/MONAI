@@ -15,15 +15,10 @@ defined in :py:class:`monai.apps.pathology.transforms.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-<<<<<<< HEAD
-import numbers
-from typing import Dict, Hashable, Mapping, Union
-=======
 from __future__ import annotations
 
 import numbers
 from collections.abc import Hashable, Mapping
->>>>>>> 606a10339d0f932b8844ca87271294f7c52f7dec
 
 import numpy as np
 

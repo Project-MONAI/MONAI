@@ -9,16 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-<<<<<<< HEAD
-import numbers
-from typing import Union
-
-=======
 from __future__ import annotations
 
 import numbers
 
->>>>>>> 606a10339d0f932b8844ca87271294f7c52f7dec
 import numpy as np
 
 from monai.transforms.transform import Transform
