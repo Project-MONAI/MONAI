@@ -382,10 +382,10 @@ def compute_ssim_and_cs(
     y_pred: torch.Tensor,
     y: torch.Tensor,
     spatial_dims: int,
+    kernel_size: Sequence[int],
+    kernel_sigma: Sequence[float],
     data_range: float = 1.0,
     kernel_type: KernelType | str = KernelType.GAUSSIAN,
-    kernel_size: Sequence[int] = 11,
-    kernel_sigma: Sequence[float] = 1.5,
     k1: float = 0.01,
     k2: float = 0.03,
 ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -396,11 +396,11 @@ def compute_ssim_and_cs(
     Args:
         y_pred: batch of predicted images with shape (batch_size, channels, spatial_dim1, spatial_dim2[, spatial_dim3])
         y: batch of target images with shape (batch_size, channels, spatial_dim1, spatial_dim2[, spatial_dim3])
+        kernel_size: the size of the kernel to use for the SSIM computation.
+        kernel_sigma: the standard deviation of the kernel to use for the SSIM computation.
         spatial_dims: number of spatial dimensions of the images (2, 3)
         data_range: the data range of the images.
         kernel_type: the type of kernel to use for the SSIM computation. Can be either "gaussian" or "uniform".
-        kernel_size: the size of the kernel to use for the SSIM computation.
-        kernel_sigma: the standard deviation of the kernel to use for the SSIM computation.
         k1: the first stability constant.
         k2: the second stability constant.
 
