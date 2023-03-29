@@ -11,18 +11,18 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 import torch
 from torch.nn.modules.loss import _Loss
 
-from monai.metrics.regression import SSIMMetric
+from monai.metrics.regression import KernelType, SSIMMetric
+from monai.utils import ensure_tuple_rep
 
 
 class SSIMLoss(_Loss):
     """
-    Build a Pytorch version of the SSIM loss function based on the original formula of SSIM
-
-    Modified and adopted from:
-        https://github.com/facebookresearch/fastMRI/blob/main/banding_removal/fastmri/ssim_loss_mixin.py
+    Compute the loss function based on the Structural Similarity Index Measure (SSIM) Metric.
 
     For more info, visit
         https://vicuesoft.com/glossary/term/ssim-ms-ssim/
@@ -32,29 +32,60 @@ class SSIMLoss(_Loss):
         similarity." IEEE transactions on image processing 13.4 (2004): 600-612.
     """
 
-    def __init__(self, win_size: int = 7, k1: float = 0.01, k2: float = 0.03, spatial_dims: int = 2):
+    def __init__(
+        self,
+        spatial_dims: int,
+        data_range: float = 1.0,
+        kernel_type: KernelType | str = KernelType.GAUSSIAN,
+        kernel_size: int | Sequence[int, ...] = 11,
+        kernel_sigma: float | Sequence[float, ...] = 1.5,
+        k1: float = 0.01,
+        k2: float = 0.03,
+    ):
         """
         Args:
-            win_size: gaussian weighting window size
+            spatial_dims: number of spatial dimensions of the input images.
+            data_range: value range of input images. (usually 1.0 or 255)
+            kernel_type: type of kernel, can be "gaussian" or "uniform".
+            kernel_size: size of kernel
+            kernel_sigma: standard deviation for Gaussian kernel.
             k1: stability constant used in the luminance denominator
             k2: stability constant used in the contrast denominator
-            spatial_dims: if 2, input shape is expected to be (B,C,H,W). if 3, it is expected to be (B,C,H,W,D)
         """
         super().__init__()
-        self.win_size = win_size
-        self.k1, self.k2 = k1, k2
         self.spatial_dims = spatial_dims
+        self.data_range = data_range
+        self.kernel_type = kernel_type
 
-    def forward(self, x: torch.Tensor, y: torch.Tensor, data_range: torch.Tensor) -> torch.Tensor:
+        if not isinstance(kernel_size, Sequence):
+            kernel_size = ensure_tuple_rep(kernel_size, spatial_dims)
+        self.kernel_size = kernel_size
+
+        if not isinstance(kernel_sigma, Sequence):
+            kernel_sigma = ensure_tuple_rep(kernel_sigma, spatial_dims)
+        self.kernel_sigma = kernel_sigma
+
+        self.k1 = k1
+        self.k2 = k2
+
+        self.ssim_metric = SSIMMetric(
+            spatial_dims=self.spatial_dims,
+            data_range=self.data_range,
+            kernel_type=self.kernel_type,
+            kernel_size=self.kernel_size,
+            kernel_sigma=self.kernel_sigma,
+            k1=self.k1,
+            k2=self.k2,
+        )
+
+    def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            x: first sample (e.g., the reference image). Its shape is (B,C,W,H) for 2D and pseudo-3D data,
-                and (B,C,W,H,D) for 3D data,
-            y: second sample (e.g., the reconstructed image). It has similar shape as x.
-            data_range: dynamic range of the data
+            x: batch of predicted images with shape (batch_size, channels, spatial_dim1, spatial_dim2[, spatial_dim3])
+            y: batch of target images with shape (batch_size, channels, spatial_dim1, spatial_dim2[, spatial_dim3])
 
         Returns:
-            1-ssim_value (recall this is meant to be a loss function)
+            1 minus the Structural Similarity Index Measure (recall this is meant to be a loss function)
 
         Example:
             .. code-block:: python
