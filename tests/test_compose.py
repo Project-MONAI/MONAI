@@ -21,6 +21,7 @@ from parameterized import parameterized
 
 from monai.data import DataLoader, Dataset
 from monai.transforms import AddChannel, Compose, Flip, NormalizeIntensity, Rotate, Rotate90, Rotated, Zoom
+from monai.transforms.compose import execute_compose
 from monai.transforms.transform import Randomizable
 from monai.utils import set_determinism
 
@@ -66,7 +67,7 @@ class TestCompose(unittest.TestCase):
         expected = {"a": 3, "b": 2}
 
         self.assertDictEqual(Compose(transforms)(data), expected)
-        self.assertDictEqual(Compose.execute(data, transforms), expected)
+        self.assertDictEqual(execute_compose(data, transforms), expected)
 
     def test_list_dict_compose(self):
         def a(d):  # transform to handle dict data
@@ -91,7 +92,7 @@ class TestCompose(unittest.TestCase):
         value = Compose(transforms)(data)
         for item in value:
             self.assertDictEqual(item, expected)
-        value = Compose.execute(data, transforms)
+        value = execute_compose(data, transforms)
         for item in value:
             self.assertDictEqual(item, expected)
 
@@ -106,7 +107,7 @@ class TestCompose(unittest.TestCase):
         data = ("", "")
         expected = ("abab", "a2b2a2b2")
         self.assertEqual(Compose(transforms, map_items=False, unpack_items=True)(data), expected)
-        self.assertEqual(Compose.execute(data, transforms, map_items=False, unpack_items=True), expected)
+        self.assertEqual(execute_compose(data, transforms, map_items=False, unpack_items=True), expected)
 
     def test_list_non_dict_compose_with_unpack(self):
         def a(i, i2):
@@ -119,7 +120,7 @@ class TestCompose(unittest.TestCase):
         data = [("", ""), ("t", "t")]
         expected = [("abab", "a2b2a2b2"), ("tabab", "ta2b2a2b2")]
         self.assertEqual(Compose(transforms, unpack_items=True)(data), expected)
-        self.assertEqual(Compose.execute(data, transforms, unpack_items=True), expected)
+        self.assertEqual(execute_compose(data, transforms, unpack_items=True), expected)
 
     def test_list_dict_compose_no_map(self):
         def a(d):  # transform to handle dict data
@@ -145,7 +146,7 @@ class TestCompose(unittest.TestCase):
         value = Compose(transforms, map_items=False)(data)
         for item in value:
             self.assertDictEqual(item, expected)
-        value = Compose.execute(data, transforms, map_items=False)
+        value = execute_compose(data, transforms, map_items=False)
         for item in value:
             self.assertDictEqual(item, expected)
 
@@ -275,7 +276,7 @@ class TestComposeExecute(unittest.TestCase):
                 self.assertTrue(torch.allclose(expected, actual))
 
             p = deepcopy(pipeline)
-            actual = Compose.execute(Compose.execute(data, p, start=0, end=cutoff), p, start=cutoff)
+            actual = execute_compose(execute_compose(data, p, start=0, end=cutoff), p, start=cutoff)
             if isinstance(actual, dict):
                 for k in actual.keys():
                     self.assertTrue(torch.allclose(expected[k], actual[k]))
@@ -329,7 +330,7 @@ class TestComposeExecuteWithFlags(unittest.TestCase):
                 self.assertTrue(expected, actual)
 
             p = deepcopy(pipeline)
-            actual = Compose.execute(Compose.execute(data, p, start=0, end=cutoff, **flags), p, start=cutoff, **flags)
+            actual = execute_compose(execute_compose(data, p, start=0, end=cutoff, **flags), p, start=cutoff, **flags)
             if isinstance(actual, dict):
                 for k in actual.keys():
                     self.assertTrue(expected[k], actual[k])
