@@ -148,11 +148,11 @@ def crop_or_pad_nd(img: torch.Tensor, translation_mat, spatial_size: tuple[int, 
 
 
 def pad_func(
-    img: torch.Tensor, to_pad: tuple[tuple[int, int]], mode: str, transform_info: dict, kwargs
+    img: torch.Tensor, to_pad: tuple[tuple[int, int]], mode: str, lazy_evaluation: bool, transform_info: dict, kwargs
 ) -> torch.Tensor:
     """
     Functional implementation of padding a MetaTensor. This function operates eagerly or lazily according
-    to ``transform_info[TraceKeys.LAZY_EVALUATION]`` (default ``False``).
+    to ``lazy_evaluation`` (default ``False``).
 
     Args:
         img: data to be transformed, assuming `img` is channel-first and padding doesn't apply to the channel dim.
@@ -164,6 +164,7 @@ def pad_func(
             One of the listed string values or a user supplied function. Defaults to ``"constant"``.
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
             https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+        lazy_evaluation: a flag indicating whether the operation should be performed in a lazy fashion or not.
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
@@ -189,24 +190,25 @@ def pad_func(
         extra_info=extra_info,
         orig_size=img_size,
         transform_info=transform_info,
-        lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
+        lazy_evaluation=lazy_evaluation,
     )
     out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
-    if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
+    if lazy_evaluation:
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info  # type: ignore
     out = pad_nd(out, to_pad_list, mode, **kwargs) if do_pad else out
     out = convert_to_tensor(out, track_meta=get_track_meta())
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out  # type: ignore
 
 
-def crop_func(img: torch.Tensor, slices: tuple[slice, ...], transform_info: dict) -> torch.Tensor:
+def crop_func(img: torch.Tensor, slices: tuple[slice, ...], lazy_evaluation: bool, transform_info: dict) -> torch.Tensor:
     """
     Functional implementation of cropping a MetaTensor. This function operates eagerly or lazily according
-    to ``transform_info[TraceKeys.LAZY_EVALUATION]`` (default ``False``).
+    to ``lazy_evaluation`` (default ``False``).
 
     Args:
         img: data to be transformed, assuming `img` is channel-first and cropping doesn't apply to the channel dim.
         slices: the crop slices computed based on specified `center & size` or `start & end` or `slices`.
+        lazy_evaluation: a flag indicating whether the operation should be performed in a lazy fashion or not.
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
     """
     img_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
@@ -227,10 +229,10 @@ def crop_func(img: torch.Tensor, slices: tuple[slice, ...], transform_info: dict
         extra_info=extra_info,
         orig_size=img_size,
         transform_info=transform_info,
-        lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
+        lazy_evaluation=lazy_evaluation,
     )
     out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
-    if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
+    if lazy_evaluation:
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info  # type: ignore
     out = out[slices]
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out  # type: ignore
