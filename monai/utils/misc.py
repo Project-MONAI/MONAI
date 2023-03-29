@@ -24,13 +24,13 @@ from ast import literal_eval
 from collections.abc import Callable, Iterable, Sequence
 from distutils.util import strtobool
 from pathlib import Path
-from typing import Any, TypeVar, cast, overload, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, TypeVar, cast, overload
 
 import numpy as np
 import torch
 
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor, PathLike
-from monai.utils.module import version_leq, optional_import
+from monai.utils.module import optional_import, version_leq
 
 if TYPE_CHECKING:
     import yaml

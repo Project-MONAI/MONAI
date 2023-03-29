@@ -11,7 +11,6 @@
 
 from __future__ import annotations
 
-import logging
 import os
 import tempfile
 import unittest
@@ -114,10 +113,15 @@ TEST_CASE_5 = [{"training": {"A": 1, "A_B": 2}, "total": "$@training#A + @traini
 
 TEST_CASE_DUPLICATED_KEY_JSON = ["""{"key": {"unique": 1, "duplicate": 0, "duplicate": 4 } }""", "json", 1, [0, 4]]
 
-TEST_CASE_DUPLICATED_KEY_YAML = ["""key: 
+TEST_CASE_DUPLICATED_KEY_YAML = [
+    """key:
     unique: 1
     duplicate: 0
-    duplicate: 4""", "yaml", 1, [0, 4]]
+    duplicate: 4""",
+    "yaml",
+    1,
+    [0, 4],
+]
 
 
 class TestConfigParser(unittest.TestCase):

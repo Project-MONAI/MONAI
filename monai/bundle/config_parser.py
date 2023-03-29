@@ -23,7 +23,7 @@ from monai.bundle.reference_resolver import ReferenceResolver
 from monai.bundle.utils import ID_REF_KEY, ID_SEP_KEY, MACRO_KEY
 from monai.config import PathLike
 from monai.utils import ensure_tuple, look_up_option, optional_import
-from monai.utils.misc import check_key_duplicates, CheckKeyDuplicatesYamlLoader
+from monai.utils.misc import CheckKeyDuplicatesYamlLoader, check_key_duplicates
 
 if TYPE_CHECKING:
     import yaml
