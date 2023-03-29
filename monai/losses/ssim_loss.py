@@ -17,7 +17,7 @@ import torch
 from torch.nn.modules.loss import _Loss
 
 from monai.metrics.regression import KernelType, SSIMMetric
-from monai.utils import ensure_tuple_rep
+from monai.utils import LossReduction, ensure_tuple_rep
 
 
 class SSIMLoss(_Loss):
@@ -41,6 +41,7 @@ class SSIMLoss(_Loss):
         kernel_sigma: float | Sequence[float, ...] = 1.5,
         k1: float = 0.01,
         k2: float = 0.03,
+        reduction: LossReduction | str = LossReduction.MEAN,
     ):
         """
         Args:
@@ -51,8 +52,14 @@ class SSIMLoss(_Loss):
             kernel_sigma: standard deviation for Gaussian kernel.
             k1: stability constant used in the luminance denominator
             k2: stability constant used in the contrast denominator
+            reduction: {``"none"``, ``"mean"``, ``"sum"``}
+                Specifies the reduction to apply to the output. Defaults to ``"mean"``.
+                - ``"none"``: no reduction will be applied.
+                - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
+                - ``"sum"``: the output will be summed.
+
         """
-        super().__init__()
+        super().__init__(reduction=LossReduction(reduction).value)
         self.spatial_dims = spatial_dims
         self.data_range = data_range
         self.kernel_type = kernel_type
@@ -78,14 +85,14 @@ class SSIMLoss(_Loss):
             k2=self.k2,
         )
 
-    def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            x: batch of predicted images with shape (batch_size, channels, spatial_dim1, spatial_dim2[, spatial_dim3])
-            y: batch of target images with shape (batch_size, channels, spatial_dim1, spatial_dim2[, spatial_dim3])
+            input: batch of predicted images with shape (batch_size, channels, spatial_dim1, spatial_dim2[, spatial_dim3])
+            target: batch of target images with shape (batch_size, channels, spatial_dim1, spatial_dim2[, spatial_dim3])
 
         Returns:
-            1 minus the Structural Similarity Index Measure (recall this is meant to be a loss function)
+            1 minus the ssim index (recall this is meant to be a loss function)
 
         Example:
             .. code-block:: python
@@ -95,41 +102,24 @@ class SSIMLoss(_Loss):
                 # 2D data
                 x = torch.ones([1,1,10,10])/2
                 y = torch.ones([1,1,10,10])/2
-                data_range = x.max().unsqueeze(0)
-                # the following line should print 1.0 (or 0.9999)
-                print(1-SSIMLoss(spatial_dims=2)(x,y,data_range))
+                print(1-SSIMLoss(spatial_dims=2)(x,y))
 
                 # pseudo-3D data
                 x = torch.ones([1,5,10,10])/2  # 5 could represent number of slices
                 y = torch.ones([1,5,10,10])/2
-                data_range = x.max().unsqueeze(0)
-                # the following line should print 1.0 (or 0.9999)
-                print(1-SSIMLoss(spatial_dims=2)(x,y,data_range))
+                print(1-SSIMLoss(spatial_dims=2)(x,y))
 
                 # 3D data
                 x = torch.ones([1,1,10,10,10])/2
                 y = torch.ones([1,1,10,10,10])/2
-                data_range = x.max().unsqueeze(0)
-                # the following line should print 1.0 (or 0.9999)
-                print(1-SSIMLoss(spatial_dims=3)(x,y,data_range))
+                print(1-SSIMLoss(spatial_dims=3)(x,y))
         """
-        if x.shape[0] == 1:
-            ssim_value: torch.Tensor = SSIMMetric(
-                data_range, self.win_size, self.k1, self.k2, self.spatial_dims
-            )._compute_tensor(x, y)
-        elif x.shape[0] > 1:
-            for i in range(x.shape[0]):
-                ssim_val: torch.Tensor = SSIMMetric(
-                    data_range, self.win_size, self.k1, self.k2, self.spatial_dims
-                )._compute_tensor(x[i : i + 1], y[i : i + 1])
-                if i == 0:
-                    ssim_value = ssim_val
-                else:
-                    ssim_value = torch.cat((ssim_value.view(i), ssim_val.view(1)), dim=0)
+        ssim_value = self.ssim_metric._compute_tensor(input, target).view(-1, 1)
+        loss: torch.Tensor = 1 - ssim_value
 
-        else:
-            raise ValueError("Batch size is not nonnegative integer value")
-        # 1- dimensional tensor is only allowed
-        ssim_value = ssim_value.view(-1, 1)
-        loss: torch.Tensor = 1 - ssim_value.mean()
+        if self.reduction == LossReduction.MEAN.value:
+            loss = torch.mean(loss)  # the batch average
+        elif self.reduction == LossReduction.SUM.value:
+            loss = torch.sum(loss)  # sum over the batch
+
         return loss
