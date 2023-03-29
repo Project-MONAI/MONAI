@@ -679,3 +679,28 @@ def pprint_edges(val: Any, n_lines: int = 20) -> str:
         hidden_n = len(val_str) - n_lines * 2
         val_str = val_str[:n_lines] + [f"\n ... omitted {hidden_n} line(s)\n\n"] + val_str[-n_lines:]
     return "".join(val_str)
+
+
+def check_key_duplicates(ordered_pairs: Sequence[tuple[Any, Any]]) -> dict[Any, Any]:
+    """
+    Checks if there is a duplicated key in the sequence of `ordered_pairs`.
+    If there is - it will log a warning or raise ValueError
+    (if configured by environmental var `MONAI_FAIL_ON_DUPLICATE_CONFIG==1`)
+
+    Otherwise, it returns the dict made from this sequence.
+
+    Satisfies a format for an `object_pairs_hook` in `json.load`
+
+    Args:
+        ordered_pairs: sequence of (key, value)
+    """
+    keys = set()
+    for k, _ in ordered_pairs:
+        if k in keys:
+            if os.environ.get("MONAI_FAIL_ON_DUPLICATE_CONFIG", "0") == "1":
+                raise ValueError(f"Duplicate key: `{k}`")
+            else:
+                warnings.warn(f"Duplicate key: `{k}`")
+        else:
+            keys.add(k)
+    return dict(ordered_pairs)
