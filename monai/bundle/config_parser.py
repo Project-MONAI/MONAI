@@ -12,6 +12,8 @@
 from __future__ import annotations
 
 import json
+import logging
+import os
 import re
 from collections.abc import Sequence
 from copy import deepcopy
@@ -32,6 +34,8 @@ else:
 __all__ = ["ConfigParser"]
 
 _default_globals = {"monai": "monai", "torch": "torch", "np": "numpy", "numpy": "numpy"}
+
+logger = logging.getLogger(__name__)
 
 
 class ConfigParser:
@@ -384,9 +388,12 @@ class ConfigParser:
             self.ref_resolver.add_item(ConfigItem(config=item_conf, id=id))
 
     @staticmethod
-    def raise_error_on_key_duplicates(ordered_pairs: Sequence[tuple[Any, Any]]) -> dict[Any, Any]:
+    def check_key_duplicates(ordered_pairs: Sequence[tuple[Any, Any]]) -> dict[Any, Any]:
         """
-        Raises ValueError if there is a duplicated key in the sequence of `ordered_pairs`.
+        Checks if there is a duplicated key in the sequence of `ordered_pairs`.
+        If there is - it will log a warning or raise ValueError
+        (if configured by environmental var `MONAI_FAIL_ON_DUPLICATE_CONFIG==1`)
+
         Otherwise, it returns the dict made from this sequence.
 
         Args:
@@ -395,7 +402,10 @@ class ConfigParser:
         keys = set()
         for k, _ in ordered_pairs:
             if k in keys:
-                raise ValueError(f"Duplicate key: `{k}`")
+                if os.environ.get("MONAI_FAIL_ON_DUPLICATE_CONFIG", "0") == "1":
+                    raise ValueError(f"Duplicate key: `{k}`")
+                else:
+                    logger.warning(f"Duplicate key: `{k}`")
             else:
                 keys.add(k)
         return dict(ordered_pairs)
@@ -417,9 +427,7 @@ class ConfigParser:
             raise ValueError(f'unknown file input: "{filepath}"')
         with open(_filepath) as f:
             if _filepath.lower().endswith(cls.suffixes[0]):
-                return json.load(  # type: ignore[no-any-return]
-                    f, object_pairs_hook=cls.raise_error_on_key_duplicates, **kwargs
-                )
+                return json.load(f, object_pairs_hook=cls.check_key_duplicates, **kwargs)  # type: ignore[no-any-return]
             if _filepath.lower().endswith(cls.suffixes[1:]):
                 return yaml.safe_load(f, **kwargs)  # type: ignore[no-any-return]
             raise ValueError(f"only support JSON or YAML config file so far, got name {_filepath}.")

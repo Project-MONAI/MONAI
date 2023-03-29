@@ -11,11 +11,12 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest import skipUnless
+from unittest import mock, skipUnless
 
 import numpy as np
 from parameterized import parameterized
@@ -110,7 +111,7 @@ TEST_CASE_4 = [{"A": 1, "B": "@A", "C": "@D", "E": "$'test' + '@F'"}]
 
 TEST_CASE_5 = [{"training": {"A": 1, "A_B": 2}, "total": "$@training#A + @training#A_B + 1"}, 4]
 
-TEST_CASE_DUPLICATED_KEY = ["""{"key": {"unique": 1, "duplicate": 0, "duplicate": 4 } }"""]
+TEST_CASE_DUPLICATED_KEY = ["""{"key": {"unique": 1, "duplicate": 0, "duplicate": 4 } }""", 1, [0, 4]]
 
 
 class TestConfigParser(unittest.TestCase):
@@ -307,7 +308,8 @@ class TestConfigParser(unittest.TestCase):
         self.assertEqual(parser.get_parsed_content("total"), expected)
 
     @parameterized.expand([TEST_CASE_DUPLICATED_KEY])
-    def test_parse_json(self, config_string):
+    @mock.patch.dict(os.environ, {"MONAI_FAIL_ON_DUPLICATE_CONFIG": "1"})
+    def test_parse_json_raise(self, config_string, _, __):
         with tempfile.TemporaryDirectory() as tempdir:
             config_path = Path(tempdir) / "config.json"
             config_path.write_text(config_string)
@@ -317,6 +319,20 @@ class TestConfigParser(unittest.TestCase):
                 parser.read_config(config_path)
 
             self.assertTrue("Duplicate key: `duplicate`" in str(context.exception))
+
+    @parameterized.expand([TEST_CASE_DUPLICATED_KEY])
+    def test_parse_json_warn(self, config_string, expected_unique_val, expected_duplicate_vals):
+        with tempfile.TemporaryDirectory() as tempdir:
+            config_path = Path(tempdir) / "config.json"
+            config_path.write_text(config_string)
+            parser = ConfigParser()
+
+            with self.assertLogs(level=logging.WARNING) as log:
+                parser.read_config(config_path)
+            self.assertTrue("Duplicate key: `duplicate`" in " ".join(log.output))
+
+            self.assertEqual(parser.get_parsed_content("key#unique"), expected_unique_val)
+            self.assertIn(parser.get_parsed_content("key#duplicate"), expected_duplicate_vals)
 
 
 if __name__ == "__main__":
