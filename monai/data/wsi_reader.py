@@ -165,11 +165,6 @@ class BaseWSIReader(ImageReader):
 
         if mpp is not None:
             mpp_: tuple[float, float] = ensure_tuple_rep(mpp, 2)  # type: ignore
-
-            if self.get_mpp(wsi, 0) is None:
-                raise ValueError(
-                    "mpp is not defined in this whole slide image, please use `level` (or `power`) instead."
-                )
             available_mpps = [self.get_mpp(wsi, level) for level in range(n_levels)]
             if mpp_ in available_mpps:
                 valid_mpp = mpp_
