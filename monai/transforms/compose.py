@@ -118,6 +118,79 @@ def evaluate_with_overrides(
     return data
 
 
+def execute_compose(
+    input_: NdarrayOrTensor,
+    transforms: Sequence[Any],
+    map_items: bool = True,
+    unpack_items: bool = False,
+    start: int = 0,
+    end: int | None = None,
+    lazy_evaluation: bool = False,
+    overrides: dict = None,
+    override_keys: tuple = None,
+    threading: bool = False,
+    log_stats: bool = False,
+    verbose: bool = False,
+) -> NdarrayOrTensor:
+    """
+    ``execute_compose`` provides the implementation that the ``Compose`` class uses to execute a sequence
+    of transforms. As well as being used by Compose, it can be used by subclasses of
+    Compose and by code that doesn't have a Compose instance but needs to execute a
+    sequence of transforms is if it were executed by Compose. It should only be used directly
+    when it is not possible to use ``Compose.__call__`` to achieve the same goal.
+    Args:
+        `input_`: a tensor-like object to be transformed
+        transforms: a sequence of transforms to be carried out
+        map_items: whether to apply the transform to each item in ``data``.
+        Defaults to True if not set.
+        unpack_items: whether to unpack parameters using '*'. Defaults to False if not set
+        log_stats: whether to log detailed information about the application of ``transforms``
+        to ``input_``. For NumPy ndarrays and PyTorch tensors, log only the data shape and
+        value range. Defaults to False if not set.
+        start: the index of the first transform to be executed. If not set, this defaults to 0
+        end: the index after the last transform to be exectued. If set, the transform at index-1
+        is the last transform that is executed. If this is not set, it defaults to len(transforms)
+        threading: whether executing is happening in a threaded environment. If set, copies are made
+        of transforms that have the ``RandomizedTrait`` interface.
+
+    Returns:
+
+    """
+    end_ = len(transforms) if end is None else end
+    if start is None:
+        raise ValueError(f"'start' ({start}) cannot be None")
+    if start > end_:
+        raise ValueError(f"'start' ({start}) must be less than 'end' ({end_})")
+    if end_ > len(transforms):
+        raise ValueError(f"'end' ({end_}) must be less than or equal to the transform count ({len(transforms)}")
+
+    # no-op if the range is empty
+    if start == end:
+        return input_
+
+    for _transform in transforms[start:end]:
+        if threading:
+            _transform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
+        input_ = evaluate_with_overrides(
+            input_,
+            _transform,
+            lazy_evaluation=lazy_evaluation,
+            overrides=overrides,
+            override_keys=override_keys,
+            verbose=verbose,
+        )
+        input_ = apply_transform(_transform, input_, map_items, unpack_items, log_stats)
+    input_ = evaluate_with_overrides(
+        input_,
+        None,
+        lazy_evaluation=lazy_evaluation,
+        overrides=overrides,
+        override_keys=override_keys,
+        verbose=verbose,
+    )
+    return input_
+
+
 class Compose(Randomizable, InvertibleTransform):
     """
     ``Compose`` provides the ability to chain a series of callables together in
@@ -185,6 +258,37 @@ class Compose(Randomizable, InvertibleTransform):
         Alternatively, one can create a class with a `__call__` function that
         calls your pre-processing functions taking into account that not all of
         them are called on the labels.
+
+    Lazy resampling:
+        Lazy resampling is an experimental feature introduced in 1.2. Its purpose is
+        to reduce the number of resample operations that must be carried out when executing
+        a pipeline of transforms. This can provide significant performance improvements in
+        terms of pipeline executing speed and memory usage, but can also significantly
+        reduce the loss of information that occurs when performing a number of spatial
+        resamples in succession.
+
+        Lazy resampling can be thought of as acting in a similar fashion to the `Affine` & `RandAffine`
+        transforms, in that they allow several spatial transform operations can be specified and carried out with
+        a single resample step. Unlike these transforms, however, lazy resampling can operate on any set of
+        transforms specified in any ordering. The user is free to mix monai transforms with transforms from other
+        libraries; lazy resampling will determine the minimum number of resample steps required in order to
+        execute the pipeline.
+
+        Lazy resampling works with monai `Dataset` classes that provide caching and persistence. However, if you
+        are implementing your own caching dataset implementation and wish to make use of lazy resampling, you
+        should ensure that you fully execute the part of the pipeline that generates the data to be cached
+        before caching it. This is quite simply done however, as shown by the following example.
+
+        Example:
+            # run the part of the pipeline that needs to be cached
+            data = self.transform(data, end=self.post_cache_index)
+
+            # ---
+
+            # fetch the data from the cache and run the rest of the pipeline
+            data = get_data_from_my_cache(data)
+            data = self.transform(data, start=self.post_cache_index)
+
 
     Args:
         transforms: sequence of callables.
@@ -287,80 +391,6 @@ class Compose(Randomizable, InvertibleTransform):
         """Return number of transformations."""
         return len(self.flatten().transforms)
 
-    @classmethod
-    def execute(
-        cls,
-        input_: NdarrayOrTensor,
-        transforms: Sequence[Any],
-        map_items: bool = True,
-        unpack_items: bool = False,
-        start: int = 0,
-        end: int | None = None,
-        lazy_evaluation: bool = False,
-        overrides: dict = None,
-        override_keys: tuple = None,
-        threading: bool = False,
-        log_stats: bool = False,
-        verbose: bool = False,
-    ) -> NdarrayOrTensor:
-        """
-        ``execute`` provides the implementation that Compose uses to execute a sequence
-        of transforms. As well as being used by Compose, it can be used by subclasses of
-        Compose and by code that doesn't have a Compose instance but needs to execute a
-        sequence of transforms is if it were executed by Compose. It should only be used directly
-        when it is not possible to use ``Compose.__call__`` to achieve the same goal.
-        Args:
-            `input_`: a tensor-like object to be transformed
-            transforms: a sequence of transforms to be carried out
-            map_items: whether to apply the transform to each item in ``data``.
-            Defaults to True if not set.
-            unpack_items: whether to unpack parameters using '*'. Defaults to False if not set
-            log_stats: whether to log detailed information about the application of ``transforms``
-            to ``input_``. For NumPy ndarrays and PyTorch tensors, log only the data shape and
-            value range. Defaults to False if not set.
-            start: the index of the first transform to be executed. If not set, this defaults to 0
-            end: the index after the last transform to be exectued. If set, the transform at index-1
-            is the last transform that is executed. If this is not set, it defaults to len(transforms)
-            threading: whether executing is happening in a threaded environment. If set, copies are made
-            of transforms that have the ``RandomizedTrait`` interface.
-
-        Returns:
-
-        """
-        end_ = len(transforms) if end is None else end
-        if start is None:
-            raise ValueError(f"'start' ({start}) cannot be None")
-        if start > end_:
-            raise ValueError(f"'start' ({start}) must be less than 'end' ({end_})")
-        if end_ > len(transforms):
-            raise ValueError(f"'end' ({end_}) must be less than or equal to the transform count ({len(transforms)}")
-
-        # no-op if the range is empty
-        if start == end:
-            return input_
-
-        for _transform in transforms[start:end]:
-            if threading:
-                _transform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
-            input_ = evaluate_with_overrides(
-                input_,
-                _transform,
-                lazy_evaluation=lazy_evaluation,
-                overrides=overrides,
-                override_keys=override_keys,
-                verbose=verbose,
-            )
-            input_ = apply_transform(_transform, input_, map_items, unpack_items, log_stats)
-        input_ = evaluate_with_overrides(
-            input_,
-            None,
-            lazy_evaluation=lazy_evaluation,
-            overrides=overrides,
-            override_keys=override_keys,
-            verbose=verbose,
-        )
-        return input_
-
     def evaluate_with_overrides(self, input_, upcoming_xform):
         """
         Args:
@@ -377,7 +407,7 @@ class Compose(Randomizable, InvertibleTransform):
         )
 
     def __call__(self, input_, start=0, end=None, threading=False):
-        return Compose.execute(
+        return execute_compose(
             input_,
             self.transforms,
             start=start,
@@ -496,7 +526,7 @@ class OneOf(Compose):
         index = self.R.multinomial(1, self.weights).argmax()
         _transform = self.transforms[index]
 
-        data = Compose.execute(
+        data = execute_compose(
             data,
             [_transform],
             map_items=self.map_items,
@@ -590,7 +620,7 @@ class RandomOrder(Compose):
         num = len(self.transforms)
         applied_order = self.R.permutation(range(num))
 
-        input_ = Compose.execute(
+        input_ = execute_compose(
             input_,
             [self.transforms[ind] for ind in applied_order],
             map_items=self.map_items,
@@ -729,15 +759,22 @@ class SomeOf(Compose):
 
         return ensure_tuple(list(weights))
 
-    def __call__(self, data):
+    def __call__(self, data, start=0, end=None, threading=False):
         if len(self.transforms) == 0:
             return data
 
         sample_size = self.R.randint(self.min_num_transforms, self.max_num_transforms + 1)
         applied_order = self.R.choice(len(self.transforms), sample_size, replace=self.replace, p=self.weights).tolist()
-        for i in applied_order:
-            data = apply_transform(self.transforms[i], data, self.map_items, self.unpack_items, self.log_stats)
 
+        data = execute_compose(
+            data,
+            self.transforms[applied_order],
+            map_items=self.map_items,
+            unpack_items=self.unpack_items,
+            start=start,
+            end=end,
+            threading=threading,
+        )
         if isinstance(data, monai.data.MetaTensor):
             self.push_transform(data, extra_info={"applied_order": applied_order})
         elif isinstance(data, Mapping):

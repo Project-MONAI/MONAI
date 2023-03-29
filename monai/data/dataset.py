@@ -208,6 +208,11 @@ class PersistentDataset(Dataset):
         not guaranteed, so caution should be used when modifying transforms to avoid unexpected
         errors. If in doubt, it is advisable to clear the cache directory.
 
+    Lazy Resampling:
+        If you make use of the lazy resampling feature of `monai.transforms.Compose`, please refer to
+        its documentation to familiarize yourself with the interaction between `PersistentDataset` and
+        lazy resampling.
+
     """
 
     def __init__(
@@ -734,6 +739,11 @@ class CacheDataset(Dataset):
         So to debug or verify the program before real training, users can set `cache_rate=0.0` or `cache_num=0` to
         temporarily skip caching.
 
+    Lazy Resampling:
+        If you make use of the lazy resampling feature of `monai.transforms.Compose`, please refer to
+        its documentation to familiarize yourself with the interaction between `CacheDataset` and
+        lazy resampling.
+
     """
 
     def __init__(
@@ -989,7 +999,6 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
             it may help improve the performance of following logic.
         runtime_cache: Default to `False`, other options are not implemented yet.
-
     """
 
     def __init__(
