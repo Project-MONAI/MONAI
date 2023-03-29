@@ -26,7 +26,7 @@ import numpy as np
 import torch
 
 from monai.config import USE_COMPILED, DtypeLike
-from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import AFFINE_TOL, affine_to_spacing, compute_shape_offset, iter_patch, to_affine_nd, zoom_affine
