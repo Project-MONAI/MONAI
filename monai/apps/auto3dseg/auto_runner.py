@@ -217,7 +217,6 @@ class AutoRunner:
         algo_gen: bool | None = None,
         train: bool | None = None,
         training_params: dict[str, Any] | None = None,
-        num_fold: int = 5,
         hpo: bool = False,
         hpo_backend: str = "nni",
         ensemble: bool = True,
@@ -258,7 +257,6 @@ class AutoRunner:
         self.ensemble = ensemble  # last step, no need to check
 
         # intermediate variables
-        self.num_fold = num_fold
         self.ensemble_method_name = "AlgoEnsembleBestByFold"
         self.set_training_params(training_params)
         self.set_prediction_params()
