@@ -455,7 +455,7 @@ class Compose(Randomizable, InvertibleTransform):
             end=end,
             map_items=self.map_items,
             unpack_items=self.unpack_items,
-            lazy_evaluation=self.lazy_evaluation,
+            lazy_evaluation=self.lazy_evaluation,  # type: ignore
             overrides=self.overrides,
             override_keys=self.override_keys,
             threading=threading,
