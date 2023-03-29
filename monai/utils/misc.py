@@ -33,9 +33,9 @@ from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor, PathLi
 from monai.utils.module import optional_import, version_leq
 
 if TYPE_CHECKING:
-    import yaml
+    from yaml import SafeLoader
 else:
-    yaml, _ = optional_import("yaml")
+    SafeLoader, _ = optional_import("yaml", name="SafeLoader", as_type="base")
 
 __all__ = [
     "zip_with",
@@ -711,7 +711,7 @@ def check_key_duplicates(ordered_pairs: Sequence[tuple[Any, Any]]) -> dict[Any, 
     return dict(ordered_pairs)
 
 
-class CheckKeyDuplicatesYamlLoader(yaml.SafeLoader):
+class CheckKeyDuplicatesYamlLoader(SafeLoader):
     def construct_mapping(self, node, deep=False):
         mapping = set()
         for key_node, value_node in node.value:
