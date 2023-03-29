@@ -173,7 +173,7 @@ class BaseWSIReader(ImageReader):
                 for i in range(2):
                     if abs(valid_mpp[i] - mpp_[i]) > self.mpp_atol + self.mpp_rtol * abs(mpp_[i]):
                         raise ValueError(
-                            f"The requested mpp {mpp_} does not exist in this whole slide image"
+                            f"The requested mpp {mpp_} does not exist in this whole slide image "
                             f"(with mpp_rtol={self.mpp_rtol} and mpp_atol={self.mpp_atol}). "
                             f"Here is the list of available mpps: {available_mpps}. "
                             f"The closest matching available mpp is {valid_mpp}."
@@ -189,7 +189,7 @@ class BaseWSIReader(ImageReader):
                 valid_power = min(available_powers, key=lambda x: abs(x - power))  # type: ignore
                 if abs(valid_power - power) > self.power_atol + self.power_rtol * abs(power):
                     raise ValueError(
-                        f"The requested power ({power}) does not exist in this whole slide image"
+                        f"The requested power ({power}) does not exist in this whole slide image "
                         f"(with power_rtol={self.power_rtol} and power_atol={self.power_atol})."
                         f"Here is the list of available objective powers: {available_powers}. "
                         f" The closest matching available power is {valid_power}."
@@ -223,8 +223,7 @@ class BaseWSIReader(ImageReader):
 
         Args:
             wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated. If not provided the default level (from `self.level`)
-                will be used.
+            level: the level number where the size is calculated.
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
@@ -560,8 +559,7 @@ class WSIReader(BaseWSIReader):
 
         Args:
             wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated. If not provided the default level (from `self.level`)
-                will be used.
+            level: the level number where the size is calculated.
 
         """
         return self.reader.get_size(wsi, level)
@@ -572,8 +570,7 @@ class WSIReader(BaseWSIReader):
 
         Args:
             wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated. If not provided the default level (from `self.level`)
-                will be used.
+            level: the level number where the size is calculated.
 
         """
         return self.reader.get_downsample_ratio(wsi, level)
@@ -589,7 +586,6 @@ class WSIReader(BaseWSIReader):
         Args:
             wsi: a whole slide image object loaded from a file
             level: the level number where mpp calculated.
-                If not provided the default level (from `self.level`) will be used.
 
         """
         return self.reader.get_mpp(wsi, level)
@@ -601,7 +597,6 @@ class WSIReader(BaseWSIReader):
         Args:
             wsi: a whole slide image object loaded from a file
             level: the level number where the objective power is calculated.
-                If not provided the default level (from `self.level`) will be used.
 
         """
         return self.reader.get_power(wsi, level)
@@ -687,8 +682,7 @@ class CuCIMWSIReader(BaseWSIReader):
 
         Args:
             wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated. If not provided the default level (from `self.level`)
-                will be used.
+            level: the level number where the size is calculated.
 
         """
         return (wsi.resolutions["level_dimensions"][level][1], wsi.resolutions["level_dimensions"][level][0])
@@ -699,11 +693,10 @@ class CuCIMWSIReader(BaseWSIReader):
 
         Args:
             wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated. If not provided the default level (from `self.level`)
-                will be used.
+            level: the level number where the size is calculated.
 
         """
-        return wsi.resolutions["level_downsamples"][level]  # type: ignore
+        return float(wsi.resolutions["level_downsamples"][level])
 
     @staticmethod
     def get_file_path(wsi) -> str:
@@ -716,12 +709,19 @@ class CuCIMWSIReader(BaseWSIReader):
 
         Args:
             wsi: a whole slide image object loaded from a file
-            level: the level number where mpp is calculated. If not provided the default level (from `self.level`)
-                will be used.
+            level: the level number where mpp is calculated.
 
         """
-        factor = float(wsi.resolutions["level_downsamples"][level])
-        return (wsi.metadata["cucim"]["spacing"][1] * factor, wsi.metadata["cucim"]["spacing"][0] * factor)
+        downsample_ratio = self.get_downsample_ratio(wsi, level)
+        if "aperio" in wsi.metadata:
+            mpp_ = float(wsi.metadata["aperio"].get("MPP"))
+            if mpp_:
+                return (downsample_ratio * mpp_, downsample_ratio * mpp_)
+
+        return (
+            downsample_ratio * wsi.metadata["cucim"]["spacing"][1],
+            downsample_ratio * wsi.metadata["cucim"]["spacing"][0],
+        )
 
     def get_power(self, wsi, level: int) -> float:
         """
@@ -730,7 +730,6 @@ class CuCIMWSIReader(BaseWSIReader):
         Args:
             wsi: a whole slide image object loaded from a file
             level: the level number where objective power is calculated.
-                If not provided the default level (from `self.level`) will be used.
 
         """
         if "aperio" in wsi.metadata:
@@ -854,8 +853,7 @@ class OpenSlideWSIReader(BaseWSIReader):
 
         Args:
             wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated. If not provided the default level (from `self.level`)
-                will be used.
+            level: the level number where the size is calculated.
 
         """
         return (wsi.level_dimensions[level][1], wsi.level_dimensions[level][0])
@@ -866,8 +864,7 @@ class OpenSlideWSIReader(BaseWSIReader):
 
         Args:
             wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated. If not provided the default level (from `self.level`)
-                will be used.
+            level: the level number where the size is calculated.
 
         """
         return wsi.level_downsamples[level]  # type: ignore
@@ -883,38 +880,36 @@ class OpenSlideWSIReader(BaseWSIReader):
 
         Args:
             wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated. If not provided the default level (from `self.level`)
-                will be used.
+            level: the level number where the size is calculated.
 
         """
+        downsample_ratio = self.get_downsample_ratio(wsi, level)
         if "openslide.mpp-x" in wsi.properties and "openslide.mpp-y" in wsi.properties:
-            factor = float(wsi.level_downsamples[level])
             return (
-                factor * float(wsi.properties["openslide.mpp-y"]),
-                factor * float(wsi.properties["openslide.mpp-x"]),
+                downsample_ratio * float(wsi.properties["openslide.mpp-y"]),
+                downsample_ratio * float(wsi.properties["openslide.mpp-x"]),
             )
 
         if "tiff.XResolution" in wsi.properties and "tiff.YResolution" in wsi.properties:
             unit = wsi.properties.get("tiff.ResolutionUnit")
             if unit == "centimeter":
-                factor = 10000.0
+                unit_factor = 10000.0
             elif unit == "millimeter":
-                factor = 1000.0
+                unit_factor = 1000.0
             elif unit == "micrometer":
-                factor = 1.0
+                unit_factor = 1.0
             elif unit == "inch":
-                factor = 25400.0
+                unit_factor = 25400.0
             else:
                 warnings.warn(
                     f"The resolution unit is not a valid tiff resolution or missing, unit={unit}."
                     " `micrometer` will be used as default."
                 )
-                factor = 1.0
+                unit_factor = 1.0
 
-            factor *= float(wsi.level_downsamples[level])
             return (
-                factor / float(wsi.properties["tiff.YResolution"]),
-                factor / float(wsi.properties["tiff.XResolution"]),
+                unit_factor * downsample_ratio / float(wsi.properties["tiff.YResolution"]),
+                unit_factor * downsample_ratio / float(wsi.properties["tiff.XResolution"]),
             )
 
         raise ValueError("`mpp`  cannot be obtained for this file. Please use `level` instead.")
@@ -926,7 +921,6 @@ class OpenSlideWSIReader(BaseWSIReader):
         Args:
             wsi: a whole slide image object loaded from a file
             level: the level number where objective power is calculated.
-                If not provided the default level (from `self.level`) will be used.
 
         """
         objective_power = float(wsi.properties.get("openslide.objective-power"))
@@ -1036,8 +1030,7 @@ class TiffFileWSIReader(BaseWSIReader):
 
         Args:
             wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated. If not provided the default level (from `self.level`)
-                will be used.
+            level: the level number where the size is calculated.
 
         """
         return (wsi.pages[level].imagelength, wsi.pages[level].imagewidth)
@@ -1048,8 +1041,7 @@ class TiffFileWSIReader(BaseWSIReader):
 
         Args:
             wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated. If not provided the default level (from `self.level`)
-                will be used.
+            level: the level number where the size is calculated.
 
         """
         return float(wsi.pages[0].imagelength) / float(wsi.pages[level].imagelength)
@@ -1065,8 +1057,7 @@ class TiffFileWSIReader(BaseWSIReader):
 
         Args:
             wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated. If not provided the default level (from `self.level`)
-                will be used.
+            level: the level number where the size is calculated.
 
         """
         if "XResolution" in wsi.pages[level].tags and "YResolution" in wsi.pages[level].tags:
@@ -1105,7 +1096,6 @@ class TiffFileWSIReader(BaseWSIReader):
         Args:
             wsi: a whole slide image object loaded from a file
             level: the level number where objective power is calculated.
-                If not provided the default level (from `self.level`) will be used.
 
         """
         raise ValueError(
