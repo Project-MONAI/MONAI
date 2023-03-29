@@ -269,7 +269,7 @@ class BaseWSIReader(ImageReader):
             location: (top, left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
             size: (height, width) tuple giving the patch size at the given level (`level`).
                 If None, it is set to the full image size at the given level.
-            level: the level number. Defaults to 0
+            level: the level number.
             dtype: the data type of output image
             mode: the output image mode, 'RGB' or 'RGBA'
 
@@ -288,7 +288,7 @@ class BaseWSIReader(ImageReader):
             location: (top, left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
             size: (height, width) tuple giving the patch size at the given level (`level`).
                 If None, it is set to the full image size at the given level.
-            level: the level number. Defaults to 0
+            level: the level number.
 
         """
         if self.channel_dim >= len(patch.shape) or self.channel_dim < -len(patch.shape):
@@ -612,7 +612,7 @@ class WSIReader(BaseWSIReader):
             location: (top, left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
             size: (height, width) tuple giving the patch size at the given level (`level`).
                 If None, it is set to the full image size at the given level.
-            level: the level number. Defaults to 0
+            level: the level number.
             dtype: the data type of output image
             mode: the output image mode, 'RGB' or 'RGBA'
 
@@ -779,7 +779,7 @@ class CuCIMWSIReader(BaseWSIReader):
             location: (top, left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
             size: (height, width) tuple giving the patch size at the given level (`level`).
                 If None, it is set to the full image size at the given level.
-            level: the level number. Defaults to 0
+            level: the level number.
             dtype: the data type of output image
             mode: the output image mode, 'RGB' or 'RGBA'
 
@@ -964,7 +964,7 @@ class OpenSlideWSIReader(BaseWSIReader):
             location: (top, left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
             size: (height, width) tuple giving the patch size at the given level (`level`).
                 If None, it is set to the full image size at the given level.
-            level: the level number. Defaults to 0
+            level: the level number.
             dtype: the data type of output image
             mode: the output image mode, 'RGB' or 'RGBA'
 
@@ -1137,7 +1137,7 @@ class TiffFileWSIReader(BaseWSIReader):
             location: (top, left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
             size: (height, width) tuple giving the patch size at the given level (`level`).
                 If None, it is set to the full image size at the given level.
-            level: the level number. Defaults to 0
+            level: the level number.
             dtype: the data type of output image
             mode: the output image mode, 'RGB' or 'RGBA'
 
