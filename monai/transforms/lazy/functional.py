@@ -42,7 +42,7 @@ def execute_pending_transforms(data, overrides: dict = None):
         for k, v in d.items():
             if isinstance(v, MetaTensor) and v.has_pending_operations:
                 overrides_ = None if overrides is None else overrides[k]
-                d[k], _ = apply_transforms(d[k], overrides=overrides_)
+                d[k], _ = apply_transforms(v, overrides=overrides_)
         return d
 
     if isinstance(data, MetaTensor) and data.has_pending_operations:

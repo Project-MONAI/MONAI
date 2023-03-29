@@ -93,7 +93,7 @@ class TraceableTransform(Transform):
             self.__class__.__name__,
             id(self),
             self.tracing,
-            # self.lazy_evaluation if isinstance(self, LazyTransform) else False,
+            self.lazy_evaluation if isinstance(self, LazyTransform) else False,
             self._do_transform if hasattr(self, "_do_transform") else True,
         )
         return dict(zip(self.transform_info_keys(), vals))
@@ -109,8 +109,9 @@ class TraceableTransform(Transform):
                 set ``replace=True`` (default False) to rewrite the last transform infor in
                 applied_operation/pending_operation based on ``self.get_transform_info()``.
         """
+        lazy_eval = kwargs.get("lazy_evaluation", False)
         transform_info = self.get_transform_info()
-        lazy_eval = transform_info.get(TraceKeys.LAZY_EVALUATION, False)
+        # lazy_eval = transform_info.get(TraceKeys.LAZY_EVALUATION, False)
         do_transform = transform_info.get(TraceKeys.DO_TRANSFORM, True)
         kwargs = kwargs or {}
         replace = kwargs.pop("replace", False)  # whether to rewrite the most recently pushed transform info

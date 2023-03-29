@@ -301,7 +301,7 @@ class ResampleToMatch(SpatialResample):
             padding_mode=padding_mode,
             align_corners=align_corners,
             dtype=dtype,
-            lazy_evaluation=lazy_evaluation_
+            lazy_evaluation=lazy_evaluation_,
         )
         if not lazy_evaluation_:
             if isinstance(img, MetaTensor):
@@ -516,7 +516,7 @@ class Spacing(InvertibleTransform, LazyTransform):
             padding_mode=padding_mode,
             align_corners=align_corners,
             dtype=dtype,
-            lazy_evaluation=lazy_evaluation_
+            lazy_evaluation=lazy_evaluation_,
         )
         if self.recompute_affine and isinstance(data_array, MetaTensor):
             if lazy_evaluation_:
@@ -1206,14 +1206,14 @@ class RandRotate90(RandomizableTransform, InvertibleTransform, LazyTransform):
         if randomize:
             self.randomize()
 
+        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         if self._do_transform:
-            lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
             xform = Rotate90(self._rand_k, self.spatial_axes, lazy_evaluation=lazy_evaluation_)
             out = xform(img)
         else:
             out = convert_to_tensor(img, track_meta=get_track_meta())
 
-        self.push_transform(out, replace=True)
+        self.push_transform(out, replace=True, lazy_evaluation=lazy_evaluation_)
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
@@ -1331,9 +1331,9 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
         if randomize:
             self.randomize()
 
+        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         if self._do_transform:
             ndim = len(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:])
-            lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
             rotator = Rotate(
                 angle=self.x if ndim == 2 else (self.x, self.y, self.z),
                 keep_size=self.keep_size,
@@ -1341,12 +1341,12 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
                 padding_mode=look_up_option(padding_mode or self.padding_mode, GridSamplePadMode),
                 align_corners=self.align_corners if align_corners is None else align_corners,
                 dtype=dtype or self.dtype or img.dtype,
-                lazy_evaluation=lazy_evaluation_
+                lazy_evaluation=lazy_evaluation_,
             )
             out = rotator(img)
         else:
             out = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)
-        self.push_transform(out, replace=True)
+        self.push_transform(out, replace=True, lazy_evaluation=lazy_evaluation_)
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
@@ -1400,7 +1400,7 @@ class RandFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
         lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         out = self.flipper(img, lazy_evaluation=lazy_evaluation_) if self._do_transform else img
         out = convert_to_tensor(out, track_meta=get_track_meta())
-        self.push_transform(out, replace=True)
+        self.push_transform(out, replace=True, lazy_evaluation=lazy_evaluation_)
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
@@ -1454,13 +1454,13 @@ class RandAxisFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
         if randomize:
             self.randomize(data=img)
 
+        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         if self._do_transform:
-            lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
             self.flipper.spatial_axis = self._axis
             out = self.flipper(img, lazy_evaluation=lazy_evaluation_)
         else:
             out = convert_to_tensor(img, track_meta=get_track_meta())
-        self.push_transform(out, replace=True)
+        self.push_transform(out, replace=True, lazy_evaluation=lazy_evaluation_)
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
@@ -1603,11 +1603,11 @@ class RandZoom(RandomizableTransform, InvertibleTransform, LazyTransform):
                 padding_mode=padding_mode or self.padding_mode,
                 align_corners=self.align_corners if align_corners is None else align_corners,
                 dtype=dtype or self.dtype,
-                lazy_evaluation=lazy_evaluation_
+                lazy_evaluation=lazy_evaluation_,
                 **self.kwargs,
             )
             out = xform(img)
-        self.push_transform(out, replace=True)
+        self.push_transform(out, replace=True, lazy_evaluation=lazy_evaluation_)
         return out  # type: ignore
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
@@ -1857,7 +1857,7 @@ class RandAffineGrid(Randomizable, LazyTransform):
             scale_params=self.scale_params,
             device=self.device,
             dtype=self.dtype,
-            lazy_evaluation=lazy_evaluation_
+            lazy_evaluation=lazy_evaluation_,
         )
         if lazy_evaluation_:  # return the affine only, don't construct the grid
             self.affine = affine_grid(spatial_size, grid)[1]  # type: ignore

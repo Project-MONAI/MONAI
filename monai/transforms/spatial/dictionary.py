@@ -682,12 +682,8 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform, La
         lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         rotator = Rotate90(self._rand_k, self.spatial_axes, lazy_evaluation=lazy_evaluation_)
         for key in self.key_iterator(d):
-            if self._do_transform:
-                # no need to override lazy_evaluation here as we already set it on the initializer
-                d[key] = rotator(d[key])
-            else:
-                convert_to_tensor(d[key], track_meta=get_track_meta())
-            self.push_transform(d[key], replace=True)
+            d[key] = rotator(d[key]) if self._do_transform else convert_to_tensor(d[key], track_meta=get_track_meta())
+            self.push_transform(d[key], replace=True, lazy_evaluation=lazy_evaluation_)
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
@@ -1073,7 +1069,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
             else:
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta(), dtype=torch.float32)
             self._do_transform = do_resampling  # TODO: unify self._do_transform and do_resampling
-            self.push_transform(d[key], replace=True)
+            self.push_transform(d[key], replace=True, lazy_evaluation=lazy_evaluation_)
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
@@ -1494,7 +1490,7 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
                 d[key] = self.flipper(d[key], lazy_evaluation=lazy_evaluation_)
             else:
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
-            self.push_transform(d[key], replace=True)
+            self.push_transform(d[key], replace=True, lazy_evaluation=lazy_evaluation_)
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
@@ -1571,7 +1567,7 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform, La
                 d[key] = self.flipper(d[key], randomize=False, lazy_evaluation=lazy_evaluation_)
             else:
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
-            self.push_transform(d[key], replace=True)
+            self.push_transform(d[key], replace=True, lazy_evaluation=lazy_evaluation_)
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
@@ -1657,7 +1653,7 @@ class Rotated(MapTransform, InvertibleTransform, LazyTransform):
         ):
             d[key] = self.rotator(
                 d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype,
-                lazy_evaluation=lazy_evaluation_
+                lazy_evaluation=lazy_evaluation_,
             )
         return d
 
@@ -1772,7 +1768,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
                 )
             else:
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta(), dtype=torch.float32)
-            self.push_transform(d[key], replace=True)
+            self.push_transform(d[key], replace=True, lazy_evaluation=lazy_evaluation_)
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
@@ -1981,11 +1977,11 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
                     align_corners=align_corners,
                     dtype=dtype,
                     randomize=False,
-                    lazy_evaluation=lazy_evaluation_
+                    lazy_evaluation=lazy_evaluation_,
                 )
             else:
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta(), dtype=torch.float32)
-            self.push_transform(d[key], replace=True)
+            self.push_transform(d[key], replace=True, lazy_evaluation=lazy_evaluation_)
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:

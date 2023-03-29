@@ -48,7 +48,7 @@ def _apply_transform(
         transform: Callable[..., ReturnType],
         data: Any,
         unpack_parameters: bool = False,
-        lazy_evaluation: bool = LazyMode.OFF,
+        lazy_evaluation: str = LazyMode.OFF,
         overrides: dict = None,
 ) -> ReturnType:
     """
@@ -77,8 +77,9 @@ def _apply_transform(
 
     lazy_tx = isinstance(transform, LazyTrait)
 
-    if not lazy_tx or transform.lazy_evaluation is False:
-        # must evaluate outstanding pending transforms before we proceed
+    if lazy_tx is False or lazy_evaluation == LazyMode.OFF:
+        data = execute_pending_transforms(data, overrides)
+    elif lazy_evaluation is LazyMode.ENABLED and transform.lazy_evaluation is False:
         data = execute_pending_transforms(data, overrides)
 
     if isinstance(data, tuple) and unpack_parameters:

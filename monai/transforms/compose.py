@@ -23,6 +23,7 @@ import numpy as np
 import monai
 import monai.transforms as mt
 from monai.apps.utils import get_logger
+from monai.transforms.traits import LazyTrait
 from monai.transforms.inverse import InvertibleTransform
 
 # For backwards compatibility (so this still works: from monai.transforms.compose import MapTransform)
@@ -206,7 +207,7 @@ class Compose(Randomizable, InvertibleTransform):
         transforms: Sequence[Callable] | Callable | None = None,
         map_items: bool = True,
         unpack_items: bool = False,
-        lazy_evaluation: bool | None = None,
+        lazy_evaluation: str = LazyMode.OFF,
         overrides: dict | None = None,
     ) -> None:
         if transforms is None:
@@ -215,14 +216,8 @@ class Compose(Randomizable, InvertibleTransform):
         self.map_items = map_items
         self.unpack_items = unpack_items
         self.set_random_state(seed=get_seed())
-
         self.lazy_evaluation = lazy_evaluation
         self.overrides = overrides
-
-        # if self.lazy_evaluation is not None:
-        #     for t in self.flatten().transforms:  # TODO: test Compose of Compose/OneOf
-        #         if isinstance(t, LazyTransform):
-        #             t.lazy_evaluation = self.lazy_evaluation
 
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> Compose:
         super().set_random_state(seed=seed, state=state)
@@ -264,7 +259,7 @@ class Compose(Randomizable, InvertibleTransform):
         """Return number of transformations."""
         return len(self.flatten().transforms)
 
-    def __call__(self, input_):
+    def __call__(self, input_, lazy_evaluation: bool | None = None):
         for _transform in self.transforms:
             input_ = apply_transform(_transform, input_, self.map_items, self.unpack_items,
                                      lazy_evaluation=self.lazy_evaluation, overrides=self.overrides)

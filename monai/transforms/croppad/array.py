@@ -450,7 +450,7 @@ class SpatialCrop(Crop):
             roi_center=roi_center, roi_size=roi_size, roi_start=roi_start, roi_end=roi_end, roi_slices=roi_slices
         )
 
-    def __call__(self, img: torch.Tensor, lazy_evaluation: bool = False) -> torch.Tensor:  # type: ignore[override]
+    def __call__(self, img: torch.Tensor, lazy_evaluation: bool | None = None) -> torch.Tensor:  # type: ignore[override]
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
@@ -725,7 +725,7 @@ class RandSpatialCropSamples(Randomizable, TraceableTransform, LazyTransform, Mu
             cropped = self.cropper(img, lazy_evaluation=lazy_evaluation_)
             if get_track_meta():
                 cropped.meta[Key.PATCH_INDEX] = i  # type: ignore
-                self.push_transform(cropped, replace=True)  # track as this class instead of RandSpatialCrop
+                self.push_transform(cropped, replace=True, lazy_evaluation=lazy_evaluation_)  # track as this class instead of RandSpatialCrop
             ret.append(cropped)
         return ret
 
@@ -958,7 +958,7 @@ class RandWeightedCrop(Randomizable, TraceableTransform, LazyTransform, MultiSam
                 ret_: MetaTensor = cropped  # type: ignore
                 ret_.meta[Key.PATCH_INDEX] = i
                 ret_.meta["crop_center"] = center
-                self.push_transform(ret_, replace=True)
+                self.push_transform(ret_, replace=True, lazy_evaluation=lazy_evaluation_)
             results.append(cropped)
         return results
 
@@ -1132,7 +1132,7 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
                     ret_: MetaTensor = cropped  # type: ignore
                     ret_.meta[Key.PATCH_INDEX] = i
                     ret_.meta["crop_center"] = center
-                    self.push_transform(ret_, replace=True)
+                    self.push_transform(ret_, replace=True, lazy_evaluation=lazy_evaluation_)
                 results.append(cropped)
         return results
 
@@ -1299,7 +1299,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
                     ret_: MetaTensor = cropped  # type: ignore
                     ret_.meta[Key.PATCH_INDEX] = i
                     ret_.meta["crop_center"] = center
-                    self.push_transform(ret_, replace=True)
+                    self.push_transform(ret_, replace=True, lazy_evaluation=lazy_evaluation_)
                 results.append(cropped)
 
         return results
@@ -1375,7 +1375,8 @@ class ResizeWithPadOrCrop(InvertibleTransform, LazyTransform):
                 crop_info = ret_.applied_operations.pop()
                 orig_size = crop_info.get(TraceKeys.ORIG_SIZE)
                 self.push_transform(
-                    ret_, orig_size=orig_size, extra_info={"pad_info": pad_info, "crop_info": crop_info}
+                    ret_, orig_size=orig_size, extra_info={"pad_info": pad_info, "crop_info": crop_info},
+                    lazy_evaluation=lazy_evaluation_
                 )
             else:
                 pad_info = ret_.pending_operations.pop()
@@ -1387,6 +1388,7 @@ class ResizeWithPadOrCrop(InvertibleTransform, LazyTransform):
                     sp_size=pad_info[LazyAttr.SHAPE],
                     affine=crop_info[LazyAttr.AFFINE] @ pad_info[LazyAttr.AFFINE],
                     extra_info={"pad_info": pad_info, "crop_info": crop_info},
+                    lazy_evaluation=lazy_evaluation_,
                 )
 
         return ret

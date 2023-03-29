@@ -141,7 +141,8 @@ class Padd(MapTransform, InvertibleTransform, LazyTransform):
             allow_missing_keys: don't raise exception if key is missing.
 
         """
-        super().__init__(keys, allow_missing_keys, lazy_evaluation=lazy_evaluation)
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        LazyTransform.__init__(self, lazy_evaluation)
         if lazy_evaluation is True and not isinstance(padder, LazyTrait):
             raise ValueError("'padder' must inherit LazyTrait if lazy_evaluation is True "
                              f"'padder' is of type({type(padder)})")
