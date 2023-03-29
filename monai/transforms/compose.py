@@ -119,19 +119,19 @@ def evaluate_with_overrides(
 
 
 def execute_compose(
-    input_: NdarrayOrTensor,
+    data: NdarrayOrTensor | Sequence[NdarrayOrTensor] | Mapping[Any, NdarrayOrTensor],
     transforms: Sequence[Any],
     map_items: bool = True,
     unpack_items: bool = False,
     start: int = 0,
     end: int | None = None,
     lazy_evaluation: bool = False,
-    overrides: dict = None,
-    override_keys: tuple = None,
+    overrides: dict | None = None,
+    override_keys: tuple | None = None,
     threading: bool = False,
     log_stats: bool = False,
     verbose: bool = False,
-) -> NdarrayOrTensor:
+) -> NdarrayOrTensor | Sequence[NdarrayOrTensor] | Mapping[Any, NdarrayOrTensor]:
     """
     ``execute_compose`` provides the implementation that the ``Compose`` class uses to execute a sequence
     of transforms. As well as being used by Compose, it can be used by subclasses of
@@ -139,22 +139,39 @@ def execute_compose(
     sequence of transforms is if it were executed by Compose. It should only be used directly
     when it is not possible to use ``Compose.__call__`` to achieve the same goal.
     Args:
-        `input_`: a tensor-like object to be transformed
+        data: a tensor-like object to be transformed
         transforms: a sequence of transforms to be carried out
-        map_items: whether to apply the transform to each item in ``data``.
-        Defaults to True if not set.
-        unpack_items: whether to unpack parameters using '*'. Defaults to False if not set
-        log_stats: whether to log detailed information about the application of ``transforms``
-        to ``input_``. For NumPy ndarrays and PyTorch tensors, log only the data shape and
-        value range. Defaults to False if not set.
+        map_items: whether to apply transform to each item in the input `data` if `data` is a list or tuple.
+            defaults to `True`.
+        unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
+            defaults to `False`.
         start: the index of the first transform to be executed. If not set, this defaults to 0
         end: the index after the last transform to be exectued. If set, the transform at index-1
-        is the last transform that is executed. If this is not set, it defaults to len(transforms)
+            is the last transform that is executed. If this is not set, it defaults to len(transforms)
+        lazy_evaluation: whether to enable lazy evaluation for lazy transforms. If False, transforms will be
+            carried out on a transform by transform basis. If True, all lazy transforms will
+            be executed by accumulating changes and resampling as few times as possible.
+            A `monai.transforms.Identity[D]` transform in the pipeline will trigger the evaluation of
+            the pending operations and make the primary data up-to-date.
+        overrides: this optional parameter allows you to specify a dictionary of parameters that should be overridden
+            when executing a pipeline. These each parameter that is compatible with a given transform is then applied
+            to that transform before it is executed. Note that overrides are currently only applied when lazy_evaluation
+            is True. If lazy_evaluation is False they are ignored.
+            currently supported args are:
+            {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``},
+            please see also :py:func:`monai.transforms.lazy.apply_transforms` for more details.
+        override_keys: this optional parameter specifies the keys to which ``overrides`` are to be applied. If
+            ``overrides`` is set, ``override_keys`` must also be set.
         threading: whether executing is happening in a threaded environment. If set, copies are made
-        of transforms that have the ``RandomizedTrait`` interface.
+            of transforms that have the ``RandomizedTrait`` interface.
+        log_stats: whether to log the detailed information of data and applied transform when error happened,
+            for NumPy array and PyTorch Tensor, log the data shape and value range,
+            for other metadata, log the values directly. default to `False`.
+        verbose: whether to print debugging info when lazy_evaluation=True.
 
     Returns:
-
+        A tensorlike, sequence of tensorlikes or dict of tensorlists containing the result of running
+        `data`` through the sequence of ``transforms``.
     """
     end_ = len(transforms) if end is None else end
     if start is None:
@@ -166,24 +183,24 @@ def execute_compose(
 
     # no-op if the range is empty
     if start == end:
-        return input_
+        return data
 
     for _transform in transforms[start:end]:
         if threading:
             _transform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
-        input_ = evaluate_with_overrides(
-            input_,
+        data = evaluate_with_overrides(
+            data,
             _transform,
             lazy_evaluation=lazy_evaluation,
             overrides=overrides,
             override_keys=override_keys,
             verbose=verbose,
         )
-        input_ = apply_transform(_transform, input_, map_items, unpack_items, log_stats)
-    input_ = evaluate_with_overrides(
-        input_, None, lazy_evaluation=lazy_evaluation, overrides=overrides, override_keys=override_keys, verbose=verbose
+        data = apply_transform(_transform, data, map_items, unpack_items, log_stats)
+    data = evaluate_with_overrides(
+        data, None, lazy_evaluation=lazy_evaluation, overrides=overrides, override_keys=override_keys, verbose=verbose
     )
-    return input_
+    return data
 
 
 class Compose(Randomizable, InvertibleTransform):
