@@ -37,35 +37,38 @@ imwrite, has_tiff = optional_import("tifffile", name="imwrite")
 _, has_codec = optional_import("imagecodecs")
 has_tiff = has_tiff and has_codec
 
-FILE_KEY = "wsi_img"
-FILE_URL = testing_data_config("images", FILE_KEY, "url")
-base_name, extension = os.path.basename(f"{FILE_URL}"), ".tiff"
-FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + base_name + extension)
+TIFF_KEY = "wsi_generic_tiff"
+TIFF_URL = testing_data_config("images", TIFF_KEY, "url")
+TIFF_PATH = os.path.join(os.path.dirname(__file__), "testing_data", f"temp_{TIFF_KEY}.tiff")
+
+SVS_KEY = "wsi_aperio_svs"
+SVS_URL = testing_data_config("images", SVS_KEY, "url")
+SVS_PATH = os.path.join(os.path.dirname(__file__), "testing_data", f"temp_{SVS_KEY}.svs")
 
 HEIGHT = 32914
 WIDTH = 46000
 
-TEST_CASE_WHOLE_0 = [FILE_PATH, 2, (3, HEIGHT // 4, WIDTH // 4)]
+TEST_CASE_WHOLE_0 = [TIFF_PATH, 2, (3, HEIGHT // 4, WIDTH // 4)]
 
-TEST_CASE_TRANSFORM_0 = [FILE_PATH, 4, (HEIGHT // 16, WIDTH // 16), (1, 3, HEIGHT // 16, WIDTH // 16)]
+TEST_CASE_TRANSFORM_0 = [TIFF_PATH, 4, (HEIGHT // 16, WIDTH // 16), (1, 3, HEIGHT // 16, WIDTH // 16)]
 
 # ----------------------------------------------------------------------------
 # Test cases for *deprecated* monai.data.image_reader.WSIReader
 # ----------------------------------------------------------------------------
 TEST_CASE_DEP_1 = [
-    FILE_PATH,
+    TIFF_PATH,
     {"location": (HEIGHT // 2, WIDTH // 2), "size": (2, 1), "level": 0},
     np.array([[[246], [246]], [[246], [246]], [[246], [246]]]),
 ]
 
 TEST_CASE_DEP_2 = [
-    FILE_PATH,
+    TIFF_PATH,
     {"location": (0, 0), "size": (2, 1), "level": 8},
     np.array([[[242], [242]], [[242], [242]], [[242], [242]]]),
 ]
 
 TEST_CASE_DEP_3 = [
-    FILE_PATH,
+    TIFF_PATH,
     {"location": (0, 0), "size": (8, 8), "level": 2, "grid_shape": (2, 1), "patch_size": 2},
     np.array(
         [
@@ -76,13 +79,13 @@ TEST_CASE_DEP_3 = [
 ]
 
 TEST_CASE_DEP_4 = [
-    FILE_PATH,
+    TIFF_PATH,
     {"location": (0, 0), "size": (8, 8), "level": 2, "grid_shape": (2, 1), "patch_size": 1},
     np.array([[[[239]], [[239]], [[239]]], [[[243]], [[243]], [[243]]]]),
 ]
 
 TEST_CASE_DEP_5 = [
-    FILE_PATH,
+    TIFF_PATH,
     {"location": (HEIGHT - 2, WIDTH - 2), "level": 0, "grid_shape": (1, 1)},
     np.array([[[239, 239], [239, 239]], [[239, 239], [239, 239]], [[237, 237], [237, 237]]]),
 ]
@@ -92,94 +95,185 @@ TEST_CASE_DEP_5 = [
 # ----------------------------------------------------------------------------
 
 TEST_CASE_0 = [
-    FILE_PATH,
+    TIFF_PATH,
     {"level": 8, "dtype": None},
     {"location": (0, 0), "size": (2, 1)},
     np.array([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=np.float64),
 ]
 
 TEST_CASE_1 = [
-    FILE_PATH,
+    TIFF_PATH,
     {},
     {"location": (HEIGHT // 2, WIDTH // 2), "size": (2, 1), "level": 0},
     np.array([[[246], [246]], [[246], [246]], [[246], [246]]], dtype=np.uint8),
 ]
 
 TEST_CASE_2 = [
-    FILE_PATH,
+    TIFF_PATH,
     {},
     {"location": (0, 0), "size": (2, 1), "level": 8},
     np.array([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=np.uint8),
 ]
 
 TEST_CASE_3 = [
-    FILE_PATH,
+    TIFF_PATH,
     {"channel_dim": -1},
     {"location": (HEIGHT // 2, WIDTH // 2), "size": (2, 1), "level": 0},
     np.moveaxis(np.array([[[246], [246]], [[246], [246]], [[246], [246]]], dtype=np.uint8), 0, -1),
 ]
 
 TEST_CASE_4 = [
-    FILE_PATH,
+    TIFF_PATH,
     {"channel_dim": 2},
     {"location": (0, 0), "size": (2, 1), "level": 8},
     np.moveaxis(np.array([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=np.uint8), 0, -1),
 ]
 
 TEST_CASE_5 = [
-    FILE_PATH,
+    TIFF_PATH,
     {"level": 8},
     {"location": (0, 0), "size": (2, 1)},
     np.array([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=np.uint8),
 ]
 
 TEST_CASE_6 = [
-    FILE_PATH,
+    TIFF_PATH,
     {"level": 8, "dtype": np.int32},
     {"location": (0, 0), "size": (2, 1)},
     np.array([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=np.int32),
 ]
 
 TEST_CASE_7 = [
-    FILE_PATH,
+    TIFF_PATH,
     {"level": 8, "dtype": np.float32},
     {"location": (0, 0), "size": (2, 1)},
     np.array([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=np.float32),
 ]
 
 TEST_CASE_8 = [
-    FILE_PATH,
+    TIFF_PATH,
     {"level": 8, "dtype": torch.uint8},
     {"location": (0, 0), "size": (2, 1)},
     torch.tensor([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=torch.uint8),
 ]
 
 TEST_CASE_9 = [
-    FILE_PATH,
+    TIFF_PATH,
     {"level": 8, "dtype": torch.float32},
     {"location": (0, 0), "size": (2, 1)},
     torch.tensor([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=torch.float32),
 ]
 
+# exact mpp in get_data
 TEST_CASE_10_MPP = [
-    FILE_PATH,
-    {},
+    TIFF_PATH,
+    {"mpp_atol": 0.0, "mpp_rtol": 0.0},
     {"location": (HEIGHT // 2, WIDTH // 2), "size": (2, 1), "mpp": 1000},
     np.array([[[246], [246]], [[246], [246]], [[246], [246]]], dtype=np.uint8),
     {"level": 0},
 ]
 
+# exact mpp as default
 TEST_CASE_11_MPP = [
-    FILE_PATH,
-    {},
-    {"location": (HEIGHT // 2, WIDTH // 2), "size": (2, 1), "mpp": 256000},
+    TIFF_PATH,
+    {"mpp_atol": 0.0, "mpp_rtol": 0.0, "mpp": 1000},
+    {"location": (HEIGHT // 2, WIDTH // 2), "size": (2, 1)},
     np.array([[[246], [246]], [[246], [246]], [[246], [246]]], dtype=np.uint8),
+    {"level": 0},
+]
+
+# exact mpp as default (Aperio SVS)
+TEST_CASE_12_MPP = [
+    SVS_PATH,
+    {"mpp_atol": 0.0, "mpp_rtol": 0.0, "mpp": 0.499},
+    {"location": (0, 0), "size": (2, 1)},
+    np.array([[[239], [239]], [[239], [239]], [[239], [239]]], dtype=np.uint8),
+    {"level": 0},
+]
+# acceptable mpp within default tolerances
+TEST_CASE_13_MPP = [
+    TIFF_PATH,
+    {},
+    {"location": (0, 0), "size": (2, 1), "mpp": 256000},
+    np.array([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=np.uint8),
     {"level": 8},
 ]
 
+# acceptable mpp within default tolerances (Aperio SVS)
+TEST_CASE_14_MPP = [
+    SVS_PATH,
+    {"mpp": 8.0},
+    {"location": (0, 0), "size": (2, 1)},
+    np.array([[[238], [240]], [[239], [241]], [[240], [241]]], dtype=np.uint8),
+    {"level": 2},
+]
+
+# acceptable mpp within absolute tolerance (Aperio SVS)
+TEST_CASE_15_MPP = [
+    SVS_PATH,
+    {"mpp": 7.0, "mpp_atol": 1.0, "mpp_rtol": 0.0},
+    {"location": (0, 0), "size": (2, 1)},
+    np.array([[[238], [240]], [[239], [241]], [[240], [241]]], dtype=np.uint8),
+    {"level": 2},
+]
+
+# acceptable mpp within relative tolerance (Aperio SVS)
+TEST_CASE_16_MPP = [
+    SVS_PATH,
+    {"mpp": 7.8, "mpp_atol": 0.0, "mpp_rtol": 0.1},
+    {"location": (0, 0), "size": (2, 1)},
+    np.array([[[238], [240]], [[239], [241]], [[240], [241]]], dtype=np.uint8),
+    {"level": 2},
+]
+
+
+# exact power
+TEST_CASE_17_POWER = [
+    SVS_PATH,
+    {"power_atol": 0.0, "power_rtol": 0.0},
+    {"location": (0, 0), "size": (2, 1), "power": 20},
+    np.array([[[239], [239]], [[239], [239]], [[239], [239]]], dtype=np.uint8),
+    {"level": 0},
+]
+
+# exact power
+TEST_CASE_18_POWER = [
+    SVS_PATH,
+    {"power": 20, "power_atol": 0.0, "power_rtol": 0.0},
+    {"location": (0, 0), "size": (2, 1)},
+    np.array([[[239], [239]], [[239], [239]], [[239], [239]]], dtype=np.uint8),
+    {"level": 0},
+]
+
+# acceptable power within default tolerances (Aperio SVS)
+TEST_CASE_19_POWER = [
+    SVS_PATH,
+    {},
+    {"location": (0, 0), "size": (2, 1), "power": 1.25},
+    np.array([[[238], [240]], [[239], [241]], [[240], [241]]], dtype=np.uint8),
+    {"level": 2},
+]
+
+# acceptable power within absolute tolerance (Aperio SVS)
+TEST_CASE_20_POWER = [
+    SVS_PATH,
+    {"power_atol": 0.3, "power_rtol": 0.0},
+    {"location": (0, 0), "size": (2, 1), "power": 1.0},
+    np.array([[[238], [240]], [[239], [241]], [[240], [241]]], dtype=np.uint8),
+    {"level": 2},
+]
+
+# acceptable power within relative tolerance (Aperio SVS)
+TEST_CASE_21_POWER = [
+    SVS_PATH,
+    {"power_atol": 0.0, "power_rtol": 0.3},
+    {"location": (0, 0), "size": (2, 1), "power": 1.0},
+    np.array([[[238], [240]], [[239], [241]], [[240], [241]]], dtype=np.uint8),
+    {"level": 2},
+]
 # device tests
 TEST_CASE_DEVICE_1 = [
-    FILE_PATH,
+    TIFF_PATH,
     {"level": 8, "dtype": torch.float32, "device": "cpu"},
     {"location": (0, 0), "size": (2, 1)},
     torch.tensor([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=torch.float32),
@@ -187,7 +281,7 @@ TEST_CASE_DEVICE_1 = [
 ]
 
 TEST_CASE_DEVICE_2 = [
-    FILE_PATH,
+    TIFF_PATH,
     {"level": 8, "dtype": torch.float32, "device": "cuda"},
     {"location": (0, 0), "size": (2, 1)},
     torch.tensor([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=torch.float32),
@@ -195,7 +289,7 @@ TEST_CASE_DEVICE_2 = [
 ]
 
 TEST_CASE_DEVICE_3 = [
-    FILE_PATH,
+    TIFF_PATH,
     {"level": 8, "dtype": np.float32, "device": "cpu"},
     {"location": (0, 0), "size": (2, 1)},
     np.array([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=np.float32),
@@ -203,7 +297,7 @@ TEST_CASE_DEVICE_3 = [
 ]
 
 TEST_CASE_DEVICE_4 = [
-    FILE_PATH,
+    TIFF_PATH,
     {"level": 8, "dtype": np.float32, "device": "cuda"},
     {"location": (0, 0), "size": (2, 1)},
     torch.tensor([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=torch.float32),
@@ -211,7 +305,7 @@ TEST_CASE_DEVICE_4 = [
 ]
 
 TEST_CASE_DEVICE_5 = [
-    FILE_PATH,
+    TIFF_PATH,
     {"level": 8, "device": "cuda"},
     {"location": (0, 0), "size": (2, 1)},
     torch.tensor([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=torch.uint8),
@@ -219,7 +313,7 @@ TEST_CASE_DEVICE_5 = [
 ]
 
 TEST_CASE_DEVICE_6 = [
-    FILE_PATH,
+    TIFF_PATH,
     {"level": 8},
     {"location": (0, 0), "size": (2, 1)},
     np.array([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=np.uint8),
@@ -227,7 +321,7 @@ TEST_CASE_DEVICE_6 = [
 ]
 
 TEST_CASE_DEVICE_7 = [
-    FILE_PATH,
+    TIFF_PATH,
     {"level": 8, "device": None},
     {"location": (0, 0), "size": (2, 1)},
     np.array([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=np.uint8),
@@ -235,7 +329,7 @@ TEST_CASE_DEVICE_7 = [
 ]
 
 TEST_CASE_MULTI_WSI = [
-    [FILE_PATH, FILE_PATH],
+    [TIFF_PATH, TIFF_PATH],
     {"location": (0, 0), "size": (2, 1), "level": 8},
     np.concatenate(
         [
@@ -255,7 +349,34 @@ TEST_CASE_ERROR_1C = [np.ones((16, 16, 1), dtype=np.uint8)]  # one color channel
 TEST_CASE_ERROR_2C = [np.ones((16, 16, 2), dtype=np.uint8)]  # two color channels
 TEST_CASE_ERROR_3D = [np.ones((16, 16, 16, 3), dtype=np.uint8)]  # 3D + color
 
-TEST_CASE_MPP_0 = [FILE_PATH, 0, (1000.0, 1000.0)]
+# mpp not within default
+TEST_CASE_ERROR_0_MPP = [
+    TIFF_PATH,
+    {},
+    {"location": (HEIGHT // 2, WIDTH // 2), "size": (2, 1), "mpp": 1200},
+    ValueError,
+]
+
+# mpp is not exact (no tolerance)
+TEST_CASE_ERROR_1_MPP = [
+    SVS_PATH,
+    {"mpp_atol": 0.0, "mpp_rtol": 0.0},
+    {"location": (0, 0), "size": (2, 1), "mpp": 8.0},
+    ValueError,
+]
+
+# power not within default
+TEST_CASE_ERROR_2_POWER = [SVS_PATH, {}, {"location": (0, 0), "size": (2, 1), "power": 40}, ValueError]
+
+# power is not exact (no tolerance)
+TEST_CASE_ERROR_3_POWER = [
+    SVS_PATH,
+    {"power_atol": 0.0, "power_rtol": 0.0},
+    {"location": (0, 0), "size": (2, 1), "power": 1.25},
+    ValueError,
+]
+
+TEST_CASE_MPP_0 = [TIFF_PATH, 0, (1000.0, 1000.0)]
 
 
 def save_rgba_tiff(array: np.ndarray, filename: str, mode: str):
@@ -292,9 +413,18 @@ def save_gray_tiff(array: np.ndarray, filename: str):
 
 @skipUnless(has_cucim or has_osl or has_tiff, "Requires cucim, openslide, or tifffile!")
 def setUpModule():
-    hash_type = testing_data_config("images", FILE_KEY, "hash_type")
-    hash_val = testing_data_config("images", FILE_KEY, "hash_val")
-    download_url_or_skip_test(FILE_URL, FILE_PATH, hash_type=hash_type, hash_val=hash_val)
+    download_url_or_skip_test(
+        TIFF_URL,
+        TIFF_PATH,
+        hash_type=testing_data_config("images", TIFF_KEY, "hash_type"),
+        hash_val=testing_data_config("images", TIFF_KEY, "hash_val"),
+    )
+    download_url_or_skip_test(
+        SVS_URL,
+        SVS_PATH,
+        hash_type=testing_data_config("images", SVS_KEY, "hash_type"),
+        hash_val=testing_data_config("images", SVS_KEY, "hash_val"),
+    )
 
 
 @deprecated(since="0.8", msg_suffix="use tests for `monai.wsi_reader.WSIReader` instead, `WSIReaderTests`.")
@@ -421,15 +551,26 @@ class WSIReaderTests:
                 TEST_CASE_9,
                 TEST_CASE_10_MPP,
                 TEST_CASE_11_MPP,
+                TEST_CASE_12_MPP,
+                TEST_CASE_13_MPP,
+                TEST_CASE_14_MPP,
+                TEST_CASE_15_MPP,
+                TEST_CASE_16_MPP,
+                TEST_CASE_17_POWER,
+                TEST_CASE_18_POWER,
+                TEST_CASE_19_POWER,
+                TEST_CASE_20_POWER,
+                TEST_CASE_21_POWER,
             ]
         )
         def test_read_region(self, file_path, reader_kwargs, patch_info, expected_img, *args):
             reader = WSIReader(self.backend, **reader_kwargs)
             level = patch_info.get("level", reader_kwargs.get("level"))
+            # Skip mpp, power tests for TiffFile backend
+            if self.backend == "tifffile" and (level is None or level < 2 or file_path == SVS_PATH):
+                return
             if level is None:
                 level = args[0].get("level")
-            if (self.backend == "tifffile" and level < 2) or patch_info.get("mpp", reader_kwargs.get("mpp")):
-                return
             with reader.read(file_path) as img_obj:
                 # Read twice to check multiple calls
                 img, meta = reader.get_data(img_obj, **patch_info)
@@ -606,6 +747,15 @@ class WSIReaderTests:
             self.assertEqual(meta[WSIPatchKeys.LEVEL], level)
             assert_allclose(meta[WSIPatchKeys.SIZE], patch_info["size"], type_test=False)
             assert_allclose(meta[WSIPatchKeys.LOCATION], patch_info["location"], type_test=False)
+
+        @parameterized.expand(
+            [TEST_CASE_ERROR_0_MPP, TEST_CASE_ERROR_1_MPP, TEST_CASE_ERROR_2_POWER, TEST_CASE_ERROR_3_POWER]
+        )
+        def test_errors(self, file_path, reader_kwargs, patch_info, exception):
+            with self.assertRaises(exception):
+                reader = WSIReader(self.backend, **reader_kwargs)
+                with reader.read(file_path) as img_obj:
+                    reader.get_data(img_obj, **patch_info)
 
 
 @skipUnless(has_cucim, "Requires cucim")
