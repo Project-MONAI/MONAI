@@ -15,6 +15,7 @@ import logging
 import os
 import tempfile
 import unittest
+import warnings
 from pathlib import Path
 from unittest import mock, skipUnless
 
@@ -327,9 +328,14 @@ class TestConfigParser(unittest.TestCase):
             config_path.write_text(config_string)
             parser = ConfigParser()
 
-            with self.assertLogs(level=logging.WARNING) as log:
+            # with self.assertLogs(level=logging.WARNING) as log:
+            with warnings.catch_warnings(record=True) as w:
+                warnings.simplefilter("always")
                 parser.read_config(config_path)
-            self.assertTrue("Duplicate key: `duplicate`" in " ".join(log.output))
+                print(w)
+                # Verify some things
+                self.assertEqual(len(w), 1)
+                self.assertTrue("Duplicate key: `duplicate`" in str(w[-1].message))
 
             self.assertEqual(parser.get_parsed_content("key#unique"), expected_unique_val)
             self.assertIn(parser.get_parsed_content("key#duplicate"), expected_duplicate_vals)

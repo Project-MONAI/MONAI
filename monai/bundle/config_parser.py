@@ -12,9 +12,9 @@
 from __future__ import annotations
 
 import json
-import logging
 import os
 import re
+import warnings
 from collections.abc import Sequence
 from copy import deepcopy
 from pathlib import Path
@@ -34,8 +34,6 @@ else:
 __all__ = ["ConfigParser"]
 
 _default_globals = {"monai": "monai", "torch": "torch", "np": "numpy", "numpy": "numpy"}
-
-logger = logging.getLogger(__name__)
 
 
 class ConfigParser:
@@ -405,7 +403,7 @@ class ConfigParser:
                 if os.environ.get("MONAI_FAIL_ON_DUPLICATE_CONFIG", "0") == "1":
                     raise ValueError(f"Duplicate key: `{k}`")
                 else:
-                    logger.warning(f"Duplicate key: `{k}`")
+                    warnings.warn(f"Duplicate key: `{k}`")
             else:
                 keys.add(k)
         return dict(ordered_pairs)
