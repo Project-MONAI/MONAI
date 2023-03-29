@@ -35,3 +35,5 @@ h5py
 nni
 optuna
 opencv-python-headless
+onnx
+onnxruntime-gpu

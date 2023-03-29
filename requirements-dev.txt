@@ -50,5 +50,5 @@ h5py
 nni
 optuna
 git+https://github.com/Project-MONAI/MetricsReloaded@monai-support#egg=MetricsReloaded
-onnx>=1.11.0
-onnxruntime-gpu>=1.11.0
+onnx
+onnxruntime-gpu

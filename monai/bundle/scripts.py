@@ -34,7 +34,14 @@ from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA
 from monai.bundle.workflows import ConfigWorkflow
 from monai.config import IgniteInfo, PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
-from monai.networks import convert_to_onnx, convert_to_torchscript, convert_to_trt, copy_model_state, get_state_dict, save_state
+from monai.networks import (
+    convert_to_onnx,
+    convert_to_torchscript,
+    convert_to_trt,
+    copy_model_state,
+    get_state_dict,
+    save_state,
+)
 from monai.utils import (
     check_parent_dir,
     deprecated_arg,
@@ -933,6 +940,92 @@ def _export(
     logger.info(f"exported to file: {filepath}.")
 
 
+def onnx_export(
+    net_id: str | None = None,
+    filepath: PathLike | None = None,
+    ckpt_file: str | None = None,
+    meta_file: str | Sequence[str] | None = None,
+    config_file: str | Sequence[str] | None = None,
+    key_in_ckpt: str | None = None,
+    use_trace: bool | None = None,
+    input_shape: Sequence[int] | None = None,
+    args_file: str | None = None,
+    **override: Any,
+) -> None:
+    """
+    Export the model checkpoint to onnx with metadata and config included as JSON files.
+
+    Typical usage examples:
+
+    .. code-block:: bash
+
+        python -m monai.bundle onnx_export network --filepath <export path> --ckpt_file <checkpoint path> ...
+
+    Args:
+        net_id: ID name of the network component in the config, it must be `torch.nn.Module`.
+        filepath: filepath where the onnx model is saved to.
+        ckpt_file: filepath of the model checkpoint to load.
+        meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
+        config_file: filepath of the config file that contains extract network information,
+        key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
+            weights. if not nested checkpoint, no need to set.
+        use_trace: whether using `torch.jit.trace` to convert the pytorch model to torchscript model.
+        input_shape: must specify the `input_shape` of the network to convert the model when `use_trace` is True.
+            Should be a list like [N, C, H, W] or [N, C, H, W, D].
+        args_file: a JSON or YAML file to provide default values for `meta_file`, `config_file`,
+            `net_id` and override pairs. so that the command line inputs can be simplified.
+        override: id-value pairs to override or add the corresponding config content.
+            e.g. ``--_meta#network_data_format#inputs#image#num_channels 3``.
+
+    """
+    _args = _update_args(
+        args=args_file,
+        net_id=net_id,
+        filepath=filepath,
+        meta_file=meta_file,
+        config_file=config_file,
+        ckpt_file=ckpt_file,
+        key_in_ckpt=key_in_ckpt,
+        use_trace=use_trace,
+        input_shape=input_shape,
+        **override,
+    )
+    _log_input_summary(tag="ckpt_export", args=_args)
+    _, _, config_file_, net_id_, meta_file_, _, _, input_shape_ = _pop_args(
+        _args,
+        "filepath",
+        "ckpt_file",
+        "config_file",
+        net_id="",
+        meta_file=None,
+        key_in_ckpt="",
+        use_trace=False,
+        input_shape=None,
+    )
+
+    parser = ConfigParser()
+
+    parser.read_config(f=config_file_)
+    if meta_file_ is not None:
+        parser.read_meta(f=meta_file_)
+
+    # the rest key-values in the _args are to override config content
+    for k, v in _args.items():
+        parser[k] = v
+
+    inputs_: Sequence[Any] | None = [torch.rand(input_shape_)] if input_shape_ else None
+
+    net = parser.get_parsed_content(net_id_)
+    if has_ignite:
+        # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
+        Checkpoint.load_objects(to_load={key_in_ckpt: net}, checkpoint=ckpt_file)
+    else:
+        ckpt = torch.load(ckpt_file)
+        copy_model_state(dst=net, src=ckpt if key_in_ckpt == "" else ckpt[key_in_ckpt])
+    onnx_model = convert_to_onnx(model=net, inputs=inputs_, use_trace=use_trace)
+    onnx.save(onnx_model, filepath)
+
+
 def ckpt_export(
     net_id: str | None = None,
     filepath: PathLike | None = None,
@@ -1011,30 +1104,18 @@ def ckpt_export(
 
     inputs_: Sequence[Any] | None = [torch.rand(input_shape_)] if input_shape_ else None
 
-    export_onnx = filepath_.endswith(".onnx")
-    if export_onnx:
-        net = parser.get_parsed_content(net_id_)
-        if has_ignite:
-            # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
-            Checkpoint.load_objects(to_load={key_in_ckpt: net}, checkpoint=ckpt_file)
-        else:
-            ckpt = torch.load(ckpt_file)
-            copy_model_state(dst=net, src=ckpt if key_in_ckpt == "" else ckpt[key_in_ckpt])
-        onnx_model = convert_to_onnx(model=net, inputs=inputs_)
-        onnx.save(onnx_model, filepath)
-    else:
-        # Use the given converter to convert a model and save with metadata, config content
-        _export(
-            convert_to_torchscript,
-            parser,
-            net_id=net_id_,
-            filepath=filepath_,
-            ckpt_file=ckpt_file_,
-            config_file=config_file_,
-            key_in_ckpt=key_in_ckpt_,
-            use_trace=use_trace_,
-            inputs=inputs_,
-        )
+    # Use the given converter to convert a model and save with metadata, config content
+    _export(
+        convert_to_torchscript,
+        parser,
+        net_id=net_id_,
+        filepath=filepath_,
+        ckpt_file=ckpt_file_,
+        config_file=config_file_,
+        key_in_ckpt=key_in_ckpt_,
+        use_trace=use_trace_,
+        inputs=inputs_,
+    )
 
 
 def trt_export(

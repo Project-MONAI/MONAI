@@ -14,6 +14,7 @@ Utilities and types for defining networks, these depend on PyTorch.
 
 from __future__ import annotations
 
+import io
 import re
 import warnings
 from collections import OrderedDict
@@ -21,10 +22,10 @@ from collections.abc import Callable, Mapping, Sequence
 from contextlib import contextmanager
 from copy import deepcopy
 from typing import Any
-import io
 
 import numpy as np
 import onnx
+import onnxruntime
 import torch
 import torch.nn as nn
 
@@ -560,13 +561,14 @@ def convert_to_onnx(
     inputs: Sequence[Any],
     input_names: Sequence[str] | None = None,
     output_names: Sequence[str] | None = None,
+    filename: Any | None = None,
     verify: bool = False,
     device: torch.device | None = None,
     use_ort: bool = False,
-    ort_provider: str = "CPUExecutionProvider",
+    ort_provider: Sequence[str] | None = None,
     rtol: float = 1e-4,
     atol: float = 0.0,
-    use_trace: bool = False,
+    use_trace: bool = True,
     **kwargs,
 ):
     """
@@ -581,7 +583,7 @@ def convert_to_onnx(
         verify: whether to verify the ONNX model with ONNX or onnxruntime.
         device: target PyTorch device to verify the model, if None, use CUDA if available.
         use_ort: whether to use onnxruntime to verify the model.
-        ort_provider": the onnxruntime provider to use, default is "CPUExecutionProvider".
+        ort_provider": onnxruntime providers to use, default is ["CPUExecutionProvider"].
         rtol: the relative tolerance when comparing the outputs of PyTorch model and TorchScript model.
         atol: the absolute tolerance when comparing the outputs of PyTorch model and TorchScript model.
         use_trace: whether to use `torch.jit.trace` to export the torchscript model.
@@ -596,9 +598,13 @@ def convert_to_onnx(
             script_module = torch.jit.trace(model, example_inputs=inputs)
         else:
             script_module = torch.jit.script(model, **kwargs)
-        f = io.BytesIO()
-        torch.onnx.export(script_module, inputs, f=f, input_names=input_names, output_names=output_names)
-        onnx_model = onnx.load_model_from_string(f.getvalue())
+        if filename is None:
+            f = io.BytesIO()
+            torch.onnx.export(script_module, inputs, f=f, input_names=input_names, output_names=output_names)
+            onnx_model = onnx.load_model_from_string(f.getvalue())
+        else:
+            torch.onnx.export(script_module, inputs, f=filename, input_names=input_names, output_names=output_names)
+            onnx_model = onnx.load(filename)
 
     if verify:
         if device is None:
@@ -614,8 +620,10 @@ def convert_to_onnx(
         set_determinism(seed=0)
         input_dict = dict(zip(input_names, [i.cpu().numpy() for i in inputs]))
         if use_ort:
-            import onnxruntime
-            ort_sess = onnxruntime.InferenceSession(onnx_model.SerializeToString(), providers=[ort_provider])
+            ort_sess = onnxruntime.InferenceSession(
+                onnx_model.SerializeToString(),
+                providers=ort_provider if ort_provider else ["CPUExecutionProvider"]
+            )
             onnx_out = ort_sess.run(None, input_dict)
         else:
             from onnx.reference import ReferenceEvaluator

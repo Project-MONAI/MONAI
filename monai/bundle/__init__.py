@@ -23,6 +23,7 @@ from .scripts import (
     get_bundle_versions,
     init_bundle,
     load,
+    onnx_export,
     run,
     trt_export,
     verify_metadata,
