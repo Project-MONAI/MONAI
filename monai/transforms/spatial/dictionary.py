@@ -17,6 +17,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Hashable, Mapping, Sequence
 from typing import Any, cast
 
@@ -54,7 +55,7 @@ from monai.transforms.spatial.array import (
     Zoom,
 )
 from monai.transforms.traits import MultiSampleTrait
-from monai.transforms.transform import MapTransform, RandomizableTransform
+from monai.transforms.transform import LazyTransform, MapTransform, RandomizableTransform
 from monai.transforms.utils import create_grid
 from monai.utils import (
     GridSampleMode,
@@ -142,7 +143,7 @@ __all__ = [
 ]
 
 
-class SpatialResampled(MapTransform, InvertibleTransform):
+class SpatialResampled(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SpatialResample`.
 
@@ -204,6 +205,11 @@ class SpatialResampled(MapTransform, InvertibleTransform):
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.dst_keys = ensure_tuple_rep(dst_keys, len(self.keys))
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool) -> None:
+        self._lazy_evaluation = val
+        self.sp_transform.lazy_evaluation = val
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d: dict = dict(data)
         for key, mode, padding_mode, align_corners, dtype, dst_key in self.key_iterator(
@@ -227,7 +233,7 @@ class SpatialResampled(MapTransform, InvertibleTransform):
         return d
 
 
-class ResampleToMatchd(MapTransform, InvertibleTransform):
+class ResampleToMatchd(MapTransform, InvertibleTransform, LazyTransform):
     """Dictionary-based wrapper of :py:class:`monai.transforms.ResampleToMatch`."""
 
     backend = ResampleToMatch.backend
@@ -277,6 +283,11 @@ class ResampleToMatchd(MapTransform, InvertibleTransform):
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.resampler = ResampleToMatch()
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool) -> None:
+        self._lazy_evaluation = val
+        self.resampler.lazy_evaluation = val
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
@@ -299,7 +310,7 @@ class ResampleToMatchd(MapTransform, InvertibleTransform):
         return d
 
 
-class Spacingd(MapTransform, InvertibleTransform):
+class Spacingd(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Spacing`.
 
@@ -328,6 +339,7 @@ class Spacingd(MapTransform, InvertibleTransform):
         recompute_affine: bool = False,
         min_pixdim: Sequence[float] | float | None = None,
         max_pixdim: Sequence[float] | float | None = None,
+        ensure_same_shape: bool = True,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -385,6 +397,8 @@ class Spacingd(MapTransform, InvertibleTransform):
             max_pixdim: maximal input spacing to be resampled. If provided, input image with a smaller spacing than this
                 value will be kept in its original spacing (not be resampled to `pixdim`). Set it to `None` to use the
                 value of `pixdim`. Default to `None`.
+            ensure_same_shape: when the inputs have the same spatial shape, and almost the same pixdim,
+                whether to ensure exactly the same output spatial shape.  Default to True.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
@@ -397,13 +411,29 @@ class Spacingd(MapTransform, InvertibleTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.scale_extent = ensure_tuple_rep(scale_extent, len(self.keys))
+        self.ensure_same_shape = ensure_same_shape
+
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool) -> None:
+        self._lazy_evaluation = val
+        self.spacing_transform.lazy_evaluation = val
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d: dict = dict(data)
+
+        _init_shape, _pixdim, should_match = None, None, False
+        output_shape_k = None  # tracking output shape
+
         for key, mode, padding_mode, align_corners, dtype, scale_extent in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype, self.scale_extent
         ):
-            # resample array of each corresponding key
+            if self.ensure_same_shape and isinstance(d[key], MetaTensor):
+                if _init_shape is None and _pixdim is None:
+                    _init_shape, _pixdim = d[key].peek_pending_shape(), d[key].pixdim
+                else:
+                    should_match = np.allclose(_init_shape, d[key].peek_pending_shape()) and np.allclose(
+                        _pixdim, d[key].pixdim, atol=1e-3
+                    )
             d[key] = self.spacing_transform(
                 data_array=d[key],
                 mode=mode,
@@ -411,7 +441,9 @@ class Spacingd(MapTransform, InvertibleTransform):
                 align_corners=align_corners,
                 dtype=dtype,
                 scale_extent=scale_extent,
+                output_spatial_shape=output_shape_k if should_match else None,
             )
+            output_shape_k = d[key].peek_pending_shape() if isinstance(d[key], MetaTensor) else d[key].shape[1:]
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
@@ -421,7 +453,7 @@ class Spacingd(MapTransform, InvertibleTransform):
         return d
 
 
-class Orientationd(MapTransform, InvertibleTransform):
+class Orientationd(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Orientation`.
 
@@ -460,6 +492,11 @@ class Orientationd(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.ornt_transform = Orientation(axcodes=axcodes, as_closest_canonical=as_closest_canonical, labels=labels)
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool) -> None:
+        self._lazy_evaluation = val
+        self.ornt_transform.lazy_evaluation = val
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d: dict = dict(data)
         for key in self.key_iterator(d):
@@ -473,7 +510,7 @@ class Orientationd(MapTransform, InvertibleTransform):
         return d
 
 
-class Rotate90d(MapTransform, InvertibleTransform):
+class Rotate90d(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Rotate90`.
     """
@@ -493,6 +530,11 @@ class Rotate90d(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.rotator = Rotate90(k, spatial_axes)
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool) -> None:
+        self._lazy_evaluation = val
+        self.rotator.lazy_evaluation = val
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
@@ -506,7 +548,7 @@ class Rotate90d(MapTransform, InvertibleTransform):
         return d
 
 
-class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
+class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandRotate90`.
     With probability `prob`, input arrays are rotated by 90 degrees
@@ -554,11 +596,10 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
         # FIXME: here we didn't use array version `RandRotate90` transform as others, because we need
         # to be compatible with the random status of some previous integration tests
         rotator = Rotate90(self._rand_k, self.spatial_axes)
+        rotator.lazy_evaluation = self.lazy_evaluation
         for key in self.key_iterator(d):
             d[key] = rotator(d[key]) if self._do_transform else convert_to_tensor(d[key], track_meta=get_track_meta())
-            if get_track_meta():
-                xform = self.pop_transform(d[key], check=False) if self._do_transform else {}
-                self.push_transform(d[key], extra_info=xform)
+            self.push_transform(d[key], replace=True)
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
@@ -572,7 +613,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
 
-class Resized(MapTransform, InvertibleTransform):
+class Resized(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Resize`.
 
@@ -605,6 +646,8 @@ class Resized(MapTransform, InvertibleTransform):
             By default, this value is chosen as (s - 1) / 2 where s is the
             downsampling factor, where s > 1. For the up-size case, s < 1, no
             anti-aliasing is performed prior to rescaling.
+        dtype: data type for resampling computation. Defaults to ``float32``.
+            If None, use the data type of input data.
         allow_missing_keys: don't raise exception if key is missing.
     """
 
@@ -619,19 +662,26 @@ class Resized(MapTransform, InvertibleTransform):
         align_corners: Sequence[bool | None] | bool | None = None,
         anti_aliasing: Sequence[bool] | bool = False,
         anti_aliasing_sigma: Sequence[Sequence[float] | float | None] | Sequence[float] | float | None = None,
+        dtype: Sequence[DtypeLike | torch.dtype] | DtypeLike | torch.dtype = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
+        self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.anti_aliasing = ensure_tuple_rep(anti_aliasing, len(self.keys))
         self.anti_aliasing_sigma = ensure_tuple_rep(anti_aliasing_sigma, len(self.keys))
         self.resizer = Resize(spatial_size=spatial_size, size_mode=size_mode)
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool) -> None:
+        self._lazy_evaluation = val
+        self.resizer.lazy_evaluation = val
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
-        for key, mode, align_corners, anti_aliasing, anti_aliasing_sigma in self.key_iterator(
-            d, self.mode, self.align_corners, self.anti_aliasing, self.anti_aliasing_sigma
+        for key, mode, align_corners, anti_aliasing, anti_aliasing_sigma, dtype in self.key_iterator(
+            d, self.mode, self.align_corners, self.anti_aliasing, self.anti_aliasing_sigma, self.dtype
         ):
             d[key] = self.resizer(
                 d[key],
@@ -639,6 +689,7 @@ class Resized(MapTransform, InvertibleTransform):
                 align_corners=align_corners,
                 anti_aliasing=anti_aliasing,
                 anti_aliasing_sigma=anti_aliasing_sigma,
+                dtype=dtype,
             )
         return d
 
@@ -649,7 +700,7 @@ class Resized(MapTransform, InvertibleTransform):
         return d
 
 
-class Affined(MapTransform, InvertibleTransform):
+class Affined(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Affine`.
     """
@@ -669,6 +720,7 @@ class Affined(MapTransform, InvertibleTransform):
         padding_mode: SequenceStr = GridSamplePadMode.REFLECTION,
         device: torch.device | None = None,
         dtype: DtypeLike | torch.dtype = np.float32,
+        align_corners: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -717,6 +769,8 @@ class Affined(MapTransform, InvertibleTransform):
             dtype: data type for resampling computation. Defaults to ``float32``.
                 If ``None``, use the data type of input data. To be compatible with other modules,
                 the output data type is always `float32`.
+            align_corners: Defaults to False.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             allow_missing_keys: don't raise exception if key is missing.
 
         See also:
@@ -734,9 +788,15 @@ class Affined(MapTransform, InvertibleTransform):
             spatial_size=spatial_size,
             device=device,
             dtype=dtype,  # type: ignore
+            align_corners=align_corners,
         )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
+
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool) -> None:
+        self._lazy_evaluation = val
+        self.affine.lazy_evaluation = val
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
@@ -751,7 +811,7 @@ class Affined(MapTransform, InvertibleTransform):
         return d
 
 
-class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
+class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.RandAffine`.
     """
@@ -846,6 +906,11 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool) -> None:
+        self._lazy_evaluation = val
+        self.rand_affine.lazy_evaluation = val
+
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandAffined:
         self.rand_affine.set_random_state(seed, state)
         super().set_random_state(seed, state)
@@ -862,7 +927,8 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         # all the keys share the same random Affine factor
         self.rand_affine.randomize()
 
-        spatial_size = d[first_key].shape[1:]
+        item = d[first_key]
+        spatial_size = item.peek_pending_shape() if isinstance(item, MetaTensor) else item.shape[1:]
 
         sp_size = fall_back_tuple(self.rand_affine.spatial_size, spatial_size)
         # change image size or do random transform
@@ -872,26 +938,27 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         if do_resampling:  # need to prepare grid
             grid = self.rand_affine.get_identity_grid(sp_size)
             if self._do_transform:  # add some random factors
-                grid = self.rand_affine.rand_affine_grid(grid=grid)
+                grid = self.rand_affine.rand_affine_grid(sp_size, grid=grid)
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             # do the transform
             if do_resampling:
-                d[key] = self.rand_affine(d[key], mode=mode, padding_mode=padding_mode, grid=grid)  # type: ignore
+                d[key] = self.rand_affine(d[key], None, mode, padding_mode, True, grid)  # type: ignore
             else:
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta(), dtype=torch.float32)
-            if get_track_meta():
-                xform = self.pop_transform(d[key], check=False) if do_resampling else {}
-                self.push_transform(d[key], extra_info={"do_resampling": do_resampling, "rand_affine_info": xform})
+            self._do_transform = do_resampling  # TODO: unify self._do_transform and do_resampling
+            self.push_transform(d[key], replace=True)
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             tr = self.pop_transform(d[key])
-            do_resampling = tr[TraceKeys.EXTRA_INFO]["do_resampling"]
+            if TraceKeys.EXTRA_INFO not in tr[TraceKeys.EXTRA_INFO]:
+                continue
+            do_resampling = tr[TraceKeys.EXTRA_INFO][TraceKeys.EXTRA_INFO]["do_resampling"]
             if do_resampling:
-                d[key].applied_operations.append(tr[TraceKeys.EXTRA_INFO]["rand_affine_info"])  # type: ignore
+                d[key].applied_operations.append(tr[TraceKeys.EXTRA_INFO])  # type: ignore
                 d[key] = self.rand_affine.inverse(d[key])  # type: ignore
 
         return d
@@ -1011,6 +1078,8 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
         if device is None and isinstance(d[first_key], torch.Tensor):
             device = d[first_key].device  # type: ignore
             self.rand_2d_elastic.set_device(device)
+        if isinstance(d[first_key], MetaTensor) and d[first_key].pending_operations:  # type: ignore
+            warnings.warn(f"data['{first_key}'] has pending operations, transform may return incorrect results.")
         sp_size = fall_back_tuple(self.rand_2d_elastic.spatial_size, d[first_key].shape[1:])
 
         # all the keys share the same random elastic factor
@@ -1147,7 +1216,8 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
             return out
 
         self.randomize(None)
-
+        if isinstance(d[first_key], MetaTensor) and d[first_key].pending_operations:  # type: ignore
+            warnings.warn(f"data['{first_key}'] has pending operations, transform may return incorrect results.")
         sp_size = fall_back_tuple(self.rand_3d_elastic.spatial_size, d[first_key].shape[1:])
 
         # all the keys share the same random elastic factor
@@ -1169,7 +1239,7 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
         return d
 
 
-class Flipd(MapTransform, InvertibleTransform):
+class Flipd(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Flip`.
 
@@ -1190,6 +1260,11 @@ class Flipd(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.flipper = Flip(spatial_axis=spatial_axis)
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool):
+        self.flipper.lazy_evaluation = val
+        self._lazy_evaluation = val
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
@@ -1203,7 +1278,7 @@ class Flipd(MapTransform, InvertibleTransform):
         return d
 
 
-class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
+class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandFlip`.
 
@@ -1230,6 +1305,11 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         RandomizableTransform.__init__(self, prob)
         self.flipper = Flip(spatial_axis=spatial_axis)
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool):
+        self.flipper.lazy_evaluation = val
+        self._lazy_evaluation = val
+
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandFlipd:
         super().set_random_state(seed, state)
         return self
@@ -1243,9 +1323,7 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
                 d[key] = self.flipper(d[key])
             else:
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
-            if get_track_meta():
-                xform_info = self.pop_transform(d[key], check=False) if self._do_transform else {}
-                self.push_transform(d[key], extra_info=xform_info)
+            self.push_transform(d[key], replace=True)
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
@@ -1259,7 +1337,7 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
 
-class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
+class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandAxisFlip`.
 
@@ -1279,6 +1357,11 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
         self.flipper = RandAxisFlip(prob=1.0)
+
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool):
+        self.flipper.lazy_evaluation = val
+        self._lazy_evaluation = val
 
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandAxisFlipd:
         super().set_random_state(seed, state)
@@ -1301,9 +1384,7 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
                 d[key] = self.flipper(d[key], randomize=False)
             else:
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
-            if get_track_meta():
-                xform = self.pop_transform(d[key], check=False) if self._do_transform else {}
-                self.push_transform(d[key], extra_info=xform)
+            self.push_transform(d[key], replace=True)
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
@@ -1316,7 +1397,7 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
 
-class Rotated(MapTransform, InvertibleTransform):
+class Rotated(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Rotate`.
 
@@ -1365,6 +1446,11 @@ class Rotated(MapTransform, InvertibleTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool):
+        self.rotator.lazy_evaluation = val
+        self._lazy_evaluation = val
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
@@ -1382,7 +1468,7 @@ class Rotated(MapTransform, InvertibleTransform):
         return d
 
 
-class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
+class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandRotate`
     Randomly rotates the input arrays.
@@ -1441,6 +1527,11 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool):
+        self.rand_rotate.lazy_evaluation = val
+        self._lazy_evaluation = val
+
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandRotated:
         super().set_random_state(seed, state)
         self.rand_rotate.set_random_state(seed, state)
@@ -1466,9 +1557,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
                 )
             else:
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta(), dtype=torch.float32)
-            if get_track_meta():
-                rot_info = self.pop_transform(d[key], check=False) if self._do_transform else {}
-                self.push_transform(d[key], extra_info=rot_info)
+            self.push_transform(d[key], replace=True)
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
@@ -1481,7 +1570,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
 
-class Zoomd(MapTransform, InvertibleTransform):
+class Zoomd(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Zoom`.
 
@@ -1505,6 +1594,8 @@ class Zoomd(MapTransform, InvertibleTransform):
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
             It also can be a sequence of bool or None, each element corresponds to a key in ``keys``.
+        dtype: data type for resampling computation. Defaults to ``float32``.
+            If None, use the data type of input data.
         keep_size: Should keep original size (pad if needed), default is True.
         allow_missing_keys: don't raise exception if key is missing.
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
@@ -1521,6 +1612,7 @@ class Zoomd(MapTransform, InvertibleTransform):
         mode: SequenceStr = InterpolateMode.AREA,
         padding_mode: SequenceStr = NumpyPadMode.EDGE,
         align_corners: Sequence[bool | None] | bool | None = None,
+        dtype: Sequence[DtypeLike | torch.dtype] | DtypeLike | torch.dtype = np.float32,
         keep_size: bool = True,
         allow_missing_keys: bool = False,
         **kwargs,
@@ -1529,14 +1621,20 @@ class Zoomd(MapTransform, InvertibleTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
+        self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.zoomer = Zoom(zoom=zoom, keep_size=keep_size, **kwargs)
+
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool):
+        self.zoomer.lazy_evaluation = val
+        self._lazy_evaluation = val
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
-        for key, mode, padding_mode, align_corners in self.key_iterator(
-            d, self.mode, self.padding_mode, self.align_corners
+        for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
+            d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
-            d[key] = self.zoomer(d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners)
+            d[key] = self.zoomer(d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype)
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
@@ -1546,7 +1644,7 @@ class Zoomd(MapTransform, InvertibleTransform):
         return d
 
 
-class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
+class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTransform):
     """
     Dict-based version :py:class:`monai.transforms.RandZoom`.
 
@@ -1578,6 +1676,8 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
             It also can be a sequence of bool or None, each element corresponds to a key in ``keys``.
+        dtype: data type for resampling computation. Defaults to ``float32``.
+            If None, use the data type of input data.
         keep_size: Should keep original size (pad if needed), default is True.
         allow_missing_keys: don't raise exception if key is missing.
         kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
@@ -1596,6 +1696,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         mode: SequenceStr = InterpolateMode.AREA,
         padding_mode: SequenceStr = NumpyPadMode.EDGE,
         align_corners: Sequence[bool | None] | bool | None = None,
+        dtype: Sequence[DtypeLike | torch.dtype] | DtypeLike | torch.dtype = np.float32,
         keep_size: bool = True,
         allow_missing_keys: bool = False,
         **kwargs,
@@ -1606,6 +1707,12 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
+        self.dtype = ensure_tuple_rep(dtype, len(self.keys))
+
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool):
+        self.rand_zoom.lazy_evaluation = val
+        self._lazy_evaluation = val
 
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandZoomd:
         super().set_random_state(seed, state)
@@ -1624,18 +1731,21 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         # all the keys share the same random zoom factor
         self.rand_zoom.randomize(d[first_key])
 
-        for key, mode, padding_mode, align_corners in self.key_iterator(
-            d, self.mode, self.padding_mode, self.align_corners
+        for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
+            d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
             if self._do_transform:
                 d[key] = self.rand_zoom(
-                    d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners, randomize=False
+                    d[key],
+                    mode=mode,
+                    padding_mode=padding_mode,
+                    align_corners=align_corners,
+                    dtype=dtype,
+                    randomize=False,
                 )
             else:
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta(), dtype=torch.float32)
-            if get_track_meta():
-                xform = self.pop_transform(d[key], check=False) if self._do_transform else {}
-                self.push_transform(d[key], extra_info=xform)
+            self.push_transform(d[key], replace=True)
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
@@ -1772,7 +1882,8 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
         if first_key == ():
             out = convert_to_tensor(d, track_meta=get_track_meta())
             return out
-
+        if isinstance(d[first_key], MetaTensor) and d[first_key].pending_operations:  # type: ignore
+            warnings.warn(f"data['{first_key}'] has pending operations, transform may return incorrect results.")
         self.rand_grid_distortion.randomize(d[first_key].shape[1:])
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
@@ -1831,24 +1942,32 @@ class GridPatchd(MapTransform, MultiSampleTrait):
         patch_size: size of patches to generate slices for, 0 or None selects whole dimension
         offset: starting position in the array, default is 0 for each dimension.
             np.random.randint(0, patch_size, 2) creates random start between 0 and `patch_size` for a 2D image.
-        num_patches: number of patches to return. Defaults to None, which returns all the available patches.
+        num_patches: number of patches (or maximum number of patches) to return.
+            If the requested number of patches is greater than the number of available patches,
+            padding will be applied to provide exactly `num_patches` patches unless `threshold` is set.
+            When `threshold` is set, this value is treated as the maximum number of patches.
+            Defaults to None, which does not limit number of the patches.
         overlap: amount of overlap between patches in each dimension. Default to 0.0.
         sort_fn: when `num_patches` is provided, it determines if keep patches with highest values (`"max"`),
             lowest values (`"min"`), or in their default order (`None`). Default to None.
         threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
             Defaults to no filtering.
-        pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to ``"constant"``.
+        pad_mode: the  mode for padding the input image by `patch_size` to include patches that cross boundaries.
+            Defaults to None, which means no padding will be applied.
+            Available modes:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}.
+            See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
         allow_missing_keys: don't raise exception if key is missing.
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
 
     Returns:
-        a list of dictionaries, each of which contains the all the original key/value with the values for `keys`
-            replaced by the patches. It also add the following new keys:
+        dictionary, contains the all the original key/value with the values for `keys`
+            replaced by the patches, a MetaTensor with following metadata:
 
-            "patch_location": the starting location of the patch in the image,
-            "patch_size": size of the extracted patch
-            "num_patches": total number of patches in the image
-            "offset": the amount of offset for the patches in the image (starting position of upper left patch)
+            - `PatchKeys.LOCATION`: the starting location of the patch in the image,
+            - `PatchKeys.COUNT`: total number of patches in the image,
+            - "spatial_shape": spatial size of the extracted patch, and
+            - "offset": the amount of offset for the patches in the image (starting position of the first patch)
     """
 
     backend = GridPatch.backend
@@ -1897,25 +2016,33 @@ class RandGridPatchd(RandomizableTransform, MapTransform, MultiSampleTrait):
         min_offset: the minimum range of starting position to be selected randomly. Defaults to 0.
         max_offset: the maximum range of starting position to be selected randomly.
             Defaults to image size modulo patch size.
-        num_patches: number of patches to return. Defaults to None, which returns all the available patches.
+        num_patches: number of patches (or maximum number of patches) to return.
+            If the requested number of patches is greater than the number of available patches,
+            padding will be applied to provide exactly `num_patches` patches unless `threshold` is set.
+            When `threshold` is set, this value is treated as the maximum number of patches.
+            Defaults to None, which does not limit number of the patches.
         overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
             If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
         sort_fn: when `num_patches` is provided, it determines if keep patches with highest values (`"max"`),
             lowest values (`"min"`), or in their default order (`None`). Default to None.
         threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
             Defaults to no filtering.
-        pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to ``"constant"``.
+        pad_mode: the  mode for padding the input image by `patch_size` to include patches that cross boundaries.
+            Defaults to None, which means no padding will be applied.
+            Available modes:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}.
+            See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
         allow_missing_keys: don't raise exception if key is missing.
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
 
     Returns:
-        a list of dictionaries, each of which contains the all the original key/value with the values for `keys`
-            replaced by the patches. It also add the following new keys:
+        dictionary, contains the all the original key/value with the values for `keys`
+            replaced by the patches, a MetaTensor with following metadata:
 
-            "patch_location": the starting location of the patch in the image,
-            "patch_size": size of the extracted patch
-            "num_patches": total number of patches in the image
-            "offset": the amount of offset for the patches in the image (starting position of the first patch)
+            - `PatchKeys.LOCATION`: the starting location of the patch in the image,
+            - `PatchKeys.COUNT`: total number of patches in the image,
+            - "spatial_shape": spatial size of the extracted patch, and
+            - "offset": the amount of offset for the patches in the image (starting position of the first patch)
 
     """
 

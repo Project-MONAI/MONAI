@@ -1,9 +1,10 @@
 {
     "dataset_dir": "/workspace/data/Task09_Spleen",
+    "bundle_root": "will override",
     "output_dir": "need override",
     "prediction_shape": "prediction shape:",
     "import_glob": "$import glob",
-    "device": "$torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')",
+    "device": "$torch.device('cpu')",
     "print_test_name": "$print('json_test')",
     "print_glob_file": "$print(glob.__file__)",
     "network_def": {
@@ -112,8 +113,10 @@
         "postprocessing": "@postprocessing",
         "amp": false
     },
-    "evaluating": [
-        "$monai.utils.set_determinism(0)",
+    "initialize": [
+        "$monai.utils.set_determinism(0)"
+    ],
+    "run": [
         "$@evaluator.run()"
     ]
 }

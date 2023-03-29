@@ -18,8 +18,10 @@ import scipy.ndimage
 import torch
 from parameterized import parameterized
 
+from monai.config import USE_COMPILED
 from monai.data import MetaTensor
 from monai.transforms import Rotated
+from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, NumpyImageTestCase3D, test_local_inversion
 
 TEST_CASES_2D: list[tuple] = []
@@ -39,14 +41,30 @@ for p in TEST_NDARRAYS_ALL:
     TEST_CASES_3D.append((p, np.pi / 2, False, "bilinear", "zeros", True))
 
 
+@unittest.skipIf(USE_COMPILED, "unittests are not designed for both USE_COMPILED=True/False")
 class TestRotated2D(NumpyImageTestCase2D):
     @parameterized.expand(TEST_CASES_2D)
     def test_correct_results(self, im_type, angle, keep_size, mode, padding_mode, align_corners):
-        rotate_fn = Rotated(
-            ("img", "seg"), angle, keep_size, (mode, "nearest"), padding_mode, align_corners, dtype=np.float64
-        )
+        init_param = {
+            "keys": ("img", "seg"),
+            "angle": angle,
+            "keep_size": keep_size,
+            "mode": (mode, "nearest"),
+            "padding_mode": padding_mode,
+            "align_corners": align_corners,
+            "dtype": np.float64,
+        }
+        rotate_fn = Rotated(**init_param)
         im = im_type(self.imt[0])
-        rotated = rotate_fn({"img": im, "seg": im_type(self.segn[0])})
+        call_param = {"data": {"img": im, "seg": im_type(self.segn[0])}}
+        rotated = rotate_fn(**call_param)
+        # test lazy
+        lazy_init_param = init_param.copy()
+        for k, m in zip(init_param["keys"], init_param["mode"]):
+            lazy_init_param["keys"], lazy_init_param["mode"] = k, m
+            test_resampler_lazy(
+                rotate_fn, rotated, lazy_init_param, call_param, output_key=k, atol=1e-4 if USE_COMPILED else 1e-6
+            )
         if keep_size:
             np.testing.assert_allclose(self.imt[0].shape, rotated["img"].shape)
         _order = 0 if mode == "nearest" else 1
@@ -74,13 +92,29 @@ class TestRotated2D(NumpyImageTestCase2D):
         self.assertLessEqual(np.count_nonzero(expected != rotated["seg"][0]), 30)
 
 
+@unittest.skipIf(USE_COMPILED, "unittests are not designed for both USE_COMPILED=True/False")
 class TestRotated3D(NumpyImageTestCase3D):
     @parameterized.expand(TEST_CASES_3D)
     def test_correct_results(self, im_type, angle, keep_size, mode, padding_mode, align_corners):
-        rotate_fn = Rotated(
-            ("img", "seg"), [0, angle, 0], keep_size, (mode, "nearest"), padding_mode, align_corners, dtype=np.float64
-        )
-        rotated = rotate_fn({"img": im_type(self.imt[0]), "seg": im_type(self.segn[0])})
+        init_param = {
+            "keys": ("img", "seg"),
+            "angle": [0, angle, 0],
+            "keep_size": keep_size,
+            "mode": (mode, "nearest"),
+            "padding_mode": padding_mode,
+            "align_corners": align_corners,
+            "dtype": np.float64,
+        }
+        rotate_fn = Rotated(**init_param)
+        call_param = {"data": {"img": im_type(self.imt[0]), "seg": im_type(self.segn[0])}}
+        rotated = rotate_fn(**call_param)
+        # test lazy
+        lazy_init_param = init_param.copy()
+        for k, m in zip(init_param["keys"], init_param["mode"]):
+            lazy_init_param["keys"], lazy_init_param["mode"] = k, m
+            test_resampler_lazy(
+                rotate_fn, rotated, lazy_init_param, call_param, output_key=k, atol=1e-4 if USE_COMPILED else 1e-6
+            )
         if keep_size:
             np.testing.assert_allclose(self.imt[0].shape, rotated["img"].shape)
         _order = 0 if mode == "nearest" else 1
@@ -107,6 +141,7 @@ class TestRotated3D(NumpyImageTestCase3D):
         self.assertLessEqual(np.count_nonzero(expected != rotated["seg"][0]), 160)
 
 
+@unittest.skipIf(USE_COMPILED, "unittests are not designed for both USE_COMPILED=True/False")
 class TestRotated3DXY(NumpyImageTestCase3D):
     @parameterized.expand(TEST_CASES_3D)
     def test_correct_results(self, im_type, angle, keep_size, mode, padding_mode, align_corners):
