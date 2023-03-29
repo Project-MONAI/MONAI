@@ -247,14 +247,14 @@ def iter_patch_position(
 
 
 def iter_patch(
-    arr: NdarrayTensor,
+    arr: NdarrayOrTensor,
     patch_size: Sequence[int] | int = 0,
     start_pos: Sequence[int] = (),
     overlap: Sequence[float] | float = 0.0,
     copy_back: bool = True,
     mode: str | None = NumpyPadMode.WRAP,
     **pad_opts: dict,
-) -> Generator[tuple[NdarrayTensor, np.ndarray], None, None]:
+) -> Generator[tuple[NdarrayOrTensor, np.ndarray], None, None]:
     """
     Yield successive patches from `arr` of size `patch_size`. The iteration can start from position `start_pos` in `arr`
     but drawing from a padded array extended by the `patch_size` in each dimension (so these coordinates can be negative
@@ -306,7 +306,7 @@ def iter_patch(
     _overlap = [op if v else 0.0 for op, v in zip(ensure_tuple_rep(overlap, arr.ndim), is_v)]  # overlap if v else 0.0
     # pad image by maximum values needed to ensure patches are taken from inside an image
     if padded:
-        arrpad = pad_nd(arr, to_pad=tuple((p, p) for p in _pad_size), mode=mode, **pad_opts)
+        arrpad = pad_nd(arr, to_pad=[(p, p) for p in _pad_size], mode=mode, **pad_opts)  # type: ignore
         # choose a start position in the padded image
         start_pos_padded = tuple(s + p for s, p in zip(start_pos, _pad_size))
 
@@ -329,7 +329,7 @@ def iter_patch(
     # copy back data from the padded image if required
     if copy_back:
         slices = tuple(slice(p, p + s) for p, s in zip(_pad_size, arr.shape))
-        arr[...] = arrpad[slices]
+        arr[...] = arrpad[slices] # type: ignore
 
 
 def get_valid_patch_size(image_size: Sequence[int], patch_size: Sequence[int] | int | np.ndarray) -> tuple[int, ...]:

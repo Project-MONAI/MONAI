@@ -3046,7 +3046,7 @@ class GridPatch(Transform, MultiSampleTrait):
         self.sort_fn = sort_fn.lower() if sort_fn else None
         self.threshold = threshold
 
-    def filter_threshold(self, image_np: NdarrayTensor, locations: np.ndarray) -> tuple[NdarrayTensor, np.ndarray]:
+    def filter_threshold(self, image_np: NdarrayOrTensor, locations: np.ndarray) -> tuple[NdarrayOrTensor, np.ndarray]:
         """
         Filter the patches and their locations according to a threshold.
 
@@ -3058,11 +3058,12 @@ class GridPatch(Transform, MultiSampleTrait):
             tuple[NdarrayOrTensor, numpy.ndarray]:  tuple of filtered patches and locations.
         """
         n_dims = len(image_np.shape)
-        idx = argwhere(image_np.sum(axis=tuple(range(1, n_dims))) < self.threshold).reshape(-1)
+        sum_ = np.sum if isinstance(image_np, np.ndarray) else torch.sum
+        idx = argwhere(sum_(image_np, tuple(range(1, n_dims))) < self.threshold).reshape(-1)
         idx_np = convert_data_type(idx, np.ndarray)[0]
-        return image_np[idx], locations[idx_np]
+        return image_np[idx], locations[idx_np] # type: ignore
 
-    def filter_count(self, image_np: NdarrayTensor, locations: np.ndarray) -> tuple[NdarrayTensor, np.ndarray]:
+    def filter_count(self, image_np: NdarrayOrTensor, locations: np.ndarray) -> tuple[NdarrayOrTensor, np.ndarray]:
         """
         Sort the patches based on the sum of their intensity, and just keep `self.num_patches` of them.
 
@@ -3075,15 +3076,16 @@ class GridPatch(Transform, MultiSampleTrait):
             locations = locations[: self.num_patches]
         elif self.num_patches is not None:
             n_dims = len(image_np.shape)
+            sum_ = np.sum if isinstance(image_np, np.ndarray) else torch.sum
             if self.sort_fn == GridPatchSort.MIN:
-                idx = argsort(image_np.sum(axis=tuple(range(1, n_dims))))
+                idx = argsort(sum_(image_np, tuple(range(1, n_dims))))
             elif self.sort_fn == GridPatchSort.MAX:
-                idx = argsort(-image_np.sum(axis=tuple(range(1, n_dims))))
+                idx = argsort(-sum_(image_np, tuple(range(1, n_dims))))
             else:
                 raise ValueError(f'`sort_fn` should be either "min", "max" or None! {self.sort_fn} provided!')
             idx = idx[: self.num_patches]
             idx_np = convert_data_type(idx, np.ndarray)[0]
-            image_np = image_np[idx]
+            image_np = image_np[idx] # type: ignore
             locations = locations[idx_np]
         return image_np, locations
 
@@ -3127,6 +3129,7 @@ class GridPatch(Transform, MultiSampleTrait):
                     # pad constant patches to the end of the first dim
                     constant_values = self.pad_kwargs.get("constant_values", 0)
                     padding_shape = (padding, *list(patched_image.shape)[1:])
+                    constant_padding : NdarrayOrTensor
                     if isinstance(patched_image, np.ndarray):
                         constant_padding = np.full(padding_shape, constant_values, dtype=patched_image.dtype)
                         patched_image = np.concatenate([patched_image, constant_padding], axis=0)

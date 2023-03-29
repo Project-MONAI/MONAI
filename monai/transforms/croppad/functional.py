@@ -60,7 +60,7 @@ def _np_pad(img: NdarrayTensor, pad_width: list[tuple[int, int]], mode: str, **k
     mode = convert_pad_mode(dst=img_np, mode=mode).value
     if mode == "constant" and "value" in kwargs:
         kwargs["constant_values"] = kwargs.pop("value")
-    img_np = np.pad(img_np, pad_width, mode=mode, **kwargs)
+    img_np = np.pad(img_np, pad_width, mode=mode, **kwargs) # type: ignore
     return convert_to_dst_type(img_np, dst=img)[0]
 
 
@@ -117,7 +117,7 @@ def pad_nd(
             k in str(err) for k in ("supported", "unexpected keyword", "implemented", "value")
         ):
             return _np_pad(img, pad_width=to_pad, mode=mode, **kwargs)
-        raise ValueError(f"{img.shape} {to_pad} {mode} {kwargs} {img.dtype} {img.device}") from err
+        raise ValueError(f"{img.shape} {to_pad} {mode} {kwargs} {img.dtype} {img.device if isinstance(img, torch.Tensor) else None}") from err
 
 
 def crop_or_pad_nd(img: torch.Tensor, translation_mat, spatial_size: tuple[int, ...], mode: str, **kwargs):

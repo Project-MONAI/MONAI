@@ -152,12 +152,9 @@ def argwhere(a: NdarrayTensor) -> NdarrayTensor:
         Indices of elements that are non-zero. Indices are grouped by element.
         This array will have shape (N, a.ndim) where N is the number of non-zero items.
     """
-    result: NdarrayTensor
     if isinstance(a, np.ndarray):
-        result = np.argwhere(a)
-    else:
-        result = torch.argwhere(a)
-    return result
+        return np.argwhere(a) # type: ignore
+    return torch.argwhere(a) # type: ignore
 
 
 def argsort(a: NdarrayTensor, axis: int | None = -1) -> NdarrayTensor:
@@ -170,12 +167,9 @@ def argsort(a: NdarrayTensor, axis: int | None = -1) -> NdarrayTensor:
     Returns:
         Array/Tensor of indices that sort a along the specified axis.
     """
-    result: NdarrayOrTensor
     if isinstance(a, np.ndarray):
-        result = np.argsort(a, axis=axis)
-    else:
-        result = torch.argsort(a, axis=axis)
-    return result
+        return np.argsort(a, axis=axis) # type: ignore
+    return torch.argsort(a, dim=axis) # type: ignore
 
 
 def nonzero(x: NdarrayOrTensor) -> NdarrayOrTensor:
