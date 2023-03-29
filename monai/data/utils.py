@@ -329,7 +329,7 @@ def iter_patch(
     # copy back data from the padded image if required
     if copy_back:
         slices = tuple(slice(p, p + s) for p, s in zip(_pad_size, arr.shape))
-        arr[...] = arrpad[slices] # type: ignore
+        arr[...] = arrpad[slices]  # type: ignore
 
 
 def get_valid_patch_size(image_size: Sequence[int], patch_size: Sequence[int] | int | np.ndarray) -> tuple[int, ...]:
