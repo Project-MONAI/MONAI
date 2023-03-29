@@ -181,12 +181,7 @@ def execute_compose(
         )
         input_ = apply_transform(_transform, input_, map_items, unpack_items, log_stats)
     input_ = evaluate_with_overrides(
-        input_,
-        None,
-        lazy_evaluation=lazy_evaluation,
-        overrides=overrides,
-        override_keys=override_keys,
-        verbose=verbose,
+        input_, None, lazy_evaluation=lazy_evaluation, overrides=overrides, override_keys=override_keys, verbose=verbose
     )
     return input_
 
