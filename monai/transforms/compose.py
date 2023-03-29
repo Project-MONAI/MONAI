@@ -334,7 +334,7 @@ class Compose(Randomizable, InvertibleTransform):
         map_items: bool = True,
         unpack_items: bool = False,
         log_stats: bool = False,
-        lazy_evaluation: bool = False,
+        lazy_evaluation: bool | None = None,
         overrides: dict | None = None,
         override_keys: Sequence[str] | None = None,
         verbose: bool = False,
