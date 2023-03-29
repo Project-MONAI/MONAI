@@ -272,7 +272,7 @@ class SSIMMetric(RegressionMetric):
         data_range: float = 1.0,
         kernel_type: KernelType | str = KernelType.GAUSSIAN,
         kernel_size: int | Sequence[int, ...] = 11,
-        kernel_sigma: int | Sequence[int, ...] = 1.5,
+        kernel_sigma: float | Sequence[float, ...] = 1.5,
         k1: float = 0.01,
         k2: float = 0.03,
         reduction: MetricReduction | str = MetricReduction.MEAN,
@@ -338,7 +338,9 @@ class SSIMMetric(RegressionMetric):
         return ssim_per_batch
 
 
-def _gaussian_kernel(spatial_dims, channel: int, kernel_size, kernel_sigma) -> torch.Tensor:
+def _gaussian_kernel(
+    spatial_dims: int, channel: int, kernel_size: Sequence[int, ...], kernel_sigma: Sequence[float, ...]
+) -> torch.Tensor:
     """Computes 2D or 3D gaussian kernel.
 
     Args:
@@ -380,7 +382,7 @@ def compute_ssim_and_cs(
     data_range: float = 1.0,
     kernel_type: KernelType | str = KernelType.GAUSSIAN,
     kernel_size: Sequence[int, ...] = 11,
-    kernel_sigma: Sequence[int, ...] = 1.5,
+    kernel_sigma: Sequence[float, ...] = 1.5,
     k1: float = 0.01,
     k2: float = 0.03,
 ) -> tuple[torch.Tensor, torch.Tensor]:
