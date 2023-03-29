@@ -763,7 +763,7 @@ class SomeOf(Compose):
 
         data = execute_compose(
             data,
-            self.transforms[applied_order],
+            [self.transforms[a] for a in applied_order],
             map_items=self.map_items,
             unpack_items=self.unpack_items,
             start=start,
