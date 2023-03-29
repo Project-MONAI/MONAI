@@ -24,13 +24,18 @@ from ast import literal_eval
 from collections.abc import Callable, Iterable, Sequence
 from distutils.util import strtobool
 from pathlib import Path
-from typing import Any, TypeVar, cast, overload
+from typing import Any, TypeVar, cast, overload, TYPE_CHECKING
 
 import numpy as np
 import torch
 
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor, PathLike
-from monai.utils.module import version_leq
+from monai.utils.module import version_leq, optional_import
+
+if TYPE_CHECKING:
+    import yaml
+else:
+    yaml, _ = optional_import("yaml")
 
 __all__ = [
     "zip_with",
@@ -704,3 +709,17 @@ def check_key_duplicates(ordered_pairs: Sequence[tuple[Any, Any]]) -> dict[Any, 
         else:
             keys.add(k)
     return dict(ordered_pairs)
+
+
+class CheckKeyDuplicatesYamlLoader(yaml.SafeLoader):
+    def construct_mapping(self, node, deep=False):
+        mapping = set()
+        for key_node, value_node in node.value:
+            key = self.construct_object(key_node, deep=deep)
+            if key in mapping:
+                if os.environ.get("MONAI_FAIL_ON_DUPLICATE_CONFIG", "0") == "1":
+                    raise ValueError(f"Duplicate key: `{key}`")
+                else:
+                    warnings.warn(f"Duplicate key: `{key}`")
+            mapping.add(key)
+        return super().construct_mapping(node, deep)

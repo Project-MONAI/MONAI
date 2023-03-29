@@ -112,7 +112,12 @@ TEST_CASE_4 = [{"A": 1, "B": "@A", "C": "@D", "E": "$'test' + '@F'"}]
 
 TEST_CASE_5 = [{"training": {"A": 1, "A_B": 2}, "total": "$@training#A + @training#A_B + 1"}, 4]
 
-TEST_CASE_DUPLICATED_KEY = ["""{"key": {"unique": 1, "duplicate": 0, "duplicate": 4 } }""", 1, [0, 4]]
+TEST_CASE_DUPLICATED_KEY_JSON = ["""{"key": {"unique": 1, "duplicate": 0, "duplicate": 4 } }""", "json", 1, [0, 4]]
+
+TEST_CASE_DUPLICATED_KEY_YAML = ["""key: 
+    unique: 1
+    duplicate: 0
+    duplicate: 4""", "yaml", 1, [0, 4]]
 
 
 class TestConfigParser(unittest.TestCase):
@@ -308,11 +313,11 @@ class TestConfigParser(unittest.TestCase):
         parser = ConfigParser(config=config)
         self.assertEqual(parser.get_parsed_content("total"), expected)
 
-    @parameterized.expand([TEST_CASE_DUPLICATED_KEY])
+    @parameterized.expand([TEST_CASE_DUPLICATED_KEY_JSON, TEST_CASE_DUPLICATED_KEY_YAML])
     @mock.patch.dict(os.environ, {"MONAI_FAIL_ON_DUPLICATE_CONFIG": "1"})
-    def test_parse_json_raise(self, config_string, _, __):
+    def test_parse_json_raise(self, config_string, extension, _, __):
         with tempfile.TemporaryDirectory() as tempdir:
-            config_path = Path(tempdir) / "config.json"
+            config_path = Path(tempdir) / f"config.{extension}"
             config_path.write_text(config_string)
             parser = ConfigParser()
 
@@ -321,21 +326,17 @@ class TestConfigParser(unittest.TestCase):
 
             self.assertTrue("Duplicate key: `duplicate`" in str(context.exception))
 
-    @parameterized.expand([TEST_CASE_DUPLICATED_KEY])
-    def test_parse_json_warn(self, config_string, expected_unique_val, expected_duplicate_vals):
+    @parameterized.expand([TEST_CASE_DUPLICATED_KEY_JSON, TEST_CASE_DUPLICATED_KEY_YAML])
+    def test_parse_json_warn(self, config_string, extension, expected_unique_val, expected_duplicate_vals):
         with tempfile.TemporaryDirectory() as tempdir:
-            config_path = Path(tempdir) / "config.json"
+            config_path = Path(tempdir) / f"config.{extension}"
             config_path.write_text(config_string)
             parser = ConfigParser()
 
-            # with self.assertLogs(level=logging.WARNING) as log:
             with warnings.catch_warnings(record=True) as w:
-                warnings.simplefilter("always")
                 parser.read_config(config_path)
-                print(w)
-                # Verify some things
-                self.assertEqual(len(w), 1)
-                self.assertTrue("Duplicate key: `duplicate`" in str(w[-1].message))
+            self.assertEqual(len(w), 1)
+            self.assertTrue("Duplicate key: `duplicate`" in str(w[-1].message))
 
             self.assertEqual(parser.get_parsed_content("key#unique"), expected_unique_val)
             self.assertIn(parser.get_parsed_content("key#duplicate"), expected_duplicate_vals)
