@@ -25,7 +25,7 @@ import monai
 import monai.transforms as mt
 from monai.data import create_test_image_3d
 from monai.utils import set_determinism
-from tests.utils import DistTestCase, SkipIfBeforePyTorchVersion, skip_if_quick
+from tests.utils import HAS_CUPY, DistTestCase, SkipIfBeforePyTorchVersion, skip_if_quick
 
 
 def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, None), num_workers=4, lazy=True):
@@ -33,7 +33,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
     images = sorted(glob(os.path.join(root_dir, "img*.nii.gz")))
     segs = sorted(glob(os.path.join(root_dir, "seg*.nii.gz")))
     train_files = [{"img": img, "seg": seg} for img, seg in zip(images[:20], segs[:20])]
-    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    device = "cuda:0" if HAS_CUPY and torch.cuda.is_available() else "cpu"  # mode 0 and cuda requires CUPY
     num_workers = 0 if torch.cuda.is_available() else num_workers
 
     # define transforms for image and segmentation
@@ -59,6 +59,9 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
                 keys=["img", "seg"], label_key="seg", spatial_size=[76, 82, 80], pos=1, neg=1, num_samples=4
             ),
             mt.RandRotate90d(keys=["img", "seg"], prob=0.8, spatial_axes=(0, 2)),
+            mt.RandZoomd(
+                keys=["img", "seg"], prob=1.0, min_zoom=1.0, max_zoom=1.0, mode=("trilinear", 0), keep_size=True
+            ),
             mt.ResizeWithPadOrCropD(keys=["img", "seg"], spatial_size=[80, 72, 80]),
             mt.Rotated(keys=["img", "seg"], angle=[np.pi / 2, np.pi / 2, 0], mode="nearest", keep_size=False),
         ],

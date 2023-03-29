@@ -1590,7 +1590,9 @@ class AffineGrid(LazyTransform):
 
         affine = convert_to_tensor(affine, device=grid_.device, dtype=grid_.dtype, track_meta=False)  # type: ignore
         if self.align_corners:
-            sc = create_scale(spatial_dims, [d / (d - 1) for d in grid_.shape[1:]], device=_device, backend=_b)
+            sc = create_scale(
+                spatial_dims, [max(d, 2) / (max(d, 2) - 1) for d in grid_.shape[1:]], device=_device, backend=_b
+            )
             sc = convert_to_dst_type(sc, affine)[0]
             grid_ = ((affine @ sc) @ grid_.view((grid_.shape[0], -1))).view([-1] + list(grid_.shape[1:]))
         else:

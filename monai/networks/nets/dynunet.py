@@ -9,9 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
+# isort: dont-add-import: from __future__ import annotations
 
-from collections.abc import Sequence
+from typing import List, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -32,7 +32,7 @@ class DynUNetSkipLayer(nn.Module):
     forward passes of the network.
     """
 
-    heads: list[torch.Tensor] | None
+    heads: Optional[List[torch.Tensor]]
 
     def __init__(self, index, downsample, upsample, next_layer, heads=None, super_head=None):
         super().__init__()
@@ -132,13 +132,13 @@ class DynUNet(nn.Module):
         spatial_dims: int,
         in_channels: int,
         out_channels: int,
-        kernel_size: Sequence[Sequence[int] | int],
-        strides: Sequence[Sequence[int] | int],
-        upsample_kernel_size: Sequence[Sequence[int] | int],
-        filters: Sequence[int] | None = None,
-        dropout: tuple | str | float | None = None,
-        norm_name: tuple | str = ("INSTANCE", {"affine": True}),
-        act_name: tuple | str = ("leakyrelu", {"inplace": True, "negative_slope": 0.01}),
+        kernel_size: Sequence[Union[Sequence[int], int]],
+        strides: Sequence[Union[Sequence[int], int]],
+        upsample_kernel_size: Sequence[Union[Sequence[int], int]],
+        filters: Optional[Sequence[int]] = None,
+        dropout: Optional[Union[Tuple, str, float]] = None,
+        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
+        act_name: Union[Tuple, str] = ("leakyrelu", {"inplace": True, "negative_slope": 0.01}),
         deep_supervision: bool = False,
         deep_supr_num: int = 1,
         res_block: bool = False,
@@ -169,7 +169,7 @@ class DynUNet(nn.Module):
         self.deep_supervision = deep_supervision
         self.deep_supr_num = deep_supr_num
         # initialize the typed list of supervision head outputs so that Torchscript can recognize what's going on
-        self.heads: list[torch.Tensor] = [torch.rand(1)] * self.deep_supr_num
+        self.heads: List[torch.Tensor] = [torch.rand(1)] * self.deep_supr_num
         if self.deep_supervision:
             self.deep_supervision_heads = self.get_deep_supervision_heads()
             self.check_deep_supr_num()
@@ -305,24 +305,30 @@ class DynUNet(nn.Module):
     def get_downsamples(self):
         inp, out = self.filters[:-2], self.filters[1:-1]
         strides, kernel_size = self.strides[1:-1], self.kernel_size[1:-1]
-        return self.get_module_list(inp, out, kernel_size, strides, self.conv_block)
+        return self.get_module_list(inp, out, kernel_size, strides, self.conv_block)  # type: ignore
 
     def get_upsamples(self):
         inp, out = self.filters[1:][::-1], self.filters[:-1][::-1]
         strides, kernel_size = self.strides[1:][::-1], self.kernel_size[1:][::-1]
         upsample_kernel_size = self.upsample_kernel_size[::-1]
         return self.get_module_list(
-            inp, out, kernel_size, strides, UnetUpBlock, upsample_kernel_size, trans_bias=self.trans_bias
+            inp,  # type: ignore
+            out,  # type: ignore
+            kernel_size,
+            strides,
+            UnetUpBlock,  # type: ignore
+            upsample_kernel_size,
+            trans_bias=self.trans_bias,
         )
 
     def get_module_list(
         self,
-        in_channels: Sequence[int],
-        out_channels: Sequence[int],
-        kernel_size: Sequence[Sequence[int] | int],
-        strides: Sequence[Sequence[int] | int],
-        conv_block: type[nn.Module],
-        upsample_kernel_size: Sequence[Sequence[int] | int] | None = None,
+        in_channels: List[int],
+        out_channels: List[int],
+        kernel_size: Sequence[Union[Sequence[int], int]],
+        strides: Sequence[Union[Sequence[int], int]],
+        conv_block: nn.Module,
+        upsample_kernel_size: Optional[Sequence[Union[Sequence[int], int]]] = None,
         trans_bias: bool = False,
     ):
         layers = []
