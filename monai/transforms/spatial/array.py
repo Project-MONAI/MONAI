@@ -47,7 +47,6 @@ from monai.transforms.spatial.functional import (
 from monai.transforms.traits import MultiSampleTrait
 from monai.transforms.transform import LazyTransform, Randomizable, RandomizableTransform, Transform
 from monai.transforms.utils import (
-    convert_pad_mode,
     create_control_grid,
     create_grid,
     create_rotate,
@@ -57,7 +56,7 @@ from monai.transforms.utils import (
     map_spatial_axes,
     scale_affine,
 )
-from monai.transforms.utils_pytorch_numpy_unification import linalg_inv, moveaxis
+from monai.transforms.utils_pytorch_numpy_unification import argsort, argwhere, linalg_inv, moveaxis
 from monai.utils import (
     GridSampleMode,
     GridSamplePadMode,
@@ -77,7 +76,7 @@ from monai.utils import (
     optional_import,
 )
 from monai.utils.deprecate_utils import deprecated_arg
-from monai.utils.enums import GridPatchSort, PatchKeys, PytorchPadMode, TraceKeys, TransformBackends
+from monai.utils.enums import GridPatchSort, PatchKeys, TraceKeys, TransformBackends
 from monai.utils.misc import ImageMetaKey as Key
 from monai.utils.module import look_up_option
 from monai.utils.type_conversion import convert_data_type, get_equivalent_dtype, get_torch_dtype_from_string
@@ -3004,12 +3003,16 @@ class GridPatch(Transform, MultiSampleTrait):
         threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
             Defaults to no filtering.
         pad_mode: the  mode for padding the input image by `patch_size` to include patches that cross boundaries.
-            Defaults to None, which means no padding will be applied.
-            Available modes:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}.
+            Available modes: (Numpy) {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            (PyTorch) {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+            One of the listed string values or a user supplied function.
+            Defaults to `None`, which means no padding will be applied.
             See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
+            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+            requires pytorch >= 1.10 for best compatibility.
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
-
+            note that `np.pad` treats channel dimension as the first dimension.
     Returns:
         MetaTensor: the extracted patches as a single tensor (with patch dimension as the first dimension),
             with following metadata:
@@ -3036,34 +3039,35 @@ class GridPatch(Transform, MultiSampleTrait):
     ):
         self.patch_size = ensure_tuple(patch_size)
         self.offset = ensure_tuple(offset) if offset else (0,) * len(self.patch_size)
-        self.pad_mode: NumpyPadMode | None = convert_pad_mode(dst=np.zeros(1), mode=pad_mode) if pad_mode else None
+        self.pad_mode = pad_mode
         self.pad_kwargs = pad_kwargs
         self.overlap = overlap
         self.num_patches = num_patches
         self.sort_fn = sort_fn.lower() if sort_fn else None
         self.threshold = threshold
 
-    def filter_threshold(self, image_np: np.ndarray, locations: np.ndarray):
+    def filter_threshold(self, image_np: NdarrayOrTensor, locations: np.ndarray) -> tuple[NdarrayOrTensor, np.ndarray]:
         """
         Filter the patches and their locations according to a threshold.
 
         Args:
-            image_np: a numpy.ndarray representing a stack of patches.
+            image_np: a numpy.ndarray or torch.Tensor representing a stack of patches.
             locations: a numpy.ndarray representing the stack of location of each patch.
 
         Returns:
-            tuple[numpy.ndarray, numpy.ndarray]:  tuple of filtered patches and locations.
+            tuple[NdarrayOrTensor, numpy.ndarray]:  tuple of filtered patches and locations.
         """
         n_dims = len(image_np.shape)
-        idx = np.argwhere(image_np.sum(axis=tuple(range(1, n_dims))) < self.threshold).reshape(-1)
-        return image_np[idx], locations[idx]
+        idx = argwhere(image_np.sum(tuple(range(1, n_dims))) < self.threshold).reshape(-1)
+        idx_np = convert_data_type(idx, np.ndarray)[0]
+        return image_np[idx], locations[idx_np]  # type: ignore
 
-    def filter_count(self, image_np: np.ndarray, locations: np.ndarray):
+    def filter_count(self, image_np: NdarrayOrTensor, locations: np.ndarray) -> tuple[NdarrayOrTensor, np.ndarray]:
         """
         Sort the patches based on the sum of their intensity, and just keep `self.num_patches` of them.
 
         Args:
-            image_np: a numpy.ndarray representing a stack of patches.
+            image_np: a numpy.ndarray or torch.Tensor representing a stack of patches.
             locations: a numpy.ndarray representing the stack of location of each patch.
         """
         if self.sort_fn is None:
@@ -3072,14 +3076,15 @@ class GridPatch(Transform, MultiSampleTrait):
         elif self.num_patches is not None:
             n_dims = len(image_np.shape)
             if self.sort_fn == GridPatchSort.MIN:
-                idx = np.argsort(image_np.sum(axis=tuple(range(1, n_dims))))
+                idx = argsort(image_np.sum(tuple(range(1, n_dims))))
             elif self.sort_fn == GridPatchSort.MAX:
-                idx = np.argsort(-image_np.sum(axis=tuple(range(1, n_dims))))
+                idx = argsort(-image_np.sum(tuple(range(1, n_dims))))
             else:
                 raise ValueError(f'`sort_fn` should be either "min", "max" or None! {self.sort_fn} provided!')
             idx = idx[: self.num_patches]
-            image_np = image_np[idx]
-            locations = locations[idx]
+            idx_np = convert_data_type(idx, np.ndarray)[0]
+            image_np = image_np[idx]  # type: ignore
+            locations = locations[idx_np]
         return image_np, locations
 
     def __call__(self, array: NdarrayOrTensor) -> MetaTensor:
@@ -3094,9 +3099,8 @@ class GridPatch(Transform, MultiSampleTrait):
                 with defined `PatchKeys.LOCATION` and `PatchKeys.COUNT` metadata.
         """
         # create the patch iterator which sweeps the image row-by-row
-        array_np, *_ = convert_data_type(array, np.ndarray)
         patch_iterator = iter_patch(
-            array_np,
+            array,
             patch_size=(None,) + self.patch_size,  # expand to have the channel dim
             start_pos=(0,) + self.offset,  # expand to have the channel dim
             overlap=self.overlap,
@@ -3105,8 +3109,8 @@ class GridPatch(Transform, MultiSampleTrait):
             **self.pad_kwargs,
         )
         patches = list(zip(*patch_iterator))
-        patched_image = np.array(patches[0])
-        locations = np.array(patches[1])[:, 1:, 0]  # only keep the starting location
+        patched_image = np.stack(patches[0]) if isinstance(array, np.ndarray) else torch.stack(patches[0])
+        locations = np.stack(patches[1])[:, 1:, 0]  # only keep the starting location
 
         # Apply threshold filtering
         if self.threshold is not None:
@@ -3120,11 +3124,22 @@ class GridPatch(Transform, MultiSampleTrait):
             if self.threshold is None:
                 padding = self.num_patches - len(patched_image)
                 if padding > 0:
-                    patched_image = np.pad(
-                        patched_image,
-                        [[0, padding], [0, 0]] + [[0, 0]] * len(self.patch_size),
-                        constant_values=self.pad_kwargs.get("constant_values", 0),
-                    )
+                    # pad constant patches to the end of the first dim
+                    constant_values = self.pad_kwargs.get("constant_values", 0)
+                    padding_shape = (padding, *list(patched_image.shape)[1:])
+                    constant_padding: NdarrayOrTensor
+                    if isinstance(patched_image, np.ndarray):
+                        constant_padding = np.full(padding_shape, constant_values, dtype=patched_image.dtype)
+                        patched_image = np.concatenate([patched_image, constant_padding], axis=0)
+                    else:
+                        constant_padding = torch.full(
+                            padding_shape,
+                            constant_values,
+                            dtype=patched_image.dtype,
+                            layout=patched_image.layout,
+                            device=patched_image.device,
+                        )
+                        patched_image = torch.cat([patched_image, constant_padding], dim=0)
                     locations = np.pad(locations, [[0, padding], [0, 0]], constant_values=0)
 
         # Convert to MetaTensor
@@ -3162,11 +3177,16 @@ class RandGridPatch(GridPatch, RandomizableTransform, MultiSampleTrait):
         threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
             Defaults to no filtering.
         pad_mode: the  mode for padding the input image by `patch_size` to include patches that cross boundaries.
-            Defaults to None, which means no padding will be applied.
-            Available modes:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}.
+            Available modes: (Numpy) {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            (PyTorch) {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+            One of the listed string values or a user supplied function.
+            Defaults to `None`, which means no padding will be applied.
             See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
+            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+            requires pytorch >= 1.10 for best compatibility.
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
+            note that `np.pad` treats channel dimension as the first dimension.
 
     Returns:
         MetaTensor: the extracted patches as a single tensor (with patch dimension as the first dimension),
@@ -3190,7 +3210,7 @@ class RandGridPatch(GridPatch, RandomizableTransform, MultiSampleTrait):
         overlap: Sequence[float] | float = 0.0,
         sort_fn: str | None = None,
         threshold: float | None = None,
-        pad_mode: str = PytorchPadMode.CONSTANT,
+        pad_mode: str | None = None,
         **pad_kwargs,
     ):
         super().__init__(

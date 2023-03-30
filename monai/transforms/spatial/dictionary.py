@@ -67,7 +67,7 @@ from monai.utils import (
     ensure_tuple_rep,
     fall_back_tuple,
 )
-from monai.utils.enums import PytorchPadMode, TraceKeys
+from monai.utils.enums import TraceKeys
 from monai.utils.module import optional_import
 
 nib, _ = optional_import("nibabel")
@@ -1953,12 +1953,17 @@ class GridPatchd(MapTransform, MultiSampleTrait):
         threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
             Defaults to no filtering.
         pad_mode: the  mode for padding the input image by `patch_size` to include patches that cross boundaries.
-            Defaults to None, which means no padding will be applied.
-            Available modes:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}.
+            Available modes: (Numpy) {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            (PyTorch) {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+            One of the listed string values or a user supplied function.
+            Defaults to `None`, which means no padding will be applied.
             See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
+            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+            requires pytorch >= 1.10 for best compatibility.
         allow_missing_keys: don't raise exception if key is missing.
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
+            note that `np.pad` treats channel dimension as the first dimension.
 
     Returns:
         dictionary, contains the all the original key/value with the values for `keys`
@@ -1981,7 +1986,7 @@ class GridPatchd(MapTransform, MultiSampleTrait):
         overlap: float = 0.0,
         sort_fn: str | None = None,
         threshold: float | None = None,
-        pad_mode: str = PytorchPadMode.CONSTANT,
+        pad_mode: str | None = None,
         allow_missing_keys: bool = False,
         **pad_kwargs,
     ):
@@ -2028,12 +2033,17 @@ class RandGridPatchd(RandomizableTransform, MapTransform, MultiSampleTrait):
         threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
             Defaults to no filtering.
         pad_mode: the  mode for padding the input image by `patch_size` to include patches that cross boundaries.
-            Defaults to None, which means no padding will be applied.
-            Available modes:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}.
+            Available modes: (Numpy) {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            (PyTorch) {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+            One of the listed string values or a user supplied function.
+            Defaults to `None`, which means no padding will be applied.
             See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
+            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+            requires pytorch >= 1.10 for best compatibility.
         allow_missing_keys: don't raise exception if key is missing.
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
+            note that `np.pad` treats channel dimension as the first dimension.
 
     Returns:
         dictionary, contains the all the original key/value with the values for `keys`
@@ -2058,7 +2068,7 @@ class RandGridPatchd(RandomizableTransform, MapTransform, MultiSampleTrait):
         overlap: float = 0.0,
         sort_fn: str | None = None,
         threshold: float | None = None,
-        pad_mode: str = PytorchPadMode.CONSTANT,
+        pad_mode: str | None = None,
         allow_missing_keys: bool = False,
         **pad_kwargs,
     ):
