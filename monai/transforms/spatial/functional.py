@@ -35,6 +35,7 @@ from monai.transforms.inverse import TraceableTransform
 from monai.transforms.utils import create_rotate, create_translate, scale_affine
 from monai.transforms.utils_pytorch_numpy_unification import allclose
 from monai.utils import (
+    LazyAttr,
     TraceKeys,
     convert_to_dst_type,
     convert_to_numpy,
@@ -432,10 +433,7 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype,
 
     """
     im_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
-    output_size = [
-        int(math.floor(float(i) * z))
-        for i, z in zip(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:], scale_factor)
-    ]
+    output_size = [int(math.floor(float(i) * z)) for i, z in zip(im_shape, scale_factor)]
     xform = scale_affine(im_shape, output_size)
     extra_info = {
         "mode": mode,
@@ -445,9 +443,18 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype,
         "padcrop": {},
     }
     if keep_size:
-        if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
-            raise NotImplementedError("keep_size=True is not supported for lazy evaluation.")
-        output_size = [int(i) for i in img.shape[1:]]
+        do_pad_crop = not np.allclose(output_size, im_shape)
+        if do_pad_crop and transform_info.get(TraceKeys.LAZY_EVALUATION, False):  # update for lazy evaluation
+            _pad_crop = ResizeWithPadOrCrop(spatial_size=im_shape, mode=padding_mode)
+            _pad_crop.lazy_evaluation = True
+            _tmp_img = MetaTensor([], affine=torch.eye(len(output_size) + 1))
+            _tmp_img.push_pending_operation({LazyAttr.SHAPE: list(output_size), LazyAttr.AFFINE: xform})
+            lazy_cropped = _pad_crop(_tmp_img)
+            if isinstance(lazy_cropped, MetaTensor):
+                xform = lazy_cropped.peek_pending_affine()
+                extra_info["padcrop"] = lazy_cropped.pending_operations[-1]
+            extra_info["do_padcrop"] = do_pad_crop
+        output_size = [int(i) for i in im_shape]
     meta_info = TraceableTransform.track_transform_meta(
         img,
         sp_size=output_size,

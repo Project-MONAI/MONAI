@@ -155,6 +155,8 @@ class BundleAlgo(Algo):
         if os.path.isdir(config_dir):
             base_cmd = ""
             for file in os.listdir(config_dir):
+                if not (file.endswith("yaml") or file.endswith("json")):
+                    continue
                 if len(base_cmd) == 0:
                     base_cmd += f"{train_py} run --config_file="
                 else:

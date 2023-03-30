@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Sequence
 from typing import Any
 
@@ -18,6 +19,7 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor
 
+from monai.data.box_utils import standardize_empty_box
 from monai.transforms.croppad.array import SpatialPad
 from monai.transforms.utils import compute_divisible_spatial_size, convert_pad_mode
 from monai.utils import PytorchPadMode, ensure_tuple_rep
@@ -56,7 +58,7 @@ def check_training_targets(
     spatial_dims: int,
     target_label_key: str,
     target_box_key: str,
-) -> None:
+) -> list[dict[str, Tensor]]:
     """
     Validate the input images/targets during training (raise a `ValueError` if invalid).
 
@@ -75,7 +77,8 @@ def check_training_targets(
     if len(input_images) != len(targets):
         raise ValueError(f"len(input_images) should equal to len(targets), got {len(input_images)}, {len(targets)}.")
 
-    for target in targets:
+    for i in range(len(targets)):
+        target = targets[i]
         if (target_label_key not in target.keys()) or (target_box_key not in target.keys()):
             raise ValueError(
                 f"{target_label_key} and {target_box_key} are expected keys in targets. Got {target.keys()}."
@@ -85,10 +88,24 @@ def check_training_targets(
         if not isinstance(boxes, torch.Tensor):
             raise ValueError(f"Expected target boxes to be of type Tensor, got {type(boxes)}.")
         if len(boxes.shape) != 2 or boxes.shape[-1] != 2 * spatial_dims:
-            raise ValueError(
-                f"Expected target boxes to be a tensor " f"of shape [N, {2* spatial_dims}], got {boxes.shape}."
-            )
-    return
+            if boxes.numel() == 0:
+                warnings.warn(
+                    f"Warning: Given target boxes has shape of {boxes.shape}. "
+                    f"The detector reshaped it with boxes = torch.reshape(boxes, [0, {2* spatial_dims}])."
+                )
+            else:
+                raise ValueError(
+                    f"Expected target boxes to be a tensor of shape [N, {2* spatial_dims}], got {boxes.shape}.)."
+                )
+        if not torch.is_floating_point(boxes):
+            raise ValueError(f"Expected target boxes to be a float tensor, got {boxes.dtype}.")
+        targets[i][target_box_key] = standardize_empty_box(boxes, spatial_dims=spatial_dims)  # type: ignore
+
+        labels = target[target_label_key]
+        if torch.is_floating_point(labels):
+            warnings.warn(f"Warning: Given target labels is {labels.dtype}. The detector converted it to torch.long.")
+            targets[i][target_label_key] = labels.long()
+    return targets
 
 
 def pad_images(
