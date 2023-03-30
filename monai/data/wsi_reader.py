@@ -48,7 +48,7 @@ class BaseWSIReader(ImageReader):
         mpp: the resolution in micron per pixel at which the patches are extracted.
         mpp_rtol: the acceptable relative tolerance for resolution in micro per pixel.
         mpp_atol: the acceptable absolute tolerance for resolution in micro per pixel.
-        power: objective power at which the patches are extracted.
+        power: the objective power at which the patches are extracted.
         power_rtol: the acceptable relative tolerance for objective power.
         power_atol: the acceptable absolute tolerance for objective power.
         channel_dim: the desired dimension for color channel.
@@ -137,17 +137,24 @@ class BaseWSIReader(ImageReader):
         Returns the size (height, width) of the whole slide image at a given level.
 
         Args:
-            wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated
+            wsi: a whole slide image object loaded from a file.
+            level: the level number where the size is calculated.
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def _get_valid_level(
+    def get_valid_level(
         self, wsi, level: int | None, mpp: float | tuple[float, float] | None, power: int | None
     ) -> int:
         """
-        Returns the level associated to the resolution parameter in the whole slide image.
+        Returns the level associated to the resolution parameters in the whole slide image.
+
+        Args:
+            wsi: a whole slide image object loaded from a file.
+            level: the level number.
+            mpp: the micron-per-pixel resolution.
+            power: the objective power.
+
         """
 
         # Try instance parameters if no resolution is provided
@@ -211,7 +218,7 @@ class BaseWSIReader(ImageReader):
         Returns the number of levels in the whole slide image.
 
         Args:
-            wsi: a whole slide image object loaded from a file
+            wsi: a whole slide image object loaded from a file.
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
@@ -222,7 +229,7 @@ class BaseWSIReader(ImageReader):
         Returns the down-sampling ratio of the whole slide image at a given level.
 
         Args:
-            wsi: a whole slide image object loaded from a file
+            wsi: a whole slide image object loaded from a file.
             level: the level number where the downsample ratio is calculated.
 
         """
@@ -270,8 +277,8 @@ class BaseWSIReader(ImageReader):
             size: (height, width) tuple giving the patch size at the given level (`level`).
                 If None, it is set to the full image size at the given level.
             level: the level number.
-            dtype: the data type of output image
-            mode: the output image mode, 'RGB' or 'RGBA'
+            dtype: the data type of output image.
+            mode: the output image mode, 'RGB' or 'RGBA'.
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
@@ -283,8 +290,8 @@ class BaseWSIReader(ImageReader):
         Returns metadata of the extracted patch from the whole slide image.
 
         Args:
-            wsi: the whole slide image object, from which the patch is loaded
-            patch: extracted patch from whole slide image
+            wsi: the whole slide image object, from which the patch is loaded.
+            patch: extracted patch from whole slide image.
             location: (top, left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
             size: (height, width) tuple giving the patch size at the given level (`level`).
                 If None, it is set to the full image size at the given level.
@@ -328,7 +335,7 @@ class BaseWSIReader(ImageReader):
                 If not provided or None, it is set to the full image size at the given level.
             level: the whole slide image level at which the patches are extracted.
             mpp: the resolution in micron per pixel at which the patches are extracted.
-            power: objective power at which the patches are extracted.
+            power: the objective power at which the patches are extracted.
             dtype: the data type of output image.
             mode: the output image mode, 'RGB' or 'RGBA'.
 
@@ -351,7 +358,7 @@ class BaseWSIReader(ImageReader):
             wsi = (wsi,)
         for each_wsi in ensure_tuple(wsi):
             # get the valid level based on resolution info
-            level = self._get_valid_level(each_wsi, level, mpp, power)
+            level = self.get_valid_level(each_wsi, level, mpp, power)
 
             # Verify location
             if location is None:
@@ -445,7 +452,7 @@ class WSIReader(BaseWSIReader):
         mpp: the resolution in micron per pixel at which the patches are extracted.
         mpp_rtol: the acceptable relative tolerance for resolution in micro per pixel.
         mpp_atol: the acceptable absolute tolerance for resolution in micro per pixel.
-        power: objective power at which the patches are extracted.
+        power: the objective power at which the patches are extracted.
         power_rtol: the acceptable relative tolerance for objective power.
         power_atol: the acceptable absolute tolerance for objective power.
         channel_dim: the desired dimension for color channel. Default to 0 (channel first).
@@ -552,7 +559,7 @@ class WSIReader(BaseWSIReader):
         Returns the number of levels in the whole slide image.
 
         Args:
-            wsi: a whole slide image object loaded from a file
+            wsi: a whole slide image object loaded from a file.
 
         """
         return self.reader.get_level_count(wsi)
@@ -562,7 +569,7 @@ class WSIReader(BaseWSIReader):
         Returns the size (height, width) of the whole slide image at a given level.
 
         Args:
-            wsi: a whole slide image object loaded from a file
+            wsi: a whole slide image object loaded from a file.
             level: the level number where the size is calculated.
 
         """
@@ -573,7 +580,7 @@ class WSIReader(BaseWSIReader):
         Returns the down-sampling ratio of the whole slide image at a given level.
 
         Args:
-            wsi: a whole slide image object loaded from a file
+            wsi: a whole slide image object loaded from a file.
             level: the level number where the downsample ratio is calculated.
 
         """
@@ -612,13 +619,13 @@ class WSIReader(BaseWSIReader):
         Extracts and returns a patch image form the whole slide image.
 
         Args:
-            wsi: a whole slide image object loaded from a file or a lis of such objects
+            wsi: a whole slide image object loaded from a file or a lis of such objects.
             location: (top, left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
             size: (height, width) tuple giving the patch size at the given level (`level`).
                 If None, it is set to the full image size at the given level.
             level: the level number.
             dtype: the data type of output image
-            mode: the output image mode, 'RGB' or 'RGBA'
+            mode: the output image mode, 'RGB' or 'RGBA'.
 
         """
         return self.reader._get_patch(wsi=wsi, location=location, size=size, level=level, dtype=dtype, mode=mode)
@@ -632,7 +639,7 @@ class WSIReader(BaseWSIReader):
             kwargs: additional args for the reader module (overrides `self.kwargs` for existing keys).
 
         Returns:
-            whole slide image object or list of such objects
+            whole slide image object or list of such objects.
 
         """
         return self.reader.read(data=data, **kwargs)
@@ -648,7 +655,7 @@ class CuCIMWSIReader(BaseWSIReader):
         mpp: the resolution in micron per pixel at which the patches are extracted.
         mpp_rtol: the acceptable relative tolerance for resolution in micro per pixel.
         mpp_atol: the acceptable absolute tolerance for resolution in micro per pixel.
-        power: objective power at which the patches are extracted.
+        power: the objective power at which the patches are extracted.
         power_rtol: the acceptable relative tolerance for objective power.
         power_atol: the acceptable absolute tolerance for objective power.
         channel_dim: the desired dimension for color channel. Default to 0 (channel first).
@@ -680,7 +687,7 @@ class CuCIMWSIReader(BaseWSIReader):
         Returns the number of levels in the whole slide image.
 
         Args:
-            wsi: a whole slide image object loaded from a file
+            wsi: a whole slide image object loaded from a file.
 
         """
         return wsi.resolutions["level_count"]  # type: ignore
@@ -690,7 +697,7 @@ class CuCIMWSIReader(BaseWSIReader):
         Returns the size (height, width) of the whole slide image at a given level.
 
         Args:
-            wsi: a whole slide image object loaded from a file
+            wsi: a whole slide image object loaded from a file.
             level: the level number where the size is calculated.
 
         """
@@ -751,7 +758,7 @@ class CuCIMWSIReader(BaseWSIReader):
                 return float(objective_power) / downsample_ratio
 
         raise ValueError(
-            "Currently, cuCIM backend can obtain the objective power only for Aperio images."
+            "Currently, cuCIM backend can obtain the objective power only for Aperio images. "
             "Please use `level` (or `mpp`) instead, or try OpenSlide backend."
         )
 
@@ -765,7 +772,7 @@ class CuCIMWSIReader(BaseWSIReader):
                 For more details look at https://github.com/rapidsai/cucim/blob/main/cpp/include/cucim/cuimage.h
 
         Returns:
-            whole slide image object or list of such objects
+            whole slide image object or list of such objects.
 
         """
         cuimage_cls, _ = optional_import("cucim", name="CuImage")
@@ -787,13 +794,13 @@ class CuCIMWSIReader(BaseWSIReader):
         Extracts and returns a patch image form the whole slide image.
 
         Args:
-            wsi: a whole slide image object loaded from a file or a lis of such objects
+            wsi: a whole slide image object loaded from a file or a lis of such objects.
             location: (top, left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
             size: (height, width) tuple giving the patch size at the given level (`level`).
                 If None, it is set to the full image size at the given level.
             level: the level number.
-            dtype: the data type of output image
-            mode: the output image mode, 'RGB' or 'RGBA'
+            dtype: the data type of output image.
+            mode: the output image mode, 'RGB' or 'RGBA'.
 
         """
         # Extract a patch or the entire image
@@ -830,7 +837,7 @@ class OpenSlideWSIReader(BaseWSIReader):
         mpp: the resolution in micron per pixel at which the patches are extracted.
         mpp_rtol: the acceptable relative tolerance for resolution in micro per pixel.
         mpp_atol: the acceptable absolute tolerance for resolution in micro per pixel.
-        power: objective power at which the patches are extracted.
+        power: the objective power at which the patches are extracted.
         power_rtol: the acceptable relative tolerance for objective power.
         power_atol: the acceptable absolute tolerance for objective power.
         channel_dim: the desired dimension for color channel. Default to 0 (channel first).
@@ -859,7 +866,7 @@ class OpenSlideWSIReader(BaseWSIReader):
         Returns the number of levels in the whole slide image.
 
         Args:
-            wsi: a whole slide image object loaded from a file
+            wsi: a whole slide image object loaded from a file.
 
         """
         return wsi.level_count  # type: ignore
@@ -869,7 +876,7 @@ class OpenSlideWSIReader(BaseWSIReader):
         Returns the size (height, width) of the whole slide image at a given level.
 
         Args:
-            wsi: a whole slide image object loaded from a file
+            wsi: a whole slide image object loaded from a file.
             level: the level number where the size is calculated.
 
         """
@@ -880,7 +887,7 @@ class OpenSlideWSIReader(BaseWSIReader):
         Returns the down-sampling ratio of the whole slide image at a given level.
 
         Args:
-            wsi: a whole slide image object loaded from a file
+            wsi: a whole slide image object loaded from a file.
             level: the level number where the downsample ratio is calculated.
 
         """
@@ -966,7 +973,7 @@ class OpenSlideWSIReader(BaseWSIReader):
             kwargs: additional args that overrides `self.kwargs` for existing keys.
 
         Returns:
-            whole slide image object or list of such objects
+            whole slide image object or list of such objects.
 
         """
         wsi_list: list = []
@@ -992,8 +999,8 @@ class OpenSlideWSIReader(BaseWSIReader):
             size: (height, width) tuple giving the patch size at the given level (`level`).
                 If None, it is set to the full image size at the given level.
             level: the level number.
-            dtype: the data type of output image
-            mode: the output image mode, 'RGB' or 'RGBA'
+            dtype: the data type of output image.
+            mode: the output image mode, 'RGB' or 'RGBA'.
 
         """
         # Extract a patch or the entire image
@@ -1049,7 +1056,7 @@ class TiffFileWSIReader(BaseWSIReader):
         Returns the number of levels in the whole slide image.
 
         Args:
-            wsi: a whole slide image object loaded from a file
+            wsi: a whole slide image object loaded from a file.
 
         """
         return len(wsi.pages)
@@ -1059,7 +1066,7 @@ class TiffFileWSIReader(BaseWSIReader):
         Returns the size (height, width) of the whole slide image at a given level.
 
         Args:
-            wsi: a whole slide image object loaded from a file
+            wsi: a whole slide image object loaded from a file.
             level: the level number where the size is calculated.
 
         """
@@ -1070,7 +1077,7 @@ class TiffFileWSIReader(BaseWSIReader):
         Returns the down-sampling ratio of the whole slide image at a given level.
 
         Args:
-            wsi: a whole slide image object loaded from a file
+            wsi: a whole slide image object loaded from a file.
             level: the level number where the downsample ratio is calculated.
 
         """
@@ -1147,7 +1154,7 @@ class TiffFileWSIReader(BaseWSIReader):
             kwargs: additional args that overrides `self.kwargs` for existing keys.
 
         Returns:
-            whole slide image object or list of such objects
+            whole slide image object or list of such objects.
 
         """
         wsi_list: list = []
@@ -1173,8 +1180,8 @@ class TiffFileWSIReader(BaseWSIReader):
             size: (height, width) tuple giving the patch size at the given level (`level`).
                 If None, it is set to the full image size at the given level.
             level: the level number.
-            dtype: the data type of output image
-            mode: the output image mode, 'RGB' or 'RGBA'
+            dtype: the data type of output image.
+            mode: the output image mode, 'RGB' or 'RGBA'.
 
         """
         # Load the entire image
