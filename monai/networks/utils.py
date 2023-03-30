@@ -25,7 +25,6 @@ from typing import Any
 
 import numpy as np
 import onnx
-import onnxruntime
 import torch
 import torch.nn as nn
 
@@ -620,9 +619,9 @@ def convert_to_onnx(
         set_determinism(seed=0)
         input_dict = dict(zip(input_names, [i.cpu().numpy() for i in inputs]))
         if use_ort:
+            import onnxruntime
             ort_sess = onnxruntime.InferenceSession(
-                onnx_model.SerializeToString(),
-                providers=ort_provider if ort_provider else ["CPUExecutionProvider"]
+                onnx_model.SerializeToString(), providers=ort_provider if ort_provider else ["CPUExecutionProvider"]
             )
             onnx_out = ort_sess.run(None, input_dict)
         else:

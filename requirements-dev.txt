@@ -51,5 +51,4 @@ nni
 optuna
 git+https://github.com/Project-MONAI/MetricsReloaded@monai-support#egg=MetricsReloaded
 onnx
-onnxruntime-gpu; platform_system != "Darwin" and python_version <= '3.10'
-onnxruntime; platform_system == "Darwin" and python_version <= '3.10'
+onnxruntime; python_version <= '3.10'
