@@ -620,12 +620,14 @@ def convert_to_onnx(
         input_dict = dict(zip(input_names, [i.cpu().numpy() for i in inputs]))
         if use_ort:
             import onnxruntime
+
             ort_sess = onnxruntime.InferenceSession(
                 onnx_model.SerializeToString(), providers=ort_provider if ort_provider else ["CPUExecutionProvider"]
             )
             onnx_out = ort_sess.run(None, input_dict)
         else:
             from onnx.reference import ReferenceEvaluator
+
             sess = ReferenceEvaluator(onnx_model)
             onnx_out = sess.run(None, input_dict)
         set_determinism(seed=None)
