@@ -792,8 +792,8 @@ def convert_to_trt(
     verify: bool = False,
     device: int | None = None,
     use_onnx: bool | None = False,
-    onnx_input_names: Sequence[str] | None = ["input_0"],
-    onnx_output_names: Sequence[str] | None = ["output_0"],
+    onnx_input_names: Sequence[str] | None = ("input_0",),
+    onnx_output_names: Sequence[str] | None = ("output_0",),
     rtol: float = 1e-2,
     atol: float = 0.0,
 ):
