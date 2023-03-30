@@ -19,12 +19,13 @@ from parameterized import parameterized
 
 from monai.bundle import ConfigParser
 from monai.networks import save_state
-from tests.utils import SkipIfBeforePyTorchVersion, SkipIfNoModule, command_line_tests
+from tests.utils import SkipIfBeforePyTorchVersion, SkipIfNoModule, command_line_tests, skip_if_windows
 
 TEST_CASE_1 = ["True"]
 TEST_CASE_2 = ["False"]
 
 
+@skip_if_windows
 @SkipIfNoModule("onnx")
 @SkipIfBeforePyTorchVersion((1, 10))
 class TestONNXExport(unittest.TestCase):
