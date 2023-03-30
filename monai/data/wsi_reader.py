@@ -61,7 +61,7 @@ class BaseWSIReader(ImageReader):
         Notes:
             Only one of resolution parameters, `level`, `mpp`, or `power`, should be provided.
             If such parameters are provided in `get_data` method, those will override the values provided here.
-            If none of them are provided here or in `get_data`, `level=0` will be used.
+            If none of them are provided here nor in `get_data`, `level=0` will be used.
 
     Typical usage of a concrete implementation of this class is:
 
@@ -223,7 +223,7 @@ class BaseWSIReader(ImageReader):
 
         Args:
             wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated.
+            level: the level number where the downsample ratio is calculated.
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
@@ -239,8 +239,8 @@ class BaseWSIReader(ImageReader):
         Returns the micro-per-pixel resolution of the whole slide image at a given level.
 
         Args:
-            wsi: a whole slide image object loaded from a file
-            level: the level number where mpp is calculated
+            wsi: a whole slide image object loaded from a file.
+            level: the level number where the mpp is calculated.
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
@@ -251,8 +251,8 @@ class BaseWSIReader(ImageReader):
         Returns the objective power of the whole slide image at a given level.
 
         Args:
-            wsi: a whole slide image object loaded from a file
-            level: the level number where objective power is calculated
+            wsi: a whole slide image object loaded from a file.
+            level: the level number where the objective power is calculated.
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
@@ -332,15 +332,14 @@ class BaseWSIReader(ImageReader):
             dtype: the data type of output image.
             mode: the output image mode, 'RGB' or 'RGBA'.
 
-
         Returns:
             a tuples, where the first element is an image patch [CxHxW] or stack of patches,
                 and second element is a dictionary of metadata.
 
         Notes:
             Only one of resolution parameters, `level`, `mpp`, or `power`, should be provided.
-            If none of the are provided, it uses the defaults that are set during class instantiation.
-            If none of the are set here or during class instantiation, `level=0` will be used.
+            If none of them are provided, it uses the defaults that are set during class instantiation.
+            If none of them are set here nor during class instantiation, `level=0` will be used.
         """
         if mode is None:
             mode = self.mode
@@ -457,6 +456,11 @@ class WSIReader(BaseWSIReader):
         num_workers: number of workers for multi-thread image loading (cucim backend only).
         kwargs: additional arguments to be passed to the backend library
 
+        Notes:
+            Only one of resolution parameters, `level`, `mpp`, or `power`, should be provided.
+            If such parameters are provided in `get_data` method, those will override the values provided here.
+            If none of them are provided here nor in `get_data`, `level=0` will be used.
+
     """
 
     supported_backends = ["cucim", "openslide", "tifffile"]
@@ -570,7 +574,7 @@ class WSIReader(BaseWSIReader):
 
         Args:
             wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated.
+            level: the level number where the downsample ratio is calculated.
 
         """
         return self.reader.get_downsample_ratio(wsi, level)
@@ -584,8 +588,8 @@ class WSIReader(BaseWSIReader):
         Returns the micro-per-pixel resolution of the whole slide image at a given level.
 
         Args:
-            wsi: a whole slide image object loaded from a file
-            level: the level number where mpp calculated.
+            wsi: a whole slide image object loaded from a file.
+            level: the level number where the mpp is calculated.
 
         """
         return self.reader.get_mpp(wsi, level)
@@ -595,7 +599,7 @@ class WSIReader(BaseWSIReader):
         Returns the micro-per-pixel resolution of the whole slide image at a given level.
 
         Args:
-            wsi: a whole slide image object loaded from a file
+            wsi: a whole slide image object loaded from a file.
             level: the level number where the objective power is calculated.
 
         """
@@ -656,6 +660,11 @@ class CuCIMWSIReader(BaseWSIReader):
         kwargs: additional args for `cucim.CuImage` module:
             https://github.com/rapidsai/cucim/blob/main/cpp/include/cucim/cuimage.h
 
+        Notes:
+            Only one of resolution parameters, `level`, `mpp`, or `power`, should be provided.
+            If such parameters are provided in `get_data` method, those will override the values provided here.
+            If none of them are provided here nor in `get_data`, `level=0` will be used.
+
     """
 
     supported_suffixes = ["tif", "tiff", "svs"]
@@ -692,8 +701,8 @@ class CuCIMWSIReader(BaseWSIReader):
         Returns the down-sampling ratio of the whole slide image at a given level.
 
         Args:
-            wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated.
+            wsi: a whole slide image object loaded from a file.
+            level: the level number where the downsample ratio is calculated.
 
         """
         return float(wsi.resolutions["level_downsamples"][level])
@@ -708,35 +717,38 @@ class CuCIMWSIReader(BaseWSIReader):
         Returns the micro-per-pixel resolution of the whole slide image at a given level.
 
         Args:
-            wsi: a whole slide image object loaded from a file
-            level: the level number where mpp is calculated.
+            wsi: a whole slide image object loaded from a file.
+            level: the level number where the mpp is calculated.
 
         """
         downsample_ratio = self.get_downsample_ratio(wsi, level)
-        if "aperio" in wsi.metadata:
-            mpp_ = float(wsi.metadata["aperio"].get("MPP"))
-            if mpp_:
-                return (downsample_ratio * mpp_, downsample_ratio * mpp_)
 
-        return (
-            downsample_ratio * wsi.metadata["cucim"]["spacing"][1],
-            downsample_ratio * wsi.metadata["cucim"]["spacing"][0],
-        )
+        if "aperio" in wsi.metadata:
+            mpp_ = wsi.metadata["aperio"].get("MPP")
+            if mpp_:
+                return (downsample_ratio * float(mpp_),) * 2
+        if "cucim" in wsi.metadata:
+            mpp_ = wsi.metadata["cucim"].get("spacing")
+            if mpp_ and isinstance(mpp_, Sequence) and len(mpp_) >= 2:
+                if mpp_[0] and mpp_[1]:
+                    return (downsample_ratio * mpp_[1], downsample_ratio * mpp_[0])
+
+        raise ValueError("`mpp` cannot be obtained for this file. Please use `level` instead.")
 
     def get_power(self, wsi, level: int) -> float:
         """
         Returns the objective power of the whole slide image at a given level.
 
         Args:
-            wsi: a whole slide image object loaded from a file
-            level: the level number where objective power is calculated.
+            wsi: a whole slide image object loaded from a file.
+            level: the level number where the objective power is calculated.
 
         """
         if "aperio" in wsi.metadata:
-            objective_power = float(wsi.metadata["aperio"].get("AppMag"))
+            objective_power = wsi.metadata["aperio"].get("AppMag")
             if objective_power:
                 downsample_ratio = self.get_downsample_ratio(wsi, level)
-                return objective_power / downsample_ratio
+                return float(objective_power) / downsample_ratio
 
         raise ValueError(
             "Objective power can only be obtained for Aperio images using CuCIM."
@@ -828,6 +840,11 @@ class OpenSlideWSIReader(BaseWSIReader):
         mode: the output image color mode, "RGB" or "RGBA". Defaults to "RGB".
         kwargs: additional args for `openslide.OpenSlide` module.
 
+        Notes:
+            Only one of resolution parameters, `level`, `mpp`, or `power`, should be provided.
+            If such parameters are provided in `get_data` method, those will override the values provided here.
+            If none of them are provided here nor in `get_data`, `level=0` will be used.
+
     """
 
     supported_suffixes = ["tif", "tiff", "svs"]
@@ -864,7 +881,7 @@ class OpenSlideWSIReader(BaseWSIReader):
 
         Args:
             wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated.
+            level: the level number where the downsample ratio is calculated.
 
         """
         return wsi.level_downsamples[level]  # type: ignore
@@ -879,54 +896,64 @@ class OpenSlideWSIReader(BaseWSIReader):
         Returns the micro-per-pixel resolution of the whole slide image at a given level.
 
         Args:
-            wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated.
+            wsi: a whole slide image object loaded from a file.
+            level: the level number where the mpp is calculated.
 
         """
         downsample_ratio = self.get_downsample_ratio(wsi, level)
-        if "openslide.mpp-x" in wsi.properties and "openslide.mpp-y" in wsi.properties:
+        if (
+            "openslide.mpp-x" in wsi.properties
+            and "openslide.mpp-y" in wsi.properties
+            and wsi.properties["openslide.mpp-y"]
+            and wsi.properties["openslide.mpp-x"]
+        ):
             return (
                 downsample_ratio * float(wsi.properties["openslide.mpp-y"]),
                 downsample_ratio * float(wsi.properties["openslide.mpp-x"]),
             )
 
-        if "tiff.XResolution" in wsi.properties and "tiff.YResolution" in wsi.properties:
+        if (
+            "tiff.XResolution" in wsi.properties
+            and "tiff.YResolution" in wsi.properties
+            and wsi.properties["tiff.YResolution"]
+            and wsi.properties["tiff.XResolution"]
+        ):
             unit = wsi.properties.get("tiff.ResolutionUnit")
             if unit == "centimeter":
-                unit_factor = 10000.0
+                factor = 10000.0
             elif unit == "millimeter":
-                unit_factor = 1000.0
+                factor = 1000.0
             elif unit == "micrometer":
-                unit_factor = 1.0
+                factor = 1.0
             elif unit == "inch":
-                unit_factor = 25400.0
+                factor = 25400.0
             else:
                 warnings.warn(
                     f"The resolution unit is not a valid tiff resolution or missing, unit={unit}."
                     " `micrometer` will be used as default."
                 )
-                unit_factor = 1.0
+                factor = 1.0
 
             return (
-                unit_factor * downsample_ratio / float(wsi.properties["tiff.YResolution"]),
-                unit_factor * downsample_ratio / float(wsi.properties["tiff.XResolution"]),
+                factor * downsample_ratio / float(wsi.properties["tiff.YResolution"]),
+                factor * downsample_ratio / float(wsi.properties["tiff.XResolution"]),
             )
 
-        raise ValueError("`mpp`  cannot be obtained for this file. Please use `level` instead.")
+        raise ValueError("`mpp` cannot be obtained for this file. Please use `level` instead.")
 
     def get_power(self, wsi, level: int) -> float:
         """
         Returns the objective power of the whole slide image at a given level.
 
         Args:
-            wsi: a whole slide image object loaded from a file
-            level: the level number where objective power is calculated.
+            wsi: a whole slide image object loaded from a file.
+            level: the level number where the objective power is calculated.
 
         """
-        objective_power = float(wsi.properties.get("openslide.objective-power"))
+        objective_power = wsi.properties.get("openslide.objective-power")
         if objective_power:
             downsample_ratio = self.get_downsample_ratio(wsi, level)
-            return objective_power / downsample_ratio
+            return float(objective_power) / downsample_ratio
 
         raise ValueError("Objective `power` cannot be obtained for this file. Please use `level` (or `mpp`) instead.")
 
@@ -1005,6 +1032,11 @@ class TiffFileWSIReader(BaseWSIReader):
         mode: the output image color mode, "RGB" or "RGBA". Defaults to "RGB".
         kwargs: additional args for `tifffile.TiffFile` module.
 
+        Notes:
+            Only one of resolution parameters, `level`, `mpp`, or `power`, should be provided.
+            If such parameters are provided in `get_data` method, those will override the values provided here.
+            If none of them are provided here nor in `get_data`, `level=0` will be used.
+
     """
 
     supported_suffixes = ["tif", "tiff", "svs"]
@@ -1041,7 +1073,7 @@ class TiffFileWSIReader(BaseWSIReader):
 
         Args:
             wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated.
+            level: the level number where the downsample ratio is calculated.
 
         """
         return float(wsi.pages[0].imagelength) / float(wsi.pages[level].imagelength)
@@ -1056,11 +1088,16 @@ class TiffFileWSIReader(BaseWSIReader):
         Returns the micro-per-pixel resolution of the whole slide image at a given level.
 
         Args:
-            wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated.
+            wsi: a whole slide image object loaded from a file.
+            level: the level number where the mpp is calculated.
 
         """
-        if "XResolution" in wsi.pages[level].tags and "YResolution" in wsi.pages[level].tags:
+        if (
+            "XResolution" in wsi.pages[level].tags
+            and "YResolution" in wsi.pages[level].tags
+            and wsi.pages[level].tags["XResolution"].value
+            and wsi.pages[level].tags["YResolution"].value
+        ):
             unit = wsi.pages[level].tags.get("ResolutionUnit")
             if unit is not None:
                 unit = unit.value
@@ -1094,8 +1131,8 @@ class TiffFileWSIReader(BaseWSIReader):
         Returns the objective power of the whole slide image at a given level.
 
         Args:
-            wsi: a whole slide image object loaded from a file
-            level: the level number where objective power is calculated.
+            wsi: a whole slide image object loaded from a file.
+            level: the level number where the objective power is calculated.
 
         """
         raise ValueError(
