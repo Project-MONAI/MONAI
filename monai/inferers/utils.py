@@ -187,7 +187,7 @@ def sliding_window_inference(
             importance_map_ = compute_importance_map(
                 valid_p_size, mode=mode, sigma_scale=sigma_scale, device=sw_device, dtype=compute_dtype
             )
-        except BaseException as e:
+        except Exception as e:
             raise RuntimeError(
                 f"patch size {valid_p_size}, mode={mode}, sigma_scale={sigma_scale}, device={device}\n"
                 "Seems to be OOM. Please try smaller patch size or mode='constant' instead of mode='gaussian'."
@@ -195,7 +195,7 @@ def sliding_window_inference(
     importance_map_ = convert_data_type(importance_map_, torch.Tensor, device=sw_device, dtype=compute_dtype)[0]
 
     # stores output and count map
-    output_image_list, count_map_list, sw_device_buffer, _initialized_ss, b_s, b_i = [], [], [], -1, 0, 0
+    output_image_list, count_map_list, sw_device_buffer, b_s, b_i = [], [], [], 0, 0
     # for each patch
     for slice_g in tqdm(windows_range) if progress else windows_range:
         slice_range = range(slice_g, min(slice_g + sw_batch_size, total_slices if b_steps is None else b_ends[b_s]))
@@ -246,7 +246,7 @@ def sliding_window_inference(
                 w_t = resizer(importance_map.unsqueeze(0))[None].to(dtype=compute_dtype, device=sw_device)
             else:
                 w_t = importance_map[None, None].to(dtype=compute_dtype, device=sw_device)
-            if _initialized_ss < ss:  # init. the ss-th buffer at the first iteration
+            if len(output_image_list) <= ss:  # init. the ss-th buffer at the first iteration
                 # construct multi-resolution outputs
                 output_shape = [batch_size, seg_chns]
                 output_shape += [int(_i * _z) for _i, _z in zip(image_size, z_scale)] if z_scale else list(image_size)
@@ -258,7 +258,6 @@ def sliding_window_inference(
                     if z_scale is not None:
                         __s = [slice(int(_si.start * z_s), int(_si.stop * z_s)) for _si, z_s in zip(__s, z_scale)]
                     count_map_list[-1][(slice(None), slice(None), *__s)] += w_t
-                _initialized_ss += 1
                 w_t = w_t.to(sw_device)
             if b_steps is not None:
                 o_slice = [slice(None)] * len(inputs.shape)
