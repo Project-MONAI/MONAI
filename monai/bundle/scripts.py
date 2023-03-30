@@ -1035,6 +1035,9 @@ def trt_export(
     use_trace: bool | None = None,
     dynamic_batchsize: Sequence[int] | None = None,
     device: int | None = None,
+    use_onnx: bool | None = None,
+    onnx_input_names: Sequence[str] | None = None,
+    onnx_output_names: Sequence[str] | None = None,
     args_file: str | None = None,
     **override: Any,
 ) -> None:
@@ -1063,13 +1066,16 @@ def trt_export(
         precision: the weight precision of the converted TensorRT engine based torchscript models. Should be 'fp32' or 'fp16'.
         input_shape: the input shape that is used to convert the model. Should be a list like [N, C, H, W] or
             [N, C, H, W, D].
-        use_trace: whether using `torch.jit.trace` to convert the pytorch model to torchscript model and then convert to
+        use_trace: whether to `torch.jit.trace` to convert the pytorch model to torchscript model and then convert to
             a TensorRT engine based torchscript model.
         dynamic_batchsize: a sequence with three elements to define the batch size range of the input for the model to be converted.
             Should be a sequence like [MIN_BATCH, OPT_BATCH, MAX_BATCH]. After converted, the batchsize of model input should
             between `MIN_BATCH` and `MAX_BATCH` and the `OPT_BATCH` is the best peformance batchsize that the TensorRT trys to fit.
             We suggest the `OPT_BATCH` to be the most frequently used input batchsize in your application.
         device: the target GPU index to convert and verify the model.
+        use_onnx: whether to use the onnx-tensorrt way to export the TensorRT engine-based torchscript model.
+        onnx_input_names: optional input names of the ONNX model.
+        onnx_output_names: optional output names of the ONNX model.
         args_file: a JSON or YAML file to provide default values for `meta_file`, `config_file`,
             `net_id` and override pairs. so that the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.
@@ -1089,6 +1095,9 @@ def trt_export(
         use_trace=use_trace,
         dynamic_batchsize=dynamic_batchsize,
         device=device,
+        use_onnx=use_onnx,
+        onnx_input_names=onnx_input_names,
+        onnx_output_names=onnx_output_names,
         **override,
     )
     _log_input_summary(tag="trt_export", args=_args)
@@ -1104,6 +1113,9 @@ def trt_export(
         use_trace_,
         dynamic_batchsize_,
         device_,
+        use_onnx_,
+        onnx_input_names_,
+        onnx_output_names_,
     ) = _pop_args(
         _args,
         "filepath",
@@ -1117,6 +1129,9 @@ def trt_export(
         use_trace=False,
         dynamic_batchsize=None,
         device=None,
+        use_onnx=False,
+        onnx_input_names=["input_0"],
+        onnx_output_namess=["output_0"],
     )
 
     parser = ConfigParser()
@@ -1147,6 +1162,9 @@ def trt_export(
         dynamic_batchsize=dynamic_batchsize_,
         use_trace=use_trace_,
         device=device_,
+        use_onnx=use_onnx_,
+        onnx_input_names=onnx_input_names_,
+        onnx_output_names=onnx_output_names_,
     )
 
 
