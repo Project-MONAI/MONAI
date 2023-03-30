@@ -751,7 +751,7 @@ class CuCIMWSIReader(BaseWSIReader):
                 return float(objective_power) / downsample_ratio
 
         raise ValueError(
-            "Objective power can only be obtained for Aperio images using CuCIM."
+            "Currently, cuCIM backend can obtain the objective power only for Aperio images."
             "Please use `level` (or `mpp`) instead, or try OpenSlide backend."
         )
 
@@ -1022,9 +1022,6 @@ class TiffFileWSIReader(BaseWSIReader):
         mpp: the resolution in micron per pixel at which the patches are extracted.
         mpp_rtol: the acceptable relative tolerance for resolution in micro per pixel.
         mpp_atol: the acceptable absolute tolerance for resolution in micro per pixel.
-        power: objective power at which the patches are extracted.
-        power_rtol: the acceptable relative tolerance for objective power.
-        power_atol: the acceptable absolute tolerance for objective power.
         channel_dim: the desired dimension for color channel. Default to 0 (channel first).
         dtype: the data type of output image. Defaults to `np.uint8`.
         device: target device to put the extracted patch. Note that if device is "cuda"",
@@ -1033,9 +1030,10 @@ class TiffFileWSIReader(BaseWSIReader):
         kwargs: additional args for `tifffile.TiffFile` module.
 
         Notes:
-            Only one of resolution parameters, `level`, `mpp`, or `power`, should be provided.
-            If such parameters are provided in `get_data` method, those will override the values provided here.
-            If none of them are provided here nor in `get_data`, `level=0` will be used.
+            - Objective power cannot be obtained via TiffFile backend.
+            - Only one of resolution parameters, `level` or `mpp`, should be provided.
+                If such parameters are provided in `get_data` method, those will override the values provided here.
+                If none of them are provided here nor in `get_data`, `level=0` will be used.
 
     """
 
@@ -1136,7 +1134,7 @@ class TiffFileWSIReader(BaseWSIReader):
 
         """
         raise ValueError(
-            "Objective power cannot be obtained from TiffFile object."
+            "Currently, TiffFile does not provide a general API to obtain objective power."
             "Please use `level` (or `mpp`) instead, or try other backends."
         )
 
