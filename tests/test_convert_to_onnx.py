@@ -60,6 +60,10 @@ class TestConvertToOnnx(unittest.TestCase):
     @parameterized.expand(TESTS_ORT)
     @SkipIfBeforePyTorchVersion((1, 12))
     def test_seg_res_net(self, device, use_ort):
+        if use_ort:
+            _, has_onnxruntime = optional_import("onnxruntime")
+            if not has_onnxruntime:
+                self.skipTest("onnxruntime is not installed probably due to python version >= 3.11.")
         model = SegResNet(
             spatial_dims=3,
             init_filters=32,
