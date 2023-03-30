@@ -578,6 +578,7 @@ def convert_to_onnx(
         inputs: input sample data used by pytorch.onnx.export. It is also used in ONNX model verification.
         input_names: optional input names of the ONNX model.
         output_names: optional output names of the ONNX model.
+        filename: optional filename to save the ONNX model, if None, don't save the ONNX model.
         verify: whether to verify the ONNX model with ONNX or onnxruntime.
         device: target PyTorch device to verify the model, if None, use CUDA if available.
         use_ort: whether to use onnxruntime to verify the model.
