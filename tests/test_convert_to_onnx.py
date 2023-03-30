@@ -15,7 +15,6 @@ import itertools
 import unittest
 
 import onnx
-import onnxruntime as ort
 import torch
 from parameterized import parameterized
 
