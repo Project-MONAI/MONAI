@@ -559,6 +559,8 @@ def convert_to_onnx(
     inputs: Sequence[Any],
     input_names: Sequence[str] | None = None,
     output_names: Sequence[str] | None = None,
+    opset_version: int | None = None,
+    dynamic_axes: Mapping[str, Mapping[int, str]] | Mapping[str, Sequence[int]] | None = None,
     filename: Any | None = None,
     verify: bool = False,
     device: torch.device | None = None,
@@ -578,6 +580,11 @@ def convert_to_onnx(
         inputs: input sample data used by pytorch.onnx.export. It is also used in ONNX model verification.
         input_names: optional input names of the ONNX model.
         output_names: optional output names of the ONNX model.
+        opset_version: version of the default (ai.onnx) opset to target. Must be >= 7 and <= 16, for more
+            details: https://github.com/onnx/onnx/blob/main/docs/Operators.md.
+        dynamic_axes: specifies axes of tensors as dynamic (i.e. known only at run-time). If set to None,
+            the exported model will have the shapes of all input and output tensors set to match given
+            ones, for more details: https://pytorch.org/docs/stable/onnx.html#torch.onnx.export.
         filename: optional filename to save the ONNX model, if None, don't save the ONNX model.
         verify: whether to verify the ONNX model with ONNX or onnxruntime.
         device: target PyTorch device to verify the model, if None, use CUDA if available.
@@ -601,10 +608,26 @@ def convert_to_onnx(
             script_module = torch.jit.script(model, **kwargs)
         if filename is None:
             f = io.BytesIO()
-            torch.onnx.export(script_module, inputs, f=f, input_names=input_names, output_names=output_names)
+            torch.onnx.export(
+                script_module,
+                inputs,
+                f=f,
+                input_names=input_names,
+                output_names=output_names,
+                dynamic_axes=dynamic_axes,
+                opset_version=opset_version,
+            )
             onnx_model = onnx.load_model_from_string(f.getvalue())
         else:
-            torch.onnx.export(script_module, inputs, f=filename, input_names=input_names, output_names=output_names)
+            torch.onnx.export(
+                script_module,
+                inputs,
+                f=filename,
+                input_names=input_names,
+                output_names=output_names,
+                dynamic_axes=dynamic_axes,
+                opset_version=opset_version,
+            )
             onnx_model = onnx.load(filename)
 
     if verify:
