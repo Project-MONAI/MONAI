@@ -1000,7 +1000,7 @@ def onnx_export(
         net_id="",
         meta_file=None,
         key_in_ckpt="",
-        use_trace=False,
+        use_trace=True,
         input_shape=None,
     )
 
