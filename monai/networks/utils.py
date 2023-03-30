@@ -559,7 +559,7 @@ def convert_to_onnx(
     inputs: Sequence[Any],
     input_names: Sequence[str] | None = None,
     output_names: Sequence[str] | None = None,
-    opset_version: int = 18,
+    opset_version: int | None = None,
     dynamic_axes: Mapping[str, Mapping[int, str]] | Mapping[str, Sequence[int]] | None = None,
     filename: Any | None = None,
     verify: bool = False,
@@ -580,7 +580,7 @@ def convert_to_onnx(
         inputs: input sample data used by pytorch.onnx.export. It is also used in ONNX model verification.
         input_names: optional input names of the ONNX model.
         output_names: optional output names of the ONNX model.
-        opset_version: version of the (ai.onnx) opset to target, default is 18. Must be >= 7 and <= 16, for more
+        opset_version: version of the (ai.onnx) opset to target. Must be >= 7 and <= 16, for more
             details: https://github.com/onnx/onnx/blob/main/docs/Operators.md.
         dynamic_axes: specifies axes of tensors as dynamic (i.e. known only at run-time). If set to None,
             the exported model will have the shapes of all input and output tensors set to match given
