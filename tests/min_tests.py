@@ -34,6 +34,7 @@ def run_testsuit():
         "test_auto3dseg_ensemble",
         "test_auto3dseg_hpo",
         "test_auto3dseg",
+        "test_bundle_onnx_export",
         "test_bundle_trt_export",
         "test_cachedataset",
         "test_cachedataset_parallel",

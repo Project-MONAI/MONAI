@@ -589,7 +589,7 @@ def convert_to_onnx(
         verify: whether to verify the ONNX model with ONNX or onnxruntime.
         device: target PyTorch device to verify the model, if None, use CUDA if available.
         use_ort: whether to use onnxruntime to verify the model.
-        ort_provider": onnxruntime providers to use, default is ["CPUExecutionProvider"].
+        ort_provider": onnxruntime provider to use, default is ["CPUExecutionProvider"].
         rtol: the relative tolerance when comparing the outputs of PyTorch model and TorchScript model.
         atol: the absolute tolerance when comparing the outputs of PyTorch model and TorchScript model.
         use_trace: whether to use `torch.jit.trace` to export the torchscript model.

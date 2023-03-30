@@ -19,12 +19,13 @@ from parameterized import parameterized
 
 from monai.bundle import ConfigParser
 from monai.networks import save_state
-from tests.utils import SkipIfBeforePyTorchVersion, SkipIfNoModule, command_line_tests
+from tests.utils import SkipIfBeforePyTorchVersion, SkipIfNoModule, command_line_tests, skip_if_windows
 
-TEST_CASE_1 = [True]
-TEST_CASE_2 = [False]
+TEST_CASE_1 = ["True"]
+TEST_CASE_2 = ["False"]
 
 
+@skip_if_windows
 @SkipIfNoModule("onnx")
 @SkipIfBeforePyTorchVersion((1, 10))
 class TestONNXExport(unittest.TestCase):
@@ -48,7 +49,7 @@ class TestONNXExport(unittest.TestCase):
             def_args_file = os.path.join(tempdir, "def_args.yaml")
 
             ckpt_file = os.path.join(tempdir, "model.pt")
-            onnx_file = os.path.join(tempdir, f"model.onnx")
+            onnx_file = os.path.join(tempdir, "model.onnx")
 
             parser = ConfigParser()
             parser.export_config_file(config=def_args, filepath=def_args_file)
@@ -59,6 +60,7 @@ class TestONNXExport(unittest.TestCase):
             cmd = ["python", "-m", "monai.bundle", "onnx_export", "network_def", "--filepath", onnx_file]
             cmd += ["--meta_file", meta_file, "--config_file", f"['{config_file}','{def_args_file}']"]
             cmd += ["--ckpt_file", ckpt_file, "--args_file", def_args_file, "--input_shape", "[1, 1, 96, 96, 96]"]
+            cmd += ["--use_trace", use_trace]
             command_line_tests(cmd)
             self.assertTrue(os.path.exists(onnx_file))
 
