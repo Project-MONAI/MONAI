@@ -24,7 +24,6 @@ from copy import deepcopy
 from typing import Any
 
 import numpy as np
-import onnx
 import torch
 import torch.nn as nn
 
@@ -591,6 +590,8 @@ def convert_to_onnx(
             https://pytorch.org/docs/master/generated/torch.jit.script.html.
 
     """
+    onnx, _ = optional_import("onnx")
+
     model.eval()
     with torch.no_grad():
         if use_trace:
@@ -617,9 +618,9 @@ def convert_to_onnx(
             torch_out = ensure_tuple(model(*inputs), True)
 
         set_determinism(seed=0)
-        input_dict = dict(zip(input_names, [i.cpu().numpy() for i in inputs]))
+        input_dict = dict(zip(input_names or [], [i.cpu().numpy() for i in inputs]))
         if use_ort:
-            import onnxruntime
+            onnxruntime, _ = optional_import("onnxruntime")
 
             ort_sess = onnxruntime.InferenceSession(
                 onnx_model.SerializeToString(), providers=ort_provider if ort_provider else ["CPUExecutionProvider"]

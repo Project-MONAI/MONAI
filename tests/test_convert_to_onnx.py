@@ -14,13 +14,12 @@ from __future__ import annotations
 import itertools
 import unittest
 
-import onnx
 import torch
 from parameterized import parameterized
 
 from monai.networks import convert_to_onnx
 from monai.networks.nets import SegResNet, UNet
-from tests.utils import SkipIfBeforePyTorchVersion
+from tests.utils import SkipIfBeforePyTorchVersion, SkipIfNoModule, optional_import
 
 if torch.cuda.is_available():
     TORCH_DEVICE_OPTIONS = ["cpu", "cuda"]
@@ -29,7 +28,10 @@ else:
 TESTS = list(itertools.product(TORCH_DEVICE_OPTIONS, [True, False]))
 TESTS_ORT = list(itertools.product(TORCH_DEVICE_OPTIONS, [True]))
 
+onnx, _ = optional_import("onnx")
 
+
+@SkipIfNoModule("onnx")
 @SkipIfBeforePyTorchVersion((1, 10))
 class TestConvertToOnnx(unittest.TestCase):
     @parameterized.expand(TESTS)

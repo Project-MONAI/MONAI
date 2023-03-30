@@ -990,8 +990,8 @@ def onnx_export(
         input_shape=input_shape,
         **override,
     )
-    _log_input_summary(tag="ckpt_export", args=_args)
-    _, _, config_file_, net_id_, meta_file_, _, _, input_shape_ = _pop_args(
+    _log_input_summary(tag="onnx_export", args=_args)
+    filepath_, ckpt_file_, config_file_, net_id_, meta_file_, _, _, input_shape_ = _pop_args(
         _args,
         "filepath",
         "ckpt_file",
@@ -1013,17 +1013,16 @@ def onnx_export(
     for k, v in _args.items():
         parser[k] = v
 
-    inputs_: Sequence[Any] | None = [torch.rand(input_shape_)] if input_shape_ else None
-
+    inputs_ = [torch.rand(input_shape_)]
     net = parser.get_parsed_content(net_id_)
     if has_ignite:
         # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
-        Checkpoint.load_objects(to_load={key_in_ckpt: net}, checkpoint=ckpt_file)
+        Checkpoint.load_objects(to_load={key_in_ckpt: net}, checkpoint=ckpt_file_)
     else:
-        ckpt = torch.load(ckpt_file)
+        ckpt = torch.load(ckpt_file_)
         copy_model_state(dst=net, src=ckpt if key_in_ckpt == "" else ckpt[key_in_ckpt])
-    onnx_model = convert_to_onnx(model=net, inputs=inputs_, use_trace=use_trace)
-    onnx.save(onnx_model, filepath)
+    onnx_model = convert_to_onnx(model=net, inputs=inputs_, use_trace=use_trace if use_trace else False)
+    onnx.save(onnx_model, filepath_)
 
 
 def ckpt_export(
