@@ -19,7 +19,7 @@ from parameterized import parameterized
 
 from monai.bundle import ConfigParser
 from monai.networks import save_state
-from tests.utils import command_line_tests, SkipIfNoModule, SkipIfBeforePyTorchVersion
+from tests.utils import SkipIfBeforePyTorchVersion, SkipIfNoModule, command_line_tests
 
 TEST_CASE_1 = [True]
 TEST_CASE_2 = [False]
