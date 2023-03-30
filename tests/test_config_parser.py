@@ -14,7 +14,9 @@ from __future__ import annotations
 import os
 import tempfile
 import unittest
-from unittest import skipUnless
+import warnings
+from pathlib import Path
+from unittest import mock, skipUnless
 
 import numpy as np
 from parameterized import parameterized
@@ -27,6 +29,7 @@ from monai.utils import min_version, optional_import
 from tests.utils import TimedCall
 
 _, has_tv = optional_import("torchvision", "0.8.0", min_version)
+_, has_yaml = optional_import("yaml")
 
 
 @TimedCall(seconds=100, force_quit=True)
@@ -108,6 +111,18 @@ TEST_CASE_3 = [
 TEST_CASE_4 = [{"A": 1, "B": "@A", "C": "@D", "E": "$'test' + '@F'"}]
 
 TEST_CASE_5 = [{"training": {"A": 1, "A_B": 2}, "total": "$@training#A + @training#A_B + 1"}, 4]
+
+TEST_CASE_DUPLICATED_KEY_JSON = ["""{"key": {"unique": 1, "duplicate": 0, "duplicate": 4 } }""", "json", 1, [0, 4]]
+
+TEST_CASE_DUPLICATED_KEY_YAML = [
+    """key:
+    unique: 1
+    duplicate: 0
+    duplicate: 4""",
+    "yaml",
+    1,
+    [0, 4],
+]
 
 
 class TestConfigParser(unittest.TestCase):
@@ -302,6 +317,36 @@ class TestConfigParser(unittest.TestCase):
     def test_substring_reference(self, config, expected):
         parser = ConfigParser(config=config)
         self.assertEqual(parser.get_parsed_content("total"), expected)
+
+    @parameterized.expand([TEST_CASE_DUPLICATED_KEY_JSON, TEST_CASE_DUPLICATED_KEY_YAML])
+    @mock.patch.dict(os.environ, {"MONAI_FAIL_ON_DUPLICATE_CONFIG": "1"})
+    @skipUnless(has_yaml, "Requires pyyaml")
+    def test_parse_json_raise(self, config_string, extension, _, __):
+        with tempfile.TemporaryDirectory() as tempdir:
+            config_path = Path(tempdir) / f"config.{extension}"
+            config_path.write_text(config_string)
+            parser = ConfigParser()
+
+            with self.assertRaises(ValueError) as context:
+                parser.read_config(config_path)
+
+            self.assertTrue("Duplicate key: `duplicate`" in str(context.exception))
+
+    @parameterized.expand([TEST_CASE_DUPLICATED_KEY_JSON, TEST_CASE_DUPLICATED_KEY_YAML])
+    @skipUnless(has_yaml, "Requires pyyaml")
+    def test_parse_json_warn(self, config_string, extension, expected_unique_val, expected_duplicate_vals):
+        with tempfile.TemporaryDirectory() as tempdir:
+            config_path = Path(tempdir) / f"config.{extension}"
+            config_path.write_text(config_string)
+            parser = ConfigParser()
+
+            with warnings.catch_warnings(record=True) as w:
+                parser.read_config(config_path)
+            self.assertEqual(len(w), 1)
+            self.assertTrue("Duplicate key: `duplicate`" in str(w[-1].message))
+
+            self.assertEqual(parser.get_parsed_content("key#unique"), expected_unique_val)
+            self.assertIn(parser.get_parsed_content("key#duplicate"), expected_duplicate_vals)
 
 
 if __name__ == "__main__":
