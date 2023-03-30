@@ -20,7 +20,7 @@ from monai.apps.detection.networks.retinanet_network import RetinaNet, resnet_fp
 from monai.networks import eval_mode
 from monai.networks.nets import resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200
 from monai.utils import ensure_tuple, optional_import
-from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
+from tests.utils import SkipIfBeforePyTorchVersion, test_onnx_save, test_script_save
 
 _, has_torchvision = optional_import("torchvision")
 
@@ -170,6 +170,39 @@ class TestRetinaNet(unittest.TestCase):
         )
         if idx == 2:
             test_script_save(net, data)
+
+    @parameterized.expand(TEST_CASES_TS)
+    def test_onnx(self, model, input_param, input_shape):
+        try:
+            idx = int(self.id().split("test_onnx_")[-1])
+        except BaseException:
+            idx = 0
+        idx %= 3
+        # test whether support torchscript
+        data = torch.randn(input_shape)
+        backbone = model(**input_param)
+        if idx == 0:
+            test_onnx_save(backbone, data)
+            return
+        feature_extractor = resnet_fpn_feature_extractor(
+            backbone=backbone,
+            spatial_dims=input_param["spatial_dims"],
+            pretrained_backbone=input_param["pretrained"],
+            trainable_backbone_layers=None,
+            returned_layers=[1, 2],
+        )
+        if idx == 1:
+            test_onnx_save(feature_extractor, data)
+            return
+        net = RetinaNet(
+            spatial_dims=input_param["spatial_dims"],
+            num_classes=input_param["num_classes"],
+            num_anchors=num_anchors,
+            feature_extractor=feature_extractor,
+            size_divisible=32,
+        )
+        if idx == 2:
+            test_onnx_save(net, data)
 
 
 if __name__ == "__main__":

@@ -559,7 +559,7 @@ def convert_to_onnx(
     inputs: Sequence[Any],
     input_names: Sequence[str] | None = None,
     output_names: Sequence[str] | None = None,
-    opset_version: int | None = None,
+    opset_version: int = 18,
     dynamic_axes: Mapping[str, Mapping[int, str]] | Mapping[str, Sequence[int]] | None = None,
     filename: Any | None = None,
     verify: bool = False,
@@ -580,7 +580,7 @@ def convert_to_onnx(
         inputs: input sample data used by pytorch.onnx.export. It is also used in ONNX model verification.
         input_names: optional input names of the ONNX model.
         output_names: optional output names of the ONNX model.
-        opset_version: version of the default (ai.onnx) opset to target. Must be >= 7 and <= 16, for more
+        opset_version: version of the (ai.onnx) opset to target, default is 18. Must be >= 7 and <= 16, for more
             details: https://github.com/onnx/onnx/blob/main/docs/Operators.md.
         dynamic_axes: specifies axes of tensors as dynamic (i.e. known only at run-time). If set to None,
             the exported model will have the shapes of all input and output tensors set to match given
@@ -642,7 +642,8 @@ def convert_to_onnx(
             torch_out = ensure_tuple(model(*inputs), True)
 
         set_determinism(seed=0)
-        input_dict = dict(zip(input_names or [], [i.cpu().numpy() for i in inputs]))
+        model_input_names = [i.name for i in onnx_model.graph.input]
+        input_dict = dict(zip(model_input_names, [i.cpu().numpy() for i in inputs]))
         if use_ort:
             onnxruntime, _ = optional_import("onnxruntime")
 
