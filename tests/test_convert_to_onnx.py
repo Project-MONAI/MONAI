@@ -36,6 +36,10 @@ onnx, _ = optional_import("onnx")
 class TestConvertToOnnx(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_unet(self, device, use_ort):
+        if use_ort:
+            _, has_onnxruntime = optional_import("onnxruntime")
+            if not has_onnxruntime:
+                self.skipTest("onnxruntime is not installed probably due to python version >= 3.11.")
         model = UNet(
             spatial_dims=2, in_channels=1, out_channels=3, channels=(16, 32, 64), strides=(2, 2), num_res_units=0
         )

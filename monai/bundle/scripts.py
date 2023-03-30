@@ -22,7 +22,6 @@ from shutil import copyfile
 from textwrap import dedent
 from typing import Any, Callable
 
-import onnx
 import torch
 from torch.cuda import is_available
 
@@ -978,6 +977,8 @@ def onnx_export(
             e.g. ``--_meta#network_data_format#inputs#image#num_channels 3``.
 
     """
+    onnx, _ = optional_import("onnx")
+
     _args = _update_args(
         args=args_file,
         net_id=net_id,
