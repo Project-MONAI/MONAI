@@ -1,3 +1,4 @@
+# environment for running in AzureML
 name: monai-azureml
 channels:
   - pytorch
