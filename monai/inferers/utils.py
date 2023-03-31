@@ -144,9 +144,9 @@ def sliding_window_inference(
     device = device or inputs.device
     sw_device = sw_device or inputs.device
 
-    metadict = None
+    temp_meta = None
     if isinstance(inputs, MetaTensor):
-        metadict = inputs.meta.copy()
+        temp_meta = MetaTensor([]).copy_meta_from(inputs, copy_attr=False)
     inputs = convert_data_type(inputs, torch.Tensor, wrap_sequence=True)[0]
     roi_size = fall_back_tuple(roi_size, image_size_)
 
@@ -303,8 +303,8 @@ def sliding_window_inference(
 
     final_output = _pack_struct(output_image_list, dict_keys)
     final_output = convert_to_dst_type(final_output, inputs, device=device)[0]  # type: ignore
-    if metadict is not None:
-        final_output = MetaTensor(final_output, meta=metadict)
+    if temp_meta is not None:
+        final_output = MetaTensor(final_output).copy_meta_from(temp_meta)
     return final_output  # type: ignore
 
 
