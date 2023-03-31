@@ -12,13 +12,6 @@ class ApplyPending(InvertibleTransform):
         super().__init__()
 
     def __call__(self, data, *args, **kwargs):
-        if isinstance(data, dict):
-            rd = dict(data)
-            for k, v in data.items():
-                if isinstance(v, MetaTensor):
-                    rd[k] = apply_pending(v, *args, **kwargs)
-            return rd
-
         return apply_pending(data, *args, **kwargs)
 
     def inverse(self, data):

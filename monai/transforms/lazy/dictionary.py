@@ -12,13 +12,16 @@ class ApplyPendingd(InvertibleTransform):
         self.keys = keys
 
     def __call__(self, data, **kwargs):
+        if not isinstance(data, dict):
+            raise ValueError("'data' must be of type dict but is '{type(data)}'")
+
         rd = dict(data)
         for k in self.keys:
             rd[k] = apply_pending(rd[k], **kwargs)
         return rd
 
-        # return apply_transforms(data, *args, **kwargs)
-
     def inverse(self, data):
+        if not isinstance(data, dict):
+            raise ValueError("'data' must be of type dict but is '{type(data)}'")
+
         return self(data)
-    
