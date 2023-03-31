@@ -19,7 +19,7 @@ from parameterized import parameterized
 
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import ResizeWithPadOrCrop
-from monai.transforms.lazy.functional import apply_transforms
+from monai.transforms.lazy.functional import apply_pending
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose, pytorch_after
 
 TEST_CASES = [
@@ -85,7 +85,7 @@ class TestResizeWithPadOrCrop(unittest.TestCase):
             assert_allclose(pending_result.peek_pending_affine(), expected.affine)
             assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:])
             # only support nearest
-            result = apply_transforms(
+            result = apply_pending(
                 pending_result,
                 mode="nearest",
                 padding_mode=TESTS_PENDING_MODE[input_param["mode"]],

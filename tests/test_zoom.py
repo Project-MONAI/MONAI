@@ -20,7 +20,7 @@ from scipy.ndimage import zoom as zoom_scipy
 
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import Zoom
-from monai.transforms.lazy.functional import apply_transforms
+from monai.transforms.lazy.functional import apply_pending
 from tests.utils import (
     DEFAULT_TEST_AFFINE,
     TEST_NDARRAYS_ALL,
@@ -57,7 +57,7 @@ class TestZoom(NumpyImageTestCase2D):
         self.assertIsInstance(pending_result, MetaTensor)
         assert_allclose(pending_result.peek_pending_affine(), expected.affine)
         assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:])
-        result = apply_transforms(pending_result, mode="bilinear", dtype=np.float64, align_corners=align_corners)[0]
+        result = apply_pending(pending_result, mode="bilinear", dtype=np.float64, align_corners=align_corners)[0]
         # compare
         match_ratio = np.sum(np.isclose(result, expected)) / np.prod(result.shape)
         self.assertGreater(match_ratio, 0.95)

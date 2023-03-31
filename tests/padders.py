@@ -18,7 +18,7 @@ import torch
 
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import Compose
-from monai.transforms.lazy.functional import apply_transforms
+from monai.transforms.lazy.functional import apply_pending
 from monai.transforms.transform import MapTransform
 from monai.utils.enums import NumpyPadMode, PytorchPadMode
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
@@ -134,7 +134,7 @@ class PadTest(unittest.TestCase):
             assert_allclose(pending_result.peek_pending_affine(), expected.affine)
             assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:])
             # TODO: mode="bilinear" may report error
-            result = apply_transforms(pending_result, mode="nearest", padding_mode=mode[1], align_corners=False)[0]
+            result = apply_pending(pending_result, mode="nearest", padding_mode=mode[1], align_corners=False)[0]
             # compare
             assert_allclose(result, expected, rtol=1e-5)
 
@@ -163,6 +163,6 @@ class PadTest(unittest.TestCase):
             assert_allclose(pending_result.peek_pending_affine(), expected.affine)
             assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:])
             # TODO: mode="bilinear" may report error
-            result = apply_transforms(pending_result, mode="nearest", padding_mode=mode[1], align_corners=False)[0]
+            result = apply_pending(pending_result, mode="nearest", padding_mode=mode[1], align_corners=False)[0]
             # compare
             assert_allclose(result, expected, rtol=1e-5)

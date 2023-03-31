@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from monai.data import set_track_meta
 from monai.transforms import Randomizable
-from monai.transforms.lazy.functional import apply_transforms
+from monai.transforms.lazy.functional import apply_pending
 from tests.utils import assert_allclose
 
 apply_transforms_kwargs = ("pending", "mode", "padding_mode", "dtype", "align_corners")
@@ -73,5 +73,5 @@ def test_resampler_lazy(
     if not skip_shape_check:
         assert_allclose(lazy_out.peek_pending_shape(), non_lazy_out.shape[1:4])
     apply_param = get_apply_param(init_param, call_param)
-    lazy_out = apply_transforms(lazy_out, **apply_param)[0]
+    lazy_out = apply_pending(lazy_out, **apply_param)[0]
     assert_allclose(lazy_out, non_lazy_out, rtol=rtol, atol=atol)

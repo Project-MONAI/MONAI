@@ -80,7 +80,7 @@ def evaluate_with_overrides(
     overrides = (overrides or {}).copy()
     if isinstance(data, monai.data.MetaTensor):
         if data.has_pending_operations and ((isinstance(upcoming, (mt.Identityd, mt.Identity))) or upcoming is None):
-            data, _ = mt.apply_transforms(data, None, overrides=overrides)
+            data, _ = mt.apply_pending(data, None, overrides=overrides)
             if verbose:
                 next_name = "final output" if upcoming is None else f"'{upcoming.__class__.__name__}'"
                 logger.info(f"Evaluated - '{override_keys}' - up-to-date for - {next_name}")

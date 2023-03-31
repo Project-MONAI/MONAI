@@ -11,5 +11,5 @@
 
 from __future__ import annotations
 
-from .functional import apply_transforms
+from .functional import apply_pending
 from .utils import combine_transforms, resample

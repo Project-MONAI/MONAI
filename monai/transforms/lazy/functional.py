@@ -25,7 +25,7 @@ from monai.transforms.lazy.utils import (
 )
 from monai.utils import LazyAttr, look_up_option
 
-__all__ = ["apply_transforms"]
+__all__ = ["apply_pending"]
 
 __override_keywords = {"mode", "padding_mode", "dtype", "align_corners", "resample_mode", "device"}
 
@@ -42,19 +42,20 @@ def execute_pending_transforms(data, overrides: dict = None):
         for k, v in d.items():
             if isinstance(v, MetaTensor) and v.has_pending_operations:
                 overrides_ = None if overrides is None else overrides[k]
-                d[k], _ = apply_transforms(v, overrides=overrides_)
+                d[k], _ = apply_pending(v, overrides=overrides_)
         return d
 
     if isinstance(data, MetaTensor) and data.has_pending_operations:
-        data, _ = apply_transforms(data, overrides=overrides)
+        data, _ = apply_pending(data, overrides=overrides)
 
     return data
 
 
-def apply_transforms(
+def apply_pending(
         data: torch.Tensor | MetaTensor,
         pending: list | None = None,
         overrides: dict | None = None,
+        **kwargs
 ):
     """
     This method applies pending transforms to `data` tensors.

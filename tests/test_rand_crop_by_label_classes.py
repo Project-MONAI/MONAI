@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import ClassesToIndices, RandCropByLabelClasses
-from monai.transforms.lazy.functional import apply_transforms
+from monai.transforms.lazy.functional import apply_pending
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TESTS_INDICES, TESTS_SHAPE = [], []
@@ -161,7 +161,7 @@ class TestRandCropByLabelClasses(unittest.TestCase):
             assert_allclose(_pending_result.peek_pending_affine(), expected[i].affine)
             assert_allclose(_pending_result.peek_pending_shape(), expected[i].shape[1:])
             # only support nearest
-            result = apply_transforms(_pending_result, mode="nearest", align_corners=False)[0]
+            result = apply_pending(_pending_result, mode="nearest", align_corners=False)[0]
             # compare
             assert_allclose(result, expected[i], rtol=1e-5)
 
