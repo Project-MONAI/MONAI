@@ -203,7 +203,7 @@ def dense_patch_slices(
     out = np.asarray([x.flatten() for x in np.meshgrid(*starts, indexing="ij")]).T
     if return_slice:
         return [tuple(slice(s, s + patch_size[d]) for d, s in enumerate(x)) for x in out]
-    return [tuple((s, s + patch_size[d]) for d, s in enumerate(x)) for x in out]
+    return [tuple((s, s + patch_size[d]) for d, s in enumerate(x)) for x in out]  # type: ignore
 
 
 def iter_patch_position(

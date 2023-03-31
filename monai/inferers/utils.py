@@ -11,9 +11,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
 import itertools
-from typing import Any
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any, Iterable
 
 import numpy as np
 import torch
@@ -130,7 +130,7 @@ def sliding_window_inference(
     buffered = b_steps is not None and b_steps > 0
     num_spatial_dims = len(inputs.shape) - 2
     if buffered:
-        if (b_plane < -num_spatial_dims + 1 or b_plane > num_spatial_dims):
+        if b_plane < -num_spatial_dims + 1 or b_plane > num_spatial_dims:
             raise ValueError(f"buffer_dim must be in [{-num_spatial_dims + 1}, {num_spatial_dims}], got {b_plane}.")
         if b_steps <= 0:
             raise ValueError(f"buffer_steps must be >= 0, got {b_steps}.")
@@ -175,6 +175,7 @@ def sliding_window_inference(
 
     num_win = len(slices)  # number of windows per image
     total_slices = num_win * batch_size  # total number of windows
+    windows_range: Iterable
     if not buffered:
         windows_range = range(0, total_slices, sw_batch_size)
     else:
@@ -182,7 +183,7 @@ def sliding_window_inference(
         x = [0, *b_ends][::b_steps]
         if x[-1] < b_ends[-1]:
             x.append(b_ends[-1])
-        windows_range = itertools.chain(*[range(x[i], x[i+1], sw_batch_size) for i in range(len(x) - 1)])
+        windows_range = itertools.chain(*[range(x[i], x[i + 1], sw_batch_size) for i in range(len(x) - 1)])
 
     # Create window-level importance map
     valid_patch_size = get_valid_patch_size(image_size, roi_size)
@@ -202,7 +203,7 @@ def sliding_window_inference(
     importance_map_ = convert_data_type(importance_map_, torch.Tensor, device=sw_device, dtype=compute_dtype)[0]
 
     # stores output and count map
-    output_image_list, count_map_list, sw_device_buffer, b_s, b_i = [], [], [], 0, 0
+    output_image_list, count_map_list, sw_device_buffer, b_s, b_i = [], [], [], 0, 0  # type: ignore
     # for each patch
     for slice_g in tqdm(windows_range) if progress else windows_range:
         _cur_max = b_ends[b_s + b_steps - 1] if buffered else total_slices
@@ -263,7 +264,7 @@ def sliding_window_inference(
                 w_t = w_t.to(device)
                 for __s in slices:
                     if z_scale is not None:
-                        __s = [slice(int(_si.start * z_s), int(_si.stop * z_s)) for _si, z_s in zip(__s, z_scale)]
+                        __s = tuple(slice(int(_si.start * z_s), int(_si.stop * z_s)) for _si, z_s in zip(__s, z_scale))
                     count_map_list[-1][(slice(None), slice(None), *__s)] += w_t
                 w_t = w_t.to(sw_device)
             if buffered:
@@ -277,7 +278,7 @@ def sliding_window_inference(
                 sw_t *= w_t
                 sw_t = sw_t.to(device)
                 _compute_coords(sw_batch_size, unravel_slice, z_scale, output_image_list[ss], sw_t)
-        sw_device_buffer = None
+        sw_device_buffer = []
         if buffered:
             b_s += b_steps
 
