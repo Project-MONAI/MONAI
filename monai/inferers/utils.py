@@ -171,7 +171,7 @@ def sliding_window_inference(
     slices = [tuple(slice(c[0], c[1]) for c in i) for i in slices_np]
     _, _p_id, _b_lens = np.unique(slices_np[:, b_plane, 0], return_counts=True, return_index=True)
     b_se = [tuple(slices_np[i][b_plane]) for i in _p_id]  # buffer start & end along the b_plane
-    b_ends = np.cumsum(np.repeat(_b_lens, batch_size))  # buffer flush boundaries
+    b_ends = np.cumsum(_b_lens)  # possbile buffer flush boundaries
 
     num_win = len(slices)  # number of windows per image
     total_slices = num_win * batch_size  # total number of windows
@@ -183,7 +183,14 @@ def sliding_window_inference(
         x = [0, *b_ends][::b_steps]
         if x[-1] < b_ends[-1]:
             x.append(b_ends[-1])
-        windows_range = itertools.chain(*[range(x[i], x[i + 1], sw_batch_size) for i in range(len(x) - 1)])
+        n_per_batch = len(x) - 1
+        windows_range, b_ends = [], [0]
+        for b in range(batch_size):
+            offset = b * x[-1]
+            for i in range(n_per_batch):
+                windows_range.append(range(offset + x[i], offset + x[i + 1], sw_batch_size))
+                b_ends.append(offset + x[i + 1])
+        windows_range = itertools.chain(*windows_range)
 
     # Create window-level importance map
     valid_patch_size = get_valid_patch_size(image_size, roi_size)
@@ -206,7 +213,7 @@ def sliding_window_inference(
     output_image_list, count_map_list, sw_device_buffer, b_s, b_i = [], [], [], 0, 0  # type: ignore
     # for each patch
     for slice_g in tqdm(windows_range) if progress else windows_range:
-        _cur_max = b_ends[b_s + b_steps - 1] if buffered else total_slices
+        _cur_max = b_ends[b_s + 1] if buffered else total_slices
         slice_range = range(slice_g, min(slice_g + sw_batch_size, _cur_max))
         unravel_slice = [
             [slice(idx // num_win, idx // num_win + 1), slice(None)] + list(slices[idx % num_win])
@@ -223,22 +230,21 @@ def sliding_window_inference(
             importance_map = importance_map_
 
         if buffered:
-            # if len(seg_tuple) > 1:
-            #     warnings.warn("Multiple outputs are not supported with buffer_steps")
-            c_start, c_end = b_se[b_s % len(b_se)], b_se[(b_s + b_steps - 1) % len(b_se)]
+            c_start = slices_np[b_ends[b_s] % num_win, b_plane, 0]
+            c_end = slices_np[(b_ends[b_s + 1] - 1) % num_win, b_plane, 1]
             if not sw_device_buffer:
-                k = seg_tuple[0].shape[1]
+                k = seg_tuple[0].shape[1]  # len(seg_tuple) > 1 is currently ignored
                 sp_size = list(image_size)
-                sp_size[b_plane] = max(c_end[1] - c_start[0], roi_size[b_plane])
+                sp_size[b_plane] = c_end - c_start
                 sw_device_buffer = [torch.zeros(size=[1, k, *sp_size], dtype=compute_dtype, device=sw_device)]
                 importance_map = importance_map.to(dtype=compute_dtype, device=sw_device)
             for p, s in zip(seg_tuple[0], unravel_slice):
-                offset = s[b_plane + 2].start - c_start[0]
+                offset = s[b_plane + 2].start - c_start
                 s[b_plane + 2] = slice(offset, offset + roi_size[b_plane])
                 s[0] = slice(0, 1)
                 sw_device_buffer[0][s] += p * importance_map
             b_i += len(unravel_slice)
-            if b_i < b_ends[b_s + b_steps - 1]:
+            if b_i < b_ends[b_s + 1]:
                 continue
         else:
             sw_device_buffer = seg_tuple
@@ -269,8 +275,8 @@ def sliding_window_inference(
                 w_t = w_t.to(sw_device)
             if buffered:
                 o_slice = [slice(None)] * len(inputs.shape)
-                o_slice[b_plane + 2] = slice(c_start[0], c_end[1])
-                img_b = b_s // len(b_se)  # image batch index
+                o_slice[b_plane + 2] = slice(c_start, c_end)
+                img_b = b_s // n_per_batch  # image batch index
                 o_slice[0] = slice(img_b, img_b + 1)
                 output_image_list[0][o_slice] += sw_device_buffer[0].to(device=device)
             else:
@@ -280,7 +286,7 @@ def sliding_window_inference(
                 _compute_coords(sw_batch_size, unravel_slice, z_scale, output_image_list[ss], sw_t)
         sw_device_buffer = []
         if buffered:
-            b_s += b_steps
+            b_s += 1
 
     # account for any overlapping sections
     for ss in range(len(output_image_list)):
