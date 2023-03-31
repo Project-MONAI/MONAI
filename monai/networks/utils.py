@@ -33,6 +33,9 @@ from monai.utils.misc import ensure_tuple, save_obj, set_determinism
 from monai.utils.module import look_up_option, pytorch_after
 from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
 
+onnx, _ = optional_import("onnx")
+onnxruntime, _ = optional_import("onnxruntime")
+
 __all__ = [
     "one_hot",
     "predict_segmentation",
@@ -593,13 +596,10 @@ def convert_to_onnx(
         rtol: the relative tolerance when comparing the outputs of PyTorch model and TorchScript model.
         atol: the absolute tolerance when comparing the outputs of PyTorch model and TorchScript model.
         use_trace: whether to use `torch.jit.trace` to export the torchscript model.
-
         kwargs: other arguments except `obj` for `torch.jit.script()` to convert model, for more details:
             https://pytorch.org/docs/master/generated/torch.jit.script.html.
 
     """
-    onnx, _ = optional_import("onnx")
-
     model.eval()
     with torch.no_grad():
         if use_trace:
@@ -645,16 +645,12 @@ def convert_to_onnx(
         model_input_names = [i.name for i in onnx_model.graph.input]
         input_dict = dict(zip(model_input_names, [i.cpu().numpy() for i in inputs]))
         if use_ort:
-            onnxruntime, _ = optional_import("onnxruntime")
-
             ort_sess = onnxruntime.InferenceSession(
                 onnx_model.SerializeToString(), providers=ort_provider if ort_provider else ["CPUExecutionProvider"]
             )
             onnx_out = ort_sess.run(None, input_dict)
         else:
-            from onnx.reference import ReferenceEvaluator
-
-            sess = ReferenceEvaluator(onnx_model)
+            sess = onnx.reference.ReferenceEvaluator(onnx_model)
             onnx_out = sess.run(None, input_dict)
         set_determinism(seed=None)
         # compare onnx/ort and PyTorch results
@@ -757,7 +753,7 @@ def convert_to_trt(
             [N, C, H, W, D].
         dynamic_batchsize: a sequence with three elements to define the batch size range of the input for the model to be converted.
             Should be a sequence like [MIN_BATCH, OPT_BATCH, MAX_BATCH]. After converted, the batchsize of model input should
-            between `MIN_BATCH` and `MAX_BATCH` and the `OPT_BATCH` is the best peformance batchsize that the TensorRT trys to fit.
+            between `MIN_BATCH` and `MAX_BATCH` and the `OPT_BATCH` is the best performance batchsize that the TensorRT tries to fit.
             We suggest the `OPT_BATCH` to be the most frequently used input batchsize in your application, default to None.
         use_trace: whether using `torch.jit.trace` to convert the pytorch model to torchscript model and then convert to
             a TensorRT engine based torchscript model, default to False.
