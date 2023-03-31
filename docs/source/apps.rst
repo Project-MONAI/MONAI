@@ -80,14 +80,6 @@ Applications
 `Pathology`
 -----------
 
-.. automodule:: monai.apps.pathology.data
-.. autoclass:: PatchWSIDataset
-    :members:
-.. autoclass:: SmartCachePatchWSIDataset
-    :members:
-.. autoclass:: MaskedInferenceWSIDataset
-    :members:
-
 .. automodule:: monai.apps.pathology.handlers
 .. autoclass:: ProbMapProducer
     :members:
