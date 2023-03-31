@@ -16,7 +16,7 @@ from monai.transforms.spatial.array import (
     Zoom,
 )
 from monai.transforms.lazy.array import (
-    ApplyTransforms,
+    ApplyPending,
     CachedTransform,
     CacheMechanism,
     MultiSampleTransform
@@ -186,11 +186,11 @@ class TestUtilityTransforms(unittest.TestCase):
         self.assertEqual(actual[0], a)
         self.assertEqual(actual[1], b)
         self.assertEqual(actual[2], c)
-        self.assertIsInstance(actual[3], ApplyTransforms)
+        self.assertIsInstance(actual[3], ApplyPending)
         self.assertEqual(actual[4], d)
         self.assertEqual(actual[5], e)
         self.assertEqual(actual[6], f)
-        self.assertIsInstance(actual[7], ApplyTransforms)
+        self.assertIsInstance(actual[7], ApplyPending)
 
 
 class TestRealPipelineScenarios(unittest.TestCase):
@@ -245,4 +245,4 @@ class TestRealPipelineScenarios(unittest.TestCase):
                 self.assertIs(transforms[t], actual[a])
                 t += 1
             else:
-                self.assertIsInstance(actual[a], ApplyTransforms)
+                self.assertIsInstance(actual[a], ApplyPending)

@@ -34,13 +34,13 @@ from monai.transforms.lazy.utils import (
 )
 from monai.utils import LazyAttr
 
-__all__ = ["apply_transforms", "extents_from_shape", "shape_from_extents", "is_matrix_shaped",
+__all__ = ["apply_pending", "extents_from_shape", "shape_from_extents", "is_matrix_shaped",
            "is_grid_shaped", "MetaMatrix"]
 
 from monai.utils import LazyAttr
 
 
-def apply_transforms(
+def apply_pending(
         data: torch.Tensor | MetaTensor,
         pending: list | None = None,
         mode: str | int | None = None,
@@ -351,7 +351,7 @@ def lazily_apply_op(
     if isinstance(tensor, MetaTensor):
         tensor.push_pending_operation(op)
         if lazy_evaluation is False:
-            response = apply_transforms(tensor, track_meta=track_meta)
+            response = apply_pending(tensor, track_meta=track_meta)
             result, pending = response if isinstance(response, tuple) else (response, None)
             # result, pending = apply_transforms(tensor, track_meta=track_meta)
             return result
@@ -359,7 +359,7 @@ def lazily_apply_op(
             return tensor
     else:
         if lazy_evaluation is False:
-            response = apply_transforms(tensor, [op], track_meta=track_meta)
+            response = apply_pending(tensor, [op], track_meta=track_meta)
             result, pending = response if isinstance(response, tuple) else (response, None)
             # result, pending = apply_transforms(tensor, [op], track_meta=track_meta)
             return (result, op) if get_track_meta() is True else result

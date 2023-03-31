@@ -20,6 +20,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 import numpy as np
+from numpy.random import RandomState
+
 import torch
 
 from monai.transforms.spatial.functional import get_pending_shape
@@ -101,10 +103,10 @@ class CropPadd(MapTransform, InvertibleTransform, LazyTransform):
             ends=None,
             padding_mode=GridSamplePadMode.BORDER,
             allow_missing_keys=False,
-            lazy_evaluation: bool = True
+            lazy: bool = False
             ):
         MapTransform.__init__(self, keys, allow_missing_keys=allow_missing_keys)
-        LazyTransform.__init__(self, lazy_evaluation)
+        LazyTransform.__init__(self, lazy)
         self.slices = slices
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
@@ -114,7 +116,7 @@ class CropPadd(MapTransform, InvertibleTransform, LazyTransform):
 
         for key, _padding_mode in self.key_iterator(rd, self.padding_mode):
             rd[key] = croppad(rd[key], slices=self.slices, padding_mode=_padding_mode,
-                              lazy_evaluation=self.lazy_evaluation)
+                              lazy=self.lazy)
 
         return rd
 
@@ -122,42 +124,7 @@ class CropPadd(MapTransform, InvertibleTransform, LazyTransform):
         rd = dict(data)
 
         for key in self.key_iterator(rd):
-            rd[key] = invert(rd[key], self.lazy_evaluation)
-        return rd
-
-
-class CropPadd(MapTransform, InvertibleTransform, LazyTransform):
-
-    def __init__(
-            self,
-            keys,
-            slices=None,
-            starts=None,
-            ends=None,
-            padding_mode=GridSamplePadMode.BORDER,
-            allow_missing_keys=False,
-            lazy_evaluation: bool = True
-            ):
-        MapTransform.__init__(self, keys, allow_missing_keys=allow_missing_keys)
-        LazyTransform.__init__(self, lazy_evaluation)
-        self.slices = slices
-        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
-
-    def __call__(self, data):
-
-        rd = dict(data)
-
-        for key, _padding_mode in self.key_iterator(rd, self.padding_mode):
-            rd[key] = croppad(rd[key], slices=self.slices, padding_mode=_padding_mode,
-                              lazy_evaluation=self.lazy_evaluation)
-
-        return rd
-
-    def inverse(self, data):
-        rd = dict(data)
-
-        for key in self.key_iterator(rd):
-            rd[key] = invert(rd[key], self.lazy_evaluation)
+            rd[key] = invert(rd[key], self.lazy)
         return rd
 
 
@@ -169,12 +136,12 @@ class RandCropPadd(MapTransform, InvertibleTransform, LazyTransform, Randomizabl
             sizes: Sequence[int] | int,
             padding_mode: GridSamplePadMode | str = GridSamplePadMode.BORDER,
             allow_missing_keys=False,
-            lazy_evaluation: bool = True,
-            seed = None,
-            state = None
+            lazy: bool = False,
+            seed: int = None,
+            state: RandomState = None
     ):
         MapTransform.__init__(self, keys, allow_missing_keys)
-        LazyTransform.__init__(self, lazy_evaluation)
+        LazyTransform.__init__(self, lazy)
         # self.sizes = sizes
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
@@ -196,7 +163,7 @@ class RandCropPadd(MapTransform, InvertibleTransform, LazyTransform, Randomizabl
                 extents = self.randomizer.sample(img_shape)
                 print("lazy post", self.randomizer.R.rand())
 
-            rd[key_] = croppad(data[key_], extents, padding_mode_, lazy_evaluation=self.lazy_evaluation)
+            rd[key_] = croppad(data[key_], extents, padding_mode_, lazy=self.lazy)
 
         return rd
 
@@ -209,7 +176,7 @@ class RandCropPadd(MapTransform, InvertibleTransform, LazyTransform, Randomizabl
         return self
 
     def inverse(self, data):
-        return invert(data, self.lazy_evaluation)
+        return invert(data, self.lazy)
 
 
 CropPadD = CropPadDict = CropPadd

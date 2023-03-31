@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from monai.transforms.traits import LazyTrait, MultiSampleTrait, RandomizableTrait
-from monai.transforms.lazy.array import ApplyTransforms, CachedTransform, MultiSampleTransform
+from monai.transforms.lazy.array import ApplyPending, CachedTransform, MultiSampleTransform
 
 
 class ComposeCompiler:
@@ -62,12 +62,12 @@ class ComposeCompiler:
             else:
                 if len(lazy) > 0:
                     result.extend(lazy)
-                    result.append(ApplyTransforms())
+                    result.append(ApplyPending())
                     lazy = list()
                 result.append(t)
         if len(lazy) > 0:
             result.extend(lazy)
-            result.append(ApplyTransforms())
+            result.append(ApplyPending())
         return result
 
     @staticmethod

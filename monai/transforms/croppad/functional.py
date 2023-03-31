@@ -42,7 +42,7 @@ def croppad(
         padding_mode: Optional[Union[GridSamplePadMode, str]] = NumpyPadMode.EDGE,
         shape_override: Sequence | None = None,
         dtype_override: DtypeLike | torch.dtype | None = None,
-        lazy_evaluation: Optional[bool] = True
+        lazy: Optional[bool] = True
 ):
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
 
@@ -73,7 +73,7 @@ def croppad(
         LazyAttr.OUT_DTYPE: input_dtype,
         LazyAttr.OUT_SHAPE: output_shape
     }
-    return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
+    return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy)
 
 
 def pad(
@@ -83,7 +83,7 @@ def pad(
         value: int | float = 0,
         shape_override: Sequence[int] | None = None,
         dtype_override: DtypeLike | torch.dtype | None = None,
-        lazy_evaluation: Optional[bool] = True
+        lazy: Optional[bool] = True
 ):
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
 
@@ -111,4 +111,4 @@ def pad(
         LazyAttr.OUT_SHAPE: output_shape,
         "value": value
     }
-    return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
+    return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy)

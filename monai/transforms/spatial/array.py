@@ -153,11 +153,11 @@ class SpatialResample(InvertibleTransform):
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY, TransformBackends.CUPY]
 
     def __init__(
-        self,
-        mode: Union[str, int] = GridSampleMode.BILINEAR,
-        padding_mode: str = GridSamplePadMode.BORDER,
-        align_corners: bool = False,
-        dtype: DtypeLike = np.float64,
+            self,
+            mode: Union[str, int] = GridSampleMode.BILINEAR,
+            padding_mode: str = GridSamplePadMode.BORDER,
+            align_corners: bool = False,
+            dtype: DtypeLike = np.float64,
     ):
         """
         Args:
@@ -446,19 +446,19 @@ class Spacing(LazyTransform, InvertibleTransform):
     backend = SpatialResample.backend
 
     def __init__(
-        self,
-        pixdim: Sequence[float] | float | np.ndarray,
-        diagonal: bool = False,
-        mode: str | int = GridSampleMode.BILINEAR,
-        padding_mode: str = GridSamplePadMode.BORDER,
-        align_corners: bool = False,
-        dtype: DtypeLike = np.float64,
-        scale_extent: bool = False,
-        recompute_affine: bool = False,
-        min_pixdim: Sequence[float] | float | np.ndarray | None = None,
-        max_pixdim: Sequence[float] | float | np.ndarray | None = None,
-        image_only: bool = False,
-        lazy_evaluation: bool | None = True
+            self,
+            pixdim: Sequence[float] | float | np.ndarray,
+            diagonal: bool = False,
+            mode: str | int = GridSampleMode.BILINEAR,
+            padding_mode: str = GridSamplePadMode.BORDER,
+            align_corners: bool = False,
+            dtype: DtypeLike = np.float64,
+            scale_extent: bool = False,
+            recompute_affine: bool = False,
+            min_pixdim: Sequence[float] | float | np.ndarray | None = None,
+            max_pixdim: Sequence[float] | float | np.ndarray | None = None,
+            image_only: bool = False,
+            lazy: bool = False,
     ) -> None:
         """
         Args:
@@ -512,7 +512,7 @@ class Spacing(LazyTransform, InvertibleTransform):
                 value will be kept in its original spacing (not be resampled to `pixdim`). Set it to `None` to use the
                 value of `pixdim`. Default to `None`.
         """
-        LazyTransform.__init__(self, lazy_evaluation)
+        LazyTransform.__init__(self, lazy)
         self.pixdim = pixdim
         self.src_pixdim = None
         self.diagonal = diagonal
@@ -523,15 +523,16 @@ class Spacing(LazyTransform, InvertibleTransform):
 
     @deprecated_arg(name="affine", since="0.9", msg_suffix="Not needed, input should be `MetaTensor`.")
     def __call__(
-        self,
-        data_array: torch.Tensor,
-        affine: NdarrayOrTensor | None = None,
-        mode: str | int | None = None,
-        padding_mode: str | None = None,
-        align_corners: bool | None = None,
-        dtype: DtypeLike = None,
-        scale_extent: bool | None = None,
-        output_spatial_shape: Sequence[int] | np.ndarray | int | None = None,
+            self,
+            data_array: torch.Tensor,
+            affine: NdarrayOrTensor | None = None,
+            mode: str | int | None = None,
+            padding_mode: str | None = None,
+            align_corners: bool | None = None,
+            dtype: DtypeLike = None,
+            scale_extent: bool | None = None,
+            output_spatial_shape: Sequence[int] | np.ndarray | int | None = None,
+            lazy: bool | None = None,
     ) -> torch.Tensor:
         """
 		TODO: Spacing needs to be updated to honor the extra parameters in the call signature
@@ -575,14 +576,15 @@ class Spacing(LazyTransform, InvertibleTransform):
         padding_mode_ = padding_mode or self.padding_mode
         align_corners_ = align_corners or self.align_corners
         dtype_ = dtype or self.dtype
+        lazy_ = self.lazy if lazy is None else lazy
 
         img_t = spacing(data_array, self.pixdim, self.diagonal,
                         mode_, padding_mode_, align_corners_, dtype_,
-                        lazy_evaluation=self.lazy_evaluation)
+                        lazy=lazy_)
         return img_t
 
     def inverse(self, data):
-        return invert(data, self.lazy_evaluation)
+        return invert(data, self.lazy)
 
 
 class Orientation(InvertibleTransform):
@@ -594,10 +596,10 @@ class Orientation(InvertibleTransform):
     backend = [TransformBackends.NUMPY, TransformBackends.TORCH]
 
     def __init__(
-        self,
-        axcodes: str | None = None,
-        as_closest_canonical: bool = False,
-        labels: Sequence[tuple[str, str]] | None = (("L", "R"), ("P", "A"), ("I", "S")),
+            self,
+            axcodes: str | None = None,
+            as_closest_canonical: bool = False,
+            labels: Sequence[tuple[str, str]] | None = (("L", "R"), ("P", "A"), ("I", "S")),
     ) -> None:
         """
         Args:
@@ -735,25 +737,27 @@ class Flip(LazyTransform, InvertibleTransform):
     def __init__(
             self,
             spatial_axis: Sequence[int] | int | None = None,
-            lazy_evaluation: bool | None = True
+            lazy: bool = False,
 	) -> None:
-        LazyTransform.__init__(self, lazy_evaluation)
+        LazyTransform.__init__(self, lazy)
         self.spatial_axis = spatial_axis
 
     def __call__(
             self,
             img: NdarrayOrTensor,
             spatial_axis: Optional[Union[Sequence[int], int]] = None,
-            shape_override: Optional[Sequence] = None
+            shape_override: Optional[Sequence] = None,
+            lazy: bool | None = None,
     ):
         spatial_axis_ = spatial_axis or self.spatial_axis
+        lazy_ = self.lazy if lazy is None else lazy
 
-        img_t = flip(img, spatial_axis_, lazy_evaluation=self.lazy_evaluation)
+        img_t = flip(img, spatial_axis_, lazy=lazy_)
 
         return img_t
 
     def inverse(self, data):
-        return invert(data, self.lazy_evaluation)
+        return invert(data, self.lazy)
 
 
 class Resize(LazyTransform, InvertibleTransform):
@@ -772,7 +776,7 @@ class Resize(LazyTransform, InvertibleTransform):
             anti_aliasing: bool = False,
             anti_aliasing_sigma: Sequence[float] | float | None = None,
             dtype: Optional[Union[DtypeLike, torch.dtype]] = np.float32,
-            lazy_evaluation: Optional[bool] = True
+            lazy: Optional[bool] = True,
     ) -> None:
         """
         Resize the input image to given spatial size (with scaling, not cropping/padding).
@@ -804,7 +808,7 @@ class Resize(LazyTransform, InvertibleTransform):
                 downsampling factor, where s > 1. For the up-size case, s < 1, no
                 anti-aliasing is performed prior to rescaling.
         """
-        LazyTransform.__init__(self, lazy_evaluation)
+        LazyTransform.__init__(self, lazy)
         self.spatial_size = spatial_size
         self.size_mode = look_up_option(size_mode, ["all", "longest"])
         self.mode: InterpolateMode = look_up_option(mode, InterpolateMode)
@@ -820,7 +824,8 @@ class Resize(LazyTransform, InvertibleTransform):
             align_corners: bool | None = None,
             anti_aliasing: bool | None = None,
             anti_aliasing_sigma: Sequence[float] | float | None = None,
-            shape_override: Sequence = None
+            shape_override: Sequence = None,
+            lazy: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -850,14 +855,15 @@ class Resize(LazyTransform, InvertibleTransform):
         align_corners_ = align_corners or self.align_corners
         anti_aliasing_ = anti_aliasing or self.anti_aliasing
         anti_aliasing_sigma_ = anti_aliasing_sigma or self.anti_aliasing_sigma
+        lazy_ = self.lazy if lazy is None else lazy
 
         img_t = resize(img, self.spatial_size, self.size_mode, mode_, align_corners_, anti_aliasing_,
-                       anti_aliasing_sigma_, self.dtype, lazy_evaluation=self.lazy_evaluation)
+                       anti_aliasing_sigma_, self.dtype, lazy=lazy_)
 
         return img_t
 
     def inverse(self, data):
-        return invert(data, self.lazy_evaluation)
+        return invert(data, self.lazy)
 
 
 class Rotate(InvertibleTransform, LazyTransform):
@@ -871,7 +877,7 @@ class Rotate(InvertibleTransform, LazyTransform):
         padding_mode: str = GridSamplePadMode.BORDER,
         align_corners: bool = False,
         dtype: DtypeLike | torch.dtype = torch.float32,
-        lazy_evaluation: bool = True
+        lazy: bool = False,
     ) -> None:
         """
         Rotates an input image by given angle using :py:class:`monai.networks.layers.AffineTransform`.
@@ -893,7 +899,7 @@ class Rotate(InvertibleTransform, LazyTransform):
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``float32``.
         """
-        LazyTransform.__init__(self, lazy_evaluation)
+        LazyTransform.__init__(self, lazy)
         self.angle = angle
         self.keep_size = keep_size
         self.mode: str = look_up_option(mode, GridSampleMode)
@@ -908,7 +914,8 @@ class Rotate(InvertibleTransform, LazyTransform):
             padding_mode: str | None = None,
             align_corners: bool | None = None,
             dtype: DtypeLike | torch.dtype = None,
-            shape_override: Sequence = None
+            shape_override: Sequence = None,
+            lazy: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -936,14 +943,14 @@ class Rotate(InvertibleTransform, LazyTransform):
         align_corners_ = align_corners or self.align_corners
         keep_size = self.keep_size
         dtype_ = self.dtype
+        lazy_ = self.lazy if lazy is None else lazy
 
-        img_t = rotate(img, self.angle, keep_size, mode_, padding_mode_,
-                       align_corners_, dtype_, lazy_evaluation=self.lazy_evaluation)
+        img_t = rotate(img, self.angle, keep_size, mode_, padding_mode_, align_corners_, dtype_, lazy=lazy_)
 
         return img_t
 
     def inverse(self, data):
-        return invert(data, self.lazy_evaluation)
+        return invert(data, self.lazy)
 
 
 class Zoom(LazyTransform, InvertibleTransform):
@@ -957,7 +964,7 @@ class Zoom(LazyTransform, InvertibleTransform):
         padding_mode: str = NumpyPadMode.EDGE,
         align_corners: bool | None = None,
         keep_size: bool = True,
-        lazy_evaluation: Optional[bool] = True,
+        lazy: Optional[bool] = True,
         **kwargs,
     ) -> None:
         """
@@ -988,7 +995,7 @@ class Zoom(LazyTransform, InvertibleTransform):
             kwargs: other arguments for the `np.pad` or `torch.pad` function.
                 note that `np.pad` treats channel dimension as the first dimension.
         """
-        LazyTransform.__init__(self, lazy_evaluation)
+        LazyTransform.__init__(self, lazy)
         self.zoom = zoom
         self.mode: InterpolateMode = InterpolateMode(mode)
         self.padding_mode = padding_mode
@@ -1002,7 +1009,8 @@ class Zoom(LazyTransform, InvertibleTransform):
             mode: str | None = None,
             padding_mode: str | None = None,
             align_corners: bool | None = None,
-            shape_override: Sequence = None
+            shape_override: Sequence = None,
+            lazy: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -1026,14 +1034,14 @@ class Zoom(LazyTransform, InvertibleTransform):
         mode_ = self.mode if mode is None else mode
         padding_mode_ = self.padding_mode if padding_mode is None else padding_mode
         align_corners_ = self.align_corners if align_corners is None else align_corners
+        lazy_ = self.lazy if lazy is None else lazy
 
-        img_t = zoom(img, self.zoom, mode_, padding_mode_, align_corners_,
-                     self.keep_size, img.dtype, lazy_evaluation=self.lazy_evaluation)
+        img_t = zoom(img, self.zoom, mode_, padding_mode_, align_corners_, self.keep_size, img.dtype, lazy=lazy_)
 
         return img_t
 
     def inverse(self, data):
-        return invert(data, self.lazy_evaluation)
+        return invert(data, self.lazy)
 
 
 class Rotate90(InvertibleTransform, LazyTransform):
@@ -1050,7 +1058,7 @@ class Rotate90(InvertibleTransform, LazyTransform):
             self,
             k: int = 1,
             spatial_axes: tuple[int, int] = (0, 1),
-            lazy_evaluation: bool = True
+            lazy: bool = False,
     ) -> None:
         """
         Args:
@@ -1059,7 +1067,7 @@ class Rotate90(InvertibleTransform, LazyTransform):
                 Default: (0, 1), this is the first two axis in spatial dimensions.
                 If axis is negative it counts from the last to the first axis.
         """
-        LazyTransform.__init__(self, lazy_evaluation)
+        LazyTransform.__init__(self, lazy)
         self.k = k
         spatial_axes_: tuple[int, int] = ensure_tuple(spatial_axes)  # type: ignore
         if len(spatial_axes_) != 2:
@@ -1069,18 +1077,20 @@ class Rotate90(InvertibleTransform, LazyTransform):
     def __call__(
             self,
             img: torch.Tensor,
-            shape_override: Sequence = None
+            shape_override: Sequence = None,
+            lazy: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
-        img_t = rotate90(img, self.k, self.spatial_axes, lazy_evaluation=self.lazy_evaluation)
+        lazy_ = self.lazy if lazy is None else lazy
+        img_t = rotate90(img, self.k, self.spatial_axes, lazy=lazy_)
 
         return img_t
 
     def inverse(self, data):
-        return invert(data, self.lazy_evaluation)
+        return invert(data, self.lazy)
 
 
 class RandRotate90(InvertibleTransform, LazyTransform, RandomizableTrait):
@@ -1096,9 +1106,9 @@ class RandRotate90(InvertibleTransform, LazyTransform, RandomizableTrait):
             prob: float = 0.1,
             max_k: int = 3,
             spatial_axes: tuple[int, int] = (0, 1),
-            lazy_evaluation: bool = True,
+            lazy: bool = False,
             seed: int | None = None,
-            state: np.random.RandomState | None = None
+            state: np.random.RandomState | None = None,
     ) -> None:
         """
         Args:
@@ -1108,7 +1118,7 @@ class RandRotate90(InvertibleTransform, LazyTransform, RandomizableTrait):
             spatial_axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
                 Default: (0, 1), this is the first two axis in spatial dimensions.
         """
-        LazyTransform.__init__(self, lazy_evaluation)
+        LazyTransform.__init__(self, lazy)
 
         self.spatial_axes = spatial_axes
 
@@ -1117,7 +1127,8 @@ class RandRotate90(InvertibleTransform, LazyTransform, RandomizableTrait):
     def __call__(
             self,
             img: torch.Tensor,
-            shape_override: Sequence = None
+            shape_override: Sequence = None,
+            lazy: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -1125,7 +1136,8 @@ class RandRotate90(InvertibleTransform, LazyTransform, RandomizableTrait):
             randomize: whether to execute `randomize()` function first, default to True.
         """
         k = self.randomizer.sample()
-        return rotate90(img, k, self.spatial_axes, lazy_evaluation=self.lazy_evaluation)
+        lazy_ = self.lazy if lazy is None else lazy
+        return rotate90(img, k, self.spatial_axes, lazy=lazy_)
 
     def set_random_state(
             self,
@@ -1136,7 +1148,7 @@ class RandRotate90(InvertibleTransform, LazyTransform, RandomizableTrait):
         return self
 
     def inverse(self, data):
-        return invert(data, self.lazy_evaluation)
+        return invert(data, self.lazy)
 
 
 class RandRotate(InvertibleTransform, LazyTransform, RandomizableTrait):
@@ -1155,9 +1167,9 @@ class RandRotate(InvertibleTransform, LazyTransform, RandomizableTrait):
             padding_mode: str = GridSamplePadMode.BORDER,
             align_corners: bool = False,
             dtype: DtypeLike | torch.dtype = np.float32,
-            lazy_evaluation: bool = True,
+            lazy: bool = False,
             seed: int | None = None,
-            state: np.random.RandomState | None = None
+            state: np.random.RandomState | None = None,
     ) -> None:
         """
         Randomly rotate the input arrays.
@@ -1185,7 +1197,7 @@ class RandRotate(InvertibleTransform, LazyTransform, RandomizableTrait):
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``float32``.
         """
-        LazyTransform.__init__(self, lazy_evaluation)
+        LazyTransform.__init__(self, lazy)
         self.keep_size = keep_size
         self.mode: str = look_up_option(mode, GridSampleMode)
         self.padding_mode: str = look_up_option(padding_mode, GridSamplePadMode)
@@ -1208,7 +1220,8 @@ class RandRotate(InvertibleTransform, LazyTransform, RandomizableTrait):
             dtype: DtypeLike | torch.dtype = None,
             randomize: bool = True,
             get_matrix: bool = False,
-            shape_override: Sequence | None = None
+            shape_override: Sequence | None = None,
+            lazy: bool | None = None,
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -1231,16 +1244,14 @@ class RandRotate(InvertibleTransform, LazyTransform, RandomizableTrait):
         padding_mode_ = padding_mode or self.padding_mode
         align_corners_ = align_corners or self.align_corners
         dtype_ = dtype or self.dtype
+        lazy_ = self.lazy if lazy is None else lazy
 
         # TODO: the random transforms have been implemented to make use of Array ops, which
         # creates a problem if the operation name for "RandRotate" needs to be "RandRotate"
         # instead of "Rotate". This can be done via several approaches:
         # 1. Use the functional op directly
         # 2. Pass an override to the array op for the name
-        return rotate(img, angles, self.keep_size,
-                      mode_, padding_mode_,
-                      align_corners_, dtype_,
-                      lazy_evaluation=self.lazy_evaluation)
+        return rotate(img, angles, self.keep_size, mode_, padding_mode_, align_corners_, dtype_, lazy=lazy_)
 
     def set_random_state(
             self,
@@ -1251,7 +1262,7 @@ class RandRotate(InvertibleTransform, LazyTransform, RandomizableTrait):
         return self
 
     def inverse(self, data):
-        return invert(data, self.lazy_evaluation)
+        return invert(data, self.lazy)
 
 
 class RandFlip(InvertibleTransform, LazyTransform, RandomizableTrait):
@@ -1271,11 +1282,11 @@ class RandFlip(InvertibleTransform, LazyTransform, RandomizableTrait):
             self,
             prob: float = 0.1,
             spatial_axis: Sequence[int] | int | None = None,
-            lazy_evaluation: bool = True,
+            lazy: bool = False,
             seed: int | None = None,
-            state: np.random.RandomState | None = None
+            state: np.random.RandomState | None = None,
         ) -> None:
-        LazyTransform.__init__(self, lazy_evaluation)
+        LazyTransform.__init__(self, lazy)
         self.spatial_axis = spatial_axis
 
         self.randomizer = BooleanRandomizer(1.0, prob=prob, default=False, seed=seed, state=state)
@@ -1284,7 +1295,8 @@ class RandFlip(InvertibleTransform, LazyTransform, RandomizableTrait):
             self,
             img: torch.Tensor,
             randomize: bool = True,
-            shape_override: Sequence = None
+            shape_override: Sequence = None,
+            lazy: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -1292,11 +1304,12 @@ class RandFlip(InvertibleTransform, LazyTransform, RandomizableTrait):
             randomize: whether to execute `randomize()` function first, default to True.
         """
         do_flip = self.randomizer.sample()
+        lazy_ = self.lazy if lazy is None else lazy
 
         if do_flip:
-            return flip(img, self.spatial_axis, lazy_evaluation=self.lazy_evaluation)
+            return flip(img, self.spatial_axis, lazy=lazy_)
         else:
-            return identity(img, None, None, lazy_evaluation=self.lazy_evaluation)
+            return identity(img, None, None, lazy=lazy_)
 
     def set_random_state(
             self,
@@ -1307,7 +1320,7 @@ class RandFlip(InvertibleTransform, LazyTransform, RandomizableTrait):
         return self
 
     def inverse(self, data):
-        return invert(data, self.lazy_evaluation)
+        return invert(data, self.lazy)
 
 
 class RandAxisFlip(InvertibleTransform, LazyTransform, RandomizableTrait):
@@ -1326,18 +1339,19 @@ class RandAxisFlip(InvertibleTransform, LazyTransform, RandomizableTrait):
     def __init__(
             self,
             prob: float = 0.1,
-            lazy_evaluation: bool = True,
+            lazy: bool = False,
             seed: int | None = None,
-            state: np.random.RandomState | None = None
+            state: np.random.RandomState | None = None,
     ) -> None:
-        LazyTransform.__init__(self, lazy_evaluation)
+        LazyTransform.__init__(self, lazy)
         self.randomizer = SpatialAxisRandomizer(prob, None, seed=seed, state=state)
 
     def __call__(
             self,
             img: torch.Tensor,
             randomize: bool = True,
-            shape_override: Sequence = None
+            shape_override: Sequence = None,
+            lazy: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -1346,7 +1360,7 @@ class RandAxisFlip(InvertibleTransform, LazyTransform, RandomizableTrait):
         """
 
         flip_axis = self.randomizer.do_random()
-        return flip(img, flip_axis, lazy_evaluation=self.lazy_evaluation)
+        return flip(img, flip_axis, lazy=self.lazy)
 
     def set_random_state(
             self,
@@ -1357,7 +1371,7 @@ class RandAxisFlip(InvertibleTransform, LazyTransform, RandomizableTrait):
         return self
 
     def inverse(self, data):
-        return invert(data, self.lazy_evaluation)
+        return invert(data, self.lazy)
 
 
 class RandZoom(InvertibleTransform, LazyTransform, RandomizableTrait):
@@ -1406,12 +1420,12 @@ class RandZoom(InvertibleTransform, LazyTransform, RandomizableTrait):
             padding_mode: str = NumpyPadMode.EDGE,
             align_corners: bool | None = None,
             keep_size: bool = True,
-            lazy_evaluation: bool = True,
+            lazy: bool = False,
             seed: int | None = None,
             state: np.random.RandomState | None = None,
             **kwargs,
     ) -> None:
-        LazyTransform.__init__(self, lazy_evaluation)
+        LazyTransform.__init__(self, lazy)
         # min_zoom_ = ensure_tuple(min_zoom)
         # max_zoom_ = ensure_tuple(max_zoom)
         # if len(min_zoom_) != len(max_zoom_):
@@ -1421,7 +1435,7 @@ class RandZoom(InvertibleTransform, LazyTransform, RandomizableTrait):
         self.padding_mode = padding_mode
         self.align_corners = align_corners
         self.keep_size = keep_size
-        self.lazy_evaluation = lazy_evaluation
+        self.lazy = lazy
 
         self.randomizer = ContinuousRandomizer(min_zoom, max_zoom, prob, 1.0,
                                                seed=seed, state=state)
@@ -1434,7 +1448,8 @@ class RandZoom(InvertibleTransform, LazyTransform, RandomizableTrait):
             padding_mode: str | None = None,
             align_corners: bool | None = None,
             randomize: bool = True,
-            shape_override: Sequence = None
+            shape_override: Sequence = None,
+            lazy: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -1461,7 +1476,7 @@ class RandZoom(InvertibleTransform, LazyTransform, RandomizableTrait):
         align_corners_ = align_corners or self.align_corners
 
         return zoom(img, zoom_, mode_, padding_mode_, align_corners_, self.keep_size,
-                    lazy_evaluation=self.lazy_evaluation)
+                    lazy=self.lazy)
 
     def set_random_state(
             self,
@@ -1472,7 +1487,7 @@ class RandZoom(InvertibleTransform, LazyTransform, RandomizableTrait):
         return self
 
     def inverse(self, data):
-        return invert(data, self.lazy_evaluation)
+        return invert(data, self.lazy)
 
 
 class AffineGrid(Transform):
@@ -2494,7 +2509,7 @@ class Rand3DElastic(RandomizableTransform, LazyTransform):
         mode: str | int = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.REFLECTION,
         device: torch.device | None = None,
-		lazy_evaluation: bool = True
+		lazy: bool = False
     ) -> None:
         """
         Args:
@@ -2551,7 +2566,7 @@ class Rand3DElastic(RandomizableTransform, LazyTransform):
             - :py:class:`Affine` for the affine transformation parameters configurations.
 
         """
-        LazyTransform.__init__(self, lazy_evaluation=lazy_evaluation)
+        LazyTransform.__init__(self, lazy=lazy)
         self.sigma_range = sigma_range
         self.magnitude_range = magnitude_range
         self.spatial_size = spatial_size
@@ -2626,13 +2641,13 @@ class Rand3DElastic(RandomizableTransform, LazyTransform):
 
         # TODO: identity transforms should not cause a multiplication in the apply function but instead it can be forwarded
         if self.rand_offsets is None:
-            return identity(img, shape_override=shape_override_, lazy_evaluation=self.lazy_evaluation)
+            return identity(img, shape_override=shape_override_, lazy=self.lazy)
         else:
             img_t = elastic_3d(img,
                                self.sigma, self.magnitude, self.rand_offsets,
                                spatial_size_, mode_, padding_mode_, self.device,
                                shape_override=shape_override_, dtype_override= None,
-                               lazy_evaluation=self.lazy_evaluation)
+                               lazy=self.lazy)
 
             return img_t
 

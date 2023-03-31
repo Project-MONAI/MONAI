@@ -13,13 +13,13 @@ from typing import Callable
 import torch
 from monai.data.meta_tensor import MetaTensor
 
-from monai.transforms.lazy.functional import apply_transforms
+from monai.transforms.lazy.functional import apply_pending
 from monai.transforms.inverse import InvertibleTransform
 
-__all__ = ["ApplyTransforms"]
+__all__ = ["ApplyPending"]
 
 
-class ApplyTransformsd(InvertibleTransform):
+class ApplyPendingd(InvertibleTransform):
     """
     Apply wraps the apply method and can function as a Transform in either array or dictionary
     mode.
@@ -32,7 +32,7 @@ class ApplyTransformsd(InvertibleTransform):
     def __call__(self, data, *args, **kwargs):
         rd = dict(data)
         for k in self.keys:
-            rd[k] = apply_transforms(rd[k], *args, **kwargs)
+            rd[k] = apply_pending(rd[k], *args, **kwargs)
         return rd
 
         # return apply_transforms(data, *args, **kwargs)
@@ -41,7 +41,7 @@ class ApplyTransformsd(InvertibleTransform):
         return self(data)
 
 
-class ApplyTransforms(InvertibleTransform):
+class ApplyPending(InvertibleTransform):
     """
     Apply wraps the apply method and can function as a Transform in either array or dictionary
     mode.
@@ -55,10 +55,10 @@ class ApplyTransforms(InvertibleTransform):
             rd = dict(data)
             for k, v in data.items():
                 if isinstance(v, MetaTensor):
-                    rd[k] = apply_transforms(v, *args, **kwargs)
+                    rd[k] = apply_pending(v, *args, **kwargs)
             return rd
 
-        return apply_transforms(data, *args, **kwargs)
+        return apply_pending(data, *args, **kwargs)
 
     def inverse(self, data):
         return self(data)

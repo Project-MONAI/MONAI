@@ -14,7 +14,7 @@ import monai
 import monai.transforms.spatial.old_array as old
 import monai.transforms.spatial.old_dictionary as oldd
 from monai.transforms.croppad.dictionary import RandCropPadd
-from monai.transforms.lazy.functional import apply_transforms
+from monai.transforms.lazy.functional import apply_pending
 from monai.transforms.spatial.functional import spacing
 # from monai.utils.mapping_stack import MetaMatrix
 from monai.transforms import Invert, AddChannel, Compose, Crop, LoadImage, LoadImaged, EnsureChannelFirst, \

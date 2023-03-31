@@ -46,9 +46,9 @@ class Pad(InvertibleTransform, LazyTransform):
             padding: Sequence[Sequence[int, int]] | Sequence[int, int],
             mode: str | None = "border",
             value: int | float = 0,
-            lazy_evaluation: bool = True
+            lazy: bool = False
     ):
-        LazyTransform.__init__(self, lazy_evaluation)
+        LazyTransform.__init__(self, lazy)
         self.padding = padding
         self.padding_mode = mode
         self.value = value
@@ -65,12 +65,12 @@ class Pad(InvertibleTransform, LazyTransform):
         value_ = self.value if value is None else value
 
         img_t = pad(img, padding_, padding_mode_, value_,
-                    lazy_evaluation=self.lazy_evaluation)
+                    lazy=self.lazy)
 
         return img_t
 
     def __invert__(self, data):
-        return invert(data, self.lazy_evaluation)
+        return invert(data, self.lazy)
 
 
 class CropPad(InvertibleTransform, LazyTransform):
@@ -81,9 +81,9 @@ class CropPad(InvertibleTransform, LazyTransform):
             starts: Sequence[float] | None = None,
             ends: Sequence[float] | None = None,
             padding_mode: GridSamplePadMode | str = GridSamplePadMode.BORDER,
-            lazy_evaluation: bool = True
+            lazy: bool = False
     ):
-        LazyTransform.__init__(self, lazy_evaluation)
+        LazyTransform.__init__(self, lazy)
         self.slices = slices
         if slices is None:
             self.starts = starts
@@ -98,12 +98,12 @@ class CropPad(InvertibleTransform, LazyTransform):
     ):
         slices_ = slices if self.slices is None else self.slices
 
-        img_t = croppad(img, slices_, self.padding_mode, lazy_evaluation=self.lazy_evaluation)
+        img_t = croppad(img, slices_, self.padding_mode, lazy=self.lazy)
 
         return img_t
 
     def inverse(self, data):
-        return invert(data, self.lazy_evaluation)
+        return invert(data, self.lazy)
 
 
 class RandomCropPad(InvertibleTransform, LazyTransform, RandomizableTrait):
@@ -113,9 +113,9 @@ class RandomCropPad(InvertibleTransform, LazyTransform, RandomizableTrait):
             sizes: Sequence[int] | int,
             prob: float = 0.1,
             padding_mode: GridSamplePadMode | str = GridSamplePadMode.BORDER,
-            lazy_evaluation: bool = True
+            lazy: bool = False
     ):
-        LazyTransform.__init__(self, lazy_evaluation)
+        LazyTransform.__init__(self, lazy)
         # self.sizes = sizes
         self.padding_mode = padding_mode
 
@@ -131,12 +131,12 @@ class RandomCropPad(InvertibleTransform, LazyTransform, RandomizableTrait):
 
         extents = self.randomizer.sample(img_shape)
 
-        img_t = croppad(img, extents, self.padding_mode, lazy_evaluation=self.lazy_evaluation)
+        img_t = croppad(img, extents, self.padding_mode, lazy=self.lazy)
 
         return img_t
 
     def inverse(self, data):
-        return invert(data, self.lazy_evaluation)
+        return invert(data, self.lazy)
 
 
 class RandomCropPadMultiSample(
@@ -148,10 +148,10 @@ class RandomCropPadMultiSample(
             sizes: Sequence[int] | int,
             sample_count: int,
             padding_mode: GridSamplePadMode | str = GridSamplePadMode.BORDER,
-            lazy_evaluation: bool = True
+            lazy: bool = False
     ):
         self.sample_count = sample_count
-        self.op = RandomCropPad(sizes, 1.0, padding_mode, lazy_evaluation)
+        self.op = RandomCropPad(sizes, 1.0, padding_mode, lazy)
 
     def __call__(
             self,

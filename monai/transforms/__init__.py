@@ -229,7 +229,7 @@ from .inverse import InvertibleTransform, TraceableTransform
 from .inverse_batch_transform import BatchInverseTransform, Decollated, DecollateD, DecollateDict
 from .io.array import SUPPORTED_READERS, LoadImage, SaveImage
 from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict, SaveImaged, SaveImageD, SaveImageDict
-from .lazy.functional import apply_transforms
+from .lazy.functional import apply_pending
 from .lazy.utils import combine_transforms
 from .lazy.resampler import resample
 from .meta_utility.dictionary import (

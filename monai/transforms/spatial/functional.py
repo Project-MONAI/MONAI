@@ -111,7 +111,7 @@ def identity(
     dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
     shape_override: Optional[Sequence[int]] = None,
     dtype_override: Optional[Union[DtypeLike, torch.dtype]] = None,
-    lazy_evaluation: Optional[bool] = True
+    lazy: bool = False
 ):
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
 
@@ -137,7 +137,7 @@ def identity(
         metadata[LazyAttr.PADDING_MODE] = padding_mode_
     # metadata[LazyAttr.DTYPE] = dtype_
 
-    return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
+    return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy)
 
 
 def spacing(
@@ -155,7 +155,7 @@ def spacing(
     max_pixdim: Sequence[float] | float | np.ndarray | None = None,
     shape_override: Optional[Sequence[int]] = None,
     dtype_override: Optional[Union[DtypeLike, torch.dtype]] = None,
-    lazy_evaluation: Optional[bool] = True
+    lazy: bool = False
 ):
     """
     TODO: spacing needs to updated to match the functionality of Spacing on dev
@@ -223,7 +223,7 @@ def spacing(
         LazyAttr.OUT_DTYPE: dtype_,
         LazyAttr.OUT_SHAPE: output_shape
     }
-    return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
+    return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy)
 
 
 # def orientation(
@@ -233,7 +233,7 @@ def spacing(
 #         labels: Optional[Sequence[Tuple[str, str]]] = (("L", "R"), ("P", "A"), ("I", "S")),
 #         src_affine: Optional[torch.Tensor] = None,
 #         shape_override: Optional[Sequence] = None,
-#         lazy_evaluation: Optional[bool] = True
+#         lazy: bool = False
 # ):
 #     """
 #     Change the current transform for the image to the orientation specified by the `axcodes` parameter.
@@ -283,7 +283,7 @@ def flip(
         spatial_axis: Union[Sequence[int], int],
         shape_override: Optional[Sequence] = None,
         dtype_override: Optional[Union[DtypeLike, torch.dtype]] = None,
-        lazy_evaluation: Optional[bool] = True
+        lazy: bool = False
 ):
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
 
@@ -305,7 +305,7 @@ def flip(
         LazyAttr.OUT_SHAPE: input_shape,
         LazyAttr.OUT_DTYPE: input_dtype,
     }
-    return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
+    return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy)
 
 
 def resize(
@@ -319,7 +319,7 @@ def resize(
         dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
         shape_override: Optional[Sequence[int]] = None,
         dtype_override: Optional[Union[DtypeLike, torch.dtype]] = None,
-        lazy_evaluation: Optional[bool] = True
+        lazy: bool = False
 ):
     """
     Args:
@@ -394,7 +394,7 @@ def resize(
         LazyAttr.OUT_SHAPE: output_shape,
         LazyAttr.OUT_DTYPE: dtype_,
     }
-    return lazily_apply_op(img_, MetaMatrix(pixel_transform, metadata), lazy_evaluation)
+    return lazily_apply_op(img_, MetaMatrix(pixel_transform, metadata), lazy)
 
 
 def rotate(
@@ -407,7 +407,7 @@ def rotate(
         dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
         shape_override: Optional[Sequence[int]] = None,
         dtype_override: Optional[Union[DtypeLike, torch.dtype]] = None,
-        lazy_evaluation: Optional[bool] = True
+        lazy: bool = False
 ):
     """
     Args:
@@ -472,7 +472,7 @@ def rotate(
         LazyAttr.OUT_SHAPE: output_shape,
         LazyAttr.OUT_DTYPE: dtype_,
     }
-    return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
+    return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy)
 
 
 def zoom(
@@ -485,7 +485,7 @@ def zoom(
         dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
         shape_override: Optional[Sequence[int]] = None,
         dtype_override: Optional[Union[DtypeLike, torch.dtype]] = None,
-        lazy_evaluation: Optional[bool] = True
+        lazy: bool = False
 ):
     """
     Args:
@@ -550,7 +550,7 @@ def zoom(
         LazyAttr.OUT_DTYPE: dtype_,
     }
 
-    return lazily_apply_op(img_, MetaMatrix(transform_, metadata), lazy_evaluation)
+    return lazily_apply_op(img_, MetaMatrix(transform_, metadata), lazy)
 
 
 def rotate90(
@@ -559,7 +559,7 @@ def rotate90(
         spatial_axes: Optional[Tuple[int, int]] = (0, 1),
         shape_override: Optional[Sequence[int]] = None,
         dtype_override: Optional[Union[DtypeLike, torch.dtype]] = None,
-        lazy_evaluation: Optional[bool] = True
+        lazy: bool = False
 ):
     """
     TODO: confirm the behaviour of rotate 90 when rotating non-square/non-cubic datasets"
@@ -569,7 +569,7 @@ def rotate90(
         k:
         spatial_axes:
         shape_override:
-        lazy_evaluation:
+        lazy:
 
     Returns:
 
@@ -609,7 +609,7 @@ def rotate90(
         LazyAttr.OUT_SHAPE: output_shape,
         LazyAttr.OUT_DTYPE: input_dtype,
     }
-    return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
+    return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy)
 
 
 # TODO: Needs a second look
@@ -620,7 +620,7 @@ def rotate90(
 #         mode: str = GridSampleMode.BILINEAR,
 #         padding_mode: str = GridSamplePadMode.BORDER,
 #         shape_override: Optional[Sequence[int]] = None,
-#         lazy_evaluation: Optional[bool] = True
+#         lazy: bool = False
 # ):
 #     all_ranges = []
 #     num_cells = ensure_tuple_rep(num_cells, len(img.shape) - 1)
@@ -650,7 +650,7 @@ def rotate90(
 #         "padding_mode": padding_mode
 #     }
 #
-#     return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
+#     return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy)
 
 
 def elastic_3d(
@@ -664,7 +664,7 @@ def elastic_3d(
         device: Optional[torch.device] = None,
         shape_override: Optional[Tuple[float]] = None,
         dtype_override: Optional[Union[DtypeLike, torch.dtype]] = None,
-        lazy_evaluation: Optional[bool] = True
+        lazy: bool = False
 ):
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
 
@@ -690,7 +690,7 @@ def elastic_3d(
     if padding_mode is not None:
         metadata[LazyAttr.PADDING_MODE] = padding_mode
 
-    return lazily_apply_op(img_, MetaMatrix(grid, metadata), lazy_evaluation)
+    return lazily_apply_op(img_, MetaMatrix(grid, metadata), lazy)
 
 
 def translate(
@@ -701,7 +701,7 @@ def translate(
         dtype: Union[DtypeLike, torch.dtype] = np.float32,
         shape_override: Optional[Sequence[int]] = None,
         dtype_override: Optional[Union[DtypeLike, torch.dtype]] = None,
-        lazy_evaluation: Optional[bool] = True
+        lazy: bool = False
 ):
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
 
@@ -726,4 +726,4 @@ def translate(
         LazyAttr.OUT_DTYPE: dtype_,
     }
 
-    return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
+    return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy)
