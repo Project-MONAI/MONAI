@@ -984,8 +984,9 @@ def onnx_export(
         key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
             weights. if not nested checkpoint, no need to set.
         use_trace: whether using `torch.jit.trace` to convert the pytorch model to torchscript model.
-        input_shape: must specify the `input_shape` of the network to convert the model when `use_trace` is True.
-            Should be a list like [N, C, H, W] or [N, C, H, W, D]. If not given, will try to parse from config files.
+        input_shape: a shape used to generate the random input of the network, when converting the model to an
+            onnx model.Should be a list like [N, C, H, W] or [N, C, H, W, D]. If not given, will try to parse from
+            config files.
         args_file: a JSON or YAML file to provide default values for all the parameters of this function, so that
             the command line inputs can be simplified.
         converter_kwargs: extra arguments that are needed by `convert_to_onnx`, except ones that already exist in the
@@ -1095,8 +1096,9 @@ def ckpt_export(
         key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
             weights. if not nested checkpoint, no need to set.
         use_trace: whether using `torch.jit.trace` to convert the pytorch model to torchscript model.
-        input_shape: must specify the `input_shape` of the network to convert the model when `use_trace` is True.
-            Should be a list like [N, C, H, W] or [N, C, H, W, D]. If not given, will try to parse from config files.
+        input_shape: a shape used to generate the random input of the network, when converting the model to a
+            torchscript model.Should be a list like [N, C, H, W] or [N, C, H, W, D]. If not given, will try to
+            parse from config files.
         args_file: a JSON or YAML file to provide default values for all the parameters of this function, so that
             the command line inputs can be simplified.
         converter_kwargs: extra arguments that are needed by `convert_to_torchscript`, except ones that already exist
@@ -1190,7 +1192,7 @@ def trt_export(
 ) -> None:
     """
     Export the model checkpoint to the given filepath as a TensorRT engine-based torchscript.
-    Currently, this API only supports to convert models whose inputs are all tensors.
+    Currently, this API only supports converting models whose inputs are all tensors.
 
     Typical usage examples:
 
@@ -1218,7 +1220,7 @@ def trt_export(
         dynamic_batchsize: a sequence with three elements to define the batch size range of the input for the model to be converted.
             Should be a sequence like [MIN_BATCH, OPT_BATCH, MAX_BATCH]. After converted, the batchsize of model input should
             between `MIN_BATCH` and `MAX_BATCH` and the `OPT_BATCH` is the best performance batchsize that the TensorRT tries to fit.
-            We suggest the `OPT_BATCH` to be the most frequently used input batchsize in the application.
+            The `OPT_BATCH` should be the most frequently used input batchsize in the application.
         device: the target GPU index to convert and verify the model.
         args_file: a JSON or YAML file to provide default values for all the parameters of this function, so that
             the command line inputs can be simplified.

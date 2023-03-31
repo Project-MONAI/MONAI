@@ -754,7 +754,7 @@ def convert_to_trt(
         dynamic_batchsize: a sequence with three elements to define the batch size range of the input for the model to be converted.
             Should be a sequence like [MIN_BATCH, OPT_BATCH, MAX_BATCH]. After converted, the batchsize of model input should
             between `MIN_BATCH` and `MAX_BATCH` and the `OPT_BATCH` is the best performance batchsize that the TensorRT tries to fit.
-            We suggest the `OPT_BATCH` to be the most frequently used input batchsize in your application, default to None.
+            The `OPT_BATCH` should be the most frequently used input batchsize in the application, default to None.
         use_trace: whether using `torch.jit.trace` to convert the pytorch model to torchscript model and then convert to
             a TensorRT engine based torchscript model, default to False.
         filename_or_obj: if not None, specify a file-like object (has to implement write and flush) or a string containing a
