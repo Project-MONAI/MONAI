@@ -1,46 +1,9 @@
 name: monai-azureml
 channels:
-  - pytorch
   - defaults
-  - nvidia
-  - conda-forge
 dependencies:
-  - numpy>=1.20
-  - pytorch>=1.8
-  - torchvision
-  - pytorch-cuda=11.6
   - pip
   - python>=3.8
   - pip:
-    - argcomplete<2.0.0
-    - importlib-metadata<5,>=0.23
-    - hi-ml-azure>=0.2.18
     - git+https://github.com/peterhessey/MONAI.git@6054-integrate-azureml-for-autorunner-training
-    - pytorch-ignite==0.4.10
-    - gdown>=4.4.0
-    - scipy
-    - itk>=5.2
-    - nibabel
-    - pillow!=8.3.0  # https://github.com/python-pillow/Pillow/issues/5571
-    - tensorboard>=2.6  # https://github.com/Project-MONAI/MONAI/issues/5776
-    - scikit-image>=0.19.0
-    - tqdm>=4.47.0
-    - lmdb
-    - ninja
-    - torchvision
-    - psutil
-    - cucim==22.8.1; platform_system == "Linux"
-    - openslide-python==1.1.2
-    - pandas
-    - requests
-    - einops
-    - transformers<4.22  # https://github.com/Project-MONAI/MONAI/issues/5157
-    - mlflow>=1.28.0
-    - fire
-    - pydicom
-    - h5py
-    - nni
-    - optuna
-    - parameterized
-    - torch>=1.8
-    - numpy>=1.20
+    - hi-ml-azure>=0.2.19

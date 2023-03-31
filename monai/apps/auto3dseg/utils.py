@@ -91,7 +91,16 @@ def submit_auto3dseg_module_to_azureml_if_needed(azure_cfg: dict[str, Any]) -> h
         "strictly_aml_v1": False,
     }
     azureml_args.update(azure_cfg)
+    config_datasets_key = "input_dataset"
+    himl_datasets_key = "input_datasets"
 
+    if isinstance(azureml_args[config_datasets_key], str):
+        azureml_args[himl_datasets_key] = [azureml_args[config_datasets_key]]
+        azureml_args.pop(config_datasets_key)
+    else:
+        raise ValueError(
+            f"Invalid type for {config_datasets_key} in azureml_args, must be str not {type(azureml_args[config_datasets_key])}"
+        )
     needed_keys = {"compute_cluster_name", "default_datastore"}
     missing_keys = needed_keys.difference(azureml_args.keys())
     if len(missing_keys) > 0:
