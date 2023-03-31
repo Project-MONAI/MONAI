@@ -665,7 +665,6 @@ def run(
         tracking=None,
     )
     run_workflow(
-        workflow=ConfigWorkflow,
         config_file=config_file_,
         meta_file=meta_file_,
         logging_file=logging_file_,
