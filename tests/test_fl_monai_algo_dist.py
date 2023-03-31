@@ -36,7 +36,9 @@ class TestFLMonaiAlgo(DistTestCase):
         config_file = [pathjoin(_data_dir, "config_fl_train.json"), pathjoin(_data_dir, "multi_gpu_train.json")]
         # initialize algo
         algo = MonaiAlgo(
+            bundle_root=_data_dir,
             train_workflow=ConfigWorkflow(config_file=config_file, workflow="train"),
+            config_evaluate_filename=None,
             config_filters_filename=pathjoin(_root_dir, "testing_data", "config_fl_filters.json"),
         )
         algo.initialize(extra={ExtraItems.CLIENT_NAME: "test_fl"})
@@ -57,6 +59,8 @@ class TestFLMonaiAlgo(DistTestCase):
         config_file = [pathjoin(_data_dir, "config_fl_evaluate.json"), pathjoin(_data_dir, "multi_gpu_evaluate.json")]
         # initialize algo
         algo = MonaiAlgo(
+            bundle_root=_data_dir,
+            config_train_filename=None,
             eval_workflow=ConfigWorkflow(config_file=config_file, workflow="train"),
             config_filters_filename=pathjoin(_data_dir, "config_fl_filters.json"),
         )

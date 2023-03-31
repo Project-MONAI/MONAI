@@ -27,18 +27,21 @@ _data_dir = os.path.join(_root_dir, "testing_data")
 
 TEST_GET_DATA_STATS_1 = [
     {
+        "bundle_root": _data_dir,
         "workflow": ConfigWorkflow(workflow="train", config_file=os.path.join(_data_dir, "config_fl_stats_1.json")),
         "config_filters_filename": os.path.join(_data_dir, "config_fl_filters.json"),
     }
 ]
 TEST_GET_DATA_STATS_2 = [
     {
-        "workflow": ConfigWorkflow(workflow="train", config_file=os.path.join(_data_dir, "config_fl_stats_2.json")),
+        "bundle_root": _data_dir,
+        "config_train_filename": os.path.join(_data_dir, "config_fl_stats_2.json"),
         "config_filters_filename": os.path.join(_data_dir, "config_fl_filters.json"),
     }
 ]
 TEST_GET_DATA_STATS_3 = [
     {
+        "bundle_root": _data_dir,
         "workflow": ConfigWorkflow(
             workflow="train",
             config_file=[

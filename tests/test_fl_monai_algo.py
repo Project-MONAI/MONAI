@@ -31,18 +31,23 @@ _data_dir = os.path.join(_root_dir, "testing_data")
 
 TEST_TRAIN_1 = [
     {
+        "bundle_root": _data_dir,
         "train_workflow": ConfigWorkflow(os.path.join(_data_dir, "config_fl_train.json"), workflow="train"),
+        "config_evaluate_filename": None,
         "config_filters_filename": os.path.join(_data_dir, "config_fl_filters.json"),
     }
 ]
 TEST_TRAIN_2 = [
     {
-        "train_workflow": ConfigWorkflow(os.path.join(_data_dir, "config_fl_train.json"), workflow="train"),
+        "bundle_root": _data_dir,
+        "config_train_filename": os.path.join(_data_dir, "config_fl_train.json"),
+        "config_evaluate_filename": None,
         "config_filters_filename": None,
     }
 ]
 TEST_TRAIN_3 = [
     {
+        "bundle_root": _data_dir,
         "train_workflow": ConfigWorkflow(
             config_file=[
                 os.path.join(_data_dir, "config_fl_train.json"),
@@ -50,6 +55,7 @@ TEST_TRAIN_3 = [
             ],
             workflow="train",
         ),
+        "config_evaluate_filename": None,
         "config_filters_filename": [
             os.path.join(_data_dir, "config_fl_filters.json"),
             os.path.join(_data_dir, "config_fl_filters.json"),
@@ -59,40 +65,45 @@ TEST_TRAIN_3 = [
 
 TEST_TRAIN_4 = [
     {
-        "train_workflow": ConfigWorkflow(
-            config_file=os.path.join(_data_dir, "config_fl_train.json"),
-            workflow="train",
-            tracking={
-                "handlers_id": DEFAULT_HANDLERS_ID,
-                "configs": {
-                    "execute_config": f"{_data_dir}/config_executed.json",
-                    "trainer": {
-                        "_target_": "MLFlowHandler",
-                        "tracking_uri": path_to_uri(_data_dir) + "/mlflow_override",
-                        "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
-                        "close_on_complete": True,
-                    },
+        "bundle_root": _data_dir,
+        "train_workflow": ConfigWorkflow(os.path.join(_data_dir, "config_fl_train.json"), workflow="train"),
+        "config_evaluate_filename": None,
+        "tracking": {
+            "handlers_id": DEFAULT_HANDLERS_ID,
+            "configs": {
+                "execute_config": f"{_data_dir}/config_executed.json",
+                "trainer": {
+                    "_target_": "MLFlowHandler",
+                    "tracking_uri": path_to_uri(_data_dir) + "/mlflow_override",
+                    "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
+                    "close_on_complete": True,
                 },
             },
-        ),
+        },
         "config_filters_filename": None,
     }
 ]
 
 TEST_EVALUATE_1 = [
     {
+        "bundle_root": _data_dir,
+        "config_train_filename": None,
         "eval_workflow": ConfigWorkflow(os.path.join(_data_dir, "config_fl_evaluate.json"), workflow="train"),
         "config_filters_filename": os.path.join(_data_dir, "config_fl_filters.json"),
     }
 ]
 TEST_EVALUATE_2 = [
     {
-        "eval_workflow": ConfigWorkflow(os.path.join(_data_dir, "config_fl_evaluate.json"), workflow="train"),
+        "bundle_root": _data_dir,
+        "config_train_filename": None,
+        "config_evaluate_filename": os.path.join(_data_dir, "config_fl_evaluate.json"),
         "config_filters_filename": None,
     }
 ]
 TEST_EVALUATE_3 = [
     {
+        "bundle_root": _data_dir,
+        "config_train_filename": None,
         "eval_workflow": ConfigWorkflow(
             config_file=[
                 os.path.join(_data_dir, "config_fl_evaluate.json"),
@@ -109,20 +120,25 @@ TEST_EVALUATE_3 = [
 
 TEST_GET_WEIGHTS_1 = [
     {
+        "bundle_root": _data_dir,
         "train_workflow": ConfigWorkflow(os.path.join(_data_dir, "config_fl_train.json"), workflow="train"),
+        "config_evaluate_filename": None,
         "send_weight_diff": False,
         "config_filters_filename": os.path.join(_data_dir, "config_fl_filters.json"),
     }
 ]
 TEST_GET_WEIGHTS_2 = [
     {
-        "train_workflow": ConfigWorkflow(os.path.join(_data_dir, "config_fl_train.json"), workflow="train"),
+        "bundle_root": _data_dir,
+        "config_train_filename": os.path.join(_data_dir, "config_fl_train.json"),
+        "config_evaluate_filename": None,
         "send_weight_diff": True,
         "config_filters_filename": os.path.join(_data_dir, "config_fl_filters.json"),
     }
 ]
 TEST_GET_WEIGHTS_3 = [
     {
+        "bundle_root": _data_dir,
         "train_workflow": ConfigWorkflow(
             config_file=[
                 os.path.join(_data_dir, "config_fl_train.json"),
@@ -130,6 +146,7 @@ TEST_GET_WEIGHTS_3 = [
             ],
             workflow="train",
         ),
+        "config_evaluate_filename": None,
         "send_weight_diff": True,
         "config_filters_filename": [
             os.path.join(_data_dir, "config_fl_filters.json"),

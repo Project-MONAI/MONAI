@@ -20,7 +20,7 @@ import torch
 from monai.apps.auto3dseg.data_analyzer import DataAnalyzer
 from monai.apps.utils import get_logger
 from monai.auto3dseg import SegSummarizer
-from monai.bundle import BundleWorkflow, ConfigWorkflow, ConfigItem, ConfigParser
+from monai.bundle import DEFAULT_EXP_MGMT_SETTINGS, BundleWorkflow, ConfigItem, ConfigParser, ConfigWorkflow
 from monai.engines import SupervisedEvaluator, SupervisedTrainer, Trainer
 from monai.fl.client import ClientAlgo, ClientAlgoStats
 from monai.fl.utils.constants import ExtraItems, FiltersType, FlPhase, FlStatistics, ModelType, WeightType
@@ -306,7 +306,8 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         config_train_filename: bundle training config path relative to bundle_root. can be a list of files.
             defaults to "configs/train.json". only useful when `train_workflow` is None.
         config_evaluate_filename: bundle evaluation config path relative to bundle_root. can be a list of files.
-            defaults to ["configs/train.json", "configs/evaluate.json"]. only useful when `eval_workflow` is None.
+            if "default", ["configs/train.json", "configs/evaluate.json"] will be used.
+            this arg is only useful when `eval_workflow` is None.
         config_filters_filename: filter configuration file. Can be a list of files; defaults to `None`.
         best_model_filepath: location of best model checkpoint; defaults "models/model.pt" relative to `bundle_root`.
         final_model_filepath: location of final model checkpoint; defaults "models/model_final.pt" relative to `bundle_root`.
@@ -314,6 +315,13 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             the one defined by `save_dict_key` will be returned by `get_weights`; defaults to "model".
             If all state dicts should be returned, set `save_dict_key` to None.
         data_stats_transform_list: transforms to apply for the data stats result.
+        tracking: if not None, enable the experiment tracking at runtime with optionally configurable and extensible.
+            if "mlflow", will add `MLFlowHandler` to the parsed bundle with default tracking settings,
+            if other string, treat it as file path to load the tracking settings.
+            if `dict`, treat it as tracking settings.
+            will patch the target config content with `tracking handlers` and the top-level items of `configs`.
+            for detailed usage examples, plesae check the tutorial:
+            https://github.com/Project-MONAI/tutorials/blob/main/experiment_management/bundle_integrate_mlflow.ipynb.
 
     """
 
@@ -325,12 +333,13 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         local_epochs: int = 1,
         send_weight_diff: bool = True,
         config_train_filename: str | list | None = "configs/train.json",
-        config_evaluate_filename: str | list | None = ["configs/train.json", "configs/evaluate.json"],
+        config_evaluate_filename: str | list | None = "default",
         config_filters_filename: str | list | None = None,
         best_model_filepath: str | None = "models/model.pt",
         final_model_filepath: str | None = "models/model_final.pt",
         save_dict_key: str | None = "model",
         data_stats_transform_list: list | None = None,
+        tracking: str | dict | None = None,
     ):
         self.logger = logger
         self.bundle_root = bundle_root
@@ -350,11 +359,15 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         self.local_epochs = local_epochs
         self.send_weight_diff = send_weight_diff
         self.config_train_filename = config_train_filename
+        if config_evaluate_filename == "default":
+            # by default, evaluator needs both training and evaluate to be instantiated
+            config_evaluate_filename = ["configs/train.json", "configs/evaluate.json"]
         self.config_evaluate_filename = config_evaluate_filename
         self.config_filters_filename = config_filters_filename
         self.model_filepaths = {ModelType.BEST_MODEL: best_model_filepath, ModelType.FINAL_MODEL: final_model_filepath}
         self.save_dict_key = save_dict_key
         self.data_stats_transform_list = data_stats_transform_list
+        self.tracking = tracking
 
         self.app_root = ""
         self.filter_parser: ConfigParser | None = None
@@ -387,6 +400,13 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         self.app_root = extra.get(ExtraItems.APP_ROOT, "")
         self.bundle_root = os.path.join(self.app_root, self.bundle_root)
 
+        # set tracking configs for experiment management
+        if self.tracking is not None:
+            if isinstance(self.tracking, str) and self.tracking in DEFAULT_EXP_MGMT_SETTINGS:
+                settings_ = DEFAULT_EXP_MGMT_SETTINGS[self.tracking]
+            else:
+                settings_ = ConfigParser.load_config_files(self.tracking)
+
         if self.train_workflow is None and self.config_train_filename is not None:
             config_train_files = self._add_config_files(self.config_train_filename)
             self.train_workflow = ConfigWorkflow(
@@ -396,6 +416,8 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             self.train_workflow.initialize()
             self.train_workflow.bundle_root = self.bundle_root
             self.train_workflow.max_epochs = self.local_epochs
+            if self.tracking is not None:
+                ConfigWorkflow.patch_bundle_tracking(parser=self.train_workflow.parser, settings=settings_)
             # initialize the workflow as the content changed
             self.train_workflow.initialize()
             self.trainer = self.train_workflow.trainer
@@ -429,6 +451,8 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         if self.eval_workflow is not None:
             self.eval_workflow.initialize()
             self.eval_workflow.bundle_root = self.bundle_root
+            if self.tracking is not None:
+                ConfigWorkflow.patch_bundle_tracking(parser=self.eval_workflow.parser, settings=settings_)
             self.eval_workflow.initialize()
             self.evaluator = self.eval_workflow.evaluator
             if not isinstance(self.evaluator, SupervisedEvaluator):
