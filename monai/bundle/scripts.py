@@ -784,7 +784,7 @@ def _get_net_io_info(parser: ConfigParser | None = None, prefix: str = "_meta_#n
     return input_channels, input_spatial_shape, input_dtype, output_channels, output_dtype
 
 
-def _get_fake_input_shape(parser: ConfigParser):
+def _get_fake_input_shape(parser: ConfigParser) -> tuple:
     """
     Get a fake input shape e.g. [N, C, H, W] or [N, C, H, W, D], whose batch size is 1, from the given parser.
 
