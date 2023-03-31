@@ -12,6 +12,8 @@
 
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.inverse import InvertibleTransform
+from monai.transforms.lazy.functional import apply_pending
+
 
 
 class ApplyPendingd(InvertibleTransform):
