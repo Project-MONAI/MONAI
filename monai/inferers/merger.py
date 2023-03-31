@@ -36,8 +36,18 @@ class Merger(ABC):
         device: the device where Merger tensors should reside.
     """
 
-    def __init__(self, output_shape: Sequence[int] | None = None, device: torch.device | str | None = None) -> None:
+    def __init__(
+        self,
+        output_shape: Sequence[int] | None = None,
+        crop_shape: Sequence[int] | None = None,
+        crop: bool = False,
+        device: torch.device | str | None = None,
+    ) -> None:
         self.output_shape = output_shape
+        self.crop_shape = crop_shape
+        self.crop = crop
+        if self.crop and not self.crop_shape:
+            raise ValueError("`crop` is set but `crop_shape` is not provided.")
         self.device = device
         self.is_finalized = False
 
@@ -86,11 +96,13 @@ class AvgMerger(Merger):
     def __init__(
         self,
         output_shape: Sequence[int],
+        crop_shape: Sequence[int] | None = None,
+        crop: bool = False,
         device: torch.device | str = "cpu",
         value_dtype: torch.dtype = torch.float32,
         count_dtype: torch.dtype = torch.uint8,
     ) -> None:
-        super().__init__(output_shape=output_shape, device=device)
+        super().__init__(output_shape=output_shape, crop_shape=crop_shape, crop=crop, device=device)
         if not self.output_shape:
             raise ValueError(f"`output_shape` must be provided for `AvgMerger`. {self.output_shape} is give.")
         self.value_dtype = value_dtype
@@ -134,6 +146,9 @@ class AvgMerger(Merger):
         if not self.is_finalized:
             # use in-place division to save space
             self.values.div_(self.counts)
+            # crop the output
+            if self.crop and self.crop_shape:
+                self.values = self.values[tuple(slice(0, end) for end in self.crop_shape)]
             # set finalize flag to protect performing in-place division again
             self.is_finalized = True
 

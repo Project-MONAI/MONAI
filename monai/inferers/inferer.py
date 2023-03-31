@@ -216,12 +216,26 @@ class PatchInferer(Inferer):
             # calculate the ratio of input and output patch sizes
             ratio = tuple(op / ip for ip, op in zip(in_patch.shape[2:], out_patch.shape[2:]))
             ratios.append(ratio)
+
             # calculate output_shape only if it is not provided and splitter is not None.
-            if self.splitter is not None and "output_shape" not in self.merger_kwargs:
-                output_shape = self._get_output_shape(inputs, out_patch, ratio)
-                merger = self.merger_cls(output_shape=output_shape, **self.merger_kwargs)
-            else:
+            output_shape = self.merger_kwargs.get("output_shape")
+            crop_shape = self.merger_kwargs.get("crop_shape")
+            if output_shape and crop_shape:
                 merger = self.merger_cls(**self.merger_kwargs)
+            else:
+                if not self.splitter:
+                    if output_shape:
+                        merger = self.merger_cls(output_shape=output_shape, **self.merger_kwargs)
+                    else:
+                        raise ValueError("`output_shape` should be provided when splitter is None.")
+                else:
+                    crop_shape_c, output_shape_c = self._get_output_shape(inputs, out_patch, ratio)
+                    if crop_shape:
+                        merger = self.merger_cls(output_shape=output_shape_c, **self.merger_kwargs)
+                    elif output_shape:
+                        merger = self.merger_cls(crop_shape=crop_shape_c, **self.merger_kwargs)
+                    else:
+                        merger = self.merger_cls(output_shape=output_shape_c, crop_shape=output_shape, **self.merger_kwargs)
             mergers.append(merger)
         return mergers, ratios
 
@@ -233,11 +247,22 @@ class PatchInferer(Inferer):
                 merger.aggregate(out_patch, out_loc)
 
     def _get_output_shape(self, inputs, out_patch, ratio):
-        """Define the shape of output merged tensors"""
-        in_spatial_shape = inputs.shape[2:]
-        out_spatial_shape = tuple(round(s * r) for s, r in zip(in_spatial_shape, ratio))
-        output_shape = out_patch.shape[:2] + out_spatial_shape
-        return output_shape
+        """Define the shape of output merged tensors (non-padded and padded)"""
+        if self.splitter is None:
+            return None, None
+
+        # input spatial shapes
+        spatial_shape, padded_spatial_shape = self.splitter.get_spatial_shapes(inputs)
+
+        # output spatial shapes
+        output_spatial_shape = tuple(round(s * r) for s, r in zip(spatial_shape, ratio))
+        padded_output_spatial_shape = tuple(round(s * r) for s, r in zip(padded_spatial_shape, ratio))
+
+        # output shapes
+        output_shape = out_patch.shape[:2] + output_spatial_shape
+        padded_output_shape = out_patch.shape[:2] + padded_output_spatial_shape
+
+        return output_shape, padded_output_shape
 
     def __call__(
         self,
@@ -291,7 +316,9 @@ class PatchInferer(Inferer):
             self._aggregate(outputs, locations, batch_size, mergers, ratios)
 
         # finalize the mergers and get the results
-        merged_outputs = tuple(merger.finalize() for merger in mergers)
+
+        merged_outputs = [merger.finalize() for merger in mergers]
+
         # return according to the model output
         if self.output_keys:
             return dict(zip(self.output_keys, merged_outputs))
