@@ -35,5 +35,5 @@ h5py
 nni
 optuna
 opencv-python-headless
-onnx>=1.13.0 
+onnx>=1.13.0
 onnxruntime; python_version <= '3.10'
