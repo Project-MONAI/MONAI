@@ -55,6 +55,7 @@ validate, _ = optional_import("jsonschema", name="validate")
 ValidationError, _ = optional_import("jsonschema.exceptions", name="ValidationError")
 Checkpoint, has_ignite = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Checkpoint")
 requests_get, has_requests = optional_import("requests", name="get")
+onnx, has_onnx = optional_import("onnx")
 
 logger = get_logger(module_name=__name__)
 
@@ -783,6 +784,19 @@ def _get_net_io_info(parser: ConfigParser | None = None, prefix: str = "_meta_#n
     return input_channels, input_spatial_shape, input_dtype, output_channels, output_dtype
 
 
+def _get_fake_input_shape(parser: ConfigParser):
+    """
+    Get a fake input shape e.g. [N, C, H, W] or [N, C, H, W, D], whose batch size is 1, from the given parser.
+
+    Args:
+        parser: a ConfigParser which contains the i/o information of a bundle.
+    """
+    input_channels, input_spatial_shape, _, _, _ = _get_net_io_info(parser=parser)
+    spatial_shape = _get_fake_spatial_shape(input_spatial_shape)
+    input_shape = (1, input_channels, *spatial_shape)
+    return input_shape
+
+
 def verify_net_in_out(
     net_id: str | None = None,
     meta_file: str | Sequence[str] | None = None,
@@ -970,15 +984,13 @@ def onnx_export(
             weights. if not nested checkpoint, no need to set.
         use_trace: whether using `torch.jit.trace` to convert the pytorch model to torchscript model.
         input_shape: must specify the `input_shape` of the network to convert the model when `use_trace` is True.
-            Should be a list like [N, C, H, W] or [N, C, H, W, D].
+            Should be a list like [N, C, H, W] or [N, C, H, W, D]. If not given, will try to parse from config files.
         args_file: a JSON or YAML file to provide default values for all the parameters of this function, so that
             the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.
             e.g. ``--_meta#network_data_format#inputs#image#num_channels 3``.
 
     """
-    onnx, _ = optional_import("onnx")
-
     _args = _update_args(
         args=args_file,
         net_id=net_id,
@@ -992,7 +1004,7 @@ def onnx_export(
         **override,
     )
     _log_input_summary(tag="onnx_export", args=_args)
-    filepath_, ckpt_file_, config_file_, net_id_, meta_file_, _, _, input_shape_ = _pop_args(
+    filepath_, ckpt_file_, config_file_, net_id_, meta_file_, key_in_ckpt_, use_trace_, input_shape_ = _pop_args(
         _args,
         "filepath",
         "ckpt_file",
@@ -1014,16 +1026,22 @@ def onnx_export(
     for k, v in _args.items():
         parser[k] = v
 
+    # The convert_to_onnx must have an `inputs` as input, no matter what the `use_trace` is.
+    # If the `input_shape` is not provided, will try to parse it from the parser to generate a random `inputs`.
+    if not input_shape_:
+        input_shape_ = _get_fake_input_shape(parser=parser)
+
     inputs_ = [torch.rand(input_shape_)]
     net = parser.get_parsed_content(net_id_)
     if has_ignite:
         # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
-        Checkpoint.load_objects(to_load={key_in_ckpt: net}, checkpoint=ckpt_file_)
+        Checkpoint.load_objects(to_load={key_in_ckpt_: net}, checkpoint=ckpt_file_)
     else:
         ckpt = torch.load(ckpt_file_)
-        copy_model_state(dst=net, src=ckpt if key_in_ckpt == "" else ckpt[key_in_ckpt])
-    onnx_model = convert_to_onnx(model=net, inputs=inputs_, use_trace=use_trace if use_trace else False)
-    onnx.save(onnx_model, filepath_)
+        copy_model_state(dst=net, src=ckpt if key_in_ckpt_ == "" else ckpt[key_in_ckpt_])
+    onnx_model = convert_to_onnx(model=net, inputs=inputs_, use_trace=use_trace_)
+    if has_onnx:
+        onnx.save(onnx_model, filepath_)
 
 
 def ckpt_export(
@@ -1060,7 +1078,7 @@ def ckpt_export(
             weights. if not nested checkpoint, no need to set.
         use_trace: whether using `torch.jit.trace` to convert the pytorch model to torchscript model.
         input_shape: must specify the `input_shape` of the network to convert the model when `use_trace` is True.
-            Should be a list like [N, C, H, W] or [N, C, H, W, D].
+            Should be a list like [N, C, H, W] or [N, C, H, W, D]. If not given, will try to parse from config files.
         args_file: a JSON or YAML file to provide default values for all the parameters of this function, so that
             the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.
@@ -1102,6 +1120,10 @@ def ckpt_export(
     for k, v in _args.items():
         parser[k] = v
 
+    # When export through torch.jit.trace without providing input_shape, will try to parse one from the parser.
+    if (not input_shape_) and use_trace:
+        input_shape_ = _get_fake_input_shape(parser=parser)
+
     inputs_: Sequence[Any] | None = [torch.rand(input_shape_)] if input_shape_ else None
 
     # Use the given converter to convert a model and save with metadata, config content
@@ -1134,7 +1156,7 @@ def trt_export(
     **override: Any,
 ) -> None:
     """
-    Export the model checkpoint to the given filepath as a TensorRT engine based torchscript.
+    Export the model checkpoint to the given filepath as a TensorRT engine-based torchscript.
     Currently, this API only supports to convert models whose inputs are all tensors.
 
     Typical usage examples:
@@ -1146,7 +1168,7 @@ def trt_export(
 
     Args:
         net_id: ID name of the network component in the config, it must be `torch.nn.Module`.
-        filepath: filepath to export, if filename has no extension it becomes `.ts`.
+        filepath: filepath to export, if filename has no extension, it becomes `.ts`.
         ckpt_file: filepath of the model checkpoint to load.
         meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
         config_file: filepath of the config file to save in the TensorRT based torchscript model and extract network
@@ -1157,13 +1179,13 @@ def trt_export(
             weights. if not nested checkpoint, no need to set.
         precision: the weight precision of the converted TensorRT engine based torchscript models. Should be 'fp32' or 'fp16'.
         input_shape: the input shape that is used to convert the model. Should be a list like [N, C, H, W] or
-            [N, C, H, W, D].
+            [N, C, H, W, D]. If not given, will try to parse from config files.
         use_trace: whether using `torch.jit.trace` to convert the pytorch model to torchscript model and then convert to
             a TensorRT engine based torchscript model.
         dynamic_batchsize: a sequence with three elements to define the batch size range of the input for the model to be converted.
             Should be a sequence like [MIN_BATCH, OPT_BATCH, MAX_BATCH]. After converted, the batchsize of model input should
-            between `MIN_BATCH` and `MAX_BATCH` and the `OPT_BATCH` is the best peformance batchsize that the TensorRT trys to fit.
-            We suggest the `OPT_BATCH` to be the most frequently used input batchsize in your application.
+            between `MIN_BATCH` and `MAX_BATCH` and the `OPT_BATCH` is the best performance batchsize that the TensorRT tries to fit.
+            We suggest the `OPT_BATCH` to be the most frequently used input batchsize in the application.
         device: the target GPU index to convert and verify the model.
         args_file: a JSON or YAML file to provide default values for all the parameters of this function, so that
             the command line inputs can be simplified.
@@ -1224,10 +1246,10 @@ def trt_export(
     for k, v in _args.items():
         parser[k] = v
 
+    # The convert_to_trt must have an `input_shape_` as input, no matter what the `use_trace` is.
+    # If the `input_shape` is not provided, will try to parse it from the parser`.
     if not input_shape_:
-        input_channels, input_spatial_shape, _, _, _ = _get_net_io_info(parser=parser)
-        spatial_shape = _get_fake_spatial_shape(input_spatial_shape, p=1, n=1, any=1)
-        input_shape_ = (1, input_channels, *spatial_shape)
+        input_shape_ = _get_fake_input_shape(parser=parser)
 
     _export(
         convert_to_trt,
