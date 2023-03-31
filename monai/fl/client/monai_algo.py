@@ -20,7 +20,7 @@ import torch
 from monai.apps.auto3dseg.data_analyzer import DataAnalyzer
 from monai.apps.utils import get_logger
 from monai.auto3dseg import SegSummarizer
-from monai.bundle import BundleWorkflow, ConfigItem, ConfigParser
+from monai.bundle import BundleWorkflow, ConfigWorkflow, ConfigItem, ConfigParser
 from monai.engines import SupervisedEvaluator, SupervisedTrainer, Trainer
 from monai.fl.client import ClientAlgo, ClientAlgoStats
 from monai.fl.utils.constants import ExtraItems, FiltersType, FlPhase, FlStatistics, ModelType, WeightType
@@ -73,7 +73,11 @@ class MonaiAlgoStats(ClientAlgoStats):
     Implementation of ``ClientAlgoStats`` to allow federated learning with MONAI bundle configurations.
 
     Args:
+        bundle_root: directory path of the bundle.
         workflow: the bundle workflow to execute, usually it's training, evaluation or inference.
+            if None, will create an `ConfigWorkflow` based on `config_train_filename`.
+        config_train_filename: bundle training config path relative to bundle_root. Can be a list of files;
+            defaults to "configs/train.json". only necessary when `workflow` is None.
         config_filters_filename: filter configuration file. Can be a list of files; defaults to `None`.
         data_stats_transform_list: transforms to apply for the data stats result.
         histogram_only: whether to only compute histograms. Defaults to False.
@@ -81,17 +85,23 @@ class MonaiAlgoStats(ClientAlgoStats):
 
     def __init__(
         self,
-        workflow: BundleWorkflow,
+        bundle_root: str,
+        workflow: BundleWorkflow | None = None,
+        config_train_filename: str | list | None = "configs/train.json",
         config_filters_filename: str | list | None = None,
         data_stats_transform_list: list | None = None,
         histogram_only: bool = False,
     ):
         self.logger = logger
-        if not isinstance(workflow, BundleWorkflow):
-            raise ValueError("workflow must be a subclass of BundleWorkflow.")
-        if workflow.get_workflow_type() is None:
-            raise ValueError("workflow doesn't specify the type.")
-        self.workflow = workflow
+        self.bundle_root = bundle_root
+        self.workflow = None
+        if workflow is not None:
+            if not isinstance(workflow, BundleWorkflow):
+                raise ValueError("workflow must be a subclass of BundleWorkflow.")
+            if workflow.get_workflow_type() is None:
+                raise ValueError("workflow doesn't specify the type.")
+            self.workflow = workflow
+        self.config_train_filename = config_train_filename
         self.config_filters_filename = config_filters_filename
         self.train_data_key = "train"
         self.eval_data_key = "eval"
@@ -118,10 +128,17 @@ class MonaiAlgoStats(ClientAlgoStats):
         self.client_name = extra.get(ExtraItems.CLIENT_NAME, "noname")
         self.logger.info(f"Initializing {self.client_name} ...")
 
-        self.workflow.initialize()
         # FL platform needs to provide filepath to configuration files
         self.app_root = extra.get(ExtraItems.APP_ROOT, "")
-        self.workflow.bundle_root = os.path.join(self.app_root, self.workflow.bundle_root)
+        self.bundle_root = os.path.join(self.app_root, self.bundle_root)
+
+        if self.workflow is None:
+            config_train_files = self._add_config_files(self.config_train_filename)
+            self.workflow = ConfigWorkflow(
+                config_file=config_train_files, meta_file=None, logging_file=None, workflow="train"
+            )
+        self.workflow.initialize()
+        self.workflow.bundle_root = self.bundle_root
         # initialize the workflow as the content changed
         self.workflow.initialize()
 
@@ -260,11 +277,11 @@ class MonaiAlgoStats(ClientAlgoStats):
         files = []
         if config_files:
             if isinstance(config_files, str):
-                files.append(os.path.join(self.workflow.bundle_root, config_files))
+                files.append(os.path.join(self.bundle_root, config_files))
             elif isinstance(config_files, list):
                 for file in config_files:
                     if isinstance(file, str):
-                        files.append(os.path.join(self.workflow.bundle_root, file))
+                        files.append(os.path.join(self.bundle_root, file))
                     else:
                         raise ValueError(f"Expected config file to be of type str but got {type(file)}: {file}")
             else:
@@ -281,6 +298,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
     FIXME: reimplement this class based on the bundle "ConfigWorkflow".
 
     Args:
+        bundle_root: directory path of the bundle.
         train_workflow: the bundle workflow to execute training.
         eval_workflow: the bundle workflow to execute evaluation.
         local_epochs: number of local epochs to execute during each round of local training; defaults to 1.
@@ -297,6 +315,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
 
     def __init__(
         self,
+        bundle_root: str,
         train_workflow: BundleWorkflow | None = None,
         eval_workflow: BundleWorkflow | None = None,
         local_epochs: int = 1,
