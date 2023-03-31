@@ -664,7 +664,7 @@ def run(
         logging_file="configs/logging.conf",
         tracking=None,
     )
-    run_workflow(
+    workflow = ConfigWorkflow(
         config_file=config_file_,
         meta_file=meta_file_,
         logging_file=logging_file_,
@@ -674,6 +674,9 @@ def run(
         tracking=tracking_,
         **_args,
     )
+    workflow.initialize()
+    workflow.run()
+    workflow.finalize()
 
 
 def run_workflow(workflow: str | BundleWorkflow | None = None, args_file: str | None = None, **kwargs: Any) -> None:
