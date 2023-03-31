@@ -12,3 +12,4 @@ dependencies:
   - pip:
     - git+https://github.com/peterhessey/MONAI.git@6054-integrate-azureml-for-autorunner-training
     - hi-ml-azure>=0.2.19
+    - fire
