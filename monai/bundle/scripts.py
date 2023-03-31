@@ -952,7 +952,7 @@ def onnx_export(
     **override: Any,
 ) -> None:
     """
-    Export the model checkpoint to onnx with metadata and config included as JSON files.
+    Export the model checkpoint to an onnx model.
 
     Typical usage examples:
 
@@ -971,8 +971,8 @@ def onnx_export(
         use_trace: whether using `torch.jit.trace` to convert the pytorch model to torchscript model.
         input_shape: must specify the `input_shape` of the network to convert the model when `use_trace` is True.
             Should be a list like [N, C, H, W] or [N, C, H, W, D].
-        args_file: a JSON or YAML file to provide default values for `meta_file`, `config_file`,
-            `net_id` and override pairs. so that the command line inputs can be simplified.
+        args_file: a JSON or YAML file to provide default values for all the parameters of this function, so that
+            the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.
             e.g. ``--_meta#network_data_format#inputs#image#num_channels 3``.
 
@@ -1061,8 +1061,8 @@ def ckpt_export(
         use_trace: whether using `torch.jit.trace` to convert the pytorch model to torchscript model.
         input_shape: must specify the `input_shape` of the network to convert the model when `use_trace` is True.
             Should be a list like [N, C, H, W] or [N, C, H, W, D].
-        args_file: a JSON or YAML file to provide default values for `meta_file`, `config_file`,
-            `net_id` and override pairs. so that the command line inputs can be simplified.
+        args_file: a JSON or YAML file to provide default values for all the parameters of this function, so that
+            the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.
             e.g. ``--_meta#network_data_format#inputs#image#num_channels 3``.
 
@@ -1165,8 +1165,8 @@ def trt_export(
             between `MIN_BATCH` and `MAX_BATCH` and the `OPT_BATCH` is the best peformance batchsize that the TensorRT trys to fit.
             We suggest the `OPT_BATCH` to be the most frequently used input batchsize in your application.
         device: the target GPU index to convert and verify the model.
-        args_file: a JSON or YAML file to provide default values for `meta_file`, `config_file`,
-            `net_id` and override pairs. so that the command line inputs can be simplified.
+        args_file: a JSON or YAML file to provide default values for all the parameters of this function, so that
+            the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.
             e.g. ``--_meta#network_data_format#inputs#image#num_channels 3``.
 
