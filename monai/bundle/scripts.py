@@ -963,7 +963,7 @@ def onnx_export(
     use_trace: bool | None = None,
     input_shape: Sequence[int] | None = None,
     args_file: str | None = None,
-    converter_kargs: Mapping | None = None,
+    converter_kwargs: Mapping | None = None,
     **override: Any,
 ) -> None:
     """
@@ -988,7 +988,7 @@ def onnx_export(
             Should be a list like [N, C, H, W] or [N, C, H, W, D]. If not given, will try to parse from config files.
         args_file: a JSON or YAML file to provide default values for all the parameters of this function, so that
             the command line inputs can be simplified.
-        converter_kargs: extra arguments that are needed by `convert_to_onnx`, except ones that already exist in the
+        converter_kwargs: extra arguments that are needed by `convert_to_onnx`, except ones that already exist in the
             input parameters.
         override: id-value pairs to override or add the corresponding config content.
             e.g. ``--_meta#network_data_format#inputs#image#num_channels 3``.
@@ -1004,7 +1004,7 @@ def onnx_export(
         key_in_ckpt=key_in_ckpt,
         use_trace=use_trace,
         input_shape=input_shape,
-        converter_kargs=converter_kargs,
+        converter_kwargs=converter_kwargs,
         **override,
     )
     _log_input_summary(tag="onnx_export", args=_args)
@@ -1017,7 +1017,7 @@ def onnx_export(
         key_in_ckpt_,
         use_trace_,
         input_shape_,
-        converter_kargs_,
+        converter_kwargs_,
     ) = _pop_args(
         _args,
         "filepath",
@@ -1028,7 +1028,7 @@ def onnx_export(
         key_in_ckpt="",
         use_trace=True,
         input_shape=None,
-        converter_kargs={},
+        converter_kwargs={},
     )
 
     parser = ConfigParser()
@@ -1055,8 +1055,8 @@ def onnx_export(
         ckpt = torch.load(ckpt_file_)
         copy_model_state(dst=net, src=ckpt if key_in_ckpt_ == "" else ckpt[key_in_ckpt_])
 
-    converter_kargs_.update({"inputs": inputs_, "use_trace": use_trace_})
-    onnx_model = convert_to_onnx(model=net, **converter_kargs_)
+    converter_kwargs_.update({"inputs": inputs_, "use_trace": use_trace_})
+    onnx_model = convert_to_onnx(model=net, **converter_kwargs_)
     if has_onnx:
         onnx.save(onnx_model, filepath_)
 
@@ -1071,7 +1071,7 @@ def ckpt_export(
     use_trace: bool | None = None,
     input_shape: Sequence[int] | None = None,
     args_file: str | None = None,
-    converter_kargs: Mapping | None = None,
+    converter_kwargs: Mapping | None = None,
     **override: Any,
 ) -> None:
     """
@@ -1099,7 +1099,7 @@ def ckpt_export(
             Should be a list like [N, C, H, W] or [N, C, H, W, D]. If not given, will try to parse from config files.
         args_file: a JSON or YAML file to provide default values for all the parameters of this function, so that
             the command line inputs can be simplified.
-        converter_kargs: extra arguments that are needed by `convert_to_torchscript`, except ones that already exist
+        converter_kwargs: extra arguments that are needed by `convert_to_torchscript`, except ones that already exist
             in the input parameters.
         override: id-value pairs to override or add the corresponding config content.
             e.g. ``--_meta#network_data_format#inputs#image#num_channels 3``.
@@ -1115,7 +1115,7 @@ def ckpt_export(
         key_in_ckpt=key_in_ckpt,
         use_trace=use_trace,
         input_shape=input_shape,
-        converter_kargs=converter_kargs,
+        converter_kwargs=converter_kwargs,
         **override,
     )
     _log_input_summary(tag="ckpt_export", args=_args)
@@ -1128,7 +1128,7 @@ def ckpt_export(
         key_in_ckpt_,
         use_trace_,
         input_shape_,
-        converter_kargs_,
+        converter_kwargs_,
     ) = _pop_args(
         _args,
         "filepath",
@@ -1139,7 +1139,7 @@ def ckpt_export(
         key_in_ckpt="",
         use_trace=False,
         input_shape=None,
-        converter_kargs={},
+        converter_kwargs={},
     )
 
     parser = ConfigParser()
@@ -1158,7 +1158,7 @@ def ckpt_export(
 
     inputs_: Sequence[Any] | None = [torch.rand(input_shape_)] if input_shape_ else None
 
-    converter_kargs_.update({"inputs": inputs_, "use_trace": use_trace_})
+    converter_kwargs_.update({"inputs": inputs_, "use_trace": use_trace_})
     # Use the given converter to convert a model and save with metadata, config content
     _export(
         convert_to_torchscript,
@@ -1168,7 +1168,7 @@ def ckpt_export(
         ckpt_file=ckpt_file_,
         config_file=config_file_,
         key_in_ckpt=key_in_ckpt_,
-        **converter_kargs_,
+        **converter_kwargs_,
     )
 
 
@@ -1185,7 +1185,7 @@ def trt_export(
     dynamic_batchsize: Sequence[int] | None = None,
     device: int | None = None,
     args_file: str | None = None,
-    converter_kargs: Mapping | None = None,
+    converter_kwargs: Mapping | None = None,
     **override: Any,
 ) -> None:
     """
@@ -1222,7 +1222,7 @@ def trt_export(
         device: the target GPU index to convert and verify the model.
         args_file: a JSON or YAML file to provide default values for all the parameters of this function, so that
             the command line inputs can be simplified.
-        converter_kargs: extra arguments that are needed by `convert_to_trt`, except ones that already exist in the input parameters.
+        converter_kwargs: extra arguments that are needed by `convert_to_trt`, except ones that already exist in the input parameters.
         override: id-value pairs to override or add the corresponding config content.
             e.g. ``--_meta#network_data_format#inputs#image#num_channels 3``.
 
@@ -1240,7 +1240,7 @@ def trt_export(
         use_trace=use_trace,
         dynamic_batchsize=dynamic_batchsize,
         device=device,
-        converter_kargs=converter_kargs,
+        converter_kwargs=converter_kwargs,
         **override,
     )
     _log_input_summary(tag="trt_export", args=_args)
@@ -1256,7 +1256,7 @@ def trt_export(
         use_trace_,
         dynamic_batchsize_,
         device_,
-        converter_kargs_,
+        converter_kwargs_,
     ) = _pop_args(
         _args,
         "filepath",
@@ -1270,7 +1270,7 @@ def trt_export(
         use_trace=False,
         dynamic_batchsize=None,
         device=None,
-        converter_kargs={},
+        converter_kwargs={},
     )
 
     parser = ConfigParser()
@@ -1295,7 +1295,7 @@ def trt_export(
         "use_trace": use_trace_,
         "device": device_,
     }
-    converter_kargs_.update(trt_api_parameters)
+    converter_kwargs_.update(trt_api_parameters)
 
     _export(
         convert_to_trt,
@@ -1305,7 +1305,7 @@ def trt_export(
         ckpt_file=ckpt_file_,
         config_file=config_file_,
         key_in_ckpt=key_in_ckpt_,
-        **converter_kargs_,
+        **converter_kwargs_,
     )
 
 
