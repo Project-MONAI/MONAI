@@ -24,13 +24,18 @@ from ast import literal_eval
 from collections.abc import Callable, Iterable, Sequence
 from distutils.util import strtobool
 from pathlib import Path
-from typing import Any, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, TypeVar, cast, overload
 
 import numpy as np
 import torch
 
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor, PathLike
-from monai.utils.module import version_leq
+from monai.utils.module import optional_import, version_leq
+
+if TYPE_CHECKING:
+    from yaml import SafeLoader
+else:
+    SafeLoader, _ = optional_import("yaml", name="SafeLoader", as_type="base")
 
 __all__ = [
     "zip_with",
@@ -41,6 +46,7 @@ __all__ = [
     "ensure_tuple",
     "ensure_tuple_size",
     "ensure_tuple_rep",
+    "to_tuple_of_dictionaries",
     "fall_back_tuple",
     "is_scalar_tensor",
     "is_scalar",
@@ -189,6 +195,37 @@ def ensure_tuple_rep(tup: Any, dim: int) -> tuple[Any, ...]:
         return tuple(tup)
 
     raise ValueError(f"Sequence must have length {dim}, got {len(tup)}.")
+
+
+def to_tuple_of_dictionaries(dictionary_of_tuples: dict, keys: Any) -> tuple[dict[Any, Any], ...]:
+    """
+    Given a dictionary whose values contain scalars or tuples (with the same length as ``keys``),
+    Create a dictionary for each key containing the scalar values mapping to that key.
+
+    Args:
+        dictionary_of_tuples: a dictionary whose values are scalars or tuples whose length is
+            the length of ``keys``
+        keys: a tuple of string values representing the keys in question
+
+    Returns:
+        a tuple of dictionaries that contain scalar values, one dictionary for each key
+
+    Raises:
+        ValueError: when values in the dictionary are tuples but not the same length as the length
+        of ``keys``
+
+    Examples:
+        >>> to_tuple_of_dictionaries({'a': 1 'b': (2, 3), 'c': (4, 4)}, ("x", "y"))
+        ({'a':1, 'b':2, 'c':4}, {'a':1, 'b':3, 'c':4})
+
+    """
+
+    keys = ensure_tuple(keys)
+    if len(keys) == 0:
+        return tuple({})
+
+    dict_overrides = {k: ensure_tuple_rep(v, len(keys)) for k, v in dictionary_of_tuples.items()}
+    return tuple({k: v[ik] for (k, v) in dict_overrides.items()} for ik in range(len(keys)))
 
 
 def fall_back_tuple(
@@ -647,3 +684,42 @@ def pprint_edges(val: Any, n_lines: int = 20) -> str:
         hidden_n = len(val_str) - n_lines * 2
         val_str = val_str[:n_lines] + [f"\n ... omitted {hidden_n} line(s)\n\n"] + val_str[-n_lines:]
     return "".join(val_str)
+
+
+def check_key_duplicates(ordered_pairs: Sequence[tuple[Any, Any]]) -> dict[Any, Any]:
+    """
+    Checks if there is a duplicated key in the sequence of `ordered_pairs`.
+    If there is - it will log a warning or raise ValueError
+    (if configured by environmental var `MONAI_FAIL_ON_DUPLICATE_CONFIG==1`)
+
+    Otherwise, it returns the dict made from this sequence.
+
+    Satisfies a format for an `object_pairs_hook` in `json.load`
+
+    Args:
+        ordered_pairs: sequence of (key, value)
+    """
+    keys = set()
+    for k, _ in ordered_pairs:
+        if k in keys:
+            if os.environ.get("MONAI_FAIL_ON_DUPLICATE_CONFIG", "0") == "1":
+                raise ValueError(f"Duplicate key: `{k}`")
+            else:
+                warnings.warn(f"Duplicate key: `{k}`")
+        else:
+            keys.add(k)
+    return dict(ordered_pairs)
+
+
+class CheckKeyDuplicatesYamlLoader(SafeLoader):
+    def construct_mapping(self, node, deep=False):
+        mapping = set()
+        for key_node, _ in node.value:
+            key = self.construct_object(key_node, deep=deep)
+            if key in mapping:
+                if os.environ.get("MONAI_FAIL_ON_DUPLICATE_CONFIG", "0") == "1":
+                    raise ValueError(f"Duplicate key: `{key}`")
+                else:
+                    warnings.warn(f"Duplicate key: `{key}`")
+            mapping.add(key)
+        return super().construct_mapping(node, deep)
