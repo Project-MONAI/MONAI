@@ -53,6 +53,8 @@ def sliding_window_inference(
     progress: bool = False,
     roi_weight_map: torch.Tensor | None = None,
     process_fn: Callable | None = None,
+    buffer_steps: int | None = None,
+    buffer_dim: int = 0,
     *args: Any,
     **kwargs: Any,
 ) -> torch.Tensor | tuple[torch.Tensor, ...] | dict[Any, torch.Tensor]:
@@ -114,26 +116,23 @@ def sliding_window_inference(
         roi_weight_map: pre-computed (non-negative) weight map for each ROI.
             If not given, and ``mode`` is not `constant`, this map will be computed on the fly.
         process_fn: process inference output and adjust the importance map per window
+        buffer_steps: the number of sliding window iterations before writing the outputs to ``device``.
+            default is None, no buffer.
+        buffer_dim: the dimension along which the buffer are created, default is 0.
         args: optional args to be passed to ``predictor``.
         kwargs: optional keyword args to be passed to ``predictor``.
-
-            - buffer_steps: the number of sliding window iterations before writing the outputs to ``device``.
-              default is None, no buffer.
-            - buffer_dim: the dimension along which the buffer are created, default is 0.
 
     Note:
         - input must be channel-first and have a batch dim, supports N-D sliding window.
 
     """
-    b_steps = kwargs.pop("buffer_steps", None)
-    b_plane = kwargs.pop("buffer_dim", 0)
-    buffered = b_steps is not None and b_steps > 0
+    buffered = buffer_steps is not None and buffer_steps > 0
     num_spatial_dims = len(inputs.shape) - 2
     if buffered:
-        if b_plane < -num_spatial_dims + 1 or b_plane > num_spatial_dims:
-            raise ValueError(f"buffer_dim must be in [{-num_spatial_dims + 1}, {num_spatial_dims}], got {b_plane}.")
-        if b_steps <= 0:
-            raise ValueError(f"buffer_steps must be >= 0, got {b_steps}.")
+        if buffer_dim < -num_spatial_dims + 1 or buffer_dim > num_spatial_dims:
+            raise ValueError(f"buffer_dim must be in [{-num_spatial_dims + 1}, {num_spatial_dims}], got {buffer_dim}.")
+        if buffer_steps <= 0:  # type: ignore
+            raise ValueError(f"buffer_steps must be >= 0, got {buffer_steps}.")
     if overlap < 0 or overlap >= 1:
         raise ValueError(f"overlap must be >= 0 and < 1, got {overlap}.")
     compute_dtype = inputs.dtype
@@ -165,13 +164,13 @@ def sliding_window_inference(
     slices = dense_patch_slices(image_size, roi_size, scan_interval, return_slice=False)
 
     slices_np = np.asarray(slices)
-    if b_plane < 0:
-        b_plane += num_spatial_dims
-    slices_np = slices_np[np.argsort(slices_np[:, b_plane, 0], kind="mergesort")]
+    if buffer_dim < 0:
+        buffer_dim += num_spatial_dims
+    slices_np = slices_np[np.argsort(slices_np[:, buffer_dim, 0], kind="mergesort")]
     slices = [tuple(slice(c[0], c[1]) for c in i) for i in slices_np]
-    _, _p_id, _b_lens = np.unique(slices_np[:, b_plane, 0], return_counts=True, return_index=True)
-    b_se = [tuple(slices_np[i][b_plane]) for i in _p_id]  # buffer start & end along the b_plane
-    b_ends = np.cumsum(_b_lens)  # possbile buffer flush boundaries
+    _, _p_id, _b_lens = np.unique(slices_np[:, buffer_dim, 0], return_counts=True, return_index=True)
+    _b_se = [tuple(slices_np[i][buffer_dim]) for i in _p_id]  # buffer start & end along the buffer_dim
+    b_ends = np.cumsum(_b_lens).tolist()  # possible buffer flush boundaries
 
     num_win = len(slices)  # number of windows per image
     total_slices = num_win * batch_size  # total number of windows
@@ -179,12 +178,11 @@ def sliding_window_inference(
     if not buffered:
         windows_range = range(0, total_slices, sw_batch_size)
     else:
-        b_steps = min(len(b_se), b_steps)
-        x = [0, *b_ends][::b_steps]
+        buffer_steps = min(len(_b_se), int(buffer_steps))  # type: ignore
+        x = [0, *b_ends][::buffer_steps]
         if x[-1] < b_ends[-1]:
             x.append(b_ends[-1])
-        n_per_batch = len(x) - 1
-        windows_range, b_ends = [], [0]
+        windows_range, n_per_batch, b_ends = [], len(x) - 1, [0]
         for b in range(batch_size):
             offset = b * x[-1]
             for i in range(n_per_batch):
@@ -213,8 +211,7 @@ def sliding_window_inference(
     output_image_list, count_map_list, sw_device_buffer, b_s, b_i = [], [], [], 0, 0  # type: ignore
     # for each patch
     for slice_g in tqdm(windows_range) if progress else windows_range:
-        _cur_max = b_ends[b_s + 1] if buffered else total_slices
-        slice_range = range(slice_g, min(slice_g + sw_batch_size, _cur_max))
+        slice_range = range(slice_g, min(slice_g + sw_batch_size, b_ends[b_s + 1] if buffered else total_slices))
         unravel_slice = [
             [slice(idx // num_win, idx // num_win + 1), slice(None)] + list(slices[idx % num_win])
             for idx in slice_range
@@ -230,17 +227,17 @@ def sliding_window_inference(
             importance_map = importance_map_
 
         if buffered:
-            c_start = slices_np[b_ends[b_s] % num_win, b_plane, 0]
-            c_end = slices_np[(b_ends[b_s + 1] - 1) % num_win, b_plane, 1]
+            c_start = slices_np[b_ends[b_s] % num_win, buffer_dim, 0]
+            c_end = slices_np[(b_ends[b_s + 1] - 1) % num_win, buffer_dim, 1]
             if not sw_device_buffer:
                 k = seg_tuple[0].shape[1]  # len(seg_tuple) > 1 is currently ignored
                 sp_size = list(image_size)
-                sp_size[b_plane] = c_end - c_start
+                sp_size[buffer_dim] = c_end - c_start
                 sw_device_buffer = [torch.zeros(size=[1, k, *sp_size], dtype=compute_dtype, device=sw_device)]
                 importance_map = importance_map.to(dtype=compute_dtype, device=sw_device)
             for p, s in zip(seg_tuple[0], unravel_slice):
-                offset = s[b_plane + 2].start - c_start
-                s[b_plane + 2] = slice(offset, offset + roi_size[b_plane])
+                offset = s[buffer_dim + 2].start - c_start
+                s[buffer_dim + 2] = slice(offset, offset + roi_size[buffer_dim])
                 s[0] = slice(0, 1)
                 sw_device_buffer[0][s] += p * importance_map
             b_i += len(unravel_slice)
@@ -275,7 +272,7 @@ def sliding_window_inference(
                 w_t = w_t.to(sw_device)
             if buffered:
                 o_slice = [slice(None)] * len(inputs.shape)
-                o_slice[b_plane + 2] = slice(c_start, c_end)
+                o_slice[buffer_dim + 2] = slice(c_start, c_end)
                 img_b = b_s // n_per_batch  # image batch index
                 o_slice[0] = slice(img_b, img_b + 1)
                 output_image_list[0][o_slice] += sw_device_buffer[0].to(device=device)
