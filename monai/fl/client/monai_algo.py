@@ -303,6 +303,10 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         eval_workflow: the bundle workflow to execute evaluation.
         local_epochs: number of local epochs to execute during each round of local training; defaults to 1.
         send_weight_diff: whether to send weight differences rather than full weights; defaults to `True`.
+        config_train_filename: bundle training config path relative to bundle_root. can be a list of files.
+            defaults to "configs/train.json". only useful when `train_workflow` is None.
+        config_evaluate_filename: bundle evaluation config path relative to bundle_root. can be a list of files.
+            defaults to ["configs/train.json", "configs/evaluate.json"]. only useful when `eval_workflow` is None.
         config_filters_filename: filter configuration file. Can be a list of files; defaults to `None`.
         best_model_filepath: location of best model checkpoint; defaults "models/model.pt" relative to `bundle_root`.
         final_model_filepath: location of final model checkpoint; defaults "models/model_final.pt" relative to `bundle_root`.
@@ -320,6 +324,8 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         eval_workflow: BundleWorkflow | None = None,
         local_epochs: int = 1,
         send_weight_diff: bool = True,
+        config_train_filename: str | list | None = "configs/train.json",
+        config_evaluate_filename: str | list | None = ["configs/train.json", "configs/evaluate.json"],
         config_filters_filename: str | list | None = None,
         best_model_filepath: str | None = "models/model.pt",
         final_model_filepath: str | None = "models/model_final.pt",
@@ -327,24 +333,28 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         data_stats_transform_list: list | None = None,
     ):
         self.logger = logger
+        self.bundle_root = bundle_root
+        self.train_workflow = None
+        self.eval_workflow = None
         if train_workflow is not None:
             if not isinstance(train_workflow, BundleWorkflow) or train_workflow.get_workflow_type() != "train":
                 raise ValueError(
                     f"train workflow must be BundleWorkflow and set type in {BundleWorkflow.supported_train_type}."
                 )
-            # only necessary to initialize AlgoStats when train workflow exists
-            MonaiAlgoStats.__init__(self, workflow=train_workflow, data_stats_transform_list=data_stats_transform_list)
+            self.train_workflow = train_workflow
         if eval_workflow is not None:
             # evaluation workflow can be "train" type or "infer" type
             if not isinstance(eval_workflow, BundleWorkflow) or eval_workflow.get_workflow_type() is None:
                 raise ValueError("train workflow must be BundleWorkflow and set type.")
-        self.train_workflow = train_workflow
-        self.eval_workflow = eval_workflow
+            self.eval_workflow = eval_workflow
         self.local_epochs = local_epochs
         self.send_weight_diff = send_weight_diff
+        self.config_train_filename = config_train_filename
+        self.config_evaluate_filename = config_evaluate_filename
         self.config_filters_filename = config_filters_filename
         self.model_filepaths = {ModelType.BEST_MODEL: best_model_filepath, ModelType.FINAL_MODEL: final_model_filepath}
         self.save_dict_key = save_dict_key
+        self.data_stats_transform_list = data_stats_transform_list
 
         self.app_root = ""
         self.filter_parser: ConfigParser | None = None
@@ -375,10 +385,16 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         self.logger.info(f"Initializing {self.client_name} ...")
         # FL platform needs to provide filepath to configuration files
         self.app_root = extra.get(ExtraItems.APP_ROOT, "")
+        self.bundle_root = os.path.join(self.app_root, self.bundle_root)
 
+        if self.train_workflow is None and self.config_train_filename is not None:
+            config_train_files = self._add_config_files(self.config_train_filename)
+            self.train_workflow = ConfigWorkflow(
+                config_file=config_train_files, meta_file=None, logging_file=None, workflow="train"
+            )
         if self.train_workflow is not None:
             self.train_workflow.initialize()
-            self.train_workflow.bundle_root = os.path.join(self.app_root, self.train_workflow.bundle_root)
+            self.train_workflow.bundle_root = self.bundle_root
             self.train_workflow.max_epochs = self.local_epochs
             # initialize the workflow as the content changed
             self.train_workflow.initialize()
@@ -405,9 +421,14 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
                 FiltersType.POST_STATISTICS_FILTERS, default=ConfigItem(None, FiltersType.POST_STATISTICS_FILTERS)
             )
 
+        if self.eval_workflow is None and self.config_evaluate_filename is not None:
+            config_eval_files = self._add_config_files(self.config_evaluate_filename)
+            self.eval_workflow = ConfigWorkflow(
+                config_file=config_eval_files, meta_file=None, logging_file=None, workflow="train"
+            )
         if self.eval_workflow is not None:
             self.eval_workflow.initialize()
-            self.eval_workflow.bundle_root = os.path.join(self.app_root, self.eval_workflow.bundle_root)
+            self.eval_workflow.bundle_root = self.bundle_root
             self.eval_workflow.initialize()
             self.evaluator = self.eval_workflow.evaluator
             if not isinstance(self.evaluator, SupervisedEvaluator):
@@ -482,7 +503,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
                     f"Expected requested model type to be of type `ModelType` but received {type(model_type)}"
                 )
             if model_type in self.model_filepaths:
-                model_path = os.path.join(self.train_workflow.bundle_root, cast(str, self.model_filepaths[model_type]))
+                model_path = os.path.join(self.bundle_root, cast(str, self.model_filepaths[model_type]))
                 if not os.path.isfile(model_path):
                     raise ValueError(f"No best model checkpoint exists at {model_path}")
                 weights = torch.load(model_path, map_location="cpu")
