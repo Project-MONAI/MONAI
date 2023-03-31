@@ -167,9 +167,9 @@ class MonaiAlgoStats(ClientAlgoStats):
         if extra is None:
             raise ValueError("`extra` has to be set")
 
-        if self.workflow.dataset_dir:
+        if self.workflow.dataset_dir:  # type: ignore
             self.phase = FlPhase.GET_DATA_STATS
-            self.logger.info(f"Computing statistics on {self.workflow.dataset_dir}")
+            self.logger.info(f"Computing statistics on {self.workflow.dataset_dir}")  # type: ignore
 
             if FlStatistics.HIST_BINS not in extra:
                 raise ValueError("FlStatistics.NUM_OF_BINS not specified in `extra`")
@@ -184,7 +184,7 @@ class MonaiAlgoStats(ClientAlgoStats):
 
             # train data stats
             train_summary_stats, train_case_stats = self._get_data_key_stats(
-                data=self.workflow.train_dataset_data,
+                data=self.workflow.train_dataset_data,  # type: ignore
                 data_key=self.train_data_key,
                 hist_bins=hist_bins,
                 hist_range=hist_range,
@@ -197,9 +197,9 @@ class MonaiAlgoStats(ClientAlgoStats):
             # eval data stats
             eval_summary_stats = None
             eval_case_stats = None
-            if self.workflow.val_dataset_data is not None:
+            if self.workflow.val_dataset_data is not None:  # type: ignore
                 eval_summary_stats, eval_case_stats = self._get_data_key_stats(
-                    data=self.workflow.val_dataset_data,
+                    data=self.workflow.val_dataset_data,  # type: ignore
                     data_key=self.eval_data_key,
                     hist_bins=hist_bins,
                     hist_range=hist_range,
@@ -232,7 +232,7 @@ class MonaiAlgoStats(ClientAlgoStats):
     def _get_data_key_stats(self, data, data_key, hist_bins, hist_range, output_path=None):
         analyzer = DataAnalyzer(
             datalist={data_key: data},
-            dataroot=self.workflow.dataset_dir,
+            dataroot=self.workflow.dataset_dir,  # type: ignore
             hist_bins=hist_bins,
             hist_range=hist_range,
             output_path=output_path,
