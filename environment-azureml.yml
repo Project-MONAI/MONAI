@@ -1,7 +1,11 @@
 name: monai-azureml
 channels:
+  - pytorch
   - defaults
 dependencies:
+  - numpy>=1.20
+  - pytorch>=1.9
+  - torchvision
   - pip
   - python>=3.8
   - pip:
