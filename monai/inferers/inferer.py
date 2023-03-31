@@ -366,6 +366,9 @@ class SlidingWindowInferer(Inferer):
         cpu_thresh: when provided, dynamically switch to stitching on cpu (to save gpu memory)
             when input image volume is larger than this threshold (in pixels/voxels).
             Otherwise use ``"device"``. Thus, the output may end-up on either cpu or gpu.
+        buffer_steps: the number of sliding window iterations before writing the outputs to ``device``.
+            default is None, no buffer.
+        buffer_dim: the dimension along which the buffer are created, default is 0.
 
     Note:
         ``sw_batch_size`` denotes the max number of windows per network inference iteration,
@@ -387,6 +390,8 @@ class SlidingWindowInferer(Inferer):
         progress: bool = False,
         cache_roi_weight_map: bool = False,
         cpu_thresh: int | None = None,
+        buffer_steps: int | None = None,
+        buffer_dim: int = 0,
     ) -> None:
         super().__init__()
         self.roi_size = roi_size
@@ -400,6 +405,8 @@ class SlidingWindowInferer(Inferer):
         self.device = device
         self.progress = progress
         self.cpu_thresh = cpu_thresh
+        self.buffer_steps = buffer_steps
+        self.buffer_dim = buffer_dim
 
         # compute_importance_map takes long time when computing on cpu. We thus
         # compute it once if it's static and then save it for future usage
@@ -441,6 +448,7 @@ class SlidingWindowInferer(Inferer):
         if device is None and self.cpu_thresh is not None and inputs.shape[2:].numel() > self.cpu_thresh:
             device = "cpu"  # stitch in cpu memory if image is too large
 
+
         return sliding_window_inference(
             inputs,
             self.roi_size,
@@ -456,6 +464,8 @@ class SlidingWindowInferer(Inferer):
             self.progress,
             self.roi_weight_map,
             None,
+            self.buffer_steps,
+            self.buffer_dim,
             *args,
             **kwargs,
         )
