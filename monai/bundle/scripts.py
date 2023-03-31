@@ -636,7 +636,7 @@ def run(
         args_file: a JSON or YAML file to provide default values for `runner_id`, `meta_file`,
             `config_file`, `logging`, and override pairs. so that the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.
-            e.g. ``--net#input_chns 42``.
+            e.g. ``--net#input_chns 42``, ``--net %/data/other.json#net_arg``.
 
     """
 
@@ -664,7 +664,8 @@ def run(
         logging_file="configs/logging.conf",
         tracking=None,
     )
-    workflow = ConfigWorkflow(
+    run_workflow(
+        workflow=ConfigWorkflow,
         config_file=config_file_,
         meta_file=meta_file_,
         logging_file=logging_file_,
@@ -674,9 +675,6 @@ def run(
         tracking=tracking_,
         **_args,
     )
-    workflow.initialize()
-    workflow.run()
-    workflow.finalize()
 
 
 def run_workflow(workflow: str | BundleWorkflow | None = None, args_file: str | None = None, **kwargs: Any) -> None:
@@ -688,23 +686,10 @@ def run_workflow(workflow: str | BundleWorkflow | None = None, args_file: str | 
     .. code-block:: bash
 
         # Execute this module as a CLI entry with default ConfigWorkflow:
-        python -m monai.bundle run --meta_file <meta path> --config_file <config path>
-
-        # Override config values at runtime by specifying the component id and its new value:
-        python -m monai.bundle run --net#input_chns 1 ...
-
-        # Override config values with another config file `/path/to/another.json`:
-        python -m monai.bundle run --net %/path/to/another.json ...
-
-        # Override config values with part content of another config file:
-        python -m monai.bundle run --net %/data/other.json#net_arg ...
-
-        # Set default args of `run` in a JSON / YAML file, help to record and simplify the command line.
-        # Other args still can override the default args at runtime:
-        python -m monai.bundle run --args_file "/workspace/data/args.json" --config_file <config path>
+        python -m monai.bundle run_workflow --meta_file <meta path> --config_file <config path>
 
         # Set the workflow to other customized BundleWorkflow subclass:
-        python -m monai.bundle run --workflow CustomizedWorkflow ...
+        python -m monai.bundle run_workflow --workflow CustomizedWorkflow ...
 
     Args:
         workflow: specified bundle workflow name, should be a string or class, default to "ConfigWorkflow".
@@ -716,17 +701,17 @@ def run_workflow(workflow: str | BundleWorkflow | None = None, args_file: str | 
 
     _args = _update_args(args=args_file, workflow=workflow, **kwargs)
     _log_input_summary(tag="run", args=_args)
-    (workflow_name,) = _pop_args(_args, workflow=ConfigWorkflow)
+    (workflow_name,) = _pop_args(_args, workflow=ConfigWorkflow)  # the default workflow name is "ConfigWorkflow"
     if isinstance(workflow_name, str):
         workflow_class, has_built_in = optional_import("monai.bundle", name=f"{workflow_name}")  # search built-in
         if not has_built_in:
             workflow_class = locate(f"{workflow_name}")  # search dotted path
         if workflow_class is None:
-            raise ValueError(f"can not locate specified workflow class: {workflow_name}.")
+            raise ValueError(f"cannot locate specified workflow class: {workflow_name}.")
     elif issubclass(workflow_name, BundleWorkflow):
         workflow_class = workflow_name
     else:
-        raise ValueError(f"`workflow` must be the bundle workflow class name, but got: {workflow_name}.")
+        raise ValueError(f"argument `workflow` must be the bundle workflow class name or type, got: {workflow_name}.")
 
     workflow_ = workflow_class(**_args)
     workflow_.initialize()
