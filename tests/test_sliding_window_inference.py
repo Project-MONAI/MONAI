@@ -61,7 +61,7 @@ if not test_is_quick():
         [(2, 1, 10, 512, 200), (96, 97, 98), (0.4, 0.12, 0), 21],
     ]
 
-BUFFER_CASES = []
+BUFFER_CASES: list = []
 for x in _windows:
     for s in (1, 3, 5):
         for d in (-1, 0, 1):
