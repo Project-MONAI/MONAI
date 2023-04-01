@@ -174,11 +174,19 @@ def sliding_window_inference(
     total_slices = num_win * batch_size  # total number of windows
     windows_range: Iterable
     if not buffered:
+        non_blocking = False
         windows_range = range(0, total_slices, sw_batch_size)
     else:
         slices, n_per_batch, b_slices, windows_range = _create_buffered_slices(
             slices, batch_size, sw_batch_size, buffer_dim, buffer_steps
         )
+        non_blocking = buffered and overlap[buffer_dim] == 0 and torch.device(sw_device).type == "cuda"
+        _ss = -1
+        for x in b_slices[:n_per_batch]:
+            if x[1] < _ss:  # no overlapping slices
+                non_blocking = False
+                break
+            _ss = x[2]
 
     # Create window-level importance map
     valid_patch_size = get_valid_patch_size(image_size, roi_size)
@@ -259,7 +267,10 @@ def sliding_window_inference(
                 o_slice[buffer_dim + 2] = slice(c_start, c_end)
                 img_b = b_s // n_per_batch  # image batch index
                 o_slice[0] = slice(img_b, img_b + 1)
-                output_image_list[0][o_slice] += sw_device_buffer[0].to(device=device)
+                if non_blocking:
+                    output_image_list[0][o_slice].copy_(sw_device_buffer[0], non_blocking=non_blocking)
+                else:
+                    output_image_list[0][o_slice] += sw_device_buffer[0].to(device=device)
             else:
                 sw_device_buffer[ss] *= w_t
                 sw_device_buffer[ss] = sw_device_buffer[ss].to(device)
@@ -267,6 +278,9 @@ def sliding_window_inference(
         sw_device_buffer = []
         if buffered:
             b_s += 1
+
+    if non_blocking:
+        torch.cuda.current_stream().synchronize()
 
     # account for any overlapping sections
     for ss in range(len(output_image_list)):
