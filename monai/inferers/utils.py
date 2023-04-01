@@ -183,7 +183,7 @@ def sliding_window_inference(
         non_blocking = buffered and overlap[buffer_dim] == 0 and torch.device(sw_device).type == "cuda"
         _ss = -1
         for x in b_slices[:n_per_batch]:
-            if x[1] < _ss:  # no overlapping slices
+            if x[1] < _ss:  # detect overlapping slices
                 non_blocking = False
                 break
             _ss = x[2]
@@ -255,7 +255,8 @@ def sliding_window_inference(
                 output_shape = [batch_size, seg_chns]
                 output_shape += [int(_i * _z) for _i, _z in zip(image_size, z_scale)] if z_scale else list(image_size)
                 # allocate memory to store the full output and the count for overlapping parts
-                output_image_list.append(torch.zeros(output_shape, dtype=compute_dtype, device=device))
+                new_tensor: Callable = torch.empty if non_blocking else torch.zeros
+                output_image_list.append(new_tensor(output_shape, dtype=compute_dtype, device=device))
                 count_map_list.append(torch.zeros([1, 1] + output_shape[2:], dtype=compute_dtype, device=device))
                 w_t_ = w_t.to(device)
                 for __s in slices:
