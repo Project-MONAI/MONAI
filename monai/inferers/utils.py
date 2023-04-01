@@ -27,6 +27,7 @@ from monai.utils import (
     convert_data_type,
     convert_to_dst_type,
     ensure_tuple,
+    ensure_tuple_rep,
     fall_back_tuple,
     look_up_option,
     optional_import,
@@ -44,7 +45,7 @@ def sliding_window_inference(
     roi_size: Sequence[int] | int,
     sw_batch_size: int,
     predictor: Callable[..., torch.Tensor | Sequence[torch.Tensor] | dict[Any, torch.Tensor]],
-    overlap: float = 0.25,
+    overlap: Sequence[float] | float = 0.25,
     mode: BlendMode | str = BlendMode.CONSTANT,
     sigma_scale: Sequence[float] | float = 0.125,
     padding_mode: PytorchPadMode | str = PytorchPadMode.CONSTANT,
@@ -91,7 +92,7 @@ def sliding_window_inference(
             to ensure the scaled output ROI sizes are still integers.
             If the `predictor`'s input and output spatial sizes are different,
             we recommend choosing the parameters so that ``overlap*roi_size*zoom_scale`` is an integer for each dimension.
-        overlap: Amount of overlap between scans.
+        overlap: Amount of overlap between scans along each spatial dimension, defaults to ``0.25``.
         mode: {``"constant"``, ``"gaussian"``}
             How to blend output of overlapping windows. Defaults to ``"constant"``.
 
@@ -137,8 +138,10 @@ def sliding_window_inference(
             raise ValueError(f"buffer_steps must be >= 0, got {buffer_steps}.")
         if buffer_dim < 0:
             buffer_dim += num_spatial_dims
-    if overlap < 0 or overlap >= 1:
-        raise ValueError(f"overlap must be >= 0 and < 1, got {overlap}.")
+    overlap = ensure_tuple_rep(overlap, num_spatial_dims)
+    for o in overlap:
+        if o < 0 or o >= 1:
+            raise ValueError(f"overlap must be >= 0 and < 1, got {overlap}.")
     compute_dtype = inputs.dtype
 
     # determine image spatial size and batch size
@@ -330,7 +333,7 @@ def _compute_coords(sw, coords, z_scale, out, patch):
 
 
 def _get_scan_interval(
-    image_size: Sequence[int], roi_size: Sequence[int], num_spatial_dims: int, overlap: float
+    image_size: Sequence[int], roi_size: Sequence[int], num_spatial_dims: int, overlap: Sequence[float]
 ) -> tuple[int, ...]:
     """
     Compute scan interval according to the image size, roi size and overlap.
@@ -344,11 +347,11 @@ def _get_scan_interval(
         raise ValueError(f"len(roi_size) {len(roi_size)} different from spatial dims {num_spatial_dims}.")
 
     scan_interval = []
-    for i in range(num_spatial_dims):
+    for i, o in zip(range(num_spatial_dims), overlap):
         if roi_size[i] == image_size[i]:
             scan_interval.append(int(roi_size[i]))
         else:
-            interval = int(roi_size[i] * (1 - overlap))
+            interval = int(roi_size[i] * (1 - o))
             scan_interval.append(interval if interval > 0 else 1)
     return tuple(scan_interval)
 
