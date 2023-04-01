@@ -59,11 +59,12 @@ if not test_is_quick():
     _windows += [
         [(2, 1, 125, 512, 200), (96, 97, 98), (0.4, 0.32, 0), 20],
         [(2, 1, 10, 512, 200), (96, 97, 98), (0.4, 0.12, 0), 21],
+        [(2, 3, 100, 100, 200), (50, 50, 100), 0, 8],
     ]
 
 BUFFER_CASES: list = []
 for x in _windows:
-    for s in (1, 3, 5):
+    for s in (1, 3, 4):
         for d in (-1, 0, 1):
             BUFFER_CASES.extend([x, s, d, dev] for dev in itertools.product(*_devices * 3))
 
