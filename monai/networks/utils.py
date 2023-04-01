@@ -34,6 +34,7 @@ from monai.utils.module import look_up_option, pytorch_after
 from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
 
 onnx, _ = optional_import("onnx")
+onnxreference, _ = optional_import("onnx.reference")
 onnxruntime, _ = optional_import("onnxruntime")
 
 __all__ = [
@@ -650,7 +651,7 @@ def convert_to_onnx(
             )
             onnx_out = ort_sess.run(None, input_dict)
         else:
-            sess = onnx.reference.ReferenceEvaluator(onnx_model)
+            sess = onnxreference.ReferenceEvaluator(onnx_model)
             onnx_out = sess.run(None, input_dict)
         set_determinism(seed=None)
         # compare onnx/ort and PyTorch results
