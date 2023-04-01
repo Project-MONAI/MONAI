@@ -21,7 +21,6 @@ import torch.nn.functional as F
 
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import compute_importance_map, dense_patch_slices, get_valid_patch_size
-from monai.transforms import Resize
 from monai.utils import (
     BlendMode,
     PytorchPadMode,
@@ -31,9 +30,11 @@ from monai.utils import (
     fall_back_tuple,
     look_up_option,
     optional_import,
+    pytorch_after,
 )
 
 tqdm, _ = optional_import("tqdm", name="tqdm")
+_nearest_mode = "nearest-exact" if pytorch_after(1, 11) else "nearest"
 
 __all__ = ["sliding_window_inference"]
 
@@ -54,7 +55,7 @@ def sliding_window_inference(
     roi_weight_map: torch.Tensor | None = None,
     process_fn: Callable | None = None,
     buffer_steps: int | None = None,
-    buffer_dim: int = 0,
+    buffer_dim: int = -1,
     *args: Any,
     **kwargs: Any,
 ) -> torch.Tensor | tuple[torch.Tensor, ...] | dict[Any, torch.Tensor]:
@@ -117,8 +118,9 @@ def sliding_window_inference(
             If not given, and ``mode`` is not `constant`, this map will be computed on the fly.
         process_fn: process inference output and adjust the importance map per window
         buffer_steps: the number of sliding window iterations before writing the outputs to ``device``.
-            default is None, no buffer.
-        buffer_dim: the dimension along which the buffer are created, default is 0.
+            default is None, no buffering.
+        buffer_dim: the spatial dimension along which the buffer are created.
+            0 indicates the first spatial dimension. Default is -1, the last spatial dimension.
         args: optional args to be passed to ``predictor``.
         kwargs: optional keyword args to be passed to ``predictor``.
 
@@ -129,10 +131,12 @@ def sliding_window_inference(
     buffered = buffer_steps is not None and buffer_steps > 0
     num_spatial_dims = len(inputs.shape) - 2
     if buffered:
-        if buffer_dim < -num_spatial_dims + 1 or buffer_dim > num_spatial_dims:
-            raise ValueError(f"buffer_dim must be in [{-num_spatial_dims + 1}, {num_spatial_dims}], got {buffer_dim}.")
+        if buffer_dim < -num_spatial_dims or buffer_dim > num_spatial_dims:
+            raise ValueError(f"buffer_dim must be in [{-num_spatial_dims}, {num_spatial_dims}], got {buffer_dim}.")
         if buffer_steps <= 0:  # type: ignore
             raise ValueError(f"buffer_steps must be >= 0, got {buffer_steps}.")
+        if buffer_dim < 0:
+            buffer_dim += num_spatial_dims
     if overlap < 0 or overlap >= 1:
         raise ValueError(f"overlap must be >= 0 and < 1, got {overlap}.")
     compute_dtype = inputs.dtype
@@ -161,16 +165,7 @@ def sliding_window_inference(
 
     # Store all slices
     scan_interval = _get_scan_interval(image_size, roi_size, num_spatial_dims, overlap)
-    slices = dense_patch_slices(image_size, roi_size, scan_interval, return_slice=False)
-
-    slices_np = np.asarray(slices)
-    if buffer_dim < 0:
-        buffer_dim += num_spatial_dims
-    slices_np = slices_np[np.argsort(slices_np[:, buffer_dim, 0], kind="mergesort")]
-    slices = [tuple(slice(c[0], c[1]) for c in i) for i in slices_np]
-    _, _p_id, _b_lens = np.unique(slices_np[:, buffer_dim, 0], return_counts=True, return_index=True)
-    _b_se = [tuple(slices_np[i][buffer_dim]) for i in _p_id]  # buffer start & end along the buffer_dim
-    b_ends = np.cumsum(_b_lens).tolist()  # possible buffer flush boundaries
+    slices = dense_patch_slices(image_size, roi_size, scan_interval, return_slice=not buffered)
 
     num_win = len(slices)  # number of windows per image
     total_slices = num_win * batch_size  # total number of windows
@@ -178,17 +173,9 @@ def sliding_window_inference(
     if not buffered:
         windows_range = range(0, total_slices, sw_batch_size)
     else:
-        buffer_steps = min(len(_b_se), int(buffer_steps))  # type: ignore
-        x = [0, *b_ends][::buffer_steps]
-        if x[-1] < b_ends[-1]:
-            x.append(b_ends[-1])
-        windows_range, n_per_batch, b_ends = [], len(x) - 1, [0]
-        for b in range(batch_size):
-            offset = b * x[-1]
-            for i in range(n_per_batch):
-                windows_range.append(range(offset + x[i], offset + x[i + 1], sw_batch_size))
-                b_ends.append(offset + x[i + 1])
-        windows_range = itertools.chain(*windows_range)
+        slices, n_per_batch, b_slices, windows_range = _create_buffered_slices(
+            slices, batch_size, sw_batch_size, buffer_dim, buffer_steps
+        )
 
     # Create window-level importance map
     valid_patch_size = get_valid_patch_size(image_size, roi_size)
@@ -211,7 +198,7 @@ def sliding_window_inference(
     output_image_list, count_map_list, sw_device_buffer, b_s, b_i = [], [], [], 0, 0  # type: ignore
     # for each patch
     for slice_g in tqdm(windows_range) if progress else windows_range:
-        slice_range = range(slice_g, min(slice_g + sw_batch_size, b_ends[b_s + 1] if buffered else total_slices))
+        slice_range = range(slice_g, min(slice_g + sw_batch_size, b_slices[b_s][0] if buffered else total_slices))
         unravel_slice = [
             [slice(idx // num_win, idx // num_win + 1), slice(None)] + list(slices[idx % num_win])
             for idx in slice_range
@@ -222,54 +209,48 @@ def sliding_window_inference(
         # convert seg_prob_out to tuple seg_tuple, this does not allocate new memory.
         dict_keys, seg_tuple = _flatten_struct(seg_prob_out)
         if process_fn:
-            seg_tuple, importance_map = process_fn(seg_tuple, win_data, importance_map_)
+            seg_tuple, w_t = process_fn(seg_tuple, win_data, importance_map_)
         else:
-            importance_map = importance_map_
-
+            w_t = importance_map_
+        if len(w_t.shape) == num_spatial_dims:
+            w_t = w_t[None, None]
+        w_t = w_t.to(dtype=compute_dtype, device=sw_device)
         if buffered:
-            c_start = slices_np[b_ends[b_s] % num_win, buffer_dim, 0]
-            c_end = slices_np[(b_ends[b_s + 1] - 1) % num_win, buffer_dim, 1]
+            c_start, c_end = b_slices[b_s][1:]
             if not sw_device_buffer:
                 k = seg_tuple[0].shape[1]  # len(seg_tuple) > 1 is currently ignored
                 sp_size = list(image_size)
                 sp_size[buffer_dim] = c_end - c_start
                 sw_device_buffer = [torch.zeros(size=[1, k, *sp_size], dtype=compute_dtype, device=sw_device)]
-                importance_map = importance_map.to(dtype=compute_dtype, device=sw_device)
             for p, s in zip(seg_tuple[0], unravel_slice):
                 offset = s[buffer_dim + 2].start - c_start
                 s[buffer_dim + 2] = slice(offset, offset + roi_size[buffer_dim])
                 s[0] = slice(0, 1)
-                sw_device_buffer[0][s] += p * importance_map
+                sw_device_buffer[0][s] += p * w_t
             b_i += len(unravel_slice)
-            if b_i < b_ends[b_s + 1]:
+            if b_i < b_slices[b_s][0]:
                 continue
         else:
-            sw_device_buffer = seg_tuple
+            sw_device_buffer = list(seg_tuple)
 
         for ss in range(len(sw_device_buffer)):
             b_shape = sw_device_buffer[ss].shape
             seg_chns, seg_shape = b_shape[1], b_shape[2:]
-            if buffered or seg_shape == roi_size:
-                z_scale = None
-            else:
+            z_scale = None
+            if not buffered and seg_shape != roi_size:
                 z_scale = [out_w_i / float(in_w_i) for out_w_i, in_w_i in zip(seg_shape, roi_size)]
-            if buffered or seg_shape == importance_map.shape:
-                w_t = importance_map.to(dtype=compute_dtype, device=sw_device)
-            else:  # resizing the importance_map
-                resizer = Resize(spatial_size=seg_shape, mode="nearest", anti_aliasing=False)
-                w_t = resizer(importance_map.unsqueeze(0))[0].to(dtype=compute_dtype, device=sw_device)
+                w_t = torch.nn.functional.interpolate(w_t, seg_shape, mode=_nearest_mode)
             if len(output_image_list) <= ss:
                 output_shape = [batch_size, seg_chns]
                 output_shape += [int(_i * _z) for _i, _z in zip(image_size, z_scale)] if z_scale else list(image_size)
                 # allocate memory to store the full output and the count for overlapping parts
                 output_image_list.append(torch.zeros(output_shape, dtype=compute_dtype, device=device))
                 count_map_list.append(torch.zeros([1, 1] + output_shape[2:], dtype=compute_dtype, device=device))
-                w_t = w_t.to(device)
+                w_t_ = w_t.to(device)
                 for __s in slices:
                     if z_scale is not None:
                         __s = tuple(slice(int(_si.start * z_s), int(_si.stop * z_s)) for _si, z_s in zip(__s, z_scale))
-                    count_map_list[-1][(slice(None), slice(None), *__s)] += w_t
-                w_t = w_t.to(sw_device)
+                    count_map_list[-1][(slice(None), slice(None), *__s)] += w_t_
             if buffered:
                 o_slice = [slice(None)] * len(inputs.shape)
                 o_slice[buffer_dim + 2] = slice(c_start, c_end)
@@ -277,10 +258,9 @@ def sliding_window_inference(
                 o_slice[0] = slice(img_b, img_b + 1)
                 output_image_list[0][o_slice] += sw_device_buffer[0].to(device=device)
             else:
-                sw_t = sw_device_buffer[ss]
-                sw_t *= w_t
-                sw_t = sw_t.to(device)
-                _compute_coords(sw_batch_size, unravel_slice, z_scale, output_image_list[ss], sw_t)
+                sw_device_buffer[ss] *= w_t
+                sw_device_buffer[ss] = sw_device_buffer[ss].to(device)
+                _compute_coords(sw_batch_size, unravel_slice, z_scale, output_image_list[ss], sw_device_buffer[ss])
         sw_device_buffer = []
         if buffered:
             b_s += 1
@@ -290,25 +270,51 @@ def sliding_window_inference(
         output_image_list[ss] /= count_map_list.pop(0)
 
     # remove padding if image_size smaller than roi_size
-    for ss, output_i in enumerate(output_image_list):
-        zoom_scale = [_shape_d / _roi_size_d for _shape_d, _roi_size_d in zip(output_i.shape[2:], roi_size)]
-        final_slicing: list[slice] = []
-        for sp in range(num_spatial_dims):
-            si = num_spatial_dims - sp - 1
-            slice_dim = slice(
-                int(round(pad_size[sp * 2] * zoom_scale[si])),
-                int(round((pad_size[sp * 2] + image_size_[si]) * zoom_scale[si])),
-            )
-            final_slicing.insert(0, slice_dim)
-        while len(final_slicing) < len(output_i.shape):
-            final_slicing.insert(0, slice(None))
-        output_image_list[ss] = output_i[final_slicing]
+    if any(pad_size):
+        for ss, output_i in enumerate(output_image_list):
+            zoom_scale = [_shape_d / _roi_size_d for _shape_d, _roi_size_d in zip(output_i.shape[2:], roi_size)]
+            final_slicing: list[slice] = []
+            for sp in range(num_spatial_dims):
+                si = num_spatial_dims - sp - 1
+                slice_dim = slice(
+                    int(round(pad_size[sp * 2] * zoom_scale[si])),
+                    int(round((pad_size[sp * 2] + image_size_[si]) * zoom_scale[si])),
+                )
+                final_slicing.insert(0, slice_dim)
+            output_image_list[ss] = output_i[(slice(None), slice(None), *final_slicing)]
 
     final_output = _pack_struct(output_image_list, dict_keys)
     final_output = convert_to_dst_type(final_output, inputs, device=device)[0]  # type: ignore
     if temp_meta is not None:
         final_output = MetaTensor(final_output).copy_meta_from(temp_meta)
     return final_output  # type: ignore
+
+
+def _create_buffered_slices(slices, batch_size, sw_batch_size, buffer_dim, buffer_steps):
+    """rearrange slices for buffering"""
+    slices_np = np.asarray(slices)
+    slices_np = slices_np[np.argsort(slices_np[:, buffer_dim, 0], kind="mergesort")]
+    slices = [tuple(slice(c[0], c[1]) for c in i) for i in slices_np]
+    slices_np = slices_np[:, buffer_dim]
+
+    _, _, _b_lens = np.unique(slices_np[:, 0], return_counts=True, return_index=True)
+    b_ends = np.cumsum(_b_lens).tolist()  # possible buffer flush boundaries
+    x = [0, *b_ends][:: min(len(b_ends), int(buffer_steps))]  # type: ignore
+    if x[-1] < b_ends[-1]:
+        x.append(b_ends[-1])
+    n_per_batch = len(x) - 1
+    windows_range = [
+        range(b * x[-1] + x[i], b * x[-1] + x[i + 1], sw_batch_size)
+        for b in range(batch_size)
+        for i in range(n_per_batch)
+    ]
+    b_slices = []
+    for _s, _r in enumerate(windows_range):
+        s_s = slices_np[windows_range[_s - 1].stop % len(slices) if _s > 0 else 0, 0]
+        s_e = slices_np[(_r.stop - 1) % len(slices), 1]
+        b_slices.append((_r.stop, s_s, s_e))  # buffer index, slice start, slice end
+    windows_range = itertools.chain(*windows_range)  # type: ignore
+    return slices, n_per_batch, b_slices, windows_range
 
 
 def _compute_coords(sw, coords, z_scale, out, patch):
