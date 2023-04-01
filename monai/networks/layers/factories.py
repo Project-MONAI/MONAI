@@ -65,7 +65,6 @@ import warnings
 from collections.abc import Callable
 from typing import Any
 
-import torch
 import torch.nn as nn
 
 from monai.utils import look_up_option, optional_import
