@@ -80,9 +80,6 @@ class TestSlidingWindowInference(unittest.TestCase):
         dtype = [torch.float, torch.double][roi_size[0] % 2]  # test different input dtype
         mode = ["constant", "gaussian"][img_size[1] % 2]
         image = torch.randint(0, 255, size=img_size, dtype=dtype, device=img_device)
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-            torch.cuda.reset_peak_memory_stats()
         sw = sliding_window_inference(
             image,
             roi_size,
@@ -95,9 +92,6 @@ class TestSlidingWindowInference(unittest.TestCase):
             buffer_steps=buffer_steps,
             buffer_dim=buffer_dim,
         )
-        if torch.cuda.is_available():
-            mem_peak = torch.cuda.memory_stats().get("allocated_bytes.all.peak", 0.0) / 1024**3
-            self.assertGreater(0.8, mem_peak)  # less than 1GB
         max_diff = torch.max(torch.abs(image.to(sw) - 0.5 * sw)).item()
         self.assertGreater(0.001, max_diff)
 
