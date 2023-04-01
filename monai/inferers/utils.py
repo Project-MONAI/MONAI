@@ -119,7 +119,8 @@ def sliding_window_inference(
             If not given, and ``mode`` is not `constant`, this map will be computed on the fly.
         process_fn: process inference output and adjust the importance map per window
         buffer_steps: the number of sliding window iterations before writing the outputs to ``device``.
-            default is None, no buffering.
+            default is None, no buffering. For the buffer dim, when spatial size is divisible by buffer_steps*roi_size,
+            non_blocking copy may be automatically enabled for efficient processing.
         buffer_dim: the spatial dimension along which the buffer are created.
             0 indicates the first spatial dimension. Default is -1, the last spatial dimension.
         args: optional args to be passed to ``predictor``.
@@ -255,7 +256,7 @@ def sliding_window_inference(
                 output_shape = [batch_size, seg_chns]
                 output_shape += [int(_i * _z) for _i, _z in zip(image_size, z_scale)] if z_scale else list(image_size)
                 # allocate memory to store the full output and the count for overlapping parts
-                new_tensor: Callable = torch.empty if non_blocking else torch.zeros
+                new_tensor: Callable = torch.empty if non_blocking else torch.zeros  # type: ignore
                 output_image_list.append(new_tensor(output_shape, dtype=compute_dtype, device=device))
                 count_map_list.append(torch.zeros([1, 1] + output_shape[2:], dtype=compute_dtype, device=device))
                 w_t_ = w_t.to(device)
