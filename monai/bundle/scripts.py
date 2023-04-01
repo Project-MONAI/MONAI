@@ -1027,7 +1027,7 @@ def onnx_export(
         net_id="",
         meta_file=None,
         key_in_ckpt="",
-        use_trace=True,
+        use_trace=False,
         input_shape=None,
         converter_kwargs={},
     )

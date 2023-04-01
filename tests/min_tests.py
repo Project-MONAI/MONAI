@@ -46,6 +46,7 @@ def run_testsuit():
         "test_compute_ho_ver_maps_d",
         "test_compute_panoptic_quality",
         "test_contrastive_loss",
+        "test_convert_to_onnx",
         "test_convert_to_trt",
         "test_csv_dataset",
         "test_csv_iterable_dataset",
