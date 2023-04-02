@@ -199,6 +199,8 @@ def sliding_window_inference(
             importance_map_ = compute_importance_map(
                 valid_p_size, mode=mode, sigma_scale=sigma_scale, device=sw_device, dtype=compute_dtype
             )
+            if len(importance_map_.shape) == (num_spatial_dims - 2):
+                importance_map_ = importance_map_[None, None]
         except Exception as e:
             raise RuntimeError(
                 f"patch size {valid_p_size}, mode={mode}, sigma_scale={sigma_scale}, device={device}\n"
@@ -215,7 +217,10 @@ def sliding_window_inference(
             [slice(idx // num_win, idx // num_win + 1), slice(None)] + list(slices[idx % num_win])
             for idx in slice_range
         ]
-        win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+        if len(unravel_slice) > 1:
+            win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+        else:
+            win_data = inputs[unravel_slice[0]].to(sw_device)
         seg_prob_out = predictor(win_data, *args, **kwargs)  # batched patch
 
         # convert seg_prob_out to tuple seg_tuple, this does not allocate new memory.
