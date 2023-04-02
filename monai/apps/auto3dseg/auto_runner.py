@@ -719,7 +719,7 @@ class AutoRunner:
             )
             da.get_all_case_stats()
 
-            da = None
+            da = None  # type: ignore
             torch.cuda.empty_cache()
 
             self.export_cache(analyze=True, datastats=self.datastats_filename)
