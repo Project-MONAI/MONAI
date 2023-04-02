@@ -181,7 +181,7 @@ def sliding_window_inference(
         slices, n_per_batch, b_slices, windows_range = _create_buffered_slices(
             slices, batch_size, sw_batch_size, buffer_dim, buffer_steps
         )
-        non_blocking = buffered and overlap[buffer_dim] == 0 and torch.device(sw_device).type == "cuda"
+        non_blocking = buffered and torch.device(device).type == "cuda"
         _ss = -1
         for x in b_slices[:n_per_batch]:
             if x[1] < _ss:  # detect overlapping slices
@@ -217,7 +217,7 @@ def sliding_window_inference(
             [slice(idx // num_win, idx // num_win + 1), slice(None)] + list(slices[idx % num_win])
             for idx in slice_range
         ]
-        if len(unravel_slice) > 1:
+        if sw_batch_size > 1:
             win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
         else:
             win_data = inputs[unravel_slice[0]].to(sw_device)
