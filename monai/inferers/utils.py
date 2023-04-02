@@ -181,8 +181,7 @@ def sliding_window_inference(
         slices, n_per_batch, b_slices, windows_range = _create_buffered_slices(
             slices, batch_size, sw_batch_size, buffer_dim, buffer_steps
         )
-        non_blocking = buffered
-        _ss = -1
+        non_blocking, _ss = True, -1
         for x in b_slices[:n_per_batch]:
             if x[1] < _ss:  # detect overlapping slices
                 non_blocking = False
