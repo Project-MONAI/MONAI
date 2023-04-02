@@ -130,7 +130,7 @@ class TestDynUNet(unittest.TestCase):
 class TestDynUNetWithInstanceNorm3dNVFuser(unittest.TestCase):
     def setUp(self):
         try:
-            layer = InstanceNorm3dNVFuser(num_features=1, affine=True).to("cuda:0")
+            layer = InstanceNorm3dNVFuser(num_features=1, affine=False).to("cuda:0")
             inp = torch.randn([1, 1, 1, 1, 1]).to("cuda:0")
             out = layer(inp)
             del inp, out, layer
