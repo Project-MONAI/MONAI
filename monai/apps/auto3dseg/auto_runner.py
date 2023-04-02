@@ -718,6 +718,10 @@ class AutoRunner:
                 self.datalist_filename, self.dataroot, output_path=self.datastats_filename, **self.analyze_params
             )
             da.get_all_case_stats()
+
+            da = None
+            torch.cuda.empty_cache()
+
             self.export_cache(analyze=True, datastats=self.datastats_filename)
         else:
             logger.info("Skipping data analysis...")
