@@ -328,9 +328,11 @@ class DataAnalyzer:
             except:
                 logger.info(f"Unable to process data {batch_data['image_meta_dict']['filename_or_obj']} on {device}.")
                 if self.device.type == 'cuda':
-                    logger.info(f"Data analysis using CPU.")
+                    logger.info(f"DataAnalyzer `device` was set to use GPU but the execution hit an exception. Falling back to use `cpu`.")
                     batch_data[self.image_key] = batch_data[self.image_key].to('cpu')
                     if self.label_key is not None:
+                        label = batch_data[self.label_key]
+                        label = torch.argmax(label, dim=0) if label.shape[0] > 1 else label[0]
                         batch_data[self.label_key] = label.to('cpu')
                     d = summarizer(batch_data)
 
