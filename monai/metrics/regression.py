@@ -256,7 +256,7 @@ class SSIMMetric(RegressionMetric):
         spatial_dims: number of spatial dimensions of the input images.
         data_range: value range of input images. (usually 1.0 or 255)
         kernel_type: type of kernel, can be "gaussian" or "uniform".
-        kernel_size: size of kernel
+        win_size: window size of kernel
         kernel_sigma: standard deviation for Gaussian kernel.
         k1: stability constant used in the luminance denominator
         k2: stability constant used in the contrast denominator
@@ -271,7 +271,7 @@ class SSIMMetric(RegressionMetric):
         spatial_dims: int,
         data_range: float = 1.0,
         kernel_type: KernelType | str = KernelType.GAUSSIAN,
-        kernel_size: int | Sequence[int] = 11,
+        win_size: int | Sequence[int] = 11,
         kernel_sigma: float | Sequence[float] = 1.5,
         k1: float = 0.01,
         k2: float = 0.03,
@@ -284,9 +284,9 @@ class SSIMMetric(RegressionMetric):
         self.data_range = data_range
         self.kernel_type = kernel_type
 
-        if not isinstance(kernel_size, Sequence):
-            kernel_size = ensure_tuple_rep(kernel_size, spatial_dims)
-        self.kernel_size = kernel_size
+        if not isinstance(win_size, Sequence):
+            win_size = ensure_tuple_rep(win_size, spatial_dims)
+        self.kernel_size = win_size
 
         if not isinstance(kernel_sigma, Sequence):
             kernel_sigma = ensure_tuple_rep(kernel_sigma, spatial_dims)
