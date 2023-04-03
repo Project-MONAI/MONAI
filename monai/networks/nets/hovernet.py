@@ -614,7 +614,7 @@ def _load_pretrained_encoder(model: nn.Module, state_dict: OrderedDict | dict):
     model.load_state_dict(model_dict)
     if len(state_dict.keys()) == 0:
         warnings.warn(
-            "no key will be updated. Please double confirm if the 'pretrained_url' is correct or `pretrained_state_dict_key` is reasonably set."
+            "no key will be updated. Please check if 'pretrained_url' or `pretrained_state_dict_key` is correct."
         )
     else:
         print(f"{len(state_dict)} out of {len(model_dict)} keys are updated with pretrained weights.")
