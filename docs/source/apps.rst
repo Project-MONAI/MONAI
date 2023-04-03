@@ -80,10 +80,6 @@ Applications
 `Pathology`
 -----------
 
-.. automodule:: monai.apps.pathology.handlers
-.. autoclass:: ProbMapProducer
-    :members:
-
 .. automodule:: monai.apps.pathology.inferers
 .. autoclass:: SlidingWindowHoVerNetInferer
     :members:
