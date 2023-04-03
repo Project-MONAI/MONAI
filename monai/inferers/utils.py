@@ -118,10 +118,11 @@ def sliding_window_inference(
         roi_weight_map: pre-computed (non-negative) weight map for each ROI.
             If not given, and ``mode`` is not `constant`, this map will be computed on the fly.
         process_fn: process inference output and adjust the importance map per window
-        buffer_steps: the number of sliding window iterations before writing the outputs to ``device``.
+        buffer_steps: the number of sliding window iterations along the ``buffer_dim``
+            to be buffered on ``sw_device`` before writing to ``device``.
             default is None, no buffering. For the buffer dim, when spatial size is divisible by buffer_steps*roi_size,
-            non_blocking copy may be automatically enabled for efficient processing.
-        buffer_dim: the spatial dimension along which the buffer are created.
+            (i.e. no overlapping among the buffers) non_blocking copy may be automatically enabled for efficiency.
+        buffer_dim: the spatial dimension along which the buffers are created.
             0 indicates the first spatial dimension. Default is -1, the last spatial dimension.
         args: optional args to be passed to ``predictor``.
         kwargs: optional keyword args to be passed to ``predictor``.
@@ -135,8 +136,6 @@ def sliding_window_inference(
     if buffered:
         if buffer_dim < -num_spatial_dims or buffer_dim > num_spatial_dims:
             raise ValueError(f"buffer_dim must be in [{-num_spatial_dims}, {num_spatial_dims}], got {buffer_dim}.")
-        if buffer_steps <= 0:  # type: ignore
-            raise ValueError(f"buffer_steps must be >= 0, got {buffer_steps}.")
         if buffer_dim < 0:
             buffer_dim += num_spatial_dims
     overlap = ensure_tuple_rep(overlap, num_spatial_dims)
