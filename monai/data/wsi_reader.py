@@ -32,6 +32,7 @@ from monai.utils import (
     optional_import,
     require_pkg,
 )
+from monai.utils.misc import ConvertUnits
 
 OpenSlide, _ = optional_import("openslide", name="OpenSlide")
 TiffFile, _ = optional_import("tifffile", name="TiffFile")
@@ -61,7 +62,7 @@ class BaseWSIReader(ImageReader):
         Notes:
             Only one of resolution parameters, `level`, `mpp`, or `power`, should be provided.
             If such parameters are provided in `get_data` method, those will override the values provided here.
-            If none of them are provided here nor in `get_data`, `level=0` will be used.
+            If none of them are provided here or in `get_data`, `level=0` will be used.
 
     Typical usage of a concrete implementation of this class is:
 
@@ -346,7 +347,7 @@ class BaseWSIReader(ImageReader):
         Notes:
             Only one of resolution parameters, `level`, `mpp`, or `power`, should be provided.
             If none of them are provided, it uses the defaults that are set during class instantiation.
-            If none of them are set here nor during class instantiation, `level=0` will be used.
+            If none of them are set here or during class instantiation, `level=0` will be used.
         """
         if mode is None:
             mode = self.mode
@@ -466,7 +467,7 @@ class WSIReader(BaseWSIReader):
         Notes:
             Only one of resolution parameters, `level`, `mpp`, or `power`, should be provided.
             If such parameters are provided in `get_data` method, those will override the values provided here.
-            If none of them are provided here nor in `get_data`, `level=0` will be used.
+            If none of them are provided here or in `get_data`, `level=0` will be used.
 
     """
 
@@ -670,7 +671,7 @@ class CuCIMWSIReader(BaseWSIReader):
         Notes:
             Only one of resolution parameters, `level`, `mpp`, or `power`, should be provided.
             If such parameters are provided in `get_data` method, those will override the values provided here.
-            If none of them are provided here nor in `get_data`, `level=0` will be used.
+            If none of them are provided here or in `get_data`, `level=0` will be used.
 
     """
 
@@ -850,7 +851,7 @@ class OpenSlideWSIReader(BaseWSIReader):
         Notes:
             Only one of resolution parameters, `level`, `mpp`, or `power`, should be provided.
             If such parameters are provided in `get_data` method, those will override the values provided here.
-            If none of them are provided here nor in `get_data`, `level=0` will be used.
+            If none of them are provided here or in `get_data`, `level=0` will be used.
 
     """
 
@@ -926,24 +927,14 @@ class OpenSlideWSIReader(BaseWSIReader):
             and wsi.properties["tiff.XResolution"]
         ):
             unit = wsi.properties.get("tiff.ResolutionUnit")
-            if unit == "centimeter":
-                factor = 10000.0
-            elif unit == "millimeter":
-                factor = 1000.0
-            elif unit == "micrometer":
-                factor = 1.0
-            elif unit == "inch":
-                factor = 25400.0
-            else:
-                warnings.warn(
-                    f"The resolution unit is not a valid tiff resolution or missing, unit={unit}."
-                    " `micrometer` will be used as default."
-                )
-                factor = 1.0
+            if unit is None:
+                warnings.warn("The resolution unit is missing, `micrometer` will be used as default.")
+                unit = "micrometer"
 
+            convert_to_micron = ConvertUnits(unit, "micrometer")
             return (
-                factor * downsample_ratio / float(wsi.properties["tiff.YResolution"]),
-                factor * downsample_ratio / float(wsi.properties["tiff.XResolution"]),
+                convert_to_micron(downsample_ratio / float(wsi.properties["tiff.YResolution"])),
+                convert_to_micron(downsample_ratio / float(wsi.properties["tiff.XResolution"])),
             )
 
         raise ValueError("`mpp` cannot be obtained for this file. Please use `level` instead.")
@@ -1040,7 +1031,7 @@ class TiffFileWSIReader(BaseWSIReader):
             - Objective power cannot be obtained via TiffFile backend.
             - Only one of resolution parameters, `level` or `mpp`, should be provided.
                 If such parameters are provided in `get_data` method, those will override the values provided here.
-                If none of them are provided here nor in `get_data`, `level=0` will be used.
+                If none of them are provided here or in `get_data`, `level=0` will be used.
 
     """
 
@@ -1105,29 +1096,16 @@ class TiffFileWSIReader(BaseWSIReader):
         ):
             unit = wsi.pages[level].tags.get("ResolutionUnit")
             if unit is not None:
-                unit = unit.value
-                if unit == unit.CENTIMETER:
-                    factor = 10000.0
-                elif unit == unit.MILLIMETER:
-                    factor = 1000.0
-                elif unit == unit.MICROMETER:
-                    factor = 1.0
-                elif unit == unit.INCH:
-                    factor = 25400.0
-                else:
-                    warnings.warn(
-                        f"The resolution unit is not a valid tiff resolution, unit={unit}."
-                        " `micrometer` will be used as default."
-                    )
-                    factor = 1.0
+                unit = str(unit.value)[8:]
             else:
                 warnings.warn("The resolution unit is missing. `micrometer` will be used as default.")
-                factor = 1.0
+                unit = "micrometer"
 
+            convert_to_micron = ConvertUnits(unit, "micrometer")
             # Here x and y resolutions are rational numbers so each of them is represented by a tuple.
             yres = wsi.pages[level].tags["YResolution"].value
             xres = wsi.pages[level].tags["XResolution"].value
-            return (factor * yres[1] / yres[0], factor * xres[1] / xres[0])
+            return convert_to_micron(yres[1] / yres[0]), convert_to_micron(xres[1] / xres[0])
 
         raise ValueError("`mpp`  cannot be obtained for this file. Please use `level` instead.")
 
