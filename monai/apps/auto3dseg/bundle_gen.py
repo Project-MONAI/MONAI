@@ -534,7 +534,6 @@ class BundleGen(AlgoGen):
                     )
                 else:
                     gen_algo.export_to_disk(output_folder, name, fold=f_id)
-                
+
                 algo_to_pickle(gen_algo, template_path=algo.template_path)
                 self.history.append({name: gen_algo})  # track the previous, may create a persistent history
-                    
