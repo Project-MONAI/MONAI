@@ -25,7 +25,14 @@ class SABlock(nn.Module):
     An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale <https://arxiv.org/abs/2010.11929>"
     """
 
-    def __init__(self, hidden_size: int, num_heads: int, dropout_rate: float = 0.0, qkv_bias: bool = False, save_attn:bool = False) -> None:
+    def __init__(
+        self,
+        hidden_size: int,
+        num_heads: int,
+        dropout_rate: float = 0.0,
+        qkv_bias: bool = False,
+        save_attn: bool = False,
+    ) -> None:
         """
         Args:
             hidden_size (int): dimension of hidden layer.

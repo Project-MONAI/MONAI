@@ -66,10 +66,11 @@ class TestResBlock(unittest.TestCase):
             no_matrix_acess_blk.att_mat
 
         # be not able to acess the attention matrix
-        matrix_acess_blk = SABlock(hidden_size=hidden_size, num_heads=num_heads, dropout_rate=dropout_rate, save_attn=True)
+        matrix_acess_blk = SABlock(
+            hidden_size=hidden_size, num_heads=num_heads, dropout_rate=dropout_rate, save_attn=True
+        )
         matrix_acess_blk(torch.randn(input_shape))
         assert matrix_acess_blk.att_mat.shape == (input_shape[0], input_shape[0], input_shape[1], input_shape[1])
-
 
 
 if __name__ == "__main__":
