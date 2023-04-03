@@ -443,8 +443,8 @@ class HoVerNet(nn.Module):
         adapt_standard_resnet: if the pretrained weights of the encoder follow the original format (preact-resnet50), this
             value should be `False`. If using the pretrained weights that follow torchvision's standard resnet50 format,
             this value should be `True`.
-        pretrained_state_dict_key: this arg is used when `pretrained_url` is provided and `adapt_standard_resnet` is True. It is used to
-            extract the expected state dict.
+        pretrained_state_dict_key: this arg is used when `pretrained_url` is provided and `adapt_standard_resnet` is True.
+            It is used to extract the expected state dict.
         freeze_encoder: whether to freeze the encoder of the network.
     """
 
