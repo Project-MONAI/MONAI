@@ -80,6 +80,8 @@ class BundleAlgo(Algo):
         self.best_metric = None
         # track records when filling template config: {"<config name>": {"<placeholder key>": value, ...}, ...}
         self.fill_records: dict = {}
+        self.default_device_setting = {'CUDA_VISIBLE_DEVICES': ','.join([str(x) for x in range(torch.cuda.device_count())]),
+                                       'n_devices': torch.cuda.device_count(), 'NUM_NODES': 1, 'MN_START_METHOD': 'bcprun'}
 
     def pre_check_skip_algo(self, skip_bundlegen: bool = False, skip_info: str = "") -> tuple[bool, str]:
         """
@@ -152,13 +154,12 @@ class BundleAlgo(Algo):
             self.fill_records = self.fill_template_config(self.data_stats_files, self.output_path, **kwargs)
         logger.info(self.output_path)
 
-    def _create_cmd(self, train_params=None):
+    def _create_cmd(self, train_params: dict={}):
         """
         Create the command to execute training.
 
         """
-        if train_params is not None:
-            params = deepcopy(train_params)
+        params = deepcopy(train_params)
 
         train_py = os.path.join(self.output_path, "scripts", "train.py")
         config_dir = os.path.join(self.output_path, "configs")
@@ -176,22 +177,26 @@ class BundleAlgo(Algo):
                 config_yaml = Path(os.path.join(config_dir, file)).as_posix()
                 base_cmd += f"'{config_yaml}'"
 
-        if "CUDA_VISIBLE_DEVICES" in params:
-            devices = params.pop("CUDA_VISIBLE_DEVICES")
-            n_devices, devices_info = len(devices), ",".join([str(x) for x in devices])
+        if self.device_setting['NUM_NODES'] > 1:
+            # if using multinode
+            if self.device_setting.get['MN_START_METHOD'] == 'bcprun':
+                cmd = "python " 
+            else:
+                raise NotImplementedError(f"{self.device_setting['MN_START_METHOD']} is not supported yet. \
+                                             Try modify BundleAlgo._create_cmd for your cluster.")
         else:
-            n_devices, devices_info = torch.cuda.device_count(), ""
-        if n_devices > 1:
-            cmd = f"torchrun --nnodes={1:d} --nproc_per_node={n_devices:d} "
-        else:
-            cmd = "python "  # TODO: which system python?
+            # if using single node
+            if self.device_setting['n_devices'] > 1:
+                cmd = f"torchrun --nnodes={1:d} --nproc_per_node={self.device_setting['n_devices']:d} "
+            else:
+                cmd = "python "  # TODO: which system python?
         cmd += base_cmd
         if params and isinstance(params, Mapping):
             for k, v in params.items():
                 cmd += f" --{k}={v}"
-        return cmd, devices_info
+        return cmd
 
-    def _run_cmd(self, cmd: str, devices_info: str) -> subprocess.CompletedProcess:
+    def _run_cmd(self, cmd: str) -> subprocess.CompletedProcess:
         """
         Execute the training command with target devices information.
 
@@ -199,22 +204,34 @@ class BundleAlgo(Algo):
 
         logger.info(f"Launching: {cmd}")
         ps_environ = os.environ.copy()
-        if devices_info:
-            ps_environ["CUDA_VISIBLE_DEVICES"] = devices_info
-        normal_out = subprocess.run(cmd.split(), env=ps_environ, check=True)
-
+        ps_environ["CUDA_VISIBLE_DEVICES"] = self.device_setting['CUDA_VISIBLE_DEVICES']
+        if self.device_setting['NUM_NODES'] > 1:
+            if self.device_setting['MN_START_METHOD'] == 'bcprun':
+                normal_out = subprocess.run(['bcprun','-n',str(self.device_setting['NUM_NODES']),'-p',
+                                             str(self.device_setting['n_devices']),'-c', cmd], env=ps_environ, check=True)
+            else:
+                raise NotImplementedError(f"{self.device_setting['MN_START_METHOD']} is not supported yet.\
+                                             Try modify BundleAlgo._run_cmd for your cluster.")
+        else:
+            normal_out = subprocess.run(cmd.split(), env=ps_environ, check=True)
         return normal_out
 
-    def train(self, train_params=None):
+    def train(self, train_params: dict={}, device_setting: dict={}):
         """
         Load the run function in the training script of each model. Training parameter is predefined by the
         algo_config.yaml file, which is pre-filled by the fill_template_config function in the same instance.
 
         Args:
-            train_params:  to specify the devices using a list of integers: ``{"CUDA_VISIBLE_DEVICES": [1,2,3]}``.
+            train_params:  training parameters 
+            device_settings: device related settings, should follow the device_setting in auto_runner.set_device_info. 
+            'CUDA_VISIBLE_DEVICES' should be a string e.g. '0,1,2,3'
         """
-        cmd, devices_info = self._create_cmd(train_params)
-        return self._run_cmd(cmd, devices_info)
+        # device_setting set default value and sanity check, in case device_setting not from autorunner
+        self.device_setting.update(device_setting)
+        self.device_setting['n_devices'] = len(self.device_setting['CUDA_VISIBLE_DEVICES'].split(','))
+            
+        cmd = self._create_cmd(train_params)
+        return self._run_cmd(cmd)
 
     def get_score(self, *args, **kwargs):
         """
@@ -375,9 +392,7 @@ class BundleGen(AlgoGen):
             zip url will be downloaded and extracted into the algo_path. The current default options are released at:
             https://github.com/Project-MONAI/research-contributions/tree/main/auto3dseg
         data_stats_filename: the path to the data stats file (generated by DataAnalyzer)
-        data_src_cfg_name: the path to the data source config YAML file. The config will be in a form of
-            {"modality": "ct", "datalist": "path_to_json_datalist", "dataroot": "path_dir_data"}
-
+        data_src_cfg_name: the path to the data kwargs
     .. code-block:: bash
 
         python -m monai.apps.auto3dseg BundleGen generate --data_stats_filename="../algorithms/datastats.yaml"

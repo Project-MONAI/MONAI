@@ -24,12 +24,7 @@ import torch
 
 from monai.apps.auto3dseg.bundle_gen import BundleGen
 from monai.apps.auto3dseg.data_analyzer import DataAnalyzer
-from monai.apps.auto3dseg.ensemble_builder import (
-    AlgoEnsemble,
-    AlgoEnsembleBestByFold,
-    AlgoEnsembleBestN,
-    AlgoEnsembleBuilder,
-)
+from monai.apps.auto3dseg.ensemble_builder import EnsembleRunner
 from monai.apps.auto3dseg.hpo_gen import NNIGen
 from monai.apps.auto3dseg.utils import export_bundle_algo_history, import_bundle_algo_history
 from monai.apps.utils import get_logger
@@ -285,17 +280,13 @@ class AutoRunner:
         self.ensemble = ensemble  # last step, no need to check
 
         self.set_training_params()
+        self.set_device_info()
         self.set_prediction_params()
         self.set_analyze_params()
 
-        self.save_image = self.set_image_save_transform(kwargs)
-
-        self.ensemble_method: AlgoEnsemble
-        self.ensemble_method_name: str | None = None
-
-        self.set_num_fold(num_fold=num_fold)
-        self.set_ensemble_method("AlgoEnsembleBestByFold")
-
+        self.ensemble_method_name = 'AlgoEnsembleBestByFold'
+        self.set_num_fold(num_fold=num_fold)   
+        self.kwargs = kwargs
         self.gpu_customization = False
         self.gpu_customization_specs: dict[str, Any] = {}
 
@@ -461,18 +452,11 @@ class AutoRunner:
 
         Args:
             num_fold: a positive integer to define the number of folds.
-
-        Notes:
-            If the ensemble method is ``AlgoEnsembleBestByFold``, this function automatically updates the ``n_fold``
-            parameter in the ``ensemble_method`` to avoid inconsistency between the training and the ensemble.
         """
 
         if num_fold <= 0:
             raise ValueError(f"num_fold is expected to be an integer greater than zero. Now it gets {num_fold}")
-
         self.num_fold = num_fold
-        if self.ensemble_method_name == "AlgoEnsembleBestByFold":
-            self.ensemble_method.n_fold = self.num_fold  # type: ignore
 
     def set_training_params(self, params: dict[str, Any] | None = None) -> None:
         """
@@ -488,6 +472,31 @@ class AutoRunner:
 
         """
         self.train_params = deepcopy(params) if params is not None else {}
+
+    def set_device_info(self, cuda_visible_devices: list[int] | str=os.environ.get('CUDA_VISIBLE_DEVICES', None), 
+                        num_nodes: int=os.environ.get('NUM_NODES', 1), 
+                        mn_start_method: str=os.environ.get('MN_START_METHOD', 'bcprun')):
+        """ Set the device related info
+        Args:
+            cuda_visible_device: define GPU ids for data analyzer, training, and ensembling. List of GPU ids [0,1,2,3] or a string "0,1,2,3"
+            num_nodes: number of nodes for training and ensembling
+            mn_start_method: multi-node start method. Autorunner will use the method to start multi-node processes.
+        """
+        self.device_setting = {}
+        if cuda_visible_devices is None:
+            self.device_setting['CUDA_VISIBLE_DEVICES'] = ','.join([str(x) for x in range(torch.cuda.device_count())])
+            self.device_setting['n_devices'] = torch.cuda.device_count()
+        else:
+            if type(cuda_visible_devices) is str:
+                self.device_setting['CUDA_VISIBLE_DEVICES'] = cuda_visible_devices
+                self.device_setting['n_devices'] = len(cuda_visible_devices.split(','))
+            elif type(cuda_visible_devices) is list:
+                self.device_setting['CUDA_VISIBLE_DEVICES'] = ','.join([str(x) for x in cuda_visible_devices])
+                self.device_setting['n_devices'] = len(cuda_visible_devices)
+            else:
+                logger.warn('Wrong format of cuda_visible_devices, devices not set')
+        self.device_setting['NUM_NODES'] = num_nodes
+        self.device_setting['MN_START_METHOD'] = mn_start_method
 
     def set_prediction_params(self, params: dict[str, Any] | None = None) -> None:
         """
@@ -569,58 +578,6 @@ class AutoRunner:
         self.search_space = search_space
         self.hpo_tasks = value_combinations
 
-    def set_image_save_transform(self, kwargs):
-        """
-        Set the ensemble output transform.
-
-        Args:
-            kwargs: image writing parameters for the ensemble inference. The kwargs format follows SaveImage
-                transform. For more information, check https://docs.monai.io/en/stable/transforms.html#saveimage .
-
-        """
-
-        if "output_dir" in kwargs:
-            output_dir = kwargs.pop("output_dir")
-        else:
-            output_dir = os.path.join(self.work_dir, "ensemble_output")
-            logger.info(f"The output_dir is not specified. {output_dir} will be used to save ensemble predictions")
-
-        if not os.path.isdir(output_dir):
-            os.makedirs(output_dir)
-            logger.info(f"Directory {output_dir} is created to save ensemble predictions")
-
-        self.output_dir = output_dir
-        output_postfix = kwargs.pop("output_postfix", "ensemble")
-        output_dtype = kwargs.pop("output_dtype", np.uint8)
-        resample = kwargs.pop("resample", False)
-
-        return SaveImage(
-            output_dir=output_dir, output_postfix=output_postfix, output_dtype=output_dtype, resample=resample, **kwargs
-        )
-
-    def set_ensemble_method(self, ensemble_method_name: str = "AlgoEnsembleBestByFold", **kwargs: Any) -> None:
-        """
-        Set the bundle ensemble method
-
-        Args:
-            ensemble_method_name: the name of the ensemble method. Only two methods are supported "AlgoEnsembleBestN"
-                and "AlgoEnsembleBestByFold".
-            kwargs: the keyword arguments used to define the ensemble method. Currently only ``n_best`` for
-                ``AlgoEnsembleBestN`` is supported.
-
-        """
-        self.ensemble_method_name = look_up_option(
-            ensemble_method_name, supported=["AlgoEnsembleBestN", "AlgoEnsembleBestByFold"]
-        )
-        if self.ensemble_method_name == "AlgoEnsembleBestN":
-            n_best = kwargs.pop("n_best", False)
-            n_best = 2 if not n_best else n_best
-            self.ensemble_method = AlgoEnsembleBestN(n_best=n_best)
-        elif self.ensemble_method_name == "AlgoEnsembleBestByFold":
-            self.ensemble_method = AlgoEnsembleBestByFold(n_fold=self.num_fold)
-        else:
-            raise NotImplementedError(f"Ensemble method {self.ensemble_method_name} is not implemented.")
-
     def _train_algo_in_sequence(self, history: list[dict[str, Any]]) -> None:
         """
         Train the Algos in a sequential scheme. The order of training is randomized.
@@ -637,7 +594,7 @@ class AutoRunner:
         """
         for algo_dict in history:
             algo = algo_dict[AlgoKeys.ALGO]
-            algo.train(self.train_params)
+            algo.train(self.train_params, self.device_setting)
             acc = algo.get_score()
 
             algo_meta_data = {str(AlgoKeys.SCORE): acc}
@@ -792,34 +749,12 @@ class AutoRunner:
 
         # step 4: model ensemble and write the prediction to disks.
         if self.ensemble:
-            history = import_bundle_algo_history(self.work_dir, only_trained=False)
+            ensemble_runner = EnsembleRunner(data_src_cfg_name=self.data_src_cfg_name, 
+                                             work_dir=self.work_dir, num_fold=self.num_fold,
+                                             ensemble_method_name=self.ensemble_method_name, 
+                                             mgpu=self.device_setting['n_devices']>1,
+                                             **self.kwargs, # for set_image_save_transform
+                                             **self.pred_params) # for inference
+            ensemble_runner.run()
+        logger.info("Auto3Dseg pipeline is complete successfully.")
 
-            history_untrained = [h for h in history if not h[AlgoKeys.IS_TRAINED]]
-            if len(history_untrained) > 0:
-                warnings.warn(
-                    f"Ensembling step will skip {[h['name'] for h in history_untrained]} untrained algos."
-                    "Generally it means these algos did not complete training."
-                )
-                history = [h for h in history if h[AlgoKeys.IS_TRAINED]]
-
-            if len(history) == 0:
-                raise ValueError(
-                    f"Could not find any trained algos in {self.work_dir}. "
-                    "Possibly the required training step was not completed."
-                )
-
-            builder = AlgoEnsembleBuilder(history, self.data_src_cfg_name)
-            builder.set_ensemble_method(self.ensemble_method)
-
-            ensembler = builder.get_ensemble()
-            preds = ensembler(pred_param=self.pred_params)
-            if len(preds) > 0:
-                logger.info("Auto3Dseg picked the following networks to ensemble:")
-                for algo in ensembler.get_algo_ensemble():
-                    logger.info(algo[AlgoKeys.ID])
-
-                for pred in preds:
-                    self.save_image(pred)
-                logger.info(f"Auto3Dseg ensemble prediction outputs are saved in {self.output_dir}.")
-
-        logger.info("Auto3Dseg pipeline is completed successfully.")
