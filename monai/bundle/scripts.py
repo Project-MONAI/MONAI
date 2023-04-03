@@ -682,6 +682,8 @@ def run(
 def run_workflow(workflow: str | BundleWorkflow | None = None, args_file: str | None = None, **kwargs: Any) -> None:
     """
     Specify `bundle workflow` to run monai bundle components and workflows.
+    The workflow should be suclass of `BundleWorkflow` and be available to import.
+    It can be MONAI existing bundle workflows or user customized workflows.
 
     Typical usage examples:
 
@@ -705,15 +707,18 @@ def run_workflow(workflow: str | BundleWorkflow | None = None, args_file: str | 
     _log_input_summary(tag="run", args=_args)
     (workflow_name,) = _pop_args(_args, workflow=ConfigWorkflow)  # the default workflow name is "ConfigWorkflow"
     if isinstance(workflow_name, str):
-        workflow_class, has_built_in = optional_import("monai.bundle", name=f"{workflow_name}")  # search built-in
+        workflow_class, has_built_in = optional_import("monai.bundle", name=str(workflow_name))  # search built-in
         if not has_built_in:
-            workflow_class = locate(f"{workflow_name}")  # search dotted path
+            workflow_class = locate(str(workflow_name))  # search dotted path
         if workflow_class is None:
             raise ValueError(f"cannot locate specified workflow class: {workflow_name}.")
     elif issubclass(workflow_name, BundleWorkflow):
         workflow_class = workflow_name
     else:
-        raise ValueError(f"argument `workflow` must be the bundle workflow class name or type, got: {workflow_name}.")
+        raise ValueError(
+            "Argument `workflow` must be a bundle workflow class name"
+            f"or subclass of BundleWorkflow, got: {workflow_name}."
+        )
 
     workflow_ = workflow_class(**_args)
     workflow_.initialize()
