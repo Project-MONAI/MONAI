@@ -461,7 +461,7 @@ class Compose(Randomizable, InvertibleTransform):
             threading=threading,
             log_stats=self.log_stats,
             verbose=self.verbose,
-        )  # type: ignore
+        )
 
     def inverse(self, data):
         invertible_transforms = [t for t in self.flatten().transforms if isinstance(t, InvertibleTransform)]
