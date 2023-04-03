@@ -474,7 +474,7 @@ class AutoRunner:
         self.train_params = deepcopy(params) if params is not None else {}
 
     def set_device_info(self, cuda_visible_devices: list[int] | str=os.environ.get('CUDA_VISIBLE_DEVICES', None), 
-                        num_nodes: int=os.environ.get('NUM_NODES', 1), 
+                        num_nodes: int=int(os.environ.get('NUM_NODES', 1)), 
                         mn_start_method: str=os.environ.get('MN_START_METHOD', 'bcprun')):
         """ Set the device related info
         Args:
@@ -755,6 +755,6 @@ class AutoRunner:
                                              mgpu=self.device_setting['n_devices']>1,
                                              **self.kwargs, # for set_image_save_transform
                                              **self.pred_params) # for inference
-            ensemble_runner.run()
+            ensemble_runner.run(self.device_setting)
         logger.info("Auto3Dseg pipeline is complete successfully.")
 

@@ -451,7 +451,7 @@ class EnsembleRunner:
     
         if len(preds) > 0:
             logger.info("Auto3Dseg picked the following networks to ensemble:")
-            for algo in ensembler.get_algo_ensemble():
+            for algo in self.ensembler.get_algo_ensemble():
                 logger.info(algo[AlgoKeys.ID])
 
             for pred in preds:

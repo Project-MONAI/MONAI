@@ -80,8 +80,8 @@ class BundleAlgo(Algo):
         self.best_metric = None
         # track records when filling template config: {"<config name>": {"<placeholder key>": value, ...}, ...}
         self.fill_records: dict = {}
-        self.default_device_setting = {'CUDA_VISIBLE_DEVICES': ','.join([str(x) for x in range(torch.cuda.device_count())]),
-                                       'n_devices': torch.cuda.device_count(), 'NUM_NODES': 1, 'MN_START_METHOD': 'bcprun'}
+        self.device_setting = {'CUDA_VISIBLE_DEVICES': ','.join([str(x) for x in range(torch.cuda.device_count())]),
+                                'n_devices': torch.cuda.device_count(), 'NUM_NODES': 1, 'MN_START_METHOD': 'bcprun'}
 
     def pre_check_skip_algo(self, skip_bundlegen: bool = False, skip_info: str = "") -> tuple[bool, str]:
         """
@@ -179,7 +179,7 @@ class BundleAlgo(Algo):
 
         if self.device_setting['NUM_NODES'] > 1:
             # if using multinode
-            if self.device_setting.get['MN_START_METHOD'] == 'bcprun':
+            if self.device_setting['MN_START_METHOD'] == 'bcprun':
                 cmd = "python " 
             else:
                 raise NotImplementedError(f"{self.device_setting['MN_START_METHOD']} is not supported yet. \
