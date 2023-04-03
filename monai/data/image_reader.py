@@ -929,7 +929,7 @@ class NibabelReader(ImageReader):
         for name in filenames:
             img = nib.load(name, **kwargs_)
             img = correct_nifti_header_if_necessary(img)
-            img_.append(img)
+            img_.append(img)  # type: ignore
         return img_ if len(filenames) > 1 else img_[0]
 
     def get_data(self, img) -> tuple[np.ndarray, dict]:
