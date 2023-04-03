@@ -197,7 +197,7 @@ def sliding_window_inference(
             importance_map_ = compute_importance_map(
                 valid_p_size, mode=mode, sigma_scale=sigma_scale, device=sw_device, dtype=compute_dtype
             )
-            if len(importance_map_.shape) == num_spatial_dims:
+            if len(importance_map_.shape) == num_spatial_dims and not process_fn:
                 importance_map_ = importance_map_[None, None]  # adds batch, channel dimensions
         except Exception as e:
             raise RuntimeError(
