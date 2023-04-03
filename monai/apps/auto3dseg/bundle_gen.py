@@ -79,16 +79,16 @@ class BundleAlgo(Algo):
         self.best_metric = None
         # track records when filling template config: {"<config name>": {"<placeholder key>": value, ...}, ...}
         self.fill_records: dict = {}
-        # skip generating bundles for this algo
-        self.skip_bundlegen = False
-        # info to print when skipped
-        self.skip_info = ''
 
-    def pre_check_skip_algo(self):
+    def pre_check_skip_algo(self, skip_bundlegen: bool=False, skip_info: str=''):
         """
         Analyse the data analysis report and check if the algorithm needs to be skipped.
+        This function is overriden within algo.
+        Args:
+            skip_bundlegen: skip generating bundles for this algo if true.
+            skip_info: info to print when skipped.
         """
-        pass
+        return skip_bundlegen, skip_info
 
 
     def set_data_stats(self, data_stats_files: str) -> None:
@@ -520,9 +520,9 @@ class BundleGen(AlgoGen):
                 gen_algo.set_data_stats(data_stats)
                 gen_algo.set_data_source(data_src_cfg)
                 name = f"{gen_algo.name}_{f_id}"
-                gen_algo.pre_check_skip_algo()
-                if gen_algo.skip_bundlegen:
-                    logger.info(f'{name} is skipped! {gen_algo.skip_info}')
+                skip_bundlegen, skip_info = gen_algo.pre_check_skip_algo()
+                if skip_bundlegen:
+                    logger.info(f'{name} is skipped! {skip_info}')
                     continue
                 if gpu_customization:
                     gen_algo.export_to_disk(
