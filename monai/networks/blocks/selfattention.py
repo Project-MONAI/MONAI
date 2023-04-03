@@ -60,7 +60,7 @@ class SABlock(nn.Module):
         q, k, v = output[0], output[1], output[2]
         att_mat = (torch.einsum("blxd,blyd->blxy", q, k) * self.scale).softmax(dim=-1)
         if self.save_attn:
-            # no gradients and new tensor; 
+            # no gradients and new tensor;
             # https://pytorch.org/docs/stable/generated/torch.Tensor.detach.html
             self.att_mat = att_mat.detach()
         att_mat = self.drop_weights(att_mat)

@@ -55,7 +55,7 @@ class TestResBlock(unittest.TestCase):
     def test_access_attn_matrix(self):
         # input format 
         hidden_size = 128
-        num_heads = 2 
+        num_heads = 2
         dropout_rate = 0
         input_shape = (2, 256, hidden_size)
         
