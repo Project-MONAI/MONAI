@@ -234,8 +234,7 @@ class Transform(ABC):
 
           #. string data without shape, `LoadImage` transform expects file paths,
           #. most of the pre-/post-processing transforms expect: ``(num_channels, spatial_dim_1[, spatial_dim_2, ...])``,
-             except for example: `AddChannel` expects (spatial_dim_1[, spatial_dim_2, ...]) and
-             `AsChannelFirst` expects (spatial_dim_1[, spatial_dim_2, ...], num_channels),
+             except for example: `AddChannel` expects (spatial_dim_1[, spatial_dim_2, ...])
 
         - the channel dimension is often not omitted even if number of channels is one.
 
@@ -390,8 +389,7 @@ class MapTransform(Transform):
 
           #. string data without shape, `LoadImaged` transform expects file paths,
           #. most of the pre-/post-processing transforms expect: ``(num_channels, spatial_dim_1[, spatial_dim_2, ...])``,
-             except for example: `AddChanneld` expects (spatial_dim_1[, spatial_dim_2, ...]) and
-             `AsChannelFirstd` expects (spatial_dim_1[, spatial_dim_2, ...], num_channels)
+             except for example: `AddChanneld` expects (spatial_dim_1[, spatial_dim_2, ...])
 
         - the channel dimension is often not omitted even if number of channels is one.
 

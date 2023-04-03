@@ -36,7 +36,6 @@ from monai.transforms.utility.array import (
     AddChannel,
     AddCoordinateChannels,
     AddExtremePointsChannel,
-    AsChannelFirst,
     AsChannelLast,
     CastToType,
     ClassesToIndices,
@@ -81,9 +80,6 @@ __all__ = [
     "AddExtremePointsChannelD",
     "AddExtremePointsChannelDict",
     "AddExtremePointsChanneld",
-    "AsChannelFirstD",
-    "AsChannelFirstDict",
-    "AsChannelFirstd",
     "AsChannelLastD",
     "AsChannelLastDict",
     "AsChannelLastd",
@@ -218,31 +214,6 @@ class Identityd(MapTransform):
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.identity(d[key])
-        return d
-
-
-class AsChannelFirstd(MapTransform):
-    """
-    Dictionary-based wrapper of :py:class:`monai.transforms.AsChannelFirst`.
-    """
-
-    backend = AsChannelFirst.backend
-
-    def __init__(self, keys: KeysCollection, channel_dim: int = -1, allow_missing_keys: bool = False) -> None:
-        """
-        Args:
-            keys: keys of the corresponding items to be transformed.
-                See also: :py:class:`monai.transforms.compose.MapTransform`
-            channel_dim: which dimension of input image is the channel, default is the last dimension.
-            allow_missing_keys: don't raise exception if key is missing.
-        """
-        super().__init__(keys, allow_missing_keys)
-        self.converter = AsChannelFirst(channel_dim=channel_dim)
-
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
-        d = dict(data)
-        for key in self.key_iterator(d):
-            d[key] = self.converter(d[key])
         return d
 
 
@@ -1824,7 +1795,6 @@ class RandImageFilterd(MapTransform, RandomizableTransform):
 RandImageFilterD = RandImageFilterDict = RandImageFilterd
 ImageFilterD = ImageFilterDict = ImageFilterd
 IdentityD = IdentityDict = Identityd
-AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
 AddChannelD = AddChannelDict = AddChanneld
 EnsureChannelFirstD = EnsureChannelFirstDict = EnsureChannelFirstd

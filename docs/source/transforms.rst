@@ -967,12 +967,6 @@ Utility
     :members:
     :special-members: __call__
 
-`AsChannelFirst`
-""""""""""""""""
-.. autoclass:: AsChannelFirst
-    :members:
-    :special-members: __call__
-
 `AsChannelLast`
 """""""""""""""
 .. autoclass:: AsChannelLast
@@ -1918,12 +1912,6 @@ Utility (Dict)
 `Identityd`
 """""""""""
 .. autoclass:: Identityd
-    :members:
-    :special-members: __call__
-
-`AsChannelFirstd`
-"""""""""""""""""
-.. autoclass:: AsChannelFirstd
     :members:
     :special-members: __call__
 

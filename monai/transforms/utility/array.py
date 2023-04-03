@@ -77,7 +77,6 @@ cp, has_cp = optional_import("cupy")
 __all__ = [
     "Identity",
     "RandIdentity",
-    "AsChannelFirst",
     "AsChannelLast",
     "AddChannel",
     "AddCoordinateChannels",
@@ -140,38 +139,6 @@ class RandIdentity(RandomizableTrait):
 
     def __call__(self, data: Any) -> Any:
         return data
-
-
-@deprecated(since="0.8", msg_suffix="please use MetaTensor data type and monai.transforms.EnsureChannelFirst instead.")
-class AsChannelFirst(Transform):
-    """
-    Change the channel dimension of the image to the first dimension.
-
-    Most of the image transformations in ``monai.transforms``
-    assume the input image is in the channel-first format, which has the shape
-    (num_channels, spatial_dim_1[, spatial_dim_2, ...]).
-
-    This transform could be used to convert, for example, a channel-last image array in shape
-    (spatial_dim_1[, spatial_dim_2, ...], num_channels) into the channel-first format,
-    so that the multidimensional image array can be correctly interpreted by the other transforms.
-
-    Args:
-        channel_dim: which dimension of input image is the channel, default is the last dimension.
-    """
-
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
-
-    def __init__(self, channel_dim: int = -1) -> None:
-        if not (isinstance(channel_dim, int) and channel_dim >= -1):
-            raise ValueError(f"invalid channel dimension ({channel_dim}).")
-        self.channel_dim = channel_dim
-
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
-        """
-        Apply the transform to `img`.
-        """
-        out: NdarrayOrTensor = convert_to_tensor(moveaxis(img, self.channel_dim, 0), track_meta=get_track_meta())
-        return out
 
 
 class AsChannelLast(Transform):
