@@ -3060,7 +3060,7 @@ class GridPatch(Transform, MultiSampleTrait):
         n_dims = len(image_np.shape)
         idx = argwhere(image_np.sum(tuple(range(1, n_dims))) < self.threshold).reshape(-1)
         idx_np = convert_data_type(idx, np.ndarray)[0]
-        return image_np[idx], locations[idx_np]  # type: ignore
+        return image_np[idx], locations[idx_np]
 
     def filter_count(self, image_np: NdarrayOrTensor, locations: np.ndarray) -> tuple[NdarrayOrTensor, np.ndarray]:
         """
@@ -3083,7 +3083,7 @@ class GridPatch(Transform, MultiSampleTrait):
                 raise ValueError(f'`sort_fn` should be either "min", "max" or None! {self.sort_fn} provided!')
             idx = idx[: self.num_patches]
             idx_np = convert_data_type(idx, np.ndarray)[0]
-            image_np = image_np[idx]  # type: ignore
+            image_np = image_np[idx]
             locations = locations[idx_np]
         return image_np, locations
 
