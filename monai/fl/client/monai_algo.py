@@ -295,7 +295,6 @@ class MonaiAlgoStats(ClientAlgoStats):
 class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
     """
     Implementation of ``ClientAlgo`` to allow federated learning with MONAI bundle configurations.
-    FIXME: reimplement this class based on the bundle "ConfigWorkflow".
 
     Args:
         bundle_root: directory path of the bundle.
