@@ -513,8 +513,6 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
 
         if extra is None:
             extra = {}
-        if self.train_workflow is None or self.trainer is None:
-            raise ValueError("self.trainer should not be None.")
 
         # by default return current weights, return best if requested via model type.
         self.phase = FlPhase.GET_WEIGHTS
@@ -541,21 +539,26 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
                     f"Requested model type {model_type} not specified in `model_filepaths`: {self.model_filepaths}"
                 )
         else:
-            weights = get_state_dict(self.trainer.network)
-            # returned weights will be on the cpu
-            for k in weights.keys():
-                weights[k] = weights[k].cpu()
-            weigh_type = WeightType.WEIGHTS
-            stats = self.trainer.get_stats()
-            # calculate current iteration and epoch data after training.
-            stats[FlStatistics.NUM_EXECUTED_ITERATIONS] = self.trainer.state.iteration - self.iter_of_start_time
-            # compute weight differences
-            if self.send_weight_diff:
-                weights = compute_weight_diff(global_weights=self.global_weights, local_var_dict=weights)
-                weigh_type = WeightType.WEIGHT_DIFF
-                self.logger.info("Returning current weight differences.")
+            if self.trainer:
+                weights = get_state_dict(self.trainer.network)
+                # returned weights will be on the cpu
+                for k in weights.keys():
+                    weights[k] = weights[k].cpu()
+                weigh_type = WeightType.WEIGHTS
+                stats = self.trainer.get_stats()
+                # calculate current iteration and epoch data after training.
+                stats[FlStatistics.NUM_EXECUTED_ITERATIONS] = self.trainer.state.iteration - self.iter_of_start_time
+                # compute weight differences
+                if self.send_weight_diff:
+                    weights = compute_weight_diff(global_weights=self.global_weights, local_var_dict=weights)
+                    weigh_type = WeightType.WEIGHT_DIFF
+                    self.logger.info("Returning current weight differences.")
+                else:
+                    self.logger.info("Returning current weights.")
             else:
-                self.logger.info("Returning current weights.")
+                weights = None
+                weigh_type = None
+                stats = dict()
 
         if not isinstance(stats, dict):
             raise ValueError(f"stats is not a dict, {stats}")
