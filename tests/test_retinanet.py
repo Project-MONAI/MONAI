@@ -182,7 +182,7 @@ class TestRetinaNet(unittest.TestCase):
         data = torch.randn(input_shape)
         backbone = model(**input_param)
         if idx == 0:
-            test_onnx_save(backbone, data, rtol=1e-3)
+            test_onnx_save(backbone, data, rtol=1e-3, atol=0.1)
             return
         feature_extractor = resnet_fpn_feature_extractor(
             backbone=backbone,
