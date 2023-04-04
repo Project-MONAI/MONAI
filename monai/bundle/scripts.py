@@ -1033,7 +1033,7 @@ def onnx_export(
             weights. if not nested checkpoint, no need to set.
         use_trace: whether using `torch.jit.trace` to convert the pytorch model to torchscript model.
         input_shape: a shape used to generate the random input of the network, when converting the model to an
-            onnx model.Should be a list like [N, C, H, W] or [N, C, H, W, D]. If not given, will try to parse from
+            onnx model. Should be a list like [N, C, H, W] or [N, C, H, W, D]. If not given, will try to parse from
             the `metadata` config.
         args_file: a JSON or YAML file to provide default values for all the parameters of this function, so that
             the command line inputs can be simplified.
@@ -1144,7 +1144,7 @@ def ckpt_export(
             weights. if not nested checkpoint, no need to set.
         use_trace: whether using `torch.jit.trace` to convert the pytorch model to torchscript model.
         input_shape: a shape used to generate the random input of the network, when converting the model to a
-            torchscript model.Should be a list like [N, C, H, W] or [N, C, H, W, D]. If not given, will try to
+            torchscript model. Should be a list like [N, C, H, W] or [N, C, H, W, D]. If not given, will try to
             parse from the `metadata` config.
         args_file: a JSON or YAML file to provide default values for all the parameters of this function, so that
             the command line inputs can be simplified.
