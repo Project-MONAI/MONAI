@@ -1306,6 +1306,7 @@ class ClassesToIndicesd(MapTransform, MultiSampleTrait):
         image_threshold: if enabled image_key, use ``image > image_threshold`` to determine the valid image content
             area and select only the indices of classes in this area.
         output_shape: expected shape of output indices. if not None, unravel indices to specified shape.
+        max_indices_per_class: optional maximum length of indices in each class to reduce memory consumption
         allow_missing_keys: don't raise exception if key is missing.
 
     """
@@ -1320,18 +1321,28 @@ class ClassesToIndicesd(MapTransform, MultiSampleTrait):
         image_key: str | None = None,
         image_threshold: float = 0.0,
         output_shape: Sequence[int] | None = None,
+        max_indices_per_class: int | None = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.indices_postfix = indices_postfix
         self.image_key = image_key
+        self.max_indices_per_class = max_indices_per_class
         self.converter = ClassesToIndices(num_classes, image_threshold, output_shape)
 
     def __call__(self, data: Mapping[Hashable, Any]):
         d = dict(data)
         image = d[self.image_key] if self.image_key else None
         for key in self.key_iterator(d):
-            d[str(key) + self.indices_postfix] = self.converter(d[key], image)
+            out = self.converter(d[key], image)
+
+            if self.max_indices_per_class is not None:
+                for c in range(len(out)):
+                    if len(out[c]) > self.max_indices_per_class:
+                        ind = np.random.choice(len(out[c]), size=self.max_indices_per_class, replace=False)
+                        out[c] = out[c][ind]
+
+            d[str(key) + self.indices_postfix] = out
 
         return d
 
