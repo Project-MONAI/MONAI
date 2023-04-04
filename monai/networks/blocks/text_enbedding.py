@@ -24,7 +24,7 @@ class TextEncoder(nn.Module):
 
     Connecting text and medical 3D image, based on: "Liu et al.,
     CLIP-Driven Universal Model for Organ Segmentation and Tumor Detection <https://arxiv.org/pdf/2301.00785.pdf>"
-    """    
+    """
     def __init__(
         self,
         out_channels: int,
@@ -56,6 +56,3 @@ class TextEncoder(nn.Module):
             # text embedding as random initialized 'rand_embedding'
             task_encoding = self.text_embedding.weight.unsqueeze(2).unsqueeze(2).unsqueeze(2)
         return task_encoding
-
-
-
