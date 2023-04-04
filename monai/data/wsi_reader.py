@@ -144,6 +144,32 @@ class BaseWSIReader(ImageReader):
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
+    def _find_closest_level(
+        self, name: str, value: tuple, value_at_levels: Sequence[tuple], atol: float, rtol: float
+    ) -> int:
+        """Find the level corresponding to the value of the quantity in the list of values at each level.
+        Args:
+            name: the name of the requested quantity
+            value: the value of requested quantity
+            value_at_levels: list of value of the quantity at each level
+            atol: the tolerance for the value
+            rtol: relative tolerance for the value
+        """
+        if value in value_at_levels:
+            return value_at_levels.index(value)
+
+        closest_value = min(value_at_levels, key=lambda a_value: sum([abs(x - y) for x, y in zip(a_value, value)]))  # type: ignore
+        for i in range(len(value)):
+            if abs(closest_value[i] - value[i]) > atol + rtol * abs(value[i]):
+                raise ValueError(
+                    f"The requested {name} < {value} > does not exist in this whole slide image "
+                    f"(with {name}_rtol={rtol} and {name}_atol={atol}). "
+                    f"Here is the list of available {name}: {value_at_levels}. "
+                    f"The closest matching available {name} is {closest_value}."
+                    f"Please consider changing the tolerances or use another {name}."
+                )
+        return value_at_levels.index(closest_value)
+
     def get_valid_level(
         self, wsi, level: int | None, mpp: float | tuple[float, float] | None, power: int | None
     ) -> int:
@@ -172,38 +198,13 @@ class BaseWSIReader(ImageReader):
         n_levels = self.get_level_count(wsi)
 
         if mpp is not None:
-            mpp_: tuple[float, float] = ensure_tuple_rep(mpp, 2)  # type: ignore
+            mpp_ = ensure_tuple_rep(mpp, 2)
             available_mpps = [self.get_mpp(wsi, level) for level in range(n_levels)]
-            if mpp_ in available_mpps:
-                valid_mpp = mpp_
-            else:
-                valid_mpp = min(available_mpps, key=lambda x: abs(x[0] - mpp_[0]) + abs(x[1] - mpp_[1]))
-                for i in range(2):
-                    if abs(valid_mpp[i] - mpp_[i]) > self.mpp_atol + self.mpp_rtol * abs(mpp_[i]):
-                        raise ValueError(
-                            f"The requested mpp {mpp_} does not exist in this whole slide image "
-                            f"(with mpp_rtol={self.mpp_rtol} and mpp_atol={self.mpp_atol}). "
-                            f"Here is the list of available mpps: {available_mpps}. "
-                            f"The closest matching available mpp is {valid_mpp}."
-                            "Please consider changing the tolerances or use another mpp."
-                        )
-            level = available_mpps.index(valid_mpp)
-
+            level = self._find_closest_level("mpp", mpp_, available_mpps, self.mpp_atol, self.mpp_rtol)
         elif power is not None:
-            available_powers = [self.get_power(wsi, level) for level in range(n_levels)]
-            if power in available_powers:
-                valid_power = power
-            else:
-                valid_power = min(available_powers, key=lambda x: abs(x - power))  # type: ignore
-                if abs(valid_power - power) > self.power_atol + self.power_rtol * abs(power):
-                    raise ValueError(
-                        f"The requested power ({power}) does not exist in this whole slide image "
-                        f"(with power_rtol={self.power_rtol} and power_atol={self.power_atol})."
-                        f"Here is the list of available objective powers: {available_powers}. "
-                        f" The closest matching available power is {valid_power}."
-                        "Please consider changing the tolerances or use another power."
-                    )
-            level = available_powers.index(valid_power)
+            power_ = ensure_tuple(power)
+            available_powers = [(self.get_power(wsi, level),) for level in range(n_levels)]
+            level = self._find_closest_level("power", power_, available_powers, self.power_atol, self.power_rtol)
         else:
             if level is None:
                 # Set the default value if no resolution parameter is provided.
