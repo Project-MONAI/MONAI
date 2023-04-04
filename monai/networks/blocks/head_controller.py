@@ -18,12 +18,12 @@ class HeadController(nn.Module):
     """
     Text-based controller for segmentation outputs, the text-driven segmentor enables for optional outputs instead of
     fixed output channels. Users can choose and control the number and name of output channels from a mult-class segmentation
-    model. This can enabble incremental learning by adding new classes to a existing pre-trained model without 
+    model. This can enabble incremental learning by adding new classes to a existing pre-trained model without
     catatrophic forgetting.
-    
+
     Text-dirven segmentor, based on: "Liu et al.,
     CLIP-Driven Universal Model for Organ Segmentation and Tumor Detection <https://arxiv.org/pdf/2301.00785.pdf>"
-    """    
+    """
     def __init__(
         self,
         task_encoding: str,
@@ -113,7 +113,7 @@ class HeadController(nn.Module):
             x_cond = torch.cat([x_feat[i].unsqueeze(0).repeat(self.class_num,1,1,1,1), self.task_encoding], 1)
             params = self.controller(x_cond)
             params.squeeze_(-1).squeeze_(-1).squeeze_(-1)
-            
+
             head_inputs = self.precls_conv(out[i].unsqueeze(0))
             head_inputs = head_inputs.repeat(self.class_num,1,1,1,1)
             N, _, D, H, W = head_inputs.size()
@@ -122,9 +122,6 @@ class HeadController(nn.Module):
 
             logits = self.heads_forward(head_inputs, weights, biases, N)
             logits_array.append(logits.reshape(1, -1, D, H, W))
-        
+
         out = torch.cat(logits_array,dim=0)
         return out
-
-
-
