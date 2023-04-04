@@ -24,7 +24,7 @@ class TextEncoder(nn.Module):
 
     Connecting text and medical 3D image, based on: "Liu et al.,
     CLIP-Driven Universal Model for Organ Segmentation and Tumor Detection <https://arxiv.org/pdf/2301.00785.pdf>"
-    """
+    """    
     def __init__(
         self,
         out_channels: int,
@@ -39,6 +39,7 @@ class TextEncoder(nn.Module):
             hidden_size: dimension of hidden features, compatible to different vision feature dimensions.
             encoding: the text embedding type, default to use clip text pretrained weights
         """
+        super().__init__()
         self.encoding = encoding
 
         if self.encoding == 'rand_embedding':
@@ -49,9 +50,12 @@ class TextEncoder(nn.Module):
 
     def forward(self):
         if self.encoding == 'clip_embedding':
-            task_encoding = nn.function.relu(self.text_to_vision(self.organ_embedding))
+            task_encoding = nn.functional.relu(self.text_to_vision(self.text_embedding))
             task_encoding = task_encoding.unsqueeze(2).unsqueeze(2).unsqueeze(2)
         else:
             # text embedding as random initialized 'rand_embedding'
             task_encoding = self.text_embedding.weight.unsqueeze(2).unsqueeze(2).unsqueeze(2)
         return task_encoding
+
+
+
