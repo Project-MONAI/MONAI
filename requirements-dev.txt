@@ -51,4 +51,4 @@ nni
 optuna
 git+https://github.com/Project-MONAI/MetricsReloaded@monai-support#egg=MetricsReloaded
 onnx>=1.13.0
-onnxruntime
+onnxruntime; python_version <= '3.10'
