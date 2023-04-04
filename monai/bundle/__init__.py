@@ -24,6 +24,7 @@ from .scripts import (
     init_bundle,
     load,
     run,
+    run_workflow,
     trt_export,
     verify_metadata,
     verify_net_in_out,

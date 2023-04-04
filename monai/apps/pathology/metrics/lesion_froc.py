@@ -17,7 +17,7 @@ import numpy as np
 
 from monai.apps.pathology.utils import PathologyProbNMS, compute_isolated_tumor_cells, compute_multi_instance_mask
 from monai.config import NdarrayOrTensor
-from monai.data.image_reader import WSIReader
+from monai.data.wsi_reader import WSIReader
 from monai.metrics import compute_fp_tp_probs, compute_froc_curve_data, compute_froc_score
 from monai.utils import min_version, optional_import
 
