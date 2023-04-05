@@ -259,7 +259,11 @@ class DataAnalyzer:
         return result
 
     def _get_all_case_stats(
-        self, rank: int = 0, world_size: int = 1, manager_list=None, key="training", transform_list=None
+        self, rank: int = 0,
+        world_size: int = 1,
+        manager_list: list | None = None,
+        key="training",
+        transform_list: list | None = None,
     ):
         """
         Get all case stats from a partitioned datalist. The function can only be called internally by get_all_case_stats.
@@ -312,7 +316,7 @@ class DataAnalyzer:
             pin_memory=self.device.type == "cuda",
         )
         result_bycase: dict[DataStatsKeys, Any] = {DataStatsKeys.SUMMARY: {}, DataStatsKeys.BY_CASE: []}
-        device = self.device if self.device.type == "cpu" else torch.device(f"cuda", rank)
+        device = self.device if self.device.type == "cpu" else torch.device("cuda", rank)
         if not has_tqdm:
             warnings.warn("tqdm is not installed. not displaying the caching progress.")
 
