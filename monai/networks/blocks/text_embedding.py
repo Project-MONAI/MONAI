@@ -50,12 +50,12 @@ class TextEncoder(nn.Module):
 
     def forward(self):
         if self.encoding == 'clip_embedding':
-            task_encoding = nn.functional.relu(self.text_to_vision(self.text_embedding))
-            task_encoding = task_encoding.unsqueeze(2).unsqueeze(2).unsqueeze(2)
+            test_encoding = nn.functional.relu(self.text_to_vision(self.text_embedding))
+            test_encoding = test_encoding.unsqueeze(2).unsqueeze(2).unsqueeze(2)
         else:
             # text embedding as random initialized 'rand_embedding'
-            task_encoding = self.text_embedding.weight.unsqueeze(2).unsqueeze(2).unsqueeze(2)
-        return task_encoding
+            test_encoding = self.text_embedding.weight.unsqueeze(2).unsqueeze(2).unsqueeze(2)
+        return test_encoding
 
 
 
