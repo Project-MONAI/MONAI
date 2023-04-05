@@ -80,7 +80,7 @@ class BundleAlgo(Algo):
         # track records when filling template config: {"<config name>": {"<placeholder key>": value, ...}, ...}
         self.fill_records: dict = {}
 
-    def pre_check_skip_algo(self, skip_bundlegen: bool = False, skip_info: str = ""):
+    def pre_check_skip_algo(self, skip_bundlegen: bool = False, skip_info: str = "") -> tuple[bool, str]:
         """
         Analyse the data analysis report and check if the algorithm needs to be skipped.
         This function is overriden within algo.
