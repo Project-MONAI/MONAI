@@ -788,15 +788,12 @@ def query_memory(n=2):
         print(f"query memory with n={n}")
         p1 = Popen(bash_string.split(), stdout=PIPE)
         output, error = p1.communicate()
-        print(output)
-        print("error", error)
         free_memory = [x.split(",") for x in output.decode("utf-8").split("\n")[:-1]]
         free_memory = np.asarray(free_memory, dtype=float).T
         free_memory[1] += free_memory[0]  # combine 0/1 column measures
         ids = np.lexsort(free_memory)[:n]
     except (TypeError, ValueError, IndexError, OSError):
         ids = range(n) if isinstance(n, int) else []
-    print("query_memory", ids)
     return ",".join(f"{int(x)}" for x in ids)
 
 
@@ -850,5 +847,5 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="util")
     parser.add_argument("-c", "--count", default=2, help="max number of gpus")
     args = parser.parse_args()
-    print("\n", query_memory(args.count), sep="\n")  # print to stdout
+    print("\n", query_memory(int(args.count)), sep="\n")  # print to stdout
     sys.exit(0)
