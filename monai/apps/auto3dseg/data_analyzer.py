@@ -263,9 +263,9 @@ class DataAnalyzer:
         rank: int = 0,
         world_size: int = 1,
         manager_list: list | None = None,
-        key="training",
+        key: str = "training",
         transform_list: list | None = None,
-    ):
+    ) -> Any:
         """
         Get all case stats from a partitioned datalist. The function can only be called internally by get_all_case_stats.
         Args:
