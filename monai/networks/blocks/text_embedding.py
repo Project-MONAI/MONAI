@@ -14,6 +14,7 @@ from __future__ import annotations
 import torch
 from torch import nn
 
+
 class TextEncoder(nn.Module):
     """
     Text to vision encoding by Contrastive Language-Image Pre-training (CLIP) or random embedding.
