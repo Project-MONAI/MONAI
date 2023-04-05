@@ -46,7 +46,6 @@ jobs:
         git config --global --add safe.directory /__w/MONAI/MONAI
         git clean -ffdx
         nvidia-smi
-        python -m tests.utils -c 1
         export CUDA_VISIBLE_DEVICES=$(python -m tests.utils -c 1 | tail -n 1)
         echo $CUDA_VISIBLE_DEVICES
         trap 'if pgrep python; then pkill python; fi;' ERR
@@ -55,6 +54,7 @@ jobs:
         python -c 'import torch; print(torch.rand(5,3, device=torch.device("cuda:0")))'
 
         # test auto3dseg
+        BUILD_MONAI=0 ./runtests.sh --build
         python -m tests.test_auto3dseg_ensemble
         python -m tests.test_auto3dseg_hpo
         python -m tests.test_integration_autorunner
