@@ -58,9 +58,10 @@ from collections.abc import Callable
 import torch.nn.functional as F
 from torch import Tensor, nn
 
+from monai.networks.blocks.convolutions import Convolution
 from monai.networks.layers.factories import Conv, Pool
 
-__all__ = ["ExtraFPNBlock", "LastLevelMaxPool", "LastLevelP6P7", "FeaturePyramidNetwork"]
+__all__ = ["ExtraFPNBlock", "LastLevelMaxPool", "LastLevelP6P7", "FeaturePyramidNetwork", "Daf3dFPN"]
 
 
 class ExtraFPNBlock(nn.Module):
@@ -258,6 +259,74 @@ class FeaturePyramidNetwork(nn.Module):
         if self.extra_blocks is not None:
             results, names = self.extra_blocks(results, x_values, names)
 
+        # make it back an OrderedDict
+        out = OrderedDict(list(zip(names, results)))
+
+        return out
+
+
+class Daf3dFPN(FeaturePyramidNetwork):
+    """
+    Feature Pyramid Network as used in 'Deep Attentive Features for Prostate Segmentation in 3D Transrectal Ultrasound'
+    <https://arxiv.org/pdf/1907.01743.pdf>.
+    Omits 3x3x3 convolution of layer_blocks and interpolates resulting feature maps to be the same size as
+    feature map with highest resolution.
+
+    Args:
+        spatial_dims: 2D or 3D images
+        in_channels_list: number of channels for each feature map that is passed to the module
+        out_channels: number of channels of the FPN representation
+        extra_blocks: if provided, extra operations will be performed.
+            It is expected to take the fpn features, the original
+            features and the names of the original features as input, and returns
+            a new list of feature maps and their corresponding names
+    """
+
+    def __init__(
+        self,
+        spatial_dims: int,
+        in_channels_list: list[int],
+        out_channels: int,
+        extra_blocks: ExtraFPNBlock | None = None,
+    ):
+        super().__init__(spatial_dims, in_channels_list, out_channels, extra_blocks)
+
+        self.inner_blocks = nn.ModuleList()
+        for in_channels in in_channels_list:
+            if in_channels == 0:
+                raise ValueError("in_channels=0 is currently not supported")
+            inner_block_module = Convolution(
+                spatial_dims,
+                in_channels,
+                out_channels,
+                kernel_size=1,
+                adn_ordering="NA",
+                act="PRELU",
+                norm=("group", {"num_groups": 32, "num_channels": 128}),
+            )
+            self.inner_blocks.append(inner_block_module)
+
+    def forward(self, x: dict[str, Tensor]) -> dict[str, Tensor]:
+        # unpack OrderedDict into two lists for easier handling
+        names = list(x.keys())
+        x_values: list[Tensor] = list(x.values())
+
+        last_inner = self.get_result_from_inner_blocks(x_values[-1], -1)
+        results = []
+        results.append(last_inner)
+
+        for idx in range(len(x_values) - 2, -1, -1):
+            inner_lateral = self.get_result_from_inner_blocks(x_values[idx], idx)
+            feat_shape = inner_lateral.shape[2:]
+            inner_top_down = F.interpolate(last_inner, size=feat_shape, mode="trilinear")
+            last_inner = inner_lateral + inner_top_down
+            results.insert(0, last_inner)
+
+        if self.extra_blocks is not None:
+            results, names = self.extra_blocks(results, x_values, names)
+
+        # bring all layers to same size
+        results = [results[0]] + [F.interpolate(l, size=x["feat1"].size()[2:], mode="trilinear") for l in results[1:]]
         # make it back an OrderedDict
         out = OrderedDict(list(zip(names, results)))
 

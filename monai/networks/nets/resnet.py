@@ -34,6 +34,9 @@ __all__ = [
     "resnet101",
     "resnet152",
     "resnet200",
+    "Daf3dResNetBottleneck",
+    "Daf3dResNetDilatedBottleneck",
+    "Daf3dResNet",
 ]
 
 
@@ -152,6 +155,71 @@ class ResNetBottleneck(nn.Module):
         out = self.relu(out)
 
         return out
+
+
+class Daf3dResNetBottleneck(ResNetBottleneck):
+    """
+    ResNetBottleneck block as used in 'Deep Attentive Features for Prostate Segmentation in 3D
+    Transrectal Ultrasound' <https://arxiv.org/pdf/1907.01743.pdf>.
+    Instead of Batch Norm Group Norm is used, instead of ReLU PReLU activation is used.
+    Initial expansion is 2 instead of 4 and second convolution uses groups.
+
+    Args:
+        in_planes: number of input channels.
+        planes: number of output channels (taking expansion into account).
+        spatial_dims: number of spatial dimensions of the input image.
+        stride: stride to use for second conv layer.
+        downsample: which downsample layer to use.
+    """
+
+    expansion = 2
+
+    def __init__(self, in_planes, planes, spatial_dims=3, stride=1, downsample=None):
+        norm_type: Callable = Norm[Norm.GROUP, spatial_dims]
+        conv_type: Callable = Conv[Conv.CONV, spatial_dims]
+
+        # in case downsample uses batch norm, change to group norm
+        if isinstance(downsample, nn.Sequential):
+            downsample = nn.Sequential(
+                conv_type(in_planes, planes * self.expansion, kernel_size=1, stride=stride, bias=False),
+                norm_type(num_groups=32, num_channels=planes * self.expansion),
+            )
+
+        super().__init__(in_planes, planes, spatial_dims, stride, downsample)
+
+        # change norm from batch to group norm
+        self.bn1 = norm_type(num_groups=32, num_channels=planes)
+        self.bn2 = norm_type(num_groups=32, num_channels=planes)
+        self.bn3 = norm_type(num_groups=32, num_channels=planes * self.expansion)
+
+        # adapt second convolution to work with groups
+        self.conv2 = conv_type(planes, planes, kernel_size=3, padding=1, stride=stride, groups=32, bias=False)
+
+        # adapt activation function
+        self.relu = nn.PReLU()
+
+
+class Daf3dResNetDilatedBottleneck(Daf3dResNetBottleneck):
+    """
+    ResNetDilatedBottleneck as used in 'Deep Attentive Features for Prostate Segmentation in 3D
+    Transrectal Ultrasound' <https://arxiv.org/pdf/1907.01743.pdf>.
+    Same as Daf3dResNetBottleneck but dilation of 2 is used in second convolution.
+    Args:
+        in_planes: number of input channels.
+        planes: number of output channels (taking expansion into account).
+        spatial_dims: number of spatial dimensions of the input image.
+        stride: stride to use for second conv layer.
+        downsample: which downsample layer to use.
+    """
+
+    def __init__(self, in_planes, planes, spatial_dims=3, stride=1, downsample=None):
+        super().__init__(in_planes, planes, spatial_dims, stride, downsample)
+
+        # add dilation in second convolution
+        conv_type: Callable = Conv[Conv.CONV, spatial_dims]
+        self.conv2 = conv_type(
+            planes, planes, kernel_size=3, stride=stride, padding=2, dilation=2, groups=32, bias=False
+        )
 
 
 class ResNet(nn.Module):
@@ -427,3 +495,83 @@ def resnet200(pretrained: bool = False, progress: bool = True, **kwargs: Any) ->
         progress (bool): If True, displays a progress bar of the download to stderr
     """
     return _resnet("resnet200", ResNetBottleneck, [3, 24, 36, 3], get_inplanes(), pretrained, progress, **kwargs)
+
+
+class Daf3dResNet(ResNet):
+    """
+    ResNet as used in 'Deep Attentive Features for Prostate Segmentation in 3D Transrectal Ultrasound'
+    <https://arxiv.org/pdf/1907.01743.pdf>.
+    Uses two Daf3dResNetBottleneck blocks followed by two Daf3dResNetDilatedBottleneck blocks.
+
+    Args:
+        layers: how many layers to use.
+        block_inplanes: determine the size of planes at each step. Also tunable with widen_factor.
+        spatial_dims: number of spatial dimensions of the input image.
+        n_input_channels: number of input channels for first convolutional layer.
+        conv1_t_size: size of first convolution layer, determines kernel and padding.
+        conv1_t_stride: stride of first convolution layer.
+        no_max_pool: bool argument to determine if to use maxpool layer.
+        shortcut_type: which downsample block to use. Options are 'A', 'B', default to 'B'.
+            - 'A': using `self._downsample_basic_block`.
+            - 'B': kernel_size 1 conv + norm.
+        widen_factor: widen output for each layer.
+        num_classes: number of output (classifications).
+        feed_forward: whether to add the FC layer for the output, default to `True`.
+        bias_downsample: whether to use bias term in the downsampling block when `shortcut_type` is 'B', default to `True`.
+
+    """
+
+    def __init__(
+        self,
+        layers: list[int],
+        block_inplanes: list[int],
+        spatial_dims: int = 3,
+        n_input_channels: int = 3,
+        conv1_t_size: tuple[int] | int = 7,
+        conv1_t_stride: tuple[int] | int = 1,
+        no_max_pool: bool = False,
+        shortcut_type: str = "B",
+        widen_factor: float = 1.0,
+        num_classes: int = 400,
+        feed_forward: bool = True,
+        bias_downsample: bool = True,  # for backwards compatibility (also see PR #5477)
+    ):
+        super().__init__(
+            ResNetBottleneck,
+            layers,
+            block_inplanes,
+            spatial_dims,
+            n_input_channels,
+            conv1_t_size,
+            conv1_t_stride,
+            no_max_pool,
+            shortcut_type,
+            widen_factor,
+            num_classes,
+            feed_forward,
+            bias_downsample,
+        )
+
+        self.in_planes = 64
+
+        conv_type: Callable = Conv[Conv.CONV, spatial_dims]
+        norm_type: Callable = Norm[Norm.GROUP, spatial_dims]
+
+        # adapt first convolution to work with new in_planes
+        self.conv1 = conv_type(
+            n_input_channels, self.in_planes, kernel_size=7, stride=(1, 2, 2), padding=(3, 3, 3), bias=False
+        )
+        self.bn1 = norm_type(32, 64)
+        self.relu = nn.PReLU()
+
+        # adapt layers to our needs
+        self.layer1 = self._make_layer(Daf3dResNetBottleneck, block_inplanes[0], layers[0], spatial_dims, shortcut_type)
+        self.layer2 = self._make_layer(
+            Daf3dResNetBottleneck, block_inplanes[1], layers[1], spatial_dims, shortcut_type, stride=(1, 2, 2)
+        )
+        self.layer3 = self._make_layer(
+            Daf3dResNetDilatedBottleneck, block_inplanes[2], layers[2], spatial_dims, shortcut_type, stride=1
+        )
+        self.layer4 = self._make_layer(
+            Daf3dResNetDilatedBottleneck, block_inplanes[3], layers[3], spatial_dims, shortcut_type, stride=1
+        )

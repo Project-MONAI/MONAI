@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import math
 from copy import deepcopy
-from typing import Sequence
+from typing import Sequence, Union
 
 import torch
 import torch.nn.functional as F
@@ -47,6 +47,7 @@ __all__ = [
     "Reshape",
     "SavitzkyGolayFilter",
     "SkipConnection",
+    "SkipConnectionWithIdx",
     "apply_filter",
     "median_filter",
     "separable_filtering",
@@ -135,6 +136,29 @@ class SkipConnection(nn.Module):
         if self.mode == "mul":
             return torch.mul(x, y)
         raise NotImplementedError(f"Unsupported mode {self.mode}.")
+
+
+class SkipConnectionWithIdx(SkipConnection):
+    """
+    Combine the forward pass input with the result from the given submodule::
+
+    --+--submodule--o--
+      |_____________|
+
+    The available modes are ``"cat"``, ``"add"``, ``"mul"``.
+    Defaults to "cat" and dimension 1.
+    Inherits from SkipConnection but provides the indizes with each forward pass.
+
+    """
+
+    def __init__(self, submodule, dim: int = 1, mode: Union[str, SkipMode] = "cat") -> None:
+        super().__init__(submodule, dim=dim, mode=mode)
+
+    def forward(self, input, indices):
+        y, _ = self.submodule(input, None)
+        if self.mode == "cat":
+            output = torch.cat((input, y), dim=1)
+            return output, indices
 
 
 class Flatten(nn.Module):
