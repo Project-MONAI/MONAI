@@ -18,6 +18,7 @@ import re
 import warnings
 from collections.abc import Mapping, Sequence
 from pathlib import Path
+from pydoc import locate
 from shutil import copyfile
 from textwrap import dedent
 from typing import Any, Callable
@@ -30,10 +31,17 @@ from monai.apps.utils import _basename, download_url, extractall, get_logger
 from monai.bundle.config_item import ConfigComponent
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA
-from monai.bundle.workflows import ConfigWorkflow
+from monai.bundle.workflows import BundleWorkflow, ConfigWorkflow
 from monai.config import IgniteInfo, PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
-from monai.networks import convert_to_torchscript, convert_to_trt, copy_model_state, get_state_dict, save_state
+from monai.networks import (
+    convert_to_onnx,
+    convert_to_torchscript,
+    convert_to_trt,
+    copy_model_state,
+    get_state_dict,
+    save_state,
+)
 from monai.utils import (
     check_parent_dir,
     deprecated_arg,
@@ -48,6 +56,7 @@ validate, _ = optional_import("jsonschema", name="validate")
 ValidationError, _ = optional_import("jsonschema.exceptions", name="ValidationError")
 Checkpoint, has_ignite = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Checkpoint")
 requests_get, has_requests = optional_import("requests", name="get")
+onnx, _ = optional_import("onnx")
 
 logger = get_logger(module_name=__name__)
 
@@ -635,7 +644,7 @@ def run(
         args_file: a JSON or YAML file to provide default values for `runner_id`, `meta_file`,
             `config_file`, `logging`, and override pairs. so that the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.
-            e.g. ``--net#input_chns 42``.
+            e.g. ``--net#input_chns 42``, ``--net %/data/other.json#net_arg``.
 
     """
 
@@ -676,6 +685,53 @@ def run(
     workflow.initialize()
     workflow.run()
     workflow.finalize()
+
+
+def run_workflow(workflow: str | BundleWorkflow | None = None, args_file: str | None = None, **kwargs: Any) -> None:
+    """
+    Specify `bundle workflow` to run monai bundle components and workflows.
+    The workflow should be suclass of `BundleWorkflow` and be available to import.
+    It can be MONAI existing bundle workflows or user customized workflows.
+
+    Typical usage examples:
+
+    .. code-block:: bash
+
+        # Execute this module as a CLI entry with default ConfigWorkflow:
+        python -m monai.bundle run_workflow --meta_file <meta path> --config_file <config path>
+
+        # Set the workflow to other customized BundleWorkflow subclass:
+        python -m monai.bundle run_workflow --workflow CustomizedWorkflow ...
+
+    Args:
+        workflow: specified bundle workflow name, should be a string or class, default to "ConfigWorkflow".
+        args_file: a JSON or YAML file to provide default values for this API.
+            so that the command line inputs can be simplified.
+        kwargs: arguments to instantiate the workflow class.
+
+    """
+
+    _args = _update_args(args=args_file, workflow=workflow, **kwargs)
+    _log_input_summary(tag="run", args=_args)
+    (workflow_name,) = _pop_args(_args, workflow=ConfigWorkflow)  # the default workflow name is "ConfigWorkflow"
+    if isinstance(workflow_name, str):
+        workflow_class, has_built_in = optional_import("monai.bundle", name=str(workflow_name))  # search built-in
+        if not has_built_in:
+            workflow_class = locate(str(workflow_name))  # search dotted path
+        if workflow_class is None:
+            raise ValueError(f"cannot locate specified workflow class: {workflow_name}.")
+    elif issubclass(workflow_name, BundleWorkflow):
+        workflow_class = workflow_name
+    else:
+        raise ValueError(
+            "Argument `workflow` must be a bundle workflow class name"
+            f"or subclass of BundleWorkflow, got: {workflow_name}."
+        )
+
+    workflow_ = workflow_class(**_args)
+    workflow_.initialize()
+    workflow_.run()
+    workflow_.finalize()
 
 
 def verify_metadata(
@@ -774,6 +830,19 @@ def _get_net_io_info(parser: ConfigParser | None = None, prefix: str = "_meta_#n
     output_dtype = get_equivalent_dtype(parser.get(key), torch.Tensor)
 
     return input_channels, input_spatial_shape, input_dtype, output_channels, output_dtype
+
+
+def _get_fake_input_shape(parser: ConfigParser) -> tuple:
+    """
+    Get a fake input shape e.g. [N, C, H, W] or [N, C, H, W, D], whose batch size is 1, from the given parser.
+
+    Args:
+        parser: a ConfigParser which contains the i/o information of a bundle.
+    """
+    input_channels, input_spatial_shape, _, _, _ = _get_net_io_info(parser=parser)
+    spatial_shape = _get_fake_spatial_shape(input_spatial_shape)
+    input_shape = (1, input_channels, *spatial_shape)
+    return input_shape
 
 
 def verify_net_in_out(
@@ -932,6 +1001,114 @@ def _export(
     logger.info(f"exported to file: {filepath}.")
 
 
+def onnx_export(
+    net_id: str | None = None,
+    filepath: PathLike | None = None,
+    ckpt_file: str | None = None,
+    meta_file: str | Sequence[str] | None = None,
+    config_file: str | Sequence[str] | None = None,
+    key_in_ckpt: str | None = None,
+    use_trace: bool | None = None,
+    input_shape: Sequence[int] | None = None,
+    args_file: str | None = None,
+    converter_kwargs: Mapping | None = None,
+    **override: Any,
+) -> None:
+    """
+    Export the model checkpoint to an onnx model.
+
+    Typical usage examples:
+
+    .. code-block:: bash
+
+        python -m monai.bundle onnx_export network --filepath <export path> --ckpt_file <checkpoint path> ...
+
+    Args:
+        net_id: ID name of the network component in the config, it must be `torch.nn.Module`.
+        filepath: filepath where the onnx model is saved to.
+        ckpt_file: filepath of the model checkpoint to load.
+        meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
+        config_file: filepath of the config file that contains extract network information,
+        key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
+            weights. if not nested checkpoint, no need to set.
+        use_trace: whether using `torch.jit.trace` to convert the pytorch model to torchscript model.
+        input_shape: a shape used to generate the random input of the network, when converting the model to an
+            onnx model. Should be a list like [N, C, H, W] or [N, C, H, W, D]. If not given, will try to parse from
+            the `metadata` config.
+        args_file: a JSON or YAML file to provide default values for all the parameters of this function, so that
+            the command line inputs can be simplified.
+        converter_kwargs: extra arguments that are needed by `convert_to_onnx`, except ones that already exist in the
+            input parameters.
+        override: id-value pairs to override or add the corresponding config content.
+            e.g. ``--_meta#network_data_format#inputs#image#num_channels 3``.
+
+    """
+    _args = _update_args(
+        args=args_file,
+        net_id=net_id,
+        filepath=filepath,
+        meta_file=meta_file,
+        config_file=config_file,
+        ckpt_file=ckpt_file,
+        key_in_ckpt=key_in_ckpt,
+        use_trace=use_trace,
+        input_shape=input_shape,
+        converter_kwargs=converter_kwargs,
+        **override,
+    )
+    _log_input_summary(tag="onnx_export", args=_args)
+    (
+        filepath_,
+        ckpt_file_,
+        config_file_,
+        net_id_,
+        meta_file_,
+        key_in_ckpt_,
+        use_trace_,
+        input_shape_,
+        converter_kwargs_,
+    ) = _pop_args(
+        _args,
+        "filepath",
+        "ckpt_file",
+        "config_file",
+        net_id="",
+        meta_file=None,
+        key_in_ckpt="",
+        use_trace=False,
+        input_shape=None,
+        converter_kwargs={},
+    )
+
+    parser = ConfigParser()
+
+    parser.read_config(f=config_file_)
+    if meta_file_ is not None:
+        parser.read_meta(f=meta_file_)
+
+    # the rest key-values in the _args are to override config content
+    for k, v in _args.items():
+        parser[k] = v
+
+    # The convert_to_onnx must have an `inputs` as input, no matter what the `use_trace` is.
+    # If the `input_shape` is not provided, will try to parse it from the parser to generate a random `inputs`.
+    if not input_shape_:
+        input_shape_ = _get_fake_input_shape(parser=parser)
+
+    inputs_ = [torch.rand(input_shape_)]
+    net = parser.get_parsed_content(net_id_)
+    if has_ignite:
+        # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
+        Checkpoint.load_objects(to_load={key_in_ckpt_: net}, checkpoint=ckpt_file_)
+    else:
+        ckpt = torch.load(ckpt_file_)
+        copy_model_state(dst=net, src=ckpt if key_in_ckpt_ == "" else ckpt[key_in_ckpt_])
+
+    converter_kwargs_.update({"inputs": inputs_, "use_trace": use_trace_})
+    onnx_model = convert_to_onnx(model=net, **converter_kwargs_)
+    onnx.save(onnx_model, filepath_)
+
+
 def ckpt_export(
     net_id: str | None = None,
     filepath: PathLike | None = None,
@@ -942,6 +1119,7 @@ def ckpt_export(
     use_trace: bool | None = None,
     input_shape: Sequence[int] | None = None,
     args_file: str | None = None,
+    converter_kwargs: Mapping | None = None,
     **override: Any,
 ) -> None:
     """
@@ -965,10 +1143,13 @@ def ckpt_export(
         key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
             weights. if not nested checkpoint, no need to set.
         use_trace: whether using `torch.jit.trace` to convert the pytorch model to torchscript model.
-        input_shape: must specify the `input_shape` of the network to convert the model when `use_trace` is True.
-            Should be a list like [N, C, H, W] or [N, C, H, W, D].
-        args_file: a JSON or YAML file to provide default values for `meta_file`, `config_file`,
-            `net_id` and override pairs. so that the command line inputs can be simplified.
+        input_shape: a shape used to generate the random input of the network, when converting the model to a
+            torchscript model. Should be a list like [N, C, H, W] or [N, C, H, W, D]. If not given, will try to
+            parse from the `metadata` config.
+        args_file: a JSON or YAML file to provide default values for all the parameters of this function, so that
+            the command line inputs can be simplified.
+        converter_kwargs: extra arguments that are needed by `convert_to_torchscript`, except ones that already exist
+            in the input parameters.
         override: id-value pairs to override or add the corresponding config content.
             e.g. ``--_meta#network_data_format#inputs#image#num_channels 3``.
 
@@ -983,10 +1164,21 @@ def ckpt_export(
         key_in_ckpt=key_in_ckpt,
         use_trace=use_trace,
         input_shape=input_shape,
+        converter_kwargs=converter_kwargs,
         **override,
     )
     _log_input_summary(tag="ckpt_export", args=_args)
-    filepath_, ckpt_file_, config_file_, net_id_, meta_file_, key_in_ckpt_, use_trace_, input_shape_ = _pop_args(
+    (
+        filepath_,
+        ckpt_file_,
+        config_file_,
+        net_id_,
+        meta_file_,
+        key_in_ckpt_,
+        use_trace_,
+        input_shape_,
+        converter_kwargs_,
+    ) = _pop_args(
         _args,
         "filepath",
         "ckpt_file",
@@ -996,6 +1188,7 @@ def ckpt_export(
         key_in_ckpt="",
         use_trace=False,
         input_shape=None,
+        converter_kwargs={},
     )
 
     parser = ConfigParser()
@@ -1008,8 +1201,14 @@ def ckpt_export(
     for k, v in _args.items():
         parser[k] = v
 
+    # When export through torch.jit.trace without providing input_shape, will try to parse one from the parser.
+    if (not input_shape_) and use_trace:
+        input_shape_ = _get_fake_input_shape(parser=parser)
+
     inputs_: Sequence[Any] | None = [torch.rand(input_shape_)] if input_shape_ else None
 
+    converter_kwargs_.update({"inputs": inputs_, "use_trace": use_trace_})
+    # Use the given converter to convert a model and save with metadata, config content
     _export(
         convert_to_torchscript,
         parser,
@@ -1018,8 +1217,7 @@ def ckpt_export(
         ckpt_file=ckpt_file_,
         config_file=config_file_,
         key_in_ckpt=key_in_ckpt_,
-        use_trace=use_trace_,
-        inputs=inputs_,
+        **converter_kwargs_,
     )
 
 
@@ -1039,11 +1237,12 @@ def trt_export(
     onnx_input_names: Sequence[str] | None = None,
     onnx_output_names: Sequence[str] | None = None,
     args_file: str | None = None,
+    converter_kwargs: Mapping | None = None,
     **override: Any,
 ) -> None:
     """
-    Export the model checkpoint to the given filepath as a TensorRT engine based torchscript.
-    Currently, this API only supports to convert models whose inputs are all tensors.
+    Export the model checkpoint to the given filepath as a TensorRT engine-based torchscript.
+    Currently, this API only supports converting models whose inputs are all tensors.
 
     Typical usage examples:
 
@@ -1054,7 +1253,7 @@ def trt_export(
 
     Args:
         net_id: ID name of the network component in the config, it must be `torch.nn.Module`.
-        filepath: filepath to export, if filename has no extension it becomes `.ts`.
+        filepath: filepath to export, if filename has no extension, it becomes `.ts`.
         ckpt_file: filepath of the model checkpoint to load.
         meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
         config_file: filepath of the config file to save in the TensorRT based torchscript model and extract network
@@ -1065,19 +1264,22 @@ def trt_export(
             weights. if not nested checkpoint, no need to set.
         precision: the weight precision of the converted TensorRT engine based torchscript models. Should be 'fp32' or 'fp16'.
         input_shape: the input shape that is used to convert the model. Should be a list like [N, C, H, W] or
-            [N, C, H, W, D].
-        use_trace: whether to `torch.jit.trace` to convert the pytorch model to torchscript model and then convert to
+            [N, C, H, W, D]. If not given, will try to parse from the `metadata` config.
+        use_trace: whether using `torch.jit.trace` to convert the pytorch model to torchscript model and then convert to
             a TensorRT engine based torchscript model.
-        dynamic_batchsize: a sequence with three elements to define the batch size range of the input for the model to be converted.
-            Should be a sequence like [MIN_BATCH, OPT_BATCH, MAX_BATCH]. After converted, the batchsize of model input should
-            between `MIN_BATCH` and `MAX_BATCH` and the `OPT_BATCH` is the best peformance batchsize that the TensorRT trys to fit.
-            We suggest the `OPT_BATCH` to be the most frequently used input batchsize in your application.
+        dynamic_batchsize: a sequence with three elements to define the batch size range of the input for the model to be
+            converted. Should be a sequence like [MIN_BATCH, OPT_BATCH, MAX_BATCH]. After converted, the batchsize of
+            model input should between `MIN_BATCH` and `MAX_BATCH` and the `OPT_BATCH` is the best performance batchsize
+            that the TensorRT tries to fit. The `OPT_BATCH` should be the most frequently used input batchsize in
+            the application.
         device: the target GPU index to convert and verify the model.
         use_onnx: whether to use the onnx-tensorrt way to export the TensorRT engine-based torchscript model.
         onnx_input_names: optional input names of the ONNX model.
         onnx_output_names: optional output names of the ONNX model.
-        args_file: a JSON or YAML file to provide default values for `meta_file`, `config_file`,
-            `net_id` and override pairs. so that the command line inputs can be simplified.
+        args_file: a JSON or YAML file to provide default values for all the parameters of this function, so that
+            the command line inputs can be simplified.
+        converter_kwargs: extra arguments that are needed by `convert_to_trt`, except ones that already exist in the
+            input parameters.
         override: id-value pairs to override or add the corresponding config content.
             e.g. ``--_meta#network_data_format#inputs#image#num_channels 3``.
 
@@ -1098,6 +1300,7 @@ def trt_export(
         use_onnx=use_onnx,
         onnx_input_names=onnx_input_names,
         onnx_output_names=onnx_output_names,
+        converter_kwargs=converter_kwargs,
         **override,
     )
     _log_input_summary(tag="trt_export", args=_args)
@@ -1116,6 +1319,7 @@ def trt_export(
         use_onnx_,
         onnx_input_names_,
         onnx_output_names_,
+        converter_kwargs_,
     ) = _pop_args(
         _args,
         "filepath",
@@ -1132,6 +1336,7 @@ def trt_export(
         use_onnx=False,
         onnx_input_names=["input_0"],
         onnx_output_namess=["output_0"],
+        converter_kwargs={},
     )
 
     parser = ConfigParser()
@@ -1144,10 +1349,19 @@ def trt_export(
     for k, v in _args.items():
         parser[k] = v
 
+    # The convert_to_trt must have an `input_shape_` as input, no matter what the `use_trace` is.
+    # If the `input_shape` is not provided, will try to parse it from the parser`.
     if not input_shape_:
-        input_channels, input_spatial_shape, _, _, _ = _get_net_io_info(parser=parser)
-        spatial_shape = _get_fake_spatial_shape(input_spatial_shape, p=1, n=1, any=1)
-        input_shape_ = (1, input_channels, *spatial_shape)
+        input_shape_ = _get_fake_input_shape(parser=parser)
+
+    trt_api_parameters = {
+        "precision": precision_,
+        "input_shape": input_shape_,
+        "dynamic_batchsize": dynamic_batchsize_,
+        "use_trace": use_trace_,
+        "device": device_,
+    }
+    converter_kwargs_.update(trt_api_parameters)
 
     _export(
         convert_to_trt,
@@ -1157,11 +1371,7 @@ def trt_export(
         ckpt_file=ckpt_file_,
         config_file=config_file_,
         key_in_ckpt=key_in_ckpt_,
-        precision=precision_,
-        input_shape=input_shape_,
-        dynamic_batchsize=dynamic_batchsize_,
-        use_trace=use_trace_,
-        device=device_,
+        **converter_kwargs_,
         use_onnx=use_onnx_,
         onnx_input_names=onnx_input_names_,
         onnx_output_names=onnx_output_names_,
