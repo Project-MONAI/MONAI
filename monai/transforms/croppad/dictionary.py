@@ -962,7 +962,8 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSa
             unchanged.
         allow_missing_keys: don't raise exception if key is missing.
         warn: if `True` prints a warning if a class is not present in the label.
-
+        max_samples_per_class: maximum length of indices in each class to reduce memory consumption.
+            Default is None, no subsampling.
 
     """
 
@@ -982,6 +983,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSa
         allow_smaller: bool = False,
         allow_missing_keys: bool = False,
         warn: bool = True,
+        max_samples_per_class: int | None = None,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.label_key = label_key
@@ -995,6 +997,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSa
             image_threshold=image_threshold,
             allow_smaller=allow_smaller,
             warn=warn,
+            max_samples_per_class=max_samples_per_class,
         )
 
     def set_random_state(
