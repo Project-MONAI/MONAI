@@ -380,7 +380,7 @@ def map_classes_to_indices(
             label_flat = img_flat & label_flat
         # no need to save the indices in GPU, otherwise, still need to move to CPU at runtime when crop by indices
         cls_indices: NdarrayOrTensor = convert_data_type(nonzero(label_flat), device=torch.device("cpu"))[0]
-        if max_samples_per_class and len(cls_indices) > max_samples_per_class:
+        if max_samples_per_class and len(cls_indices) > max_samples_per_class and len(cls_indices) > 1:
             sample_id = np.round(np.linspace(0, len(cls_indices) - 1, max_samples_per_class)).astype(int)
             indices.append(cls_indices[sample_id])
         else:
