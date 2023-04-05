@@ -49,7 +49,7 @@ jobs:
         export CUDA_VISIBLE_DEVICES=$(python -m tests.utils -c 1 | tail -n 1)
         echo $CUDA_VISIBLE_DEVICES
         trap 'if pgrep python; then pkill python; fi;' ERR
-        python -c $'import torch\na,b=torch.zeros(1,device="cuda:0"),torch.zeros(1,device="cuda:1");\nwhile True:print(a,b)' > /dev/null &
+        python -c $'import torch\na=[torch.zeros(1,device=f"cuda:{i}") for i in range(torch.cuda.device_count())];\nwhile True:print(a)' > /dev/null &
         python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
         python -c 'import torch; print(torch.rand(5,3, device=torch.device("cuda:0")))'
 
