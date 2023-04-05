@@ -15,6 +15,7 @@ import os
 
 from monai.apps.auto3dseg.bundle_gen import BundleAlgo
 from monai.auto3dseg import algo_from_pickle, algo_to_pickle
+from monai.utils.enums import AlgoEnsembleKeys
 
 
 def import_bundle_algo_history(
@@ -48,18 +49,11 @@ def import_bundle_algo_history(
         if isinstance(algo, BundleAlgo):  # algo's template path needs override
             algo.template_path = algo_meta_data["template_path"]
 
-        best_metrics = "best_metrics"
-        is_trained = best_metrics in algo_meta_data
+        best_metric = algo_meta_data.get(AlgoEnsembleKeys.SCORE, None)
+        is_trained = best_metric is not None
 
         if (only_trained and is_trained) or not only_trained:
-            history.append(
-                {
-                    "name": name,
-                    "algo": algo,
-                    "is_trained": is_trained,
-                    best_metrics: algo_meta_data.get(best_metrics, None),
-                }
-            )
+            history.append({"name": name, "algo": algo, "is_trained": is_trained, AlgoEnsembleKeys.SCORE: best_metric})
 
     return history
 

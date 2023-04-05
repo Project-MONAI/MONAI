@@ -639,7 +639,9 @@ class AutoRunner:
             algo = algo_dict["algo"]
             algo.train(self.train_params)
             acc = algo.get_score()
-            algo_to_pickle(algo, template_path=algo.template_path, best_metrics=acc)
+
+            algo_meta_data = {AlgoEnsembleKeys.SCORE: acc}
+            algo_to_pickle(algo, template_path=algo.template_path, **algo_meta_data)
 
     def _train_algo_in_nni(self, history: list[dict[str, Any]]) -> None:
         """

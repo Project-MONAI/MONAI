@@ -23,6 +23,7 @@ from monai.auto3dseg import Algo, AlgoGen, algo_from_pickle, algo_to_pickle
 from monai.bundle.config_parser import ConfigParser
 from monai.config import PathLike
 from monai.utils import optional_import
+from monai.utils.enums import AlgoEnsembleKeys
 
 nni, has_nni = optional_import("nni")
 optuna, has_optuna = optional_import("optuna")
@@ -237,10 +238,12 @@ class NNIGen(HPOGen):
         self.algo.train(self.params)
         # step 4 report validation acc to controller
         acc = self.algo.get_score()
+        algo_meta_data = {AlgoEnsembleKeys.SCORE: acc}
+
         if isinstance(self.algo, BundleAlgo):
-            algo_to_pickle(self.algo, template_path=self.algo.template_path, best_metrics=acc)
+            algo_to_pickle(self.algo, template_path=self.algo.template_path, **algo_meta_data)
         else:
-            algo_to_pickle(self.algo, best_metrics=acc)
+            algo_to_pickle(self.algo, **algo_meta_data)
         self.set_score(acc)
 
 
@@ -408,8 +411,9 @@ class OptunaGen(HPOGen):
         self.algo.train(self.params)
         # step 4 report validation acc to controller
         acc = self.algo.get_score()
+        algo_meta_data = {AlgoEnsembleKeys.SCORE: acc}
         if isinstance(self.algo, BundleAlgo):
-            algo_to_pickle(self.algo, template_path=self.algo.template_path, best_metrics=acc)
+            algo_to_pickle(self.algo, template_path=self.algo.template_path, **algo_meta_data)
         else:
-            algo_to_pickle(self.algo, best_metrics=acc)
+            algo_to_pickle(self.algo, **algo_meta_data)
         self.set_score(acc)
