@@ -281,7 +281,7 @@ class AutoRunner:
         # determine if we need to analyze, algo_gen or train from cache, unless manually provided
         self.analyze = not self.cache["analyze"] if analyze is None else analyze
         self.algo_gen = not self.cache["algo_gen"] if algo_gen is None else algo_gen
-        self.train = not self.cache["train"] if train is None else train
+        self.train = train
         self.ensemble = ensemble  # last step, no need to check
 
         self.set_training_params()
@@ -718,6 +718,10 @@ class AutoRunner:
                 self.datalist_filename, self.dataroot, output_path=self.datastats_filename, **self.analyze_params
             )
             da.get_all_case_stats()
+
+            da = None  # type: ignore
+            torch.cuda.empty_cache()
+
             self.export_cache(analyze=True, datastats=self.datastats_filename)
         else:
             logger.info("Skipping data analysis...")
@@ -754,7 +758,8 @@ class AutoRunner:
             logger.info("Skipping algorithm generation...")
 
         # step 3: algo training
-        if self.train:
+        auto_train_choice = self.train is None
+        if self.train or (auto_train_choice and not self.cache["train"]):
             history = import_bundle_algo_history(self.work_dir, only_trained=False)
 
             if len(history) == 0:
@@ -763,10 +768,15 @@ class AutoRunner:
                     "Possibly the required algorithms generation step was not completed."
                 )
 
-            if not self.hpo:
-                self._train_algo_in_sequence(history)
-            else:
-                self._train_algo_in_nni(history)
+            if auto_train_choice:
+                history = [h for h in history if not h["is_trained"]]  # skip trained
+
+            if len(history) > 0:
+                if not self.hpo:
+                    self._train_algo_in_sequence(history)
+                else:
+                    self._train_algo_in_nni(history)
+
             self.export_cache(train=True)
         else:
             logger.info("Skipping algorithm training...")
@@ -794,4 +804,4 @@ class AutoRunner:
                     self.save_image(pred)
                 logger.info(f"Auto3Dseg ensemble prediction outputs are saved in {self.output_dir}.")
 
-        logger.info("Auto3Dseg pipeline is complete successfully.")
+        logger.info("Auto3Dseg pipeline is completed successfully.")
