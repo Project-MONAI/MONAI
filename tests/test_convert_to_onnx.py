@@ -19,23 +19,24 @@ from parameterized import parameterized
 
 from monai.networks import convert_to_onnx
 from monai.networks.nets import SegResNet, UNet
+from monai.utils.module import pytorch_after
 from tests.utils import SkipIfBeforePyTorchVersion, SkipIfNoModule, optional_import
 
 if torch.cuda.is_available():
     TORCH_DEVICE_OPTIONS = ["cpu", "cuda"]
 else:
     TORCH_DEVICE_OPTIONS = ["cpu"]
-TESTS = list(itertools.product(TORCH_DEVICE_OPTIONS, [True, False]))
+TESTS = list(itertools.product(TORCH_DEVICE_OPTIONS, [True, False], [True, False]))
 TESTS_ORT = list(itertools.product(TORCH_DEVICE_OPTIONS, [True]))
 
 onnx, _ = optional_import("onnx")
 
 
 @SkipIfNoModule("onnx")
-@SkipIfBeforePyTorchVersion((1, 10))
+@SkipIfBeforePyTorchVersion((1, 9))
 class TestConvertToOnnx(unittest.TestCase):
     @parameterized.expand(TESTS)
-    def test_unet(self, device, use_ort):
+    def test_unet(self, device, use_trace, use_ort):
         if use_ort:
             _, has_onnxruntime = optional_import("onnxruntime")
             if not has_onnxruntime:
@@ -43,18 +44,35 @@ class TestConvertToOnnx(unittest.TestCase):
         model = UNet(
             spatial_dims=2, in_channels=1, out_channels=3, channels=(16, 32, 64), strides=(2, 2), num_res_units=0
         )
-        onnx_model = convert_to_onnx(
-            model=model,
-            inputs=[torch.randn((16, 1, 32, 32), requires_grad=False)],
-            input_names=["x"],
-            output_names=["y"],
-            verify=True,
-            device=device,
-            use_ort=use_ort,
-            use_trace=True,
-            rtol=1e-3,
-            atol=1e-4,
-        )
+        if pytorch_after(1, 10) or use_trace:
+            onnx_model = convert_to_onnx(
+                model=model,
+                inputs=[torch.randn((16, 1, 32, 32), requires_grad=False)],
+                input_names=["x"],
+                output_names=["y"],
+                verify=True,
+                device=device,
+                use_ort=use_ort,
+                use_trace=use_trace,
+                rtol=1e-3,
+                atol=1e-4,
+            )
+        else:
+            # https://github.com/pytorch/pytorch/blob/release/1.9/torch/onnx/__init__.py#L182
+            # example_outputs is required in scripting mode before PyTorch 3.10
+            onnx_model = convert_to_onnx(
+                model=model,
+                inputs=[torch.randn((16, 1, 32, 32), requires_grad=False)],
+                input_names=["x"],
+                output_names=["y"],
+                example_outputs=[torch.randn((16, 3, 32, 32), requires_grad=False)],
+                verify=True,
+                device=device,
+                use_ort=use_ort,
+                use_trace=use_trace,
+                rtol=1e-3,
+                atol=1e-4,
+            )
         self.assertTrue(isinstance(onnx_model, onnx.ModelProto))
 
     @parameterized.expand(TESTS_ORT)
