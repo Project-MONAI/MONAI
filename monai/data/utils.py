@@ -17,7 +17,6 @@ import logging
 import math
 import os
 import pickle
-import warnings
 from collections import abc, defaultdict
 from collections.abc import Generator, Iterable, Mapping, Sequence, Sized
 from copy import deepcopy
@@ -789,7 +788,6 @@ def rectify_header_sform_qform(img_nii):
             return img_nii
 
     norm = affine_to_spacing(img_nii.affine, r=d)
-    warnings.warn(f"Modifying image pixdim from {pixdim} to {norm}")
 
     img_nii.header.set_zooms(norm)
     return img_nii
