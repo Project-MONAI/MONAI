@@ -21,8 +21,8 @@ def import_bundle_algo_history(
     output_folder: str = ".", template_path: str | None = None, only_trained: bool = True
 ) -> list:
     """
-    import the history of the bundleAlgo objects as a list of algo dicts. 
-    each algo_dict has keys name (folder name), algo (bundleAlgo), is_trained (bool), 
+    import the history of the bundleAlgo objects as a list of algo dicts.
+    each algo_dict has keys name (folder name), algo (bundleAlgo), is_trained (bool),
 
     Args:
         output_folder: the root path of the algorithms templates.

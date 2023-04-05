@@ -138,10 +138,9 @@ class TestEnsembleGpuCustomization(unittest.TestCase):
         )
         history = bundle_generator.get_history()
 
-        for h in history:
-            self.assertEqual(len(h.keys()), 1, "each record should have one model")
-            for _, algo in h.items():
-                algo.train(train_param)
+        for algo_dict in history:
+            algo = algo_dict["algo"]
+            algo.train(train_param)
 
         builder = AlgoEnsembleBuilder(history, data_src_cfg)
         builder.set_ensemble_method(AlgoEnsembleBestN(n_best=2))

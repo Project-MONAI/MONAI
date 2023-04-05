@@ -134,16 +134,16 @@ class TestEnsembleBuilder(unittest.TestCase):
         bundle_generator.generate(work_dir, num_fold=1)
         history = bundle_generator.get_history()
 
-        for h in history:
-            self.assertEqual(len(h.keys()), 1, "each record should have one model")
-            for name, algo in h.items():
-                _train_param = train_param.copy()
-                if name.startswith("segresnet"):
-                    _train_param["network#init_filters"] = 8
-                    _train_param["pretrained_ckpt_name"] = ""
-                elif name.startswith("swinunetr"):
-                    _train_param["network#feature_size"] = 12
-                algo.train(_train_param)
+        for algo_dict in history:
+            name = algo_dict["name"]
+            algo = algo_dict["algo"]
+            _train_param = train_param.copy()
+            if name.startswith("segresnet"):
+                _train_param["network#init_filters"] = 8
+                _train_param["pretrained_ckpt_name"] = ""
+            elif name.startswith("swinunetr"):
+                _train_param["network#feature_size"] = 12
+            algo.train(_train_param)
 
         builder = AlgoEnsembleBuilder(history, data_src_cfg)
         builder.set_ensemble_method(AlgoEnsembleBestN(n_best=1))
