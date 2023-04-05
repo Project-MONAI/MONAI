@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 from .utils import (
-    convert_to_onnx,
     convert_to_torchscript,
     convert_to_trt,
     copy_model_state,

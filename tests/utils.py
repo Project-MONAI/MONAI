@@ -43,7 +43,7 @@ from monai.config.deviceconfig import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data import create_test_image_2d, create_test_image_3d
 from monai.data.meta_tensor import MetaTensor, get_track_meta
-from monai.networks import convert_to_onnx, convert_to_torchscript
+from monai.networks import convert_to_torchscript
 from monai.utils import optional_import
 from monai.utils.module import pytorch_after, version_leq
 from monai.utils.type_conversion import convert_data_type
@@ -733,35 +733,6 @@ def test_script_save(net, *inputs, device=None, rtol=1e-4, atol=0.0):
                 verify=True,
                 inputs=inputs,
                 device=device,
-                rtol=rtol,
-                atol=atol,
-            )
-    except (RuntimeError, AttributeError):
-        if sys.version_info.major == 3 and sys.version_info.minor == 11:
-            warnings.warn("skipping py 3.11")
-            return
-
-
-def test_onnx_save(net, *inputs, device=None, rtol=1e-4, atol=0.0):
-    """
-    Test the ability to save `net` in ONNX format, reload it and validate with runtime.
-    The value `inputs` is forward-passed through the `net` without gradient accumulation
-    to do onnx export and PyTorch inference.
-    PyTorch model inference is performed with CUDA if available, else CPU.
-    Saved ONNX model is validated with onnxruntime, if available, else ONNX native implementation.
-    """
-    # TODO: would be nice to use GPU if available, but it currently causes CI failures.
-    device = "cpu"
-    _, has_onnxruntime = optional_import("onnxruntime")
-    try:
-        with tempfile.TemporaryDirectory() as tempdir:
-            convert_to_onnx(
-                model=net,
-                filename=os.path.join(tempdir, "model.onnx"),
-                verify=True,
-                inputs=inputs,
-                device=device,
-                use_ort=has_onnxruntime,
                 rtol=rtol,
                 atol=atol,
             )

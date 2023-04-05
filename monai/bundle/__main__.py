@@ -15,7 +15,6 @@ from monai.bundle.scripts import (
     ckpt_export,
     download,
     init_bundle,
-    onnx_export,
     run,
     run_workflow,
     trt_export,
