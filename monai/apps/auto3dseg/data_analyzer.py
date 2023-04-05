@@ -259,7 +259,8 @@ class DataAnalyzer:
         return result
 
     def _get_all_case_stats(
-        self, rank: int = 0,
+        self,
+        rank: int = 0,
         world_size: int = 1,
         manager_list: list | None = None,
         key="training",
