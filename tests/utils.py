@@ -785,9 +785,11 @@ def query_memory(n=2):
     bash_string = "nvidia-smi --query-gpu=power.draw,temperature.gpu,memory.used --format=csv,noheader,nounits"
 
     try:
-        print(f"query memory with n={n} {bash_string}")
+        print(f"query memory with n={n}")
         p1 = Popen(bash_string.split(), stdout=PIPE)
         output, error = p1.communicate()
+        print(output)
+        print("error", error)
         free_memory = [x.split(",") for x in output.decode("utf-8").split("\n")[:-1]]
         free_memory = np.asarray(free_memory, dtype=float).T
         free_memory[1] += free_memory[0]  # combine 0/1 column measures
