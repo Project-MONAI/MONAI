@@ -2,9 +2,6 @@
 name: integration
 
 on:
-  push:
-    branches:
-      - temp-tests
   repository_dispatch:
     type: [integration-test-command]
 
