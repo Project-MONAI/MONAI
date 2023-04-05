@@ -223,7 +223,7 @@ class DataAnalyzer:
                     result_bycase[DataStatsKeys.BY_CASE].extend(_[DataStatsKeys.BY_CASE])
         else:
             result_bycase = self._get_all_case_stats(0, 1, None, key, transform_list)
-    
+
         summarizer = SegSummarizer(
             self.image_key,
             self.label_key,
@@ -265,7 +265,7 @@ class DataAnalyzer:
         Args:
             rank: GPU process rank, 0 for CPU process
             world_size: total number of GPUs, 1 for CPU process
-            manager_list: multiprocessing manager list object, if using multi-GPU. 
+            manager_list: multiprocessing manager list object, if using multi-GPU.
             key: dataset key
             transform_list: option list of transforms before SegSummarizer
         """
