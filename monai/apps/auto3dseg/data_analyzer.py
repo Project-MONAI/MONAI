@@ -17,7 +17,7 @@ from typing import Any, cast
 
 import numpy as np
 import torch
-from torch.multiprocessing import Process, set_start_method, Manager
+from torch.multiprocessing import Manager, Process, set_start_method
 
 from monai.apps.auto3dseg.transforms import EnsureSameShaped
 from monai.apps.utils import get_logger
@@ -30,6 +30,7 @@ from monai.data.utils import no_collation
 from monai.transforms import Compose, EnsureTyped, LoadImaged, Orientationd
 from monai.utils import StrEnum, min_version, optional_import
 from monai.utils.enums import DataStatsKeys, ImageStatsKeys
+
 
 def strenum_representer(dumper, data):
     return dumper.represent_scalar("tag:yaml.org,2002:str", data.value)
@@ -199,21 +200,21 @@ class DataAnalyzer:
         """
         result: dict[DataStatsKeys, Any] = {DataStatsKeys.SUMMARY: {}, DataStatsKeys.BY_CASE: []}
         result_bycase: dict[DataStatsKeys, Any] = {DataStatsKeys.SUMMARY: {}, DataStatsKeys.BY_CASE: []}
-        if self.device.type == 'cpu':
+        if self.device.type == "cpu":
             nprocs = 1
-            logger.info(f'Using CPU for data analyzing!')
+            logger.info(f"Using CPU for data analyzing!")
         else:
             nprocs = torch.cuda.device_count()
-            logger.info(f'Found {nprocs} GPUs for data analyzing!')
+            logger.info(f"Found {nprocs} GPUs for data analyzing!")
         if nprocs > 1:
-            set_start_method('forkserver', force=True)
+            set_start_method("forkserver", force=True)
             with Manager() as manager:
                 manager_list = manager.list()
                 processes = []
                 for rank in range(nprocs):
                     p = Process(target=self._get_all_case_stats, args=(rank, nprocs, manager_list, key, transform_list))
                     processes.append(p)
-                print('mp time', time.time() - start)
+                print("mp time", time.time() - start)
                 for p in processes:
                     p.start()
                 for p in processes:
@@ -259,7 +260,9 @@ class DataAnalyzer:
         result[DataStatsKeys.BY_CASE] = result_bycase[DataStatsKeys.BY_CASE]
         return result
 
-    def _get_all_case_stats(self, rank: int=0, world_size: int=1, manager_list=None, key="training", transform_list=None):
+    def _get_all_case_stats(
+        self, rank: int = 0, world_size: int = 1, manager_list=None, key="training", transform_list=None
+    ):
         """
         Get all case stats from a partitioned datalist. The function can only be called internally by get_all_case_stats.
         Args:
@@ -311,11 +314,11 @@ class DataAnalyzer:
             pin_memory=self.device.type == "cuda",
         )
         result_bycase: dict[DataStatsKeys, Any] = {DataStatsKeys.SUMMARY: {}, DataStatsKeys.BY_CASE: []}
-        device = self.device if self.device.type == 'cpu' else torch.device(f'cuda',rank)
+        device = self.device if self.device.type == "cpu" else torch.device(f"cuda", rank)
         if not has_tqdm:
             warnings.warn("tqdm is not installed. not displaying the caching progress.")
 
-        for batch_data in tqdm(dataloader) if (has_tqdm and rank==0) else dataloader:
+        for batch_data in tqdm(dataloader) if (has_tqdm and rank == 0) else dataloader:
             batch_data = batch_data[0]
             try:
                 batch_data[self.image_key] = batch_data[self.image_key].to(device)
@@ -325,15 +328,17 @@ class DataAnalyzer:
                     batch_data[self.label_key] = label.to(device)
 
                 d = summarizer(batch_data)
-            except:
+            except BaseException:
                 logger.info(f"Unable to process data {batch_data['image_meta_dict']['filename_or_obj']} on {device}.")
-                if self.device.type == 'cuda':
-                    logger.info(f"DataAnalyzer `device` was set to use GPU but the execution hit an exception. Falling back to use `cpu`.")
-                    batch_data[self.image_key] = batch_data[self.image_key].to('cpu')
+                if self.device.type == "cuda":
+                    logger.info(
+                        f"DataAnalyzer `device` was set to use GPU but the execution hit an exception. Falling back to use `cpu`."
+                    )
+                    batch_data[self.image_key] = batch_data[self.image_key].to("cpu")
                     if self.label_key is not None:
                         label = batch_data[self.label_key]
                         label = torch.argmax(label, dim=0) if label.shape[0] > 1 else label[0]
-                        batch_data[self.label_key] = label.to('cpu')
+                        batch_data[self.label_key] = label.to("cpu")
                     d = summarizer(batch_data)
 
             stats_by_cases = {
