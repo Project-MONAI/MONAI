@@ -12,16 +12,16 @@ class Universal_model(nn.Module):
     """
     Universal Model for organ and tumor segmentation, based on: "Liu et al.,
     CLIP-Driven Universal Model for Organ Segmentation and Tumor Detection <https://arxiv.org/pdf/2301.00785.pdf>"
-    """ 
+    """
     def __init__(
-        self, 
-        img_size, 
-        in_channels, 
-        out_channels, 
-        bottleneck_size: int = 768, 
-        text_dim: int = 512, 
-        hidden_size: int = 256, 
-        backbone: str = 'swinunetr', 
+        self,
+        img_size,
+        in_channels,
+        out_channels,
+        bottleneck_size: int = 768,
+        text_dim: int = 512,
+        hidden_size: int = 256,
+        backbone: str = 'swinunetr',
         encoding: str = 'clip_embedding',
         logits_options: list = None,
     ):
@@ -39,7 +39,7 @@ class Universal_model(nn.Module):
                         use_checkpoint=False,
                         )
         else:
-            raise Exception('{} backbone is not implemented, please add your own'.format(backbone))
+            raise Exception(f'{backbone} backbone is not implemented, please add your own')
         self.class_num = out_channels
         self.logits_options = logits_options
         # text encoder
@@ -72,7 +72,7 @@ class Universal_model(nn.Module):
             self.backbone.load_state_dict(store_dict)
             print('Use swin unetr pretrained weights')
         else:
-            raise Exception('{} backbone is not implemented, please add your own'.format(self.backbone_name))
+            raise Exception(f'{self.backbone_name} backbone is not implemented, please add your own')
 
     def forward(self, x_in):
         # get backbone feature
@@ -87,7 +87,7 @@ class Universal_model(nn.Module):
 
 class SwinUNETR_backbone(SwinUNETR):
     """
-    Universal Model uses SwinUNETR as backbone without the segmentation head based on: 
+    Universal Model uses SwinUNETR as backbone without the segmentation head based on:
 
     "Hatamizadeh et al.,
     Swin UNETR: Swin Transformers for Semantic Segmentation of Brain Tumors in MRI Images
@@ -96,8 +96,8 @@ class SwinUNETR_backbone(SwinUNETR):
     "Tang et al.,
     Self-Supervised Pre-Training of Swin Transformers for 3D Medical Image Analysis
     <https://arxiv.org/abs/2111.14791>"
-    """ 
-    def __init__(        
+    """
+    def __init__(
         self,
         img_size: Union[Sequence[int], int],
         in_channels: int,
@@ -113,7 +113,7 @@ class SwinUNETR_backbone(SwinUNETR):
         use_checkpoint: bool = False,
         spatial_dims: int = 3,
     ):
-        super(SwinUNETR_backbone, self).__init__(img_size,in_channels,out_channels,feature_size=48)
+        super().__init__(img_size,in_channels,out_channels,feature_size=48)
 
     def forward(self, x_in):
         hidden_states_out = self.swinViT(x_in, self.normalize)
@@ -130,4 +130,3 @@ class SwinUNETR_backbone(SwinUNETR):
         out = self.decoder1(dec0, enc0)
 
         return dec4, out
-    

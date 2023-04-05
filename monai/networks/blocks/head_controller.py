@@ -18,12 +18,12 @@ class HeadController(nn.Module):
     """
     Text-based controller for segmentation outputs, the text-driven segmentor enables for optional outputs instead of
     fixed output channels. Users can choose and control the number and name of output channels from a mult-class segmentation
-    model. This can enabble incremental learning by adding new classes to a existing pre-trained model without 
+    model. This can enabble incremental learning by adding new classes to a existing pre-trained model without
     catatrophic forgetting.
-    
+
     Text-dirven segmentor, based on: "Liu et al.,
     CLIP-Driven Universal Model for Organ Segmentation and Tumor Detection <https://arxiv.org/pdf/2301.00785.pdf>"
-    """    
+    """
     def __init__(
         self,
         out_channels: int,
@@ -45,11 +45,11 @@ class HeadController(nn.Module):
             text_encoding: the text embedding features passed.
         """
         super().__init__()
-        
+
         self.head_hidden_size = head_hidden_size
-        self.bias_nums = [head_hidden_size] * (head_layers - 1) + [1] # defined by segmentor head's hidden size, last element of 1. 
+        self.bias_nums = [head_hidden_size] * (head_layers - 1) + [1] # defined by segmentor head's hidden size, last element of 1.
         self.weight_nums = [head_in_channels*head_hidden_size] + [head_hidden_size*head_hidden_size]*(head_layers-2) + [head_hidden_size] #first+intermediate+last layer
-        
+
         self.class_num = out_channels
         self.text_encoding = text_encoding
         # text-driven controller: connection of bottleneck feature to segmentor features, e.g., from 256(*2) to weights and bias nums
@@ -57,7 +57,7 @@ class HeadController(nn.Module):
             self.controller = nn.Conv3d(2*hidden_size, sum(self.weight_nums+self.bias_nums), kernel_size=1, stride=1, padding=0)
         else:
             self.controller = nn.Conv3d(hidden_size, sum(self.weight_nums+self.bias_nums), kernel_size=1, stride=1, padding=0)
-        # convolution layer of backbone output to segmentor head input size, e.g., 48 to 8 
+        # convolution layer of backbone output to segmentor head input size, e.g., 48 to 8
         self.precls_conv = nn.Sequential(
             nn.GroupNorm(16, feature_size),
             nn.ReLU(inplace=True),
@@ -106,7 +106,7 @@ class HeadController(nn.Module):
                 x = nn.functional.relu(x)
         return x
 
-    def forward(self, x, out, text_encoding=None, logits_options=None): 
+    def forward(self, x, out, text_encoding=None, logits_options=None):
         logits_options = range(self.class_num) if not isinstance(logits_options, list) else logits_options
         b = x.shape[0]
         logits_array = []
@@ -128,8 +128,6 @@ class HeadController(nn.Module):
             weights, biases = self.parse_dynamic_params(params, self.head_hidden_size, self.weight_nums, self.bias_nums)
             logits = self.heads_forward(head_inputs, weights, biases, N)
             logits_array.append(logits.reshape(1, -1, D, H, W))
-        
+
         out = torch.cat(logits_array,dim=0)
         return out
-
-
