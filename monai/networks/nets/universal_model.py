@@ -102,6 +102,16 @@ class SwinUNETR_backbone(SwinUNETR):
         img_size: Union[Sequence[int], int],
         in_channels: int,
         out_channels: int,
+        depths: Sequence[int] = (2, 2, 2, 2),
+        num_heads: Sequence[int] = (3, 6, 12, 24),
+        feature_size: int = 48,
+        norm_name: Union[Tuple, str] = "instance",
+        drop_rate: float = 0.0,
+        attn_drop_rate: float = 0.0,
+        dropout_path_rate: float = 0.0,
+        normalize: bool = True,
+        use_checkpoint: bool = False,
+        spatial_dims: int = 3,
     ):
         super(SwinUNETR_backbone, self).__init__(img_size,in_channels,out_channels,feature_size=48)
 
