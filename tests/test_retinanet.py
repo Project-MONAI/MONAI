@@ -97,7 +97,7 @@ for case in [TEST_CASE_1]:
         TEST_CASES_TS.append([model, *case])
 
 
-@SkipIfBeforePyTorchVersion((1, 9))
+@SkipIfBeforePyTorchVersion((1, 10))
 @unittest.skipUnless(has_torchvision, "Requires torchvision")
 class TestRetinaNet(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
