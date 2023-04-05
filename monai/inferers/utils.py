@@ -254,7 +254,7 @@ def sliding_window_inference(
             z_scale = None
             if not buffered and seg_shape != roi_size:
                 z_scale = [out_w_i / float(in_w_i) for out_w_i, in_w_i in zip(seg_shape, roi_size)]
-                w_t = torch.nn.functional.interpolate(w_t, seg_shape, mode=_nearest_mode)
+                w_t = F.interpolate(w_t, seg_shape, mode=_nearest_mode)
             if len(output_image_list) <= ss:
                 output_shape = [batch_size, seg_chns]
                 output_shape += [int(_i * _z) for _i, _z in zip(image_size, z_scale)] if z_scale else list(image_size)
