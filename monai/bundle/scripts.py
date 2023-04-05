@@ -1360,6 +1360,9 @@ def trt_export(
         "dynamic_batchsize": dynamic_batchsize_,
         "use_trace": use_trace_,
         "device": device_,
+        "use_onnx": use_onnx_,
+        "onnx_input_names": onnx_input_names_,
+        "onnx_output_names": onnx_output_names_,
     }
     converter_kwargs_.update(trt_api_parameters)
 
@@ -1372,9 +1375,6 @@ def trt_export(
         config_file=config_file_,
         key_in_ckpt=key_in_ckpt_,
         **converter_kwargs_,
-        use_onnx=use_onnx_,
-        onnx_input_names=onnx_input_names_,
-        onnx_output_names=onnx_output_names_,
     )
 
 
