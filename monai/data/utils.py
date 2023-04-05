@@ -17,7 +17,6 @@ import logging
 import math
 import os
 import pickle
-import warnings
 from collections import abc, defaultdict
 from collections.abc import Generator, Iterable, Mapping, Sequence, Sized
 from copy import deepcopy
