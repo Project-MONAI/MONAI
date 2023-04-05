@@ -2,6 +2,9 @@
 name: integration
 
 on:
+  push:
+    branches:
+      - temp-tests
   repository_dispatch:
     type: [integration-test-command]
 
@@ -59,6 +62,7 @@ jobs:
 
         # test latest template
         cd ../
+        rm -rf research-contributions
         git clone --depth 1 --branch main --single-branch https://github.com/Project-MONAI/research-contributions.git
         ls research-contributions/
         cp -r research-contributions/auto3dseg/algorithm_templates ../MONAI/
