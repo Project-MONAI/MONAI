@@ -37,6 +37,10 @@ jobs:
       run: |
         which python
         python -m pip install --upgrade pip wheel
+        pip uninstall -y monai
+        pip uninstall -y monai
+        pip uninstall -y monai-weekly
+        pip uninstall -y monai-weekly
         python -m pip install --upgrade torch torchvision torchaudio
         python -m pip install -r requirements-dev.txt
         rm -rf /github/home/.cache/torch/hub/mmars/
@@ -65,10 +69,13 @@ jobs:
         echo "test latest algo"
         cd ../
         rm -rf research-contributions
+        rm -rf algorithm_templates
         git clone --depth 1 --branch main --single-branch https://github.com/Project-MONAI/research-contributions.git
         ls research-contributions/
-        cp -r research-contributions/auto3dseg/algorithm_templates ../MONAI/
-        cd research-contributions && git log -1 && cd ..
+        cp -r research-contributions/auto3dseg/algorithm_templates MONAI/
+        cd research-contributions && git log -1 && cd ../MONAI
+        pwd
+        ls -ll
         export OMP_NUM_THREADS=4
         export MKL_NUM_THREADS=4
         export MONAI_TESTING_ALGO_TEMPLATE=algorithm_templates
