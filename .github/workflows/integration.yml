@@ -2,6 +2,9 @@
 name: integration
 
 on:
+  push:
+    branches:
+      - temp-test
   repository_dispatch:
     type: [integration-test-command]
 
@@ -9,8 +12,8 @@ jobs:
   integration-py3:
     container:
       image: nvcr.io/nvidia/pytorch:22.04-py3  # CUDA 11.6 py38
-      options: --gpus all  # shm-size 4g works fine
-    runs-on: [self-hosted, linux, x64, integration]
+      options: --gpus all --ipc host  # shm-size 4g works fine
+    runs-on: [self-hosted, linux, x64, command]
     steps:
     # checkout the pull request branch
     - uses: actions/checkout@v3
@@ -34,7 +37,7 @@ jobs:
       run: |
         which python
         python -m pip install --upgrade pip wheel
-        python -m pip install --upgrade torch torchvision
+        python -m pip install --upgrade torch torchvision torchaudio
         python -m pip install -r requirements-dev.txt
         rm -rf /github/home/.cache/torch/hub/mmars/
     - name: Run integration tests
@@ -49,8 +52,30 @@ jobs:
         python -c $'import torch\na,b=torch.zeros(1,device="cuda:0"),torch.zeros(1,device="cuda:1");\nwhile True:print(a,b)' > /dev/null &
         python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
         python -c 'import torch; print(torch.rand(5,3, device=torch.device("cuda:0")))'
+
+        # test auto3dseg
+        python -m tests.test_auto3dseg_ensemble
+        python -m tests.test_auto3dseg_hpo
+        python -m tests.test_integration_autorunner
+        python -m tests.test_integration_gpu_customization
+
+        # test latest template
+        cd ../
+        git clone --depth 1 --branch main --single-branch https://github.com/Project-MONAI/research-contributions.git
+        ls research-contributions/
+        cp -r research-contributions/auto3dseg/algorithm_templates ../MONAI/
+        cd research-contributions && git log -1 && cd ..
+        export OMP_NUM_THREADS=4
+        export MKL_NUM_THREADS=4
+        export MONAI_TESTING_ALGO_TEMPLATE=algorithm_templates
+        python -m tests.test_auto3dseg_ensemble
+        python -m tests.test_auto3dseg_hpo
+        python -m tests.test_integration_autorunner
+        python -m tests.test_integration_gpu_customization
+
+        # the other tests
         BUILD_MONAI=1 ./runtests.sh --build --net
-        BUILD_MONAI=1 ./runtests.sh --build --unittests --disttests
+        BUILD_MONAI=1 ./runtests.sh --build --unittests
         if pgrep python; then pkill python; fi
       shell: bash
     - name: Add reaction
