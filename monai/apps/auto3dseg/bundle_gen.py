@@ -35,7 +35,7 @@ from monai.bundle.config_parser import ConfigParser
 from monai.utils import ensure_tuple
 
 logger = get_logger(module_name=__name__)
-ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "4af80e1")
+ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "7758ad1")
 
 __all__ = ["BundleAlgo", "BundleGen"]
 
@@ -79,6 +79,16 @@ class BundleAlgo(Algo):
         self.best_metric = None
         # track records when filling template config: {"<config name>": {"<placeholder key>": value, ...}, ...}
         self.fill_records: dict = {}
+
+    def pre_check_skip_algo(self, skip_bundlegen: bool = False, skip_info: str = "") -> tuple[bool, str]:
+        """
+        Analyse the data analysis report and check if the algorithm needs to be skipped.
+        This function is overriden within algo.
+        Args:
+            skip_bundlegen: skip generating bundles for this algo if true.
+            skip_info: info to print when skipped.
+        """
+        return skip_bundlegen, skip_info
 
     def set_data_stats(self, data_stats_files: str) -> None:
         """
@@ -460,7 +470,7 @@ class BundleGen(AlgoGen):
         return self.data_src_cfg_filename
 
     def get_history(self) -> list:
-        """get the history of the bundleAlgo object with their names/identifiers"""
+        """Get the history of the bundleAlgo object with their names/identifiers"""
         return self.history
 
     def generate(
@@ -511,6 +521,10 @@ class BundleGen(AlgoGen):
                 gen_algo.set_data_stats(data_stats)
                 gen_algo.set_data_source(data_src_cfg)
                 name = f"{gen_algo.name}_{f_id}"
+                skip_bundlegen, skip_info = gen_algo.pre_check_skip_algo()
+                if skip_bundlegen:
+                    logger.info(f"{name} is skipped! {skip_info}")
+                    continue
                 if gpu_customization:
                     gen_algo.export_to_disk(
                         output_folder,
@@ -521,5 +535,6 @@ class BundleGen(AlgoGen):
                     )
                 else:
                     gen_algo.export_to_disk(output_folder, name, fold=f_id)
+
                 algo_to_pickle(gen_algo, template_path=algo.template_path)
                 self.history.append({name: gen_algo})  # track the previous, may create a persistent history
