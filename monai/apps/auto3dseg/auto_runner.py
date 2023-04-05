@@ -759,7 +759,7 @@ class AutoRunner:
 
         # step 3: algo training
         auto_train_choice = self.train is None
-        if self.train == True or (auto_train_choice and not self.cache["train"]):
+        if self.train or (auto_train_choice and not self.cache["train"]):
             history = import_bundle_algo_history(self.work_dir, only_trained=False)
 
             if len(history) == 0:
