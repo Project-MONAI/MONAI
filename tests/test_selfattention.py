@@ -53,20 +53,25 @@ class TestResBlock(unittest.TestCase):
             SABlock(hidden_size=620, num_heads=8, dropout_rate=0.4)
 
     def test_access_attn_matrix(self):
+        # input format
         hidden_size = 128
-        num_heads = 2 
+        num_heads = 2
         dropout_rate = 0
         input_shape = (2, 256, hidden_size)
-        # be able to access the matrix
+
+        # be  not able to access the matrix
         no_matrix_acess_blk = SABlock(hidden_size=hidden_size, num_heads=num_heads, dropout_rate=dropout_rate)
-        with self.assertRaises(AttributeError):
-            no_matrix_acess_blk(torch.randn(input_shape))
-            no_matrix_acess_blk.att_mat
-        # be not able to acess the attention matrix
-        matrix_acess_blk = SABlock(hidden_size=hidden_size, num_heads=num_heads, dropout_rate=dropout_rate, save_attn=True)
+        no_matrix_acess_blk(torch.randn(input_shape))
+        assert type(no_matrix_acess_blk.att_mat) == torch.Tensor
+        # no of elements is zero
+        assert no_matrix_acess_blk.att_mat.nelement() == 0
+
+        # be able to acess the attention matrix
+        matrix_acess_blk = SABlock(
+            hidden_size=hidden_size, num_heads=num_heads, dropout_rate=dropout_rate, save_attn=True
+        )
         matrix_acess_blk(torch.randn(input_shape))
         assert matrix_acess_blk.att_mat.shape == (input_shape[0], input_shape[0], input_shape[1], input_shape[1])
-
 
 
 if __name__ == "__main__":

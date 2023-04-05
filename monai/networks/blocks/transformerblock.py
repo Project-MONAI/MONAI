@@ -24,16 +24,22 @@ class TransformerBlock(nn.Module):
     """
 
     def __init__(
-        self, hidden_size: int, mlp_dim: int, num_heads: int, dropout_rate: float = 0.0, qkv_bias: bool = False, save_attn: bool = False
+        self,
+        hidden_size: int,
+        mlp_dim: int,
+        num_heads: int,
+        dropout_rate: float = 0.0,
+        qkv_bias: bool = False,
+        save_attn: bool = False,
     ) -> None:
         """
         Args:
-            hidden_size: dimension of hidden layer.
-            mlp_dim: dimension of feedforward layer.
-            num_heads: number of attention heads.
-            dropout_rate: faction of the input units to drop.
-            qkv_bias: apply bias term for the qkv linear layer.
-            save_attn: to make accessible the attention matrix post training.
+            hidden_size (int): dimension of hidden layer.
+            mlp_dim (int): dimension of feedforward layer.
+            num_heads (int): number of attention heads.
+            dropout_rate (float, optional): faction of the input units to drop. Defaults to 0.0.
+            qkv_bias (bool, optional): apply bias term for the qkv linear layer. Defaults to False.
+            save_attn (bool, optional): to make accessible the attention matrix. Defaults to False.
 
         """
 

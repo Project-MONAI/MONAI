@@ -46,24 +46,26 @@ class ViT(nn.Module):
         spatial_dims: int = 3,
         post_activation="Tanh",
         qkv_bias: bool = False,
+        save_attn: bool = False,
     ) -> None:
         """
         Args:
-            in_channels: dimension of input channels.
-            img_size: dimension of input image.
-            patch_size: dimension of patch size.
-            hidden_size: dimension of hidden layer.
-            mlp_dim: dimension of feedforward layer.
-            num_layers: number of transformer blocks.
-            num_heads: number of attention heads.
-            pos_embed: position embedding layer type.
-            classification: bool argument to determine if classification is used.
-            num_classes: number of classes if classification is used.
-            dropout_rate: faction of the input units to drop.
-            spatial_dims: number of spatial dimensions.
-            post_activation: add a final acivation function to the classification head when `classification` is True.
+            in_channels (int): dimension of input channels.
+            img_size (Union[Sequence[int], int]): dimension of input image.
+            patch_size (Union[Sequence[int], int]): dimension of patch size.
+            hidden_size (int, optional): dimension of hidden layer. Defaults to 768.
+            mlp_dim (int, optional): dimension of feedforward layer. Defaults to 3072.
+            num_layers (int, optional): number of transformer blocks. Defaults to 12.
+            num_heads (int, optional): number of attention heads. Defaults to 12.
+            pos_embed (str, optional): position embedding layer type. Defaults to "conv".
+            classification (bool, optional): bool argument to determine if classification is used. Defaults to False.
+            num_classes (int, optional): number of classes if classification is used. Defaults to 2.
+            dropout_rate (float, optional): faction of the input units to drop. Defaults to 0.0.
+            spatial_dims (int, optional): number of spatial dimensions. Defaults to 3.
+            post_activation (str, optional): add a final acivation function to the classification head when `classification` is True.
                 Default to "Tanh" for `nn.Tanh()`. Set to other values to remove this function.
-            qkv_bias: apply bias to the qkv linear layer in self attention block
+            qkv_bias (bool, optional): apply bias to the qkv linear layer in self attention block. Defaults to False.
+            save_attn (bool, optional): to make accessible the attention in self attention block. Defaults to False.
 
         Examples::
 
@@ -98,7 +100,10 @@ class ViT(nn.Module):
             spatial_dims=spatial_dims,
         )
         self.blocks = nn.ModuleList(
-            [TransformerBlock(hidden_size, mlp_dim, num_heads, dropout_rate, qkv_bias) for i in range(num_layers)]
+            [
+                TransformerBlock(hidden_size, mlp_dim, num_heads, dropout_rate, qkv_bias, save_attn)
+                for i in range(num_layers)
+            ]
         )
         self.norm = nn.LayerNorm(hidden_size)
         if self.classification:
