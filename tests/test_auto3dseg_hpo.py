@@ -139,8 +139,7 @@ class TestHPO(unittest.TestCase):
     @skip_if_no_cuda
     def test_run_algo(self) -> None:
         algo_dict = self.history[0]
-        algo_name = list(algo_dict.keys())[0]
-        algo = algo_dict[algo_name]
+        algo = algo_dict["algo"]
         nni_gen = NNIGen(algo=algo, params=override_param)
         obj_filename = nni_gen.get_obj_filename()
         # this function will be used in HPO via Python Fire
@@ -150,8 +149,7 @@ class TestHPO(unittest.TestCase):
     @skip_if_no_optuna
     def test_run_optuna(self) -> None:
         algo_dict = self.history[0]
-        algo_name = list(algo_dict.keys())[0]
-        algo = algo_dict[algo_name]
+        algo = algo_dict["algo"]
 
         class OptunaGenLearningRate(OptunaGen):
             def get_hyperparameters(self):
@@ -173,8 +171,7 @@ class TestHPO(unittest.TestCase):
     @skip_if_no_cuda
     def test_get_history(self) -> None:
         algo_dict = self.history[0]
-        algo_name = list(algo_dict.keys())[0]
-        algo = algo_dict[algo_name]
+        algo = algo_dict["algo"]
         nni_gen = NNIGen(algo=algo, params=override_param)
         obj_filename = nni_gen.get_obj_filename()
 

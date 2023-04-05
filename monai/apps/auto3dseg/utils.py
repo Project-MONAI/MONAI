@@ -21,7 +21,8 @@ def import_bundle_algo_history(
     output_folder: str = ".", template_path: str | None = None, only_trained: bool = True
 ) -> list:
     """
-    import the history of the bundleAlgo object with their names/identifiers
+    import the history of the bundleAlgo objects as a list of algo dicts. 
+    each algo_dict has keys name (folder name), algo (bundleAlgo), is_trained (bool), 
 
     Args:
         output_folder: the root path of the algorithms templates.
@@ -47,11 +48,18 @@ def import_bundle_algo_history(
         if isinstance(algo, BundleAlgo):  # algo's template path needs override
             algo.template_path = algo_meta_data["template_path"]
 
-        if only_trained:
-            if "best_metrics" in algo_meta_data:
-                history.append({name: algo})
-        else:
-            history.append({name: algo})
+        best_metrics = "best_metrics"
+        is_trained = best_metrics in algo_meta_data
+
+        if (only_trained and is_trained) or not only_trained:
+            history.append(
+                {
+                    "name": name,
+                    "algo": algo,
+                    "is_trained": is_trained,
+                    best_metrics: algo_meta_data.get(best_metrics, None),
+                }
+            )
 
     return history
 
@@ -63,6 +71,6 @@ def export_bundle_algo_history(history: list[dict[str, BundleAlgo]]) -> None:
     Args:
         history: a List of Bundle. Typically, the history can be obtained from BundleGen get_history method
     """
-    for task in history:
-        for _, algo in task.items():
-            algo_to_pickle(algo, template_path=algo.template_path)
+    for algo_dict in history:
+        algo = algo_dict["algo"]
+        algo_to_pickle(algo, template_path=algo.template_path)
