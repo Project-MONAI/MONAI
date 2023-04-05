@@ -35,7 +35,7 @@ from monai.bundle.config_parser import ConfigParser
 from monai.utils import ensure_tuple
 
 logger = get_logger(module_name=__name__)
-ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "4af80e1")
+ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "7758ad1")
 
 __all__ = ["BundleAlgo", "BundleGen"]
 
@@ -165,6 +165,8 @@ class BundleAlgo(Algo):
         if os.path.isdir(config_dir):
             base_cmd = ""
             for file in os.listdir(config_dir):
+                if not (file.endswith("yaml") or file.endswith("json")):
+                    continue
                 if len(base_cmd) == 0:
                     base_cmd += f"{train_py} run --config_file="
                 else:

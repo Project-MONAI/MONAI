@@ -255,8 +255,11 @@ class AutoRunner:
         # copy datalist to work_dir
         datalist_filename = os.path.join(self.work_dir, os.path.basename(self.data_src_cfg["datalist"]))
         if datalist_filename != self.data_src_cfg["datalist"]:
-            shutil.copyfile(self.data_src_cfg["datalist"], datalist_filename)
-            logger.info(f"Datalist was copied to work_dir: {datalist_filename}")
+            try:
+                shutil.copyfile(self.data_src_cfg["datalist"], datalist_filename)
+                logger.info(f"Datalist was copied to work_dir: {datalist_filename}")
+            except shutil.SameFileError:
+                pass
 
         # inspect and update folds
         num_fold = self.inspect_datalist_folds(datalist_filename=datalist_filename)
@@ -715,6 +718,10 @@ class AutoRunner:
                 self.datalist_filename, self.dataroot, output_path=self.datastats_filename, **self.analyze_params
             )
             da.get_all_case_stats()
+
+            da = None  # type: ignore
+            torch.cuda.empty_cache()
+
             self.export_cache(analyze=True, datastats=self.datastats_filename)
         else:
             logger.info("Skipping data analysis...")

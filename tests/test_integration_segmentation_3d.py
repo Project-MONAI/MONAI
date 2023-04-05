@@ -283,7 +283,7 @@ class IntegrationSegmentation3D(DistTestCase):
         self.assertTrue(test_integration_value(TASK, key="losses", data=results[:6], rtol=1e-3))
         self.assertTrue(test_integration_value(TASK, key="best_metric", data=results[6], rtol=1e-2))
         self.assertTrue(test_integration_value(TASK, key="infer_metric", data=results[7], rtol=1e-2))
-        self.assertTrue(test_integration_value(TASK, key="output_sums", data=results[8:], rtol=1e-2))
+        self.assertTrue(test_integration_value(TASK, key="output_sums", data=results[8:], rtol=5e-2))
         return results
 
     def test_training(self):

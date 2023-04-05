@@ -623,6 +623,7 @@ fi
 if [ $doMinTests = true ]
 then
     echo "${separator}${blue}min${noColor}"
+    doCoverage=false
     ${cmdPrefix}${PY_EXE} -m tests.min_tests
 fi
 
