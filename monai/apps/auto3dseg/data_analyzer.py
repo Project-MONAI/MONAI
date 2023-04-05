@@ -202,7 +202,7 @@ class DataAnalyzer:
         result_bycase: dict[DataStatsKeys, Any] = {DataStatsKeys.SUMMARY: {}, DataStatsKeys.BY_CASE: []}
         if self.device.type == "cpu":
             nprocs = 1
-            logger.info(f"Using CPU for data analyzing!")
+            logger.info("Using CPU for data analyzing!")
         else:
             nprocs = torch.cuda.device_count()
             logger.info(f"Found {nprocs} GPUs for data analyzing!")
@@ -214,7 +214,6 @@ class DataAnalyzer:
                 for rank in range(nprocs):
                     p = Process(target=self._get_all_case_stats, args=(rank, nprocs, manager_list, key, transform_list))
                     processes.append(p)
-                print("mp time", time.time() - start)
                 for p in processes:
                     p.start()
                 for p in processes:
@@ -252,7 +251,6 @@ class DataAnalyzer:
                 sort_keys=False,
             )
         # release memory
-        d = None
         if self.device.type == "cuda":
             # release unreferenced tensors to mitigate OOM
             # limitation: https://github.com/pytorch/pytorch/issues/12873#issuecomment-482916237
@@ -331,9 +329,7 @@ class DataAnalyzer:
             except BaseException:
                 logger.info(f"Unable to process data {batch_data['image_meta_dict']['filename_or_obj']} on {device}.")
                 if self.device.type == "cuda":
-                    logger.info(
-                        f"DataAnalyzer `device` was set to use GPU but the execution hit an exception. Falling back to use `cpu`."
-                    )
+                    logger.info("DataAnalyzer `device` set to GPU execution hit an exception. Falling back to `cpu`.")
                     batch_data[self.image_key] = batch_data[self.image_key].to("cpu")
                     if self.label_key is not None:
                         label = batch_data[self.label_key]
