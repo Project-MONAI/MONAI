@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import torch
 import torch.nn as nn
-from typing import Optional
 
 class HeadController(nn.Module):
     """
@@ -28,39 +27,44 @@ class HeadController(nn.Module):
     def __init__(
         self,
         out_channels: int,
-        weight_nums: list = [64, 64, 8],
-        bias_nums: list = [8, 8, 1],
+        feature_size: int = 48,
+        head_in_channels:int = 8,
+        head_layers: int = 3,
+        head_hidden_size: int = 8,
         hidden_size: int = 256,
-        task_encoding: Optional[torch.Tensor] = None,
+        text_encoding: bool = True,
     ) -> None:
         """
         Args:
             out_channels: number of output channels, to control text-baesd embedding for classes.
-            weight_nums: weight feature size of text-driven segmentor conv layers, len(weight_nums) defines the number of layers.
-            bias_nums: bias size of text-driven segmentor conv layers, len(bias_nums) needs to be consistent to len(weight_nums).
-            hidden_size: dimension of hidden features, compatible to different vision feature dimensions.
-            task_encoding: the text embedding features passed. TODO: make optional
+            feature_size: the backbone output feature size before segmentation heads.
+            head_in_channels: number of dynamic segmentor input channels.
+            head_layers: number of conv layers of the dynamic segmentor.
+            head_hidden_size: hidden feature size of the intermediate dynamic segmentor conv layers .
+            hidden_size: dimension of backbone's bottleneck features.
+            text_encoding: the text embedding features passed.
         """
         super().__init__()
-        self.weight_nums = weight_nums
-        self.bias_nums = bias_nums
-
-
+        
+        self.head_hidden_size = head_hidden_size
+        self.bias_nums = [head_hidden_size] * (head_layers - 1) + [1] # defined by segmentor head's hidden size, last element of 1. 
+        self.weight_nums = [head_in_channels*head_hidden_size] + [head_hidden_size*head_hidden_size]*(head_layers-2) + [head_hidden_size] #first+intermediate+last layer
+        
         self.class_num = out_channels
-        self.task_encoding = task_encoding
-        if task_encoding:
-            self.task_encoding = task_encoding
-            self.controller = nn.Conv3d(2*hidden_size, sum(weight_nums+bias_nums), kernel_size=1, stride=1, padding=0)
+        self.text_encoding = text_encoding
+        # text-driven controller: connection of bottleneck feature to segmentor features, e.g., from 256(*2) to weights and bias nums
+        if self.text_encoding:
+            self.controller = nn.Conv3d(2*hidden_size, sum(self.weight_nums+self.bias_nums), kernel_size=1, stride=1, padding=0)
         else:
-            self.controller = nn.Conv3d(hidden_size, sum(weight_nums+bias_nums), kernel_size=1, stride=1, padding=0)
-
+            self.controller = nn.Conv3d(hidden_size, sum(self.weight_nums+self.bias_nums), kernel_size=1, stride=1, padding=0)
+        # convolution layer of backbone output to segmentor head input size, e.g., 48 to 8 
         self.precls_conv = nn.Sequential(
-            nn.GroupNorm(16, 48),
+            nn.GroupNorm(16, feature_size),
             nn.ReLU(inplace=True),
-            nn.Conv3d(48, 8, kernel_size=1)
+            nn.Conv3d(feature_size, head_in_channels, kernel_size=1)
         )
 
-    def parse_dynamic_params(self, params, channels, weight_nums, bias_nums):
+    def parse_dynamic_params(self, params, head_hidden_size, weight_nums, bias_nums):
         """
         Text-driven segmentor with layers of conv for dynamic outputs
         """
@@ -80,8 +84,8 @@ class HeadController(nn.Module):
 
         for l in range(num_layers):
             if l < num_layers - 1:
-                weight_splits[l] = weight_splits[l].reshape(num_insts * channels, -1, 1, 1, 1)
-                bias_splits[l] = bias_splits[l].reshape(num_insts * channels)
+                weight_splits[l] = weight_splits[l].reshape(num_insts * head_hidden_size, -1, 1, 1, 1)
+                bias_splits[l] = bias_splits[l].reshape(num_insts * head_hidden_size)
             else:
                 weight_splits[l] = weight_splits[l].reshape(num_insts * 1, -1, 1, 1, 1)
                 bias_splits[l] = bias_splits[l].reshape(num_insts * 1)
@@ -102,29 +106,30 @@ class HeadController(nn.Module):
                 x = nn.functional.relu(x)
         return x
 
-    def forward(self, x, out, logits_options=None):
-        logits_options = range(x.shape[0]) if not isinstance(logits_options, list) else logits_options
+    def forward(self, x, out, text_encoding=None, logits_options=None): 
+        logits_options = range(self.class_num) if not isinstance(logits_options, list) else logits_options
+        b = x.shape[0]
         logits_array = []
-        for i in logits_options:
-            if self.task_encoding:
-                x_cond = torch.cat([x[i].unsqueeze(0).repeat(self.class_num,1,1,1,1), self.task_encoding], 1)
+        for i in range(b): ## loop in batch size
+            # extract the corresponding text encoding and concate with x
+            if self.text_encoding:
+                x_cond = torch.cat([x[i].unsqueeze(0).repeat(len(logits_options),1,1,1,1), text_encoding[logits_options]], 1)
             else:
-                x_cond = x[i].unsqueeze(0).repeat(self.class_num,1,1,1,1)
-
+                x_cond = x[i].unsqueeze(0).repeat(len(logits_options),1,1,1,1)
+            # generate param for segmentor
             params = self.controller(x_cond)
             params.squeeze_(-1).squeeze_(-1).squeeze_(-1)
-            
+            ## dynamic segmentor
             head_inputs = self.precls_conv(out[i].unsqueeze(0))
-            head_inputs = head_inputs.repeat(self.class_num,1,1,1,1)
+            head_inputs = head_inputs.repeat(len(logits_options),1,1,1,1)
             N, _, D, H, W = head_inputs.size()
             head_inputs = head_inputs.reshape(1, -1, D, H, W)
-            weights, biases = self.parse_dynamic_params(params, 8, self.weight_nums, self.bias_nums)
-
+            # conv operation
+            weights, biases = self.parse_dynamic_params(params, self.head_hidden_size, self.weight_nums, self.bias_nums)
             logits = self.heads_forward(head_inputs, weights, biases, N)
             logits_array.append(logits.reshape(1, -1, D, H, W))
         
         out = torch.cat(logits_array,dim=0)
         return out
-
 
 
