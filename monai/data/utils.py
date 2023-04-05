@@ -786,7 +786,6 @@ def rectify_header_sform_qform(img_nii):
             return img_nii
 
     norm = affine_to_spacing(img_nii.affine, r=d)
-    warnings.warn(f"Modifying image pixdim from {pixdim} to {norm}")
 
     img_nii.header.set_zooms(norm)
     return img_nii
