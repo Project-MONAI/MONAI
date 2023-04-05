@@ -47,11 +47,14 @@ def import_bundle_algo_history(
         if isinstance(algo, BundleAlgo):  # algo's template path needs override
             algo.template_path = algo_meta_data["template_path"]
 
+        best_metrics = "best_metrics"
+        is_trained = best_metrics in algo_meta_data
+
         if only_trained:
-            if "best_metrics" in algo_meta_data:
-                history.append({name: algo})
+            if is_trained:
+                history.append({name: algo, "is_trained": is_trained, best_metrics: algo_meta_data[best_metrics]})
         else:
-            history.append({name: algo})
+            history.append({name: algo, "is_trained": is_trained, best_metrics: algo_meta_data.get(best_metrics, None)})
 
     return history
 
