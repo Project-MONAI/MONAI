@@ -54,6 +54,7 @@ jobs:
         python -c 'import torch; print(torch.rand(5,3, device=torch.device("cuda:0")))'
 
         # test auto3dseg
+        echo "test tag algo"
         BUILD_MONAI=0 ./runtests.sh --build
         python -m tests.test_auto3dseg_ensemble
         python -m tests.test_auto3dseg_hpo
@@ -61,6 +62,7 @@ jobs:
         python -m tests.test_integration_gpu_customization
 
         # test latest template
+        echo "test latest algo"
         cd ../
         rm -rf research-contributions
         git clone --depth 1 --branch main --single-branch https://github.com/Project-MONAI/research-contributions.git
@@ -76,6 +78,9 @@ jobs:
         python -m tests.test_integration_gpu_customization
 
         # the other tests
+        echo "the other tests"
+        pwd
+        ls -ll
         BUILD_MONAI=1 ./runtests.sh --build --net
         BUILD_MONAI=1 ./runtests.sh --build --unittests
         if pgrep python; then pkill python; fi
