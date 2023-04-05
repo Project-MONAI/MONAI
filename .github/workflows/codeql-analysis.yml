@@ -64,6 +64,7 @@ jobs:
 
     - name: Build
       run: |
+        python -m pip install -U pip wheel
         python -m pip install -r requirements-dev.txt
         BUILD_MONAI=1 ./runtests.sh --build
 

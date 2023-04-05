@@ -20,7 +20,7 @@ from torch.optim.optimizer import Optimizer
 
 from monai.config import IgniteInfo
 from monai.engines.utils import get_devices_spec
-from monai.utils import min_version, optional_import
+from monai.utils import deprecated, min_version, optional_import
 
 create_supervised_trainer, _ = optional_import(
     "ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "create_supervised_trainer"
@@ -53,6 +53,11 @@ def _default_eval_transform(
     return y_pred, y
 
 
+@deprecated(
+    since="1.1",
+    removed="1.3",
+    msg_suffix=("Native ignite engine lacks support of many MONAI features, please use `SupervisedTrainer` instead."),
+)
 def create_multigpu_supervised_trainer(
     net: torch.nn.Module,
     optimizer: Optimizer,
@@ -100,10 +105,23 @@ def create_multigpu_supervised_trainer(
         net = DataParallel(net)
 
     return create_supervised_trainer(  # type: ignore[no-any-return]
-        net, optimizer, loss_fn, devices_[0], non_blocking, prepare_batch, output_transform
+        model=net,
+        optimizer=optimizer,
+        loss_fn=loss_fn,
+        device=devices_[0],
+        non_blocking=non_blocking,
+        prepare_batch=prepare_batch,
+        output_transform=output_transform,
     )
 
 
+@deprecated(
+    since="1.1",
+    removed="1.3",
+    msg_suffix=(
+        "Native ignite evaluator lacks support of many MONAI features, please use `SupervisedEvaluator` instead."
+    ),
+)
 def create_multigpu_supervised_evaluator(
     net: torch.nn.Module,
     metrics: dict[str, Metric] | None = None,
@@ -153,5 +171,10 @@ def create_multigpu_supervised_evaluator(
         net = DataParallel(net)
 
     return create_supervised_evaluator(  # type: ignore[no-any-return]
-        net, metrics, devices_[0], non_blocking, prepare_batch, output_transform
+        model=net,
+        metrics=metrics,
+        device=devices_[0],
+        non_blocking=non_blocking,
+        prepare_batch=prepare_batch,
+        output_transform=output_transform,
     )

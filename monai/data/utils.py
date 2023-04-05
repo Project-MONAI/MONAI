@@ -94,6 +94,7 @@ __all__ = [
     "remove_extra_metadata",
     "get_extra_metadata_keys",
     "PICKLE_KEY_SUFFIX",
+    "is_no_channel",
 ]
 
 # module to be used by `torch.save`
@@ -246,14 +247,14 @@ def iter_patch_position(
 
 
 def iter_patch(
-    arr: np.ndarray,
+    arr: NdarrayOrTensor,
     patch_size: Sequence[int] | int = 0,
     start_pos: Sequence[int] = (),
     overlap: Sequence[float] | float = 0.0,
     copy_back: bool = True,
     mode: str | None = NumpyPadMode.WRAP,
     **pad_opts: dict,
-):
+) -> Generator[tuple[NdarrayOrTensor, np.ndarray], None, None]:
     """
     Yield successive patches from `arr` of size `patch_size`. The iteration can start from position `start_pos` in `arr`
     but drawing from a padded array extended by the `patch_size` in each dimension (so these coordinates can be negative
@@ -267,9 +268,16 @@ def iter_patch(
         overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
             If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
         copy_back: if True data from the yielded patches is copied back to `arr` once the generator completes
-        mode: One of the listed string values in ``monai.utils.NumpyPadMode`` or ``monai.utils.PytorchPadMode``,
-            or a user supplied function. If None, no wrapping is performed. Defaults to ``"wrap"``.
-        pad_opts: padding options, see `numpy.pad`
+        mode: available modes: (Numpy) {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            (PyTorch) {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+            One of the listed string values or a user supplied function.
+            If None, no wrapping is performed. Defaults to ``"wrap"``.
+            See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
+            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+            requires pytorch >= 1.10 for best compatibility.
+        pad_opts: other arguments for the `np.pad` or `torch.pad` function.
+            note that `np.pad` treats channel dimension as the first dimension.
 
     Yields:
         Patches of array data from `arr` which are views into a padded array which can be modified, if `copy_back` is
@@ -284,6 +292,9 @@ def iter_patch(
              Nth_dim_start, Nth_dim_end]]
 
     """
+
+    from monai.transforms.croppad.functional import pad_nd  # needs to be here to avoid circular import
+
     # ensure patchSize and startPos are the right length
     patch_size_ = get_valid_patch_size(arr.shape, patch_size)
     start_pos = ensure_tuple_size(start_pos, arr.ndim)
@@ -295,7 +306,7 @@ def iter_patch(
     _overlap = [op if v else 0.0 for op, v in zip(ensure_tuple_rep(overlap, arr.ndim), is_v)]  # overlap if v else 0.0
     # pad image by maximum values needed to ensure patches are taken from inside an image
     if padded:
-        arrpad = np.pad(arr, tuple((p, p) for p in _pad_size), look_up_option(mode, NumpyPadMode).value, **pad_opts)
+        arrpad = pad_nd(arr, to_pad=[(p, p) for p in _pad_size], mode=mode, **pad_opts)  # type: ignore
         # choose a start position in the padded image
         start_pos_padded = tuple(s + p for s, p in zip(start_pos, _pad_size))
 
@@ -318,7 +329,7 @@ def iter_patch(
     # copy back data from the padded image if required
     if copy_back:
         slices = tuple(slice(p, p + s) for p, s in zip(_pad_size, arr.shape))
-        arr[...] = arrpad[slices]
+        arr[...] = arrpad[slices]  # type: ignore
 
 
 def get_valid_patch_size(image_size: Sequence[int], patch_size: Sequence[int] | int | np.ndarray) -> tuple[int, ...]:
@@ -666,7 +677,7 @@ def worker_init_fn(worker_id: int) -> None:
 
     """
     worker_info = torch.utils.data.get_worker_info()
-    set_rnd(worker_info.dataset, seed=worker_info.seed)
+    set_rnd(worker_info.dataset, seed=worker_info.seed)  # type: ignore[union-attr]
 
 
 def set_rnd(obj, seed: int) -> int:
@@ -874,15 +885,14 @@ def compute_shape_offset(
     in_coords = [(-0.5, dim - 0.5) if scale_extent else (0.0, dim - 1.0) for dim in shape]
     corners: np.ndarray = np.asarray(np.meshgrid(*in_coords, indexing="ij")).reshape((len(shape), -1))
     corners = np.concatenate((corners, np.ones_like(corners[:1])))
-    corners = in_affine_ @ corners
     try:
-        inv_mat = np.linalg.inv(out_affine_)
+        corners_out = np.linalg.solve(out_affine_, in_affine_) @ corners
     except np.linalg.LinAlgError as e:
         raise ValueError(f"Affine {out_affine_} is not invertible") from e
-    corners_out = inv_mat @ corners
+    corners = in_affine_ @ corners
+    all_dist = corners_out[:-1].copy()
     corners_out = corners_out[:-1] / corners_out[-1]
     out_shape = np.round(corners_out.ptp(axis=1)) if scale_extent else np.round(corners_out.ptp(axis=1) + 1.0)
-    all_dist = inv_mat[:-1, :-1] @ corners[:-1, :]
     offset = None
     for i in range(corners.shape[1]):
         min_corner = np.min(all_dist - all_dist[:, i : i + 1], 1)
@@ -1529,3 +1539,14 @@ def get_extra_metadata_keys() -> list[str]:
     # ]
 
     return keys
+
+
+def is_no_channel(val) -> bool:
+    """Returns whether `val` indicates "no_channel", for MetaKeys.ORIGINAL_CHANNEL_DIM."""
+    if isinstance(val, torch.Tensor):
+        return bool(torch.isnan(val))
+    if isinstance(val, str):
+        return val == "no_channel"
+    if np.isscalar(val):
+        return bool(np.isnan(val))
+    return val is None

@@ -1,6 +1,6 @@
 -f https://download.pytorch.org/whl/cpu/torch-1.12.1%2Bcpu-cp37-cp37m-linux_x86_64.whl
-torch>=1.8
-pytorch-ignite==0.4.10
+torch>=1.9
+pytorch-ignite==0.4.11
 numpy>=1.20
 itk>=5.2
 nibabel
@@ -22,6 +22,7 @@ pandas
 einops
 transformers<4.22  # https://github.com/Project-MONAI/MONAI/issues/5157
 mlflow>=1.28.0
+clearml>=1.10.0rc0
 tensorboardX
 imagecodecs; platform_system == "Linux" or platform_system == "Darwin"
 tifffile; platform_system == "Linux" or platform_system == "Darwin"
@@ -34,3 +35,5 @@ h5py
 nni
 optuna
 opencv-python-headless
+onnx>=1.13.0
+onnxruntime; python_version <= '3.10'

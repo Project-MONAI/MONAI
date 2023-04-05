@@ -19,7 +19,7 @@ from .froc import compute_fp_tp_probs, compute_froc_curve_data, compute_froc_sco
 from .generalized_dice import GeneralizedDiceScore, compute_generalized_dice
 from .hausdorff_distance import HausdorffDistanceMetric, compute_hausdorff_distance, compute_percent_hausdorff_distance
 from .loss_metric import LossMetric
-from .meandice import DiceMetric, compute_dice, compute_meandice
+from .meandice import DiceHelper, DiceMetric, compute_dice
 from .meaniou import MeanIoU, compute_iou, compute_meaniou
 from .metric import Cumulative, CumulativeIterationMetric, IterationMetric, Metric
 from .panoptic_quality import PanopticQualityMetric, compute_panoptic_quality

@@ -247,7 +247,7 @@ class TestMetaTensor(unittest.TestCase):
                     "your pytorch version if this is important to you."
                 )
                 im_conv = im_conv.as_tensor()
-            self.check(out, im_conv, ids=False)
+        self.check(out, im_conv, ids=False)
 
     def test_pickling(self):
         m, _ = self.get_im()
@@ -258,7 +258,7 @@ class TestMetaTensor(unittest.TestCase):
             if not isinstance(m2, MetaTensor) and not pytorch_after(1, 8, 1):
                 warnings.warn("Old version of pytorch. pickling converts `MetaTensor` to `torch.Tensor`.")
                 m = m.as_tensor()
-            self.check(m2, m, ids=False)
+        self.check(m2, m, ids=False)
 
     @skip_if_no_cuda
     def test_amp(self):
@@ -430,8 +430,8 @@ class TestMetaTensor(unittest.TestCase):
 
     def test_str(self):
         t = MetaTensor([1.0], affine=torch.tensor(1), meta={"fname": "filename"})
-        self.assertEqual(str(t), "tensor([1.])")
-        self.assertEqual(t.__repr__(), "tensor([1.])")
+        self.assertEqual(str(t), "metatensor([1.])")
+        self.assertEqual(t.__repr__(), "metatensor([1.])")
 
     def test_shape(self):
         s = MetaTensor([1])

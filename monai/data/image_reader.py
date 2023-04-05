@@ -27,21 +27,11 @@ from monai.config import DtypeLike, KeysCollection, PathLike
 from monai.data.utils import (
     affine_to_spacing,
     correct_nifti_header_if_necessary,
+    is_no_channel,
     is_supported_format,
     orientation_ras_lps,
 )
-from monai.transforms.utility.array import EnsureChannelFirst
-from monai.utils import (
-    MetaKeys,
-    SpaceKeys,
-    TraceKeys,
-    deprecated,
-    deprecated_arg,
-    ensure_tuple,
-    ensure_tuple_rep,
-    optional_import,
-    require_pkg,
-)
+from monai.utils import MetaKeys, SpaceKeys, TraceKeys, deprecated_arg, ensure_tuple, optional_import, require_pkg
 
 if TYPE_CHECKING:
     import itk
@@ -60,20 +50,7 @@ else:
     pydicom, has_pydicom = optional_import("pydicom")
     nrrd, has_nrrd = optional_import("nrrd", allow_namespace_pkg=True)
 
-OpenSlide, _ = optional_import("openslide", name="OpenSlide")
-CuImage, _ = optional_import("cucim", name="CuImage")
-TiffFile, _ = optional_import("tifffile", name="TiffFile")
-
-__all__ = [
-    "ImageReader",
-    "ITKReader",
-    "NibabelReader",
-    "NumpyReader",
-    "PILReader",
-    "PydicomReader",
-    "WSIReader",
-    "NrrdReader",
-]
+__all__ = ["ImageReader", "ITKReader", "NibabelReader", "NumpyReader", "PILReader", "PydicomReader", "NrrdReader"]
 
 
 class ImageReader(ABC):
@@ -162,7 +139,7 @@ def _copy_compatible_dict(from_dict: dict, to_dict: dict):
 def _stack_images(image_list: list, meta_dict: dict):
     if len(image_list) <= 1:
         return image_list[0]
-    if meta_dict.get(MetaKeys.ORIGINAL_CHANNEL_DIM, None) not in ("no_channel", None):
+    if not is_no_channel(meta_dict.get(MetaKeys.ORIGINAL_CHANNEL_DIM, None)):
         channel_dim = int(meta_dict[MetaKeys.ORIGINAL_CHANNEL_DIM])
         return np.concatenate(image_list, axis=channel_dim)
     # stack at a new first dim as the channel dim, if `'original_channel_dim'` is unspecified
@@ -213,7 +190,7 @@ class ITKReader(ImageReader):
     ):
         super().__init__()
         self.kwargs = kwargs
-        self.channel_dim = channel_dim
+        self.channel_dim = float("nan") if channel_dim == "no_channel" else channel_dim
         self.series_name = series_name
         self.reverse_indexing = reverse_indexing
         self.series_meta = series_meta
@@ -305,7 +282,7 @@ class ITKReader(ImageReader):
             header[MetaKeys.SPATIAL_SHAPE] = self._get_spatial_shape(i)
             if self.channel_dim is None:  # default to "no_channel" or -1
                 header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
-                    "no_channel" if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
+                    float("nan") if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
                 )
             else:
                 header[MetaKeys.ORIGINAL_CHANNEL_DIM] = self.channel_dim
@@ -435,7 +412,7 @@ class PydicomReader(ImageReader):
 
     def __init__(
         self,
-        channel_dim: int | None = None,
+        channel_dim: str | int | None = None,
         affine_lps_to_ras: bool = True,
         swap_ij: bool = True,
         prune_metadata: bool = True,
@@ -444,7 +421,7 @@ class PydicomReader(ImageReader):
     ):
         super().__init__()
         self.kwargs = kwargs
-        self.channel_dim = channel_dim
+        self.channel_dim = float("nan") if channel_dim == "no_channel" else channel_dim
         self.affine_lps_to_ras = affine_lps_to_ras
         self.swap_ij = swap_ij
         self.prune_metadata = prune_metadata
@@ -629,7 +606,7 @@ class PydicomReader(ImageReader):
             metadata[MetaKeys.AFFINE] = affine.copy()
             if self.channel_dim is None:  # default to "no_channel" or -1
                 metadata[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
-                    "no_channel" if len(data_array.shape) == len(metadata[MetaKeys.SPATIAL_SHAPE]) else -1
+                    float("nan") if len(data_array.shape) == len(metadata[MetaKeys.SPATIAL_SHAPE]) else -1
                 )
             else:
                 metadata[MetaKeys.ORIGINAL_CHANNEL_DIM] = self.channel_dim
@@ -883,14 +860,14 @@ class NibabelReader(ImageReader):
     @deprecated_arg("dtype", since="1.0", msg_suffix="please modify dtype of the returned by ``get_data`` instead.")
     def __init__(
         self,
-        channel_dim: int | None = None,
+        channel_dim: str | int | None = None,
         as_closest_canonical: bool = False,
         squeeze_non_spatial_dims: bool = False,
         dtype: DtypeLike = np.float32,
         **kwargs,
     ):
         super().__init__()
-        self.channel_dim = channel_dim
+        self.channel_dim = float("nan") if channel_dim == "no_channel" else channel_dim
         self.as_closest_canonical = as_closest_canonical
         self.squeeze_non_spatial_dims = squeeze_non_spatial_dims
         self.dtype = dtype  # deprecated
@@ -929,7 +906,7 @@ class NibabelReader(ImageReader):
         for name in filenames:
             img = nib.load(name, **kwargs_)
             img = correct_nifti_header_if_necessary(img)
-            img_.append(img)
+            img_.append(img)  # type: ignore
         return img_ if len(filenames) > 1 else img_[0]
 
     def get_data(self, img) -> tuple[np.ndarray, dict]:
@@ -965,7 +942,7 @@ class NibabelReader(ImageReader):
             img_array.append(data)
             if self.channel_dim is None:  # default to "no_channel" or -1
                 header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
-                    "no_channel" if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
+                    float("nan") if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
                 )
             else:
                 header[MetaKeys.ORIGINAL_CHANNEL_DIM] = self.channel_dim
@@ -1018,8 +995,8 @@ class NibabelReader(ImageReader):
             dim = np.insert(dim, 0, 3)
         ndim = dim[0]
         size = list(dim[1:])
-        if self.channel_dim is not None:
-            size.pop(self.channel_dim)
+        if not is_no_channel(self.channel_dim):
+            size.pop(int(self.channel_dim))  # type: ignore
         spatial_rank = max(min(ndim, 3), 1)
         return np.asarray(size[:spatial_rank])
 
@@ -1049,12 +1026,12 @@ class NumpyReader(ImageReader):
 
     """
 
-    def __init__(self, npz_keys: KeysCollection | None = None, channel_dim: int | None = None, **kwargs):
+    def __init__(self, npz_keys: KeysCollection | None = None, channel_dim: str | int | None = None, **kwargs):
         super().__init__()
         if npz_keys is not None:
             npz_keys = ensure_tuple(npz_keys)
         self.npz_keys = npz_keys
-        self.channel_dim = channel_dim
+        self.channel_dim = float("nan") if channel_dim == "no_channel" else channel_dim
         self.kwargs = kwargs
 
     def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
@@ -1126,7 +1103,7 @@ class NumpyReader(ImageReader):
                 header[MetaKeys.SPACE] = SpaceKeys.RAS
             img_array.append(i)
             header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
-                self.channel_dim if isinstance(self.channel_dim, int) else "no_channel"
+                self.channel_dim if isinstance(self.channel_dim, int) else float("nan")
             )
             _copy_compatible_dict(header, compatible_meta)
 
@@ -1214,7 +1191,7 @@ class PILReader(ImageReader):
             data = np.moveaxis(np.asarray(i), 0, 1) if self.reverse_indexing else np.asarray(i)
             img_array.append(data)
             header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
-                "no_channel" if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
+                float("nan") if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
             )
             _copy_compatible_dict(header, compatible_meta)
 
@@ -1238,269 +1215,6 @@ class PILReader(ImageReader):
         return np.asarray((img.width, img.height))
 
 
-@deprecated(since="0.8", msg_suffix="use `monai.wsi_reader.WSIReader` instead.")
-class WSIReader(ImageReader):
-    """
-    Read whole slide images and extract patches.
-
-    Args:
-        backend: backend library to load the images, available options: "cuCIM", "OpenSlide" and "TiffFile".
-        level: the whole slide image level at which the image is extracted. (default=0)
-            This is overridden if the level argument is provided in `get_data`.
-        kwargs: additional args for backend reading API in `read()`, more details in `cuCIM`, `TiffFile`, `OpenSlide`:
-            https://github.com/rapidsai/cucim/blob/v21.12.00/cpp/include/cucim/cuimage.h#L100.
-            https://github.com/cgohlke/tifffile.
-            https://openslide.org/api/python/#openslide.OpenSlide.
-
-    Note:
-        While "cuCIM" and "OpenSlide" backends both can load patches from large whole slide images
-        without loading the entire image into memory, "TiffFile" backend needs to load the entire image into memory
-        before extracting any patch; thus, memory consideration is needed when using "TiffFile" backend for
-        patch extraction.
-
-    """
-
-    def __init__(self, backend: str = "OpenSlide", level: int = 0, **kwargs):
-        super().__init__()
-        self.backend = backend.lower()
-        func = require_pkg(self.backend)(self._set_reader)
-        self.wsi_reader = func(self.backend)
-        self.level = level
-        self.kwargs = kwargs
-
-    @staticmethod
-    def _set_reader(backend: str):
-        if backend == "openslide":
-            return OpenSlide
-        if backend == "cucim":
-            return CuImage
-        if backend == "tifffile":
-            return TiffFile
-        raise ValueError("`backend` should be 'cuCIM', 'OpenSlide' or 'TiffFile'.")
-
-    def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
-        """
-        Verify whether the specified file or files format is supported by WSI reader.
-
-        Args:
-            filename: file name or a list of file names to read.
-                if a list of files, verify all the suffixes.
-        """
-        return is_supported_format(filename, ["tif", "tiff"])
-
-    def read(self, data: Sequence[PathLike] | PathLike | np.ndarray, **kwargs):
-        """
-        Read image data from given file or list of files.
-
-        Args:
-            data: file name or a list of file names to read.
-            kwargs: additional args for backend reading API in `read()`, will override `self.kwargs` for existing keys.
-                more details in `cuCIM`, `TiffFile`, `OpenSlide`:
-                https://github.com/rapidsai/cucim/blob/v21.12.00/cpp/include/cucim/cuimage.h#L100.
-                https://github.com/cgohlke/tifffile.
-                https://openslide.org/api/python/#openslide.OpenSlide.
-
-        Returns:
-            image object or list of image objects
-
-        """
-        img_: list = []
-
-        filenames: Sequence[PathLike] = ensure_tuple(data)
-        kwargs_ = self.kwargs.copy()
-        kwargs_.update(kwargs)
-        for name in filenames:
-            img = self.wsi_reader(name, **kwargs_)
-            if self.backend == "openslide":
-                img.shape = (img.dimensions[1], img.dimensions[0], 3)
-            img_.append(img)
-
-        return img_ if len(filenames) > 1 else img_[0]
-
-    def get_data(
-        self,
-        img,
-        location: tuple[int, int] = (0, 0),
-        size: tuple[int, int] | None = None,
-        level: int | None = None,
-        dtype: DtypeLike = np.uint8,
-        grid_shape: tuple[int, int] = (1, 1),
-        patch_size: int | tuple[int, int] | None = None,
-    ):
-        """
-        Extract regions as numpy array from WSI image and return them.
-
-        Args:
-            img: a WSIReader image object loaded from a file, or list of CuImage objects
-            location: (top, left) tuple giving the top left pixel in the level 0 reference frame,
-            or list of tuples (default=(0, 0))
-            size: (height, width) tuple giving the region size, or list of tuples (default to full image size)
-            This is the size of image at the given level (`level`)
-            level: the level number, or list of level numbers (default=0)
-            dtype: the data type of output image
-            grid_shape: (row, columns) tuple define a grid to extract patches on that
-            patch_size: (height, width) the size of extracted patches at the given level
-        """
-        # Verify inputs
-        if level is None:
-            level = self.level
-        max_level = self._get_max_level(img)
-        if level > max_level:
-            raise ValueError(f"The maximum level of this image is {max_level} while level={level} is requested)!")
-
-        # Extract a region or the entire image
-        region = self._extract_region(img, location=location, size=size, level=level, dtype=dtype)
-
-        # Add necessary metadata
-        metadata: dict = {}
-        metadata[MetaKeys.SPATIAL_SHAPE] = np.asarray(region.shape[:-1])
-        metadata[MetaKeys.ORIGINAL_CHANNEL_DIM] = -1
-
-        # Make it channel first
-        region = EnsureChannelFirst()(region, metadata)
-
-        # Split into patches
-        if patch_size is None:
-            patches = region
-        else:
-            tuple_patch_size = ensure_tuple_rep(patch_size, 2)
-            patches = self._extract_patches(
-                region, patch_size=tuple_patch_size, grid_shape=grid_shape, dtype=dtype  # type: ignore
-            )
-
-        return patches, metadata
-
-    def _get_max_level(self, img_obj):
-        """
-        Return the maximum number of levels in the whole slide image
-        Args:
-            img: the whole slide image object
-
-        """
-        if self.backend == "openslide":
-            return img_obj.level_count - 1
-        if self.backend == "cucim":
-            return img_obj.resolutions["level_count"] - 1
-        if self.backend == "tifffile":
-            return len(img_obj.pages) - 1
-
-    def _get_image_size(self, img, size, level, location):
-        """
-        Calculate the maximum region size for the given level and starting location (if size is None).
-        Note that region size in OpenSlide and cuCIM are WxH (but the final image output would be HxW)
-        """
-        if size is not None:
-            return size[::-1]
-
-        max_size = []
-        downsampling_factor = []
-        if self.backend == "openslide":
-            downsampling_factor = img.level_downsamples[level]
-            max_size = img.level_dimensions[level]
-        elif self.backend == "cucim":
-            downsampling_factor = img.resolutions["level_downsamples"][level]
-            max_size = img.resolutions["level_dimensions"][level]
-
-        # subtract the top left corner of the patch (at given level) from maximum size
-        location_at_level = (round(location[1] / downsampling_factor), round(location[0] / downsampling_factor))
-        size = [max_size[i] - location_at_level[i] for i in range(len(max_size))]
-
-        return size
-
-    def _extract_region(
-        self,
-        img_obj,
-        size: tuple[int, int] | None,
-        location: tuple[int, int] = (0, 0),
-        level: int = 0,
-        dtype: DtypeLike = np.uint8,
-    ):
-        if self.backend == "tifffile":
-            # Read the entire image
-            if size is not None:
-                raise ValueError(
-                    f"TiffFile backend reads the entire image only, so size '{size}'' should not be provided!",
-                    "For more flexibility or extracting regions, please use cuCIM or OpenSlide backend.",
-                )
-            if location != (0, 0):
-                raise ValueError(
-                    f"TiffFile backend reads the entire image only, so location '{location}' should not be provided!",
-                    "For more flexibility and extracting regions, please use cuCIM or OpenSlide backend.",
-                )
-            region = img_obj.asarray(level=level)
-        else:
-            # Get region size to be extracted
-            region_size = self._get_image_size(img_obj, size, level, location)
-            # reverse the order of location's dimensions to become WxH (for cuCIM and OpenSlide)
-            region_location = location[::-1]
-            # Extract a region (or the entire image)
-            region = img_obj.read_region(location=region_location, size=region_size, level=level)
-
-        region = self.convert_to_rgb_array(region, dtype)
-        return region
-
-    def convert_to_rgb_array(self, raw_region, dtype: DtypeLike = np.uint8):
-        """Convert to RGB mode and numpy array"""
-        if self.backend == "openslide":
-            # convert to RGB
-            raw_region = raw_region.convert("RGB")
-
-        # convert to numpy (if not already in numpy)
-        raw_region = np.asarray(raw_region, dtype=dtype)
-
-        # check if the image has three dimensions (2D + color)
-        if raw_region.ndim != 3:
-            raise ValueError(
-                f"The input image dimension should be 3 but {raw_region.ndim} is given. "
-                "`WSIReader` is designed to work only with 2D colored images."
-            )
-
-        # check if the color channel is 3 (RGB) or 4 (RGBA)
-        if raw_region.shape[-1] not in [3, 4]:
-            raise ValueError(
-                f"There should be three or four color channels but {raw_region.shape[-1]} is given. "
-                "`WSIReader` is designed to work only with 2D colored images."
-            )
-
-        # remove alpha channel if exist (RGBA)
-        if raw_region.shape[-1] > 3:
-            raw_region = raw_region[..., :3]
-
-        return raw_region
-
-    def _extract_patches(
-        self,
-        region: np.ndarray,
-        grid_shape: tuple[int, int] = (1, 1),
-        patch_size: tuple[int, int] | None = None,
-        dtype: DtypeLike = np.uint8,
-    ):
-        if patch_size is None and grid_shape == (1, 1):
-            return region
-
-        n_patches = grid_shape[0] * grid_shape[1]
-        region_size = region.shape[1:]
-
-        if patch_size is None:
-            patch_size = (region_size[0] // grid_shape[0], region_size[1] // grid_shape[1])
-
-        # split the region into patches on the grid and center crop them to patch size
-        flat_patch_grid = np.zeros((n_patches, 3, patch_size[0], patch_size[1]), dtype=dtype)
-        start_points = [
-            np.round(region_size[i] * (0.5 + np.arange(grid_shape[i])) / grid_shape[i] - patch_size[i] / 2).astype(int)
-            for i in range(2)
-        ]
-        idx = 0
-        for y_start in start_points[1]:
-            for x_start in start_points[0]:
-                x_end = x_start + patch_size[0]
-                y_end = y_start + patch_size[1]
-                flat_patch_grid[idx] = region[:, x_start:x_end, y_start:y_end]
-                idx += 1
-
-        return flat_patch_grid
-
-
 @dataclass
 class NrrdImage:
     """Class to wrap nrrd image array and metadata header"""
@@ -1522,6 +1236,9 @@ class NrrdReader(ImageReader):
         dtype: dtype of the data array when loading image.
         index_order: Specify whether the returned data array should be in C-order (‘C’) or Fortran-order (‘F’).
             Numpy is usually in C-order, but default on the NRRD header is F
+        affine_lps_to_ras: whether to convert the affine matrix from "LPS" to "RAS". Defaults to ``True``.
+            Set to ``True`` to be consistent with ``NibabelReader``, otherwise the affine matrix is unmodified.
+
         kwargs: additional args for `nrrd.read` API. more details about available args:
             https://github.com/mhe/pynrrd/blob/master/nrrd/reader.py
 
@@ -1529,14 +1246,16 @@ class NrrdReader(ImageReader):
 
     def __init__(
         self,
-        channel_dim: int | None = None,
+        channel_dim: str | int | None = None,
         dtype: np.dtype | type | str | None = np.float32,
         index_order: str = "F",
+        affine_lps_to_ras: bool = True,
         **kwargs,
     ):
-        self.channel_dim = channel_dim
+        self.channel_dim = float("nan") if channel_dim == "no_channel" else channel_dim
         self.dtype = dtype
         self.index_order = index_order
+        self.affine_lps_to_ras = affine_lps_to_ras
         self.kwargs = kwargs
 
     def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
@@ -1590,14 +1309,17 @@ class NrrdReader(ImageReader):
             if self.index_order == "C":
                 header = self._convert_f_to_c_order(header)
             header[MetaKeys.ORIGINAL_AFFINE] = self._get_affine(i)
-            header = self._switch_lps_ras(header)
+
+            if self.affine_lps_to_ras:
+                header = self._switch_lps_ras(header)
+
             header[MetaKeys.AFFINE] = header[MetaKeys.ORIGINAL_AFFINE].copy()
             header[MetaKeys.SPATIAL_SHAPE] = header["sizes"]
             [header.pop(k) for k in ("sizes", "space origin", "space directions")]  # rm duplicated data in header
 
             if self.channel_dim is None:  # default to "no_channel" or -1
                 header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
-                    "no_channel" if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else 0
+                    float("nan") if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else 0
                 )
             else:
                 header[MetaKeys.ORIGINAL_CHANNEL_DIM] = self.channel_dim

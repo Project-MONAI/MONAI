@@ -52,7 +52,7 @@ def compute_isolated_tumor_cells(tumor_mask: np.ndarray, threshold: float) -> li
             A region with the longest diameter less than this threshold is considered as an ITC.
     """
     max_label = np.amax(tumor_mask)
-    properties = measure.regionprops(tumor_mask, coordinates="rc")
+    properties = measure.regionprops(tumor_mask)
     itc_list = [i + 1 for i in range(max_label) if properties[i].major_axis_length < threshold]
 
     return itc_list

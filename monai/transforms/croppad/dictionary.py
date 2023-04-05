@@ -297,7 +297,7 @@ class DivisiblePadd(Padd):
         super().__init__(keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys)
 
 
-class Cropd(MapTransform, InvertibleTransform):
+class Cropd(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of abstract class :py:class:`monai.transforms.Crop`.
 
@@ -314,6 +314,12 @@ class Cropd(MapTransform, InvertibleTransform):
     def __init__(self, keys: KeysCollection, cropper: Crop, allow_missing_keys: bool = False):
         super().__init__(keys, allow_missing_keys)
         self.cropper = cropper
+
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, value: bool) -> None:
+        self._lazy_evaluation = value
+        if isinstance(self.cropper, LazyTransform):
+            self.cropper.lazy_evaluation = value
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
@@ -358,7 +364,8 @@ class RandCropd(Cropd, Randomizable):
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         # the first key must exist to execute random operations
-        self.randomize(d[self.first_key(d)].shape[1:])
+        first_item = d[self.first_key(d)]
+        self.randomize(first_item.peek_pending_shape() if isinstance(first_item, MetaTensor) else first_item.shape[1:])
         for key in self.key_iterator(d):
             kwargs = {"randomize": False} if isinstance(self.cropper, Randomizable) else {}
             d[key] = self.cropper(d[key], **kwargs)  # type: ignore
@@ -535,7 +542,7 @@ class RandScaleCropd(RandCropd):
         super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys)
 
 
-class RandSpatialCropSamplesd(Randomizable, MapTransform, MultiSampleTrait):
+class RandSpatialCropSamplesd(Randomizable, MapTransform, LazyTransform, MultiSampleTrait):
     """
     Dictionary-based version :py:class:`monai.transforms.RandSpatialCropSamples`.
     Crop image with random size or specific size ROI to generate a list of N samples.
@@ -586,6 +593,11 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, MultiSampleTrait):
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.cropper = RandSpatialCropSamples(roi_size, num_samples, max_roi_size, random_center, random_size)
+
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, value: bool) -> None:
+        self._lazy_evaluation = value
+        self.cropper.lazy_evaluation = value
 
     def randomize(self, data: Any | None = None) -> None:
         self.sub_seed = self.R.randint(MAX_SEED, dtype="uint32")
@@ -676,20 +688,25 @@ class CropForegroundd(Cropd):
         super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, value: bool) -> None:
+        self._lazy_evaluation = value
+        self.cropper.lazy_evaluation = value
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         self.cropper: CropForeground
         box_start, box_end = self.cropper.compute_bounding_box(img=d[self.source_key])
         if self.start_coord_key is not None:
-            d[self.start_coord_key] = box_start
+            d[self.start_coord_key] = box_start  # type: ignore
         if self.end_coord_key is not None:
-            d[self.end_coord_key] = box_end
+            d[self.end_coord_key] = box_end  # type: ignore
         for key, m in self.key_iterator(d, self.mode):
             d[key] = self.cropper.crop_pad(img=d[key], box_start=box_start, box_end=box_end, mode=m)
         return d
 
 
-class RandWeightedCropd(Randomizable, MapTransform, MultiSampleTrait):
+class RandWeightedCropd(Randomizable, MapTransform, LazyTransform, MultiSampleTrait):
     """
     Samples a list of `num_samples` image patches according to the provided `weight_map`.
 
@@ -731,6 +748,11 @@ class RandWeightedCropd(Randomizable, MapTransform, MultiSampleTrait):
     def randomize(self, weight_map: NdarrayOrTensor) -> None:
         self.cropper.randomize(weight_map)
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, value: bool) -> None:
+        self._lazy_evaluation = value
+        self.cropper.lazy_evaluation = value
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> list[dict[Hashable, torch.Tensor]]:
         # output starts as empty list of dictionaries
         ret: list = [dict(data) for _ in range(self.cropper.num_samples)]
@@ -741,12 +763,12 @@ class RandWeightedCropd(Randomizable, MapTransform, MultiSampleTrait):
 
         self.randomize(weight_map=data[self.w_key])
         for key in self.key_iterator(data):
-            for i, im in enumerate(self.cropper(data[key], weight_map=data[self.w_key], randomize=False)):
+            for i, im in enumerate(self.cropper(data[key], randomize=False)):
                 ret[i][key] = im
         return ret
 
 
-class RandCropByPosNegLabeld(Randomizable, MapTransform, MultiSampleTrait):
+class RandCropByPosNegLabeld(Randomizable, MapTransform, LazyTransform, MultiSampleTrait):
     """
     Dictionary-based version :py:class:`monai.transforms.RandCropByPosNegLabel`.
     Crop random fixed sized regions with the center being a foreground or background voxel
@@ -838,21 +860,24 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, MultiSampleTrait):
 
     def randomize(
         self,
-        label: torch.Tensor,
+        label: torch.Tensor | None = None,
         fg_indices: NdarrayOrTensor | None = None,
         bg_indices: NdarrayOrTensor | None = None,
         image: torch.Tensor | None = None,
     ) -> None:
         self.cropper.randomize(label=label, fg_indices=fg_indices, bg_indices=bg_indices, image=image)
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, value: bool) -> None:
+        self._lazy_evaluation = value
+        self.cropper.lazy_evaluation = value
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> list[dict[Hashable, torch.Tensor]]:
         d = dict(data)
-        label = d[self.label_key]
-        image = d[self.image_key] if self.image_key else None
-        fg_indices = d.pop(self.fg_indices_key, None) if self.fg_indices_key is not None else None
-        bg_indices = d.pop(self.bg_indices_key, None) if self.bg_indices_key is not None else None
+        fg_indices = d.pop(self.fg_indices_key, None)
+        bg_indices = d.pop(self.bg_indices_key, None)
 
-        self.randomize(label, fg_indices, bg_indices, image)
+        self.randomize(d.get(self.label_key), fg_indices, bg_indices, d.get(self.image_key))
 
         # initialize returned list with shallow copy to preserve key ordering
         ret: list = [dict(d) for _ in range(self.cropper.num_samples)]
@@ -862,12 +887,12 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, MultiSampleTrait):
                 ret[i][key] = deepcopy(d[key])
 
         for key in self.key_iterator(d):
-            for i, im in enumerate(self.cropper(d[key], label=label, randomize=False)):
+            for i, im in enumerate(self.cropper(d[key], randomize=False)):
                 ret[i][key] = im
         return ret
 
 
-class RandCropByLabelClassesd(Randomizable, MapTransform, MultiSampleTrait):
+class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSampleTrait):
     """
     Dictionary-based version :py:class:`monai.transforms.RandCropByLabelClasses`.
     Crop random fixed sized regions with the center being a class based on the specified ratios of every class.
@@ -936,6 +961,8 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, MultiSampleTrait):
             the requested ROI in any dimension. If `True`, any smaller dimensions will remain
             unchanged.
         allow_missing_keys: don't raise exception if key is missing.
+        warn: if `True` prints a warning if a class is not present in the label.
+
 
     """
 
@@ -954,6 +981,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, MultiSampleTrait):
         indices_key: str | None = None,
         allow_smaller: bool = False,
         allow_missing_keys: bool = False,
+        warn: bool = True,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.label_key = label_key
@@ -966,6 +994,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, MultiSampleTrait):
             num_samples=num_samples,
             image_threshold=image_threshold,
             allow_smaller=allow_smaller,
+            warn=warn,
         )
 
     def set_random_state(
@@ -980,13 +1009,14 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, MultiSampleTrait):
     ) -> None:
         self.cropper.randomize(label=label, indices=indices, image=image)
 
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, value: bool) -> None:
+        self._lazy_evaluation = value
+        self.cropper.lazy_evaluation = value
+
     def __call__(self, data: Mapping[Hashable, Any]) -> list[dict[Hashable, torch.Tensor]]:
         d = dict(data)
-        label = d[self.label_key]
-        image = d[self.image_key] if self.image_key else None
-        indices = d.pop(self.indices_key, None) if self.indices_key is not None else None
-
-        self.randomize(label, indices, image)
+        self.randomize(d.get(self.label_key), d.pop(self.indices_key, None), d.get(self.image_key))  # type: ignore
 
         # initialize returned list with shallow copy to preserve key ordering
         ret: list = [dict(d) for _ in range(self.cropper.num_samples)]
@@ -996,7 +1026,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, MultiSampleTrait):
                 ret[i][key] = deepcopy(d[key])
 
         for key in self.key_iterator(d):
-            for i, im in enumerate(self.cropper(d[key], label=label, randomize=False)):
+            for i, im in enumerate(self.cropper(d[key], randomize=False)):
                 ret[i][key] = im
         return ret
 
