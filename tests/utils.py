@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import argparse
 import copy
 import datetime
 import functools
@@ -842,5 +843,8 @@ if torch.cuda.is_available():
     TEST_DEVICES.append([torch.device("cuda")])
 
 if __name__ == "__main__":
-    print("\n", query_memory(), sep="\n")  # print to stdout
+    parser = argparse.ArgumentParser(prog="util")
+    parser.add_argument("-c", "--count", default=2, help="max number of gpus")
+    args = parser.parse_args()
+    print("\n", query_memory(args.count), sep="\n")  # print to stdout
     sys.exit(0)
