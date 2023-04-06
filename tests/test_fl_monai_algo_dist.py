@@ -21,6 +21,7 @@ from monai.bundle import ConfigParser, ConfigWorkflow
 from monai.fl.client.monai_algo import MonaiAlgo
 from monai.fl.utils.constants import ExtraItems
 from monai.fl.utils.exchange_object import ExchangeObject
+from monai.networks import get_state_dict
 from tests.utils import DistCall, DistTestCase, SkipIfBeforePyTorchVersion, SkipIfNoModule, skip_if_no_cuda
 
 _root_dir = os.path.abspath(pathjoin(os.path.dirname(__file__)))
@@ -49,7 +50,7 @@ class TestFLMonaiAlgo(DistTestCase):
         parser.read_config(config_file)
         parser.parse()
         network = parser.get_parsed_content("network")
-        data = ExchangeObject(weights=network.state_dict())
+        data = ExchangeObject(weights=get_state_dict(network))
         # test train
         algo.train(data=data, extra={})
 
@@ -72,7 +73,7 @@ class TestFLMonaiAlgo(DistTestCase):
         parser.read_config(pathjoin(_data_dir, "config_fl_evaluate.json"))
         parser.parse()
         network = parser.get_parsed_content("network")
-        data = ExchangeObject(weights=network.state_dict())
+        data = ExchangeObject(weights=get_state_dict(network))
         # test evaluate
         algo.evaluate(data=data, extra={})
 

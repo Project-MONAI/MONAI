@@ -657,7 +657,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
 
     def _check_converted(self, global_weights, local_var_dict, n_converted):
         if n_converted == 0:
-            self.logger.warning(
+            raise RuntimeError(
                 f"No global weights converted! Received weight dict keys are {list(global_weights.keys())}"
             )
         else:
