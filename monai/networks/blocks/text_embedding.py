@@ -49,7 +49,7 @@ class TextEncoder(nn.Module):
             self.register_buffer('text_embedding', torch.randn(out_channels, text_dim))
             self.text_to_vision = nn.Linear(text_dim, hidden_size)
         else:
-            raise Exception('{} is not implemented, please add your own'.format(self.encoding))
+            raise Exception(f'{self.encoding} is not implemented, please add your own')
 
     def forward(self):
         if self.encoding == 'clip_embedding':
