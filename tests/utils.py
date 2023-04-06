@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import argparse
 import copy
 import datetime
 import functools
@@ -784,6 +785,7 @@ def query_memory(n=2):
     bash_string = "nvidia-smi --query-gpu=power.draw,temperature.gpu,memory.used --format=csv,noheader,nounits"
 
     try:
+        print(f"query memory with n={n}")
         p1 = Popen(bash_string.split(), stdout=PIPE)
         output, error = p1.communicate()
         free_memory = [x.split(",") for x in output.decode("utf-8").split("\n")[:-1]]
@@ -842,5 +844,8 @@ if torch.cuda.is_available():
     TEST_DEVICES.append([torch.device("cuda")])
 
 if __name__ == "__main__":
-    print("\n", query_memory(), sep="\n")  # print to stdout
+    parser = argparse.ArgumentParser(prog="util")
+    parser.add_argument("-c", "--count", default=2, help="max number of gpus")
+    args = parser.parse_args()
+    print("\n", query_memory(int(args.count)), sep="\n")  # print to stdout
     sys.exit(0)
