@@ -184,6 +184,14 @@ Decollate batch
 .. autoclass:: DecollateBatch
     :members:
 
+Weights & Biases handler
+------------------------
+.. autoclass:: WandbStatsHandler
+    :members:
+
+.. autoclass:: WandbModelCheckpointHandler
+    :members:
+
 MLFlow handler
 --------------
 .. autoclass:: MLFlowHandler
