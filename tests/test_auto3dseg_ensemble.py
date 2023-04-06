@@ -135,8 +135,8 @@ class TestEnsembleBuilder(unittest.TestCase):
         history = bundle_generator.get_history()
 
         for algo_dict in history:
-            name = algo_dict["name"]
-            algo = algo_dict["algo"]
+            name = algo_dict[AlgoEnsembleKeys.ID]
+            algo = algo_dict[AlgoEnsembleKeys.ALGO]
             _train_param = train_param.copy()
             if name.startswith("segresnet"):
                 _train_param["network#init_filters"] = 8

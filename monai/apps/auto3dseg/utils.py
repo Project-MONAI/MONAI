@@ -53,7 +53,14 @@ def import_bundle_algo_history(
         is_trained = best_metric is not None
 
         if (only_trained and is_trained) or not only_trained:
-            history.append({"name": name, "algo": algo, "is_trained": is_trained, AlgoEnsembleKeys.SCORE: best_metric})
+            history.append(
+                {
+                    AlgoEnsembleKeys.ID: name,
+                    AlgoEnsembleKeys.ALGO: algo,
+                    AlgoEnsembleKeys.SCORE: best_metric,
+                    "is_trained": is_trained,
+                }
+            )
 
     return history
 
@@ -66,5 +73,5 @@ def export_bundle_algo_history(history: list[dict[str, BundleAlgo]]) -> None:
         history: a List of Bundle. Typically, the history can be obtained from BundleGen get_history method
     """
     for algo_dict in history:
-        algo = algo_dict["algo"]
+        algo = algo_dict[AlgoEnsembleKeys.ALGO]
         algo_to_pickle(algo, template_path=algo.template_path)

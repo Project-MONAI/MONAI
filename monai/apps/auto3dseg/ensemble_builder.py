@@ -277,8 +277,8 @@ class AlgoEnsembleBuilder:
         for algo_dict in history:
             # load inference_config_paths
 
-            name = algo_dict["name"]
-            gen_algo = algo_dict["algo"]
+            name = algo_dict[AlgoEnsembleKeys.ID]
+            gen_algo = algo_dict[AlgoEnsembleKeys.ALGO]
 
             best_metric = gen_algo.get_score()
             algo_path = gen_algo.output_path

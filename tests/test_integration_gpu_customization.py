@@ -139,7 +139,7 @@ class TestEnsembleGpuCustomization(unittest.TestCase):
         history = bundle_generator.get_history()
 
         for algo_dict in history:
-            algo = algo_dict["algo"]
+            algo = algo_dict[AlgoEnsembleKeys.ALGO]
             algo.train(train_param)
 
         builder = AlgoEnsembleBuilder(history, data_src_cfg)

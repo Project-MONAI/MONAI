@@ -33,6 +33,7 @@ from monai.auto3dseg.algo_gen import Algo, AlgoGen
 from monai.auto3dseg.utils import algo_to_pickle
 from monai.bundle.config_parser import ConfigParser
 from monai.utils import ensure_tuple
+from monai.utils.enums import AlgoEnsembleKeys
 
 logger = get_logger(module_name=__name__)
 ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "7758ad1")
@@ -538,5 +539,5 @@ class BundleGen(AlgoGen):
 
                 algo_to_pickle(gen_algo, template_path=algo.template_path)
                 self.history.append(
-                    {"name": name, "algo": gen_algo}
+                    {AlgoEnsembleKeys.ID: name, AlgoEnsembleKeys.ALGO: gen_algo}
                 )  # track the previous, may create a persistent history

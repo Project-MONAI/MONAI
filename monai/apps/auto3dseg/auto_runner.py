@@ -636,7 +636,7 @@ class AutoRunner:
             progress.yaml, accuracies in CSV and a pickle file of the Algo object.
         """
         for algo_dict in history:
-            algo = algo_dict["algo"]
+            algo = algo_dict[AlgoEnsembleKeys.ALGO]
             algo.train(self.train_params)
             acc = algo.get_score()
 
@@ -675,8 +675,8 @@ class AutoRunner:
         last_total_tasks = len(import_bundle_algo_history(self.work_dir, only_trained=True))
         mode_dry_run = self.hpo_params.pop("nni_dry_run", False)
         for algo_dict in history:
-            name = algo_dict["name"]
-            algo = algo_dict["algo"]
+            name = algo_dict[AlgoEnsembleKeys.ID]
+            algo = algo_dict[AlgoEnsembleKeys.ALGO]
             nni_gen = NNIGen(algo=algo, params=self.hpo_params)
             obj_filename = nni_gen.get_obj_filename()
             nni_config = deepcopy(default_nni_config)
