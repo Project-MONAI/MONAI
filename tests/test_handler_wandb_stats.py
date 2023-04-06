@@ -50,5 +50,7 @@ class TestWandbStatsHandler(unittest.TestCase):
 
         self.assertTrue(os.path.isdir(tempdir.name))
         self.assertTrue(len(glob.glob(os.path.join(tempdir.name, "*"))) > 0)
+        self.assertTrue(len(glob.glob(os.path.join(tempdir.name, "wandb", "*"))) > 0)
+        self.assertTrue(len(glob.glob(os.path.join(tempdir.name, "wandb", "debug*"))) > 0)
         
         shutil.rmtree(tempdir.name)
