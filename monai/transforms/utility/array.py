@@ -1021,7 +1021,11 @@ class ClassesToIndices(Transform, MultiSampleTrait):
     backend = [TransformBackends.NUMPY, TransformBackends.TORCH]
 
     def __init__(
-        self, num_classes: int | None = None, image_threshold: float = 0.0, output_shape: Sequence[int] | None = None
+        self,
+        num_classes: int | None = None,
+        image_threshold: float = 0.0,
+        output_shape: Sequence[int] | None = None,
+        max_samples_per_class: int | None = None,
     ) -> None:
         """
         Compute indices of every class of the input label data, return a list of indices.
@@ -1035,11 +1039,14 @@ class ClassesToIndices(Transform, MultiSampleTrait):
             image_threshold: if enabled `image` at runtime, use ``image > image_threshold`` to
                 determine the valid image content area and select only the indices of classes in this area.
             output_shape: expected shape of output indices. if not None, unravel indices to specified shape.
+            max_samples_per_class: maximum length of indices to sample in each class to reduce memory consumption.
+                Default is None, no subsampling.
 
         """
         self.num_classes = num_classes
         self.image_threshold = image_threshold
         self.output_shape = output_shape
+        self.max_samples_per_class = max_samples_per_class
 
     def __call__(
         self, label: NdarrayOrTensor, image: NdarrayOrTensor | None = None, output_shape: Sequence[int] | None = None
@@ -1056,7 +1063,9 @@ class ClassesToIndices(Transform, MultiSampleTrait):
         if output_shape is None:
             output_shape = self.output_shape
         indices: list[NdarrayOrTensor]
-        indices = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
+        indices = map_classes_to_indices(
+            label, self.num_classes, image, self.image_threshold, self.max_samples_per_class
+        )
         if output_shape is not None:
             indices = [unravel_indices(cls_indices, output_shape) for cls_indices in indices]
 
