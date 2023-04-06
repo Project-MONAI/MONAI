@@ -44,7 +44,7 @@ class TextEncoder(nn.Module):
         self.encoding = encoding
 
         if self.encoding == 'rand_embedding':
-            self.organ_embedding = nn.Embedding(out_channels, hidden_size)
+            self.text_embedding = nn.Embedding(out_channels, hidden_size)
         elif self.encoding == 'clip_embedding':
             self.register_buffer('text_embedding', torch.randn(out_channels, text_dim))
             self.text_to_vision = nn.Linear(text_dim, hidden_size)
