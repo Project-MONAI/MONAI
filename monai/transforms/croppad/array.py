@@ -1153,6 +1153,8 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
             the requested ROI in any dimension. If `True`, any smaller dimensions will remain
             unchanged.
         warn: if `True` prints a warning if a class is not present in the label.
+        max_samples_per_class: maximum length of indices to sample in each class to reduce memory consumption.
+            Default is None, no subsampling.
 
     """
 
@@ -1170,6 +1172,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
         indices: list[NdarrayOrTensor] | None = None,
         allow_smaller: bool = False,
         warn: bool = True,
+        max_samples_per_class: int | None = None,
     ) -> None:
         self.spatial_size = spatial_size
         self.ratios = ratios
@@ -1182,6 +1185,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
         self.indices = indices
         self.allow_smaller = allow_smaller
         self.warn = warn
+        self.max_samples_per_class = max_samples_per_class
 
     def randomize(
         self,
@@ -1197,7 +1201,9 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
                 warnings.warn("image has pending operations, the fg/bg indices may be incorrect.")
             if label is None:
                 raise ValueError("label must not be None.")
-            indices_ = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
+            indices_ = map_classes_to_indices(
+                label, self.num_classes, image, self.image_threshold, self.max_samples_per_class
+            )
         _shape = None
         if label is not None:
             _shape = label.peek_pending_shape() if isinstance(label, MetaTensor) else label.shape[1:]
