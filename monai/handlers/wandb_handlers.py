@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Mapping, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, Mapping, Sequence
 
 import torch
 
@@ -58,13 +58,13 @@ class WandbStatsHandler:
         self,
         iteration_log: bool = True,
         epoch_log: bool = True,
-        epoch_event_writer: Optional[Callable[[Engine, Any], Any]] = None,
+        epoch_event_writer: Callable[[Engine, Any], Any] | None = None,
         epoch_interval: int = 1,
-        iteration_event_writer: Optional[Callable[[Engine, Any], Any]] = None,
+        iteration_event_writer: Callable[[Engine, Any], Any] | None = None,
         iteration_interval: int = 1,
         output_transform: Callable = lambda x: x[0],
         global_epoch_transform: Callable = lambda x: x,
-        state_attributes: Optional[Sequence[str]] = None,
+        state_attributes: Sequence[str] | None = None,
         tag_name: str = DEFAULT_TAG,
     ):
         """
@@ -228,19 +228,19 @@ class WandbModelCheckpointHandler(ModelCheckpoint):
 
     def __init__(
         self,
-        dirname: Union[str, Path],
+        dirname: str | Path,
         filename_prefix: str = "",
-        save_interval: Optional[int] = None,
-        score_function: Optional[Callable] = None,
-        score_name: Optional[str] = None,
-        n_saved: Union[int, None] = 1,
+        save_interval: int | None = None,
+        score_function: Callable | None = None,
+        score_name: str | None = None,
+        n_saved: int | None = 1,
         atomic: bool = True,
         require_empty: bool = True,
         create_dir: bool = True,
         save_as_state_dict: bool = True,
-        global_step_transform: Optional[Callable] = None,
+        global_step_transform: Callable | None = None,
         archived: bool = False,
-        filename_pattern: Optional[str] = None,
+        filename_pattern: str | None = None,
         include_self: bool = False,
         greater_or_equal: bool = False,
         save_on_rank: int = 0,
