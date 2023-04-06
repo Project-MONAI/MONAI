@@ -166,7 +166,7 @@ class Quicknat(nn.Module):
             return se.ChannelSELayer(2, n_filters)
         # not implemented in squeeze_and_excitation in monai
         elif se_block_type == "SSE":
-            # Lazi import to avoid dependency
+            # Lazy import to avoid dependency
             se1, flag = optional_import("squeeze_and_excitation")
             # Throw error if squeeze_and_excitation is not installed
             if not flag:
