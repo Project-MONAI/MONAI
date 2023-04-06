@@ -15,7 +15,6 @@ from typing import Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
-from squeeze_and_excitation import squeeze_and_excitation as se1
 
 from monai.networks.blocks import Bottleneck, ConvConcatDenseBlock, Decoder, Encoder
 from monai.networks.blocks import squeeze_and_excitation as se
@@ -23,7 +22,7 @@ from monai.networks.blocks.convolutions import ClassifierBlock
 from monai.networks.layers.factories import Act, Norm
 from monai.networks.layers.simplelayers import SkipConnectionWithIdx
 from monai.networks.layers.utils import get_dropout_layer, get_pool_layer
-from monai.utils import export
+from monai.utils import export, optional_import
 
 __all__ = ["Quicknat"]
 
@@ -167,6 +166,11 @@ class Quicknat(nn.Module):
             return se.ChannelSELayer(2, n_filters)
         # not implemented in squeeze_and_excitation in monai
         elif se_block_type == "SSE":
+            # Lazy import to avoid dependency
+            se1, flag = optional_import("squeeze_and_excitation")
+            # Throw error if squeeze_and_excitation is not installed
+            if not flag:
+                raise ImportError("Please install squeeze_and_excitation locally to use SpatialSELayer")
             return se1.SpatialSELayer(n_filters)
 
         elif se_block_type == "CSSE":
