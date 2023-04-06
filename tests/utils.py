@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import argparse
 import copy
 import datetime
 import functools
@@ -43,7 +44,7 @@ from monai.config.deviceconfig import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data import create_test_image_2d, create_test_image_3d
 from monai.data.meta_tensor import MetaTensor, get_track_meta
-from monai.networks import convert_to_torchscript
+from monai.networks import convert_to_onnx, convert_to_torchscript
 from monai.utils import optional_import
 from monai.utils.module import pytorch_after, version_leq
 from monai.utils.type_conversion import convert_data_type
@@ -742,6 +743,35 @@ def test_script_save(net, *inputs, device=None, rtol=1e-4, atol=0.0):
             return
 
 
+def test_onnx_save(net, *inputs, device=None, rtol=1e-4, atol=0.0):
+    """
+    Test the ability to save `net` in ONNX format, reload it and validate with runtime.
+    The value `inputs` is forward-passed through the `net` without gradient accumulation
+    to do onnx export and PyTorch inference.
+    PyTorch model inference is performed with CUDA if available, else CPU.
+    Saved ONNX model is validated with onnxruntime, if available, else ONNX native implementation.
+    """
+    # TODO: would be nice to use GPU if available, but it currently causes CI failures.
+    device = "cpu"
+    _, has_onnxruntime = optional_import("onnxruntime")
+    try:
+        with tempfile.TemporaryDirectory() as tempdir:
+            convert_to_onnx(
+                model=net,
+                filename=os.path.join(tempdir, "model.onnx"),
+                verify=True,
+                inputs=inputs,
+                device=device,
+                use_ort=has_onnxruntime,
+                rtol=rtol,
+                atol=atol,
+            )
+    except (RuntimeError, AttributeError):
+        if sys.version_info.major == 3 and sys.version_info.minor == 11:
+            warnings.warn("skipping py 3.11")
+            return
+
+
 def download_url_or_skip_test(*args, **kwargs):
     """``download_url`` and skip the tests if any downloading error occurs."""
     with skip_if_downloading_fails():
@@ -755,6 +785,7 @@ def query_memory(n=2):
     bash_string = "nvidia-smi --query-gpu=power.draw,temperature.gpu,memory.used --format=csv,noheader,nounits"
 
     try:
+        print(f"query memory with n={n}")
         p1 = Popen(bash_string.split(), stdout=PIPE)
         output, error = p1.communicate()
         free_memory = [x.split(",") for x in output.decode("utf-8").split("\n")[:-1]]
@@ -813,5 +844,8 @@ if torch.cuda.is_available():
     TEST_DEVICES.append([torch.device("cuda")])
 
 if __name__ == "__main__":
-    print("\n", query_memory(), sep="\n")  # print to stdout
+    parser = argparse.ArgumentParser(prog="util")
+    parser.add_argument("-c", "--count", default=2, help="max number of gpus")
+    args = parser.parse_args()
+    print("\n", query_memory(int(args.count)), sep="\n")  # print to stdout
     sys.exit(0)
