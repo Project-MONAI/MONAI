@@ -230,6 +230,7 @@ class SpatialResample(InvertibleTransform, LazyTransform):
         with self.trace_transform(False):
             # we can't use `self.__call__` in case a child class calls this inverse.
             out: torch.Tensor = SpatialResample.__call__(self, data, **kw_args)
+        kw_args["src_affine"] = kw_args.get("dst_affine")
         return out
 
 
