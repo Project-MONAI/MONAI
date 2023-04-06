@@ -739,8 +739,8 @@ def _onnx_trt_compile(
     max_shape: Sequence[int],
     device: int,
     precision: str,
-    input_names: Sequence[str],
-    output_names: Sequence[str],
+    input_names: Sequence[str] | None,
+    output_names: Sequence[str] | None,
 ):
     """
     onnx_model: source onnx model to compile.
@@ -757,13 +757,18 @@ def _onnx_trt_compile(
     torch_tensorrt, _ = optional_import("torch_tensorrt", "1.4.0")
 
     input_shapes = (min_shape, opt_shape, max_shape)
+    # set the default value to an empty list to fit the `embed_engine_in_new_module` function.
+    input_names = [] if not input_names else input_names
+    output_names = [] if not output_names else output_names
+
     # set up the tensorrt builder
     torch_tensorrt.set_device(device)
     logger = trt.Logger(trt.Logger.WARNING)
     builder = trt.Builder(logger)
     network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
     profile = builder.create_optimization_profile()
-    profile.set_shape(input_names[0], *input_shapes)
+    if input_names:
+        profile.set_shape(input_names[0], *input_shapes)
 
     # parse the onnx model
     parser = trt.OnnxParser(network, logger)
@@ -859,7 +864,8 @@ def convert_to_trt(
     ir_model = convert_to_torchscript(model, device=target_device, inputs=inputs, use_trace=use_trace)
     ir_model.eval()
     if use_onnx:
-        dynamic_axes = {k: {0: "batchsize"} for k in onnx_input_names}
+        # set the batch dim as dynamic
+        dynamic_axes = {k: {0: "batchsize"} for k in onnx_input_names} if onnx_input_names else None
         ir_model = convert_to_onnx(
             model, inputs, onnx_input_names, onnx_output_names, use_trace=use_trace, dynamic_axes=dynamic_axes
         )
