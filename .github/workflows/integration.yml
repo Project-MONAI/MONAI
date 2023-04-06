@@ -34,6 +34,10 @@ jobs:
       run: |
         which python
         python -m pip install --upgrade pip wheel
+        pip uninstall -y monai
+        pip uninstall -y monai
+        pip uninstall -y monai-weekly
+        pip uninstall -y monai-weekly
         python -m pip install --upgrade torch torchvision torchaudio
         python -m pip install -r requirements-dev.txt
         rm -rf /github/home/.cache/torch/hub/mmars/
@@ -51,6 +55,7 @@ jobs:
         python -c 'import torch; print(torch.rand(5,3, device=torch.device("cuda:0")))'
 
         # test auto3dseg
+        echo "test tag algo"
         BUILD_MONAI=0 ./runtests.sh --build
         python -m tests.test_auto3dseg_ensemble
         python -m tests.test_auto3dseg_hpo
@@ -58,11 +63,16 @@ jobs:
         python -m tests.test_integration_gpu_customization
 
         # test latest template
+        echo "test latest algo"
         cd ../
+        rm -rf research-contributions
+        rm -rf algorithm_templates
         git clone --depth 1 --branch main --single-branch https://github.com/Project-MONAI/research-contributions.git
         ls research-contributions/
-        cp -r research-contributions/auto3dseg/algorithm_templates ../MONAI/
-        cd research-contributions && git log -1 && cd ..
+        cp -r research-contributions/auto3dseg/algorithm_templates MONAI/
+        cd research-contributions && git log -1 && cd ../MONAI
+        pwd
+        ls -ll
         export OMP_NUM_THREADS=4
         export MKL_NUM_THREADS=4
         export MONAI_TESTING_ALGO_TEMPLATE=algorithm_templates
@@ -72,6 +82,9 @@ jobs:
         python -m tests.test_integration_gpu_customization
 
         # the other tests
+        echo "the other tests"
+        pwd
+        ls -ll
         BUILD_MONAI=1 ./runtests.sh --build --net
         BUILD_MONAI=1 ./runtests.sh --build --unittests
         if pgrep python; then pkill python; fi
