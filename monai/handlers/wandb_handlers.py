@@ -9,14 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
 from pathlib import Path
-from typing import Any, Callable, Mapping, Optional, Sequence, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Mapping, Optional, Sequence, Union
 
 import torch
 
 from monai.config import IgniteInfo
-from monai.utils import optional_import, min_version, is_scalar
+from monai.utils import is_scalar, min_version, optional_import
 
 wandb, _ = optional_import("wandb")
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
