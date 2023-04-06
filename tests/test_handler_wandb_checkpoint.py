@@ -16,9 +16,7 @@ import glob
 import shutil
 import tempfile
 import unittest
-from unittest.mock import MagicMock
 
-import numpy as np
 from ignite.engine import Engine, Events
 
 from monai.utils import optional_import
