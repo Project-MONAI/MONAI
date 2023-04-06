@@ -238,7 +238,7 @@ class NNIGen(HPOGen):
         self.algo.train(self.params)
         # step 4 report validation acc to controller
         acc = self.algo.get_score()
-        algo_meta_data = {AlgoEnsembleKeys.SCORE: acc}
+        algo_meta_data = {str(AlgoEnsembleKeys.SCORE): acc}
 
         if isinstance(self.algo, BundleAlgo):
             algo_to_pickle(self.algo, template_path=self.algo.template_path, **algo_meta_data)
@@ -411,7 +411,7 @@ class OptunaGen(HPOGen):
         self.algo.train(self.params)
         # step 4 report validation acc to controller
         acc = self.algo.get_score()
-        algo_meta_data = {AlgoEnsembleKeys.SCORE: acc}
+        algo_meta_data = {str(AlgoEnsembleKeys.SCORE): acc}
         if isinstance(self.algo, BundleAlgo):
             algo_to_pickle(self.algo, template_path=self.algo.template_path, **algo_meta_data)
         else:
