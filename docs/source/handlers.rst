@@ -184,8 +184,8 @@ Decollate batch
 .. autoclass:: DecollateBatch
     :members:
 
-Weights & Biases handler
-------------------------
+Weights & Biases handlers
+-------------------------
 .. autoclass:: WandbStatsHandler
     :members:
 
