@@ -203,8 +203,8 @@ class AlgoEnsembleBestN(AlgoEnsemble):
             warn(f"Found {len(ranks)} available algos (pre-defined n_best={n_best}). All {len(ranks)} will be used.")
             n_best = len(ranks)
 
-        # get the indices that the rank is larger than N
-        indices = [i for (i, r) in enumerate(ranks) if r >= n_best]
+        # get the ranks for which the indices are lower than N-n_best
+        indices = [r for (i, r) in enumerate(ranks) if i < (len(ranks) - n_best)]
 
         # remove the found indices
         indices = sorted(indices, reverse=True)
@@ -245,6 +245,7 @@ class AlgoEnsembleBestByFold(AlgoEnsemble):
                     raise ValueError(f"model identifier {identifier} is not number.") from err
                 if algo_id == f_idx and algo[AlgoEnsembleKeys.SCORE] > best_score:
                     best_model = algo
+                    best_score = algo[AlgoEnsembleKeys.SCORE]
             self.algo_ensemble.append(best_model)
 
 
