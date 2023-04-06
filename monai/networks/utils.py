@@ -734,30 +734,39 @@ def convert_to_torchscript(
 
 def _onnx_trt_compile(
     onnx_model,
-    input_shapes: Sequence[Sequence[int]],
+    min_shape: Sequence[int],
+    opt_shape: Sequence[int],
+    max_shape: Sequence[int],
     device: int,
     precision: str,
     input_names: Sequence[str],
     output_names: Sequence[str],
 ):
     """
-    onnx_model: an onnx model to compile.
-    input_shapes: the input shape that is used to convert the model. Should be a list as [MIN_SIZE, OPT_SIZE, MAX_SIZE].
+    onnx_model: source onnx model to compile.
+    min_shape: the minimum input shape of the converted TensorRT model.
+    opt_shape: the optimization input shape of the model, on which the TensorRT optimizes.
+    max_shape: the maximum input shape of the converted TensorRT model.
     device: the target GPU index to convert and verify the model.
-    precision: the weight precision of the converted TensorRT engine based torchscript models. Should be 'fp32' or 'fp16'.
+    precision: the weight precision of the converted TensorRT engine-based TorchScript model.
+        Should be 'fp32' or 'fp16'.
     input_names: optional input names of the ONNX model.
     output_names: optional output names of the ONNX model.
     """
     trt, _ = optional_import("tensorrt", "8.5.3")
     torch_tensorrt, _ = optional_import("torch_tensorrt", "1.4.0")
+
+    input_shapes = (min_shape, opt_shape, max_shape)
+    # set up the tensorrt builder
     torch_tensorrt.set_device(device)
     logger = trt.Logger(trt.Logger.WARNING)
     builder = trt.Builder(logger)
     network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
-    parser = trt.OnnxParser(network, logger)
     profile = builder.create_optimization_profile()
     profile.set_shape(input_names[0], *input_shapes)
 
+    # parse the onnx model
+    parser = trt.OnnxParser(network, logger)
     success = parser.parse(onnx_model.SerializeToString())
     for idx in range(parser.num_errors):
         print(parser.get_error(idx))
@@ -765,6 +774,7 @@ def _onnx_trt_compile(
     if not success:
         raise Exception("Cannot export onnx model to trt due to upper error.")
 
+    # set up the conversion configuration
     config = builder.create_builder_config()
     config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 1 << 31)
     config.add_optimization_profile(profile)
@@ -774,6 +784,7 @@ def _onnx_trt_compile(
     f = io.BytesIO()
     f.write(serialized_engine)
 
+    # wrap the serialized TensorRT engine back to a TorchScript module.
     trt_model = torch_tensorrt.ts.embed_engine_in_new_module(
         f.getvalue(), torch.device(f"cuda:{device}"), input_names, output_names
     )
@@ -794,6 +805,7 @@ def convert_to_trt(
     onnx_output_names: Sequence[str] | None = ("output_0",),
     rtol: float = 1e-2,
     atol: float = 0.0,
+    **kwargs,
 ):
     """
     Utility to convert a model into a TensorRT engine based torchscript model with optional input / output data verification.
@@ -819,6 +831,8 @@ def convert_to_trt(
         onnx_output_names: optional output names of the ONNX model.
         rtol: the relative tolerance when comparing the outputs between the PyTorch model and TensorRT model.
         atol: the absolute tolerance when comparing the outputs between the PyTorch model and TensorRT model.
+        kwargs: other arguments except `module`, `inputs`, `enabled_precisions` and `device` for `torch_tensorrt.compile()`
+            to compile model, for more details: https://pytorch.org/TensorRT/py_api/torch_tensorrt.html#torch-tensorrt-py.
     """
 
     torch_tensorrt, _ = optional_import("torch_tensorrt", version="1.4.0")
@@ -864,10 +878,11 @@ def convert_to_trt(
         min_input_shape = opt_input_shape = max_input_shape = input_shape
 
     if use_onnx:
-        engine_input_shapes = (min_input_shape, opt_input_shape, max_input_shape)
         trt_model = _onnx_trt_compile(
             ir_model,
-            engine_input_shapes,
+            min_shape=min_input_shape,
+            opt_shape=opt_input_shape,
+            max_shape=max_input_shape,
             device=device,
             precision=precision,
             input_names=onnx_input_names,
@@ -883,7 +898,11 @@ def convert_to_trt(
                     )
                 ]
                 trt_model = torch_tensorrt.compile(
-                    ir_model, inputs=input_placeholder, enabled_precisions=convert_precision, device=target_device
+                    ir_model,
+                    inputs=input_placeholder,
+                    enabled_precisions=convert_precision,
+                    device=target_device,
+                    **kwargs,
                 )
 
     # verify the outputs between the trt model and torch model
