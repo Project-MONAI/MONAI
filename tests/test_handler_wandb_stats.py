@@ -16,10 +16,8 @@ import glob
 import shutil
 import tempfile
 import unittest
-from unittest.mock import MagicMock
 
-import numpy as np
-from ignite.engine import Engine, Events
+from ignite.engine import Engine
 
 from monai.utils import optional_import
 wandb, _ = optional_import("wandb")
@@ -33,7 +31,7 @@ class TestWandbStatsHandler(unittest.TestCase):
         tempdir = tempfile.TemporaryDirectory()
         os.system("wandb offline")
         os.environ["WANDB_DIR"] = tempdir.name
-        
+
         wandb.init()
 
         # set up engine
@@ -52,5 +50,5 @@ class TestWandbStatsHandler(unittest.TestCase):
         self.assertTrue(len(glob.glob(os.path.join(tempdir.name, "*"))) > 0)
         self.assertTrue(len(glob.glob(os.path.join(tempdir.name, "wandb", "*"))) > 0)
         self.assertTrue(len(glob.glob(os.path.join(tempdir.name, "wandb", "debug*"))) > 0)
-        
+
         shutil.rmtree(tempdir.name)
