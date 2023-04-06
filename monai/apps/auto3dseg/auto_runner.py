@@ -772,7 +772,13 @@ class AutoRunner:
                 )
 
             if auto_train_choice:
-                history = [h for h in history if not h["is_trained"]]  # skip trained
+                skip_algos = [h[AlgoEnsembleKeys.ID] for h in history if h["is_trained"]]
+                if len(skip_algos) > 0:
+                    logger.info(
+                        f"Skipping already trained algos {skip_algos}."
+                        "Set option train=True to always retrain all algos."
+                    )
+                    history = [h for h in history if not h["is_trained"]]
 
             if len(history) > 0:
                 if not self.hpo:
@@ -791,8 +797,8 @@ class AutoRunner:
             history_untrained = [h for h in history if not h["is_trained"]]
             if len(history_untrained) > 0:
                 warnings.warn(
-                    f"Ensembling step will skip {[h['name'] for h in history_untrained]} untrained algos"
-                    "Generally it means these algos did not complete training"
+                    f"Ensembling step will skip {[h['name'] for h in history_untrained]} untrained algos."
+                    "Generally it means these algos did not complete training."
                 )
                 history = [h for h in history if h["is_trained"]]
 
