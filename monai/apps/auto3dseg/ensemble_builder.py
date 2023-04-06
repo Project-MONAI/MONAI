@@ -267,7 +267,7 @@ class AlgoEnsembleBuilder:
 
     """
 
-    def __init__(self, history: Sequence[dict], data_src_cfg_filename: str | None = None):
+    def __init__(self, history: Sequence[dict[str, Any]], data_src_cfg_filename: str | None = None):
         self.infer_algos: list[dict[AlgoEnsembleKeys, Any]] = []
         self.ensemble: AlgoEnsemble
         self.data_src_cfg = ConfigParser(globals=False)
@@ -275,14 +275,12 @@ class AlgoEnsembleBuilder:
         if data_src_cfg_filename is not None and os.path.exists(str(data_src_cfg_filename)):
             self.data_src_cfg.read_config(data_src_cfg_filename)
 
-        for h in history:
+        for algo_dict in history:
             # load inference_config_paths
-            # raise warning/error if not found
-            if len(h) > 1:
-                raise ValueError(f"{h} should only contain one set of genAlgo key-value")
 
-            name = list(h.keys())[0]
-            gen_algo = h[name]
+            name = algo_dict[AlgoEnsembleKeys.ID]
+            gen_algo = algo_dict[AlgoEnsembleKeys.ALGO]
+
             best_metric = gen_algo.get_score()
             algo_path = gen_algo.output_path
             infer_path = os.path.join(algo_path, "scripts", "infer.py")
