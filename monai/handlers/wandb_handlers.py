@@ -173,7 +173,7 @@ class WandbStatsHandler:
             for attr in self.state_attributes:
                 value = getattr(engine.state, attr, None)
                 value = value.item() if isinstance(value, torch.Tensor) else value
-                wandb.log({attr: value})
+                wandb.config[attr] = value
 
     def _default_iteration_writer(self, engine: Engine) -> None:
         """
