@@ -58,13 +58,17 @@ def compute_weight_diff(global_weights, local_var_dict):
         raise ValueError("Cannot compute weight differences if `local_var_dict` is None!")
     # compute delta model, global model has the primary key set
     weight_diff = {}
+    n_diff = 0
     for name in global_weights:
         if name not in local_var_dict:
             continue
         # returned weight diff will be on the cpu
         weight_diff[name] = local_var_dict[name].cpu() - global_weights[name].cpu()
+        n_diff += 1
         if torch.any(torch.isnan(weight_diff[name])):
             raise ValueError(f"Weights for {name} became NaN...")
+    if n_diff == 0:
+        raise RuntimeError("No weight differences computed!")
     return weight_diff
 
 
