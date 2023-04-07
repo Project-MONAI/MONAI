@@ -32,7 +32,7 @@ class TestWandbStatsHandler(unittest.TestCase):
         os.system("wandb offline")
         os.environ["WANDB_DIR"] = tempdir.name
 
-        wandb.init()
+        wandb.init(dir=tempdir.name)
 
         # set up engine
         def _train_func(engine, batch):

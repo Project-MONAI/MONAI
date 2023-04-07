@@ -31,9 +31,8 @@ class TestWandbModelCheckpointHandler(unittest.TestCase):
     def test_model_checkpointing(self):
         tempdir = tempfile.TemporaryDirectory()
         os.system("wandb offline")
-        os.environ["WANDB_DIR"] = tempdir.name
 
-        wandb.init()
+        wandb.init(dir=tempdir.name)
 
         net = UNet(spatial_dims=3, in_channels=1, out_channels=1, channels=(16, 32), strides=(2, 2), num_res_units=0)
 
