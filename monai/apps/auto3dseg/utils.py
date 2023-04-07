@@ -54,7 +54,7 @@ def import_bundle_algo_history(
 
         if (only_trained and is_trained) or not only_trained:
             history.append(
-                {AlgoKeys.ID: name, AlgoKeys.ALGO: algo, AlgoKeys.SCORE: best_metric, "is_trained": is_trained}
+                {AlgoKeys.ID: name, AlgoKeys.ALGO: algo, AlgoKeys.SCORE: best_metric, AlgoKeys.IS_TRAINED: is_trained}
             )
 
     return history

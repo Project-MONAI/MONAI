@@ -772,13 +772,13 @@ class AutoRunner:
                 )
 
             if auto_train_choice:
-                skip_algos = [h[AlgoKeys.ID] for h in history if h["is_trained"]]
+                skip_algos = [h[AlgoKeys.ID] for h in history if h[AlgoKeys.IS_TRAINED]]
                 if len(skip_algos) > 0:
                     logger.info(
                         f"Skipping already trained algos {skip_algos}."
                         "Set option train=True to always retrain all algos."
                     )
-                    history = [h for h in history if not h["is_trained"]]
+                    history = [h for h in history if not h[AlgoKeys.IS_TRAINED]]
 
             if len(history) > 0:
                 if not self.hpo:
@@ -794,13 +794,13 @@ class AutoRunner:
         if self.ensemble:
             history = import_bundle_algo_history(self.work_dir, only_trained=False)
 
-            history_untrained = [h for h in history if not h["is_trained"]]
+            history_untrained = [h for h in history if not h[AlgoKeys.IS_TRAINED]]
             if len(history_untrained) > 0:
                 warnings.warn(
                     f"Ensembling step will skip {[h['name'] for h in history_untrained]} untrained algos."
                     "Generally it means these algos did not complete training."
                 )
-                history = [h for h in history if h["is_trained"]]
+                history = [h for h in history if h[AlgoKeys.IS_TRAINED]]
 
             if len(history) == 0:
                 raise ValueError(
