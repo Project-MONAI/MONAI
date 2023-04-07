@@ -103,6 +103,8 @@ def run_testsuit():
         "test_handler_tb_image",
         "test_handler_tb_stats",
         "test_handler_validation",
+        "test_handler_wandb_checkpoint",
+        "test_handler_wandb_stats",
         "test_hausdorff_distance",
         "test_header_correct",
         "test_hilbert_transform",
