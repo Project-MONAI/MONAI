@@ -6,6 +6,7 @@ channels:
 dependencies:
   - numpy>=1.20
   - pytorch>=1.9
+  - pytorch-cuda=11.6
   - torchvision
   - pip
   - python>=3.8
@@ -13,3 +14,4 @@ dependencies:
     - git+https://github.com/peterhessey/MONAI.git@6054-integrate-azureml-for-autorunner-training
     - hi-ml-azure>=0.2.19
     - fire
+    - nibabel

@@ -72,7 +72,6 @@ class TestAuto3DSegAzureML(unittest.TestCase):
                     "run",
                     f"--input={self.test_task_yaml}",
                     f"--training_params={test_params}",
-                    f"--num_fold={test_num_fold}",
                     "--azureml",
                 ],
             ):

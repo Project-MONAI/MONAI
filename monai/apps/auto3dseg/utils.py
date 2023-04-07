@@ -89,13 +89,17 @@ def submit_auto3dseg_module_to_azureml_if_needed(azure_cfg: dict[str, Any]) -> h
         "entry_script": "-m monai.apps.auto3dseg",
         "submit_to_azureml": True,
         "strictly_aml_v1": False,
+        "input_dataset": "",
     }
     azureml_args.update(azure_cfg)
     config_datasets_key = "input_dataset"
     himl_datasets_key = "input_datasets"
 
     if isinstance(azureml_args[config_datasets_key], str):
-        azureml_args[himl_datasets_key] = [azureml_args[config_datasets_key]]
+        if azureml_args[config_datasets_key] == "":
+            azureml_args[himl_datasets_key] = []
+        else:
+            azureml_args[himl_datasets_key] = [azureml_args[config_datasets_key]]
         azureml_args.pop(config_datasets_key)
     else:
         raise ValueError(
