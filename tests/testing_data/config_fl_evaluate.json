@@ -75,6 +75,19 @@
                 "output_transform": "$monai.handlers.from_engine(['pred', 'label'])"
             }
         },
+        "handlers": [
+            {
+                "_target_": "CheckpointLoader",
+                "load_path": "$@bundle_root + '/models/model.pt'",
+                "load_dict": {
+                    "model": "@network"
+                }
+            },
+            {
+                "_target_": "StatsHandler",
+                "iteration_log": false
+            }
+        ],
         "evaluator": {
             "_target_": "SupervisedEvaluator",
             "device": "@device",

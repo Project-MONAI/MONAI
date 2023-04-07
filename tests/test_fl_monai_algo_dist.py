@@ -26,6 +26,7 @@ from tests.utils import DistCall, DistTestCase, SkipIfBeforePyTorchVersion, Skip
 
 _root_dir = os.path.abspath(pathjoin(os.path.dirname(__file__)))
 _data_dir = pathjoin(_root_dir, "testing_data")
+_logging_file = pathjoin(_data_dir, "logging.conf")
 
 
 @SkipIfNoModule("ignite")
@@ -38,7 +39,7 @@ class TestFLMonaiAlgo(DistTestCase):
         # initialize algo
         algo = MonaiAlgo(
             bundle_root=_data_dir,
-            train_workflow=ConfigWorkflow(config_file=config_file, workflow="train"),
+            train_workflow=ConfigWorkflow(config_file=config_file, workflow="train", logging_file=_logging_file),
             config_evaluate_filename=None,
             config_filters_filename=pathjoin(_root_dir, "testing_data", "config_fl_filters.json"),
         )
@@ -62,7 +63,7 @@ class TestFLMonaiAlgo(DistTestCase):
         algo = MonaiAlgo(
             bundle_root=_data_dir,
             config_train_filename=None,
-            eval_workflow=ConfigWorkflow(config_file=config_file, workflow="train"),
+            eval_workflow=ConfigWorkflow(config_file=config_file, workflow="train", logging_file=_logging_file),
             config_filters_filename=pathjoin(_data_dir, "config_fl_filters.json"),
         )
         algo.initialize(extra={ExtraItems.CLIENT_NAME: "test_fl"})

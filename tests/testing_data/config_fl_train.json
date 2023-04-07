@@ -181,12 +181,19 @@
                 }
             ]
         },
+        "handlers": [
+            {
+                "_target_": "StatsHandler",
+                "iteration_log": false
+            }
+        ],
         "evaluator": {
             "_target_": "SupervisedEvaluator",
             "device": "@device",
             "val_data_loader": "@validate#dataloader",
             "network": "@network",
             "inferer": "@validate#inferer",
+            "val_handlers": "@validate#handlers",
             "postprocessing": "@validate#postprocessing"
         }
     },

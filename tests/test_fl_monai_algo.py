@@ -15,6 +15,7 @@ import os
 import shutil
 import unittest
 from copy import deepcopy
+from os.path import join as pathjoin
 
 from parameterized import parameterized
 
@@ -28,11 +29,14 @@ from tests.utils import SkipIfNoModule
 
 _root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 _data_dir = os.path.join(_root_dir, "testing_data")
+_logging_file = pathjoin(_data_dir, "logging.conf")
 
 TEST_TRAIN_1 = [
     {
         "bundle_root": _data_dir,
-        "train_workflow": ConfigWorkflow(os.path.join(_data_dir, "config_fl_train.json"), workflow="train"),
+        "train_workflow": ConfigWorkflow(
+            config_file=os.path.join(_data_dir, "config_fl_train.json"), workflow="train", logging_file=_logging_file
+        ),
         "config_evaluate_filename": None,
         "config_filters_filename": os.path.join(_data_dir, "config_fl_filters.json"),
     }
@@ -54,6 +58,7 @@ TEST_TRAIN_3 = [
                 os.path.join(_data_dir, "config_fl_train.json"),
             ],
             workflow="train",
+            logging_file=_logging_file,
         ),
         "config_evaluate_filename": None,
         "config_filters_filename": [
@@ -66,7 +71,9 @@ TEST_TRAIN_3 = [
 TEST_TRAIN_4 = [
     {
         "bundle_root": _data_dir,
-        "train_workflow": ConfigWorkflow(os.path.join(_data_dir, "config_fl_train.json"), workflow="train"),
+        "train_workflow": ConfigWorkflow(
+            config_file=os.path.join(_data_dir, "config_fl_train.json"), workflow="train", logging_file=_logging_file
+        ),
         "config_evaluate_filename": None,
         "tracking": {
             "handlers_id": DEFAULT_HANDLERS_ID,
@@ -88,7 +95,9 @@ TEST_EVALUATE_1 = [
     {
         "bundle_root": _data_dir,
         "config_train_filename": None,
-        "eval_workflow": ConfigWorkflow(os.path.join(_data_dir, "config_fl_evaluate.json"), workflow="train"),
+        "eval_workflow": ConfigWorkflow(
+            os.path.join(_data_dir, "config_fl_evaluate.json"), workflow="train", logging_file=_logging_file
+        ),
         "config_filters_filename": os.path.join(_data_dir, "config_fl_filters.json"),
     }
 ]
@@ -110,6 +119,7 @@ TEST_EVALUATE_3 = [
                 os.path.join(_data_dir, "config_fl_evaluate.json"),
             ],
             workflow="train",
+            logging_file=_logging_file,
         ),
         "config_filters_filename": [
             os.path.join(_data_dir, "config_fl_filters.json"),
@@ -121,7 +131,9 @@ TEST_EVALUATE_3 = [
 TEST_GET_WEIGHTS_1 = [
     {
         "bundle_root": _data_dir,
-        "train_workflow": ConfigWorkflow(os.path.join(_data_dir, "config_fl_train.json"), workflow="train"),
+        "train_workflow": ConfigWorkflow(
+            config_file=os.path.join(_data_dir, "config_fl_train.json"), workflow="train", logging_file=_logging_file
+        ),
         "config_evaluate_filename": None,
         "send_weight_diff": False,
         "config_filters_filename": os.path.join(_data_dir, "config_fl_filters.json"),
@@ -145,6 +157,7 @@ TEST_GET_WEIGHTS_3 = [
                 os.path.join(_data_dir, "config_fl_train.json"),
             ],
             workflow="train",
+            logging_file=_logging_file,
         ),
         "config_evaluate_filename": None,
         "send_weight_diff": True,
