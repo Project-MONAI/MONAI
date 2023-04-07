@@ -366,7 +366,7 @@ class SlidingWindowInferer(Inferer):
             corresponding components of img size. For example, `roi_size=(32, -1)` will be adapted
             to `(32, 64)` if the second spatial dimension size of img is `64`.
         sw_batch_size: the batch size to run window slices.
-        overlap: Amount of overlap between scans.
+        overlap: Amount of overlap between scans along each spatial dimension, defaults to ``0.25``.
         mode: {``"constant"``, ``"gaussian"``}
             How to blend output of overlapping windows. Defaults to ``"constant"``.
 
@@ -393,6 +393,13 @@ class SlidingWindowInferer(Inferer):
         cpu_thresh: when provided, dynamically switch to stitching on cpu (to save gpu memory)
             when input image volume is larger than this threshold (in pixels/voxels).
             Otherwise use ``"device"``. Thus, the output may end-up on either cpu or gpu.
+        buffer_steps: the number of sliding window iterations along the ``buffer_dim``
+            to be buffered on ``sw_device`` before writing to ``device``.
+            (Typically, ``sw_device`` is ``cuda`` and ``device`` is ``cpu``.)
+            default is None, no buffering. For the buffer dim, when spatial size is divisible by buffer_steps*roi_size,
+            (i.e. no overlapping among the buffers) non_blocking copy may be automatically enabled for efficiency.
+        buffer_dim: the spatial dimension along which the buffers are created.
+            0 indicates the first spatial dimension. Default is -1, the last spatial dimension.
 
     Note:
         ``sw_batch_size`` denotes the max number of windows per network inference iteration,
@@ -404,7 +411,7 @@ class SlidingWindowInferer(Inferer):
         self,
         roi_size: Sequence[int] | int,
         sw_batch_size: int = 1,
-        overlap: float = 0.25,
+        overlap: Sequence[float] | float = 0.25,
         mode: BlendMode | str = BlendMode.CONSTANT,
         sigma_scale: Sequence[float] | float = 0.125,
         padding_mode: PytorchPadMode | str = PytorchPadMode.CONSTANT,
@@ -414,6 +421,8 @@ class SlidingWindowInferer(Inferer):
         progress: bool = False,
         cache_roi_weight_map: bool = False,
         cpu_thresh: int | None = None,
+        buffer_steps: int | None = None,
+        buffer_dim: int = -1,
     ) -> None:
         super().__init__()
         self.roi_size = roi_size
@@ -427,6 +436,8 @@ class SlidingWindowInferer(Inferer):
         self.device = device
         self.progress = progress
         self.cpu_thresh = cpu_thresh
+        self.buffer_steps = buffer_steps
+        self.buffer_dim = buffer_dim
 
         # compute_importance_map takes long time when computing on cpu. We thus
         # compute it once if it's static and then save it for future usage
@@ -442,7 +453,8 @@ class SlidingWindowInferer(Inferer):
                 warnings.warn("cache_roi_weight_map=True, but cache is not created. (dynamic roi_size?)")
         except BaseException as e:
             raise RuntimeError(
-                "Seems to be OOM. Please try smaller roi_size, or use mode='constant' instead of mode='gaussian'. "
+                f"roi size {self.roi_size}, mode={mode}, sigma_scale={sigma_scale}, device={device}\n"
+                "Seems to be OOM. Please try smaller patch size or mode='constant' instead of mode='gaussian'."
             ) from e
 
     def __call__(
@@ -482,6 +494,8 @@ class SlidingWindowInferer(Inferer):
             self.progress,
             self.roi_weight_map,
             None,
+            self.buffer_steps,
+            self.buffer_dim,
             *args,
             **kwargs,
         )
