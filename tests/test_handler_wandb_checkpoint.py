@@ -19,12 +19,11 @@ import unittest
 
 from ignite.engine import Engine, Events
 
+from monai.handlers import WandbModelCheckpointHandler
+from monai.networks.nets import UNet
 from monai.utils import optional_import
 
 wandb, _ = optional_import("wandb")
-
-from monai.handlers import WandbModelCheckpointHandler
-from monai.networks.nets import UNet
 
 
 @unittest.skipUnless(wandb, "Requires wandb installation")

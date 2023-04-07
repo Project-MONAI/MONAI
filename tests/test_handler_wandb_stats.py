@@ -19,11 +19,10 @@ import unittest
 
 from ignite.engine import Engine
 
+from monai.handlers import WandbStatsHandler
 from monai.utils import optional_import
 
 wandb, _ = optional_import("wandb")
-
-from monai.handlers import WandbStatsHandler
 
 
 @unittest.skipUnless(wandb, "Requires wandb installation")
