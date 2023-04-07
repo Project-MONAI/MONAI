@@ -72,6 +72,14 @@ def compute_weight_diff(global_weights, local_var_dict):
     return weight_diff
 
 
+def disable_ckpt_loaders(workflow: BundleWorkflow):
+    if BundleKeys.VALIDATE_HANDLERS in parser:
+        for h in parser[BundleKeys.VALIDATE_HANDLERS]:
+            if ConfigComponent.is_instantiable(h):
+                if "CheckpointLoader" in h["_target_"]:
+                    h["_disabled_"] = True
+
+
 class MonaiAlgoStats(ClientAlgoStats):
     """
     Implementation of ``ClientAlgoStats`` to allow federated learning with MONAI bundle configurations.
@@ -312,6 +320,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             if "default", ["configs/train.json", "configs/evaluate.json"] will be used.
             this arg is only useful when `eval_workflow` is None.
         config_filters_filename: filter configuration file. Can be a list of files; defaults to `None`.
+        disable_ckpt_loading: do not use any CheckpointLoader if defined in train/evaluate configs; defaults to `True`.
         best_model_filepath: location of best model checkpoint; defaults "models/model.pt" relative to `bundle_root`.
         final_model_filepath: location of final model checkpoint; defaults "models/model_final.pt" relative to `bundle_root`.
         save_dict_key: If a model checkpoint contains several state dicts,
@@ -338,6 +347,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         config_train_filename: str | list | None = "configs/train.json",
         config_evaluate_filename: str | list | None = "default",
         config_filters_filename: str | list | None = None,
+        disable_ckpt_loading: bool = True,
         best_model_filepath: str | None = "models/model.pt",
         final_model_filepath: str | None = "models/model_final.pt",
         save_dict_key: str | None = "model",
@@ -367,6 +377,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             config_evaluate_filename = ["configs/train.json", "configs/evaluate.json"]
         self.config_evaluate_filename = config_evaluate_filename
         self.config_filters_filename = config_filters_filename
+        self.disable_ckpt_loading = disable_ckpt_loading
         self.model_filepaths = {ModelType.BEST_MODEL: best_model_filepath, ModelType.FINAL_MODEL: final_model_filepath}
         self.save_dict_key = save_dict_key
         self.data_stats_transform_list = data_stats_transform_list
@@ -427,25 +438,6 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             if not isinstance(self.trainer, SupervisedTrainer):
                 raise ValueError(f"trainer must be SupervisedTrainer, but got: {type(self.trainer)}.")
 
-            config_filter_files = self._add_config_files(self.config_filters_filename)
-            self.filter_parser = ConfigParser()
-            if len(config_filter_files) > 0:
-                self.filter_parser.read_config(config_filter_files)
-
-            # Get filters
-            self.pre_filters = self.filter_parser.get_parsed_content(
-                FiltersType.PRE_FILTERS, default=ConfigItem(None, FiltersType.PRE_FILTERS)
-            )
-            self.post_weight_filters = self.filter_parser.get_parsed_content(
-                FiltersType.POST_WEIGHT_FILTERS, default=ConfigItem(None, FiltersType.POST_WEIGHT_FILTERS)
-            )
-            self.post_evaluate_filters = self.filter_parser.get_parsed_content(
-                FiltersType.POST_EVALUATE_FILTERS, default=ConfigItem(None, FiltersType.POST_EVALUATE_FILTERS)
-            )
-            self.post_statistics_filters = self.filter_parser.get_parsed_content(
-                FiltersType.POST_STATISTICS_FILTERS, default=ConfigItem(None, FiltersType.POST_STATISTICS_FILTERS)
-            )
-
         if self.eval_workflow is None and self.config_evaluate_filename is not None:
             config_eval_files = self._add_config_files(self.config_evaluate_filename)
             self.eval_workflow = ConfigWorkflow(
@@ -461,6 +453,24 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             if not isinstance(self.evaluator, SupervisedEvaluator):
                 raise ValueError(f"evaluator must be SupervisedEvaluator, but got: {type(self.evaluator)}.")
 
+        config_filter_files = self._add_config_files(self.config_filters_filename)
+        self.filter_parser = ConfigParser()
+        if len(config_filter_files) > 0:
+            self.filter_parser.read_config(config_filter_files)
+
+        # Get filters
+        self.pre_filters = self.filter_parser.get_parsed_content(
+            FiltersType.PRE_FILTERS, default=ConfigItem(None, FiltersType.PRE_FILTERS)
+        )
+        self.post_weight_filters = self.filter_parser.get_parsed_content(
+            FiltersType.POST_WEIGHT_FILTERS, default=ConfigItem(None, FiltersType.POST_WEIGHT_FILTERS)
+        )
+        self.post_evaluate_filters = self.filter_parser.get_parsed_content(
+            FiltersType.POST_EVALUATE_FILTERS, default=ConfigItem(None, FiltersType.POST_EVALUATE_FILTERS)
+        )
+        self.post_statistics_filters = self.filter_parser.get_parsed_content(
+            FiltersType.POST_STATISTICS_FILTERS, default=ConfigItem(None, FiltersType.POST_STATISTICS_FILTERS)
+        )
         self.logger.info(f"Initialized {self.client_name}.")
 
     def train(self, data: ExchangeObject, extra: dict | None = None) -> None:
