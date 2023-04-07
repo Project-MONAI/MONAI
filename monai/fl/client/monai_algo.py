@@ -20,7 +20,9 @@ import torch
 from monai.apps.auto3dseg.data_analyzer import DataAnalyzer
 from monai.apps.utils import get_logger
 from monai.auto3dseg import SegSummarizer
-from monai.bundle import DEFAULT_EXP_MGMT_SETTINGS, BundleWorkflow, ConfigItem, ConfigParser, ConfigWorkflow
+from monai.bundle import (
+    DEFAULT_EXP_MGMT_SETTINGS, BundleWorkflow, ConfigComponent, ConfigItem, ConfigParser, ConfigWorkflow
+)
 from monai.engines import SupervisedEvaluator, SupervisedTrainer, Trainer
 from monai.fl.client import ClientAlgo, ClientAlgoStats
 from monai.fl.utils.constants import ExtraItems, FiltersType, FlPhase, FlStatistics, ModelType, WeightType
@@ -72,9 +74,9 @@ def compute_weight_diff(global_weights, local_var_dict):
     return weight_diff
 
 
-def disable_ckpt_loaders(workflow: BundleWorkflow):
-    if BundleKeys.VALIDATE_HANDLERS in parser:
-        for h in parser[BundleKeys.VALIDATE_HANDLERS]:
+def disable_ckpt_loaders(parser: ConfigParser):
+    if "validate#handlers" in parser:
+        for h in parser["validate#handlers"]:
             if ConfigComponent.is_instantiable(h):
                 if "CheckpointLoader" in h["_target_"]:
                     h["_disabled_"] = True
@@ -328,6 +330,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             If all state dicts should be returned, set `save_dict_key` to None.
         data_stats_transform_list: transforms to apply for the data stats result.
         tracking: if not None, enable the experiment tracking at runtime with optionally configurable and extensible.
+            it expects the `train_workflow` or `eval_workflow` to be `ConfigWorkflow`, not customized `BundleWorkflow`.
             if "mlflow", will add `MLFlowHandler` to the parsed bundle with default tracking settings,
             if other string, treat it as file path to load the tracking settings.
             if `dict`, treat it as tracking settings.
@@ -430,8 +433,10 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             self.train_workflow.initialize()
             self.train_workflow.bundle_root = self.bundle_root
             self.train_workflow.max_epochs = self.local_epochs
-            if self.tracking is not None:
+            if self.tracking is not None and isinstance(self.train_workflow, ConfigWorkflow):
                 ConfigWorkflow.patch_bundle_tracking(parser=self.train_workflow.parser, settings=settings_)
+            if self.disable_ckpt_loading and isinstance(self.train_workflow, ConfigWorkflow):
+                disable_ckpt_loaders(parser=self.train_workflow.parser)
             # initialize the workflow as the content changed
             self.train_workflow.initialize()
             self.trainer = self.train_workflow.trainer
@@ -446,8 +451,11 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         if self.eval_workflow is not None:
             self.eval_workflow.initialize()
             self.eval_workflow.bundle_root = self.bundle_root
-            if self.tracking is not None:
+            if self.tracking is not None and isinstance(self.eval_workflow, ConfigWorkflow):
                 ConfigWorkflow.patch_bundle_tracking(parser=self.eval_workflow.parser, settings=settings_)
+            if self.disable_ckpt_loading and isinstance(self.eval_workflow, ConfigWorkflow):
+                disable_ckpt_loaders(parser=self.eval_workflow.parser)
+            # initialize the workflow as the content changed
             self.eval_workflow.initialize()
             self.evaluator = self.eval_workflow.evaluator
             if not isinstance(self.evaluator, SupervisedEvaluator):
