@@ -79,7 +79,7 @@ def compute_weight_diff(global_weights, local_var_dict):
     return weight_diff
 
 
-def disable_ckpt_loaders(parser: ConfigParser):
+def disable_ckpt_loaders(parser: ConfigParser) -> None:
     if "validate#handlers" in parser:
         for h in parser["validate#handlers"]:
             if ConfigComponent.is_instantiable(h):
