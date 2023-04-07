@@ -11,8 +11,8 @@
 
 from __future__ import annotations
 
-import os
 import glob
+import os
 import shutil
 import tempfile
 import unittest
@@ -23,8 +23,8 @@ from monai.utils import optional_import
 
 wandb, _ = optional_import("wandb")
 
-from monai.networks.nets import UNet
 from monai.handlers import WandbModelCheckpointHandler
+from monai.networks.nets import UNet
 
 
 @unittest.skipUnless(wandb, "Requires wandb installation")

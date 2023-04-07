@@ -11,8 +11,8 @@
 
 from __future__ import annotations
 
-import os
 import glob
+import os
 import shutil
 import tempfile
 import unittest
@@ -20,6 +20,7 @@ import unittest
 from ignite.engine import Engine
 
 from monai.utils import optional_import
+
 wandb, _ = optional_import("wandb")
 
 from monai.handlers import WandbStatsHandler
