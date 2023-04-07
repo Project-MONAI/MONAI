@@ -36,7 +36,7 @@ from monai.apps.utils import get_logger
 from monai.auto3dseg.utils import algo_to_pickle
 from monai.bundle import ConfigParser
 from monai.transforms import SaveImage
-from monai.utils.enums import AlgoEnsembleKeys
+from monai.utils.enums import AlgoKeys
 from monai.utils.module import look_up_option, optional_import
 
 logger = get_logger(module_name=__name__)
@@ -636,11 +636,11 @@ class AutoRunner:
             progress.yaml, accuracies in CSV and a pickle file of the Algo object.
         """
         for algo_dict in history:
-            algo = algo_dict[AlgoEnsembleKeys.ALGO]
+            algo = algo_dict[AlgoKeys.ALGO]
             algo.train(self.train_params)
             acc = algo.get_score()
 
-            algo_meta_data = {str(AlgoEnsembleKeys.SCORE): acc}
+            algo_meta_data = {str(AlgoKeys.SCORE): acc}
             algo_to_pickle(algo, template_path=algo.template_path, **algo_meta_data)
 
     def _train_algo_in_nni(self, history: list[dict[str, Any]]) -> None:
@@ -675,8 +675,8 @@ class AutoRunner:
         last_total_tasks = len(import_bundle_algo_history(self.work_dir, only_trained=True))
         mode_dry_run = self.hpo_params.pop("nni_dry_run", False)
         for algo_dict in history:
-            name = algo_dict[AlgoEnsembleKeys.ID]
-            algo = algo_dict[AlgoEnsembleKeys.ALGO]
+            name = algo_dict[AlgoKeys.ID]
+            algo = algo_dict[AlgoKeys.ALGO]
             nni_gen = NNIGen(algo=algo, params=self.hpo_params)
             obj_filename = nni_gen.get_obj_filename()
             nni_config = deepcopy(default_nni_config)
@@ -772,7 +772,7 @@ class AutoRunner:
                 )
 
             if auto_train_choice:
-                skip_algos = [h[AlgoEnsembleKeys.ID] for h in history if h["is_trained"]]
+                skip_algos = [h[AlgoKeys.ID] for h in history if h["is_trained"]]
                 if len(skip_algos) > 0:
                     logger.info(
                         f"Skipping already trained algos {skip_algos}."
@@ -816,7 +816,7 @@ class AutoRunner:
             if len(preds) > 0:
                 logger.info("Auto3Dseg picked the following networks to ensemble:")
                 for algo in ensembler.get_algo_ensemble():
-                    logger.info(algo[AlgoEnsembleKeys.ID])
+                    logger.info(algo[AlgoKeys.ID])
 
                 for pred in preds:
                     self.save_image(pred)
