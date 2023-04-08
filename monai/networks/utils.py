@@ -691,8 +691,8 @@ def convert_to_torchscript(
         rtol: the relative tolerance when comparing the outputs of PyTorch model and TorchScript model.
         atol: the absolute tolerance when comparing the outputs of PyTorch model and TorchScript model.
         use_trace: whether to use `torch.jit.trace` to export the torchscript model.
-        kwargs: other arguments except `obj` for `torch.jit.script()` to convert model, for more details:
-            https://pytorch.org/docs/master/generated/torch.jit.script.html.
+        kwargs: other arguments except `obj` for `torch.jit.script()` or `torch.jit.trace()` to convert model,
+            for more details: https://pytorch.org/docs/master/generated/torch.jit.script.html.
 
     """
     model.eval()
@@ -700,7 +700,7 @@ def convert_to_torchscript(
         if use_trace:
             if inputs is None:
                 raise ValueError("Missing input data for tracing convert.")
-            script_module = torch.jit.trace(model, example_inputs=inputs)
+            script_module = torch.jit.trace(model, example_inputs=inputs, **kwargs)
         else:
             script_module = torch.jit.script(model, **kwargs)
         if filename_or_obj is not None:
