@@ -116,8 +116,9 @@ for p in TEST_NDARRAYS:
                 ),
                 "image": None,
                 "image_threshold": 0.0,
+                "max_samples_per_class": 2,
             },
-            [np.array([0, 4, 8]), np.array([1, 5, 6]), np.array([2, 3, 7]), np.array([]), np.array([])],
+            [np.array([0, 8]), np.array([1, 6]), np.array([2, 7]), np.array([]), np.array([])],
         ]
     )
 

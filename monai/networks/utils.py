@@ -584,8 +584,10 @@ def convert_to_onnx(
         inputs: input sample data used by pytorch.onnx.export. It is also used in ONNX model verification.
         input_names: optional input names of the ONNX model.
         output_names: optional output names of the ONNX model.
-        opset_version: version of the (ai.onnx) opset to target. Must be >= 7 and <= 16, for more
-            details: https://github.com/onnx/onnx/blob/main/docs/Operators.md.
+        opset_version: version of the (ai.onnx) opset to target. Must be >= 7 and not exceed
+        the latest opset version supported by PyTorch, for more details:
+            https://github.com/onnx/onnx/blob/main/docs/Operators.md and
+            https://github.com/pytorch/pytorch/blob/master/torch/onnx/_constants.py
         dynamic_axes: specifies axes of tensors as dynamic (i.e. known only at run-time). If set to None,
             the exported model will have the shapes of all input and output tensors set to match given
             ones, for more details: https://pytorch.org/docs/stable/onnx.html#torch.onnx.export.
@@ -603,31 +605,45 @@ def convert_to_onnx(
     """
     model.eval()
     with torch.no_grad():
+        torch_versioned_kwargs = {}
         if use_trace:
-            script_module = torch.jit.trace(model, example_inputs=inputs)
+            # let torch.onnx.export to trace the model.
+            mode_to_export = model
         else:
-            script_module = torch.jit.script(model, **kwargs)
+            if not pytorch_after(1, 10):
+                if "example_outputs" not in kwargs:
+                    # https://github.com/pytorch/pytorch/blob/release/1.9/torch/onnx/__init__.py#L182
+                    raise TypeError(
+                        "example_outputs is required in scripting mode before PyTorch 1.10."
+                        "Please provide example outputs or use trace mode to export onnx model."
+                    )
+                torch_versioned_kwargs["example_outputs"] = kwargs["example_outputs"]
+                del kwargs["example_outputs"]
+            mode_to_export = torch.jit.script(model, **kwargs)
+
         if filename is None:
             f = io.BytesIO()
             torch.onnx.export(
-                script_module,
-                inputs,
+                mode_to_export,
+                tuple(inputs),
                 f=f,
                 input_names=input_names,
                 output_names=output_names,
                 dynamic_axes=dynamic_axes,
                 opset_version=opset_version,
+                **torch_versioned_kwargs,
             )
             onnx_model = onnx.load_model_from_string(f.getvalue())
         else:
             torch.onnx.export(
-                script_module,
-                inputs,
+                mode_to_export,
+                tuple(inputs),
                 f=filename,
                 input_names=input_names,
                 output_names=output_names,
                 dynamic_axes=dynamic_axes,
                 opset_version=opset_version,
+                **torch_versioned_kwargs,
             )
             onnx_model = onnx.load(filename)
 
