@@ -759,7 +759,7 @@ def _onnx_trt_compile(
     output_names: Sequence[str] | None,
 ):
     """
-    onnx_model: source onnx model to compile.
+    onnx_model: the source ONNX model to compile.
     min_shape: the minimum input shape of the converted TensorRT model.
     opt_shape: the optimization input shape of the model, on which the TensorRT optimizes.
     max_shape: the maximum input shape of the converted TensorRT model.
@@ -773,11 +773,11 @@ def _onnx_trt_compile(
     torch_tensorrt, _ = optional_import("torch_tensorrt", "1.4.0")
 
     input_shapes = (min_shape, opt_shape, max_shape)
-    # set the default value to an empty list to fit the `embed_engine_in_new_module` function.
+    # default to an empty list to fit the `torch_tensorrt.ts.embed_engine_in_new_module` function.
     input_names = [] if not input_names else input_names
     output_names = [] if not output_names else output_names
 
-    # set up the tensorrt builder
+    # set up the TensorRT builder
     torch_tensorrt.set_device(device)
     logger = trt.Logger(trt.Logger.WARNING)
     builder = trt.Builder(logger)
@@ -786,7 +786,7 @@ def _onnx_trt_compile(
     if input_names:
         profile.set_shape(input_names[0], *input_shapes)
 
-    # parse the onnx model
+    # parse the ONNX model
     parser = trt.OnnxParser(network, logger)
     success = parser.parse(onnx_model.SerializeToString())
     for idx in range(parser.num_errors):
@@ -847,7 +847,7 @@ def convert_to_trt(
             file path name to load the TensorRT engine based torchscript model for verifying.
         verify: whether to verify the input and output of the TensorRT engine based torchscript model.
         device: the target GPU index to convert and verify the model. If None, use #0 GPU.
-        use_onnx: whether to use the onnx-tensorrt way to export the TensorRT engine-based torchscript model.
+        use_onnx: whether to use the ONNX-TensorRT way to export the TensorRT engine-based torchscript model.
         onnx_input_names: optional input names of the ONNX model.
         onnx_output_names: optional output names of the ONNX model.
         rtol: the relative tolerance when comparing the outputs between the PyTorch model and TensorRT model.

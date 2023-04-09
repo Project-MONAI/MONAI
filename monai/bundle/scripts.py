@@ -1273,7 +1273,7 @@ def trt_export(
             that the TensorRT tries to fit. The `OPT_BATCH` should be the most frequently used input batchsize in
             the application.
         device: the target GPU index to convert and verify the model.
-        use_onnx: whether to use the onnx-tensorrt way to export the TensorRT engine-based torchscript model.
+        use_onnx: whether to use the ONNX-TensorRT way to export the TensorRT engine-based torchscript model.
         onnx_input_names: optional input names of the ONNX model.
         onnx_output_names: optional output names of the ONNX model.
         args_file: a JSON or YAML file to provide default values for all the parameters of this function, so that
