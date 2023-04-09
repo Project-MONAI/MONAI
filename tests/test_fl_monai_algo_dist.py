@@ -86,5 +86,6 @@ class TestFLMonaiAlgo(DistTestCase):
         metric = metric_eo.metrics
         self.assertIsInstance(metric["accuracy"], float)
 
+
 if __name__ == "__main__":
     unittest.main()
