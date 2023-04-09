@@ -881,7 +881,8 @@ def convert_to_trt(
     ir_model.eval()
     if use_onnx:
         # set the batch dim as dynamic
-        dynamic_axes = {k: {0: "batchsize"} for k in onnx_input_names} if onnx_input_names else None
+        dynamic_axes = {k: {0: "batchsize"} for k in onnx_input_names} if onnx_input_names else {} 
+        dynamic_axes = dynamic_axes.update({k: {0: "batchsize"} for k in onnx_output_names} if onnx_output_names else None)
         ir_model = convert_to_onnx(
             model, inputs, onnx_input_names, onnx_output_names, use_trace=use_trace, dynamic_axes=dynamic_axes
         )
