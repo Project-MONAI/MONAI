@@ -875,10 +875,24 @@ def convert_to_trt(
     convert_precision = torch.float32 if precision == "fp32" else torch.half
     inputs = [torch.rand(ensure_tuple(input_shape)).to(target_device)]
 
+    def scale_batch_size(input_shape: Sequence[int], scale_num: int):
+        scale_shape = [*input_shape]
+        scale_shape[0] *= scale_num
+        return scale_shape
+
+    # Use the dynamic batchsize range to generate the min, opt and max model input shape
+    if dynamic_batchsize:
+        min_input_shape = scale_batch_size(input_shape, dynamic_batchsize[0])
+        opt_input_shape = scale_batch_size(input_shape, dynamic_batchsize[1])
+        max_input_shape = scale_batch_size(input_shape, dynamic_batchsize[2])
+    else:
+        min_input_shape = opt_input_shape = max_input_shape = input_shape
+
     # convert the torch model, torchscript model and input to target device
     model = model.eval().to(target_device)
     ir_model = convert_to_torchscript(model, device=target_device, inputs=inputs, use_trace=use_trace)
     ir_model.eval()
+
     if use_onnx:
         # set the batch dim as dynamic
         dynamic_axes = {k: {0: "batchsize"} for k in onnx_input_names} if onnx_input_names else {}
@@ -887,20 +901,7 @@ def convert_to_trt(
             model, inputs, onnx_input_names, onnx_output_names, use_trace=use_trace, dynamic_axes=dynamic_axes
         )
 
-    def scale_batch_size(input_shape: Sequence[int], scale_num: int):
-        scale_shape = [*input_shape]
-        scale_shape[0] *= scale_num
-        return scale_shape
-
-    # Use the dynamic batchsize range to generate compiler input and compile the model
-    if dynamic_batchsize:
-        min_input_shape = scale_batch_size(input_shape, dynamic_batchsize[0])
-        opt_input_shape = scale_batch_size(input_shape, dynamic_batchsize[1])
-        max_input_shape = scale_batch_size(input_shape, dynamic_batchsize[2])
-    else:
-        min_input_shape = opt_input_shape = max_input_shape = input_shape
-
-    if use_onnx:
+        # convert the model through the onnx-tensorrt way
         trt_model = _onnx_trt_compile(
             ir_model,
             min_shape=min_input_shape,
@@ -912,6 +913,7 @@ def convert_to_trt(
             output_names=onnx_output_names,
         )
     else:
+        # convert the model through the torch-tensorrt way
         ir_model.to(target_device)
         with torch.no_grad():
             with torch.cuda.device(device=device):
