@@ -873,30 +873,18 @@ def convert_to_trt(
     device = device if device else 0
     target_device = torch.device(f"cuda:{device}") if device else torch.device("cuda:0")
     convert_precision = torch.float32 if precision == "fp32" else torch.half
-    inputs = (torch.rand(ensure_tuple(input_shape)).to(target_device),)
+    inputs = [torch.rand(ensure_tuple(input_shape)).to(target_device)]
 
     # convert the torch model, torchscript model and input to target device
     model = model.eval().to(target_device)
-
+    ir_model = convert_to_torchscript(model, device=target_device, inputs=inputs, use_trace=use_trace)
+    ir_model.eval()
     if use_onnx:
         # set the batch dim as dynamic
         dynamic_axes = {k: {0: "batchsize"} for k in onnx_input_names} if onnx_input_names else None
-        dynamic_axes.update({k: {0: "batchsize"} for k in onnx_output_names} if onnx_output_names else None)
-        f = io.BytesIO()
-        torch.onnx.export(
-            model,
-            inputs,
-            f,
-            export_params=True,
-            input_names=onnx_input_names,
-            output_names=onnx_output_names,
-            opset_version=15,
-            dynamic_axes=dynamic_axes,
+        ir_model = convert_to_onnx(
+            model, inputs, onnx_input_names, onnx_output_names, use_trace=use_trace, dynamic_axes=dynamic_axes
         )
-        ir_model = onnx.load_model_from_string(f.getvalue())
-    else:
-        ir_model = convert_to_torchscript(model, device=target_device, inputs=inputs, use_trace=use_trace)
-        ir_model.eval()
 
     def scale_batch_size(input_shape: Sequence[int], scale_num: int):
         scale_shape = [*input_shape]
