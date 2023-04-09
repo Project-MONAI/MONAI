@@ -888,7 +888,7 @@ def convert_to_trt(
     else:
         min_input_shape = opt_input_shape = max_input_shape = input_shape
 
-    # convert the torch model, torchscript model and input to target device
+    # convert the torch model to a TorchScript model on target device
     model = model.eval().to(target_device)
     ir_model = convert_to_torchscript(model, device=target_device, inputs=inputs, use_trace=use_trace)
     ir_model.eval()
@@ -901,7 +901,7 @@ def convert_to_trt(
             model, inputs, onnx_input_names, onnx_output_names, use_trace=use_trace, dynamic_axes=dynamic_axes
         )
 
-        # convert the model through the onnx-tensorrt way
+        # convert the model through the ONNX-TensorRT way
         trt_model = _onnx_trt_compile(
             ir_model,
             min_shape=min_input_shape,
@@ -930,7 +930,7 @@ def convert_to_trt(
                     **kwargs,
                 )
 
-    # verify the outputs between the trt model and torch model
+    # verify the outputs between the TensorRT model and torch model
     if verify:
         if inputs is None:
             raise ValueError("Missing input data for verification.")
