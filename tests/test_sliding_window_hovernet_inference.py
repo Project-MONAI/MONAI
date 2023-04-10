@@ -17,6 +17,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
+from monai.data import MetaTensor
 from monai.apps.pathology.inferers import SlidingWindowHoVerNetInferer
 from monai.inferers import sliding_window_inference
 from monai.utils import optional_import
@@ -247,7 +248,7 @@ class TestSlidingWindowHoVerNetInference(unittest.TestCase):
 
     def test_multioutput(self):
         device = "cuda" if torch.cuda.is_available() else "cpu:0"
-        inputs = torch.ones((1, 6, 20, 20)).to(device=device)
+        inputs = MetaTensor(torch.ones((1, 6, 20, 20)).to(device=device))
         roi_shape = (8, 8)
         sw_batch_size = 10
 
