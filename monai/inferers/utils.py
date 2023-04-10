@@ -120,6 +120,7 @@ def sliding_window_inference(
         process_fn: process inference output and adjust the importance map per window
         buffer_steps: the number of sliding window iterations along the ``buffer_dim``
             to be buffered on ``sw_device`` before writing to ``device``.
+            (Typically, ``sw_device`` is ``cuda`` and ``device`` is ``cpu``.)
             default is None, no buffering. For the buffer dim, when spatial size is divisible by buffer_steps*roi_size,
             (i.e. no overlapping among the buffers) non_blocking copy may be automatically enabled for efficiency.
         buffer_dim: the spatial dimension along which the buffers are created.

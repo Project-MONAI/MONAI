@@ -1306,6 +1306,8 @@ class ClassesToIndicesd(MapTransform, MultiSampleTrait):
         image_threshold: if enabled image_key, use ``image > image_threshold`` to determine the valid image content
             area and select only the indices of classes in this area.
         output_shape: expected shape of output indices. if not None, unravel indices to specified shape.
+        max_samples_per_class: maximum length of indices to sample in each class to reduce memory consumption.
+            Default is None, no subsampling.
         allow_missing_keys: don't raise exception if key is missing.
 
     """
@@ -1320,12 +1322,13 @@ class ClassesToIndicesd(MapTransform, MultiSampleTrait):
         image_key: str | None = None,
         image_threshold: float = 0.0,
         output_shape: Sequence[int] | None = None,
+        max_samples_per_class: int | None = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.indices_postfix = indices_postfix
         self.image_key = image_key
-        self.converter = ClassesToIndices(num_classes, image_threshold, output_shape)
+        self.converter = ClassesToIndices(num_classes, image_threshold, output_shape, max_samples_per_class)
 
     def __call__(self, data: Mapping[Hashable, Any]):
         d = dict(data)
