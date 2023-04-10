@@ -17,8 +17,8 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.data import MetaTensor
 from monai.apps.pathology.inferers import SlidingWindowHoVerNetInferer
+from monai.data import MetaTensor
 from monai.inferers import sliding_window_inference
 from monai.utils import optional_import
 from tests.test_sliding_window_inference import TEST_CASES
