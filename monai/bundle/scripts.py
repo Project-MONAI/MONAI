@@ -1335,7 +1335,7 @@ def trt_export(
         device=None,
         use_onnx=False,
         onnx_input_names=["input_0"],
-        onnx_output_namess=["output_0"],
+        onnx_output_names=["output_0"],
         converter_kwargs={},
     )
 
