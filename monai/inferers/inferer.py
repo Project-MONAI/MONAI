@@ -237,7 +237,10 @@ class PatchInferer(Inferer):
                             output_shape=output_shape, crop_shape=output_shape, **self.merger_kwargs
                         )
                 else:
-                    raise ValueError("`output_shape` should be provided when splitter is None.")
+                    raise ValueError(
+                        "`output_shape` should be provided "
+                        "(when the splitter is not provided or not a subclass of `monai.inferer.Splitter`)."
+                    )
 
             mergers.append(merger)
         return mergers, ratios

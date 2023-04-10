@@ -168,13 +168,24 @@ TEST_CASE_ERROR_7 = [
         (TENSOR_4x4[..., 2:, :2], (2, 0)),
         (TENSOR_4x4[..., 2:, 2:], (2, 2)),
     ],
-    dict(splitter=lambda x: x),
-    AttributeError,
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2))),
+    ValueError,
 ]
 # invalid inputs: split patches tensor without location
 TEST_CASE_ERROR_8 = [torch.zeros(2, 2), dict(splitter=None), ValueError]
 # invalid inputs: split patches MetaTensor without location metadata
 TEST_CASE_ERROR_9 = [MetaTensor(torch.zeros(2, 2)), dict(splitter=None), ValueError]
+# output_shape is not provided for the merger
+TEST_CASE_ERROR_10 = [
+    [
+        (TENSOR_4x4[..., :2, :2], (0, 0)),
+        (TENSOR_4x4[..., :2, 2:], (0, 2)),
+        (TENSOR_4x4[..., 2:, :2], (2, 0)),
+        (TENSOR_4x4[..., 2:, 2:], (2, 2)),
+    ],
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2))),
+    ValueError,
+]
 
 
 class PatchInfererTests(unittest.TestCase):
