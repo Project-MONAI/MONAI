@@ -42,17 +42,30 @@ class Splitter(ABC):
         self.device = device
 
     @abstractmethod
-    def get_spatial_shapes(self, inputs: Any) -> tuple[tuple, tuple]:
+    def get_input_shape(self, inputs: Any) -> tuple:
         """
-        Return the input shape and the actual spatial shape that the split patches represent and.
-        For instance if padded the shape will be enlarged and not the same as input shape.
+        Return the input spatial shape.
 
         Args:
             inputs: either a tensor of shape BCHW[D], representing a batch of images,
                 or a filename (str) or list of filenames to the image(s).
 
-        Returns:
-            spatial_shape, padded_spatial_shape
+        Raises:
+            NotImplementedError: When the subclass does not override this method.
+
+        """
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+
+    @abstractmethod
+    def get_output_shape(self, inputs: Any) -> tuple:
+        """
+        Return the actual spatial shape covered by the output split patches.
+        For instance, if the input image is padded, the actual spatial shape will be enlarged
+        and not the same as input spatial shape.
+
+        Args:
+            inputs: either a tensor of shape BCHW[D], representing a batch of images,
+                or a filename (str) or list of filenames to the image(s).
 
         Raises:
             NotImplementedError: When the subclass does not override this method.
@@ -196,26 +209,42 @@ class SlidingWindowSplitter(Splitter):
         )
         return inputs[slices]
 
-    def get_spatial_shapes(self, inputs: Any) -> tuple[tuple, tuple]:
+    def get_input_shape(self, inputs: Any) -> tuple:
         """
-        Return the input shape and the actual spatial shape that the split patches represent and.
-        For instance if padded the shape will be enlarged and not the same as input shape.
+        Return the input spatial shape.
 
         Args:
             inputs: either a tensor of shape BCHW[D], representing a batch of images,
                 or a filename (str) or list of filenames to the image(s).
 
         Returns:
-            spatial_shape, padded_spatial_shape
+            spatial_shape
+        """
+        return tuple(inputs.shape[self.non_spatial_ndim :])
+
+    def get_output_shape(self, inputs: Any) -> tuple:
+        """
+        Return the actual spatial shape covered by the output split patches.
+        For instance, if the input image is padded, the actual spatial shape will be enlarged
+        and not the same as input spatial shape.
+
+        Args:
+            inputs: either a tensor of shape BCHW[D], representing a batch of images,
+                or a filename (str) or list of filenames to the image(s).
+
+        Returns:
+            padded_spatial_shape
 
         """
-        spatial_shape = inputs.shape[self.non_spatial_ndim :]
+        spatial_shape = self.get_input_shape(inputs)
+        if not self.pad_mode:
+            return spatial_shape
         spatial_ndim = len(spatial_shape)
         patch_size, overlap, offset = self._get_valid_shape_parameters(spatial_shape)
         pad_size, _ = self._calculate_pad_size(spatial_shape, spatial_ndim, patch_size, offset, overlap)
         padded_spatial_shape = tuple(ss + ps + pe for ss, ps, pe in zip(spatial_shape, pad_size[1::2], pad_size[::2]))
 
-        return spatial_shape, padded_spatial_shape
+        return padded_spatial_shape
 
     def __call__(self, inputs: Any) -> Iterable[tuple[torch.Tensor, Sequence[int]]]:
         """Split the input tensor into patches and return patches and locations.
@@ -342,28 +371,45 @@ class WSISlidingWindowSplitter(SlidingWindowSplitter):
         patch, _ = self.reader.get_data(wsi=inputs, location=location, size=patch_size)  # type: ignore
         return patch[None]
 
-    def get_spatial_shapes(self, inputs: Any) -> tuple[tuple, tuple]:
+    def get_input_shape(self, inputs: Any) -> tuple:
         """
-        Return the input shape and the actual spatial shape that the split patches represent and.
-        For instance if padded the shape will be enlarged and not the same as input shape.
+        Return the input spatial shape.
 
         Args:
             inputs: either a tensor of shape BCHW[D], representing a batch of images,
                 or a filename (str) or list of filenames to the image(s).
 
         Returns:
-            spatial_shape, padded_spatial_shape
+            spatial_shape
 
         """
         wsi = self.reader.read(inputs)
         level = self.reader_kwargs.get("level")
-        spatial_shape: tuple = self.reader.get_size(wsi, level)
+        return self.reader.get_size(wsi, level)
+
+    def get_output_shape(self, inputs: Any) -> tuple:
+        """
+        Return the actual spatial shape covered by the output split patches.
+        For instance, if the input image is padded, the actual spatial shape will be enlarged
+        and not the same as input spatial shape.
+
+        Args:
+            inputs: either a tensor of shape BCHW[D], representing a batch of images,
+                or a filename (str) or list of filenames to the image(s).
+
+        Returns:
+            padded_spatial_shape
+
+        """
+        spatial_shape = self.get_input_shape(inputs)
+        if not self.pad_mode:
+            return spatial_shape
         spatial_ndim = len(spatial_shape)
         patch_size, overlap, offset = self._get_valid_shape_parameters(spatial_shape)
         pad_size, _ = self._calculate_pad_size(spatial_shape, spatial_ndim, patch_size, offset, overlap)
         padded_spatial_shape = tuple(ss + ps + pe for ss, ps, pe in zip(spatial_shape, pad_size[1::2], pad_size[::2]))
 
-        return spatial_shape, padded_spatial_shape
+        return padded_spatial_shape
 
     def __call__(self, inputs: PathLike | Sequence[PathLike]) -> Iterable[tuple[torch.Tensor, Sequence[int]]]:
         """Split the input tensor into patches and return patches and locations.
@@ -375,7 +421,7 @@ class WSISlidingWindowSplitter(SlidingWindowSplitter):
             tuple[torch.Tensor, Sequence[int]]: yields tuple of patch and location
         """
         # Handle if the input file paths are batched
-        if isinstance(inputs, Sequence):
+        if not isinstance(inputs, str) and isinstance(inputs, Sequence):
             if len(inputs) > 1:
                 raise ValueError("Only batch size of one would work for wsi image. Please provide one path at a time.")
             inputs = inputs[0]

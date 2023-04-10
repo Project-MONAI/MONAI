@@ -218,24 +218,27 @@ class PatchInferer(Inferer):
             ratios.append(ratio)
 
             # calculate output_shape only if it is not provided and splitter is not None.
-            output_shape = self.merger_kwargs.get("output_shape")
-            crop_shape = self.merger_kwargs.get("crop_shape")
-            if output_shape and crop_shape:
-                merger = self.merger_cls(**self.merger_kwargs)
+            kw_output_shape = self.merger_kwargs.get("output_shape")
+            kw_crop_shape = self.merger_kwargs.get("crop_shape")
+            crop_shape, output_shape = self._get_output_shape(inputs, out_patch, ratio)
+            # output_shape is provided by user
+            if kw_output_shape:
+                # crop_shape is provided by user
+                if kw_crop_shape:
+                    merger = self.merger_cls(**self.merger_kwargs)
+                else:
+                    merger = self.merger_cls(crop_shape=crop_shape, **self.merger_kwargs)
             else:
-                if not self.splitter:
-                    if output_shape:
+                if output_shape:
+                    if kw_crop_shape:
                         merger = self.merger_cls(output_shape=output_shape, **self.merger_kwargs)
                     else:
-                        raise ValueError("`output_shape` should be provided when splitter is None.")
+                        merger = self.merger_cls(
+                            output_shape=output_shape, crop_shape=output_shape, **self.merger_kwargs
+                        )
                 else:
-                    crop_shape_c, output_shape_c = self._get_output_shape(inputs, out_patch, ratio)
-                    if crop_shape:
-                        merger = self.merger_cls(output_shape=output_shape_c, **self.merger_kwargs)
-                    elif output_shape:
-                        merger = self.merger_cls(crop_shape=crop_shape_c, **self.merger_kwargs)
-                    else:
-                        merger = self.merger_cls(output_shape=output_shape_c, crop_shape=output_shape, **self.merger_kwargs)
+                    raise ValueError("`output_shape` should be provided when splitter is None.")
+
             mergers.append(merger)
         return mergers, ratios
 
@@ -248,21 +251,26 @@ class PatchInferer(Inferer):
 
     def _get_output_shape(self, inputs, out_patch, ratio):
         """Define the shape of output merged tensors (non-padded and padded)"""
-        if self.splitter is None:
+        if (
+            self.splitter is None
+            or not hasattr(self.splitter, "get_input_shape")
+            or not hasattr(self.splitter, "get_output_shape")
+        ):
             return None, None
 
         # input spatial shapes
-        spatial_shape, padded_spatial_shape = self.splitter.get_spatial_shapes(inputs)
+        original_spatial_shape = self.splitter.get_input_shape(inputs)
+        padded_spatial_shape = self.splitter.get_output_shape(inputs)
 
         # output spatial shapes
-        output_spatial_shape = tuple(round(s * r) for s, r in zip(spatial_shape, ratio))
+        output_spatial_shape = tuple(round(s * r) for s, r in zip(original_spatial_shape, ratio))
         padded_output_spatial_shape = tuple(round(s * r) for s, r in zip(padded_spatial_shape, ratio))
 
         # output shapes
-        output_shape = out_patch.shape[:2] + output_spatial_shape
-        padded_output_shape = out_patch.shape[:2] + padded_output_spatial_shape
+        crop_shape = out_patch.shape[:2] + output_spatial_shape
+        output_shape = out_patch.shape[:2] + padded_output_spatial_shape
 
-        return output_shape, padded_output_shape
+        return crop_shape, output_shape
 
     def __call__(
         self,
