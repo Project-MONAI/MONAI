@@ -19,7 +19,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.blocks.dynunet_block import get_padding
 from monai.networks.blocks.unetr_block import UnetrBasicBlock, UnetrPrUpBlock, UnetrUpBlock
-from tests.utils import test_script_save
+from tests.utils import test_script_save, test_onnx_save
 
 TEST_CASE_UNETR_BASIC_BLOCK = []
 for spatial_dims in range(1, 4):
@@ -122,6 +122,13 @@ class TestResBasicBlock(unittest.TestCase):
             test_data = torch.randn(input_shape)
             test_script_save(net, test_data)
 
+    def test_onnx(self):
+        input_param, input_shape, _ = TEST_CASE_UNETR_BASIC_BLOCK[0]
+        net = UnetrBasicBlock(**input_param)
+        with eval_mode(net):
+            test_data = torch.randn(input_shape)
+            test_onnx_save(net, test_data)
+
 
 class TestUpBlock(unittest.TestCase):
     @parameterized.expand(TEST_UP_BLOCK)
@@ -138,6 +145,13 @@ class TestUpBlock(unittest.TestCase):
         skip_data = torch.randn(skip_shape)
         test_script_save(net, test_data, skip_data)
 
+    def test_onnx(self):
+        input_param, input_shape, _, skip_shape = TEST_UP_BLOCK[0]
+        net = UnetrUpBlock(**input_param)
+        test_data = torch.randn(input_shape)
+        skip_data = torch.randn(skip_shape)
+        test_onnx_save(net, test_data, skip_data)
+
 
 class TestPrUpBlock(unittest.TestCase):
     @parameterized.expand(TEST_PRUP_BLOCK)
@@ -152,6 +166,12 @@ class TestPrUpBlock(unittest.TestCase):
         net = UnetrPrUpBlock(**input_param)
         test_data = torch.randn(input_shape)
         test_script_save(net, test_data)
+
+    def test_onnx(self):
+        input_param, input_shape, _ = TEST_PRUP_BLOCK[0]
+        net = UnetrPrUpBlock(**input_param)
+        test_data = torch.randn(input_shape)
+        test_onnx_save(net, test_data)
 
 
 if __name__ == "__main__":

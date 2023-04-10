@@ -19,7 +19,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.layers import Act
 from monai.networks.nets import AutoEncoder
-from tests.utils import test_script_save
+from tests.utils import test_script_save, test_onnx_save
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -85,6 +85,11 @@ class TestAutoEncoder(unittest.TestCase):
         net = AutoEncoder(spatial_dims=2, in_channels=1, out_channels=1, channels=(4, 8), strides=(2, 2))
         test_data = torch.randn(2, 1, 32, 32)
         test_script_save(net, test_data)
+
+    def test_onnx(self):
+        net = AutoEncoder(spatial_dims=2, in_channels=1, out_channels=1, channels=(4, 8), strides=(2, 2))
+        test_data = torch.randn(2, 1, 32, 32)
+        test_onnx_save(net, test_data, atol=1e-3)
 
     def test_channel_stride_difference(self):
         with self.assertRaises(ValueError):

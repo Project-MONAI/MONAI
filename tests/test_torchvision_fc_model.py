@@ -21,6 +21,7 @@ from monai.networks import eval_mode
 from monai.networks.nets import TorchVisionFCModel, UNet
 from monai.networks.utils import look_up_named_module, set_named_module
 from monai.utils import min_version, optional_import
+from tests.utils import test_onnx_save
 
 Inception_V3_Weights, has_enum = optional_import("torchvision.models.inception", name="Inception_V3_Weights")
 
@@ -183,6 +184,16 @@ class TestTorchVisionFCModel(unittest.TestCase):
             self.assertEqual(value, expected_value)
             self.assertEqual(result.shape, expected_shape)
 
+    @parameterized.expand(
+        [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7]
+        + ([TEST_CASE_8] if has_enum else [])
+    )
+    @skipUnless(has_tv, "Requires TorchVision.")
+    def test_onnx(self, input_param, input_shape, expected_shape):
+        net = TorchVisionFCModel(**input_param).to(device)
+        data = torch.randn(input_shape)
+        net = TorchVisionFCModel(**input_param).to(device)
+        test_onnx_save(net, data)
 
 class TestLookup(unittest.TestCase):
     def test_get_module(self):

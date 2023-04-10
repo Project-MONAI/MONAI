@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.regunet import RegUNet
-from tests.utils import test_script_save
+from tests.utils import test_script_save, test_onnx_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -82,6 +82,12 @@ class TestREGUNET(unittest.TestCase):
         net = RegUNet(**input_param)
         test_data = torch.randn(input_shape)
         test_script_save(net, test_data)
+
+    def test_onnx(self):
+        input_param, input_shape, _ = TEST_CASE_REGUNET_2D[0]
+        net = RegUNet(**input_param)
+        test_data = torch.randn(input_shape)
+        test_onnx_save(net, test_data)
 
 
 if __name__ == "__main__":

@@ -28,7 +28,7 @@ from monai.networks.nets import (
     ResNetBottleneck,
 )
 from monai.utils import optional_import
-from tests.utils import skip_if_downloading_fails, skip_if_quick
+from tests.utils import skip_if_downloading_fails, skip_if_quick, test_onnx_save
 
 torchvision, has_torchvision = optional_import("torchvision")
 PIL, has_pil = optional_import("PIL")
@@ -377,6 +377,15 @@ class TestFLEXIBLEUNET(unittest.TestCase):
 
         # check output shape
         self.assertEqual(result.shape, expected_shape)
+
+    @parameterized.expand(CASES_2D + CASES_3D + CASES_VARIATIONS)
+    def test_onnx(self, input_param, input_shape, expected_shape):
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+
+        with skip_if_downloading_fails():
+            net = FlexibleUNet(**input_param).to(device)
+            input_data = torch.randn(input_shape)
+            test_onnx_save(net, input_data)
 
     @parameterized.expand(CASES_PRETRAIN)
     def test_pretrain(self, input_param, efficient_input_param, weight_list):

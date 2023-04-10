@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.apps.detection.utils.anchor_utils import AnchorGenerator, AnchorGeneratorWithAnchorShape
 from monai.utils import optional_import
-from tests.utils import SkipIfBeforePyTorchVersion, assert_allclose, test_script_save
+from tests.utils import SkipIfBeforePyTorchVersion, assert_allclose, test_script_save, test_onnx_save
 
 _, has_torchvision = optional_import("torchvision")
 
@@ -82,6 +82,22 @@ class TestAnchorGenerator(unittest.TestCase):
         images = torch.rand(image_shape)
         feature_maps = tuple(torch.rand(fs) for fs in feature_maps_shapes)
         test_script_save(anchor, images, feature_maps)
+
+    @parameterized.expand(TEST_CASES_2D)
+    def test_onnx_2d(self, input_param, image_shape, feature_maps_shapes):
+        # test whether support torchscript
+        anchor = AnchorGenerator(**input_param, indexing="xy")
+        images = torch.rand(image_shape)
+        feature_maps = tuple(torch.rand(fs) for fs in feature_maps_shapes)
+        test_onnx_save(anchor, images, feature_maps)
+
+    @parameterized.expand(TEST_CASES_SHAPE_3D)
+    def test_onnx_3d(self, input_param, image_shape, feature_maps_shapes):
+        # test whether support torchscript
+        anchor = AnchorGeneratorWithAnchorShape(**input_param, indexing="ij")
+        images = torch.rand(image_shape)
+        feature_maps = tuple(torch.rand(fs) for fs in feature_maps_shapes)
+        test_onnx_save(anchor, images, feature_maps)
 
 
 if __name__ == "__main__":

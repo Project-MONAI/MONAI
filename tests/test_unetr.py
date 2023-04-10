@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.unetr import UNETR
-from tests.utils import SkipIfBeforePyTorchVersion, skip_if_quick, test_script_save
+from tests.utils import SkipIfBeforePyTorchVersion, skip_if_quick, test_script_save, test_onnx_save
 
 TEST_CASE_UNETR = []
 for dropout_rate in [0.4]:
@@ -131,6 +131,17 @@ class TestUNETR(unittest.TestCase):
 
         test_data = torch.randn(input_shape)
         test_script_save(net, test_data)
+
+    @parameterized.expand(TEST_CASE_UNETR)
+    @SkipIfBeforePyTorchVersion((1, 9))
+    def test_onnx(self, input_param, input_shape, _):
+        net = UNETR(**(input_param))
+        net.eval()
+        with torch.no_grad():
+            torch.jit.script(net)
+
+        test_data = torch.randn(input_shape)
+        test_onnx_save(net, test_data, atol=1e-3)
 
 
 if __name__ == "__main__":

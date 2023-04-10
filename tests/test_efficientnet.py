@@ -28,7 +28,7 @@ from monai.networks.nets import (
     get_efficientnet_image_size,
 )
 from monai.utils import optional_import
-from tests.utils import skip_if_downloading_fails, skip_if_quick, test_pretrained_networks, test_script_save
+from tests.utils import skip_if_downloading_fails, skip_if_quick, test_pretrained_networks, test_script_save, test_onnx_save
 
 if TYPE_CHECKING:
     import torchvision
@@ -373,6 +373,13 @@ class TestEFFICIENTNET(unittest.TestCase):
         net.set_swish(memory_efficient=False)  # at the moment custom memory efficient swish is not exportable with jit
         test_data = torch.randn(1, 3, 224, 224)
         test_script_save(net, test_data)
+
+    def test_onnx(self):
+        with skip_if_downloading_fails():
+            net = EfficientNetBN(model_name="efficientnet-b0", spatial_dims=2, in_channels=3, num_classes=1000)
+        net.set_swish(memory_efficient=False)  # at the moment custom memory efficient swish is not exportable with jit
+        test_data = torch.randn(1, 3, 224, 224)
+        test_onnx_save(net, test_data, atol=1e-3)
 
 
 class TestExtractFeatures(unittest.TestCase):

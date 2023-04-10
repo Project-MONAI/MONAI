@@ -19,7 +19,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.layers import Act
 from monai.networks.nets import VarAutoEncoder
-from tests.utils import test_script_save
+from tests.utils import test_script_save, test_onnx_save
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -121,6 +121,13 @@ class TestVarAutoEncoder(unittest.TestCase):
         )
         test_data = torch.randn(2, 1, 32, 32)
         test_script_save(net, test_data, rtol=1e-3, atol=1e-3)
+
+    def test_onnx(self):
+        net = VarAutoEncoder(
+            spatial_dims=2, in_shape=(1, 32, 32), out_channels=1, latent_size=2, channels=(4, 8), strides=(2, 2)
+        )
+        test_data = torch.randn(2, 1, 32, 32)
+        test_onnx_save(net, test_data, rtol=1e-3, atol=1e-3)
 
 
 if __name__ == "__main__":

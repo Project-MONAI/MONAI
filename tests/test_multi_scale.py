@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.losses import DiceLoss
 from monai.losses.multi_scale import MultiScaleLoss
-from tests.utils import test_script_save
+from tests.utils import test_script_save, test_onnx_save
 
 dice_loss = DiceLoss(include_background=True, sigmoid=True, smooth_nr=1e-5, smooth_dr=1e-5)
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -73,6 +73,11 @@ class TestMultiScale(unittest.TestCase):
         input_param, input_data, expected_val = TEST_CASES[0]
         loss = MultiScaleLoss(**input_param)
         test_script_save(loss, input_data["y_pred"], input_data["y_true"])
+
+    def test_onnx(self):
+        input_param, input_data, expected_val = TEST_CASES[0]
+        loss = MultiScaleLoss(**input_param)
+        test_onnx_save(loss, input_data["y_pred"], input_data["y_true"])
 
 
 if __name__ == "__main__":

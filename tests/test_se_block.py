@@ -19,7 +19,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.blocks import SEBlock
 from monai.networks.layers.factories import Act, Norm
-from tests.utils import test_script_save
+from tests.utils import test_script_save, test_onnx_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -75,6 +75,12 @@ class TestSEBlockLayer(unittest.TestCase):
         net = SEBlock(**input_param)
         test_data = torch.randn(input_shape)
         test_script_save(net, test_data)
+
+    def test_onnx(self):
+        input_param, input_shape, _ = TEST_CASES[0]
+        net = SEBlock(**input_param)
+        test_data = torch.randn(input_shape)
+        test_onnx_save(net, test_data, atol=1e-3)
 
     def test_ill_arg(self):
         with self.assertRaises(ValueError):

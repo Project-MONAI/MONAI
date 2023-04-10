@@ -19,7 +19,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.nets import MILModel
 from monai.utils.module import optional_import
-from tests.utils import skip_if_downloading_fails, test_script_save
+from tests.utils import skip_if_downloading_fails, test_script_save, test_onnx_save
 
 models, _ = optional_import("torchvision.models")
 
@@ -86,6 +86,12 @@ class TestMilModel(unittest.TestCase):
         net = MILModel(**input_param)
         test_data = torch.randn(input_shape, dtype=torch.float)
         test_script_save(net, test_data)
+
+    def test_onnx(self):
+        input_param, input_shape, expected_shape = TEST_CASE_MILMODEL[0]
+        net = MILModel(**input_param)
+        test_data = torch.randn(input_shape, dtype=torch.float)
+        test_onnx_save(net, test_data)
 
 
 if __name__ == "__main__":

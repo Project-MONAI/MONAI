@@ -20,6 +20,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.nets.swin_unetr import PatchMerging, PatchMergingV2, SwinUNETR
 from monai.utils import optional_import
+from tests.utils import test_onnx_save
 
 einops, has_einops = optional_import("einops")
 
@@ -92,6 +93,14 @@ class TestSWINUNETR(unittest.TestCase):
         dim = 10
         t = PatchMerging(dim)(torch.zeros((1, 21, 20, 20, dim)))
         self.assertEqual(t.shape, torch.Size([1, 11, 10, 10, 20]))
+
+    @parameterized.expand(TEST_CASE_SWIN_UNETR)
+    @skipUnless(has_einops, "Requires einops")
+    def test_onnx(self, input_param, input_shape, expected_shape):
+        net = SwinUNETR(**input_param)
+        with eval_mode(net):
+            test_data = torch.randn(input_shape)
+            test_onnx_save(net, test_data)
 
 
 if __name__ == "__main__":

@@ -19,7 +19,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode, train_mode
 from monai.networks.nets import HoVerNet
 from monai.networks.nets.hovernet import _DenseLayerDecoder
-from tests.utils import test_script_save
+from tests.utils import test_script_save, test_onnx_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -181,8 +181,14 @@ class TestHoverNet(unittest.TestCase):
     def test_script(self):
         for padding_flag in [True, False]:
             net = HoVerNet(mode=HoVerNet.Mode.FAST, decoder_padding=padding_flag)
-        test_data = torch.randn(1, 3, 256, 256)
-        test_script_save(net, test_data)
+            test_data = torch.randn(1, 3, 256, 256)
+            test_script_save(net, test_data)
+
+    def test_onnx(self):
+        for padding_flag in [True, False]:
+            net = HoVerNet(mode=HoVerNet.Mode.FAST, decoder_padding=padding_flag)
+            test_data = torch.randn(1, 3, 256, 256)
+            test_onnx_save(net, test_data)
 
     def test_ill_input_shape(self):
         net = HoVerNet(mode=HoVerNet.Mode.FAST)

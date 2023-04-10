@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.nets.dints import Cell, MixedOp
-from tests.utils import test_script_save
+from tests.utils import test_script_save, test_onnx_save
 
 TEST_CASES_3D = [
     [
@@ -78,6 +78,11 @@ class TestMixOP(unittest.TestCase):
     def test_script(self, input_param, ops, weight, input_shape, expected_shape):
         net = MixedOp(ops=Cell.OPS3D, **input_param)
         test_script_save(net, torch.randn(input_shape), weight)
+
+    @parameterized.expand(TEST_CASES_3D)
+    def test_onnx(self, input_param, ops, weight, input_shape, expected_shape):
+        net = MixedOp(ops=Cell.OPS3D, **input_param)
+        test_onnx_save(net, torch.randn(input_shape), weight, atol=1e-3)
 
 
 if __name__ == "__main__":

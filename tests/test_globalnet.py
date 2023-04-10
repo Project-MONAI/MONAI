@@ -21,7 +21,7 @@ from monai.networks import eval_mode
 from monai.networks.blocks import Warp
 from monai.networks.nets import GlobalNet
 from monai.networks.nets.regunet import AffineHead
-from tests.utils import test_script_save
+from tests.utils import test_script_save, test_onnx_save
 
 TEST_CASES_AFFINE_TRANSFORM = [
     [
@@ -91,6 +91,12 @@ class TestGlobalNet(unittest.TestCase):
         net = GlobalNet(**input_param)
         test_data = torch.randn(input_shape)
         test_script_save(net, test_data)
+
+    def test_onnx(self):
+        input_param, input_shape, _ = TEST_CASES_GLOBAL_NET[0]
+        net = GlobalNet(**input_param)
+        test_data = torch.randn(input_shape)
+        test_onnx_save(net, test_data)
 
 
 if __name__ == "__main__":
