@@ -23,7 +23,7 @@ from monai.apps.auto3dseg import AlgoEnsembleBestByFold, AlgoEnsembleBestN, Algo
 from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
 from monai.utils import optional_import
-from monai.utils.enums import AlgoEnsembleKeys
+from monai.utils.enums import AlgoKeys
 from tests.utils import (
     SkipIfBeforePyTorchVersion,
     get_testing_algo_template_path,
@@ -139,7 +139,7 @@ class TestEnsembleGpuCustomization(unittest.TestCase):
         history = bundle_generator.get_history()
 
         for algo_dict in history:
-            algo = algo_dict[AlgoEnsembleKeys.ALGO]
+            algo = algo_dict[AlgoKeys.ALGO]
             algo.train(train_param)
 
         builder = AlgoEnsembleBuilder(history, data_src_cfg)
@@ -151,7 +151,7 @@ class TestEnsembleGpuCustomization(unittest.TestCase):
         builder.set_ensemble_method(AlgoEnsembleBestByFold(1))
         ensemble = builder.get_ensemble()
         for algo in ensemble.get_algo_ensemble():
-            print(algo[AlgoEnsembleKeys.ID])
+            print(algo[AlgoKeys.ID])
 
     def tearDown(self) -> None:
         self.test_dir.cleanup()
