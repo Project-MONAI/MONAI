@@ -41,7 +41,7 @@ __all__ = ["sliding_window_inference"]
 
 
 def sliding_window_inference(
-    inputs: torch.Tensor,
+    inputs: torch.Tensor | MetaTensor,
     roi_size: Sequence[int] | int,
     sw_batch_size: int,
     predictor: Callable[..., torch.Tensor | Sequence[torch.Tensor] | dict[Any, torch.Tensor]],
@@ -120,6 +120,7 @@ def sliding_window_inference(
         process_fn: process inference output and adjust the importance map per window
         buffer_steps: the number of sliding window iterations along the ``buffer_dim``
             to be buffered on ``sw_device`` before writing to ``device``.
+            (Typically, ``sw_device`` is ``cuda`` and ``device`` is ``cpu``.)
             default is None, no buffering. For the buffer dim, when spatial size is divisible by buffer_steps*roi_size,
             (i.e. no overlapping among the buffers) non_blocking copy may be automatically enabled for efficiency.
         buffer_dim: the spatial dimension along which the buffers are created.
@@ -306,9 +307,11 @@ def sliding_window_inference(
             output_image_list[ss] = output_i[(slice(None), slice(None), *final_slicing)]
 
     final_output = _pack_struct(output_image_list, dict_keys)
-    final_output = convert_to_dst_type(final_output, inputs, device=device)[0]  # type: ignore
     if temp_meta is not None:
-        final_output = MetaTensor(final_output).copy_meta_from(temp_meta)
+        final_output = convert_to_dst_type(final_output, temp_meta, device=device)[0]  # type: ignore
+    else:
+        final_output = convert_to_dst_type(final_output, inputs, device=device)[0]
+
     return final_output  # type: ignore
 
 
@@ -321,7 +324,7 @@ def _create_buffered_slices(slices, batch_size, sw_batch_size, buffer_dim, buffe
 
     _, _, _b_lens = np.unique(slices_np[:, 0], return_counts=True, return_index=True)
     b_ends = np.cumsum(_b_lens).tolist()  # possible buffer flush boundaries
-    x = [0, *b_ends][:: min(len(b_ends), int(buffer_steps))]  # type: ignore
+    x = [0, *b_ends][:: min(len(b_ends), int(buffer_steps))]
     if x[-1] < b_ends[-1]:
         x.append(b_ends[-1])
     n_per_batch = len(x) - 1
@@ -384,7 +387,7 @@ def _flatten_struct(seg_out):
         dict_keys = sorted(seg_out.keys())  # track predictor's output keys
         seg_probs = tuple(seg_out[k] for k in dict_keys)
     else:
-        seg_probs = ensure_tuple(seg_out)  # type: ignore
+        seg_probs = ensure_tuple(seg_out)
     return dict_keys, seg_probs
 
 

@@ -27,7 +27,7 @@ from monai.auto3dseg import concat_val_to_np
 from monai.auto3dseg.utils import datafold_read
 from monai.bundle import ConfigParser
 from monai.transforms import MeanEnsemble, VoteEnsemble
-from monai.utils.enums import AlgoEnsembleKeys
+from monai.utils.enums import AlgoKeys
 from monai.utils.misc import prob2class
 from monai.utils.module import look_up_option
 
@@ -59,7 +59,7 @@ class AlgoEnsemble(ABC):
             identifier: the name of the bundleAlgo
         """
         for algo in self.algos:
-            if identifier == algo[AlgoEnsembleKeys.ID]:
+            if identifier == algo[AlgoKeys.ID]:
                 return algo
 
     def get_algo_ensemble(self):
@@ -160,7 +160,7 @@ class AlgoEnsemble(ABC):
             print(i)
             preds = []
             for algo in self.algo_ensemble:
-                infer_instance = algo[AlgoEnsembleKeys.ALGO]
+                infer_instance = algo[AlgoKeys.ALGO]
                 pred = infer_instance.predict(predict_files=[file], predict_params=param)
                 preds.append(pred[0])
             outputs.append(self.ensemble_pred(preds, sigmoid=sigmoid))
@@ -187,7 +187,7 @@ class AlgoEnsembleBestN(AlgoEnsemble):
         """
         Sort the best_metrics
         """
-        scores = concat_val_to_np(self.algos, [AlgoEnsembleKeys.SCORE])
+        scores = concat_val_to_np(self.algos, [AlgoKeys.SCORE])
         return np.argsort(scores).tolist()
 
     def collect_algos(self, n_best: int = -1) -> None:
@@ -238,14 +238,14 @@ class AlgoEnsembleBestByFold(AlgoEnsemble):
             best_model: BundleAlgo | None = None
             for algo in self.algos:
                 # algorithm folder: {net}_{fold_index}_{other}
-                identifier = algo[AlgoEnsembleKeys.ID].split("_")[1]
+                identifier = algo[AlgoKeys.ID].split("_")[1]
                 try:
                     algo_id = int(identifier)
                 except ValueError as err:
                     raise ValueError(f"model identifier {identifier} is not number.") from err
-                if algo_id == f_idx and algo[AlgoEnsembleKeys.SCORE] > best_score:
+                if algo_id == f_idx and algo[AlgoKeys.SCORE] > best_score:
                     best_model = algo
-                    best_score = algo[AlgoEnsembleKeys.SCORE]
+                    best_score = algo[AlgoKeys.SCORE]
             self.algo_ensemble.append(best_model)
 
 
@@ -267,22 +267,20 @@ class AlgoEnsembleBuilder:
 
     """
 
-    def __init__(self, history: Sequence[dict], data_src_cfg_filename: str | None = None):
-        self.infer_algos: list[dict[AlgoEnsembleKeys, Any]] = []
+    def __init__(self, history: Sequence[dict[str, Any]], data_src_cfg_filename: str | None = None):
+        self.infer_algos: list[dict[AlgoKeys, Any]] = []
         self.ensemble: AlgoEnsemble
         self.data_src_cfg = ConfigParser(globals=False)
 
         if data_src_cfg_filename is not None and os.path.exists(str(data_src_cfg_filename)):
             self.data_src_cfg.read_config(data_src_cfg_filename)
 
-        for h in history:
+        for algo_dict in history:
             # load inference_config_paths
-            # raise warning/error if not found
-            if len(h) > 1:
-                raise ValueError(f"{h} should only contain one set of genAlgo key-value")
 
-            name = list(h.keys())[0]
-            gen_algo = h[name]
+            name = algo_dict[AlgoKeys.ID]
+            gen_algo = algo_dict[AlgoKeys.ALGO]
+
             best_metric = gen_algo.get_score()
             algo_path = gen_algo.output_path
             infer_path = os.path.join(algo_path, "scripts", "infer.py")
@@ -308,7 +306,7 @@ class AlgoEnsembleBuilder:
         if best_metric is None:
             raise ValueError("Feature to re-validate is to be implemented")
 
-        algo = {AlgoEnsembleKeys.ID: identifier, AlgoEnsembleKeys.ALGO: gen_algo, AlgoEnsembleKeys.SCORE: best_metric}
+        algo = {AlgoKeys.ID: identifier, AlgoKeys.ALGO: gen_algo, AlgoKeys.SCORE: best_metric}
         self.infer_algos.append(algo)
 
     def set_ensemble_method(self, ensemble: AlgoEnsemble, *args: Any, **kwargs: Any) -> None:
