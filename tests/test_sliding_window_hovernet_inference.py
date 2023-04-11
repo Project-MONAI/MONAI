@@ -32,10 +32,7 @@ TEST_CASES_PADDING = [
     ["hover", (1, 3, 16, 8), (4, 4), 7, 0.5, "constant", torch.device("cpu:0"), (1,) * 4],
 ]
 
-TEST_CASES_MULTIOUTPUT = [
-    [torch.ones((1, 6, 20, 20))],
-    [MetaTensor(torch.ones((1, 6, 20, 20)))]
-]
+TEST_CASES_MULTIOUTPUT = [[torch.ones((1, 6, 20, 20))], [MetaTensor(torch.ones((1, 6, 20, 20)))]]
 
 
 class TestSlidingWindowHoVerNetInference(unittest.TestCase):
