@@ -16,7 +16,6 @@ from typing import Any
 from monai.apps.auto3dseg import AutoRunner
 from monai.apps.auto3dseg.utils import AZUREML_CONFIG_KEY, submit_auto3dseg_module_to_azureml_if_needed
 from monai.apps.utils import get_logger
-from monai.transforms import SaveImage
 from monai.utils.module import optional_import
 
 logger = get_logger(module_name=__name__)

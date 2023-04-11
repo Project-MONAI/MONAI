@@ -16,7 +16,7 @@ import subprocess
 import warnings
 from copy import deepcopy
 from time import sleep
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 import numpy as np
 import torch
