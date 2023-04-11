@@ -32,6 +32,11 @@ TEST_CASES_PADDING = [
     ["hover", (1, 3, 16, 8), (4, 4), 7, 0.5, "constant", torch.device("cpu:0"), (1,) * 4],
 ]
 
+TEST_CASES_MULTIOUTPUT = [
+    [torch.ones((1, 6, 20, 20))],
+    [MetaTensor(torch.ones((1, 6, 20, 20)))]
+]
+
 
 class TestSlidingWindowHoVerNetInference(unittest.TestCase):
     @parameterized.expand(TEST_CASES_PADDING)
@@ -246,9 +251,10 @@ class TestSlidingWindowHoVerNetInference(unittest.TestCase):
         )(inputs, compute, t1, test2=t2)
         np.testing.assert_allclose(result.cpu().numpy(), expected, rtol=1e-4)
 
-    def test_multioutput(self):
+    @parameterized.expand(TEST_CASES_MULTIOUTPUT)
+    def test_multioutput(self, inputs):
         device = "cuda" if torch.cuda.is_available() else "cpu:0"
-        inputs = MetaTensor(torch.ones((1, 6, 20, 20)).to(device=device))
+        inputs = inputs.to(device=device)
         roi_shape = (8, 8)
         sw_batch_size = 10
 
