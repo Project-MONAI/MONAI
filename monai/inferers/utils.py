@@ -307,15 +307,9 @@ def sliding_window_inference(
             output_image_list[ss] = output_i[(slice(None), slice(None), *final_slicing)]
 
     final_output = _pack_struct(output_image_list, dict_keys)
-    final_output = convert_to_dst_type(final_output, inputs, device=device)[0]  # type: ignore
     if temp_meta is not None:
-        if dict_keys is not None:
-            for _dict_key in dict_keys:
-                final_output[_dict_key] = MetaTensor(final_output[_dict_key]).copy_meta_from(temp_meta)
-        elif isinstance(final_output, tuple):
-            final_output = ensure_tuple(MetaTensor(i).copy_meta_from(temp_meta) for i in final_output)
-        else:
-            final_output = MetaTensor(final_output).copy_meta_from(temp_meta)
+        final_output = convert_to_dst_type(final_output, temp_meta, device=device)[0]  # type: ignore
+
     return final_output  # type: ignore
 
 
