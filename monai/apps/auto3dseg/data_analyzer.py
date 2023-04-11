@@ -236,6 +236,7 @@ class DataAnalyzer:
         n_cases = len(result_bycase[DataStatsKeys.BY_CASE])
         result[DataStatsKeys.SUMMARY] = summarizer.summarize(cast(list, result_bycase[DataStatsKeys.BY_CASE]))
         result[DataStatsKeys.SUMMARY]["n_cases"] = n_cases
+        result[DataStatsKeys.BY_CASE] = [None] * n_cases
         result_bycase[DataStatsKeys.SUMMARY] = result[DataStatsKeys.SUMMARY]
         if not self._check_data_uniformity([ImageStatsKeys.SPACING], result):
             logger.info("Data spacing is not completely uniform. MONAI transforms may provide unexpected result")
