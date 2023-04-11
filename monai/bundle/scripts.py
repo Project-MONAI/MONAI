@@ -1247,7 +1247,7 @@ def trt_export(
     There are two ways to export a model:
     1, Torch-TensorRT way: PyTorch module ---> TorchScript module ---> TensorRT engine-based TorchScript.
     2, ONNX-TensorRT way: PyTorch module ---> TorchScript module ---> ONNX model ---> TensorRT engine --->
-       TensorRT engine-based TorchScript.
+    TensorRT engine-based TorchScript.
 
     When exporting through the first way, some models suffer from the slowdown problem, since Torch-TensorRT
     may only convert a little part of the PyTorch model to the TensorRT engine. However when exporting through
