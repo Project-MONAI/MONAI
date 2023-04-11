@@ -164,7 +164,7 @@ class AlgoEnsemble(ABC):
         sigmoid = param.pop("sigmoid", False)
 
         outputs = []
-        for i, file in enumerate(tqdm(files, desc='Ensembling...')):
+        for i, file in enumerate(tqdm(files, desc='Ensembling...')) if pred_param.get('rank',0)==0 else enumerate(files):
             preds = []
             for algo in self.algo_ensemble:
                 infer_instance = algo[AlgoKeys.ALGO]
@@ -373,7 +373,7 @@ class EnsembleRunner:
         self.mgpu = mgpu
         self.save_image = self.set_image_save_transform(kwargs)                     
         self.set_ensemble_method(ensemble_method_name)  
-        self.pred_params = kwargs   
+        self.pred_params = kwargs
         history = import_bundle_algo_history(self.work_dir, only_trained=False)
         history_untrained = [h for h in history if not h[AlgoKeys.IS_TRAINED]]
         if len(history_untrained) > 0:
@@ -468,6 +468,7 @@ class EnsembleRunner:
                 num_partitions=world_size,
                 even_divisible=True,
             )[dist.get_rank()]
+            self.pred_params['rank'] = dist.get_rank()
             # TO DO: Add some function in ensembler for infer_files update?
             self.ensembler.infer_files = infer_files
 

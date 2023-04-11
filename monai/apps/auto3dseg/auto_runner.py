@@ -773,4 +773,4 @@ class AutoRunner:
                                              **self.kwargs, # for set_image_save_transform
                                              **self.pred_params) # for inference
             ensemble_runner.run(self.device_setting)
-        logger.info("Auto3Dseg pipeline is complete successfully.")
+        logger.info("Auto3Dseg pipeline is completed successfully.")

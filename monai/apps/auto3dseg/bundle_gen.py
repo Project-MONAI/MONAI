@@ -152,7 +152,7 @@ class BundleAlgo(Algo):
             self.output_path = self.template_path
         if kwargs.pop("fill_template", True):
             self.fill_records = self.fill_template_config(self.data_stats_files, self.output_path, **kwargs)
-        logger.info(self.output_path)
+        logger.info('Generated:' + self.output_path)
 
     def _create_cmd(self, train_params: dict={}):
         """
@@ -381,7 +381,7 @@ def _copy_algos_folder(folder, at_path):
             algos_all[name] = dict(
                 _target_=f"{name}.scripts.algo.{name.capitalize()}Algo", template_path=os.path.join(at_path, name)
             )
-            logger.info(f"{name} -- {algos_all[name]}")
+            logger.info(f"Copying template: {name} -- {algos_all[name]}")
     if not algos_all:
         raise ValueError(f"Unable to find any algos in {folder}")
 
