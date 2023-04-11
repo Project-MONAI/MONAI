@@ -371,8 +371,8 @@ class EnsembleRunner:
         self.set_num_fold(num_fold=num_fold)
         self.ensemble_method_name = ensemble_method_name
         self.mgpu = mgpu
-        self.save_image = self.set_image_save_transform(kwargs)                     
-        self.set_ensemble_method(ensemble_method_name)  
+        self.save_image = self.set_image_save_transform(kwargs)
+        self.set_ensemble_method(ensemble_method_name)
         self.pred_params = kwargs
         history = import_bundle_algo_history(self.work_dir, only_trained=False)
         history_untrained = [h for h in history if not h[AlgoKeys.IS_TRAINED]]
