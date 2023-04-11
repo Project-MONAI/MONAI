@@ -672,7 +672,7 @@ def convert_to_onnx(
         set_determinism(seed=None)
         # compare onnx/ort and PyTorch results
         for r1, r2 in zip(torch_out, onnx_out):
-            torch.testing.assert_allclose(r1.cpu(), r2, rtol=rtol, atol=atol)  # type: ignore
+            torch.testing.assert_allclose(r1.cpu(), r2, rtol=rtol, atol=atol)
 
     return onnx_model
 

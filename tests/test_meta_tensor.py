@@ -177,6 +177,7 @@ class TestMetaTensor(unittest.TestCase):
         a = deepcopy(m)
         self.check(a, m, ids=False)
         # clone
+        a = m.clone(memory_format=torch.preserve_format)
         a = m.clone()
         self.check(a, m, ids=False)
         a = MetaTensor([[]], device=device, dtype=dtype)
