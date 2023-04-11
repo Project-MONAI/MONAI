@@ -80,8 +80,6 @@ class BundleAlgo(Algo):
         self.best_metric = None
         # track records when filling template config: {"<config name>": {"<placeholder key>": value, ...}, ...}
         self.fill_records: dict = {}
-        self.device_setting = {'CUDA_VISIBLE_DEVICES': ','.join([str(x) for x in range(torch.cuda.device_count())]),
-                                'n_devices': torch.cuda.device_count(), 'NUM_NODES': 1, 'MN_START_METHOD': 'bcprun'}
 
     def pre_check_skip_algo(self, skip_bundlegen: bool = False, skip_info: str = "") -> tuple[bool, str]:
         """
@@ -154,11 +152,13 @@ class BundleAlgo(Algo):
             self.fill_records = self.fill_template_config(self.data_stats_files, self.output_path, **kwargs)
         logger.info('Generated:' + self.output_path)
 
-    def _create_cmd(self, train_params: dict={}):
+    def _create_cmd(self, train_params: None | dict = None):
         """
         Create the command to execute training.
 
         """
+        if train_params is None:
+            train_params = {}
         params = deepcopy(train_params)
 
         train_py = os.path.join(self.output_path, "scripts", "train.py")
@@ -219,7 +219,7 @@ class BundleAlgo(Algo):
             normal_out = subprocess.run(cmd.split(), env=ps_environ, check=True)
         return normal_out
 
-    def train(self, train_params: dict={}, device_setting: dict={}):
+    def train(self, train_params: None | dict = None, device_setting: None | dict = None):
         """
         Load the run function in the training script of each model. Training parameter is predefined by the
         algo_config.yaml file, which is pre-filled by the fill_template_config function in the same instance.
