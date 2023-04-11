@@ -20,7 +20,7 @@ import torch
 from monai.apps.auto3dseg import AlgoEnsembleBestByFold, AlgoEnsembleBestN, AlgoEnsembleBuilder, BundleGen, DataAnalyzer
 from monai.bundle.config_parser import ConfigParser
 from monai.utils import optional_import, set_determinism
-from monai.utils.enums import AlgoEnsembleKeys
+from monai.utils.enums import AlgoKeys
 from tests.utils import (
     SkipIfBeforePyTorchVersion,
     export_fake_data_config_file,
@@ -124,8 +124,8 @@ class TestEnsembleBuilder(unittest.TestCase):
         history = bundle_generator.get_history()
 
         for algo_dict in history:
-            name = algo_dict[AlgoEnsembleKeys.ID]
-            algo = algo_dict[AlgoEnsembleKeys.ALGO]
+            name = algo_dict[AlgoKeys.ID]
+            algo = algo_dict[AlgoKeys.ALGO]
             _train_param = train_param.copy()
             if name.startswith("segresnet"):
                 _train_param["network#init_filters"] = 8
@@ -137,7 +137,7 @@ class TestEnsembleBuilder(unittest.TestCase):
         builder = AlgoEnsembleBuilder(history, data_src_cfg)
         builder.set_ensemble_method(AlgoEnsembleBestN(n_best=1))
         ensemble = builder.get_ensemble()
-        name = ensemble.get_algo_ensemble()[0][AlgoEnsembleKeys.ID]
+        name = ensemble.get_algo_ensemble()[0][AlgoKeys.ID]
         if name.startswith("segresnet"):
             pred_param["network#init_filters"] = 8
         elif name.startswith("swinunetr"):
@@ -148,7 +148,7 @@ class TestEnsembleBuilder(unittest.TestCase):
         builder.set_ensemble_method(AlgoEnsembleBestByFold(1))
         ensemble = builder.get_ensemble()
         for algo in ensemble.get_algo_ensemble():
-            print(algo[AlgoEnsembleKeys.ID])
+            print(algo[AlgoKeys.ID])
 
     def tearDown(self) -> None:
         set_determinism(None)

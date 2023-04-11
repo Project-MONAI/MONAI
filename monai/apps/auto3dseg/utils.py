@@ -16,7 +16,7 @@ from typing import Any
 
 from monai.apps.auto3dseg.bundle_gen import BundleAlgo
 from monai.auto3dseg import algo_from_pickle, algo_to_pickle
-from monai.utils.enums import AlgoEnsembleKeys
+from monai.utils.enums import AlgoKeys
 from monai.utils.module import optional_import
 
 health_azure, has_health_azure = optional_import("health_azure")
@@ -55,17 +55,12 @@ def import_bundle_algo_history(
         if isinstance(algo, BundleAlgo):  # algo's template path needs override
             algo.template_path = algo_meta_data["template_path"]
 
-        best_metric = algo_meta_data.get(AlgoEnsembleKeys.SCORE, None)
+        best_metric = algo_meta_data.get(AlgoKeys.SCORE, None)
         is_trained = best_metric is not None
 
         if (only_trained and is_trained) or not only_trained:
             history.append(
-                {
-                    AlgoEnsembleKeys.ID: name,
-                    AlgoEnsembleKeys.ALGO: algo,
-                    AlgoEnsembleKeys.SCORE: best_metric,
-                    "is_trained": is_trained,
-                }
+                {AlgoKeys.ID: name, AlgoKeys.ALGO: algo, AlgoKeys.SCORE: best_metric, AlgoKeys.IS_TRAINED: is_trained}
             )
 
     return history
@@ -79,7 +74,7 @@ def export_bundle_algo_history(history: list[dict[str, BundleAlgo]]) -> None:
         history: a List of Bundle. Typically, the history can be obtained from BundleGen get_history method
     """
     for algo_dict in history:
-        algo = algo_dict[AlgoEnsembleKeys.ALGO]
+        algo = algo_dict[AlgoKeys.ALGO]
         algo_to_pickle(algo, template_path=algo.template_path)
 
 
