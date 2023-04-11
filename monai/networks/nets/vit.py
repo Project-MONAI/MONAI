@@ -62,8 +62,9 @@ class ViT(nn.Module):
             num_classes (int, optional): number of classes if classification is used. Defaults to 2.
             dropout_rate (float, optional): faction of the input units to drop. Defaults to 0.0.
             spatial_dims (int, optional): number of spatial dimensions. Defaults to 3.
-            post_activation (str, optional): add a final acivation function to the classification head when `classification` is True.
-                Default to "Tanh" for `nn.Tanh()`. Set to other values to remove this function.
+            post_activation (str, optional): add a final acivation function to the classification head
+                when `classification` is True. Default to "Tanh" for `nn.Tanh()`.
+                Set to other values to remove this function.
             qkv_bias (bool, optional): apply bias to the qkv linear layer in self attention block. Defaults to False.
             save_attn (bool, optional): to make accessible the attention in self attention block. Defaults to False.
 
