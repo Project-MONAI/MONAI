@@ -106,6 +106,7 @@ for p in TEST_NDARRAYS_ALL:
                 "image_key": "image",
                 "image_threshold": 0,
                 "allow_smaller": True,
+                "max_samples_per_class": 10,
             },
             {
                 "img": p(np.random.randint(0, 2, size=[3, 3, 3, 3])),

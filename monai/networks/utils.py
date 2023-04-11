@@ -14,6 +14,7 @@ Utilities and types for defining networks, these depend on PyTorch.
 
 from __future__ import annotations
 
+import io
 import re
 import warnings
 from collections import OrderedDict
@@ -32,6 +33,10 @@ from monai.utils.misc import ensure_tuple, save_obj, set_determinism
 from monai.utils.module import look_up_option, pytorch_after
 from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
 
+onnx, _ = optional_import("onnx")
+onnxreference, _ = optional_import("onnx.reference")
+onnxruntime, _ = optional_import("onnxruntime")
+
 __all__ = [
     "one_hot",
     "predict_segmentation",
@@ -45,6 +50,7 @@ __all__ = [
     "get_state_dict",
     "copy_model_state",
     "save_state",
+    "convert_to_onnx",
     "convert_to_torchscript",
     "convert_to_trt",
     "meshgrid_ij",
@@ -552,6 +558,125 @@ def save_state(src: torch.nn.Module | dict, path: PathLike, **kwargs):
     save_obj(obj=ckpt, path=path, **kwargs)
 
 
+def convert_to_onnx(
+    model: nn.Module,
+    inputs: Sequence[Any],
+    input_names: Sequence[str] | None = None,
+    output_names: Sequence[str] | None = None,
+    opset_version: int | None = None,
+    dynamic_axes: Mapping[str, Mapping[int, str]] | Mapping[str, Sequence[int]] | None = None,
+    filename: Any | None = None,
+    verify: bool = False,
+    device: torch.device | None = None,
+    use_ort: bool = False,
+    ort_provider: Sequence[str] | None = None,
+    rtol: float = 1e-4,
+    atol: float = 0.0,
+    use_trace: bool = True,
+    **kwargs,
+):
+    """
+    Utility to convert a model into ONNX model and optionally verify with ONNX or onnxruntime.
+    See also: https://pytorch.org/docs/stable/onnx.html for how to convert a PyTorch model to ONNX.
+
+    Args:
+        model: source PyTorch model to save.
+        inputs: input sample data used by pytorch.onnx.export. It is also used in ONNX model verification.
+        input_names: optional input names of the ONNX model.
+        output_names: optional output names of the ONNX model.
+        opset_version: version of the (ai.onnx) opset to target. Must be >= 7 and not exceed
+        the latest opset version supported by PyTorch, for more details:
+            https://github.com/onnx/onnx/blob/main/docs/Operators.md and
+            https://github.com/pytorch/pytorch/blob/master/torch/onnx/_constants.py
+        dynamic_axes: specifies axes of tensors as dynamic (i.e. known only at run-time). If set to None,
+            the exported model will have the shapes of all input and output tensors set to match given
+            ones, for more details: https://pytorch.org/docs/stable/onnx.html#torch.onnx.export.
+        filename: optional filename to save the ONNX model, if None, don't save the ONNX model.
+        verify: whether to verify the ONNX model with ONNX or onnxruntime.
+        device: target PyTorch device to verify the model, if None, use CUDA if available.
+        use_ort: whether to use onnxruntime to verify the model.
+        ort_provider": onnxruntime provider to use, default is ["CPUExecutionProvider"].
+        rtol: the relative tolerance when comparing the outputs of PyTorch model and TorchScript model.
+        atol: the absolute tolerance when comparing the outputs of PyTorch model and TorchScript model.
+        use_trace: whether to use `torch.jit.trace` to export the torchscript model.
+        kwargs: other arguments except `obj` for `torch.jit.script()` to convert model, for more details:
+            https://pytorch.org/docs/master/generated/torch.jit.script.html.
+
+    """
+    model.eval()
+    with torch.no_grad():
+        torch_versioned_kwargs = {}
+        if use_trace:
+            # let torch.onnx.export to trace the model.
+            mode_to_export = model
+        else:
+            if not pytorch_after(1, 10):
+                if "example_outputs" not in kwargs:
+                    # https://github.com/pytorch/pytorch/blob/release/1.9/torch/onnx/__init__.py#L182
+                    raise TypeError(
+                        "example_outputs is required in scripting mode before PyTorch 1.10."
+                        "Please provide example outputs or use trace mode to export onnx model."
+                    )
+                torch_versioned_kwargs["example_outputs"] = kwargs["example_outputs"]
+                del kwargs["example_outputs"]
+            mode_to_export = torch.jit.script(model, **kwargs)
+
+        if filename is None:
+            f = io.BytesIO()
+            torch.onnx.export(
+                mode_to_export,
+                tuple(inputs),
+                f=f,
+                input_names=input_names,
+                output_names=output_names,
+                dynamic_axes=dynamic_axes,
+                opset_version=opset_version,
+                **torch_versioned_kwargs,
+            )
+            onnx_model = onnx.load_model_from_string(f.getvalue())
+        else:
+            torch.onnx.export(
+                mode_to_export,
+                tuple(inputs),
+                f=filename,
+                input_names=input_names,
+                output_names=output_names,
+                dynamic_axes=dynamic_axes,
+                opset_version=opset_version,
+                **torch_versioned_kwargs,
+            )
+            onnx_model = onnx.load(filename)
+
+    if verify:
+        if device is None:
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        inputs = [i.to(device) if isinstance(i, torch.Tensor) else i for i in inputs]
+        model = model.to(device)
+
+        with torch.no_grad():
+            set_determinism(seed=0)
+            torch_out = ensure_tuple(model(*inputs), True)
+
+        set_determinism(seed=0)
+        model_input_names = [i.name for i in onnx_model.graph.input]
+        input_dict = dict(zip(model_input_names, [i.cpu().numpy() for i in inputs]))
+        if use_ort:
+            ort_sess = onnxruntime.InferenceSession(
+                onnx_model.SerializeToString(), providers=ort_provider if ort_provider else ["CPUExecutionProvider"]
+            )
+            onnx_out = ort_sess.run(None, input_dict)
+        else:
+            sess = onnxreference.ReferenceEvaluator(onnx_model)
+            onnx_out = sess.run(None, input_dict)
+        set_determinism(seed=None)
+        # compare onnx/ort and PyTorch results
+        for r1, r2 in zip(torch_out, onnx_out):
+            torch.testing.assert_allclose(r1.cpu(), r2, rtol=rtol, atol=atol)  # type: ignore
+
+    return onnx_model
+
+
 def convert_to_torchscript(
     model: nn.Module,
     filename_or_obj: Any | None = None,
@@ -582,7 +707,6 @@ def convert_to_torchscript(
         rtol: the relative tolerance when comparing the outputs of PyTorch model and TorchScript model.
         atol: the absolute tolerance when comparing the outputs of PyTorch model and TorchScript model.
         use_trace: whether to use `torch.jit.trace` to export the torchscript model.
-
         kwargs: other arguments except `obj` for `torch.jit.script()` to convert model, for more details:
             https://pytorch.org/docs/master/generated/torch.jit.script.html.
 
@@ -644,10 +768,11 @@ def convert_to_trt(
         precision: the weight precision of the converted TensorRT engine based torchscript models. Should be 'fp32' or 'fp16'.
         input_shape: the input shape that is used to convert the model. Should be a list like [N, C, H, W] or
             [N, C, H, W, D].
-        dynamic_batchsize: a sequence with three elements to define the batch size range of the input for the model to be converted.
-            Should be a sequence like [MIN_BATCH, OPT_BATCH, MAX_BATCH]. After converted, the batchsize of model input should
-            between `MIN_BATCH` and `MAX_BATCH` and the `OPT_BATCH` is the best peformance batchsize that the TensorRT trys to fit.
-            We suggest the `OPT_BATCH` to be the most frequently used input batchsize in your application, default to None.
+        dynamic_batchsize: a sequence with three elements to define the batch size range of the input for the model to be
+            converted. Should be a sequence like [MIN_BATCH, OPT_BATCH, MAX_BATCH]. After converted, the batchsize of model
+            input should between `MIN_BATCH` and `MAX_BATCH` and the `OPT_BATCH` is the best performance batchsize that the
+            TensorRT tries to fit. The `OPT_BATCH` should be the most frequently used input batchsize in the application,
+            default to None.
         use_trace: whether using `torch.jit.trace` to convert the pytorch model to torchscript model and then convert to
             a TensorRT engine based torchscript model, default to False.
         filename_or_obj: if not None, specify a file-like object (has to implement write and flush) or a string containing a

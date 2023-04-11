@@ -23,6 +23,7 @@ from monai.bundle.reference_resolver import ReferenceResolver
 from monai.bundle.utils import ID_REF_KEY, ID_SEP_KEY, MACRO_KEY
 from monai.config import PathLike
 from monai.utils import ensure_tuple, look_up_option, optional_import
+from monai.utils.misc import CheckKeyDuplicatesYamlLoader, check_key_duplicates
 
 if TYPE_CHECKING:
     import yaml
@@ -400,9 +401,9 @@ class ConfigParser:
             raise ValueError(f'unknown file input: "{filepath}"')
         with open(_filepath) as f:
             if _filepath.lower().endswith(cls.suffixes[0]):
-                return json.load(f, **kwargs)  # type: ignore[no-any-return]
+                return json.load(f, object_pairs_hook=check_key_duplicates, **kwargs)  # type: ignore[no-any-return]
             if _filepath.lower().endswith(cls.suffixes[1:]):
-                return yaml.safe_load(f, **kwargs)  # type: ignore[no-any-return]
+                return yaml.load(f, CheckKeyDuplicatesYamlLoader, **kwargs)  # type: ignore[no-any-return]
             raise ValueError(f"only support JSON or YAML config file so far, got name {_filepath}.")
 
     @classmethod

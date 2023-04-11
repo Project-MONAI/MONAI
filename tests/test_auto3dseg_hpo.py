@@ -21,6 +21,7 @@ import torch
 from monai.apps.auto3dseg import BundleGen, DataAnalyzer, NNIGen, OptunaGen, import_bundle_algo_history
 from monai.bundle.config_parser import ConfigParser
 from monai.utils import optional_import
+from monai.utils.enums import AlgoEnsembleKeys
 from tests.utils import (
     SkipIfBeforePyTorchVersion,
     export_fake_data_config_file,
@@ -109,8 +110,7 @@ class TestHPO(unittest.TestCase):
     @skip_if_no_cuda
     def test_run_algo(self) -> None:
         algo_dict = self.history[0]
-        algo_name = list(algo_dict.keys())[0]
-        algo = algo_dict[algo_name]
+        algo = algo_dict[AlgoEnsembleKeys.ALGO]
         nni_gen = NNIGen(algo=algo, params=override_param)
         obj_filename = nni_gen.get_obj_filename()
         # this function will be used in HPO via Python Fire
@@ -120,8 +120,7 @@ class TestHPO(unittest.TestCase):
     @skip_if_no_optuna
     def test_run_optuna(self) -> None:
         algo_dict = self.history[0]
-        algo_name = list(algo_dict.keys())[0]
-        algo = algo_dict[algo_name]
+        algo = algo_dict[AlgoEnsembleKeys.ALGO]
 
         class OptunaGenLearningRate(OptunaGen):
             def get_hyperparameters(self):
@@ -143,8 +142,7 @@ class TestHPO(unittest.TestCase):
     @skip_if_no_cuda
     def test_get_history(self) -> None:
         algo_dict = self.history[0]
-        algo_name = list(algo_dict.keys())[0]
-        algo = algo_dict[algo_name]
+        algo = algo_dict[AlgoEnsembleKeys.ALGO]
         nni_gen = NNIGen(algo=algo, params=override_param)
         obj_filename = nni_gen.get_obj_filename()
 

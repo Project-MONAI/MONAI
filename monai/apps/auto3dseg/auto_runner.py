@@ -253,7 +253,7 @@ class AutoRunner:
         # determine if we need to analyze, algo_gen or train from cache, unless manually provided
         self.analyze = not self.cache["analyze"] if analyze is None else analyze
         self.algo_gen = not self.cache["algo_gen"] if algo_gen is None else algo_gen
-        self.train = not self.cache["train"] if train is None else train
+        self.train = train
         self.ensemble = ensemble  # last step, no need to check
 
         # intermediate variables
@@ -656,13 +656,15 @@ class AutoRunner:
             folders under the working directory. The results include the model checkpoints, a
             progress.yaml, accuracies in CSV and a pickle file of the Algo object.
         """
-        for task in history:
-            for _, algo in task.items():
-                algo.train(self.train_params)
-                acc = algo.get_score()
-                algo_to_pickle(algo, template_path=algo.template_path, best_metrics=acc)
+        for algo_dict in history:
+            algo = algo_dict[AlgoEnsembleKeys.ALGO]
+            algo.train(self.train_params)
+            acc = algo.get_score()
 
-    def _train_algo_in_nni(self, history):
+            algo_meta_data = {str(AlgoEnsembleKeys.SCORE): acc}
+            algo_to_pickle(algo, template_path=algo.template_path, **algo_meta_data)
+
+    def _train_algo_in_nni(self, history: list[dict[str, Any]]) -> None:
         """
         Train the Algos using HPO.
 
@@ -693,40 +695,41 @@ class AutoRunner:
 
         last_total_tasks = len(import_bundle_algo_history(self.work_dir, only_trained=True))
         mode_dry_run = self.hpo_params.pop("nni_dry_run", False)
-        for task in history:
-            for name, algo in task.items():
-                nni_gen = NNIGen(algo=algo, params=self.hpo_params)
-                obj_filename = nni_gen.get_obj_filename()
-                nni_config = deepcopy(default_nni_config)
-                # override the default nni config with the same key in hpo_params
-                for key in self.hpo_params:
-                    if key in nni_config:
-                        nni_config[key] = self.hpo_params[key]
-                nni_config.update({"experimentName": name})
-                nni_config.update({"search_space": self.search_space})
-                trial_cmd = "python -m monai.apps.auto3dseg NNIGen run_algo " + obj_filename + " " + self.work_dir
-                nni_config.update({"trialCommand": trial_cmd})
-                nni_config_filename = os.path.abspath(os.path.join(self.work_dir, f"{name}_nni_config.yaml"))
-                ConfigParser.export_config_file(nni_config, nni_config_filename, fmt="yaml", default_flow_style=None)
+        for algo_dict in history:
+            name = algo_dict[AlgoEnsembleKeys.ID]
+            algo = algo_dict[AlgoEnsembleKeys.ALGO]
+            nni_gen = NNIGen(algo=algo, params=self.hpo_params)
+            obj_filename = nni_gen.get_obj_filename()
+            nni_config = deepcopy(default_nni_config)
+            # override the default nni config with the same key in hpo_params
+            for key in self.hpo_params:
+                if key in nni_config:
+                    nni_config[key] = self.hpo_params[key]
+            nni_config.update({"experimentName": name})
+            nni_config.update({"search_space": self.search_space})
+            trial_cmd = "python -m monai.apps.auto3dseg NNIGen run_algo " + obj_filename + " " + self.work_dir
+            nni_config.update({"trialCommand": trial_cmd})
+            nni_config_filename = os.path.abspath(os.path.join(self.work_dir, f"{name}_nni_config.yaml"))
+            ConfigParser.export_config_file(nni_config, nni_config_filename, fmt="yaml", default_flow_style=None)
 
-                max_trial = min(self.hpo_tasks, cast(int, default_nni_config["maxTrialNumber"]))
-                cmd = "nnictl create --config " + nni_config_filename + " --port 8088"
+            max_trial = min(self.hpo_tasks, cast(int, default_nni_config["maxTrialNumber"]))
+            cmd = "nnictl create --config " + nni_config_filename + " --port 8088"
 
-                if mode_dry_run:
-                    logger.info(f"AutoRunner HPO is in dry-run mode. Please manually launch: {cmd}")
-                    continue
+            if mode_dry_run:
+                logger.info(f"AutoRunner HPO is in dry-run mode. Please manually launch: {cmd}")
+                continue
 
-                subprocess.run(cmd.split(), check=True)
+            subprocess.run(cmd.split(), check=True)
 
+            n_trainings = len(import_bundle_algo_history(self.work_dir, only_trained=True))
+            while n_trainings - last_total_tasks < max_trial:
+                sleep(1)
                 n_trainings = len(import_bundle_algo_history(self.work_dir, only_trained=True))
-                while n_trainings - last_total_tasks < max_trial:
-                    sleep(1)
-                    n_trainings = len(import_bundle_algo_history(self.work_dir, only_trained=True))
 
-                cmd = "nnictl stop --all"
-                subprocess.run(cmd.split(), check=True)
-                logger.info(f"NNI completes HPO on {name}")
-                last_total_tasks = n_trainings
+            cmd = "nnictl stop --all"
+            subprocess.run(cmd.split(), check=True)
+            logger.info(f"NNI completes HPO on {name}")
+            last_total_tasks = n_trainings
 
     def run(self):
         """
@@ -740,6 +743,10 @@ class AutoRunner:
                 self.datalist_filename, self.dataroot, output_path=self.datastats_filename, **self.analyze_params
             )
             da.get_all_case_stats()
+
+            da = None  # type: ignore
+            torch.cuda.empty_cache()
+
             self.export_cache(analyze=True, datastats=self.datastats_filename)
         else:
             logger.info("Skipping data analysis...")
@@ -776,7 +783,8 @@ class AutoRunner:
             logger.info("Skipping algorithm generation...")
 
         # step 3: algo training
-        if self.train:
+        auto_train_choice = self.train is None
+        if self.train or (auto_train_choice and not self.cache["train"]):
             history = import_bundle_algo_history(self.work_dir, only_trained=False)
 
             if len(history) == 0:
@@ -785,20 +793,40 @@ class AutoRunner:
                     "Possibly the required algorithms generation step was not completed."
                 )
 
-            if not self.hpo:
-                self._train_algo_in_sequence(history)
-            else:
-                self._train_algo_in_nni(history)
+            if auto_train_choice:
+                skip_algos = [h[AlgoEnsembleKeys.ID] for h in history if h["is_trained"]]
+                if len(skip_algos) > 0:
+                    logger.info(
+                        f"Skipping already trained algos {skip_algos}."
+                        "Set option train=True to always retrain all algos."
+                    )
+                    history = [h for h in history if not h["is_trained"]]
+
+            if len(history) > 0:
+                if not self.hpo:
+                    self._train_algo_in_sequence(history)
+                else:
+                    self._train_algo_in_nni(history)
+
             self.export_cache(train=True)
         else:
             logger.info("Skipping algorithm training...")
 
         # step 4: model ensemble and write the prediction to disks.
         if self.ensemble:
-            history = import_bundle_algo_history(self.work_dir, only_trained=True)
+            history = import_bundle_algo_history(self.work_dir, only_trained=False)
+
+            history_untrained = [h for h in history if not h["is_trained"]]
+            if len(history_untrained) > 0:
+                warnings.warn(
+                    f"Ensembling step will skip {[h['name'] for h in history_untrained]} untrained algos."
+                    "Generally it means these algos did not complete training."
+                )
+                history = [h for h in history if h["is_trained"]]
+
             if len(history) == 0:
                 raise ValueError(
-                    f"Could not find the trained results in {self.work_dir}. "
+                    f"Could not find any trained algos in {self.work_dir}. "
                     "Possibly the required training step was not completed."
                 )
 
@@ -816,4 +844,4 @@ class AutoRunner:
                     self.save_image(pred)
                 logger.info(f"Auto3Dseg ensemble prediction outputs are saved in {self.output_dir}.")
 
-        logger.info("Auto3Dseg pipeline is complete successfully.")
+        logger.info("Auto3Dseg pipeline is completed successfully.")
