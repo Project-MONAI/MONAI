@@ -823,8 +823,8 @@ def convert_to_trt(
     verify: bool = False,
     device: int | None = None,
     use_onnx: bool | None = False,
-    onnx_input_names: Sequence[str] | None = ["input_0"],
-    onnx_output_names: Sequence[str] | None = ["output_0"],
+    onnx_input_names: Sequence[str] | None = ("input_0",),
+    onnx_output_names: Sequence[str] | None = ("output_0",),
     rtol: float = 1e-2,
     atol: float = 0.0,
     **kwargs,
@@ -860,11 +860,11 @@ def convert_to_trt(
         device: the target GPU index to convert and verify the model. If None, use #0 GPU.
         use_onnx: whether to use the ONNX-TensorRT way to export the TensorRT engine-based TorchScript model.
         onnx_input_names: optional input names of the ONNX model. This arg is only useful when `use_onnx` is True. Should be
-            a sequence like `['input_0', 'input_1', ..., 'input_N']` where N equals to the number of the model inputs. If not
-            given, will use `['input_0']`, which supposes the model only has one input.
+            a sequence like `('input_0', 'input_1', ..., 'input_N')` where N equals to the number of the model inputs. If not
+            given, will use `('input_0')`, which supposes the model only has one input.
         onnx_output_names: optional output names of the ONNX model. This arg is only useful when `use_onnx` is True. Should be
-            a sequence like `['output_0', 'output_1', ..., 'output_N']` where N equals to the number of the model outputs. If
-            not given, will use `['onput_0']`, which supposes the model only has one output.
+            a sequence like `('output_0', 'output_1', ..., 'output_N')` where N equals to the number of the model outputs. If
+            not given, will use `('onput_0')`, which supposes the model only has one output.
         rtol: the relative tolerance when comparing the outputs between the PyTorch model and TensorRT model.
         atol: the absolute tolerance when comparing the outputs between the PyTorch model and TensorRT model.
         kwargs: other arguments except `module`, `inputs`, `enabled_precisions` and `device` for `torch_tensorrt.compile()`
