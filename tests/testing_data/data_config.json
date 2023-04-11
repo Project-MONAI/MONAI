@@ -1,9 +1,14 @@
 {
     "images": {
-        "wsi_img": {
+        "wsi_generic_tiff": {
             "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/CMU-1.tiff",
             "hash_type": "sha256",
             "hash_val": "73a7e89bc15576587c3d68e55d9bf92f09690280166240b48ff4b48230b13bcd"
+        },
+        "wsi_aperio_svs": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/Aperio-CMU-1.svs",
+            "hash_type": "sha256",
+            "hash_val": "00a3d54482cd707abf254fe69dccc8d06b8ff757a1663f1290c23418c480eb30"
         },
         "favicon": {
             "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/favicon.ico.zip",
