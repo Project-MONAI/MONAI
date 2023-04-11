@@ -41,7 +41,7 @@ __all__ = ["sliding_window_inference"]
 
 
 def sliding_window_inference(
-    inputs: torch.Tensor,
+    inputs: torch.Tensor | MetaTensor,
     roi_size: Sequence[int] | int,
     sw_batch_size: int,
     predictor: Callable[..., torch.Tensor | Sequence[torch.Tensor] | dict[Any, torch.Tensor]],
@@ -307,9 +307,11 @@ def sliding_window_inference(
             output_image_list[ss] = output_i[(slice(None), slice(None), *final_slicing)]
 
     final_output = _pack_struct(output_image_list, dict_keys)
-    final_output = convert_to_dst_type(final_output, inputs, device=device)[0]
     if temp_meta is not None:
-        final_output = MetaTensor(final_output).copy_meta_from(temp_meta)
+        final_output = convert_to_dst_type(final_output, temp_meta, device=device)[0]  # type: ignore
+    else:
+        final_output = convert_to_dst_type(final_output, inputs, device=device)[0]
+
     return final_output  # type: ignore
 
 
