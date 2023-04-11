@@ -324,7 +324,7 @@ def _create_buffered_slices(slices, batch_size, sw_batch_size, buffer_dim, buffe
 
     _, _, _b_lens = np.unique(slices_np[:, 0], return_counts=True, return_index=True)
     b_ends = np.cumsum(_b_lens).tolist()  # possible buffer flush boundaries
-    x = [0, *b_ends][:: min(len(b_ends), int(buffer_steps))]  # type: ignore
+    x = [0, *b_ends][:: min(len(b_ends), int(buffer_steps))]
     if x[-1] < b_ends[-1]:
         x.append(b_ends[-1])
     n_per_batch = len(x) - 1
@@ -387,7 +387,7 @@ def _flatten_struct(seg_out):
         dict_keys = sorted(seg_out.keys())  # track predictor's output keys
         seg_probs = tuple(seg_out[k] for k in dict_keys)
     else:
-        seg_probs = ensure_tuple(seg_out)  # type: ignore
+        seg_probs = ensure_tuple(seg_out)
     return dict_keys, seg_probs
 
 

@@ -14,6 +14,8 @@ from __future__ import annotations
 import random
 from enum import Enum
 
+from monai.utils import deprecated
+
 __all__ = [
     "StrEnum",
     "NumpyPadMode",
@@ -56,6 +58,7 @@ __all__ = [
     "LazyAttr",
     "BundleProperty",
     "BundlePropertyConfig",
+    "AlgoKeys",
 ]
 
 
@@ -592,6 +595,7 @@ class LabelStatsKeys(StrEnum):
     LABEL_NCOMP = "ncomponents"
 
 
+@deprecated(since="1.2", msg_suffix="please use `AlgoKeys` instead.")
 class AlgoEnsembleKeys(StrEnum):
     """
     Default keys for Mixed Ensemble
@@ -664,3 +668,18 @@ class BundlePropertyConfig(StrEnum):
 
     ID = "id"
     REF_ID = "refer_id"
+
+
+class AlgoKeys(StrEnum):
+    """
+    Default keys for templated Auto3DSeg Algo.
+    `ID` is the identifier of the algorithm. The string has the format of <name>_<idx>_<other>.
+    `ALGO` is the Auto3DSeg Algo instance.
+    `IS_TRAINED` is the status that shows if the Algo has been trained.
+    `SCORE` is the score the Algo has achieved after training.
+    """
+
+    ID = "identifier"
+    ALGO = "algo_instance"
+    IS_TRAINED = "is_trained"
+    SCORE = "best_metric"
