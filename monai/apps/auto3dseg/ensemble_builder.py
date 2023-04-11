@@ -19,6 +19,7 @@ from copy import deepcopy
 from typing import Any, cast
 from collections.abc import Mapping
 from warnings import warn
+from tqdm import tqdm
 
 import numpy as np
 import torch
@@ -163,8 +164,7 @@ class AlgoEnsemble(ABC):
         sigmoid = param.pop("sigmoid", False)
 
         outputs = []
-        for i, file in enumerate(files):
-            print(i)
+        for i, file in enumerate(tqdm(files, desc='Ensembling...')):
             preds = []
             for algo in self.algo_ensemble:
                 infer_instance = algo[AlgoKeys.ALGO]
@@ -336,11 +336,35 @@ class AlgoEnsembleBuilder:
         return self.ensemble
 
 class EnsembleRunner:
+    """
+    The Runner for ensembler
+
+    Args:
+        work_dir: working directory to save the intermediate and final results.
+        data_src_cfg_name: filename of the data source.
+        num_fold: number of fold.
+        ensemble_method_name: method to ensemble predictions from different model.
+                              Suported methods: ["AlgoEnsembleBestN", "AlgoEnsembleBestByFold"].
+        mgpu: if using multi-gpu.
+        kwargs: additional image writing, ensembling parameters and prediction parameters for the ensemble inference
+    Examples:
+
+        .. code-block:: python
+
+            ensemble_runner = EnsembleRunner(data_src_cfg_name,
+                                             work_dir,
+                                             ensemble_method_name,
+                                             mgpu=device_setting['n_devices']>1,
+                                             **kwargs,
+                                             **pred_params)
+            ensemble_runner.run(device_setting)
+
+    """
     def __init__(self, data_src_cfg_name: str='./work_dir/input.yaml',
                  work_dir: str='./work_dir',
-                 num_fold: int=5, 
-                 ensemble_method_name: str='AlgoEnsembleBestByFold', 
-                 mgpu: bool=True, 
+                 num_fold: int=5,
+                 ensemble_method_name: str='AlgoEnsembleBestByFold',
+                 mgpu: bool=True,
                  **kwargs):
         self.data_src_cfg_name = data_src_cfg_name
         self.work_dir = work_dir
@@ -389,8 +413,8 @@ class EnsembleRunner:
         elif self.ensemble_method_name == "AlgoEnsembleBestByFold":
             self.ensemble_method = AlgoEnsembleBestByFold(n_fold=self.num_fold)
         else:
-            raise NotImplementedError(f"Ensemble method {self.ensemble_method_name} is not implemented.")          
-       
+            raise NotImplementedError(f"Ensemble method {self.ensemble_method_name} is not implemented.")
+
     def set_image_save_transform(self, kwargs):
         """
         Set the ensemble output transform.
@@ -417,8 +441,8 @@ class EnsembleRunner:
         resample = kwargs.pop("resample", False)
 
         return SaveImage(
-            output_dir=output_dir, output_postfix=output_postfix, output_dtype=output_dtype, resample=resample, **kwargs
-        )
+            output_dir=output_dir, output_postfix=output_postfix, output_dtype=output_dtype, resample=resample,
+            print_log=False, **kwargs)
 
     def set_num_fold(self, num_fold: int = 5) -> None:
         """
@@ -448,7 +472,7 @@ class EnsembleRunner:
             self.ensembler.infer_files = infer_files
 
         preds = self.ensembler(pred_param=self.pred_params)
-    
+
         if len(preds) > 0:
             logger.info("Auto3Dseg picked the following networks to ensemble:")
             for algo in self.ensembler.get_algo_ensemble():
@@ -467,15 +491,19 @@ class EnsembleRunner:
         algo_config.yaml file, which is pre-filled by the fill_template_config function in the same instance.
 
         Args:
-            train_params:  training parameters 
-            device_settings: device related settings, should follow the device_setting in auto_runner.set_device_info. 
+            train_params:  training parameters
+            device_settings: device related settings, should follow the device_setting in auto_runner.set_device_info.
             'CUDA_VISIBLE_DEVICES' should be a string e.g. '0,1,2,3'
         """
         # device_setting set default value and sanity check, in case device_setting not from autorunner
         self.device_setting = {'CUDA_VISIBLE_DEVICES': ','.join([str(x) for x in range(torch.cuda.device_count())]),
-                                       'n_devices': torch.cuda.device_count(), 'NUM_NODES': 1, 'MN_START_METHOD': 'bcprun'}
-        self.device_setting.update(device_setting)
-        self.device_setting['n_devices'] = len(self.device_setting['CUDA_VISIBLE_DEVICES'].split(','))
+                               'n_devices': torch.cuda.device_count(), 'NUM_NODES': int(os.environ.get('NUM_NODES', 1)),
+                               'MN_START_METHOD': os.environ.get('MN_START_METHOD', 'bcprun'),
+                               'CMD_PREFIX':os.environ.get('CMD_PREFIX', None),
+                               }
+        if device_setting is not None:
+            self.device_setting.update(device_setting)
+            self.device_setting['n_devices'] = len(self.device_setting['CUDA_VISIBLE_DEVICES'].split(','))
         self._create_cmd()
 
     def _create_cmd(self):
@@ -490,24 +518,29 @@ class EnsembleRunner:
 
             if self.pred_params and isinstance(self.pred_params, Mapping):
                 for k, v in self.pred_params.items():
-                    base_cmd += f" --{k}={v}" 
+                    base_cmd += f" --{k}={v}"
             # define env for subprocess
             ps_environ = os.environ.copy()
             ps_environ["CUDA_VISIBLE_DEVICES"] = self.device_setting['CUDA_VISIBLE_DEVICES']
-            if self.device_setting['NUM_NODES'] > 1:         
+            cmd = self.device_setting['CMD_PREFIX']
+            if cmd is not None and not cmd.endswith(' '):
+                cmd += ' '
+            if self.device_setting['NUM_NODES'] > 1:
                 # if multinode
-                
+
                 if self.device_setting['MN_START_METHOD'] == 'bcprun':
                     logger.info(f"Ensembling on {self.device_setting['NUM_NODES']} nodes!")
-                    cmd = 'python -m ' + base_cmd
+                    cmd = 'python ' if cmd is None else cmd
+                    cmd = cmd + ' -m ' + base_cmd
                     normal_out = subprocess.run(['bcprun','-n',str(self.device_setting['NUM_NODES']),'-p',
                                                 str(self.device_setting['n_devices']),'-c', cmd], env=ps_environ, check=True)
                 else:
                     raise NotImplementedError(f"{self.device_setting['MN_START_METHOD']} is not supported yet.\
-                                                Try modify BundleAlgo._run_cmd for your cluster.")
+                                                Try modify EnsembleRunner._create_cmd for your cluster.")
             else:
                 logger.info(f"Ensembling using {self.device_setting['n_devices']} GPU!")
-                cmd = f"torchrun --nnodes={1:d} --nproc_per_node={self.device_setting['n_devices']:d} -m " + base_cmd
+                cmd = f"torchrun --nnodes={1:d} --nproc_per_node={self.device_setting['n_devices']:d} " if cmd is None else cmd
+                cmd = cmd + ' -m ' + base_cmd
                 normal_out = subprocess.run(cmd.split(), env=ps_environ, check=True)
         else:
             # if single GPU

@@ -176,20 +176,23 @@ class BundleAlgo(Algo):
                 # Python Fire may be confused by single-quoted WindowsPath
                 config_yaml = Path(os.path.join(config_dir, file)).as_posix()
                 base_cmd += f"'{config_yaml}'"
-
+        cmd = self.device_setting['CMD_PREFIX']
+        # make sure cmd end with a space
+        if cmd is not None and not cmd.endswith(' '):
+            cmd += ' '
         if self.device_setting['NUM_NODES'] > 1:
             # if using multinode
             if self.device_setting['MN_START_METHOD'] == 'bcprun':
-                cmd = "python " 
+                cmd = 'python ' if cmd is None else cmd
             else:
                 raise NotImplementedError(f"{self.device_setting['MN_START_METHOD']} is not supported yet. \
                                              Try modify BundleAlgo._create_cmd for your cluster.")
         else:
             # if using single node
             if self.device_setting['n_devices'] > 1:
-                cmd = f"torchrun --nnodes={1:d} --nproc_per_node={self.device_setting['n_devices']:d} "
+                cmd = f"torchrun --nnodes={1:d} --nproc_per_node={self.device_setting['n_devices']:d} " if cmd is None else cmd
             else:
-                cmd = "python "  # TODO: which system python?
+                cmd = 'python ' if cmd is None else cmd
         cmd += base_cmd
         if params and isinstance(params, Mapping):
             for k, v in params.items():
@@ -222,14 +225,20 @@ class BundleAlgo(Algo):
         algo_config.yaml file, which is pre-filled by the fill_template_config function in the same instance.
 
         Args:
-            train_params:  training parameters 
-            device_settings: device related settings, should follow the device_setting in auto_runner.set_device_info. 
+            train_params:  training parameters
+            device_settings: device related settings, should follow the device_setting in auto_runner.set_device_info.
             'CUDA_VISIBLE_DEVICES' should be a string e.g. '0,1,2,3'
         """
         # device_setting set default value and sanity check, in case device_setting not from autorunner
-        self.device_setting.update(device_setting)
-        self.device_setting['n_devices'] = len(self.device_setting['CUDA_VISIBLE_DEVICES'].split(','))
-            
+        self.device_setting = {'CUDA_VISIBLE_DEVICES': ','.join([str(x) for x in range(torch.cuda.device_count())]),
+                               'n_devices': torch.cuda.device_count(), 'NUM_NODES': int(os.environ.get('NUM_NODES', 1)),
+                               'MN_START_METHOD': os.environ.get('MN_START_METHOD', 'bcprun'),
+                               'CMD_PREFIX':os.environ.get('CMD_PREFIX', None),
+                               }
+        if device_setting is not None:
+            self.device_setting.update(device_setting)
+            self.device_setting['n_devices'] = len(self.device_setting['CUDA_VISIBLE_DEVICES'].split(','))
+
         cmd = self._create_cmd(train_params)
         return self._run_cmd(cmd)
 

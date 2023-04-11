@@ -19,7 +19,6 @@ from copy import deepcopy
 from time import sleep
 from typing import Any, cast
 
-import numpy as np
 import torch
 
 from monai.apps.auto3dseg.bundle_gen import BundleGen
@@ -285,7 +284,7 @@ class AutoRunner:
         self.set_analyze_params()
 
         self.ensemble_method_name = 'AlgoEnsembleBestByFold'
-        self.set_num_fold(num_fold=num_fold)   
+        self.set_num_fold(num_fold=num_fold)
         self.kwargs = kwargs
         self.gpu_customization = False
         self.gpu_customization_specs: dict[str, Any] = {}
@@ -473,14 +472,28 @@ class AutoRunner:
         """
         self.train_params = deepcopy(params) if params is not None else {}
 
-    def set_device_info(self, cuda_visible_devices: list[int] | str=os.environ.get('CUDA_VISIBLE_DEVICES', None), 
-                        num_nodes: int=int(os.environ.get('NUM_NODES', 1)), 
-                        mn_start_method: str=os.environ.get('MN_START_METHOD', 'bcprun')):
-        """ Set the device related info
+    def set_device_info(self, cuda_visible_devices: list[int] | str=os.environ.get('CUDA_VISIBLE_DEVICES', None),
+                        num_nodes: int=int(os.environ.get('NUM_NODES', 1)),
+                        mn_start_method: str=os.environ.get('MN_START_METHOD', 'bcprun'),
+                        cmd_prefix: str | None=os.environ.get('CMD_PREFIX', None)):
+        """
+        Set the device related info
+
         Args:
-            cuda_visible_device: define GPU ids for data analyzer, training, and ensembling. List of GPU ids [0,1,2,3] or a string "0,1,2,3"
-            num_nodes: number of nodes for training and ensembling
+            cuda_visible_device: define GPU ids for data analyzer, training, and ensembling.
+                                 List of GPU ids [0,1,2,3] or a string "0,1,2,3".
+                                 Default using env "CUDA_VISIBLE_DEVICES" or None
+            num_nodes: number of nodes for training and ensembling.
+                       Default using env "NUM_NODES" or 1
             mn_start_method: multi-node start method. Autorunner will use the method to start multi-node processes.
+                             Default using env "MN_START_METHOD" or 'bcprun'
+            cmd_prefix: command line prefix for subprocess running in BundleAlgo and EnsembleRunner.
+                        Default using env "CMD_PREFIX" or None
+                        Examples are:
+                        1) single GPU/CPU or multinode bcprun: "python " or "/opt/conda/bin/python3.8 ",
+                        2) single node multi-GPU running "torchrun --nnodes=1 --nproc_per_node=2 "
+                        If user define this prefix, please make sure --nproc_per_node matches cuda_visible_device or
+                        os.env['CUDA_VISIBLE_DEVICES]. Also always set --nnodes=1. Set num_nodes for multi-node.
         """
         self.device_setting = {}
         if cuda_visible_devices is None:
@@ -497,6 +510,10 @@ class AutoRunner:
                 logger.warn('Wrong format of cuda_visible_devices, devices not set')
         self.device_setting['NUM_NODES'] = num_nodes
         self.device_setting['MN_START_METHOD'] = mn_start_method
+        self.device_setting['CMD_PREFIX'] = cmd_prefix
+        if cmd_prefix is not None:
+            logger.info(f'Using user defined command running prefix {cmd_prefix}, will overide other settings')
+
 
     def set_prediction_params(self, params: dict[str, Any] | None = None) -> None:
         """
@@ -749,12 +766,11 @@ class AutoRunner:
 
         # step 4: model ensemble and write the prediction to disks.
         if self.ensemble:
-            ensemble_runner = EnsembleRunner(data_src_cfg_name=self.data_src_cfg_name, 
+            ensemble_runner = EnsembleRunner(data_src_cfg_name=self.data_src_cfg_name,
                                              work_dir=self.work_dir, num_fold=self.num_fold,
-                                             ensemble_method_name=self.ensemble_method_name, 
+                                             ensemble_method_name=self.ensemble_method_name,
                                              mgpu=self.device_setting['n_devices']>1,
                                              **self.kwargs, # for set_image_save_transform
                                              **self.pred_params) # for inference
             ensemble_runner.run(self.device_setting)
         logger.info("Auto3Dseg pipeline is complete successfully.")
-
