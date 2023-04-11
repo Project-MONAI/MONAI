@@ -759,19 +759,24 @@ def _onnx_trt_compile(
     output_names: Sequence[str] | None,
 ):
     """
-    onnx_model: the source ONNX model to compile.
-    min_shape: the minimum input shape of the converted TensorRT model.
-    opt_shape: the optimization input shape of the model, on which the TensorRT optimizes.
-    max_shape: the maximum input shape of the converted TensorRT model.
-    device: the target GPU index to convert and verify the model.
-    precision: the weight precision of the converted TensorRT engine-based TorchScript model.
-        Should be 'fp32' or 'fp16'.
-    input_names: optional input names of the ONNX model. Should be a sequence like
-        `['input_0', 'input_1', ..., 'input_N']` where N equals to the number of the
-        model inputs.
-    output_names: optional output names of the ONNX model. Should be a sequence like
-        `['output_0', 'output_1', ..., 'output_N']` where N equals to the number of
-        the model outputs.
+    This function takes an ONNX model as input, exports it to a TensorRT engine, wraps the TensorRT engine
+    to a TensorRT engine-based TorchScript model and return the TorchScript model.
+
+    Args:
+        onnx_model: the source ONNX model to compile.
+        min_shape: the minimum input shape of the converted TensorRT model.
+        opt_shape: the optimization input shape of the model, on which the TensorRT optimizes.
+        max_shape: the maximum input shape of the converted TensorRT model.
+        device: the target GPU index to convert and verify the model.
+        precision: the weight precision of the converted TensorRT engine-based TorchScript model.
+            Should be 'fp32' or 'fp16'.
+        input_names: optional input names of the ONNX model. Should be a sequence like
+            `['input_0', 'input_1', ..., 'input_N']` where N equals to the number of the
+            model inputs.
+        output_names: optional output names of the ONNX model. Should be a sequence like
+            `['output_0', 'output_1', ..., 'output_N']` where N equals to the number of
+            the model outputs.
+
     """
     trt, _ = optional_import("tensorrt", "8.5.3")
     torch_tensorrt, _ = optional_import("torch_tensorrt", "1.4.0")
@@ -834,7 +839,7 @@ def convert_to_trt(
 
     There are two ways to export a model:
     1, Torch-TensorRT way: PyTorch module ---> TorchScript module ---> TensorRT engine-based TorchScript.
-    2, ONNX-TensorRT way: PyTorch moudle ---> TorchScript module ---> ONNX model ---> TensorRT engine --->
+    2, ONNX-TensorRT way: PyTorch module ---> TorchScript module ---> ONNX model ---> TensorRT engine --->
        TensorRT engine-based TorchScript.
 
     When exporting through the first way, some models suffer from the slowdown problem, since Torch-TensorRT
@@ -861,10 +866,10 @@ def convert_to_trt(
         use_onnx: whether to use the ONNX-TensorRT way to export the TensorRT engine-based TorchScript model.
         onnx_input_names: optional input names of the ONNX model. This arg is only useful when `use_onnx` is True. Should be
             a sequence like `('input_0', 'input_1', ..., 'input_N')` where N equals to the number of the model inputs. If not
-            given, will use `('input_0')`, which supposes the model only has one input.
+            given, will use `('input_0',)`, which supposes the model only has one input.
         onnx_output_names: optional output names of the ONNX model. This arg is only useful when `use_onnx` is True. Should be
             a sequence like `('output_0', 'output_1', ..., 'output_N')` where N equals to the number of the model outputs. If
-            not given, will use `('onput_0')`, which supposes the model only has one output.
+            not given, will use `('output_0',)`, which supposes the model only has one output.
         rtol: the relative tolerance when comparing the outputs between the PyTorch model and TensorRT model.
         atol: the absolute tolerance when comparing the outputs between the PyTorch model and TensorRT model.
         kwargs: other arguments except `module`, `inputs`, `enabled_precisions` and `device` for `torch_tensorrt.compile()`

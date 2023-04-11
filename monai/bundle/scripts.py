@@ -1246,7 +1246,7 @@ def trt_export(
 
     There are two ways to export a model:
     1, Torch-TensorRT way: PyTorch module ---> TorchScript module ---> TensorRT engine-based TorchScript.
-    2, ONNX-TensorRT way: PyTorch moudle ---> TorchScript module ---> ONNX model ---> TensorRT engine --->
+    2, ONNX-TensorRT way: PyTorch module ---> TorchScript module ---> ONNX model ---> TensorRT engine --->
        TensorRT engine-based TorchScript.
 
     When exporting through the first way, some models suffer from the slowdown problem, since Torch-TensorRT
@@ -1289,7 +1289,7 @@ def trt_export(
             given, will use `['input_0']`, which supposes the model only has one input.
         onnx_output_names: optional output names of the ONNX model. This arg is only useful when `use_onnx` is True. Should be
             a sequence like `['output_0', 'output_1', ..., 'output_N']` where N equals to the number of the model outputs. If
-            not given, will use `['onput_0']`, which supposes the model only has one output.
+            not given, will use `['output_0']`, which supposes the model only has one output.
         args_file: a JSON or YAML file to provide default values for all the parameters of this function, so that
             the command line inputs can be simplified.
         converter_kwargs: extra arguments that are needed by `convert_to_trt`, except ones that already exist in the
