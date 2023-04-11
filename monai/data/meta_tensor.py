@@ -510,9 +510,9 @@ class MetaTensor(MetaObj, torch.Tensor):
             self.as_tensor().new_empty(size=size, dtype=dtype, device=device, requires_grad=requires_grad)
         )
 
-    def clone(self, *_args, **kwargs):
+    def clone(self, **kwargs):
         """
-        returns a copy of the MetaTensor instance.
+        Returns a copy of the MetaTensor instance.
 
         Args:
             kwargs: additional keyword arguments to `torch.clone`.
