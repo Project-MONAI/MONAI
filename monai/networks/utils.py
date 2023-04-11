@@ -799,7 +799,10 @@ def _onnx_trt_compile(
     parser = trt.OnnxParser(network, logger)
     success = parser.parse(onnx_model.SerializeToString())
     if not success:
-        raise Exception("The ONNX model cannot be parsed by TensorRT.")
+        parser_error_message = ""
+        for idx in range(parser.num_errors):
+            parser_error_message += parser.get_error(idx).desc() + "\n"
+        raise Exception(f"TensorRT cannot parse the ONNX model, due to:\n{parser_error_message}")
 
     # set up the conversion configuration
     config = builder.create_builder_config()
