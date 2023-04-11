@@ -331,10 +331,10 @@ class DataAnalyzer:
                     batch_data[self.label_key] = label.to(device)
                 d = summarizer(batch_data)
             except BaseException:
-                if 'image_meta_dict' in batch_data.keys():
-                    filename = batch_data['image_meta_dict']['filename_or_obj']
+                if "image_meta_dict" in batch_data.keys():
+                    filename = batch_data["image_meta_dict"]["filename_or_obj"]
                 else:
-                    filename = batch_data[self.image_key].meta['filename_or_obj']
+                    filename = batch_data[self.image_key].meta["filename_or_obj"]
                 logger.info(f"Unable to process data {filename} on {device}.")
                 if self.device.type == "cuda":
                     logger.info("DataAnalyzer `device` set to GPU execution hit an exception. Falling back to `cpu`.")
