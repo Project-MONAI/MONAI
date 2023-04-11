@@ -97,7 +97,6 @@ class AzureMLAutoRunner(AutoRunner):
         if health_azure.utils.is_running_in_azure_ml():
             return super().set_image_save_transform(kwargs)
 
-
     def export_cache(self, **kwargs: Any) -> None:
         """
         Export cache to the AzureML job working dir if running in AzureML, otherwise do nothing.
