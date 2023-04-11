@@ -687,7 +687,7 @@ class HoVerNetInstanceMapPostProcessing(Transform):
         watershed_connectivity: int | None = 1,
         min_num_points: int = 3,
         contour_level: float | None = None,
-        device: str | torch.device | None = None
+        device: str | torch.device | None = None,
     ) -> None:
         super().__init__()
         self.device = device
@@ -769,7 +769,7 @@ class HoVerNetNuclearTypePostProcessing(Transform):
         activation: str | Callable = "softmax",
         threshold: float | None = None,
         return_type_map: bool = True,
-        device: str | torch.device | None = None
+        device: str | torch.device | None = None,
     ) -> None:
         super().__init__()
         self.device = device

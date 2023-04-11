@@ -13,8 +13,8 @@ from __future__ import annotations
 
 from collections.abc import Callable, Hashable, Mapping
 
-import torch
 import numpy as np
+import torch
 
 from monai.apps.pathology.transforms.post.array import (
     GenerateDistanceMap,
