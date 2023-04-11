@@ -35,12 +35,13 @@ class TestFLMonaiAlgo(DistTestCase):
     @DistCall(nnodes=1, nproc_per_node=2, init_method="no_init")
     @skip_if_no_cuda
     def test_train(self):
-        config_file = [pathjoin(_data_dir, "config_fl_train.json"), pathjoin(_data_dir, "multi_gpu_train.json")]
+        train_configs = [pathjoin(_data_dir, "config_fl_train.json"), pathjoin(_data_dir, "multi_gpu_train.json")]
+        eval_configs = [pathjoin(_data_dir, "config_fl_evaluate.json"), pathjoin(_data_dir, "multi_gpu_evaluate.json")]
         # initialize algo
         algo = MonaiAlgo(
             bundle_root=_data_dir,
-            train_workflow=ConfigWorkflow(config_file=config_file, workflow="train", logging_file=_logging_file),
-            config_evaluate_filename=None,
+            train_workflow=ConfigWorkflow(config_file=train_configs, workflow="train", logging_file=_logging_file),
+            eval_workflow=ConfigWorkflow(config_file=eval_configs, workflow="train", logging_file=_logging_file),
             config_filters_filename=pathjoin(_root_dir, "testing_data", "config_fl_filters.json"),
         )
         algo.initialize(extra={ExtraItems.CLIENT_NAME: "test_fl"})
@@ -48,7 +49,7 @@ class TestFLMonaiAlgo(DistTestCase):
 
         # initialize model
         parser = ConfigParser()
-        parser.read_config(config_file)
+        parser.read_config(train_configs)
         parser.parse()
         network = parser.get_parsed_content("network")
         data = ExchangeObject(weights=get_state_dict(network))
