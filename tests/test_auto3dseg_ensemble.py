@@ -23,7 +23,7 @@ from monai.apps.auto3dseg import AlgoEnsembleBestByFold, AlgoEnsembleBestN, Algo
 from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
 from monai.utils import optional_import, set_determinism
-from monai.utils.enums import AlgoEnsembleKeys
+from monai.utils.enums import AlgoKeys
 from tests.utils import (
     SkipIfBeforePyTorchVersion,
     get_testing_algo_template_path,
@@ -134,21 +134,21 @@ class TestEnsembleBuilder(unittest.TestCase):
         bundle_generator.generate(work_dir, num_fold=1)
         history = bundle_generator.get_history()
 
-        for h in history:
-            self.assertEqual(len(h.keys()), 1, "each record should have one model")
-            for name, algo in h.items():
-                _train_param = train_param.copy()
-                if name.startswith("segresnet"):
-                    _train_param["network#init_filters"] = 8
-                    _train_param["pretrained_ckpt_name"] = ""
-                elif name.startswith("swinunetr"):
-                    _train_param["network#feature_size"] = 12
-                algo.train(_train_param)
+        for algo_dict in history:
+            name = algo_dict[AlgoKeys.ID]
+            algo = algo_dict[AlgoKeys.ALGO]
+            _train_param = train_param.copy()
+            if name.startswith("segresnet"):
+                _train_param["network#init_filters"] = 8
+                _train_param["pretrained_ckpt_name"] = ""
+            elif name.startswith("swinunetr"):
+                _train_param["network#feature_size"] = 12
+            algo.train(_train_param)
 
         builder = AlgoEnsembleBuilder(history, data_src_cfg)
         builder.set_ensemble_method(AlgoEnsembleBestN(n_best=1))
         ensemble = builder.get_ensemble()
-        name = ensemble.get_algo_ensemble()[0][AlgoEnsembleKeys.ID]
+        name = ensemble.get_algo_ensemble()[0][AlgoKeys.ID]
         if name.startswith("segresnet"):
             pred_param["network#init_filters"] = 8
         elif name.startswith("swinunetr"):
@@ -159,7 +159,7 @@ class TestEnsembleBuilder(unittest.TestCase):
         builder.set_ensemble_method(AlgoEnsembleBestByFold(1))
         ensemble = builder.get_ensemble()
         for algo in ensemble.get_algo_ensemble():
-            print(algo[AlgoEnsembleKeys.ID])
+            print(algo[AlgoKeys.ID])
 
     def tearDown(self) -> None:
         set_determinism(None)
