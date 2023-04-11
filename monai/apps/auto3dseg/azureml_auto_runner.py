@@ -86,7 +86,7 @@ class AzureMLAutoRunner(AutoRunner):
         else:
             pass
 
-    def set_image_save_transform(self, kwargs) -> SaveImage | None:
+    def set_image_save_transform(self, kwargs: Any) -> Any:
         """
         Set the ensemble output transform if running in AzureML, otherwise do nothing.
 
@@ -97,14 +97,11 @@ class AzureMLAutoRunner(AutoRunner):
         """
         if health_azure.utils.is_running_in_azure_ml():
             return super().set_image_save_transform(kwargs)
-        else:
-            pass
 
-    def export_cache(self, **kwargs) -> None:
+
+    def export_cache(self, **kwargs: Any) -> None:
         """
         Export cache to the AzureML job working dir if running in AzureML, otherwise do nothing.
         """
         if health_azure.utils.is_running_in_azure_ml():
-            return super().export_cache(**kwargs)
-        else:
-            pass
+            super().export_cache(**kwargs)

@@ -16,7 +16,7 @@ import subprocess
 import warnings
 from copy import deepcopy
 from time import sleep
-from typing import Any, cast
+from typing import Any, Optional, cast
 
 import numpy as np
 import torch
@@ -257,7 +257,6 @@ class AutoRunner:
         self.ensemble = ensemble  # last step, no need to check
 
         # intermediate variables
-        self.ensemble_method_name = "AlgoEnsembleBestByFold"
         self.set_training_params(training_params)
         self.set_prediction_params()
         self.set_analyze_params()
@@ -286,7 +285,7 @@ class AutoRunner:
         input: dict[str, Any] | str | None = None,
         algos: dict | list | str | None = None,
         templates_path_or_url: str | None = None,
-    ):
+    ) -> None:
         """Sets up the AutoRunner data source config using the provided input.
 
         Args:
@@ -590,7 +589,7 @@ class AutoRunner:
         self.search_space = search_space
         self.hpo_tasks = value_combinations
 
-    def set_image_save_transform(self, kwargs) -> SaveImage:
+    def set_image_save_transform(self, kwargs: Any) -> SaveImage:
         """
         Set the ensemble output transform.
 
