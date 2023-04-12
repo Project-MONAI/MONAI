@@ -17,7 +17,7 @@ from typing import Any, cast
 
 import numpy as np
 import torch
-from torch.multiprocessing import Manager, Process, set_start_method
+from torch.multiprocessing import get_context
 
 from monai.apps.auto3dseg.transforms import EnsureSameShaped
 from monai.apps.utils import get_logger
@@ -207,12 +207,14 @@ class DataAnalyzer:
             nprocs = torch.cuda.device_count()
             logger.info(f"Found {nprocs} GPUs for data analyzing!")
         if nprocs > 1:
-            set_start_method("forkserver", force=True)
-            with Manager() as manager:
+            tmp_ctx = get_context("forkserver")
+            with tmp_ctx.Manager() as manager:
                 manager_list = manager.list()
                 processes = []
                 for rank in range(nprocs):
-                    p = Process(target=self._get_all_case_stats, args=(rank, nprocs, manager_list, key, transform_list))
+                    p = tmp_ctx.Process(
+                        target=self._get_all_case_stats, args=(rank, nprocs, manager_list, key, transform_list)
+                    )
                     processes.append(p)
                 for p in processes:
                     p.start()

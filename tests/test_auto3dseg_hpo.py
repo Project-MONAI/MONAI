@@ -109,7 +109,7 @@ class TestHPO(unittest.TestCase):
 
     @skip_if_no_cuda
     def test_run_algo(self) -> None:
-        algo_dict = self.history[0]
+        algo_dict = self.history[-1]
         algo = algo_dict[AlgoKeys.ALGO]
         nni_gen = NNIGen(algo=algo, params=override_param)
         obj_filename = nni_gen.get_obj_filename()
@@ -119,7 +119,7 @@ class TestHPO(unittest.TestCase):
     @skip_if_no_cuda
     @skip_if_no_optuna
     def test_run_optuna(self) -> None:
-        algo_dict = self.history[0]
+        algo_dict = self.history[-1]
         algo = algo_dict[AlgoKeys.ALGO]
 
         class OptunaGenLearningRate(OptunaGen):
@@ -141,7 +141,7 @@ class TestHPO(unittest.TestCase):
 
     @skip_if_no_cuda
     def test_get_history(self) -> None:
-        algo_dict = self.history[0]
+        algo_dict = self.history[-1]
         algo = algo_dict[AlgoKeys.ALGO]
         nni_gen = NNIGen(algo=algo, params=override_param)
         obj_filename = nni_gen.get_obj_filename()
