@@ -65,7 +65,6 @@ class TextEncoder(nn.Module):
                     model_url = url_map[self.encoding]
                     pretrain_state_dict = model_zoo.load_url(model_url)
                     self.text_embedding.data = pretrain_state_dict.float()
-                    print('load text embedding: {}'.format(self.encoding))
                 self.text_to_vision = nn.Linear(text_dim, hidden_size)
             else:
                 raise Exception(f'{self.encoding} is not implemented, please add your own')
