@@ -67,7 +67,7 @@ pred_param = {"files_slices": slice(0, 1), "mode": "mean", "sigmoid": True}
 
 
 @skip_if_quick
-@SkipIfBeforePyTorchVersion((1, 9, 1))
+@SkipIfBeforePyTorchVersion((1, 10, 1))
 @unittest.skipIf(not has_tb, "no tensorboard summary writer")
 class TestAutoRunner(unittest.TestCase):
     def setUp(self) -> None:
