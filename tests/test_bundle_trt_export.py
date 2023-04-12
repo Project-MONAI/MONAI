@@ -60,7 +60,7 @@ class TestTRTExport(unittest.TestCase):
             del os.environ["CUDA_VISIBLE_DEVICES"]  # previously unset
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
-    @unittest.skipUnless(has_torchtrt and has_tensorrt, "Torch-TensorRT is required for convert!")
+    @unittest.skipUnless(has_torchtrt and has_tensorrt, "Torch-TensorRT is required for conversion!")
     def test_trt_export(self, convert_precision, input_shape, dynamic_batch):
         meta_file = os.path.join(os.path.dirname(__file__), "testing_data", "metadata.json")
         config_file = os.path.join(os.path.dirname(__file__), "testing_data", "inference.json")
@@ -95,7 +95,9 @@ class TestTRTExport(unittest.TestCase):
             self.assertTrue("network_def" in json.loads(extra_files["inference.json"]))
 
     @parameterized.expand([TEST_CASE_3, TEST_CASE_4])
-    @unittest.skipUnless(has_onnx, "Onnx is required for onnx-trt conversion!")
+    @unittest.skipUnless(
+        has_onnx and has_torchtrt and has_tensorrt, "Onnx and TensorRT are required for onnx-trt conversion!"
+    )
     def test_onnx_trt_export(self, convert_precision, input_shape, dynamic_batch):
         meta_file = os.path.join(os.path.dirname(__file__), "testing_data", "metadata.json")
         config_file = os.path.join(os.path.dirname(__file__), "testing_data", "inference.json")
