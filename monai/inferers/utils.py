@@ -308,7 +308,7 @@ def sliding_window_inference(
 
     final_output = _pack_struct(output_image_list, dict_keys)
     if temp_meta is not None:
-        final_output = convert_to_dst_type(final_output, temp_meta, device=device)[0]  # type: ignore
+        final_output = convert_to_dst_type(final_output, temp_meta, device=device)[0]
     else:
         final_output = convert_to_dst_type(final_output, inputs, device=device)[0]
 
