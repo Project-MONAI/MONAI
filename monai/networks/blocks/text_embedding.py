@@ -59,15 +59,16 @@ class TextEncoder(nn.Module):
         if self.encoding == 'rand_embedding':
             self.text_embedding = nn.Embedding(out_channels, hidden_size)
         else:
-            if self.encoding in url_map:
-                self.register_buffer('text_embedding', torch.randn(out_channels, text_dim))
-                if pretrained:
-                    model_url = url_map[self.encoding]
-                    pretrain_state_dict = model_zoo.load_url(model_url)
-                    self.text_embedding.data = pretrain_state_dict.float()
-                self.text_to_vision = nn.Linear(text_dim, hidden_size)
+            self.register_buffer('text_embedding', torch.randn(out_channels, text_dim))
+
+            if pretrained:
+                model_url = url_map[self.encoding]
+                pretrain_state_dict = model_zoo.load_url(model_url)
+                self.text_embedding.data = pretrain_state_dict.float()
             else:
-                raise Exception(f'{self.encoding} is not implemented, please add your own')
+                print(f'{self.encoding} is not implemented, and can not be downloaded, please load your own')
+
+            self.text_to_vision = nn.Linear(text_dim, hidden_size)
 
     def forward(self):
         if self.encoding == 'rand_embedding':
