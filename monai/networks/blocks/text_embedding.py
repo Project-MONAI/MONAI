@@ -13,6 +13,11 @@ from __future__ import annotations
 
 import torch
 from torch import nn
+from torch.utils import model_zoo
+
+url_map = {
+    "clip_encoding_univeral_model_31": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/clip_encoding_univeral_model.pth",
+}
 
 
 class TextEncoder(nn.Module):
@@ -29,24 +34,37 @@ class TextEncoder(nn.Module):
     def __init__(
         self,
         out_channels: int,
+        spatial_dims: int = 3,
         text_dim: int = 512,
         hidden_size: int = 256,
         encoding: str = "clip_embedding",
+        pretrained: bool = False
     ) -> None:
         """
         Args:
             out_channels: number of output channels, to control text-baesd embedding for classes.
+            spatial_dims: number of spatial dims.
             text_dim: dimension of text embeddings.
             hidden_size: dimension of hidden features, compatible to different vision feature dimensions.
-            encoding: the text embedding type, default to use clip text pretrained weights
+            encoding: the text embedding type, default to use clip text pretrained weights.
+            pretrained: whether to load pretrained weights from e.g., (CLIP) to initialize text embeddings, default to False.
         """
         super().__init__()
         self.encoding = encoding
 
+        self.spatial_dims = spatial_dims
+        if spatial_dims not in (2, 3):
+            raise ValueError("spatial dimension should be 2 or 3.")
+        
         if self.encoding == 'rand_embedding':
             self.text_embedding = nn.Embedding(out_channels, hidden_size)
         elif self.encoding == 'clip_embedding':
             self.register_buffer('text_embedding', torch.randn(out_channels, text_dim))
+            if pretrained:
+                model_url = url_map["clip_encoding_univeral_model_31"]
+                pretrain_state_dict = model_zoo.load_url(model_url)
+                self.text_embedding.data = pretrain_state_dict.float()
+                print('load word embedding: {}'.format(self.encoding))
             self.text_to_vision = nn.Linear(text_dim, hidden_size)
         else:
             raise Exception(f'{self.encoding} is not implemented, please add your own')
@@ -54,8 +72,13 @@ class TextEncoder(nn.Module):
     def forward(self):
         if self.encoding == 'clip_embedding':
             test_encoding = nn.functional.relu(self.text_to_vision(self.text_embedding))
-            test_encoding = test_encoding.unsqueeze(2).unsqueeze(2).unsqueeze(2)
         else:
             # text embedding as random initialized 'rand_embedding'
-            test_encoding = self.text_embedding.weight.unsqueeze(2).unsqueeze(2).unsqueeze(2)
+            test_encoding = self.text_embedding.weight
+
+        if self.spatial_dims == 3:
+            test_encoding = test_encoding.unsqueeze(2).unsqueeze(2).unsqueeze(2)
+        elif self.spatial_dims == 2:
+            test_encoding = test_encoding.unsqueeze(2).unsqueeze(2)
+
         return test_encoding
