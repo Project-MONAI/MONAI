@@ -16,7 +16,7 @@ from torch import nn
 from torch.utils import model_zoo
 
 url_map = {
-    "clip_encoding_univeral_model_31": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/clip_encoding_univeral_model.pth",
+    "clip_encoding_univeral_model_32": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/clip_encoding_univeral_model.pth",
 }
 
 
@@ -37,7 +37,7 @@ class TextEncoder(nn.Module):
         spatial_dims: int = 3,
         text_dim: int = 512,
         hidden_size: int = 256,
-        encoding: str = "clip_embedding",
+        encoding: str = "rand_embedding",
         pretrained: bool = False
     ) -> None:
         """
@@ -58,23 +58,24 @@ class TextEncoder(nn.Module):
         
         if self.encoding == 'rand_embedding':
             self.text_embedding = nn.Embedding(out_channels, hidden_size)
-        elif self.encoding == 'clip_embedding':
-            self.register_buffer('text_embedding', torch.randn(out_channels, text_dim))
-            if pretrained:
-                model_url = url_map["clip_encoding_univeral_model_31"]
-                pretrain_state_dict = model_zoo.load_url(model_url)
-                self.text_embedding.data = pretrain_state_dict.float()
-                print('load word embedding: {}'.format(self.encoding))
-            self.text_to_vision = nn.Linear(text_dim, hidden_size)
         else:
-            raise Exception(f'{self.encoding} is not implemented, please add your own')
+            if self.encoding in url_map:
+                self.register_buffer('text_embedding', torch.randn(out_channels, text_dim))
+                if pretrained:
+                    model_url = url_map[self.encoding]
+                    pretrain_state_dict = model_zoo.load_url(model_url)
+                    self.text_embedding.data = pretrain_state_dict.float()
+                    print('load text embedding: {}'.format(self.encoding))
+                self.text_to_vision = nn.Linear(text_dim, hidden_size)
+            else:
+                raise Exception(f'{self.encoding} is not implemented, please add your own')
 
     def forward(self):
-        if self.encoding == 'clip_embedding':
-            test_encoding = nn.functional.relu(self.text_to_vision(self.text_embedding))
-        else:
+        if self.encoding == 'rand_embedding':
             # text embedding as random initialized 'rand_embedding'
             test_encoding = self.text_embedding.weight
+        else:
+            test_encoding = nn.functional.relu(self.text_to_vision(self.text_embedding))
 
         if self.spatial_dims == 3:
             test_encoding = test_encoding.unsqueeze(2).unsqueeze(2).unsqueeze(2)
