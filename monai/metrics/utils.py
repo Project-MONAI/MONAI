@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, cast, Union
 
 import numpy as np
 import torch
@@ -278,10 +278,10 @@ def remap_instance_id(pred: torch.Tensor, by_size: bool = False) -> torch.Tensor
 
 
 def prepare_spacing(
-    spacing: int | float | np.ndarray | Sequence[int | float | np.ndarray | Sequence[float]] | None,
+    spacing: int | float | np.ndarray | Sequence[int | float | np.ndarray | Sequence[int | float]] | None,
     batch_size: int,
     img_dim: int,
-) -> Sequence[int | float | np.ndarray | Sequence[float]]:
+) -> Sequence[None | int | float | np.ndarray | Sequence[int | float]]:
     """
     This function is used to prepare the `spacing` parameter to include batch dimension for the computation of
     surface distance, hausdorff distance or surface dice.
@@ -291,6 +291,9 @@ def prepare_spacing(
     input spacing = 0.8 -> output spacing = [0.8, 0.8, 0.8, 0.8]
     input spacing = [0.8, 0.5, 0.9] -> output spacing = [[0.8, 0.5, 0.9], [0.8, 0.5, 0.9], [0.8, 0.5, 0.9], [0.8, 0.5, 0.9]]
     input spacing = [0.8, 0.7, 1.2, 0.8] -> output spacing = [0.8, 0.7, 1.2, 0.8] (same as input)
+
+    An example with batch_size = 3 and img_dim = 3:
+    input spacing = [0.8, 0.5, 0.9] -> output spacing = [[0.8, 0.5, 0.9], [0.8, 0.5, 0.9], [0.8, 0.5, 0.9], [0.8, 0.5, 0.9]]
 
     Args:
         spacing: can be a float, a sequence of length `img_dim`, or a sequence with length `batch_size`
@@ -304,22 +307,31 @@ def prepare_spacing(
         spacing: a sequence with length `batch_size` that includes integers, floats or sequences of length `img_dim`.
     """
     if spacing is None or isinstance(spacing, (int, float)):
-        spacing = [spacing] * batch_size
-    elif isinstance(spacing, (tuple, list, np.ndarray)):
-        if isinstance(spacing[0], (tuple, list, np.ndarray)):
+        return list([spacing] * batch_size)
+    elif isinstance(spacing, (Sequence, np.ndarray)):
+        assert all(
+            [isinstance(s, type(spacing[0])) for s in list(spacing)]
+        ), "if `spacing` is a sequence, its elements should be of same type."
+
+        if isinstance(spacing[0], (Sequence, np.ndarray)):
             assert (
                 len(spacing) == batch_size
-            ), "if spacing is a sequence of sequences, the outer sequence should have same length as batch size."
-            assert (
-                len(spacing[0]) == 1 or len(spacing[0]) == img_dim
-            ), "each element of spacing list should either have length of one of same as image dim."
-        else:
+            ), "if `spacing` is a sequence of sequences, the outer sequence should have same length as batch size."
+            assert all(
+                [len(s) == img_dim for s in list(spacing)]
+            ), "each element of `spacing` list should either have same length as image dim."
+            assert all(
+                [isinstance(i, (int, float)) for s in list(spacing) for i in list(s)]
+            ), "if `spacing` is a sequence of sequences or 2D np.ndarray, the elements should be integers or floats."
+            return list(spacing)
+        elif isinstance(spacing[0], (int, float)):
             assert (
                 len(spacing) == img_dim
-            ), "if spacing is a sequence of numbers, it should have same length as image dim."
-            spacing = [spacing] * batch_size
+            ), "if `spacing` is a sequence of numbers, it should have same length as image dim."
+            return cast(Sequence[Union[np.ndarray, Sequence[Union[int, float]]]], [spacing for _ in range(batch_size)])
+        else:
+            raise AssertionError(f"`spacing` is a sequence of elements with unsupported type: {type(spacing[0])}")
     else:
         raise AssertionError(
-            "spacing should either be an integer, float, a sequence of numbers or a sequence of sequences."
+            "`spacing` should either be an integer, float, a sequence of numbers or a sequence of sequences."
         )
-    return spacing

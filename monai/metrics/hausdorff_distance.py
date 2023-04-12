@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 import torch
@@ -77,12 +78,7 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def _compute_tensor(
-        self,
-        y_pred: torch.Tensor,
-        y: torch.Tensor,
-        spacing: int | float | np.ndarray | Sequence[int | float | np.ndarray | Sequence[float]] | None = None,
-    ) -> torch.Tensor:  # type: ignore[override]
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor, **kwargs: Any) -> torch.Tensor:  # type: ignore[override]
         """
         Args:
             y_pred: input data to compute, typical segmentation model output.
@@ -90,7 +86,9 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
                 should be binarized.
             y: ground truth to compute the distance. It must be one-hot format and first dim is batch.
                 The values should be binarized.
-            spacing: spacing of pixel (or voxel). This parameter is relevant only if ``distance_metric`` is set to ``"euclidean"``.
+            kwargs: additional parameters, e.g. ``spacing`` should be passed to correctly compute the metric.
+                ``spacing``: spacing of pixel (or voxel). This parameter is relevant only
+                if ``distance_metric`` is set to ``"euclidean"``.
                 If a single number, isotropic spacing with that value is used for all images in the batch. If a sequence of numbers,
                 the length of the sequence must be equal to the image dimensions.
                 This spacing will be used for all images in the batch.
@@ -114,7 +112,7 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
             distance_metric=self.distance_metric,
             percentile=self.percentile,
             directed=self.directed,
-            spacing=spacing,
+            spacing=kwargs.get("spacing"),
         )
 
     def aggregate(
@@ -145,7 +143,7 @@ def compute_hausdorff_distance(
     distance_metric: str = "euclidean",
     percentile: float | None = None,
     directed: bool = False,
-    spacing: int | float | np.ndarray | Sequence[int | float | np.ndarray | Sequence[float]] | None = None,
+    spacing: int | float | np.ndarray | Sequence[int | float | np.ndarray | Sequence[int | float]] | None = None,
 ) -> torch.Tensor:
     """
     Compute the Hausdorff distance.
@@ -185,7 +183,7 @@ def compute_hausdorff_distance(
     hd = np.empty((batch_size, n_class))
 
     img_dim = y_pred.ndim - 2
-    spacing = prepare_spacing(spacing=spacing, batch_size=batch_size, img_dim=img_dim)
+    spacing_list = prepare_spacing(spacing=spacing, batch_size=batch_size, img_dim=img_dim)
 
     for b, c in np.ndindex(batch_size, n_class):
         (edges_pred, edges_gt) = get_mask_edges(y_pred[b, c], y[b, c])
@@ -194,12 +192,12 @@ def compute_hausdorff_distance(
         if not np.any(edges_pred):
             warnings.warn(f"the prediction of class {c} is all 0, this may result in nan/inf distance.")
 
-        distance_1 = compute_percent_hausdorff_distance(edges_pred, edges_gt, distance_metric, percentile, spacing[b])
+        distance_1 = compute_percent_hausdorff_distance(edges_pred, edges_gt, distance_metric, percentile, spacing_list[b])
         if directed:
             hd[b, c] = distance_1
         else:
             distance_2 = compute_percent_hausdorff_distance(
-                edges_gt, edges_pred, distance_metric, percentile, spacing[b]
+                edges_gt, edges_pred, distance_metric, percentile, spacing_list[b]
             )
             hd[b, c] = max(distance_1, distance_2)
     return convert_data_type(hd, output_type=torch.Tensor, device=y_pred.device, dtype=torch.float)[0]
@@ -210,7 +208,7 @@ def compute_percent_hausdorff_distance(
     edges_gt: np.ndarray,
     distance_metric: str = "euclidean",
     percentile: float | None = None,
-    spacing: int | float | list | np.ndarray | None = None,
+    spacing: int | float | np.ndarray | Sequence[int | float] | None = None,
 ) -> float:
     """
     This function is used to compute the directed Hausdorff distance.
