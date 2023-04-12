@@ -36,7 +36,7 @@ from monai.utils import ensure_tuple
 from monai.utils.enums import AlgoKeys
 
 logger = get_logger(module_name=__name__)
-ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "7758ad1")
+ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "b37ed82")
 
 __all__ = ["BundleAlgo", "BundleGen"]
 
@@ -417,7 +417,7 @@ class BundleGen(AlgoGen):
 
         self.algos: Any = []
         if isinstance(algos, dict):
-            for algo_name, algo_params in algos.items():
+            for algo_name, algo_params in sorted(algos.items()):
                 template_path = os.path.dirname(algo_params.get("template_path", "."))
                 if len(template_path) > 0 and template_path not in sys.path:
                     sys.path.append(template_path)
