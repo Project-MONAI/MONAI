@@ -55,7 +55,7 @@ class TextEncoder(nn.Module):
         self.spatial_dims = spatial_dims
         if spatial_dims not in (2, 3):
             raise ValueError("spatial dimension should be 2 or 3.")
-        
+
         if self.encoding == 'rand_embedding':
             self.text_embedding = nn.Embedding(out_channels, hidden_size)
         else:
