@@ -195,10 +195,9 @@ def get_surface_distance(
             length equal to the image dimensions; if a single number, this is used for all axes.
             If ``None``, spacing of unity is used. Defaults to ``None``.
         spacing: spacing of pixel (or voxel). This parameter is relevant only if ``distance_metric`` is set to ``"euclidean"``.
-            Several input options are allowed:
-            - If a single number, isotropic spacing with that value is used.
-            - If a sequence of numbers, the length of the sequence must be equal to the image dimensions.
-            - If ``None``, spacing of unity is used. Defaults to ``None``.
+            Several input options are allowed: (1) If a single number, isotropic spacing with that value is used.
+            (2) If a sequence of numbers, the length of the sequence must be equal to the image dimensions.
+            (3) If ``None``, spacing of unity is used. Defaults to ``None``.
 
     Note:
         If seg_pred or seg_gt is all 0, may result in nan/inf distance.
@@ -328,7 +327,7 @@ def prepare_spacing(
             assert (
                 len(spacing) == img_dim
             ), "if `spacing` is a sequence of numbers, it should have same length as image dim."
-            return cast(Sequence[Union[np.ndarray, Sequence[Union[int, float]]]], [spacing for _ in range(batch_size)])
+            return [spacing for _ in range(batch_size)]  # type: ignore
         else:
             raise AssertionError(f"`spacing` is a sequence of elements with unsupported type: {type(spacing[0])}")
     else:
