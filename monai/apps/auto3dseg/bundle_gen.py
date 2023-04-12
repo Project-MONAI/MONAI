@@ -417,7 +417,7 @@ class BundleGen(AlgoGen):
 
         self.algos: Any = []
         if isinstance(algos, dict):
-            for algo_name, algo_params in algos.items():
+            for algo_name, algo_params in sorted(algos.items()):
                 template_path = os.path.dirname(algo_params.get("template_path", "."))
                 if len(template_path) > 0 and template_path not in sys.path:
                     sys.path.append(template_path)
