@@ -23,14 +23,20 @@ import warnings
 from ast import literal_eval
 from collections.abc import Callable, Iterable, Sequence
 from distutils.util import strtobool
+from math import log10
 from pathlib import Path
-from typing import Any, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, TypeVar, cast, overload
 
 import numpy as np
 import torch
 
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor, PathLike
-from monai.utils.module import version_leq
+from monai.utils.module import optional_import, version_leq
+
+if TYPE_CHECKING:
+    from yaml import SafeLoader
+else:
+    SafeLoader, _ = optional_import("yaml", name="SafeLoader", as_type="base")
 
 __all__ = [
     "zip_with",
@@ -63,6 +69,9 @@ __all__ = [
     "label_union",
     "path_to_uri",
     "pprint_edges",
+    "check_key_duplicates",
+    "CheckKeyDuplicatesYamlLoader",
+    "ConvertUnits",
 ]
 
 _seed = None
@@ -679,3 +688,115 @@ def pprint_edges(val: Any, n_lines: int = 20) -> str:
         hidden_n = len(val_str) - n_lines * 2
         val_str = val_str[:n_lines] + [f"\n ... omitted {hidden_n} line(s)\n\n"] + val_str[-n_lines:]
     return "".join(val_str)
+
+
+def check_key_duplicates(ordered_pairs: Sequence[tuple[Any, Any]]) -> dict[Any, Any]:
+    """
+    Checks if there is a duplicated key in the sequence of `ordered_pairs`.
+    If there is - it will log a warning or raise ValueError
+    (if configured by environmental var `MONAI_FAIL_ON_DUPLICATE_CONFIG==1`)
+
+    Otherwise, it returns the dict made from this sequence.
+
+    Satisfies a format for an `object_pairs_hook` in `json.load`
+
+    Args:
+        ordered_pairs: sequence of (key, value)
+    """
+    keys = set()
+    for k, _ in ordered_pairs:
+        if k in keys:
+            if os.environ.get("MONAI_FAIL_ON_DUPLICATE_CONFIG", "0") == "1":
+                raise ValueError(f"Duplicate key: `{k}`")
+            else:
+                warnings.warn(f"Duplicate key: `{k}`")
+        else:
+            keys.add(k)
+    return dict(ordered_pairs)
+
+
+class CheckKeyDuplicatesYamlLoader(SafeLoader):
+    def construct_mapping(self, node, deep=False):
+        mapping = set()
+        for key_node, _ in node.value:
+            key = self.construct_object(key_node, deep=deep)
+            if key in mapping:
+                if os.environ.get("MONAI_FAIL_ON_DUPLICATE_CONFIG", "0") == "1":
+                    raise ValueError(f"Duplicate key: `{key}`")
+                else:
+                    warnings.warn(f"Duplicate key: `{key}`")
+            mapping.add(key)
+        return super().construct_mapping(node, deep)
+
+
+class ConvertUnits:
+    """
+    Convert the values from input unit to the target unit
+
+    Args:
+        input_unit: the unit of the input quantity
+        target_unit: the unit of the target quantity
+
+    """
+
+    imperial_unit_of_length = {"inch": 0.0254, "foot": 0.3048, "yard": 0.9144, "mile": 1609.344}
+
+    unit_prefix = {
+        "peta": 15,
+        "tera": 12,
+        "giga": 9,
+        "mega": 6,
+        "kilo": 3,
+        "hecto": 2,
+        "deca": 1,
+        "deci": -1,
+        "centi": -2,
+        "milli": -3,
+        "micro": -6,
+        "nano": -9,
+        "pico": -12,
+        "femto": -15,
+    }
+    base_units = ["meter", "byte", "bit"]
+
+    def __init__(self, input_unit: str, target_unit: str) -> None:
+        self.input_unit, input_base = self._get_valid_unit_and_base(input_unit)
+        self.target_unit, target_base = self._get_valid_unit_and_base(target_unit)
+        if input_base == target_base:
+            self.unit_base = input_base
+        else:
+            raise ValueError(
+                "Both input and target units should be from the same quantity. "
+                f"Input quantity is {input_base} while target quantity is {target_base}"
+            )
+        self._calculate_conversion_factor()
+
+    def _get_valid_unit_and_base(self, unit):
+        unit = str(unit).lower()
+        if unit in self.imperial_unit_of_length:
+            return unit, "meter"
+        for base_unit in self.base_units:
+            if unit.endswith(base_unit):
+                return unit, base_unit
+        raise ValueError(f"Currently, it only supports length conversion but `{unit}` is given.")
+
+    def _get_unit_power(self, unit):
+        """Calculate the power of the unit factor with respect to the base unit"""
+        if unit in self.imperial_unit_of_length:
+            return log10(self.imperial_unit_of_length[unit])
+
+        prefix = unit[: len(self.unit_base)]
+        if prefix == "":
+            return 1.0
+        return self.unit_prefix[prefix]
+
+    def _calculate_conversion_factor(self):
+        """Calculate unit conversion factor with respect to the input unit"""
+        if self.input_unit == self.target_unit:
+            return 1.0
+        input_power = self._get_unit_power(self.input_unit)
+        target_power = self._get_unit_power(self.target_unit)
+        self.conversion_factor = 10 ** (input_power - target_power)
+
+    def __call__(self, value: int | float) -> Any:
+        return float(value) * self.conversion_factor
