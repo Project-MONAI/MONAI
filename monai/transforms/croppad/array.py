@@ -780,8 +780,6 @@ class CropForeground(Crop):
         And adjust bounding box coords to be divisible by `k`.
 
         """
-        if isinstance(img, MetaTensor) and img.pending_operations:
-            warnings.warn("foreground computation may not be accurate if the image has pending operations.")
         box_start, box_end = generate_spatial_bounding_box(
             img, self.select_fn, self.channel_indices, self.margin, self.allow_smaller
         )
@@ -869,8 +867,6 @@ class RandWeightedCrop(Randomizable, TraceableTransform, LazyTransform, MultiSam
         self.centers: list[np.ndarray] = []
 
     def randomize(self, weight_map: NdarrayOrTensor) -> None:
-        if isinstance(weight_map, MetaTensor) and weight_map.pending_operations:
-            warnings.warn("weight map has pending operations, the sampling may not be correct.")
         self.centers = weighted_patch_samples(
             spatial_size=self.spatial_size, w=weight_map[0], n_samples=self.num_samples, r_state=self.R
         )  # using only the first channel as weight map
@@ -1015,10 +1011,6 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
         fg_indices_ = self.fg_indices if fg_indices is None else fg_indices
         bg_indices_ = self.bg_indices if bg_indices is None else bg_indices
         if fg_indices_ is None or bg_indices_ is None:
-            if isinstance(label, MetaTensor) and label.pending_operations:
-                warnings.warn("label has pending operations, the fg/bg indices may be incorrect.")
-            if isinstance(image, MetaTensor) and image.pending_operations:
-                warnings.warn("image has pending operations, the fg/bg indices may be incorrect.")
             if label is None:
                 raise ValueError("label must be provided.")
             fg_indices_, bg_indices_ = map_binary_to_indices(label, image, self.image_threshold)
@@ -1195,10 +1187,6 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
     ) -> None:
         indices_ = self.indices if indices is None else indices
         if indices_ is None:
-            if isinstance(label, MetaTensor) and label.pending_operations:
-                warnings.warn("label has pending operations, the fg/bg indices may be incorrect.")
-            if isinstance(image, MetaTensor) and image.pending_operations:
-                warnings.warn("image has pending operations, the fg/bg indices may be incorrect.")
             if label is None:
                 raise ValueError("label must not be None.")
             indices_ = map_classes_to_indices(

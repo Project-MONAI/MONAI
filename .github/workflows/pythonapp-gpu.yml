@@ -25,6 +25,7 @@ jobs:
           - "PT110+CUDA111"
           - "PT112+CUDA118DOCKER"
           - "PT113+CUDA116"
+          - "PT114+CUDA120DOCKER"
         include:
           # https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes
           - environment: PT19+CUDA114DOCKER

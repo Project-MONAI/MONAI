@@ -309,7 +309,7 @@ def prepare_spacing(
         return list([spacing] * batch_size)
     elif isinstance(spacing, (Sequence, np.ndarray)):
         assert all(
-            [isinstance(s, type(spacing[0])) for s in list(spacing)]
+            isinstance(s, type(spacing[0])) for s in list(spacing)
         ), "if `spacing` is a sequence, its elements should be of same type."
 
         if isinstance(spacing[0], (Sequence, np.ndarray)):
@@ -317,10 +317,10 @@ def prepare_spacing(
                 len(spacing) == batch_size
             ), "if `spacing` is a sequence of sequences, the outer sequence should have same length as batch size."
             assert all(
-                [len(s) == img_dim for s in list(spacing)]
+                len(s) == img_dim for s in list(spacing)
             ), "each element of `spacing` list should either have same length as image dim."
             assert all(
-                [isinstance(i, (int, float)) for s in list(spacing) for i in list(s)]
+                isinstance(i, (int, float)) for s in list(spacing) for i in list(s)
             ), "if `spacing` is a sequence of sequences or 2D np.ndarray, the elements should be integers or floats."
             return list(spacing)
         elif isinstance(spacing[0], (int, float)):
