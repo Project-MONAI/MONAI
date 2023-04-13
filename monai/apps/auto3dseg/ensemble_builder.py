@@ -97,7 +97,8 @@ class AlgoEnsemble(ABC):
             if data_key in datalist:
                 self.infer_files, _ = datafold_read(datalist=datalist, basedir=dataroot, fold=-1, key=data_key)
             else:
-                logger.info(f"Datalist file has no testing key - {data_key}. No data for inference is specified")
+                if self.rank == 0:
+                    logger.info(f"Datalist file has no testing key - {data_key}. No data for inference is specified")
 
         else:
             raise ValueError("Unsupported parameter type")
@@ -125,7 +126,7 @@ class AlgoEnsemble(ABC):
             else:
                 return VoteEnsemble(num_classes=preds[0].shape[0])(classes)
 
-    def __call__(self, **pred_param: Any) -> list[torch.Tensor]:
+    def __call__(self, pred_param: dict | None = None) -> list[torch.Tensor]:
         """
         Use the ensembled model to predict result.
 
@@ -164,7 +165,7 @@ class AlgoEnsemble(ABC):
         sigmoid = param.pop("sigmoid", False)
 
         outputs = []
-        for i, file in enumerate(tqdm(files, desc='Ensembling...')) if pred_param.get('rank',0)==0 else enumerate(files):
+        for i, file in enumerate(tqdm(files, desc='Ensembling (rank 0)...')) if pred_param.get('rank',0)==0 else enumerate(files):
             preds = []
             for algo in self.algo_ensemble:
                 infer_instance = algo[AlgoKeys.ALGO]
@@ -346,7 +347,7 @@ class EnsembleRunner:
         ensemble_method_name: method to ensemble predictions from different model.
                               Suported methods: ["AlgoEnsembleBestN", "AlgoEnsembleBestByFold"].
         mgpu: if using multi-gpu.
-        kwargs: additional image writing, ensembling parameters and prediction parameters for the ensemble inference
+        kwargs: additional image writing, ensembling parameters and prediction parameters for the ensemble inference.
     Examples:
 
         .. code-block:: python
@@ -368,29 +369,12 @@ class EnsembleRunner:
                  **kwargs):
         self.data_src_cfg_name = data_src_cfg_name
         self.work_dir = work_dir
-        self.set_num_fold(num_fold=num_fold)
+        self.num_fold = num_fold
         self.ensemble_method_name = ensemble_method_name
         self.mgpu = mgpu
-        self.save_image = self.set_image_save_transform(kwargs)
-        self.set_ensemble_method(ensemble_method_name)
-        self.pred_params = kwargs
-        history = import_bundle_algo_history(self.work_dir, only_trained=False)
-        history_untrained = [h for h in history if not h[AlgoKeys.IS_TRAINED]]
-        if len(history_untrained) > 0:
-            warnings.warn(
-                f"Ensembling step will skip {[h['name'] for h in history_untrained]} untrained algos."
-                "Generally it means these algos did not complete training."
-            )
-            history = [h for h in history if h[AlgoKeys.IS_TRAINED]]
-        if len(history) == 0:
-            raise ValueError(
-                f"Could not find the trained results in {self.work_dir}. "
-                "Possibly the required training step was not completed."
-            )
-
-        builder = AlgoEnsembleBuilder(history, data_src_cfg_name)
-        builder.set_ensemble_method(self.ensemble_method)
-        self.ensembler = builder.get_ensemble()
+        self.kwargs = kwargs
+        self.rank = 0
+        self.world_size = 1
 
     def set_ensemble_method(self, ensemble_method_name: str = "AlgoEnsembleBestByFold", **kwargs: Any) -> None:
         """
@@ -429,11 +413,13 @@ class EnsembleRunner:
             output_dir = kwargs.pop("output_dir")
         else:
             output_dir = os.path.join(self.work_dir, "ensemble_output")
-            logger.info(f"The output_dir is not specified. {output_dir} will be used to save ensemble predictions")
+            if self.rank == 0:
+                logger.info(f"The output_dir is not specified. {output_dir} will be used to save ensemble predictions")
 
         if not os.path.isdir(output_dir):
             os.makedirs(output_dir)
-            logger.info(f"Directory {output_dir} is created to save ensemble predictions")
+            if self.rank == 0:
+                logger.info(f"Directory {output_dir} is created to save ensemble predictions")
 
         self.output_dir = output_dir
         output_postfix = kwargs.pop("output_postfix", "ensemble")
@@ -460,33 +446,57 @@ class EnsembleRunner:
         if self.mgpu: # torch.cuda.device_count() is not used because env is not set by autorruner
             # init multiprocessing and update infer_files
             dist.init_process_group(backend="nccl", init_method="env://")
-            world_size = dist.get_world_size()
-            infer_files = self.ensembler.infer_files
-            infer_files = partition_dataset(
-                data=infer_files,
-                shuffle=False,
-                num_partitions=world_size,
-                even_divisible=True,
-            )[dist.get_rank()]
-            self.pred_params['rank'] = dist.get_rank()
-            # TO DO: Add some function in ensembler for infer_files update?
-            self.ensembler.infer_files = infer_files
+            self.world_size = dist.get_world_size()
+            self.rank = dist.get_rank()
+        # set params after init_process_group to know the rank
+        self.set_num_fold(num_fold=self.num_fold)
+        self.save_image = self.set_image_save_transform(self.kwargs)
+        self.set_ensemble_method(self.ensemble_method_name)
+        
+        history = import_bundle_algo_history(self.work_dir, only_trained=False)
+        history_untrained = [h for h in history if not h[AlgoKeys.IS_TRAINED]]
+        if len(history_untrained) > 0:
+            if self.rank == 0:
+                warnings.warn(
+                    f"Ensembling step will skip {[h['name'] for h in history_untrained]} untrained algos."
+                    "Generally it means these algos did not complete training."
+                )
+            history = [h for h in history if h[AlgoKeys.IS_TRAINED]]
+        if len(history) == 0:
+            raise ValueError(
+                f"Could not find the trained results in {self.work_dir}. "
+                "Possibly the required training step was not completed."
+            )
 
-        preds = self.ensembler(pred_param=self.pred_params)
+        builder = AlgoEnsembleBuilder(history, self.data_src_cfg_name)
+        builder.set_ensemble_method(self.ensemble_method)
+        self.ensembler = builder.get_ensemble()
+        infer_files = self.ensembler.infer_files
+        infer_files = partition_dataset(
+            data=infer_files,
+            shuffle=False,
+            num_partitions=self.world_size,
+        )[self.rank]
+        # TO DO: Add some function in ensembler for infer_files update?
+        self.ensembler.infer_files = infer_files
+        # self.kwargs has poped out args for set_image_save_transform
+        # add rank to pred_params
+        self.kwargs['rank'] = self.rank
+        preds = self.ensembler(pred_param=self.kwargs)
 
         if len(preds) > 0:
-            logger.info("Auto3Dseg picked the following networks to ensemble:")
-            for algo in self.ensembler.get_algo_ensemble():
-                logger.info(algo[AlgoKeys.ID])
-
+            if self.rank == 0:
+                logger.info("Auto3Dseg picked the following networks to ensemble:")
+                for algo in self.ensembler.get_algo_ensemble():
+                    logger.info(algo[AlgoKeys.ID])
+                logger.info(f"Auto3Dseg ensemble prediction outputs are saved in {self.output_dir}.") 
             for pred in preds:
                 self.save_image(pred)
-            logger.info(f"Auto3Dseg ensemble prediction outputs are saved in {self.output_dir}.")
 
         if self.mgpu:
             dist.destroy_process_group()
 
-    def run(self, device_setting: dict={}):
+    def run(self, device_setting: dict | None = None):
         """
         Load the run function in the training script of each model. Training parameter is predefined by the
         algo_config.yaml file, which is pre-filled by the fill_template_config function in the same instance.
@@ -517,8 +527,8 @@ class EnsembleRunner:
                     --ensemble_method_name {self.ensemble_method_name} \
                     --mgpu True"
 
-            if self.pred_params and isinstance(self.pred_params, Mapping):
-                for k, v in self.pred_params.items():
+            if self.kwargs and isinstance(self.kwargs, Mapping):
+                for k, v in self.kwargs.items():
                     base_cmd += f" --{k}={v}"
             # define env for subprocess
             ps_environ = os.environ.copy()
