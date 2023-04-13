@@ -485,7 +485,7 @@ class EnsembleRunner:
             logger.info("Auto3Dseg picked the following networks to ensemble:")
             for algo in self.ensembler.get_algo_ensemble():
                 logger.info(algo[AlgoKeys.ID])
-            logger.info(f"Auto3Dseg ensemble prediction outputs will be saved in {self.output_dir}.") 
+            logger.info(f"Auto3Dseg ensemble prediction outputs will be saved in {self.output_dir}.")
         self.ensembler(pred_param=self.kwargs)
 
         if self.mgpu:
