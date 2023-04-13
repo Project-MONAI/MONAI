@@ -37,8 +37,8 @@ class TextEncoder(nn.Module):
         spatial_dims: int = 3,
         text_dim: int = 512,
         hidden_size: int = 256,
-        encoding: str = "rand_embedding",
-        pretrained: bool = False
+        encoding: str = "clip_encoding_univeral_model_32",
+        pretrained: bool = True
     ) -> None:
         """
         Args:
@@ -63,7 +63,7 @@ class TextEncoder(nn.Module):
 
             if pretrained:
                 model_url = url_map[self.encoding]
-                pretrain_state_dict = model_zoo.load_url(model_url)
+                pretrain_state_dict = model_zoo.load_url(model_url,map_location="cpu")
                 self.text_embedding.data = pretrain_state_dict.float()
             else:
                 print(f'{self.encoding} is not implemented, and can not be downloaded, please load your own')
@@ -73,13 +73,14 @@ class TextEncoder(nn.Module):
     def forward(self):
         if self.encoding == 'rand_embedding':
             # text embedding as random initialized 'rand_embedding'
-            test_encoding = self.text_embedding.weight
+            text_embedding = self.text_embedding.weight
         else:
-            test_encoding = nn.functional.relu(self.text_to_vision(self.text_embedding))
+            print(self.text_embedding)
+            text_embedding = nn.functional.relu(self.text_to_vision(self.text_embedding))
 
         if self.spatial_dims == 3:
-            test_encoding = test_encoding.unsqueeze(2).unsqueeze(2).unsqueeze(2)
+            text_embedding = text_embedding.unsqueeze(2).unsqueeze(2).unsqueeze(2)
         elif self.spatial_dims == 2:
-            test_encoding = test_encoding.unsqueeze(2).unsqueeze(2)
+            text_embedding = text_embedding.unsqueeze(2).unsqueeze(2)
 
-        return test_encoding
+        return text_embedding

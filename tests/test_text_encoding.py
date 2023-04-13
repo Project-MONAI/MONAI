@@ -17,29 +17,26 @@ import torch
 from monai.networks.blocks.text_embedding import TextEncoder
 from tests.utils import skip_if_downloading_fails
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
-
-
 class TestTextEncoder(unittest.TestCase):
     def test_test_encoding_shape(self):
         with skip_if_downloading_fails():
             # test 2D encoder
-            text_encoder = TextEncoder(spatial_dims=2, out_channels=32, encoding="clip_encoding_univeral_model_32", pretrained=True).to(device)
+            text_encoder = TextEncoder(spatial_dims=2, out_channels=32, encoding="clip_encoding_univeral_model_32", pretrained=True)
             text_encoding = text_encoder()
             self.assertEqual(text_encoding.shape, (32,256,1,1))
 
             # test 3D encoder
-            text_encoder = TextEncoder(spatial_dims=3, out_channels=32, encoding="clip_encoding_univeral_model_32", pretrained=True).to(device)
+            text_encoder = TextEncoder(spatial_dims=3, out_channels=32, encoding="clip_encoding_univeral_model_32", pretrained=True)
             text_encoding = text_encoder()
             self.assertEqual(text_encoding.shape, (32,256,1,1,1))
 
         # test random enbedding 3D
-        text_encoder = TextEncoder(spatial_dims=3, out_channels=32, encoding="rand_embedding", pretrained=True).to(device)
+        text_encoder = TextEncoder(spatial_dims=3, out_channels=32, encoding="rand_embedding", pretrained=True)
         text_encoding = text_encoder()
         self.assertEqual(text_encoding.shape, (32,256,1,1,1))
 
         # test random enbedding 2D
-        text_encoder = TextEncoder(spatial_dims=2, out_channels=32, encoding="rand_embedding", pretrained=True).to(device)
+        text_encoder = TextEncoder(spatial_dims=2, out_channels=32, encoding="rand_embedding", pretrained=True)
         text_encoding = text_encoder()
         self.assertEqual(text_encoding.shape, (32,256,1,1))
 
