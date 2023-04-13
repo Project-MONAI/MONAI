@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 from .auto_runner import AutoRunner
+from .azureml_auto_runner import AzureMLAutoRunner
 from .bundle_gen import BundleAlgo, BundleGen
 from .data_analyzer import DataAnalyzer
 from .ensemble_builder import AlgoEnsemble, AlgoEnsembleBestByFold, AlgoEnsembleBestN, AlgoEnsembleBuilder

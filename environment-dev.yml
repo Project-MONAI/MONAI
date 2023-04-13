@@ -10,5 +10,6 @@ dependencies:
   - torchvision
   - pytorch-cuda=11.6
   - pip
+  - python>=3.8
   - pip:
     - -r requirements-dev.txt

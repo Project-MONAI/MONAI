@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import os
-import shutil
 import subprocess
 import warnings
 from copy import deepcopy
@@ -217,6 +216,7 @@ class AutoRunner:
         analyze: bool | None = None,
         algo_gen: bool | None = None,
         train: bool | None = None,
+        training_params: dict[str, Any] | None = None,
         hpo: bool = False,
         hpo_backend: str = "nni",
         ensemble: bool = True,
@@ -224,26 +224,9 @@ class AutoRunner:
         templates_path_or_url: str | None = None,
         **kwargs: Any,
     ):
-        logger.info(f"AutoRunner using work directory {work_dir}")
-        os.makedirs(work_dir, exist_ok=True)
-
         self.work_dir = os.path.abspath(work_dir)
-        self.data_src_cfg = dict()
-        self.data_src_cfg_name = os.path.join(self.work_dir, "input.yaml")
-        self.algos = algos
-        self.templates_path_or_url = templates_path_or_url
-
-        if input is None and os.path.isfile(self.data_src_cfg_name):
-            input = self.data_src_cfg_name
-            logger.info(f"Input config is not provided, using the default {input}")
-
-        if isinstance(input, dict):
-            self.data_src_cfg = input
-        elif isinstance(input, str) and os.path.isfile(input):
-            self.data_src_cfg = ConfigParser.load_config_file(input)
-            logger.info(f"Loading input config {input}")
-        else:
-            raise ValueError(f"{input} is not a valid file or dict")
+        logger.info(f"AutoRunner using work directory {self.work_dir}")
+        self._set_up_data_src_cfg(input, algos, templates_path_or_url)
 
         missing_keys = {"dataroot", "datalist", "modality"}.difference(self.data_src_cfg.keys())
         if len(missing_keys) > 0:
@@ -252,26 +235,15 @@ class AutoRunner:
         if not os.path.exists(self.data_src_cfg["datalist"]):
             raise ValueError(f"Datalist file is not found {self.data_src_cfg['datalist']}")
 
-        # copy datalist to work_dir
-        datalist_filename = os.path.join(self.work_dir, os.path.basename(self.data_src_cfg["datalist"]))
-        if datalist_filename != self.data_src_cfg["datalist"]:
-            try:
-                shutil.copyfile(self.data_src_cfg["datalist"], datalist_filename)
-                logger.info(f"Datalist was copied to work_dir: {datalist_filename}")
-            except shutil.SameFileError:
-                pass
+        self.dataroot = self.data_src_cfg["dataroot"]
+
+        self._create_work_dir_and_data_src_cfg()
+
+        self.datalist_filename = self.data_src_cfg["datalist"]
+        self.datastats_filename = os.path.join(self.work_dir, "datastats.yaml")
 
         # inspect and update folds
-        num_fold = self.inspect_datalist_folds(datalist_filename=datalist_filename)
-
-        self.data_src_cfg["datalist"] = datalist_filename  # update path to a version in work_dir and save user input
-        ConfigParser.export_config_file(
-            config=self.data_src_cfg, filepath=self.data_src_cfg_name, fmt="yaml", sort_keys=False
-        )
-
-        self.dataroot = self.data_src_cfg["dataroot"]
-        self.datastats_filename = os.path.join(self.work_dir, "datastats.yaml")
-        self.datalist_filename = datalist_filename
+        num_fold = self.inspect_datalist_folds(datalist_filename=self.datalist_filename)
 
         self.not_use_cache = not_use_cache
         self.cache_filename = os.path.join(self.work_dir, "cache.yaml")
@@ -284,7 +256,8 @@ class AutoRunner:
         self.train = train
         self.ensemble = ensemble  # last step, no need to check
 
-        self.set_training_params()
+        # intermediate variables
+        self.set_training_params(training_params)
         self.set_prediction_params()
         self.set_analyze_params()
 
@@ -306,6 +279,52 @@ class AutoRunner:
         self.set_hpo_params()
         self.search_space: dict[str, dict[str, Any]] = {}
         self.hpo_tasks = 0
+
+    def _set_up_data_src_cfg(
+        self,
+        input: dict[str, Any] | str | None = None,
+        algos: dict | list | str | None = None,
+        templates_path_or_url: str | None = None,
+    ) -> None:
+        """Sets up the AutoRunner data source config using the provided input.
+
+        Args:
+            input: The input to parse for AutoRunner configuration, defaults to None
+            algos: The algorithms to use during AutoRunner training, defaults to None
+            templates_path_or_url: The URL or filepath to the algorithm templates, defaults to None
+        """
+        self.data_src_cfg_name = os.path.join(self.work_dir, "input.yaml")
+        self.algos = algos
+        self.templates_path_or_url = templates_path_or_url
+
+        if input is None and os.path.isfile(self.data_src_cfg_name):
+            input = self.data_src_cfg_name
+            logger.info(f"Input config is not provided, using the default {input}")
+
+        if isinstance(input, dict):
+            self.data_src_cfg = input
+        elif isinstance(input, str) and os.path.isfile(input):
+            logger.info(f"Loading input config {input}")
+            self.data_src_cfg = ConfigParser.load_config_file(input)
+        else:
+            raise ValueError(f"Input: {input} is not a valid file or dict")
+
+    def _create_work_dir_and_data_src_cfg(self, data_src_cfg: dict[str, Any] | None = None) -> None:
+        """
+        Creates the work dir to be used by AutoRunner and exports the data source config to the specified filename
+
+        Args
+            param data_src_cfg: dictionary containing the configuration for the AutoRunner, defaults to None
+        """
+        os.makedirs(self.work_dir, exist_ok=True)
+        output_data_src_cfg = data_src_cfg if data_src_cfg is not None else self.data_src_cfg
+        ConfigParser.export_config_file(
+            config=output_data_src_cfg,
+            filepath=self.data_src_cfg_name,
+            fmt="yaml",
+            default_flow_style=None,
+            sort_keys=False,
+        )
 
     def read_cache(self):
         """
@@ -455,7 +474,7 @@ class AutoRunner:
         if gpu_customization_specs is not None:
             self.gpu_customization_specs = gpu_customization_specs
 
-    def set_num_fold(self, num_fold: int = 5) -> None:
+    def set_num_fold(self, num_fold: int) -> None:
         """
         Set the number of cross validation folds for all algos.
 
@@ -488,6 +507,7 @@ class AutoRunner:
 
         """
         self.train_params = deepcopy(params) if params is not None else {}
+        logger.info(f"Set AutoRunner training params to {self.train_params}")
 
     def set_prediction_params(self, params: dict[str, Any] | None = None) -> None:
         """
@@ -569,7 +589,7 @@ class AutoRunner:
         self.search_space = search_space
         self.hpo_tasks = value_combinations
 
-    def set_image_save_transform(self, kwargs):
+    def set_image_save_transform(self, kwargs: Any) -> SaveImage:
         """
         Set the ensemble output transform.
 
@@ -714,6 +734,7 @@ class AutoRunner:
         """
         Run the AutoRunner pipeline
         """
+
         # step 1: data analysis
         if self.analyze and self.analyze_params is not None:
             logger.info("Running data analysis...")
