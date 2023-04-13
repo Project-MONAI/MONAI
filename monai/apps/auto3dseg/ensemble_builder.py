@@ -452,7 +452,7 @@ class EnsembleRunner:
         self.set_num_fold(num_fold=self.num_fold)
         self.save_image = self.set_image_save_transform(self.kwargs)
         self.set_ensemble_method(self.ensemble_method_name)
-        
+
         history = import_bundle_algo_history(self.work_dir, only_trained=False)
         history_untrained = [h for h in history if not h[AlgoKeys.IS_TRAINED]]
         if len(history_untrained) > 0:
@@ -489,7 +489,7 @@ class EnsembleRunner:
                 logger.info("Auto3Dseg picked the following networks to ensemble:")
                 for algo in self.ensembler.get_algo_ensemble():
                     logger.info(algo[AlgoKeys.ID])
-                logger.info(f"Auto3Dseg ensemble prediction outputs are saved in {self.output_dir}.") 
+                logger.info(f"Auto3Dseg ensemble prediction outputs are saved in {self.output_dir}.")
             for pred in preds:
                 self.save_image(pred)
 
