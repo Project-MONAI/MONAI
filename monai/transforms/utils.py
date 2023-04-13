@@ -75,7 +75,7 @@ __all__ = [
     "compute_divisible_spatial_size",
     "convert_applied_interp_mode",
     "copypaste_arrays",
-    "check_pending_ops",
+    "check_non_lazy_pending_ops",
     "create_control_grid",
     "create_grid",
     "create_rotate",
@@ -295,7 +295,7 @@ def resize_center(img: np.ndarray, *resize_dims: int | None, fill_value: float =
     return img[srcslices]
 
 
-def check_pending_ops(input_array: NdarrayOrTensor, name: None | str = None, raise_error: bool = False) -> None:
+def check_non_lazy_pending_ops(input_array: NdarrayOrTensor, name: None | str = None, raise_error: bool = False) -> None:
     """
     Check whether the input array has pending operations, raise an error or warn when it has.
 
@@ -330,14 +330,14 @@ def map_binary_to_indices(
         image_threshold: if enabled `image`, use ``image > image_threshold`` to
             determine the valid image content area and select background only in this area.
     """
-    check_pending_ops(label, name="map_binary_to_indices")
+    check_non_lazy_pending_ops(label, name="map_binary_to_indices")
     # Prepare fg/bg indices
     if label.shape[0] > 1:
         label = label[1:]  # for One-Hot format data, remove the background channel
     label_flat = ravel(any_np_pt(label, 0))  # in case label has multiple dimensions
     fg_indices = nonzero(label_flat)
     if image is not None:
-        check_pending_ops(image, name="map_binary_to_indices")
+        check_non_lazy_pending_ops(image, name="map_binary_to_indices")
         img_flat = ravel(any_np_pt(image > image_threshold, 0))
         img_flat, *_ = convert_to_dst_type(img_flat, label, dtype=bool)
         bg_indices = nonzero(img_flat & ~label_flat)
@@ -378,10 +378,10 @@ def map_classes_to_indices(
             Default is None, no subsampling.
 
     """
-    check_pending_ops(label, name="map_classes_to_indices")
+    check_non_lazy_pending_ops(label, name="map_classes_to_indices")
     img_flat: NdarrayOrTensor | None = None
     if image is not None:
-        check_pending_ops(image, name="map_classes_to_indices")
+        check_non_lazy_pending_ops(image, name="map_classes_to_indices")
         img_flat = ravel((image > image_threshold).any(0))
 
     # assuming the first dimension is channel
@@ -433,7 +433,7 @@ def weighted_patch_samples(
         a list of `n_samples` N-D integers representing the spatial sampling location of patches.
 
     """
-    check_pending_ops(w, name="weighted_patch_samples")
+    check_non_lazy_pending_ops(w, name="weighted_patch_samples")
     if w is None:
         raise ValueError("w must be an ND array, got None.")
     if r_state is None:
@@ -961,7 +961,7 @@ def generate_spatial_bounding_box(
         allow_smaller: when computing box size with `margin`, whether allow the image size to be smaller
             than box size, default to `True`.
     """
-    check_pending_ops(img, name="generate_spatial_bounding_box")
+    check_non_lazy_pending_ops(img, name="generate_spatial_bounding_box")
     spatial_size = img.shape[1:]
     data = img[list(ensure_tuple(channel_indices))] if channel_indices is not None else img
     data = select_fn(data).any(0)
@@ -1200,7 +1200,7 @@ def get_extreme_points(
     Raises:
         ValueError: When the input image does not have any foreground pixel.
     """
-    check_pending_ops(img, name="get_extreme_points")
+    check_non_lazy_pending_ops(img, name="get_extreme_points")
     if rand_state is None:
         rand_state = np.random.random.__self__  # type: ignore
     indices = where(img != background)
