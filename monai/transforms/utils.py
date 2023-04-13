@@ -295,7 +295,9 @@ def resize_center(img: np.ndarray, *resize_dims: int | None, fill_value: float =
     return img[srcslices]
 
 
-def check_non_lazy_pending_ops(input_array: NdarrayOrTensor, name: None | str = None, raise_error: bool = False) -> None:
+def check_non_lazy_pending_ops(
+    input_array: NdarrayOrTensor, name: None | str = None, raise_error: bool = False
+) -> None:
     """
     Check whether the input array has pending operations, raise an error or warn when it has.
 
