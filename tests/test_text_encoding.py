@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import unittest
 
-import torch
 from monai.networks.blocks.text_embedding import TextEncoder
 from tests.utils import skip_if_downloading_fails
 
