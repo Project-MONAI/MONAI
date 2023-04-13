@@ -16,7 +16,10 @@ from torch import nn
 from torch.utils import model_zoo
 
 url_map = {
-    "clip_encoding_univeral_model_32": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/clip_encoding_univeral_model.pth"
+    "clip_encoding_univeral_model_32": (
+        "https://github.com/Project-MONAI/MONAI-extra-test-data/"
+        "releases/download/0.8.1/clip_encoding_univeral_model.pth"
+    )
 }
 
 
