@@ -164,15 +164,13 @@ class AlgoEnsemble(ABC):
 
         sigmoid = param.pop("sigmoid", False)
 
-        outputs = []
         for i, file in enumerate(tqdm(files, desc='Ensembling (rank 0)...')) if pred_param.get('rank',0)==0 else enumerate(files):
             preds = []
             for algo in self.algo_ensemble:
                 infer_instance = algo[AlgoKeys.ALGO]
                 pred = infer_instance.predict(predict_files=[file], predict_params=param)
                 preds.append(pred[0])
-            outputs.append(self.ensemble_pred(preds, sigmoid=sigmoid))
-        return outputs
+            pred_param['image_save_func'](self.ensemble_pred(preds, sigmoid=sigmoid))
 
     @abstractmethod
     def collect_algos(self, *args, **kwargs):
@@ -457,7 +455,7 @@ class EnsembleRunner:
         history_untrained = [h for h in history if not h[AlgoKeys.IS_TRAINED]]
         if len(history_untrained) > 0:
             if self.rank == 0:
-                warnings.warn(
+                warn(
                     f"Ensembling step will skip {[h['name'] for h in history_untrained]} untrained algos."
                     "Generally it means these algos did not complete training."
                 )
@@ -482,16 +480,13 @@ class EnsembleRunner:
         # self.kwargs has poped out args for set_image_save_transform
         # add rank to pred_params
         self.kwargs['rank'] = self.rank
-        preds = self.ensembler(pred_param=self.kwargs)
-
-        if len(preds) > 0:
-            if self.rank == 0:
-                logger.info("Auto3Dseg picked the following networks to ensemble:")
-                for algo in self.ensembler.get_algo_ensemble():
-                    logger.info(algo[AlgoKeys.ID])
-                logger.info(f"Auto3Dseg ensemble prediction outputs are saved in {self.output_dir}.")
-            for pred in preds:
-                self.save_image(pred)
+        self.kwargs['image_save_func'] = self.save_image
+        if self.rank == 0:
+            logger.info("Auto3Dseg picked the following networks to ensemble:")
+            for algo in self.ensembler.get_algo_ensemble():
+                logger.info(algo[AlgoKeys.ID])
+            logger.info(f"Auto3Dseg ensemble prediction outputs will be saved in {self.output_dir}.") 
+        self.ensembler(pred_param=self.kwargs)
 
         if self.mgpu:
             dist.destroy_process_group()
