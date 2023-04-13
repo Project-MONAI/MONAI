@@ -16,7 +16,7 @@ from torch import nn
 from torch.utils import model_zoo
 
 url_map = {
-    "clip_encoding_univeral_model_32": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/clip_encoding_univeral_model.pth",
+    "clip_encoding_univeral_model_32": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/clip_encoding_univeral_model.pth"
 }
 
 
@@ -31,6 +31,7 @@ class TextEncoder(nn.Module):
     Connecting text and medical 3D image, based on: "Liu et al.,
     CLIP-Driven Universal Model for Organ Segmentation and Tumor Detection <https://arxiv.org/pdf/2301.00785.pdf>"
     """
+
     def __init__(
         self,
         out_channels: int,
@@ -38,7 +39,7 @@ class TextEncoder(nn.Module):
         text_dim: int = 512,
         hidden_size: int = 256,
         encoding: str = "clip_encoding_univeral_model_32",
-        pretrained: bool = True
+        pretrained: bool = True,
     ) -> None:
         """
         Args:
@@ -56,22 +57,22 @@ class TextEncoder(nn.Module):
         if spatial_dims not in (2, 3):
             raise ValueError("spatial dimension should be 2 or 3.")
 
-        if self.encoding == 'rand_embedding':
+        if self.encoding == "rand_embedding":
             self.text_embedding = nn.Embedding(out_channels, hidden_size)
         else:
-            self.register_buffer('text_embedding', torch.randn(out_channels, text_dim))
+            self.register_buffer("text_embedding", torch.randn(out_channels, text_dim))
 
             if pretrained:
                 model_url = url_map[self.encoding]
-                pretrain_state_dict = model_zoo.load_url(model_url,map_location="cpu")
+                pretrain_state_dict = model_zoo.load_url(model_url, map_location="cpu")
                 self.text_embedding.data = pretrain_state_dict.float()
             else:
-                print(f'{self.encoding} is not implemented, and can not be downloaded, please load your own')
+                print(f"{self.encoding} is not implemented, and can not be downloaded, please load your own")
 
             self.text_to_vision = nn.Linear(text_dim, hidden_size)
 
     def forward(self):
-        if self.encoding == 'rand_embedding':
+        if self.encoding == "rand_embedding":
             # text embedding as random initialized 'rand_embedding'
             text_embedding = self.text_embedding.weight
         else:
