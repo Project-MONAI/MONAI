@@ -99,53 +99,51 @@ def resampling_parameter_map(keyword, first, second, resample_policy, ndims):
     }
 
 
-# def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = None):
-#     """
-#     This is a minimal implementation of resample that always uses Affine.
-#     """
-#     if not AffineMatrix.is_affine_shaped(matrix):
-#         raise NotImplementedError("calling dense grid resample API not implemented")
-#     kwargs = {} if kwargs is None else kwargs
-#     init_kwargs = {
-#         "spatial_size": kwargs.get(LazyAttr.OUT_SHAPE, data.shape)[1:],
-#         "dtype": kwargs.get(LazyAttr.OUT_DTYPE, data.dtype),
-#     }
-#     call_kwargs = {
-#         "mode": kwargs.get(LazyAttr.INTERP_MODE, None),
-#         "padding_mode": kwargs.get(LazyAttr.PADDING_MODE, None),
-#     }
-#
-#     is_grid = is_grid_shaped(matrix)
-#     is_ortho, unit_scale, is_unskewed = check_matrix(matrix)
-#     unit_shift = check_unit_translate(matrix, data.shape, kwargs[LazyAttr.OUT_SHAPE])
-#
-#     # TODO: extract coefficients from the matrix for tensor-ops / interpolate
-#     if not is_grid:
-#         if is_ortho:
-#             if unit_scale and unit_shift:
-#                 # print("tensor resample")
-#                 # TODO: change to use flips/permutations
-#                 resampler = Resampler(affine=matrix, image_only=True, **init_kwargs)
-#                 return resampler(img=data, **call_kwargs)
-#             else:  # interpolate
-#                 # print("interpolate resample")
-#                 # TODO: change to use interpolator
-#                 resampler = Resampler(affine=matrix, image_only=True, **init_kwargs)
-#                 return resampler(img=data, **call_kwargs)
-#         else:  # affine matrix resample
-#             # print("grid resample")
-#             # TODO: change to use affine resampler
-#             resampler = Resampler(affine=matrix, image_only=True, **init_kwargs)
-#             return resampler(img=data, **call_kwargs)
-#     else:  # grid resample
-#         # print("grid resample")
-#         resampler = Resampler(affine=matrix, image_only=True, **init_kwargs)
-#         return resampler(img=data, **call_kwargs)
+def _generic_resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = None):
+    """
+    This is a minimal implementation of resample that always uses Affine.
+    """
+    if not AffineMatrix.is_affine_shaped(matrix):
+        raise NotImplementedError("calling dense grid resample API not implemented")
+    kwargs = {} if kwargs is None else kwargs
+    init_kwargs = {
+        "spatial_size": kwargs.get(LazyAttr.OUT_SHAPE, data.shape)[1:],
+        "dtype": kwargs.get(LazyAttr.OUT_DTYPE, data.dtype),
+    }
+    call_kwargs = {
+        "mode": kwargs.get(LazyAttr.INTERP_MODE, None),
+        "padding_mode": kwargs.get(LazyAttr.PADDING_MODE, None),
+    }
+
+    is_grid = is_grid_shaped(matrix)
+    is_ortho, unit_scale, is_unskewed = check_matrix(matrix)
+    unit_shift = check_unit_translate(matrix, data.shape, kwargs[LazyAttr.OUT_SHAPE])
+
+    # TODO: extract coefficients from the matrix for tensor-ops / interpolate
+    if not is_grid:
+        if is_ortho:
+            if unit_scale and unit_shift:
+                # print("tensor resample")
+                # TODO: change to use flips/permutations
+                resampler = Resampler(affine=matrix, image_only=True, **init_kwargs)
+                return resampler(img=data, **call_kwargs)
+            else:  # interpolate
+                # print("interpolate resample")
+                # TODO: change to use interpolator
+                resampler = Resampler(affine=matrix, image_only=True, **init_kwargs)
+                return resampler(img=data, **call_kwargs)
+        else:  # affine matrix resample
+            # print("grid resample")
+            # TODO: change to use affine resampler
+            resampler = Resampler(affine=matrix, image_only=True, **init_kwargs)
+            return resampler(img=data, **call_kwargs)
+    else:  # grid resample
+        # print("grid resample")
+        resampler = Resampler(affine=matrix, image_only=True, **init_kwargs)
+        return resampler(img=data, **call_kwargs)
 
 
-# def resample(data: torch.Tensor, matrix: NdarrayOrTensor, spatial_size, kwargs: dict | None = None):
-
-def resample(
+def _adaptive_resample(
         data: torch.Tensor,
         matrix: NdarrayOrTensor,
         kwargs: dict | None = None
@@ -238,6 +236,15 @@ def resample(
 
     resampler = Resampler(affine=matrix, image_only=True, **init_kwargs)
     return resampler(img=data, **call_kwargs)
+
+
+def resample(
+        data: torch.Tensor,
+        matrix: NdarrayOrTensor,
+        kwargs: dict | None = None
+):
+    _generic_resample(data, matrix, kwargs)
+    # _adaptive_resample(data, matrix, kwargs)
 
 
 # def resample(
@@ -387,7 +394,7 @@ class ResampleImpl:
 
         if USE_COMPILED or self._backend == TransformBackends.NUMPY:
             if self.norm_coords:
-                for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
+                for i, dim in enumerate(img_t.shape[1: 1 + sr]):
                     grid_t[i] = (max(dim, 2) / 2.0 - 0.5 + grid_t[i]) / grid_t[-1:]
             grid_t = grid_t[:sr]
             if USE_COMPILED and self._backend == TransformBackends.TORCH:  # compiled is using torch backend param name
