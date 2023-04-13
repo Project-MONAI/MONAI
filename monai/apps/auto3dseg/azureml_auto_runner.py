@@ -47,6 +47,9 @@ class AzureMLAutoRunner(AutoRunner):
         templates_path_or_url: str | None = None,
         **kwargs: Any,
     ):
+        if "work_dir" in kwargs:
+            raise ValueError("work_dir cannot be specified in AzureMLAutoRunner")
+
         work_dir = "outputs"
         super().__init__(
             work_dir=work_dir,
