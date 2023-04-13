@@ -31,6 +31,7 @@ from monai.auto3dseg.utils import algo_to_pickle
 from monai.bundle import ConfigParser
 from monai.utils.enums import AlgoKeys
 from monai.utils.module import optional_import
+from monai.utils.module import look_up_option
 
 logger = get_logger(module_name=__name__)
 
@@ -225,6 +226,7 @@ class AutoRunner:
         self.data_src_cfg_name = os.path.join(self.work_dir, "input.yaml")
         self.algos = algos
         self.templates_path_or_url = templates_path_or_url
+        self.kwargs = kwargs
 
         if input is None and os.path.isfile(self.data_src_cfg_name):
             input = self.data_src_cfg_name
@@ -281,10 +283,9 @@ class AutoRunner:
         self.set_device_info()
         self.set_prediction_params()
         self.set_analyze_params()
-
-        self.ensemble_method_name = 'AlgoEnsembleBestByFold'
+        self.set_ensemble_method()
         self.set_num_fold(num_fold=num_fold)
-        self.kwargs = kwargs
+        
         self.gpu_customization = False
         self.gpu_customization_specs: dict[str, Any] = {}
 
@@ -512,6 +513,21 @@ class AutoRunner:
         self.device_setting['CMD_PREFIX'] = cmd_prefix
         if cmd_prefix is not None:
             logger.info(f'Using user defined command running prefix {cmd_prefix}, will overide other settings')
+
+    def set_ensemble_method(self, ensemble_method_name: str='AlgoEnsembleBestByFold', **kwargs: Any):
+        """
+        Set the bundle ensemble method name and parameters for save image transform parameters.
+
+        Args:
+            params: the name of the ensemble method. Only two methods are supported "AlgoEnsembleBestN"
+                and "AlgoEnsembleBestByFold".
+            kwargs: the keyword arguments used to define the ensemble method. Currently only ``n_best`` for
+                ``AlgoEnsembleBestN`` is supported.
+        """        
+        self.ensemble_method_name = look_up_option(
+            ensemble_method_name, supported=["AlgoEnsembleBestN", "AlgoEnsembleBestByFold"]
+        )
+        self.kwargs.update(kwargs)
 
 
     def set_prediction_params(self, params: dict[str, Any] | None = None) -> None:
