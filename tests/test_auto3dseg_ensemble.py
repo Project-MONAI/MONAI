@@ -34,27 +34,25 @@ from tests.utils import (
 
 _, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
+num_images_perfold = max(torch.cuda.device_count(), 4)
+num_images_per_batch = 2
+
 fake_datalist: dict[str, list[dict]] = {
     "testing": [{"image": "val_001.fake.nii.gz"}, {"image": "val_002.fake.nii.gz"}],
     "training": [
-        {"fold": 0, "image": "tr_image_001.fake.nii.gz", "label": "tr_label_001.fake.nii.gz"},
-        {"fold": 0, "image": "tr_image_002.fake.nii.gz", "label": "tr_label_002.fake.nii.gz"},
-        {"fold": 0, "image": "tr_image_003.fake.nii.gz", "label": "tr_label_003.fake.nii.gz"},
-        {"fold": 0, "image": "tr_image_004.fake.nii.gz", "label": "tr_label_004.fake.nii.gz"},
-        {"fold": 1, "image": "tr_image_005.fake.nii.gz", "label": "tr_label_005.fake.nii.gz"},
-        {"fold": 1, "image": "tr_image_006.fake.nii.gz", "label": "tr_label_006.fake.nii.gz"},
-        {"fold": 1, "image": "tr_image_007.fake.nii.gz", "label": "tr_label_007.fake.nii.gz"},
-        {"fold": 1, "image": "tr_image_008.fake.nii.gz", "label": "tr_label_008.fake.nii.gz"},
-        {"fold": 2, "image": "tr_image_009.fake.nii.gz", "label": "tr_label_009.fake.nii.gz"},
-        {"fold": 2, "image": "tr_image_010.fake.nii.gz", "label": "tr_label_010.fake.nii.gz"},
-        {"fold": 2, "image": "tr_image_011.fake.nii.gz", "label": "tr_label_011.fake.nii.gz"},
-        {"fold": 2, "image": "tr_image_012.fake.nii.gz", "label": "tr_label_012.fake.nii.gz"},
+        {
+            "fold": f,
+            "image": f"tr_image_{(f * num_images_perfold + idx):03d}.nii.gz",
+            "label": f"tr_label_{(f * num_images_perfold + idx):03d}.nii.gz",
+        }
+        for f in range(num_images_per_batch + 1)
+        for idx in range(num_images_perfold)
     ],
 }
 
 train_param = (
     {
-        "num_images_per_batch": 2,
+        "num_images_per_batch": num_images_per_batch,
         "num_epochs": 2,
         "num_epochs_per_validation": 1,
         "num_warmup_epochs": 1,

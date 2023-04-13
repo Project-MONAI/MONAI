@@ -49,7 +49,7 @@ class IterationMetric(Metric):
     """
 
     def __call__(
-        self, y_pred: TensorOrList, y: TensorOrList | None = None
+        self, y_pred: TensorOrList, y: TensorOrList | None = None, **kwargs: Any
     ) -> torch.Tensor | Sequence[torch.Tensor | Sequence[torch.Tensor]]:
         """
         Execute basic computation for model prediction `y_pred` and ground truth `y` (optional).
@@ -60,6 +60,7 @@ class IterationMetric(Metric):
                 or a `batch-first` Tensor.
             y: the ground truth to compute, must be a list of `channel-first` Tensor
                 or a `batch-first` Tensor.
+            kwargs: additional parameters for specific metric computation logic (e.g. ``spacing`` for SurfaceDistanceMetric, etc.).
 
         Returns:
             The computed metric values at the iteration level.
@@ -69,15 +70,15 @@ class IterationMetric(Metric):
         """
         # handling a list of channel-first data
         if isinstance(y_pred, (list, tuple)) or isinstance(y, (list, tuple)):
-            return self._compute_list(y_pred, y)
+            return self._compute_list(y_pred, y, **kwargs)
         # handling a single batch-first data
         if isinstance(y_pred, torch.Tensor):
             y_ = y.detach() if isinstance(y, torch.Tensor) else None
-            return self._compute_tensor(y_pred.detach(), y_)
+            return self._compute_tensor(y_pred.detach(), y_, **kwargs)
         raise ValueError("y_pred or y must be a list/tuple of `channel-first` Tensors or a `batch-first` Tensor.")
 
     def _compute_list(
-        self, y_pred: TensorOrList, y: TensorOrList | None = None
+        self, y_pred: TensorOrList, y: TensorOrList | None = None, **kwargs: Any
     ) -> torch.Tensor | list[torch.Tensor | Sequence[torch.Tensor]]:
         """
         Execute the metric computation for `y_pred` and `y` in a list of "channel-first" tensors.
@@ -93,9 +94,12 @@ class IterationMetric(Metric):
         Note: subclass may enhance the operation to have multi-thread support.
         """
         if y is not None:
-            ret = [self._compute_tensor(p.detach().unsqueeze(0), y_.detach().unsqueeze(0)) for p, y_ in zip(y_pred, y)]
+            ret = [
+                self._compute_tensor(p.detach().unsqueeze(0), y_.detach().unsqueeze(0), **kwargs)
+                for p, y_ in zip(y_pred, y)
+            ]
         else:
-            ret = [self._compute_tensor(p_.detach().unsqueeze(0), None) for p_ in y_pred]
+            ret = [self._compute_tensor(p_.detach().unsqueeze(0), None, **kwargs) for p_ in y_pred]
 
         # concat the list of results (e.g. a batch of evaluation scores)
         if isinstance(ret[0], torch.Tensor):
@@ -106,7 +110,7 @@ class IterationMetric(Metric):
         return ret
 
     @abstractmethod
-    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor | None = None) -> TensorOrList:
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor | None = None, **kwargs: Any) -> TensorOrList:
         """
         Computation logic for `y_pred` and `y` of an iteration, the data should be "batch-first" Tensors.
         A subclass should implement its own computation logic.
@@ -318,7 +322,7 @@ class CumulativeIterationMetric(Cumulative, IterationMetric):
     """
 
     def __call__(
-        self, y_pred: TensorOrList, y: TensorOrList | None = None
+        self, y_pred: TensorOrList, y: TensorOrList | None = None, **kwargs: Any
     ) -> torch.Tensor | Sequence[torch.Tensor | Sequence[torch.Tensor]]:
         """
         Execute basic computation for model prediction and ground truth.
@@ -331,12 +335,13 @@ class CumulativeIterationMetric(Cumulative, IterationMetric):
                 or a `batch-first` Tensor.
             y: the ground truth to compute, must be a list of `channel-first` Tensor
                 or a `batch-first` Tensor.
+            kwargs: additional parameters for specific metric computation logic (e.g. ``spacing`` for SurfaceDistanceMetric, etc.).
 
         Returns:
             The computed metric values at the iteration level. The output shape should be
             a `batch-first` tensor (BC[HWD]) or a list of `batch-first` tensors.
         """
-        ret = super().__call__(y_pred=y_pred, y=y)
+        ret = super().__call__(y_pred=y_pred, y=y, **kwargs)
         if isinstance(ret, (tuple, list)):
             self.extend(*ret)
         else:

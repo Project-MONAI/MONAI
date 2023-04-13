@@ -189,7 +189,6 @@ TEST_CASE_16_MPP = [
     {"level": 2},
 ]
 
-
 # exact power
 TEST_CASE_17_POWER = [
     WSI_APERIO_SVS_PATH,

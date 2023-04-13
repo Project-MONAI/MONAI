@@ -12,11 +12,19 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 import torch
 
-from monai.metrics.utils import do_metric_reduction, get_mask_edges, get_surface_distance, ignore_background
+from monai.metrics.utils import (
+    do_metric_reduction,
+    get_mask_edges,
+    get_surface_distance,
+    ignore_background,
+    prepare_spacing,
+)
 from monai.utils import MetricReduction, convert_data_type
 
 from .metric import CumulativeIterationMetric
@@ -67,13 +75,23 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor, **kwargs: Any) -> torch.Tensor:  # type: ignore[override]
         r"""
         Args:
             y_pred: Predicted segmentation, typically segmentation model output.
                 It must be a one-hot encoded, batch-first tensor [B,C,H,W].
             y: Reference segmentation.
                 It must be a one-hot encoded, batch-first tensor [B,C,H,W].
+            kwargs: additional parameters, e.g. ``spacing`` should be passed to correctly compute the metric.
+                ``spacing``: spacing of pixel (or voxel). This parameter is relevant only
+                if ``distance_metric`` is set to ``"euclidean"``.
+                If a single number, isotropic spacing with that value is used for all images in the batch. If a sequence of numbers,
+                the length of the sequence must be equal to the image dimensions.
+                This spacing will be used for all images in the batch.
+                If a sequence of sequences, the length of the outer sequence must be equal to the batch size.
+                If inner sequence has length 1, isotropic spacing with that value is used for all images in the batch,
+                else the inner sequence length must be equal to the image dimensions. If ``None``, spacing of unity is used
+                for all images in batch. Defaults to ``None``.
 
         Returns:
             Pytorch Tensor of shape [B,C], containing the NSD values :math:`\operatorname {NSD}_{b,c}` for each batch
@@ -85,6 +103,7 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
             class_thresholds=self.class_thresholds,
             include_background=self.include_background,
             distance_metric=self.distance_metric,
+            spacing=kwargs.get("spacing"),
         )
 
     def aggregate(
@@ -117,6 +136,7 @@ def compute_surface_dice(
     class_thresholds: list[float],
     include_background: bool = False,
     distance_metric: str = "euclidean",
+    spacing: int | float | np.ndarray | Sequence[int | float | np.ndarray | Sequence[int | float]] | None = None,
 ) -> torch.Tensor:
     r"""
     This function computes the (Normalized) Surface Dice (NSD) between the two tensors `y_pred` (referred to as
@@ -167,6 +187,13 @@ def compute_surface_dice(
         distance_metric: The metric used to compute surface distances.
             One of [``"euclidean"``, ``"chessboard"``, ``"taxicab"``].
             Defaults to ``"euclidean"``.
+        spacing: spacing of pixel (or voxel). This parameter is relevant only if ``distance_metric`` is set to ``"euclidean"``.
+            If a single number, isotropic spacing with that value is used for all images in the batch. If a sequence of numbers,
+            the length of the sequence must be equal to the image dimensions. This spacing will be used for all images in the batch.
+            If a sequence of sequences, the length of the outer sequence must be equal to the batch size.
+            If inner sequence has length 1, isotropic spacing with that value is used for all images in the batch,
+            else the inner sequence length must be equal to the image dimensions. If ``None``, spacing of unity is used
+            for all images in batch. Defaults to ``None``.
 
     Raises:
         ValueError: If `y_pred` and/or `y` are not PyTorch tensors.
@@ -219,6 +246,9 @@ def compute_surface_dice(
 
     nsd = np.empty((batch_size, n_class))
 
+    img_dim = y_pred.ndim - 2
+    spacing_list = prepare_spacing(spacing=spacing, batch_size=batch_size, img_dim=img_dim)
+
     for b, c in np.ndindex(batch_size, n_class):
         (edges_pred, edges_gt) = get_mask_edges(y_pred[b, c], y[b, c], crop=False)
         if not np.any(edges_gt):
@@ -226,8 +256,12 @@ def compute_surface_dice(
         if not np.any(edges_pred):
             warnings.warn(f"the prediction of class {c} is all 0, this may result in nan/inf distance.")
 
-        distances_pred_gt = get_surface_distance(edges_pred, edges_gt, distance_metric=distance_metric)
-        distances_gt_pred = get_surface_distance(edges_gt, edges_pred, distance_metric=distance_metric)
+        distances_pred_gt = get_surface_distance(
+            edges_pred, edges_gt, distance_metric=distance_metric, spacing=spacing_list[b]
+        )
+        distances_gt_pred = get_surface_distance(
+            edges_gt, edges_pred, distance_metric=distance_metric, spacing=spacing_list[b]
+        )
 
         boundary_complete = len(distances_pred_gt) + len(distances_gt_pred)
         boundary_correct = np.sum(distances_pred_gt <= class_thresholds[c]) + np.sum(
