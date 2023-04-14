@@ -123,7 +123,7 @@ class AlgoEnsemble(ABC):
             else:
                 return VoteEnsemble(num_classes=preds[0].shape[0])(classes)
 
-    def __call__(self, pred_param: dict | None = None) -> None:
+    def __call__(self, pred_param: dict | None = None) -> list:
         """
         Use the ensembled model to predict result.
 
@@ -157,6 +157,8 @@ class AlgoEnsemble(ABC):
 
         sigmoid = param.pop("sigmoid", False)
 
+
+        outputs = []
         for _, file in (
             enumerate(tqdm(files, desc="Ensembling (rank 0)..."))
             if has_tqdm and pred_param and pred_param.get("rank", 0) == 0
@@ -168,7 +170,11 @@ class AlgoEnsemble(ABC):
                 pred = infer_instance.predict(predict_files=[file], predict_params=param)
                 preds.append(pred[0])
             if "image_save_func" in param:
-                param["image_save_func"](self.ensemble_pred(preds, sigmoid=sigmoid))
+                res = param["image_save_func"](self.ensemble_pred(preds, sigmoid=sigmoid))
+            else:
+                res = self.ensemble_pred(preds, sigmoid=sigmoid)
+            outputs.append(res)
+        return outputs
 
     @abstractmethod
     def collect_algos(self, *args, **kwargs):
