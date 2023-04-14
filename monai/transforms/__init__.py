@@ -624,6 +624,7 @@ from .utils import (
     Fourier,
     allow_missing_keys_mode,
     attach_hook,
+    check_non_lazy_pending_ops,
     compute_divisible_spatial_size,
     convert_applied_interp_mode,
     convert_pad_mode,

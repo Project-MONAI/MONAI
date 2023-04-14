@@ -706,9 +706,9 @@ def convert_to_torchscript(
         device: target device to verify the model, if None, use CUDA if available.
         rtol: the relative tolerance when comparing the outputs of PyTorch model and TorchScript model.
         atol: the absolute tolerance when comparing the outputs of PyTorch model and TorchScript model.
-        use_trace: whether to use `torch.jit.trace` to export the torchscript model.
-        kwargs: other arguments except `obj` for `torch.jit.script()` to convert model, for more details:
-            https://pytorch.org/docs/master/generated/torch.jit.script.html.
+        use_trace: whether to use `torch.jit.trace` to export the TorchScript model.
+        kwargs: other arguments except `obj` for `torch.jit.script()` or `torch.jit.trace()` (if use_trace is True)
+            to convert model, for more details: https://pytorch.org/docs/master/generated/torch.jit.script.html.
 
     """
     model.eval()
@@ -716,7 +716,7 @@ def convert_to_torchscript(
         if use_trace:
             if inputs is None:
                 raise ValueError("Missing input data for tracing convert.")
-            script_module = torch.jit.trace(model, example_inputs=inputs)
+            script_module = torch.jit.trace(model, example_inputs=inputs, **kwargs)
         else:
             script_module = torch.jit.script(model, **kwargs)
         if filename_or_obj is not None:
@@ -748,6 +748,79 @@ def convert_to_torchscript(
     return script_module
 
 
+def _onnx_trt_compile(
+    onnx_model,
+    min_shape: Sequence[int],
+    opt_shape: Sequence[int],
+    max_shape: Sequence[int],
+    device: int,
+    precision: str,
+    input_names: Sequence[str] | None,
+    output_names: Sequence[str] | None,
+):
+    """
+    This function takes an ONNX model as input, exports it to a TensorRT engine, wraps the TensorRT engine
+    to a TensorRT engine-based TorchScript model and return the TorchScript model.
+
+    Args:
+        onnx_model: the source ONNX model to compile.
+        min_shape: the minimum input shape of the converted TensorRT model.
+        opt_shape: the optimization input shape of the model, on which the TensorRT optimizes.
+        max_shape: the maximum input shape of the converted TensorRT model.
+        device: the target GPU index to convert and verify the model.
+        precision: the weight precision of the converted TensorRT engine-based TorchScript model.
+            Should be 'fp32' or 'fp16'.
+        input_names: optional input names of the ONNX model. Should be a sequence like
+            `['input_0', 'input_1', ..., 'input_N']` where N equals to the number of the
+            model inputs.
+        output_names: optional output names of the ONNX model. Should be a sequence like
+            `['output_0', 'output_1', ..., 'output_N']` where N equals to the number of
+            the model outputs.
+
+    """
+    trt, _ = optional_import("tensorrt", "8.5.3")
+    torch_tensorrt, _ = optional_import("torch_tensorrt", "1.4.0")
+
+    input_shapes = (min_shape, opt_shape, max_shape)
+    # default to an empty list to fit the `torch_tensorrt.ts.embed_engine_in_new_module` function.
+    input_names = [] if not input_names else input_names
+    output_names = [] if not output_names else output_names
+
+    # set up the TensorRT builder
+    torch_tensorrt.set_device(device)
+    logger = trt.Logger(trt.Logger.WARNING)
+    builder = trt.Builder(logger)
+    network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
+    profile = builder.create_optimization_profile()
+    if input_names:
+        profile.set_shape(input_names[0], *input_shapes)
+
+    # parse the ONNX model
+    parser = trt.OnnxParser(network, logger)
+    success = parser.parse(onnx_model.SerializeToString())
+    if not success:
+        parser_error_message = ""
+        for idx in range(parser.num_errors):
+            parser_error_message += parser.get_error(idx).desc() + "\n"
+        raise Exception(f"TensorRT cannot parse the ONNX model, due to:\n{parser_error_message}")
+
+    # set up the conversion configuration
+    config = builder.create_builder_config()
+    config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 1 << 31)
+    config.add_optimization_profile(profile)
+    if precision == "fp16":
+        config.set_flag(trt.BuilderFlag.FP16)
+    serialized_engine = builder.build_serialized_network(network, config)
+    f = io.BytesIO()
+    f.write(serialized_engine)
+
+    # wrap the serialized TensorRT engine back to a TorchScript module.
+    trt_model = torch_tensorrt.ts.embed_engine_in_new_module(
+        f.getvalue(), torch.device(f"cuda:{device}"), input_names, output_names
+    )
+    return trt_model
+
+
 def convert_to_trt(
     model: nn.Module,
     precision: str,
@@ -757,15 +830,29 @@ def convert_to_trt(
     filename_or_obj: Any | None = None,
     verify: bool = False,
     device: int | None = None,
+    use_onnx: bool | None = False,
+    onnx_input_names: Sequence[str] | None = ("input_0",),
+    onnx_output_names: Sequence[str] | None = ("output_0",),
     rtol: float = 1e-2,
     atol: float = 0.0,
+    **kwargs,
 ):
     """
-    Utility to convert a model into a TensorRT engine based torchscript model with optional input / output data verification.
+    Utility to export a model into a TensorRT engine-based TorchScript model with optional input / output data verification.
+
+    There are two ways to export a model:
+    1, Torch-TensorRT way: PyTorch module ---> TorchScript module ---> TensorRT engine-based TorchScript.
+    2, ONNX-TensorRT way: PyTorch module ---> TorchScript module ---> ONNX model ---> TensorRT engine --->
+    TensorRT engine-based TorchScript.
+
+    When exporting through the first way, some models suffer from the slowdown problem, since Torch-TensorRT
+    may only convert a little part of the PyTorch model to the TensorRT engine. However when exporting through
+    the second way, some Python data structures like `dict` are not supported. And some TorchScript models are
+    not supported by the ONNX if exported through `torch.jit.script`.
 
     Args:
         model: a source PyTorch model to convert.
-        precision: the weight precision of the converted TensorRT engine based torchscript models. Should be 'fp32' or 'fp16'.
+        precision: the weight precision of the converted TensorRT engine based TorchScript models. Should be 'fp32' or 'fp16'.
         input_shape: the input shape that is used to convert the model. Should be a list like [N, C, H, W] or
             [N, C, H, W, D].
         dynamic_batchsize: a sequence with three elements to define the batch size range of the input for the model to be
@@ -773,14 +860,23 @@ def convert_to_trt(
             input should between `MIN_BATCH` and `MAX_BATCH` and the `OPT_BATCH` is the best performance batchsize that the
             TensorRT tries to fit. The `OPT_BATCH` should be the most frequently used input batchsize in the application,
             default to None.
-        use_trace: whether using `torch.jit.trace` to convert the pytorch model to torchscript model and then convert to
-            a TensorRT engine based torchscript model, default to False.
+        use_trace: whether using `torch.jit.trace` to convert the PyTorch model to a TorchScript model and then convert to
+            a TensorRT engine based TorchScript model or an ONNX model (if `use_onnx` is True), default to False.
         filename_or_obj: if not None, specify a file-like object (has to implement write and flush) or a string containing a
-            file path name to load the TensorRT engine based torchscript model for verifying.
-        verify: whether to verify the input and output of the TensorRT engine based torchscript model.
+            file path name to load the TensorRT engine based TorchScript model for verifying.
+        verify: whether to verify the input and output of the TensorRT engine based TorchScript model.
         device: the target GPU index to convert and verify the model. If None, use #0 GPU.
+        use_onnx: whether to use the ONNX-TensorRT way to export the TensorRT engine-based TorchScript model.
+        onnx_input_names: optional input names of the ONNX model. This arg is only useful when `use_onnx` is True. Should be
+            a sequence like `('input_0', 'input_1', ..., 'input_N')` where N equals to the number of the model inputs. If not
+            given, will use `('input_0',)`, which supposes the model only has one input.
+        onnx_output_names: optional output names of the ONNX model. This arg is only useful when `use_onnx` is True. Should be
+            a sequence like `('output_0', 'output_1', ..., 'output_N')` where N equals to the number of the model outputs. If
+            not given, will use `('output_0',)`, which supposes the model only has one output.
         rtol: the relative tolerance when comparing the outputs between the PyTorch model and TensorRT model.
         atol: the absolute tolerance when comparing the outputs between the PyTorch model and TensorRT model.
+        kwargs: other arguments except `module`, `inputs`, `enabled_precisions` and `device` for `torch_tensorrt.compile()`
+            to compile model, for more details: https://pytorch.org/TensorRT/py_api/torch_tensorrt.html#torch-tensorrt-py.
     """
 
     torch_tensorrt, _ = optional_import("torch_tensorrt", version="1.4.0")
@@ -802,17 +898,12 @@ def convert_to_trt(
     convert_precision = torch.float32 if precision == "fp32" else torch.half
     inputs = [torch.rand(ensure_tuple(input_shape)).to(target_device)]
 
-    # convert the torch model, torchscript model and input to target device
-    model = model.eval().to(target_device)
-    ir_model = convert_to_torchscript(model, device=target_device, inputs=inputs, use_trace=use_trace)
-    ir_model.eval().to(target_device)
-
     def scale_batch_size(input_shape: Sequence[int], scale_num: int):
         scale_shape = [*input_shape]
         scale_shape[0] *= scale_num
         return scale_shape
 
-    # Use the dynamic batchsize range to generate compiler input and compile the model
+    # Use the dynamic batchsize range to generate the min, opt and max model input shape
     if dynamic_batchsize:
         min_input_shape = scale_batch_size(input_shape, dynamic_batchsize[0])
         opt_input_shape = scale_batch_size(input_shape, dynamic_batchsize[1])
@@ -820,16 +911,49 @@ def convert_to_trt(
     else:
         min_input_shape = opt_input_shape = max_input_shape = input_shape
 
-    with torch.no_grad():
-        with torch.cuda.device(device=device):
-            input_placeholder = [
-                torch_tensorrt.Input(min_shape=min_input_shape, opt_shape=opt_input_shape, max_shape=max_input_shape)
-            ]
-            trt_model = torch_tensorrt.compile(
-                ir_model, inputs=input_placeholder, enabled_precisions=convert_precision, device=target_device
-            )
+    # convert the torch model to a TorchScript model on target device
+    model = model.eval().to(target_device)
+    ir_model = convert_to_torchscript(model, device=target_device, inputs=inputs, use_trace=use_trace)
+    ir_model.eval()
 
-    # verify the outputs between the trt model and torch model
+    if use_onnx:
+        # set the batch dim as dynamic
+        dynamic_axes = {k: {0: "batchsize"} for k in onnx_input_names} if onnx_input_names else {}
+        dynamic_axes.update({k: {0: "batchsize"} for k in onnx_output_names} if onnx_output_names else {})
+        ir_model = convert_to_onnx(
+            model, inputs, onnx_input_names, onnx_output_names, use_trace=use_trace, dynamic_axes=dynamic_axes
+        )
+
+        # convert the model through the ONNX-TensorRT way
+        trt_model = _onnx_trt_compile(
+            ir_model,
+            min_shape=min_input_shape,
+            opt_shape=opt_input_shape,
+            max_shape=max_input_shape,
+            device=device,
+            precision=precision,
+            input_names=onnx_input_names,
+            output_names=onnx_output_names,
+        )
+    else:
+        # convert the model through the Torch-TensorRT way
+        ir_model.to(target_device)
+        with torch.no_grad():
+            with torch.cuda.device(device=device):
+                input_placeholder = [
+                    torch_tensorrt.Input(
+                        min_shape=min_input_shape, opt_shape=opt_input_shape, max_shape=max_input_shape
+                    )
+                ]
+                trt_model = torch_tensorrt.compile(
+                    ir_model,
+                    inputs=input_placeholder,
+                    enabled_precisions=convert_precision,
+                    device=target_device,
+                    **kwargs,
+                )
+
+    # verify the outputs between the TensorRT model and PyTorch model
     if verify:
         if inputs is None:
             raise ValueError("Missing input data for verification.")
