@@ -183,7 +183,7 @@ class TestEnsembleBuilder(unittest.TestCase):
         runner.set_image_save_transform(
             output_dir=save_output, output_postfix="test_ensemble", output_dtype=float, resample=True
         )
-        self.assertIsInstance(runner.save_image, SaveImage)
+        self.assertIsInstance(ConfigParser(runner.save_image).get_parsed_content(), SaveImage)
 
     def tearDown(self) -> None:
         set_determinism(None)

@@ -30,7 +30,7 @@ from monai.auto3dseg import concat_val_to_np
 from monai.auto3dseg.utils import datafold_read
 from monai.bundle import ConfigParser
 from monai.data import partition_dataset
-from monai.transforms import MeanEnsemble, SaveImage, VoteEnsemble
+from monai.transforms import MeanEnsemble, VoteEnsemble
 from monai.utils.enums import AlgoKeys
 from monai.utils.misc import prob2class
 from monai.utils.module import look_up_option, optional_import
@@ -157,6 +157,9 @@ class AlgoEnsemble(ABC):
 
         sigmoid = param.pop("sigmoid", False)
 
+        if "image_save_func" in param:
+            img_saver = ConfigParser(param["image_save_func"]).get_parsed_content()
+
         outputs = []
         for _, file in (
             enumerate(tqdm(files, desc="Ensembling (rank 0)..."))
@@ -169,7 +172,7 @@ class AlgoEnsemble(ABC):
                 pred = infer_instance.predict(predict_files=[file], predict_params=param)
                 preds.append(pred[0])
             if "image_save_func" in param:
-                res = param["image_save_func"](self.ensemble_pred(preds, sigmoid=sigmoid))
+                res = img_saver(self.ensemble_pred(preds, sigmoid=sigmoid))
             else:
                 res = self.ensemble_pred(preds, sigmoid=sigmoid)
             outputs.append(res)
@@ -435,17 +438,19 @@ class EnsembleRunner:
 
         self.output_dir = output_dir
         output_postfix = kwargs.pop("output_postfix", "ensemble")
-        output_dtype = kwargs.pop("output_dtype", np.uint8)
+        output_dtype = kwargs.pop("output_dtype", "$np.uint8")
         resample = kwargs.pop("resample", False)
 
-        self.save_image = SaveImage(
-            output_dir=output_dir,
-            output_postfix=output_postfix,
-            output_dtype=output_dtype,
-            resample=resample,
-            print_log=False,
-            **kwargs,
-        )
+        self.save_image = {
+            "_target_": "SaveImage",
+            "output_dir": output_dir,
+            "output_postfix": output_postfix,
+            "output_dtype": output_dtype,
+            "resample": resample,
+            "print_log": False,
+        }
+        if kwargs:
+            self.save_image.update(kwargs)
 
     def set_num_fold(self, num_fold: int = 5) -> None:
         """
