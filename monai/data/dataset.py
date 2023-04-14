@@ -352,8 +352,7 @@ class PersistentDataset(Dataset):
         )
         if first_random is not None:
             item_transformed = self.transform(item_transformed, start=first_random)
-
-    return item_transformed
+        return item_transformed
 
     def _cachecheck(self, item_transformed):
         """
