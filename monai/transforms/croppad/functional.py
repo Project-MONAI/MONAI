@@ -29,7 +29,6 @@ from monai.transforms.inverse import TraceableTransform
 from monai.transforms.utils import convert_pad_mode, create_translate
 from monai.utils import (
     PytorchPadMode,
-    TraceKeys,
     convert_to_dst_type,
     convert_to_numpy,
     convert_to_tensor,
