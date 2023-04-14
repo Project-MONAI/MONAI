@@ -185,9 +185,8 @@ class BundleAlgo(Algo):
         # make sure cmd end with a space
         if cmd is not None and not cmd.endswith(" "):
             cmd += " "
-        if (
-            (int(self.device_setting["NUM_NODES"]) > 1 and self.device_setting["MN_START_METHOD"] == "bcprun")
-            or (int(self.device_setting["NUM_NODES"]) <= 1 and int(self.device_setting["n_devices"]) <= 1)
+        if (int(self.device_setting["NUM_NODES"]) > 1 and self.device_setting["MN_START_METHOD"] == "bcprun") or (
+            int(self.device_setting["NUM_NODES"]) <= 1 and int(self.device_setting["n_devices"]) <= 1
         ):
             cmd = "python " if cmd is None else cmd
         elif int(self.device_setting["NUM_NODES"]) > 1:
