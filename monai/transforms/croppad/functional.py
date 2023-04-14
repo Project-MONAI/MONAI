@@ -157,7 +157,12 @@ def crop_or_pad_nd(img: torch.Tensor, translation_mat, spatial_size: tuple[int, 
 
 
 def pad_func(
-    img: torch.Tensor, to_pad: tuple[tuple[int, int]], mode: str = PytorchPadMode.CONSTANT, lazy_evaluation: bool, transform_info: dict, **kwargs
+        img: torch.Tensor,
+        to_pad: tuple[tuple[int, int]],
+        transform_info: dict,
+        mode: str = PytorchPadMode.CONSTANT,
+        lazy_evaluation: bool = False,
+        **kwargs
 ) -> torch.Tensor:
     """
     Functional implementation of padding a MetaTensor. This function operates eagerly or lazily according

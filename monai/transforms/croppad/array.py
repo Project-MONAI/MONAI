@@ -154,7 +154,7 @@ class Pad(InvertibleTransform, LazyTransform):
 
         img_t = convert_to_tensor(data=img, track_meta=get_track_meta())
         lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
-        return pad_func(img_t, to_pad_, mode_, lazy_evaluation_, self.get_transform_info(), kwargs_)
+        return pad_func(img_t, to_pad_, self.get_transform_info(), mode_, lazy_evaluation_, **kwargs_)
 
     def inverse(self, data: MetaTensor) -> MetaTensor:
         transform = self.pop_transform(data)
