@@ -508,7 +508,7 @@ class SlidingWindowInfererAdapt(SlidingWindowInferer):
         if self.device is not None:
             return super().__call__(inputs=inputs, network=network, *args, **kwargs)
 
-        skip_buffer = self.buffer_steps <= 0
+        skip_buffer = self.buffer_steps is not None and self.buffer_steps <= 0
         cpu_cond = self.cpu_thresh is not None and inputs.shape[2:].numel() > self.cpu_thresh
         gpu_stitching = inputs.is_cuda and not cpu_cond
         buffered_stitching = inputs.is_cuda and cpu_cond and not skip_buffer
