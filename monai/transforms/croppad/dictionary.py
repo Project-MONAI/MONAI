@@ -184,7 +184,7 @@ class SpatialPadd(Padd):
         method: str = Method.SYMMETRIC,
         mode: SequenceStr = PytorchPadMode.CONSTANT,
         allow_missing_keys: bool = False,
-        lazy_evaluation: bool | None = None,
+        lazy_evaluation: bool = False,
         **kwargs,
     ) -> None:
         """
@@ -210,10 +210,10 @@ class SpatialPadd(Padd):
                 note that `np.pad` treats channel dimension as the first dimension.
 
         """
-        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
-        padder = SpatialPad(spatial_size, method, lazy_evaluation=lazy_evaluation_, **kwargs)
-        super().__init__(
-            keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys, lazy_evaluation=lazy_evaluation_
+        LazyTransform.__init__(self, lazy_evaluation)
+        padder = SpatialPad(spatial_size, method, lazy_evaluation=lazy_evaluation, **kwargs)
+        Padd.__init__(
+            self, keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys
         )
 
 
@@ -261,10 +261,10 @@ class BorderPadd(Padd):
                 note that `np.pad` treats channel dimension as the first dimension.
 
         """
-        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
-        padder = BorderPad(spatial_border=spatial_border, lazy_evaluation=lazy_evaluation_, **kwargs)
-        super().__init__(
-            keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys, lazy_evaluation=lazy_evaluation_
+        LazyTransform.__init__(self, lazy_evaluation)
+        padder = BorderPad(spatial_border=spatial_border, lazy_evaluation=lazy_evaluation, **kwargs)
+        Padd.__init__(
+            self, keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys
         )
 
 
@@ -309,10 +309,9 @@ class DivisiblePadd(Padd):
         See also :py:class:`monai.transforms.SpatialPad`
 
         """
-        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
-        padder = DivisiblePad(k=k, method=method, lazy_evaluation=lazy_evaluation_, **kwargs)
-        super().__init__(keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys,
-                         lazy_evaluation=lazy_evaluation_)
+        LazyTransform.__init__(self, lazy_evaluation)
+        padder = DivisiblePad(k=k, method=method, lazy_evaluation=lazy_evaluation, **kwargs)
+        Padd.__init__(self, keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys)
 
 
 class Cropd(MapTransform, InvertibleTransform, LazyTransform):
