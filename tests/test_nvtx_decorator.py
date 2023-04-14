@@ -66,7 +66,7 @@ TEST_CASE_RECURSIVE_2 = [
         [
             ToNumpy(),
             Flip(),
-            OneOf([RandAdjustContrast(prob=0.0), RandFlip(prob=1.0)], weights=[0, 1], log_stats=True),
+            OneOf([RandAdjustContrast(prob=0.0), RandFlip(prob=1.0)], weights=[0, 1]),
             ToTensor(),
         ]
     ),
