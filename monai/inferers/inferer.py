@@ -448,7 +448,9 @@ class SlidingWindowInferer(Inferer):
 
         """
 
-        device = self.device
+        device = kwargs.pop("device", self.device)
+        buffer_steps = kwargs.pop("buffer_steps", self.buffer_steps)
+
         if device is None and self.cpu_thresh is not None and inputs.shape[2:].numel() > self.cpu_thresh:
             device = "cpu"  # stitch in cpu memory if image is too large
 
@@ -467,11 +469,98 @@ class SlidingWindowInferer(Inferer):
             self.progress,
             self.roi_weight_map,
             None,
-            self.buffer_steps,
+            buffer_steps,
             self.buffer_dim,
             *args,
             **kwargs,
         )
+
+
+class SlidingWindowInfererAdapt(SlidingWindowInferer):
+    """
+    SlidingWindowInfererAdapt extends SlidingWindowInferer to automatically switch to buffered and then to CPU stitching,
+    when OOM on GPU. It also records a size of such large images to automatically
+    try CPU stitching for the next large image of a similar size.  If the stitching 'device' input parameter is provided,
+    automatic adaptation won't be attempted, please keep the default option device = None for adaptive behavior.
+    Note: the output might be on CPU (even if the input was on GPU), if the GPU memory was not sufficient.
+
+    """
+
+    def __call__(
+        self,
+        inputs: torch.Tensor,
+        network: Callable[..., torch.Tensor | Sequence[torch.Tensor] | dict[Any, torch.Tensor]],
+        *args: Any,
+        **kwargs: Any,
+    ) -> torch.Tensor | tuple[torch.Tensor, ...] | dict[Any, torch.Tensor]:
+        """
+
+        Args:
+            inputs: model input data for inference.
+            network: target model to execute inference.
+                supports callables such as ``lambda x: my_torch_model(x, additional_config)``
+            args: optional args to be passed to ``network``.
+            kwargs: optional keyword args to be passed to ``network``.
+
+        """
+
+        # if device is provided, use without any adaptations
+        if self.device is not None:
+            return super().__call__(inputs=inputs, network=network, *args, **kwargs)
+
+        skip_buffer = self.buffer_steps <= 0
+        cpu_cond = self.cpu_thresh is not None and inputs.shape[2:].numel() > self.cpu_thresh
+        gpu_stitching = inputs.is_cuda and not cpu_cond
+        buffered_stitching = inputs.is_cuda and cpu_cond and not skip_buffer
+        buffer_steps = max(1, self.buffer_steps) if self.buffer_steps is not None else 1
+
+        while True:
+            try:
+                out = super().__call__(
+                    inputs=inputs,
+                    network=network,
+                    device=inputs.device if gpu_stitching else torch.device("cpu"),
+                    buffer_steps=buffer_steps if buffered_stitching else None,
+                    *args,
+                    **kwargs,
+                )
+                break
+            except RuntimeError as e:
+                if (gpu_stitching or buffered_stitching) and "OutOfMemoryError" in str(type(e).__name__):
+                    print(e)
+
+                    if gpu_stitching:  # if failed on gpu
+                        gpu_stitching = False
+                        self.cpu_thresh = inputs.shape[2:].numel()  # update thresh
+
+                        if not skip_buffer:
+                            buffered_stitching = True
+                            self.buffer_steps = buffer_steps
+                            warnings.warn(
+                                f"GPU stitching failed, attempting with buffer {buffer_steps}, image dim {inputs.shape}.."
+                            )
+                        else:
+                            buffered_stitching = False
+                            warnings.warn(f"GPU stitching failed, attempting on CPU, image dim {inputs.shape}..")
+
+                    elif buffer_steps > 1:
+                        buffer_steps = max(1, buffer_steps // 2)
+                        self.buffer_steps = buffer_steps
+                        warnings.warn(
+                            f"GPU buffered stitching failed, image dim {inputs.shape} reducing buffer to {buffer_steps}"
+                        )
+                    else:
+                        buffered_stitching = False
+                        self.buffer_steps = 0  # disable future buffer attempts
+                        warnings.warn(f"GPU buffered stitching failed, attempting on CPU, image dim {inputs.shape}")
+
+                else:
+                    raise e
+
+            except Exception as e:
+                raise e
+
+        return out
 
 
 class SaliencyInferer(Inferer):
