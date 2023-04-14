@@ -471,7 +471,7 @@ class AutoRunner:
 
         """
         self.train_params = deepcopy(params) if params is not None else {}
-        if 'CUDA_VISIBLE_DEVICES' is self.train_params.keys():
+        if 'CUDA_VISIBLE_DEVICES' == self.train_params.keys():
             warnings.warn("CUDA_VISIBLE_DEVICES definition is deprecated from 'set_training_params'. Use 'set_device_info' intead.", warnings.DeprecationWarning)
 
     def set_device_info(self, cuda_visible_devices: list[int] | str=os.environ.get('CUDA_VISIBLE_DEVICES', None),

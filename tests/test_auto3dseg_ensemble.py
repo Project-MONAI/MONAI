@@ -159,7 +159,7 @@ class TestEnsembleBuilder(unittest.TestCase):
         ensemble = builder.get_ensemble()
         for algo in ensemble.get_algo_ensemble():
             print(algo[AlgoKeys.ID])
-    
+
     def test_ensemble_runner(self) -> None:
         runner = EnsembleRunner()
         runner.set_num_fold(3)
@@ -173,7 +173,7 @@ class TestEnsembleBuilder(unittest.TestCase):
         self.assertTrue(runner.ensemble_method.n_best == 3)
 
         save_output = os.path.join(self.test_dir.name, "workdir")
-        runner.set_image_save_transform(output_dir=save_output, output_postfix='test_ensemble', 
+        runner.set_image_save_transform(output_dir=save_output, output_postfix='test_ensemble',
                                         output_dtype=float, resample=True)
         self.assertIsInstance(runner.save_image, SaveImage)
 
