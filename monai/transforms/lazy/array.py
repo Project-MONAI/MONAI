@@ -27,7 +27,7 @@ class ApplyPending(InvertibleTransform):
 
         if isinstance(data, MetaTensor):
             return apply_pending(data, *args, **kwargs)
-    
+
         return data
 
     def inverse(self, data):

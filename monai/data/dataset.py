@@ -44,7 +44,6 @@ from monai.transforms import (
     convert_to_contiguous,
     reset_ops_id,
 )
-from monai.transforms.lazy.functional import execute_pending_transforms
 from monai.utils import MAX_SEED, get_seed, look_up_option, min_version, optional_import
 from monai.utils.misc import first
 

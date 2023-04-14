@@ -24,7 +24,6 @@ import numpy as np
 import monai
 import monai.transforms as mt
 from monai.apps.utils import get_logger
-from monai.transforms.traits import LazyTrait
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.traits import ThreadUnsafe
 
