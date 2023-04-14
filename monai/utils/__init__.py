@@ -17,6 +17,7 @@ from .decorators import MethodReplacer, RestartGenerator
 from .deprecate_utils import DeprecatedError, deprecated, deprecated_arg, deprecated_arg_default
 from .dist import RankFilter, evenly_divisible_all_gather, get_dist_device, string_list_all_gather
 from .enums import (
+    AlgoKeys,
     Average,
     BlendMode,
     BoxModeName,
