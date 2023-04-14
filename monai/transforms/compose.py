@@ -466,15 +466,10 @@ class OneOf(Compose):
         weights: Sequence[float] | float | None = None,
         map_items: bool = True,
         unpack_items: bool = False,
-        log_stats: bool = False,
         lazy_evaluation: bool | None = None,
         overrides: dict | None = None,
-        override_keys: Sequence[str] | None = None,
-        verbose: bool = False,
     ) -> None:
-        super().__init__(
-            transforms, map_items, unpack_items, log_stats, lazy_evaluation, overrides, override_keys, verbose
-        )
+        super().__init__(transforms, map_items, unpack_items, lazy_evaluation, overrides)
         if len(self.transforms) == 0:
             weights = []
         elif weights is None or isinstance(weights, float):
@@ -600,15 +595,10 @@ class RandomOrder(Compose):
         transforms: Sequence[Callable] | Callable | None = None,
         map_items: bool = True,
         unpack_items: bool = False,
-        log_stats: bool = False,
         lazy_evaluation: bool | None = None,
         overrides: dict | None = None,
-        override_keys: Sequence[str] | None = None,
-        verbose: bool = False,
     ) -> None:
-        super().__init__(
-            transforms, map_items, unpack_items, log_stats, lazy_evaluation, overrides, override_keys, verbose
-        )
+        super().__init__(transforms, map_items, unpack_items, lazy_evaluation, overrides)
 
     def __call__(self, input_, start=0, end=None, threading=False):
         if len(self.transforms) == 0:
@@ -659,7 +649,7 @@ class RandomOrder(Compose):
         for o in reversed(applied_order):
             if isinstance(self.transforms[o], InvertibleTransform):
                 data = apply_transform(
-                    self.transforms[o].inverse, data, self.map_items, self.unpack_items, self.log_stats
+                    self.transforms[o].inverse, data, self.map_items, self.unpack_items
                 )
         return data
 
@@ -773,8 +763,6 @@ class SomeOf(Compose):
             lazy_evaluation=self.lazy_evaluation,
             overrides=self.overrides,
             threading=threading,
-            log_stats=self.log_stats,
-            verbose=self.verbose
         )
         if isinstance(data, monai.data.MetaTensor):
             self.push_transform(data, extra_info={"applied_order": applied_order})
@@ -809,8 +797,6 @@ class SomeOf(Compose):
         for o in reversed(applied_order):
             transform = self.transforms[o]
             if isinstance(transform, InvertibleTransform):
-                data = apply_transform(
-                    self.transforms[o].inverse, data, self.map_items, self.unpack_items, self.log_stats
-                )
+                data = apply_transform(self.transforms[o].inverse, data, self.map_items, self.unpack_items)
 
         return data
