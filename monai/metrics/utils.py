@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Sequence
 from typing import Any
 
 import numpy as np
@@ -172,7 +173,12 @@ def get_mask_edges(
     return edges_pred, edges_gt
 
 
-def get_surface_distance(seg_pred: np.ndarray, seg_gt: np.ndarray, distance_metric: str = "euclidean") -> np.ndarray:
+def get_surface_distance(
+    seg_pred: np.ndarray,
+    seg_gt: np.ndarray,
+    distance_metric: str = "euclidean",
+    spacing: int | float | np.ndarray | Sequence[int | float] | None = None,
+) -> np.ndarray:
     """
     This function is used to compute the surface distances from `seg_pred` to `seg_gt`.
 
@@ -185,6 +191,13 @@ def get_surface_distance(seg_pred: np.ndarray, seg_gt: np.ndarray, distance_metr
             - ``"euclidean"``, uses Exact Euclidean distance transform.
             - ``"chessboard"``, uses `chessboard` metric in chamfer type of transform.
             - ``"taxicab"``, uses `taxicab` metric in chamfer type of transform.
+        spacing: spacing of pixel (or voxel) along each axis. If a sequence, must be of
+            length equal to the image dimensions; if a single number, this is used for all axes.
+            If ``None``, spacing of unity is used. Defaults to ``None``.
+        spacing: spacing of pixel (or voxel). This parameter is relevant only if ``distance_metric`` is set to ``"euclidean"``.
+            Several input options are allowed: (1) If a single number, isotropic spacing with that value is used.
+            (2) If a sequence of numbers, the length of the sequence must be equal to the image dimensions.
+            (3) If ``None``, spacing of unity is used. Defaults to ``None``.
 
     Note:
         If seg_pred or seg_gt is all 0, may result in nan/inf distance.
@@ -198,7 +211,7 @@ def get_surface_distance(seg_pred: np.ndarray, seg_gt: np.ndarray, distance_metr
             dis = np.inf * np.ones_like(seg_gt)
             return np.asarray(dis[seg_gt])
         if distance_metric == "euclidean":
-            dis = distance_transform_edt(~seg_gt)
+            dis = distance_transform_edt(~seg_gt, sampling=spacing)
         elif distance_metric in {"chessboard", "taxicab"}:
             dis = distance_transform_cdt(~seg_gt, metric=distance_metric)
         else:
@@ -261,3 +274,63 @@ def remap_instance_id(pred: torch.Tensor, by_size: bool = False) -> torch.Tensor
     for idx, instance_id in enumerate(pred_id):
         new_pred[pred == instance_id] = idx + 1
     return new_pred
+
+
+def prepare_spacing(
+    spacing: int | float | np.ndarray | Sequence[int | float | np.ndarray | Sequence[int | float]] | None,
+    batch_size: int,
+    img_dim: int,
+) -> Sequence[None | int | float | np.ndarray | Sequence[int | float]]:
+    """
+    This function is used to prepare the `spacing` parameter to include batch dimension for the computation of
+    surface distance, hausdorff distance or surface dice.
+
+    An example with batch_size = 4 and img_dim = 3:
+    input spacing = None -> output spacing = [None, None, None, None]
+    input spacing = 0.8 -> output spacing = [0.8, 0.8, 0.8, 0.8]
+    input spacing = [0.8, 0.5, 0.9] -> output spacing = [[0.8, 0.5, 0.9], [0.8, 0.5, 0.9], [0.8, 0.5, 0.9], [0.8, 0.5, 0.9]]
+    input spacing = [0.8, 0.7, 1.2, 0.8] -> output spacing = [0.8, 0.7, 1.2, 0.8] (same as input)
+
+    An example with batch_size = 3 and img_dim = 3:
+    input spacing = [0.8, 0.5, 0.9] -> output spacing = [[0.8, 0.5, 0.9], [0.8, 0.5, 0.9], [0.8, 0.5, 0.9], [0.8, 0.5, 0.9]]
+
+    Args:
+        spacing: can be a float, a sequence of length `img_dim`, or a sequence with length `batch_size`
+        that includes floats or sequences of length `img_dim`.
+
+    Raises:
+        AssertionError: when `spacing` is a sequence of sequence, where the outer sequence length does not
+        equal `batch_size` or inner sequence length does not equal `img_dim`.
+
+    Returns:
+        spacing: a sequence with length `batch_size` that includes integers, floats or sequences of length `img_dim`.
+    """
+    if spacing is None or isinstance(spacing, (int, float)):
+        return list([spacing] * batch_size)
+    elif isinstance(spacing, (Sequence, np.ndarray)):
+        assert all(
+            isinstance(s, type(spacing[0])) for s in list(spacing)
+        ), "if `spacing` is a sequence, its elements should be of same type."
+
+        if isinstance(spacing[0], (Sequence, np.ndarray)):
+            assert (
+                len(spacing) == batch_size
+            ), "if `spacing` is a sequence of sequences, the outer sequence should have same length as batch size."
+            assert all(
+                len(s) == img_dim for s in list(spacing)
+            ), "each element of `spacing` list should either have same length as image dim."
+            assert all(
+                isinstance(i, (int, float)) for s in list(spacing) for i in list(s)
+            ), "if `spacing` is a sequence of sequences or 2D np.ndarray, the elements should be integers or floats."
+            return list(spacing)
+        elif isinstance(spacing[0], (int, float)):
+            assert (
+                len(spacing) == img_dim
+            ), "if `spacing` is a sequence of numbers, it should have same length as image dim."
+            return [spacing for _ in range(batch_size)]  # type: ignore
+        else:
+            raise AssertionError(f"`spacing` is a sequence of elements with unsupported type: {type(spacing[0])}")
+    else:
+        raise AssertionError(
+            "`spacing` should either be an integer, float, a sequence of numbers or a sequence of sequences."
+        )

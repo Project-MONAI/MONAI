@@ -706,11 +706,6 @@ class RandSpatialCropSamples(Randomizable, TraceableTransform, LazyTransform, Mu
         self.cropper.set_random_state(seed, state)
         return self
 
-    # @LazyTransform.lazy_evaluation.setter  # type: ignore
-    # def lazy_evaluation(self, value: bool) -> None:
-    #     self._lazy_evaluation = value
-    #     self.cropper.lazy_evaluation = value
-
     def randomize(self, data: Any | None = None) -> None:
         pass
 
@@ -805,19 +800,12 @@ class CropForeground(Crop):
         self.k_divisible = k_divisible
         self.padder = Pad(mode=mode, lazy_evaluation=lazy_evaluation, **pad_kwargs)
 
-    # @Crop.lazy_evaluation.setter  # type: ignore
-    # def lazy_evaluation(self, _val: bool):
-    #     self._lazy_evaluation = _val
-    #     self.padder.lazy_evaluation = _val
-
     def compute_bounding_box(self, img: torch.Tensor) -> tuple[np.ndarray, np.ndarray]:
         """
         Compute the start points and end points of bounding box to crop.
         And adjust bounding box coords to be divisible by `k`.
 
         """
-        if isinstance(img, MetaTensor) and img.pending_operations:
-            warnings.warn("foreground computation may not be accurate if the image has pending operations.")
         box_start, box_end = generate_spatial_bounding_box(
             img, self.select_fn, self.channel_indices, self.margin, self.allow_smaller
         )
@@ -911,15 +899,9 @@ class RandWeightedCrop(Randomizable, TraceableTransform, LazyTransform, MultiSam
         self.centers: list[np.ndarray] = []
 
     def randomize(self, weight_map: NdarrayOrTensor) -> None:
-        if isinstance(weight_map, MetaTensor) and weight_map.pending_operations:
-            warnings.warn("weight map has pending operations, the sampling may not be correct.")
         self.centers = weighted_patch_samples(
             spatial_size=self.spatial_size, w=weight_map[0], n_samples=self.num_samples, r_state=self.R
         )  # using only the first channel as weight map
-
-    # @LazyTransform.lazy_evaluation.setter  # type: ignore
-    # def lazy_evaluation(self, _val: bool):
-    #     self._lazy_evaluation = _val
 
     def __call__(
         self, img: torch.Tensor, weight_map: NdarrayOrTensor | None = None, randomize: bool = True,
@@ -1060,10 +1042,6 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
         fg_indices_ = self.fg_indices if fg_indices is None else fg_indices
         bg_indices_ = self.bg_indices if bg_indices is None else bg_indices
         if fg_indices_ is None or bg_indices_ is None:
-            if isinstance(label, MetaTensor) and label.pending_operations:
-                warnings.warn("label has pending operations, the fg/bg indices may be incorrect.")
-            if isinstance(image, MetaTensor) and image.pending_operations:
-                warnings.warn("image has pending operations, the fg/bg indices may be incorrect.")
             if label is None:
                 raise ValueError("label must be provided.")
             fg_indices_, bg_indices_ = map_binary_to_indices(label, image, self.image_threshold)
@@ -1084,10 +1062,6 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
             self.R,
             self.allow_smaller,
         )
-
-    # @LazyTransform.lazy_evaluation.setter  # type: ignore
-    # def lazy_evaluation(self, _val: bool):
-    #     self._lazy_evaluation = _val
 
     def __call__(
         self,
@@ -1199,6 +1173,8 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
             the requested ROI in any dimension. If `True`, any smaller dimensions will remain
             unchanged.
         warn: if `True` prints a warning if a class is not present in the label.
+        max_samples_per_class: maximum length of indices to sample in each class to reduce memory consumption.
+            Default is None, no subsampling.
 
     """
 
@@ -1216,6 +1192,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
         indices: list[NdarrayOrTensor] | None = None,
         allow_smaller: bool = False,
         warn: bool = True,
+        max_samples_per_class: int | None = None,
         lazy_evaluation: bool = False,
     ) -> None:
         LazyTransform.__init__(self, lazy_evaluation)
@@ -1230,6 +1207,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
         self.indices = indices
         self.allow_smaller = allow_smaller
         self.warn = warn
+        self.max_samples_per_class = max_samples_per_class
 
     def randomize(
         self,
@@ -1239,13 +1217,11 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
     ) -> None:
         indices_ = self.indices if indices is None else indices
         if indices_ is None:
-            if isinstance(label, MetaTensor) and label.pending_operations:
-                warnings.warn("label has pending operations, the fg/bg indices may be incorrect.")
-            if isinstance(image, MetaTensor) and image.pending_operations:
-                warnings.warn("image has pending operations, the fg/bg indices may be incorrect.")
             if label is None:
                 raise ValueError("label must not be None.")
-            indices_ = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
+            indices_ = map_classes_to_indices(
+                label, self.num_classes, image, self.image_threshold, self.max_samples_per_class
+            )
         _shape = None
         if label is not None:
             _shape = label.peek_pending_shape() if isinstance(label, MetaTensor) else label.shape[1:]
@@ -1256,10 +1232,6 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
         self.centers = generate_label_classes_crop_centers(
             self.spatial_size, self.num_samples, _shape, indices_, self.ratios, self.R, self.allow_smaller, self.warn
         )
-
-    # @LazyTransform.lazy_evaluation.setter  # type: ignore
-    # def lazy_evaluation(self, _val: bool):
-    #     self._lazy_evaluation = _val
 
     def __call__(
         self,
@@ -1343,12 +1315,6 @@ class ResizeWithPadOrCrop(InvertibleTransform, LazyTransform):
             spatial_size=spatial_size, method=method, mode=mode, lazy_evaluation=lazy_evaluation, **pad_kwargs
         )
         self.cropper = CenterSpatialCrop(roi_size=spatial_size, lazy_evaluation=lazy_evaluation)
-
-    # @LazyTransform.lazy_evaluation.setter  # type: ignore
-    # def lazy_evaluation(self, val: bool):
-    #     self.padder.lazy_evaluation = val
-    #     self.cropper.lazy_evaluation = val
-    #     self._lazy_evaluation = val
 
     def __call__(self, img: torch.Tensor, mode: str | None = None, lazy_evaluation: bool | None = None, **pad_kwargs) -> torch.Tensor:  # type: ignore
         """

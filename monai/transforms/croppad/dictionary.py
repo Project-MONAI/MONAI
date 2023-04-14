@@ -149,12 +149,6 @@ class Padd(MapTransform, InvertibleTransform, LazyTransform):
         self.padder = padder
         self.mode = ensure_tuple_rep(mode, len(self.keys))
 
-    # @LazyTransform.lazy_evaluation.setter  # type: ignore
-    # def lazy_evaluation(self, value: bool) -> None:
-    #     self._lazy_evaluation = value
-    #     if isinstance(self.padder, LazyTransform):
-    #         self.padder.lazy_evaluation = value
-
     def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy_evaluation: bool | None = None) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
@@ -340,12 +334,6 @@ class Cropd(MapTransform, InvertibleTransform, LazyTransform):
     ):
         super().__init__(keys, allow_missing_keys, lazy_evaluation=lazy_evaluation)
         self.cropper = cropper
-
-    # @LazyTransform.lazy_evaluation.setter  # type: ignore
-    # def lazy_evaluation(self, value: bool) -> None:
-    #     self._lazy_evaluation = value
-    #     if isinstance(self.cropper, LazyTransform):
-    #         self.cropper.lazy_evaluation = value
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy_evaluation: bool | None = None) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
@@ -637,11 +625,6 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, LazyTransform, MultiSa
         self.cropper = RandSpatialCropSamples(roi_size, num_samples, max_roi_size, random_center, random_size,
                                               lazy_evaluation=lazy_evaluation)
 
-    # @LazyTransform.lazy_evaluation.setter  # type: ignore
-    # def lazy_evaluation(self, value: bool) -> None:
-    #     self._lazy_evaluation = value
-    #     self.cropper.lazy_evaluation = value
-
     def randomize(self, data: Any | None = None) -> None:
         self.sub_seed = self.R.randint(MAX_SEED, dtype="uint32")
 
@@ -735,11 +718,6 @@ class CropForegroundd(Cropd):
         super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys, lazy_evaluation=lazy_evaluation)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
 
-    # @LazyTransform.lazy_evaluation.setter  # type: ignore
-    # def lazy_evaluation(self, value: bool) -> None:
-    #     self._lazy_evaluation = value
-    #     self.cropper.lazy_evaluation = value
-
     def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy_evaluation: bool | None = None) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         self.cropper: CropForeground
@@ -799,11 +777,6 @@ class RandWeightedCropd(Randomizable, MapTransform, LazyTransform, MultiSampleTr
 
     def randomize(self, weight_map: NdarrayOrTensor) -> None:
         self.cropper.randomize(weight_map)
-
-    # @LazyTransform.lazy_evaluation.setter  # type: ignore
-    # def lazy_evaluation(self, value: bool) -> None:
-    #     self._lazy_evaluation = value
-    #     self.cropper.lazy_evaluation = value
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy_evaluation: bool | None = None) -> list[dict[Hashable, torch.Tensor]]:
         # output starts as empty list of dictionaries
@@ -923,11 +896,6 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, LazyTransform, MultiSam
     ) -> None:
         self.cropper.randomize(label=label, fg_indices=fg_indices, bg_indices=bg_indices, image=image)
 
-    # @LazyTransform.lazy_evaluation.setter  # type: ignore
-    # def lazy_evaluation(self, value: bool) -> None:
-    #     self._lazy_evaluation = value
-    #     self.cropper.lazy_evaluation = value
-
     def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy_evaluation: bool | None = None) -> list[dict[Hashable, torch.Tensor]]:
         d = dict(data)
         fg_indices = d.pop(self.fg_indices_key, None)
@@ -1019,7 +987,8 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSa
             unchanged.
         allow_missing_keys: don't raise exception if key is missing.
         warn: if `True` prints a warning if a class is not present in the label.
-
+        max_samples_per_class: maximum length of indices in each class to reduce memory consumption.
+            Default is None, no subsampling.
 
     """
 
@@ -1039,6 +1008,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSa
         allow_smaller: bool = False,
         allow_missing_keys: bool = False,
         warn: bool = True,
+        max_samples_per_class: int | None = None,
         lazy_evaluation: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -1054,6 +1024,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSa
             image_threshold=image_threshold,
             allow_smaller=allow_smaller,
             warn=warn,
+            max_samples_per_class=max_samples_per_class,
             lazy_evaluation=lazy_evaluation
         )
 
@@ -1068,11 +1039,6 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSa
         self, label: torch.Tensor, indices: list[NdarrayOrTensor] | None = None, image: torch.Tensor | None = None
     ) -> None:
         self.cropper.randomize(label=label, indices=indices, image=image)
-
-    # @LazyTransform.lazy_evaluation.setter  # type: ignore
-    # def lazy_evaluation(self, value: bool) -> None:
-    #     self._lazy_evaluation = value
-    #     self.cropper.lazy_evaluation = value
 
     def __call__(self, data: Mapping[Hashable, Any], lazy_evaluation: bool | None = None) -> list[dict[Hashable, torch.Tensor]]:
         d = dict(data)
