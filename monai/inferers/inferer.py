@@ -531,7 +531,7 @@ class SlidingWindowInfererAdapt(SlidingWindowInferer):
 
                     if gpu_stitching:  # if failed on gpu
                         gpu_stitching = False
-                        self.cpu_thresh = inputs.shape[2:].numel()  # update thresh
+                        self.cpu_thresh = inputs.shape[2:].numel() - 1  # update thresh
 
                         if not skip_buffer:
                             buffered_stitching = True
