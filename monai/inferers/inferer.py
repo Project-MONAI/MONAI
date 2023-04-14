@@ -506,7 +506,7 @@ class SlidingWindowInfererAdapt(SlidingWindowInferer):
 
         # if device is provided, use without any adaptations
         if self.device is not None:
-            return super().__call__(inputs=inputs, network=network, *args, **kwargs)
+            return super().__call__(inputs=inputs, network=network, *args, **kwargs)  # type:ignore
 
         skip_buffer = self.buffer_steps is not None and self.buffer_steps <= 0
         cpu_cond = self.cpu_thresh is not None and inputs.shape[2:].numel() > self.cpu_thresh
@@ -523,7 +523,7 @@ class SlidingWindowInfererAdapt(SlidingWindowInferer):
                     buffer_steps=buffer_steps if buffered_stitching else None,
                     *args,
                     **kwargs,
-                )
+                )  # type:ignore
                 break
             except RuntimeError as e:
                 if (gpu_stitching or buffered_stitching) and "OutOfMemoryError" in str(type(e).__name__):
