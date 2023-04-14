@@ -1142,9 +1142,9 @@ def ckpt_export(
             it can be a single file or a list of files. if `None`, must be provided in `args_file`.
         key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
             weights. if not nested checkpoint, no need to set.
-        use_trace: whether using `torch.jit.trace` to convert the pytorch model to torchscript model.
+        use_trace: whether using `torch.jit.trace` to convert the PyTorch model to TorchScript model.
         input_shape: a shape used to generate the random input of the network, when converting the model to a
-            torchscript model. Should be a list like [N, C, H, W] or [N, C, H, W, D]. If not given, will try to
+            TorchScript model. Should be a list like [N, C, H, W] or [N, C, H, W, D]. If not given, will try to
             parse from the `metadata` config.
         args_file: a JSON or YAML file to provide default values for all the parameters of this function, so that
             the command line inputs can be simplified.
@@ -1233,13 +1233,26 @@ def trt_export(
     use_trace: bool | None = None,
     dynamic_batchsize: Sequence[int] | None = None,
     device: int | None = None,
+    use_onnx: bool | None = None,
+    onnx_input_names: Sequence[str] | None = None,
+    onnx_output_names: Sequence[str] | None = None,
     args_file: str | None = None,
     converter_kwargs: Mapping | None = None,
     **override: Any,
 ) -> None:
     """
-    Export the model checkpoint to the given filepath as a TensorRT engine-based torchscript.
+    Export the model checkpoint to the given filepath as a TensorRT engine-based TorchScript.
     Currently, this API only supports converting models whose inputs are all tensors.
+
+    There are two ways to export a model:
+    1, Torch-TensorRT way: PyTorch module ---> TorchScript module ---> TensorRT engine-based TorchScript.
+    2, ONNX-TensorRT way: PyTorch module ---> TorchScript module ---> ONNX model ---> TensorRT engine --->
+    TensorRT engine-based TorchScript.
+
+    When exporting through the first way, some models suffer from the slowdown problem, since Torch-TensorRT
+    may only convert a little part of the PyTorch model to the TensorRT engine. However when exporting through
+    the second way, some Python data structures like `dict` are not supported. And some TorchScript models are
+    not supported by the ONNX if exported through `torch.jit.script`.
 
     Typical usage examples:
 
@@ -1253,23 +1266,30 @@ def trt_export(
         filepath: filepath to export, if filename has no extension, it becomes `.ts`.
         ckpt_file: filepath of the model checkpoint to load.
         meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
-        config_file: filepath of the config file to save in the TensorRT based torchscript model and extract network
+        config_file: filepath of the config file to save in the TensorRT based TorchScript model and extract network
             information, the saved key in the model is the config filename without extension, and the saved config
             value is always serialized in JSON format no matter the original file format is JSON or YAML.
             it can be a single file or a list of files. if `None`, must be provided in `args_file`.
         key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
             weights. if not nested checkpoint, no need to set.
-        precision: the weight precision of the converted TensorRT engine based torchscript models. Should be 'fp32' or 'fp16'.
+        precision: the weight precision of the converted TensorRT engine based TorchScript models. Should be 'fp32' or 'fp16'.
         input_shape: the input shape that is used to convert the model. Should be a list like [N, C, H, W] or
             [N, C, H, W, D]. If not given, will try to parse from the `metadata` config.
-        use_trace: whether using `torch.jit.trace` to convert the pytorch model to torchscript model and then convert to
-            a TensorRT engine based torchscript model.
+        use_trace: whether using `torch.jit.trace` to convert the PyTorch model to a TorchScript model and then convert to
+            a TensorRT engine based TorchScript model or an ONNX model (if `use_onnx` is True).
         dynamic_batchsize: a sequence with three elements to define the batch size range of the input for the model to be
             converted. Should be a sequence like [MIN_BATCH, OPT_BATCH, MAX_BATCH]. After converted, the batchsize of
             model input should between `MIN_BATCH` and `MAX_BATCH` and the `OPT_BATCH` is the best performance batchsize
             that the TensorRT tries to fit. The `OPT_BATCH` should be the most frequently used input batchsize in
             the application.
         device: the target GPU index to convert and verify the model.
+        use_onnx: whether using the ONNX-TensorRT way to export the TensorRT engine-based TorchScript model.
+        onnx_input_names: optional input names of the ONNX model. This arg is only useful when `use_onnx` is True. Should be
+            a sequence like `['input_0', 'input_1', ..., 'input_N']` where N equals to the number of the model inputs. If not
+            given, will use `['input_0']`, which supposes the model only has one input.
+        onnx_output_names: optional output names of the ONNX model. This arg is only useful when `use_onnx` is True. Should be
+            a sequence like `['output_0', 'output_1', ..., 'output_N']` where N equals to the number of the model outputs. If
+            not given, will use `['output_0']`, which supposes the model only has one output.
         args_file: a JSON or YAML file to provide default values for all the parameters of this function, so that
             the command line inputs can be simplified.
         converter_kwargs: extra arguments that are needed by `convert_to_trt`, except ones that already exist in the
@@ -1291,6 +1311,9 @@ def trt_export(
         use_trace=use_trace,
         dynamic_batchsize=dynamic_batchsize,
         device=device,
+        use_onnx=use_onnx,
+        onnx_input_names=onnx_input_names,
+        onnx_output_names=onnx_output_names,
         converter_kwargs=converter_kwargs,
         **override,
     )
@@ -1307,6 +1330,9 @@ def trt_export(
         use_trace_,
         dynamic_batchsize_,
         device_,
+        use_onnx_,
+        onnx_input_names_,
+        onnx_output_names_,
         converter_kwargs_,
     ) = _pop_args(
         _args,
@@ -1321,6 +1347,9 @@ def trt_export(
         use_trace=False,
         dynamic_batchsize=None,
         device=None,
+        use_onnx=False,
+        onnx_input_names=["input_0"],
+        onnx_output_names=["output_0"],
         converter_kwargs={},
     )
 
@@ -1345,6 +1374,9 @@ def trt_export(
         "dynamic_batchsize": dynamic_batchsize_,
         "use_trace": use_trace_,
         "device": device_,
+        "use_onnx": use_onnx_,
+        "onnx_input_names": onnx_input_names_,
+        "onnx_output_names": onnx_output_names_,
     }
     converter_kwargs_.update(trt_api_parameters)
 
