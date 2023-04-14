@@ -19,7 +19,14 @@ import nibabel as nib
 import numpy as np
 import torch
 
-from monai.apps.auto3dseg import AlgoEnsembleBestByFold, AlgoEnsembleBestN, AlgoEnsembleBuilder, BundleGen, DataAnalyzer, EnsembleRunner
+from monai.apps.auto3dseg import (
+    AlgoEnsembleBestByFold,
+    AlgoEnsembleBestN,
+    AlgoEnsembleBuilder,
+    BundleGen,
+    DataAnalyzer,
+    EnsembleRunner,
+)
 from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
 from monai.transforms import SaveImage
@@ -164,19 +171,19 @@ class TestEnsembleBuilder(unittest.TestCase):
         runner = EnsembleRunner()
         runner.set_num_fold(3)
         self.assertTrue(runner.num_fold == 3)
-        runner.set_ensemble_method(ensemble_method_name='AlgoEnsembleBestByFold')
+        runner.set_ensemble_method(ensemble_method_name="AlgoEnsembleBestByFold")
         self.assertIsInstance(runner.ensemble_method, AlgoEnsembleBestByFold)
-        self.assertTrue(runner.ensemble_method.n_fold == 3)
+        self.assertTrue(runner.ensemble_method.n_fold == 3)  # type: ignore
 
-        runner.set_ensemble_method(ensemble_method_name='AlgoEnsembleBestN', n_best=3)
+        runner.set_ensemble_method(ensemble_method_name="AlgoEnsembleBestN", n_best=3)
         self.assertIsInstance(runner.ensemble_method, AlgoEnsembleBestN)
         self.assertTrue(runner.ensemble_method.n_best == 3)
 
         save_output = os.path.join(self.test_dir.name, "workdir")
-        runner.set_image_save_transform(output_dir=save_output, output_postfix='test_ensemble',
-                                        output_dtype=float, resample=True)
+        runner.set_image_save_transform(
+            output_dir=save_output, output_postfix="test_ensemble", output_dtype=float, resample=True
+        )
         self.assertIsInstance(runner.save_image, SaveImage)
-
 
     def tearDown(self) -> None:
         set_determinism(None)
