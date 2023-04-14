@@ -285,7 +285,7 @@ class AutoRunner:
         self.set_analyze_params()
         self.set_ensemble_method()
         self.set_num_fold(num_fold=num_fold)
-        
+
         self.gpu_customization = False
         self.gpu_customization_specs: dict[str, Any] = {}
 
@@ -525,7 +525,7 @@ class AutoRunner:
                 and "AlgoEnsembleBestByFold".
             kwargs: the keyword arguments used to define the ensemble method. Currently only ``n_best`` for
                 ``AlgoEnsembleBestN`` is supported.
-        """        
+        """
         self.ensemble_method_name = look_up_option(
             ensemble_method_name, supported=["AlgoEnsembleBestN", "AlgoEnsembleBestByFold"]
         )
