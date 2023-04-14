@@ -226,7 +226,7 @@ class AutoRunner:
         self.data_src_cfg_name = os.path.join(self.work_dir, "input.yaml")
         self.algos = algos
         self.templates_path_or_url = templates_path_or_url
-        self.kwargs = kwargs
+        self.kwargs = deepcopy(kwargs)
 
         if input is None and os.path.isfile(self.data_src_cfg_name):
             input = self.data_src_cfg_name
@@ -471,6 +471,8 @@ class AutoRunner:
 
         """
         self.train_params = deepcopy(params) if params is not None else {}
+        if 'CUDA_VISIBLE_DEVICES' is self.train_params.keys():
+            warnings.warn("CUDA_VISIBLE_DEVICES definition is deprecated from 'set_training_params'. Use 'set_device_info' intead.", warnings.DeprecationWarning)
 
     def set_device_info(self, cuda_visible_devices: list[int] | str=os.environ.get('CUDA_VISIBLE_DEVICES', None),
                         num_nodes: int=int(os.environ.get('NUM_NODES', 1)),
@@ -529,6 +531,17 @@ class AutoRunner:
         )
         self.kwargs.update(kwargs)
 
+    def set_image_save_transform(self, **kwargs: Any):
+        """
+        Set the ensemble output transform.
+
+        Args:
+            kwargs: image writing parameters for the ensemble inference. The kwargs format follows SaveImage
+                transform. For more information, check https://docs.monai.io/en/stable/transforms.html#saveimage.
+
+        """
+
+        self.kwargs.update(kwargs)
 
     def set_prediction_params(self, params: dict[str, Any] | None = None) -> None:
         """

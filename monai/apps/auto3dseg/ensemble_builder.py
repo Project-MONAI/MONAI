@@ -373,7 +373,12 @@ class EnsembleRunner:
         self.kwargs = kwargs
         self.rank = 0
         self.world_size = 1
-
+        self.device_setting = {'CUDA_VISIBLE_DEVICES': ','.join([str(x) for x in range(torch.cuda.device_count())]),
+                               'n_devices': torch.cuda.device_count(), 'NUM_NODES': int(os.environ.get('NUM_NODES', 1)),
+                               'MN_START_METHOD': os.environ.get('MN_START_METHOD', 'bcprun'),
+                               'CMD_PREFIX':os.environ.get('CMD_PREFIX', None),
+                               }
+                               
     def set_ensemble_method(self, ensemble_method_name: str = "AlgoEnsembleBestByFold", **kwargs: Any) -> None:
         """
         Set the bundle ensemble method
@@ -397,7 +402,7 @@ class EnsembleRunner:
         else:
             raise NotImplementedError(f"Ensemble method {self.ensemble_method_name} is not implemented.")
 
-    def set_image_save_transform(self, kwargs):
+    def set_image_save_transform(self, **kwargs):
         """
         Set the ensemble output transform.
 
@@ -424,7 +429,7 @@ class EnsembleRunner:
         output_dtype = kwargs.pop("output_dtype", np.uint8)
         resample = kwargs.pop("resample", False)
 
-        return SaveImage(
+        self.save_image = SaveImage(
             output_dir=output_dir, output_postfix=output_postfix, output_dtype=output_dtype, resample=resample,
             print_log=False, **kwargs)
 
@@ -448,8 +453,8 @@ class EnsembleRunner:
             self.rank = dist.get_rank()
         # set params after init_process_group to know the rank
         self.set_num_fold(num_fold=self.num_fold)
-        self.save_image = self.set_image_save_transform(self.kwargs)
-        self.set_ensemble_method(self.ensemble_method_name)
+        self.set_image_save_transform(self.kwargs)
+        self.set_ensemble_method(self.ensemble_method_name, self.kwargs)
 
         history = import_bundle_algo_history(self.work_dir, only_trained=False)
         history_untrained = [h for h in history if not h[AlgoKeys.IS_TRAINED]]
@@ -502,11 +507,6 @@ class EnsembleRunner:
             'CUDA_VISIBLE_DEVICES' should be a string e.g. '0,1,2,3'
         """
         # device_setting set default value and sanity check, in case device_setting not from autorunner
-        self.device_setting = {'CUDA_VISIBLE_DEVICES': ','.join([str(x) for x in range(torch.cuda.device_count())]),
-                               'n_devices': torch.cuda.device_count(), 'NUM_NODES': int(os.environ.get('NUM_NODES', 1)),
-                               'MN_START_METHOD': os.environ.get('MN_START_METHOD', 'bcprun'),
-                               'CMD_PREFIX':os.environ.get('CMD_PREFIX', None),
-                               }
         if device_setting is not None:
             self.device_setting.update(device_setting)
             self.device_setting['n_devices'] = len(self.device_setting['CUDA_VISIBLE_DEVICES'].split(','))
