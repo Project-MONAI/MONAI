@@ -54,12 +54,21 @@ class TestFLMonaiAlgo(DistTestCase):
         network = parser.get_parsed_content("network")
         data = ExchangeObject(weights=get_state_dict(network))
         # test train
-        algo.train(data=data, extra={})
-        weights_eo = algo.get_weights()
-        self.assertIsInstance(weights_eo, ExchangeObject)
-        self.assertTrue(weights_eo.is_valid_weights())
-        self.assertIsInstance(weights_eo.weights, dict)
-        self.assertTrue(len(weights_eo.weights) > 0)
+        for i in range(2):
+            print(f"Testing round {i+1} of {2}...")
+            # test evaluate
+            metric_eo = algo.evaluate(data=data, extra={})
+            self.assertIsInstance(metric_eo, ExchangeObject)
+            metric = metric_eo.metrics
+            self.assertIsInstance(metric["accuracy"], float)
+
+            # test train
+            algo.train(data=data, extra={})
+            weights_eo = algo.get_weights()
+            self.assertIsInstance(weights_eo, ExchangeObject)
+            self.assertTrue(weights_eo.is_valid_weights())
+            self.assertIsInstance(weights_eo.weights, dict)
+            self.assertTrue(len(weights_eo.weights) > 0)
 
     @DistCall(nnodes=1, nproc_per_node=2, init_method="no_init")
     @skip_if_no_cuda

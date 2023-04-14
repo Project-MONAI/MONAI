@@ -15,7 +15,6 @@
     },
     "train#dataloader#sampler": "@train#sampler",
     "train#dataloader#shuffle": false,
-    "train#trainer#train_handlers": "$@train#handlers[: -2 if dist.get_rank() > 0 else None]",
     "initialize": [
         "$import torch.distributed as dist",
         "$dist.is_initialized() or dist.init_process_group(backend='nccl')",
