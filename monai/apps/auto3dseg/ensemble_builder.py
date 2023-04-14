@@ -157,7 +157,6 @@ class AlgoEnsemble(ABC):
 
         sigmoid = param.pop("sigmoid", False)
 
-
         outputs = []
         for _, file in (
             enumerate(tqdm(files, desc="Ensembling (rank 0)..."))

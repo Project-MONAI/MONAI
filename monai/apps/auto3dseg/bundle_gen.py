@@ -160,7 +160,7 @@ class BundleAlgo(Algo):
             self.fill_records = self.fill_template_config(self.data_stats_files, self.output_path, **kwargs)
         logger.info(f"Generated:{self.output_path}")
 
-    def _create_cmd(self, train_params: None | dict = None) -> str:
+    def _create_cmd(self, train_params: None | dict = None) -> tuple[str, str]:
         """
         Create the command to execute training.
 
@@ -186,10 +186,8 @@ class BundleAlgo(Algo):
         if cmd is not None and not cmd.endswith(" "):
             cmd += " "
         if (
-            int(self.device_setting["NUM_NODES"]) > 1
-            and self.device_setting["MN_START_METHOD"] == "bcprun"
-            or int(self.device_setting["NUM_NODES"]) <= 1
-            and int(self.device_setting["n_devices"]) <= 1
+            (int(self.device_setting["NUM_NODES"]) > 1 and self.device_setting["MN_START_METHOD"] == "bcprun")
+            or (int(self.device_setting["NUM_NODES"]) <= 1 and int(self.device_setting["n_devices"]) <= 1)
         ):
             cmd = "python " if cmd is None else cmd
         elif int(self.device_setting["NUM_NODES"]) > 1:
@@ -257,7 +255,7 @@ class BundleAlgo(Algo):
             self.device_setting.update(device_setting)
             self.device_setting["n_devices"] = len(str(self.device_setting["CUDA_VISIBLE_DEVICES"]).split(","))
 
-        cmd, *_ = self._create_cmd(train_params)
+        cmd, _unused_return = self._create_cmd(train_params)
         return self._run_cmd(cmd)
 
     def get_score(self, *args, **kwargs):
