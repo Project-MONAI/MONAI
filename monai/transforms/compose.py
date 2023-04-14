@@ -24,6 +24,7 @@ import numpy as np
 import monai
 import monai.transforms as mt
 from monai.apps.utils import get_logger
+from monai.config import NdarrayOrTensor
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.traits import ThreadUnsafe
 
@@ -413,8 +414,6 @@ class Compose(Randomizable, InvertibleTransform):
             lazy_evaluation=self.lazy_evaluation,  # type: ignore
             overrides=self.overrides,
             threading=threading,
-            log_stats=self.log_stats,
-            verbose=self.verbose
         )
 
     def inverse(self, data):
@@ -530,9 +529,7 @@ class OneOf(Compose):
             unpack_items=self.unpack_items,
             lazy_evaluation=self.lazy_evaluation,  # type: ignore
             overrides=self.overrides,
-            threading=threading,
-            log_stats=self.log_stats,
-            verbose=self.verbose
+            threading=threading
         )
 
         # if the data is a mapping (dictionary), append the OneOf transform to the end
@@ -627,9 +624,7 @@ class RandomOrder(Compose):
             map_items=self.map_items,
             unpack_items=self.unpack_items,
             lazy_evaluation=self.lazy_evaluation,
-            threading=threading,
-            log_stats=self.log_stats,
-            verbose=self.verbose
+            threading=threading
         )
 
         # if the data is a mapping (dictionary), append the RandomOrder transform to the end

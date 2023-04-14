@@ -694,6 +694,7 @@ class RandSpatialCropSamples(Randomizable, TraceableTransform, LazyTransform, Mu
         random_size: bool = True,
         lazy_evaluation: bool = False,
     ) -> None:
+        LazyTransform.__init__(self, lazy_evaluation)
         if num_samples < 1:
             raise ValueError(f"num_samples must be positive, got {num_samples}.")
         self.num_samples = num_samples

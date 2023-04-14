@@ -332,7 +332,8 @@ class Cropd(MapTransform, InvertibleTransform, LazyTransform):
     def __init__(
         self, keys: KeysCollection, cropper: Crop, allow_missing_keys: bool = False, lazy_evaluation: bool = False
     ):
-        super().__init__(keys, allow_missing_keys, lazy_evaluation=lazy_evaluation)
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        LazyTransform.__init__(self, lazy_evaluation)
         self.cropper = cropper
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy_evaluation: bool | None = None) -> dict[Hashable, torch.Tensor]:
