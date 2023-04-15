@@ -254,10 +254,10 @@ class BundleAlgo(Algo):
             self.device_setting.update(device_setting)
             self.device_setting["n_devices"] = len(str(self.device_setting["CUDA_VISIBLE_DEVICES"]).split(","))
 
-        if train_params is not None and 'CUDA_VISIBLE_DEVICES' in train_params:
+        if train_params is not None and "CUDA_VISIBLE_DEVICES" in train_params:
             warnings.warn(f"CUDA_VISIBLE_DEVICES is deprecated from train_params!")
-            train_params.pop('CUDA_VISIBLE_DEVICES')
-            
+            train_params.pop("CUDA_VISIBLE_DEVICES")
+
         cmd, _unused_return = self._create_cmd(train_params)
         return self._run_cmd(cmd)
 
