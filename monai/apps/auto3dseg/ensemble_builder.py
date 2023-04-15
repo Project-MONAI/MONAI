@@ -113,6 +113,9 @@ class AlgoEnsemble(ABC):
             a tensor which is the ensembled prediction.
         """
 
+        if any(not p.is_cuda for p in preds):
+            preds = [p.cpu() for p in preds]  # ensure CPU if at least one is on CPU
+
         if self.mode == "mean":
             prob = MeanEnsemble()(preds)
             return prob2class(cast(torch.Tensor, prob), dim=0, keepdim=True, sigmoid=sigmoid)
