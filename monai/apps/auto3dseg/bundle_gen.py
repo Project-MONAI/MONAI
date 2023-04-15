@@ -216,27 +216,18 @@ class BundleAlgo(Algo):
         ps_environ["CUDA_VISIBLE_DEVICES"] = str(self.device_setting["CUDA_VISIBLE_DEVICES"])
         if int(self.device_setting["NUM_NODES"]) > 1:
             if self.device_setting["MN_START_METHOD"] == "bcprun":
-                normal_out = subprocess.run(
-                    [
-                        "bcprun",
-                        "-n",
-                        str(self.device_setting["NUM_NODES"]),
-                        "-p",
-                        str(self.device_setting["n_devices"]),
-                        "-c",
-                        cmd,
-                    ],
-                    env=ps_environ,
-                    check=True,
-                )
+                cmd = f"bcprun -n {self.device_setting['NUM_NODES']} -p {self.device_setting['n_devices']} -c {cmd}"
             else:
                 raise NotImplementedError(
                     f"{self.device_setting['MN_START_METHOD']} is not supported yet. "
                     "Try modify BundleAlgo._run_cmd for your cluster."
                 )
-        else:
-            normal_out = subprocess.run(cmd.split(), env=ps_environ, check=True)
-        return normal_out
+        cmd_list = cmd.split()
+        _idx = 0
+        for _idx, c in enumerate(cmd_list):
+            if "=" not in c:  # remove variable assignments before the command such as "OMP_NUM_THREADS=1"
+                break
+        return subprocess.run(cmd_list[_idx:], env=ps_environ, check=True)
 
     def train(
         self, train_params: None | dict = None, device_setting: None | dict = None
@@ -253,6 +244,10 @@ class BundleAlgo(Algo):
         if device_setting is not None:
             self.device_setting.update(device_setting)
             self.device_setting["n_devices"] = len(str(self.device_setting["CUDA_VISIBLE_DEVICES"]).split(","))
+
+        if train_params is not None and "CUDA_VISIBLE_DEVICES" in train_params:
+            warnings.warn("CUDA_VISIBLE_DEVICES is deprecated from train_params!")
+            train_params.pop("CUDA_VISIBLE_DEVICES")
 
         cmd, _unused_return = self._create_cmd(train_params)
         return self._run_cmd(cmd)
