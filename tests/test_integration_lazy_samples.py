@@ -39,7 +39,6 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
     train_files = [{"img": img, "seg": seg} for img, seg in zip(images[:20], segs[:20])]
     device = "cuda:0" if HAS_CUPY and torch.cuda.is_available() else "cpu"  # mode 0 and cuda requires CUPY
     num_workers = 0 if torch.cuda.is_available() else num_workers
-    num_workers = 0
 
     # define transforms for image and segmentation
     lazy_kwargs = dict(
