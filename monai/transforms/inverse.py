@@ -221,6 +221,14 @@ class TraceableTransform(Transform):
                 info[LazyAttr.AFFINE] = convert_to_tensor(affine, device=torch.device("cpu"))
             out_obj.push_pending_operation(info)
         else:
+            if out_obj.pending_operations:
+                transform_name = info.get(TraceKeys.CLASS_NAME, "") if isinstance(info, dict) else ""
+                warnings.warn(
+                    f"Applying transform {transform_name} to a MetaTensor with pending operations "
+                    "is not supported (as this eventually changes the ordering of applied_operations when the pending "
+                    f"operations are executed). Please clear the pending operations before transform {transform_name}."
+                    f"\nPending operations: {[x.get(TraceKeys.CLASS_NAME) for x in out_obj.pending_operations]}."
+                )
             out_obj.push_applied_operation(info)
         if isinstance(data, Mapping):
             if not isinstance(data, dict):
