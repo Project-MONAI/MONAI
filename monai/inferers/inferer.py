@@ -244,9 +244,7 @@ class PatchInferer(Inferer):
                     if kw_crop_shape:
                         merger = self.merger_cls(output_shape=output_shape, **self.merger_kwargs)
                     else:
-                        merger = self.merger_cls(
-                            output_shape=output_shape, crop_shape=output_shape, **self.merger_kwargs
-                        )
+                        merger = self.merger_cls(output_shape=output_shape, crop_shape=crop_shape, **self.merger_kwargs)
                 else:
                     raise ValueError(
                         "`output_shape` should be provided "
