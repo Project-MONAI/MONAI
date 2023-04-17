@@ -19,7 +19,7 @@ import torch
 from parameterized import parameterized
 
 from monai.data.utils import list_data_collate
-from monai.inferers import SlidingWindowInferer, sliding_window_inference
+from monai.inferers import SlidingWindowInferer, SlidingWindowInfererAdapt, sliding_window_inference
 from monai.utils import optional_import
 from tests.utils import TEST_TORCH_AND_META_TENSORS, skip_if_no_cuda, test_is_quick
 
@@ -301,6 +301,11 @@ class TestSlidingWindowInference(unittest.TestCase):
         np.testing.assert_allclose(result.cpu().numpy(), expected, rtol=1e-4)
 
         result = SlidingWindowInferer(
+            roi_shape, sw_batch_size, overlap=0.5, mode="constant", cval=-1, progress=has_tqdm
+        )(inputs, compute, t1, test2=t2)
+        np.testing.assert_allclose(result.cpu().numpy(), expected, rtol=1e-4)
+
+        result = SlidingWindowInfererAdapt(
             roi_shape, sw_batch_size, overlap=0.5, mode="constant", cval=-1, progress=has_tqdm
         )(inputs, compute, t1, test2=t2)
         np.testing.assert_allclose(result.cpu().numpy(), expected, rtol=1e-4)
