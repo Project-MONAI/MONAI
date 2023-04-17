@@ -94,7 +94,7 @@ class AlgoEnsemble(ABC):
             datalist = ConfigParser.load_config_file(data_list_or_path)
             if data_key in datalist:
                 self.infer_files, _ = datafold_read(datalist=datalist, basedir=dataroot, fold=-1, key=data_key)
-            elif hasattr(self, "rank") and self.rank == 0:  # type: ignore
+            elif hasattr(self, "rank") and self.rank == 0:
                 logger.info(f"Datalist file has no testing key - {data_key}. No data for inference is specified")
 
         else:
