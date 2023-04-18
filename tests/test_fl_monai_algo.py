@@ -53,18 +53,10 @@ TEST_TRAIN_3 = [
     {
         "bundle_root": _data_dir,
         "train_workflow": ConfigWorkflow(
-            config_file=[
-                os.path.join(_data_dir, "config_fl_train.json"),
-                os.path.join(_data_dir, "config_fl_train.json"),
-            ],
-            workflow="train",
-            logging_file=_logging_file,
+            config_file=os.path.join(_data_dir, "config_fl_train.json"), workflow="train", logging_file=_logging_file
         ),
         "config_evaluate_filename": None,
-        "config_filters_filename": [
-            os.path.join(_data_dir, "config_fl_filters.json"),
-            os.path.join(_data_dir, "config_fl_filters.json"),
-        ],
+        "config_filters_filename": os.path.join(_data_dir, "config_fl_filters.json"),
     }
 ]
 
@@ -96,7 +88,12 @@ TEST_EVALUATE_1 = [
         "bundle_root": _data_dir,
         "config_train_filename": None,
         "eval_workflow": ConfigWorkflow(
-            os.path.join(_data_dir, "config_fl_evaluate.json"), workflow="train", logging_file=_logging_file
+            config_file=[
+                os.path.join(_data_dir, "config_fl_train.json"),
+                os.path.join(_data_dir, "config_fl_evaluate.json"),
+            ],
+            workflow="train",
+            logging_file=_logging_file,
         ),
         "config_filters_filename": os.path.join(_data_dir, "config_fl_filters.json"),
     }
@@ -105,7 +102,11 @@ TEST_EVALUATE_2 = [
     {
         "bundle_root": _data_dir,
         "config_train_filename": None,
-        "config_evaluate_filename": os.path.join(_data_dir, "config_fl_evaluate.json"),
+        "config_evaluate_filename": [
+            os.path.join(_data_dir, "config_fl_train.json"),
+            os.path.join(_data_dir, "config_fl_evaluate.json"),
+        ],
+        "eval_workflow_name": "training",
         "config_filters_filename": None,
     }
 ]
@@ -115,16 +116,13 @@ TEST_EVALUATE_3 = [
         "config_train_filename": None,
         "eval_workflow": ConfigWorkflow(
             config_file=[
-                os.path.join(_data_dir, "config_fl_evaluate.json"),
+                os.path.join(_data_dir, "config_fl_train.json"),
                 os.path.join(_data_dir, "config_fl_evaluate.json"),
             ],
             workflow="train",
             logging_file=_logging_file,
         ),
-        "config_filters_filename": [
-            os.path.join(_data_dir, "config_fl_filters.json"),
-            os.path.join(_data_dir, "config_fl_filters.json"),
-        ],
+        "config_filters_filename": os.path.join(_data_dir, "config_fl_filters.json"),
     }
 ]
 
@@ -152,19 +150,11 @@ TEST_GET_WEIGHTS_3 = [
     {
         "bundle_root": _data_dir,
         "train_workflow": ConfigWorkflow(
-            config_file=[
-                os.path.join(_data_dir, "config_fl_train.json"),
-                os.path.join(_data_dir, "config_fl_train.json"),
-            ],
-            workflow="train",
-            logging_file=_logging_file,
+            config_file=os.path.join(_data_dir, "config_fl_train.json"), workflow="train", logging_file=_logging_file
         ),
         "config_evaluate_filename": None,
         "send_weight_diff": True,
-        "config_filters_filename": [
-            os.path.join(_data_dir, "config_fl_filters.json"),
-            os.path.join(_data_dir, "config_fl_filters.json"),
-        ],
+        "config_filters_filename": os.path.join(_data_dir, "config_fl_filters.json"),
     }
 ]
 

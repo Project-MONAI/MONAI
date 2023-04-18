@@ -327,6 +327,9 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         config_evaluate_filename: bundle evaluation config path relative to bundle_root. can be a list of files.
             if "default", ["configs/train.json", "configs/evaluate.json"] will be used.
             this arg is only useful when `eval_workflow` is None.
+        eval_workflow_name: the workflow name corresponding to the "config_evaluate_filename", default to "train"
+            as the default "config_evaluate_filename" overrides the train workflow config.
+            this arg is only useful when `eval_workflow` is None.
         config_filters_filename: filter configuration file. Can be a list of files; defaults to `None`.
         disable_ckpt_loading: do not use any CheckpointLoader if defined in train/evaluate configs; defaults to `True`.
         best_model_filepath: location of best model checkpoint; defaults "models/model.pt" relative to `bundle_root`.
@@ -355,6 +358,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         send_weight_diff: bool = True,
         config_train_filename: str | list | None = "configs/train.json",
         config_evaluate_filename: str | list | None = "default",
+        eval_workflow_name: str = "train",
         config_filters_filename: str | list | None = None,
         disable_ckpt_loading: bool = True,
         best_model_filepath: str | None = "models/model.pt",
@@ -385,6 +389,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             # by default, evaluator needs both training and evaluate to be instantiated
             config_evaluate_filename = ["configs/train.json", "configs/evaluate.json"]
         self.config_evaluate_filename = config_evaluate_filename
+        self.eval_workflow_name = eval_workflow_name
         self.config_filters_filename = config_filters_filename
         self.disable_ckpt_loading = disable_ckpt_loading
         self.model_filepaths = {ModelType.BEST_MODEL: best_model_filepath, ModelType.FINAL_MODEL: final_model_filepath}
@@ -453,7 +458,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         if self.eval_workflow is None and self.config_evaluate_filename is not None:
             config_eval_files = self._add_config_files(self.config_evaluate_filename)
             self.eval_workflow = ConfigWorkflow(
-                config_file=config_eval_files, meta_file=None, logging_file=None, workflow="train"
+                config_file=config_eval_files, meta_file=None, logging_file=None, workflow=self.eval_workflow_name
             )
         if self.eval_workflow is not None:
             self.eval_workflow.initialize()

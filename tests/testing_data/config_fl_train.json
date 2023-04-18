@@ -165,7 +165,7 @@
             "_target_": "DataLoader",
             "dataset": "@validate#dataset",
             "batch_size": 1,
-            "shuffle": true,
+            "shuffle": false,
             "num_workers": 2
         },
         "inferer": {
@@ -181,6 +181,12 @@
                 }
             ]
         },
+        "key_metric": {
+            "accuracy": {
+                "_target_": "ignite.metrics.Accuracy",
+                "output_transform": "$monai.handlers.from_engine(['pred', 'label'])"
+            }
+        },
         "handlers": [
             {
                 "_target_": "StatsHandler",
@@ -194,7 +200,8 @@
             "network": "@network",
             "inferer": "@validate#inferer",
             "val_handlers": "@validate#handlers",
-            "postprocessing": "@validate#postprocessing"
+            "postprocessing": "@validate#postprocessing",
+            "key_val_metric": "@validate#key_metric"
         }
     },
     "initialize": [

@@ -36,7 +36,11 @@ class TestFLMonaiAlgo(DistTestCase):
     @skip_if_no_cuda
     def test_train(self):
         train_configs = [pathjoin(_data_dir, "config_fl_train.json"), pathjoin(_data_dir, "multi_gpu_train.json")]
-        eval_configs = [pathjoin(_data_dir, "config_fl_evaluate.json"), pathjoin(_data_dir, "multi_gpu_evaluate.json")]
+        eval_configs = [
+            pathjoin(_data_dir, "config_fl_train.json"),
+            pathjoin(_data_dir, "config_fl_evaluate.json"),
+            pathjoin(_data_dir, "multi_gpu_evaluate.json"),
+        ]
         # initialize algo
         algo = MonaiAlgo(
             bundle_root=_data_dir,
@@ -73,7 +77,11 @@ class TestFLMonaiAlgo(DistTestCase):
     @DistCall(nnodes=1, nproc_per_node=2, init_method="no_init")
     @skip_if_no_cuda
     def test_evaluate(self):
-        config_file = [pathjoin(_data_dir, "config_fl_evaluate.json"), pathjoin(_data_dir, "multi_gpu_evaluate.json")]
+        config_file = [
+            pathjoin(_data_dir, "config_fl_train.json"),
+            pathjoin(_data_dir, "config_fl_evaluate.json"),
+            pathjoin(_data_dir, "multi_gpu_evaluate.json"),
+        ]
         # initialize algo
         algo = MonaiAlgo(
             bundle_root=_data_dir,
@@ -86,7 +94,9 @@ class TestFLMonaiAlgo(DistTestCase):
 
         # initialize model
         parser = ConfigParser()
-        parser.read_config(pathjoin(_data_dir, "config_fl_evaluate.json"))
+        parser.read_config(
+            [pathjoin(_data_dir, "config_fl_train.json"), pathjoin(_data_dir, "config_fl_evaluate.json")]
+        )
         parser.parse()
         network = parser.get_parsed_content("network")
         data = ExchangeObject(weights=get_state_dict(network))
