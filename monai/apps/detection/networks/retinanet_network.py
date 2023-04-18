@@ -42,7 +42,7 @@ from __future__ import annotations
 import math
 from collections.abc import Callable, Sequence
 from collections import namedtuple
-from typing import Dict
+from typing import Dict, Tuple
 
 import torch
 from torch import Tensor, nn
