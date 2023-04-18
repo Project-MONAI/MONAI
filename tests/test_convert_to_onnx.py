@@ -20,7 +20,7 @@ from parameterized import parameterized
 from monai.networks import convert_to_onnx
 from monai.networks.nets import SegResNet, UNet
 from monai.utils.module import pytorch_after
-from tests.utils import SkipIfBeforePyTorchVersion, SkipIfNoModule, optional_import
+from tests.utils import SkipIfBeforePyTorchVersion, SkipIfNoModule, optional_import, skip_if_quick
 
 if torch.cuda.is_available():
     TORCH_DEVICE_OPTIONS = ["cpu", "cuda"]
@@ -34,6 +34,7 @@ onnx, _ = optional_import("onnx")
 
 @SkipIfNoModule("onnx")
 @SkipIfBeforePyTorchVersion((1, 9))
+@skip_if_quick
 class TestConvertToOnnx(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_unet(self, device, use_trace, use_ort):

@@ -12,24 +12,30 @@
 from __future__ import annotations
 
 import os
+import subprocess
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from typing import Any, cast
 from warnings import warn
 
 import numpy as np
 import torch
+import torch.distributed as dist
 
 from monai.apps.auto3dseg.bundle_gen import BundleAlgo
+from monai.apps.auto3dseg.utils import import_bundle_algo_history
 from monai.apps.utils import get_logger
 from monai.auto3dseg import concat_val_to_np
 from monai.auto3dseg.utils import datafold_read
 from monai.bundle import ConfigParser
+from monai.data import partition_dataset
 from monai.transforms import MeanEnsemble, VoteEnsemble
 from monai.utils.enums import AlgoKeys
 from monai.utils.misc import prob2class
-from monai.utils.module import look_up_option
+from monai.utils.module import look_up_option, optional_import
+
+tqdm, has_tqdm = optional_import("tqdm", name="tqdm")
 
 logger = get_logger(module_name=__name__)
 
@@ -88,7 +94,7 @@ class AlgoEnsemble(ABC):
             datalist = ConfigParser.load_config_file(data_list_or_path)
             if data_key in datalist:
                 self.infer_files, _ = datafold_read(datalist=datalist, basedir=dataroot, fold=-1, key=data_key)
-            else:
+            elif hasattr(self, "rank") and self.rank == 0:
                 logger.info(f"Datalist file has no testing key - {data_key}. No data for inference is specified")
 
         else:
@@ -107,6 +113,9 @@ class AlgoEnsemble(ABC):
             a tensor which is the ensembled prediction.
         """
 
+        if any(not p.is_cuda for p in preds):
+            preds = [p.cpu() for p in preds]  # ensure CPU if at least one is on CPU
+
         if self.mode == "mean":
             prob = MeanEnsemble()(preds)
             return prob2class(cast(torch.Tensor, prob), dim=0, keepdim=True, sigmoid=sigmoid)
@@ -117,7 +126,7 @@ class AlgoEnsemble(ABC):
             else:
                 return VoteEnsemble(num_classes=preds[0].shape[0])(classes)
 
-    def __call__(self, pred_param: dict[str, Any] | None = None) -> list[torch.Tensor]:
+    def __call__(self, pred_param: dict | None = None) -> list:
         """
         Use the ensembled model to predict result.
 
@@ -135,11 +144,7 @@ class AlgoEnsemble(ABC):
         Returns:
             A list of tensors.
         """
-        if pred_param is None:
-            param = {}
-        else:
-            param = deepcopy(pred_param)
-
+        param = {} if pred_param is None else deepcopy(pred_param)
         files = self.infer_files
 
         if "infer_files" in param:
@@ -155,15 +160,25 @@ class AlgoEnsemble(ABC):
 
         sigmoid = param.pop("sigmoid", False)
 
+        if "image_save_func" in param:
+            img_saver = ConfigParser(param["image_save_func"]).get_parsed_content()
+
         outputs = []
-        for i, file in enumerate(files):
-            print(i)
+        for _, file in (
+            enumerate(tqdm(files, desc="Ensembling (rank 0)..."))
+            if has_tqdm and pred_param and pred_param.get("rank", 0) == 0
+            else enumerate(files)
+        ):
             preds = []
             for algo in self.algo_ensemble:
                 infer_instance = algo[AlgoKeys.ALGO]
                 pred = infer_instance.predict(predict_files=[file], predict_params=param)
                 preds.append(pred[0])
-            outputs.append(self.ensemble_pred(preds, sigmoid=sigmoid))
+            if "image_save_func" in param:
+                res = img_saver(self.ensemble_pred(preds, sigmoid=sigmoid))
+            else:
+                res = self.ensemble_pred(preds, sigmoid=sigmoid)
+            outputs.append(res)
         return outputs
 
     @abstractmethod
@@ -327,3 +342,232 @@ class AlgoEnsembleBuilder:
         """Get the ensemble"""
 
         return self.ensemble
+
+
+class EnsembleRunner:
+    """
+    The Runner for ensembler
+
+    Args:
+        work_dir: working directory to save the intermediate and final results.
+        data_src_cfg_name: filename of the data source.
+        num_fold: number of fold.
+        ensemble_method_name: method to ensemble predictions from different model.
+                              Suported methods: ["AlgoEnsembleBestN", "AlgoEnsembleBestByFold"].
+        mgpu: if using multi-gpu.
+        kwargs: additional image writing, ensembling parameters and prediction parameters for the ensemble inference.
+    Examples:
+
+        .. code-block:: python
+
+            ensemble_runner = EnsembleRunner(data_src_cfg_name,
+                                             work_dir,
+                                             ensemble_method_name,
+                                             mgpu=device_setting['n_devices']>1,
+                                             **kwargs,
+                                             **pred_params)
+            ensemble_runner.run(device_setting)
+
+    """
+
+    def __init__(
+        self,
+        data_src_cfg_name: str = "./work_dir/input.yaml",
+        work_dir: str = "./work_dir",
+        num_fold: int = 5,
+        ensemble_method_name: str = "AlgoEnsembleBestByFold",
+        mgpu: bool = True,
+        **kwargs: Any,
+    ) -> None:
+        self.data_src_cfg_name = data_src_cfg_name
+        self.work_dir = work_dir
+        self.num_fold = num_fold
+        self.ensemble_method_name = ensemble_method_name
+        self.mgpu = mgpu
+        self.kwargs = kwargs
+        self.rank = 0
+        self.world_size = 1
+        self.device_setting: dict[str, int | str] = {
+            "CUDA_VISIBLE_DEVICES": ",".join([str(x) for x in range(torch.cuda.device_count())]),
+            "n_devices": torch.cuda.device_count(),
+            "NUM_NODES": int(os.environ.get("NUM_NODES", 1)),
+            "MN_START_METHOD": os.environ.get("MN_START_METHOD", "bcprun"),
+            "CMD_PREFIX": os.environ.get("CMD_PREFIX"),  # type: ignore
+        }
+
+    def set_ensemble_method(self, ensemble_method_name: str = "AlgoEnsembleBestByFold", **kwargs: Any) -> None:
+        """
+        Set the bundle ensemble method
+
+        Args:
+            ensemble_method_name: the name of the ensemble method. Only two methods are supported "AlgoEnsembleBestN"
+                and "AlgoEnsembleBestByFold".
+            kwargs: the keyword arguments used to define the ensemble method. Currently only ``n_best`` for
+                ``AlgoEnsembleBestN`` is supported.
+
+        """
+        self.ensemble_method_name = look_up_option(
+            ensemble_method_name, supported=["AlgoEnsembleBestN", "AlgoEnsembleBestByFold"]
+        )
+        if self.ensemble_method_name == "AlgoEnsembleBestN":
+            n_best = kwargs.pop("n_best", False) or 2
+            self.ensemble_method = AlgoEnsembleBestN(n_best=n_best)
+        elif self.ensemble_method_name == "AlgoEnsembleBestByFold":
+            self.ensemble_method = AlgoEnsembleBestByFold(n_fold=self.num_fold)  # type: ignore
+        else:
+            raise NotImplementedError(f"Ensemble method {self.ensemble_method_name} is not implemented.")
+
+    def set_image_save_transform(self, **kwargs):
+        """
+        Set the ensemble output transform.
+
+        Args:
+            kwargs: image writing parameters for the ensemble inference. The kwargs format follows SaveImage
+                transform. For more information, check https://docs.monai.io/en/stable/transforms.html#saveimage .
+
+        """
+
+        if "output_dir" in kwargs:
+            output_dir = kwargs.pop("output_dir")
+        else:
+            output_dir = os.path.join(self.work_dir, "ensemble_output")
+            if self.rank == 0:
+                logger.info(f"The output_dir is not specified. {output_dir} will be used to save ensemble predictions")
+
+        if not os.path.isdir(output_dir):
+            os.makedirs(output_dir)
+            if self.rank == 0:
+                logger.info(f"Directory {output_dir} is created to save ensemble predictions")
+
+        self.output_dir = output_dir
+        output_postfix = kwargs.pop("output_postfix", "ensemble")
+        output_dtype = kwargs.pop("output_dtype", "$np.uint8")
+        resample = kwargs.pop("resample", False)
+
+        self.save_image = {
+            "_target_": "SaveImage",
+            "output_dir": output_dir,
+            "output_postfix": output_postfix,
+            "output_dtype": output_dtype,
+            "resample": resample,
+            "print_log": False,
+        }
+        if kwargs:
+            self.save_image.update(kwargs)
+
+    def set_num_fold(self, num_fold: int = 5) -> None:
+        """
+        Set the number of cross validation folds for all algos.
+
+        Args:
+            num_fold: a positive integer to define the number of folds.
+        """
+
+        if num_fold <= 0:
+            raise ValueError(f"num_fold is expected to be an integer greater than zero. Now it gets {num_fold}")
+        self.num_fold = num_fold
+
+    def ensemble(self):
+        if self.mgpu:  # torch.cuda.device_count() is not used because env is not set by autorruner
+            # init multiprocessing and update infer_files
+            dist.init_process_group(backend="nccl", init_method="env://")
+            self.world_size = dist.get_world_size()
+            self.rank = dist.get_rank()
+        # set params after init_process_group to know the rank
+        self.set_num_fold(num_fold=self.num_fold)
+        self.set_image_save_transform(**self.kwargs)
+        self.set_ensemble_method(self.ensemble_method_name, **self.kwargs)
+
+        history = import_bundle_algo_history(self.work_dir, only_trained=False)
+        history_untrained = [h for h in history if not h[AlgoKeys.IS_TRAINED]]
+        if history_untrained:
+            if self.rank == 0:
+                warn(
+                    f"Ensembling step will skip {[h['name'] for h in history_untrained]} untrained algos."
+                    "Generally it means these algos did not complete training."
+                )
+            history = [h for h in history if h[AlgoKeys.IS_TRAINED]]
+        if len(history) == 0:
+            raise ValueError(
+                f"Could not find the trained results in {self.work_dir}. "
+                "Possibly the required training step was not completed."
+            )
+
+        builder = AlgoEnsembleBuilder(history, self.data_src_cfg_name)
+        builder.set_ensemble_method(self.ensemble_method)
+        self.ensembler = builder.get_ensemble()
+        infer_files = self.ensembler.infer_files
+        infer_files = partition_dataset(data=infer_files, shuffle=False, num_partitions=self.world_size)[self.rank]
+        # TO DO: Add some function in ensembler for infer_files update?
+        self.ensembler.infer_files = infer_files
+        # self.kwargs has poped out args for set_image_save_transform
+        # add rank to pred_params
+        self.kwargs["rank"] = self.rank
+        self.kwargs["image_save_func"] = self.save_image
+        if self.rank == 0:
+            logger.info("Auto3Dseg picked the following networks to ensemble:")
+            for algo in self.ensembler.get_algo_ensemble():
+                logger.info(algo[AlgoKeys.ID])
+            logger.info(f"Auto3Dseg ensemble prediction outputs will be saved in {self.output_dir}.")
+        self.ensembler(pred_param=self.kwargs)
+
+        if self.mgpu:
+            dist.destroy_process_group()
+
+    def run(self, device_setting: dict | None = None) -> None:
+        """
+        Load the run function in the training script of each model. Training parameter is predefined by the
+        algo_config.yaml file, which is pre-filled by the fill_template_config function in the same instance.
+
+        Args:
+            train_params:  training parameters
+            device_settings: device related settings, should follow the device_setting in auto_runner.set_device_info.
+            'CUDA_VISIBLE_DEVICES' should be a string e.g. '0,1,2,3'
+        """
+        # device_setting set default value and sanity check, in case device_setting not from autorunner
+        if device_setting is not None:
+            self.device_setting.update(device_setting)
+            self.device_setting["n_devices"] = len(str(self.device_setting["CUDA_VISIBLE_DEVICES"]).split(","))
+        self._create_cmd()
+
+    def _create_cmd(self) -> None:
+        if int(self.device_setting["NUM_NODES"]) <= 1 and int(self.device_setting["n_devices"]) <= 1:
+            # if single GPU
+            logger.info("Ensembling using single GPU!")
+            self.ensemble()
+            return
+
+        # define base cmd for subprocess
+        base_cmd = f"monai.apps.auto3dseg EnsembleRunner ensemble \
+                --data_src_cfg_name {self.data_src_cfg_name} \
+                --work_dir {self.work_dir} \
+                --num_fold {self.num_fold} \
+                --ensemble_method_name {self.ensemble_method_name} \
+                --mgpu True"
+
+        if self.kwargs and isinstance(self.kwargs, Mapping):
+            for k, v in self.kwargs.items():
+                base_cmd += f" --{k}={v}"
+        # define env for subprocess
+        ps_environ = os.environ.copy()
+        ps_environ["CUDA_VISIBLE_DEVICES"] = str(self.device_setting["CUDA_VISIBLE_DEVICES"])
+        cmd: str | None = self.device_setting["CMD_PREFIX"]  # type: ignore
+        if cmd is not None and not str(cmd).endswith(" "):
+            cmd += " "
+        if int(self.device_setting["NUM_NODES"]) > 1:
+            if self.device_setting["MN_START_METHOD"] != "bcprun":
+                raise NotImplementedError(
+                    f"{self.device_setting['MN_START_METHOD']} is not supported yet. "
+                    "Try modify EnsembleRunner._create_cmd for your cluster."
+                )
+            logger.info(f"Ensembling on {self.device_setting['NUM_NODES']} nodes!")
+            cmd = "python " if cmd is None else cmd
+            cmd = f"{cmd} -m {base_cmd}"
+            cmd = f"bcprun -n {self.device_setting['NUM_NODES']} -p {self.device_setting['n_devices']} -c {cmd}"
+        else:
+            logger.info(f"Ensembling using {self.device_setting['n_devices']} GPU!")
+            if cmd is None:
+                cmd = f"torchrun --nnodes={1:d} --nproc_per_node={self.device_setting['n_devices']:d} "
+            cmd = f"{cmd} -m {base_cmd}"
+        _ = subprocess.run(cmd.split(), env=ps_environ, check=True)
+        return
