@@ -26,6 +26,26 @@ def get_img(size, dtype=torch.float32, offset=0):
     return np.expand_dims(img, 0)
 
 
+class RNGWrapper(np.random.RandomState):
+
+    def __init__(self, tag, rng):
+        self.tag = tag
+        self.rng = rng
+        self.calls = 0
+
+    def rand(self, *args, **kwargs):
+        self.calls += 1
+        value = self.rng.rand(*args, **kwargs)
+        print(self.tag, self.calls, value)
+        return value
+
+    def randint(self, *args, **kwargs):
+        self.calls += 1
+        value = self.rng.randint(*args, **kwargs)
+        print(self.tag, self.calls, value)
+        return value
+
+
 data = get_img((32, 32))
 data[0, 7:9, 7:9] = 1096
 data[0, 15:17, :] = 1160
@@ -142,4 +162,25 @@ def do_zooms():
     for o, n in zip(old_results, new_results):
         diffs.append(n - o)
 
-do_zooms()
+
+def do_rand_spatial_crop():
+    img = torch.rand(1, 32, 32, 16)
+    data = {'img': img}
+
+    t = old_cd.RandSpatialCropd(('img',), (16, 16, 8), random_center=True, random_size=False)
+    t.set_random_state(state=RNGWrapper("trad", np.random.RandomState(1540998321)))
+    data = t(data)
+    print([d.shape for k, d in data.items()])
+
+    for j in ((1, 0, 0, 1), (1, 1, 0, 1), (1, 0, 1, 1), (1, 1, 1, 1),
+              (0, 0, 0, 0, 1), (1, 0, 0, 0, 1), (1, 1, 0, 0, 1), (1, 1, 1, 1, 1)):
+        print(j)
+        ring = np.random.RandomState(1540998321)
+        for i in range(len(j)):
+            if j[i] == 0:
+                print(i, ring.randint(0, 10, dtype=np.int64))
+            else:
+                print(i, ring.rand())
+
+# do_zooms()
+do_rand_spatial_crop()

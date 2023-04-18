@@ -243,8 +243,8 @@ def resample(
         matrix: NdarrayOrTensor,
         kwargs: dict | None = None
 ):
-    _generic_resample(data, matrix, kwargs)
-    # _adaptive_resample(data, matrix, kwargs)
+    return _generic_resample(data, matrix, kwargs)
+    # return _adaptive_resample(data, matrix, kwargs)
 
 
 # def resample(

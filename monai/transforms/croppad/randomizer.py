@@ -37,6 +37,8 @@ class CropRandomizer(Randomizer):
 
             valid_ranges = tuple(i - c for i, c in zip(shape, crop_shape))
 
-            starts = tuple(self.R.randint(0, r + 1) if r > 0 else r for r in valid_ranges)
+            values = tuple(self.R.randint(0, r + 1) for r in valid_ranges)
+            starts = tuple(v if r > 0 else 0 for v, r in zip(values, valid_ranges))
+            # starts = tuple(self.R.randint(0, r + 1 if r > 0 else 0) for r in valid_ranges)
             slices = tuple(slice(s, s + c) for s, c in zip(starts, crop_shape))
             return slices
