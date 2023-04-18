@@ -36,7 +36,7 @@ from monai.utils import ensure_tuple
 from monai.utils.enums import AlgoKeys
 
 logger = get_logger(module_name=__name__)
-ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "80c832e")
+ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "629ec7e")
 
 __all__ = ["BundleAlgo", "BundleGen"]
 
@@ -174,7 +174,7 @@ class BundleAlgo(Algo):
 
         if os.path.isdir(config_dir):
             base_cmd = ""
-            for file in os.listdir(config_dir):
+            for file in sorted(os.listdir(config_dir)):
                 if not (file.endswith("yaml") or file.endswith("json")):
                     continue
                 base_cmd += f"{train_py} run --config_file=" if len(base_cmd) == 0 else ","
