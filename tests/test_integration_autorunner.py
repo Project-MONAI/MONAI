@@ -58,6 +58,7 @@ train_param = (
         "num_warmup_epochs": 1,
         "use_pretrain": False,
         "pretrained_path": "",
+        "num_steps_per_image": 1,
     }
     if torch.cuda.is_available()
     else {}
