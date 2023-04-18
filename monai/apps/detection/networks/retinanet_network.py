@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable, Sequence
+from collections import namedtuple
 from typing import Dict
 
 import torch
@@ -255,8 +256,12 @@ class RetinaNet(nn.Module):
                 size_divisible = size_divisible,
             ).to(device)
             result = model(torch.rand(2, 1, 128,128,128))
-            cls_logits_maps = result["cls_logits"]  # a list of len(returned_layers)+1 Tensor
+            cls_logits_maps = result["classification"]  # a list of len(returned_layers)+1 Tensor
             box_regression_maps = result["box_regression"]  # a list of len(returned_layers)+1 Tensor
+
+            result = model(torch.rand(2, 1, 128,128,128), output_namedtuple=True)
+            cls_logits_maps = result.classification  # a list of len(returned_layers)+1 Tensor
+            box_regression_maps = result.box_regression  # a list of len(returned_layers)+1 Tensor
     """
 
     def __init__(
@@ -293,7 +298,7 @@ class RetinaNet(nn.Module):
         self.cls_key: str = "classification"
         self.box_reg_key: str = "box_regression"
 
-    def forward(self, images: Tensor) -> dict[str, list[Tensor]]:
+    def forward(self, images: Tensor, output_namedtuple: bool = False) -> dict[str, list[Tensor]]:
         """
         It takes an image tensor as inputs, and outputs a dictionary ``head_outputs``.
         ``head_outputs[self.cls_key]`` is the predicted classification maps, a list of Tensor.
@@ -301,11 +306,15 @@ class RetinaNet(nn.Module):
 
         Args:
             images: input images, sized (B, img_channels, H, W) or (B, img_channels, H, W, D).
+            output_namedtuple: bool, whether output namedtuple, default False.
 
         Return:
-            a dictionary ``head_outputs`` with keys including self.cls_key and self.box_reg_key.
+            1) If output_namedtuple is False, output a dictionary ``head_outputs`` with keys including self.cls_key and self.box_reg_key.
             ``head_outputs[self.cls_key]`` is the predicted classification maps, a list of Tensor.
             ``head_outputs[self.box_reg_key]`` is the predicted box regression maps, a list of Tensor.
+            2) if output_namedtuple is True, output a namedtuple ``head_outputs`` with domain including "classification" and "box_regression".
+            ``head_outputs.classification`` is the predicted classification maps, a list of Tensor.
+            ``head_outputs.box_regression`` is the predicted box regression maps, a list of Tensor.
 
         """
         # compute features maps list from the input images.
@@ -323,8 +332,14 @@ class RetinaNet(nn.Module):
         # compute classification and box regression maps from the feature maps
         # expandable for mask prediction in the future
 
-        head_outputs: dict[str, list[Tensor]] = {self.cls_key: self.classification_head(feature_maps)}
-        head_outputs[self.box_reg_key] = self.regression_head(feature_maps)
+        if not output_namedtuple:
+            # output dict
+            head_outputs: dict[str, list[Tensor]] = {self.cls_key: self.classification_head(feature_maps)}
+            head_outputs[self.box_reg_key] = self.regression_head(feature_maps)
+        else:
+            # output namedtuple
+            Model_output = namedtuple('Model_output', ["classification", "box_regression"])
+            head_outputs = Model_output(self.classification_head(feature_maps), self.regression_head(feature_maps))
 
         return head_outputs
 
