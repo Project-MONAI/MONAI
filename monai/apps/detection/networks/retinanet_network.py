@@ -298,7 +298,7 @@ class RetinaNet(nn.Module):
         self.cls_key: str = "classification"
         self.box_reg_key: str = "box_regression"
 
-    def forward(self, images: Tensor, output_namedtuple: bool = False) -> dict[str, list[Tensor]]:
+    def forward(self, images: Tensor, output_namedtuple: bool = False) -> dict[str, list[Tensor]] | Tuple:
         """
         It takes an image tensor as inputs, and outputs a dictionary ``head_outputs``.
         ``head_outputs[self.cls_key]`` is the predicted classification maps, a list of Tensor.
