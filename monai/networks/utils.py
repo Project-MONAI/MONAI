@@ -27,10 +27,10 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from monai.apps.utils import get_logger, optional_import
+from monai.apps.utils import get_logger
 from monai.config import PathLike
 from monai.utils.misc import ensure_tuple, save_obj, set_determinism
-from monai.utils.module import look_up_option, pytorch_after
+from monai.utils.module import look_up_option, optional_import, pytorch_after
 from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
 
 onnx, _ = optional_import("onnx")
@@ -59,9 +59,33 @@ __all__ = [
     "replace_modules_temp",
     "look_up_named_module",
     "set_named_module",
+    "has_nvfuser_instance_norm",
 ]
 
 logger = get_logger(module_name=__name__)
+
+global _has_nvfuser
+_has_nvfuser = None
+
+
+def has_nvfuser_instance_norm():
+    """whether the current environment has InstanceNorm3dNVFuser
+    https://github.com/NVIDIA/apex/blob/23.05-devel/apex/normalization/instance_norm.py#L15-L16
+    """
+    global _has_nvfuser
+    if _has_nvfuser is not None:
+        return _has_nvfuser
+
+    _, _has_nvfuser = optional_import("apex.normalization", name="InstanceNorm3dNVFuser")
+    if not _has_nvfuser:
+        return False
+    try:
+        import importlib
+
+        importlib.import_module("instance_norm_nvfuser_cuda")
+    except ImportError:
+        _has_nvfuser = False
+    return _has_nvfuser
 
 
 def look_up_named_module(name: str, mod, print_all_options=False):
