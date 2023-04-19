@@ -63,14 +63,11 @@ jobs:
       options: --gpus "device=1" --ipc host  # shm-size 4g works fine
     runs-on: [self-hosted, linux, x64, command]
     steps:
-    # checkout the pull request branch
-    - uses: actions/checkout@v3
-      with:
-        token: ${{ secrets.PR_MAINTAIN }}
-        repository: ${{ github.event.client_payload.pull_request.head.repo.full_name }}
-        ref: ${{ github.event.client_payload.pull_request.head.ref }}
     - name: Install the dependencies
       run: |
+        pwd
+        ls *
+        git log -1
         which python
         python -m pip install --upgrade pip wheel
         python -m pip install --upgrade torch torchvision torchaudio
@@ -111,14 +108,11 @@ jobs:
       options: --gpus "device=2" --ipc host  # shm-size 4g works fine
     runs-on: [self-hosted, linux, x64, command1]
     steps:
-    # checkout the pull request branch
-    - uses: actions/checkout@v3
-      with:
-        token: ${{ secrets.PR_MAINTAIN }}
-        repository: ${{ github.event.client_payload.pull_request.head.repo.full_name }}
-        ref: ${{ github.event.client_payload.pull_request.head.ref }}
     - name: Install the dependencies
       run: |
+        pwd
+        ls *
+        git log -1
         which python
         python -m pip install --upgrade pip wheel
         python -m pip install --upgrade torch torchvision torchaudio
@@ -130,7 +124,6 @@ jobs:
         BUILD_MONAI: 0
       run: |
         # test latest template
-        echo "test latest algo"
         pwd
         cd ../
         rm -rf research-contributions
