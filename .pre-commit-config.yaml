@@ -26,6 +26,12 @@ repos:
         args: ['--autofix', '--no-sort-keys', '--indent=4']
       - id: end-of-file-fixer
       - id: mixed-line-ending
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.0.254
+    hooks:
+    -   id: ruff
+        args:
+        - --fix
 
   - repo: https://github.com/asottile/pyupgrade
     rev: v3.3.1
