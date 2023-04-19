@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import zipfile
 from typing import Any
 
@@ -21,7 +22,16 @@ from monai.utils import optional_import
 
 yaml, _ = optional_import("yaml")
 
-__all__ = ["ID_REF_KEY", "ID_SEP_KEY", "EXPR_KEY", "MACRO_KEY", "DEFAULT_MLFLOW_SETTINGS", "DEFAULT_EXP_MGMT_SETTINGS"]
+__all__ = [
+    "ID_REF_KEY",
+    "ID_SEP_KEY",
+    "EXPR_KEY",
+    "MACRO_KEY",
+    "DEFAULT_MLFLOW_SETTINGS",
+    "DEFAULT_EXP_MGMT_SETTINGS",
+    "load_bundle_config",
+    "set_tracking_run_names",
+]
 
 ID_REF_KEY = "@"  # start of a reference to a ConfigItem
 ID_SEP_KEY = "#"  # separator for the ID of a ConfigItem
@@ -230,3 +240,31 @@ def load_bundle_config(bundle_path: str, *config_names: str, **load_kw_args: Any
             parser.read_config(f=cdata)
 
     return parser
+
+
+def set_tracking_run_names(settings: dict, prefix: str = "", targets: list = None) -> dict:
+    """
+    Set run_name for each tracking handler in a tracking settings.
+
+    Args:
+        settings: tracking settings.
+        prefix: Optional prefix string added to `run_name`. Defaults to "".
+        targets: list of target handlers. Defaults to `None`. If `None`, `["MLFlowHandler"]` is used.
+
+    Returns:
+        Tracking settings with added `run_name` for each tracking handler
+    """
+
+    if targets is None:
+        targets = ["MLFlowHandler"]
+
+    if not prefix:
+        prefix = "run"
+
+    if "configs" in settings:
+        for _k, v in settings["configs"].items():
+            if "_target_" in v:
+                if v["_target_"] in targets:
+                    if "run_name" not in v or not v["run_name"]:
+                        v["run_name"] = f"{prefix}_{time.strftime('%Y%m%d_%H%M%S')}"
+    return settings

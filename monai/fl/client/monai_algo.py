@@ -29,6 +29,7 @@ from monai.bundle import (
     ConfigParser,
     ConfigWorkflow,
 )
+from monai.bundle.utils import set_tracking_run_names
 from monai.engines import SupervisedEvaluator, SupervisedTrainer, Trainer
 from monai.fl.client import ClientAlgo, ClientAlgoStats
 from monai.fl.utils.constants import ExtraItems, FiltersType, FlPhase, FlStatistics, ModelType, WeightType
@@ -435,6 +436,8 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
                 settings_ = DEFAULT_EXP_MGMT_SETTINGS[self.tracking]
             else:
                 settings_ = ConfigParser.load_config_files(self.tracking)
+            # set run_name in tracking config based on client_name
+            settings_ = set_tracking_run_names(settings_, prefix=self.client_name)
 
         if self.train_workflow is None and self.config_train_filename is not None:
             config_train_files = self._add_config_files(self.config_train_filename)
