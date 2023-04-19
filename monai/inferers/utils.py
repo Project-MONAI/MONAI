@@ -280,7 +280,7 @@ def sliding_window_inference(
             else:
                 sw_device_buffer[ss] *= w_t
                 sw_device_buffer[ss] = sw_device_buffer[ss].to(device)
-                _compute_coords(sw_batch_size, unravel_slice, z_scale, output_image_list[ss], sw_device_buffer[ss])
+                _compute_coords(unravel_slice, z_scale, output_image_list[ss], sw_device_buffer[ss])
         sw_device_buffer = []
         if buffered:
             b_s += 1
@@ -342,7 +342,7 @@ def _create_buffered_slices(slices, batch_size, sw_batch_size, buffer_dim, buffe
     return slices, n_per_batch, b_slices, windows_range
 
 
-def _compute_coords(sw, coords, z_scale, out, patch):
+def _compute_coords(coords, z_scale, out, patch):
     """sliding window batch spatial scaling indexing for multi-resolution outputs."""
     for original_idx, p in zip(coords, patch):
         idx_zm = list(original_idx)  # 4D for 2D image, 5D for 3D image
