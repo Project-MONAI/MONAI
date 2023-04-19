@@ -625,7 +625,7 @@ def run(
 
     Args:
         run_id: ID name of the expected config expression to run, default to "run".
-            the target config must contain this ID to run.
+            to run the config, the target config must contain this ID.
         init_id: ID name of the expected config expression to initialize before running, default to "initialize".
             allow a config to have no `initialize` logic and the ID.
         final_id: ID name of the expected config expression to finalize after running, default to "finalize".

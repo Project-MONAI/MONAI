@@ -148,7 +148,7 @@ class ConfigWorkflow(BundleWorkflow):
 
     Args:
         run_id: ID name of the expected config expression to run, default to "run".
-            the target config must contain this ID to run.
+            to run the config, the target config must contain this ID.
         init_id: ID name of the expected config expression to initialize before running, default to "initialize".
             allow a config to have no `initialize` logic and the ID.
         final_id: ID name of the expected config expression to finalize after running, default to "finalize".
@@ -212,8 +212,6 @@ class ConfigWorkflow(BundleWorkflow):
         # the rest key-values in the _args are to override config content
         self.parser.update(pairs=override)
         self.init_id = init_id
-        if run_id not in self.parser:
-            raise ValueError(f"run ID '{run_id}' doesn't exist in the config file.")
         self.run_id = run_id
         self.final_id = final_id
         # set tracking configs for experiment management
@@ -240,6 +238,8 @@ class ConfigWorkflow(BundleWorkflow):
         Run the bundle workflow, it can be a training, evaluation or inference.
 
         """
+        if self.run_id not in self.parser:
+            raise ValueError(f"run ID '{self.run_id}' doesn't exist in the config file.")
         return self._run_expr(id=self.run_id)
 
     def finalize(self) -> Any:
