@@ -4,7 +4,7 @@ name: integration
 on:
   push:
     branches:
-      - dev
+      - temp-test
   repository_dispatch:
     type: [integration-test-command]
 
@@ -63,6 +63,12 @@ jobs:
       options: --gpus "device=1" --ipc host  # shm-size 4g works fine
     runs-on: [self-hosted, linux, x64, command]
     steps:
+    # checkout the pull request branch
+    - uses: actions/checkout@v3
+      with:
+        token: ${{ secrets.PR_MAINTAIN }}
+        repository: ${{ github.event.client_payload.pull_request.head.repo.full_name }}
+        ref: ${{ github.event.client_payload.pull_request.head.ref }}
     - name: Install the dependencies
       run: |
         pwd && git log -1 && which python
@@ -81,7 +87,6 @@ jobs:
         python -m tests.test_auto3dseg_hpo
         python -m tests.test_integration_autorunner
         python -m tests.test_integration_gpu_customization
-
     - name: Integration tests
       shell: bash
       env:
@@ -105,6 +110,12 @@ jobs:
       options: --gpus "device=2" --ipc host  # shm-size 4g works fine
     runs-on: [self-hosted, linux, x64, command1]
     steps:
+    # checkout the pull request branch
+    - uses: actions/checkout@v3
+      with:
+        token: ${{ secrets.PR_MAINTAIN }}
+        repository: ${{ github.event.client_payload.pull_request.head.repo.full_name }}
+        ref: ${{ github.event.client_payload.pull_request.head.ref }}
     - name: Install the dependencies
       run: |
         pwd && git log -1 && which python
@@ -137,7 +148,6 @@ jobs:
         python -m tests.test_auto3dseg_hpo
         python -m tests.test_integration_autorunner
         python -m tests.test_integration_gpu_customization
-
     - name: Unit tests
       shell: bash
       env:
