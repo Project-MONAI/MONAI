@@ -914,7 +914,7 @@ def convert_to_trt(
     if not dynamic_batchsize:
         warnings.warn(f"There is no dynamic batch range. The converted model only takes {input_shape} shape input.")
 
-    if (not (dynamic_batchsize is None)) and (len(dynamic_batchsize) != 3):
+    if (dynamic_batchsize is not None) and (len(dynamic_batchsize) != 3):
         warnings.warn(f"The dynamic batch range sequence should have 3 elements, but got {dynamic_batchsize} elements.")
 
     device = device if device else 0
