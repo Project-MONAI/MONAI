@@ -64,7 +64,6 @@ __all__ = [
 
 logger = get_logger(module_name=__name__)
 
-global _has_nvfuser
 _has_nvfuser = None
 
 
