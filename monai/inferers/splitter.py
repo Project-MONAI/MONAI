@@ -312,6 +312,7 @@ class WSISlidingWindowSplitter(SlidingWindowSplitter):
 
         reader_kwargs: the arguments to pass to `WSIReader` or the provided whole slide reader class.
             For instance, level=2, dtype=torch.float32, etc.
+            Note that if `level` is not provided, `level=0` is assumed.
 
     Note:
         When a scaler value is provided for `patch_size`, `offset`, or `overlap`,
@@ -431,7 +432,7 @@ class WSISlidingWindowSplitter(SlidingWindowSplitter):
             raise ValueError(f"The input should be the path to the whole slide image. {type(inputs)} is given.")
 
         wsi = self.reader.read(inputs)
-        level = self.reader_kwargs.get("level")
+        level = self.reader_kwargs.get("level", 0)
         downsample_ratio = self.reader.get_downsample_ratio(wsi, level)
         spatial_shape: tuple = self.reader.get_size(wsi, level)
         spatial_ndim = len(spatial_shape)

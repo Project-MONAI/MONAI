@@ -36,10 +36,8 @@ elif has_osl:
     WSI_READER_CLASS = OpenSlideWSIReader
 
 
-FILE_KEY = "wsi_img"
-FILE_URL = testing_data_config("images", FILE_KEY, "url")
-base_name, extension = os.path.basename(f"{FILE_URL}"), ".tiff"
-FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + base_name + extension)
+WSI_GENERIC_TIFF_KEY = "wsi_generic_tiff"
+WSI_GENERIC_TIFF_PATH = os.path.join(os.path.dirname(__file__), "testing_data", f"temp_{WSI_GENERIC_TIFF_KEY}.tiff")
 
 HEIGHT = 32914
 WIDTH = 46000
@@ -50,13 +48,13 @@ WIDTH = 46000
 # ----------------------------------------------------------------------------
 
 TEST_CASE_WSI_0_BASE = [
-    FILE_PATH,
+    WSI_GENERIC_TIFF_PATH,
     {"patch_size": (1000, 1000), "reader": WSI_READER_STR},
     {"locations": [(0, 0), (0, 1000), (0, 2000), (0, 3000)]},
 ]
 
 TEST_CASE_WSI_1_BASE = [
-    FILE_PATH,
+    WSI_GENERIC_TIFF_PATH,
     {"patch_size": (1000, 1000), "level": 1, "reader": WSI_READER_STR},
     {"locations": [(0, 0), (0, 1000), (0, 2000), (0, 3000)]},
 ]
@@ -64,41 +62,41 @@ TEST_CASE_WSI_1_BASE = [
 # Check readers
 if WSI_READER_STR is not None:
     TEST_CASE_WSI_2_READER = [
-        FILE_PATH,
+        WSI_GENERIC_TIFF_PATH,
         {"patch_size": (1000, 1000), "reader": WSIReader(backend=WSI_READER_STR)},
         {"locations": [(0, 0), (0, 1000), (0, 2000), (0, 3000)]},
     ]
 else:
     TEST_CASE_WSI_2_READER = []
 TEST_CASE_WSI_3_READER = [
-    FILE_PATH,
+    WSI_GENERIC_TIFF_PATH,
     {"patch_size": (1000, 1000), "overlap": 0.0, "reader": WSIReader, "backend": WSI_READER_STR},
     {"locations": [(0, 0), (0, 1000), (0, 2000), (0, 3000)]},
 ]
 TEST_CASE_WSI_4_READER = [
-    FILE_PATH,
+    WSI_GENERIC_TIFF_PATH,
     {"patch_size": (1000, 1000), "overlap": 0.0, "reader": WSI_READER_CLASS},
     {"locations": [(0, 0), (0, 1000), (0, 2000), (0, 3000)]},
 ]
 TEST_CASE_WSI_5_READER = [
-    FILE_PATH,
+    WSI_GENERIC_TIFF_PATH,
     {"patch_size": (1000, 1000), "overlap": 0.0, "level": 1, "reader": WSI_READER_STR},
     {"locations": [(0, 0), (0, 1000), (0, 2000), (0, 3000)]},
 ]
 
 # Check overlaps
 TEST_CASE_WSI_6_OVERLAP = [
-    FILE_PATH,
+    WSI_GENERIC_TIFF_PATH,
     {"patch_size": (1000, 1000), "overlap": 0.0, "reader": WSI_READER_STR},
     {"locations": [(0, 0), (0, 1000), (0, 2000), (0, 3000)]},
 ]
 TEST_CASE_WSI_7_OVERLAP = [
-    FILE_PATH,
+    WSI_GENERIC_TIFF_PATH,
     {"patch_size": (1000, 1000), "overlap": 0.5, "reader": WSI_READER_STR},
     {"locations": [(0, 0), (0, 500), (0, 1000), (0, 1500)]},
 ]
 TEST_CASE_WSI_8_OVERLAP = [
-    FILE_PATH,
+    WSI_GENERIC_TIFF_PATH,
     {"patch_size": (1000, 1000), "overlap": 0.999, "reader": WSI_READER_STR},
     {"locations": [(0, 0), (0, 1), (0, 2), (0, 3)]},
 ]
@@ -115,7 +113,7 @@ def gen_location_filter(locations):
 
 
 TEST_CASE_WSI_9_FILTER = [
-    FILE_PATH,
+    WSI_GENERIC_TIFF_PATH,
     {"patch_size": (1000, 1000), "reader": WSI_READER_STR, "filter_fn": gen_location_filter([(0, 0), (0, 2000)])},
     {"locations": [(0, 1000), (0, 3000)]},
 ]
@@ -133,45 +131,61 @@ def missing_parameter_filter(patch):
 
 
 # invalid overlap: float 1.0
-TEST_CASE_ERROR_0 = [FILE_PATH, {"patch_size": (2, 2), "overlap": 1.0, "reader": WSI_READER_STR}, ValueError]
+TEST_CASE_ERROR_0 = [
+    WSI_GENERIC_TIFF_PATH,
+    {"patch_size": (2, 2), "overlap": 1.0, "reader": WSI_READER_STR},
+    ValueError,
+]
 # invalid overlap: negative float
-TEST_CASE_ERROR_1 = [FILE_PATH, {"patch_size": (2, 2), "overlap": -0.1, "reader": WSI_READER_STR}, ValueError]
+TEST_CASE_ERROR_1 = [
+    WSI_GENERIC_TIFF_PATH,
+    {"patch_size": (2, 2), "overlap": -0.1, "reader": WSI_READER_STR},
+    ValueError,
+]
 # invalid overlap: negative integer
-TEST_CASE_ERROR_2 = [FILE_PATH, {"patch_size": (2, 2), "overlap": -1, "reader": WSI_READER_STR}, ValueError]
+TEST_CASE_ERROR_2 = [WSI_GENERIC_TIFF_PATH, {"patch_size": (2, 2), "overlap": -1, "reader": WSI_READER_STR}, ValueError]
 # invalid overlap: integer larger than patch size
-TEST_CASE_ERROR_3 = [FILE_PATH, {"patch_size": (2, 2), "overlap": 3, "reader": WSI_READER_STR}, ValueError]
+TEST_CASE_ERROR_3 = [WSI_GENERIC_TIFF_PATH, {"patch_size": (2, 2), "overlap": 3, "reader": WSI_READER_STR}, ValueError]
 
 # invalid offset: positive and larger than image size
-TEST_CASE_ERROR_4 = [FILE_PATH, {"patch_size": (2, 2), "offset": WIDTH, "reader": WSI_READER_STR}, ValueError]
+TEST_CASE_ERROR_4 = [
+    WSI_GENERIC_TIFF_PATH,
+    {"patch_size": (2, 2), "offset": WIDTH, "reader": WSI_READER_STR},
+    ValueError,
+]
 # invalid offset: negative and larger than patch size (in magnitude)
 TEST_CASE_ERROR_5 = [
-    FILE_PATH,
+    WSI_GENERIC_TIFF_PATH,
     {"patch_size": (2, 2), "offset": -3, "pad_kwargs": {"mode": "constant"}, "reader": WSI_READER_STR},
     ValueError,
 ]
 # invalid offset: negative and no padding
-TEST_CASE_ERROR_6 = [FILE_PATH, {"patch_size": (2, 2), "offset": -1}, ValueError]
+TEST_CASE_ERROR_6 = [WSI_GENERIC_TIFF_PATH, {"patch_size": (2, 2), "offset": -1}, ValueError]
 
 # invalid filter function: with more than two positional parameters
 TEST_CASE_ERROR_7 = [
-    FILE_PATH,
+    WSI_GENERIC_TIFF_PATH,
     {"patch_size": (2, 2), "filter_fn": extra_parameter_filter, "reader": WSI_READER_STR},
     ValueError,
 ]
 # invalid filter function: with less than two positional parameters
 TEST_CASE_ERROR_8 = [
-    FILE_PATH,
+    WSI_GENERIC_TIFF_PATH,
     {"patch_size": (2, 2), "filter_fn": missing_parameter_filter, "reader": WSI_READER_STR},
     ValueError,
 ]
 # invalid filter function: non-callable
-TEST_CASE_ERROR_9 = [FILE_PATH, {"patch_size": (2, 2), "filter_fn": 1, "reader": WSI_READER_STR}, ValueError]
+TEST_CASE_ERROR_9 = [
+    WSI_GENERIC_TIFF_PATH,
+    {"patch_size": (2, 2), "filter_fn": 1, "reader": WSI_READER_STR},
+    ValueError,
+]
 
 # invalid reader
-TEST_CASE_ERROR_10 = [FILE_PATH, {"patch_size": (2, 2), "reader": ImageReader}, ValueError]
+TEST_CASE_ERROR_10 = [WSI_GENERIC_TIFF_PATH, {"patch_size": (2, 2), "reader": ImageReader}, ValueError]
 # invalid reader that does not support padding
 TEST_CASE_ERROR_11 = [
-    FILE_PATH,
+    WSI_GENERIC_TIFF_PATH,
     {"patch_size": (2, 2), "pad_mode": "constant", "reader": TiffFileWSIReader},
     ValueError,
 ]
@@ -179,9 +193,12 @@ TEST_CASE_ERROR_11 = [
 
 @skipUnless(WSI_READER_STR, "Requires cucim or openslide!")
 def setUpModule():
-    hash_type = testing_data_config("images", FILE_KEY, "hash_type")
-    hash_val = testing_data_config("images", FILE_KEY, "hash_val")
-    download_url_or_skip_test(FILE_URL, FILE_PATH, hash_type=hash_type, hash_val=hash_val)
+    download_url_or_skip_test(
+        testing_data_config("images", WSI_GENERIC_TIFF_KEY, "url"),
+        WSI_GENERIC_TIFF_PATH,
+        hash_type=testing_data_config("images", WSI_GENERIC_TIFF_KEY, "hash_type"),
+        hash_val=testing_data_config("images", WSI_GENERIC_TIFF_KEY, "hash_val"),
+    )
 
 
 class WSISlidingWindowSplitterTests(unittest.TestCase):

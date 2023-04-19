@@ -11,7 +11,6 @@
 
 from __future__ import annotations
 
-import os
 import unittest
 
 import torch
@@ -19,16 +18,7 @@ from parameterized import parameterized
 from torch.nn.functional import pad
 
 from monai.inferers import SlidingWindowSplitter
-from tests.utils import assert_allclose, testing_data_config
-
-FILE_KEY = "wsi_img"
-FILE_URL = testing_data_config("images", FILE_KEY, "url")
-base_name, extension = os.path.basename(f"{FILE_URL}"), ".tiff"
-FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + base_name + extension)
-
-HEIGHT = 32914
-WIDTH = 46000
-
+from tests.utils import assert_allclose
 
 # ----------------------------------------------------------------------------
 # Tensor test cases
@@ -154,8 +144,9 @@ TEST_CASE_TENSOR_7 = [
 TEST_CASE_TENSOR_8 = [TENSOR_4x4, {"patch_size": (2, 2), "offset": 1}, [(TENSOR_4x4[..., 1:3, 1:3], (1, 1))]]
 
 
-# ________________________________________________________
+# ----------------------------------------------------------------------------
 # Filtering function test cases
+# ----------------------------------------------------------------------------
 def gen_filter(filter_type, value=None):
     """ "Generate patch filtering function for testing"""
     if filter_type.lower() == "high":
