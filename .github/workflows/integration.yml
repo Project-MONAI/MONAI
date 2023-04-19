@@ -65,10 +65,7 @@ jobs:
     steps:
     - name: Install the dependencies
       run: |
-        pwd
-        ls *
-        git log -1
-        which python
+        pwd && git log -1 && which python
         python -m pip install --upgrade pip wheel
         python -m pip install --upgrade torch torchvision torchaudio
         python -m pip install -r requirements-dev.txt
@@ -78,6 +75,8 @@ jobs:
       env:
         BUILD_MONAI: 0
       run: |
+        pwd && git log -1 && which python
+        ./runtests.sh -b
         python -m tests.test_auto3dseg_ensemble
         python -m tests.test_auto3dseg_hpo
         python -m tests.test_integration_autorunner
@@ -88,8 +87,6 @@ jobs:
       env:
         BUILD_MONAI: 1
       run: |
-        pwd
-        ls -ll
         ./runtests.sh --build --net
 
     - name: Add reaction
@@ -110,10 +107,7 @@ jobs:
     steps:
     - name: Install the dependencies
       run: |
-        pwd
-        ls *
-        git log -1
-        which python
+        pwd && git log -1 && which python
         python -m pip install --upgrade pip wheel
         python -m pip install --upgrade torch torchvision torchaudio
         python -m pip install -r requirements-dev.txt
@@ -137,6 +131,8 @@ jobs:
         export OMP_NUM_THREADS=4
         export MKL_NUM_THREADS=4
         export MONAI_TESTING_ALGO_TEMPLATE=algorithm_templates
+        pwd && git log -1 && which python
+        ./runtests.sh -b
         python -m tests.test_auto3dseg_ensemble
         python -m tests.test_auto3dseg_hpo
         python -m tests.test_integration_autorunner
@@ -147,8 +143,6 @@ jobs:
       env:
         BUILD_MONAI: 1
       run: |
-        pwd
-        ls -ll
         ./runtests.sh --build --unittests
 
     - name: Add reaction
