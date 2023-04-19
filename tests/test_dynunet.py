@@ -128,15 +128,6 @@ class TestDynUNet(unittest.TestCase):
 @skip_if_no_cuda
 @skip_if_windows
 class TestDynUNetWithInstanceNorm3dNVFuser(unittest.TestCase):
-    def setUp(self):
-        try:
-            layer = InstanceNorm3dNVFuser(num_features=1, affine=False).to("cuda:0")
-            inp = torch.randn([1, 1, 1, 1, 1]).to("cuda:0")
-            out = layer(inp)
-            del inp, out, layer
-        except Exception:
-            self.skipTest("NVFuser not available")
-
     @parameterized.expand([TEST_CASE_DYNUNET_3D[0]])
     def test_consistency(self, input_param, input_shape, _):
         for eps in [1e-4, 1e-5]:
