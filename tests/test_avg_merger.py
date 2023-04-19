@@ -15,6 +15,7 @@ import unittest
 
 import torch
 from parameterized import parameterized
+from torch.nn.functional import pad
 
 from monai.inferers import AvgMerger
 from tests.utils import assert_allclose
@@ -122,6 +123,42 @@ TEST_CASE_7_COUNT_VALUE_DTYPE = [
     TENSOR_4x4,
 ]
 
+# shape larger than what is covered by patches
+TEST_CASE_8_LARGER_SHAPE = [
+    dict(output_shape=(2, 3, 4, 6)),
+    [
+        (TENSOR_4x4[..., :2, :2], (0, 0)),
+        (TENSOR_4x4[..., :2, 2:], (0, 2)),
+        (TENSOR_4x4[..., 2:, :2], (2, 0)),
+        (TENSOR_4x4[..., 2:, 2:], (2, 2)),
+    ],
+    pad(TENSOR_4x4, (0, 2), value=torch.nan),
+]
+
+# cropping with larger size
+TEST_CASE_9_CROP = [
+    dict(output_shape=(2, 3, 4, 6), crop_shape=TENSOR_4x4.shape, crop=True),
+    [
+        (TENSOR_4x4[..., :2, :2], (0, 0)),
+        (TENSOR_4x4[..., :2, 2:], (0, 2)),
+        (TENSOR_4x4[..., 2:, :2], (2, 0)),
+        (TENSOR_4x4[..., 2:, 2:], (2, 2)),
+    ],
+    TENSOR_4x4,
+]
+
+# cropping to a smaller size
+TEST_CASE_10_CROP = [
+    dict(output_shape=TENSOR_4x4.shape, crop_shape=(2, 3, 2, 2), crop=True),
+    [
+        (TENSOR_4x4[..., :2, :2], (0, 0)),
+        (TENSOR_4x4[..., :2, 2:], (0, 2)),
+        (TENSOR_4x4[..., 2:, :2], (2, 0)),
+        (TENSOR_4x4[..., 2:, 2:], (2, 2)),
+    ],
+    TENSOR_4x4[:, :, :2, :2],
+]
+
 
 class AvgMergerTests(unittest.TestCase):
     @parameterized.expand(
@@ -134,6 +171,9 @@ class AvgMergerTests(unittest.TestCase):
             TEST_CASE_5_VALUE_DTYPE,
             TEST_CASE_6_COUNT_DTYPE,
             TEST_CASE_7_COUNT_VALUE_DTYPE,
+            TEST_CASE_8_LARGER_SHAPE,
+            TEST_CASE_9_CROP,
+            TEST_CASE_10_CROP,
         ]
     )
     def test_avg_merger_patches(self, arguments, patch_locations, expected):
