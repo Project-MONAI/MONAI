@@ -1088,6 +1088,8 @@ class Lambdad(MapTransform, InvertibleTransform):
             each element corresponds to a key in ``keys``.
         inv_func: Lambda/function of inverse operation if want to invert transforms, default to `lambda x: x`.
             It also can be a sequence of Callable, each element corresponds to a key in ``keys``.
+        track_meta:  If `False`, then standard data objects will be returned (e.g., torch.Tensor` and `np.ndarray`)
+            as opposed to MONAI's enhanced objects. By default, this is `True`.
         overwrite: whether to overwrite the original data in the input dictionary with lambda function output. it
             can be bool or str, when setting to str, it will create a new key for the output and keep the value of
             key intact. default to True. it also can be a sequence of bool or str, each element corresponds to a key
@@ -1106,6 +1108,7 @@ class Lambdad(MapTransform, InvertibleTransform):
         keys: KeysCollection,
         func: Sequence[Callable] | Callable,
         inv_func: Sequence[Callable] | Callable = no_collation,
+        track_meta: bool = True,
         overwrite: Sequence[bool] | bool | Sequence[str] | str = True,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -1113,7 +1116,7 @@ class Lambdad(MapTransform, InvertibleTransform):
         self.func = ensure_tuple_rep(func, len(self.keys))
         self.inv_func = ensure_tuple_rep(inv_func, len(self.keys))
         self.overwrite = ensure_tuple_rep(overwrite, len(self.keys))
-        self._lambd = Lambda()
+        self._lambd = Lambda(track_meta=track_meta)
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
@@ -1146,6 +1149,8 @@ class RandLambdad(Lambdad, RandomizableTransform):
             each element corresponds to a key in ``keys``.
         inv_func: Lambda/function of inverse operation if want to invert transforms, default to `lambda x: x`.
             It also can be a sequence of Callable, each element corresponds to a key in ``keys``.
+        track_meta:  If `False`, then standard data objects will be returned (e.g., torch.Tensor` and `np.ndarray`)
+            as opposed to MONAI's enhanced objects. By default, this is `True`.
         overwrite: whether to overwrite the original data in the input dictionary with lambda function output.
             default to True. it also can be a sequence of bool, each element corresponds to a key in ``keys``.
         prob: probability of executing the random function, default to 1.0, with 100% probability to execute.
@@ -1165,6 +1170,7 @@ class RandLambdad(Lambdad, RandomizableTransform):
         keys: KeysCollection,
         func: Sequence[Callable] | Callable,
         inv_func: Sequence[Callable] | Callable = no_collation,
+        track_meta: bool = True,
         overwrite: Sequence[bool] | bool = True,
         prob: float = 1.0,
         allow_missing_keys: bool = False,
@@ -1174,6 +1180,7 @@ class RandLambdad(Lambdad, RandomizableTransform):
             keys=keys,
             func=func,
             inv_func=inv_func,
+            track_meta=track_meta,
             overwrite=overwrite,
             allow_missing_keys=allow_missing_keys,
         )

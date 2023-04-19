@@ -830,6 +830,8 @@ class Lambda(InvertibleTransform):
     Args:
         func: Lambda/function to be applied.
         inv_func: Lambda/function of inverse operation, default to `lambda x: x`.
+        track_meta:  If `False`, then standard data objects will be returned (e.g., torch.Tensor` and `np.ndarray`)
+            as opposed to MONAI's enhanced objects. By default, this is `True`.
 
     Raises:
         TypeError: When ``func`` is not an ``Optional[Callable]``.
@@ -838,11 +840,14 @@ class Lambda(InvertibleTransform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, func: Callable | None = None, inv_func: Callable = no_collation) -> None:
+    def __init__(
+        self, func: Callable | None = None, inv_func: Callable = no_collation, track_meta: bool = True
+    ) -> None:
         if func is not None and not callable(func):
             raise TypeError(f"func must be None or callable but is {type(func).__name__}.")
         self.func = func
         self.inv_func = inv_func
+        self.track_meta = track_meta
 
     def __call__(self, img: NdarrayOrTensor, func: Callable | None = None):
         """
@@ -860,7 +865,7 @@ class Lambda(InvertibleTransform):
             raise TypeError(f"func must be None or callable but is {type(fn).__name__}.")
         out = fn(img)
         # convert to MetaTensor if necessary
-        if isinstance(out, (np.ndarray, torch.Tensor)) and not isinstance(out, MetaTensor) and get_track_meta():
+        if isinstance(out, (np.ndarray, torch.Tensor)) and not isinstance(out, MetaTensor) and self.track_meta:
             out = MetaTensor(out)
         if isinstance(out, MetaTensor):
             self.push_transform(out)
@@ -881,21 +886,29 @@ class RandLambda(Lambda, RandomizableTransform):
         func: Lambda/function to be applied.
         prob: probability of executing the random function, default to 1.0, with 100% probability to execute.
         inv_func: Lambda/function of inverse operation, default to `lambda x: x`.
+        track_meta:  If `False`, then standard data objects will be returned (e.g., torch.Tensor` and `np.ndarray`)
+            as opposed to MONAI's enhanced objects. By default, this is `True`.
 
     For more details, please check :py:class:`monai.transforms.Lambda`.
     """
 
     backend = Lambda.backend
 
-    def __init__(self, func: Callable | None = None, prob: float = 1.0, inv_func: Callable = no_collation) -> None:
-        Lambda.__init__(self=self, func=func, inv_func=inv_func)
+    def __init__(
+        self,
+        func: Callable | None = None,
+        prob: float = 1.0,
+        inv_func: Callable = no_collation,
+        track_meta: bool = True,
+    ) -> None:
+        Lambda.__init__(self=self, func=func, inv_func=inv_func, track_meta=track_meta)
         RandomizableTransform.__init__(self=self, prob=prob)
 
     def __call__(self, img: NdarrayOrTensor, func: Callable | None = None):
         self.randomize(img)
         out = deepcopy(super().__call__(img, func) if self._do_transform else img)
         # convert to MetaTensor if necessary
-        if not isinstance(out, MetaTensor) and get_track_meta():
+        if not isinstance(out, MetaTensor) and self.track_meta:
             out = MetaTensor(out)
         if isinstance(out, MetaTensor):
             lambda_info = self.pop_transform(out) if self._do_transform else {}

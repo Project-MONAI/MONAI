@@ -75,7 +75,7 @@ fake_datalist: dict[str, list[dict]] = {
 }
 
 
-@SkipIfBeforePyTorchVersion((1, 9, 1))
+@SkipIfBeforePyTorchVersion((1, 11, 1))
 @unittest.skipIf(not has_tb, "no tensorboard summary writer")
 class TestHPO(unittest.TestCase):
     def setUp(self) -> None:
