@@ -148,8 +148,11 @@ class ConfigWorkflow(BundleWorkflow):
 
     Args:
         run_id: ID name of the expected config expression to run, default to "run".
+            to run the config, the target config must contain this ID.
         init_id: ID name of the expected config expression to initialize before running, default to "initialize".
+            allow a config to have no `initialize` logic and the ID.
         final_id: ID name of the expected config expression to finalize after running, default to "finalize".
+            allow a config to have no `finalize` logic and the ID.
         meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
             Default to "configs/metadata.json", which is commonly used for bundles in MONAI model zoo.
         config_file: filepath of the config file, if it is a list of file paths, the content of them will be merged.
@@ -235,6 +238,8 @@ class ConfigWorkflow(BundleWorkflow):
         Run the bundle workflow, it can be a training, evaluation or inference.
 
         """
+        if self.run_id not in self.parser:
+            raise ValueError(f"run ID '{self.run_id}' doesn't exist in the config file.")
         return self._run_expr(id=self.run_id)
 
     def finalize(self) -> Any:
