@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import abc
 
 from monai.fl.utils.exchange_object import ExchangeObject
@@ -20,7 +22,7 @@ class Filter(abc.ABC):
     """
 
     @abc.abstractmethod
-    def __call__(self, data: ExchangeObject, extra=None) -> ExchangeObject:
+    def __call__(self, data: ExchangeObject, extra: dict | None = None) -> ExchangeObject:
         """
         Run the filtering.
 
@@ -36,10 +38,10 @@ class Filter(abc.ABC):
 
 class SummaryFilter(Filter):
     """
-    Summary filter to content of ExchangeObject.
+    Summary filter to show content of ExchangeObject.
     """
 
-    def __call__(self, data: ExchangeObject, extra=None) -> ExchangeObject:
+    def __call__(self, data: ExchangeObject, extra: dict | None = None) -> ExchangeObject:
         """
         Example filter that doesn't filter anything but only prints data summary.
 

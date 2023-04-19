@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from .post.array import (
     GenerateDistanceMap,
     GenerateInstanceBorder,
@@ -57,8 +59,6 @@ from .post.dictionary import (
     Watershedd,
     WatershedDict,
 )
-from .spatial.array import SplitOnGrid, TileOnGrid
-from .spatial.dictionary import SplitOnGridd, SplitOnGridD, SplitOnGridDict, TileOnGridd, TileOnGridD, TileOnGridDict
 from .stain.array import ExtractHEStains, NormalizeHEStains
 from .stain.dictionary import (
     ExtractHEStainsd,

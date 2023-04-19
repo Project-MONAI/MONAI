@@ -9,17 +9,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import warnings
+from collections.abc import Hashable, Mapping
 from contextlib import contextmanager
-from typing import Any, Hashable, Mapping, Optional, Tuple
+from typing import Any
 
 import torch
 
 from monai import transforms
+from monai.data.meta_obj import MetaObj, get_track_meta
 from monai.data.meta_tensor import MetaTensor
-from monai.transforms.transform import Transform
-from monai.utils.enums import TraceKeys
+from monai.data.utils import to_affine_nd
+from monai.transforms.transform import LazyTransform, Transform
+from monai.utils import LazyAttr, MetaKeys, TraceKeys, convert_to_dst_type, convert_to_numpy, convert_to_tensor
 
 __all__ = ["TraceableTransform", "InvertibleTransform"]
 
@@ -69,76 +74,174 @@ class TraceableTransform(Transform):
             return f"{TraceKeys.KEY_SUFFIX}"
         return f"{key}{TraceKeys.KEY_SUFFIX}"
 
-    def get_transform_info(
-        self, data, key: Hashable = None, extra_info: Optional[dict] = None, orig_size: Optional[Tuple] = None
-    ) -> dict:
+    @staticmethod
+    def transform_info_keys():
+        """The keys to store necessary info of an applied transform."""
+        return (
+            TraceKeys.CLASS_NAME,
+            TraceKeys.ID,
+            TraceKeys.TRACING,
+            TraceKeys.LAZY_EVALUATION,
+            TraceKeys.DO_TRANSFORM,
+        )
+
+    def get_transform_info(self) -> dict:
         """
         Return a dictionary with the relevant information pertaining to an applied transform.
+        """
+        vals = (
+            self.__class__.__name__,
+            id(self),
+            self.tracing,
+            self.lazy_evaluation if isinstance(self, LazyTransform) else False,
+            self._do_transform if hasattr(self, "_do_transform") else True,
+        )
+        return dict(zip(self.transform_info_keys(), vals))
+
+    def push_transform(self, data, *args, **kwargs):
+        """
+        Push to a stack of applied transforms of ``data``.
 
         Args:
-            data: input data. Can be dictionary or MetaTensor. We can use `shape` to
-                determine the original size of the object (unless that has been given
-                explicitly, see `orig_size`).
-            key: if data is a dictionary, data[key] will be modified.
-            extra_info: if desired, any extra information pertaining to the applied
-                transform can be stored in this dictionary. These are often needed for
-                computing the inverse transformation.
-            orig_size: sometimes during the inverse it is useful to know what the size
-                of the original image was, in which case it can be supplied here.
-
-        Returns:
-            Dictionary of data pertaining to the applied transformation.
+            data: dictionary of data or `MetaTensor`.
+            args: additional positional arguments to track_transform_meta.
+            kwargs: additional keyword arguments to track_transform_meta,
+                set ``replace=True`` (default False) to rewrite the last transform infor in
+                applied_operation/pending_operation based on ``self.get_transform_info()``.
         """
-        info = {TraceKeys.CLASS_NAME: self.__class__.__name__, TraceKeys.ID: id(self)}
-        if orig_size is not None:
-            info[TraceKeys.ORIG_SIZE] = orig_size
-        elif isinstance(data, Mapping) and key in data and hasattr(data[key], "shape"):
-            info[TraceKeys.ORIG_SIZE] = data[key].shape[1:]
-        elif hasattr(data, "shape"):
-            info[TraceKeys.ORIG_SIZE] = data.shape[1:]
-        if extra_info is not None:
-            info[TraceKeys.EXTRA_INFO] = extra_info
-        # If class is randomizable transform, store whether the transform was actually performed (based on `prob`)
-        if hasattr(self, "_do_transform"):  # RandomizableTransform
-            info[TraceKeys.DO_TRANSFORM] = self._do_transform
-        return info
+        transform_info = self.get_transform_info()
+        lazy_eval = transform_info.get(TraceKeys.LAZY_EVALUATION, False)
+        do_transform = transform_info.get(TraceKeys.DO_TRANSFORM, True)
+        kwargs = kwargs or {}
+        replace = kwargs.pop("replace", False)  # whether to rewrite the most recently pushed transform info
+        if replace and get_track_meta() and isinstance(data, MetaTensor):
+            if not lazy_eval:
+                xform = self.pop_transform(data, check=False) if do_transform else {}
+                meta_obj = self.push_transform(data, orig_size=xform.get(TraceKeys.ORIG_SIZE), extra_info=xform)
+                return data.copy_meta_from(meta_obj)
+            if do_transform:
+                xform = data.pending_operations.pop()
+                extra = xform.copy()
+                xform.update(transform_info)
+                meta_obj = self.push_transform(data, transform_info=xform, lazy_evaluation=lazy_eval, extra_info=extra)
+                return data.copy_meta_from(meta_obj)
+            return data
+        kwargs["lazy_evaluation"] = lazy_eval
+        if "transform_info" in kwargs and isinstance(kwargs["transform_info"], dict):
+            kwargs["transform_info"].update(transform_info)
+        else:
+            kwargs["transform_info"] = transform_info
+        meta_obj = TraceableTransform.track_transform_meta(data, *args, **kwargs)
+        return data.copy_meta_from(meta_obj) if isinstance(data, MetaTensor) else data
 
-    def push_transform(
-        self, data, key: Hashable = None, extra_info: Optional[dict] = None, orig_size: Optional[Tuple] = None
-    ) -> None:
+    @classmethod
+    def track_transform_meta(
+        cls,
+        data,
+        key: Hashable = None,
+        sp_size=None,
+        affine=None,
+        extra_info: dict | None = None,
+        orig_size: tuple | None = None,
+        transform_info=None,
+        lazy_evaluation=False,
+    ):
         """
-        Push to a stack of applied transforms.
+        Update a stack of applied/pending transforms metadata of ``data``.
 
         Args:
             data: dictionary of data or `MetaTensor`.
             key: if data is a dictionary, data[key] will be modified.
+            sp_size: the expected output spatial size when the transform is applied.
+                it can be tensor or numpy, but will be converted to a list of integers.
+            affine: the affine representation of the (spatial) transform in the image space.
+                When the transform is applied, meta_tensor.affine will be updated to ``meta_tensor.affine @ affine``.
             extra_info: if desired, any extra information pertaining to the applied
                 transform can be stored in this dictionary. These are often needed for
                 computing the inverse transformation.
             orig_size: sometimes during the inverse it is useful to know what the size
                 of the original image was, in which case it can be supplied here.
+            transform_info: info from self.get_transform_info().
+            lazy_evaluation: whether to push the transform to pending_operations or applied_operations.
 
         Returns:
-            None, but data has been updated to store the applied transformation.
-        """
-        if not self.tracing:
-            return
-        info = self.get_transform_info(data, key, extra_info, orig_size)
 
-        if isinstance(data, MetaTensor):
-            data.push_applied_operation(info)
-        elif isinstance(data, Mapping):
-            if key in data and isinstance(data[key], MetaTensor):
-                data[key].push_applied_operation(info)
+            For backward compatibility, if ``data`` is a dictionary, it returns the dictionary with
+            updated ``data[key]``. Otherwise, this function returns a MetaObj with updated transform metadata.
+        """
+        data_t = data[key] if key is not None else data  # compatible with the dict data representation
+        out_obj = MetaObj()
+        # after deprecating metadict, we should always convert data_t to metatensor here
+        if isinstance(data_t, MetaTensor):
+            out_obj.copy_meta_from(data_t, keys=out_obj.__dict__.keys())
+
+        if lazy_evaluation and (not get_track_meta()):
+            warnings.warn("metadata is not tracked, please call 'set_track_meta(True)' if doing lazy evaluation.")
+
+        if not lazy_evaluation and affine is not None and isinstance(data_t, MetaTensor):
+            # not lazy evaluation, directly update the metatensor affine (don't push to the stack)
+            orig_affine = data_t.peek_pending_affine()
+            orig_affine = convert_to_dst_type(orig_affine, affine, dtype=torch.float64)[0]
+            affine = orig_affine @ to_affine_nd(len(orig_affine) - 1, affine, dtype=torch.float64)
+            out_obj.meta[MetaKeys.AFFINE] = convert_to_tensor(affine, device=torch.device("cpu"), dtype=torch.float64)
+
+        if not (get_track_meta() and transform_info and transform_info.get(TraceKeys.TRACING)):
+            if isinstance(data, Mapping):
+                if not isinstance(data, dict):
+                    data = dict(data)
+                data[key] = data_t.copy_meta_from(out_obj) if isinstance(data_t, MetaTensor) else data_t
+                return data
+            return out_obj  # return with data_t as tensor if get_track_meta() is False
+
+        info = transform_info.copy()
+        # track the current spatial shape
+        if orig_size is not None:
+            info[TraceKeys.ORIG_SIZE] = orig_size
+        elif isinstance(data_t, MetaTensor):
+            info[TraceKeys.ORIG_SIZE] = data_t.peek_pending_shape()
+        elif hasattr(data_t, "shape"):
+            info[TraceKeys.ORIG_SIZE] = data_t.shape[1:]
+        # include extra_info
+        if extra_info is not None:
+            extra_info.pop(LazyAttr.SHAPE, None)
+            extra_info.pop(LazyAttr.AFFINE, None)
+            info[TraceKeys.EXTRA_INFO] = extra_info
+
+        # push the transform info to the applied_operation or pending_operation stack
+        if lazy_evaluation:
+            if sp_size is None:
+                if LazyAttr.SHAPE not in info:
+                    warnings.warn("spatial size is None in push transform.")
             else:
-                # If this is the first, create list
-                if self.trace_key(key) not in data:
-                    if not isinstance(data, dict):
-                        data = dict(data)
-                    data[self.trace_key(key)] = []
-                data[self.trace_key(key)].append(info)
+                info[LazyAttr.SHAPE] = tuple(convert_to_numpy(sp_size, wrap_sequence=True).tolist())
+            if affine is None:
+                if LazyAttr.AFFINE not in info:
+                    warnings.warn("affine is None in push transform.")
+            else:
+                info[LazyAttr.AFFINE] = convert_to_tensor(affine, device=torch.device("cpu"))
+            out_obj.push_pending_operation(info)
         else:
-            warnings.warn(f"`data` should be either `MetaTensor` or dictionary, got {type(data)}. {info} not tracked.")
+            if out_obj.pending_operations:
+                transform_name = info.get(TraceKeys.CLASS_NAME, "") if isinstance(info, dict) else ""
+                warnings.warn(
+                    f"Applying transform {transform_name} to a MetaTensor with pending operations "
+                    "is not supported (as this eventually changes the ordering of applied_operations when the pending "
+                    f"operations are executed). Please clear the pending operations before transform {transform_name}."
+                    f"\nPending operations: {[x.get(TraceKeys.CLASS_NAME) for x in out_obj.pending_operations]}."
+                )
+            out_obj.push_applied_operation(info)
+        if isinstance(data, Mapping):
+            if not isinstance(data, dict):
+                data = dict(data)
+            if isinstance(data_t, MetaTensor):
+                data[key] = data_t.copy_meta_from(out_obj)
+            else:
+                x_k = TraceableTransform.trace_key(key)
+                if x_k not in data:
+                    data[x_k] = []  # If this is the first, create list
+                data[x_k].append(info)
+            return data
+        return out_obj
 
     def check_transforms_match(self, transform: Mapping) -> None:
         """Check transforms are of same instance."""

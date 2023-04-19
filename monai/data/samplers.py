@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import torch
 from torch.utils.data import Dataset
@@ -42,8 +44,8 @@ class DistributedSampler(_TorchDistributedSampler):
         self,
         dataset: Dataset,
         even_divisible: bool = True,
-        num_replicas: Optional[int] = None,
-        rank: Optional[int] = None,
+        num_replicas: int | None = None,
+        rank: int | None = None,
         shuffle: bool = True,
         **kwargs,
     ):
@@ -88,11 +90,11 @@ class DistributedWeightedRandomSampler(DistributedSampler):
         self,
         dataset: Dataset,
         weights: Sequence[float],
-        num_samples_per_rank: Optional[int] = None,
-        generator: Optional[torch.Generator] = None,
+        num_samples_per_rank: int | None = None,
+        generator: torch.Generator | None = None,
         even_divisible: bool = True,
-        num_replicas: Optional[int] = None,
-        rank: Optional[int] = None,
+        num_replicas: int | None = None,
+        rank: int | None = None,
         shuffle: bool = True,
         **kwargs,
     ):

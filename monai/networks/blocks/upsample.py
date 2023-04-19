@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Tuple, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import torch
 import torch.nn as nn
@@ -31,6 +33,9 @@ class UpSample(nn.Sequential):
         - "nontrainable": uses :py:class:`torch.nn.Upsample`.
         - "pixelshuffle": uses :py:class:`monai.networks.blocks.SubpixelUpsample`.
 
+    This operation will cause non-deterministic when ``mode`` is ``UpsampleMode.NONTRAINABLE``.
+    Please check the link below for more details:
+    https://pytorch.org/docs/stable/generated/torch.use_deterministic_algorithms.html#torch.use_deterministic_algorithms
     This module can optionally take a pre-convolution
     (often used to map the number of features from `in_channels` to `out_channels`).
     """
@@ -38,15 +43,15 @@ class UpSample(nn.Sequential):
     def __init__(
         self,
         spatial_dims: int,
-        in_channels: Optional[int] = None,
-        out_channels: Optional[int] = None,
-        scale_factor: Union[Sequence[float], float] = 2,
-        kernel_size: Optional[Union[Sequence[float], float]] = None,
-        size: Optional[Union[Tuple[int], int]] = None,
-        mode: Union[UpsampleMode, str] = UpsampleMode.DECONV,
-        pre_conv: Optional[Union[nn.Module, str]] = "default",
+        in_channels: int | None = None,
+        out_channels: int | None = None,
+        scale_factor: Sequence[float] | float = 2,
+        kernel_size: Sequence[float] | float | None = None,
+        size: tuple[int] | int | None = None,
+        mode: UpsampleMode | str = UpsampleMode.DECONV,
+        pre_conv: nn.Module | str | None = "default",
         interp_mode: str = InterpolateMode.LINEAR,
-        align_corners: Optional[bool] = True,
+        align_corners: bool | None = True,
         bias: bool = True,
         apply_pad_pool: bool = True,
     ) -> None:
@@ -203,10 +208,10 @@ class SubpixelUpsample(nn.Module):
     def __init__(
         self,
         spatial_dims: int,
-        in_channels: Optional[int],
-        out_channels: Optional[int] = None,
+        in_channels: int | None,
+        out_channels: int | None = None,
         scale_factor: int = 2,
-        conv_block: Optional[Union[nn.Module, str]] = "default",
+        conv_block: nn.Module | str | None = "default",
         apply_pad_pool: bool = True,
         bias: bool = True,
     ) -> None:

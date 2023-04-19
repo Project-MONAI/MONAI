@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from torch import Tensor
 
 from monai.config.type_definitions import NdarrayOrTensor

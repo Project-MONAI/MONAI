@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import torch
 import torch.nn as nn
@@ -33,8 +35,8 @@ class ViTAutoEnc(nn.Module):
     def __init__(
         self,
         in_channels: int,
-        img_size: Union[Sequence[int], int],
-        patch_size: Union[Sequence[int], int],
+        img_size: Sequence[int] | int,
+        patch_size: Sequence[int] | int,
         out_channels: int = 1,
         deconv_chns: int = 16,
         hidden_size: int = 768,

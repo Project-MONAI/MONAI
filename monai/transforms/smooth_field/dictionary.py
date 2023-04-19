@@ -9,7 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Hashable, Mapping, Optional, Sequence, Union
+from __future__ import annotations
+
+from collections.abc import Hashable, Mapping, Sequence
+from typing import Any
 
 import numpy as np
 import torch
@@ -67,10 +70,10 @@ class RandSmoothFieldAdjustContrastd(RandomizableTransform, MapTransform):
         rand_size: Sequence[int],
         pad: int = 0,
         mode: SequenceStr = InterpolateMode.AREA,
-        align_corners: Optional[bool] = None,
+        align_corners: bool | None = None,
         prob: float = 0.1,
-        gamma: Union[Sequence[float], float] = (0.5, 4.5),
-        device: Optional[torch.device] = None,
+        gamma: Sequence[float] | float = (0.5, 4.5),
+        device: torch.device | None = None,
     ):
         RandomizableTransform.__init__(self, prob)
         MapTransform.__init__(self, keys)
@@ -89,13 +92,13 @@ class RandSmoothFieldAdjustContrastd(RandomizableTransform, MapTransform):
         )
 
     def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandSmoothFieldAdjustContrastd":
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandSmoothFieldAdjustContrastd:
         super().set_random_state(seed, state)
         self.trans.set_random_state(seed, state)
         return self
 
-    def randomize(self, data: Optional[Any] = None) -> None:
+    def randomize(self, data: Any | None = None) -> None:
         super().randomize(None)
 
         if self._do_transform:
@@ -145,10 +148,10 @@ class RandSmoothFieldAdjustIntensityd(RandomizableTransform, MapTransform):
         rand_size: Sequence[int],
         pad: int = 0,
         mode: SequenceStr = InterpolateMode.AREA,
-        align_corners: Optional[bool] = None,
+        align_corners: bool | None = None,
         prob: float = 0.1,
-        gamma: Union[Sequence[float], float] = (0.1, 1.0),
-        device: Optional[torch.device] = None,
+        gamma: Sequence[float] | float = (0.1, 1.0),
+        device: torch.device | None = None,
     ):
         RandomizableTransform.__init__(self, prob)
         MapTransform.__init__(self, keys)
@@ -167,13 +170,13 @@ class RandSmoothFieldAdjustIntensityd(RandomizableTransform, MapTransform):
         )
 
     def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandSmoothFieldAdjustIntensityd":
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandSmoothFieldAdjustIntensityd:
         super().set_random_state(seed, state)
         self.trans.set_random_state(seed, state)
         return self
 
-    def randomize(self, data: Optional[Any] = None) -> None:
+    def randomize(self, data: Any | None = None) -> None:
         super().randomize(None)
         self.trans.randomize()
 
@@ -226,14 +229,14 @@ class RandSmoothDeformd(RandomizableTransform, MapTransform):
         rand_size: Sequence[int],
         pad: int = 0,
         field_mode: SequenceStr = InterpolateMode.AREA,
-        align_corners: Optional[bool] = None,
+        align_corners: bool | None = None,
         prob: float = 0.1,
-        def_range: Union[Sequence[float], float] = 1.0,
+        def_range: Sequence[float] | float = 1.0,
         grid_dtype=torch.float32,
         grid_mode: SequenceStr = GridSampleMode.NEAREST,
         grid_padding_mode: str = GridSamplePadMode.BORDER,
-        grid_align_corners: Optional[bool] = False,
-        device: Optional[torch.device] = None,
+        grid_align_corners: bool | None = False,
+        device: torch.device | None = None,
     ):
         RandomizableTransform.__init__(self, prob)
         MapTransform.__init__(self, keys)
@@ -257,13 +260,13 @@ class RandSmoothDeformd(RandomizableTransform, MapTransform):
         )
 
     def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandSmoothDeformd":
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandSmoothDeformd:
         super().set_random_state(seed, state)
         self.trans.set_random_state(seed, state)
         return self
 
-    def randomize(self, data: Optional[Any] = None) -> None:
+    def randomize(self, data: Any | None = None) -> None:
         super().randomize(None)
         self.trans.randomize()
 

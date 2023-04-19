@@ -13,22 +13,38 @@ A collection of "vanilla" transforms for utility functions
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
+from __future__ import annotations
+
 import logging
 import sys
 import time
 import warnings
+from collections.abc import Mapping, Sequence
 from copy import deepcopy
-from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
+from functools import partial
+from typing import Any, Callable
 
 import numpy as np
 import torch
+import torch.nn as nn
 
 from monai.config import DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
-from monai.data.utils import no_collation
+from monai.data.utils import is_no_channel, no_collation
+from monai.networks.layers.simplelayers import (
+    ApplyFilter,
+    EllipticalFilter,
+    GaussianFilter,
+    LaplaceFilter,
+    MeanFilter,
+    SavitzkyGolayFilter,
+    SharpenFilter,
+    median_filter,
+)
 from monai.transforms.inverse import InvertibleTransform
+from monai.transforms.traits import MultiSampleTrait
 from monai.transforms.transform import Randomizable, RandomizableTrait, RandomizableTransform, Transform
 from monai.transforms.utils import (
     extreme_points_to_image,
@@ -38,13 +54,13 @@ from monai.transforms.utils import (
 )
 from monai.transforms.utils_pytorch_numpy_unification import concatenate, in1d, moveaxis, unravel_indices
 from monai.utils import (
+    MetaKeys,
     TraceKeys,
     convert_data_type,
     convert_to_cupy,
     convert_to_numpy,
     convert_to_tensor,
     deprecated,
-    deprecated_arg,
     ensure_tuple,
     look_up_option,
     min_version,
@@ -60,6 +76,7 @@ cp, has_cp = optional_import("cupy")
 
 __all__ = [
     "Identity",
+    "RandIdentity",
     "AsChannelFirst",
     "AsChannelLast",
     "AddChannel",
@@ -92,6 +109,8 @@ __all__ = [
     "CuCIM",
     "RandCuCIM",
     "ToCupy",
+    "ImageFilter",
+    "RandImageFilter",
 ]
 
 
@@ -109,6 +128,18 @@ class Identity(Transform):
         Apply the transform to `img`.
         """
         return img
+
+
+class RandIdentity(RandomizableTrait):
+    """
+    Do nothing to the data. This transform is random, so can be used to stop the caching of any
+    subsequent transforms.
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __call__(self, data: Any) -> Any:
+        return data
 
 
 @deprecated(since="0.8", msg_suffix="please use MetaTensor data type and monai.transforms.EnsureChannelFirst instead.")
@@ -132,7 +163,7 @@ class AsChannelFirst(Transform):
 
     def __init__(self, channel_dim: int = -1) -> None:
         if not (isinstance(channel_dim, int) and channel_dim >= -1):
-            raise AssertionError("invalid channel dimension.")
+            raise ValueError(f"invalid channel dimension ({channel_dim}).")
         self.channel_dim = channel_dim
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
@@ -162,7 +193,7 @@ class AsChannelLast(Transform):
 
     def __init__(self, channel_dim: int = 0) -> None:
         if not (isinstance(channel_dim, int) and channel_dim >= -1):
-            raise AssertionError("invalid channel dimension.")
+            raise ValueError(f"invalid channel dimension ({channel_dim}).")
         self.channel_dim = channel_dim
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
@@ -216,11 +247,11 @@ class EnsureChannelFirst(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, strict_check: bool = True, channel_dim: Union[None, str, int] = None):
+    def __init__(self, strict_check: bool = True, channel_dim: None | str | int = None):
         self.strict_check = strict_check
         self.input_channel_dim = channel_dim
 
-    def __call__(self, img: torch.Tensor, meta_dict: Optional[Mapping] = None) -> torch.Tensor:
+    def __call__(self, img: torch.Tensor, meta_dict: Mapping | None = None) -> torch.Tensor:
         """
         Apply the transform to `img`.
         """
@@ -237,9 +268,9 @@ class EnsureChannelFirst(Transform):
         if isinstance(img, MetaTensor):
             meta_dict = img.meta
 
-        channel_dim = meta_dict.get("original_channel_dim", None) if isinstance(meta_dict, Mapping) else None
+        channel_dim = meta_dict.get(MetaKeys.ORIGINAL_CHANNEL_DIM, None) if isinstance(meta_dict, Mapping) else None
         if self.input_channel_dim is not None:
-            channel_dim = self.input_channel_dim
+            channel_dim = float("nan") if self.input_channel_dim == "no_channel" else self.input_channel_dim
 
         if channel_dim is None:
             msg = "Unknown original_channel_dim in the MetaTensor meta dict or `meta_dict` or `channel_dim`."
@@ -250,12 +281,12 @@ class EnsureChannelFirst(Transform):
 
         # track the original channel dim
         if isinstance(meta_dict, dict):
-            meta_dict["original_channel_dim"] = channel_dim
+            meta_dict[MetaKeys.ORIGINAL_CHANNEL_DIM] = channel_dim
 
-        if channel_dim == "no_channel":
+        if is_no_channel(channel_dim):
             result = img[None]
         else:
-            result = moveaxis(img, channel_dim, 0)  # type: ignore
+            result = moveaxis(img, int(channel_dim), 0)  # type: ignore
 
         return convert_to_tensor(result, track_meta=get_track_meta())  # type: ignore
 
@@ -274,7 +305,7 @@ class RepeatChannel(Transform):
 
     def __init__(self, repeats: int) -> None:
         if repeats <= 0:
-            raise AssertionError("repeats count must be greater than 0.")
+            raise ValueError(f"repeats count must be greater than 0, got {repeats}.")
         self.repeats = repeats
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
@@ -299,7 +330,7 @@ class RemoveRepeatedChannel(Transform):
 
     def __init__(self, repeats: int) -> None:
         if repeats <= 0:
-            raise AssertionError("repeats count must be greater than 0.")
+            raise ValueError(f"repeats count must be greater than 0, got {repeats}.")
 
         self.repeats = repeats
 
@@ -308,13 +339,13 @@ class RemoveRepeatedChannel(Transform):
         Apply the transform to `img`, assuming `img` is a "channel-first" array.
         """
         if img.shape[0] < 2:
-            raise AssertionError("Image must have more than one channel")
+            raise ValueError(f"Image must have more than one channel, got {img.shape[0]} channels.")
 
         out: NdarrayOrTensor = convert_to_tensor(img[:: self.repeats, :], track_meta=get_track_meta())
         return out
 
 
-class SplitDim(Transform):
+class SplitDim(Transform, MultiSampleTrait):
     """
     Given an image of size X along a certain dimension, return a list of length X containing
     images. Useful for converting 3D images into a stack of 2D images, splitting multichannel inputs into
@@ -336,13 +367,11 @@ class SplitDim(Transform):
         self.keepdim = keepdim
         self.update_meta = update_meta
 
-    def __call__(self, img: torch.Tensor) -> List[torch.Tensor]:
+    def __call__(self, img: torch.Tensor) -> list[torch.Tensor]:
         """
         Apply the transform to `img`.
         """
         n_out = img.shape[self.dim]
-        if n_out <= 1:
-            raise RuntimeError(f"Input image is singleton along dimension to be split, got shape {img.shape}.")
         if isinstance(img, torch.Tensor):
             outputs = list(torch.split(img, 1, self.dim))
         else:
@@ -394,7 +423,7 @@ class CastToType(Transform):
         """
         self.dtype = dtype
 
-    def __call__(self, img: NdarrayOrTensor, dtype: Union[DtypeLike, torch.dtype] = None) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, dtype: DtypeLike | torch.dtype = None) -> NdarrayOrTensor:
         """
         Apply the transform to `img`, assuming `img` is a numpy array or PyTorch Tensor.
 
@@ -429,10 +458,10 @@ class ToTensor(Transform):
 
     def __init__(
         self,
-        dtype: Optional[torch.dtype] = None,
-        device: Optional[torch.device] = None,
+        dtype: torch.dtype | None = None,
+        device: torch.device | None = None,
         wrap_sequence: bool = True,
-        track_meta: Optional[bool] = None,
+        track_meta: bool | None = None,
     ) -> None:
         super().__init__()
         self.dtype = dtype
@@ -474,10 +503,10 @@ class EnsureType(Transform):
     def __init__(
         self,
         data_type: str = "tensor",
-        dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
-        device: Optional[torch.device] = None,
+        dtype: DtypeLike | torch.dtype | None = None,
+        device: torch.device | None = None,
         wrap_sequence: bool = True,
-        track_meta: Optional[bool] = None,
+        track_meta: bool | None = None,
     ) -> None:
         self.data_type = look_up_option(data_type.lower(), {"tensor", "numpy"})
         self.dtype = dtype
@@ -549,7 +578,7 @@ class ToCupy(Transform):
 
     backend = [TransformBackends.CUPY]
 
-    def __init__(self, dtype: Optional[np.dtype] = None, wrap_sequence: bool = True) -> None:
+    def __init__(self, dtype: np.dtype | None = None, wrap_sequence: bool = True) -> None:
         super().__init__()
         self.dtype = dtype
         self.wrap_sequence = wrap_sequence
@@ -586,7 +615,7 @@ class Transpose(Transform):
 
     backend = [TransformBackends.TORCH]
 
-    def __init__(self, indices: Optional[Sequence[int]]) -> None:
+    def __init__(self, indices: Sequence[int] | None) -> None:
         self.indices = None if indices is None else tuple(indices)
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
@@ -604,7 +633,7 @@ class SqueezeDim(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, dim: Optional[int] = 0, update_meta=True) -> None:
+    def __init__(self, dim: int | None = 0, update_meta=True) -> None:
         """
         Args:
             dim: dimension to be squeezed. Default = 0
@@ -670,7 +699,7 @@ class DataStats(Transform):
         data_shape: bool = True,
         value_range: bool = True,
         data_value: bool = False,
-        additional_info: Optional[Callable] = None,
+        additional_info: Callable | None = None,
         name: str = "DataStats",
     ) -> None:
         """
@@ -689,7 +718,7 @@ class DataStats(Transform):
 
         """
         if not isinstance(prefix, str):
-            raise AssertionError("prefix must be a string.")
+            raise ValueError(f"prefix must be a string, got {type(prefix)}.")
         self.prefix = prefix
         self.data_type = data_type
         self.data_shape = data_shape
@@ -716,12 +745,12 @@ class DataStats(Transform):
     def __call__(
         self,
         img: NdarrayOrTensor,
-        prefix: Optional[str] = None,
-        data_type: Optional[bool] = None,
-        data_shape: Optional[bool] = None,
-        value_range: Optional[bool] = None,
-        data_value: Optional[bool] = None,
-        additional_info: Optional[Callable] = None,
+        prefix: str | None = None,
+        data_type: bool | None = None,
+        data_shape: bool | None = None,
+        value_range: bool | None = None,
+        data_value: bool | None = None,
+        additional_info: Callable | None = None,
     ) -> NdarrayOrTensor:
         """
         Apply the transform to `img`, optionally take arguments similar to the class constructor.
@@ -773,7 +802,7 @@ class SimulateDelay(Transform):
         super().__init__()
         self.delay_time: float = delay_time
 
-    def __call__(self, img: NdarrayOrTensor, delay_time: Optional[float] = None) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, delay_time: float | None = None) -> NdarrayOrTensor:
         """
         Args:
             img: data remain unchanged throughout this transform.
@@ -801,6 +830,8 @@ class Lambda(InvertibleTransform):
     Args:
         func: Lambda/function to be applied.
         inv_func: Lambda/function of inverse operation, default to `lambda x: x`.
+        track_meta:  If `False`, then standard data objects will be returned (e.g., torch.Tensor` and `np.ndarray`)
+            as opposed to MONAI's enhanced objects. By default, this is `True`.
 
     Raises:
         TypeError: When ``func`` is not an ``Optional[Callable]``.
@@ -809,13 +840,16 @@ class Lambda(InvertibleTransform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, func: Optional[Callable] = None, inv_func: Callable = no_collation) -> None:
+    def __init__(
+        self, func: Callable | None = None, inv_func: Callable = no_collation, track_meta: bool = True
+    ) -> None:
         if func is not None and not callable(func):
             raise TypeError(f"func must be None or callable but is {type(func).__name__}.")
         self.func = func
         self.inv_func = inv_func
+        self.track_meta = track_meta
 
-    def __call__(self, img: NdarrayOrTensor, func: Optional[Callable] = None):
+    def __call__(self, img: NdarrayOrTensor, func: Callable | None = None):
         """
         Apply `self.func` to `img`.
 
@@ -831,7 +865,7 @@ class Lambda(InvertibleTransform):
             raise TypeError(f"func must be None or callable but is {type(fn).__name__}.")
         out = fn(img)
         # convert to MetaTensor if necessary
-        if isinstance(out, (np.ndarray, torch.Tensor)) and not isinstance(out, MetaTensor) and get_track_meta():
+        if isinstance(out, (np.ndarray, torch.Tensor)) and not isinstance(out, MetaTensor) and self.track_meta:
             out = MetaTensor(out)
         if isinstance(out, MetaTensor):
             self.push_transform(out)
@@ -852,21 +886,29 @@ class RandLambda(Lambda, RandomizableTransform):
         func: Lambda/function to be applied.
         prob: probability of executing the random function, default to 1.0, with 100% probability to execute.
         inv_func: Lambda/function of inverse operation, default to `lambda x: x`.
+        track_meta:  If `False`, then standard data objects will be returned (e.g., torch.Tensor` and `np.ndarray`)
+            as opposed to MONAI's enhanced objects. By default, this is `True`.
 
     For more details, please check :py:class:`monai.transforms.Lambda`.
     """
 
     backend = Lambda.backend
 
-    def __init__(self, func: Optional[Callable] = None, prob: float = 1.0, inv_func: Callable = no_collation) -> None:
-        Lambda.__init__(self=self, func=func, inv_func=inv_func)
+    def __init__(
+        self,
+        func: Callable | None = None,
+        prob: float = 1.0,
+        inv_func: Callable = no_collation,
+        track_meta: bool = True,
+    ) -> None:
+        Lambda.__init__(self=self, func=func, inv_func=inv_func, track_meta=track_meta)
         RandomizableTransform.__init__(self=self, prob=prob)
 
-    def __call__(self, img: NdarrayOrTensor, func: Optional[Callable] = None):
+    def __call__(self, img: NdarrayOrTensor, func: Callable | None = None):
         self.randomize(img)
         out = deepcopy(super().__call__(img, func) if self._do_transform else img)
         # convert to MetaTensor if necessary
-        if not isinstance(out, MetaTensor) and get_track_meta():
+        if not isinstance(out, MetaTensor) and self.track_meta:
             out = MetaTensor(out)
         if isinstance(out, MetaTensor):
             lambda_info = self.pop_transform(out) if self._do_transform else {}
@@ -904,16 +946,13 @@ class LabelToMask(Transform):
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(  # pytype: disable=annotation-type-mismatch
-        self, select_labels: Union[Sequence[int], int], merge_channels: bool = False
+        self, select_labels: Sequence[int] | int, merge_channels: bool = False
     ) -> None:  # pytype: disable=annotation-type-mismatch
         self.select_labels = ensure_tuple(select_labels)
         self.merge_channels = merge_channels
 
     def __call__(
-        self,
-        img: NdarrayOrTensor,
-        select_labels: Optional[Union[Sequence[int], int]] = None,
-        merge_channels: bool = False,
+        self, img: NdarrayOrTensor, select_labels: Sequence[int] | int | None = None, merge_channels: bool = False
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -950,7 +989,7 @@ class LabelToMask(Transform):
         return data
 
 
-class FgBgToIndices(Transform):
+class FgBgToIndices(Transform, MultiSampleTrait):
     """
     Compute foreground and background of the input label data, return the indices.
     If no output_shape specified, output data will be 1 dim indices after flattening.
@@ -967,16 +1006,13 @@ class FgBgToIndices(Transform):
 
     backend = [TransformBackends.NUMPY, TransformBackends.TORCH]
 
-    def __init__(self, image_threshold: float = 0.0, output_shape: Optional[Sequence[int]] = None) -> None:
+    def __init__(self, image_threshold: float = 0.0, output_shape: Sequence[int] | None = None) -> None:
         self.image_threshold = image_threshold
         self.output_shape = output_shape
 
     def __call__(
-        self,
-        label: NdarrayOrTensor,
-        image: Optional[NdarrayOrTensor] = None,
-        output_shape: Optional[Sequence[int]] = None,
-    ) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
+        self, label: NdarrayOrTensor, image: NdarrayOrTensor | None = None, output_shape: Sequence[int] | None = None
+    ) -> tuple[NdarrayOrTensor, NdarrayOrTensor]:
         """
         Args:
             label: input data to compute foreground and background indices.
@@ -994,15 +1030,15 @@ class FgBgToIndices(Transform):
         return fg_indices, bg_indices
 
 
-class ClassesToIndices(Transform):
-
+class ClassesToIndices(Transform, MultiSampleTrait):
     backend = [TransformBackends.NUMPY, TransformBackends.TORCH]
 
     def __init__(
         self,
-        num_classes: Optional[int] = None,
+        num_classes: int | None = None,
         image_threshold: float = 0.0,
-        output_shape: Optional[Sequence[int]] = None,
+        output_shape: Sequence[int] | None = None,
+        max_samples_per_class: int | None = None,
     ) -> None:
         """
         Compute indices of every class of the input label data, return a list of indices.
@@ -1016,18 +1052,18 @@ class ClassesToIndices(Transform):
             image_threshold: if enabled `image` at runtime, use ``image > image_threshold`` to
                 determine the valid image content area and select only the indices of classes in this area.
             output_shape: expected shape of output indices. if not None, unravel indices to specified shape.
+            max_samples_per_class: maximum length of indices to sample in each class to reduce memory consumption.
+                Default is None, no subsampling.
 
         """
         self.num_classes = num_classes
         self.image_threshold = image_threshold
         self.output_shape = output_shape
+        self.max_samples_per_class = max_samples_per_class
 
     def __call__(
-        self,
-        label: NdarrayOrTensor,
-        image: Optional[NdarrayOrTensor] = None,
-        output_shape: Optional[Sequence[int]] = None,
-    ) -> List[NdarrayOrTensor]:
+        self, label: NdarrayOrTensor, image: NdarrayOrTensor | None = None, output_shape: Sequence[int] | None = None
+    ) -> list[NdarrayOrTensor]:
         """
         Args:
             label: input data to compute the indices of every class.
@@ -1039,8 +1075,10 @@ class ClassesToIndices(Transform):
 
         if output_shape is None:
             output_shape = self.output_shape
-        indices: List[NdarrayOrTensor]
-        indices = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
+        indices: list[NdarrayOrTensor]
+        indices = map_classes_to_indices(
+            label, self.num_classes, image, self.image_threshold, self.max_samples_per_class
+        )
         if output_shape is not None:
             indices = [unravel_indices(cls_indices, output_shape) for cls_indices in indices]
 
@@ -1095,7 +1133,7 @@ class AddExtremePointsChannel(Randomizable, Transform):
     def __init__(self, background: int = 0, pert: float = 0.0) -> None:
         self._background = background
         self._pert = pert
-        self._points: List[Tuple[int, ...]] = []
+        self._points: list[tuple[int, ...]] = []
 
     def randomize(self, label: NdarrayOrTensor) -> None:
         self._points = get_extreme_points(label, rand_state=self.R, background=self._background, pert=self._pert)
@@ -1103,8 +1141,8 @@ class AddExtremePointsChannel(Randomizable, Transform):
     def __call__(
         self,
         img: NdarrayOrTensor,
-        label: Optional[NdarrayOrTensor] = None,
-        sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor] = 3.0,
+        label: NdarrayOrTensor | None = None,
+        sigma: Sequence[float] | float | Sequence[torch.Tensor] | torch.Tensor = 3.0,
         rescale_min: float = -1.0,
         rescale_max: float = 1.0,
     ) -> NdarrayOrTensor:
@@ -1238,14 +1276,14 @@ class IntensityStats(Transform):
 
     backend = [TransformBackends.NUMPY]
 
-    def __init__(self, ops: Sequence[Union[str, Callable]], key_prefix: str, channel_wise: bool = False) -> None:
+    def __init__(self, ops: Sequence[str | Callable], key_prefix: str, channel_wise: bool = False) -> None:
         self.ops = ensure_tuple(ops)
         self.key_prefix = key_prefix
         self.channel_wise = channel_wise
 
     def __call__(
-        self, img: NdarrayOrTensor, meta_data: Optional[Dict] = None, mask: Optional[np.ndarray] = None
-    ) -> Tuple[NdarrayOrTensor, Dict]:
+        self, img: NdarrayOrTensor, meta_data: dict | None = None, mask: np.ndarray | None = None
+    ) -> tuple[NdarrayOrTensor, dict]:
         """
         Compute statistics for the intensity of input image.
 
@@ -1309,7 +1347,7 @@ class ToDevice(Transform):
 
     backend = [TransformBackends.TORCH]
 
-    def __init__(self, device: Union[torch.device, str], **kwargs) -> None:
+    def __init__(self, device: torch.device | str, **kwargs) -> None:
         """
         Args:
             device: target device to move the Tensor, for example: "cuda:1".
@@ -1403,9 +1441,6 @@ class AddCoordinateChannels(Transform):
 
     backend = [TransformBackends.NUMPY]
 
-    @deprecated_arg(
-        name="spatial_channels", new_name="spatial_dims", since="0.8", msg_suffix="please use `spatial_dims` instead."
-    )
     def __init__(self, spatial_dims: Sequence[int]) -> None:
         self.spatial_dims = spatial_dims
 
@@ -1422,3 +1457,282 @@ class AddCoordinateChannels(Transform):
         coord_channels, *_ = convert_to_dst_type(coord_channels, img)  # type: ignore
         coord_channels = coord_channels[list(self.spatial_dims)]
         return concatenate((img, coord_channels), axis=0)
+
+
+class ImageFilter(Transform):
+    """
+    Applies a convolution filter to the input image.
+
+    Args:
+        filter:
+            A string specifying the filter, a custom filter as ``torch.Tenor`` or ``np.ndarray`` or a ``nn.Module``.
+            Available options for string are: ``mean``, ``laplace``, ``elliptical``, ``sobel``, ``sharpen``, ``median``, ``gauss``
+            See below for short explanations on every filter.
+        filter_size:
+            A single integer value specifying the size of the quadratic or cubic filter.
+            Computational complexity scales to the power of 2 (2D filter) or 3 (3D filter), which
+            should be considered when choosing filter size.
+        kwargs:
+            Additional arguments passed to filter function, required by ``sobel`` and ``gauss``.
+            See below for details.
+
+    Raises:
+        ValueError: When ``filter_size`` is not an uneven integer
+        ValueError: When ``filter`` is an array and ``ndim`` is not in [1,2,3]
+        ValueError: When ``filter`` is an array and any dimension has an even shape
+        NotImplementedError: When ``filter`` is a string and not in ``self.supported_filters``
+        KeyError: When necessary ``kwargs`` are not passed to a filter that requires additional arguments.
+
+
+    **Mean Filtering:** ``filter='mean'``
+
+    Mean filtering can smooth edges and remove aliasing artifacts in an segmentation image.
+    See also py:func:`monai.networks.layers.simplelayers.MeanFilter`
+    Example 2D filter (5 x 5)::
+
+        [[1, 1, 1, 1, 1],
+         [1, 1, 1, 1, 1],
+         [1, 1, 1, 1, 1],
+         [1, 1, 1, 1, 1],
+         [1, 1, 1, 1, 1]]
+
+    If smoothing labels with this filter, ensure they are in one-hot format.
+
+    **Outline Detection:** ``filter='laplace'``
+
+    Laplacian filtering for outline detection in images. Can be used to transform labels to contours.
+    See also py:func:`monai.networks.layers.simplelayers.LaplaceFilter`
+
+    Example 2D filter (5x5)::
+
+        [[-1., -1., -1., -1., -1.],
+         [-1., -1., -1., -1., -1.],
+         [-1., -1., 24., -1., -1.],
+         [-1., -1., -1., -1., -1.],
+         [-1., -1., -1., -1., -1.]]
+
+
+    **Dilation:** ``filter='elliptical'``
+
+    An elliptical filter can be used to dilate labels or label-contours.
+    Example 2D filter (5x5)::
+
+        [[0., 0., 1., 0., 0.],
+         [1., 1., 1., 1., 1.],
+         [1., 1., 1., 1., 1.],
+         [1., 1., 1., 1., 1.],
+         [0., 0., 1., 0., 0.]]
+
+
+    **Edge Detection:** ``filter='sobel'``
+
+    This filter allows for additional arguments passed as ``kwargs`` during initialization.
+    See also py:func:`monai.transforms.post.SobelGradients`
+
+    *kwargs*
+
+    * ``spatial_axes``: the axes that define the direction of the gradient to be calculated.
+      It calculates the gradient along each of the provide axis.
+      By default it calculate the gradient for all spatial axes.
+    * ``normalize_kernels``: if normalize the Sobel kernel to provide proper gradients. Defaults to True.
+    * ``normalize_gradients``: if normalize the output gradient to 0 and 1. Defaults to False.
+    * ``padding_mode``: the padding mode of the image when convolving with Sobel kernels. Defaults to ``"reflect"``.
+      Acceptable values are ``'zeros'``, ``'reflect'``, ``'replicate'`` or ``'circular'``.
+      See ``torch.nn.Conv1d()`` for more information.
+    * ``dtype``: kernel data type (torch.dtype). Defaults to ``torch.float32``.
+
+
+    **Sharpening:** ``filter='sharpen'``
+
+    Sharpen an image with a 2D or 3D filter.
+    Example 2D filter (5x5)::
+
+        [[ 0.,  0., -1.,  0.,  0.],
+         [-1., -1., -1., -1., -1.],
+         [-1., -1., 17., -1., -1.],
+         [-1., -1., -1., -1., -1.],
+         [ 0.,  0., -1.,  0.,  0.]]
+
+
+    **Gaussian Smooth:** ``filter='gauss'``
+
+    Blur/smooth an image with 2D or 3D gaussian filter.
+    This filter requires additional arguments passed as ``kwargs`` during initialization.
+    See also py:func:`monai.networks.layers.simplelayers.GaussianFilter`
+
+    *kwargs*
+
+    * ``sigma``: std. could be a single value, or spatial_dims number of values.
+    * ``truncated``: spreads how many stds.
+    * ``approx``: discrete Gaussian kernel type, available options are "erf", "sampled", and "scalespace".
+
+
+    **Median Filter:** ``filter='median'``
+
+    Blur an image with 2D or 3D median filter to remove noise.
+    Useful in image preprocessing to improve results of later processing.
+    See also py:func:`monai.networks.layers.simplelayers.MedianFilter`
+
+
+    **Savitzky Golay Filter:** ``filter = 'savitzky_golay'``
+
+    Convolve a Tensor along a particular axis with a Savitzky-Golay kernel.
+    This filter requires additional arguments passed as ``kwargs`` during initialization.
+    See also py:func:`monai.networks.layers.simplelayers.SavitzkyGolayFilter`
+
+    *kwargs*
+
+    * ``order``: Order of the polynomial to fit to each window, must be less than ``window_length``.
+    * ``axis``: (optional): Axis along which to apply the filter kernel. Default 2 (first spatial dimension).
+    * ``mode``: (string, optional): padding mode passed to convolution class. ``'zeros'``, ``'reflect'``, ``'replicate'`` or
+      ``'circular'``. Default: ``'zeros'``. See torch.nn.Conv1d() for more information.
+
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    supported_filters = sorted(
+        ["mean", "laplace", "elliptical", "sobel", "sharpen", "median", "gauss", "savitzky_golay"]
+    )
+
+    def __init__(self, filter: str | NdarrayOrTensor | nn.Module, filter_size: int | None = None, **kwargs) -> None:
+        self._check_filter_format(filter, filter_size)
+        self._check_kwargs_are_present(filter, **kwargs)
+        self.filter = filter
+        self.filter_size = filter_size
+        self.additional_args_for_filter = kwargs
+
+    def __call__(self, img: NdarrayOrTensor, meta_dict: dict | None = None) -> NdarrayOrTensor:
+        """
+        Args:
+            img: torch tensor data to apply filter to with shape: [channels, height, width[, depth]]
+            meta_dict: An optional dictionary with metadata
+
+        Returns:
+            A MetaTensor with the same shape as `img` and identical metadata
+        """
+        if isinstance(img, MetaTensor):
+            meta_dict = img.meta
+        img_, prev_type, device = convert_data_type(img, torch.Tensor)
+        ndim = img_.ndim - 1  # assumes channel first format
+
+        if isinstance(self.filter, str):
+            self.filter = self._get_filter_from_string(self.filter, self.filter_size, ndim)  # type: ignore
+        elif isinstance(self.filter, (torch.Tensor, np.ndarray)):
+            self.filter = ApplyFilter(self.filter)
+
+        img_ = self._apply_filter(img_)
+        if meta_dict:
+            img_ = MetaTensor(img_, meta=meta_dict)
+        else:
+            img_, *_ = convert_data_type(img_, prev_type, device)
+        return img_
+
+    def _check_all_values_uneven(self, x: tuple) -> None:
+        for value in x:
+            if value % 2 == 0:
+                raise ValueError(f"Only uneven filters are supported, but filter size is {x}")
+
+    def _check_filter_format(self, filter: str | NdarrayOrTensor | nn.Module, filter_size: int | None = None) -> None:
+        if isinstance(filter, str):
+            if not filter_size:
+                raise ValueError("`filter_size` must be specified when specifying filters by string.")
+            if filter_size % 2 == 0:
+                raise ValueError("`filter_size` should be a single uneven integer.")
+            if filter not in self.supported_filters:
+                raise NotImplementedError(f"{filter}. Supported filters are {self.supported_filters}.")
+        elif isinstance(filter, torch.Tensor) or isinstance(filter, np.ndarray):
+            if filter.ndim not in [1, 2, 3]:
+                raise ValueError("Only 1D, 2D, and 3D filters are supported.")
+            self._check_all_values_uneven(filter.shape)
+        elif isinstance(filter, (nn.Module, Transform)):
+            pass
+        else:
+            raise TypeError(
+                f"{type(filter)} is not supported."
+                "Supported types are `class 'str'`, `class 'torch.Tensor'`, `class 'np.ndarray'`, "
+                "`class 'torch.nn.modules.module.Module'`, `class 'monai.transforms.Transform'`"
+            )
+
+    def _check_kwargs_are_present(self, filter, **kwargs):
+        if filter == "gauss" and "sigma" not in kwargs.keys():
+            raise KeyError("`filter='gauss', requires the additonal keyword argument `sigma`")
+        if filter == "savitzky_golay" and "order" not in kwargs.keys():
+            raise KeyError("`filter='savitzky_golay', requires the additonal keyword argument `order`")
+
+    def _get_filter_from_string(self, filter: str, size: int, ndim: int) -> nn.Module | Callable:
+        if filter == "mean":
+            return MeanFilter(ndim, size)
+        elif filter == "laplace":
+            return LaplaceFilter(ndim, size)
+        elif filter == "elliptical":
+            return EllipticalFilter(ndim, size)
+        elif filter == "sobel":
+            from monai.transforms.post.array import SobelGradients  # cannot import on top because of circular imports
+
+            allowed_keys = SobelGradients.__init__.__annotations__.keys()
+            kwargs = {k: v for k, v in self.additional_args_for_filter.items() if k in allowed_keys}
+            return SobelGradients(size, **kwargs)
+        elif filter == "sharpen":
+            return SharpenFilter(ndim, size)
+        elif filter == "gauss":
+            allowed_keys = GaussianFilter.__init__.__annotations__.keys()
+            kwargs = {k: v for k, v in self.additional_args_for_filter.items() if k in allowed_keys}
+            return GaussianFilter(ndim, **kwargs)
+        elif filter == "median":
+            return partial(median_filter, kernel_size=size, spatial_dims=ndim)
+        elif filter == "savitzky_golay":
+            allowed_keys = SavitzkyGolayFilter.__init__.__annotations__.keys()
+            kwargs = {k: v for k, v in self.additional_args_for_filter.items() if k in allowed_keys}
+            return SavitzkyGolayFilter(size, **kwargs)
+        else:
+            raise NotImplementedError(f"Filter {filter} not implemented")
+
+    def _apply_filter(self, img: torch.Tensor) -> torch.Tensor:
+        if isinstance(self.filter, Transform):
+            img = self.filter(img)
+        else:
+            img = self.filter(img.unsqueeze(0))  # type: ignore
+            img = img[0]  # add and remove batch dim
+        return img
+
+
+class RandImageFilter(RandomizableTransform):
+    """
+    Randomly apply a convolutional filter to the input data.
+
+    Args:
+        filter:
+            A string specifying the filter or a custom filter as `torch.Tenor` or `np.ndarray`.
+            Available options are: `mean`, `laplace`, `elliptical`, `gaussian``
+            See below for short explanations on every filter.
+        filter_size:
+            A single integer value specifying the size of the quadratic or cubic filter.
+            Computational complexity scales to the power of 2 (2D filter) or 3 (3D filter), which
+            should be considered when choosing filter size.
+        prob:
+            Probability the transform is applied to the data
+    """
+
+    backend = ImageFilter.backend
+
+    def __init__(
+        self, filter: str | NdarrayOrTensor, filter_size: int | None = None, prob: float = 0.1, **kwargs
+    ) -> None:
+        super().__init__(prob)
+        self.filter = ImageFilter(filter, filter_size, **kwargs)
+
+    def __call__(self, img: NdarrayOrTensor, meta_dict: Mapping | None = None) -> NdarrayOrTensor:
+        """
+        Args:
+            img: torch tensor data to apply filter to with shape: [channels, height, width[, depth]]
+            meta_dict: An optional dictionary with metadata
+            kwargs: optional arguments required by specific filters. E.g. `sigma`if filter is `gauss`.
+                see py:func:`monai.transforms.utility.array.ImageFilter` for more details
+
+        Returns:
+            A MetaTensor with the same shape as `img` and identical metadata
+        """
+        self.randomize(None)
+        if self._do_transform:
+            img = self.filter(img)
+        return img

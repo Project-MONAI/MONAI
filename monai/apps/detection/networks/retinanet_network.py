@@ -37,13 +37,16 @@ Part of this script is adapted from
 https://github.com/pytorch/vision/blob/main/torchvision/models/detection/retinanet.py
 """
 
+from __future__ import annotations
+
 import math
-from typing import Callable, Dict, List, Sequence, Union
+from collections.abc import Callable, Sequence
+from typing import Dict
 
 import torch
 from torch import Tensor, nn
 
-from monai.networks.blocks.backbone_fpn_utils import _resnet_fpn_extractor
+from monai.networks.blocks.backbone_fpn_utils import BackboneWithFPN, _resnet_fpn_extractor
 from monai.networks.layers.factories import Conv
 from monai.networks.nets import resnet
 from monai.utils import ensure_tuple_rep, look_up_option, optional_import
@@ -94,7 +97,7 @@ class RetinaNetClassificationHead(nn.Module):
         self.num_classes = num_classes
         self.num_anchors = num_anchors
 
-    def forward(self, x: List[Tensor]) -> List[Tensor]:
+    def forward(self, x: list[Tensor]) -> list[Tensor]:
         """
         It takes a list of feature maps as inputs, and outputs a list of classification maps.
         Each output classification map has same spatial size with the corresponding input feature map,
@@ -163,7 +166,7 @@ class RetinaNetRegressionHead(nn.Module):
                 torch.nn.init.normal_(layer.weight, std=0.01)  # type: ignore
                 torch.nn.init.zeros_(layer.bias)  # type: ignore
 
-    def forward(self, x: List[Tensor]) -> List[Tensor]:
+    def forward(self, x: list[Tensor]) -> list[Tensor]:
         """
         It takes a list of feature maps as inputs, and outputs a list of box regression maps.
         Each output box regression map has same spatial size with the corresponding input feature map,
@@ -261,8 +264,8 @@ class RetinaNet(nn.Module):
         spatial_dims: int,
         num_classes: int,
         num_anchors: int,
-        feature_extractor,
-        size_divisible: Union[Sequence[int], int] = 1,
+        feature_extractor: nn.Module,
+        size_divisible: Sequence[int] | int = 1,
     ):
         super().__init__()
 
@@ -278,7 +281,7 @@ class RetinaNet(nn.Module):
             )
         self.feature_extractor = feature_extractor
 
-        self.feature_map_channels: int = self.feature_extractor.out_channels
+        self.feature_map_channels: int = self.feature_extractor.out_channels  # type: ignore[assignment]
         self.num_anchors = num_anchors
         self.classification_head = RetinaNetClassificationHead(
             self.feature_map_channels, self.num_anchors, self.num_classes, spatial_dims=self.spatial_dims
@@ -290,7 +293,7 @@ class RetinaNet(nn.Module):
         self.cls_key: str = "classification"
         self.box_reg_key: str = "box_regression"
 
-    def forward(self, images: Tensor) -> Dict[str, List[Tensor]]:
+    def forward(self, images: Tensor) -> dict[str, list[Tensor]]:
         """
         It takes an image tensor as inputs, and outputs a dictionary ``head_outputs``.
         ``head_outputs[self.cls_key]`` is the predicted classification maps, a list of Tensor.
@@ -320,7 +323,7 @@ class RetinaNet(nn.Module):
         # compute classification and box regression maps from the feature maps
         # expandable for mask prediction in the future
 
-        head_outputs: Dict[str, List[Tensor]] = {self.cls_key: self.classification_head(feature_maps)}
+        head_outputs: dict[str, list[Tensor]] = {self.cls_key: self.classification_head(feature_maps)}
         head_outputs[self.box_reg_key] = self.regression_head(feature_maps)
 
         return head_outputs
@@ -331,8 +334,8 @@ def resnet_fpn_feature_extractor(
     spatial_dims: int,
     pretrained_backbone: bool = False,
     returned_layers: Sequence[int] = (1, 2, 3),
-    trainable_backbone_layers: Union[int, None] = None,
-):
+    trainable_backbone_layers: int | None = None,
+) -> BackboneWithFPN:
     """
     Constructs a feature extractor network with a ResNet-FPN backbone, used as feature_extractor in RetinaNet.
 

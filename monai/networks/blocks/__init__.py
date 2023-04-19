@@ -9,8 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from .acti_norm import ADN
-from .activation import MemoryEfficientSwish, Mish, Swish
+from .activation import GEGLU, MemoryEfficientSwish, Mish, Swish
 from .aspp import SimpleASPP
 from .backbone_fpn_utils import BackboneWithFPN
 from .convolutions import Convolution, ResidualUnit

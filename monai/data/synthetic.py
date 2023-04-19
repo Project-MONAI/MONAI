@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Tuple
+from __future__ import annotations
 
 import numpy as np
 
@@ -26,9 +26,9 @@ def create_test_image_2d(
     rad_min: int = 5,
     noise_max: float = 0.0,
     num_seg_classes: int = 5,
-    channel_dim: Optional[int] = None,
-    random_state: Optional[np.random.RandomState] = None,
-) -> Tuple[np.ndarray, np.ndarray]:
+    channel_dim: int | None = None,
+    random_state: np.random.RandomState | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Return a noisy 2D image with `num_objs` circles and a 2D mask image. The maximum and minimum radii of the circles
     are given as `rad_max` and `rad_min`. The mask will have `num_seg_classes` number of classes for segmentations labeled
@@ -54,12 +54,12 @@ def create_test_image_2d(
     """
 
     if rad_max <= rad_min:
-        raise ValueError("`rad_min` should be less than `rad_max`.")
+        raise ValueError(f"`rad_min` {rad_min} should be less than `rad_max` {rad_max}.")
     if rad_min < 1:
-        raise ValueError("`rad_min` should be no less than 1.")
+        raise ValueError(f"`rad_min` {rad_min} should be no less than 1.")
     min_size = min(height, width)
     if min_size <= 2 * rad_max:
-        raise ValueError("the minimal size of the image should be larger than `2 * rad_max`.")
+        raise ValueError(f"the minimal size {min_size} of the image should be larger than `2 * rad_max` 2x{rad_max}.")
 
     image = np.zeros((height, width))
     rs: np.random.RandomState = np.random.random.__self__ if random_state is None else random_state  # type: ignore
@@ -103,9 +103,9 @@ def create_test_image_3d(
     rad_min: int = 5,
     noise_max: float = 0.0,
     num_seg_classes: int = 5,
-    channel_dim: Optional[int] = None,
-    random_state: Optional[np.random.RandomState] = None,
-) -> Tuple[np.ndarray, np.ndarray]:
+    channel_dim: int | None = None,
+    random_state: np.random.RandomState | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Return a noisy 3D image and segmentation.
 
@@ -131,12 +131,12 @@ def create_test_image_3d(
     """
 
     if rad_max <= rad_min:
-        raise ValueError("`rad_min` should be less than `rad_max`.")
+        raise ValueError(f"`rad_min` {rad_min} should be less than `rad_max` {rad_max}.")
     if rad_min < 1:
-        raise ValueError("`rad_min` should be no less than 1.")
+        raise ValueError("f`rad_min` {rad_min} should be no less than 1.")
     min_size = min(height, width, depth)
     if min_size <= 2 * rad_max:
-        raise ValueError("the minimal size of the image should be larger than `2 * rad_max`.")
+        raise ValueError(f"the minimal size {min_size} of the image should be larger than `2 * rad_max` 2x{rad_max}.")
 
     image = np.zeros((height, width, depth))
     rs: np.random.RandomState = np.random.random.__self__ if random_state is None else random_state  # type: ignore
