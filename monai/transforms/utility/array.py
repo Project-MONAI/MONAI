@@ -1640,13 +1640,11 @@ class ImageFilter(Transform):
                 raise ValueError("`filter_size` should be a single uneven integer.")
             if filter not in self.supported_filters:
                 raise NotImplementedError(f"{filter}. Supported filters are {self.supported_filters}.")
-        elif isinstance(filter, torch.Tensor) or isinstance(filter, np.ndarray):
+        elif isinstance(filter, (torch.Tensor, np.ndarray)):
             if filter.ndim not in [1, 2, 3]:
                 raise ValueError("Only 1D, 2D, and 3D filters are supported.")
             self._check_all_values_uneven(filter.shape)
-        elif isinstance(filter, (nn.Module, Transform)):
-            pass
-        else:
+        elif not isinstance(filter, (nn.Module, Transform)):
             raise TypeError(
                 f"{type(filter)} is not supported."
                 "Supported types are `class 'str'`, `class 'torch.Tensor'`, `class 'np.ndarray'`, "
