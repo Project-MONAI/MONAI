@@ -15,7 +15,7 @@ import unittest
 
 import torch
 from parameterized import parameterized
-from torch.nn.functional import avg_pool2d
+from torch.nn.functional import avg_pool2d, pad
 
 from monai.data.meta_tensor import MetaTensor
 from monai.inferers import AvgMerger, PatchInferer, SlidingWindowSplitter
@@ -127,6 +127,35 @@ TEST_CASE_10_STR_MERGER = [
     TENSOR_4x4,
 ]
 
+
+# non-divisible patch_size leading to larger image (without cropping)
+TEST_CASE_11_PADDING = [
+    TENSOR_4x4,
+    dict(
+        splitter=SlidingWindowSplitter(patch_size=(2, 3), pad_mode="constant", pad_value=0.0),
+        merger_cls=AvgMerger,
+        crop=False,
+    ),
+    lambda x: x,
+    pad(TENSOR_4x4, (0, 2), value=0.0),
+]
+
+# non-divisible patch_size with cropping
+TEST_CASE_12_CROPPING = [
+    TENSOR_4x4,
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 3), pad_mode=None), merger_cls=AvgMerger),
+    lambda x: x,
+    pad(TENSOR_4x4[..., :3], (0, 1), value=torch.nan),
+]
+
+# non-divisible patch_size with cropping
+TEST_CASE_13_PADDING_CROPPING = [
+    TENSOR_4x4,
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 3)), merger_cls=AvgMerger),
+    lambda x: x,
+    TENSOR_4x4,
+]
+
 # list of tensor output
 TEST_CASE_0_LIST_TENSOR = [
     TENSOR_4x4,
@@ -202,6 +231,9 @@ class PatchInfererTests(unittest.TestCase):
             TEST_CASE_8_POSTPROCESS,
             TEST_CASE_9_STR_MERGER,
             TEST_CASE_10_STR_MERGER,
+            TEST_CASE_11_PADDING,
+            TEST_CASE_12_CROPPING,
+            TEST_CASE_13_PADDING_CROPPING,
         ]
     )
     def test_patch_inferer_tensor(self, inputs, arguments, network, expected):

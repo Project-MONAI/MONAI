@@ -120,7 +120,7 @@ class SlidingWindowSplitter(Splitter):
         overlap: Sequence[float] | float | Sequence[int] | int = 0.0,
         offset: Sequence[int] | int = 0,
         filter_fn: Callable | None = None,
-        pad_mode: str | None = None,
+        pad_mode: str | None = "constant",
         pad_value: float | int = 0,
         device: torch.device | str | None = None,
     ) -> None:
@@ -143,8 +143,6 @@ class SlidingWindowSplitter(Splitter):
         # check a valid padding mode is provided if there is any negative offset.
         if not self.pad_mode and any(off < 0 for off in ensure_tuple(offset)):
             raise ValueError(f"Negative `offset`requires a valid padding mode but `mode` is set to {self.pad_mode}.")
-        # batch and color are non-spatial dimensions
-        self.non_spatial_ndim = 2
 
     @staticmethod
     def _validate_filter_fn(filter_fn):
@@ -204,9 +202,7 @@ class SlidingWindowSplitter(Splitter):
         return patch_size, overlap, offset
 
     def _get_patch(self, inputs: Any, location: tuple[int, ...], patch_size: tuple[int, ...]) -> Any:
-        slices = (slice(None),) * self.non_spatial_ndim + tuple(
-            slice(loc, loc + ps) for loc, ps in zip(location, patch_size)
-        )
+        slices = (slice(None),) * 2 + tuple(slice(loc, loc + ps) for loc, ps in zip(location, patch_size))
         return inputs[slices]
 
     def get_input_shape(self, inputs: Any) -> tuple:
@@ -220,7 +216,7 @@ class SlidingWindowSplitter(Splitter):
         Returns:
             spatial_shape
         """
-        return tuple(inputs.shape[self.non_spatial_ndim :])
+        return tuple(inputs.shape[2:])
 
     def get_output_shape(self, inputs: Any) -> tuple:
         """
@@ -259,7 +255,7 @@ class SlidingWindowSplitter(Splitter):
         if not isinstance(inputs, torch.Tensor):
             raise ValueError(f"The input should be a tensor. {type(inputs)} is given.")
 
-        spatial_shape = inputs.shape[self.non_spatial_ndim :]
+        spatial_shape = inputs.shape[2:]
         spatial_ndim = len(spatial_shape)
         patch_size, overlap, offset = self._get_valid_shape_parameters(spatial_shape)
         pad_size, is_start_padded = self._calculate_pad_size(spatial_shape, spatial_ndim, patch_size, offset, overlap)
@@ -269,7 +265,7 @@ class SlidingWindowSplitter(Splitter):
             # pad the inputs
             inputs = torch.nn.functional.pad(inputs, pad_size[::-1], mode=self.pad_mode, value=self.pad_value)
             # update spatial shape
-            spatial_shape = inputs.shape[self.non_spatial_ndim :]
+            spatial_shape = inputs.shape[2:]
             # correct the offset with respect to the padded image
             if is_start_padded:
                 offset = tuple(off + p for off, p in zip(offset, pad_size[1::2]))
@@ -325,9 +321,9 @@ class WSISlidingWindowSplitter(SlidingWindowSplitter):
         overlap: Sequence[float] | float | Sequence[int] | int = 0.0,
         offset: Sequence[int] | int = 0,
         filter_fn: Callable | None = None,
-        pad_mode: str | None = None,
+        pad_mode: str | None = "constant",
         device: torch.device | str | None = None,
-        reader: str | BaseWSIReader | type[BaseWSIReader] | None = "cuCIM",
+        reader: str | BaseWSIReader | type[BaseWSIReader] | None = "OpenSlide",
         **reader_kwargs: dict,
     ) -> None:
         if pad_mode and pad_mode != "constant":
@@ -340,10 +336,12 @@ class WSISlidingWindowSplitter(SlidingWindowSplitter):
         )
         # Set WSI reader
         self._set_reader(reader, reader_kwargs)
-        if self.pad_mode and self.reader.backend.lower() == "tifffile":
+        if self.reader.backend.lower() == "tifffile":
             raise ValueError(
-                "Padding is not supported with 'TiffFile' reader. "
-                "Please either set the padding to `None` or use 'OpenSlide' or 'cuCIM' reader."
+                "'TiffFile' reader is not appropriate for efficiently loading patches, so it is prohibited. "
+                "Please either use other readers such as 'OpenSlide' and 'cuCIM', or "
+                "first load the whole slide image using `monai.data.WSIReader` with `backend=tifffile` "
+                "(or `monai.data.TiffFileWSIReader`), and then use `SlidingWindowSplitter` instead."
             )
 
     def _set_reader(self, reader: str | BaseWSIReader | type[BaseWSIReader] | None, reader_kwargs: dict) -> None:
@@ -385,7 +383,7 @@ class WSISlidingWindowSplitter(SlidingWindowSplitter):
 
         """
         wsi = self.reader.read(inputs)
-        level = self.reader_kwargs.get("level")
+        level = self.reader_kwargs.get("level", 0)
         return self.reader.get_size(wsi, level)
 
     def get_output_shape(self, inputs: Any) -> tuple:

@@ -156,11 +156,15 @@ TEST_CASE_ERROR_4 = [
 # invalid offset: negative and larger than patch size (in magnitude)
 TEST_CASE_ERROR_5 = [
     WSI_GENERIC_TIFF_PATH,
-    {"patch_size": (2, 2), "offset": -3, "pad_kwargs": {"mode": "constant"}, "reader": WSI_READER_STR},
+    {"patch_size": (2, 2), "offset": -3, "pad_mode": "constant", "reader": WSI_READER_STR},
     ValueError,
 ]
 # invalid offset: negative and no padding
-TEST_CASE_ERROR_6 = [WSI_GENERIC_TIFF_PATH, {"patch_size": (2, 2), "offset": -1}, ValueError]
+TEST_CASE_ERROR_6 = [
+    WSI_GENERIC_TIFF_PATH,
+    {"patch_size": (2, 2), "pad_mode": None, "offset": -1, "reader": WSI_READER_STR},
+    ValueError,
+]
 
 # invalid filter function: with more than two positional parameters
 TEST_CASE_ERROR_7 = [

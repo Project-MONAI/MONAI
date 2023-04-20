@@ -114,7 +114,7 @@ TEST_CASE_TENSOR_5 = [
 # non-overlapping 2x2 with positive offset
 TEST_CASE_TENSOR_6 = [
     TENSOR_4x4,
-    {"patch_size": (2, 2), "offset": 1, "pad_mode": "constant"},
+    {"patch_size": (2, 2), "offset": 1},
     [
         (TENSOR_4x4[..., 1:3, 1:3], (1, 1)),
         (pad(TENSOR_4x4[..., 1:3, 3:], (0, 1)), (1, 3)),
@@ -126,7 +126,7 @@ TEST_CASE_TENSOR_6 = [
 # non-overlapping 2x2 with negative offset
 TEST_CASE_TENSOR_7 = [
     TENSOR_4x4,
-    {"patch_size": (2, 2), "offset": -1, "pad_mode": "constant"},
+    {"patch_size": (2, 2), "offset": -1},
     [
         (pad(TENSOR_4x4[..., :1, :1], (1, 0, 1, 0)), (-1, -1)),
         (pad(TENSOR_4x4[..., :1, 1:3], (0, 0, 1, 0)), (-1, 1)),
@@ -141,7 +141,11 @@ TEST_CASE_TENSOR_7 = [
 ]
 
 # non-overlapping 2x2 with positive offset and no padding
-TEST_CASE_TENSOR_8 = [TENSOR_4x4, {"patch_size": (2, 2), "offset": 1}, [(TENSOR_4x4[..., 1:3, 1:3], (1, 1))]]
+TEST_CASE_TENSOR_8 = [
+    TENSOR_4x4,
+    {"patch_size": (2, 2), "offset": 1, "pad_mode": None},
+    [(TENSOR_4x4[..., 1:3, 1:3], (1, 1))],
+]
 
 
 # ----------------------------------------------------------------------------
@@ -221,7 +225,7 @@ TEST_CASE_ERROR_4 = [TENSOR_4x4, {"patch_size": (2, 2), "offset": 4}, ValueError
 # invalid offset: negative and larger than patch size (in magnitude)
 TEST_CASE_ERROR_5 = [TENSOR_4x4, {"patch_size": (2, 2), "offset": -3, "pad_mode": "constant"}, ValueError]
 # invalid offset: negative and no padding
-TEST_CASE_ERROR_6 = [TENSOR_4x4, {"patch_size": (2, 2), "offset": -1}, ValueError]
+TEST_CASE_ERROR_6 = [TENSOR_4x4, {"patch_size": (2, 2), "offset": -1, "pad_mode": None}, ValueError]
 
 # invalid filter function: with more than two positional parameters
 TEST_CASE_ERROR_7 = [TENSOR_4x4, {"patch_size": (2, 2), "filter_fn": extra_parameter_filter}, ValueError]
