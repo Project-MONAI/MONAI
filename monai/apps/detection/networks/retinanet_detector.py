@@ -188,12 +188,12 @@ class RetinaNetDetector(nn.Module):
         network: nn.Module,
         anchor_generator: AnchorGenerator,
         box_overlap_metric: Callable = box_iou,
-        spatial_dims: int | None = None, # used only when network.spatial_dims does not exist
-        num_classes: int | None = None, # used only when network.num_classes does not exist
-        num_anchors: int | None = None, # used only when network.num_anchors does not exist
-        size_divisible: Sequence[int] | int = 1, # used only when network.size_divisible does not exist
-        cls_key: str = "classification", # used only when network.cls_key does not exist
-        box_reg_key: str = "box_regression", # used only when network.box_reg_key does not exist
+        spatial_dims: int | None = None,  # used only when network.spatial_dims does not exist
+        num_classes: int | None = None,  # used only when network.num_classes does not exist
+        num_anchors: int | None = None,  # used only when network.num_anchors does not exist
+        size_divisible: Sequence[int] | int = 1,  # used only when network.size_divisible does not exist
+        cls_key: str = "classification",  # used only when network.cls_key does not exist
+        box_reg_key: str = "box_regression",  # used only when network.box_reg_key does not exist
         debug: bool = False,
     ):
         super().__init__()
@@ -262,7 +262,6 @@ class RetinaNetDetector(nn.Module):
             return default_value
         else:
             raise ValueError(f"network does not have attribute {attr_name}, please provide it in the detector.")
-
 
     def set_box_coder_weights(self, weights: tuple[float]) -> None:
         """
@@ -511,12 +510,12 @@ class RetinaNetDetector(nn.Module):
             head_outputs = self.network(images)
             if isinstance(head_outputs, (tuple, list)):
                 tmp_dict = {}
-                tmp_dict[self.cls_key] = head_outputs[:len(head_outputs)//2]
-                tmp_dict[self.box_reg_key] = head_outputs[len(head_outputs)//2:]
+                tmp_dict[self.cls_key] = head_outputs[: len(head_outputs) // 2]
+                tmp_dict[self.box_reg_key] = head_outputs[len(head_outputs) // 2 :]
                 head_outputs = tmp_dict
             else:
                 # ensure head_outputs is Dict[str, List[Tensor]]
-                ensure_dict_value_to_list_(head_outputs, keys)
+                ensure_dict_value_to_list_(head_outputs)
         else:
             if self.inferer is None:
                 raise ValueError(
