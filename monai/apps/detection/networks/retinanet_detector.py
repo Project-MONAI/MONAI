@@ -509,7 +509,14 @@ class RetinaNetDetector(nn.Module):
         # 3. Generate network outputs. Use inferer only in evaluation mode.
         if self.training or (not use_inferer):
             head_outputs = self.network(images)
-            ensure_dict_value_to_list_(head_outputs)  # ensure head_outputs is Dict[str, List[Tensor]]
+            if isinstance(head_outputs, (tuple, list)):
+                tmp_dict = {}
+                tmp_dict[self.cls_key] = head_outputs[:len(head_outputs)//2]
+                tmp_dict[self.box_reg_key] = head_outputs[len(head_outputs)//2:]
+                head_outputs = tmp_dict
+            else:
+                # ensure head_outputs is Dict[str, List[Tensor]]
+                ensure_dict_value_to_list_(head_outputs, keys)
         else:
             if self.inferer is None:
                 raise ValueError(
