@@ -219,7 +219,7 @@ class RetinaNet(nn.Module):
             It can be the output of ``resnet_fpn_feature_extractor(*args, **kwargs)``.
         size_divisible: the spatial size of the network input should be divisible by size_divisible,
             decided by the feature_extractor.
-        use_tuple_output: If False, the network outputs a dictionary ``head_outputs``,
+        use_tuple_output: default False. If False, the network outputs a dictionary ``head_outputs``,
             ``head_outputs[self.cls_key]`` is the predicted classification maps, a list of Tensor.
             ``head_outputs[self.box_reg_key]`` is the predicted box regression maps, a list of Tensor.
             If True, the network outputs a tuple of 2N tensors ``head_outputs``, with first N tensors being
@@ -304,15 +304,15 @@ class RetinaNet(nn.Module):
 
     def forward(self, images: Tensor) -> dict[str, list[Tensor]] | tuple:
         """
-        It takes an image tensor as inputs, and outputs a dictionary ``head_outputs``.
-        ``head_outputs[self.cls_key]`` is the predicted classification maps, a list of Tensor.
-        ``head_outputs[self.box_reg_key]`` is the predicted box regression maps, a list of Tensor.
+        It takes an image tensor as inputs, and outputs predicted classification maps 
+        and predicted box regression maps in ``head_outputs``.
 
         Args:
             images: input images, sized (B, img_channels, H, W) or (B, img_channels, H, W, D).
 
         Return:
-            1) If self.use_tuple_output is False, output a dictionary ``head_outputs`` with keys including self.cls_key and self.box_reg_key.
+            1) If self.use_tuple_output is False, output a dictionary ``head_outputs`` with 
+            keys including self.cls_key and self.box_reg_key.
             ``head_outputs[self.cls_key]`` is the predicted classification maps, a list of Tensor.
             ``head_outputs[self.box_reg_key]`` is the predicted box regression maps, a list of Tensor.
             2) if self.use_tuple_output is True, outputs a tuple of 2N tensors ``head_outputs``, with first N tensors being
