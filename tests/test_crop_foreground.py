@@ -155,6 +155,7 @@ class TestCropForeground(unittest.TestCase):
         result = apply_transforms(pending_result, mode="nearest", align_corners=align_corners)[0]
         inverted = crop_fn.inverse(result)
         self.assertEqual(image.shape, inverted.shape)
+        self.assertTrue((not inverted.applied_operations) and (not inverted.pending_operations))
 
 
 if __name__ == "__main__":
