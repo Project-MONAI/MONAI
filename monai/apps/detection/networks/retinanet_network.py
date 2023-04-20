@@ -41,7 +41,6 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable, Sequence
-from collections import namedtuple
 from typing import Dict
 
 import torch
@@ -204,9 +203,11 @@ class RetinaNet(nn.Module):
     """
     The network used in RetinaNet.
 
-    It takes an image tensor as inputs, and outputs a dictionary ``head_outputs``.
+    It takes an image tensor as inputs, and outputs either 1) a dictionary ``head_outputs``.
     ``head_outputs[self.cls_key]`` is the predicted classification maps, a list of Tensor.
     ``head_outputs[self.box_reg_key]`` is the predicted box regression maps, a list of Tensor.
+    or 2) a tuple of 2N tensors ``head_outputs``, with first N tensors being the predicted
+    classification maps and second N tensors being the predicted box regression maps.
 
     Args:
         spatial_dims: number of spatial dimensions of the images. We support both 2D and 3D images.
@@ -218,6 +219,11 @@ class RetinaNet(nn.Module):
             It can be the output of ``resnet_fpn_feature_extractor(*args, **kwargs)``.
         size_divisible: the spatial size of the network input should be divisible by size_divisible,
             decided by the feature_extractor.
+        use_tuple_output: If False, the network outputs a dictionary ``head_outputs``,
+            ``head_outputs[self.cls_key]`` is the predicted classification maps, a list of Tensor.
+            ``head_outputs[self.box_reg_key]`` is the predicted box regression maps, a list of Tensor.
+            If True, the network outputs a tuple of 2N tensors ``head_outputs``, with first N tensors being
+            the predicted classification maps and second N tensors being the predicted box regression maps.
 
     Example:
 
@@ -258,10 +264,6 @@ class RetinaNet(nn.Module):
             result = model(torch.rand(2, 1, 128,128,128))
             cls_logits_maps = result["classification"]  # a list of len(returned_layers)+1 Tensor
             box_regression_maps = result["box_regression"]  # a list of len(returned_layers)+1 Tensor
-
-            result = model(torch.rand(2, 1, 128,128,128), output_namedtuple=True)
-            cls_logits_maps = result.classification  # a list of len(returned_layers)+1 Tensor
-            box_regression_maps = result.box_regression  # a list of len(returned_layers)+1 Tensor
     """
 
     def __init__(
@@ -271,12 +273,14 @@ class RetinaNet(nn.Module):
         num_anchors: int,
         feature_extractor: nn.Module,
         size_divisible: Sequence[int] | int = 1,
+        use_tuple_output: bool = False,
     ):
         super().__init__()
 
         self.spatial_dims = look_up_option(spatial_dims, supported=[1, 2, 3])
         self.num_classes = num_classes
         self.size_divisible = ensure_tuple_rep(size_divisible, self.spatial_dims)
+        self.use_tuple_output = use_tuple_output
 
         if not hasattr(feature_extractor, "out_channels"):
             raise ValueError(
@@ -298,7 +302,7 @@ class RetinaNet(nn.Module):
         self.cls_key: str = "classification"
         self.box_reg_key: str = "box_regression"
 
-    def forward(self, images: Tensor, output_namedtuple: bool = False) -> dict[str, list[Tensor]] | tuple:
+    def forward(self, images: Tensor) -> dict[str, list[Tensor]] | tuple:
         """
         It takes an image tensor as inputs, and outputs a dictionary ``head_outputs``.
         ``head_outputs[self.cls_key]`` is the predicted classification maps, a list of Tensor.
@@ -306,15 +310,13 @@ class RetinaNet(nn.Module):
 
         Args:
             images: input images, sized (B, img_channels, H, W) or (B, img_channels, H, W, D).
-            output_namedtuple: bool, whether output namedtuple, default False.
 
         Return:
-            1) If output_namedtuple is False, output a dictionary ``head_outputs`` with keys including self.cls_key and self.box_reg_key.
+            1) If self.use_tuple_output is False, output a dictionary ``head_outputs`` with keys including self.cls_key and self.box_reg_key.
             ``head_outputs[self.cls_key]`` is the predicted classification maps, a list of Tensor.
             ``head_outputs[self.box_reg_key]`` is the predicted box regression maps, a list of Tensor.
-            2) if output_namedtuple is True, output a namedtuple ``head_outputs`` with domain including "classification" and "box_regression".
-            ``head_outputs.classification`` is the predicted classification maps, a list of Tensor.
-            ``head_outputs.box_regression`` is the predicted box regression maps, a list of Tensor.
+            2) if self.use_tuple_output is True, outputs a tuple of 2N tensors ``head_outputs``, with first N tensors being
+            the predicted classification maps and second N tensors being the predicted box regression maps.
 
         """
         # compute features maps list from the input images.
@@ -332,14 +334,13 @@ class RetinaNet(nn.Module):
         # compute classification and box regression maps from the feature maps
         # expandable for mask prediction in the future
 
-        if not output_namedtuple:
+        if not self.use_tuple_output:
             # output dict
             head_outputs: dict[str, list[Tensor]] = {self.cls_key: self.classification_head(feature_maps)}
             head_outputs[self.box_reg_key] = self.regression_head(feature_maps)
         else:
-            # output namedtuple
-            Model_output = namedtuple('Model_output', ["classification", "box_regression"])
-            head_outputs = Model_output(self.classification_head(feature_maps), self.regression_head(feature_maps))
+            # output tuple of tensor, first half is classification, second half is box regression
+            head_outputs = tuple(self.classification_head(feature_maps) + self.regression_head(feature_maps))
 
         return head_outputs
 
