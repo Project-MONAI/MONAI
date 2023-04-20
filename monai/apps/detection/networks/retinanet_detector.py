@@ -188,12 +188,12 @@ class RetinaNetDetector(nn.Module):
         network: nn.Module,
         anchor_generator: AnchorGenerator,
         box_overlap_metric: Callable = box_iou,
-        spatial_dims: int | None = None,
-        num_classes: int | None = None,
-        num_anchors: int | None = None,
-        size_divisible: Sequence[int] | int = 1,
-        cls_key: str = "classification",
-        box_reg_key: str = "box_regression",
+        spatial_dims: int | None = None, # used only when network.spatial_dims does not exist
+        num_classes: int | None = None, # used only when network.num_classes does not exist
+        num_anchors: int | None = None, # used only when network.num_anchors does not exist
+        size_divisible: Sequence[int] | int = 1, # used only when network.size_divisible does not exist
+        cls_key: str = "classification", # used only when network.cls_key does not exist
+        box_reg_key: str = "box_regression", # used only when network.box_reg_key does not exist
         debug: bool = False,
     ):
         super().__init__()
