@@ -261,10 +261,13 @@ def set_tracking_run_names(settings: dict, prefix: str = "", targets: list = Non
     if not prefix:
         prefix = "run"
 
+    if not isinstance(settings, dict):
+        raise ValueError(f"Expected settings to be of type dict but received type {type(settings)}")
+
     if "configs" in settings:
+        time_stamp = time.strftime("%Y%m%d_%H%M%S")
         for _k, v in settings["configs"].items():
-            if "_target_" in v:
+            if isinstance(v, dict) and "_target_" in v:
                 if v["_target_"] in targets:
                     if "run_name" not in v or not v["run_name"]:
-                        v["run_name"] = f"{prefix}_{time.strftime('%Y%m%d_%H%M%S')}"
-    return settings
+                        v["run_name"] = f"{prefix}_{time_stamp}"

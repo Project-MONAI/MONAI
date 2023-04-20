@@ -437,7 +437,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             else:
                 settings_ = ConfigParser.load_config_files(self.tracking)
             # set run_name in tracking config based on client_name
-            settings_ = set_tracking_run_names(settings_, prefix=self.client_name)
+            set_tracking_run_names(settings_, prefix=self.client_name)
 
         if self.train_workflow is None and self.config_train_filename is not None:
             config_train_files = self._add_config_files(self.config_train_filename)
