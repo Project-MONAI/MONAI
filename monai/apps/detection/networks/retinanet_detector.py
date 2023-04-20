@@ -126,7 +126,7 @@ class RetinaNetDetector(nn.Module):
 
         2. Its input should be an image Tensor sized (B, C, H, W) or (B, C, H, W, D).
 
-        3. About its output ``head_outputs``, it should be either a tuple of tensors or a dictionary of str: List[Tensor]:
+        3. About its output ``head_outputs``, it should be either a list of tensors or a dictionary of str: List[Tensor]:
 
             - If it is a dictionary, it needs to have at least two keys:
               ``network.cls_key`` and ``network.box_reg_key``, representing predicted classification maps and box regression maps.
@@ -137,7 +137,7 @@ class RetinaNetDetector(nn.Module):
               box regression map at one resolution level,
               sized (B, 2*spatial_dims*num_anchors, H_i, W_i)or (B, 2*spatial_dims*num_anchors, H_i, W_i, D_i).
               ``len(head_outputs[network.cls_key]) == len(head_outputs[network.box_reg_key])``.
-            - If it is a tuple of 2N tensors, the first N tensors should be the predicted classification maps,
+            - If it is a list of 2N tensors, the first N tensors should be the predicted classification maps,
               and the second N tensors should be the predicted box regression maps.
 
     Example:
