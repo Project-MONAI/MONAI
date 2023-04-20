@@ -41,7 +41,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable, Sequence
-from typing import Dict
+from typing import Dict, Union, List, Tuple
 
 import torch
 from torch import Tensor, nn
@@ -302,7 +302,7 @@ class RetinaNet(nn.Module):
         self.cls_key: str = "classification"
         self.box_reg_key: str = "box_regression"
 
-    def forward(self, images: Tensor) -> dict[str, list[Tensor]] | tuple:
+    def forward(self, images: Tensor) -> Union[Dict[str, List[Tensor]], Tuple[Tensor]]:
         """
         It takes an image tensor as inputs, and outputs predicted classification maps
         and predicted box regression maps in ``head_outputs``.
@@ -336,11 +336,13 @@ class RetinaNet(nn.Module):
 
         if not self.use_tuple_output:
             # output dict
-            head_outputs: dict[str, list[Tensor]] = {self.cls_key: self.classification_head(feature_maps)}
+            head_outputs = {self.cls_key: self.classification_head(feature_maps)}
             head_outputs[self.box_reg_key] = self.regression_head(feature_maps)
         else:
             # output tuple of tensor, first half is classification, second half is box regression
-            head_outputs = tuple(self.classification_head(feature_maps) + self.regression_head(feature_maps))
+            head_outputs = tuple(
+                self.classification_head(feature_maps) + self.regression_head(feature_maps)
+            ) # type: ignore
 
         return head_outputs
 
