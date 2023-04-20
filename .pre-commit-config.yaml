@@ -57,10 +57,6 @@ repos:
         name: Unused noqa
         additional_dependencies:
           - flake8>=3.8.1
-          - flake8-bugbear
-          - flake8-comprehensions
-          - flake8-executable
-          - flake8-pyi
           - pep8-naming
         exclude: |
           (?x)^(
