@@ -242,7 +242,7 @@ def load_bundle_config(bundle_path: str, *config_names: str, **load_kw_args: Any
     return parser
 
 
-def set_tracking_run_names(settings: dict, prefix: Optional[str] = "", targets: Optional[list] = None) -> dict:
+def set_tracking_run_names(settings: dict, prefix: Optional[str] = "", targets: Optional[list] = None) -> None:
     """
     Set run_name for each tracking handler in a tracking settings.
 
@@ -250,6 +250,9 @@ def set_tracking_run_names(settings: dict, prefix: Optional[str] = "", targets: 
         settings: tracking settings.
         prefix: Optional prefix string added to `run_name`. Defaults to "".
         targets: Optional list of target handlers. Defaults to `None`. If `None`, `["MLFlowHandler"]` is used.
+
+    Returns:
+        None
     """
 
     if targets is None:
