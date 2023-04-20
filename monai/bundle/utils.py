@@ -15,7 +15,7 @@ import json
 import os
 import time
 import zipfile
-from typing import Any
+from typing import Any, Optional
 
 from monai.config.deviceconfig import get_config_values
 from monai.utils import optional_import
@@ -242,17 +242,14 @@ def load_bundle_config(bundle_path: str, *config_names: str, **load_kw_args: Any
     return parser
 
 
-def set_tracking_run_names(settings: dict, prefix: str = "", targets: list = None) -> dict:
+def set_tracking_run_names(settings: dict, prefix: Optional[str] = "", targets: Optional[list] = None) -> dict:
     """
     Set run_name for each tracking handler in a tracking settings.
 
     Args:
         settings: tracking settings.
         prefix: Optional prefix string added to `run_name`. Defaults to "".
-        targets: list of target handlers. Defaults to `None`. If `None`, `["MLFlowHandler"]` is used.
-
-    Returns:
-        Tracking settings with added `run_name` for each tracking handler
+        targets: Optional list of target handlers. Defaults to `None`. If `None`, `["MLFlowHandler"]` is used.
     """
 
     if targets is None:
