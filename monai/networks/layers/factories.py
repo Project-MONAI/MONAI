@@ -67,9 +67,8 @@ from typing import Any
 
 import torch.nn as nn
 
+from monai.networks.utils import has_nvfuser_instance_norm
 from monai.utils import look_up_option, optional_import
-
-InstanceNorm3dNVFuser, has_nvfuser = optional_import("apex.normalization", name="InstanceNorm3dNVFuser")
 
 __all__ = ["LayerFactory", "Dropout", "Norm", "Act", "Conv", "Pool", "Pad", "split_args"]
 
@@ -267,12 +266,12 @@ def instance_nvfuser_factory(dim):
         warnings.warn(f"`InstanceNorm3dNVFuser` only supports 3d cases, use {types[dim - 1]} instead.")
         return types[dim - 1]
 
-    if not has_nvfuser:
+    if not has_nvfuser_instance_norm():
         warnings.warn(
             "`apex.normalization.InstanceNorm3dNVFuser` is not installed properly, use nn.InstanceNorm3d instead."
         )
         return nn.InstanceNorm3d
-    return InstanceNorm3dNVFuser
+    return optional_import("apex.normalization", name="InstanceNorm3dNVFuser")[0]
 
 
 Act.add_factory_callable("elu", lambda: nn.modules.ELU)
