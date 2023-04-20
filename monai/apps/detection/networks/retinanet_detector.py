@@ -184,6 +184,12 @@ class RetinaNetDetector(nn.Module):
         network: nn.Module,
         anchor_generator: AnchorGenerator,
         box_overlap_metric: Callable = box_iou,
+        spatial_dims: int | None = None,
+        num_classes: int | None = None,
+        num_anchors: int | None = None,
+        size_divisible: Sequence[int] | int = 1,
+        cls_key: str = "classification",
+        box_reg_key: str = "box_regression",
         debug: bool = False,
     ):
         super().__init__()
@@ -198,12 +204,14 @@ class RetinaNetDetector(nn.Module):
             )
 
         self.network = network
-        self.spatial_dims: int = self.network.spatial_dims  # type: ignore[assignment]
-        self.num_classes = self.network.num_classes
-        self.size_divisible = ensure_tuple_rep(self.network.size_divisible, self.spatial_dims)
+        # network attribute
+        self.spatial_dims = self.get_attribute_from_network("spatial_dims", default_value=spatial_dims)
+        self.num_classes = self.get_attribute_from_network("num_classes", default_value=num_classes)
+        self.size_divisible = self.get_attribute_from_network("size_divisible", default_value=size_divisible)        
+        self.size_divisible = ensure_tuple_rep(self.size_divisible, self.spatial_dims)
         # keys for the network output
-        self.cls_key: str = self.network.cls_key  # type: ignore[assignment]
-        self.box_reg_key: str = self.network.box_reg_key  # type: ignore[assignment]
+        self.cls_key = self.get_attribute_from_network("cls_key", default_value=cls_key)
+        self.box_reg_key = self.get_attribute_from_network("box_reg_key", default_value=box_reg_key)
 
         # check if anchor_generator matches with network
         self.anchor_generator = anchor_generator
@@ -251,6 +259,15 @@ class RetinaNetDetector(nn.Module):
             detections_per_img=300,
             apply_sigmoid=True,
         )
+
+    def get_attribute_from_network(self, attr_name, default_value=None):
+        if hasattr(self.network, attr_name):
+            return getattr(self.network, attr_name)
+        elif default_value is not None:
+            return default_value
+        else:
+            raise ValueError(f"network does not have attribute {attr_name}, please provide it in the detector.")
+
 
     def set_box_coder_weights(self, weights: tuple[float]) -> None:
         """
