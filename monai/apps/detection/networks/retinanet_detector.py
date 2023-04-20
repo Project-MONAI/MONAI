@@ -122,19 +122,23 @@ class RetinaNetDetector(nn.Module):
             - num_anchors (int) is the number of anchor shapes at each location. it should equal to
               ``self.anchor_generator.num_anchors_per_location()[0]``.
 
+            If network does not have these attributes, user needs to provide them for the detector.
+
         2. Its input should be an image Tensor sized (B, C, H, W) or (B, C, H, W, D).
 
-        3. About its output ``head_outputs``:
+        3. About its output ``head_outputs``, it should be either a tuple of tensors or a dictionary of str: List[Tensor]:
 
-            - It should be a dictionary with at least two keys:
-              ``network.cls_key`` and ``network.box_reg_key``.
-            - ``head_outputs[network.cls_key]`` should be List[Tensor] or Tensor. Each Tensor represents
+            - If it is a dictionary, it needs to have at least two keys:
+              ``network.cls_key`` and ``network.box_reg_key``, representing predicted classification maps and box regression maps. 
+              ``head_outputs[network.cls_key]`` should be List[Tensor] or Tensor. Each Tensor represents
               classification logits map at one resolution level,
               sized (B, num_classes*num_anchors, H_i, W_i) or (B, num_classes*num_anchors, H_i, W_i, D_i).
-            - ``head_outputs[network.box_reg_key]`` should be List[Tensor] or Tensor. Each Tensor represents
+              ``head_outputs[network.box_reg_key]`` should be List[Tensor] or Tensor. Each Tensor represents
               box regression map at one resolution level,
               sized (B, 2*spatial_dims*num_anchors, H_i, W_i)or (B, 2*spatial_dims*num_anchors, H_i, W_i, D_i).
-            - ``len(head_outputs[network.cls_key]) == len(head_outputs[network.box_reg_key])``.
+              ``len(head_outputs[network.cls_key]) == len(head_outputs[network.box_reg_key])``.
+            - If it is a tuple of 2N tensors, the first N tensors should be the predicted classification maps, 
+              and the second N tensors should be the predicted box regression maps.
 
     Example:
 
@@ -193,15 +197,6 @@ class RetinaNetDetector(nn.Module):
         debug: bool = False,
     ):
         super().__init__()
-
-        if not all(
-            hasattr(network, attr)
-            for attr in ["spatial_dims", "num_classes", "cls_key", "box_reg_key", "num_anchors", "size_divisible"]
-        ):
-            raise AttributeError(
-                "network should have attributes, including: "
-                "'spatial_dims', 'num_classes', 'cls_key', 'box_reg_key', 'num_anchors', 'size_divisible'."
-            )
 
         self.network = network
         # network attribute
