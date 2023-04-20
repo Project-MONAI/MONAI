@@ -66,6 +66,9 @@ class TestBundleRun(unittest.TestCase):
         # test both CLI entry "run" and "run_workflow"
         command_line_tests(cmd + ["run", "training", "--config_file", config_file])
         command_line_tests(cmd + ["run_workflow", "--run_id", "training", "--config_file", config_file])
+        with self.assertRaises(RuntimeError):
+            # test wrong run_id="run"
+            command_line_tests(cmd + ["run", "run", "--config_file", config_file])
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_shape(self, config_file, expected_shape):
