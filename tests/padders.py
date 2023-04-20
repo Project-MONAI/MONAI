@@ -140,7 +140,6 @@ class PadTest(unittest.TestCase):
             if isinstance(result, MetaTensor) and not isinstance(pad_fn, MapTransform):
                 pad_fn.lazy_evaluation = False
                 inverted = pad_fn.inverse(result)
-
                 self.assertTrue((not inverted.pending_operations) and (not inverted.applied_operations))
                 self.assertEqual(inverted.shape, im.shape)
 
