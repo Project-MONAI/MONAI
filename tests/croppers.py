@@ -128,6 +128,7 @@ class CropTest(unittest.TestCase):
         # compare
         assert_allclose(result, expected, rtol=1e-5)
         if isinstance(result, MetaTensor) and not isinstance(crop_fn, MapTransform):
+            crop_fn.lazy_evaluation = False
             inverted = crop_fn.inverse(result)
             self.assertTrue((not inverted.applied_operations) and (not inverted.pending_operations))
             self.assertEqual(inverted.shape, im.shape)

@@ -80,4 +80,5 @@ def test_resampler_lazy(
         and (not isinstance(resampler, MapTransform))
         and isinstance(lazy_out, MetaTensor)
     ):
+        resampler.lazy_evaluation = False
         resampler.inverse(lazy_out)
