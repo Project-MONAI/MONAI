@@ -304,14 +304,14 @@ class RetinaNet(nn.Module):
 
     def forward(self, images: Tensor) -> dict[str, list[Tensor]] | tuple:
         """
-        It takes an image tensor as inputs, and outputs predicted classification maps 
+        It takes an image tensor as inputs, and outputs predicted classification maps
         and predicted box regression maps in ``head_outputs``.
 
         Args:
             images: input images, sized (B, img_channels, H, W) or (B, img_channels, H, W, D).
 
         Return:
-            1) If self.use_tuple_output is False, output a dictionary ``head_outputs`` with 
+            1) If self.use_tuple_output is False, output a dictionary ``head_outputs`` with
             keys including self.cls_key and self.box_reg_key.
             ``head_outputs[self.cls_key]`` is the predicted classification maps, a list of Tensor.
             ``head_outputs[self.box_reg_key]`` is the predicted box regression maps, a list of Tensor.
