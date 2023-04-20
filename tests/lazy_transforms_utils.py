@@ -79,6 +79,11 @@ def test_resampler_lazy(
         isinstance(resampler, InvertibleTransform)
         and (not isinstance(resampler, MapTransform))
         and isinstance(lazy_out, MetaTensor)
+        and isinstance(non_lazy_out, MetaTensor)
     ):
         resampler.lazy_evaluation = False
-        resampler.inverse(lazy_out)
+        out = resampler.inverse(lazy_out)
+        ref = resampler.inverse(non_lazy_out)
+        assert_allclose(out.applied_operations, [])
+        assert_allclose(out.pending_operations, [])
+        assert_allclose(ref, out, type_test=False)
