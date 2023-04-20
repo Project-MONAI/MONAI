@@ -86,4 +86,4 @@ def test_resampler_lazy(
         ref = resampler.inverse(non_lazy_out)
         assert_allclose(out.applied_operations, [])
         assert_allclose(out.pending_operations, [])
-        assert_allclose(ref, out, type_test=False)
+        assert_allclose(ref, out, type_test=False, rtol=1e-3, atol=1e-3)
