@@ -114,8 +114,10 @@ class TorchVisionFCModel(NetAdapter):
     ):
         if weights is not None:
             model = getattr(models, model_name)(weights=weights, **kwargs)
+        elif pretrained:
+            model = getattr(models, model_name)(weights="DEFAULT", **kwargs)
         else:
-            model = getattr(models, model_name)(pretrained=pretrained, **kwargs)  # 'pretrained' deprecated 0.13
+            model = getattr(models, model_name)(weights=None, **kwargs)
 
         super().__init__(
             model=model,
