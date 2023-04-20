@@ -342,7 +342,7 @@ class RetinaNet(nn.Module):
             # output tuple of tensor, first half is classification, second half is box regression
             head_outputs = tuple(
                 self.classification_head(feature_maps) + self.regression_head(feature_maps)
-            ) # type: ignore
+            )  # type: ignore
 
         return head_outputs
 
