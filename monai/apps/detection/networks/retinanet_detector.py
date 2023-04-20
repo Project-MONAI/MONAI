@@ -207,7 +207,7 @@ class RetinaNetDetector(nn.Module):
         # network attribute
         self.spatial_dims = self.get_attribute_from_network("spatial_dims", default_value=spatial_dims)
         self.num_classes = self.get_attribute_from_network("num_classes", default_value=num_classes)
-        self.size_divisible = self.get_attribute_from_network("size_divisible", default_value=size_divisible)        
+        self.size_divisible = self.get_attribute_from_network("size_divisible", default_value=size_divisible)
         self.size_divisible = ensure_tuple_rep(self.size_divisible, self.spatial_dims)
         # keys for the network output
         self.cls_key = self.get_attribute_from_network("cls_key", default_value=cls_key)
