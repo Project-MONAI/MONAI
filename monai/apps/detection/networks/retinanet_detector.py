@@ -190,7 +190,6 @@ class RetinaNetDetector(nn.Module):
         box_overlap_metric: Callable = box_iou,
         spatial_dims: int | None = None,  # used only when network.spatial_dims does not exist
         num_classes: int | None = None,  # used only when network.num_classes does not exist
-        num_anchors: int | None = None,  # used only when network.num_anchors does not exist
         size_divisible: Sequence[int] | int = 1,  # used only when network.size_divisible does not exist
         cls_key: str = "classification",  # used only when network.cls_key does not exist
         box_reg_key: str = "box_regression",  # used only when network.box_reg_key does not exist
@@ -202,6 +201,7 @@ class RetinaNetDetector(nn.Module):
         # network attribute
         self.spatial_dims = self.get_attribute_from_network("spatial_dims", default_value=spatial_dims)
         self.num_classes = self.get_attribute_from_network("num_classes", default_value=num_classes)
+
         self.size_divisible = self.get_attribute_from_network("size_divisible", default_value=size_divisible)
         self.size_divisible = ensure_tuple_rep(self.size_divisible, self.spatial_dims)
         # keys for the network output
@@ -210,11 +210,11 @@ class RetinaNetDetector(nn.Module):
 
         # check if anchor_generator matches with network
         self.anchor_generator = anchor_generator
-
         self.num_anchors_per_loc = self.anchor_generator.num_anchors_per_location()[0]
-        if self.num_anchors_per_loc != self.network.num_anchors:
+        network_num_anchors = self.get_attribute_from_network("num_anchors", default_value=self.num_anchors_per_loc)
+        if self.num_anchors_per_loc != network_num_anchors:
             raise ValueError(
-                f"Number of feature map channels ({self.network.num_anchors}) "
+                f"Number of feature map channels ({network_num_anchors}) "
                 f"should match with number of anchors at each location ({self.num_anchors_per_loc})."
             )
         # if new coming input images has same shape with
