@@ -48,8 +48,8 @@ class DiceMetric(CumulativeIterationMetric):
             If `True`, NaN value will be set for empty ground truth cases.
             If `False`, 1 will be set if the predictions of empty ground truth cases are also empty.
         num_classes: number of input channels (always including the background). When this is None,
-            ``y_pred.shape[1]`` will be used. When both ``y_pred`` and ``y`` are single-channel class indices,
-            this option must be provided in order to compute class-wise scores properly.
+            ``y_pred.shape[1]`` will be used. This option is useful when both ``y_pred`` and ``y`` are
+            single-channel class indices and the number of classes is not automatically inferred from data.
 
     """
 
@@ -134,8 +134,8 @@ def compute_dice(
             If `True`, NaN value will be set for empty ground truth cases.
             If `False`, 1 will be set if the predictions of empty ground truth cases are also empty.
         num_classes: number of input channels (always including the background). When this is None,
-            ``y_pred.shape[1]`` will be used. When both ``y_pred`` and ``y`` are single-channel class indices,
-            this option must be provided in order to compute class-wise scores properly.
+            ``y_pred.shape[1]`` will be used. This option is useful when both ``y_pred`` and ``y`` are
+            single-channel class indices and the number of classes is not automatically inferred from data.
 
     Returns:
         Dice scores per batch and per class, (shape: [batch_size, num_classes]).
@@ -201,8 +201,8 @@ class DiceHelper:
             ignore_empty: if `True`, NaN value will be set for empty ground truth cases.
                 If `False`, 1 will be set if the Union of ``y_pred`` and ``y`` is empty.
             num_classes: number of input channels (always including the background). When this is None,
-                ``y_pred.shape[1]`` will be used. When both ``y_pred`` and ``y`` are single-channel class indices,
-                this option must be provided in order to compute class-wise scores properly.
+                ``y_pred.shape[1]`` will be used. This option is useful when both ``y_pred`` and ``y`` are
+                single-channel class indices and the number of classes is not automatically inferred from data.
         """
         self.sigmoid = sigmoid
         self.reduction = reduction
