@@ -773,10 +773,10 @@ class AutoRunner:
                     num_fold=self.num_fold,
                     gpu_customization=self.gpu_customization,
                     gpu_customization_specs=self.gpu_customization_specs,
-                    allow_skip = self.allow_skip,
+                    allow_skip=self.allow_skip,
                 )
             else:
-                bundle_generator.generate(self.work_dir, num_fold=self.num_fold, allow_skip = self.allow_skip)
+                bundle_generator.generate(self.work_dir, num_fold=self.num_fold, allow_skip=self.allow_skip)
             history = bundle_generator.get_history()
             export_bundle_algo_history(history)
             self.export_cache(algo_gen=True)

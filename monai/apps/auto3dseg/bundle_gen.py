@@ -524,7 +524,7 @@ class BundleGen(AlgoGen):
         num_fold: int = 5,
         gpu_customization: bool = False,
         gpu_customization_specs: dict[str, Any] | None = None,
-        allow_skip: bool = True
+        allow_skip: bool = True,
     ) -> None:
         """
         Generate the bundle scripts/configs for each bundleAlgo
