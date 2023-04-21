@@ -347,10 +347,10 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         local_epochs: int = 1,
         send_weight_diff: bool = True,
         config_train_filename: str | list | None = "configs/train.json",
-        train_args: dict = {},
+        train_args: dict | None = None,
         config_evaluate_filename: str | list | None = "default",
         eval_workflow_name: str = "train",
-        eval_args: dict = {},
+        eval_args: dict | None = None,
         config_filters_filename: str | list | None = None,
         disable_ckpt_loading: bool = True,
         best_model_filepath: str | None = "models/model.pt",
@@ -376,13 +376,13 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         self.local_epochs = local_epochs
         self.send_weight_diff = send_weight_diff
         self.config_train_filename = config_train_filename
-        self.train_args = train_args
+        self.train_args = {} if train_args is None else train_args
         if config_evaluate_filename == "default":
             # by default, evaluator needs both training and evaluate to be instantiated
             config_evaluate_filename = ["configs/train.json", "configs/evaluate.json"]
         self.config_evaluate_filename = config_evaluate_filename
         self.eval_workflow_name = eval_workflow_name
-        self.eval_args = eval_args
+        self.eval_args = {} if eval_args is None else eval_args
         self.config_filters_filename = config_filters_filename
         self.disable_ckpt_loading = disable_ckpt_loading
         self.model_filepaths = {ModelType.BEST_MODEL: best_model_filepath, ModelType.FINAL_MODEL: final_model_filepath}
@@ -416,6 +416,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         if extra is None:
             extra = {}
         self.client_name = extra.get(ExtraItems.CLIENT_NAME, "noname")
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
         self.logger.info(f"Initializing {self.client_name} ...")
         # FL platform needs to provide filepath to configuration files
         self.app_root = extra.get(ExtraItems.APP_ROOT, "")
@@ -426,7 +427,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             # if enabled experiment tracking, set the run name to the FL client name and timestamp,
             # expect the tracking settings use "run_name" to define the run name
             if "run_name" not in self.train_args:
-                self.train_args["run_name"] = f"{self.client_name}_{time.strftime('%Y%m%d_%H%M%S')}"
+                self.train_args["run_name"] = f"{self.client_name}_{timestamp}"
             self.train_workflow = ConfigWorkflow(
                 config_file=config_train_files, meta_file=None, logging_file=None, workflow="train", **self.train_args
             )
@@ -447,7 +448,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             # if enabled experiment tracking, set the run name to the FL client name and timestamp,
             # expect the tracking settings use "run_name" to define the run name
             if "run_name" not in self.eval_args:
-                self.eval_args["run_name"] = f"{self.client_name}_{time.strftime('%Y%m%d_%H%M%S')}"
+                self.eval_args["run_name"] = f"{self.client_name}_{timestamp}"
             self.eval_workflow = ConfigWorkflow(
                 config_file=config_eval_files,
                 meta_file=None,

@@ -98,8 +98,8 @@ TEST_EVALUATE_1 = [
             workflow="train",
             logging_file=_logging_file,
             tracking="mlflow",
-            tracking_uri=path_to_uri(_data_dir) + "/mlflow",
-            experiment_name="monai_nvflare",
+            tracking_uri=path_to_uri(_data_dir) + "/mlflow_1",
+            experiment_name="monai_eval1",
         ),
         "config_filters_filename": os.path.join(_data_dir, "config_fl_filters.json"),
     }
@@ -112,6 +112,11 @@ TEST_EVALUATE_2 = [
             os.path.join(_data_dir, "config_fl_train.json"),
             os.path.join(_data_dir, "config_fl_evaluate.json"),
         ],
+        "eval_args": {
+            "tracking": "mlflow",
+            "tracking_uri": path_to_uri(_data_dir) + "/mlflow_2",
+            "experiment_name": "monai_eval2",
+        },
         "eval_workflow_name": "training",
         "config_filters_filename": None,
     }
@@ -211,8 +216,9 @@ class TestFLMonaiAlgo(unittest.TestCase):
 
         # test experiment management
         if "execute_config" in algo.eval_workflow.parser:
-            self.assertTrue(os.path.exists(f"{_data_dir}/mlflow"))
-            shutil.rmtree(f"{_data_dir}/mlflow")
+            self.assertGreater(len(list(glob.glob(f"{_data_dir}/mlflow_*"))), 0)
+            for f in list(glob.glob(f"{_data_dir}/mlflow_*")):
+                shutil.rmtree(f)
             self.assertGreater(len(list(glob.glob(f"{_data_dir}/eval/config_*"))), 0)
             for f in list(glob.glob(f"{_data_dir}/eval/config_*")):
                 os.remove(f)
