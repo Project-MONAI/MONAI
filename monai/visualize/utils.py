@@ -9,42 +9,48 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
 
-from monai.config.type_definitions import NdarrayOrTensor
+from monai.config.type_definitions import DtypeLike, NdarrayOrTensor
 from monai.transforms.croppad.array import SpatialPad
 from monai.transforms.utils import rescale_array
 from monai.transforms.utils_pytorch_numpy_unification import repeat
 from monai.utils.module import optional_import
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
-plt, _ = optional_import("matplotlib", name="pyplot")
-cm, _ = optional_import("matplotlib", name="cm")
+if TYPE_CHECKING:
+    from matplotlib import cm
+    from matplotlib import pyplot as plt
+else:
+    plt, _ = optional_import("matplotlib", name="pyplot")
+    cm, _ = optional_import("matplotlib", name="cm")
 
 __all__ = ["matshow3d", "blend_images"]
 
 
 def matshow3d(
-    volume,
-    fig=None,
-    title: Optional[str] = None,
-    figsize=(10, 10),
-    frames_per_row: Optional[int] = None,
+    volume: NdarrayOrTensor,
+    fig: Any = None,
+    title: str | None = None,
+    figsize: tuple[int, int] = (10, 10),
+    frames_per_row: int | None = None,
     frame_dim: int = -3,
-    channel_dim: Optional[int] = None,
-    vmin=None,
-    vmax=None,
+    channel_dim: int | None = None,
+    vmin: float | None = None,
+    vmax: float | None = None,
     every_n: int = 1,
     interpolation: str = "none",
-    show=False,
-    fill_value=np.nan,
+    show: bool = False,
+    fill_value: Any = np.nan,
     margin: int = 1,
-    dtype=np.float32,
-    **kwargs,
-):
+    dtype: DtypeLike = np.float32,
+    **kwargs: Any,
+) -> tuple[Any, np.ndarray]:
     """
     Create a 3D volume figure as a grid of images.
 
@@ -160,11 +166,11 @@ def matshow3d(
 def blend_images(
     image: NdarrayOrTensor,
     label: NdarrayOrTensor,
-    alpha: Union[float, NdarrayOrTensor] = 0.5,
+    alpha: float | NdarrayOrTensor = 0.5,
     cmap: str = "hsv",
     rescale_arrays: bool = True,
     transparent_background: bool = True,
-):
+) -> NdarrayOrTensor:
     """
     Blend an image and a label. Both should have the shape CHW[D].
     The image may have C==1 or 3 channels (greyscale or RGB).
@@ -193,7 +199,6 @@ def blend_images(
         raise ValueError("image and label should have matching spatial sizes.")
     if isinstance(alpha, (np.ndarray, torch.Tensor)):
         if image.shape[1:] != alpha.shape[1:]:  # pytype: disable=attribute-error,invalid-directive
-
             raise ValueError("if alpha is image, size should match input image and label.")
 
     # rescale arrays to [0, 1] if desired
@@ -204,7 +209,7 @@ def blend_images(
     if image.shape[0] == 1:
         image = repeat(image, 3, axis=0)
 
-    def get_label_rgb(cmap: str, label: NdarrayOrTensor):
+    def get_label_rgb(cmap: str, label: NdarrayOrTensor) -> NdarrayOrTensor:
         _cmap = cm.get_cmap(cmap)
         label_np, *_ = convert_data_type(label, np.ndarray)
         label_rgb_np = _cmap(label_np[0])

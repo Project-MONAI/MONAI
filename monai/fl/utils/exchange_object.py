@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, Optional
+from __future__ import annotations
 
 from monai.fl.utils.constants import WeightType
 
@@ -28,11 +28,11 @@ class ExchangeObject(dict):
 
     def __init__(
         self,
-        weights=None,
-        optim=None,
-        metrics: Optional[Dict] = None,
-        weight_type: Optional[WeightType] = None,
-        statistics: Optional[Dict] = None,
+        weights: dict | None = None,
+        optim: dict | None = None,
+        metrics: dict | None = None,
+        weight_type: WeightType | None = None,
+        statistics: dict | None = None,
     ):
         super().__init__()
         self.weights = weights
@@ -40,7 +40,7 @@ class ExchangeObject(dict):
         self.metrics = metrics
         self.weight_type = weight_type
         self.statistics = statistics
-        self._summary: Dict = {}
+        self._summary: dict = {}
 
     @property
     def metrics(self):

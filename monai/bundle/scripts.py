@@ -9,18 +9,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import ast
 import json
 import os
-import pprint
 import re
-import time
 import warnings
-from logging.config import fileConfig
+from collections.abc import Mapping, Sequence
 from pathlib import Path
+from pydoc import locate
 from shutil import copyfile
 from textwrap import dedent
-from typing import Dict, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Callable
 
 import torch
 from torch.cuda import is_available
@@ -29,25 +30,42 @@ from monai.apps.mmars.mmars import _get_all_ngc_models
 from monai.apps.utils import _basename, download_url, extractall, get_logger
 from monai.bundle.config_item import ConfigComponent
 from monai.bundle.config_parser import ConfigParser
-from monai.bundle.utils import DEFAULT_EXP_MGMT_SETTINGS, DEFAULT_INFERENCE, DEFAULT_METADATA
+from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA
+from monai.bundle.workflows import BundleWorkflow, ConfigWorkflow
 from monai.config import IgniteInfo, PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
-from monai.networks import convert_to_torchscript, copy_model_state, get_state_dict, save_state
-from monai.utils import check_parent_dir, get_equivalent_dtype, min_version, optional_import
-from monai.utils.misc import ensure_tuple
+from monai.networks import (
+    convert_to_onnx,
+    convert_to_torchscript,
+    convert_to_trt,
+    copy_model_state,
+    get_state_dict,
+    save_state,
+)
+from monai.utils import (
+    check_parent_dir,
+    deprecated_arg,
+    ensure_tuple,
+    get_equivalent_dtype,
+    min_version,
+    optional_import,
+    pprint_edges,
+)
 
 validate, _ = optional_import("jsonschema", name="validate")
 ValidationError, _ = optional_import("jsonschema.exceptions", name="ValidationError")
 Checkpoint, has_ignite = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Checkpoint")
 requests_get, has_requests = optional_import("requests", name="get")
+onnx, _ = optional_import("onnx")
 
 logger = get_logger(module_name=__name__)
 
 # set BUNDLE_DOWNLOAD_SRC="ngc" to use NGC source in default for bundle download
 download_source = os.environ.get("BUNDLE_DOWNLOAD_SRC", "github")
+PPRINT_CONFIG_N = 5
 
 
-def _update_args(args: Optional[Union[str, Dict]] = None, ignore_none: bool = True, **kwargs) -> Dict:
+def _update_args(args: str | dict | None = None, ignore_none: bool = True, **kwargs: Any) -> dict:
     """
     Update the `args` with the input `kwargs`.
     For dict data, recursively update the content based on the keys.
@@ -58,7 +76,7 @@ def _update_args(args: Optional[Union[str, Dict]] = None, ignore_none: bool = Tr
         kwargs: destination args to update.
 
     """
-    args_: Dict = args if isinstance(args, dict) else {}
+    args_: dict = args if isinstance(args, dict) else {}
     if isinstance(args, str):
         # args are defined in a structured file
         args_ = ConfigParser.load_config_file(args)
@@ -74,7 +92,7 @@ def _update_args(args: Optional[Union[str, Dict]] = None, ignore_none: bool = Tr
     return args_
 
 
-def _pop_args(src: Dict, *args, **kwargs):
+def _pop_args(src: dict, *args: Any, **kwargs: Any) -> tuple:
     """
     Pop args from the `src` dictionary based on specified keys in `args` and (key, default value) pairs in `kwargs`.
 
@@ -82,14 +100,14 @@ def _pop_args(src: Dict, *args, **kwargs):
     return tuple([src.pop(i) for i in args] + [src.pop(k, v) for k, v in kwargs.items()])
 
 
-def _log_input_summary(tag, args: Dict):
+def _log_input_summary(tag: str, args: dict) -> None:
     logger.info(f"--- input summary of monai.bundle.scripts.{tag} ---")
     for name, val in args.items():
-        logger.info(f"> {name}: {pprint.pformat(val)}")
+        logger.info(f"> {name}: {pprint_edges(val, PPRINT_CONFIG_N)}")
     logger.info("---\n\n")
 
 
-def _get_var_names(expr: str):
+def _get_var_names(expr: str) -> list[str]:
     """
     Parse the expression and discover what variables are present in it based on ast module.
 
@@ -101,7 +119,7 @@ def _get_var_names(expr: str):
     return [m.id for m in ast.walk(tree) if isinstance(m, ast.Name)]
 
 
-def _get_fake_spatial_shape(shape: Sequence[Union[str, int]], p: int = 1, n: int = 1, any: int = 1) -> Tuple:
+def _get_fake_spatial_shape(shape: Sequence[str | int], p: int = 1, n: int = 1, any: int = 1) -> tuple:
     """
     Get spatial shape for fake data according to the specified shape pattern.
     It supports `int` number and `string` with formats like: "32", "32 * n", "32 ** p", "32 ** p *n".
@@ -130,15 +148,15 @@ def _get_fake_spatial_shape(shape: Sequence[Union[str, int]], p: int = 1, n: int
     return tuple(ret)
 
 
-def _get_git_release_url(repo_owner: str, repo_name: str, tag_name: str, filename: str):
+def _get_git_release_url(repo_owner: str, repo_name: str, tag_name: str, filename: str) -> str:
     return f"https://github.com/{repo_owner}/{repo_name}/releases/download/{tag_name}/{filename}"
 
 
-def _get_ngc_bundle_url(model_name: str, version: str):
+def _get_ngc_bundle_url(model_name: str, version: str) -> str:
     return f"https://api.ngc.nvidia.com/v2/models/nvidia/monaitoolkit/{model_name}/versions/{version}/zip"
 
 
-def _download_from_github(repo: str, download_path: Path, filename: str, progress: bool = True):
+def _download_from_github(repo: str, download_path: Path, filename: str, progress: bool = True) -> None:
     repo_owner, repo_name, tag_name = repo.split("/")
     if ".zip" not in filename:
         filename += ".zip"
@@ -148,19 +166,21 @@ def _download_from_github(repo: str, download_path: Path, filename: str, progres
     extractall(filepath=filepath, output_dir=download_path, has_base=True)
 
 
-def _add_ngc_prefix(name: str, prefix: str = "monai_"):
+def _add_ngc_prefix(name: str, prefix: str = "monai_") -> str:
     if name.startswith(prefix):
         return name
     return f"{prefix}{name}"
 
 
-def _remove_ngc_prefix(name: str, prefix: str = "monai_"):
+def _remove_ngc_prefix(name: str, prefix: str = "monai_") -> str:
     if name.startswith(prefix):
         return name[len(prefix) :]
     return name
 
 
-def _download_from_ngc(download_path: Path, filename: str, version: str, remove_prefix: Optional[str], progress: bool):
+def _download_from_ngc(
+    download_path: Path, filename: str, version: str, remove_prefix: str | None, progress: bool
+) -> None:
     # ensure prefix is contained
     filename = _add_ngc_prefix(filename)
     url = _get_ngc_bundle_url(model_name=filename, version=version)
@@ -172,7 +192,7 @@ def _download_from_ngc(download_path: Path, filename: str, version: str, remove_
     extractall(filepath=filepath, output_dir=extract_path, has_base=True)
 
 
-def _get_latest_bundle_version(source: str, name: str, repo: str):
+def _get_latest_bundle_version(source: str, name: str, repo: str) -> dict[str, list[str] | str] | Any | None:
     if source == "ngc":
         name = _add_ngc_prefix(name)
         model_dict = _get_all_ngc_models(name)
@@ -182,12 +202,12 @@ def _get_latest_bundle_version(source: str, name: str, repo: str):
         return None
     elif source == "github":
         repo_owner, repo_name, tag_name = repo.split("/")
-        return get_bundle_versions(name, repo=os.path.join(repo_owner, repo_name), tag=tag_name)["latest_version"]
+        return get_bundle_versions(name, repo=f"{repo_owner}/{repo_name}", tag=tag_name)["latest_version"]
     else:
         raise ValueError(f"To get the latest bundle version, source should be 'github' or 'ngc', got {source}.")
 
 
-def _process_bundle_dir(bundle_dir: Optional[PathLike] = None):
+def _process_bundle_dir(bundle_dir: PathLike | None = None) -> Path:
     if bundle_dir is None:
         get_dir, has_home = optional_import("torch.hub", name="get_dir")
         if has_home:
@@ -198,16 +218,16 @@ def _process_bundle_dir(bundle_dir: Optional[PathLike] = None):
 
 
 def download(
-    name: Optional[str] = None,
-    version: Optional[str] = None,
-    bundle_dir: Optional[PathLike] = None,
+    name: str | None = None,
+    version: str | None = None,
+    bundle_dir: PathLike | None = None,
     source: str = download_source,
-    repo: Optional[str] = None,
-    url: Optional[str] = None,
-    remove_prefix: Optional[str] = "monai_",
+    repo: str | None = None,
+    url: str | None = None,
+    remove_prefix: str | None = "monai_",
     progress: bool = True,
-    args_file: Optional[str] = None,
-):
+    args_file: str | None = None,
+) -> None:
     """
     download bundle from the specified source or url. The bundle should be a zip file and it
     will be extracted after downloading.
@@ -320,20 +340,20 @@ def download(
 
 def load(
     name: str,
-    version: Optional[str] = None,
-    model_file: Optional[str] = None,
+    version: str | None = None,
+    model_file: str | None = None,
     load_ts_module: bool = False,
-    bundle_dir: Optional[PathLike] = None,
+    bundle_dir: PathLike | None = None,
     source: str = download_source,
-    repo: Optional[str] = None,
-    remove_prefix: Optional[str] = "monai_",
+    repo: str | None = None,
+    remove_prefix: str | None = "monai_",
     progress: bool = True,
-    device: Optional[str] = None,
-    key_in_ckpt: Optional[str] = None,
+    device: str | None = None,
+    key_in_ckpt: str | None = None,
     config_files: Sequence[str] = (),
-    net_name: Optional[str] = None,
-    **net_kwargs,
-):
+    net_name: str | None = None,
+    **net_kwargs: Any,
+) -> object | tuple[torch.nn.Module, dict, dict] | Any:
     """
     Load model weights or TorchScript module of a bundle.
 
@@ -422,8 +442,8 @@ def load(
 
 
 def _get_all_bundles_info(
-    repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1", auth_token: Optional[str] = None
-):
+    repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1", auth_token: str | None = None
+) -> dict[str, dict[str, dict[str, Any]]]:
     if has_requests:
         request_url = f"https://api.github.com/repos/{repo}/releases"
         if auth_token is not None:
@@ -436,7 +456,7 @@ def _get_all_bundles_info(
         raise ValueError("requests package is required, please install it.")
     releases_list = json.loads(resp.text)
     bundle_name_pattern = re.compile(r"_v\d*.")
-    bundles_info: Dict = {}
+    bundles_info: dict[str, dict[str, dict[str, Any]]] = {}
 
     for release in releases_list:
         if release["tag_name"] == tag:
@@ -459,8 +479,8 @@ def _get_all_bundles_info(
 
 
 def get_all_bundles_list(
-    repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1", auth_token: Optional[str] = None
-):
+    repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1", auth_token: str | None = None
+) -> list[tuple[str, str]]:
     """
     Get all bundles names (and the latest versions) that are stored in the release of specified repository
     with the provided tag. The default values of arguments correspond to the release of MONAI model zoo.
@@ -494,8 +514,8 @@ def get_bundle_versions(
     bundle_name: str,
     repo: str = "Project-MONAI/model-zoo",
     tag: str = "hosting_storage_v1",
-    auth_token: Optional[str] = None,
-):
+    auth_token: str | None = None,
+) -> dict[str, list[str] | str]:
     """
     Get the latest version, as well as all existing versions of a bundle that is stored in the release of specified
     repository with the provided tag.
@@ -528,11 +548,11 @@ def get_bundle_versions(
 
 def get_bundle_info(
     bundle_name: str,
-    version: Optional[str] = None,
+    version: str | None = None,
     repo: str = "Project-MONAI/model-zoo",
     tag: str = "hosting_storage_v1",
-    auth_token: Optional[str] = None,
-):
+    auth_token: str | None = None,
+) -> dict[str, Any]:
     """
     Get all information
     (include "id", "name", "size", "download_count", "browser_download_url", "created_at", "updated_at") of a bundle
@@ -568,51 +588,20 @@ def get_bundle_info(
     return bundle_info[version]
 
 
-def patch_bundle_tracking(parser: ConfigParser, settings: dict):
-    """
-    Patch the loaded bundle config with a new handler logic to enable experiment tracking features.
-
-    Args:
-        parser: loaded config content to patch the handler.
-        settings: settings for the experiment tracking, should follow the pattern of default settings.
-
-    """
-    for k, v in settings["configs"].items():
-        if k in settings["handlers_id"]:
-            engine = parser.get(settings["handlers_id"][k]["id"])
-            if engine is not None:
-                handlers = parser.get(settings["handlers_id"][k]["handlers"])
-                if handlers is None:
-                    engine["train_handlers" if k == "trainer" else "val_handlers"] = [v]
-                else:
-                    handlers.append(v)
-        elif k not in parser:
-            parser[k] = v
-    # save the executed config into file
-    default_name = f"config_{time.strftime('%Y%m%d_%H%M%S')}.json"
-    filepath = parser.get("execute_config", None)
-    if filepath is None:
-        if "output_dir" not in parser:
-            # if no "output_dir" in the bundle config, default to "<bundle root>/eval"
-            parser["output_dir"] = "$@bundle_root + '/eval'"
-        # experiment management tools can refer to this config item to track the config info
-        parser["execute_config"] = parser["output_dir"] + f" + '/{default_name}'"
-        filepath = os.path.join(parser.get_parsed_content("output_dir"), default_name)
-    Path(filepath).parent.mkdir(parents=True, exist_ok=True)
-    parser.export_config_file(parser.get(), filepath)
-
-
+@deprecated_arg("runner_id", since="1.1", removed="1.3", new_name="run_id", msg_suffix="please use `run_id` instead.")
 def run(
-    runner_id: Optional[Union[str, Sequence[str]]] = None,
-    meta_file: Optional[Union[str, Sequence[str]]] = None,
-    config_file: Optional[Union[str, Sequence[str]]] = None,
-    logging_file: Optional[str] = None,
-    tracking: Optional[Union[str, dict]] = None,
-    args_file: Optional[str] = None,
-    **override,
-):
+    run_id: str | None = None,
+    init_id: str | None = None,
+    final_id: str | None = None,
+    meta_file: str | Sequence[str] | None = None,
+    config_file: str | Sequence[str] | None = None,
+    logging_file: str | None = None,
+    tracking: str | dict | None = None,
+    args_file: str | None = None,
+    **override: Any,
+) -> None:
     """
-    Specify `meta_file` and `config_file` to run monai bundle components and workflows.
+    Specify `config_file` to run monai bundle components and workflows.
 
     Typical usage examples:
 
@@ -635,75 +624,38 @@ def run(
         python -m monai.bundle run --args_file "/workspace/data/args.json" --config_file <config path>
 
     Args:
-        runner_id: ID name of the expected config expression to run, can also be a list of IDs to run in order.
+        run_id: ID name of the expected config expression to run, default to "run".
+            to run the config, the target config must contain this ID.
+        init_id: ID name of the expected config expression to initialize before running, default to "initialize".
+            it's optional for both configs and this `run` function.
+        final_id: ID name of the expected config expression to finalize after running, default to "finalize".
+            it's optional for both configs and this `run` function.
         meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
+            Default to "configs/metadata.json", which is commonly used for bundles in MONAI model zoo.
         config_file: filepath of the config file, if `None`, must be provided in `args_file`.
             if it is a list of file paths, the content of them will be merged.
-        logging_file: config file for `logging` module in the program, default to `None`. for more details:
+        logging_file: config file for `logging` module in the program. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
-        tracking: enable the experiment tracking feature at runtime with optionally configurable and extensible.
-            if "mlflow", will add `MLFlowHandler` to the parsed bundle with default logging settings,
-            if other string, treat it as file path to load the logging settings, if `dict`,
-            treat it as logging settings, otherwise, use all the default settings.
+            Default to "configs/logging.conf", which is commonly used for bundles in MONAI model zoo.
+        tracking: if not None, enable the experiment tracking at runtime with optionally configurable and extensible.
+            if "mlflow", will add `MLFlowHandler` to the parsed bundle with default tracking settings,
+            if other string, treat it as file path to load the tracking settings.
+            if `dict`, treat it as tracking settings.
             will patch the target config content with `tracking handlers` and the top-level items of `configs`.
-            example of customized settings:
-
-            .. code-block:: python
-
-                tracking = {
-                    "handlers_id": {
-                        "trainer": {"id": "train#trainer", "handlers": "train#handlers"},
-                        "validator": {"id": "evaluate#evaluator", "handlers": "evaluate#handlers"},
-                        "evaluator": {"id": "evaluator", "handlers": "handlers"},
-                    },
-                    "configs": {
-                        "tracking_uri": "<path>",
-                        "experiment_name": "monai_experiment",
-                        "run_name": None,
-                        "is_not_rank0": (
-                            "$torch.distributed.is_available() \
-                                and torch.distributed.is_initialized() and torch.distributed.get_rank() > 0"
-                        ),
-                        "trainer": {
-                            "_target_": "MLFlowHandler",
-                            "_disabled_": "@is_not_rank0",
-                            "tracking_uri": "@tracking_uri",
-                            "experiment_name": "@experiment_name",
-                            "run_name": "@run_name",
-                            "iteration_log": True,
-                            "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
-                            "close_on_complete": True,
-                        },
-                        "validator": {
-                            "_target_": "MLFlowHandler",
-                            "_disabled_": "@is_not_rank0",
-                            "tracking_uri": "@tracking_uri",
-                            "experiment_name": "@experiment_name",
-                            "run_name": "@run_name",
-                            "iteration_log": False,
-                        },
-                        "evaluator": {
-                            "_target_": "MLFlowHandler",
-                            "_disabled_": "@is_not_rank0",
-                            "tracking_uri": "@tracking_uri",
-                            "experiment_name": "@experiment_name",
-                            "run_name": "@run_name",
-                            "iteration_log": False,
-                            "close_on_complete": True,
-                        },
-                    },
-                },
-
+            for detailed usage examples, plesae check the tutorial:
+            https://github.com/Project-MONAI/tutorials/blob/main/experiment_management/bundle_integrate_mlflow.ipynb.
         args_file: a JSON or YAML file to provide default values for `runner_id`, `meta_file`,
             `config_file`, `logging`, and override pairs. so that the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.
-            e.g. ``--net#input_chns 42``.
+            e.g. ``--net#input_chns 42``, ``--net %/data/other.json#net_arg``.
 
     """
 
     _args = _update_args(
         args=args_file,
-        runner_id=runner_id,
+        run_id=run_id,
+        init_id=init_id,
+        final_id=final_id,
         meta_file=meta_file,
         config_file=config_file,
         logging_file=logging_file,
@@ -713,44 +665,87 @@ def run(
     if "config_file" not in _args:
         warnings.warn("`config_file` not provided for 'monai.bundle run'.")
     _log_input_summary(tag="run", args=_args)
-    config_file_, meta_file_, runner_id_, logging_file_, tracking_ = _pop_args(
-        _args, config_file=None, meta_file=None, runner_id="", logging_file=None, tracking=None
+    config_file_, meta_file_, init_id_, run_id_, final_id_, logging_file_, tracking_ = _pop_args(
+        _args,
+        config_file=None,
+        meta_file="configs/metadata.json",
+        init_id="initialize",
+        run_id="run",
+        final_id="finalize",
+        logging_file="configs/logging.conf",
+        tracking=None,
     )
-    if logging_file_ is not None:
-        if not os.path.exists(logging_file_):
-            raise FileNotFoundError(f"can't find the logging config file: {logging_file_}.")
-        logger.info(f"set logging properties based on config: {logging_file_}.")
-        fileConfig(logging_file_, disable_existing_loggers=False)
+    workflow = ConfigWorkflow(
+        config_file=config_file_,
+        meta_file=meta_file_,
+        logging_file=logging_file_,
+        init_id=init_id_,
+        run_id=run_id_,
+        final_id=final_id_,
+        tracking=tracking_,
+        **_args,
+    )
+    workflow.initialize()
+    workflow.run()
+    workflow.finalize()
 
-    parser = ConfigParser()
-    parser.read_config(f=config_file_)
-    if meta_file_ is not None:
-        parser.read_meta(f=meta_file_)
 
-    # the rest key-values in the _args are to override config content
-    parser.update(pairs=_args)
+def run_workflow(workflow: str | BundleWorkflow | None = None, args_file: str | None = None, **kwargs: Any) -> None:
+    """
+    Specify `bundle workflow` to run monai bundle components and workflows.
+    The workflow should be suclass of `BundleWorkflow` and be available to import.
+    It can be MONAI existing bundle workflows or user customized workflows.
 
-    # set tracking configs for experiment management
-    if tracking_ is not None:
-        if isinstance(tracking_, str) and tracking_ in DEFAULT_EXP_MGMT_SETTINGS:
-            settings_ = DEFAULT_EXP_MGMT_SETTINGS[tracking_]
-        else:
-            settings_ = ConfigParser.load_config_files(tracking_)
-        patch_bundle_tracking(parser=parser, settings=settings_)
+    Typical usage examples:
 
-    # resolve and execute the specified runner expressions in the config, return the results
-    return [parser.get_parsed_content(i, lazy=True, eval_expr=True, instantiate=True) for i in ensure_tuple(runner_id_)]
+    .. code-block:: bash
+
+        # Execute this module as a CLI entry with default ConfigWorkflow:
+        python -m monai.bundle run_workflow --meta_file <meta path> --config_file <config path>
+
+        # Set the workflow to other customized BundleWorkflow subclass:
+        python -m monai.bundle run_workflow --workflow CustomizedWorkflow ...
+
+    Args:
+        workflow: specified bundle workflow name, should be a string or class, default to "ConfigWorkflow".
+        args_file: a JSON or YAML file to provide default values for this API.
+            so that the command line inputs can be simplified.
+        kwargs: arguments to instantiate the workflow class.
+
+    """
+
+    _args = _update_args(args=args_file, workflow=workflow, **kwargs)
+    _log_input_summary(tag="run", args=_args)
+    (workflow_name,) = _pop_args(_args, workflow=ConfigWorkflow)  # the default workflow name is "ConfigWorkflow"
+    if isinstance(workflow_name, str):
+        workflow_class, has_built_in = optional_import("monai.bundle", name=str(workflow_name))  # search built-in
+        if not has_built_in:
+            workflow_class = locate(str(workflow_name))  # search dotted path
+        if workflow_class is None:
+            raise ValueError(f"cannot locate specified workflow class: {workflow_name}.")
+    elif issubclass(workflow_name, BundleWorkflow):
+        workflow_class = workflow_name
+    else:
+        raise ValueError(
+            "Argument `workflow` must be a bundle workflow class name"
+            f"or subclass of BundleWorkflow, got: {workflow_name}."
+        )
+
+    workflow_ = workflow_class(**_args)
+    workflow_.initialize()
+    workflow_.run()
+    workflow_.finalize()
 
 
 def verify_metadata(
-    meta_file: Optional[Union[str, Sequence[str]]] = None,
-    filepath: Optional[PathLike] = None,
-    create_dir: Optional[bool] = None,
-    hash_val: Optional[str] = None,
-    hash_type: Optional[str] = None,
-    args_file: Optional[str] = None,
-    **kwargs,
-):
+    meta_file: str | Sequence[str] | None = None,
+    filepath: PathLike | None = None,
+    create_dir: bool | None = None,
+    hash_val: str | None = None,
+    hash_type: str | None = None,
+    args_file: str | None = None,
+    **kwargs: Any,
+) -> None:
     """
     Verify the provided `metadata` file based on the predefined `schema`.
     `metadata` content must contain the `schema` field for the URL of schema file to download.
@@ -803,17 +798,67 @@ def verify_metadata(
     logger.info("metadata is verified with no error.")
 
 
+def _get_net_io_info(parser: ConfigParser | None = None, prefix: str = "_meta_#network_data_format") -> tuple:
+    """
+    Get the input and output information defined in the metadata.
+
+    Args:
+        parser: a ConfigParser of the given bundle.
+        prefix: a prefix for the input and output ID, which will be combined as `prefix#inputs` and
+            `prefix#outputs` to parse the input and output information in the `metadata.json` file of
+            a bundle, default to `meta_#network_data_format`.
+
+    Returns:
+        input_channels: the channel number of the `image` input.
+        input_spatial_shape: the spatial shape of the `image` input.
+        input_dtype: the data type of the `image` input.
+        output_channels: the channel number of the output.
+        output_dtype: the data type of the output.
+    """
+    if not isinstance(parser, ConfigParser):
+        raise AttributeError(f"Parameter parser should be a ConfigParser, got {type(parser)}.")
+
+    prefix_key = f"{prefix}#inputs"
+    key = f"{prefix_key}#image#num_channels"
+    input_channels = parser.get(key)
+    key = f"{prefix_key}#image#spatial_shape"
+    input_spatial_shape = tuple(parser.get(key))
+    key = f"{prefix_key}#image#dtype"
+    input_dtype = get_equivalent_dtype(parser.get(key), torch.Tensor)
+
+    prefix_key = f"{prefix}#outputs"
+    key = f"{prefix_key}#pred#num_channels"
+    output_channels = parser.get(key)
+    key = f"{prefix_key}#pred#dtype"
+    output_dtype = get_equivalent_dtype(parser.get(key), torch.Tensor)
+
+    return input_channels, input_spatial_shape, input_dtype, output_channels, output_dtype
+
+
+def _get_fake_input_shape(parser: ConfigParser) -> tuple:
+    """
+    Get a fake input shape e.g. [N, C, H, W] or [N, C, H, W, D], whose batch size is 1, from the given parser.
+
+    Args:
+        parser: a ConfigParser which contains the i/o information of a bundle.
+    """
+    input_channels, input_spatial_shape, _, _, _ = _get_net_io_info(parser=parser)
+    spatial_shape = _get_fake_spatial_shape(input_spatial_shape)
+    input_shape = (1, input_channels, *spatial_shape)
+    return input_shape
+
+
 def verify_net_in_out(
-    net_id: Optional[str] = None,
-    meta_file: Optional[Union[str, Sequence[str]]] = None,
-    config_file: Optional[Union[str, Sequence[str]]] = None,
-    device: Optional[str] = None,
-    p: Optional[int] = None,
-    n: Optional[int] = None,
-    any: Optional[int] = None,
-    args_file: Optional[str] = None,
-    **override,
-):
+    net_id: str | None = None,
+    meta_file: str | Sequence[str] | None = None,
+    config_file: str | Sequence[str] | None = None,
+    device: str | None = None,
+    p: int | None = None,
+    n: int | None = None,
+    any: int | None = None,
+    args_file: str | None = None,
+    **override: Any,
+) -> None:
     """
     Verify the input and output data shape and data type of network defined in the metadata.
     Will test with fake Tensor data according to the required data shape in `metadata`.
@@ -865,19 +910,10 @@ def verify_net_in_out(
     for k, v in _args.items():
         parser[k] = v
 
+    input_channels, input_spatial_shape, input_dtype, output_channels, output_dtype = _get_net_io_info(parser=parser)
     try:
         key: str = net_id_  # mark the full id when KeyError
         net = parser.get_parsed_content(key).to(device_)
-        key = "_meta_#network_data_format#inputs#image#num_channels"
-        input_channels = parser[key]
-        key = "_meta_#network_data_format#inputs#image#spatial_shape"
-        input_spatial_shape = tuple(parser[key])
-        key = "_meta_#network_data_format#inputs#image#dtype"
-        input_dtype = get_equivalent_dtype(parser[key], torch.Tensor)
-        key = "_meta_#network_data_format#outputs#pred#num_channels"
-        output_channels = parser[key]
-        key = "_meta_#network_data_format#outputs#pred#dtype"
-        output_dtype = get_equivalent_dtype(parser[key], torch.Tensor)
     except KeyError as e:
         raise KeyError(f"Failed to verify due to missing expected key in the config: {key}.") from e
 
@@ -902,16 +938,193 @@ def verify_net_in_out(
     logger.info("data shape of network is verified with no error.")
 
 
+def _export(
+    converter: Callable,
+    parser: ConfigParser,
+    net_id: str,
+    filepath: str,
+    ckpt_file: str,
+    config_file: str,
+    key_in_ckpt: str,
+    **kwargs: Any,
+) -> None:
+    """
+    Export a model defined in the parser to a new one specified by the converter.
+
+    Args:
+        converter: a callable object that takes a torch.nn.module and kwargs as input and
+            converts the module to another type.
+        parser: a ConfigParser of the bundle to be converted.
+        net_id: ID name of the network component in the parser, it must be `torch.nn.Module`.
+        filepath: filepath to export, if filename has no extension, it becomes `.ts`.
+        ckpt_file: filepath of the model checkpoint to load.
+        config_file: filepath of the config file to save in the converted model,the saved key in the converted
+            model is the config filename without extension, and the saved config value is always serialized in
+            JSON format no matter the original file format is JSON or YAML. it can be a single file or a list
+            of files.
+        key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
+            weights. if not nested checkpoint, no need to set.
+        kwargs: key arguments for the converter.
+
+    """
+    net = parser.get_parsed_content(net_id)
+    if has_ignite:
+        # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
+        Checkpoint.load_objects(to_load={key_in_ckpt: net}, checkpoint=ckpt_file)
+    else:
+        ckpt = torch.load(ckpt_file)
+        copy_model_state(dst=net, src=ckpt if key_in_ckpt == "" else ckpt[key_in_ckpt])
+
+    # Use the given converter to convert a model and save with metadata, config content
+    net = converter(model=net, **kwargs)
+
+    extra_files: dict = {}
+    for i in ensure_tuple(config_file):
+        # split the filename and directory
+        filename = os.path.basename(i)
+        # remove extension
+        filename, _ = os.path.splitext(filename)
+        # because all files are stored as JSON their name parts without extension must be unique
+        if filename in extra_files:
+            raise ValueError(f"Filename part '{filename}' is given multiple times in config file list.")
+        # the file may be JSON or YAML but will get loaded and dumped out again as JSON
+        extra_files[filename] = json.dumps(ConfigParser.load_config_file(i)).encode()
+
+    # add .json extension to all extra files which are always encoded as JSON
+    extra_files = {k + ".json": v for k, v in extra_files.items()}
+
+    save_net_with_metadata(
+        jit_obj=net,
+        filename_prefix_or_stream=filepath,
+        include_config_vals=False,
+        append_timestamp=False,
+        meta_values=parser.get().pop("_meta_", None),
+        more_extra_files=extra_files,
+    )
+    logger.info(f"exported to file: {filepath}.")
+
+
+def onnx_export(
+    net_id: str | None = None,
+    filepath: PathLike | None = None,
+    ckpt_file: str | None = None,
+    meta_file: str | Sequence[str] | None = None,
+    config_file: str | Sequence[str] | None = None,
+    key_in_ckpt: str | None = None,
+    use_trace: bool | None = None,
+    input_shape: Sequence[int] | None = None,
+    args_file: str | None = None,
+    converter_kwargs: Mapping | None = None,
+    **override: Any,
+) -> None:
+    """
+    Export the model checkpoint to an onnx model.
+
+    Typical usage examples:
+
+    .. code-block:: bash
+
+        python -m monai.bundle onnx_export network --filepath <export path> --ckpt_file <checkpoint path> ...
+
+    Args:
+        net_id: ID name of the network component in the config, it must be `torch.nn.Module`.
+        filepath: filepath where the onnx model is saved to.
+        ckpt_file: filepath of the model checkpoint to load.
+        meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
+        config_file: filepath of the config file that contains extract network information,
+        key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
+            weights. if not nested checkpoint, no need to set.
+        use_trace: whether using `torch.jit.trace` to convert the pytorch model to torchscript model.
+        input_shape: a shape used to generate the random input of the network, when converting the model to an
+            onnx model. Should be a list like [N, C, H, W] or [N, C, H, W, D]. If not given, will try to parse from
+            the `metadata` config.
+        args_file: a JSON or YAML file to provide default values for all the parameters of this function, so that
+            the command line inputs can be simplified.
+        converter_kwargs: extra arguments that are needed by `convert_to_onnx`, except ones that already exist in the
+            input parameters.
+        override: id-value pairs to override or add the corresponding config content.
+            e.g. ``--_meta#network_data_format#inputs#image#num_channels 3``.
+
+    """
+    _args = _update_args(
+        args=args_file,
+        net_id=net_id,
+        filepath=filepath,
+        meta_file=meta_file,
+        config_file=config_file,
+        ckpt_file=ckpt_file,
+        key_in_ckpt=key_in_ckpt,
+        use_trace=use_trace,
+        input_shape=input_shape,
+        converter_kwargs=converter_kwargs,
+        **override,
+    )
+    _log_input_summary(tag="onnx_export", args=_args)
+    (
+        filepath_,
+        ckpt_file_,
+        config_file_,
+        net_id_,
+        meta_file_,
+        key_in_ckpt_,
+        use_trace_,
+        input_shape_,
+        converter_kwargs_,
+    ) = _pop_args(
+        _args,
+        "filepath",
+        "ckpt_file",
+        "config_file",
+        net_id="",
+        meta_file=None,
+        key_in_ckpt="",
+        use_trace=False,
+        input_shape=None,
+        converter_kwargs={},
+    )
+
+    parser = ConfigParser()
+
+    parser.read_config(f=config_file_)
+    if meta_file_ is not None:
+        parser.read_meta(f=meta_file_)
+
+    # the rest key-values in the _args are to override config content
+    for k, v in _args.items():
+        parser[k] = v
+
+    # The convert_to_onnx must have an `inputs` as input, no matter what the `use_trace` is.
+    # If the `input_shape` is not provided, will try to parse it from the parser to generate a random `inputs`.
+    if not input_shape_:
+        input_shape_ = _get_fake_input_shape(parser=parser)
+
+    inputs_ = [torch.rand(input_shape_)]
+    net = parser.get_parsed_content(net_id_)
+    if has_ignite:
+        # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
+        Checkpoint.load_objects(to_load={key_in_ckpt_: net}, checkpoint=ckpt_file_)
+    else:
+        ckpt = torch.load(ckpt_file_)
+        copy_model_state(dst=net, src=ckpt if key_in_ckpt_ == "" else ckpt[key_in_ckpt_])
+
+    converter_kwargs_.update({"inputs": inputs_, "use_trace": use_trace_})
+    onnx_model = convert_to_onnx(model=net, **converter_kwargs_)
+    onnx.save(onnx_model, filepath_)
+
+
 def ckpt_export(
-    net_id: Optional[str] = None,
-    filepath: Optional[PathLike] = None,
-    ckpt_file: Optional[str] = None,
-    meta_file: Optional[Union[str, Sequence[str]]] = None,
-    config_file: Optional[Union[str, Sequence[str]]] = None,
-    key_in_ckpt: Optional[str] = None,
-    args_file: Optional[str] = None,
-    **override,
-):
+    net_id: str | None = None,
+    filepath: PathLike | None = None,
+    ckpt_file: str | None = None,
+    meta_file: str | Sequence[str] | None = None,
+    config_file: str | Sequence[str] | None = None,
+    key_in_ckpt: str | None = None,
+    use_trace: bool | None = None,
+    input_shape: Sequence[int] | None = None,
+    args_file: str | None = None,
+    converter_kwargs: Mapping | None = None,
+    **override: Any,
+) -> None:
     """
     Export the model checkpoint to the given filepath with metadata and config included as JSON files.
 
@@ -932,8 +1145,14 @@ def ckpt_export(
             it can be a single file or a list of files. if `None`, must be provided in `args_file`.
         key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
             weights. if not nested checkpoint, no need to set.
-        args_file: a JSON or YAML file to provide default values for `meta_file`, `config_file`,
-            `net_id` and override pairs. so that the command line inputs can be simplified.
+        use_trace: whether using `torch.jit.trace` to convert the PyTorch model to TorchScript model.
+        input_shape: a shape used to generate the random input of the network, when converting the model to a
+            TorchScript model. Should be a list like [N, C, H, W] or [N, C, H, W, D]. If not given, will try to
+            parse from the `metadata` config.
+        args_file: a JSON or YAML file to provide default values for all the parameters of this function, so that
+            the command line inputs can be simplified.
+        converter_kwargs: extra arguments that are needed by `convert_to_torchscript`, except ones that already exist
+            in the input parameters.
         override: id-value pairs to override or add the corresponding config content.
             e.g. ``--_meta#network_data_format#inputs#image#num_channels 3``.
 
@@ -946,11 +1165,33 @@ def ckpt_export(
         config_file=config_file,
         ckpt_file=ckpt_file,
         key_in_ckpt=key_in_ckpt,
+        use_trace=use_trace,
+        input_shape=input_shape,
+        converter_kwargs=converter_kwargs,
         **override,
     )
     _log_input_summary(tag="ckpt_export", args=_args)
-    filepath_, ckpt_file_, config_file_, net_id_, meta_file_, key_in_ckpt_ = _pop_args(
-        _args, "filepath", "ckpt_file", "config_file", net_id="", meta_file=None, key_in_ckpt=""
+    (
+        filepath_,
+        ckpt_file_,
+        config_file_,
+        net_id_,
+        meta_file_,
+        key_in_ckpt_,
+        use_trace_,
+        input_shape_,
+        converter_kwargs_,
+    ) = _pop_args(
+        _args,
+        "filepath",
+        "ckpt_file",
+        "config_file",
+        net_id="",
+        meta_file=None,
+        key_in_ckpt="",
+        use_trace=False,
+        input_shape=None,
+        converter_kwargs={},
     )
 
     parser = ConfigParser()
@@ -963,51 +1204,205 @@ def ckpt_export(
     for k, v in _args.items():
         parser[k] = v
 
-    net = parser.get_parsed_content(net_id_)
-    if has_ignite:
-        # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
-        Checkpoint.load_objects(to_load={key_in_ckpt_: net}, checkpoint=ckpt_file_)
-    else:
-        ckpt = torch.load(ckpt_file_)
-        copy_model_state(dst=net, src=ckpt if key_in_ckpt_ == "" else ckpt[key_in_ckpt_])
+    # When export through torch.jit.trace without providing input_shape, will try to parse one from the parser.
+    if (not input_shape_) and use_trace:
+        input_shape_ = _get_fake_input_shape(parser=parser)
 
-    # convert to TorchScript model and save with metadata, config content
-    net = convert_to_torchscript(model=net)
+    inputs_: Sequence[Any] | None = [torch.rand(input_shape_)] if input_shape_ else None
 
-    extra_files: Dict = {}
-    for i in ensure_tuple(config_file_):
-        # split the filename and directory
-        filename = os.path.basename(i)
-        # remove extension
-        filename, _ = os.path.splitext(filename)
-        # because all files are stored as JSON their name parts without extension must be unique
-        if filename in extra_files:
-            raise ValueError(f"Filename part '{filename}' is given multiple times in config file list.")
-        # the file may be JSON or YAML but will get loaded and dumped out again as JSON
-        extra_files[filename] = json.dumps(ConfigParser.load_config_file(i)).encode()
-
-    # add .json extension to all extra files which are always encoded as JSON
-    extra_files = {k + ".json": v for k, v in extra_files.items()}
-
-    save_net_with_metadata(
-        jit_obj=net,
-        filename_prefix_or_stream=filepath_,
-        include_config_vals=False,
-        append_timestamp=False,
-        meta_values=parser.get().pop("_meta_", None),
-        more_extra_files=extra_files,
+    converter_kwargs_.update({"inputs": inputs_, "use_trace": use_trace_})
+    # Use the given converter to convert a model and save with metadata, config content
+    _export(
+        convert_to_torchscript,
+        parser,
+        net_id=net_id_,
+        filepath=filepath_,
+        ckpt_file=ckpt_file_,
+        config_file=config_file_,
+        key_in_ckpt=key_in_ckpt_,
+        **converter_kwargs_,
     )
-    logger.info(f"exported to TorchScript file: {filepath_}.")
+
+
+def trt_export(
+    net_id: str | None = None,
+    filepath: PathLike | None = None,
+    ckpt_file: str | None = None,
+    meta_file: str | Sequence[str] | None = None,
+    config_file: str | Sequence[str] | None = None,
+    key_in_ckpt: str | None = None,
+    precision: str | None = None,
+    input_shape: Sequence[int] | None = None,
+    use_trace: bool | None = None,
+    dynamic_batchsize: Sequence[int] | None = None,
+    device: int | None = None,
+    use_onnx: bool | None = None,
+    onnx_input_names: Sequence[str] | None = None,
+    onnx_output_names: Sequence[str] | None = None,
+    args_file: str | None = None,
+    converter_kwargs: Mapping | None = None,
+    **override: Any,
+) -> None:
+    """
+    Export the model checkpoint to the given filepath as a TensorRT engine-based TorchScript.
+    Currently, this API only supports converting models whose inputs are all tensors.
+
+    There are two ways to export a model:
+    1, Torch-TensorRT way: PyTorch module ---> TorchScript module ---> TensorRT engine-based TorchScript.
+    2, ONNX-TensorRT way: PyTorch module ---> TorchScript module ---> ONNX model ---> TensorRT engine --->
+    TensorRT engine-based TorchScript.
+
+    When exporting through the first way, some models suffer from the slowdown problem, since Torch-TensorRT
+    may only convert a little part of the PyTorch model to the TensorRT engine. However when exporting through
+    the second way, some Python data structures like `dict` are not supported. And some TorchScript models are
+    not supported by the ONNX if exported through `torch.jit.script`.
+
+    Typical usage examples:
+
+    .. code-block:: bash
+
+        python -m monai.bundle trt_export --net_id <network definition> --filepath <export path> \
+            --ckpt_file <checkpoint path> --input_shape <input shape> --dynamic_batchsize <batch range> ...
+
+    Args:
+        net_id: ID name of the network component in the config, it must be `torch.nn.Module`.
+        filepath: filepath to export, if filename has no extension, it becomes `.ts`.
+        ckpt_file: filepath of the model checkpoint to load.
+        meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
+        config_file: filepath of the config file to save in the TensorRT based TorchScript model and extract network
+            information, the saved key in the model is the config filename without extension, and the saved config
+            value is always serialized in JSON format no matter the original file format is JSON or YAML.
+            it can be a single file or a list of files. if `None`, must be provided in `args_file`.
+        key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
+            weights. if not nested checkpoint, no need to set.
+        precision: the weight precision of the converted TensorRT engine based TorchScript models. Should be 'fp32' or 'fp16'.
+        input_shape: the input shape that is used to convert the model. Should be a list like [N, C, H, W] or
+            [N, C, H, W, D]. If not given, will try to parse from the `metadata` config.
+        use_trace: whether using `torch.jit.trace` to convert the PyTorch model to a TorchScript model and then convert to
+            a TensorRT engine based TorchScript model or an ONNX model (if `use_onnx` is True).
+        dynamic_batchsize: a sequence with three elements to define the batch size range of the input for the model to be
+            converted. Should be a sequence like [MIN_BATCH, OPT_BATCH, MAX_BATCH]. After converted, the batchsize of
+            model input should between `MIN_BATCH` and `MAX_BATCH` and the `OPT_BATCH` is the best performance batchsize
+            that the TensorRT tries to fit. The `OPT_BATCH` should be the most frequently used input batchsize in
+            the application.
+        device: the target GPU index to convert and verify the model.
+        use_onnx: whether using the ONNX-TensorRT way to export the TensorRT engine-based TorchScript model.
+        onnx_input_names: optional input names of the ONNX model. This arg is only useful when `use_onnx` is True. Should be
+            a sequence like `['input_0', 'input_1', ..., 'input_N']` where N equals to the number of the model inputs. If not
+            given, will use `['input_0']`, which supposes the model only has one input.
+        onnx_output_names: optional output names of the ONNX model. This arg is only useful when `use_onnx` is True. Should be
+            a sequence like `['output_0', 'output_1', ..., 'output_N']` where N equals to the number of the model outputs. If
+            not given, will use `['output_0']`, which supposes the model only has one output.
+        args_file: a JSON or YAML file to provide default values for all the parameters of this function, so that
+            the command line inputs can be simplified.
+        converter_kwargs: extra arguments that are needed by `convert_to_trt`, except ones that already exist in the
+            input parameters.
+        override: id-value pairs to override or add the corresponding config content.
+            e.g. ``--_meta#network_data_format#inputs#image#num_channels 3``.
+
+    """
+    _args = _update_args(
+        args=args_file,
+        net_id=net_id,
+        filepath=filepath,
+        meta_file=meta_file,
+        config_file=config_file,
+        ckpt_file=ckpt_file,
+        key_in_ckpt=key_in_ckpt,
+        precision=precision,
+        input_shape=input_shape,
+        use_trace=use_trace,
+        dynamic_batchsize=dynamic_batchsize,
+        device=device,
+        use_onnx=use_onnx,
+        onnx_input_names=onnx_input_names,
+        onnx_output_names=onnx_output_names,
+        converter_kwargs=converter_kwargs,
+        **override,
+    )
+    _log_input_summary(tag="trt_export", args=_args)
+    (
+        filepath_,
+        ckpt_file_,
+        config_file_,
+        net_id_,
+        meta_file_,
+        key_in_ckpt_,
+        precision_,
+        input_shape_,
+        use_trace_,
+        dynamic_batchsize_,
+        device_,
+        use_onnx_,
+        onnx_input_names_,
+        onnx_output_names_,
+        converter_kwargs_,
+    ) = _pop_args(
+        _args,
+        "filepath",
+        "ckpt_file",
+        "config_file",
+        net_id="",
+        meta_file=None,
+        key_in_ckpt="",
+        precision="fp32",
+        input_shape=[],
+        use_trace=False,
+        dynamic_batchsize=None,
+        device=None,
+        use_onnx=False,
+        onnx_input_names=["input_0"],
+        onnx_output_names=["output_0"],
+        converter_kwargs={},
+    )
+
+    parser = ConfigParser()
+
+    parser.read_config(f=config_file_)
+    if meta_file_ is not None:
+        parser.read_meta(f=meta_file_)
+
+    # the rest key-values in the _args are to override config content
+    for k, v in _args.items():
+        parser[k] = v
+
+    # The convert_to_trt must have an `input_shape_` as input, no matter what the `use_trace` is.
+    # If the `input_shape` is not provided, will try to parse it from the parser`.
+    if not input_shape_:
+        input_shape_ = _get_fake_input_shape(parser=parser)
+
+    trt_api_parameters = {
+        "precision": precision_,
+        "input_shape": input_shape_,
+        "dynamic_batchsize": dynamic_batchsize_,
+        "use_trace": use_trace_,
+        "device": device_,
+        "use_onnx": use_onnx_,
+        "onnx_input_names": onnx_input_names_,
+        "onnx_output_names": onnx_output_names_,
+    }
+    converter_kwargs_.update(trt_api_parameters)
+
+    _export(
+        convert_to_trt,
+        parser,
+        net_id=net_id_,
+        filepath=filepath_,
+        ckpt_file=ckpt_file_,
+        config_file=config_file_,
+        key_in_ckpt=key_in_ckpt_,
+        **converter_kwargs_,
+    )
 
 
 def init_bundle(
     bundle_dir: PathLike,
-    ckpt_file: Optional[PathLike] = None,
-    network: Optional[torch.nn.Module] = None,
+    ckpt_file: PathLike | None = None,
+    network: torch.nn.Module | None = None,
     dataset_license: bool = False,
-    metadata_str: Union[Dict, str, None] = None,
-    inference_str: Union[Dict, str, None] = None,
-):
+    metadata_str: dict | str | None = None,
+    inference_str: dict | str | None = None,
+) -> None:
     """
     Initialise a new bundle directory with some default configuration files and optionally network weights.
 

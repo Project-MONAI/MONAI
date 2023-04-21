@@ -9,9 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import logging
 import warnings
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING
 
 import torch
 
@@ -69,9 +71,9 @@ class CheckpointLoader:
     def __init__(
         self,
         load_path: str,
-        load_dict: Dict,
-        name: Optional[str] = None,
-        map_location: Optional[Dict] = None,
+        load_dict: dict,
+        name: str | None = None,
+        map_location: dict | None = None,
         strict: bool = True,
         strict_shape: bool = True,
     ) -> None:
@@ -112,7 +114,7 @@ class CheckpointLoader:
             checkpoint = {k: checkpoint}
 
         if not self.strict_shape:
-            pop_items: List[str] = []
+            pop_items: list[str] = []
             for k, obj in self.load_dict.items():
                 if isinstance(obj, torch.nn.Module):
                     # skip items that don't match key name or data shape

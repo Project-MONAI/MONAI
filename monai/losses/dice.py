@@ -9,8 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
-from typing import Callable, List, Optional, Sequence, Union
+from collections.abc import Callable, Sequence
+from typing import Any
 
 import numpy as np
 import torch
@@ -47,10 +50,10 @@ class DiceLoss(_Loss):
         to_onehot_y: bool = False,
         sigmoid: bool = False,
         softmax: bool = False,
-        other_act: Optional[Callable] = None,
+        other_act: Callable | None = None,
         squared_pred: bool = False,
         jaccard: bool = False,
-        reduction: Union[LossReduction, str] = LossReduction.MEAN,
+        reduction: LossReduction | str = LossReduction.MEAN,
         smooth_nr: float = 1e-5,
         smooth_dr: float = 1e-5,
         batch: bool = False,
@@ -157,7 +160,7 @@ class DiceLoss(_Loss):
             raise AssertionError(f"ground truth has different shape ({target.shape}) from input ({input.shape})")
 
         # reducing only spatial dimensions (not batch nor channels)
-        reduce_axis: List[int] = torch.arange(2, len(input.shape)).tolist()
+        reduce_axis: list[int] = torch.arange(2, len(input.shape)).tolist()
         if self.batch:
             # reducing spatial dimensions and batch
             reduce_axis = [0] + reduce_axis
@@ -165,11 +168,11 @@ class DiceLoss(_Loss):
         intersection = torch.sum(target * input, dim=reduce_axis)
 
         if self.squared_pred:
-            target = torch.pow(target, 2)
-            input = torch.pow(input, 2)
-
-        ground_o = torch.sum(target, dim=reduce_axis)
-        pred_o = torch.sum(input, dim=reduce_axis)
+            ground_o = torch.sum(target**2, dim=reduce_axis)
+            pred_o = torch.sum(input**2, dim=reduce_axis)
+        else:
+            ground_o = torch.sum(target, dim=reduce_axis)
+            pred_o = torch.sum(input, dim=reduce_axis)
 
         denominator = ground_o + pred_o
 
@@ -203,21 +206,21 @@ class MaskedDiceLoss(DiceLoss):
 
     """
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         """
         Args follow :py:class:`monai.losses.DiceLoss`.
         """
         super().__init__(*args, **kwargs)
         self.spatial_weighted = MaskedLoss(loss=super().forward)
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor, mask: Optional[torch.Tensor] = None):
+    def forward(self, input: torch.Tensor, target: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
         """
         Args:
             input: the shape should be BNH[WD].
             target: the shape should be BNH[WD].
             mask: the shape should B1H[WD] or 11H[WD].
         """
-        return self.spatial_weighted(input=input, target=target, mask=mask)
+        return self.spatial_weighted(input=input, target=target, mask=mask)  # type: ignore[no-any-return]
 
 
 class GeneralizedDiceLoss(_Loss):
@@ -237,9 +240,9 @@ class GeneralizedDiceLoss(_Loss):
         to_onehot_y: bool = False,
         sigmoid: bool = False,
         softmax: bool = False,
-        other_act: Optional[Callable] = None,
-        w_type: Union[Weight, str] = Weight.SQUARE,
-        reduction: Union[LossReduction, str] = LossReduction.MEAN,
+        other_act: Callable | None = None,
+        w_type: Weight | str = Weight.SQUARE,
+        reduction: LossReduction | str = LossReduction.MEAN,
         smooth_nr: float = 1e-5,
         smooth_dr: float = 1e-5,
         batch: bool = False,
@@ -337,7 +340,7 @@ class GeneralizedDiceLoss(_Loss):
             raise AssertionError(f"ground truth has differing shape ({target.shape}) from input ({input.shape})")
 
         # reducing only spatial dimensions (not batch nor channels)
-        reduce_axis: List[int] = torch.arange(2, len(input.shape)).tolist()
+        reduce_axis: list[int] = torch.arange(2, len(input.shape)).tolist()
         if self.batch:
             reduce_axis = [0] + reduce_axis
         intersection = torch.sum(target * input, reduce_axis)
@@ -395,9 +398,9 @@ class GeneralizedWassersteinDiceLoss(_Loss):
 
     def __init__(
         self,
-        dist_matrix: Union[np.ndarray, torch.Tensor],
+        dist_matrix: np.ndarray | torch.Tensor,
         weighting_mode: str = "default",
-        reduction: Union[LossReduction, str] = LossReduction.MEAN,
+        reduction: LossReduction | str = LossReduction.MEAN,
         smooth_nr: float = 1e-5,
         smooth_dr: float = 1e-5,
     ) -> None:
@@ -621,14 +624,14 @@ class DiceCELoss(_Loss):
         to_onehot_y: bool = False,
         sigmoid: bool = False,
         softmax: bool = False,
-        other_act: Optional[Callable] = None,
+        other_act: Callable | None = None,
         squared_pred: bool = False,
         jaccard: bool = False,
         reduction: str = "mean",
         smooth_nr: float = 1e-5,
         smooth_dr: float = 1e-5,
         batch: bool = False,
-        ce_weight: Optional[torch.Tensor] = None,
+        ce_weight: torch.Tensor | None = None,
         lambda_dice: float = 1.0,
         lambda_ce: float = 1.0,
     ) -> None:
@@ -693,7 +696,7 @@ class DiceCELoss(_Loss):
         self.lambda_ce = lambda_ce
         self.old_pt_ver = not pytorch_after(1, 10)
 
-    def ce(self, input: torch.Tensor, target: torch.Tensor):
+    def ce(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
         Compute CrossEntropy loss for the input and target.
         Will remove the channel dim according to PyTorch CrossEntropyLoss:
@@ -713,7 +716,7 @@ class DiceCELoss(_Loss):
         elif not torch.is_floating_point(target):
             target = target.to(dtype=input.dtype)
 
-        return self.cross_entropy(input, target)
+        return self.cross_entropy(input, target)  # type: ignore[no-any-return]
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
@@ -757,7 +760,7 @@ class DiceFocalLoss(_Loss):
         to_onehot_y: bool = False,
         sigmoid: bool = False,
         softmax: bool = False,
-        other_act: Optional[Callable] = None,
+        other_act: Callable | None = None,
         squared_pred: bool = False,
         jaccard: bool = False,
         reduction: str = "mean",
@@ -765,7 +768,7 @@ class DiceFocalLoss(_Loss):
         smooth_dr: float = 1e-5,
         batch: bool = False,
         gamma: float = 2.0,
-        focal_weight: Optional[Union[Sequence[float], float, int, torch.Tensor]] = None,
+        focal_weight: Sequence[float] | float | int | torch.Tensor | None = None,
         lambda_dice: float = 1.0,
         lambda_focal: float = 1.0,
     ) -> None:
@@ -907,14 +910,14 @@ class GeneralizedDiceFocalLoss(torch.nn.modules.loss._Loss):
         to_onehot_y: bool = False,
         sigmoid: bool = False,
         softmax: bool = False,
-        other_act: Optional[Callable] = None,
-        w_type: Union[Weight, str] = Weight.SQUARE,
-        reduction: Union[LossReduction, str] = LossReduction.MEAN,
+        other_act: Callable | None = None,
+        w_type: Weight | str = Weight.SQUARE,
+        reduction: LossReduction | str = LossReduction.MEAN,
         smooth_nr: float = 1e-5,
         smooth_dr: float = 1e-5,
         batch: bool = False,
         gamma: float = 2.0,
-        focal_weight: Optional[Union[Sequence[float], float, int, torch.Tensor]] = None,
+        focal_weight: Sequence[float] | float | int | torch.Tensor | None = None,
         lambda_gdl: float = 1.0,
         lambda_focal: float = 1.0,
     ) -> None:

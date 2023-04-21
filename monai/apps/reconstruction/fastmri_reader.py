@@ -9,8 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
-from typing import Dict, Sequence, Tuple, Union
+from collections.abc import Sequence
 
 import numpy as np
 from numpy import ndarray
@@ -41,7 +43,7 @@ class FastMRIReader(ImageReader):
     - patient_id (str): the patient's id whose measurements were recorded
     """
 
-    def verify_suffix(self, filename: Union[Sequence[PathLike], PathLike]) -> bool:
+    def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
         """
          Verify whether the specified file format is supported by h5py reader.
 
@@ -51,7 +53,7 @@ class FastMRIReader(ImageReader):
         suffixes: Sequence[str] = [".h5"]
         return has_h5py and is_supported_format(filename, suffixes)
 
-    def read(self, data: Union[Sequence[PathLike], PathLike]) -> Dict:  # type: ignore
+    def read(self, data: Sequence[PathLike] | PathLike) -> dict:  # type: ignore
         """
         Read data from specified h5 file.
         Note that the returned object is a dictionary.
@@ -73,7 +75,7 @@ class FastMRIReader(ImageReader):
 
         return dat
 
-    def get_data(self, dat: Dict) -> Tuple[ndarray, dict]:
+    def get_data(self, dat: dict) -> tuple[ndarray, dict]:
         """
         Extract data array and metadata from the loaded data and return them.
         This function returns two objects, first is numpy array of image data, second is dict of metadata.
@@ -90,7 +92,7 @@ class FastMRIReader(ImageReader):
         )
         return data, header
 
-    def _get_meta_dict(self, dat) -> Dict:
+    def _get_meta_dict(self, dat: dict) -> dict:
         """
         Get all the metadata of the loaded dict and return the meta dict.
 

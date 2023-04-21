@@ -9,8 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Sequence, Union
+from collections.abc import Callable, Iterable, Sequence
+from typing import TYPE_CHECKING, Any
 
 import torch
 import torch.distributed as dist
@@ -24,7 +27,6 @@ from monai.utils import ensure_tuple, is_scalar, min_version, optional_import
 
 from .utils import engine_apply_transform
 
-IgniteEngine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine", as_type="")
 State, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "State")
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 
@@ -43,7 +45,7 @@ else:
     )
 
 
-class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optional_import
+class Workflow(Engine):
     """
     Workflow defines the core work process inheriting from Ignite engine.
     All trainer, validator and evaluator share this same workflow as base class,
@@ -101,24 +103,24 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
 
     def __init__(
         self,
-        device: Union[torch.device, str],
+        device: torch.device | str,
         max_epochs: int,
-        data_loader: Union[Iterable, DataLoader],
-        epoch_length: Optional[int] = None,
+        data_loader: Iterable | DataLoader,
+        epoch_length: int | None = None,
         non_blocking: bool = False,
         prepare_batch: Callable = default_prepare_batch,
-        iteration_update: Optional[Callable[[Engine, Any], Any]] = None,
-        postprocessing: Optional[Callable] = None,
-        key_metric: Optional[Dict[str, Metric]] = None,
-        additional_metrics: Optional[Dict[str, Metric]] = None,
+        iteration_update: Callable[[Engine, Any], Any] | None = None,
+        postprocessing: Callable | None = None,
+        key_metric: dict[str, Metric] | None = None,
+        additional_metrics: dict[str, Metric] | None = None,
         metric_cmp_fn: Callable = default_metric_cmp_fn,
-        handlers: Optional[Sequence] = None,
+        handlers: Sequence | None = None,
         amp: bool = False,
-        event_names: Optional[List[Union[str, EventEnum]]] = None,
-        event_to_attr: Optional[dict] = None,
+        event_names: list[str | EventEnum | type[EventEnum]] | None = None,
+        event_to_attr: dict | None = None,
         decollate: bool = True,
-        to_kwargs: Optional[Dict] = None,
-        amp_kwargs: Optional[Dict] = None,
+        to_kwargs: dict | None = None,
+        amp_kwargs: dict | None = None,
     ) -> None:
         if iteration_update is not None:
             super().__init__(iteration_update)
@@ -130,7 +132,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             if isinstance(sampler, DistributedSampler):
 
                 @self.on(Events.EPOCH_STARTED)
-                def set_sampler_epoch(engine: Engine):
+                def set_sampler_epoch(engine: Engine) -> None:
                     sampler.set_epoch(engine.state.epoch)
 
             if epoch_length is None:
@@ -140,7 +142,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
                 raise ValueError("If data_loader is not PyTorch DataLoader, must specify the epoch_length.")
 
         # set all sharable data for the workflow based on Ignite engine.state
-        self.state = State(
+        self.state: Any = State(
             rank=dist.get_rank() if dist.is_available() and dist.is_initialized() else 0,
             seed=0,
             iteration=0,
@@ -164,21 +166,21 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         self.amp = amp
         self.to_kwargs = {} if to_kwargs is None else to_kwargs
         self.amp_kwargs = {} if amp_kwargs is None else amp_kwargs
-        self.scaler: Optional[torch.cuda.amp.GradScaler] = None
+        self.scaler: torch.cuda.amp.GradScaler | None = None
 
         if event_names is None:
-            event_names = [IterationEvents]  # type: ignore
+            event_names = [IterationEvents]
         else:
             if not isinstance(event_names, list):
-                raise ValueError("`event_names` must be a list or string or EventEnum.")
-            event_names += [IterationEvents]  # type: ignore
+                raise ValueError("`event_names` must be a list of strings or EventEnums.")
+            event_names += [IterationEvents]
         for name in event_names:
-            if isinstance(name, str):
-                self.register_events(name, event_to_attr=event_to_attr)
-            elif issubclass(name, EventEnum):  # type: ignore
+            if isinstance(name, (str, EventEnum)):
+                self.register_events(name, event_to_attr=event_to_attr)  # type: ignore[arg-type]
+            elif issubclass(name, EventEnum):
                 self.register_events(*name, event_to_attr=event_to_attr)
             else:
-                raise ValueError("`event_names` must be a list or string or EventEnum.")
+                raise ValueError("`event_names` must be a list of strings or EventEnums.")
 
         if decollate:
             self._register_decollate()
@@ -207,7 +209,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             if isinstance(engine.state.output, (list, dict)):
                 engine.state.output = transform(engine.state.output)
 
-    def _register_postprocessing(self, posttrans: Callable):
+    def _register_postprocessing(self, posttrans: Callable) -> None:
         """
         Register the postprocessing logic to the engine, will execute them as a chain when iteration completed.
 
@@ -223,7 +225,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
                 for i, (b, o) in enumerate(zip(engine.state.batch, engine.state.output)):
                     engine.state.batch[i], engine.state.output[i] = engine_apply_transform(b, o, posttrans)
 
-    def _register_metrics(self, k_metric: Dict, add_metrics: Optional[Dict] = None):
+    def _register_metrics(self, k_metric: dict, add_metrics: dict | None = None) -> None:
         """
         Register the key metric and additional metrics to the engine, supports ignite Metrics.
 
@@ -258,7 +260,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
                     engine.state.best_metric = current_val_metric
                     engine.state.best_metric_epoch = engine.state.epoch
 
-    def _register_handlers(self, handlers: Sequence):
+    def _register_handlers(self, handlers: Sequence) -> None:
         """
         Register the handlers to the engine, supports ignite Handlers with `attach` API.
 
@@ -267,7 +269,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         for handler in handlers_:
             handler.attach(self)
 
-    def run(self) -> None:
+    def run(self) -> None:  # type: ignore[override]
         """
         Execute training, validation or evaluation based on Ignite Engine.
         """
@@ -280,7 +282,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             return
         super().run(data=self.data_loader, max_epochs=self.state.max_epochs)
 
-    def _iteration(self, engine, batchdata: Dict[str, torch.Tensor]):
+    def _iteration(self, engine: Any, batchdata: dict[str, torch.Tensor]) -> dict:
         """
         Abstract callback function for the processing logic of 1 iteration in Ignite Engine.
         Need subclass to implement different logics, like SupervisedTrainer/Evaluator, GANTrainer, etc.

@@ -116,8 +116,9 @@ html_theme_options = {
     "collapse_navigation": True,
     "navigation_depth": 3,
     "show_toc_level": 1,
-    "footer_items": ["copyright"],
+    "footer_start": ["copyright"],
     "navbar_align": "content",
+    "logo": {"image_light": "MONAI-logo-color.png", "image_dark": "MONAI-logo-color.png"},
 }
 html_context = {
     "github_user": "Project-MONAI",

@@ -9,8 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
-from typing import Dict, Hashable, Mapping
+from collections.abc import Hashable, Mapping
 
 import numpy as np
 import torch
@@ -18,6 +20,7 @@ import torch
 from monai.config import KeysCollection
 from monai.networks.utils import pytorch_after
 from monai.transforms import MapTransform
+from monai.utils.misc import ImageMetaKey
 
 
 class EnsureSameShaped(MapTransform):
@@ -50,17 +53,18 @@ class EnsureSameShaped(MapTransform):
         self.source_key = source_key
         self.allowed_shape_difference = allowed_shape_difference
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         image_shape = d[self.source_key].shape[1:]
         for key in self.key_iterator(d):
             label_shape = d[key].shape[1:]
             if label_shape != image_shape:
                 if np.allclose(list(label_shape), list(image_shape), atol=self.allowed_shape_difference):
-                    warnings.warn(
-                        f"The {key} with shape {label_shape} was resized to match the source shape {image_shape},"
-                        f"the meta-data was not updated."
-                    )
+                    msg = f"The {key} with shape {label_shape} was resized to match the source shape {image_shape}"
+                    if hasattr(d[key], "meta") and isinstance(d[key].meta, Mapping):  # type: ignore[attr-defined]
+                        filename = d[key].meta.get(ImageMetaKey.FILENAME_OR_OBJ)  # type: ignore[attr-defined]
+                        msg += f", the metadata was not updated: filename={filename}"
+                    warnings.warn(msg)
                     d[key] = torch.nn.functional.interpolate(
                         input=d[key].unsqueeze(0),
                         size=image_shape,

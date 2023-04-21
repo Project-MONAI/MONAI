@@ -50,7 +50,7 @@ by overriding the definition of convolutional layers and pooling layers.
 https://github.com/pytorch/vision/blob/release/0.12/torchvision/models/detection/backbone_utils.py
 """
 
-from typing import Dict, List, Optional, Union
+from __future__ import annotations
 
 from torch import Tensor, nn
 
@@ -89,11 +89,11 @@ class BackboneWithFPN(nn.Module):
     def __init__(
         self,
         backbone: nn.Module,
-        return_layers: Dict[str, str],
-        in_channels_list: List[int],
+        return_layers: dict[str, str],
+        in_channels_list: list[int],
         out_channels: int,
-        spatial_dims: Union[int, None] = None,
-        extra_blocks: Optional[ExtraFPNBlock] = None,
+        spatial_dims: int | None = None,
+        extra_blocks: ExtraFPNBlock | None = None,
     ) -> None:
         super().__init__()
 
@@ -120,7 +120,7 @@ class BackboneWithFPN(nn.Module):
         )
         self.out_channels = out_channels
 
-    def forward(self, x: Tensor) -> Dict[str, Tensor]:
+    def forward(self, x: Tensor) -> dict[str, Tensor]:
         """
         Computes the resulted feature maps of the network.
 
@@ -131,7 +131,7 @@ class BackboneWithFPN(nn.Module):
             feature maps after FPN layers. They are ordered from highest resolution first.
         """
         x = self.body(x)  # backbone
-        y: Dict[str, Tensor] = self.fpn(x)  # FPN
+        y: dict[str, Tensor] = self.fpn(x)  # FPN
         return y
 
 
@@ -139,8 +139,8 @@ def _resnet_fpn_extractor(
     backbone: resnet.ResNet,
     spatial_dims: int,
     trainable_layers: int = 5,
-    returned_layers: Optional[List[int]] = None,
-    extra_blocks: Optional[ExtraFPNBlock] = None,
+    returned_layers: list[int] | None = None,
+    extra_blocks: ExtraFPNBlock | None = None,
 ) -> BackboneWithFPN:
     """
     Same code as https://github.com/pytorch/vision/blob/release/0.12/torchvision/models/detection/backbone_utils.py
@@ -155,7 +155,7 @@ def _resnet_fpn_extractor(
     if trainable_layers == 5:
         layers_to_train.append("bn1")
     for name, parameter in backbone.named_parameters():
-        if all([not name.startswith(layer) for layer in layers_to_train]):
+        if all(not name.startswith(layer) for layer in layers_to_train):
             parameter.requires_grad_(False)
 
     if extra_blocks is None:

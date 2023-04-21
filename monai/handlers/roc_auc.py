@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Union
+from __future__ import annotations
+
+from collections.abc import Callable
 
 from monai.handlers.ignite_metric import IgniteMetric
 from monai.metrics import ROCAUCMetric
@@ -46,6 +48,6 @@ class ROCAUC(IgniteMetric):
 
     """
 
-    def __init__(self, average: Union[Average, str] = Average.MACRO, output_transform: Callable = lambda x: x) -> None:
+    def __init__(self, average: Average | str = Average.MACRO, output_transform: Callable = lambda x: x) -> None:
         metric_fn = ROCAUCMetric(average=Average(average))
         super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=False)

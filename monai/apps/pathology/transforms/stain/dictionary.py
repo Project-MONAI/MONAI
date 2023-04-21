@@ -15,7 +15,9 @@ defined in :py:class:`monai.apps.pathology.transforms.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Dict, Hashable, Mapping, Union
+from __future__ import annotations
+
+from collections.abc import Hashable, Mapping
 
 import numpy as np
 
@@ -48,13 +50,13 @@ class ExtractHEStainsd(MapTransform):
         tli: float = 240,
         alpha: float = 1,
         beta: float = 0.15,
-        max_cref: Union[tuple, np.ndarray] = (1.9705, 1.0308),
+        max_cref: tuple | np.ndarray = (1.9705, 1.0308),
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.extractor = ExtractHEStains(tli=tli, alpha=alpha, beta=beta, max_cref=max_cref)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.extractor(d[key])
@@ -93,14 +95,14 @@ class NormalizeHEStainsd(MapTransform):
         tli: float = 240,
         alpha: float = 1,
         beta: float = 0.15,
-        target_he: Union[tuple, np.ndarray] = ((0.5626, 0.2159), (0.7201, 0.8012), (0.4062, 0.5581)),
-        max_cref: Union[tuple, np.ndarray] = (1.9705, 1.0308),
+        target_he: tuple | np.ndarray = ((0.5626, 0.2159), (0.7201, 0.8012), (0.4062, 0.5581)),
+        max_cref: tuple | np.ndarray = (1.9705, 1.0308),
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.normalizer = NormalizeHEStains(tli=tli, alpha=alpha, beta=beta, target_he=target_he, max_cref=max_cref)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.normalizer(d[key])

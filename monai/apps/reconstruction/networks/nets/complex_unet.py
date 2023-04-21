@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import torch.nn as nn
 from torch import Tensor
@@ -56,15 +58,16 @@ class ComplexUnet(nn.Module):
         self,
         spatial_dims: int = 2,
         features: Sequence[int] = (32, 32, 64, 128, 256, 32),
-        act: Union[str, tuple] = ("LeakyReLU", {"negative_slope": 0.1, "inplace": True}),
-        norm: Union[str, tuple] = ("instance", {"affine": True}),
+        act: str | tuple = ("LeakyReLU", {"negative_slope": 0.1, "inplace": True}),
+        norm: str | tuple = ("instance", {"affine": True}),
         bias: bool = True,
-        dropout: Union[float, tuple] = 0.0,
+        dropout: float | tuple = 0.0,
         upsample: str = "deconv",
         pad_factor: int = 16,
-        conv_net: Optional[nn.Module] = None,
+        conv_net: nn.Module | None = None,
     ):
         super().__init__()
+        self.unet: nn.Module
         if conv_net is None:
             self.unet = BasicUNet(
                 spatial_dims=spatial_dims,

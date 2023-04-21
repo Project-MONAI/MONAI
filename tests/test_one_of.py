@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 from copy import deepcopy
 
@@ -25,7 +27,6 @@ from monai.transforms import (
     RandShiftIntensityd,
     Resize,
     Resized,
-    TraceableTransform,
     Transform,
 )
 from monai.transforms.compose import Compose
@@ -154,16 +155,12 @@ class TestOneOf(unittest.TestCase):
 
     @parameterized.expand(TEST_INVERSES)
     def test_inverse(self, transform, invertible, use_metatensor):
-        data = {k: (i + 1) * 10.0 if not use_metatensor else MetaTensor((i + 1) * 10.0) for i, k in enumerate(KEYS)}
+        data = {k: MetaTensor((i + 1) * 10.0) for i, k in enumerate(KEYS)}
         fwd_data = transform(data)
 
         if invertible:
             for k in KEYS:
-                t = (
-                    fwd_data[TraceableTransform.trace_key(k)][-1]
-                    if not use_metatensor
-                    else fwd_data[k].applied_operations[-1]
-                )
+                t = fwd_data[k].applied_operations[-1]
                 # make sure the OneOf index was stored
                 self.assertEqual(t[TraceKeys.CLASS_NAME], OneOf.__name__)
                 # make sure index exists and is in bounds
@@ -174,12 +171,6 @@ class TestOneOf(unittest.TestCase):
 
         if invertible:
             for k in KEYS:
-                # check transform was removed
-                if not use_metatensor:
-                    self.assertTrue(
-                        len(fwd_inv_data[TraceableTransform.trace_key(k)])
-                        < len(fwd_data[TraceableTransform.trace_key(k)])
-                    )
                 # check data is same as original (and different from forward)
                 self.assertEqual(fwd_inv_data[k], data[k])
                 self.assertNotEqual(fwd_inv_data[k], fwd_data[k])

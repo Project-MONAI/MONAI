@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -17,13 +19,76 @@ import torch.nn.functional as F
 
 from monai.metrics.surface_dice import SurfaceDiceMetric
 
+_device = "cuda:0" if torch.cuda.is_available() else "cpu"
+
 
 class TestAllSurfaceDiceMetrics(unittest.TestCase):
+    def test_tolerance_euclidean_distance_with_spacing(self):
+        batch_size = 2
+        n_class = 2
+        test_spacing = (0.85, 1.2)
+        predictions = torch.zeros((batch_size, 480, 640), dtype=torch.int64, device=_device)
+        labels = torch.zeros((batch_size, 480, 640), dtype=torch.int64, device=_device)
+        predictions[0, :, 50:] = 1
+        labels[0, :, 60:] = 1  # 10 px shift
+        predictions_hot = F.one_hot(predictions, num_classes=n_class).permute(0, 3, 1, 2)
+        labels_hot = F.one_hot(labels, num_classes=n_class).permute(0, 3, 1, 2)
+
+        sd0 = SurfaceDiceMetric(class_thresholds=[0, 0], include_background=True)
+        res0 = sd0(predictions_hot, labels_hot, spacing=test_spacing)
+        agg0 = sd0.aggregate()  # aggregation: nanmean across image then nanmean across batch
+        sd0_nans = SurfaceDiceMetric(class_thresholds=[0, 0], include_background=True, get_not_nans=True)
+        res0_nans = sd0_nans(predictions_hot, labels_hot)
+        agg0_nans, not_nans = sd0_nans.aggregate()
+
+        np.testing.assert_array_equal(res0.cpu(), res0_nans.cpu())
+        np.testing.assert_equal(res0.device, predictions.device)
+        np.testing.assert_array_equal(agg0.cpu(), agg0_nans.cpu())
+        np.testing.assert_equal(agg0.device, predictions.device)
+
+        res1 = SurfaceDiceMetric(class_thresholds=[1, 1], include_background=True)(
+            predictions_hot, labels_hot, spacing=test_spacing
+        )
+        res9 = SurfaceDiceMetric(class_thresholds=[9, 9], include_background=True)(
+            predictions_hot, labels_hot, spacing=test_spacing
+        )
+        res10 = SurfaceDiceMetric(class_thresholds=[10, 10], include_background=True)(
+            predictions_hot, labels_hot, spacing=test_spacing
+        )
+        res11 = SurfaceDiceMetric(class_thresholds=[11, 11], include_background=True)(
+            predictions_hot, labels_hot, spacing=test_spacing
+        )
+        # because spacing is (0.85, 1.2) and we moved 10 pixels in the columns direction,
+        # everything with tolerance 12 or more should be the same as tolerance 12 (surface dice is 1.0)
+        res12 = SurfaceDiceMetric(class_thresholds=[12, 12], include_background=True)(
+            predictions_hot, labels_hot, spacing=test_spacing
+        )
+        res13 = SurfaceDiceMetric(class_thresholds=[13, 13], include_background=True)(
+            predictions_hot, labels_hot, spacing=test_spacing
+        )
+
+        for res in [res0, res9, res10, res11, res12, res13]:
+            assert res.shape == torch.Size([2, 2])
+
+        assert res0[0, 0] < res1[0, 0] < res9[0, 0] < res10[0, 0] < res11[0, 0]
+        assert res0[0, 1] < res1[0, 1] < res9[0, 1] < res10[0, 1] < res11[0, 1]
+        np.testing.assert_array_equal(res12.cpu(), res13.cpu())
+
+        expected_res0 = np.zeros((batch_size, n_class))
+        expected_res0[0, 1] = 1 - (478 + 480 + 9 * 2) / (480 * 4 + 588 * 2 + 578 * 2)
+        expected_res0[0, 0] = 1 - (478 + 480 + 9 * 2) / (480 * 4 + 48 * 2 + 58 * 2)
+        expected_res0[1, 0] = 1
+        expected_res0[1, 1] = np.nan
+        for b, c in np.ndindex(batch_size, n_class):
+            np.testing.assert_allclose(expected_res0[b, c], res0[b, c].cpu())
+        np.testing.assert_array_equal(agg0.cpu(), np.nanmean(np.nanmean(expected_res0, axis=1), axis=0))
+        np.testing.assert_equal(not_nans.cpu(), torch.tensor(2))
+
     def test_tolerance_euclidean_distance(self):
         batch_size = 2
         n_class = 2
-        predictions = torch.zeros((batch_size, 480, 640), dtype=torch.int64)
-        labels = torch.zeros((batch_size, 480, 640), dtype=torch.int64)
+        predictions = torch.zeros((batch_size, 480, 640), dtype=torch.int64, device=_device)
+        labels = torch.zeros((batch_size, 480, 640), dtype=torch.int64, device=_device)
         predictions[0, :, 50:] = 1
         labels[0, :, 60:] = 1  # 10 px shift
         predictions_hot = F.one_hot(predictions, num_classes=n_class).permute(0, 3, 1, 2)
@@ -36,8 +101,10 @@ class TestAllSurfaceDiceMetrics(unittest.TestCase):
         res0_nans = sd0_nans(predictions_hot, labels_hot)
         agg0_nans, not_nans = sd0_nans.aggregate()
 
-        np.testing.assert_array_equal(res0, res0_nans)
-        np.testing.assert_array_equal(agg0, agg0_nans)
+        np.testing.assert_array_equal(res0.cpu(), res0_nans.cpu())
+        np.testing.assert_equal(res0.device, predictions.device)
+        np.testing.assert_array_equal(agg0.cpu(), agg0_nans.cpu())
+        np.testing.assert_equal(agg0.device, predictions.device)
 
         res1 = SurfaceDiceMetric(class_thresholds=[1, 1], include_background=True)(predictions_hot, labels_hot)
         res9 = SurfaceDiceMetric(class_thresholds=[9, 9], include_background=True)(predictions_hot, labels_hot)
@@ -49,7 +116,7 @@ class TestAllSurfaceDiceMetrics(unittest.TestCase):
 
         assert res0[0, 0] < res1[0, 0] < res9[0, 0] < res10[0, 0]
         assert res0[0, 1] < res1[0, 1] < res9[0, 1] < res10[0, 1]
-        np.testing.assert_array_equal(res10, res11)
+        np.testing.assert_array_equal(res10.cpu(), res11.cpu())
 
         expected_res0 = np.zeros((batch_size, n_class))
         expected_res0[0, 1] = 1 - (478 + 480 + 9 * 2) / (480 * 4 + 588 * 2 + 578 * 2)
@@ -57,9 +124,9 @@ class TestAllSurfaceDiceMetrics(unittest.TestCase):
         expected_res0[1, 0] = 1
         expected_res0[1, 1] = np.nan
         for b, c in np.ndindex(batch_size, n_class):
-            np.testing.assert_allclose(expected_res0[b, c], res0[b, c])
-        np.testing.assert_array_equal(agg0, np.nanmean(np.nanmean(expected_res0, axis=1), axis=0))
-        np.testing.assert_equal(not_nans, torch.tensor(2))
+            np.testing.assert_allclose(expected_res0[b, c], res0[b, c].cpu())
+        np.testing.assert_array_equal(agg0.cpu(), np.nanmean(np.nanmean(expected_res0, axis=1), axis=0))
+        np.testing.assert_equal(not_nans.cpu(), torch.tensor(2))
 
     def test_tolerance_all_distances(self):
         batch_size = 1
@@ -275,17 +342,17 @@ class TestAllSurfaceDiceMetrics(unittest.TestCase):
 
         # test aggregation
         res_bgr = sur_metric_bgr.aggregate(reduction="mean")
-        np.testing.assert_equal(res_bgr, torch.tensor([1 / 3], dtype=torch.float64))
+        np.testing.assert_equal(res_bgr, torch.tensor([1 / 3], dtype=torch.float))
         res = sur_metric.aggregate()
-        np.testing.assert_equal(res, torch.tensor([0], dtype=torch.float64))
+        np.testing.assert_equal(res, torch.tensor([0], dtype=torch.float))
 
         predictions_empty = torch.zeros((2, 3, 1, 1))
         sur_metric_nans = SurfaceDiceMetric(class_thresholds=[1, 1, 1], include_background=True, get_not_nans=True)
         res_classes = sur_metric_nans(predictions_empty, predictions_empty)
         res, not_nans = sur_metric_nans.aggregate()
         np.testing.assert_array_equal(res_classes, [[np.nan, np.nan, np.nan], [np.nan, np.nan, np.nan]])
-        np.testing.assert_equal(res, torch.tensor([0], dtype=torch.float64))
-        np.testing.assert_equal(not_nans, torch.tensor([0], dtype=torch.float64))
+        np.testing.assert_equal(res, torch.tensor([0], dtype=torch.float))
+        np.testing.assert_equal(not_nans, torch.tensor([0], dtype=torch.float))
 
 
 if __name__ == "__main__":

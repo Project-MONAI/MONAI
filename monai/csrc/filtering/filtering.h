@@ -15,3 +15,5 @@ limitations under the License.
 
 #include "bilateral/bilateral.h"
 #include "permutohedral/permutohedral.h"
+#include "trainable_bilateral/trainable_bilateral.h"
+#include "trainable_joint_bilateral/trainable_joint_bilateral.h"

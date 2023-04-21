@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Union
+from __future__ import annotations
+
+from collections.abc import Callable
 
 from monai.handlers.ignite_metric import IgniteMetric
 from monai.metrics import DiceMetric
@@ -24,7 +26,7 @@ class MeanDice(IgniteMetric):
     def __init__(
         self,
         include_background: bool = True,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        reduction: MetricReduction | str = MetricReduction.MEAN,
         output_transform: Callable = lambda x: x,
         save_details: bool = True,
     ) -> None:
@@ -46,7 +48,7 @@ class MeanDice(IgniteMetric):
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
         See also:
-            :py:meth:`monai.metrics.meandice.compute_meandice`
+            :py:meth:`monai.metrics.meandice.compute_dice`
         """
         metric_fn = DiceMetric(include_background=include_background, reduction=reduction)
         super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)

@@ -15,7 +15,7 @@ Content:
   - [`@` to reference Python objects in configurations](#to-reference-python-objects-in-configurations)
   - [`$` to evaluate as Python expressions](#to-evaluate-as-python-expressions)
   - [`%` to textually replace configuration elements](#to-textually-replace-configuration-elements)
-  - [`_target_` (`_disabled_`, `_desc_`, and `_requires_`) to instantiate a Python object](#instantiate-a-python-object)
+  - [`_target_` (`_disabled_`, `_desc_`, `_requires_`, `_mode_`) to instantiate a Python object](#instantiate-a-python-object)
 - [The command line interface](#the-command-line-interface)
 - [Recommendations](#recommendations)
 
@@ -143,17 +143,26 @@ This dictionary will be instantiated as a Pytorch object at runtime.
     "_target_": "my.module.Class",
     "_desc_": "this is a customized class which also triggers 'cudnn_opt' reference",
     "_requires_": "@cudnn_opt",
-    "_disabled_": "true"}
+    "_disabled_": "true",
+    "_mode_":  "default"}
 }
 ```
 
-_Description:_ `_requires_`, `_disabled_`, and `_desc_` are optional keys.
+_Description:_ `_requires_`, `_disabled_`, `_desc_`, and `_mode_` are optional keys.
 - `_requires_` specifies references (string starts with `@`) or
   Python expression that will be evaluated/instantiated before `_target_` object is instantiated.
   It is useful when the component does not explicitly depend on the other ConfigItems via
   its arguments, but requires the dependencies to be instantiated/evaluated beforehand.
 - `_disabled_` specifies a flag to indicate whether to skip the instantiation.
 - `_desc_` can be used for providing free text descriptions.
+- `_mode_` specifies the operating mode when the component is instantiated or the callable is called.
+  it currently supports the following values:
+  - `"default"` (default) -- return the return value of ``_target_(**kwargs)``
+  - `"partial"` -- return a partial function of ``functools.partial(_target_, **kwargs)`` (this is often
+    useful when some portion of the full set of arguments are supplied to the ``_target_``, and the user wants to
+    call it with additional arguments later).
+  - `"debug"` -- execute with debug prompt and return the return value of ``pdb.runcall(_target_, **kwargs)``,
+    see also [`pdb.runcall`](https://docs.python.org/3/library/pdb.html#pdb.runcall).
 
 ## The command line interface
 

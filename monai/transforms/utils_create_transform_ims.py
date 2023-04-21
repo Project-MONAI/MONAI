@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import pathlib
 import tempfile
@@ -464,7 +466,6 @@ def create_transform_im(
 
 
 if __name__ == "__main__":
-
     keys = [CommonKeys.IMAGE, CommonKeys.LABEL]
     data = get_data(keys)
     create_transform_im(RandFlip, dict(prob=1, spatial_axis=1), data)
