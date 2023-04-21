@@ -175,8 +175,14 @@ class AlgoEnsemble(ABC):
                 pred = infer_instance.predict(predict_files=[file], predict_params=param)
                 preds.append(pred[0])
             if "image_save_func" in param:
-                res = img_saver(self.ensemble_pred(preds, sigmoid=sigmoid))
+                try:
+                    ensemble_preds = self.ensemble_pred(preds, sigmoid=sigmoid)
+                except:
+                    ensemble_preds = self.ensemble_pred([_.to('cpu') for _ in preds], sigmoid=sigmoid)
+                _ = img_saver(ensemble_preds)
+                res = None
             else:
+                warn('Prediction returned in list instead of disk, provide image_save_func to avoid out of memory.')
                 res = self.ensemble_pred(preds, sigmoid=sigmoid)
             outputs.append(res)
         return outputs
@@ -483,7 +489,7 @@ class EnsembleRunner:
         if history_untrained:
             if self.rank == 0:
                 warn(
-                    f"Ensembling step will skip {[h['name'] for h in history_untrained]} untrained algos."
+                    f"Ensembling step will skip {[h[AlgoKeys.ID] for h in history_untrained]} untrained algos."
                     "Generally it means these algos did not complete training."
                 )
             history = [h for h in history if h[AlgoKeys.IS_TRAINED]]

@@ -50,6 +50,12 @@ def import_bundle_algo_history(
             algo.template_path = algo_meta_data["template_path"]
 
         best_metric = algo_meta_data.get(AlgoKeys.SCORE, None)
+        if best_metric is None:
+            try:
+                best_metric = algo.get_score()
+            except:
+                pass
+
         is_trained = best_metric is not None
 
         if (only_trained and is_trained) or not only_trained:
