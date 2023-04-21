@@ -215,7 +215,7 @@ class BundleAlgo(Algo):
         ps_environ["CUDA_VISIBLE_DEVICES"] = str(self.device_setting["CUDA_VISIBLE_DEVICES"])
         if int(self.device_setting["NUM_NODES"]) > 1:
             if self.device_setting["MN_START_METHOD"] == "bcprun":
-                cmd_list=["bcprun", "-n", self.device_setting['NUM_NODES'], "-p", self.device_setting['n_devices'], "-c", cmd]
+                cmd_list=["bcprun", "-n", str(self.device_setting['NUM_NODES']), "-p", str(self.device_setting['n_devices']), "-c", cmd]
             else:
                 raise NotImplementedError(
                     f"{self.device_setting['MN_START_METHOD']} is not supported yet. "
