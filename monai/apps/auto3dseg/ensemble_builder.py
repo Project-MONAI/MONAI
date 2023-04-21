@@ -509,7 +509,7 @@ class EnsembleRunner:
         builder.set_ensemble_method(self.ensemble_method)
         self.ensembler = builder.get_ensemble()
         infer_files = self.ensembler.infer_files
-        infer_files = partition_dataset(data=infer_files, shuffle=False, num_partitions=self.world_size)[self.rank]
+        infer_files = partition_dataset(data=infer_files, shuffle=False, num_partitions=self.world_size, even_divisible=True)[self.rank]
         # TO DO: Add some function in ensembler for infer_files update?
         self.ensembler.infer_files = infer_files
         # self.kwargs has poped out args for set_image_save_transform
