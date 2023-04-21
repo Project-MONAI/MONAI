@@ -179,8 +179,13 @@ class AlgoEnsemble(ABC):
                     ensemble_preds = self.ensemble_pred(preds, sigmoid=sigmoid)
                 except:
                     ensemble_preds = self.ensemble_pred([_.to('cpu') for _ in preds], sigmoid=sigmoid)
-                _ = img_saver(ensemble_preds)
-                res = None
+                res = img_saver(ensemble_preds)
+                # res is the path to the saved results
+                if hasattr(res,'meta') and 'saved_to' in res.meta.keys():
+                    res = res.meta['saved_to']
+                else:
+                    warn('Image save path not returned.')
+                    res = None
             else:
                 warn('Prediction returned in list instead of disk, provide image_save_func to avoid out of memory.')
                 res = self.ensemble_pred(preds, sigmoid=sigmoid)
@@ -457,6 +462,7 @@ class EnsembleRunner:
             "output_dtype": output_dtype,
             "resample": resample,
             "print_log": False,
+            "savepath_in_metadict": True
         }
         if kwargs:
             self.save_image.update(kwargs)
