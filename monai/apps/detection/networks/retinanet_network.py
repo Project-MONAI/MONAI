@@ -41,7 +41,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable, Sequence
-from typing import Dict
+from typing import Dict, Any
 
 import torch
 from torch import Tensor, nn
@@ -302,7 +302,7 @@ class RetinaNet(nn.Module):
         self.cls_key: str = "classification"
         self.box_reg_key: str = "box_regression"
 
-    def forward(self, images: Tensor) -> dict[str, list[Tensor]] | list[Tensor]:
+    def forward(self, images: Tensor) -> Any:
         """
         It takes an image tensor as inputs, and outputs predicted classification maps
         and predicted box regression maps in ``head_outputs``.
