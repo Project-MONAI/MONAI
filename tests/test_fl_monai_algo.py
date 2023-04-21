@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import glob
 import os
 import shutil
 import unittest
@@ -64,21 +65,23 @@ TEST_TRAIN_4 = [
     {
         "bundle_root": _data_dir,
         "train_workflow": ConfigWorkflow(
-            config_file=os.path.join(_data_dir, "config_fl_train.json"), workflow="train", logging_file=_logging_file
-        ),
-        "config_evaluate_filename": None,
-        "tracking": {
-            "handlers_id": DEFAULT_HANDLERS_ID,
-            "configs": {
-                "execute_config": f"{_data_dir}/config_executed.json",
-                "trainer": {
-                    "_target_": "MLFlowHandler",
-                    "tracking_uri": path_to_uri(_data_dir) + "/mlflow_override",
-                    "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
-                    "close_on_complete": True,
+            config_file=os.path.join(_data_dir, "config_fl_train.json"),
+            workflow="train",
+            logging_file=_logging_file,
+            tracking={
+                "handlers_id": DEFAULT_HANDLERS_ID,
+                "configs": {
+                    "execute_config": f"{_data_dir}/config_executed.json",
+                    "trainer": {
+                        "_target_": "MLFlowHandler",
+                        "tracking_uri": path_to_uri(_data_dir) + "/mlflow_override",
+                        "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
+                        "close_on_complete": True,
+                    },
                 },
             },
-        },
+        ),
+        "config_evaluate_filename": None,
         "config_filters_filename": None,
     }
 ]
@@ -94,6 +97,9 @@ TEST_EVALUATE_1 = [
             ],
             workflow="train",
             logging_file=_logging_file,
+            tracking="mlflow",
+            tracking_uri=path_to_uri(_data_dir) + "/mlflow",
+            experiment_name="monai_nvflare",
         ),
         "config_filters_filename": os.path.join(_data_dir, "config_fl_filters.json"),
     }
@@ -202,6 +208,14 @@ class TestFLMonaiAlgo(unittest.TestCase):
 
         # test evaluate
         algo.evaluate(data=data, extra={})
+
+        # test experiment management
+        if "execute_config" in algo.eval_workflow.parser:
+            self.assertTrue(os.path.exists(f"{_data_dir}/mlflow"))
+            shutil.rmtree(f"{_data_dir}/mlflow")
+            self.assertGreater(len(list(glob.glob(f"{_data_dir}/eval/config_*"))), 0)
+            for f in list(glob.glob(f"{_data_dir}/eval/config_*")):
+                os.remove(f)
 
     @parameterized.expand([TEST_GET_WEIGHTS_1, TEST_GET_WEIGHTS_2, TEST_GET_WEIGHTS_3])
     def test_get_weights(self, input_params):
