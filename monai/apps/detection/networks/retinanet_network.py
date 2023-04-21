@@ -41,7 +41,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable, Sequence
-from typing import Dict, Any
+from typing import Any, Dict
 
 import torch
 from torch import Tensor, nn
