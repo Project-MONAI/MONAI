@@ -563,7 +563,7 @@ class EnsembleRunner:
             logger.info(f"Ensembling on {self.device_setting['NUM_NODES']} nodes!")
             cmd = "python " if cmd is None else cmd
             cmd = f"{cmd} -m {base_cmd}"
-            cmd = f"bcprun -n {self.device_setting['NUM_NODES']} -p {self.device_setting['n_devices']} -c {cmd}"
+            cmd = f"bcprun -n {self.device_setting['NUM_NODES']} -p {self.device_setting['n_devices']} -c '{cmd}'"
         else:
             logger.info(f"Ensembling using {self.device_setting['n_devices']} GPU!")
             if cmd is None:
