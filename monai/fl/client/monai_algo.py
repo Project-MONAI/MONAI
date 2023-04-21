@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import os
+import time
 from collections.abc import Mapping, MutableMapping
 from typing import Any, cast
 
@@ -447,6 +448,9 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             self.train_workflow.max_epochs = self.local_epochs
             if self.tracking is not None and isinstance(self.train_workflow, ConfigWorkflow):
                 ConfigWorkflow.patch_bundle_tracking(parser=self.train_workflow.parser, settings=settings_)
+                # set the MLFlow run name to the FL client name and timestamp
+                if self.train_workflow.parser.get("run_name", None) is None:
+                    self.train_workflow.parser["run_name"] = f"{self.client_name}_{time.strftime('%Y%m%d_%H%M%S')}"
             if self.disable_ckpt_loading and isinstance(self.train_workflow, ConfigWorkflow):
                 disable_ckpt_loaders(parser=self.train_workflow.parser)
             # initialize the workflow as the content changed
@@ -465,6 +469,9 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             self.eval_workflow.bundle_root = self.bundle_root
             if self.tracking is not None and isinstance(self.eval_workflow, ConfigWorkflow):
                 ConfigWorkflow.patch_bundle_tracking(parser=self.eval_workflow.parser, settings=settings_)
+                # set the MLFlow run name to the FL client name and timestamp
+                if self.eval_workflow.parser.get("run_name", None) is None:
+                    self.eval_workflow.parser["run_name"] = f"{self.client_name}_{time.strftime('%Y%m%d_%H%M%S')}"
             if self.disable_ckpt_loading and isinstance(self.eval_workflow, ConfigWorkflow):
                 disable_ckpt_loaders(parser=self.eval_workflow.parser)
             # initialize the workflow as the content changed
