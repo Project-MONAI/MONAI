@@ -563,11 +563,14 @@ class EnsembleRunner:
             logger.info(f"Ensembling on {self.device_setting['NUM_NODES']} nodes!")
             cmd = "python " if cmd is None else cmd
             cmd = f"{cmd} -m {base_cmd}"
-            cmd = f"bcprun -n {self.device_setting['NUM_NODES']} -p {self.device_setting['n_devices']} -c '{cmd}'"
+            cmd_list=["bcprun", "-n", self.device_setting['NUM_NODES'], "-p", self.device_setting['n_devices'], "-c", cmd]
+
         else:
             logger.info(f"Ensembling using {self.device_setting['n_devices']} GPU!")
             if cmd is None:
                 cmd = f"torchrun --nnodes={1:d} --nproc_per_node={self.device_setting['n_devices']:d} "
             cmd = f"{cmd} -m {base_cmd}"
-        _ = subprocess.run(cmd.split(), env=ps_environ, check=True)
+            cmd_list=cmd.split()
+            
+        _ = subprocess.run(cmd_list, env=ps_environ, check=True)
         return

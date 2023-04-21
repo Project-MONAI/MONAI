@@ -211,23 +211,28 @@ class BundleAlgo(Algo):
         if devices_info:
             warnings.warn(f"input devices_info {devices_info} is deprecated and ignored.")
 
-        logger.info(f"Launching: {cmd}")
         ps_environ = os.environ.copy()
         ps_environ["CUDA_VISIBLE_DEVICES"] = str(self.device_setting["CUDA_VISIBLE_DEVICES"])
         if int(self.device_setting["NUM_NODES"]) > 1:
             if self.device_setting["MN_START_METHOD"] == "bcprun":
-                cmd = f"bcprun -n {self.device_setting['NUM_NODES']} -p {self.device_setting['n_devices']} -c '{cmd}'"
+                cmd_list=["bcprun", "-n", self.device_setting['NUM_NODES'], "-p", self.device_setting['n_devices'], "-c", cmd]
             else:
                 raise NotImplementedError(
                     f"{self.device_setting['MN_START_METHOD']} is not supported yet. "
                     "Try modify BundleAlgo._run_cmd for your cluster."
                 )
-        cmd_list = cmd.split()
+        else:
+            cmd_list = cmd.split()
+            
         _idx = 0
         for _idx, c in enumerate(cmd_list):
             if "=" not in c:  # remove variable assignments before the command such as "OMP_NUM_THREADS=1"
                 break
-        return subprocess.run(cmd_list[_idx:], env=ps_environ, check=True)
+        cmd_list = cmd_list[_idx:]
+
+        logger.info(f"Launching: {' '.join(cmd_list)}")
+
+        return subprocess.run(cmd_list, env=ps_environ, check=True)
 
     def train(
         self, train_params: None | dict = None, device_setting: None | dict = None
