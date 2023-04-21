@@ -318,7 +318,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         send_weight_diff: whether to send weight differences rather than full weights; defaults to `True`.
         config_train_filename: bundle training config path relative to bundle_root. can be a list of files.
             defaults to "configs/train.json". only useful when `train_workflow` is None.
-        train_args: other args of the `ConfigWorkflow` of train, except for `config_file`, `meta_file`,
+        train_kwargs: other args of the `ConfigWorkflow` of train, except for `config_file`, `meta_file`,
             `logging_file`, `workflow`. only useful when `train_workflow` is None.
         config_evaluate_filename: bundle evaluation config path relative to bundle_root. can be a list of files.
             if "default", ["configs/train.json", "configs/evaluate.json"] will be used.
@@ -326,7 +326,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         eval_workflow_name: the workflow name corresponding to the "config_evaluate_filename", default to "train"
             as the default "config_evaluate_filename" overrides the train workflow config.
             this arg is only useful when `eval_workflow` is None.
-        eval_args: other args of the `ConfigWorkflow` of evaluation, except for `config_file`, `meta_file`,
+        eval_kwargs: other args of the `ConfigWorkflow` of evaluation, except for `config_file`, `meta_file`,
             `logging_file`, `workflow`. only useful when `eval_workflow` is None.
         config_filters_filename: filter configuration file. Can be a list of files; defaults to `None`.
         disable_ckpt_loading: do not use any CheckpointLoader if defined in train/evaluate configs; defaults to `True`.
@@ -347,10 +347,10 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         local_epochs: int = 1,
         send_weight_diff: bool = True,
         config_train_filename: str | list | None = "configs/train.json",
-        train_args: dict | None = None,
+        train_kwargs: dict | None = None,
         config_evaluate_filename: str | list | None = "default",
         eval_workflow_name: str = "train",
-        eval_args: dict | None = None,
+        eval_kwargs: dict | None = None,
         config_filters_filename: str | list | None = None,
         disable_ckpt_loading: bool = True,
         best_model_filepath: str | None = "models/model.pt",
@@ -376,13 +376,13 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         self.local_epochs = local_epochs
         self.send_weight_diff = send_weight_diff
         self.config_train_filename = config_train_filename
-        self.train_args = {} if train_args is None else train_args
+        self.train_kwargs = {} if train_kwargs is None else train_kwargs
         if config_evaluate_filename == "default":
             # by default, evaluator needs both training and evaluate to be instantiated
             config_evaluate_filename = ["configs/train.json", "configs/evaluate.json"]
         self.config_evaluate_filename = config_evaluate_filename
         self.eval_workflow_name = eval_workflow_name
-        self.eval_args = {} if eval_args is None else eval_args
+        self.eval_kwargs = {} if eval_kwargs is None else eval_kwargs
         self.config_filters_filename = config_filters_filename
         self.disable_ckpt_loading = disable_ckpt_loading
         self.model_filepaths = {ModelType.BEST_MODEL: best_model_filepath, ModelType.FINAL_MODEL: final_model_filepath}
@@ -426,10 +426,10 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             config_train_files = self._add_config_files(self.config_train_filename)
             # if enabled experiment tracking, set the run name to the FL client name and timestamp,
             # expect the tracking settings use "run_name" to define the run name
-            if "run_name" not in self.train_args:
-                self.train_args["run_name"] = f"{self.client_name}_{timestamp}"
+            if "run_name" not in self.train_kwargs:
+                self.train_kwargs["run_name"] = f"{self.client_name}_{timestamp}"
             self.train_workflow = ConfigWorkflow(
-                config_file=config_train_files, meta_file=None, logging_file=None, workflow="train", **self.train_args
+                config_file=config_train_files, meta_file=None, logging_file=None, workflow="train", **self.train_kwargs
             )
         if self.train_workflow is not None:
             self.train_workflow.initialize()
@@ -447,14 +447,14 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             config_eval_files = self._add_config_files(self.config_evaluate_filename)
             # if enabled experiment tracking, set the run name to the FL client name and timestamp,
             # expect the tracking settings use "run_name" to define the run name
-            if "run_name" not in self.eval_args:
-                self.eval_args["run_name"] = f"{self.client_name}_{timestamp}"
+            if "run_name" not in self.eval_kwargs:
+                self.eval_kwargs["run_name"] = f"{self.client_name}_{timestamp}"
             self.eval_workflow = ConfigWorkflow(
                 config_file=config_eval_files,
                 meta_file=None,
                 logging_file=None,
                 workflow=self.eval_workflow_name,
-                **self.eval_args,
+                **self.eval_kwargs,
             )
         if self.eval_workflow is not None:
             self.eval_workflow.initialize()

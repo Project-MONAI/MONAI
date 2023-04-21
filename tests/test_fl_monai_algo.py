@@ -112,7 +112,7 @@ TEST_EVALUATE_2 = [
             os.path.join(_data_dir, "config_fl_train.json"),
             os.path.join(_data_dir, "config_fl_evaluate.json"),
         ],
-        "eval_args": {
+        "eval_kwargs": {
             "tracking": "mlflow",
             "tracking_uri": path_to_uri(_data_dir) + "/mlflow_2",
             "experiment_name": "monai_eval2",
