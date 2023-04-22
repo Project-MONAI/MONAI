@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -66,6 +68,10 @@ class TestRandScaleCrop(CropTest):
                 input_data = im_type(np.random.randint(0, 2, input_shape))
                 result = cropper(input_data)
                 self.assertTupleEqual(result.shape, expected_shape)
+
+    @parameterized.expand(TEST_SHAPES)
+    def test_pending_ops(self, input_param, input_shape, _):
+        self.crop_test_pending_ops(input_param, input_shape)
 
 
 if __name__ == "__main__":

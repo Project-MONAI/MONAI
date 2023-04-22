@@ -9,8 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import Any, List, Optional
+from collections.abc import Sequence
+from typing import Any
 
 import torch
 
@@ -28,7 +31,7 @@ class Metric(ABC):
     """
 
     @abstractmethod
-    def __call__(self, *args: Any, **kwargs: Any):
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """
         This method should take raw model outputs as inputs, and return values that measure the models' quality.
         """
@@ -45,7 +48,9 @@ class IterationMetric(Metric):
     Subclasses typically implement the `_compute_tensor` function for the actual tensor computation logic.
     """
 
-    def __call__(self, y_pred: TensorOrList, y: Optional[TensorOrList] = None):
+    def __call__(
+        self, y_pred: TensorOrList, y: TensorOrList | None = None, **kwargs: Any
+    ) -> torch.Tensor | Sequence[torch.Tensor | Sequence[torch.Tensor]]:
         """
         Execute basic computation for model prediction `y_pred` and ground truth `y` (optional).
         It supports inputs of a list of "channel-first" Tensor and a "batch-first" Tensor.
@@ -55,6 +60,7 @@ class IterationMetric(Metric):
                 or a `batch-first` Tensor.
             y: the ground truth to compute, must be a list of `channel-first` Tensor
                 or a `batch-first` Tensor.
+            kwargs: additional parameters for specific metric computation logic (e.g. ``spacing`` for SurfaceDistanceMetric, etc.).
 
         Returns:
             The computed metric values at the iteration level.
@@ -64,14 +70,16 @@ class IterationMetric(Metric):
         """
         # handling a list of channel-first data
         if isinstance(y_pred, (list, tuple)) or isinstance(y, (list, tuple)):
-            return self._compute_list(y_pred, y)
+            return self._compute_list(y_pred, y, **kwargs)
         # handling a single batch-first data
         if isinstance(y_pred, torch.Tensor):
             y_ = y.detach() if isinstance(y, torch.Tensor) else None
-            return self._compute_tensor(y_pred.detach(), y_)
+            return self._compute_tensor(y_pred.detach(), y_, **kwargs)
         raise ValueError("y_pred or y must be a list/tuple of `channel-first` Tensors or a `batch-first` Tensor.")
 
-    def _compute_list(self, y_pred: TensorOrList, y: Optional[TensorOrList] = None):
+    def _compute_list(
+        self, y_pred: TensorOrList, y: TensorOrList | None = None, **kwargs: Any
+    ) -> torch.Tensor | list[torch.Tensor | Sequence[torch.Tensor]]:
         """
         Execute the metric computation for `y_pred` and `y` in a list of "channel-first" tensors.
 
@@ -86,20 +94,23 @@ class IterationMetric(Metric):
         Note: subclass may enhance the operation to have multi-thread support.
         """
         if y is not None:
-            ret = [self._compute_tensor(p.detach().unsqueeze(0), y_.detach().unsqueeze(0)) for p, y_ in zip(y_pred, y)]
+            ret = [
+                self._compute_tensor(p.detach().unsqueeze(0), y_.detach().unsqueeze(0), **kwargs)
+                for p, y_ in zip(y_pred, y)
+            ]
         else:
-            ret = [self._compute_tensor(p_.detach().unsqueeze(0), None) for p_ in y_pred]
+            ret = [self._compute_tensor(p_.detach().unsqueeze(0), None, **kwargs) for p_ in y_pred]
 
         # concat the list of results (e.g. a batch of evaluation scores)
         if isinstance(ret[0], torch.Tensor):
-            return torch.cat(ret, dim=0)
+            return torch.cat(ret, dim=0)  # type: ignore[arg-type]
         # the result is a list of sequence of tensors (e.g. a batch of multi-class results)
         if isinstance(ret[0], (list, tuple)) and all(isinstance(i, torch.Tensor) for i in ret[0]):
             return [torch.cat(batch_i, dim=0) for batch_i in zip(*ret)]
         return ret
 
     @abstractmethod
-    def _compute_tensor(self, y_pred: torch.Tensor, y: Optional[torch.Tensor] = None):
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor | None = None, **kwargs: Any) -> TensorOrList:
         """
         Computation logic for `y_pred` and `y` of an iteration, the data should be "batch-first" Tensors.
         A subclass should implement its own computation logic.
@@ -172,8 +183,8 @@ class Cumulative:
         `self._buffers` are local buffers, they are not usually used directly.
         `self._sync_buffers` are the buffers with all the results across all the nodes.
         """
-        self._buffers: Optional[List[List[torch.Tensor]]] = None
-        self._synced_tensors: Optional[List[Optional[torch.Tensor]]] = None
+        self._buffers: list[list[torch.Tensor]] | None = None
+        self._synced_tensors: list[torch.Tensor | None] | None = None
         self._synced: bool = False
         self.reset()
 
@@ -186,7 +197,7 @@ class Cumulative:
         self._synced_tensors = None
         self._synced = False
 
-    def extend(self, *data) -> None:
+    def extend(self, *data: Any) -> None:
         """
         Extend the local buffers with new ("batch-first") data.
         A buffer will be allocated for each `data` item.
@@ -210,7 +221,7 @@ class Cumulative:
                 ) from e
         self._synced = False
 
-    def append(self, *data) -> None:
+    def append(self, *data: Any) -> None:
         """
         Add samples to the local cumulative buffers.
         A buffer will be allocated for each `data` item.
@@ -231,7 +242,7 @@ class Cumulative:
         self._synced = False
 
     @abstractmethod
-    def aggregate(self, *args: Any, **kwargs: Any):
+    def aggregate(self, *args: Any, **kwargs: Any) -> Any:
         """
         Aggregate final results based on the gathered buffers.
         This method is expected to use `get_buffer` to gather the local buffer contents.
@@ -310,7 +321,9 @@ class CumulativeIterationMetric(Cumulative, IterationMetric):
 
     """
 
-    def __call__(self, y_pred: TensorOrList, y: Optional[TensorOrList] = None):
+    def __call__(
+        self, y_pred: TensorOrList, y: TensorOrList | None = None, **kwargs: Any
+    ) -> torch.Tensor | Sequence[torch.Tensor | Sequence[torch.Tensor]]:
         """
         Execute basic computation for model prediction and ground truth.
         It can support  both `list of channel-first Tensor` and `batch-first Tensor`.
@@ -322,12 +335,13 @@ class CumulativeIterationMetric(Cumulative, IterationMetric):
                 or a `batch-first` Tensor.
             y: the ground truth to compute, must be a list of `channel-first` Tensor
                 or a `batch-first` Tensor.
+            kwargs: additional parameters for specific metric computation logic (e.g. ``spacing`` for SurfaceDistanceMetric, etc.).
 
         Returns:
             The computed metric values at the iteration level. The output shape should be
             a `batch-first` tensor (BC[HWD]) or a list of `batch-first` tensors.
         """
-        ret = super().__call__(y_pred=y_pred, y=y)
+        ret = super().__call__(y_pred=y_pred, y=y, **kwargs)
         if isinstance(ret, (tuple, list)):
             self.extend(*ret)
         else:

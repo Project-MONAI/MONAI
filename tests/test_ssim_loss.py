@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -16,31 +18,34 @@ from parameterized import parameterized
 
 from monai.losses.ssim_loss import SSIMLoss
 
-x = torch.ones([1, 1, 10, 10]) / 2
-y1 = torch.ones([1, 1, 10, 10]) / 2
-y2 = torch.zeros([1, 1, 10, 10])
-data_range = x.max().unsqueeze(0)
 TESTS2D = []
 for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cpu"]:
-    TESTS2D.append((x.to(device), y1.to(device), data_range.to(device), torch.tensor(1.0).unsqueeze(0).to(device)))
-    TESTS2D.append((x.to(device), y2.to(device), data_range.to(device), torch.tensor(0.0).unsqueeze(0).to(device)))
+    for batch_size in [1, 2, 16]:
+        x = torch.ones([batch_size, 1, 10, 10]) / 2
+        y1 = torch.ones([batch_size, 1, 10, 10]) / 2
+        y2 = torch.zeros([batch_size, 1, 10, 10])
+        data_range = x.max().unsqueeze(0)
+        TESTS2D.append((x.to(device), y1.to(device), data_range.to(device), torch.tensor(1.0).unsqueeze(0).to(device)))
+        TESTS2D.append((x.to(device), y2.to(device), data_range.to(device), torch.tensor(0.0).unsqueeze(0).to(device)))
 
-x = torch.ones([1, 1, 10, 10, 10]) / 2
-y1 = torch.ones([1, 1, 10, 10, 10]) / 2
-y2 = torch.zeros([1, 1, 10, 10, 10])
-data_range = x.max().unsqueeze(0)
 TESTS3D = []
 for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cpu"]:
-    TESTS3D.append((x.to(device), y1.to(device), data_range.to(device), torch.tensor(1.0).unsqueeze(0).to(device)))
-    TESTS3D.append((x.to(device), y2.to(device), data_range.to(device), torch.tensor(0.0).unsqueeze(0).to(device)))
+    for batch_size in [1, 2, 16]:
+        x = torch.ones([batch_size, 1, 10, 10, 10]) / 2
+        y1 = torch.ones([batch_size, 1, 10, 10, 10]) / 2
+        y2 = torch.zeros([batch_size, 1, 10, 10, 10])
+        data_range = x.max().unsqueeze(0)
+        TESTS3D.append((x.to(device), y1.to(device), data_range.to(device), torch.tensor(1.0).unsqueeze(0).to(device)))
+        TESTS3D.append((x.to(device), y2.to(device), data_range.to(device), torch.tensor(0.0).unsqueeze(0).to(device)))
 
-x = torch.ones([1, 1, 10, 10]) / 2
-y = torch.ones([1, 1, 10, 10]) / 2
-y.requires_grad_(True)
-data_range = x.max().unsqueeze(0)
 TESTS2D_GRAD = []
 for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cpu"]:
-    TESTS2D_GRAD.append([x.to(device), y.to(device), data_range.to(device)])
+    for batch_size in [1, 2, 16]:
+        x = torch.ones([batch_size, 1, 10, 10]) / 2
+        y = torch.ones([batch_size, 1, 10, 10]) / 2
+        y.requires_grad_(True)
+        data_range = x.max().unsqueeze(0)
+        TESTS2D_GRAD.append([x.to(device), y.to(device), data_range.to(device)])
 
 
 class TestSSIMLoss(unittest.TestCase):

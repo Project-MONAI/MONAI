@@ -9,19 +9,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import enum
+import functools
 import os
+import pdb
 import re
 import sys
 import warnings
+from collections.abc import Callable, Collection, Hashable, Mapping
 from functools import partial, wraps
 from importlib import import_module
-from inspect import isclass, isfunction, ismethod
 from pkgutil import walk_packages
 from pydoc import locate
 from re import match
-from types import FunctionType
-from typing import Any, Callable, Collection, Hashable, Iterable, List, Mapping, Tuple, Union, cast
+from types import FunctionType, ModuleType
+from typing import Any, cast
 
 import torch
 
@@ -55,7 +59,12 @@ __all__ = [
 ]
 
 
-def look_up_option(opt_str, supported: Union[Collection, enum.EnumMeta], default="no_default", print_all_options=True):
+def look_up_option(
+    opt_str: Hashable,
+    supported: Collection | enum.EnumMeta,
+    default: Any = "no_default",
+    print_all_options: bool = True,
+) -> Any:
     """
     Look up the option in the supported collection and return the matched item.
     Raise a value error possibly with a guess of the closest match.
@@ -92,7 +101,7 @@ def look_up_option(opt_str, supported: Union[Collection, enum.EnumMeta], default
     if isinstance(opt_str, str):
         opt_str = opt_str.strip()
     if isinstance(supported, enum.EnumMeta):
-        if isinstance(opt_str, str) and opt_str in {item.value for item in cast(Iterable[enum.Enum], supported)}:
+        if isinstance(opt_str, str) and opt_str in {item.value for item in supported}:  # type: ignore
             # such as: "example" in MyEnum
             return supported(opt_str)
         if isinstance(opt_str, enum.Enum) and opt_str in supported:
@@ -110,7 +119,7 @@ def look_up_option(opt_str, supported: Union[Collection, enum.EnumMeta], default
     # find a close match
     set_to_check: set
     if isinstance(supported, enum.EnumMeta):
-        set_to_check = {item.value for item in cast(Iterable[enum.Enum], supported)}
+        set_to_check = {item.value for item in supported}  # type: ignore
     else:
         set_to_check = set(supported) if supported is not None else set()
     if not set_to_check:
@@ -133,7 +142,7 @@ def look_up_option(opt_str, supported: Union[Collection, enum.EnumMeta], default
     raise ValueError(f"Unsupported option '{opt_str}', " + supported_msg)
 
 
-def damerau_levenshtein_distance(s1: str, s2: str):
+def damerau_levenshtein_distance(s1: str, s2: str) -> int:
     """
     Calculates the Damerau–Levenshtein distance between two strings for spelling correction.
     https://en.wikipedia.org/wiki/Damerau–Levenshtein_distance
@@ -184,13 +193,15 @@ def export(modname):
     return _inner
 
 
-def load_submodules(basemod, load_all: bool = True, exclude_pattern: str = "(.*[tT]est.*)|(_.*)"):
+def load_submodules(
+    basemod: ModuleType, load_all: bool = True, exclude_pattern: str = "(.*[tT]est.*)|(_.*)"
+) -> tuple[list[ModuleType], list[str]]:
     """
     Traverse the source of the module structure starting with module `basemod`, loading all packages plus all files if
     `load_all` is True, excluding anything whose name matches `exclude_pattern`.
     """
     submodules = []
-    err_mod: List[str] = []
+    err_mod: list[str] = []
     for importer, name, is_pkg in walk_packages(
         basemod.__path__, prefix=basemod.__name__ + ".", onerror=err_mod.append
     ):
@@ -211,40 +222,57 @@ def load_submodules(basemod, load_all: bool = True, exclude_pattern: str = "(.*[
     return submodules, err_mod
 
 
-def instantiate(path: str, **kwargs):
+def instantiate(__path: str, __mode: str, **kwargs: Any) -> Any:
     """
-    Create an object instance or partial function from a class or function represented by string.
+    Create an object instance or call a callable object from a class or function represented by ``_path``.
     `kwargs` will be part of the input arguments to the class constructor or function.
     The target component must be a class or a function, if not, return the component directly.
 
     Args:
-        path: full path of the target class or function component.
-        kwargs: arguments to initialize the class instance or set default args
-            for `partial` function.
+        __path: if a string is provided, it's interpreted as the full path of the target class or function component.
+            If a callable is provided, ``__path(**kwargs)`` or ``functools.partial(__path, **kwargs)`` will be returned.
+        __mode: the operating mode for invoking the (callable) ``component`` represented by ``__path``:
+
+            - ``"default"``: returns ``component(**kwargs)``
+            - ``"partial"``: returns ``functools.partial(component, **kwargs)``
+            - ``"debug"``: returns ``pdb.runcall(component, **kwargs)``
+
+        kwargs: keyword arguments to the callable represented by ``__path``.
 
     """
+    from monai.utils.enums import CompInitMode
 
-    component = locate(path)
+    component = locate(__path) if isinstance(__path, str) else __path
     if component is None:
-        raise ModuleNotFoundError(f"Cannot locate class or function path: '{path}'.")
+        raise ModuleNotFoundError(f"Cannot locate class or function path: '{__path}'.")
+    m = look_up_option(__mode, CompInitMode)
     try:
         if kwargs.pop("_debug_", False) or run_debug:
             warnings.warn(
-                f"\n\npdb: instantiating component={component}\n"
+                f"\n\npdb: instantiating component={component}, mode={m}\n"
                 f"See also Debugger commands documentation: https://docs.python.org/3/library/pdb.html\n"
             )
-            import pdb
-
-            pdb.set_trace()
-        if isclass(component):
+            breakpoint()
+        if not callable(component):
+            warnings.warn(f"Component {component} is not callable when mode={m}.")
+            return component
+        if m == CompInitMode.DEFAULT:
             return component(**kwargs)
-        # support regular function, static method and class method
-        if isfunction(component) or (ismethod(component) and isclass(getattr(component, "__self__", None))):
+        if m == CompInitMode.PARTIAL:
             return partial(component, **kwargs)
+        if m == CompInitMode.DEBUG:
+            warnings.warn(
+                f"\n\npdb: instantiating component={component}, mode={m}\n"
+                f"See also Debugger commands documentation: https://docs.python.org/3/library/pdb.html\n"
+            )
+            return pdb.runcall(component, **kwargs)
     except Exception as e:
-        raise RuntimeError(f"Failed to instantiate '{path}' with kwargs: {kwargs}") from e
+        raise RuntimeError(
+            f"Failed to instantiate component '{__path}' with kwargs: {kwargs}"
+            f"\n set '_mode_={CompInitMode.DEBUG}' to enter the debugging mode."
+        ) from e
 
-    warnings.warn(f"Component to instantiate must represent a valid class or function, but got {path}.")
+    warnings.warn(f"Component to instantiate must represent a valid class or function, but got {__path}.")
     return component
 
 
@@ -259,7 +287,7 @@ def get_full_type_name(typeobj):
     return module + "." + typeobj.__name__
 
 
-def min_version(the_module, min_version_str: str = "", *_args) -> bool:
+def min_version(the_module: Any, min_version_str: str = "", *_args: Any) -> bool:
     """
     Convert version strings into tuples of int and compare them.
 
@@ -274,7 +302,7 @@ def min_version(the_module, min_version_str: str = "", *_args) -> bool:
     return mod_version >= required
 
 
-def exact_version(the_module, version_str: str = "", *_args) -> bool:
+def exact_version(the_module: Any, version_str: str = "", *_args: Any) -> bool:
     """
     Returns True if the module's __version__ matches version_str
     """
@@ -307,10 +335,10 @@ def optional_import(
     version_checker: Callable[..., bool] = min_version,
     name: str = "",
     descriptor: str = OPTIONAL_IMPORT_MSG_FMT,
-    version_args=None,
+    version_args: Any = None,
     allow_namespace_pkg: bool = False,
     as_type: str = "default",
-) -> Tuple[Any, bool]:
+) -> tuple[Any, bool]:
     """
     Imports an optional module specified by `module` string.
     Any importing related exceptions will be stored, and exceptions raise lazily
@@ -434,7 +462,7 @@ def optional_import(
 
 def require_pkg(
     pkg_name: str, version: str = "", version_checker: Callable[..., bool] = min_version, raise_error: bool = True
-):
+) -> Callable:
     """
     Decorator function to check the required package installation.
 
@@ -450,10 +478,10 @@ def require_pkg(
     def _decorator(obj):
         is_func = isinstance(obj, FunctionType)
         call_obj = obj if is_func else obj.__init__
-        _, has = optional_import(module=pkg_name, version=version, version_checker=version_checker)
 
         @wraps(call_obj)
         def _wrapper(*args, **kwargs):
+            _, has = optional_import(module=pkg_name, version=version, version_checker=version_checker)
             if not has:
                 err_msg = f"required package `{pkg_name}` is not installed or the version doesn't match requirement."
                 if raise_error:
@@ -481,6 +509,7 @@ def get_package_version(dep_name, default="NOT INSTALLED or UNKNOWN VERSION."):
     return default
 
 
+@functools.lru_cache(None)
 def get_torch_version_tuple():
     """
     Returns:
@@ -489,7 +518,7 @@ def get_torch_version_tuple():
     return tuple(int(x) for x in torch.__version__.split(".")[:2])
 
 
-def version_leq(lhs: str, rhs: str):
+def version_leq(lhs: str, rhs: str) -> bool:
     """
     Returns True if version `lhs` is earlier or equal to `rhs`.
 
@@ -503,11 +532,11 @@ def version_leq(lhs: str, rhs: str):
     pkging, has_ver = optional_import("pkg_resources", name="packaging")
     if has_ver:
         try:
-            return pkging.version.Version(lhs) <= pkging.version.Version(rhs)
+            return cast(bool, pkging.version.Version(lhs) <= pkging.version.Version(rhs))
         except pkging.version.InvalidVersion:
             return True
 
-    def _try_cast(val: str):
+    def _try_cast(val: str) -> int | str:
         val = val.strip()
         try:
             m = match("(\\d+)(.*)", val)
@@ -535,7 +564,8 @@ def version_leq(lhs: str, rhs: str):
     return True
 
 
-def pytorch_after(major, minor, patch=0, current_ver_string=None) -> bool:
+@functools.lru_cache(None)
+def pytorch_after(major: int, minor: int, patch: int = 0, current_ver_string: str | None = None) -> bool:
     """
     Compute whether the current pytorch version is after or equal to the specified version.
     The current system pytorch version is determined by `torch.__version__` or
@@ -579,7 +609,7 @@ def pytorch_after(major, minor, patch=0, current_ver_string=None) -> bool:
         is_prerelease = True
     patch = int(patch)
     if c_p != patch:
-        return c_p > patch  # type: ignore
+        return c_p > patch
     if is_prerelease:
         return False
     return True

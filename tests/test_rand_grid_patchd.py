@@ -9,16 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms.spatial.dictionary import RandGridPatchd
 from monai.utils import set_determinism
-from tests.utils import TEST_NDARRAYS, assert_allclose
-
-set_determinism(1234)
+from tests.utils import TEST_NDARRAYS, SkipIfBeforePyTorchVersion, assert_allclose
 
 A = np.arange(16).repeat(3).reshape(4, 4, 3).transpose(2, 0, 1)
 A11 = A[:, :2, :2]
@@ -50,6 +51,7 @@ TEST_CASE_9 = [
         "max_offset": -1,
         "sort_fn": "min",
         "num_patches": 1,
+        "pad_mode": "constant",
         "constant_values": 255,
     },
     {"image": A},
@@ -73,7 +75,14 @@ for p in TEST_NDARRAYS:
 
 
 class TestRandGridPatchd(unittest.TestCase):
+    def setUp(self):
+        set_determinism(seed=1234)
+
+    def tearDown(self):
+        set_determinism(None)
+
     @parameterized.expand(TEST_SINGLE)
+    @SkipIfBeforePyTorchVersion((1, 11, 1))
     def test_rand_grid_patchd(self, in_type, input_parameters, image_dict, expected):
         image_key = "image"
         input_dict = {}
@@ -86,7 +95,12 @@ class TestRandGridPatchd(unittest.TestCase):
         output = splitter(input_dict)
         self.assertEqual(len(output[image_key]), len(expected))
         for output_patch, expected_patch in zip(output[image_key], expected):
-            assert_allclose(output_patch, expected_patch, type_test=False)
+            assert_allclose(
+                output_patch,
+                in_type(expected_patch),
+                type_test=False,
+                device_test=True if isinstance(in_type(expected_patch), torch.Tensor) else False,
+            )
 
 
 if __name__ == "__main__":

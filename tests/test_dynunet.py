@@ -9,19 +9,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
-from typing import Any, Sequence, Union
+from typing import Any, Sequence
 
 import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import DynUNet
+from monai.utils import optional_import
 from tests.utils import assert_allclose, skip_if_no_cuda, skip_if_windows, test_script_save
+
+InstanceNorm3dNVFuser, _ = optional_import("apex.normalization", name="InstanceNorm3dNVFuser")
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-strides: Sequence[Union[Sequence[int], int]]
+strides: Sequence[Sequence[int] | int]
 kernel_size: Sequence[Any]
 expected_shape: Sequence[Any]
 
@@ -123,6 +128,15 @@ class TestDynUNet(unittest.TestCase):
 @skip_if_no_cuda
 @skip_if_windows
 class TestDynUNetWithInstanceNorm3dNVFuser(unittest.TestCase):
+    def setUp(self):
+        try:
+            layer = InstanceNorm3dNVFuser(num_features=1, affine=False).to("cuda:0")
+            inp = torch.randn([1, 1, 1, 1, 1]).to("cuda:0")
+            out = layer(inp)
+            del inp, out, layer
+        except Exception:
+            self.skipTest("NVFuser not available")
+
     @parameterized.expand([TEST_CASE_DYNUNET_3D[0]])
     def test_consistency(self, input_param, input_shape, _):
         for eps in [1e-4, 1e-5]:

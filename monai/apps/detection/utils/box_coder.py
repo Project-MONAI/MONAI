@@ -49,8 +49,10 @@ This script is modified from torchvision to support N-D images,
 https://github.com/pytorch/vision/blob/main/torchvision/models/detection/_utils.py
 """
 
+from __future__ import annotations
+
 import math
-from typing import Sequence, Tuple, Union
+from collections.abc import Sequence
 
 import torch
 from torch import Tensor
@@ -120,14 +122,14 @@ class BoxCoder:
             # We expect gt_back to be equal to gt_boxes
     """
 
-    def __init__(self, weights: Tuple[float], boxes_xform_clip: Union[float, None] = None) -> None:
+    def __init__(self, weights: Sequence[float], boxes_xform_clip: float | None = None) -> None:
         if boxes_xform_clip is None:
             boxes_xform_clip = math.log(1000.0 / 16)
         self.spatial_dims = look_up_option(len(weights), [4, 6]) // 2
         self.weights = weights
         self.boxes_xform_clip = boxes_xform_clip
 
-    def encode(self, gt_boxes: Sequence[Tensor], proposals: Sequence[Tensor]) -> Tuple[Tensor]:
+    def encode(self, gt_boxes: Sequence[Tensor], proposals: Sequence[Tensor]) -> tuple[Tensor]:
         """
         Encode a set of proposals with respect to some ground truth (gt) boxes.
 
@@ -146,7 +148,7 @@ class BoxCoder:
         concat_proposals = torch.cat(tuple(proposals), dim=0)
         concat_targets = self.encode_single(concat_gt_boxes, concat_proposals)
         # split to tuple
-        targets: Tuple[Tensor] = concat_targets.split(boxes_per_image, 0)
+        targets: tuple[Tensor] = concat_targets.split(boxes_per_image, 0)
         return targets
 
     def encode_single(self, gt_boxes: Tensor, proposals: Tensor) -> Tensor:

@@ -9,12 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
-from typing import Tuple, Union
+from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 import torch
 
+from monai.config import NdarrayOrTensor, NdarrayTensor
 from monai.transforms.croppad.array import SpatialCrop
 from monai.transforms.utils import generate_spatial_bounding_box
 from monai.utils import MetricReduction, convert_data_type, look_up_option, optional_import
@@ -26,7 +30,7 @@ distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="di
 __all__ = ["ignore_background", "do_metric_reduction", "get_mask_edges", "get_surface_distance", "is_binary_tensor"]
 
 
-def ignore_background(y_pred: Union[np.ndarray, torch.Tensor], y: Union[np.ndarray, torch.Tensor]):
+def ignore_background(y_pred: NdarrayTensor, y: NdarrayTensor) -> tuple[NdarrayTensor, NdarrayTensor]:
     """
     This function is used to remove background (the first channel) for `y_pred` and `y`.
 
@@ -38,12 +42,14 @@ def ignore_background(y_pred: Union[np.ndarray, torch.Tensor], y: Union[np.ndarr
 
     """
 
-    y = y[:, 1:] if y.shape[1] > 1 else y
-    y_pred = y_pred[:, 1:] if y_pred.shape[1] > 1 else y_pred
+    y = y[:, 1:] if y.shape[1] > 1 else y  # type: ignore[assignment]
+    y_pred = y_pred[:, 1:] if y_pred.shape[1] > 1 else y_pred  # type: ignore[assignment]
     return y_pred, y
 
 
-def do_metric_reduction(f: torch.Tensor, reduction: Union[MetricReduction, str] = MetricReduction.MEAN):
+def do_metric_reduction(
+    f: torch.Tensor, reduction: MetricReduction | str = MetricReduction.MEAN
+) -> tuple[torch.Tensor | Any, torch.Tensor]:
     """
     This function is to do the metric reduction for calculated `not-nan` metrics of each sample's each class.
     The function also returns `not_nans`, which counts the number of not nans for the metric.
@@ -103,7 +109,9 @@ def do_metric_reduction(f: torch.Tensor, reduction: Union[MetricReduction, str] 
     return f, not_nans
 
 
-def get_mask_edges(seg_pred, seg_gt, label_idx: int = 1, crop: bool = True) -> Tuple[np.ndarray, np.ndarray]:
+def get_mask_edges(
+    seg_pred: NdarrayOrTensor, seg_gt: NdarrayOrTensor, label_idx: int = 1, crop: bool = True
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Do binary erosion and use XOR for input to get the edges. This
     function is helpful to further calculate metrics such as Average Surface
@@ -155,8 +163,8 @@ def get_mask_edges(seg_pred, seg_gt, label_idx: int = 1, crop: bool = True) -> T
         seg_pred, seg_gt = np.expand_dims(seg_pred, axis=channel_dim), np.expand_dims(seg_gt, axis=channel_dim)
         box_start, box_end = generate_spatial_bounding_box(np.asarray(seg_pred | seg_gt))
         cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
-        seg_pred = convert_data_type(np.squeeze(cropper(seg_pred), axis=channel_dim), np.ndarray)[0]
-        seg_gt = convert_data_type(np.squeeze(cropper(seg_gt), axis=channel_dim), np.ndarray)[0]
+        seg_pred = convert_data_type(np.squeeze(cropper(seg_pred), axis=channel_dim), np.ndarray)[0]  # type: ignore[arg-type]
+        seg_gt = convert_data_type(np.squeeze(cropper(seg_gt), axis=channel_dim), np.ndarray)[0]  # type: ignore[arg-type]
 
     # Do binary erosion and use XOR to get edges
     edges_pred = binary_erosion(seg_pred) ^ seg_pred
@@ -165,7 +173,12 @@ def get_mask_edges(seg_pred, seg_gt, label_idx: int = 1, crop: bool = True) -> T
     return edges_pred, edges_gt
 
 
-def get_surface_distance(seg_pred: np.ndarray, seg_gt: np.ndarray, distance_metric: str = "euclidean") -> np.ndarray:
+def get_surface_distance(
+    seg_pred: np.ndarray,
+    seg_gt: np.ndarray,
+    distance_metric: str = "euclidean",
+    spacing: int | float | np.ndarray | Sequence[int | float] | None = None,
+) -> np.ndarray:
     """
     This function is used to compute the surface distances from `seg_pred` to `seg_gt`.
 
@@ -178,6 +191,13 @@ def get_surface_distance(seg_pred: np.ndarray, seg_gt: np.ndarray, distance_metr
             - ``"euclidean"``, uses Exact Euclidean distance transform.
             - ``"chessboard"``, uses `chessboard` metric in chamfer type of transform.
             - ``"taxicab"``, uses `taxicab` metric in chamfer type of transform.
+        spacing: spacing of pixel (or voxel) along each axis. If a sequence, must be of
+            length equal to the image dimensions; if a single number, this is used for all axes.
+            If ``None``, spacing of unity is used. Defaults to ``None``.
+        spacing: spacing of pixel (or voxel). This parameter is relevant only if ``distance_metric`` is set to ``"euclidean"``.
+            Several input options are allowed: (1) If a single number, isotropic spacing with that value is used.
+            (2) If a sequence of numbers, the length of the sequence must be equal to the image dimensions.
+            (3) If ``None``, spacing of unity is used. Defaults to ``None``.
 
     Note:
         If seg_pred or seg_gt is all 0, may result in nan/inf distance.
@@ -191,7 +211,7 @@ def get_surface_distance(seg_pred: np.ndarray, seg_gt: np.ndarray, distance_metr
             dis = np.inf * np.ones_like(seg_gt)
             return np.asarray(dis[seg_gt])
         if distance_metric == "euclidean":
-            dis = distance_transform_edt(~seg_gt)
+            dis = distance_transform_edt(~seg_gt, sampling=spacing)
         elif distance_metric in {"chessboard", "taxicab"}:
             dis = distance_transform_cdt(~seg_gt, metric=distance_metric)
         else:
@@ -200,7 +220,7 @@ def get_surface_distance(seg_pred: np.ndarray, seg_gt: np.ndarray, distance_metr
     return np.asarray(dis[seg_pred])
 
 
-def is_binary_tensor(input: torch.Tensor, name: str):
+def is_binary_tensor(input: torch.Tensor, name: str) -> None:
     """Determines whether the input tensor is torch binary tensor or not.
 
     Args:
@@ -210,8 +230,8 @@ def is_binary_tensor(input: torch.Tensor, name: str):
     Raises:
         ValueError: if `input` is not a PyTorch Tensor.
 
-    Returns:
-        Union[str, None]: warning message, if the tensor is not binary. Otherwise, None.
+    Note:
+        A warning message is printed, if the tensor is not binary.
     """
     if not isinstance(input, torch.Tensor):
         raise ValueError(f"{name} must be of type PyTorch Tensor.")
@@ -219,7 +239,7 @@ def is_binary_tensor(input: torch.Tensor, name: str):
         warnings.warn(f"{name} should be a binarized tensor.")
 
 
-def remap_instance_id(pred: torch.Tensor, by_size: bool = False):
+def remap_instance_id(pred: torch.Tensor, by_size: bool = False) -> torch.Tensor:
     """
     This function is used to rename all instance id of `pred`, so that the id is
     contiguous.
@@ -254,3 +274,63 @@ def remap_instance_id(pred: torch.Tensor, by_size: bool = False):
     for idx, instance_id in enumerate(pred_id):
         new_pred[pred == instance_id] = idx + 1
     return new_pred
+
+
+def prepare_spacing(
+    spacing: int | float | np.ndarray | Sequence[int | float | np.ndarray | Sequence[int | float]] | None,
+    batch_size: int,
+    img_dim: int,
+) -> Sequence[None | int | float | np.ndarray | Sequence[int | float]]:
+    """
+    This function is used to prepare the `spacing` parameter to include batch dimension for the computation of
+    surface distance, hausdorff distance or surface dice.
+
+    An example with batch_size = 4 and img_dim = 3:
+    input spacing = None -> output spacing = [None, None, None, None]
+    input spacing = 0.8 -> output spacing = [0.8, 0.8, 0.8, 0.8]
+    input spacing = [0.8, 0.5, 0.9] -> output spacing = [[0.8, 0.5, 0.9], [0.8, 0.5, 0.9], [0.8, 0.5, 0.9], [0.8, 0.5, 0.9]]
+    input spacing = [0.8, 0.7, 1.2, 0.8] -> output spacing = [0.8, 0.7, 1.2, 0.8] (same as input)
+
+    An example with batch_size = 3 and img_dim = 3:
+    input spacing = [0.8, 0.5, 0.9] -> output spacing = [[0.8, 0.5, 0.9], [0.8, 0.5, 0.9], [0.8, 0.5, 0.9], [0.8, 0.5, 0.9]]
+
+    Args:
+        spacing: can be a float, a sequence of length `img_dim`, or a sequence with length `batch_size`
+        that includes floats or sequences of length `img_dim`.
+
+    Raises:
+        AssertionError: when `spacing` is a sequence of sequence, where the outer sequence length does not
+        equal `batch_size` or inner sequence length does not equal `img_dim`.
+
+    Returns:
+        spacing: a sequence with length `batch_size` that includes integers, floats or sequences of length `img_dim`.
+    """
+    if spacing is None or isinstance(spacing, (int, float)):
+        return list([spacing] * batch_size)
+    elif isinstance(spacing, (Sequence, np.ndarray)):
+        assert all(
+            isinstance(s, type(spacing[0])) for s in list(spacing)
+        ), "if `spacing` is a sequence, its elements should be of same type."
+
+        if isinstance(spacing[0], (Sequence, np.ndarray)):
+            assert (
+                len(spacing) == batch_size
+            ), "if `spacing` is a sequence of sequences, the outer sequence should have same length as batch size."
+            assert all(
+                len(s) == img_dim for s in list(spacing)
+            ), "each element of `spacing` list should either have same length as image dim."
+            assert all(
+                isinstance(i, (int, float)) for s in list(spacing) for i in list(s)
+            ), "if `spacing` is a sequence of sequences or 2D np.ndarray, the elements should be integers or floats."
+            return list(spacing)
+        elif isinstance(spacing[0], (int, float)):
+            assert (
+                len(spacing) == img_dim
+            ), "if `spacing` is a sequence of numbers, it should have same length as image dim."
+            return [spacing for _ in range(batch_size)]  # type: ignore
+        else:
+            raise AssertionError(f"`spacing` is a sequence of elements with unsupported type: {type(spacing[0])}")
+    else:
+        raise AssertionError(
+            "`spacing` should either be an integer, float, a sequence of numbers or a sequence of sequences."
+        )

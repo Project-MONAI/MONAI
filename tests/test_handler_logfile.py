@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
@@ -58,7 +60,6 @@ class TestHandlerLogfile(unittest.TestCase):
         filename = "something_else.txt"
 
         with tempfile.TemporaryDirectory() as tempdir:
-
             handler = LogfileHandler(output_dir=tempdir, filename=filename)
             handler.attach(self.engine)
 

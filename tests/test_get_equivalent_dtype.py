@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -40,7 +42,15 @@ class TestGetEquivalentDtype(unittest.TestCase):
                 out_dtype = get_equivalent_dtype(n, type(im_dtype))
                 self.assertEqual(out_dtype, n)
 
-    @parameterized.expand([["float", np.float64], ["float32", np.float32], ["float64", np.float64]])
+    @parameterized.expand(
+        [
+            ["float", np.float64],
+            ["float32", np.float32],
+            ["np.float32", np.float32],
+            ["float64", np.float64],
+            ["torch.float64", np.float64],
+        ]
+    )
     def test_from_string(self, dtype_str, expected_np):
         expected_pt = get_equivalent_dtype(expected_np, torch.Tensor)
         # numpy
