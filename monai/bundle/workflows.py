@@ -185,7 +185,7 @@ class ConfigWorkflow(BundleWorkflow):
         final_id: str = "finalize",
         tracking: str | dict | None = None,
         workflow: str | None = None,
-        **override: dict,
+        **override: Any,
     ) -> None:
         super().__init__(workflow=workflow)
         if logging_file is not None:
