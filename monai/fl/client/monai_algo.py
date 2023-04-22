@@ -88,26 +88,32 @@ class MonaiAlgoStats(ClientAlgoStats):
 
     Args:
         bundle_root: directory path of the bundle.
-        workflow: the bundle workflow to execute, usually it's training, evaluation or inference.
-            if None, will create an `ConfigWorkflow` based on `config_train_filename`.
         config_train_filename: bundle training config path relative to bundle_root. Can be a list of files;
-            defaults to "configs/train.json". only necessary when `workflow` is None.
+            defaults to "configs/train.json". only useful when `workflow` is None.
         config_filters_filename: filter configuration file. Can be a list of files; defaults to `None`.
         data_stats_transform_list: transforms to apply for the data stats result.
         histogram_only: whether to only compute histograms. Defaults to False.
+        workflow: the bundle workflow to execute, usually it's training, evaluation or inference.
+            if None, will create an `ConfigWorkflow` internally based on `config_train_filename`.
     """
 
     def __init__(
         self,
         bundle_root: str,
-        workflow: BundleWorkflow | None = None,
         config_train_filename: str | list | None = "configs/train.json",
         config_filters_filename: str | list | None = None,
         data_stats_transform_list: list | None = None,
         histogram_only: bool = False,
+        workflow: BundleWorkflow | None = None,
     ):
         self.logger = logger
         self.bundle_root = bundle_root
+        self.config_train_filename = config_train_filename
+        self.config_filters_filename = config_filters_filename
+        self.train_data_key = "train"
+        self.eval_data_key = "eval"
+        self.data_stats_transform_list = data_stats_transform_list
+        self.histogram_only = histogram_only
         self.workflow = None
         if workflow is not None:
             if not isinstance(workflow, BundleWorkflow):
@@ -115,12 +121,6 @@ class MonaiAlgoStats(ClientAlgoStats):
             if workflow.get_workflow_type() is None:
                 raise ValueError("workflow doesn't specify the type.")
             self.workflow = workflow
-        self.config_train_filename = config_train_filename
-        self.config_filters_filename = config_filters_filename
-        self.train_data_key = "train"
-        self.eval_data_key = "eval"
-        self.data_stats_transform_list = data_stats_transform_list
-        self.histogram_only = histogram_only
 
         self.client_name: str | None = None
         self.app_root: str = ""
@@ -312,8 +312,6 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
 
     Args:
         bundle_root: directory path of the bundle.
-        train_workflow: the bundle workflow to execute training.
-        eval_workflow: the bundle workflow to execute evaluation.
         local_epochs: number of local epochs to execute during each round of local training; defaults to 1.
         send_weight_diff: whether to send weight differences rather than full weights; defaults to `True`.
         config_train_filename: bundle training config path relative to bundle_root. can be a list of files.
@@ -322,9 +320,6 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             `logging_file`, `workflow`. only useful when `train_workflow` is None.
         config_evaluate_filename: bundle evaluation config path relative to bundle_root. can be a list of files.
             if "default", ["configs/train.json", "configs/evaluate.json"] will be used.
-            this arg is only useful when `eval_workflow` is None.
-        eval_workflow_name: the workflow name corresponding to the "config_evaluate_filename", default to "train"
-            as the default "config_evaluate_filename" overrides the train workflow config.
             this arg is only useful when `eval_workflow` is None.
         eval_kwargs: other args of the `ConfigWorkflow` of evaluation, except for `config_file`, `meta_file`,
             `logging_file`, `workflow`. only useful when `eval_workflow` is None.
@@ -336,20 +331,24 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             the one defined by `save_dict_key` will be returned by `get_weights`; defaults to "model".
             If all state dicts should be returned, set `save_dict_key` to None.
         data_stats_transform_list: transforms to apply for the data stats result.
+        eval_workflow_name: the workflow name corresponding to the "config_evaluate_filename", default to "train"
+            as the default "config_evaluate_filename" overrides the train workflow config.
+            this arg is only useful when `eval_workflow` is None.
+        train_workflow: the bundle workflow to execute training, if None, will create a `ConfigWorkflow` internally
+            based on `config_train_filename` and `train_kwargs`.
+        eval_workflow: the bundle workflow to execute evaluation, if None, will create a `ConfigWorkflow` internally
+            based on `config_evaluate_filename`, `eval_kwargs`, `eval_workflow_name`.
 
     """
 
     def __init__(
         self,
         bundle_root: str,
-        train_workflow: BundleWorkflow | None = None,
-        eval_workflow: BundleWorkflow | None = None,
         local_epochs: int = 1,
         send_weight_diff: bool = True,
         config_train_filename: str | list | None = "configs/train.json",
         train_kwargs: dict | None = None,
         config_evaluate_filename: str | list | None = "default",
-        eval_workflow_name: str = "train",
         eval_kwargs: dict | None = None,
         config_filters_filename: str | list | None = None,
         disable_ckpt_loading: bool = True,
@@ -357,9 +356,27 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         final_model_filepath: str | None = "models/model_final.pt",
         save_dict_key: str | None = "model",
         data_stats_transform_list: list | None = None,
+        eval_workflow_name: str = "train",
+        train_workflow: BundleWorkflow | None = None,
+        eval_workflow: BundleWorkflow | None = None,
     ):
         self.logger = logger
         self.bundle_root = bundle_root
+        self.local_epochs = local_epochs
+        self.send_weight_diff = send_weight_diff
+        self.config_train_filename = config_train_filename
+        self.train_kwargs = {} if train_kwargs is None else train_kwargs
+        if config_evaluate_filename == "default":
+            # by default, evaluator needs both training and evaluate to be instantiated
+            config_evaluate_filename = ["configs/train.json", "configs/evaluate.json"]
+        self.config_evaluate_filename = config_evaluate_filename
+        self.eval_kwargs = {} if eval_kwargs is None else eval_kwargs
+        self.config_filters_filename = config_filters_filename
+        self.disable_ckpt_loading = disable_ckpt_loading
+        self.model_filepaths = {ModelType.BEST_MODEL: best_model_filepath, ModelType.FINAL_MODEL: final_model_filepath}
+        self.save_dict_key = save_dict_key
+        self.data_stats_transform_list = data_stats_transform_list
+        self.eval_workflow_name = eval_workflow_name
         self.train_workflow = None
         self.eval_workflow = None
         if train_workflow is not None:
@@ -373,21 +390,6 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             if not isinstance(eval_workflow, BundleWorkflow) or eval_workflow.get_workflow_type() is None:
                 raise ValueError("train workflow must be BundleWorkflow and set type.")
             self.eval_workflow = eval_workflow
-        self.local_epochs = local_epochs
-        self.send_weight_diff = send_weight_diff
-        self.config_train_filename = config_train_filename
-        self.train_kwargs = {} if train_kwargs is None else train_kwargs
-        if config_evaluate_filename == "default":
-            # by default, evaluator needs both training and evaluate to be instantiated
-            config_evaluate_filename = ["configs/train.json", "configs/evaluate.json"]
-        self.config_evaluate_filename = config_evaluate_filename
-        self.eval_workflow_name = eval_workflow_name
-        self.eval_kwargs = {} if eval_kwargs is None else eval_kwargs
-        self.config_filters_filename = config_filters_filename
-        self.disable_ckpt_loading = disable_ckpt_loading
-        self.model_filepaths = {ModelType.BEST_MODEL: best_model_filepath, ModelType.FINAL_MODEL: final_model_filepath}
-        self.save_dict_key = save_dict_key
-        self.data_stats_transform_list = data_stats_transform_list
 
         self.app_root = ""
         self.filter_parser: ConfigParser | None = None
