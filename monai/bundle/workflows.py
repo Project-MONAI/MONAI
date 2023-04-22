@@ -44,15 +44,18 @@ class BundleWorkflow(ABC):
 
     """
 
+    supported_train_type: tuple = ("train", "training")
+    supported_infer_type: tuple = ("infer", "inference", "eval", "evaluation")
+
     def __init__(self, workflow: str | None = None):
         if workflow is None:
             self.properties = None
             self.workflow = None
             return
-        if workflow.lower() in ("train", "training"):
+        if workflow.lower() in self.supported_train_type:
             self.properties = TrainProperties
             self.workflow = "train"
-        elif workflow.lower() in ("infer", "inference", "eval", "evaluation"):
+        elif workflow.lower() in self.supported_infer_type:
             self.properties = InferProperties
             self.workflow = "infer"
         else:
@@ -145,8 +148,11 @@ class ConfigWorkflow(BundleWorkflow):
 
     Args:
         run_id: ID name of the expected config expression to run, default to "run".
+            to run the config, the target config must contain this ID.
         init_id: ID name of the expected config expression to initialize before running, default to "initialize".
+            allow a config to have no `initialize` logic and the ID.
         final_id: ID name of the expected config expression to finalize after running, default to "finalize".
+            allow a config to have no `finalize` logic and the ID.
         meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
             Default to "configs/metadata.json", which is commonly used for bundles in MONAI model zoo.
         config_file: filepath of the config file, if it is a list of file paths, the content of them will be merged.
@@ -165,7 +171,7 @@ class ConfigWorkflow(BundleWorkflow):
             other unsupported string will raise a ValueError.
             default to `None` for common workflow.
         override: id-value pairs to override or add the corresponding config content.
-            e.g. ``--net#input_chns 42``.
+            e.g. ``--net#input_chns 42``, ``--net %/data/other.json#net_arg``
 
     """
 
@@ -179,7 +185,7 @@ class ConfigWorkflow(BundleWorkflow):
         final_id: str = "finalize",
         tracking: str | dict | None = None,
         workflow: str | None = None,
-        **override: dict,
+        **override: Any,
     ) -> None:
         super().__init__(workflow=workflow)
         if logging_file is not None:
@@ -215,6 +221,7 @@ class ConfigWorkflow(BundleWorkflow):
             else:
                 settings_ = ConfigParser.load_config_files(tracking)
             self.patch_bundle_tracking(parser=self.parser, settings=settings_)
+        self._is_initialized: bool = False
 
     def initialize(self) -> Any:
         """
@@ -223,6 +230,7 @@ class ConfigWorkflow(BundleWorkflow):
         """
         # reset the "reference_resolver" buffer at initialization stage
         self.parser.parse(reset=True)
+        self._is_initialized = True
         return self._run_expr(id=self.init_id)
 
     def run(self) -> Any:
@@ -230,6 +238,8 @@ class ConfigWorkflow(BundleWorkflow):
         Run the bundle workflow, it can be a training, evaluation or inference.
 
         """
+        if self.run_id not in self.parser:
+            raise ValueError(f"run ID '{self.run_id}' doesn't exist in the config file.")
         return self._run_expr(id=self.run_id)
 
     def finalize(self) -> Any:
@@ -284,7 +294,7 @@ class ConfigWorkflow(BundleWorkflow):
             property: other information for the target property, defined in `TrainProperties` or `InferProperties`.
 
         """
-        if not self.parser.ref_resolver.is_resolved():
+        if not self._is_initialized:
             raise RuntimeError("Please execute 'initialize' before getting any parsed content.")
         prop_id = self._get_prop_id(name, property)
         return self.parser.get_parsed_content(id=prop_id) if prop_id is not None else None
@@ -303,6 +313,7 @@ class ConfigWorkflow(BundleWorkflow):
         if prop_id is not None:
             self.parser[prop_id] = value
             # must parse the config again after changing the content
+            self._is_initialized = False
             self.parser.ref_resolver.reset()
 
     def _check_optional_id(self, name: str, property: dict) -> bool:

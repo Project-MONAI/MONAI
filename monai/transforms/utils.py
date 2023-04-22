@@ -75,6 +75,7 @@ __all__ = [
     "compute_divisible_spatial_size",
     "convert_applied_interp_mode",
     "copypaste_arrays",
+    "check_non_lazy_pending_ops",
     "create_control_grid",
     "create_grid",
     "create_rotate",
@@ -294,6 +295,27 @@ def resize_center(img: np.ndarray, *resize_dims: int | None, fill_value: float =
     return img[srcslices]
 
 
+def check_non_lazy_pending_ops(
+    input_array: NdarrayOrTensor, name: None | str = None, raise_error: bool = False
+) -> None:
+    """
+    Check whether the input array has pending operations, raise an error or warn when it has.
+
+    Args:
+        input_array: input array to be checked.
+        name: an optional name to be included in the error message.
+        raise_error: whether to raise an error, default to False, a warning message will be issued instead.
+    """
+    if isinstance(input_array, monai.data.MetaTensor) and input_array.pending_operations:
+        msg = (
+            "The input image is a MetaTensor and has pending operations,\n"
+            f"but the function {name or ''} assumes non-lazy input, result may be incorrect."
+        )
+        if raise_error:
+            raise ValueError(msg)
+        warnings.warn(msg)
+
+
 def map_binary_to_indices(
     label: NdarrayOrTensor, image: NdarrayOrTensor | None = None, image_threshold: float = 0.0
 ) -> tuple[NdarrayOrTensor, NdarrayOrTensor]:
@@ -310,15 +332,16 @@ def map_binary_to_indices(
         image_threshold: if enabled `image`, use ``image > image_threshold`` to
             determine the valid image content area and select background only in this area.
     """
-
+    check_non_lazy_pending_ops(label, name="map_binary_to_indices")
     # Prepare fg/bg indices
     if label.shape[0] > 1:
         label = label[1:]  # for One-Hot format data, remove the background channel
     label_flat = ravel(any_np_pt(label, 0))  # in case label has multiple dimensions
     fg_indices = nonzero(label_flat)
     if image is not None:
+        check_non_lazy_pending_ops(image, name="map_binary_to_indices")
         img_flat = ravel(any_np_pt(image > image_threshold, 0))
-        img_flat, *_ = convert_to_dst_type(img_flat, label, dtype=img_flat.dtype)
+        img_flat, *_ = convert_to_dst_type(img_flat, label, dtype=bool)
         bg_indices = nonzero(img_flat & ~label_flat)
     else:
         bg_indices = nonzero(~label_flat)
@@ -334,6 +357,7 @@ def map_classes_to_indices(
     num_classes: int | None = None,
     image: NdarrayOrTensor | None = None,
     image_threshold: float = 0.0,
+    max_samples_per_class: int | None = None,
 ) -> list[NdarrayOrTensor]:
     """
     Filter out indices of every class of the input label data, return the indices after fattening.
@@ -352,28 +376,40 @@ def map_classes_to_indices(
             region of the image (``image > image_threshold``).
         image_threshold: if enabled `image`, use ``image > image_threshold`` to
             determine the valid image content area and select class indices only in this area.
+        max_samples_per_class: maximum length of indices in each class to reduce memory consumption.
+            Default is None, no subsampling.
 
     """
+    check_non_lazy_pending_ops(label, name="map_classes_to_indices")
     img_flat: NdarrayOrTensor | None = None
     if image is not None:
+        check_non_lazy_pending_ops(image, name="map_classes_to_indices")
         img_flat = ravel((image > image_threshold).any(0))
 
-    indices: list[NdarrayOrTensor] = []
     # assuming the first dimension is channel
     channels = len(label)
 
     num_classes_: int = channels
     if channels == 1:
         if num_classes is None:
-            raise ValueError("if not One-Hot format label, must provide the num_classes.")
+            raise ValueError("channels==1 indicates not using One-Hot format label, must provide ``num_classes``.")
         num_classes_ = num_classes
 
+    indices: list[NdarrayOrTensor] = []
     for c in range(num_classes_):
-        label_flat = ravel(any_np_pt(label[c : c + 1] if channels > 1 else label == c, 0))
-        label_flat = img_flat & label_flat if img_flat is not None else label_flat
+        if channels > 1:
+            label_flat = ravel(convert_data_type(label[c], dtype=bool)[0])
+        else:
+            label_flat = ravel(label == c)
+        if img_flat is not None:
+            label_flat = img_flat & label_flat
         # no need to save the indices in GPU, otherwise, still need to move to CPU at runtime when crop by indices
         cls_indices: NdarrayOrTensor = convert_data_type(nonzero(label_flat), device=torch.device("cpu"))[0]
-        indices.append(cls_indices)
+        if max_samples_per_class and len(cls_indices) > max_samples_per_class and len(cls_indices) > 1:
+            sample_id = np.round(np.linspace(0, len(cls_indices) - 1, max_samples_per_class)).astype(int)
+            indices.append(cls_indices[sample_id])
+        else:
+            indices.append(cls_indices)
 
     return indices
 
@@ -399,6 +435,7 @@ def weighted_patch_samples(
         a list of `n_samples` N-D integers representing the spatial sampling location of patches.
 
     """
+    check_non_lazy_pending_ops(w, name="weighted_patch_samples")
     if w is None:
         raise ValueError("w must be an ND array, got None.")
     if r_state is None:
@@ -926,6 +963,7 @@ def generate_spatial_bounding_box(
         allow_smaller: when computing box size with `margin`, whether allow the image size to be smaller
             than box size, default to `True`.
     """
+    check_non_lazy_pending_ops(img, name="generate_spatial_bounding_box")
     spatial_size = img.shape[1:]
     data = img[list(ensure_tuple(channel_indices))] if channel_indices is not None else img
     data = select_fn(data).any(0)
@@ -1164,6 +1202,7 @@ def get_extreme_points(
     Raises:
         ValueError: When the input image does not have any foreground pixel.
     """
+    check_non_lazy_pending_ops(img, name="get_extreme_points")
     if rand_state is None:
         rand_state = np.random.random.__self__  # type: ignore
     indices = where(img != background)

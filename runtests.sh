@@ -533,7 +533,8 @@ then
     # ensure that the necessary packages for code format testing are installed
     if ! is_pip_installed pylint
     then
-        install_deps
+        echo "Pip installing pylint ..."
+        ${cmdPrefix}${PY_EXE} -m pip install pylint>2.16
     fi
     ${cmdPrefix}${PY_EXE} -m pylint --version
 

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Callable, Mapping, Sequence
+from copy import deepcopy
 from typing import Any
 
 import numpy as np
@@ -23,7 +24,9 @@ import numpy as np
 import monai
 import monai.transforms as mt
 from monai.apps.utils import get_logger
+from monai.config import NdarrayOrTensor
 from monai.transforms.inverse import InvertibleTransform
+from monai.transforms.traits import ThreadUnsafe
 
 # For backwards compatibility (so this still works: from monai.transforms.compose import MapTransform)
 from monai.transforms.transform import (  # noqa: F401
@@ -115,6 +118,91 @@ def evaluate_with_overrides(
     return data
 
 
+def execute_compose(
+    data: NdarrayOrTensor | Sequence[NdarrayOrTensor] | Mapping[Any, NdarrayOrTensor],
+    transforms: Sequence[Any],
+    map_items: bool = True,
+    unpack_items: bool = False,
+    start: int = 0,
+    end: int | None = None,
+    lazy_evaluation: bool = False,
+    overrides: dict | None = None,
+    override_keys: Sequence[str] | None = None,
+    threading: bool = False,
+    log_stats: bool = False,
+    verbose: bool = False,
+) -> NdarrayOrTensor | Sequence[NdarrayOrTensor] | Mapping[Any, NdarrayOrTensor]:
+    """
+    ``execute_compose`` provides the implementation that the ``Compose`` class uses to execute a sequence
+    of transforms. As well as being used by Compose, it can be used by subclasses of
+    Compose and by code that doesn't have a Compose instance but needs to execute a
+    sequence of transforms is if it were executed by Compose. It should only be used directly
+    when it is not possible to use ``Compose.__call__`` to achieve the same goal.
+    Args:
+        data: a tensor-like object to be transformed
+        transforms: a sequence of transforms to be carried out
+        map_items: whether to apply transform to each item in the input `data` if `data` is a list or tuple.
+            defaults to `True`.
+        unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
+            defaults to `False`.
+        start: the index of the first transform to be executed. If not set, this defaults to 0
+        end: the index after the last transform to be exectued. If set, the transform at index-1
+            is the last transform that is executed. If this is not set, it defaults to len(transforms)
+        lazy_evaluation: whether to enable lazy evaluation for lazy transforms. If False, transforms will be
+            carried out on a transform by transform basis. If True, all lazy transforms will
+            be executed by accumulating changes and resampling as few times as possible.
+            A `monai.transforms.Identity[D]` transform in the pipeline will trigger the evaluation of
+            the pending operations and make the primary data up-to-date.
+        overrides: this optional parameter allows you to specify a dictionary of parameters that should be overridden
+            when executing a pipeline. These each parameter that is compatible with a given transform is then applied
+            to that transform before it is executed. Note that overrides are currently only applied when lazy_evaluation
+            is True. If lazy_evaluation is False they are ignored.
+            currently supported args are:
+            {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``},
+            please see also :py:func:`monai.transforms.lazy.apply_transforms` for more details.
+        override_keys: this optional parameter specifies the keys to which ``overrides`` are to be applied. If
+            ``overrides`` is set, ``override_keys`` must also be set.
+        threading: whether executing is happening in a threaded environment. If set, copies are made
+            of transforms that have the ``RandomizedTrait`` interface.
+        log_stats: whether to log the detailed information of data and applied transform when error happened,
+            for NumPy array and PyTorch Tensor, log the data shape and value range,
+            for other metadata, log the values directly. default to `False`.
+        verbose: whether to print debugging info when lazy_evaluation=True.
+
+    Returns:
+        A tensorlike, sequence of tensorlikes or dict of tensorlists containing the result of running
+        `data`` through the sequence of ``transforms``.
+    """
+    end_ = len(transforms) if end is None else end
+    if start is None:
+        raise ValueError(f"'start' ({start}) cannot be None")
+    if start > end_:
+        raise ValueError(f"'start' ({start}) must be less than 'end' ({end_})")
+    if end_ > len(transforms):
+        raise ValueError(f"'end' ({end_}) must be less than or equal to the transform count ({len(transforms)}")
+
+    # no-op if the range is empty
+    if start == end:
+        return data
+
+    for _transform in transforms[start:end]:
+        if threading:
+            _transform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
+        data = evaluate_with_overrides(
+            data,
+            _transform,
+            lazy_evaluation=lazy_evaluation,
+            overrides=overrides,
+            override_keys=override_keys,
+            verbose=verbose,
+        )
+        data = apply_transform(_transform, data, map_items, unpack_items, log_stats)
+    data = evaluate_with_overrides(
+        data, None, lazy_evaluation=lazy_evaluation, overrides=overrides, override_keys=override_keys, verbose=verbose
+    )
+    return data
+
+
 class Compose(Randomizable, InvertibleTransform):
     """
     ``Compose`` provides the ability to chain a series of callables together in
@@ -182,6 +270,37 @@ class Compose(Randomizable, InvertibleTransform):
         Alternatively, one can create a class with a `__call__` function that
         calls your pre-processing functions taking into account that not all of
         them are called on the labels.
+
+    Lazy resampling:
+        Lazy resampling is an experimental feature introduced in 1.2. Its purpose is
+        to reduce the number of resample operations that must be carried out when executing
+        a pipeline of transforms. This can provide significant performance improvements in
+        terms of pipeline executing speed and memory usage, but can also significantly
+        reduce the loss of information that occurs when performing a number of spatial
+        resamples in succession.
+
+        Lazy resampling can be thought of as acting in a similar fashion to the `Affine` & `RandAffine`
+        transforms, in that they allow several spatial transform operations can be specified and carried out with
+        a single resample step. Unlike these transforms, however, lazy resampling can operate on any set of
+        transforms specified in any ordering. The user is free to mix monai transforms with transforms from other
+        libraries; lazy resampling will determine the minimum number of resample steps required in order to
+        execute the pipeline.
+
+        Lazy resampling works with monai `Dataset` classes that provide caching and persistence. However, if you
+        are implementing your own caching dataset implementation and wish to make use of lazy resampling, you
+        should ensure that you fully execute the part of the pipeline that generates the data to be cached
+        before caching it. This is quite simply done however, as shown by the following example.
+
+        Example:
+            # run the part of the pipeline that needs to be cached
+            data = self.transform(data, end=self.post_cache_index)
+
+            # ---
+
+            # fetch the data from the cache and run the rest of the pipeline
+            data = get_data_from_my_cache(data)
+            data = self.transform(data, start=self.post_cache_index)
+
 
     Args:
         transforms: sequence of callables.
@@ -255,8 +374,43 @@ class Compose(Randomizable, InvertibleTransform):
             except TypeError as type_error:
                 tfm_name: str = type(_transform).__name__
                 warnings.warn(
-                    f'Transform "{tfm_name}" in Compose not randomized\n{tfm_name}.{type_error}.', RuntimeWarning
+                    f"Transform '{tfm_name}' in Compose not randomized\n{tfm_name}.{type_error}.", RuntimeWarning
                 )
+
+    def get_index_of_first(self, predicate):
+        """
+        get_index_of_first takes a ``predicate`` and returns the index of the first transform that
+        satisfies the predicate (ie. makes the predicate return True). If it is unable to find
+        a transform that satisfies the ``predicate``, it returns None.
+
+        Example:
+            c = Compose([Flip(...), Rotate90(...), Zoom(...), RandRotate(...), Resize(...)])
+
+            print(c.get_index_of_first(lambda t: isinstance(t, RandomTrait)))
+            >>> 3
+            print(c.get_index_of_first(lambda t: isinstance(t, Compose)))
+            >>> None
+
+        Note:
+            This is only performed on the transforms directly held by this instance. If this
+            instance has nested ``Compose`` transforms or other transforms that contain transforms,
+            it does not iterate into them.
+
+
+        Args:
+            predicate: a callable that takes a single argument and returns a bool. When called
+            it is passed a transform from the sequence of transforms contained by this compose
+            instance.
+
+        Returns:
+            The index of the first transform in the sequence for which ``predicate`` returns
+            True. None if no transform satisfies the ``predicate``
+
+        """
+        for i in range(len(self.transforms)):
+            if predicate(self.transforms[i]):
+                return i
+        return None
 
     def flatten(self):
         """Return a Composition with a simple list of transforms, as opposed to any nested Compositions.
@@ -293,12 +447,21 @@ class Compose(Randomizable, InvertibleTransform):
             verbose=self.verbose,
         )
 
-    def __call__(self, input_):
-        for _transform in self.transforms:
-            input_ = self.evaluate_with_overrides(input_, _transform)
-            input_ = apply_transform(_transform, input_, self.map_items, self.unpack_items, self.log_stats)
-        input_ = self.evaluate_with_overrides(input_, None)
-        return input_
+    def __call__(self, input_, start=0, end=None, threading=False):
+        return execute_compose(
+            input_,
+            self.transforms,
+            start=start,
+            end=end,
+            map_items=self.map_items,
+            unpack_items=self.unpack_items,
+            lazy_evaluation=self.lazy_evaluation,  # type: ignore
+            overrides=self.overrides,
+            override_keys=self.override_keys,
+            threading=threading,
+            log_stats=self.log_stats,
+            verbose=self.verbose,
+        )
 
     def inverse(self, data):
         invertible_transforms = [t for t in self.flatten().transforms if isinstance(t, InvertibleTransform)]
@@ -307,6 +470,11 @@ class Compose(Randomizable, InvertibleTransform):
 
         # loop backwards over transforms
         for t in reversed(invertible_transforms):
+            if isinstance(t, LazyTransform) and t.lazy_evaluation:
+                warnings.warn(
+                    f"inversing {t.__class__.__name__} lazily may not implemented"
+                    "please set `lazy_evaluation=False` before calling inverse."
+                )
             data = apply_transform(t.inverse, data, self.map_items, self.unpack_items, self.log_stats)
         return data
 
@@ -397,12 +565,23 @@ class OneOf(Compose):
                 weights.append(w)
         return OneOf(transforms, weights, self.map_items, self.unpack_items)
 
-    def __call__(self, data):
+    def __call__(self, data, start=0, end=None, threading=False):
         if len(self.transforms) == 0:
             return data
+
         index = self.R.multinomial(1, self.weights).argmax()
         _transform = self.transforms[index]
-        data = apply_transform(_transform, data, self.map_items, self.unpack_items, self.log_stats)
+
+        data = execute_compose(
+            data,
+            [_transform],
+            map_items=self.map_items,
+            unpack_items=self.unpack_items,
+            start=start,
+            end=end,
+            threading=threading,
+        )
+
         # if the data is a mapping (dictionary), append the OneOf transform to the end
         if isinstance(data, monai.data.MetaTensor):
             self.push_transform(data, extra_info={"index": index})
@@ -481,14 +660,22 @@ class RandomOrder(Compose):
             transforms, map_items, unpack_items, log_stats, lazy_evaluation, overrides, override_keys, verbose
         )
 
-    def __call__(self, input_):
+    def __call__(self, input_, start=0, end=None, threading=False):
         if len(self.transforms) == 0:
             return input_
         num = len(self.transforms)
         applied_order = self.R.permutation(range(num))
 
-        for index in applied_order:
-            input_ = apply_transform(self.transforms[index], input_, self.map_items, self.unpack_items, self.log_stats)
+        input_ = execute_compose(
+            input_,
+            [self.transforms[ind] for ind in applied_order],
+            map_items=self.map_items,
+            unpack_items=self.unpack_items,
+            start=start,
+            end=end,
+            threading=threading,
+        )
+
         # if the data is a mapping (dictionary), append the RandomOrder transform to the end
         if isinstance(input_, monai.data.MetaTensor):
             self.push_transform(input_, extra_info={"applied_order": applied_order})
@@ -618,15 +805,22 @@ class SomeOf(Compose):
 
         return ensure_tuple(list(weights))
 
-    def __call__(self, data):
+    def __call__(self, data, start=0, end=None, threading=False):
         if len(self.transforms) == 0:
             return data
 
         sample_size = self.R.randint(self.min_num_transforms, self.max_num_transforms + 1)
         applied_order = self.R.choice(len(self.transforms), sample_size, replace=self.replace, p=self.weights).tolist()
-        for i in applied_order:
-            data = apply_transform(self.transforms[i], data, self.map_items, self.unpack_items, self.log_stats)
 
+        data = execute_compose(
+            data,
+            [self.transforms[a] for a in applied_order],
+            map_items=self.map_items,
+            unpack_items=self.unpack_items,
+            start=start,
+            end=end,
+            threading=threading,
+        )
         if isinstance(data, monai.data.MetaTensor):
             self.push_transform(data, extra_info={"applied_order": applied_order})
         elif isinstance(data, Mapping):

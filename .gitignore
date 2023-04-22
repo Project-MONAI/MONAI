@@ -149,3 +149,4 @@ tests/testing_data/CT_2D_head_moving.mha
 
 # profiling results
 *.prof
+runs

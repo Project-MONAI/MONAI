@@ -155,7 +155,7 @@ def _resnet_fpn_extractor(
     if trainable_layers == 5:
         layers_to_train.append("bn1")
     for name, parameter in backbone.named_parameters():
-        if all([not name.startswith(layer) for layer in layers_to_train]):
+        if all(not name.startswith(layer) for layer in layers_to_train):
             parameter.requires_grad_(False)
 
     if extra_blocks is None:
