@@ -127,7 +127,7 @@ class PadTest(unittest.TestCase):
             expected = result_non_lazy["img"] if is_map else result_non_lazy
             self.assertIsInstance(expected, MetaTensor)
             # lazy
-            pad_fn.lazy_evaluation = True
+            pad_fn.lazy = True
             pending_result = pad_fn(input_data)
             pending_result = pending_result["img"] if is_map else pending_result
             self.assertIsInstance(pending_result, MetaTensor)
@@ -157,7 +157,7 @@ class PadTest(unittest.TestCase):
             # lazy
             pending_result = input_data
             for _func in _funcs:
-                _func.lazy_evaluation = True
+                _func.lazy = True
                 pending_result = _func(pending_result)
             pending_result = pending_result["img"] if is_map else pending_result
             self.assertIsInstance(pending_result, MetaTensor)

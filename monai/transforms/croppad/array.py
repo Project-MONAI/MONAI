@@ -107,9 +107,9 @@ class Pad(InvertibleTransform, LazyTransform):
 
     def __init__(
         self, to_pad: tuple[tuple[int, int]] | None = None, mode: str = PytorchPadMode.CONSTANT,
-        lazy_evaluation: bool = False, **kwargs
+        lazy: bool = False, **kwargs
     ) -> None:
-        LazyTransform.__init__(self, lazy_evaluation)
+        LazyTransform.__init__(self, lazy)
         self.to_pad = to_pad
         self.mode = mode
         self.kwargs = kwargs
@@ -127,7 +127,7 @@ class Pad(InvertibleTransform, LazyTransform):
 
     def __call__(  # type: ignore[override]
         self, img: torch.Tensor, to_pad: tuple[tuple[int, int]] | None = None, mode: str | None = None,
-        lazy_evaluation: bool | None = None, **kwargs
+        lazy: bool | None = None, **kwargs
     ) -> torch.Tensor:
         """
         Args:
@@ -153,8 +153,8 @@ class Pad(InvertibleTransform, LazyTransform):
         kwargs_.update(kwargs)
 
         img_t = convert_to_tensor(data=img, track_meta=get_track_meta())
-        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
-        return pad_func(img_t, to_pad_, self.get_transform_info(), mode_, lazy_evaluation_, **kwargs_)
+        lazy_ = self.lazy if lazy is None else lazy
+        return pad_func(img_t, to_pad_, self.get_transform_info(), mode_, lazy_, **kwargs_)
 
     def inverse(self, data: MetaTensor) -> MetaTensor:
         transform = self.pop_transform(data)
@@ -198,12 +198,12 @@ class SpatialPad(Pad):
         spatial_size: Sequence[int] | int | tuple[tuple[int, ...] | int, ...],
         method: str = Method.SYMMETRIC,
         mode: str = PytorchPadMode.CONSTANT,
-        lazy_evaluation: bool = False,
+        lazy: bool = False,
         **kwargs,
     ) -> None:
         self.spatial_size = spatial_size
         self.method: Method = look_up_option(method, Method)
-        super().__init__(mode=mode, lazy_evaluation=lazy_evaluation, **kwargs)
+        super().__init__(mode=mode, lazy=lazy, **kwargs)
 
     def compute_pad_width(self, spatial_shape: Sequence[int]) -> tuple[tuple[int, int]]:
         """
@@ -252,10 +252,10 @@ class BorderPad(Pad):
 
     def __init__(
             self, spatial_border: Sequence[int] | int, mode: str = PytorchPadMode.CONSTANT,
-            lazy_evaluation: bool = False, **kwargs
+            lazy: bool = False, **kwargs
     ) -> None:
         self.spatial_border = spatial_border
-        super().__init__(mode=mode, lazy_evaluation=lazy_evaluation, **kwargs)
+        super().__init__(mode=mode, lazy=lazy, **kwargs)
 
     def compute_pad_width(self, spatial_shape: Sequence[int]) -> tuple[tuple[int, int]]:
         spatial_border = ensure_tuple(self.spatial_border)
@@ -288,7 +288,7 @@ class DivisiblePad(Pad):
 
     def __init__(
         self, k: Sequence[int] | int, mode: str = PytorchPadMode.CONSTANT, method: str = Method.SYMMETRIC,
-        lazy_evaluation: bool = False, **kwargs
+        lazy: bool = False, **kwargs
     ) -> None:
         """
         Args:
@@ -310,7 +310,7 @@ class DivisiblePad(Pad):
         """
         self.k = k
         self.method: Method = Method(method)
-        super().__init__(mode=mode, lazy_evaluation=lazy_evaluation, **kwargs)
+        super().__init__(mode=mode, lazy=lazy, **kwargs)
 
     def compute_pad_width(self, spatial_shape: Sequence[int]) -> tuple[tuple[int, int]]:
         new_size = compute_divisible_spatial_size(spatial_shape=spatial_shape, k=self.k)
@@ -323,14 +323,14 @@ class Crop(InvertibleTransform, LazyTransform):
     Perform crop operations on the input image.
 
     Args:
-        lazy_evaluation: a flag to indicate whether this transform should execute lazily or not.
+        lazy: a flag to indicate whether this transform should execute lazily or not.
             Defaults to False
     """
 
     backend = [TransformBackends.TORCH]
 
-    def __init__(self, lazy_evaluation: bool = False):
-        LazyTransform.__init__(self, lazy_evaluation)
+    def __init__(self, lazy: bool = False):
+        LazyTransform.__init__(self, lazy)
 
     @staticmethod
     def compute_slices(
@@ -385,7 +385,7 @@ class Crop(InvertibleTransform, LazyTransform):
                 [slice(int(s), int(e)) for s, e in zip(roi_start_t.tolist(), roi_end_t.tolist())]
             )
 
-    def __call__(self, img: torch.Tensor, slices: tuple[slice, ...], lazy_evaluation: bool | None = None) -> torch.Tensor:  # type: ignore[override]
+    def __call__(self, img: torch.Tensor, slices: tuple[slice, ...], lazy: bool | None = None) -> torch.Tensor:  # type: ignore[override]
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
@@ -399,8 +399,8 @@ class Crop(InvertibleTransform, LazyTransform):
         slices_ = list([slice(None)] + slices_[:sd])
 
         img_t: MetaTensor = convert_to_tensor(data=img, track_meta=get_track_meta())
-        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
-        return crop_func(img_t, tuple(slices_), lazy_evaluation_, self.get_transform_info())
+        lazy_ = self.lazy if lazy is None else lazy
+        return crop_func(img_t, tuple(slices_), lazy_, self.get_transform_info())
 
     def inverse(self, img: MetaTensor) -> MetaTensor:
         transform = self.pop_transform(img)
@@ -433,7 +433,7 @@ class SpatialCrop(Crop):
         roi_start: Sequence[int] | NdarrayOrTensor | None = None,
         roi_end: Sequence[int] | NdarrayOrTensor | None = None,
         roi_slices: Sequence[slice] | None = None,
-        lazy_evaluation: bool = False,
+        lazy: bool = False,
     ) -> None:
         """
         Args:
@@ -445,19 +445,19 @@ class SpatialCrop(Crop):
                 use the end coordinate of image.
             roi_slices: list of slices for each of the spatial dimensions.
         """
-        super().__init__(lazy_evaluation)
+        super().__init__(lazy)
         self.slices = self.compute_slices(
             roi_center=roi_center, roi_size=roi_size, roi_start=roi_start, roi_end=roi_end, roi_slices=roi_slices
         )
 
-    def __call__(self, img: torch.Tensor, lazy_evaluation: bool | None = None) -> torch.Tensor:  # type: ignore[override]
+    def __call__(self, img: torch.Tensor, lazy: bool | None = None) -> torch.Tensor:  # type: ignore[override]
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
 
         """
-        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
-        return super().__call__(img=img, slices=ensure_tuple(self.slices), lazy_evaluation=lazy_evaluation_)
+        lazy_ = self.lazy if lazy is None else lazy
+        return super().__call__(img=img, slices=ensure_tuple(self.slices), lazy=lazy_)
 
 
 class CenterSpatialCrop(Crop):
@@ -475,8 +475,8 @@ class CenterSpatialCrop(Crop):
             the spatial size of output data will be [32, 40, 40].
     """
 
-    def __init__(self, roi_size: Sequence[int] | int, lazy_evaluation: bool = False) -> None:
-        super().__init__(lazy_evaluation)
+    def __init__(self, roi_size: Sequence[int] | int, lazy: bool = False) -> None:
+        super().__init__(lazy)
         self.roi_size = roi_size
 
     def compute_slices(self, spatial_size: Sequence[int]) -> tuple[slice]:  # type: ignore[override]
@@ -484,17 +484,17 @@ class CenterSpatialCrop(Crop):
         roi_center = [i // 2 for i in spatial_size]
         return super().compute_slices(roi_center=roi_center, roi_size=roi_size)
 
-    def __call__(self, img: torch.Tensor, lazy_evaluation: bool | None = None) -> torch.Tensor:  # type: ignore[override]
+    def __call__(self, img: torch.Tensor, lazy: bool | None = None) -> torch.Tensor:  # type: ignore[override]
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
 
         """
-        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
+        lazy_ = self.lazy if lazy is None else lazy
         return super().__call__(
             img=img,
             slices=self.compute_slices(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]),
-            lazy_evaluation=lazy_evaluation_,
+            lazy=lazy_,
         )
 
 
@@ -508,17 +508,17 @@ class CenterScaleCrop(Crop):
 
     """
 
-    def __init__(self, roi_scale: Sequence[float] | float, lazy_evaluation: bool = False):
-        super().__init__(lazy_evaluation=lazy_evaluation)
+    def __init__(self, roi_scale: Sequence[float] | float, lazy: bool = False):
+        super().__init__(lazy=lazy)
         self.roi_scale = roi_scale
 
-    def __call__(self, img: torch.Tensor, lazy_evaluation: bool | None = None) -> torch.Tensor:  # type: ignore[override]
+    def __call__(self, img: torch.Tensor, lazy: bool | None = None) -> torch.Tensor:  # type: ignore[override]
         img_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
         ndim = len(img_size)
         roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
-        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
-        cropper = CenterSpatialCrop(roi_size=roi_size, lazy_evaluation=lazy_evaluation_)
-        return super().__call__(img=img, slices=cropper.compute_slices(img_size), lazy_evaluation=lazy_evaluation_)
+        lazy_ = self.lazy if lazy is None else lazy
+        cropper = CenterSpatialCrop(roi_size=roi_size, lazy=lazy_)
+        return super().__call__(img=img, slices=cropper.compute_slices(img_size), lazy=lazy_)
 
 
 class RandSpatialCrop(Randomizable, Crop):
@@ -552,9 +552,9 @@ class RandSpatialCrop(Randomizable, Crop):
         max_roi_size: Sequence[int] | int | None = None,
         random_center: bool = True,
         random_size: bool = True,
-        lazy_evaluation: bool = False,
+        lazy: bool = False,
     ) -> None:
-        super().__init__(lazy_evaluation)
+        super().__init__(lazy)
         self.roi_size = roi_size
         self.max_roi_size = max_roi_size
         self.random_center = random_center
@@ -573,7 +573,7 @@ class RandSpatialCrop(Randomizable, Crop):
             valid_size = get_valid_patch_size(img_size, self._size)
             self._slices = get_random_patch(img_size, valid_size, self.R)
 
-    def __call__(self, img: torch.Tensor, randomize: bool = True, lazy_evaluation: bool | None = None) -> torch.Tensor:  # type: ignore
+    def __call__(self, img: torch.Tensor, randomize: bool = True, lazy: bool | None = None) -> torch.Tensor:  # type: ignore
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
@@ -584,11 +584,11 @@ class RandSpatialCrop(Randomizable, Crop):
             self.randomize(img_size)
         if self._size is None:
             raise RuntimeError("self._size not specified.")
-        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
+        lazy_ = self.lazy if lazy is None else lazy
         if self.random_center:
-            return super().__call__(img=img, slices=self._slices, lazy_evaluation=lazy_evaluation_)
-        cropper = CenterSpatialCrop(self._size, lazy_evaluation=lazy_evaluation_)
-        return super().__call__(img=img, slices=cropper.compute_slices(img_size), lazy_evaluation=lazy_evaluation_)
+            return super().__call__(img=img, slices=self._slices, lazy=lazy_)
+        cropper = CenterSpatialCrop(self._size, lazy=lazy_)
+        return super().__call__(img=img, slices=cropper.compute_slices(img_size), lazy=lazy_)
 
 
 class RandScaleCrop(RandSpatialCrop):
@@ -619,11 +619,11 @@ class RandScaleCrop(RandSpatialCrop):
         max_roi_scale: Sequence[float] | float | None = None,
         random_center: bool = True,
         random_size: bool = True,
-        lazy_evaluation: bool = False,
+        lazy: bool = False,
     ) -> None:
         super().__init__(
             roi_size=-1, max_roi_size=None, random_center=random_center, random_size=random_size,
-            lazy_evaluation=lazy_evaluation
+            lazy=lazy
         )
         self.roi_scale = roi_scale
         self.max_roi_scale = max_roi_scale
@@ -640,15 +640,15 @@ class RandScaleCrop(RandSpatialCrop):
         self.get_max_roi_size(img_size)
         super().randomize(img_size)
 
-    def __call__(self, img: torch.Tensor, randomize: bool = True, lazy_evaluation: bool | None = None) -> torch.Tensor:  # type: ignore
+    def __call__(self, img: torch.Tensor, randomize: bool = True, lazy: bool | None = None) -> torch.Tensor:  # type: ignore
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
 
         """
         self.get_max_roi_size(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:])
-        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
-        return super().__call__(img=img, randomize=randomize, lazy_evaluation=lazy_evaluation_)
+        lazy_ = self.lazy if lazy is None else lazy
+        return super().__call__(img=img, randomize=randomize, lazy=lazy_)
 
 
 class RandSpatialCropSamples(Randomizable, TraceableTransform, LazyTransform, MultiSampleTrait):
@@ -692,13 +692,13 @@ class RandSpatialCropSamples(Randomizable, TraceableTransform, LazyTransform, Mu
         max_roi_size: Sequence[int] | int | None = None,
         random_center: bool = True,
         random_size: bool = True,
-        lazy_evaluation: bool = False,
+        lazy: bool = False,
     ) -> None:
-        LazyTransform.__init__(self, lazy_evaluation)
+        LazyTransform.__init__(self, lazy)
         if num_samples < 1:
             raise ValueError(f"num_samples must be positive, got {num_samples}.")
         self.num_samples = num_samples
-        self.cropper = RandSpatialCrop(roi_size, max_roi_size, random_center, random_size, lazy_evaluation)
+        self.cropper = RandSpatialCrop(roi_size, max_roi_size, random_center, random_size, lazy)
 
     def set_random_state(
         self, seed: int | None = None, state: np.random.RandomState | None = None
@@ -710,18 +710,18 @@ class RandSpatialCropSamples(Randomizable, TraceableTransform, LazyTransform, Mu
     def randomize(self, data: Any | None = None) -> None:
         pass
 
-    def __call__(self, img: torch.Tensor, lazy_evaluation: bool | None = None) -> list[torch.Tensor]:
+    def __call__(self, img: torch.Tensor, lazy: bool | None = None) -> list[torch.Tensor]:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         cropping doesn't change the channel dim.
         """
         ret = []
-        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
+        lazy_ = self.lazy if lazy is None else lazy
         for i in range(self.num_samples):
-            cropped = self.cropper(img, lazy_evaluation=lazy_evaluation_)
+            cropped = self.cropper(img, lazy=lazy_)
             if get_track_meta():
                 cropped.meta[Key.PATCH_INDEX] = i  # type: ignore
-                self.push_transform(cropped, replace=True, lazy_evaluation=lazy_evaluation_)  # track as this class instead of RandSpatialCrop
+                self.push_transform(cropped, replace=True, lazy=lazy_)  # track as this class instead of RandSpatialCrop
             ret.append(cropped)
         return ret
 
@@ -767,7 +767,7 @@ class CropForeground(Crop):
         return_coords: bool = False,
         k_divisible: Sequence[int] | int = 1,
         mode: str = PytorchPadMode.CONSTANT,
-        lazy_evaluation: bool = False,
+        lazy: bool = False,
         **pad_kwargs,
     ) -> None:
         """
@@ -792,14 +792,14 @@ class CropForeground(Crop):
                 note that `np.pad` treats channel dimension as the first dimension.
 
         """
-        LazyTransform.__init__(self, lazy_evaluation)
+        LazyTransform.__init__(self, lazy)
         self.select_fn = select_fn
         self.channel_indices = ensure_tuple(channel_indices) if channel_indices is not None else None
         self.margin = margin
         self.allow_smaller = allow_smaller
         self.return_coords = return_coords
         self.k_divisible = k_divisible
-        self.padder = Pad(mode=mode, lazy_evaluation=lazy_evaluation, **pad_kwargs)
+        self.padder = Pad(mode=mode, lazy=lazy, **pad_kwargs)
 
     def compute_bounding_box(self, img: torch.Tensor) -> tuple[np.ndarray, np.ndarray]:
         """
@@ -822,14 +822,14 @@ class CropForeground(Crop):
 
     def crop_pad(
         self, img: torch.Tensor, box_start: np.ndarray, box_end: np.ndarray, mode: str | None = None,
-        lazy_evaluation: bool = False, **pad_kwargs
+        lazy: bool = False, **pad_kwargs
     ) -> torch.Tensor:
         """
         Crop and pad based on the bounding box.
 
         """
         slices = self.compute_slices(roi_start=box_start, roi_end=box_end)
-        cropped = super().__call__(img=img, slices=slices, lazy_evaluation=lazy_evaluation)
+        cropped = super().__call__(img=img, slices=slices, lazy=lazy)
         pad_to_start = np.maximum(-box_start, 0)
         pad_to_end = np.maximum(
             box_end - np.asarray(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]), 0
@@ -839,25 +839,25 @@ class CropForeground(Crop):
             cropped.peek_pending_shape() if isinstance(cropped, MetaTensor) else cropped.shape[1:]
         )
         ret = self.padder.__call__(
-            img=cropped, to_pad=pad_width, mode=mode, lazy_evaluation=lazy_evaluation, **pad_kwargs
+            img=cropped, to_pad=pad_width, mode=mode, lazy=lazy, **pad_kwargs
         )
         # combine the traced cropping and padding into one transformation
         # by taking the padded info and placing it in a key inside the crop info.
         if get_track_meta() and isinstance(ret, MetaTensor):
-            if not lazy_evaluation:
+            if not lazy:
                 ret.applied_operations[-1][TraceKeys.EXTRA_INFO]["pad_info"] = ret.applied_operations.pop()
         return ret
 
     def __call__(  # type: ignore[override]
-        self, img: torch.Tensor, mode: str | None = None, lazy_evaluation: bool | None = None, **pad_kwargs
+        self, img: torch.Tensor, mode: str | None = None, lazy: bool | None = None, **pad_kwargs
     ) -> torch.Tensor:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't change the channel dim.
         """
         box_start, box_end = self.compute_bounding_box(img)
-        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
-        cropped = self.crop_pad(img, box_start, box_end, mode, lazy_evaluation=lazy_evaluation_, **pad_kwargs)
+        lazy_ = self.lazy if lazy is None else lazy
+        cropped = self.crop_pad(img, box_start, box_end, mode, lazy=lazy_, **pad_kwargs)
 
         if self.return_coords:
             return cropped, box_start, box_end  # type: ignore[return-value]
@@ -891,9 +891,9 @@ class RandWeightedCrop(Randomizable, TraceableTransform, LazyTransform, MultiSam
 
     def __init__(
         self, spatial_size: Sequence[int] | int, num_samples: int = 1, weight_map: NdarrayOrTensor | None = None,
-        lazy_evaluation: bool = False
+        lazy: bool = False
     ):
-        LazyTransform.__init__(self, lazy_evaluation)
+        LazyTransform.__init__(self, lazy)
         self.spatial_size = ensure_tuple(spatial_size)
         self.num_samples = int(num_samples)
         self.weight_map = weight_map
@@ -906,7 +906,7 @@ class RandWeightedCrop(Randomizable, TraceableTransform, LazyTransform, MultiSam
 
     def __call__(
         self, img: torch.Tensor, weight_map: NdarrayOrTensor | None = None, randomize: bool = True,
-        lazy_evaluation: bool | None = None
+        lazy: bool | None = None
     ) -> list[torch.Tensor]:
         """
         Args:
@@ -933,15 +933,15 @@ class RandWeightedCrop(Randomizable, TraceableTransform, LazyTransform, MultiSam
 
         _spatial_size = fall_back_tuple(self.spatial_size, img_shape)
         results: list[torch.Tensor] = []
-        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
+        lazy_ = self.lazy if lazy is None else lazy
         for i, center in enumerate(self.centers):
-            cropper = SpatialCrop(roi_center=center, roi_size=_spatial_size, lazy_evaluation=lazy_evaluation_)
+            cropper = SpatialCrop(roi_center=center, roi_size=_spatial_size, lazy=lazy_)
             cropped = cropper(img)
             if get_track_meta():
                 ret_: MetaTensor = cropped  # type: ignore
                 ret_.meta[Key.PATCH_INDEX] = i
                 ret_.meta["crop_center"] = center
-                self.push_transform(ret_, replace=True, lazy_evaluation=lazy_evaluation_)
+                self.push_transform(ret_, replace=True, lazy=lazy_)
             results.append(cropped)
         return results
 
@@ -1015,9 +1015,9 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
         fg_indices: NdarrayOrTensor | None = None,
         bg_indices: NdarrayOrTensor | None = None,
         allow_smaller: bool = False,
-        lazy_evaluation: bool = False,
+        lazy: bool = False,
     ) -> None:
-        LazyTransform.__init__(self, lazy_evaluation)
+        LazyTransform.__init__(self, lazy)
         self.spatial_size = spatial_size
         self.label = label
         if pos < 0 or neg < 0:
@@ -1072,7 +1072,7 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
         fg_indices: NdarrayOrTensor | None = None,
         bg_indices: NdarrayOrTensor | None = None,
         randomize: bool = True,
-        lazy_evaluation: bool | None = None,
+        lazy: bool | None = None,
     ) -> list[torch.Tensor]:
         """
         Args:
@@ -1099,15 +1099,15 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
         if self.centers is not None:
             img_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
             roi_size = fall_back_tuple(self.spatial_size, default=img_shape)
-            lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
+            lazy_ = self.lazy if lazy is None else lazy
             for i, center in enumerate(self.centers):
-                cropper = SpatialCrop(roi_center=center, roi_size=roi_size, lazy_evaluation=lazy_evaluation_)
+                cropper = SpatialCrop(roi_center=center, roi_size=roi_size, lazy=lazy_)
                 cropped = cropper(img)
                 if get_track_meta():
                     ret_: MetaTensor = cropped  # type: ignore
                     ret_.meta[Key.PATCH_INDEX] = i
                     ret_.meta["crop_center"] = center
-                    self.push_transform(ret_, replace=True, lazy_evaluation=lazy_evaluation_)
+                    self.push_transform(ret_, replace=True, lazy=lazy_)
                 results.append(cropped)
         return results
 
@@ -1194,9 +1194,9 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
         allow_smaller: bool = False,
         warn: bool = True,
         max_samples_per_class: int | None = None,
-        lazy_evaluation: bool = False,
+        lazy: bool = False,
     ) -> None:
-        LazyTransform.__init__(self, lazy_evaluation)
+        LazyTransform.__init__(self, lazy)
         self.spatial_size = spatial_size
         self.ratios = ratios
         self.label = label
@@ -1241,7 +1241,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
         image: torch.Tensor | None = None,
         indices: list[NdarrayOrTensor] | None = None,
         randomize: bool = True,
-        lazy_evaluation: bool | None = None,
+        lazy: bool | None = None,
     ) -> list[torch.Tensor]:
         """
         Args:
@@ -1264,15 +1264,15 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
         if self.centers is not None:
             img_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
             roi_size = fall_back_tuple(self.spatial_size, default=img_shape)
-            lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
+            lazy_ = self.lazy if lazy is None else lazy
             for i, center in enumerate(self.centers):
-                cropper = SpatialCrop(roi_center=tuple(center), roi_size=roi_size, lazy_evaluation=lazy_evaluation_)
+                cropper = SpatialCrop(roi_center=tuple(center), roi_size=roi_size, lazy=lazy_)
                 cropped = cropper(img)
                 if get_track_meta():
                     ret_: MetaTensor = cropped  # type: ignore
                     ret_.meta[Key.PATCH_INDEX] = i
                     ret_.meta["crop_center"] = center
-                    self.push_transform(ret_, replace=True, lazy_evaluation=lazy_evaluation_)
+                    self.push_transform(ret_, replace=True, lazy=lazy_)
                 results.append(cropped)
 
         return results
@@ -1308,16 +1308,16 @@ class ResizeWithPadOrCrop(InvertibleTransform, LazyTransform):
         spatial_size: Sequence[int] | int,
         method: str = Method.SYMMETRIC,
         mode: str = PytorchPadMode.CONSTANT,
-        lazy_evaluation: bool = False,
+        lazy: bool = False,
         **pad_kwargs,
     ):
-        LazyTransform.__init__(self, lazy_evaluation)
+        LazyTransform.__init__(self, lazy)
         self.padder = SpatialPad(
-            spatial_size=spatial_size, method=method, mode=mode, lazy_evaluation=lazy_evaluation, **pad_kwargs
+            spatial_size=spatial_size, method=method, mode=mode, lazy=lazy, **pad_kwargs
         )
-        self.cropper = CenterSpatialCrop(roi_size=spatial_size, lazy_evaluation=lazy_evaluation)
+        self.cropper = CenterSpatialCrop(roi_size=spatial_size, lazy=lazy)
 
-    def __call__(self, img: torch.Tensor, mode: str | None = None, lazy_evaluation: bool | None = None, **pad_kwargs) -> torch.Tensor:  # type: ignore
+    def __call__(self, img: torch.Tensor, mode: str | None = None, lazy: bool | None = None, **pad_kwargs) -> torch.Tensor:  # type: ignore
         """
         Args:
             img: data to pad or crop, assuming `img` is channel-first and
@@ -1332,18 +1332,18 @@ class ResizeWithPadOrCrop(InvertibleTransform, LazyTransform):
                 note that `np.pad` treats channel dimension as the first dimension.
 
         """
-        lazy_evaluation_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
-        ret = self.padder(self.cropper(img, lazy_evaluation_), mode=mode, lazy_evaluation=lazy_evaluation_, **pad_kwargs)
+        lazy_ = self.lazy if lazy is None else lazy
+        ret = self.padder(self.cropper(img, lazy_), mode=mode, lazy=lazy_, **pad_kwargs)
         # remove the individual info and combine
         if get_track_meta():
             ret_: MetaTensor = ret  # type: ignore
-            if not lazy_evaluation_:
+            if not lazy_:
                 pad_info = ret_.applied_operations.pop()
                 crop_info = ret_.applied_operations.pop()
                 orig_size = crop_info.get(TraceKeys.ORIG_SIZE)
                 self.push_transform(
                     ret_, orig_size=orig_size, extra_info={"pad_info": pad_info, "crop_info": crop_info},
-                    lazy_evaluation=lazy_evaluation_
+                    lazy=lazy_
                 )
             else:
                 pad_info = ret_.pending_operations.pop()
@@ -1355,7 +1355,7 @@ class ResizeWithPadOrCrop(InvertibleTransform, LazyTransform):
                     sp_size=pad_info[LazyAttr.SHAPE],
                     affine=crop_info[LazyAttr.AFFINE] @ pad_info[LazyAttr.AFFINE],
                     extra_info={"pad_info": pad_info, "crop_info": crop_info},
-                    lazy_evaluation=lazy_evaluation_,
+                    lazy=lazy_,
                 )
 
         return ret

@@ -117,7 +117,7 @@ class CropTest(unittest.TestCase):
         expected = result_non_lazy["img"] if is_map else result_non_lazy
         self.assertIsInstance(expected, MetaTensor)
         # lazy
-        crop_fn.lazy_evaluation = True
+        crop_fn.lazy = True
         pending_result = crop_fn(input_data)
         pending_result = pending_result["img"] if is_map else pending_result
         self.assertIsInstance(pending_result, MetaTensor)
@@ -150,7 +150,7 @@ class CropTest(unittest.TestCase):
         # lazy
         pending_result = input_data
         for _func in _funcs:
-            _func.lazy_evaluation = True
+            _func.lazy = True
             if isinstance(_func, Randomizable):
                 _func.set_random_state(seed=123)
             pending_result = _func(pending_result)

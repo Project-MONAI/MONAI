@@ -61,7 +61,7 @@ def test_resampler_lazy(
     if isinstance(resampler, Randomizable):
         resampler.set_random_state(seed=seed)
     set_track_meta(True)
-    resampler.lazy_evaluation = True
+    resampler.lazy = True
     pending_output = resampler(**call_param)
     if output_idx is not None:
         expected_output, pending_output = expected_output[output_idx], pending_output[output_idx]

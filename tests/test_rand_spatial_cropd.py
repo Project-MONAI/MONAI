@@ -89,7 +89,7 @@ class TestRandSpatialCropd(CropTest):
                 # lazy
                 # reset random seed to ensure the same results
                 cropper.set_random_state(seed=123)
-                cropper.lazy_evaluation = True
+                cropper.lazy = True
                 pending_result = cropper(input_data)["img"]
                 self.assertIsInstance(pending_result, MetaTensor)
                 assert_allclose(pending_result.peek_pending_affine(), expected.affine)

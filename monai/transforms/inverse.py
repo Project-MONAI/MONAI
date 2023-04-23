@@ -82,7 +82,7 @@ class TraceableTransform(Transform):
             TraceKeys.CLASS_NAME,
             TraceKeys.ID,
             TraceKeys.TRACING,
-            TraceKeys.LAZY_EVALUATION,
+            TraceKeys.LAZY,
             TraceKeys.DO_TRANSFORM,
         )
 
@@ -94,7 +94,7 @@ class TraceableTransform(Transform):
             self.__class__.__name__,
             id(self),
             self.tracing,
-            self.lazy_evaluation if isinstance(self, LazyTrait) else False,
+            self.lazy if isinstance(self, LazyTrait) else False,
             self._do_transform if hasattr(self, "_do_transform") else True,
         )
         return dict(zip(self.transform_info_keys(), vals))
@@ -110,9 +110,9 @@ class TraceableTransform(Transform):
                 set ``replace=True`` (default False) to rewrite the last transform infor in
                 applied_operation/pending_operation based on ``self.get_transform_info()``.
         """
-        lazy_eval = kwargs.get("lazy_evaluation", False)
+        lazy_eval = kwargs.get("lazy", False)
         transform_info = self.get_transform_info()
-        # lazy_eval = transform_info.get(TraceKeys.LAZY_EVALUATION, False)
+        # lazy_eval = transform_info.get(TraceKeys.lazy, False)
         do_transform = transform_info.get(TraceKeys.DO_TRANSFORM, True)
         kwargs = kwargs or {}
         replace = kwargs.pop("replace", False)  # whether to rewrite the most recently pushed transform info
@@ -125,10 +125,10 @@ class TraceableTransform(Transform):
                 xform = data.pending_operations.pop()
                 extra = xform.copy()
                 xform.update(transform_info)
-                meta_obj = self.push_transform(data, transform_info=xform, lazy_evaluation=lazy_eval, extra_info=extra)
+                meta_obj = self.push_transform(data, transform_info=xform, lazy=lazy_eval, extra_info=extra)
                 return data.copy_meta_from(meta_obj)
             return data
-        kwargs["lazy_evaluation"] = lazy_eval
+        kwargs["lazy"] = lazy_eval
         if "transform_info" in kwargs and isinstance(kwargs["transform_info"], dict):
             kwargs["transform_info"].update(transform_info)
         else:
@@ -146,7 +146,7 @@ class TraceableTransform(Transform):
         extra_info: dict | None = None,
         orig_size: tuple | None = None,
         transform_info=None,
-        lazy_evaluation=False,
+        lazy=False,
     ):
         """
         Update a stack of applied/pending transforms metadata of ``data``.
@@ -164,7 +164,7 @@ class TraceableTransform(Transform):
             orig_size: sometimes during the inverse it is useful to know what the size
                 of the original image was, in which case it can be supplied here.
             transform_info: info from self.get_transform_info().
-            lazy_evaluation: whether to push the transform to pending_operations or applied_operations.
+            lazy: whether to push the transform to pending_operations or applied_operations.
 
         Returns:
 
@@ -177,10 +177,10 @@ class TraceableTransform(Transform):
         if isinstance(data_t, MetaTensor):
             out_obj.copy_meta_from(data_t, keys=out_obj.__dict__.keys())
 
-        if lazy_evaluation and (not get_track_meta()):
+        if lazy and (not get_track_meta()):
             warnings.warn("metadata is not tracked, please call 'set_track_meta(True)' if doing lazy evaluation.")
 
-        if not lazy_evaluation and affine is not None and isinstance(data_t, MetaTensor):
+        if not lazy and affine is not None and isinstance(data_t, MetaTensor):
             # not lazy evaluation, directly update the metatensor affine (don't push to the stack)
             orig_affine = data_t.peek_pending_affine()
             orig_affine = convert_to_dst_type(orig_affine, affine, dtype=torch.float64)[0]
@@ -210,7 +210,7 @@ class TraceableTransform(Transform):
             info[TraceKeys.EXTRA_INFO] = extra_info
 
         # push the transform info to the applied_operation or pending_operation stack
-        if lazy_evaluation:
+        if lazy:
             if sp_size is None:
                 if LazyAttr.SHAPE not in info:
                     warnings.warn("spatial size is None in push transform.")

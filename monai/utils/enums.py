@@ -317,7 +317,7 @@ class TraceKeys(StrEnum):
     KEY_SUFFIX: str = "_transforms"
     NONE: str = "none"
     TRACING: str = "tracing"
-    LAZY_EVALUATION: str = "lazy_evaluation"
+    LAZY: str = "lazy"
 
 
 class CommonKeys(StrEnum):
@@ -654,7 +654,7 @@ class LazyMode(StrEnum):
     that can execute lazily are executed by the pipeline:
     'OFF' indicates that the pipeline should not be executed lazily
     'ENABLED' indicates that the pipeline can be executed lazily, but this will only be done for transforms
-    that have ``lazy_evaluation`` set to True
+    that have ``lazy`` set to True
     'ON' indicates that all transforms capable of being executed lazily will be executed lazily
     See: :py:class: monai.transforms.compose.Compose for more details.
     """

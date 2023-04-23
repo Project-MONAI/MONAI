@@ -74,7 +74,7 @@ class TestResizeWithPadOrCropd(unittest.TestCase):
             expected = padcropper(input_data)["img"]
             self.assertIsInstance(expected, MetaTensor)
             # lazy
-            padcropper.lazy_evaluation = True
+            padcropper.lazy = True
             pending_result = padcropper(input_data)["img"]
             self.assertIsInstance(pending_result, MetaTensor)
             assert_allclose(pending_result.peek_pending_affine(), expected.affine)

@@ -70,7 +70,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
             mt.ResizeWithPadOrCropD(keys=["img", "seg"], spatial_size=[80, 72, 80]),
             mt.Rotated(keys=["img", "seg"], angle=[np.pi / 2, np.pi / 2, 0], mode="nearest", keep_size=False),
         ],
-        lazy_evaluation=lazy,
+        lazy=lazy,
         overrides=lazy_kwargs,
     )
 

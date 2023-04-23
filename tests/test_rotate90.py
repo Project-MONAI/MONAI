@@ -41,7 +41,7 @@ class TestRotate90(NumpyImageTestCase2D):
 
             # test lazy
             test_resampler_lazy(rotate, rotated, call_param=call_param)
-            rotate.lazy_evaluation = False
+            rotate.lazy = False
 
             test_local_inversion(rotate, rotated, im)
             expected = [np.rot90(channel, 1, (0, 1)) for channel in self.imt[0]]
@@ -61,7 +61,7 @@ class TestRotate90(NumpyImageTestCase2D):
 
             # test lazy
             test_resampler_lazy(rotate, rotated, call_param=call_param)
-            rotate.lazy_evaluation = False
+            rotate.lazy = False
 
             test_local_inversion(rotate, rotated, im)
             expected = [np.rot90(channel, 2, (0, 1)) for channel in self.imt[0]]
@@ -77,7 +77,7 @@ class TestRotate90(NumpyImageTestCase2D):
 
             # test lazy
             test_resampler_lazy(rotate, rotated, call_param=call_param)
-            rotate.lazy_evaluation = False
+            rotate.lazy = False
 
             test_local_inversion(rotate, rotated, im)
             expected = [np.rot90(channel, 1, (0, -1)) for channel in self.imt[0]]
@@ -93,7 +93,7 @@ class TestRotate90(NumpyImageTestCase2D):
 
             # test lazy
             test_resampler_lazy(rotate, rotated, call_param=call_param)
-            rotate.lazy_evaluation = False
+            rotate.lazy = False
 
             test_local_inversion(rotate, rotated, im)
             expected = [np.rot90(channel, 2, (0, 1)) for channel in self.imt[0]]
@@ -111,7 +111,7 @@ class TestRotate903d(NumpyImageTestCase3D):
 
             # test lazy
             test_resampler_lazy(rotate, rotated, call_param=call_param)
-            rotate.lazy_evaluation = False
+            rotate.lazy = False
 
             test_local_inversion(rotate, rotated, im)
             expected = [np.rot90(channel, 1, (0, 1)) for channel in self.imt[0]]
@@ -127,7 +127,7 @@ class TestRotate903d(NumpyImageTestCase3D):
 
             # test lazy
             test_resampler_lazy(rotate, rotated, call_param=call_param)
-            rotate.lazy_evaluation = False
+            rotate.lazy = False
 
             test_local_inversion(rotate, rotated, im)
             expected = [np.rot90(channel, 2, (0, 1)) for channel in self.imt[0]]
@@ -143,7 +143,7 @@ class TestRotate903d(NumpyImageTestCase3D):
 
             # test lazy
             test_resampler_lazy(rotate, rotated, call_param=call_param)
-            rotate.lazy_evaluation = False
+            rotate.lazy = False
 
             test_local_inversion(rotate, rotated, im)
             expected = [np.rot90(channel, 1, (0, -1)) for channel in self.imt[0]]
@@ -159,7 +159,7 @@ class TestRotate903d(NumpyImageTestCase3D):
 
             # test lazy
             test_resampler_lazy(rotate, rotated, call_param=call_param)
-            rotate.lazy_evaluation = False
+            rotate.lazy = False
 
             test_local_inversion(rotate, rotated, im)
             expected = [np.rot90(channel, 2, (0, 1)) for channel in self.imt[0]]
@@ -177,14 +177,14 @@ class TestRot90Consistency(unittest.TestCase):
 
         def method_0(im, ac):
             xform = Affine(align_corners=ac, affine=mat, image_only=True, spatial_size=s)
-            xform.lazy_evaluation = True
+            xform.lazy = True
             out = xform(im)
             out = apply_pending(out, padding_mode="border", align_corners=ac)[0]
             return out
 
         def method_1(im, ac):
             xform = Affine(align_corners=ac, affine=mat, image_only=True, spatial_size=s)
-            xform.lazy_evaluation = True
+            xform.lazy = True
             out = xform(im)
             out = apply_pending(out, mode=1, padding_mode="nearest", align_corners=ac)[0]
             return out

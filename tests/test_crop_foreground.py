@@ -126,7 +126,7 @@ class TestCropForeground(unittest.TestCase):
         expected = crop_fn(image)
         self.assertIsInstance(expected, MetaTensor)
         # lazy
-        crop_fn.lazy_evaluation = True
+        crop_fn.lazy = True
         pending_result = crop_fn(image)
         self.assertIsInstance(pending_result, MetaTensor)
         assert_allclose(pending_result.peek_pending_affine(), expected.affine)
@@ -142,7 +142,7 @@ class TestCropForeground(unittest.TestCase):
         with self.assertRaises(ValueError):
             crop_fn = CropForeground(**input_param)
             # lazy
-            crop_fn.lazy_evaluation = True
+            crop_fn.lazy = True
             pending_result = crop_fn(image)
             return apply_pending(pending_result, mode="nearest", align_corners=align_corners)[0]
 

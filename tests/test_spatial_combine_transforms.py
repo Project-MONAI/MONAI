@@ -162,7 +162,7 @@ class CombineLazyTest(unittest.TestCase):
                 # lazy
                 pending_result = input_data
                 for _func in _funcs:
-                    _func.lazy_evaluation = True
+                    _func.lazy = True
                     if isinstance(_func, mt.Randomizable):
                         _func.set_random_state(seed=seed)
                     pending_result = _func(pending_result)

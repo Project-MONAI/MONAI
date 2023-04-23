@@ -52,7 +52,7 @@ class TestZoom(NumpyImageTestCase2D):
         expected = zoom_fn(im)
         self.assertIsInstance(expected, MetaTensor)
         # lazy
-        zoom_fn.lazy_evaluation = True
+        zoom_fn.lazy = True
         pending_result = zoom_fn(im)
         self.assertIsInstance(pending_result, MetaTensor)
         assert_allclose(pending_result.peek_pending_affine(), expected.affine)

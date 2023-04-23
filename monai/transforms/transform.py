@@ -48,7 +48,7 @@ def _apply_transform(
         transform: Callable[..., ReturnType],
         data: Any,
         unpack_parameters: bool = False,
-        lazy_evaluation: str = LazyMode.OFF,
+        lazy: str = LazyMode.OFF,
         overrides: dict = None,
 ) -> ReturnType:
     """
@@ -72,20 +72,20 @@ def _apply_transform(
     # is because the transform implementations for 1.2 don't have unified code paths for
     # lazy and non-lazy operation, so it is not possible to pass a tensor with pending
     # operations and have the transform handle them correctly.
-    # In order to have this functionality for 1.2, we need to provide lazy_evaluation
+    # In order to have this functionality for 1.2, we need to provide lazy
     # overrides on __call__ methods for lazy array and dictionary transforms.
 
     lazy_tx = isinstance(transform, LazyTrait)
 
-    if lazy_tx is False or lazy_evaluation == LazyMode.OFF:
+    if lazy_tx is False or lazy == LazyMode.OFF:
         data = execute_pending_transforms(data, overrides)
-    elif lazy_evaluation is LazyMode.ENABLED and transform.lazy_evaluation is False:
+    elif lazy is LazyMode.ENABLED and transform.lazy is False:
         data = execute_pending_transforms(data, overrides)
 
     if isinstance(data, tuple) and unpack_parameters:
-        return transform(*data, lazy_evaluation=LazyMode.as_bool(lazy_evaluation)) if lazy_tx else transform(*data)
+        return transform(*data, lazy=LazyMode.as_bool(lazy)) if lazy_tx else transform(*data)
 
-    return transform(data, lazy_evaluation=LazyMode.as_bool(lazy_evaluation)) if lazy_tx else transform(data)
+    return transform(data, lazy=LazyMode.as_bool(lazy)) if lazy_tx else transform(data)
 
 
 def apply_transform(
@@ -93,7 +93,7 @@ def apply_transform(
     data: Any,
     map_items: bool = True,
     unpack_items: bool = False,
-    lazy_evaluation: LazyMode = LazyMode.OFF,
+    lazy: LazyMode = LazyMode.OFF,
     overrides: dict = {},
 ) -> list[ReturnType] | ReturnType:
     """
@@ -121,9 +121,9 @@ def apply_transform(
     """
     try:
         if isinstance(data, (list, tuple)) and map_items:
-            return [_apply_transform(transform, item, unpack_items, lazy_evaluation, overrides)
+            return [_apply_transform(transform, item, unpack_items, lazy, overrides)
                     for item in data]
-        return _apply_transform(transform, data, unpack_items, lazy_evaluation, overrides)
+        return _apply_transform(transform, data, unpack_items, lazy, overrides)
     except Exception as e:
         # if in debug mode, don't swallow exception so that the breakpoint
         # appears where the exception was raised.
@@ -277,18 +277,18 @@ class LazyTransform(Transform, LazyTrait):
     dictionary transforms to simplify implementation of new lazy transforms.
     """
 
-    def __init__(self, lazy_evaluation: bool = False):
-        self._lazy_evaluation = lazy_evaluation
+    def __init__(self, lazy: bool = False):
+        self._lazy = lazy
 
     @property
-    def lazy_evaluation(self):
-        return self._lazy_evaluation
+    def lazy(self):
+        return self._lazy
 
-    @lazy_evaluation.setter
-    def lazy_evaluation(self, lazy_evaluation: bool):
-        if not isinstance(lazy_evaluation, bool):
-            raise TypeError(f"lazy_evaluation must be a bool but is of type {type(lazy_evaluation)}")
-        self._lazy_evaluation = lazy_evaluation
+    @lazy.setter
+    def lazy(self, lazy: bool):
+        if not isinstance(lazy, bool):
+            raise TypeError(f"lazy must be a bool but is of type {type(lazy)}")
+        self._lazy = lazy
 
 
 class RandomizableTransform(Randomizable, Transform):

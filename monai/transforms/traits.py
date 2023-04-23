@@ -27,18 +27,18 @@ class LazyTrait:
     """
 
     @property
-    def lazy_evaluation(self):
+    def lazy(self):
         """
-        Get whether lazy_evaluation is enabled for this transform instance.
+        Get whether lazy evaluation is enabled for this transform instance.
         Returns:
             True if the transform is operating in a lazy fashion, False if not.
         """
         raise NotImplementedError()
 
-    @lazy_evaluation.setter
-    def lazy_evaluation(self, enabled: bool):
+    @lazy.setter
+    def lazy(self, enabled: bool):
         """
-        Set whether lazy_evaluation is enabled for this transform instance.
+        Set whether lazy evaluation is enabled for this transform instance.
         Args:
             enabled: True if the transform should operate in a lazy fashion, False if not.
         """

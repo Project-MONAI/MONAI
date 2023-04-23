@@ -143,7 +143,7 @@ class TestRandCropByLabelClassesd(unittest.TestCase):
         self.assertIsInstance(expected[0]["img"], MetaTensor)
         # lazy
         cropper.set_random_state(0)
-        cropper.lazy_evaluation = True
+        cropper.lazy = True
         pending_result = cropper(input_data)
         for i, _pending_result in enumerate(pending_result):
             self.assertIsInstance(_pending_result["img"], MetaTensor)

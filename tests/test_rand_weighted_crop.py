@@ -178,7 +178,7 @@ class TestRandWeightedCrop(CropTest):
         self.assertIsInstance(expected[0], MetaTensor)
         # lazy
         crop.set_random_state(10)
-        crop.lazy_evaluation = True
+        crop.lazy = True
         pending_result = crop(img, weight)
         for i, _pending_result in enumerate(pending_result):
             self.assertIsInstance(_pending_result, MetaTensor)

@@ -208,16 +208,20 @@ class TestAffineConsistency(unittest.TestCase):
 
         def method_0(im, ac):
             xform = Affine(align_corners=ac, affine=mat, image_only=True, spatial_size=sp_size)
-            xform.lazy_evaluation = True
+            xform.lazy = True
             out = xform(im)
-            out = apply_pending(out, padding_mode="border", align_corners=ac)[0]
+            overrides = {'padding_mode': "border", 'align_corners': ac}
+            out = apply_pending(out, overrides=overrides)[0]
+            # out = apply_pending(out, padding_mode="border", align_corners=ac)[0]
             return out
 
         def method_1(im, ac):
             xform = Affine(align_corners=ac, affine=mat, image_only=True, spatial_size=sp_size)
-            xform.lazy_evaluation = True
+            xform.lazy = True
             out = xform(im)
-            out = apply_pending(out, mode=1, padding_mode="nearest", align_corners=ac)[0]
+            overrides = {'mode': 1, 'padding_mode': "nearest", 'align_corners': ac}
+            out = apply_pending(out, overrides=overrides)[0]
+            # out = apply_pending(out, mode=1, padding_mode="nearest", align_corners=ac)[0]
             return out
 
         def method_2(im, ac):

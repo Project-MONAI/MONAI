@@ -112,7 +112,7 @@ class TestRandSpatialCropSamples(CropTest):
             self.assertIsInstance(expected[0], MetaTensor)
             # lazy
             xform.set_random_state(1234)
-            xform.lazy_evaluation = True
+            xform.lazy = True
             pending_result = xform(image)
             for i, _pending_result in enumerate(pending_result):
                 self.assertIsInstance(_pending_result, MetaTensor)
