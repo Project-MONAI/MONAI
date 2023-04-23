@@ -444,7 +444,7 @@ class EnsembleRunner:
         """
 
         output_dir = kwargs.pop("output_dir", None)
-        
+
         if output_dir is None:
             output_dir = os.path.join(self.work_dir, "ensemble_output")
             logger.info(f"The output_dir is not specified. {output_dir} will be used to save ensemble predictions.")

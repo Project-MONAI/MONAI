@@ -66,7 +66,7 @@ class TestMiscKwargs(unittest.TestCase):
         self.assertEqual(extra_args, set())
         present, extra_args = self._custom_user_function(MiscClass, 1, kwargs1="value1", kwargs3="value3")
         self.assertEqual(present, False)
-        self.assertEqual(extra_args, set(["kwargs3"]))
+        self.assertEqual(extra_args, {"kwargs3"})
 
     def _custom_user_function(self, cls, *args, **kwargs):
         return check_kwargs_exist_in_class_init(cls, kwargs)
