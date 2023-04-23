@@ -30,9 +30,9 @@ from monai.auto3dseg import concat_val_to_np
 from monai.auto3dseg.utils import datafold_read
 from monai.bundle import ConfigParser
 from monai.data import partition_dataset
-from monai.transforms import MeanEnsemble, VoteEnsemble
+from monai.transforms import MeanEnsemble, SaveImage, VoteEnsemble
 from monai.utils.enums import AlgoKeys
-from monai.utils.misc import prob2class
+from monai.utils.misc import check_kwargs_exist_in_class_init, prob2class
 from monai.utils.module import look_up_option, optional_import
 
 tqdm, has_tqdm = optional_import("tqdm", name="tqdm")
@@ -395,7 +395,7 @@ class EnsembleRunner:
         self.num_fold = num_fold
         self.ensemble_method_name = ensemble_method_name
         self.mgpu = mgpu
-        self.kwargs = kwargs
+        self.kwargs = deepcopy(kwargs)
         self.rank = 0
         self.world_size = 1
         self.device_setting: dict[str, int | str] = {
@@ -405,6 +405,9 @@ class EnsembleRunner:
             "MN_START_METHOD": os.environ.get("MN_START_METHOD", "bcprun"),
             "CMD_PREFIX": os.environ.get("CMD_PREFIX"),  # type: ignore
         }
+
+        # self.kwargs needs to pop out args for set_image_save_transform
+        self.save_image: dict[str, Any] = self._pop_kwargs_to_get_image_save_transform(**self.kwargs)
 
     def set_ensemble_method(self, ensemble_method_name: str = "AlgoEnsembleBestByFold", **kwargs: Any) -> None:
         """
@@ -428,6 +431,49 @@ class EnsembleRunner:
         else:
             raise NotImplementedError(f"Ensemble method {self.ensemble_method_name} is not implemented.")
 
+    def _pop_kwargs_to_get_image_save_transform(self, **kwargs):
+        """
+        Pop the kwargs used to define ImageSave class for the ensemble output.
+
+        Args:
+            kwargs: image writing parameters for the ensemble inference. The kwargs format follows SaveImage
+                transform. For more information, check https://docs.monai.io/en/stable/transforms.html#saveimage .
+
+        Returns:
+            save_image: a dictionary that can be used to instantiate a SaveImage class in ConfigParser.
+        """
+
+        output_dir = kwargs.pop("output_dir", None)
+
+        if output_dir is None:
+            output_dir = os.path.join(self.work_dir, "ensemble_output")
+            logger.info(f"The output_dir is not specified. {output_dir} will be used to save ensemble predictions.")
+
+        if not os.path.isdir(output_dir):
+            os.makedirs(output_dir, exist_ok=True)
+            logger.info(f"Directory {output_dir} is created to save ensemble predictions")
+
+        save_image = {
+            "_target_": "SaveImage",
+            "output_dir": output_dir,
+            "output_postfix": kwargs.pop("output_postfix", "ensemble"),
+            "output_dtype": kwargs.pop("output_dtype", "$np.uint8"),
+            "resample": kwargs.pop("resample", False),
+            "print_log": False,
+            "savepath_in_metadict": True,
+        }
+
+        are_all_args_save_image, extra_args = check_kwargs_exist_in_class_init(SaveImage, kwargs)
+        if are_all_args_save_image:
+            save_image.update(kwargs)
+        else:
+            # kwargs has extra values for other purposes, for example, pred_params
+            for args in list(kwargs):
+                if args not in extra_args:
+                    save_image.update({args: kwargs.pop(args)})
+
+        return save_image
+
     def set_image_save_transform(self, **kwargs):
         """
         Set the ensemble output transform.
@@ -437,35 +483,8 @@ class EnsembleRunner:
                 transform. For more information, check https://docs.monai.io/en/stable/transforms.html#saveimage .
 
         """
-
-        if "output_dir" in kwargs:
-            output_dir = kwargs.pop("output_dir")
-        else:
-            output_dir = os.path.join(self.work_dir, "ensemble_output")
-            if self.rank == 0:
-                logger.info(f"The output_dir is not specified. {output_dir} will be used to save ensemble predictions")
-
-        if not os.path.isdir(output_dir):
-            os.makedirs(output_dir)
-            if self.rank == 0:
-                logger.info(f"Directory {output_dir} is created to save ensemble predictions")
-
-        self.output_dir = output_dir
-        output_postfix = kwargs.pop("output_postfix", "ensemble")
-        output_dtype = kwargs.pop("output_dtype", "$np.uint8")
-        resample = kwargs.pop("resample", False)
-
-        self.save_image = {
-            "_target_": "SaveImage",
-            "output_dir": output_dir,
-            "output_postfix": output_postfix,
-            "output_dtype": output_dtype,
-            "resample": resample,
-            "print_log": False,
-            "savepath_in_metadict": True,
-        }
-        if kwargs:
-            self.save_image.update(kwargs)
+        kwargs_copy = deepcopy(kwargs)
+        self.save_image = self._pop_kwargs_to_get_image_save_transform(**kwargs_copy)
 
     def set_num_fold(self, num_fold: int = 5) -> None:
         """
@@ -487,7 +506,6 @@ class EnsembleRunner:
             self.rank = dist.get_rank()
         # set params after init_process_group to know the rank
         self.set_num_fold(num_fold=self.num_fold)
-        self.set_image_save_transform(**self.kwargs)
         self.set_ensemble_method(self.ensemble_method_name, **self.kwargs)
 
         history = import_bundle_algo_history(self.work_dir, only_trained=False)
@@ -514,7 +532,6 @@ class EnsembleRunner:
         )[self.rank]
         # TO DO: Add some function in ensembler for infer_files update?
         self.ensembler.infer_files = infer_files
-        # self.kwargs has poped out args for set_image_save_transform
         # add rank to pred_params
         self.kwargs["rank"] = self.rank
         self.kwargs["image_save_func"] = self.save_image
@@ -522,7 +539,8 @@ class EnsembleRunner:
             logger.info("Auto3Dseg picked the following networks to ensemble:")
             for algo in self.ensembler.get_algo_ensemble():
                 logger.info(algo[AlgoKeys.ID])
-            logger.info(f"Auto3Dseg ensemble prediction outputs will be saved in {self.output_dir}.")
+            output_dir = self.save_image["output_dir"]
+            logger.info(f"Auto3Dseg ensemble prediction outputs will be saved in {output_dir}.")
         self.ensembler(pred_param=self.kwargs)
 
         if self.mgpu:

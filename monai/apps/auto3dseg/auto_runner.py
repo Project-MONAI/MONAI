@@ -29,7 +29,9 @@ from monai.apps.auto3dseg.utils import export_bundle_algo_history, import_bundle
 from monai.apps.utils import get_logger
 from monai.auto3dseg.utils import algo_to_pickle
 from monai.bundle import ConfigParser
+from monai.transforms import SaveImage
 from monai.utils import AlgoKeys, has_option, look_up_option, optional_import
+from monai.utils.misc import check_kwargs_exist_in_class_init
 
 logger = get_logger(module_name=__name__)
 
@@ -561,7 +563,14 @@ class AutoRunner:
 
         """
 
-        self.kwargs.update(kwargs)
+        are_all_args_present, missing_args = check_kwargs_exist_in_class_init(SaveImage, kwargs)
+        if are_all_args_present:
+            self.kwargs.update(kwargs)
+        else:
+            raise ValueError(
+                f"{missing_args} are not supported in monai.transforms.SaveImage,"
+                "Check https://docs.monai.io/en/stable/transforms.html#saveimage for more information."
+            )
 
     def set_prediction_params(self, params: dict[str, Any] | None = None) -> None:
         """
