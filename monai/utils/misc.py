@@ -812,12 +812,12 @@ def check_kwargs_exist_in_class_init(cls, kwargs):
         kwargs: kwargs to examine.
 
     Returns:
-        a boolean inidicating if all keys exist
-        a set of missing keys
+        a boolean inidicating if all keys exist.
+        a set of extra keys that are not used in the __init__.
     """
     init_signature = inspect.signature(cls.__init__)
-    init_params = set(init_signature.parameters)
+    init_params = set(init_signature.parameters) - {'self'}  # Exclude 'self' from the parameter list
     input_kwargs = set(kwargs)
-    missing_args = input_kwargs - init_params
+    extra_kwargs = input_kwargs - init_params
 
-    return missing_args == set(), missing_args
+    return extra_kwargs == set(), extra_kwargs
