@@ -450,7 +450,7 @@ class EnsembleRunner:
             logger.info(f"The output_dir is not specified. {output_dir} will be used to save ensemble predictions.")
 
         if not os.path.isdir(output_dir):
-            os.makedirs(output_dir)
+            os.makedirs(output_dir, exist_ok=True)
             logger.info(f"Directory {output_dir} is created to save ensemble predictions")
 
         save_image = {
