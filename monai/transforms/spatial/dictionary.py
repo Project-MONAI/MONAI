@@ -1006,6 +1006,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
+        LazyTransform.__init__(self, lazy_evaluation)
         self.rand_affine = RandAffine(
             prob=1.0,  # because probability handled in this class
             rotate_range=rotate_range,

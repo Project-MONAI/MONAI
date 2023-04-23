@@ -35,18 +35,18 @@ TESTS_COMBINE.append([[func2, func2], (3, 8, 8, 4), (3, 16, 16, 12)])
 class TestSpatialPad(PadTest):
     Padder = SpatialPad
 
-    # @parameterized.expand(TESTS)
-    # def test_pad(self, input_param, input_shape, expected_shape):
-    #     self.pad_test(input_param, input_shape, expected_shape)
-    #
-    # def test_pad_kwargs(self):
-    #     kwargs = {"spatial_size": [15, 8], "method": "end", "mode": "constant"}
-    #     unchanged_slices = [slice(None), slice(None, 8), slice(None, 4)]
-    #     self.pad_test_kwargs(unchanged_slices, **kwargs)
-    #
-    # @parameterized.expand(TESTS)
-    # def test_pending_ops(self, input_param, input_shape, _):
-    #     self.pad_test_pending_ops(input_param, input_shape)
+    @parameterized.expand(TESTS)
+    def test_pad(self, input_param, input_shape, expected_shape):
+        self.pad_test(input_param, input_shape, expected_shape)
+
+    def test_pad_kwargs(self):
+        kwargs = {"spatial_size": [15, 8], "method": "end", "mode": "constant"}
+        unchanged_slices = [slice(None), slice(None, 8), slice(None, 4)]
+        self.pad_test_kwargs(unchanged_slices, **kwargs)
+
+    @parameterized.expand(TESTS)
+    def test_pending_ops(self, input_param, input_shape, _):
+        self.pad_test_pending_ops(input_param, input_shape)
 
     @parameterized.expand(TESTS_COMBINE)
     def test_combine_ops(self, funcs, input_shape, expected_shape):
