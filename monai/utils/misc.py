@@ -816,7 +816,7 @@ def check_kwargs_exist_in_class_init(cls, kwargs):
         a set of extra keys that are not used in the __init__.
     """
     init_signature = inspect.signature(cls.__init__)
-    init_params = set(init_signature.parameters) - {'self'}  # Exclude 'self' from the parameter list
+    init_params = set(init_signature.parameters) - {"self"}  # Exclude 'self' from the parameter list
     input_kwargs = set(kwargs)
     extra_kwargs = input_kwargs - init_params
 
