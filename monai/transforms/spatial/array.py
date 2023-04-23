@@ -2627,6 +2627,7 @@ class Rand2DElastic(RandomizableTransform):
             translate_range=translate_range,
             scale_range=scale_range,
             device=device,
+            lazy_evaluation=False
         )
         self.resampler = Resample(device=device)
 
@@ -2794,6 +2795,7 @@ class Rand3DElastic(RandomizableTransform):
             translate_range=translate_range,
             scale_range=scale_range,
             device=device,
+            lazy_evaluation=False
         )
         self.resampler = Resample(device=device)
 
