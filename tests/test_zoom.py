@@ -57,7 +57,8 @@ class TestZoom(NumpyImageTestCase2D):
         self.assertIsInstance(pending_result, MetaTensor)
         assert_allclose(pending_result.peek_pending_affine(), expected.affine)
         assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:])
-        result = apply_pending(pending_result, mode="bilinear", dtype=np.float64, align_corners=align_corners)[0]
+        overrides = {'mode': "bilinear", 'dtype': np.float64, 'align_corners': align_corners}
+        result = apply_pending(pending_result, overrides=overrides)[0]
         # compare
         match_ratio = np.sum(np.isclose(result, expected)) / np.prod(result.shape)
         self.assertGreater(match_ratio, 0.95)

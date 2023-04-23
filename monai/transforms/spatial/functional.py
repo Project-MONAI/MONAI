@@ -474,7 +474,7 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype,
         lazy_evaluation=lazy_evaluation,
     )
     out = _maybe_new_metatensor(img)
-    if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
+    if lazy_evaluation:
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     img_t = out.to(dtype)
     zoomed: NdarrayOrTensor = torch.nn.functional.interpolate(

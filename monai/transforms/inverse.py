@@ -23,6 +23,7 @@ from monai import transforms
 from monai.data.meta_obj import MetaObj, get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
+from monai.transforms.traits import LazyTrait
 from monai.transforms.transform import LazyTransform, Transform
 from monai.utils import LazyAttr, MetaKeys, TraceKeys, convert_to_dst_type, convert_to_numpy, convert_to_tensor
 
@@ -93,7 +94,7 @@ class TraceableTransform(Transform):
             self.__class__.__name__,
             id(self),
             self.tracing,
-            self.lazy_evaluation if isinstance(self, LazyTransform) else False,
+            self.lazy_evaluation if isinstance(self, LazyTrait) else False,
             self._do_transform if hasattr(self, "_do_transform") else True,
         )
         return dict(zip(self.transform_info_keys(), vals))

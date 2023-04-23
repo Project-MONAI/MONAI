@@ -1831,7 +1831,9 @@ class Zoomd(MapTransform, InvertibleTransform, LazyTransform):
         lazy_evaluation: bool = False,
         **kwargs,
     ) -> None:
-        super().__init__(keys, allow_missing_keys)
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        LazyTransform.__init__(self, lazy_evaluation)
+
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
