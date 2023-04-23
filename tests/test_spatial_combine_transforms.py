@@ -175,7 +175,7 @@ class CombineLazyTest(unittest.TestCase):
                 init_param = funcs[-1][1]
                 call_param = {}
                 apply_param = get_apply_param(init_param, call_param)
-                result = apply_pending(pending_result, **apply_param)[0]
+                result = apply_pending(pending_result, overrides=apply_param)[0]
 
                 match_ratio = np.sum(np.isclose(result.array, expected.array, atol=5e-1)) / np.prod(result.shape)
                 self.assertGreater(match_ratio, 0.5)  # at least half of the images are very close

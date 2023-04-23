@@ -160,8 +160,9 @@ class TestRandCropByPosNegLabeld(unittest.TestCase):
                 assert_allclose(_pending_result["image"].peek_pending_affine(), expected[i]["image"].affine)
                 assert_allclose(_pending_result["image"].peek_pending_shape(), expected[i]["image"].shape[1:])
                 # only support nearest
-                result_image = apply_pending(_pending_result["image"], mode="nearest", align_corners=False)[0]
-                result_extra = apply_pending(_pending_result["extra"], mode="nearest", align_corners=False)[0]
+                overrides = {'mode': "nearest", 'align_corners': False}
+                result_image = apply_pending(_pending_result["image"], overrides=overrides)[0]
+                result_extra = apply_pending(_pending_result["extra"], overrides=overrides)[0]
                 # compare
                 assert_allclose(result_image, expected[i]["image"], rtol=1e-5)
                 assert_allclose(result_extra, expected[i]["extra"], rtol=1e-5)

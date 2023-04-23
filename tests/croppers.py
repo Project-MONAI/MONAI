@@ -124,7 +124,8 @@ class CropTest(unittest.TestCase):
         assert_allclose(pending_result.peek_pending_affine(), expected.affine)
         assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:])
         # only support nearest
-        result = apply_pending(pending_result, mode="nearest", align_corners=align_corners)[0]
+        overrides = {'mode': "nearest", 'align_corners': align_corners}
+        result = apply_pending(pending_result, overrides=overrides)[0]
         # compare
         assert_allclose(result, expected, rtol=1e-5)
 
@@ -159,7 +160,8 @@ class CropTest(unittest.TestCase):
         assert_allclose(pending_result.peek_pending_affine(), expected.affine)
         assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:])
         # TODO: mode="bilinear" may report error
-        result = apply_pending(pending_result, mode="nearest", align_corners=False)[0]
+        overrides = {'mode': "nearest", 'align_corners': False}
+        result = apply_pending(pending_result, overrides=overrides)[0]
 
         # compare
         assert_allclose(result, expected, rtol=1e-5)

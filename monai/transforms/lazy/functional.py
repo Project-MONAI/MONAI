@@ -55,7 +55,6 @@ def apply_pending(
         data: torch.Tensor | MetaTensor,
         pending: list | None = None,
         overrides: dict | None = None,
-        **kwargs
 ):
     """
     This method applies pending transforms to `data` tensors.

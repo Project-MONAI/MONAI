@@ -150,7 +150,7 @@ class TestRandCropByLabelClassesd(unittest.TestCase):
             assert_allclose(_pending_result["img"].peek_pending_affine(), expected[i]["img"].affine)
             assert_allclose(_pending_result["img"].peek_pending_shape(), expected[i]["img"].shape[1:])
             # only support nearest
-            result = apply_pending(_pending_result["img"], mode="nearest", align_corners=False)[0]
+            result = apply_pending(_pending_result["img"], overrides={'mode': "nearest", 'align_corners': False})[0]
             # compare
             assert_allclose(result, expected[i]["img"], rtol=1e-5)
 

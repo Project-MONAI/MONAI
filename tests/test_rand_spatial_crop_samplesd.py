@@ -129,8 +129,9 @@ class TestRandSpatialCropSamplesd(unittest.TestCase):
             assert_allclose(_pending_result["img"].peek_pending_affine(), expected[i]["img"].affine)
             assert_allclose(_pending_result["img"].peek_pending_shape(), expected[i]["img"].shape[1:])
             # only support nearest
-            result_img = apply_pending(_pending_result["img"], mode="nearest", align_corners=False)[0]
-            result_seg = apply_pending(_pending_result["seg"], mode="nearest", align_corners=False)[0]
+            overrides = {'mode': "nearest", 'align_corners': False}
+            result_img = apply_pending(_pending_result["img"], overrides=overrides)[0]
+            result_seg = apply_pending(_pending_result["seg"], overrides=overrides)[0]
             # compare
             assert_allclose(result_img, expected[i]["img"], rtol=1e-5)
             assert_allclose(result_seg, expected[i]["seg"], rtol=1e-5)

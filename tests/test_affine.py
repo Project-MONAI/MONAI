@@ -212,7 +212,6 @@ class TestAffineConsistency(unittest.TestCase):
             out = xform(im)
             overrides = {'padding_mode': "border", 'align_corners': ac}
             out = apply_pending(out, overrides=overrides)[0]
-            # out = apply_pending(out, padding_mode="border", align_corners=ac)[0]
             return out
 
         def method_1(im, ac):
@@ -221,7 +220,6 @@ class TestAffineConsistency(unittest.TestCase):
             out = xform(im)
             overrides = {'mode': 1, 'padding_mode': "nearest", 'align_corners': ac}
             out = apply_pending(out, overrides=overrides)[0]
-            # out = apply_pending(out, mode=1, padding_mode="nearest", align_corners=ac)[0]
             return out
 
         def method_2(im, ac):
