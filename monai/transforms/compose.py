@@ -274,9 +274,10 @@ class Compose(Randomizable, InvertibleTransform):
 
         Lazy resampling can be enabled or disabled through the ``lazy`` parameter. This can be specified either as
         the LazyMode enum or as an optional boolean. The modes are as follows:
-        . LazyMode.OFF / False (default): Don't perform any lazy resampling
-        . LazyMode.ENABLED / None: Perform lazy resampling based on the 'lazy' properties of the transform instances.
-        . LazyMode.ON / True: Always perform lazy resampling if possible. This will ignore the ``lazy`` properties
+
+        * LazyMode.OFF / False (default): Don't perform any lazy resampling
+        * LazyMode.ENABLED / None: Perform lazy resampling based on the 'lazy' properties of the transform instances.
+        * LazyMode.ON / True: Always perform lazy resampling if possible. This will ignore the ``lazy`` properties
           of the transform instances
 
         If you only want some of the pipeline to be executed lazily, there are two ways to achieve this.
