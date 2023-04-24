@@ -82,10 +82,10 @@ def test_resampler_lazy(
         and isinstance(non_lazy_out, MetaTensor)
         and non_lazy_out.applied_operations
     ):
-        resampler.lazy_evaluation = False
+        resampler.lazy = False
         out = resampler.inverse(lazy_out.clone())
         ref = resampler.inverse(non_lazy_out.clone())
         assert_allclose(out.applied_operations, [])
         assert_allclose(out.pending_operations, [])
         assert_allclose(ref, out, type_test=False, rtol=1e-3, atol=1e-3)
-        resampler.lazy_evaluation = True
+        resampler.lazy = True

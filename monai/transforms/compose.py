@@ -29,7 +29,7 @@ from monai.transforms.inverse import InvertibleTransform
 
 # For backwards compatibility (so this still works: from monai.transforms.compose import MapTransform)
 from monai.transforms.lazy.functional import execute_pending_transforms
-from monai.transforms.traits import ThreadUnsafe
+from monai.transforms.traits import ThreadUnsafe, LazyTrait
 from monai.transforms.transform import (  # noqa: F401
     LazyTransform,
     MapTransform,
@@ -424,7 +424,7 @@ class Compose(Randomizable, InvertibleTransform):
             if isinstance(t, LazyTrait) and t.lazy:
                 warnings.warn(
                     f"inversing {t.__class__.__name__} lazily may not implemented"
-                    "please set `lazy_evaluation=False` before calling inverse."
+                    "please set `lazy=False` before calling inverse."
                 )
             data = apply_transform(t.inverse, data, self.map_items, self.unpack_items)
         return data
