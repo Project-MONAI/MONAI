@@ -179,14 +179,14 @@ class TestRot90Consistency(unittest.TestCase):
             xform = Affine(align_corners=ac, affine=mat, image_only=True, spatial_size=s)
             xform.lazy = True
             out = xform(im)
-            out = apply_pending(out, overrides={'padding_mode': "border", 'align_corners': ac})[0]
+            out = apply_pending(out, overrides={"padding_mode": "border", "align_corners": ac})[0]
             return out
 
         def method_1(im, ac):
             xform = Affine(align_corners=ac, affine=mat, image_only=True, spatial_size=s)
             xform.lazy = True
             out = xform(im)
-            out = apply_pending(out, overrides={'mode': 1, 'padding_mode': "nearest", 'align_corners': ac})[0]
+            out = apply_pending(out, overrides={"mode": 1, "padding_mode": "nearest", "align_corners": ac})[0]
             return out
 
         def method_2(im, ac):

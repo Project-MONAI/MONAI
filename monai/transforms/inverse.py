@@ -78,13 +78,7 @@ class TraceableTransform(Transform):
     @staticmethod
     def transform_info_keys():
         """The keys to store necessary info of an applied transform."""
-        return (
-            TraceKeys.CLASS_NAME,
-            TraceKeys.ID,
-            TraceKeys.TRACING,
-            TraceKeys.LAZY,
-            TraceKeys.DO_TRANSFORM,
-        )
+        return (TraceKeys.CLASS_NAME, TraceKeys.ID, TraceKeys.TRACING, TraceKeys.LAZY, TraceKeys.DO_TRANSFORM)
 
     def get_transform_info(self) -> dict:
         """

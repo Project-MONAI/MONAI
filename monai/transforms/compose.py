@@ -26,10 +26,10 @@ import monai.transforms as mt
 from monai.apps.utils import get_logger
 from monai.config import NdarrayOrTensor
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.traits import ThreadUnsafe
 
 # For backwards compatibility (so this still works: from monai.transforms.compose import MapTransform)
 from monai.transforms.lazy.functional import execute_pending_transforms
+from monai.transforms.traits import ThreadUnsafe
 from monai.transforms.transform import (  # noqa: F401
     LazyTransform,
     MapTransform,
@@ -185,9 +185,7 @@ def execute_compose(
     for _transform in transforms[start:end]:
         if threading:
             _transform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
-        data = apply_transform(
-            _transform, data, map_items, unpack_items, lazy=lazy, overrides=overrides
-        )
+        data = apply_transform(_transform, data, map_items, unpack_items, lazy=lazy, overrides=overrides)
     data = execute_pending_transforms(data, overrides)
     return data
 
@@ -529,7 +527,7 @@ class OneOf(Compose):
             unpack_items=self.unpack_items,
             lazy=self.lazy,  # type: ignore
             overrides=self.overrides,
-            threading=threading
+            threading=threading,
         )
 
         # if the data is a mapping (dictionary), append the OneOf transform to the end
@@ -619,7 +617,7 @@ class RandomOrder(Compose):
             map_items=self.map_items,
             unpack_items=self.unpack_items,
             lazy=self.lazy,
-            threading=threading
+            threading=threading,
         )
 
         # if the data is a mapping (dictionary), append the RandomOrder transform to the end
@@ -653,9 +651,7 @@ class RandomOrder(Compose):
         # loop backwards over transforms
         for o in reversed(applied_order):
             if isinstance(self.transforms[o], InvertibleTransform):
-                data = apply_transform(
-                    self.transforms[o].inverse, data, self.map_items, self.unpack_items
-                )
+                data = apply_transform(self.transforms[o].inverse, data, self.map_items, self.unpack_items)
         return data
 
 

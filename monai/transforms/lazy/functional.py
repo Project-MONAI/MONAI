@@ -51,11 +51,7 @@ def execute_pending_transforms(data, overrides: dict = None):
     return data
 
 
-def apply_pending(
-        data: torch.Tensor | MetaTensor,
-        pending: list | None = None,
-        overrides: dict | None = None,
-):
+def apply_pending(data: torch.Tensor | MetaTensor, pending: list | None = None, overrides: dict | None = None):
     """
     This method applies pending transforms to `data` tensors.
     Currently, only 2d and 3d input are supported.

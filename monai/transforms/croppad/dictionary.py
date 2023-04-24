@@ -47,7 +47,7 @@ from monai.transforms.croppad.array import (
     SpatialPad,
 )
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.traits import MultiSampleTrait, LazyTrait
+from monai.transforms.traits import LazyTrait, MultiSampleTrait
 from monai.transforms.transform import LazyTransform, MapTransform, Randomizable
 from monai.transforms.utils import is_positive
 from monai.utils import MAX_SEED, Method, PytorchPadMode, deprecated_arg_default, ensure_tuple_rep
@@ -144,8 +144,7 @@ class Padd(MapTransform, InvertibleTransform, LazyTransform):
         MapTransform.__init__(self, keys, allow_missing_keys)
         LazyTransform.__init__(self, lazy)
         if lazy is True and not isinstance(padder, LazyTrait):
-            raise ValueError("'padder' must inherit LazyTrait if lazy is True "
-                             f"'padder' is of type({type(padder)})")
+            raise ValueError("'padder' must inherit LazyTrait if lazy is True " f"'padder' is of type({type(padder)})")
         self.padder = padder
         self.mode = ensure_tuple_rep(mode, len(self.keys))
 
@@ -153,8 +152,9 @@ class Padd(MapTransform, InvertibleTransform, LazyTransform):
         d = dict(data)
         lazy_ = self.lazy if lazy is None else lazy
         if lazy_ is True and not isinstance(self.padder, LazyTrait):
-            raise ValueError("'self.padder' must inherit LazyTrait if lazy is True "
-                             f"'self.padder' is of type({type(self.padder)}")
+            raise ValueError(
+                "'self.padder' must inherit LazyTrait if lazy is True " f"'self.padder' is of type({type(self.padder)}"
+            )
         for key, m in self.key_iterator(d, self.mode):
             if isinstance(self.padder, LazyTrait):
                 d[key] = self.padder(d[key], mode=m, lazy=lazy_)
@@ -212,9 +212,7 @@ class SpatialPadd(Padd):
         """
         LazyTransform.__init__(self, lazy)
         padder = SpatialPad(spatial_size, method, lazy=lazy, **kwargs)
-        Padd.__init__(
-            self, keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys
-        )
+        Padd.__init__(self, keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys)
 
 
 class BorderPadd(Padd):
@@ -263,9 +261,7 @@ class BorderPadd(Padd):
         """
         LazyTransform.__init__(self, lazy)
         padder = BorderPad(spatial_border=spatial_border, lazy=lazy, **kwargs)
-        Padd.__init__(
-            self, keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys
-        )
+        Padd.__init__(self, keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys)
 
 
 class DivisiblePadd(Padd):
@@ -328,9 +324,7 @@ class Cropd(MapTransform, InvertibleTransform, LazyTransform):
 
     backend = Crop.backend
 
-    def __init__(
-        self, keys: KeysCollection, cropper: Crop, allow_missing_keys: bool = False, lazy: bool = False
-    ):
+    def __init__(self, keys: KeysCollection, cropper: Crop, allow_missing_keys: bool = False, lazy: bool = False):
         MapTransform.__init__(self, keys, allow_missing_keys)
         LazyTransform.__init__(self, lazy)
         self.cropper = cropper
@@ -363,9 +357,7 @@ class RandCropd(Cropd, Randomizable):
 
     backend = Crop.backend
 
-    def __init__(
-        self, keys: KeysCollection, cropper: Crop, allow_missing_keys: bool = False, lazy: bool = False
-    ):
+    def __init__(self, keys: KeysCollection, cropper: Crop, allow_missing_keys: bool = False, lazy: bool = False):
         super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys, lazy=lazy)
 
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandCropd:
@@ -385,8 +377,10 @@ class RandCropd(Cropd, Randomizable):
         self.randomize(first_item.peek_pending_shape() if isinstance(first_item, MetaTensor) else first_item.shape[1:])
         lazy_ = self.lazy if lazy is None else lazy
         if lazy_ is True and not isinstance(self.cropper, LazyTrait):
-            raise ValueError("'self.cropper' must inherit LazyTrait if lazy is True "
-                             f"'self.cropper' is of type({type(self.cropper)}")
+            raise ValueError(
+                "'self.cropper' must inherit LazyTrait if lazy is True "
+                f"'self.cropper' is of type({type(self.cropper)}"
+            )
         for key in self.key_iterator(d):
             kwargs = {"randomize": False} if isinstance(self.cropper, Randomizable) else {}
             if isinstance(self.cropper, LazyTrait):
@@ -479,7 +473,11 @@ class CenterScaleCropd(Cropd):
     """
 
     def __init__(
-        self, keys: KeysCollection, roi_scale: Sequence[float] | float, allow_missing_keys: bool = False, lazy: bool = False
+        self,
+        keys: KeysCollection,
+        roi_scale: Sequence[float] | float,
+        allow_missing_keys: bool = False,
+        lazy: bool = False,
     ) -> None:
         cropper = CenterScaleCrop(roi_scale, lazy=lazy)
         super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys, lazy=lazy)
@@ -564,7 +562,7 @@ class RandScaleCropd(RandCropd):
         random_center: bool = True,
         random_size: bool = True,
         allow_missing_keys: bool = False,
-        lazy: bool = False
+        lazy: bool = False,
     ) -> None:
         cropper = RandScaleCrop(roi_scale, max_roi_scale, random_center, random_size, lazy=lazy)
         super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys, lazy=lazy)
@@ -622,13 +620,16 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, LazyTransform, MultiSa
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         LazyTransform.__init__(self, lazy)
-        self.cropper = RandSpatialCropSamples(roi_size, num_samples, max_roi_size, random_center, random_size,
-                                              lazy=lazy)
+        self.cropper = RandSpatialCropSamples(
+            roi_size, num_samples, max_roi_size, random_center, random_size, lazy=lazy
+        )
 
     def randomize(self, data: Any | None = None) -> None:
         self.sub_seed = self.R.randint(MAX_SEED, dtype="uint32")
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> list[dict[Hashable, torch.Tensor]]:
+    def __call__(
+        self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None
+    ) -> list[dict[Hashable, torch.Tensor]]:
         ret: list[dict[Hashable, torch.Tensor]] = [dict(data) for _ in range(self.cropper.num_samples)]
         # deep copy all the unmodified data
         for i in range(self.cropper.num_samples):
@@ -729,8 +730,7 @@ class CropForegroundd(Cropd):
 
         lazy_ = self.lazy if lazy is None else lazy
         for key, m in self.key_iterator(d, self.mode):
-            d[key] = self.cropper.crop_pad(img=d[key], box_start=box_start, box_end=box_end, mode=m,
-                                           lazy=lazy_)
+            d[key] = self.cropper.crop_pad(img=d[key], box_start=box_start, box_end=box_end, mode=m, lazy=lazy_)
         return d
 
 
@@ -778,7 +778,9 @@ class RandWeightedCropd(Randomizable, MapTransform, LazyTransform, MultiSampleTr
     def randomize(self, weight_map: NdarrayOrTensor) -> None:
         self.cropper.randomize(weight_map)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> list[dict[Hashable, torch.Tensor]]:
+    def __call__(
+        self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None
+    ) -> list[dict[Hashable, torch.Tensor]]:
         # output starts as empty list of dictionaries
         ret: list = [dict(data) for _ in range(self.cropper.num_samples)]
         # deep copy all the unmodified data
@@ -896,7 +898,9 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, LazyTransform, MultiSam
     ) -> None:
         self.cropper.randomize(label=label, fg_indices=fg_indices, bg_indices=bg_indices, image=image)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> list[dict[Hashable, torch.Tensor]]:
+    def __call__(
+        self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None
+    ) -> list[dict[Hashable, torch.Tensor]]:
         d = dict(data)
         fg_indices = d.pop(self.fg_indices_key, None)
         bg_indices = d.pop(self.bg_indices_key, None)
@@ -1025,7 +1029,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSa
             allow_smaller=allow_smaller,
             warn=warn,
             max_samples_per_class=max_samples_per_class,
-            lazy=lazy
+            lazy=lazy,
         )
 
     def set_random_state(
@@ -1094,7 +1098,7 @@ class ResizeWithPadOrCropd(Padd):
     ) -> None:
         padcropper = ResizeWithPadOrCrop(spatial_size=spatial_size, method=method, **pad_kwargs, lazy=lazy)
         super().__init__(
-            keys, padder=padcropper, mode=mode, allow_missing_keys=allow_missing_keys, lazy=lazy   # type: ignore
+            keys, padder=padcropper, mode=mode, allow_missing_keys=allow_missing_keys, lazy=lazy  # type: ignore
         )
 
 

@@ -129,7 +129,7 @@ class TestRandSpatialCropSamplesd(unittest.TestCase):
             assert_allclose(_pending_result["img"].peek_pending_affine(), expected[i]["img"].affine)
             assert_allclose(_pending_result["img"].peek_pending_shape(), expected[i]["img"].shape[1:])
             # only support nearest
-            overrides = {'mode': "nearest", 'align_corners': False}
+            overrides = {"mode": "nearest", "align_corners": False}
             result_img = apply_pending(_pending_result["img"], overrides=overrides)[0]
             result_seg = apply_pending(_pending_result["seg"], overrides=overrides)[0]
             # compare

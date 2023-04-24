@@ -27,13 +27,7 @@ from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
 from monai.transforms.inverse import TraceableTransform
 from monai.transforms.utils import convert_pad_mode, create_translate
-from monai.utils import (
-    PytorchPadMode,
-    convert_to_dst_type,
-    convert_to_numpy,
-    convert_to_tensor,
-    ensure_tuple,
-)
+from monai.utils import PytorchPadMode, convert_to_dst_type, convert_to_numpy, convert_to_tensor, ensure_tuple
 
 __all__ = ["pad_nd", "pad_func", "crop_func", "crop_or_pad_nd"]
 
@@ -156,12 +150,12 @@ def crop_or_pad_nd(img: torch.Tensor, translation_mat, spatial_size: tuple[int, 
 
 
 def pad_func(
-        img: torch.Tensor,
-        to_pad: tuple[tuple[int, int]],
-        transform_info: dict,
-        mode: str = PytorchPadMode.CONSTANT,
-        lazy: bool = False,
-        **kwargs
+    img: torch.Tensor,
+    to_pad: tuple[tuple[int, int]],
+    transform_info: dict,
+    mode: str = PytorchPadMode.CONSTANT,
+    lazy: bool = False,
+    **kwargs,
 ) -> torch.Tensor:
     """
     Functional implementation of padding a MetaTensor. This function operates eagerly or lazily according

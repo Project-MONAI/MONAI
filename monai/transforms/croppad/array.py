@@ -106,8 +106,11 @@ class Pad(InvertibleTransform, LazyTransform):
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
-        self, to_pad: tuple[tuple[int, int]] | None = None, mode: str = PytorchPadMode.CONSTANT,
-        lazy: bool = False, **kwargs
+        self,
+        to_pad: tuple[tuple[int, int]] | None = None,
+        mode: str = PytorchPadMode.CONSTANT,
+        lazy: bool = False,
+        **kwargs,
     ) -> None:
         LazyTransform.__init__(self, lazy)
         self.to_pad = to_pad
@@ -126,8 +129,12 @@ class Pad(InvertibleTransform, LazyTransform):
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
     def __call__(  # type: ignore[override]
-        self, img: torch.Tensor, to_pad: tuple[tuple[int, int]] | None = None, mode: str | None = None,
-        lazy: bool | None = None, **kwargs
+        self,
+        img: torch.Tensor,
+        to_pad: tuple[tuple[int, int]] | None = None,
+        mode: str | None = None,
+        lazy: bool | None = None,
+        **kwargs,
     ) -> torch.Tensor:
         """
         Args:
@@ -251,8 +258,7 @@ class BorderPad(Pad):
     """
 
     def __init__(
-            self, spatial_border: Sequence[int] | int, mode: str = PytorchPadMode.CONSTANT,
-            lazy: bool = False, **kwargs
+        self, spatial_border: Sequence[int] | int, mode: str = PytorchPadMode.CONSTANT, lazy: bool = False, **kwargs
     ) -> None:
         self.spatial_border = spatial_border
         super().__init__(mode=mode, lazy=lazy, **kwargs)
@@ -287,8 +293,12 @@ class DivisiblePad(Pad):
     backend = SpatialPad.backend
 
     def __init__(
-        self, k: Sequence[int] | int, mode: str = PytorchPadMode.CONSTANT, method: str = Method.SYMMETRIC,
-        lazy: bool = False, **kwargs
+        self,
+        k: Sequence[int] | int,
+        mode: str = PytorchPadMode.CONSTANT,
+        method: str = Method.SYMMETRIC,
+        lazy: bool = False,
+        **kwargs,
     ) -> None:
         """
         Args:
@@ -622,8 +632,7 @@ class RandScaleCrop(RandSpatialCrop):
         lazy: bool = False,
     ) -> None:
         super().__init__(
-            roi_size=-1, max_roi_size=None, random_center=random_center, random_size=random_size,
-            lazy=lazy
+            roi_size=-1, max_roi_size=None, random_center=random_center, random_size=random_size, lazy=lazy
         )
         self.roi_scale = roi_scale
         self.max_roi_scale = max_roi_scale
@@ -821,8 +830,13 @@ class CropForeground(Crop):
         return box_start_, box_end_
 
     def crop_pad(
-        self, img: torch.Tensor, box_start: np.ndarray, box_end: np.ndarray, mode: str | None = None,
-        lazy: bool = False, **pad_kwargs
+        self,
+        img: torch.Tensor,
+        box_start: np.ndarray,
+        box_end: np.ndarray,
+        mode: str | None = None,
+        lazy: bool = False,
+        **pad_kwargs,
     ) -> torch.Tensor:
         """
         Crop and pad based on the bounding box.
@@ -838,9 +852,7 @@ class CropForeground(Crop):
         pad_width = BorderPad(spatial_border=pad).compute_pad_width(
             cropped.peek_pending_shape() if isinstance(cropped, MetaTensor) else cropped.shape[1:]
         )
-        ret = self.padder.__call__(
-            img=cropped, to_pad=pad_width, mode=mode, lazy=lazy, **pad_kwargs
-        )
+        ret = self.padder.__call__(img=cropped, to_pad=pad_width, mode=mode, lazy=lazy, **pad_kwargs)
         # combine the traced cropping and padding into one transformation
         # by taking the padded info and placing it in a key inside the crop info.
         if get_track_meta() and isinstance(ret, MetaTensor):
@@ -902,8 +914,11 @@ class RandWeightedCrop(Randomizable, TraceableTransform, LazyTransform, MultiSam
     backend = SpatialCrop.backend
 
     def __init__(
-        self, spatial_size: Sequence[int] | int, num_samples: int = 1, weight_map: NdarrayOrTensor | None = None,
-        lazy: bool = False
+        self,
+        spatial_size: Sequence[int] | int,
+        num_samples: int = 1,
+        weight_map: NdarrayOrTensor | None = None,
+        lazy: bool = False,
     ):
         LazyTransform.__init__(self, lazy)
         self.spatial_size = ensure_tuple(spatial_size)
@@ -917,8 +932,11 @@ class RandWeightedCrop(Randomizable, TraceableTransform, LazyTransform, MultiSam
         )  # using only the first channel as weight map
 
     def __call__(
-        self, img: torch.Tensor, weight_map: NdarrayOrTensor | None = None, randomize: bool = True,
-        lazy: bool | None = None
+        self,
+        img: torch.Tensor,
+        weight_map: NdarrayOrTensor | None = None,
+        randomize: bool = True,
+        lazy: bool | None = None,
     ) -> list[torch.Tensor]:
         """
         Args:
@@ -1324,9 +1342,7 @@ class ResizeWithPadOrCrop(InvertibleTransform, LazyTransform):
         **pad_kwargs,
     ):
         LazyTransform.__init__(self, lazy)
-        self.padder = SpatialPad(
-            spatial_size=spatial_size, method=method, mode=mode, lazy=lazy, **pad_kwargs
-        )
+        self.padder = SpatialPad(spatial_size=spatial_size, method=method, mode=mode, lazy=lazy, **pad_kwargs)
         self.cropper = CenterSpatialCrop(roi_size=spatial_size, lazy=lazy)
 
     def __call__(self, img: torch.Tensor, mode: str | None = None, lazy: bool | None = None, **pad_kwargs) -> torch.Tensor:  # type: ignore
@@ -1354,8 +1370,7 @@ class ResizeWithPadOrCrop(InvertibleTransform, LazyTransform):
                 crop_info = ret_.applied_operations.pop()
                 orig_size = crop_info.get(TraceKeys.ORIG_SIZE)
                 self.push_transform(
-                    ret_, orig_size=orig_size, extra_info={"pad_info": pad_info, "crop_info": crop_info},
-                    lazy=lazy_
+                    ret_, orig_size=orig_size, extra_info={"pad_info": pad_info, "crop_info": crop_info}, lazy=lazy_
                 )
             else:
                 pad_info = ret_.pending_operations.pop()

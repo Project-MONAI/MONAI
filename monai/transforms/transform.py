@@ -28,7 +28,7 @@ from monai.data.meta_tensor import MetaTensor
 from monai.transforms.lazy.functional import execute_pending_transforms
 from monai.transforms.traits import LazyTrait, RandomizableTrait, ThreadUnsafe
 from monai.utils import MAX_SEED, ensure_tuple, first
-from monai.utils.enums import TransformBackends, LazyMode
+from monai.utils.enums import LazyMode, TransformBackends
 from monai.utils.misc import MONAIEnvVars
 
 __all__ = [
@@ -45,11 +45,11 @@ ReturnType = TypeVar("ReturnType")
 
 
 def _apply_transform(
-        transform: Callable[..., ReturnType],
-        data: Any,
-        unpack_parameters: bool = False,
-        lazy: str = LazyMode.OFF,
-        overrides: dict = None,
+    transform: Callable[..., ReturnType],
+    data: Any,
+    unpack_parameters: bool = False,
+    lazy: str = LazyMode.OFF,
+    overrides: dict = None,
 ) -> ReturnType:
     """
     Perform transformation `transform` with the provided parameters `parameters`.
@@ -121,8 +121,7 @@ def apply_transform(
     """
     try:
         if isinstance(data, (list, tuple)) and map_items:
-            return [_apply_transform(transform, item, unpack_items, lazy, overrides)
-                    for item in data]
+            return [_apply_transform(transform, item, unpack_items, lazy, overrides) for item in data]
         return _apply_transform(transform, data, unpack_items, lazy, overrides)
     except Exception as e:
         # if in debug mode, don't swallow exception so that the breakpoint

@@ -658,10 +658,10 @@ class LazyMode(StrEnum):
     'ON' indicates that all transforms capable of being executed lazily will be executed lazily
     See: :py:class: monai.transforms.compose.Compose for more details.
     """
-    OFF = 'off'
-    ENABLED = 'enabled'
-    ON = 'on'
 
+    OFF = "off"
+    ENABLED = "enabled"
+    ON = "on"
 
     @staticmethod
     def as_bool(lazy_mode):
@@ -674,8 +674,9 @@ class LazyMode(StrEnum):
         if lazy_mode == LazyMode.ENABLED:
             return None
 
-        raise ValueError("'lazy_mode' must be one of LazyMode.OFF, LazyMode.ENABLED or LazyMode.ON, "
-                         f"but is {lazy_mode}")
+        raise ValueError(
+            "'lazy_mode' must be one of LazyMode.OFF, LazyMode.ENABLED or LazyMode.ON, " f"but is {lazy_mode}"
+        )
 
 
 class BundleProperty(StrEnum):

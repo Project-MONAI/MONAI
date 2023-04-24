@@ -66,8 +66,7 @@ def _maybe_new_metatensor(img, dtype=None, device=None):
 
 
 def spatial_resample(
-    img, dst_affine, spatial_size, mode, padding_mode, align_corners, dtype_pt,
-    lazy, transform_info
+    img, dst_affine, spatial_size, mode, padding_mode, align_corners, dtype_pt, lazy, transform_info
 ) -> torch.Tensor:
     """
     Functional implementation of resampling the input image to the specified ``dst_affine`` matrix and ``spatial_size``.
@@ -257,12 +256,7 @@ def flip(img, sp_axes, lazy, transform_info):
         sp = axis - 1
         xform[sp, sp], xform[sp, -1] = xform[sp, sp] * -1, sp_size[sp] - 1
     meta_info = TraceableTransform.track_transform_meta(
-        img,
-        sp_size=sp_size,
-        affine=xform,
-        extra_info=extra_info,
-        transform_info=transform_info,
-        lazy=lazy,
+        img, sp_size=sp_size, affine=xform, extra_info=extra_info, transform_info=transform_info, lazy=lazy
     )
     out = _maybe_new_metatensor(img)
     if lazy:
@@ -271,8 +265,9 @@ def flip(img, sp_axes, lazy, transform_info):
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 
-def resize(img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma,
-           lazy, transform_info):
+def resize(
+    img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, lazy, transform_info
+):
     """
     Functional implementation of resize.
     This function operates eagerly or lazily according to
@@ -343,8 +338,7 @@ def resize(img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing,
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 
-def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype,
-           lazy, transform_info):
+def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info):
     """
     Functional implementation of rotate.
     This function operates eagerly or lazily according to
@@ -414,8 +408,7 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype,
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 
-def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype,
-         lazy, transform_info):
+def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype, lazy, transform_info):
     """
     Functional implementation of zoom.
     This function operates eagerly or lazily according to
@@ -548,8 +541,9 @@ def rotate90(img, axes, k, lazy, transform_info):
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 
-def affine_func(img, affine, grid, resampler, sp_size, mode, padding_mode, do_resampling, image_only,
-                lazy, transform_info):
+def affine_func(
+    img, affine, grid, resampler, sp_size, mode, padding_mode, do_resampling, image_only, lazy, transform_info
+):
     """
     Functional implementation of affine.
     This function operates eagerly or lazily according to

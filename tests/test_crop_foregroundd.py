@@ -195,7 +195,7 @@ class TestCropForegroundd(unittest.TestCase):
         assert_allclose(pending_result.peek_pending_affine(), expected.affine)
         assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:])
         # only support nearest
-        overrides = {'mode': "nearest", 'align_corners': align_corners}
+        overrides = {"mode": "nearest", "align_corners": align_corners}
         result = apply_pending(pending_result, overrides=overrides)[0]
         # compare
         assert_allclose(result, expected, rtol=1e-5)

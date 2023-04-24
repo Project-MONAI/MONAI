@@ -95,7 +95,7 @@ class TestRandSpatialCropd(CropTest):
                 assert_allclose(pending_result.peek_pending_affine(), expected.affine)
                 assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:])
                 # only support nearest
-                result = apply_pending(pending_result, overrides={'mode': "nearest", 'align_corners': False})[0]
+                result = apply_pending(pending_result, overrides={"mode": "nearest", "align_corners": False})[0]
                 # compare
                 assert_allclose(result, expected, rtol=1e-5)
 

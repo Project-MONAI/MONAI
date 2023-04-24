@@ -10,6 +10,8 @@
 # limitations under the License.
 
 
+from __future__ import annotations
+
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.lazy.functional import apply_pending
@@ -24,7 +26,6 @@ class ApplyPending(InvertibleTransform):
         super().__init__()
 
     def __call__(self, data, *args, **kwargs):
-
         if isinstance(data, MetaTensor):
             return apply_pending(data, *args, **kwargs)
 

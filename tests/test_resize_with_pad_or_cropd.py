@@ -80,7 +80,11 @@ class TestResizeWithPadOrCropd(unittest.TestCase):
             assert_allclose(pending_result.peek_pending_affine(), expected.affine)
             assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:])
             # only support nearest
-            overrides = {'mode': "nearest", 'padding_mode': TESTS_PENDING_MODE[input_param["mode"]], 'align_corners': True}
+            overrides = {
+                "mode": "nearest",
+                "padding_mode": TESTS_PENDING_MODE[input_param["mode"]],
+                "align_corners": True,
+            }
             result = apply_pending(pending_result, overrides=overrides)[0]
             # compare
             assert_allclose(result, expected, rtol=1e-5)

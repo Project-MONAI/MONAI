@@ -62,14 +62,7 @@ TEST_CASE_RECURSIVE_1 = [
 ]
 TEST_CASE_RECURSIVE_2 = [
     torch.randn(3, 3),
-    Compose(
-        [
-            ToNumpy(),
-            Flip(),
-            OneOf([RandAdjustContrast(prob=0.0), RandFlip(prob=1.0)], weights=[0, 1]),
-            ToTensor(),
-        ]
-    ),
+    Compose([ToNumpy(), Flip(), OneOf([RandAdjustContrast(prob=0.0), RandFlip(prob=1.0)], weights=[0, 1]), ToTensor()]),
 ]
 TEST_CASE_RECURSIVE_LIST = [
     torch.randn(3, 3),

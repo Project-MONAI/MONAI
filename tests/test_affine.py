@@ -210,7 +210,7 @@ class TestAffineConsistency(unittest.TestCase):
             xform = Affine(align_corners=ac, affine=mat, image_only=True, spatial_size=sp_size)
             xform.lazy = True
             out = xform(im)
-            overrides = {'padding_mode': "border", 'align_corners': ac}
+            overrides = {"padding_mode": "border", "align_corners": ac}
             out = apply_pending(out, overrides=overrides)[0]
             return out
 
@@ -218,7 +218,7 @@ class TestAffineConsistency(unittest.TestCase):
             xform = Affine(align_corners=ac, affine=mat, image_only=True, spatial_size=sp_size)
             xform.lazy = True
             out = xform(im)
-            overrides = {'mode': 1, 'padding_mode': "nearest", 'align_corners': ac}
+            overrides = {"mode": 1, "padding_mode": "nearest", "align_corners": ac}
             out = apply_pending(out, overrides=overrides)[0]
             return out
 

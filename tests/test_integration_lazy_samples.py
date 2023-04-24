@@ -47,7 +47,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
     # )
     lazy_kwargs = {
         "img": {"mode": "bilinear", "device": device, "padding_mode": "border", "dtype": torch.float32},
-        "seg": {"mode": 0, "device": device, "padding_mode": "nearest", "dtype": torch.uint8}
+        "seg": {"mode": 0, "device": device, "padding_mode": "nearest", "dtype": torch.uint8},
     }
     train_transforms = mt.Compose(
         [
