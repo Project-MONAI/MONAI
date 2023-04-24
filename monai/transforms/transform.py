@@ -95,7 +95,7 @@ def apply_transform(
     map_items: bool = True,
     unpack_items: bool = False,
     lazy: LazyMode | bool | None = LazyMode.OFF,
-    overrides: dict = {},
+    overrides: dict = None,
 ) -> list[ReturnType] | ReturnType:
     """
     Transform `data` with `transform`.
