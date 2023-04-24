@@ -126,8 +126,6 @@ def execute_compose(
     lazy: bool = False,
     overrides: dict | None = None,
     threading: bool = False,
-    log_stats: bool = False,
-    verbose: bool = False,
 ) -> NdarrayOrTensor | Sequence[NdarrayOrTensor] | Mapping[Any, NdarrayOrTensor]:
     """
     ``execute_compose`` provides the implementation that the ``Compose`` class uses to execute a sequence
@@ -161,10 +159,6 @@ def execute_compose(
             ``overrides`` is set, ``override_keys`` must also be set.
         threading: whether executing is happening in a threaded environment. If set, copies are made
             of transforms that have the ``RandomizedTrait`` interface.
-        log_stats: whether to log the detailed information of data and applied transform when error happened,
-            for NumPy array and PyTorch Tensor, log the data shape and value range,
-            for other metadata, log the values directly. default to `False`.
-        verbose: whether to print debugging info when lazy=True.
 
     Returns:
         A tensorlike, sequence of tensorlikes or dict of tensorlists containing the result of running
@@ -278,6 +272,22 @@ class Compose(Randomizable, InvertibleTransform):
         should ensure that you fully execute the part of the pipeline that generates the data to be cached
         before caching it. This is quite simply done however, as shown by the following example.
 
+        Lazy resampling can be enabled or disabled through the ``lazy`` parameter. This can be specified either as
+        the LazyMode enum or as an optional boolean. The modes are as follows:
+        . LazyMode.OFF / False (default): Don't perform any lazy resampling
+        . LazyMode.ENABLED / None: Perform lazy resampling based on the 'lazy' properties of the transform instances.
+        . LazyMode.ON / True: Always perform lazy resampling if possible. This will ignore the ``lazy`` properties
+          of the transform instances
+
+        If you only want some of the pipeline to be executed lazily, there are two ways to achieve this.
+
+        The first way is to set LazyMode.ENABLED on your Compose instance and specify for each transform whether you
+        want it to be lazily executed or not.
+
+        The second way is to set LazyMode.ON on your Compose instance and add ``ApplyPending`` or `ApplyPendingd`
+        transforms after the final transform in a sequence that you want to execute lazily. This can be done at multiple
+        points in the pipeline.
+
         Example:
             # run the part of the pipeline that needs to be cached
             data = self.transform(data, end=self.post_cache_index)
@@ -295,10 +305,11 @@ class Compose(Randomizable, InvertibleTransform):
             defaults to `True`.
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             defaults to `False`.
-        lazy: whether to enable lazy evaluation for lazy transforms. If False, transforms will be
-            carried out on a transform by transform basis. If True, all lazy transforms will
+        lazy: whether to enable lazy evaluation for lazy transforms. This can be either string values from the enum
+            ``LazyMode`` or an optional bool. If LazyMode.OFF, lazy execution is disabled and transforms will be
+            carried out on a transform by transform basis. If LazyMode.ON, all lazy transforms will
             be executed by accumulating changes and resampling as few times as possible.
-            A `monai.transforms.Identity[D]` transform in the pipeline will trigger the evaluation of
+            A `monai.transforms.ApplyPending[d]` transform in the pipeline will trigger the evaluation of
             the pending operations and make the primary data up-to-date.
         overrides: this optional parameter allows you to specify a dictionary of parameters that should be overridden
             when executing a pipeline. These each parameter that is compatible with a given transform is then applied
@@ -314,7 +325,7 @@ class Compose(Randomizable, InvertibleTransform):
         transforms: Sequence[Callable] | Callable | None = None,
         map_items: bool = True,
         unpack_items: bool = False,
-        lazy: str = LazyMode.OFF,
+        lazy: str | bool | None = LazyMode.OFF,
         overrides: dict | None = None,
     ) -> None:
         if transforms is None:

@@ -94,7 +94,7 @@ def apply_transform(
     data: Any,
     map_items: bool = True,
     unpack_items: bool = False,
-    lazy: LazyMode = LazyMode.OFF,
+    lazy: LazyMode | bool | None = LazyMode.OFF,
     overrides: dict = {},
 ) -> list[ReturnType] | ReturnType:
     """
@@ -110,9 +110,9 @@ def apply_transform(
         map_items: whether to apply transform to each item in `data`,
             if `data` is a list or tuple. Defaults to True.
         unpack_items: whether to unpack parameters using `*`. Defaults to False.
-        log_stats: whether to log the detailed information of data and applied transform when error happened,
-            for NumPy array and PyTorch Tensor, log the data shape and value range,
-            for other metadata, log the values directly. default to `False`.
+        lazy: whether to execute in lazy mode or not. See ``Compose`` for more information about lazy resampling.
+        overrides: optional overrides to apply to transform parameters. This parameter is ignored unless transforms
+            are being executed lazily.
 
     Raises:
         Exception: When ``transform`` raises an exception.
@@ -277,7 +277,10 @@ class LazyTransform(Transform, LazyTrait):
     dictionary transforms to simplify implementation of new lazy transforms.
     """
 
-    def __init__(self, lazy: bool = False):
+    def __init__(self, lazy: bool | None = False):
+        if lazy is not None:
+            if not isinstance(lazy, bool):
+                raise TypeError(f"lazy must be a bool but is of type {type(lazy)}")
         self._lazy = lazy
 
     @property
@@ -285,9 +288,10 @@ class LazyTransform(Transform, LazyTrait):
         return self._lazy
 
     @lazy.setter
-    def lazy(self, lazy: bool):
-        if not isinstance(lazy, bool):
-            raise TypeError(f"lazy must be a bool but is of type {type(lazy)}")
+    def lazy(self, lazy: bool | None):
+        if lazy is not None:
+            if not isinstance(lazy, bool):
+                raise TypeError(f"lazy must be a bool but is of type {type(lazy)}")
         self._lazy = lazy
 
 
