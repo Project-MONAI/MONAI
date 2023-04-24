@@ -24,7 +24,7 @@ from monai.data.meta_obj import MetaObj, get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
 from monai.transforms.traits import LazyTrait
-from monai.transforms.transform import LazyTransform, Transform
+from monai.transforms.transform import Transform
 from monai.utils import LazyAttr, MetaKeys, TraceKeys, convert_to_dst_type, convert_to_numpy, convert_to_tensor
 
 __all__ = ["TraceableTransform", "InvertibleTransform"]
