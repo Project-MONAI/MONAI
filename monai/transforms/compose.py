@@ -29,7 +29,7 @@ from monai.transforms.inverse import InvertibleTransform
 
 # For backwards compatibility (so this still works: from monai.transforms.compose import MapTransform)
 from monai.transforms.lazy.functional import execute_pending_transforms
-from monai.transforms.traits import ThreadUnsafe, LazyTrait
+from monai.transforms.traits import LazyTrait, ThreadUnsafe
 from monai.transforms.transform import (  # noqa: F401
     LazyTransform,
     MapTransform,
