@@ -30,7 +30,7 @@ __all__ = ["apply_pending"]
 __override_keywords = {"mode", "padding_mode", "dtype", "align_corners", "resample_mode", "device"}
 
 
-def execute_pending_transforms(data, overrides: dict = None):
+def execute_pending_transforms(data, overrides: dict | None = None):
     if isinstance(data, list):
         return [execute_pending_transforms(d) for d in data]
 

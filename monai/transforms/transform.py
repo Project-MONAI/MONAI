@@ -49,7 +49,7 @@ def _apply_transform(
     data: Any,
     unpack_parameters: bool = False,
     lazy: str = LazyMode.OFF,
-    overrides: dict = None,
+    overrides: dict | None = None,
 ) -> ReturnType:
     """
     Perform transformation `transform` with the provided parameters `parameters`.
@@ -95,7 +95,7 @@ def apply_transform(
     map_items: bool = True,
     unpack_items: bool = False,
     lazy: LazyMode | bool | None = LazyMode.OFF,
-    overrides: dict = None,
+    overrides: dict | None = None,
 ) -> list[ReturnType] | ReturnType:
     """
     Transform `data` with `transform`.
