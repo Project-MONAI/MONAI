@@ -58,6 +58,7 @@ train_param = (
         "num_warmup_epochs": 1,
         "use_pretrain": False,
         "pretrained_path": "",
+        "num_steps_per_image": 1,
     }
     if torch.cuda.is_available()
     else {}
@@ -112,7 +113,10 @@ class TestAutoRunner(unittest.TestCase):
     def test_autorunner(self) -> None:
         work_dir = os.path.join(self.test_path, "work_dir")
         runner = AutoRunner(
-            work_dir=work_dir, input=self.data_src_cfg, templates_path_or_url=get_testing_algo_template_path()
+            work_dir=work_dir,
+            input=self.data_src_cfg,
+            templates_path_or_url=get_testing_algo_template_path(),
+            allow_skip=False,
         )
         runner.set_training_params(train_param)  # 2 epochs
         runner.set_num_fold(1)
@@ -123,7 +127,10 @@ class TestAutoRunner(unittest.TestCase):
     def test_autorunner_ensemble(self) -> None:
         work_dir = os.path.join(self.test_path, "work_dir")
         runner = AutoRunner(
-            work_dir=work_dir, input=self.data_src_cfg, templates_path_or_url=get_testing_algo_template_path()
+            work_dir=work_dir,
+            input=self.data_src_cfg,
+            templates_path_or_url=get_testing_algo_template_path(),
+            allow_skip=False,
         )
         runner.set_training_params(train_param)  # 2 epochs
         runner.set_ensemble_method("AlgoEnsembleBestByFold")
@@ -135,7 +142,10 @@ class TestAutoRunner(unittest.TestCase):
     def test_autorunner_gpu_customization(self) -> None:
         work_dir = os.path.join(self.test_path, "work_dir")
         runner = AutoRunner(
-            work_dir=work_dir, input=self.data_src_cfg, templates_path_or_url=get_testing_algo_template_path()
+            work_dir=work_dir,
+            input=self.data_src_cfg,
+            templates_path_or_url=get_testing_algo_template_path(),
+            allow_skip=False,
         )
         gpu_customization_specs = {
             "universal": {"num_trials": 1, "range_num_images_per_batch": [1, 2], "range_num_sw_batch_size": [1, 2]}
@@ -156,6 +166,7 @@ class TestAutoRunner(unittest.TestCase):
             hpo=True,
             ensemble=False,
             templates_path_or_url=get_testing_algo_template_path(),
+            allow_skip=False,
         )
         hpo_param = {
             "num_epochs_per_validation": train_param["num_epochs_per_validation"],

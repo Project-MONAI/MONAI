@@ -23,13 +23,17 @@ import torch
 
 import monai
 import monai.transforms as mt
-from monai.data import create_test_image_3d
+from monai.data import create_test_image_3d, decollate_batch
 from monai.utils import set_determinism
 from monai.utils.enums import LazyMode
 from tests.utils import HAS_CUPY, DistTestCase, SkipIfBeforePyTorchVersion, skip_if_quick
 
 
-def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, None), num_workers=4, lazy=LazyMode.ON):
+def _no_op(x):
+    return x
+
+
+def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, None), num_workers=4, lazy=True):
     print(f"test case: {locals()}")
     images = sorted(glob(os.path.join(root_dir, "img*.nii.gz")))
     segs = sorted(glob(os.path.join(root_dir, "seg*.nii.gz")))
@@ -69,6 +73,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
             ),
             mt.ResizeWithPadOrCropD(keys=["img", "seg"], spatial_size=[80, 72, 80]),
             mt.Rotated(keys=["img", "seg"], angle=[np.pi / 2, np.pi / 2, 0], mode="nearest", keep_size=False),
+            mt.Lambdad(keys=["img"], func=_no_op),
         ],
         lazy=lazy,
         overrides=lazy_kwargs,
@@ -101,6 +106,9 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
         separate_folder=False,
         print_log=False,
     )
+    inverter = mt.Invertd(
+        keys="seg", orig_keys="img", transform=mt.Compose(train_transforms.transforms[-5:]), to_tensor=True
+    )
 
     # use batch_size=2 to load images and use RandCropByPosNegLabeld to generate 2 x 4 images for network training
     _g = torch.Generator()
@@ -113,9 +121,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
     for epoch in range(5):
         print("-" * 10)
         print(f"Epoch {epoch + 1}/5")
-        step = 0
-        for batch_data in train_loader:
-            step += 1
+        for step, batch_data in enumerate(train_loader, start=1):
             inputs, labels = batch_data["img"].to(device), batch_data["seg"].to(device)
             optimizer.zero_grad()
             outputs = model(inputs)
@@ -146,6 +152,16 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
                 saver(item)  # just testing the saving
                 saver(in_img)
                 saver(in_seg)
+    if lazy:
+        inverted = 0
+        try:
+            inverted = [inverter(b_data) for b_data in decollate_batch(batch_data)]
+        except RuntimeError as e:
+            if "Lambda" in str(e):
+                inverted = None
+        assert inverted is None, "invert LambdaD + lazy is not supported"
+    else:
+        [inverter(b_data) for b_data in decollate_batch(batch_data)]  # expecting no error
     return ops
 
 

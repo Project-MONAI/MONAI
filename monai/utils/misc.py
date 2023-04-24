@@ -72,6 +72,7 @@ __all__ = [
     "check_key_duplicates",
     "CheckKeyDuplicatesYamlLoader",
     "ConvertUnits",
+    "check_kwargs_exist_in_class_init",
 ]
 
 _seed = None
@@ -800,3 +801,23 @@ class ConvertUnits:
 
     def __call__(self, value: int | float) -> Any:
         return float(value) * self.conversion_factor
+
+
+def check_kwargs_exist_in_class_init(cls, kwargs):
+    """
+    Check if the all keys in kwargs exist in the __init__ method of the class.
+
+    Args:
+        cls: the class to check.
+        kwargs: kwargs to examine.
+
+    Returns:
+        a boolean inidicating if all keys exist.
+        a set of extra keys that are not used in the __init__.
+    """
+    init_signature = inspect.signature(cls.__init__)
+    init_params = set(init_signature.parameters) - {"self"}  # Exclude 'self' from the parameter list
+    input_kwargs = set(kwargs)
+    extra_kwargs = input_kwargs - init_params
+
+    return extra_kwargs == set(), extra_kwargs

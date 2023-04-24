@@ -138,6 +138,11 @@ class PadTest(unittest.TestCase):
             result = apply_pending(pending_result, overrides=overrides)[0]
             # compare
             assert_allclose(result, expected, rtol=1e-5)
+            if isinstance(result, MetaTensor) and not isinstance(pad_fn, MapTransform):
+                pad_fn.lazy_evaluation = False
+                inverted = pad_fn.inverse(result)
+                self.assertTrue((not inverted.pending_operations) and (not inverted.applied_operations))
+                self.assertEqual(inverted.shape, im.shape)
 
     def pad_test_combine_ops(self, funcs, input_shape, expected_shape):
         for mode in TESTS_PENDING_MODE:

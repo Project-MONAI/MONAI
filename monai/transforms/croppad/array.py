@@ -846,6 +846,18 @@ class CropForeground(Crop):
         if get_track_meta() and isinstance(ret, MetaTensor):
             if not lazy:
                 ret.applied_operations[-1][TraceKeys.EXTRA_INFO]["pad_info"] = ret.applied_operations.pop()
+            else:
+                pad_info = ret.pending_operations.pop()
+                crop_info = ret.pending_operations.pop()
+                extra = crop_info[TraceKeys.EXTRA_INFO]
+                extra["pad_info"] = pad_info
+                self.push_transform(
+                    ret,
+                    orig_size=crop_info.get(TraceKeys.ORIG_SIZE),
+                    sp_size=pad_info[LazyAttr.SHAPE],
+                    affine=crop_info[LazyAttr.AFFINE] @ pad_info[LazyAttr.AFFINE],
+                    extra_info=extra,
+                )
         return ret
 
     def __call__(  # type: ignore[override]

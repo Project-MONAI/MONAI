@@ -345,7 +345,7 @@ class Compose(Randomizable, InvertibleTransform):
             except TypeError as type_error:
                 tfm_name: str = type(_transform).__name__
                 warnings.warn(
-                    f'Transform "{tfm_name}" in Compose not randomized\n{tfm_name}.{type_error}.', RuntimeWarning
+                    f"Transform '{tfm_name}' in Compose not randomized\n{tfm_name}.{type_error}.", RuntimeWarning
                 )
 
     def get_index_of_first(self, predicate):
@@ -423,6 +423,11 @@ class Compose(Randomizable, InvertibleTransform):
 
         # loop backwards over transforms
         for t in reversed(invertible_transforms):
+            if isinstance(t, LazyTransform) and t.lazy_evaluation:
+                warnings.warn(
+                    f"inversing {t.__class__.__name__} lazily may not implemented"
+                    "please set `lazy_evaluation=False` before calling inverse."
+                )
             data = apply_transform(t.inverse, data, self.map_items, self.unpack_items)
         return data
 

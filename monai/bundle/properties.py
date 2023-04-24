@@ -159,6 +159,11 @@ InferProperties = {
         BundleProperty.REQUIRED: True,
         BundlePropertyConfig.ID: "device",
     },
+    "evaluator": {
+        BundleProperty.DESC: "inference / evaluation workflow engine.",
+        BundleProperty.REQUIRED: True,
+        BundlePropertyConfig.ID: "evaluator",
+    },
     "network_def": {
         BundleProperty.DESC: "network module for the inference.",
         BundleProperty.REQUIRED: True,

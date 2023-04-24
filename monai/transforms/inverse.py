@@ -125,9 +125,10 @@ class TraceableTransform(Transform):
                 xform = data.pending_operations.pop()
                 extra = xform.copy()
                 xform.update(transform_info)
-                meta_obj = self.push_transform(data, transform_info=xform, lazy=lazy_eval, extra_info=extra)
-                return data.copy_meta_from(meta_obj)
-            return data
+            else:  # lazy, replace=True, do_transform=False
+                xform, extra = transform_info, {}
+            meta_obj = self.push_transform(data, transform_info=xform, lazy=True, extra_info=extra)
+            return data.copy_meta_from(meta_obj)
         kwargs["lazy"] = lazy_eval
         if "transform_info" in kwargs and isinstance(kwargs["transform_info"], dict):
             kwargs["transform_info"].update(transform_info)
@@ -213,16 +214,26 @@ class TraceableTransform(Transform):
         if lazy:
             if sp_size is None:
                 if LazyAttr.SHAPE not in info:
-                    warnings.warn("spatial size is None in push transform.")
+                    info[LazyAttr.SHAPE] = info.get(TraceKeys.ORIG_SIZE, [])
             else:
-                info[LazyAttr.SHAPE] = tuple(convert_to_numpy(sp_size, wrap_sequence=True).tolist())
+                info[LazyAttr.SHAPE] = sp_size
+            info[LazyAttr.SHAPE] = tuple(convert_to_numpy(info[LazyAttr.SHAPE], wrap_sequence=True).tolist())
             if affine is None:
                 if LazyAttr.AFFINE not in info:
-                    warnings.warn("affine is None in push transform.")
+                    info[LazyAttr.AFFINE] = MetaTensor.get_default_affine()
             else:
-                info[LazyAttr.AFFINE] = convert_to_tensor(affine, device=torch.device("cpu"))
+                info[LazyAttr.AFFINE] = affine
+            info[LazyAttr.AFFINE] = convert_to_tensor(info[LazyAttr.AFFINE], device=torch.device("cpu"))
             out_obj.push_pending_operation(info)
         else:
+            if out_obj.pending_operations:
+                transform_name = info.get(TraceKeys.CLASS_NAME, "") if isinstance(info, dict) else ""
+                warnings.warn(
+                    f"Applying transform {transform_name} to a MetaTensor with pending operations "
+                    "is not supported (as this eventually changes the ordering of applied_operations when the pending "
+                    f"operations are executed). Please clear the pending operations before transform {transform_name}."
+                    f"\nPending operations: {[x.get(TraceKeys.CLASS_NAME) for x in out_obj.pending_operations]}."
+                )
             out_obj.push_applied_operation(info)
         if isinstance(data, Mapping):
             if not isinstance(data, dict):

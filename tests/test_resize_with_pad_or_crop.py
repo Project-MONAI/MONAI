@@ -90,6 +90,8 @@ class TestResizeWithPadOrCrop(unittest.TestCase):
             result = apply_pending(pending_result, overrides=overrides)[0]
             # compare
             assert_allclose(result, expected, rtol=1e-5)
+            inverted = padcropper.inverse(result)
+            self.assertEqual(inverted.shape, image.shape)
 
 
 if __name__ == "__main__":

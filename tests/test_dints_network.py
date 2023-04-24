@@ -19,7 +19,7 @@ from parameterized import parameterized
 
 from monai.networks.nets import DiNTS, TopologyInstance, TopologySearch
 from monai.networks.nets.dints import Cell
-from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
+from tests.utils import SkipIfBeforePyTorchVersion, skip_if_quick, test_script_save
 
 TEST_CASES_3D = [
     [
@@ -113,6 +113,7 @@ if torch.cuda.is_available():
     ]
 
 
+@skip_if_quick
 class TestDints(unittest.TestCase):
     @parameterized.expand(TEST_CASES_3D + TEST_CASES_2D)
     def test_dints_inference(self, dints_grid_params, dints_params, input_shape, expected_shape):
