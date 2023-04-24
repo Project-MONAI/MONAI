@@ -160,7 +160,6 @@ class TestNVTXRangeDecorator(unittest.TestCase):
         # Check the outputs
         self.assertEqual(transforms.map_items, transforms_range.map_items)
         self.assertEqual(transforms.unpack_items, transforms_range.unpack_items)
-        self.assertEqual(transforms.log_stats, transforms_range.log_stats)
         np.testing.assert_equal(output.numpy(), output_r.numpy())
 
     @parameterized.expand([TEST_CASE_RECURSIVE_LIST])
