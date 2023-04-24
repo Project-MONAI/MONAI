@@ -38,7 +38,7 @@ def execute_pending_transforms(data, overrides: dict = None):
         return tuple(execute_pending_transforms(d) for d in data)
 
     if isinstance(data, dict):
-        d = dict(data)
+        d = data
         for k, v in d.items():
             if isinstance(v, MetaTensor) and v.has_pending_operations:
                 overrides_ = None if overrides is None else overrides[k]
