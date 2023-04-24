@@ -421,7 +421,7 @@ class Compose(Randomizable, InvertibleTransform):
 
         # loop backwards over transforms
         for t in reversed(invertible_transforms):
-            if isinstance(t, LazyTransform) and t.lazy_evaluation:
+            if isinstance(t, LazyTrait) and t.lazy:
                 warnings.warn(
                     f"inversing {t.__class__.__name__} lazily may not implemented"
                     "please set `lazy_evaluation=False` before calling inverse."

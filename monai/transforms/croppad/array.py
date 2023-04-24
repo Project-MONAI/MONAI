@@ -868,6 +868,7 @@ class CropForeground(Crop):
                     orig_size=crop_info.get(TraceKeys.ORIG_SIZE),
                     sp_size=pad_info[LazyAttr.SHAPE],
                     affine=crop_info[LazyAttr.AFFINE] @ pad_info[LazyAttr.AFFINE],
+                    lazy=lazy,
                     extra_info=extra,
                 )
         return ret

@@ -82,10 +82,11 @@ def _apply_transform(
     elif lazy is LazyMode.ENABLED and transform.lazy is False:
         data = execute_pending_transforms(data, overrides)
 
+    lazy_mode = lazy if isinstance(lazy, bool) else LazyMode.as_bool(lazy)
     if isinstance(data, tuple) and unpack_parameters:
-        return transform(*data, lazy=LazyMode.as_bool(lazy)) if lazy_tx else transform(*data)
+        return transform(*data, lazy=lazy_mode) if lazy_tx else transform(*data)
 
-    return transform(data, lazy=LazyMode.as_bool(lazy)) if lazy_tx else transform(data)
+    return transform(data, lazy=lazy_mode) if lazy_tx else transform(data)
 
 
 def apply_transform(
