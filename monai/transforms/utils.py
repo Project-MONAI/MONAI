@@ -1852,64 +1852,68 @@ def _to_numpy_resample_interp_mode(interp_mode):
     ret = look_up_option(str(interp_mode), SplineMode, default=None)
     if ret is not None:
         return int(ret)
-    return look_up_option(
-        str(interp_mode),
-        {
-            InterpolateMode.NEAREST: 0,
-            InterpolateMode.NEAREST_EXACT: 0,
-            InterpolateMode.LINEAR: 1,
-            InterpolateMode.BILINEAR: 1,
-            InterpolateMode.TRILINEAR: 1,
-            InterpolateMode.BICUBIC: 3,
-            InterpolateMode.AREA: 0,
-        },
-    )
+    _mapping = {
+        InterpolateMode.NEAREST: SplineMode.ZERO,
+        InterpolateMode.NEAREST_EXACT: SplineMode.ZERO,
+        InterpolateMode.LINEAR: SplineMode.ONE,
+        InterpolateMode.BILINEAR: SplineMode.ONE,
+        InterpolateMode.TRILINEAR: SplineMode.ONE,
+        InterpolateMode.BICUBIC: SplineMode.THREE,
+        InterpolateMode.AREA: SplineMode.ZERO,
+    }
+    ret = look_up_option(str(interp_mode), _mapping, default=None)
+    if ret is not None:
+        return ret
+    return look_up_option(str(interp_mode), list(_mapping) + list(SplineMode))  # for better error msg
 
 
 def _to_torch_resample_interp_mode(interp_mode):
     ret = look_up_option(str(interp_mode), InterpolateMode, default=None)
     if ret is not None:
         return ret
-    return look_up_option(
-        str(interp_mode),
-        {
-            SplineMode.ZERO: InterpolateMode.NEAREST_EXACT if pytorch_after(1, 11) else InterpolateMode.NEAREST,
-            SplineMode.ONE: InterpolateMode.LINEAR,
-            SplineMode.THREE: InterpolateMode.BICUBIC,
-        },
-    )
+    _mapping = {
+        SplineMode.ZERO: InterpolateMode.NEAREST_EXACT if pytorch_after(1, 11) else InterpolateMode.NEAREST,
+        SplineMode.ONE: InterpolateMode.LINEAR,
+        SplineMode.THREE: InterpolateMode.BICUBIC,
+    }
+    ret = look_up_option(str(interp_mode), _mapping, default=None)
+    if ret is not None:
+        return ret
+    return look_up_option(str(interp_mode), list(_mapping) + list(InterpolateMode))
 
 
 def _to_numpy_resample_padding_mode(m):
     ret = look_up_option(str(m), NdimageMode, default=None)
     if ret is not None:
         return ret
-    return look_up_option(
-        str(m),
-        {
-            GridSamplePadMode.ZEROS: NdimageMode.CONSTANT,
-            GridSamplePadMode.BORDER: NdimageMode.NEAREST,
-            GridSamplePadMode.REFLECTION: NdimageMode.REFLECT,
-        },
-    )
+    _mapping = {
+        GridSamplePadMode.ZEROS: NdimageMode.CONSTANT,
+        GridSamplePadMode.BORDER: NdimageMode.NEAREST,
+        GridSamplePadMode.REFLECTION: NdimageMode.REFLECT,
+    }
+    ret = look_up_option(str(m), _mapping, default=None)
+    if ret is not None:
+        return ret
+    return look_up_option(str(m), list(_mapping) + list(NdimageMode))
 
 
 def _to_torch_resample_padding_mode(m):
     ret = look_up_option(str(m), GridSamplePadMode, default=None)
     if ret is not None:
         return ret
-    return look_up_option(
-        str(m),
-        {
-            NdimageMode.CONSTANT: GridSamplePadMode.ZEROS,
-            NdimageMode.GRID_CONSTANT: GridSamplePadMode.ZEROS,
-            NdimageMode.NEAREST: GridSamplePadMode.BORDER,
-            NdimageMode.REFLECT: GridSamplePadMode.REFLECTION,
-            NdimageMode.WRAP: GridSamplePadMode.REFLECTION,
-            NdimageMode.GRID_WRAP: GridSamplePadMode.REFLECTION,
-            NdimageMode.GRID_MIRROR: GridSamplePadMode.REFLECTION,
-        },
-    )
+    _mapping = {
+        NdimageMode.CONSTANT: GridSamplePadMode.ZEROS,
+        NdimageMode.GRID_CONSTANT: GridSamplePadMode.ZEROS,
+        NdimageMode.NEAREST: GridSamplePadMode.BORDER,
+        NdimageMode.REFLECT: GridSamplePadMode.REFLECTION,
+        NdimageMode.WRAP: GridSamplePadMode.REFLECTION,
+        NdimageMode.GRID_WRAP: GridSamplePadMode.REFLECTION,
+        NdimageMode.GRID_MIRROR: GridSamplePadMode.REFLECTION,
+    }
+    ret = look_up_option(str(m), _mapping, default=None)
+    if ret is not None:
+        return ret
+    return look_up_option(str(m), list(_mapping) + list(GridSamplePadMode))
 
 
 @lru_cache(None)
@@ -1945,11 +1949,11 @@ def resolves_modes(
     if str(_interp_mode).endswith("linear"):
         nd = _kwargs.pop("torch_interpolate_spatial_nd", 2)
         if nd == 1:
-            _interp_mode = "linear"
+            _interp_mode = InterpolateMode.LINEAR
         elif nd == 3:
-            _interp_mode = "trilinear"
+            _interp_mode = InterpolateMode.TRILINEAR
         else:
-            _interp_mode = "bilinear"  # torch grid_sample bilinear is trilinear in 3D
+            _interp_mode = InterpolateMode.BILINEAR  # torch grid_sample bilinear is trilinear in 3D
     if not USE_COMPILED:
         return backend, _interp_mode, _padding_mode, _kwargs
     _padding_mode = 1 if _padding_mode == "reflection" else _padding_mode
