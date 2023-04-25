@@ -145,7 +145,7 @@ class TestRotate3D(NumpyImageTestCase3D):
 
             rotate_fn = Rotate(10, keep_size=False)
             with self.assertRaises(ValueError):  # wrong mode
-                rotate_fn(p(self.imt[0]), mode="trilinear")
+                rotate_fn(p(self.imt[0]), mode="trilinear_spell_error")
 
 
 if __name__ == "__main__":
