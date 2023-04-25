@@ -95,8 +95,7 @@ class TestInvert(unittest.TestCase):
         set_determinism(seed=0)
         im_fname = make_nifti_image(create_test_image_3d(101, 100, 107, noise_max=100)[1])  # label image, discrete
         transform = Compose(
-            [LoadImage(image_only=True), EnsureChannelFirst(), Orientation("RPS"), Lambda(func=lambda x: x)],
-            lazy=True,
+            [LoadImage(image_only=True), EnsureChannelFirst(), Orientation("RPS"), Lambda(func=lambda x: x)], lazy=True
         )
         output = transform([im_fname for _ in range(2)])
         transform.inverse(output)

@@ -706,8 +706,9 @@ class CropForegroundd(Cropd):
 
         """
         if lazy is True:
-            warnings.warn("CropForegroundd cannot currently execute lazily; "
-                          "ignoring lazy=True set during initialization")
+            warnings.warn(
+                "CropForegroundd cannot currently execute lazily; " "ignoring lazy=True set during initialization"
+            )
             lazy = False
 
         self.source_key = source_key
@@ -878,8 +879,10 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, LazyTransform, MultiSam
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         if lazy is True:
-            warnings.warn("RandCropByPosNegLabeld cannot currently execute lazily; "
-                          "ignoring lazy=True set during initialization")
+            warnings.warn(
+                "RandCropByPosNegLabeld cannot currently execute lazily; "
+                "ignoring lazy=True set during initialization"
+            )
             lazy = False
         LazyTransform.__init__(self, lazy)
         self.label_key = label_key
@@ -1035,8 +1038,10 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSa
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         if lazy is True:
-            warnings.warn("RandCropByLabelClassesd cannot currently execute lazily; "
-                          "ignoring lazy=True set during initialization")
+            warnings.warn(
+                "RandCropByLabelClassesd cannot currently execute lazily; "
+                "ignoring lazy=True set during initialization"
+            )
             lazy = False
         LazyTransform.__init__(self, lazy)
         self.label_key = label_key

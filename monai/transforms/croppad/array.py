@@ -804,8 +804,9 @@ class CropForeground(Crop):
 
         """
         if lazy is True:
-            warnings.warn("CropForeground cannot currently execute lazily; "
-                          "ignoring lazy=True set during initialization")
+            warnings.warn(
+                "CropForeground cannot currently execute lazily; " "ignoring lazy=True set during initialization"
+            )
             lazy = False
         LazyTransform.__init__(self, lazy)
         self.select_fn = select_fn
@@ -1059,8 +1060,9 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
         lazy: bool = False,
     ) -> None:
         if lazy is True:
-            warnings.warn("RandCropByPosNegLabel cannot currently execute lazily; "
-                          "ignoring lazy=True set during initialization")
+            warnings.warn(
+                "RandCropByPosNegLabel cannot currently execute lazily; " "ignoring lazy=True set during initialization"
+            )
             lazy = False
         LazyTransform.__init__(self, lazy)
         self.spatial_size = spatial_size
@@ -1246,8 +1248,10 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
         lazy: bool = False,
     ) -> None:
         if lazy is True:
-            warnings.warn("RandCropByLabelClasses cannot currently execute lazily; "
-                          "ignoring lazy=True set during initialization")
+            warnings.warn(
+                "RandCropByLabelClasses cannot currently execute lazily; "
+                "ignoring lazy=True set during initialization"
+            )
             lazy = False
         LazyTransform.__init__(self, lazy)
         self.spatial_size = spatial_size
