@@ -1919,6 +1919,8 @@ def resolves_modes(
     """
     Automatically adjust the resampling interpolation mode and padding mode,
     so that they are compatible with the corresponding API of the `backend`.
+    Depending on the availability of the backends, when there's no exact
+    equivalent, a similar mode is returned.
 
     Args:
         interp_mode: interpolation mode.
