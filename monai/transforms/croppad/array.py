@@ -397,7 +397,7 @@ class Crop(InvertibleTransform, LazyTransform):
 
     def __call__(
         self, img: torch.Tensor, slices: tuple[slice, ...], lazy: bool | None = None
-    ) -> torch.Tensor:  # type: ignore[override]
+    ) -> Any:  # type: ignore[override]
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
@@ -1350,7 +1350,7 @@ class ResizeWithPadOrCrop(InvertibleTransform, LazyTransform):
 
     def __call__(
         self, img: torch.Tensor, mode: str | None = None, lazy: bool | None = None, **pad_kwargs
-    ) -> torch.Tensor:  # type: ignore
+    ) -> Any:  # type: ignore
         """
         Args:
             img: data to pad or crop, assuming `img` is channel-first and

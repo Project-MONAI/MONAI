@@ -79,7 +79,7 @@ def _apply_transform(
 
     if lazy_tx is False or lazy == LazyMode.OFF:
         data = execute_pending_transforms(data, overrides)
-    elif lazy is LazyMode.ENABLED and transform.lazy is False:
+    elif lazy is LazyMode.ENABLED and transform.lazy is False:  # ignore[attr-defined]
         data = execute_pending_transforms(data, overrides)
 
     lazy_mode = lazy if isinstance(lazy, bool) or lazy is None else LazyMode.as_bool(lazy)
