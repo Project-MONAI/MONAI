@@ -22,7 +22,6 @@ from typing import Any
 import numpy as np
 
 import monai
-import monai.transforms as mt
 from monai.apps.utils import get_logger
 from monai.config import NdarrayOrTensor
 from monai.transforms.inverse import InvertibleTransform
@@ -38,7 +37,7 @@ from monai.transforms.transform import (  # noqa: F401
     Transform,
     apply_transform,
 )
-from monai.utils import MAX_SEED, TraceKeys, ensure_tuple, get_seed, to_tuple_of_dictionaries
+from monai.utils import MAX_SEED, TraceKeys, ensure_tuple, get_seed
 from monai.utils.enums import LazyMode
 
 logger = get_logger(__name__)
