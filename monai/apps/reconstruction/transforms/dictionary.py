@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import warnings
-
 from collections.abc import Hashable, Mapping, Sequence
 
 import numpy as np
