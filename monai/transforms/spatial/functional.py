@@ -183,7 +183,7 @@ def spatial_resample(
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out  # type: ignore
 
 
-def orientation(img, original_affine, spatial_ornt, lazy, transform_info):
+def orientation(img, original_affine, spatial_ornt, lazy, transform_info) -> torch.Tensor:
     """
     Functional implementation of changing the input image's orientation into the specified based on `spatial_ornt`.
     This function operates eagerly or lazily according to
@@ -221,12 +221,12 @@ def orientation(img, original_affine, spatial_ornt, lazy, transform_info):
     )
     out = _maybe_new_metatensor(img)
     if lazy:
-        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info  # type: ignore
     if axes:
         out = torch.flip(out, dims=axes)
     if not np.all(full_transpose == np.arange(len(out.shape))):
         out = out.permute(full_transpose.tolist())
-    return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+    return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out  # type: ignore
 
 
 def flip(img, sp_axes, lazy, transform_info):

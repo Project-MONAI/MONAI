@@ -577,7 +577,9 @@ class Orientation(InvertibleTransform, LazyTransform):
         self.labels = labels
         self.lazy = lazy
 
-    def __call__(self, data_array: torch.Tensor, lazy: bool | None = None) -> torch.Tensor:
+    def __call__(
+            self, data_array: torch.Tensor, lazy: bool | None = None
+    ) -> torch.Tensor:
         """
         If input type is `MetaTensor`, original affine is extracted with `data_array.affine`.
         If input type is `torch.Tensor`, original affine is assumed to be identity.
@@ -634,7 +636,7 @@ class Orientation(InvertibleTransform, LazyTransform):
         lazy_ = self.lazy if lazy is None else lazy
         return orientation(
             data_array, affine_np, spatial_ornt, lazy=lazy_, transform_info=self.get_transform_info()
-        )  # type: ignore
+        )  # type: ignore[no-any-return]
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(data)

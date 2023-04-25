@@ -395,9 +395,9 @@ class Crop(InvertibleTransform, LazyTransform):
                 [slice(int(s), int(e)) for s, e in zip(roi_start_t.tolist(), roi_end_t.tolist())]
             )
 
-    def __call__(
+    def __call__(  # type: ignore[override]
         self, img: torch.Tensor, slices: tuple[slice, ...], lazy: bool | None = None
-    ) -> Any:  # type: ignore[override]
+    ) -> torch.Tensor:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
@@ -1348,9 +1348,9 @@ class ResizeWithPadOrCrop(InvertibleTransform, LazyTransform):
         self.padder = SpatialPad(spatial_size=spatial_size, method=method, mode=mode, lazy=lazy, **pad_kwargs)
         self.cropper = CenterSpatialCrop(roi_size=spatial_size, lazy=lazy)
 
-    def __call__(
+    def __call__(  # type: ignore[override]
         self, img: torch.Tensor, mode: str | None = None, lazy: bool | None = None, **pad_kwargs
-    ) -> Any:  # type: ignore
+    ) -> torch.Tensor:
         """
         Args:
             img: data to pad or crop, assuming `img` is channel-first and
