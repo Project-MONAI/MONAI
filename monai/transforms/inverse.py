@@ -222,12 +222,18 @@ class TraceableTransform(Transform):
         else:
             if out_obj.pending_operations:
                 transform_name = info.get(TraceKeys.CLASS_NAME, "") if isinstance(info, dict) else ""
-                warnings.warn(
+                msg = (
                     f"Applying transform {transform_name} to a MetaTensor with pending operations "
                     "is not supported (as this eventually changes the ordering of applied_operations when the pending "
                     f"operations are executed). Please clear the pending operations before transform {transform_name}."
                     f"\nPending operations: {[x.get(TraceKeys.CLASS_NAME) for x in out_obj.pending_operations]}."
                 )
+                pend = out_obj.pending_operations[-1]
+                if not isinstance(pend.get(TraceKeys.EXTRA_INFO), dict):
+                    pend[TraceKeys.EXTRA_INFO] = dict(pend.get(TraceKeys.EXTRA_INFO, {}))
+                if not isinstance(info.get(TraceKeys.EXTRA_INFO), dict):
+                    info[TraceKeys.EXTRA_INFO] = dict(info.get(TraceKeys.EXTRA_INFO, {}))
+                info[TraceKeys.EXTRA_INFO]["warn"] = pend[TraceKeys.EXTRA_INFO]["warn"] = msg
             out_obj.push_applied_operation(info)
         if isinstance(data, Mapping):
             if not isinstance(data, dict):
@@ -251,6 +257,9 @@ class TraceableTransform(Transform):
         if xform_id == TraceKeys.NONE:
             return
         xform_name = transform.get(TraceKeys.CLASS_NAME, "")
+        warning_msg = transform.get(TraceKeys.EXTRA_INFO, {}).get("warn")
+        if warning_msg:
+            warnings.warn(warning_msg)
         # basic check if multiprocessing uses 'spawn' (objects get recreated so don't have same ID)
         if torch.multiprocessing.get_start_method() in ("spawn", None) and xform_name == self.__class__.__name__:
             return
