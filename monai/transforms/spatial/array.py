@@ -1868,6 +1868,7 @@ class Resample(Transform):
             self.mode if mode is None else mode,
             self.padding_mode if padding_mode is None else padding_mode,
             backend=None,
+            use_compiled=USE_COMPILED,
         )
 
         if USE_COMPILED or backend == TransformBackends.NUMPY:

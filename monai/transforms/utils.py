@@ -24,7 +24,7 @@ import numpy as np
 import torch
 
 import monai
-from monai.config import USE_COMPILED, DtypeLike, IndexSelection
+from monai.config import DtypeLike, IndexSelection
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 from monai.networks.layers import GaussianFilter
 from monai.networks.utils import meshgrid_ij
@@ -1931,7 +1931,8 @@ def resolves_modes(
         padding_mdoe: padding mode.
         backend: optional backend of `TransformBackends`. If None, the backend will be decided from `interp_mode`.
         kwargs: additional keyword arguments. currently support ``torch_interpolate_spatial_nd``, to provide
-            additional information to determine ``linear``, ``bilinear`` and ``trilinear``.
+            additional information to determine ``linear``, ``bilinear`` and ``trilinear``;
+            ``use_compiled`` to use MONAI's precompiled backend (pytorch c++ extensions), default to ``False``.
     """
     _interp_mode, _padding_mode, _kwargs = None, None, (kwargs or {}).copy()
     if backend is None:  # infer backend
@@ -1954,7 +1955,7 @@ def resolves_modes(
             _interp_mode = InterpolateMode.TRILINEAR
         else:
             _interp_mode = InterpolateMode.BILINEAR  # torch grid_sample bilinear is trilinear in 3D
-    if not USE_COMPILED:
+    if not _kwargs.pop("use_compiled", False):
         return backend, _interp_mode, _padding_mode, _kwargs
     _padding_mode = 1 if _padding_mode == "reflection" else _padding_mode
     if _interp_mode == "bicubic":

@@ -172,7 +172,7 @@ def spatial_resample(
         with affine_xform.trace_transform(False):
             img = affine_xform(img, mode=mode, padding_mode=padding_mode)
     else:
-        _, _m, _p, _ = resolves_modes(mode, padding_mode, backend=None)  # auto backend
+        _, _m, _p, _ = resolves_modes(mode, padding_mode)
         affine_xform = AffineTransform(  # type: ignore
             normalized=False, mode=_m, padding_mode=_p, align_corners=align_corners, reverse_indexing=True
         )
