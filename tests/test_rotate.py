@@ -31,6 +31,7 @@ for p in TEST_NDARRAYS_ALL:
     TEST_CASES_2D.append((p, -np.pi / 4.5, True, "nearest", "border" if USE_COMPILED else "reflection", False))
     TEST_CASES_2D.append((p, np.pi, False, "nearest", "zeros", False))
     TEST_CASES_2D.append((p, -np.pi / 2, False, "bilinear", "zeros", True))
+    TEST_CASES_2D.append((p, -np.pi / 2, False, 1, "constant", True))
 
 TEST_CASES_3D: list[tuple] = []
 for p in TEST_NDARRAYS_ALL:
@@ -39,6 +40,7 @@ for p in TEST_NDARRAYS_ALL:
     TEST_CASES_3D.append((p, -np.pi / 4.5, True, "nearest", "border" if USE_COMPILED else "reflection", False))
     TEST_CASES_3D.append((p, np.pi, False, "nearest", "zeros", False))
     TEST_CASES_3D.append((p, -np.pi / 2, False, "bilinear", "zeros", False))
+    TEST_CASES_3D.append((p, -np.pi / 2, False, 1, "zeros", False))
 
 TEST_CASES_SHAPE_3D: list[tuple] = []
 for p in TEST_NDARRAYS_ALL:

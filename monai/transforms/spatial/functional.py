@@ -32,7 +32,7 @@ from monai.networks.layers import AffineTransform
 from monai.transforms.croppad.array import ResizeWithPadOrCrop
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import TraceableTransform
-from monai.transforms.utils import create_rotate, create_translate, scale_affine
+from monai.transforms.utils import create_rotate, create_translate, resolves_modes, scale_affine
 from monai.transforms.utils_pytorch_numpy_unification import allclose
 from monai.utils import (
     LazyAttr,
@@ -172,8 +172,9 @@ def spatial_resample(
         with affine_xform.trace_transform(False):
             img = affine_xform(img, mode=mode, padding_mode=padding_mode)
     else:
+        _, _m, _p, _ = resolves_modes(mode, padding_mode, backend=None)  # auto backend
         affine_xform = AffineTransform(  # type: ignore
-            normalized=False, mode=mode, padding_mode=padding_mode, align_corners=align_corners, reverse_indexing=True
+            normalized=False, mode=_m, padding_mode=_p, align_corners=align_corners, reverse_indexing=True
         )
         img = affine_xform(img.unsqueeze(0), theta=xform.to(img), spatial_size=spatial_size).squeeze(0)  # type: ignore
     if additional_dims:
@@ -331,8 +332,9 @@ def resize(img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing,
                 anti_aliasing_sigma[axis] = anti_aliasing_sigma[axis] * int(factors[axis] > 1)
         anti_aliasing_filter = GaussianSmooth(sigma=anti_aliasing_sigma)
         img_ = convert_to_tensor(anti_aliasing_filter(img_), track_meta=False)
+    _, _m, _, _ = resolves_modes(mode, torch_interpolate_spatial_nd=len(img_.shape) - 1)
     resized = torch.nn.functional.interpolate(
-        input=img_.unsqueeze(0), size=out_size, mode=mode, align_corners=align_corners
+        input=img_.unsqueeze(0), size=out_size, mode=_m, align_corners=align_corners
     )
     out, *_ = convert_to_dst_type(resized.squeeze(0), out, dtype=torch.float32)
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
@@ -396,8 +398,9 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, t
     out = _maybe_new_metatensor(img)
     if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+    _, _m, _p, _ = resolves_modes(mode, padding_mode)
     xform = AffineTransform(
-        normalized=False, mode=mode, padding_mode=padding_mode, align_corners=align_corners, reverse_indexing=True
+        normalized=False, mode=_m, padding_mode=_p, align_corners=align_corners, reverse_indexing=True
     )
     img_t = out.to(dtype)
     transform_t, *_ = convert_to_dst_type(transform, img_t)
@@ -468,11 +471,12 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype,
     if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     img_t = out.to(dtype)
+    _, _m, _, _ = resolves_modes(mode, torch_interpolate_spatial_nd=len(img_t.shape) - 1)
     zoomed: NdarrayOrTensor = torch.nn.functional.interpolate(
         recompute_scale_factor=True,
         input=img_t.unsqueeze(0),
         scale_factor=list(scale_factor),
-        mode=mode,
+        mode=_m,
         align_corners=align_corners,
     ).squeeze(0)
     out, *_ = convert_to_dst_type(zoomed, dst=out, dtype=torch.float32)
