@@ -48,7 +48,7 @@ def _apply_transform(
     transform: Callable[..., ReturnType],
     data: Any,
     unpack_parameters: bool = False,
-    lazy: str = LazyMode.OFF,
+    lazy: str | bool | None = LazyMode.OFF,
     overrides: dict | None = None,
 ) -> ReturnType:
     """
