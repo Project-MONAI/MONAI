@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+import warnings
+
 from collections.abc import Hashable, Mapping, Sequence
 
 import numpy as np
@@ -213,10 +215,10 @@ class ReferenceBasedSpatialCropd(Cropd):
     """
 
     def __init__(self, keys: KeysCollection, ref_key: str, allow_missing_keys: bool = False) -> None:
-        super().__init__(keys, cropper=None, allow_missing_keys=allow_missing_keys)  # type: ignore
+        super().__init__(keys, cropper=None, allow_missing_keys=allow_missing_keys, lazy=False)  # type: ignore
         self.ref_key = ref_key
 
-    def __call__(self, data: Mapping[Hashable, Tensor]) -> dict[Hashable, Tensor]:
+    def __call__(self, data: Mapping[Hashable, Tensor], lazy: bool | None) -> dict[Hashable, Tensor]:
         """
         This transform can support to crop ND spatial (channel-first) data.
         It also supports pseudo ND spatial data (e.g., (C,H,W) is a pseudo-3D
@@ -229,6 +231,9 @@ class ReferenceBasedSpatialCropd(Cropd):
         Returns:
             the new data dictionary
         """
+        if lazy is True:
+            warnings.warn(f"RandRotateBox90d cannot be executed lazily; ignoring lazy=True")
+
         d = dict(data)
 
         # compute roi_size according to self.ref_key

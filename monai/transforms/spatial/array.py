@@ -1743,7 +1743,7 @@ class RandAffineGrid(Randomizable, LazyTransform):
         scale_range: RandRange = None,
         device: torch.device | None = None,
         dtype: DtypeLike = np.float32,
-        lazy: bool = None,
+        lazy: bool = False,
     ) -> None:
         """
         Args:

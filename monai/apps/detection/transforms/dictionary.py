@@ -17,6 +17,8 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 from __future__ import annotations
 
+import warnings
+
 from collections.abc import Hashable, Mapping, Sequence
 from copy import deepcopy
 from typing import Any
@@ -1307,6 +1309,7 @@ class RandRotateBox90d(RandRotate90d):
         spatial_axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
             Default: (0, 1), this is the first two axis in spatial dimensions.
         allow_missing_keys: don't raise exception if key is missing.
+        lazy:
     """
 
     backend = RotateBox90.backend
@@ -1326,7 +1329,10 @@ class RandRotateBox90d(RandRotate90d):
         super().__init__(self.image_keys + self.box_keys, prob, max_k, spatial_axes, allow_missing_keys)
         self.box_ref_image_keys = ensure_tuple_rep(box_ref_image_keys, len(self.box_keys))
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Mapping[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> Mapping[Hashable, torch.Tensor]:
+        if lazy is True:
+            warnings.warn(f"RandRotateBox90d cannot be executed lazily; ignoring lazy=True")
+
         self.randomize()
         d = dict(data)
 

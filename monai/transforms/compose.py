@@ -123,7 +123,7 @@ def execute_compose(
     unpack_items: bool = False,
     start: int = 0,
     end: int | None = None,
-    lazy: bool = False,
+    lazy: str | bool | None = False,
     overrides: dict | None = None,
     threading: bool = False,
 ) -> NdarrayOrTensor | Sequence[NdarrayOrTensor] | Mapping[Any, NdarrayOrTensor]:

@@ -94,7 +94,7 @@ def apply_transform(
     data: Any,
     map_items: bool = True,
     unpack_items: bool = False,
-    lazy: LazyMode | bool | None = LazyMode.OFF,
+    lazy: str | bool | None = LazyMode.OFF,
     overrides: dict | None = None,
 ) -> list[ReturnType] | ReturnType:
     """
