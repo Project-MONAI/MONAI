@@ -46,8 +46,6 @@ logger = get_logger(__name__)
 __all__ = ["Compose", "OneOf", "RandomOrder", "SomeOf"]
 
 
-
-
 def execute_compose(
     data: NdarrayOrTensor | Sequence[NdarrayOrTensor] | Mapping[Any, NdarrayOrTensor],
     transforms: Sequence[Any],

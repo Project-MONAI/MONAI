@@ -217,9 +217,7 @@ class ReferenceBasedSpatialCropd(Cropd):
         super().__init__(keys, cropper=None, allow_missing_keys=allow_missing_keys, lazy=False)  # type: ignore
         self.ref_key = ref_key
 
-    def __call__(
-            self, data: Mapping[Hashable, Tensor], lazy: bool | None = None
-    ) -> dict[Hashable, Tensor]:
+    def __call__(self, data: Mapping[Hashable, Tensor], lazy: bool | None = None) -> dict[Hashable, Tensor]:
         """
         This transform can support to crop ND spatial (channel-first) data.
         It also supports pseudo ND spatial data (e.g., (C,H,W) is a pseudo-3D
