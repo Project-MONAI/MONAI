@@ -231,7 +231,7 @@ class ReferenceBasedSpatialCropd(Cropd):
             the new data dictionary
         """
         if lazy is True:
-            warnings.warn("RandRotateBox90d cannot be executed lazily; ignoring lazy=True")
+            warnings.warn("ReferenceBasedSpatialCropd cannot currently execute lazily; ignoring lazy=True")
 
         d = dict(data)
 

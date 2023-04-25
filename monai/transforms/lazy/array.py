@@ -17,9 +17,15 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.lazy.functional import apply_pending
 
 
+__all__ = ["ApplyPending"]
+
 class ApplyPending(InvertibleTransform):
     """
-    Apply wraps the apply_pending method and can function as a Transform in an array-based pipeline.
+    ApplyPending can be inserted into a pipeline that is being executed lazily in order to ensure
+    resampling happens before the next transform. If passed a ``MetaTensor`` that has pending
+    transforms, it executes those pending transforms and returns the resampled ``MetaTensor`` instance.
+
+    See ``Compose`` for a detailed explanation of the lazy resampling feature.
     """
 
     def __init__(self):

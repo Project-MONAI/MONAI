@@ -19,8 +19,13 @@ from monai.transforms.lazy.functional import apply_pending
 
 class ApplyPendingd(InvertibleTransform):
     """
-    Apply wraps the apply method and can function as a Transform in either array or dictionary
-    mode.
+    ApplyPendingd can be inserted into a pipeline that is being executed lazily in order
+    to ensure resampling happens before the next transform. When called, it will check the
+    keys specified by `self.keys` and, if the value at that key is a ``MetaTensor`` instance,
+    it will execute all pending transforms on that value, inserting the transformed ``MetaTensor``
+    at that key location.
+
+    See ``Compose`` for a detailed explanation of the lazy resampling feature.
     """
 
     def __init__(self, keys):

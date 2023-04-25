@@ -1332,8 +1332,7 @@ class RandRotateBox90d(RandRotate90d):
         self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None
     ) -> Mapping[Hashable, torch.Tensor]:
         if lazy is True:
-            warnings.warn("RandRotateBox90d cannot be executed lazily; ignoring lazy=True")
-
+            warnings.warn("RandRotateBox90d cannot currently execute lazily; ignoring lazy=True")
         self.randomize()
         d = dict(data)
 
