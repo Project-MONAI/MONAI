@@ -27,7 +27,7 @@ from monai.config import NdarrayOrTensor
 from monai.transforms.inverse import InvertibleTransform
 
 # For backwards compatibility (so this still works: from monai.transforms.compose import MapTransform)
-from monai.transforms.lazy.functional import execute_pending_transforms
+from monai.transforms.lazy.functional import apply_pending_transforms
 from monai.transforms.traits import LazyTrait, ThreadUnsafe
 from monai.transforms.transform import (  # noqa: F401
     LazyTransform,
@@ -55,7 +55,7 @@ def execute_compose(
     lazy: str | bool | None = False,
     overrides: dict | None = None,
     threading: bool = False,
-    logger_name: str = "monai.transforms.compose.execute_compose",
+    logger_name: str | None = None,
 ) -> NdarrayOrTensor | Sequence[NdarrayOrTensor] | Mapping[Any, NdarrayOrTensor]:
     """
     ``execute_compose`` provides the implementation that the ``Compose`` class uses to execute a sequence
@@ -114,7 +114,7 @@ def execute_compose(
         data = apply_transform(
             _transform, data, map_items, unpack_items, lazy=lazy, overrides=overrides, logger_name=logger_name
         )
-    data = execute_pending_transforms(data, overrides, logger_name=logger_name)
+    data = apply_pending_transforms(data, overrides, logger_name=logger_name)
     return data
 
 
@@ -254,6 +254,8 @@ class Compose(Randomizable, InvertibleTransform):
             currently supported args are:
             {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``},
             please see also :py:func:`monai.transforms.lazy.apply_transforms` for more details.
+        logger_name: this optional parameter allows you to specify a logger by name. If this is not set
+            it defaults to 'Compose'
     """
 
     def __init__(
@@ -263,7 +265,7 @@ class Compose(Randomizable, InvertibleTransform):
         unpack_items: bool = False,
         lazy: bool | None = False,
         overrides: dict | None = None,
-        logger_name: str = "monai.transforms.compose.Compose",
+        logger_name: str | None = None,
     ) -> None:
         if transforms is None:
             transforms = []
@@ -273,7 +275,7 @@ class Compose(Randomizable, InvertibleTransform):
         self.set_random_state(seed=get_seed())
         self.lazy = lazy
         self.overrides = overrides
-        self.logger_name = logger_name
+        self.logger_name = self.__class__.__name__ if logger_name is None else logger_name
 
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> Compose:
         super().set_random_state(seed=seed, state=state)

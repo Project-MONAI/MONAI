@@ -25,7 +25,7 @@ import torch
 from monai import config, transforms
 from monai.config import KeysCollection
 from monai.data.meta_tensor import MetaTensor
-from monai.transforms.lazy.functional import execute_pending_transforms
+from monai.transforms.lazy.functional import apply_pending_transforms
 from monai.transforms.traits import LazyTrait, RandomizableTrait, ThreadUnsafe
 from monai.utils import MAX_SEED, ensure_tuple, first
 from monai.utils.enums import TransformBackends
@@ -78,9 +78,9 @@ def _apply_transform(
     lazy_tx = isinstance(transform, LazyTrait)
 
     if lazy_tx is False or lazy == False:
-        data = execute_pending_transforms(data, overrides)
+        data = apply_pending_transforms(data, overrides)
     elif lazy is None and transform.lazy is False:  # type: ignore[attr-defined]
-        data = execute_pending_transforms(data, overrides)
+        data = apply_pending_transforms(data, overrides)
 
     if isinstance(data, tuple) and unpack_parameters:
         return transform(*data, lazy=lazy) if lazy_tx else transform(*data)

@@ -25,19 +25,40 @@ from monai.transforms.lazy.utils import (
 )
 from monai.utils import LazyAttr, look_up_option
 
-__all__ = ["apply_pending", "execute_pending_transforms"]
+__all__ = ["apply_pending", "apply_pending_transforms"]
 
 __override_keywords = {"mode", "padding_mode", "dtype", "align_corners", "resample_mode", "device"}
 
 
-def execute_pending_transforms(
-        data, overrides: dict | None = None, logger_name: str = "monai.lazy.functional.execute_pending_transforms"
+def apply_pending_transforms(
+        data, overrides: dict | None = None, logger_name: str = "monai.lazy.functional.apply_pending_transforms"
     ):
+    """
+    apply_pending_transforms iterates over a tuple, list, or dictionary of data, recursively calling itself
+    to get a single tensor. If that tensor is a MetaTensor with pending lazy transforms, it then calls
+    ``apply_pending_to_tensor`` on each element to perform the executing of the pending transforms.
+
+    This method optionally takes a set of overrides that can be used to change specific parameters on the
+    transform pipeline. See ``Compose`` for more details. This method takes a logger_name that can be used
+    to override the default logger, to provide telemetry during the execution of pending transforms.
+
+    This method is intended primarily for use by ``execute_compose`` and other methods that handle the
+    underlying execution of transform pipelines. You should not need to use it in the general case, unless
+    you are developing functionality to perform such operations.
+
+    Args:
+        data: a ``torch.Tensor`` or ``MetaTensor``, or list, tuple or dictionary of tensors.
+        overrides: An optional dictionary that specifies parameters that can be used to override transform
+            arguments when they are called
+        logger_name: An optional name for a logger to be used instead of the default logger.
+    Returns:
+
+    """
     if isinstance(data, list):
-        return [execute_pending_transforms(d, logger_name=logger_name) for d in data]
+        return [apply_pending_transforms(d, logger_name=logger_name) for d in data]
 
     if isinstance(data, tuple):
-        return tuple(execute_pending_transforms(d, logger_name=logger_name) for d in data)
+        return tuple(apply_pending_transforms(d, logger_name=logger_name) for d in data)
 
     if isinstance(data, dict):
         d = data
@@ -61,7 +82,27 @@ def apply_pending(
 ):
     """
     This method applies pending transforms to `data` tensors.
-    Currently, only 2d and 3d input are supported.
+    Currently, only 2d and 3d inputs are supported.
+
+    This method is designed to be called by ``apply_pending_transforms`` and other methods / classes
+    that are part of the implementation of lazy resampling. In general, you should not need to tall
+    this method unless you are directly developing custom lazy execution strategies.
+
+    It works by calculating the overall effect of the accumulated pending transforms. When it runs
+    out of pending transforms or when it finds incompatibilities between the accumulated pending
+    transform and the next pending transform, it then applies the accumulated transform in a call to
+    '`resample``.
+
+    Pending transforms are incompatible with each other if one or more of the arguments in the pending
+    transforms differ. These are parameters such as 'mode', 'padding_mode', 'dtype' and so forth. If
+    a pending transform doesn't have a given parameter, it is considered compatible with the
+    accumulated transform. If a subsequent transform has a parameter that is incompatible with
+    the accumulated transform (e.g. 'mode' of 'bilinear' vs. 'mode' of 'nearest'), an intermediate
+    resample will be performed and the accumulated transform reset to its starting state.
+
+    After resampling, the pending transforms are pushed to the ``applied_transforms`` field of the
+    resulting MetaTensor. Note, if a torch.tensor is passed to this method along with a list of
+    pending transforms, the resampled tensor will be wrapped in a MetaTensor before being returned.
 
     Args:
         data: A torch Tensor or a monai MetaTensor.
