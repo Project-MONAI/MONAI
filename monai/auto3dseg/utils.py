@@ -355,11 +355,13 @@ def algo_from_pickle(pkl_filename: str, template_path: PathLike | None = None, *
                 sys.path.append(p)
                 algo = pickle.loads(algo_bytes)
                 break
-            except ModuleNotFoundError:
+            except ModuleNotFoundError as not_found_err:
                 logging.debug(f"Folder {p} doesn't contain the Algo templates for Algo instantiation.")
                 sys.path.pop()
                 if i == len(template_paths_candidates) - 1:
-                    raise ValueError(f"Failed to instantiate {pkl_filename} with {template_paths_candidates}")
+                    raise ValueError(
+                        f"Failed to instantiate {pkl_filename} with {template_paths_candidates}"
+                    ) from not_found_err
         algo.template_path = p
 
     if os.path.abspath(pkl_dir) != os.path.abspath(algo.get_output_path()):
