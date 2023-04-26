@@ -16,6 +16,7 @@ from typing import Any
 import torch
 
 from monai.data.meta_tensor import MetaTensor
+from monai.data.utils import to_affine_nd
 from monai.transforms.lazy.utils import (
     affine_from_pending,
     combine_transforms,
@@ -78,6 +79,9 @@ def apply_transforms(
         return data, []
 
     cumulative_xform = affine_from_pending(pending[0])
+    if cumulative_xform.shape[0] == 3:
+        cumulative_xform = to_affine_nd(3, cumulative_xform)
+
     cur_kwargs = kwargs_from_pending(pending[0])
     override_kwargs: dict[str, Any] = {}
     if "mode" in overrides:
@@ -100,6 +104,8 @@ def apply_transforms(
             _cur_kwargs.update(override_kwargs)
             data = resample(data.to(device), cumulative_xform, _cur_kwargs)
         next_matrix = affine_from_pending(p)
+        if next_matrix.shape[0] == 3:
+            next_matrix = to_affine_nd(3, next_matrix)
         cumulative_xform = combine_transforms(cumulative_xform, next_matrix)
         cur_kwargs.update(new_kwargs)
     cur_kwargs.update(override_kwargs)
