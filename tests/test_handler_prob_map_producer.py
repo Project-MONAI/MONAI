@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import unittest
 
@@ -49,7 +51,6 @@ class TestDataset(Dataset):
         ]
 
     def __getitem__(self, index):
-
         image = np.ones((3, 2, 2)) * index
         metadata = {
             ProbMapKeys.COUNT.value: self.data[index][ProbMapKeys.COUNT.value],

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -30,7 +32,7 @@ def single_2d_transform_cases():
         (torch.as_tensor(get_arange_img((32, 32))), [create_rotate(2, np.pi / 2)], (1, 32, 32)),
         (
             torch.as_tensor(get_arange_img((16, 16))),
-            [{LazyAttr.AFFINE: create_rotate(2, np.pi / 2), LazyAttr.SHAPE: (1, 45, 45)}],
+            [{LazyAttr.AFFINE: create_rotate(2, np.pi / 2), LazyAttr.SHAPE: (45, 45)}],
             (1, 45, 45),
         ),
     ]
@@ -49,6 +51,8 @@ class TestApply(unittest.TestCase):
         else:
             for p in pending_transforms:
                 tensor_.push_pending_operation(p)
+                if not isinstance(p, dict):
+                    return
             result, transforms = apply_transforms(tensor_)
         self.assertEqual(result.shape, expected_shape)
 

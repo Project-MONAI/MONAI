@@ -43,7 +43,7 @@ class Trainer(Workflow):
 
     """
 
-    def run(self) -> None:
+    def run(self) -> None:  # type: ignore[override]
         """
         Execute training based on Ignite Engine.
         If call this function multiple times, it will continuously run from the previous state.
@@ -151,7 +151,7 @@ class SupervisedTrainer(Trainer):
         metric_cmp_fn: Callable = default_metric_cmp_fn,
         train_handlers: Sequence | None = None,
         amp: bool = False,
-        event_names: list[str | EventEnum] | None = None,
+        event_names: list[str | EventEnum | type[EventEnum]] | None = None,
         event_to_attr: dict | None = None,
         decollate: bool = True,
         optim_set_to_none: bool = False,
@@ -185,7 +185,7 @@ class SupervisedTrainer(Trainer):
         self.inferer = SimpleInferer() if inferer is None else inferer
         self.optim_set_to_none = optim_set_to_none
 
-    def _iteration(self, engine: SupervisedTrainer, batchdata: dict[str, torch.Tensor]):
+    def _iteration(self, engine: SupervisedTrainer, batchdata: dict[str, torch.Tensor]) -> dict:
         """
         Callback function for the Supervised Training processing logic of 1 iteration in Ignite Engine.
         Return below items in a dictionary:

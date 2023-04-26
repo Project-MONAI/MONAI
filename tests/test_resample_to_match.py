@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import itertools
 import os
 import random
@@ -19,12 +21,15 @@ import unittest
 
 import nibabel as nib
 import numpy as np
+import torch
 from parameterized import parameterized
 
+from monai.data import MetaTensor
 from monai.data.image_reader import ITKReader, NibabelReader
 from monai.data.image_writer import ITKWriter
-from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, ResampleToMatch, SaveImaged
+from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, ResampleToMatch, SaveImage, SaveImaged
 from monai.utils import optional_import
+from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.utils import assert_allclose, download_url_or_skip_test, testing_data_config
 
 _, has_itk = optional_import("itk", allow_namespace_pkg=True)
@@ -63,8 +68,13 @@ class TestResampleToMatch(unittest.TestCase):
     def test_correct(self, reader, writer):
         loader = Compose([LoadImaged(("im1", "im2"), reader=reader), EnsureChannelFirstd(("im1", "im2"))])
         data = loader({"im1": self.fnames[0], "im2": self.fnames[1]})
+        tr = ResampleToMatch()
+        im_mod = tr(data["im2"], data["im1"])
 
-        im_mod = ResampleToMatch()(data["im2"], data["im1"])
+        # check lazy resample
+        call_param = {"img": data["im2"], "img_dst": data["im1"]}
+        test_resampler_lazy(tr, im_mod, init_param={}, call_param=call_param)
+
         saver = SaveImaged(
             "im3", output_dir=self.tmpdir, output_postfix="", separate_folder=False, writer=writer, resample=False
         )
@@ -76,7 +86,7 @@ class TestResampleToMatch(unittest.TestCase):
         assert_allclose(saved.header["dim"][:4], np.array([3, 384, 384, 19]))
 
     def test_inverse(self):
-        loader = Compose([LoadImaged(("im1", "im2")), EnsureChannelFirstd(("im1", "im2"))])
+        loader = Compose([LoadImaged(("im1", "im2"), image_only=True), EnsureChannelFirstd(("im1", "im2"))])
         data = loader({"im1": self.fnames[0], "im2": self.fnames[1]})
         tr = ResampleToMatch()
         im_mod = tr(data["im2"], data["im1"])
@@ -87,6 +97,13 @@ class TestResampleToMatch(unittest.TestCase):
         self.assertEqual(im_mod2.shape, data["im2"].shape)
         self.assertLess(((im_mod2.affine - data["im2"].affine) ** 2).sum() ** 0.5, 1e-2)
         self.assertEqual(im_mod2.applied_operations, [])
+
+    def test_no_name(self):
+        img_1 = MetaTensor(torch.zeros(1, 2, 2, 2))
+        img_2 = MetaTensor(torch.zeros(1, 3, 3, 3))
+        im_mod = ResampleToMatch()(img_1, img_2)
+        self.assertEqual(im_mod.meta["filename_or_obj"], "resample_to_match_source")
+        SaveImage(output_dir=self.tmpdir, output_postfix="", separate_folder=False, resample=False)(im_mod)
 
 
 if __name__ == "__main__":

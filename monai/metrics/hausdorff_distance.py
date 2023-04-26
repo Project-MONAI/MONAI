@@ -9,8 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
-from typing import Optional, Union
+from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 import torch
@@ -20,9 +23,9 @@ from monai.metrics.utils import (
     get_mask_edges,
     get_surface_distance,
     ignore_background,
-    is_binary_tensor,
+    prepare_spacing,
 )
-from monai.utils import MetricReduction
+from monai.utils import MetricReduction, convert_data_type
 
 from .metric import CumulativeIterationMetric
 
@@ -62,9 +65,9 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
         self,
         include_background: bool = False,
         distance_metric: str = "euclidean",
-        percentile: Optional[float] = None,
+        percentile: float | None = None,
         directed: bool = False,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        reduction: MetricReduction | str = MetricReduction.MEAN,
         get_not_nans: bool = False,
     ) -> None:
         super().__init__()
@@ -75,7 +78,7 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor, **kwargs: Any) -> torch.Tensor:  # type: ignore[override]
         """
         Args:
             y_pred: input data to compute, typical segmentation model output.
@@ -83,17 +86,24 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
                 should be binarized.
             y: ground truth to compute the distance. It must be one-hot format and first dim is batch.
                 The values should be binarized.
+            kwargs: additional parameters, e.g. ``spacing`` should be passed to correctly compute the metric.
+                ``spacing``: spacing of pixel (or voxel). This parameter is relevant only
+                if ``distance_metric`` is set to ``"euclidean"``.
+                If a single number, isotropic spacing with that value is used for all images in the batch. If a sequence of numbers,
+                the length of the sequence must be equal to the image dimensions.
+                This spacing will be used for all images in the batch.
+                If a sequence of sequences, the length of the outer sequence must be equal to the batch size.
+                If inner sequence has length 1, isotropic spacing with that value is used for all images in the batch,
+                else the inner sequence length must be equal to the image dimensions. If ``None``, spacing of unity is used
+                for all images in batch. Defaults to ``None``.
 
         Raises:
-            ValueError: when `y` is not a binarized tensor.
             ValueError: when `y_pred` has less than three dimensions.
         """
-        is_binary_tensor(y_pred, "y_pred")
-        is_binary_tensor(y, "y")
-
         dims = y_pred.ndimension()
         if dims < 3:
             raise ValueError("y_pred should have at least three dimensions.")
+
         # compute (BxC) for each channel for each batch
         return compute_hausdorff_distance(
             y_pred=y_pred,
@@ -102,9 +112,12 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
             distance_metric=self.distance_metric,
             percentile=self.percentile,
             directed=self.directed,
+            spacing=kwargs.get("spacing"),
         )
 
-    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):
+    def aggregate(
+        self, reduction: MetricReduction | str | None = None
+    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """
         Execute reduction logic for the output of `compute_hausdorff_distance`.
 
@@ -124,13 +137,14 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
 
 
 def compute_hausdorff_distance(
-    y_pred: Union[np.ndarray, torch.Tensor],
-    y: Union[np.ndarray, torch.Tensor],
+    y_pred: np.ndarray | torch.Tensor,
+    y: np.ndarray | torch.Tensor,
     include_background: bool = False,
     distance_metric: str = "euclidean",
-    percentile: Optional[float] = None,
+    percentile: float | None = None,
     directed: bool = False,
-):
+    spacing: int | float | np.ndarray | Sequence[int | float | np.ndarray | Sequence[int | float]] | None = None,
+) -> torch.Tensor:
     """
     Compute the Hausdorff distance.
 
@@ -148,20 +162,29 @@ def compute_hausdorff_distance(
             percentile of the Hausdorff Distance rather than the maximum result will be achieved.
             Defaults to ``None``.
         directed: whether to calculate directed Hausdorff distance. Defaults to ``False``.
+        spacing: spacing of pixel (or voxel). This parameter is relevant only if ``distance_metric`` is set to ``"euclidean"``.
+            If a single number, isotropic spacing with that value is used for all images in the batch. If a sequence of numbers,
+            the length of the sequence must be equal to the image dimensions. This spacing will be used for all images in the batch.
+            If a sequence of sequences, the length of the outer sequence must be equal to the batch size.
+            If inner sequence has length 1, isotropic spacing with that value is used for all images in the batch,
+            else the inner sequence length must be equal to the image dimensions. If ``None``, spacing of unity is used
+            for all images in batch. Defaults to ``None``.
     """
 
     if not include_background:
         y_pred, y = ignore_background(y_pred=y_pred, y=y)
-    if isinstance(y, torch.Tensor):
-        y = y.float()
-    if isinstance(y_pred, torch.Tensor):
-        y_pred = y_pred.float()
+    y_pred = convert_data_type(y_pred, output_type=torch.Tensor, dtype=torch.float)[0]
+    y = convert_data_type(y, output_type=torch.Tensor, dtype=torch.float)[0]
 
     if y.shape != y_pred.shape:
         raise ValueError(f"y_pred and y should have same shapes, got {y_pred.shape} and {y.shape}.")
 
     batch_size, n_class = y_pred.shape[:2]
     hd = np.empty((batch_size, n_class))
+
+    img_dim = y_pred.ndim - 2
+    spacing_list = prepare_spacing(spacing=spacing, batch_size=batch_size, img_dim=img_dim)
+
     for b, c in np.ndindex(batch_size, n_class):
         (edges_pred, edges_gt) = get_mask_edges(y_pred[b, c], y[b, c])
         if not np.any(edges_gt):
@@ -169,31 +192,39 @@ def compute_hausdorff_distance(
         if not np.any(edges_pred):
             warnings.warn(f"the prediction of class {c} is all 0, this may result in nan/inf distance.")
 
-        distance_1 = compute_percent_hausdorff_distance(edges_pred, edges_gt, distance_metric, percentile)
+        distance_1 = compute_percent_hausdorff_distance(
+            edges_pred, edges_gt, distance_metric, percentile, spacing_list[b]
+        )
         if directed:
             hd[b, c] = distance_1
         else:
-            distance_2 = compute_percent_hausdorff_distance(edges_gt, edges_pred, distance_metric, percentile)
+            distance_2 = compute_percent_hausdorff_distance(
+                edges_gt, edges_pred, distance_metric, percentile, spacing_list[b]
+            )
             hd[b, c] = max(distance_1, distance_2)
-    return torch.from_numpy(hd)
+    return convert_data_type(hd, output_type=torch.Tensor, device=y_pred.device, dtype=torch.float)[0]
 
 
 def compute_percent_hausdorff_distance(
-    edges_pred: np.ndarray, edges_gt: np.ndarray, distance_metric: str = "euclidean", percentile: Optional[float] = None
-):
+    edges_pred: np.ndarray,
+    edges_gt: np.ndarray,
+    distance_metric: str = "euclidean",
+    percentile: float | None = None,
+    spacing: int | float | np.ndarray | Sequence[int | float] | None = None,
+) -> float:
     """
     This function is used to compute the directed Hausdorff distance.
     """
 
-    surface_distance = get_surface_distance(edges_pred, edges_gt, distance_metric=distance_metric)
+    surface_distance = get_surface_distance(edges_pred, edges_gt, distance_metric=distance_metric, spacing=spacing)
 
     # for both pred and gt do not have foreground
     if surface_distance.shape == (0,):
         return np.nan
 
     if not percentile:
-        return surface_distance.max()
+        return surface_distance.max()  # type: ignore[no-any-return]
 
     if 0 <= percentile <= 100:
-        return np.percentile(surface_distance, percentile)
+        return np.percentile(surface_distance, percentile)  # type: ignore[no-any-return]
     raise ValueError(f"percentile should be a value between 0 and 100, get {percentile}.")

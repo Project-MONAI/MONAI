@@ -53,9 +53,10 @@ Metrics
 
 `Mean Dice`
 -----------
-.. autofunction:: compute_meandice
-
 .. autoclass:: DiceMetric
+    :members:
+
+.. autoclass:: DiceHelper
     :members:
 
 `Mean IoU`
@@ -143,6 +144,16 @@ Metrics
 `Cumulative average`
 --------------------
 .. autoclass:: CumulativeAverage
+    :members:
+
+`Metrics reloaded binary`
+-------------------------
+.. autoclass:: MetricsReloadedBinary
+    :members:
+
+`Metrics reloaded categorical`
+------------------------------
+.. autoclass:: MetricsReloadedCategorical
     :members:
 
 Utilities

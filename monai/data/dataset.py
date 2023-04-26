@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import collections.abc
 import math
 import pickle
@@ -18,11 +20,12 @@ import tempfile
 import threading
 import time
 import warnings
+from collections.abc import Callable, Sequence
 from copy import copy, deepcopy
 from multiprocessing.managers import ListProxy
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Union
+from typing import IO, TYPE_CHECKING, Any, cast
 
 import numpy as np
 import torch
@@ -36,13 +39,12 @@ from monai.transforms import (
     Compose,
     Randomizable,
     RandomizableTrait,
-    ThreadUnsafe,
     Transform,
     apply_transform,
     convert_to_contiguous,
     reset_ops_id,
 )
-from monai.utils import MAX_SEED, deprecated_arg, get_seed, look_up_option, min_version, optional_import
+from monai.utils import MAX_SEED, get_seed, look_up_option, min_version, optional_import
 from monai.utils.misc import first
 
 if TYPE_CHECKING:
@@ -72,7 +74,7 @@ class Dataset(_TorchDataset):
          },                           },                           }]
     """
 
-    def __init__(self, data: Sequence, transform: Optional[Callable] = None) -> None:
+    def __init__(self, data: Sequence, transform: Callable | None = None) -> None:
         """
         Args:
             data: input data to load and transform to generate dataset for model.
@@ -92,7 +94,7 @@ class Dataset(_TorchDataset):
         data_i = self.data[index]
         return apply_transform(self.transform, data_i) if self.transform is not None else data_i
 
-    def __getitem__(self, index: Union[int, slice, Sequence[int]]):
+    def __getitem__(self, index: int | slice | Sequence[int]):
         """
         Returns a `Subset` if `index` is a slice or Sequence, a data item otherwise.
         """
@@ -143,7 +145,7 @@ class DatasetFunc(Dataset):
         self.kwargs = kwargs
         self.reset()
 
-    def reset(self, data: Optional[Any] = None, func: Optional[Callable] = None, **kwargs):
+    def reset(self, data: Any | None = None, func: Callable | None = None, **kwargs):
         """
         Reset the dataset items with specified `func`.
 
@@ -206,17 +208,22 @@ class PersistentDataset(Dataset):
         not guaranteed, so caution should be used when modifying transforms to avoid unexpected
         errors. If in doubt, it is advisable to clear the cache directory.
 
+    Lazy Resampling:
+        If you make use of the lazy resampling feature of `monai.transforms.Compose`, please refer to
+        its documentation to familiarize yourself with the interaction between `PersistentDataset` and
+        lazy resampling.
+
     """
 
     def __init__(
         self,
         data: Sequence,
-        transform: Union[Sequence[Callable], Callable],
-        cache_dir: Optional[Union[Path, str]],
+        transform: Sequence[Callable] | Callable,
+        cache_dir: Path | str | None,
         hash_func: Callable[..., bytes] = pickle_hashing,
         pickle_module: str = "pickle",
         pickle_protocol: int = DEFAULT_PROTOCOL,
-        hash_transform: Optional[Callable[..., bytes]] = None,
+        hash_transform: Callable[..., bytes] | None = None,
         reset_ops_id: bool = True,
     ) -> None:
         """
@@ -313,13 +320,15 @@ class PersistentDataset(Dataset):
             random transform object
 
         """
-        for _transform in self.transform.transforms:
-            # execute all the deterministic transforms
-            if isinstance(_transform, RandomizableTrait) or not isinstance(_transform, Transform):
-                break
-            # this is to be consistent with CacheDataset even though it's not in a multi-thread situation.
-            _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
-            item_transformed = apply_transform(_xform, item_transformed)
+        if not isinstance(self.transform, Compose):
+            raise ValueError("transform must be an instance of monai.transforms.Compose.")
+
+        first_random = self.transform.get_index_of_first(
+            lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
+        )
+
+        item_transformed = self.transform(item_transformed, end=first_random, threading=True)
+
         if self.reset_ops_id:
             reset_ops_id(item_transformed)
         return item_transformed
@@ -337,15 +346,12 @@ class PersistentDataset(Dataset):
         """
         if not isinstance(self.transform, Compose):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
-        start_post_randomize_run = False
-        for _transform in self.transform.transforms:
-            if (
-                start_post_randomize_run
-                or isinstance(_transform, RandomizableTrait)
-                or not isinstance(_transform, Transform)
-            ):
-                start_post_randomize_run = True
-                item_transformed = apply_transform(_transform, item_transformed)
+
+        first_random = self.transform.get_index_of_first(
+            lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
+        )
+        if first_random is not None:
+            item_transformed = self.transform(item_transformed, start=first_random)
         return item_transformed
 
     def _cachecheck(self, item_transformed):
@@ -420,13 +426,13 @@ class CacheNTransDataset(PersistentDataset):
     def __init__(
         self,
         data: Sequence,
-        transform: Union[Sequence[Callable], Callable],
+        transform: Sequence[Callable] | Callable,
         cache_n_trans: int,
-        cache_dir: Optional[Union[Path, str]],
+        cache_dir: Path | str | None,
         hash_func: Callable[..., bytes] = pickle_hashing,
         pickle_module: str = "pickle",
         pickle_protocol: int = DEFAULT_PROTOCOL,
-        hash_transform: Optional[Callable[..., bytes]] = None,
+        hash_transform: Callable[..., bytes] | None = None,
         reset_ops_id: bool = True,
     ) -> None:
         """
@@ -489,11 +495,9 @@ class CacheNTransDataset(PersistentDataset):
         """
         if not isinstance(self.transform, Compose):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
-        for i, _transform in enumerate(self.transform.transforms):
-            if i == self.cache_n_trans:
-                break
-            _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
-            item_transformed = apply_transform(_xform, item_transformed)
+
+        item_transformed = self.transform(item_transformed, end=self.cache_n_trans, threading=True)
+
         reset_ops_id(item_transformed)
         return item_transformed
 
@@ -509,10 +513,8 @@ class CacheNTransDataset(PersistentDataset):
         """
         if not isinstance(self.transform, Compose):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
-        for i, _transform in enumerate(self.transform.transforms):
-            if i >= self.cache_n_trans:
-                item_transformed = apply_transform(_transform, item_transformed)
-        return item_transformed
+
+        return self.transform(item_transformed, start=self.cache_n_trans)
 
 
 class LMDBDataset(PersistentDataset):
@@ -534,15 +536,15 @@ class LMDBDataset(PersistentDataset):
     def __init__(
         self,
         data: Sequence,
-        transform: Union[Sequence[Callable], Callable],
-        cache_dir: Union[Path, str] = "cache",
+        transform: Sequence[Callable] | Callable,
+        cache_dir: Path | str = "cache",
         hash_func: Callable[..., bytes] = pickle_hashing,
         db_name: str = "monai_cache",
         progress: bool = True,
         pickle_protocol=pickle.HIGHEST_PROTOCOL,
-        hash_transform: Optional[Callable[..., bytes]] = None,
+        hash_transform: Callable[..., bytes] | None = None,
         reset_ops_id: bool = True,
-        lmdb_kwargs: Optional[dict] = None,
+        lmdb_kwargs: dict | None = None,
     ) -> None:
         """
         Args:
@@ -589,7 +591,7 @@ class LMDBDataset(PersistentDataset):
             self.lmdb_kwargs["map_size"] = 1024**4  # default map_size
         # lmdb is single-writer multi-reader by default
         # the cache is created without multi-threading
-        self._read_env: Optional[Any] = None
+        self._read_env: Any | None = None
         # this runs on the primary thread/process
         self._fill_cache_start_reader(show_progress=self.progress)
         print(f"Accessing lmdb file: {self.db_file.absolute()}.")
@@ -737,21 +739,26 @@ class CacheDataset(Dataset):
         So to debug or verify the program before real training, users can set `cache_rate=0.0` or `cache_num=0` to
         temporarily skip caching.
 
+    Lazy Resampling:
+        If you make use of the lazy resampling feature of `monai.transforms.Compose`, please refer to
+        its documentation to familiarize yourself with the interaction between `CacheDataset` and
+        lazy resampling.
+
     """
 
     def __init__(
         self,
         data: Sequence,
-        transform: Optional[Union[Sequence[Callable], Callable]] = None,
+        transform: Sequence[Callable] | Callable | None = None,
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
-        num_workers: Optional[int] = 1,
+        num_workers: int | None = 1,
         progress: bool = True,
         copy_cache: bool = True,
         as_contiguous: bool = True,
         hash_as_key: bool = False,
         hash_func: Callable[..., bytes] = pickle_hashing,
-        runtime_cache: Union[bool, str, List, ListProxy] = False,
+        runtime_cache: bool | str | list | ListProxy = False,
     ) -> None:
         """
         Args:
@@ -809,8 +816,8 @@ class CacheDataset(Dataset):
             self.num_workers = max(int(self.num_workers), 1)
         self.runtime_cache = runtime_cache
         self.cache_num = 0
-        self._cache: Union[List, ListProxy] = []
-        self._hash_keys: List = []
+        self._cache: list | ListProxy = []
+        self._hash_keys: list = []
         self.set_data(data)
 
     def set_data(self, data: Sequence) -> None:
@@ -850,7 +857,7 @@ class CacheDataset(Dataset):
         self._cache = self.runtime_cache  # type: ignore
         return
 
-    def _fill_cache(self, indices=None) -> List:
+    def _fill_cache(self, indices=None) -> list:
         """
         Compute and fill the cache content from data source.
 
@@ -876,12 +883,12 @@ class CacheDataset(Dataset):
             idx: the index of the input data sequence.
         """
         item = self.data[idx]
-        for _transform in self.transform.transforms:
-            # execute all the deterministic transforms
-            if isinstance(_transform, RandomizableTrait) or not isinstance(_transform, Transform):
-                break
-            _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
-            item = apply_transform(_xform, item)
+
+        first_random = self.transform.get_index_of_first(
+            lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
+        )
+        item = self.transform(item, end=first_random, threading=True)
+
         if self.as_contiguous:
             item = convert_to_contiguous(item, memory_format=torch.contiguous_format)
         return item
@@ -908,17 +915,16 @@ class CacheDataset(Dataset):
             data = self._cache[cache_index] = self._load_cache_item(cache_index)
 
         # load data from cache and execute from the first random transform
-        start_run = False
         if not isinstance(self.transform, Compose):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
-        for _transform in self.transform.transforms:
-            if start_run or isinstance(_transform, RandomizableTrait) or not isinstance(_transform, Transform):
-                # only need to deep copy data on first non-deterministic transform
-                if not start_run:
-                    start_run = True
-                    if self.copy_cache:
-                        data = deepcopy(data)
-                data = apply_transform(_transform, data)
+
+        first_random = self.transform.get_index_of_first(
+            lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
+        )
+        if first_random is not None:
+            data = deepcopy(data) if self.copy_cache is True else data
+            data = self.transform(data, start=first_random)
+
         return data
 
 
@@ -993,18 +999,17 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
             it may help improve the performance of following logic.
         runtime_cache: Default to `False`, other options are not implemented yet.
-
     """
 
     def __init__(
         self,
         data: Sequence,
-        transform: Optional[Union[Sequence[Callable], Callable]] = None,
+        transform: Sequence[Callable] | Callable | None = None,
         replace_rate: float = 0.1,
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
-        num_init_workers: Optional[int] = 1,
-        num_replace_workers: Optional[int] = 1,
+        num_init_workers: int | None = 1,
+        num_replace_workers: int | None = 1,
         progress: bool = True,
         shuffle: bool = True,
         seed: int = 0,
@@ -1020,7 +1025,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         self._update_lock: threading.Lock = threading.Lock()
         self._round: int = 1
         self._replace_done: bool = False
-        self._replace_mgr: Optional[threading.Thread] = None
+        self._replace_mgr: threading.Thread | None = None
         if runtime_cache is not False:
             raise NotImplementedError("Options other than `runtime_cache=False` is not implemented yet.")
 
@@ -1044,14 +1049,14 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         if replace_rate <= 0:
             raise ValueError("replace_rate must be greater than 0, otherwise, please use monai.data.CacheDataset.")
 
-        self.num_replace_workers: Optional[int] = num_replace_workers
+        self.num_replace_workers: int | None = num_replace_workers
         if self.num_replace_workers is not None:
             self.num_replace_workers = max(int(self.num_replace_workers), 1)
 
         self._total_num: int = len(data)
         self._replace_num: int = min(math.ceil(self.cache_num * replace_rate), len(data) - self.cache_num)
-        self._replacements: List[Any] = [None for _ in range(self._replace_num)]
-        self._replace_data_idx: List[int] = list(range(self._replace_num))
+        self._replacements: list[Any] = [None for _ in range(self._replace_num)]
+        self._replace_data_idx: list[int] = list(range(self._replace_num))
         self._compute_data_idx()
 
     def set_data(self, data: Sequence):
@@ -1250,7 +1255,7 @@ class ZipDataset(Dataset):
 
     """
 
-    def __init__(self, datasets: Sequence, transform: Optional[Callable] = None) -> None:
+    def __init__(self, datasets: Sequence, transform: Callable | None = None) -> None:
         """
         Args:
             datasets: list of datasets to zip together.
@@ -1327,11 +1332,11 @@ class ArrayDataset(Randomizable, _TorchDataset):
     def __init__(
         self,
         img: Sequence,
-        img_transform: Optional[Callable] = None,
-        seg: Optional[Sequence] = None,
-        seg_transform: Optional[Callable] = None,
-        labels: Optional[Sequence] = None,
-        label_transform: Optional[Callable] = None,
+        img_transform: Callable | None = None,
+        seg: Sequence | None = None,
+        seg_transform: Callable | None = None,
+        labels: Sequence | None = None,
+        label_transform: Callable | None = None,
     ) -> None:
         """
         Initializes the dataset with the filename lists. The transform `img_transform` is applied
@@ -1356,7 +1361,7 @@ class ArrayDataset(Randomizable, _TorchDataset):
     def __len__(self) -> int:
         return len(self.dataset)
 
-    def randomize(self, data: Optional[Any] = None) -> None:
+    def randomize(self, data: Any | None = None) -> None:
         self._seed = self.R.randint(MAX_SEED, dtype="uint32")
 
     def __getitem__(self, index: int):
@@ -1390,17 +1395,17 @@ class NPZDictItemDataset(Dataset):
 
     def __init__(
         self,
-        npzfile: Union[str, IO],
-        keys: Dict[str, str],
-        transform: Optional[Callable[..., Dict[str, Any]]] = None,
-        other_keys: Optional[Sequence[str]] = (),
+        npzfile: str | IO,
+        keys: dict[str, str],
+        transform: Callable[..., dict[str, Any]] | None = None,
+        other_keys: Sequence[str] | None = (),
     ):
-        self.npzfile: Union[str, IO] = npzfile if isinstance(npzfile, str) else "STREAM"
-        self.keys: Dict[str, str] = dict(keys)
+        self.npzfile: str | IO = npzfile if isinstance(npzfile, str) else "STREAM"
+        self.keys: dict[str, str] = dict(keys)
         dat = np.load(npzfile)
 
         self.arrays = {storedk: dat[datak] for datak, storedk in self.keys.items()}
-        self.length = self.arrays[first(self.keys.values())].shape[0]
+        self.length = self.arrays[cast(str, first(self.keys.values()))].shape[0]
 
         self.other_keys = {} if other_keys is None else {k: dat[k] for k in other_keys}
 
@@ -1480,20 +1485,19 @@ class CSVDataset(Dataset):
 
     """
 
-    @deprecated_arg(name="filename", new_name="src", since="0.8", msg_suffix="please use `src` instead.")
     def __init__(
         self,
-        src: Optional[Union[str, Sequence[str]]] = None,  # also can be `DataFrame` or a sequence of `DataFrame`
-        row_indices: Optional[Sequence[Union[int, str]]] = None,
-        col_names: Optional[Sequence[str]] = None,
-        col_types: Optional[Dict[str, Optional[Dict[str, Any]]]] = None,
-        col_groups: Optional[Dict[str, Sequence[str]]] = None,
-        transform: Optional[Callable] = None,
-        kwargs_read_csv: Optional[Dict] = None,
+        src: str | Sequence[str] | None = None,  # also can be `DataFrame` or a sequence of `DataFrame`
+        row_indices: Sequence[int | str] | None = None,
+        col_names: Sequence[str] | None = None,
+        col_types: dict[str, dict[str, Any] | None] | None = None,
+        col_groups: dict[str, Sequence[str]] | None = None,
+        transform: Callable | None = None,
+        kwargs_read_csv: dict | None = None,
         **kwargs,
     ):
         srcs = (src,) if not isinstance(src, (tuple, list)) else src
-        dfs: List = []
+        dfs: list = []
         for i in srcs:
             if isinstance(i, str):
                 dfs.append(pd.read_csv(i, **kwargs_read_csv) if kwargs_read_csv else pd.read_csv(i))
@@ -1501,9 +1505,6 @@ class CSVDataset(Dataset):
                 dfs.append(i)
             else:
                 raise ValueError("`src` must be file path or pandas `DataFrame`.")
-
-        # in case treating deprecated arg `filename` as kwargs, remove it from `kwargs`
-        kwargs.pop("filename", None)
 
         data = convert_tables_to_dicts(
             dfs=dfs, row_indices=row_indices, col_names=col_names, col_types=col_types, col_groups=col_groups, **kwargs

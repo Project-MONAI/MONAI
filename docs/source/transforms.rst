@@ -88,6 +88,26 @@ Generic Interfaces
 .. autoclass:: RandomOrder
     :members:
 
+`SomeOf`
+^^^^^^^^^^^^^
+.. autoclass:: SomeOf
+    :members:
+
+Functionals
+-----------
+
+Crop and Pad (functional)
+^^^^^^^^^^^^^^^^^^^^^^^^^
+.. automodule:: monai.transforms.croppad.functional
+    :members:
+
+Spatial (functional)
+^^^^^^^^^^^^^^^^^^^^
+.. automodule:: monai.transforms.spatial.functional
+    :members:
+
+.. currentmodule:: monai.transforms
+
 Vanilla Transforms
 ------------------
 
@@ -1134,6 +1154,17 @@ Utility
     :members:
     :special-members: __call__
 
+`ImageFilter`
+"""""""""""""
+.. autoclass:: ImageFilter
+    :members:
+    :special-members: __call__
+
+`RandImageFilter`
+"""""""""""""""""
+.. autoclass:: RandImageFilter
+    :members:
+    :special-members: __call__
 
 Dictionary Transforms
 ---------------------
@@ -2124,6 +2155,19 @@ Utility (Dict)
     :members:
     :special-members: __call__
 
+`ImageFilterd`
+""""""""""""""
+.. autoclass:: ImageFilterd
+    :members:
+    :special-members: __call__
+
+`RandImageFilterd`
+""""""""""""""""""
+.. autoclass:: RandImageFilterd
+    :members:
+    :special-members: __call__
+
+
 MetaTensor
 ^^^^^^^^^^
 
@@ -2167,3 +2211,9 @@ Utilities
 
 .. automodule:: monai.transforms.utils_pytorch_numpy_unification
     :members:
+
+Lazy
+----
+.. automodule:: monai.transforms.lazy
+    :members:
+    :imported-members:

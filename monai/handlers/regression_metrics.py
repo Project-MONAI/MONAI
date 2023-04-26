@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Union
+from __future__ import annotations
+
+from collections.abc import Callable
 
 from monai.handlers.ignite_metric import IgniteMetric
 from monai.metrics import MAEMetric, MSEMetric, PSNRMetric, RMSEMetric
@@ -23,7 +25,7 @@ class MeanSquaredError(IgniteMetric):
 
     def __init__(
         self,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        reduction: MetricReduction | str = MetricReduction.MEAN,
         output_transform: Callable = lambda x: x,
         save_details: bool = True,
     ) -> None:
@@ -56,7 +58,7 @@ class MeanAbsoluteError(IgniteMetric):
 
     def __init__(
         self,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        reduction: MetricReduction | str = MetricReduction.MEAN,
         output_transform: Callable = lambda x: x,
         save_details: bool = True,
     ) -> None:
@@ -89,7 +91,7 @@ class RootMeanSquaredError(IgniteMetric):
 
     def __init__(
         self,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        reduction: MetricReduction | str = MetricReduction.MEAN,
         output_transform: Callable = lambda x: x,
         save_details: bool = True,
     ) -> None:
@@ -122,8 +124,8 @@ class PeakSignalToNoiseRatio(IgniteMetric):
 
     def __init__(
         self,
-        max_val: Union[int, float],
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        max_val: int | float,
+        reduction: MetricReduction | str = MetricReduction.MEAN,
         output_transform: Callable = lambda x: x,
         save_details: bool = True,
     ) -> None:

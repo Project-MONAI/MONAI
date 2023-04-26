@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 from functools import partial
 
@@ -64,7 +66,6 @@ class TestHandlerRegressionMetrics(unittest.TestCase):
 
         # iterate over all variations and check shapes for different reduction functions
         for mt_fn, mt_fn_np in zip(metrics, metrics_np):
-
             for batch in batch_dims:
                 for spatial in spatial_dims:
                     for base in base_dims:

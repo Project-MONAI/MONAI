@@ -62,7 +62,9 @@ The changes include 1) code reformatting, 2) docstrings,
 3) allow input args gt_ignore to be optional. (If so, no GT boxes will be ignored.)
 """
 
-from typing import Callable, Dict, List, Sequence, Union
+from __future__ import annotations
+
+from collections.abc import Callable, Sequence
 
 import numpy as np
 
@@ -77,9 +79,9 @@ def matching_batch(
     pred_scores: Sequence[np.ndarray],
     gt_boxes: Sequence[np.ndarray],
     gt_classes: Sequence[np.ndarray],
-    gt_ignore: Union[Sequence[Sequence[bool]], Sequence[np.ndarray], None] = None,
+    gt_ignore: Sequence[Sequence[bool]] | Sequence[np.ndarray] | None = None,
     max_detections: int = 100,
-) -> List[Dict[int, Dict[str, np.ndarray]]]:
+) -> list[dict[int, dict[str, np.ndarray]]]:
     """
     Match boxes of a batch to corresponding ground truth for each category
     independently.
@@ -185,7 +187,7 @@ def matching_batch(
 
 def _matching_no_gt(
     iou_thresholds: Sequence[float], pred_scores: np.ndarray, max_detections: int
-) -> Dict[str, np.ndarray]:
+) -> dict[str, np.ndarray]:
     """
     Matching result with not ground truth in image
 
@@ -228,7 +230,7 @@ def _matching_no_gt(
     }
 
 
-def _matching_no_pred(iou_thresholds: Sequence[float], gt_ignore: np.ndarray) -> Dict[str, np.ndarray]:
+def _matching_no_pred(iou_thresholds: Sequence[float], gt_ignore: np.ndarray) -> dict[str, np.ndarray]:
     """
     Matching result with no predictions
 
@@ -275,7 +277,7 @@ def _matching_single_image_single_class(
     gt_ignore: np.ndarray,
     max_detections: int,
     iou_thresholds: Sequence[float],
-) -> Dict[str, np.ndarray]:
+) -> dict[str, np.ndarray]:
     """
     Adapted from https://github.com/cocodataset/cocoapi/blob/master/PythonAPI/pycocotools/cocoeval.py
 

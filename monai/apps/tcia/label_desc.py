@@ -9,11 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict
+from __future__ import annotations
 
 __all__ = ["TCIA_LABEL_DICT"]
 
-TCIA_LABEL_DICT: Dict[str, Dict[str, int]] = {
+TCIA_LABEL_DICT: dict[str, dict[str, int]] = {
     "C4KC-KiTS": {"Kidney": 0, "Renal Tumor": 1},
     "NSCLC-Radiomics": {
         "Esophagus": 0,

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import sys
 import unittest
 from typing import TYPE_CHECKING
@@ -44,7 +46,6 @@ from monai.utils import optional_import, set_determinism
 from tests.utils import make_nifti_image
 
 if TYPE_CHECKING:
-
     has_nib = True
 else:
     _, has_nib = optional_import("nibabel")
