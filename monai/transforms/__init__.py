@@ -660,6 +660,7 @@ from .utils import (
     rescale_instance_array,
     reset_ops_id,
     resize_center,
+    resolves_modes,
     sync_meta_info,
     weighted_patch_samples,
     zero_margins,
