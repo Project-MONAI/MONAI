@@ -51,7 +51,7 @@ def execute_compose(
     unpack_items: bool = False,
     start: int = 0,
     end: int | None = None,
-    lazy: str | bool | None = False,
+    lazy: bool | None = False,
     overrides: dict | None = None,
     threading: bool = False,
     logger_name: str | None = None,
@@ -83,9 +83,7 @@ def execute_compose(
             is True. If lazy is False they are ignored.
             currently supported args are:
             {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``},
-            please see also :py:func:`monai.transforms.lazy.apply_transforms` for more details.
-        override_keys: this optional parameter specifies the keys to which ``overrides`` are to be applied. If
-            ``overrides`` is set, ``override_keys`` must also be set.
+            please see also :py:func:`monai.transforms.lazy.apply_pending` and ``Compose`` for more details.
         threading: whether executing is happening in a threaded environment. If set, copies are made
             of transforms that have the ``RandomizedTrait`` interface.
 
