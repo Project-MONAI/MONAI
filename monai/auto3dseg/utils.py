@@ -274,12 +274,12 @@ def verify_report_format(report: dict, report_format: dict) -> bool:
 
 def algo_to_pickle(algo: Algo, template_path: str | None = None, **algo_meta_data: Any) -> str:
     """
-    Export the Algo object to pickle file
+    Export the Algo object to pickle file.
 
     Args:
-        algo: Algo-like object
-        algo_meta_data: additional keyword to save into the dictionary. It may include template_path
-            which is used to instantiate the class. It may also include model training info
+        algo: Algo-like object.
+        template_path: a str path that is needed to be added to the sys.path to instantiate the class.
+        algo_meta_data: additional keyword to save into the dictionary, for example, model training info
             such as acc/best_metrics
 
     Returns:
@@ -297,16 +297,19 @@ def algo_to_pickle(algo: Algo, template_path: str | None = None, **algo_meta_dat
 
 def algo_from_pickle(pkl_filename: str, template_path: str | None = None, **kwargs: Any) -> Any:
     """
-    Import the Algo object from a pickle file
+    Import the Algo object from a pickle file.
 
     Args:
         pkl_filename: name of the pickle file
-        algo_templates_dir: the algorithm script folder which is needed to instantiate the object.
-            If it is None, the function will use the internal ``'algo_templates_dir`` in the object
-            dict.
+        template_path: a folder which may be needed to instantiate the object. 
+            If it is None, the function will attempt to add the internal ``'template_path`` saved in the pickle file,
+            and a directory which is ```os.path.join(os.path.dirname(pkl_filename), "../algorithm_templates")```
+            to instiante the Algo.
 
     Returns:
-        algo: Algo-like object
+        algo: Algo-like object.
+        algo_meta_data: additional keyword to save into the dictionary, for example, model training info
+            such as acc/best_metrics
 
     Raises:
         ValueError if the pkl_filename does not contain a dict, or the dict does not contain
