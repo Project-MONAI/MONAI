@@ -75,7 +75,7 @@ def _apply_transform(
     unpack_parameters: bool = False,
     lazy: bool | None = False,
     overrides: dict | None = None,
-    logger_name: str | None = "_apply_transform",
+    logger_name: str | None = None,
 ) -> ReturnType:
     """
     Perform transformation `transform` with the provided parameters `parameters`.
@@ -168,11 +168,11 @@ def apply_transform(
         # appears where the exception was raised.
         if MONAIEnvVars.debug():
             raise
-        if not isinstance(transform, transforms.compose.Compose):
+        if logger_name is not None and not isinstance(transform, transforms.compose.Compose):
             # log the input data information of exact transform in the transform chain
             datastats = transforms.utility.array.DataStats(data_shape=False, value_range=False, name=logger_name)
             logger = logging.getLogger(datastats._logger_name)
-            logger.info(f"\n=== Transform input info -- {type(transform).__name__} ===")
+            logger.error(f"\n=== Transform input info -- {type(transform).__name__} ===")
             if isinstance(data, (list, tuple)):
                 data = data[0]
 

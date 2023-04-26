@@ -377,14 +377,6 @@ TEST_COMPOSE_EXECUTE_LOGGING_TEST_CASES = [
 
 
 class TestComposeExecuteWithLogging(unittest.TestCase):
-    # def setUp(self):
-    #     self.stream = StringIO()
-    #     self.handler = logging.StreamHandler(self.stream)
-    #     self.log = logging.getLogger('mylogger')
-    #     self.log.setLevel(logging.INFO)
-    #     for handler in self.log.handlers:
-    #         self.log.removeHandler(handler)
-    #     self.log.addHandler(self.handler)
 
     @staticmethod
     def data_from_keys(keys):
@@ -398,11 +390,6 @@ class TestComposeExecuteWithLogging(unittest.TestCase):
 
     @parameterized.expand(TEST_COMPOSE_EXECUTE_LOGGING_TEST_CASES)
     def test_compose_with_logging(self, keys, pipeline, lazy, expected):
-        # stream = StringIO()
-        # logging.basicConfig(handlers=[logging.StreamHandler(stream)], level=logging.NOTSET)
-        # log_handler = logging.StreamHandler(stream)
-        # log_handler.setLevel(logging.INFO)
-        # print(stream.getvalue())
         stream = StringIO()
         handler = logging.StreamHandler(stream)
         logger = logging.getLogger("a_logger_name")
@@ -415,10 +402,8 @@ class TestComposeExecuteWithLogging(unittest.TestCase):
         c = Compose(deepcopy(pipeline), lazy=lazy, logger_name="a_logger_name")
         result = c(data)
 
-        # logger = logging.getLogger("a_logger_name")
         handler.flush()
         actual = stream.getvalue()
-        print(f"stream = '{actual}'")
         self.assertEqual(actual, expected)
 
 

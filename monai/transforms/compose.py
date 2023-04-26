@@ -262,7 +262,7 @@ class Compose(Randomizable, InvertibleTransform):
         unpack_items: bool = False,
         lazy: bool | None = False,
         overrides: dict | None = None,
-        logger_name: str | None = "Compose",
+        logger_name: str | None = None,
     ) -> None:
         if transforms is None:
             transforms = []
@@ -416,7 +416,7 @@ class OneOf(Compose):
         unpack_items: bool = False,
         lazy: bool | None = None,
         overrides: dict | None = None,
-        logger_name: str | None = "OneOf",
+        logger_name: str | None = None,
     ) -> None:
         super().__init__(transforms, map_items, unpack_items, lazy, overrides)
         if len(self.transforms) == 0:
@@ -549,7 +549,7 @@ class RandomOrder(Compose):
         unpack_items: bool = False,
         lazy: bool | None = None,
         overrides: dict | None = None,
-        logger_name: str | None = "RandomOrder",
+        logger_name: str | None = None,
     ) -> None:
         super().__init__(transforms, map_items, unpack_items, lazy, overrides)
         self.logger_name = logger_name
@@ -644,7 +644,7 @@ class SomeOf(Compose):
         num_transforms: int | tuple[int, int] | None = None,
         replace: bool = False,
         weights: list[int] | None = None,
-        logger_name: str | None = "SomeOf",
+        logger_name: str | None = None,
     ) -> None:
         super().__init__(transforms, map_items, unpack_items, logger_name=logger_name)
         self.min_num_transforms, self.max_num_transforms = self._ensure_valid_num_transforms(num_transforms)
