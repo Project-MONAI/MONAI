@@ -15,7 +15,6 @@ import logging
 import os
 import pickle
 import sys
-import warnings
 from copy import deepcopy
 from numbers import Number
 from typing import Any, cast

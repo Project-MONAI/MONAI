@@ -18,14 +18,12 @@ import unittest
 
 import nibabel as nib
 import numpy as np
-import torch
 
 from monai.apps.auto3dseg import BundleGen, DataAnalyzer
 from monai.apps.auto3dseg.utils import export_bundle_algo_history, import_bundle_algo_history
 from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
-from monai.utils import optional_import, set_determinism
-from monai.utils.enums import AlgoKeys
+from monai.utils import set_determinism
 from tests.utils import get_testing_algo_template_path, skip_if_downloading_fails, skip_if_no_cuda, skip_if_quick
 
 sim_datalist: dict[str, list[dict]] = {
@@ -97,9 +95,6 @@ class TestBundleGen(unittest.TestCase):
         set_determinism(0)
         self.test_dir = tempfile.TemporaryDirectory()
 
-    def test_bundle_gen(self) -> None:
-        pass
-
     def test_move_bundle_gen_folder(self) -> None:
         test_path = self.test_dir.name
         work_dir = os.path.join(test_path, "workdir")
@@ -132,6 +127,7 @@ class TestBundleGen(unittest.TestCase):
         work_dir_new = os.path.join(test_path, "workdir_2")
         shutil.move(work_dir, work_dir_new)
         history_after = import_bundle_algo_history(work_dir_new, only_trained=False)
+        self.assertEqual(len(history_before), len(history_after))
 
     def tearDown(self) -> None:
         set_determinism(None)
