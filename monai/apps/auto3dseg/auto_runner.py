@@ -563,12 +563,12 @@ class AutoRunner:
 
         """
 
-        are_all_args_present, missing_args = check_kwargs_exist_in_class_init(SaveImage, kwargs)
+        are_all_args_present, extra_args = check_kwargs_exist_in_class_init(SaveImage, kwargs)
         if are_all_args_present:
             self.kwargs.update(kwargs)
         else:
             raise ValueError(
-                f"{missing_args} are not supported in monai.transforms.SaveImage,"
+                f"{extra_args} are not supported in monai.transforms.SaveImage,"
                 "Check https://docs.monai.io/en/stable/transforms.html#saveimage for more information."
             )
 

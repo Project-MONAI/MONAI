@@ -180,10 +180,10 @@ class TestEnsembleBuilder(unittest.TestCase):
         self.assertTrue(runner.ensemble_method.n_best == 3)
 
         save_output = os.path.join(self.test_dir.name, "workdir")
-        runner.set_image_save_transform(
+        save_image = runner._pop_kwargs_to_get_image_save_transform(
             output_dir=save_output, output_postfix="test_ensemble", output_dtype=float, resample=True
         )
-        self.assertIsInstance(ConfigParser(runner.save_image).get_parsed_content(), SaveImage)
+        self.assertIsInstance(ConfigParser(save_image).get_parsed_content(), SaveImage)
 
     def tearDown(self) -> None:
         set_determinism(None)
