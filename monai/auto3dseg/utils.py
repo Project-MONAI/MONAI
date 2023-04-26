@@ -301,20 +301,19 @@ def algo_from_pickle(pkl_filename: str, template_path: PathLike | None = None, *
     Import the Algo object from a pickle file.
 
     Args:
-        pkl_filename: name of the pickle file
-        template_path: a folder which may be needed to instantiate the object.
-            If it is None, the function will attempt to add the internal ``'template_path`` saved in the pickle file,
-            and a directory named ``algorithm_templates`` in the parent folder of the folder containing the pickle file.
-            to instiante the Algo.
+        pkl_filename: the name of the pickle file.
+        template_path: a folder containing files to instantiate the Algo. Besides the `template_path`,
+        this function will also attempt to use the `template_path` saved in the pickle file and a directory
+        named `algorithm_templates` in the parent folder of the folder containing the pickle file.
 
     Returns:
-        algo: Algo-like object.
-        algo_meta_data: additional keyword to save into the dictionary, for example, model training info
-            such as acc/best_metrics
+        algo: the Algo object saved in the pickle file.
+        algo_meta_data: additional keyword saved in the pickle file, for example, acc/best_metrics.
 
     Raises:
-        ValueError if the pkl_filename does not contain a dict, or the dict does not contain
-            ``template_path`` or ``algo_bytes``
+        ValueError if the pkl_filename does not contain a dict, or the dict does not contain `algo_bytes`.
+        ModuleNotFoundError if it is unable to instiante the Algo class.
+
     """
     with open(pkl_filename, "rb") as f_pi:
         data_bytes = f_pi.read()
