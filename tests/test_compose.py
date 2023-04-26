@@ -338,13 +338,10 @@ class TestComposeExecuteWithFlags(unittest.TestCase):
                 self.assertTrue(expected, actual)
 
 
-TEST_LAZY_COMPOSE_PIPELINE_FIX_CASES = [
-    [(Flip(0), Flip(1), Rotate90(1), Zoom(0.8), NormalizeIntensity())],
-]
+TEST_LAZY_COMPOSE_PIPELINE_FIX_CASES = [[(Flip(0), Flip(1), Rotate90(1), Zoom(0.8), NormalizeIntensity())]]
 
 
 class TestLazyComposePipelineFixes(unittest.TestCase):
-
     @parameterized.expand(TEST_LAZY_COMPOSE_PIPELINE_FIX_CASES)
     def test_lazy_compose_pipeline_fixes(self, pipeline):
         data = torch.unsqueeze(torch.tensor(np.arange(12 * 16).reshape(12, 16)), dim=0)
