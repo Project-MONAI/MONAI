@@ -43,6 +43,7 @@ sim_datalist: dict[str, list[dict]] = {
     ],
 }
 
+
 def create_sim_data(dataroot, sim_datalist, sim_dim, **kwargs):
     """
     Create simulated data using create_test_image_3d.

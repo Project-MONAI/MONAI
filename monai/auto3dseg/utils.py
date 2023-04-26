@@ -301,7 +301,7 @@ def algo_from_pickle(pkl_filename: str, template_path: str | None = None, **kwar
 
     Args:
         pkl_filename: name of the pickle file
-        template_path: a folder which may be needed to instantiate the object. 
+        template_path: a folder which may be needed to instantiate the object.
             If it is None, the function will attempt to add the internal ``'template_path`` saved in the pickle file,
             and a directory which is ```os.path.join(os.path.dirname(pkl_filename), "../algorithm_templates")```
             to instiante the Algo.
