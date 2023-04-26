@@ -55,6 +55,7 @@ def execute_compose(
     lazy: str | bool | None = False,
     overrides: dict | None = None,
     threading: bool = False,
+    logger_name: str = "monai.transforms.compose.execute_compose",
 ) -> NdarrayOrTensor | Sequence[NdarrayOrTensor] | Mapping[Any, NdarrayOrTensor]:
     """
     ``execute_compose`` provides the implementation that the ``Compose`` class uses to execute a sequence
@@ -96,6 +97,8 @@ def execute_compose(
     end_ = len(transforms) if end is None else end
     if start is None:
         raise ValueError(f"'start' ({start}) cannot be None")
+    if start < 0:
+        raise ValueError(f"'start' ({start}) cannot be less than 0")
     if start > end_:
         raise ValueError(f"'start' ({start}) must be less than 'end' ({end_})")
     if end_ > len(transforms):
@@ -257,6 +260,7 @@ class Compose(Randomizable, InvertibleTransform):
         unpack_items: bool = False,
         lazy: str | bool | None = LazyMode.OFF,
         overrides: dict | None = None,
+        logger_name: str = "monai.transforms.compose.Compose",
     ) -> None:
         if transforms is None:
             transforms = []
@@ -266,6 +270,7 @@ class Compose(Randomizable, InvertibleTransform):
         self.set_random_state(seed=get_seed())
         self.lazy = lazy
         self.overrides = overrides
+        self.logger_name = logger_name
 
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> Compose:
         super().set_random_state(seed=seed, state=state)
@@ -353,6 +358,7 @@ class Compose(Randomizable, InvertibleTransform):
             lazy=self.lazy,  # type: ignore
             overrides=self.overrides,
             threading=threading,
+            logger_name=self.logger_name,
         )
 
     def inverse(self, data):
@@ -384,9 +390,6 @@ class OneOf(Compose):
             defaults to `True`.
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             defaults to `False`.
-        log_stats: whether to log the detailed information of data and applied transform when error happened,
-            for NumPy array and PyTorch Tensor, log the data shape and value range,
-            for other metadata, log the values directly. default to `False`.
         lazy: whether to enable lazy evaluation for lazy transforms. If True, all lazy transforms will
             be executed by accumulating changes and resampling as few times as possible. If False, transforms will be
             carried out on a transform by transform basis.
@@ -399,9 +402,7 @@ class OneOf(Compose):
             currently supported args are:
             {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``},
             please see also :py:func:`monai.transforms.lazy.apply_transforms` for more details.
-        override_keys: this optional parameter specifies the keys to which ``overrides`` are to be applied. If
-            ``overrides`` is set, ``override_keys`` must also be set.
-        verbose: whether to print debugging info when lazy=True.
+        logger_name: the name of the logger to use when logging output.
     """
 
     def __init__(
@@ -412,6 +413,7 @@ class OneOf(Compose):
         unpack_items: bool = False,
         lazy: bool | None = None,
         overrides: dict | None = None,
+        logger_name: str = "monai.transforms.compose.OneOf",
     ) -> None:
         super().__init__(transforms, map_items, unpack_items, lazy, overrides)
         if len(self.transforms) == 0:
@@ -424,6 +426,7 @@ class OneOf(Compose):
                 f"got {len(weights)} and {len(self.transforms)}."
             )
         self.weights = ensure_tuple(self._normalize_probabilities(weights))
+        self.logger_name = logger_name
 
     def _normalize_probabilities(self, weights):
         if len(weights) == 0:
@@ -452,7 +455,12 @@ class OneOf(Compose):
                 weights.append(w)
         return OneOf(transforms, weights, self.map_items, self.unpack_items)
 
-    def __call__(self, data, start=0, end=None, threading=False):
+    def __call__(self, data, start=0, end=None, threading=False, lazy: str | bool | None = None):
+        if start != 0:
+            raise ValueError(f"OneOf requires 'start' parameter to be 0 (start set to {start})")
+        if end is not None:
+            raise ValueError(f"OneOf requires 'end' parameter to be None (end set to {end}")
+
         if len(self.transforms) == 0:
             return data
 
@@ -469,6 +477,7 @@ class OneOf(Compose):
             lazy=self.lazy,  # type: ignore
             overrides=self.overrides,
             threading=threading,
+            logger_name=self.logger_name,
         )
 
         # if the data is a mapping (dictionary), append the OneOf transform to the end
@@ -514,9 +523,6 @@ class RandomOrder(Compose):
             defaults to `True`.
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             defaults to `False`.
-        log_stats: whether to log the detailed information of data and applied transform when error happened,
-            for NumPy array and PyTorch Tensor, log the data shape and value range,
-            for other metadata, log the values directly. default to `False`.
         lazy: whether to enable lazy evaluation for lazy transforms. If True, all lazy transforms will
             be executed by accumulating changes and resampling as few times as possible. If False, transforms will be
             carried out on a transform by transform basis.
@@ -529,9 +535,7 @@ class RandomOrder(Compose):
             currently supported args are:
             {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``},
             please see also :py:func:`monai.transforms.lazy.apply_transforms` for more details.
-        override_keys: this optional parameter specifies the keys to which ``overrides`` are to be applied. If
-            ``overrides`` is set, ``override_keys`` must also be set.
-        verbose: whether to print debugging info when lazy=True.
+        logger_name: the name of the logger to use when logging output.
     """
 
     def __init__(
@@ -541,12 +545,19 @@ class RandomOrder(Compose):
         unpack_items: bool = False,
         lazy: bool | None = None,
         overrides: dict | None = None,
+        logger_name: str = "monai.transforms.compose.RandomOrder",
     ) -> None:
         super().__init__(transforms, map_items, unpack_items, lazy, overrides)
 
-    def __call__(self, input_, start=0, end=None, threading=False):
+    def __call__(self, input_, start=0, end=None, threading=False, lazy: str | bool | None = None):
+        if start != 0:
+            raise ValueError(f"RandomOrder requires 'start' parameter to be 0 (start set to {start})")
+        if end is not None:
+            raise ValueError(f"RandomOrder requires 'end' parameter to be None (end set to {end}")
+
         if len(self.transforms) == 0:
             return input_
+
         num = len(self.transforms)
         applied_order = self.R.permutation(range(num))
 
@@ -559,6 +570,7 @@ class RandomOrder(Compose):
             unpack_items=self.unpack_items,
             lazy=self.lazy,
             threading=threading,
+            logger_name=self.logger_name,
         )
 
         # if the data is a mapping (dictionary), append the RandomOrder transform to the end
@@ -610,14 +622,12 @@ class SomeOf(Compose):
             Defaults to `True`.
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             Defaults to `False`.
-        log_stats: whether to log the detailed information of data and applied transform when error happened,
-            for NumPy array and PyTorch Tensor, log the data shape and value range,
-            for other metadata, log the values directly. Default to `False`.
         num_transforms: a 2-tuple, int, or None. The 2-tuple specifies the minimum and maximum (inclusive) number of
             transforms to sample at each iteration. If an int is given, the lower and upper bounds are set equal.
             None sets it to `len(transforms)`. Default to `None`.
         replace: whether to sample with replacement. Defaults to `False`.
         weights: weights to use in for sampling transforms. Will be normalized to 1. Default: None (uniform).
+        logger_name: the name of the logger to use when logging output.
     """
 
     def __init__(
@@ -625,13 +635,13 @@ class SomeOf(Compose):
         transforms: Sequence[Callable] | Callable | None = None,
         map_items: bool = True,
         unpack_items: bool = False,
-        log_stats: bool = False,
         *,
         num_transforms: int | tuple[int, int] | None = None,
         replace: bool = False,
         weights: list[int] | None = None,
+        logger_name: str = "monai.transforms.compose.SomeOf"
     ) -> None:
-        super().__init__(transforms, map_items, unpack_items, log_stats)
+        super().__init__(transforms, map_items, unpack_items, logger_name=logger_name)
         self.min_num_transforms, self.max_num_transforms = self._ensure_valid_num_transforms(num_transforms)
         self.replace = replace
         self.weights = self._normalize_probabilities(weights)
@@ -688,7 +698,12 @@ class SomeOf(Compose):
 
         return ensure_tuple(list(weights))
 
-    def __call__(self, data, start=0, end=None, threading=False):
+    def __call__(self, data, start=0, end=None, threading=False, lazy: str | bool | None = None):
+        if start != 0:
+            raise ValueError(f"SomeOf requires 'start' parameter to be 0 (start set to {start})")
+        if end is not None:
+            raise ValueError(f"SomeOf requires 'end' parameter to be None (end set to {end}")
+
         if len(self.transforms) == 0:
             return data
 
@@ -705,6 +720,7 @@ class SomeOf(Compose):
             lazy=self.lazy,
             overrides=self.overrides,
             threading=threading,
+            logger_name=self.logger_name,
         )
         if isinstance(data, monai.data.MetaTensor):
             self.push_transform(data, extra_info={"applied_order": applied_order})

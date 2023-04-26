@@ -96,6 +96,7 @@ def apply_transform(
     unpack_items: bool = False,
     lazy: str | bool | None = LazyMode.OFF,
     overrides: dict | None = None,
+    logger_name: str = "monai.compose.transform.apply_transform",
 ) -> list[ReturnType] | ReturnType:
     """
     Transform `data` with `transform`.
@@ -131,7 +132,7 @@ def apply_transform(
             raise
         if not isinstance(transform, transforms.compose.Compose):
             # log the input data information of exact transform in the transform chain
-            datastats = transforms.utility.array.DataStats(data_shape=False, value_range=False)
+            datastats = transforms.utility.array.DataStats(data_shape=False, value_range=False, name=logger_name)
             logger = logging.getLogger(datastats._logger_name)
             logger.info(f"\n=== Transform input info -- {type(transform).__name__} ===")
             if isinstance(data, (list, tuple)):

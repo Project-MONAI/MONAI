@@ -22,6 +22,8 @@ from parameterized import parameterized
 from monai.data import DataLoader, Dataset
 from monai.transforms import AddChannel, Compose, Flip, NormalizeIntensity, Rotate, Rotate90, Rotated, Zoom
 from monai.transforms.compose import execute_compose
+import monai.transforms.croppad.array as ca
+import monai.transforms.spatial.array as sa
 from monai.transforms.transform import Randomizable
 from monai.utils import set_determinism
 
@@ -255,14 +257,20 @@ TEST_COMPOSE_EXECUTE_TEST_CASES = [
 
 
 class TestComposeExecute(unittest.TestCase):
-    @parameterized.expand(TEST_COMPOSE_EXECUTE_TEST_CASES)
-    def test_compose_execute_equivalence(self, keys, pipeline):
+
+    @staticmethod
+    def data_from_keys(keys):
         if keys is None:
-            data = torch.unsqueeze(torch.tensor(np.arange(24 * 32).reshape(24, 32)), axis=0)
+            data = torch.unsqueeze(torch.tensor(np.arange(12 * 16).reshape(12, 16)), dim=0)
         else:
             data = {}
             for i_k, k in enumerate(keys):
-                data[k] = torch.unsqueeze(torch.tensor(np.arange(24 * 32)).reshape(24, 32) + i_k * 768, axis=0)
+                data[k] = torch.unsqueeze(torch.tensor(np.arange(12 * 16)).reshape(12, 16) + i_k * 192, dim=0)
+        return data
+
+    @parameterized.expand(TEST_COMPOSE_EXECUTE_TEST_CASES)
+    def test_compose_execute_equivalence(self, keys, pipeline):
+        data = self.data_from_keys(keys)
 
         expected = Compose(deepcopy(pipeline))(data)
 
@@ -282,6 +290,63 @@ class TestComposeExecute(unittest.TestCase):
                     self.assertTrue(torch.allclose(expected[k], actual[k]))
             else:
                 self.assertTrue(torch.allclose(expected, actual))
+
+    @parameterized.expand(TEST_COMPOSE_EXECUTE_TEST_CASES)
+    def test_compose_execute_bad_start_param(self, keys, pipeline):
+        data = self.data_from_keys(keys)
+
+        with self.assertRaises(ValueError):
+            c = Compose(deepcopy(pipeline))
+            c(data, start=None)
+
+        with self.assertRaises(ValueError):
+            execute_compose(data, deepcopy(pipeline), start=None)
+
+        with self.assertRaises(ValueError):
+            c = Compose(deepcopy(pipeline))
+            c(data, start=-1)
+
+        with self.assertRaises(ValueError):
+            execute_compose(data, deepcopy(pipeline), start=-1)
+
+    @parameterized.expand(TEST_COMPOSE_EXECUTE_TEST_CASES)
+    def test_compose_execute_negative_range(self, keys, pipeline):
+        data = self.data_from_keys(keys)
+
+        with self.assertRaises(ValueError):
+            c = Compose(deepcopy(pipeline))
+            c(data, start=2, end=1)
+
+        with self.assertRaises(ValueError):
+            execute_compose(data, deepcopy(pipeline), start=2, end=1)
+
+    @parameterized.expand(TEST_COMPOSE_EXECUTE_TEST_CASES)
+    def test_compose_execute_bad_end_param(self, keys, pipeline):
+        data = self.data_from_keys(keys)
+
+        with self.assertRaises(ValueError):
+            c = Compose(deepcopy(pipeline))
+            c(data, end=len(pipeline)+1)
+
+        with self.assertRaises(ValueError):
+            execute_compose(data, deepcopy(pipeline), end=len(pipeline)+1)
+
+
+    @parameterized.expand(TEST_COMPOSE_EXECUTE_TEST_CASES)
+    def test_compose_execute_empty_range(self, keys, pipeline):
+        data = self.data_from_keys(keys)
+
+        c = Compose(deepcopy(pipeline))
+        for i in range(len(pipeline)):
+            result = c(data, start=i, end=i)
+            self.assertIs(data, result)
+
+    @parameterized.expand(TEST_COMPOSE_EXECUTE_TEST_CASES)
+    def test_compose_with_logger_name(self, keys, pipeline):
+        data = self.data_from_keys(keys)
+
+        c = Compose(deepcopy(pipeline), logger_name="a_logger_name")
+        result = c(data)
 
 
 class TestOps:
@@ -318,6 +383,16 @@ TEST_COMPOSE_EXECUTE_FLAG_TEST_CASES = [
 class TestComposeExecuteWithFlags(unittest.TestCase):
     @parameterized.expand(TEST_COMPOSE_EXECUTE_FLAG_TEST_CASES)
     def test_compose_execute_equivalence_with_flags(self, flags, data, pipeline):
+        @staticmethod
+        def data_from_keys(keys):
+            if keys is None:
+                data = torch.unsqueeze(torch.tensor(np.arange(24 * 32).reshape(24, 32)), dim=0)
+            else:
+                data = {}
+                for i_k, k in enumerate(keys):
+                    data[k] = torch.unsqueeze(torch.tensor(np.arange(24 * 32)).reshape(24, 32) + i_k * 768, dim=0)
+            return data
+
         expected = Compose(pipeline, **flags)(data)
 
         for cutoff in range(len(pipeline)):
@@ -336,6 +411,11 @@ class TestComposeExecuteWithFlags(unittest.TestCase):
                     self.assertTrue(expected[k], actual[k])
             else:
                 self.assertTrue(expected, actual)
+
+# TEST_COMPOSE_LAZY_FLAG_CASES = [
+#     [sa.Spacing(), sa.Flip(), sa.Flip(), sa.Rotate90(), ca.ResizeWithPadOrCro()],
+#     [],
+# ]
 
 
 if __name__ == "__main__":

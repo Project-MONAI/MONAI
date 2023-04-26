@@ -13,11 +13,20 @@ from __future__ import annotations
 
 import unittest
 
+from copy import deepcopy
+
 from parameterized import parameterized
+
+import numpy as np
+
+import torch
 
 from monai.data import MetaTensor
 from monai.transforms import RandomOrder
 from monai.transforms.compose import Compose
+import monai.transforms.intensity.array as ia
+import monai.transforms.spatial.array as sa
+import monai.transforms.spatial.dictionary as sd
 from monai.utils import set_determinism
 from monai.utils.enums import TraceKeys
 from tests.test_one_of import A, B, C, Inv, NonInv, X, Y
@@ -96,6 +105,39 @@ class TestRandomOrder(unittest.TestCase):
             else:
                 # if not invertible, should not change the data
                 self.assertDictEqual(fwd_data[i], _fwd_inv_data)
+
+
+TEST_RANDOM_ORDER_EXTENDED_TEST_CASES = [
+    [None, tuple()],
+    [None, (sa.Rotate(np.pi / 8),)],
+    [None, (sa.Flip(0), sa.Flip(1), sa.Rotate90(1), sa.Zoom(0.8), ia.NormalizeIntensity())],
+    [("a",), (sd.Rotated(("a",), np.pi / 8),)],
+]
+
+
+class TestRandomOrderAPITests(unittest.TestCase):
+
+    @staticmethod
+    def data_from_keys(keys):
+        if keys is None:
+            data = torch.unsqueeze(torch.tensor(np.arange(12 * 16).reshape(12, 16)), dim=0)
+        else:
+            data = {}
+            for i_k, k in enumerate(keys):
+                data[k] = torch.unsqueeze(torch.tensor(np.arange(12 * 16)).reshape(12, 16) + i_k * 192, dim=0)
+        return data
+
+    @parameterized.expand(TEST_RANDOM_ORDER_EXTENDED_TEST_CASES)
+    def test_execute_change_start_end(self, keys, pipeline):
+        data = self.data_from_keys(keys)
+
+        with self.assertRaises(ValueError):
+            c = RandomOrder(deepcopy(pipeline))
+            c(data, start=1)
+
+        with self.assertRaises(ValueError):
+            c = RandomOrder(deepcopy(pipeline))
+            c(data, end=1)
 
 
 if __name__ == "__main__":
