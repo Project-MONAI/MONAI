@@ -25,7 +25,6 @@ from monai.data import DataLoader, Dataset
 from monai.transforms import (
     AddChannel, Compose, Flip, NormalizeIntensity, Rotate, Rotate90, Rotated, Spacing, Zoom,
 )
-import monai.transforms.spatial.array as sa
 from monai.transforms.compose import execute_compose
 from monai.transforms.transform import Randomizable
 from monai.utils import set_determinism
@@ -400,7 +399,7 @@ class TestComposeExecuteWithLogging(unittest.TestCase):
 
         data = self.data_from_keys(keys)
         c = Compose(deepcopy(pipeline), lazy=lazy, logger_name="a_logger_name")
-        result = c(data)
+        c(data)
 
         handler.flush()
         actual = stream.getvalue()
