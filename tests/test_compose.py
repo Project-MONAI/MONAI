@@ -11,16 +11,21 @@
 
 from __future__ import annotations
 
+import logging
 import sys
 import unittest
 from copy import deepcopy
+from io import StringIO
 
 import numpy as np
 import torch
 from parameterized import parameterized
 
 from monai.data import DataLoader, Dataset
-from monai.transforms import AddChannel, Compose, Flip, NormalizeIntensity, Rotate, Rotate90, Rotated, Zoom
+from monai.transforms import (
+    AddChannel, Compose, Flip, NormalizeIntensity, Rotate, Rotate90, Rotated, Spacing, Zoom,
+)
+import monai.transforms.spatial.array as sa
 from monai.transforms.compose import execute_compose
 from monai.transforms.transform import Randomizable
 from monai.utils import set_determinism
@@ -343,6 +348,78 @@ class TestComposeExecute(unittest.TestCase):
 
         c = Compose(deepcopy(pipeline), logger_name="a_logger_name")
         c(data)
+
+
+TEST_COMPOSE_EXECUTE_LOGGING_TEST_CASES = [
+    [
+        None,
+        (Flip(0), Spacing((1.2, 1.2)), Flip(1), Rotate90(1), Zoom(0.8), NormalizeIntensity()),
+        False,
+        ("Apply pending transforms - lazy: False, pending: 0, upcoming 'Flip', transform.lazy: False\n"
+         "Apply pending transforms - lazy: False, pending: 0, upcoming 'Spacing', transform.lazy: False\n"
+         "Apply pending transforms - lazy: False, pending: 0, upcoming 'Flip', transform.lazy: False\n"
+         "Apply pending transforms - lazy: False, pending: 0, upcoming 'Rotate90', transform.lazy: False\n"
+         "Apply pending transforms - lazy: False, pending: 0, upcoming 'Zoom', transform.lazy: False\n"
+         "Apply pending transforms - lazy: False, pending: 0, upcoming 'NormalizeIntensity', transform is not lazy\n")
+    ],
+    [
+        None,
+        (Flip(0), Spacing((1.2, 1.2)), Flip(1), Rotate90(1), Zoom(0.8), NormalizeIntensity()),
+        True,
+        ("Accumulate pending transforms - lazy: True, pending: 0, upcoming 'Flip', transform.lazy: False (overridden)\n"
+         "Accumulate pending transforms - lazy: True, pending: 1, upcoming 'Spacing', transform.lazy: False (overridden)\n"
+         "Accumulate pending transforms - lazy: True, pending: 2, upcoming 'Flip', transform.lazy: False (overridden)\n"
+         "Accumulate pending transforms - lazy: True, pending: 3, upcoming 'Rotate90', transform.lazy: False (overridden)\n"
+         "Accumulate pending transforms - lazy: True, pending: 4, upcoming 'Zoom', transform.lazy: False (overridden)\n"
+         "Apply pending transforms - lazy: True, pending: 5, upcoming 'NormalizeIntensity', transform is not lazy\n")
+    ]
+]
+
+
+class TestComposeExecuteWithLogging(unittest.TestCase):
+    # def setUp(self):
+    #     self.stream = StringIO()
+    #     self.handler = logging.StreamHandler(self.stream)
+    #     self.log = logging.getLogger('mylogger')
+    #     self.log.setLevel(logging.INFO)
+    #     for handler in self.log.handlers:
+    #         self.log.removeHandler(handler)
+    #     self.log.addHandler(self.handler)
+
+    @staticmethod
+    def data_from_keys(keys):
+        if keys is None:
+            data = torch.unsqueeze(torch.tensor(np.arange(12 * 16).reshape(12, 16)), dim=0)
+        else:
+            data = {}
+            for i_k, k in enumerate(keys):
+                data[k] = torch.unsqueeze(torch.tensor(np.arange(12 * 16)).reshape(12, 16) + i_k * 192, dim=0)
+        return data
+
+    @parameterized.expand(TEST_COMPOSE_EXECUTE_LOGGING_TEST_CASES)
+    def test_compose_with_logging(self, keys, pipeline, lazy, expected):
+        # stream = StringIO()
+        # logging.basicConfig(handlers=[logging.StreamHandler(stream)], level=logging.NOTSET)
+        # log_handler = logging.StreamHandler(stream)
+        # log_handler.setLevel(logging.INFO)
+        # print(stream.getvalue())
+        stream = StringIO()
+        handler = logging.StreamHandler(stream)
+        logger = logging.getLogger("a_logger_name")
+        logger.setLevel(logging.INFO)
+        while len(logger.handlers) > 0:
+            logger.removeHandler(logger.handlers[-1])
+        logger.addHandler(handler)
+
+        data = self.data_from_keys(keys)
+        c = Compose(deepcopy(pipeline), lazy=lazy, logger_name="a_logger_name")
+        result = c(data)
+
+        # logger = logging.getLogger("a_logger_name")
+        handler.flush()
+        actual = stream.getvalue()
+        print(f"stream = '{actual}'")
+        self.assertEqual(actual, expected)
 
 
 class TestOps:

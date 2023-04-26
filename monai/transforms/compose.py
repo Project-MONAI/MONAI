@@ -84,6 +84,8 @@ def execute_compose(
             please see also :py:func:`monai.transforms.lazy.apply_pending` and ``Compose`` for more details.
         threading: whether executing is happening in a threaded environment. If set, copies are made
             of transforms that have the ``RandomizedTrait`` interface.
+        logger_name: The name of the logger that should be used during transform execution. If None, logging is
+            suppressed.
 
     Returns:
         A tensorlike, sequence of tensorlikes or dict of tensorlists containing the result of running
@@ -250,7 +252,7 @@ class Compose(Randomizable, InvertibleTransform):
             {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``},
             please see also :py:func:`monai.transforms.lazy.apply_transforms` for more details.
         logger_name: this optional parameter allows you to specify a logger by name. If this is not set
-            it defaults to 'Compose'
+            it defaults to 'Compose'. You can also suppress logging by setting this to None.
     """
 
     def __init__(
@@ -260,7 +262,7 @@ class Compose(Randomizable, InvertibleTransform):
         unpack_items: bool = False,
         lazy: bool | None = False,
         overrides: dict | None = None,
-        logger_name: str | None = None,
+        logger_name: str | None = "Compose",
     ) -> None:
         if transforms is None:
             transforms = []
@@ -270,7 +272,7 @@ class Compose(Randomizable, InvertibleTransform):
         self.set_random_state(seed=get_seed())
         self.lazy = lazy
         self.overrides = overrides
-        self.logger_name = self.__class__.__name__ if logger_name is None else logger_name
+        self.logger_name = logger_name
 
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> Compose:
         super().set_random_state(seed=seed, state=state)
@@ -402,7 +404,8 @@ class OneOf(Compose):
             currently supported args are:
             {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``},
             please see also :py:func:`monai.transforms.lazy.apply_transforms` for more details.
-        logger_name: the name of the logger to use when logging output.
+        logger_name: this optional parameter allows you to specify a logger by name. If this is not set
+            it defaults to 'OneOf'. You can also suppress logging by setting this to None.
     """
 
     def __init__(
@@ -413,7 +416,7 @@ class OneOf(Compose):
         unpack_items: bool = False,
         lazy: bool | None = None,
         overrides: dict | None = None,
-        logger_name: str | None = None,
+        logger_name: str | None = "OneOf",
     ) -> None:
         super().__init__(transforms, map_items, unpack_items, lazy, overrides)
         if len(self.transforms) == 0:
@@ -426,7 +429,7 @@ class OneOf(Compose):
                 f"got {len(weights)} and {len(self.transforms)}."
             )
         self.weights = ensure_tuple(self._normalize_probabilities(weights))
-        self.logger_name = self.__class__.__name__ if logger_name is None else logger_name
+        self.logger_name = logger_name
 
     def _normalize_probabilities(self, weights):
         if len(weights) == 0:
@@ -535,7 +538,8 @@ class RandomOrder(Compose):
             currently supported args are:
             {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``},
             please see also :py:func:`monai.transforms.lazy.apply_transforms` for more details.
-        logger_name: the name of the logger to use when logging output.
+        logger_name: this optional parameter allows you to specify a logger by name. If this is not set
+            it defaults to 'Compose'. You can also suppress logging by setting this to None.
     """
 
     def __init__(
@@ -545,10 +549,10 @@ class RandomOrder(Compose):
         unpack_items: bool = False,
         lazy: bool | None = None,
         overrides: dict | None = None,
-        logger_name: str | None = None,
+        logger_name: str | None = "RandomOrder",
     ) -> None:
         super().__init__(transforms, map_items, unpack_items, lazy, overrides)
-        self.logger_name = self.__class__.__name__ if logger_name is None else logger_name
+        self.logger_name = logger_name
 
     def __call__(self, input_, start=0, end=None, threading=False, lazy: str | bool | None = None):
         if start != 0:
@@ -640,13 +644,13 @@ class SomeOf(Compose):
         num_transforms: int | tuple[int, int] | None = None,
         replace: bool = False,
         weights: list[int] | None = None,
-        logger_name: str | None = None,
+        logger_name: str | None = "SomeOf",
     ) -> None:
         super().__init__(transforms, map_items, unpack_items, logger_name=logger_name)
         self.min_num_transforms, self.max_num_transforms = self._ensure_valid_num_transforms(num_transforms)
         self.replace = replace
         self.weights = self._normalize_probabilities(weights)
-        self.logger_name = self.__class__.__name__ if logger_name is None else logger_name
+        self.logger_name = logger_name
 
     def _ensure_valid_num_transforms(self, num_transforms: int | tuple[int, int] | None) -> tuple:
         if (

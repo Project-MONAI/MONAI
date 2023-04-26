@@ -44,12 +44,38 @@ __all__ = [
 ReturnType = TypeVar("ReturnType")
 
 
+def _log_pending_info(
+    logger: Any | None, data: Any, transform: Any, activity: str, lazy: bool | None = None,
+):
+    if logger is None:
+        return
+
+    if isinstance(transform, LazyTrait):
+        if lazy is not None and lazy != transform.lazy:
+            tlazy = f", transform.lazy: {transform.lazy} (overridden)"
+        else:
+            tlazy = f", transform.lazy: {transform.lazy}"
+    else:
+        tlazy = ", transform is not lazy"
+
+    if isinstance(transform, MapTransform):
+        for k in transform.keys:
+            pcount = len(data[k].pending_operations) if isinstance(data[k], MetaTensor) else 0
+            logger.info(f"{activity} - lazy mode: {lazy}, key: '{k}', "
+                        f"pending: {pcount}, upcoming '{transform.__class__.__name__}'{tlazy}")
+    else:
+        pcount = len(data.pending_operations) if isinstance(data, MetaTensor) else 0
+        logger.info(f"{activity} - lazy: {lazy}, "
+                    f"pending: {pcount}, upcoming '{transform.__class__.__name__}'{tlazy}")
+
+
 def _apply_transform(
     transform: Callable[..., ReturnType],
     data: Any,
     unpack_parameters: bool = False,
     lazy: bool | None = False,
     overrides: dict | None = None,
+    logger_name: str | None = "_apply_transform",
 ) -> ReturnType:
     """
     Perform transformation `transform` with the provided parameters `parameters`.
@@ -57,6 +83,19 @@ def _apply_transform(
     If `parameters` is a tuple and `unpack_items` is True, each parameter of `parameters` is unpacked
     as arguments to `transform`.
     Otherwise `parameters` is considered as single argument to `transform`.
+
+    For the 1.2 release, we are limited here to having executing transforms that
+    are lazy but set to not be lazy _after_ we have applied the pending list. This
+    is because the transform implementations for 1.2 don't have unified code paths for
+    lazy and non-lazy operation, so it is not possible to pass a tensor with pending
+    operations and have the transform handle them correctly.
+    In order to have this functionality for 1.2, we need to provide lazy
+    overrides on __call__ methods for lazy array and dictionary transforms, and we need
+    pure lazy transforms. See ``Compose`` for more information about lazy resampling.
+
+    Please note, this class is function is designed to be called by ``apply_transform``.
+    In general, you should not need to make specific use of it unless you are implementing
+    pipeline execution mechanisms.
 
     Args:
         transform: a callable to be used to transform `data`.
@@ -67,20 +106,20 @@ def _apply_transform(
         ReturnType: The return type of `transform`.
     """
 
-    # For the 1.2 release, we are limited here to having executing transforms that
-    # are lazy but set to not be lazy _after_ we have applied the pending list. This
-    # is because the transform implementations for 1.2 don't have unified code paths for
-    # lazy and non-lazy operation, so it is not possible to pass a tensor with pending
-    # operations and have the transform handle them correctly.
-    # In order to have this functionality for 1.2, we need to provide lazy
-    # overrides on __call__ methods for lazy array and dictionary transforms.
+    logger = None
+    if logger_name is not None:
+        logger = logging.getLogger(logger_name)
 
     lazy_tx = isinstance(transform, LazyTrait)
 
     if lazy_tx is False or lazy is False:
+        _log_pending_info(logger, data, transform, "Apply pending transforms", lazy)
         data = apply_pending_transforms(data, overrides)
     elif lazy is None and transform.lazy is False:  # type: ignore[attr-defined]
+        _log_pending_info(logger, data, transform, "Apply pending transforms", lazy)
         data = apply_pending_transforms(data, overrides)
+    else:
+        _log_pending_info(logger, data, transform, "Accumulate pending transforms", lazy)
 
     if isinstance(data, tuple) and unpack_parameters:
         return transform(*data, lazy=lazy) if lazy_tx else transform(*data)
@@ -123,7 +162,7 @@ def apply_transform(
     try:
         if isinstance(data, (list, tuple)) and map_items:
             return [_apply_transform(transform, item, unpack_items, lazy, overrides) for item in data]
-        return _apply_transform(transform, data, unpack_items, lazy, overrides)
+        return _apply_transform(transform, data, unpack_items, lazy, overrides, logger_name)
     except Exception as e:
         # if in debug mode, don't swallow exception so that the breakpoint
         # appears where the exception was raised.

@@ -15,6 +15,7 @@ from typing import Any
 
 import torch
 
+from monai.data.utils import to_affine_nd
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.lazy.utils import (
     affine_from_pending,
@@ -31,7 +32,7 @@ __override_keywords = {"mode", "padding_mode", "dtype", "align_corners", "resamp
 
 
 def apply_pending_transforms(
-    data, overrides: dict | None = None, logger_name: str = "monai.lazy.functional.apply_pending_transforms"
+    data, overrides: dict | None = None, logger_name: str | None = None
 ):
     """
     apply_pending_transforms iterates over a tuple, list, or dictionary of data, recursively calling itself
@@ -50,7 +51,8 @@ def apply_pending_transforms(
         data: a ``torch.Tensor`` or ``MetaTensor``, or list, tuple or dictionary of tensors.
         overrides: An optional dictionary that specifies parameters that can be used to override transform
             arguments when they are called
-        logger_name: An optional name for a logger to be used instead of the default logger.
+        logger_name: An optional name for a logger to be used when applying pending transforms. If None,
+            logging is suppressed.
     Returns:
 
     """
@@ -78,7 +80,7 @@ def apply_pending(
     data: torch.Tensor | MetaTensor,
     pending: list | None = None,
     overrides: dict | None = None,
-    logger_name: str = "monai.lazy.functional.apply_pending",
+    logger_name: str | None = None,
 ):
     """
     This method applies pending transforms to `data` tensors.
@@ -129,6 +131,8 @@ def apply_pending(
             - device: device for resampling computation. Defaults to ``None``.
             - resample_mode: the mode of resampling, currently support ``"auto"``. Setting to other values will use the
                 :py:class:`monai.transforms.SpatialResample` for resampling (instead of potentially crop/pad).
+        logger_name: A logger name that is used to log output generated while applying pending transforms. You can
+              suppress logging by setting this to None (default).
 
     """
     overrides = (overrides or {}).copy()
@@ -144,6 +148,9 @@ def apply_pending(
         return data, []
 
     cumulative_xform = affine_from_pending(pending[0])
+    if cumulative_xform.shape[0] == 3:
+        cumulative_xform = to_affine_nd(3, cumulative_xform)
+
     cur_kwargs = kwargs_from_pending(pending[0])
     override_kwargs: dict[str, Any] = {}
     if "mode" in overrides:
@@ -165,7 +172,11 @@ def apply_pending(
             _cur_kwargs = cur_kwargs.copy()
             _cur_kwargs.update(override_kwargs)
             data = resample(data.to(device), cumulative_xform, _cur_kwargs)
+
         next_matrix = affine_from_pending(p)
+        if next_matrix.shape[0] == 3:
+            next_matrix = to_affine_nd(3, next_matrix)
+
         cumulative_xform = combine_transforms(cumulative_xform, next_matrix)
         cur_kwargs.update(new_kwargs)
     cur_kwargs.update(override_kwargs)
