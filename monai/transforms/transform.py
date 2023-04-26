@@ -77,7 +77,7 @@ def _apply_transform(
 
     lazy_tx = isinstance(transform, LazyTrait)
 
-    if lazy_tx is False or lazy == False:
+    if lazy_tx is False or lazy is False:
         data = apply_pending_transforms(data, overrides)
     elif lazy is None and transform.lazy is False:  # type: ignore[attr-defined]
         data = apply_pending_transforms(data, overrides)
