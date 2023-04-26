@@ -31,8 +31,8 @@ __override_keywords = {"mode", "padding_mode", "dtype", "align_corners", "resamp
 
 
 def apply_pending_transforms(
-        data, overrides: dict | None = None, logger_name: str = "monai.lazy.functional.apply_pending_transforms"
-    ):
+    data, overrides: dict | None = None, logger_name: str = "monai.lazy.functional.apply_pending_transforms"
+):
     """
     apply_pending_transforms iterates over a tuple, list, or dictionary of data, recursively calling itself
     to get a single tensor. If that tensor is a MetaTensor with pending lazy transforms, it then calls
@@ -75,10 +75,10 @@ def apply_pending_transforms(
 
 
 def apply_pending(
-        data: torch.Tensor | MetaTensor,
-        pending: list | None = None,
-        overrides: dict | None = None,
-        logger_name: str = "monai.lazy.functional.apply_pending",
+    data: torch.Tensor | MetaTensor,
+    pending: list | None = None,
+    overrides: dict | None = None,
+    logger_name: str = "monai.lazy.functional.apply_pending",
 ):
     """
     This method applies pending transforms to `data` tensors.

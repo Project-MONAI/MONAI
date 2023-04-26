@@ -255,7 +255,6 @@ TEST_COMPOSE_EXECUTE_TEST_CASES = [
 
 
 class TestComposeExecute(unittest.TestCase):
-
     @staticmethod
     def data_from_keys(keys):
         if keys is None:
@@ -324,11 +323,10 @@ class TestComposeExecute(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             c = Compose(deepcopy(pipeline))
-            c(data, end=len(pipeline)+1)
+            c(data, end=len(pipeline) + 1)
 
         with self.assertRaises(ValueError):
-            execute_compose(data, deepcopy(pipeline), end=len(pipeline)+1)
-
+            execute_compose(data, deepcopy(pipeline), end=len(pipeline) + 1)
 
     @parameterized.expand(TEST_COMPOSE_EXECUTE_TEST_CASES)
     def test_compose_execute_empty_range(self, keys, pipeline):
@@ -409,6 +407,7 @@ class TestComposeExecuteWithFlags(unittest.TestCase):
                     self.assertTrue(expected[k], actual[k])
             else:
                 self.assertTrue(expected, actual)
+
 
 # TEST_COMPOSE_LAZY_FLAG_CASES = [
 #     [sa.Spacing(), sa.Flip(), sa.Flip(), sa.Rotate90(), ca.ResizeWithPadOrCro()],

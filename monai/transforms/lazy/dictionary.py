@@ -12,38 +12,38 @@
 
 from __future__ import annotations
 
+from monai.config import KeysCollection
 from monai.data.meta_tensor import MetaTensor
+from monai.transforms import MapTransform
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.lazy.functional import apply_pending
 
+__all__ = ["ApplyPendingd"]
 
-class ApplyPendingd(InvertibleTransform):
+
+class ApplyPendingd(InvertibleTransform, MapTransform):
     """
     ApplyPendingd can be inserted into a pipeline that is being executed lazily in order
-    to ensure resampling happens before the next transform. When called, it will check the
-    keys specified by `self.keys` and, if the value at that key is a ``MetaTensor`` instance,
-    it will execute all pending transforms on that value, inserting the transformed ``MetaTensor``
-    at that key location.
+    to ensure resampling happens before the next transform. It doesn't do anything itself,
+    but its presence causes the pipeline to be executed as it doesn't implement ``LazyTrait``
 
     See ``Compose`` for a detailed explanation of the lazy resampling feature.
     """
 
-    def __init__(self, keys):
-        super().__init__()
-        self.keys = keys
+    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False):
+        super().__init__(keys, allow_missing_keys)
 
-    def __call__(self, data, **kwargs):
+    def __call__(self, data):
         if not isinstance(data, dict):
             raise ValueError("'data' must be of type dict but is '{type(data)}'")
 
-        rd = dict(data)
-        for k in self.keys:
-            if isinstance(rd[k], MetaTensor):
-                rd[k] = apply_pending(rd[k], **kwargs)
-        return rd
+        return data
 
     def inverse(self, data):
         if not isinstance(data, dict):
             raise ValueError("'data' must be of type dict but is '{type(data)}'")
 
-        return self(data)
+        return data
+
+
+ApplyPendingD = ApplyPendingDict = ApplyPendingd

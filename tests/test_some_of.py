@@ -12,21 +12,18 @@
 from __future__ import annotations
 
 import unittest
-
 from copy import deepcopy
 
+import numpy as np
+import torch
 from parameterized import parameterized
 
-import numpy as np
-
-import torch
-
-from monai.data import MetaTensor
-from monai.transforms import TraceableTransform, Transform
-from monai.transforms.compose import Compose, SomeOf
 import monai.transforms.intensity.array as ia
 import monai.transforms.spatial.array as sa
 import monai.transforms.spatial.dictionary as sd
+from monai.data import MetaTensor
+from monai.transforms import TraceableTransform, Transform
+from monai.transforms.compose import Compose, SomeOf
 from monai.utils import set_determinism
 from monai.utils.enums import TraceKeys
 from tests.test_one_of import NonInv
@@ -224,7 +221,6 @@ TEST_SOMEOF_EXTENDED_TEST_CASES = [
 
 
 class TestSomeOfAPITests(unittest.TestCase):
-
     @staticmethod
     def data_from_keys(keys):
         if keys is None:

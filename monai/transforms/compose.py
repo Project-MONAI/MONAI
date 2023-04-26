@@ -39,7 +39,6 @@ from monai.transforms.transform import (  # noqa: F401
 )
 from monai.utils import MAX_SEED, TraceKeys, ensure_tuple, get_seed
 
-
 logger = get_logger(__name__)
 
 __all__ = ["Compose", "OneOf", "RandomOrder", "SomeOf"]
@@ -418,7 +417,7 @@ class OneOf(Compose):
         unpack_items: bool = False,
         lazy: bool | None = None,
         overrides: dict | None = None,
-        logger_name: str = "monai.transforms.compose.OneOf",
+        logger_name: str | None = None,
     ) -> None:
         super().__init__(transforms, map_items, unpack_items, lazy, overrides)
         if len(self.transforms) == 0:
@@ -431,7 +430,7 @@ class OneOf(Compose):
                 f"got {len(weights)} and {len(self.transforms)}."
             )
         self.weights = ensure_tuple(self._normalize_probabilities(weights))
-        self.logger_name = logger_name
+        self.logger_name = self.__class__.__name__ if logger_name is None else logger_name
 
     def _normalize_probabilities(self, weights):
         if len(weights) == 0:
@@ -550,9 +549,10 @@ class RandomOrder(Compose):
         unpack_items: bool = False,
         lazy: bool | None = None,
         overrides: dict | None = None,
-        logger_name: str = "monai.transforms.compose.RandomOrder",
+        logger_name: str | None = None,
     ) -> None:
         super().__init__(transforms, map_items, unpack_items, lazy, overrides)
+        self.logger_name = self.__class__.__name__ if logger_name is None else logger_name
 
     def __call__(self, input_, start=0, end=None, threading=False, lazy: str | bool | None = None):
         if start != 0:
@@ -644,12 +644,13 @@ class SomeOf(Compose):
         num_transforms: int | tuple[int, int] | None = None,
         replace: bool = False,
         weights: list[int] | None = None,
-        logger_name: str = "monai.transforms.compose.SomeOf"
+        logger_name: str | None = None,
     ) -> None:
         super().__init__(transforms, map_items, unpack_items, logger_name=logger_name)
         self.min_num_transforms, self.max_num_transforms = self._ensure_valid_num_transforms(num_transforms)
         self.replace = replace
         self.weights = self._normalize_probabilities(weights)
+        self.logger_name = self.__class__.__name__ if logger_name is None else logger_name
 
     def _ensure_valid_num_transforms(self, num_transforms: int | tuple[int, int] | None) -> tuple:
         if (

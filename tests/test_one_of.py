@@ -15,10 +15,12 @@ import unittest
 from copy import deepcopy
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
-import torch
-
+import monai.transforms.intensity.array as ia
+import monai.transforms.spatial.array as sa
+import monai.transforms.spatial.dictionary as sd
 from monai.data import MetaTensor
 from monai.transforms import (
     InvertibleTransform,
@@ -31,9 +33,6 @@ from monai.transforms import (
     Resized,
     Transform,
 )
-import monai.transforms.intensity.array as ia
-import monai.transforms.spatial.array as sa
-import monai.transforms.spatial.dictionary as sd
 from monai.transforms.compose import Compose
 from monai.transforms.transform import MapTransform
 from monai.utils.enums import TraceKeys
@@ -241,7 +240,6 @@ TEST_ONEOF_EXTENDED_TEST_CASES = [
 
 
 class TestOneOfAPITests(unittest.TestCase):
-
     @staticmethod
     def data_from_keys(keys):
         if keys is None:

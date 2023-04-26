@@ -9,12 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 from __future__ import annotations
 
-from monai.data.meta_tensor import MetaTensor
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.lazy.functional import apply_pending
 
 __all__ = ["ApplyPending"]
 
@@ -22,20 +19,14 @@ __all__ = ["ApplyPending"]
 class ApplyPending(InvertibleTransform):
     """
     ApplyPending can be inserted into a pipeline that is being executed lazily in order to ensure
-    resampling happens before the next transform. If passed a ``MetaTensor`` that has pending
-    transforms, it executes those pending transforms and returns the resampled ``MetaTensor`` instance.
+    resampling happens before the next transform. It doesn't do anything itself, but its presence
+    causes the pipeline to be executed as ApplyPending doesn't implement ```LazyTrait``.
 
     See ``Compose`` for a detailed explanation of the lazy resampling feature.
     """
 
-    def __init__(self):
-        super().__init__()
-
-    def __call__(self, data, *args, **kwargs):
-        if isinstance(data, MetaTensor):
-            return apply_pending(data, *args, **kwargs)
-
+    def __call__(self, data):
         return data
 
     def inverse(self, data):
-        return self(data)
+        return data

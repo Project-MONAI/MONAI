@@ -12,21 +12,18 @@
 from __future__ import annotations
 
 import unittest
-
 from copy import deepcopy
 
+import numpy as np
+import torch
 from parameterized import parameterized
 
-import numpy as np
-
-import torch
-
-from monai.data import MetaTensor
-from monai.transforms import RandomOrder
-from monai.transforms.compose import Compose
 import monai.transforms.intensity.array as ia
 import monai.transforms.spatial.array as sa
 import monai.transforms.spatial.dictionary as sd
+from monai.data import MetaTensor
+from monai.transforms import RandomOrder
+from monai.transforms.compose import Compose
 from monai.utils import set_determinism
 from monai.utils.enums import TraceKeys
 from tests.test_one_of import A, B, C, Inv, NonInv, X, Y
@@ -116,7 +113,6 @@ TEST_RANDOM_ORDER_EXTENDED_TEST_CASES = [
 
 
 class TestRandomOrderAPITests(unittest.TestCase):
-
     @staticmethod
     def data_from_keys(keys):
         if keys is None:
