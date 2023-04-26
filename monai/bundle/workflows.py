@@ -15,6 +15,7 @@ import os
 import time
 import warnings
 from abc import ABC, abstractmethod
+from copy import copy
 from logging.config import fileConfig
 from pathlib import Path
 from typing import Any, Sequence
@@ -53,10 +54,10 @@ class BundleWorkflow(ABC):
             self.workflow = None
             return
         if workflow.lower() in self.supported_train_type:
-            self.properties = TrainProperties
+            self.properties = copy(TrainProperties)
             self.workflow = "train"
         elif workflow.lower() in self.supported_infer_type:
-            self.properties = InferProperties
+            self.properties = copy(InferProperties)
             self.workflow = "infer"
         else:
             raise ValueError(f"Unsupported workflow type: '{workflow}'.")
@@ -128,6 +129,24 @@ class BundleWorkflow(ABC):
 
         """
         return self.workflow
+
+    def add_property(self, name: str, required: str, desc: str | None = None):
+        """
+        Besides the default predefined properties, some 3rd party aplications may need the bundle
+        dfinition to provide additonal properties for the specific use cases, if the bundlle can't
+        provide the property, means it can't work with the application.
+        This utility adds the property for the application requirements check and access.
+
+        Args:
+            name: the name of target property.
+            required: whether the property is "must-have".
+            desc: description document for the property.
+
+        """
+        if name in self.properties:
+            warnings.warn(f"property '{name}' already exists in the properties list.")
+            return
+        self.properties[name] = {BundleProperty.DESC: desc, BundleProperty.REQUIRED: required}
 
     def check_properties(self) -> list[str] | None:
         """
@@ -315,6 +334,23 @@ class ConfigWorkflow(BundleWorkflow):
             # must parse the config again after changing the content
             self._is_initialized = False
             self.parser.ref_resolver.reset()
+
+    def add_property(self, name: str, required: str, config_id: str, desc: str | None = None):
+        """
+        Besides the default predefined properties, some 3rd party aplications may need the bundle
+        dfinition to provide additonal properties for the specific use cases, if the bundlle can't
+        provide the property, means it can't work with the application.
+        This utility adds the property for the application requirements check and access.
+
+        Args:
+            name: the name of target property.
+            required: whether the property is "must-have".
+            config_id: the config ID of target property in the bundle definition.
+            desc: description document for the property.
+
+        """
+        super().add_property(name=name, required=required, desc=desc)
+        self.properties[name][BundlePropertyConfig.ID] = config_id
 
     def _check_optional_id(self, name: str, property: dict) -> bool:
         """

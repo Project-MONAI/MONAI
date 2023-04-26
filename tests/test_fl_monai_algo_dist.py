@@ -41,6 +41,10 @@ class TestFLMonaiAlgo(DistTestCase):
             pathjoin(_data_dir, "config_fl_evaluate.json"),
             pathjoin(_data_dir, "multi_gpu_evaluate.json"),
         ]
+        train_workflow = ConfigWorkflow(config_file=train_configs, workflow="train", logging_file=_logging_file)
+        # simulate the case that this application has specific requirements for a bundle workflow
+        train_workflow.add_property(name="loader", required=True, config_id="train#training_transforms#0", desc="NA")
+
         # initialize algo
         algo = MonaiAlgo(
             bundle_root=_data_dir,
