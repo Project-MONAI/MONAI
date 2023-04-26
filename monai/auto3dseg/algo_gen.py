@@ -19,6 +19,7 @@ class Algo:
     An algorithm in this context is loosely defined as a data processing pipeline consisting of multiple components
     such as image preprocessing, followed by deep learning model training and evaluation.
     """
+
     template_path = None
 
     def set_data_stats(self, *args, **kwargs):

@@ -11,11 +11,11 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import pickle
 import sys
 import warnings
-import logging
 from copy import deepcopy
 from numbers import Number
 from typing import Any, cast
@@ -360,9 +360,7 @@ def algo_from_pickle(pkl_filename: str, template_path: str | None = None, **kwar
         algo.template_path = p
 
     if os.path.abspath(pkl_dir) != os.path.abspath(algo.get_output_path()):
-        logging.debug(
-            f"{algo.get_output_path()} is changed. Now override the Algo output_path with: {pkl_dir}."
-        )
+        logging.debug(f"{algo.get_output_path()} is changed. Now override the Algo output_path with: {pkl_dir}.")
         algo.output_path = pkl_dir
 
     algo_meta_data = {}

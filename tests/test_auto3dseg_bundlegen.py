@@ -12,13 +12,13 @@
 from __future__ import annotations
 
 import os
+import shutil
 import tempfile
 import unittest
 
 import nibabel as nib
 import numpy as np
 import torch
-import shutil
 
 from monai.apps.auto3dseg import BundleGen, DataAnalyzer
 from monai.apps.auto3dseg.utils import export_bundle_algo_history, import_bundle_algo_history
@@ -26,25 +26,17 @@ from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
 from monai.utils import optional_import, set_determinism
 from monai.utils.enums import AlgoKeys
-from tests.utils import (
-    get_testing_algo_template_path,
-    skip_if_downloading_fails,
-    skip_if_no_cuda,
-    skip_if_quick,
-)
+from tests.utils import get_testing_algo_template_path, skip_if_downloading_fails, skip_if_no_cuda, skip_if_quick
 
 sim_datalist: dict[str, list[dict]] = {
     "testing": [{"image": "val_001.fake.nii.gz"}, {"image": "val_002.fake.nii.gz"}],
     "training": [
-        {
-            "fold": f,
-            "image": f"tr_image_{(f * 2 + idx):03d}.nii.gz",
-            "label": f"tr_label_{(f * 2 + idx):03d}.nii.gz",
-        }
+        {"fold": f, "image": f"tr_image_{(f * 2 + idx):03d}.nii.gz", "label": f"tr_label_{(f * 2 + idx):03d}.nii.gz"}
         for f in range(3)
         for idx in range(2)
     ],
 }
+
 
 def create_sim_data(dataroot, sim_datalist, sim_dim, **kwargs):
     """
@@ -70,13 +62,14 @@ def create_sim_data(dataroot, sim_datalist, sim_dim, **kwargs):
             label_fpath = os.path.join(dataroot, d["label"])
             nib.save(nib_image, label_fpath)
 
+
 def run_auto3dseg_before_bundlegen(test_path, work_dir):
     """
     Run the Auto3DSeg modules before the BundleGen step.
     Args:
         test_path: a path to contain `sim_dataroot` which is for the simulated dataset file.
         work_dir: working directory
-    
+
     Returns:
         Paths of the outputs from the previous steps
     """
@@ -96,13 +89,14 @@ def run_auto3dseg_before_bundlegen(test_path, work_dir):
 
     return dataroot_dir, datalist_file, datastats_file
 
+
 @skip_if_no_cuda
 @skip_if_quick
 class TestBundleGen(unittest.TestCase):
     def setUp(self) -> None:
         set_determinism(0)
         self.test_dir = tempfile.TemporaryDirectory()
-    
+
     def test_bundle_gen(self) -> None:
         pass
 
@@ -129,7 +123,7 @@ class TestBundleGen(unittest.TestCase):
                 data_src_cfg_name=data_src_cfg,
                 templates_path_or_url=get_testing_algo_template_path(),
             )
-        
+
         bundle_generator.generate(work_dir, num_fold=1)
         history_before = bundle_generator.get_history()
         export_bundle_algo_history(history_before)
@@ -142,6 +136,7 @@ class TestBundleGen(unittest.TestCase):
     def tearDown(self) -> None:
         set_determinism(None)
         self.test_dir.cleanup()
+
 
 if __name__ == "__main__":
     unittest.main()
