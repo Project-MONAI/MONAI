@@ -18,6 +18,7 @@ import unittest
 
 import nibabel as nib
 import numpy as np
+import torch
 
 from monai.apps.auto3dseg import BundleGen, DataAnalyzer
 from monai.apps.auto3dseg.utils import export_bundle_algo_history, import_bundle_algo_history
@@ -26,15 +27,21 @@ from monai.data import create_test_image_3d
 from monai.utils import set_determinism
 from tests.utils import get_testing_algo_template_path, skip_if_downloading_fails, skip_if_no_cuda, skip_if_quick
 
+num_images_perfold = max(torch.cuda.device_count(), 4)
+num_images_per_batch = 2
+
 sim_datalist: dict[str, list[dict]] = {
     "testing": [{"image": "val_001.fake.nii.gz"}, {"image": "val_002.fake.nii.gz"}],
     "training": [
-        {"fold": f, "image": f"tr_image_{(f * 2 + idx):03d}.nii.gz", "label": f"tr_label_{(f * 2 + idx):03d}.nii.gz"}
-        for f in range(3)
-        for idx in range(2)
+        {
+            "fold": f,
+            "image": f"tr_image_{(f * num_images_perfold + idx):03d}.nii.gz",
+            "label": f"tr_label_{(f * num_images_perfold + idx):03d}.nii.gz",
+        }
+        for f in range(num_images_per_batch + 1)
+        for idx in range(num_images_perfold)
     ],
 }
-
 
 def create_sim_data(dataroot, sim_datalist, sim_dim, **kwargs):
     """
