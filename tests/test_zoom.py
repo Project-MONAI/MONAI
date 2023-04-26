@@ -33,6 +33,7 @@ VALID_CASES = [
     (1.5, "nearest", True),
     (1.5, "nearest", False),
     (0.8, "bilinear"),
+    (0.8, 1),
     (0.8, "area"),
     (1.5, "nearest", False, True),
     (0.8, "area", False, True),
@@ -71,7 +72,7 @@ class TestZoom(NumpyImageTestCase2D):
             zoomed = zoom_fn(im)
             test_local_inversion(zoom_fn, zoomed, im)
             _order = 0
-            if mode.endswith("linear"):
+            if mode == 1 or mode.endswith("linear"):
                 _order = 1
             expected = []
             for channel in self.imt[0]:

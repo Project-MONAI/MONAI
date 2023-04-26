@@ -15,7 +15,6 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 from __future__ import annotations
 
-import functools
 import warnings
 from collections.abc import Callable
 from copy import deepcopy
@@ -54,6 +53,7 @@ from monai.transforms.utils import (
     create_shear,
     create_translate,
     map_spatial_axes,
+    resolves_modes,
     scale_affine,
 )
 from monai.transforms.utils_pytorch_numpy_unification import argsort, argwhere, linalg_inv, moveaxis
@@ -61,9 +61,7 @@ from monai.utils import (
     GridSampleMode,
     GridSamplePadMode,
     InterpolateMode,
-    NdimageMode,
     NumpyPadMode,
-    SplineMode,
     convert_to_cupy,
     convert_to_dst_type,
     convert_to_numpy,
@@ -742,7 +740,7 @@ class Resize(InvertibleTransform, LazyTransform):
     ) -> None:
         self.size_mode = look_up_option(size_mode, ["all", "longest"])
         self.spatial_size = spatial_size
-        self.mode: InterpolateMode = look_up_option(mode, InterpolateMode)
+        self.mode = mode
         self.align_corners = align_corners
         self.anti_aliasing = anti_aliasing
         self.anti_aliasing_sigma = anti_aliasing_sigma
@@ -810,7 +808,7 @@ class Resize(InvertibleTransform, LazyTransform):
             scale = self.spatial_size / max(img_size)
             sp_size = tuple(int(round(s * scale)) for s in img_size)
 
-        _mode = look_up_option(self.mode if mode is None else mode, InterpolateMode)
+        _mode = self.mode if mode is None else mode
         _align_corners = self.align_corners if align_corners is None else align_corners
         _dtype = get_equivalent_dtype(dtype or self.dtype or img.dtype, torch.Tensor)
         lazy_ = self.lazy if lazy is None else lazy
@@ -887,8 +885,8 @@ class Rotate(InvertibleTransform, LazyTransform):
     ) -> None:
         self.angle = angle
         self.keep_size = keep_size
-        self.mode: str = look_up_option(mode, GridSampleMode)
-        self.padding_mode: str = look_up_option(padding_mode, GridSamplePadMode)
+        self.mode: str = mode
+        self.padding_mode: str = padding_mode
         self.align_corners = align_corners
         self.dtype = dtype
         self.lazy = lazy
@@ -928,8 +926,8 @@ class Rotate(InvertibleTransform, LazyTransform):
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         _dtype = get_equivalent_dtype(dtype or self.dtype or img.dtype, torch.Tensor)
-        _mode = look_up_option(mode or self.mode, GridSampleMode)
-        _padding_mode = look_up_option(padding_mode or self.padding_mode, GridSamplePadMode)
+        _mode = mode or self.mode
+        _padding_mode = padding_mode or self.padding_mode
         _align_corners = self.align_corners if align_corners is None else align_corners
         im_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
         output_shape = im_shape if self.keep_size else None
@@ -958,10 +956,11 @@ class Rotate(InvertibleTransform, LazyTransform):
         dtype = transform[TraceKeys.EXTRA_INFO]["dtype"]
         inv_rot_mat = linalg_inv(convert_to_numpy(fwd_rot_mat))
 
+        _, _m, _p, _ = resolves_modes(mode, padding_mode)
         xform = AffineTransform(
             normalized=False,
-            mode=mode,
-            padding_mode=padding_mode,
+            mode=_m,
+            padding_mode=_p,
             align_corners=False if align_corners == TraceKeys.NONE else align_corners,
             reverse_indexing=True,
         )
@@ -1025,7 +1024,7 @@ class Zoom(InvertibleTransform, LazyTransform):
         **kwargs,
     ) -> None:
         self.zoom = zoom
-        self.mode: InterpolateMode = InterpolateMode(mode)
+        self.mode = mode
         self.padding_mode = padding_mode
         self.align_corners = align_corners
         self.dtype = dtype
@@ -1067,7 +1066,7 @@ class Zoom(InvertibleTransform, LazyTransform):
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         _zoom = ensure_tuple_rep(self.zoom, img.ndim - 1)  # match the spatial image dim
-        _mode = look_up_option(self.mode if mode is None else mode, InterpolateMode).value
+        _mode = self.mode if mode is None else mode
         _padding_mode = padding_mode or self.padding_mode
         _align_corners = self.align_corners if align_corners is None else align_corners
         _dtype = get_equivalent_dtype(dtype or self.dtype or img.dtype, torch.Tensor)
@@ -1285,8 +1284,8 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
             self.range_z = tuple(sorted([-self.range_z[0], self.range_z[0]]))
 
         self.keep_size = keep_size
-        self.mode: str = look_up_option(mode, GridSampleMode)
-        self.padding_mode: str = look_up_option(padding_mode, GridSamplePadMode)
+        self.mode: str = mode
+        self.padding_mode: str = padding_mode
         self.align_corners = align_corners
         self.dtype = dtype
         self.lazy = lazy
@@ -1341,8 +1340,8 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
             rotator = Rotate(
                 angle=self.x if ndim == 2 else (self.x, self.y, self.z),
                 keep_size=self.keep_size,
-                mode=look_up_option(mode or self.mode, GridSampleMode),
-                padding_mode=look_up_option(padding_mode or self.padding_mode, GridSamplePadMode),
+                mode=mode or self.mode,
+                padding_mode=padding_mode or self.padding_mode,
                 align_corners=self.align_corners if align_corners is None else align_corners,
                 dtype=dtype or self.dtype or img.dtype,
                 lazy=lazy_,
@@ -1522,7 +1521,7 @@ class RandZoom(RandomizableTransform, InvertibleTransform, LazyTransform):
             raise ValueError(
                 f"min_zoom and max_zoom must have same length, got {len(self.min_zoom)} and {len(self.max_zoom)}."
             )
-        self.mode: InterpolateMode = look_up_option(mode, InterpolateMode)
+        self.mode = mode
         self.padding_mode = padding_mode
         self.align_corners = align_corners
         self.dtype = dtype
@@ -1588,7 +1587,7 @@ class RandZoom(RandomizableTransform, InvertibleTransform, LazyTransform):
             xform = Zoom(
                 self._zoom,
                 keep_size=self.keep_size,
-                mode=look_up_option(mode or self.mode, InterpolateMode),
+                mode=mode or self.mode,
                 padding_mode=padding_mode or self.padding_mode,
                 align_corners=self.align_corners if align_corners is None else align_corners,
                 dtype=dtype or self.dtype,
@@ -1954,35 +1953,6 @@ class Resample(Transform):
         self.align_corners = align_corners
         self.dtype = dtype
 
-    @staticmethod
-    @functools.lru_cache(None)
-    def resolve_modes(interp_mode, padding_mode):
-        """compute the backend and the corresponding mode for the given interpolation mode and padding mode."""
-        _interp_mode = None
-        _padding_mode = None
-        if look_up_option(str(interp_mode), SplineMode, default=None) is not None:
-            backend = TransformBackends.NUMPY
-        else:
-            backend = TransformBackends.TORCH
-
-        if (not USE_COMPILED) and (backend == TransformBackends.TORCH):
-            if str(interp_mode).lower().endswith("linear"):
-                _interp_mode = GridSampleMode("bilinear")
-            _interp_mode = GridSampleMode(interp_mode)
-            _padding_mode = GridSamplePadMode(padding_mode)
-        elif USE_COMPILED and backend == TransformBackends.TORCH:  # compiled is using torch backend param name
-            _padding_mode = 1 if padding_mode == "reflection" else padding_mode  # type: ignore
-            if interp_mode == "bicubic":
-                _interp_mode = 3  # type: ignore
-            elif interp_mode == "bilinear":
-                _interp_mode = 1  # type: ignore
-            else:
-                _interp_mode = GridSampleMode(interp_mode)
-        else:  # TransformBackends.NUMPY
-            _interp_mode = int(interp_mode)  # type: ignore
-            _padding_mode = look_up_option(padding_mode, NdimageMode)
-        return backend, _interp_mode, _padding_mode
-
     def __call__(
         self,
         img: torch.Tensor,
@@ -2033,8 +2003,11 @@ class Resample(Transform):
         _align_corners = self.align_corners if align_corners is None else align_corners
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=_dtype, device=_device)
         sr = min(len(img_t.peek_pending_shape() if isinstance(img_t, MetaTensor) else img_t.shape[1:]), 3)
-        backend, _interp_mode, _padding_mode = Resample.resolve_modes(
-            self.mode if mode is None else mode, self.padding_mode if padding_mode is None else padding_mode
+        backend, _interp_mode, _padding_mode, _ = resolves_modes(
+            self.mode if mode is None else mode,
+            self.padding_mode if padding_mode is None else padding_mode,
+            backend=None,
+            use_compiled=USE_COMPILED,
         )
 
         if USE_COMPILED or backend == TransformBackends.NUMPY:
