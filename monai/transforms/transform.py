@@ -44,9 +44,7 @@ __all__ = [
 ReturnType = TypeVar("ReturnType")
 
 
-def _log_pending_info(
-    logger: Any | None, data: Any, transform: Any, activity: str, lazy: bool | None = None,
-):
+def _log_pending_info(logger: Any | None, data: Any, transform: Any, activity: str, lazy: bool | None = None):
     if logger is None:
         return
 
@@ -61,12 +59,15 @@ def _log_pending_info(
     if isinstance(transform, MapTransform):
         for k in transform.keys:
             pcount = len(data[k].pending_operations) if isinstance(data[k], MetaTensor) else 0
-            logger.info(f"{activity} - lazy mode: {lazy}, key: '{k}', "
-                        f"pending: {pcount}, upcoming '{transform.__class__.__name__}'{tlazy}")
+            logger.info(
+                f"{activity} - lazy mode: {lazy}, key: '{k}', "
+                f"pending: {pcount}, upcoming '{transform.__class__.__name__}'{tlazy}"
+            )
     else:
         pcount = len(data.pending_operations) if isinstance(data, MetaTensor) else 0
-        logger.info(f"{activity} - lazy: {lazy}, "
-                    f"pending: {pcount}, upcoming '{transform.__class__.__name__}'{tlazy}")
+        logger.info(
+            f"{activity} - lazy: {lazy}, " f"pending: {pcount}, upcoming '{transform.__class__.__name__}'{tlazy}"
+        )
 
 
 def _apply_transform(

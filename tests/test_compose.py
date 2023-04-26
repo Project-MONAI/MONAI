@@ -22,9 +22,7 @@ import torch
 from parameterized import parameterized
 
 from monai.data import DataLoader, Dataset
-from monai.transforms import (
-    AddChannel, Compose, Flip, NormalizeIntensity, Rotate, Rotate90, Rotated, Spacing, Zoom,
-)
+from monai.transforms import AddChannel, Compose, Flip, NormalizeIntensity, Rotate, Rotate90, Rotated, Spacing, Zoom
 from monai.transforms.compose import execute_compose
 from monai.transforms.transform import Randomizable
 from monai.utils import set_determinism
@@ -354,29 +352,32 @@ TEST_COMPOSE_EXECUTE_LOGGING_TEST_CASES = [
         None,
         (Flip(0), Spacing((1.2, 1.2)), Flip(1), Rotate90(1), Zoom(0.8), NormalizeIntensity()),
         False,
-        ("Apply pending transforms - lazy: False, pending: 0, upcoming 'Flip', transform.lazy: False\n"
-         "Apply pending transforms - lazy: False, pending: 0, upcoming 'Spacing', transform.lazy: False\n"
-         "Apply pending transforms - lazy: False, pending: 0, upcoming 'Flip', transform.lazy: False\n"
-         "Apply pending transforms - lazy: False, pending: 0, upcoming 'Rotate90', transform.lazy: False\n"
-         "Apply pending transforms - lazy: False, pending: 0, upcoming 'Zoom', transform.lazy: False\n"
-         "Apply pending transforms - lazy: False, pending: 0, upcoming 'NormalizeIntensity', transform is not lazy\n")
+        (
+            "Apply pending transforms - lazy: False, pending: 0, upcoming 'Flip', transform.lazy: False\n"
+            "Apply pending transforms - lazy: False, pending: 0, upcoming 'Spacing', transform.lazy: False\n"
+            "Apply pending transforms - lazy: False, pending: 0, upcoming 'Flip', transform.lazy: False\n"
+            "Apply pending transforms - lazy: False, pending: 0, upcoming 'Rotate90', transform.lazy: False\n"
+            "Apply pending transforms - lazy: False, pending: 0, upcoming 'Zoom', transform.lazy: False\n"
+            "Apply pending transforms - lazy: False, pending: 0, upcoming 'NormalizeIntensity', transform is not lazy\n"
+        ),
     ],
     [
         None,
         (Flip(0), Spacing((1.2, 1.2)), Flip(1), Rotate90(1), Zoom(0.8), NormalizeIntensity()),
         True,
-        ("Accumulate pending transforms - lazy: True, pending: 0, upcoming 'Flip', transform.lazy: False (overridden)\n"
-         "Accumulate pending transforms - lazy: True, pending: 1, upcoming 'Spacing', transform.lazy: False (overridden)\n"
-         "Accumulate pending transforms - lazy: True, pending: 2, upcoming 'Flip', transform.lazy: False (overridden)\n"
-         "Accumulate pending transforms - lazy: True, pending: 3, upcoming 'Rotate90', transform.lazy: False (overridden)\n"
-         "Accumulate pending transforms - lazy: True, pending: 4, upcoming 'Zoom', transform.lazy: False (overridden)\n"
-         "Apply pending transforms - lazy: True, pending: 5, upcoming 'NormalizeIntensity', transform is not lazy\n")
-    ]
+        (
+            "Accumulate pending transforms - lazy: True, pending: 0, upcoming 'Flip', transform.lazy: False (overridden)\n"
+            "Accumulate pending transforms - lazy: True, pending: 1, upcoming 'Spacing', transform.lazy: False (overridden)\n"
+            "Accumulate pending transforms - lazy: True, pending: 2, upcoming 'Flip', transform.lazy: False (overridden)\n"
+            "Accumulate pending transforms - lazy: True, pending: 3, upcoming 'Rotate90', transform.lazy: False (overridden)\n"
+            "Accumulate pending transforms - lazy: True, pending: 4, upcoming 'Zoom', transform.lazy: False (overridden)\n"
+            "Apply pending transforms - lazy: True, pending: 5, upcoming 'NormalizeIntensity', transform is not lazy\n"
+        ),
+    ],
 ]
 
 
 class TestComposeExecuteWithLogging(unittest.TestCase):
-
     @staticmethod
     def data_from_keys(keys):
         if keys is None:

@@ -15,8 +15,8 @@ from typing import Any
 
 import torch
 
-from monai.data.utils import to_affine_nd
 from monai.data.meta_tensor import MetaTensor
+from monai.data.utils import to_affine_nd
 from monai.transforms.lazy.utils import (
     affine_from_pending,
     combine_transforms,
@@ -31,9 +31,7 @@ __all__ = ["apply_pending", "apply_pending_transforms"]
 __override_keywords = {"mode", "padding_mode", "dtype", "align_corners", "resample_mode", "device"}
 
 
-def apply_pending_transforms(
-    data, overrides: dict | None = None, logger_name: str | None = None
-):
+def apply_pending_transforms(data, overrides: dict | None = None, logger_name: str | None = None):
     """
     apply_pending_transforms iterates over a tuple, list, or dictionary of data, recursively calling itself
     to get a single tensor. If that tensor is a MetaTensor with pending lazy transforms, it then calls
