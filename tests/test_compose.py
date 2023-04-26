@@ -22,8 +22,6 @@ from parameterized import parameterized
 from monai.data import DataLoader, Dataset
 from monai.transforms import AddChannel, Compose, Flip, NormalizeIntensity, Rotate, Rotate90, Rotated, Zoom
 from monai.transforms.compose import execute_compose
-import monai.transforms.croppad.array as ca
-import monai.transforms.spatial.array as sa
 from monai.transforms.transform import Randomizable
 from monai.utils import set_determinism
 
@@ -346,7 +344,7 @@ class TestComposeExecute(unittest.TestCase):
         data = self.data_from_keys(keys)
 
         c = Compose(deepcopy(pipeline), logger_name="a_logger_name")
-        result = c(data)
+        c(data)
 
 
 class TestOps:
