@@ -31,6 +31,7 @@ from monai.auto3dseg.utils import datafold_read
 from monai.bundle import ConfigParser
 from monai.data import partition_dataset
 from monai.transforms import MeanEnsemble, SaveImage, VoteEnsemble
+from monai.utils import RankFilter
 from monai.utils.enums import AlgoKeys
 from monai.utils.misc import check_kwargs_exist_in_class_init, prob2class
 from monai.utils.module import look_up_option, optional_import
@@ -406,9 +407,6 @@ class EnsembleRunner:
             "CMD_PREFIX": os.environ.get("CMD_PREFIX"),  # type: ignore
         }
 
-        # self.kwargs needs to pop out args for set_image_save_transform
-        self.save_image: dict[str, Any] = self._pop_kwargs_to_get_image_save_transform(**self.kwargs)
-
     def set_ensemble_method(self, ensemble_method_name: str = "AlgoEnsembleBestByFold", **kwargs: Any) -> None:
         """
         Set the bundle ensemble method
@@ -474,7 +472,7 @@ class EnsembleRunner:
 
         return save_image
 
-    def set_image_save_transform(self, **kwargs):
+    def set_image_save_transform(self, **kwargs: Any) -> None:
         """
         Set the ensemble output transform.
 
@@ -483,8 +481,14 @@ class EnsembleRunner:
                 transform. For more information, check https://docs.monai.io/en/stable/transforms.html#saveimage .
 
         """
-        kwargs_copy = deepcopy(kwargs)
-        self.save_image = self._pop_kwargs_to_get_image_save_transform(**kwargs_copy)
+        are_all_args_present, extra_args = check_kwargs_exist_in_class_init(SaveImage, kwargs)
+        if are_all_args_present:
+            self.kwargs.update(kwargs)
+        else:
+            raise ValueError(
+                f"{extra_args} are not supported in monai.transforms.SaveImage,"
+                "Check https://docs.monai.io/en/stable/transforms.html#saveimage for more information."
+            )
 
     def set_num_fold(self, num_fold: int = 5) -> None:
         """
@@ -504,18 +508,20 @@ class EnsembleRunner:
             dist.init_process_group(backend="nccl", init_method="env://")
             self.world_size = dist.get_world_size()
             self.rank = dist.get_rank()
+            logger.addFilter(RankFilter())
         # set params after init_process_group to know the rank
         self.set_num_fold(num_fold=self.num_fold)
         self.set_ensemble_method(self.ensemble_method_name, **self.kwargs)
+        # self.kwargs needs to pop out args for set_image_save_transform
+        save_image = self._pop_kwargs_to_get_image_save_transform(**self.kwargs)
 
         history = import_bundle_algo_history(self.work_dir, only_trained=False)
         history_untrained = [h for h in history if not h[AlgoKeys.IS_TRAINED]]
         if history_untrained:
-            if self.rank == 0:
-                warn(
-                    f"Ensembling step will skip {[h[AlgoKeys.ID] for h in history_untrained]} untrained algos."
-                    "Generally it means these algos did not complete training."
-                )
+            logger.warning(
+                f"Ensembling step will skip {[h[AlgoKeys.ID] for h in history_untrained]} untrained algos."
+                "Generally it means these algos did not complete training."
+            )
             history = [h for h in history if h[AlgoKeys.IS_TRAINED]]
         if len(history) == 0:
             raise ValueError(
@@ -534,13 +540,12 @@ class EnsembleRunner:
         self.ensembler.infer_files = infer_files
         # add rank to pred_params
         self.kwargs["rank"] = self.rank
-        self.kwargs["image_save_func"] = self.save_image
-        if self.rank == 0:
-            logger.info("Auto3Dseg picked the following networks to ensemble:")
-            for algo in self.ensembler.get_algo_ensemble():
-                logger.info(algo[AlgoKeys.ID])
-            output_dir = self.save_image["output_dir"]
-            logger.info(f"Auto3Dseg ensemble prediction outputs will be saved in {output_dir}.")
+        self.kwargs["image_save_func"] = save_image
+        logger.info("Auto3Dseg picked the following networks to ensemble:")
+        for algo in self.ensembler.get_algo_ensemble():
+            logger.info(algo[AlgoKeys.ID])
+        output_dir = save_image["output_dir"]
+        logger.info(f"Auto3Dseg ensemble prediction outputs will be saved in {output_dir}.")
         self.ensembler(pred_param=self.kwargs)
 
         if self.mgpu:
