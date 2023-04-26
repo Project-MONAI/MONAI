@@ -56,7 +56,6 @@ __all__ = [
     "HoVerNetMode",
     "HoVerNetBranch",
     "LazyAttr",
-    "LazyMode",
     "BundleProperty",
     "BundlePropertyConfig",
     "AlgoKeys",
