@@ -23,7 +23,9 @@ from parameterized import parameterized
 
 from monai.data import DataLoader, Dataset
 from monai.transforms import AddChannel, Compose, Flip, NormalizeIntensity, Rotate, Rotate90, Rotated, Spacing, Zoom
+from monai.transforms import NormalizeIntensityd
 from monai.transforms.compose import execute_compose
+from monai.transforms.spatial.dictionary import Flipd, Rotate90d, Spacingd
 from monai.transforms.transform import Randomizable
 from monai.utils import set_determinism
 
@@ -374,6 +376,21 @@ TEST_COMPOSE_EXECUTE_LOGGING_TEST_CASES = [
             "Apply pending transforms - lazy: True, pending: 5, upcoming 'NormalizeIntensity', transform is not lazy\n"
         ),
     ],
+    [
+        ('a', 'b'),
+        (Flipd(('a', 'b'), 0), Spacingd(('a', 'b'), 1.2), Rotate90d(('a', 'b'), 1), NormalizeIntensityd(('a',))),
+        True,
+        (
+            "Accumulate pending transforms - lazy mode: True, key: 'a', pending: 0, upcoming 'Flipd', transform.lazy: False (overridden)\n"
+            "Accumulate pending transforms - lazy mode: True, key: 'b', pending: 0, upcoming 'Flipd', transform.lazy: False (overridden)\n"
+            "Accumulate pending transforms - lazy mode: True, key: 'a', pending: 1, upcoming 'Spacingd', transform.lazy: False (overridden)\n"
+            "Accumulate pending transforms - lazy mode: True, key: 'b', pending: 1, upcoming 'Spacingd', transform.lazy: False (overridden)\n"
+            "Accumulate pending transforms - lazy mode: True, key: 'a', pending: 2, upcoming 'Rotate90d', transform.lazy: False (overridden)\n"
+            "Accumulate pending transforms - lazy mode: True, key: 'b', pending: 2, upcoming 'Rotate90d', transform.lazy: False (overridden)\n"
+            "Apply pending transforms - lazy mode: True, key: 'a', pending: 3, upcoming 'NormalizeIntensityd', transform is not lazy\n"
+            ""
+        )
+    ]
 ]
 
 
