@@ -13,10 +13,8 @@
 from __future__ import annotations
 
 from monai.config import KeysCollection
-from monai.data.meta_tensor import MetaTensor
 from monai.transforms import MapTransform
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.lazy.functional import apply_pending
 
 __all__ = ["ApplyPendingd"]
 
