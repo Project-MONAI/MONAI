@@ -1308,7 +1308,6 @@ class RandRotateBox90d(RandRotate90d):
         spatial_axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
             Default: (0, 1), this is the first two axis in spatial dimensions.
         allow_missing_keys: don't raise exception if key is missing.
-        lazy:
     """
 
     backend = RotateBox90.backend
