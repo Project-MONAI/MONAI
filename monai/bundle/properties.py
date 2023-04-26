@@ -167,7 +167,7 @@ InferProperties = {
     "dataset": {
         BundleProperty.DESC: "PyTorch dataset object for the inference / evaluation logic.",
         BundleProperty.REQUIRED: True,
-        BundlePropertyConfig.ID: f"dataset",
+        BundlePropertyConfig.ID: "dataset",
     },
     "dataset_data": {
         BundleProperty.DESC: "data source for the inference / evaluation dataset.",
@@ -192,7 +192,7 @@ InferProperties = {
     "handlers": {
         BundleProperty.DESC: "event-handlers for the inference / evaluation logic.",
         BundleProperty.REQUIRED: False,
-        BundlePropertyConfig.ID: f"handlers",
+        BundlePropertyConfig.ID: "handlers",
         BundlePropertyConfig.REF_ID: f"evaluator{ID_SEP_KEY}val_handlers",
     },
     "preprocessing": {
