@@ -25,7 +25,6 @@ import monai
 import monai.transforms as mt
 from monai.data import create_test_image_3d, decollate_batch
 from monai.utils import set_determinism
-from monai.utils.enums import LazyMode
 from tests.utils import HAS_CUPY, DistTestCase, SkipIfBeforePyTorchVersion, skip_if_quick
 
 
@@ -188,10 +187,10 @@ class IntegrationLazyResampling(DistTestCase):
             _readers = ("itkreader", "nibabelreader")
             _w = 0
         results = run_training_test(
-            self.data_dir, device=self.device, cachedataset=idx, readers=_readers, num_workers=_w, lazy=LazyMode.ON
+            self.data_dir, device=self.device, cachedataset=idx, readers=_readers, num_workers=_w, lazy=True
         )
         results_expected = run_training_test(
-            self.data_dir, device=self.device, cachedataset=0, readers=_readers, num_workers=_w, lazy=LazyMode.OFF
+            self.data_dir, device=self.device, cachedataset=0, readers=_readers, num_workers=_w, lazy=False
         )
         self.assertFalse(np.allclose(results, [0]))
         self.assertFalse(np.allclose(results_expected, [0]))

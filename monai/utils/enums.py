@@ -648,37 +648,6 @@ class LazyAttr(StrEnum):
     RESAMPLE_MODE = "lazy_resample_mode"
 
 
-class LazyMode(StrEnum):
-    """
-    Lazy evaluation modes for executing processing pipelines (ie. Compose). These modes control how transforms
-    that can execute lazily are executed by the pipeline:
-    'OFF' indicates that the pipeline should not be executed lazily
-    'ENABLED' indicates that the pipeline can be executed lazily, but this will only be done for transforms
-    that have ``lazy`` set to True
-    'ON' indicates that all transforms capable of being executed lazily will be executed lazily
-    See: :py:class: monai.transforms.compose.Compose for more details.
-    """
-
-    OFF = "off"
-    ENABLED = "enabled"
-    ON = "on"
-
-    @staticmethod
-    def as_bool(lazy_mode):
-        if lazy_mode == LazyMode.OFF:
-            return False
-
-        if lazy_mode == LazyMode.ON:
-            return True
-
-        if lazy_mode == LazyMode.ENABLED:
-            return None
-
-        raise ValueError(
-            "'lazy_mode' must be one of LazyMode.OFF, LazyMode.ENABLED or LazyMode.ON, " f"but is {lazy_mode}"
-        )
-
-
 class BundleProperty(StrEnum):
     """
     Bundle property fields:

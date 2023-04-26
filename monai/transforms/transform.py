@@ -28,7 +28,7 @@ from monai.data.meta_tensor import MetaTensor
 from monai.transforms.lazy.functional import execute_pending_transforms
 from monai.transforms.traits import LazyTrait, RandomizableTrait, ThreadUnsafe
 from monai.utils import MAX_SEED, ensure_tuple, first
-from monai.utils.enums import LazyMode, TransformBackends
+from monai.utils.enums import TransformBackends
 from monai.utils.misc import MONAIEnvVars
 
 __all__ = [
@@ -48,7 +48,7 @@ def _apply_transform(
     transform: Callable[..., ReturnType],
     data: Any,
     unpack_parameters: bool = False,
-    lazy: str | bool | None = LazyMode.OFF,
+    lazy: bool | None = False,
     overrides: dict | None = None,
 ) -> ReturnType:
     """
@@ -77,16 +77,15 @@ def _apply_transform(
 
     lazy_tx = isinstance(transform, LazyTrait)
 
-    if lazy_tx is False or lazy == LazyMode.OFF:
+    if lazy_tx is False or lazy == False:
         data = execute_pending_transforms(data, overrides)
-    elif lazy is LazyMode.ENABLED and transform.lazy is False:  # type: ignore[attr-defined]
+    elif lazy is None and transform.lazy is False:  # type: ignore[attr-defined]
         data = execute_pending_transforms(data, overrides)
 
-    lazy_mode = lazy if isinstance(lazy, bool) or lazy is None else LazyMode.as_bool(lazy)
     if isinstance(data, tuple) and unpack_parameters:
-        return transform(*data, lazy=lazy_mode) if lazy_tx else transform(*data)
+        return transform(*data, lazy=lazy) if lazy_tx else transform(*data)
 
-    return transform(data, lazy=lazy_mode) if lazy_tx else transform(data)
+    return transform(data, lazy=lazy) if lazy_tx else transform(data)
 
 
 def apply_transform(
@@ -94,7 +93,7 @@ def apply_transform(
     data: Any,
     map_items: bool = True,
     unpack_items: bool = False,
-    lazy: str | bool | None = LazyMode.OFF,
+    lazy: bool | None = False,
     overrides: dict | None = None,
     logger_name: str = "monai.compose.transform.apply_transform",
 ) -> list[ReturnType] | ReturnType:

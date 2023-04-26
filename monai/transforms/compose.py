@@ -38,7 +38,7 @@ from monai.transforms.transform import (  # noqa: F401
     apply_transform,
 )
 from monai.utils import MAX_SEED, TraceKeys, ensure_tuple, get_seed
-from monai.utils.enums import LazyMode
+
 
 logger = get_logger(__name__)
 
@@ -111,8 +111,10 @@ def execute_compose(
     for _transform in transforms[start:end]:
         if threading:
             _transform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
-        data = apply_transform(_transform, data, map_items, unpack_items, lazy=lazy, overrides=overrides)
-    data = execute_pending_transforms(data, overrides)
+        data = apply_transform(
+            _transform, data, map_items, unpack_items, lazy=lazy, overrides=overrides, logger_name=logger_name
+        )
+    data = execute_pending_transforms(data, overrides, logger_name=logger_name)
     return data
 
 
@@ -204,20 +206,20 @@ class Compose(Randomizable, InvertibleTransform):
         should ensure that you fully execute the part of the pipeline that generates the data to be cached
         before caching it. This is quite simply done however, as shown by the following example.
 
-        Lazy resampling can be enabled or disabled through the ``lazy`` parameter. This can be specified either as
-        the LazyMode enum or as an optional boolean. The modes are as follows:
+        Lazy resampling can be enabled or disabled through the ``lazy`` parameter. This is specified as an
+        optional boolean parameter.
 
-        * LazyMode.OFF / False (default): Don't perform any lazy resampling
-        * LazyMode.ENABLED / None: Perform lazy resampling based on the 'lazy' properties of the transform instances.
-        * LazyMode.ON / True: Always perform lazy resampling if possible. This will ignore the ``lazy`` properties
+        * False (default): Don't perform any lazy resampling
+        * None: Perform lazy resampling based on the 'lazy' properties of the transform instances.
+        * True: Always perform lazy resampling if possible. This will ignore the ``lazy`` properties
           of the transform instances
 
         If you only want some of the pipeline to be executed lazily, there are two ways to achieve this.
 
-        The first way is to set LazyMode.ENABLED on your Compose instance and specify for each transform whether you
+        The first way is to set lazy=True on your Compose instance and specify for each transform whether you
         want it to be lazily executed or not.
 
-        The second way is to set LazyMode.ON on your Compose instance and add ``ApplyPending`` or `ApplyPendingd`
+        The second way is to set lazy=True on your Compose instance and add ``ApplyPending`` or `ApplyPendingd`
         transforms after the final transform in a sequence that you want to execute lazily. This can be done at multiple
         points in the pipeline.
 
@@ -238,10 +240,11 @@ class Compose(Randomizable, InvertibleTransform):
             defaults to `True`.
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             defaults to `False`.
-        lazy: whether to enable lazy evaluation for lazy transforms. This can be either string values from the enum
-            ``LazyMode`` or an optional bool. If LazyMode.OFF, lazy execution is disabled and transforms will be
-            carried out on a transform by transform basis. If LazyMode.ON, all lazy transforms will
-            be executed by accumulating changes and resampling as few times as possible.
+        lazy: whether to enable lazy evaluation for lazy transforms. This is an optional bool that can take
+            the following values. If lazy=False, lazy execution is disabled and transforms will be
+            carried out on a transform by transform basis. If lazy=True, all lazy transforms will
+            be executed by accumulating changes and resampling as few times as possible. If lazy is None,
+            Compose will perform lazy execution on lazy transforms that have their lazy flag set to True.
             A `monai.transforms.ApplyPending[d]` transform in the pipeline will trigger the evaluation of
             the pending operations and make the primary data up-to-date.
         overrides: this optional parameter allows you to specify a dictionary of parameters that should be overridden
@@ -258,7 +261,7 @@ class Compose(Randomizable, InvertibleTransform):
         transforms: Sequence[Callable] | Callable | None = None,
         map_items: bool = True,
         unpack_items: bool = False,
-        lazy: str | bool | None = LazyMode.OFF,
+        lazy: bool | None = False,
         overrides: dict | None = None,
         logger_name: str = "monai.transforms.compose.Compose",
     ) -> None:
