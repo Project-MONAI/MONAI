@@ -25,6 +25,7 @@ import torch
 from monai.auto3dseg import Algo
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import ID_SEP_KEY
+from monai.config import PathLike
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import CropForeground, ToCupy
 from monai.utils import min_version, optional_import
@@ -272,7 +273,7 @@ def verify_report_format(report: dict, report_format: dict) -> bool:
     return True
 
 
-def algo_to_pickle(algo: Algo, template_path: str | None = None, **algo_meta_data: Any) -> str:
+def algo_to_pickle(algo: Algo, template_path: PathLike | None = None, **algo_meta_data: Any) -> str:
     """
     Export the Algo object to pickle file.
 
@@ -285,7 +286,7 @@ def algo_to_pickle(algo: Algo, template_path: str | None = None, **algo_meta_dat
     Returns:
         filename of the pickled Algo object
     """
-    data = {"algo_bytes": pickle.dumps(algo), "template_path": template_path}
+    data = {"algo_bytes": pickle.dumps(algo), "template_path": str(template_path)}
     pkl_filename = os.path.join(algo.get_output_path(), "algo_object.pkl")
     for k, v in algo_meta_data.items():
         data.update({k: v})
@@ -295,7 +296,7 @@ def algo_to_pickle(algo: Algo, template_path: str | None = None, **algo_meta_dat
     return pkl_filename
 
 
-def algo_from_pickle(pkl_filename: str, template_path: str | None = None, **kwargs: Any) -> Any:
+def algo_from_pickle(pkl_filename: str, template_path: PathLike | None = None, **kwargs: Any) -> Any:
     """
     Import the Algo object from a pickle file.
 
@@ -328,11 +329,11 @@ def algo_from_pickle(pkl_filename: str, template_path: str | None = None, **kwar
     algo_bytes = data.pop("algo_bytes")
     algo_template_path = data.pop("template_path", None)
 
-    template_paths_candidates = []
+    template_paths_candidates: list[str] = []
 
     if os.path.isdir(str(template_path)):
-        template_paths_candidates.append(os.path.abspath(template_path))
-        template_paths_candidates.append(os.path.abspath(os.path.join(template_path, "..")))
+        template_paths_candidates.append(os.path.abspath(str(template_path)))
+        template_paths_candidates.append(os.path.abspath(os.path.join(str(template_path), "..")))
 
     if os.path.isdir(str(algo_template_path)):
         template_paths_candidates.append(os.path.abspath(algo_template_path))
