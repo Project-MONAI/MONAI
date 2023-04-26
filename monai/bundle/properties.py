@@ -159,6 +159,21 @@ InferProperties = {
         BundleProperty.REQUIRED: True,
         BundlePropertyConfig.ID: "device",
     },
+    "dataset_dir": {
+        BundleProperty.DESC: "directory path of the dataset.",
+        BundleProperty.REQUIRED: True,
+        BundlePropertyConfig.ID: "dataset_dir",
+    },
+    "dataset": {
+        BundleProperty.DESC: "PyTorch dataset object for the inference / evaluation logic.",
+        BundleProperty.REQUIRED: True,
+        BundlePropertyConfig.ID: f"dataset",
+    },
+    "dataset_data": {
+        BundleProperty.DESC: "data source for the inference / evaluation dataset.",
+        BundleProperty.REQUIRED: True,
+        BundlePropertyConfig.ID: f"dataset{ID_SEP_KEY}data",
+    },
     "evaluator": {
         BundleProperty.DESC: "inference / evaluation workflow engine.",
         BundleProperty.REQUIRED: True,
@@ -173,6 +188,12 @@ InferProperties = {
         BundleProperty.DESC: "MONAI Inferer object to execute the model computation in inference.",
         BundleProperty.REQUIRED: True,
         BundlePropertyConfig.ID: "inferer",
+    },
+    "handlers": {
+        BundleProperty.DESC: "event-handlers for the inference / evaluation logic.",
+        BundleProperty.REQUIRED: False,
+        BundlePropertyConfig.ID: f"handlers",
+        BundlePropertyConfig.REF_ID: f"evaluator{ID_SEP_KEY}val_handlers",
     },
     "preprocessing": {
         BundleProperty.DESC: "preprocessing for the input data.",
