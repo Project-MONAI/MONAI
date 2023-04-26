@@ -135,7 +135,7 @@ def apply_transform(
     unpack_items: bool = False,
     lazy: bool | None = False,
     overrides: dict | None = None,
-    logger_name: str = "monai.compose.transform.apply_transform",
+    logger_name: str | None = None,
 ) -> list[ReturnType] | ReturnType:
     """
     Transform `data` with `transform`.
