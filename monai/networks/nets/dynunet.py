@@ -269,7 +269,7 @@ class DynUNet(nn.Module):
         out = self.skip_layers(x)
         out = self.output_block(out)
         if self.training and self.deep_supervision:
-            out_all = torch.zeros(out.shape[0], len(self.heads) + 1, *out.shape[1:], device=out.device)
+            out_all = torch.zeros(out.shape[0], len(self.heads) + 1, *out.shape[1:], device=out.device, dtype=out.dtype)
             out_all[:, 0] = out
             for idx, feature_map in enumerate(self.heads):
                 out_all[:, idx + 1] = interpolate(feature_map, out.shape[2:])
