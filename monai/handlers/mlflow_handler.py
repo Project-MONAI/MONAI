@@ -99,7 +99,7 @@ class MLFlowHandler:
 
     # parameters that are logged at the start of training
     default_tracking_params = ["max_epochs", "epoch_length"]
-    finish_status = mlflow.entities.RunStatus.to_string(mlflow.entities.RunStatus.FINISHED)
+    run_finish_status = mlflow.entities.RunStatus.to_string(mlflow.entities.RunStatus.FINISHED)
 
     def __init__(
         self,
@@ -193,7 +193,7 @@ class MLFlowHandler:
             runs = self.client.search_runs(self.experiment.experiment_id)
             runs = [r for r in runs if r.info.run_name == run_name or not self.run_name]
             # runs marked as finish should not record info any more
-            runs = [r for r in runs if r.info.status != self.finish_status]
+            runs = [r for r in runs if r.info.status != self.run_finish_status]
             if runs:
                 self.cur_run = self.client.get_run(runs[-1].info.run_id)  # pick latest active run
             else:
