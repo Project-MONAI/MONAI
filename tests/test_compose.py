@@ -388,7 +388,6 @@ TEST_COMPOSE_EXECUTE_LOGGING_TEST_CASES = [
             "Accumulate pending transforms - lazy mode: True, key: 'a', pending: 2, upcoming 'Rotate90d', transform.lazy: False (overridden)\n"
             "Accumulate pending transforms - lazy mode: True, key: 'b', pending: 2, upcoming 'Rotate90d', transform.lazy: False (overridden)\n"
             "Apply pending transforms - lazy mode: True, key: 'a', pending: 3, upcoming 'NormalizeIntensityd', transform is not lazy\n"
-            ""
         )
     ]
 ]
