@@ -99,6 +99,7 @@ class MLFlowHandler:
 
     # parameters that are logged at the start of training
     default_tracking_params = ["max_epochs", "epoch_length"]
+    # the finish status of a mlflow run
     run_finish_status = mlflow.entities.RunStatus.to_string(mlflow.entities.RunStatus.FINISHED)
 
     def __init__(
@@ -267,8 +268,7 @@ class MLFlowHandler:
 
         """
         if self.cur_run:
-            status = mlflow.entities.RunStatus.to_string(mlflow.entities.RunStatus.FINISHED)
-            self.client.set_terminated(self.cur_run.info.run_id, status)
+            self.client.set_terminated(self.cur_run.info.run_id, self.run_finish_status)
             self.cur_run = None
 
     def epoch_completed(self, engine: Engine) -> None:
