@@ -488,7 +488,7 @@ class CenterSpatialCrop(Crop):
     """
 
     def __init__(self, roi_size: Sequence[int] | int, lazy: bool = False) -> None:
-        super().__init__(lazy)
+        super().__init__(lazy=lazy)
         self.roi_size = roi_size
 
     def compute_slices(self, spatial_size: Sequence[int]) -> tuple[slice]:  # type: ignore[override]
@@ -718,6 +718,11 @@ class RandSpatialCropSamples(Randomizable, TraceableTransform, LazyTransform, Mu
         self.cropper.set_random_state(seed, state)
         return self
 
+    @LazyTransform.lazy.setter  # type: ignore
+    def lazy(self, value: bool) -> None:
+        self._lazy = value
+        self.cropper.lazy = value
+
     def randomize(self, data: Any | None = None) -> None:
         pass
 
@@ -816,6 +821,11 @@ class CropForeground(Crop):
         self.return_coords = return_coords
         self.k_divisible = k_divisible
         self.padder = Pad(mode=mode, lazy=False, **pad_kwargs)
+
+    @Crop.lazy.setter  # type: ignore
+    def lazy(self, _val: bool):
+        self._lazy = _val
+        self.padder.lazy = _val
 
     def compute_bounding_box(self, img: torch.Tensor) -> tuple[np.ndarray, np.ndarray]:
         """
@@ -942,6 +952,10 @@ class RandWeightedCrop(Randomizable, TraceableTransform, LazyTransform, MultiSam
         self.centers = weighted_patch_samples(
             spatial_size=self.spatial_size, w=weight_map[0], n_samples=self.num_samples, r_state=self.R
         )  # using only the first channel as weight map
+
+    @LazyTransform.lazy.setter  # type: ignore
+    def lazy(self, _val: bool):
+        self._lazy = _val
 
     def __call__(
         self,
@@ -1110,6 +1124,10 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
             self.R,
             self.allow_smaller,
         )
+
+    @LazyTransform.lazy.setter  # type: ignore
+    def lazy(self, _val: bool):
+        self._lazy = _val
 
     def __call__(
         self,
@@ -1291,6 +1309,10 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
             self.spatial_size, self.num_samples, _shape, indices_, self.ratios, self.R, self.allow_smaller, self.warn
         )
 
+    @LazyTransform.lazy.setter  # type: ignore
+    def lazy(self, _val: bool):
+        self._lazy = _val
+
     def __call__(
         self,
         img: torch.Tensor,
@@ -1375,6 +1397,12 @@ class ResizeWithPadOrCrop(InvertibleTransform, LazyTransform):
         LazyTransform.__init__(self, lazy)
         self.padder = SpatialPad(spatial_size=spatial_size, method=method, mode=mode, lazy=lazy, **pad_kwargs)
         self.cropper = CenterSpatialCrop(roi_size=spatial_size, lazy=lazy)
+
+    @LazyTransform.lazy.setter  # type: ignore
+    def lazy(self, val: bool):
+        self.padder.lazy = val
+        self.cropper.lazy = val
+        self._lazy = val
 
     def __call__(  # type: ignore[override]
         self, img: torch.Tensor, mode: str | None = None, lazy: bool | None = None, **pad_kwargs

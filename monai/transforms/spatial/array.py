@@ -416,6 +416,11 @@ class Spacing(InvertibleTransform, LazyTransform):
             mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype, lazy=lazy
         )
 
+    @LazyTransform.lazy.setter  # type: ignore
+    def lazy(self, val: bool) -> None:
+        self._lazy = val
+        self.sp_resample.lazy = val
+
     @deprecated_arg(name="affine", since="0.9", msg_suffix="Not needed, input should be `MetaTensor`.")
     def __call__(
         self,
@@ -1379,6 +1384,11 @@ class RandFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
         LazyTransform.__init__(self, lazy=lazy)
         self.flipper = Flip(spatial_axis=spatial_axis, lazy=lazy)
 
+    @LazyTransform.lazy.setter  # type: ignore
+    def lazy(self, val: bool):
+        self.flipper.lazy = val
+        self._lazy = val
+
     def __call__(self, img: torch.Tensor, randomize: bool = True, lazy: bool | None = None) -> torch.Tensor:
         """
         Args:
@@ -1423,6 +1433,11 @@ class RandAxisFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
         LazyTransform.__init__(self, lazy=lazy)
         self._axis: int | None = None
         self.flipper = Flip(spatial_axis=self._axis)
+
+    @LazyTransform.lazy.setter  # type: ignore
+    def lazy(self, val: bool):
+        self.flipper.lazy = val
+        self._lazy = val
 
     def randomize(self, data: NdarrayOrTensor) -> None:
         super().randomize(None)
@@ -2159,6 +2174,11 @@ class Affine(InvertibleTransform, LazyTransform):
         self.mode = mode
         self.padding_mode: str = padding_mode
 
+    @LazyTransform.lazy.setter  # type: ignore
+    def lazy(self, val: bool) -> None:
+        self.affine_grid.lazy = val
+        self._lazy = val
+
     def __call__(
         self,
         img: torch.Tensor,
@@ -2329,7 +2349,6 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
         """
         RandomizableTransform.__init__(self, prob)
         LazyTransform.__init__(self, lazy=lazy)
-
         self.rand_affine_grid = RandAffineGrid(
             rotate_range=rotate_range,
             shear_range=shear_range,
@@ -2345,6 +2364,11 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
         self._cached_grid = self._init_identity_cache(lazy)
         self.mode = mode
         self.padding_mode: str = padding_mode
+
+    @LazyTransform.lazy.setter  # type: ignore
+    def lazy(self, val: bool) -> None:
+        self._lazy = val
+        self.rand_affine_grid.lazy = val
 
     def _init_identity_cache(self, lazy: bool):
         """
