@@ -555,23 +555,23 @@ class SlidingWindowInfererAdapt(SlidingWindowInferer):
 
                     if skip_buffer:
                         buffered_stitching = False
-                        logger.warning(f"GPU stitching failed, attempting on CPU, image dim {inputs.shape}..")
+                        logger.warning(f"GPU stitching failed, attempting on CPU, image dim {inputs.shape}.")
 
                     else:
                         buffered_stitching = True
                         self.buffer_steps = buffer_steps
                         logger.warning(
-                            f"GPU stitching failed, attempting with buffer {buffer_steps} dim {buffer_dim}, image dim {inputs.shape}.."
+                            f"GPU stitching failed, buffer {buffer_steps} dim {buffer_dim}, image dim {inputs.shape}."
                         )
                 elif buffer_steps > 1:
                     buffer_steps = max(1, buffer_steps // 2)
                     self.buffer_steps = buffer_steps
                     logger.warning(
-                        f"GPU buffered stitching failed, image dim {inputs.shape} reducing buffer to {buffer_steps}"
+                        f"GPU buffered stitching failed, image dim {inputs.shape} reducing buffer to {buffer_steps}."
                     )
                 else:
                     buffered_stitching = False
-                    logger.warning(f"GPU buffered stitching failed, attempting on CPU, image dim {inputs.shape}")
+                    logger.warning(f"GPU buffered stitching failed, attempting on CPU, image dim {inputs.shape}.")
         raise RuntimeError(  # not possible to finish after the trials
             f"SlidingWindowInfererAdapt {skip_buffer} {cpu_cond} {gpu_stitching} {buffered_stitching} {buffer_steps}"
         )
