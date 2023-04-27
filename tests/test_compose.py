@@ -515,6 +515,7 @@ class TestComposeExecuteWithFlags(unittest.TestCase):
             else:
                 self.assertTrue(expected, actual)
 
+
 TEST_LAZY_COMPOSE_PIPELINE_FIX_CASES = [[(Flip(0), Flip(1), Rotate90(1), Zoom(0.8), NormalizeIntensity())]]
 
 
