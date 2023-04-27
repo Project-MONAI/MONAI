@@ -139,7 +139,6 @@ class AutoRunner:
             input = "path_to_yaml_data_cfg"
             runner = AutoRunner(input=input)
             train_param = {
-                "CUDA_VISIBLE_DEVICES": [0],
                 "num_iterations": 8,
                 "num_iterations_per_validation": 4,
                 "num_images_per_batch": 2,
@@ -177,7 +176,6 @@ class AutoRunner:
 
             input = "path_to_yaml_data_cfg"
             pred_param = {
-                "CUDA_VISIBLE_DEVICES": [0],
                 "num_iterations": 8,
                 "num_iterations_per_validation": 4,
                 "num_images_per_batch": 2,
