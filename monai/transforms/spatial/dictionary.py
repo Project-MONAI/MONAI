@@ -200,14 +200,14 @@ class SpatialResampled(MapTransform, InvertibleTransform, LazyTransform):
             lazy: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False
         """
-        super().__init__(keys, allow_missing_keys)
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        LazyTransform.__init__(self, lazy=lazy)
         self.sp_transform = SpatialResample(lazy=lazy)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.dst_keys = ensure_tuple_rep(dst_keys, len(self.keys))
-        self.lazy = lazy
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
         """
@@ -291,14 +291,14 @@ class ResampleToMatchd(MapTransform, InvertibleTransform, LazyTransform):
             lazy: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False
         """
-        super().__init__(keys, allow_missing_keys)
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        LazyTransform.__init__(self, lazy=lazy)
         self.key_dst = key_dst
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.resampler = ResampleToMatch(lazy=lazy)
-        self.lazy = lazy
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
         """
@@ -430,7 +430,8 @@ class Spacingd(MapTransform, InvertibleTransform, LazyTransform):
             lazy: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False
         """
-        super().__init__(keys, allow_missing_keys)
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        LazyTransform.__init__(self, lazy=lazy)
         self.spacing_transform = Spacing(
             pixdim,
             diagonal=diagonal,
@@ -445,7 +446,6 @@ class Spacingd(MapTransform, InvertibleTransform, LazyTransform):
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.scale_extent = ensure_tuple_rep(scale_extent, len(self.keys))
         self.ensure_same_shape = ensure_same_shape
-        self.lazy = lazy
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
         """
@@ -535,11 +535,11 @@ class Orientationd(MapTransform, InvertibleTransform, LazyTransform):
             `nibabel.orientations.ornt2axcodes`.
 
         """
-        super().__init__(keys, allow_missing_keys)
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        LazyTransform.__init__(self, lazy=lazy)
         self.ornt_transform = Orientation(
             axcodes=axcodes, as_closest_canonical=as_closest_canonical, labels=labels, lazy=lazy
         )
-        self.lazy = lazy
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
         """
@@ -591,9 +591,9 @@ class Rotate90d(MapTransform, InvertibleTransform, LazyTransform):
             lazy: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False
         """
-        super().__init__(keys, allow_missing_keys)
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        LazyTransform.__init__(self, lazy=lazy)
         self.rotator = Rotate90(k, spatial_axes, lazy=lazy)
-        self.lazy = lazy
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
         """
@@ -655,12 +655,12 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform, La
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
+        LazyTransform.__init__(self, lazy=lazy)
 
         self.max_k = max_k
         self.spatial_axes = spatial_axes
 
         self._rand_k = 0
-        self.lazy = lazy
 
     def randomize(self, data: Any | None = None) -> None:
         self._rand_k = self.R.randint(self.max_k) + 1
@@ -759,14 +759,14 @@ class Resized(MapTransform, InvertibleTransform, LazyTransform):
         allow_missing_keys: bool = False,
         lazy: bool = False,
     ) -> None:
-        super().__init__(keys, allow_missing_keys)
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        LazyTransform.__init__(self, lazy=lazy)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.anti_aliasing = ensure_tuple_rep(anti_aliasing, len(self.keys))
         self.anti_aliasing_sigma = ensure_tuple_rep(anti_aliasing_sigma, len(self.keys))
         self.resizer = Resize(spatial_size=spatial_size, size_mode=size_mode, lazy=lazy)
-        self.lazy = lazy
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
         """
@@ -886,6 +886,7 @@ class Affined(MapTransform, InvertibleTransform, LazyTransform):
 
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
+        LazyTransform.__init__(self, lazy=lazy)
         self.affine = Affine(
             rotate_params=rotate_params,
             shear_params=shear_params,
@@ -900,7 +901,6 @@ class Affined(MapTransform, InvertibleTransform, LazyTransform):
         )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
-        self.lazy = lazy
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
         """
@@ -1013,7 +1013,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        LazyTransform.__init__(self, lazy)
+        LazyTransform.__init__(self, lazy=lazy)
         self.rand_affine = RandAffine(
             prob=1.0,  # because probability handled in this class
             rotate_range=rotate_range,
@@ -1413,9 +1413,9 @@ class Flipd(MapTransform, InvertibleTransform, LazyTransform):
         allow_missing_keys: bool = False,
         lazy: bool = False,
     ) -> None:
-        super().__init__(keys, allow_missing_keys)
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        LazyTransform.__init__(self, lazy=lazy)
         self.flipper = Flip(spatial_axis=spatial_axis)
-        self.lazy = lazy
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
         """
@@ -1471,8 +1471,8 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
+        LazyTransform.__init__(self, lazy=lazy)
         self.flipper = Flip(spatial_axis=spatial_axis, lazy=lazy)
-        self.lazy = lazy
 
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandFlipd:
         super().set_random_state(seed, state)
@@ -1536,8 +1536,8 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform, La
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
+        LazyTransform.__init__(self, lazy=lazy)
         self.flipper = RandAxisFlip(prob=1.0, lazy=lazy)
-        self.lazy = lazy
 
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandAxisFlipd:
         super().set_random_state(seed, state)
@@ -1630,14 +1630,14 @@ class Rotated(MapTransform, InvertibleTransform, LazyTransform):
         allow_missing_keys: bool = False,
         lazy: bool = False,
     ) -> None:
-        super().__init__(keys, allow_missing_keys)
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        LazyTransform.__init__(self, lazy=lazy)
         self.rotator = Rotate(angle=angle, keep_size=keep_size, lazy=lazy)
 
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
-        self.lazy = lazy
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
         """
@@ -1725,6 +1725,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
+        LazyTransform.__init__(self, lazy=lazy)
         self.rand_rotate = RandRotate(
             range_x=range_x, range_y=range_y, range_z=range_z, prob=1.0, keep_size=keep_size, lazy=lazy
         )
@@ -1732,7 +1733,6 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
-        self.lazy = lazy
 
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandRotated:
         super().set_random_state(seed, state)
@@ -1838,7 +1838,7 @@ class Zoomd(MapTransform, InvertibleTransform, LazyTransform):
         **kwargs,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
-        LazyTransform.__init__(self, lazy)
+        LazyTransform.__init__(self, lazy=lazy)
 
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
@@ -1937,6 +1937,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
+        LazyTransform.__init__(self, lazy=lazy)
         self.rand_zoom = RandZoom(
             prob=1.0, min_zoom=min_zoom, max_zoom=max_zoom, keep_size=keep_size, lazy=lazy, **kwargs
         )
@@ -1944,7 +1945,6 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
-        self.lazy = lazy
 
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandZoomd:
         super().set_random_state(seed, state)

@@ -156,11 +156,11 @@ class SpatialResample(InvertibleTransform, LazyTransform):
             lazy: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False
         """
+        LazyTransform.__init__(self, lazy=lazy)
         self.mode = mode
         self.padding_mode = padding_mode
         self.align_corners = align_corners
         self.dtype = dtype
-        self.lazy = lazy
 
     def __call__(
         self,
@@ -400,13 +400,13 @@ class Spacing(InvertibleTransform, LazyTransform):
             lazy: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False
         """
+        LazyTransform.__init__(self, lazy=lazy)
         self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
         self.min_pixdim = np.array(ensure_tuple(min_pixdim), dtype=np.float64)
         self.max_pixdim = np.array(ensure_tuple(max_pixdim), dtype=np.float64)
         self.diagonal = diagonal
         self.scale_extent = scale_extent
         self.recompute_affine = recompute_affine
-        self.lazy = lazy
 
         for mn, mx in zip(self.min_pixdim, self.max_pixdim):
             if (not np.isnan(mn)) and (not np.isnan(mx)) and ((mx < mn) or (mn < 0)):
@@ -566,6 +566,7 @@ class Orientation(InvertibleTransform, LazyTransform):
         See Also: `nibabel.orientations.ornt2axcodes`.
 
         """
+        LazyTransform.__init__(self, lazy=lazy)
         if axcodes is None and not as_closest_canonical:
             raise ValueError("Incompatible values: axcodes=None and as_closest_canonical=True.")
         if axcodes is not None and as_closest_canonical:
@@ -573,7 +574,6 @@ class Orientation(InvertibleTransform, LazyTransform):
         self.axcodes = axcodes
         self.as_closest_canonical = as_closest_canonical
         self.labels = labels
-        self.lazy = lazy
 
     def __call__(self, data_array: torch.Tensor, lazy: bool | None = None) -> torch.Tensor:
         """
@@ -667,8 +667,8 @@ class Flip(InvertibleTransform, LazyTransform):
     backend = [TransformBackends.TORCH]
 
     def __init__(self, spatial_axis: Sequence[int] | int | None = None, lazy: bool = False) -> None:
+        LazyTransform.__init__(self, lazy=lazy)
         self.spatial_axis = spatial_axis
-        self.lazy = lazy
 
     def __call__(self, img: torch.Tensor, lazy: bool | None = None) -> torch.Tensor:
         """
@@ -738,6 +738,7 @@ class Resize(InvertibleTransform, LazyTransform):
         dtype: DtypeLike | torch.dtype = torch.float32,
         lazy: bool = False,
     ) -> None:
+        LazyTransform.__init__(self, lazy=lazy)
         self.size_mode = look_up_option(size_mode, ["all", "longest"])
         self.spatial_size = spatial_size
         self.mode = mode
@@ -745,7 +746,6 @@ class Resize(InvertibleTransform, LazyTransform):
         self.anti_aliasing = anti_aliasing
         self.anti_aliasing_sigma = anti_aliasing_sigma
         self.dtype = dtype
-        self.lazy = lazy
 
     def __call__(
         self,
@@ -883,13 +883,13 @@ class Rotate(InvertibleTransform, LazyTransform):
         dtype: DtypeLike | torch.dtype = torch.float32,
         lazy: bool = False,
     ) -> None:
+        LazyTransform.__init__(self, lazy=lazy)
         self.angle = angle
         self.keep_size = keep_size
         self.mode: str = mode
         self.padding_mode: str = padding_mode
         self.align_corners = align_corners
         self.dtype = dtype
-        self.lazy = lazy
 
     def __call__(
         self,
@@ -1023,6 +1023,7 @@ class Zoom(InvertibleTransform, LazyTransform):
         lazy: bool = False,
         **kwargs,
     ) -> None:
+        LazyTransform.__init__(self, lazy=lazy)
         self.zoom = zoom
         self.mode = mode
         self.padding_mode = padding_mode
@@ -1030,7 +1031,6 @@ class Zoom(InvertibleTransform, LazyTransform):
         self.dtype = dtype
         self.keep_size = keep_size
         self.kwargs = kwargs
-        self.lazy = lazy
 
     def __call__(
         self,
@@ -1129,12 +1129,12 @@ class Rotate90(InvertibleTransform, LazyTransform):
             lazy: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False
         """
+        LazyTransform.__init__(self, lazy=lazy)
         self.k = (4 + (k % 4)) % 4  # 0, 1, 2, 3
         spatial_axes_: tuple[int, int] = ensure_tuple(spatial_axes)  # type: ignore
         if len(spatial_axes_) != 2:
             raise ValueError(f"spatial_axes must be 2 numbers to define the plane to rotate, got {spatial_axes_}.")
         self.spatial_axes = spatial_axes_
-        self.lazy = lazy
 
     def __call__(self, img: torch.Tensor, lazy: bool | None = None) -> torch.Tensor:
         """
@@ -1184,9 +1184,9 @@ class RandRotate90(RandomizableTransform, InvertibleTransform, LazyTransform):
                 Defaults to False
         """
         RandomizableTransform.__init__(self, prob)
+        LazyTransform.__init__(self, lazy=lazy)
         self.max_k = max_k
         self.spatial_axes = spatial_axes
-        self.lazy = lazy
 
         self._rand_k = 0
 
@@ -1273,6 +1273,7 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
         lazy: bool = False,
     ) -> None:
         RandomizableTransform.__init__(self, prob)
+        LazyTransform.__init__(self, lazy=lazy)
         self.range_x = ensure_tuple(range_x)
         if len(self.range_x) == 1:
             self.range_x = tuple(sorted([-self.range_x[0], self.range_x[0]]))
@@ -1288,7 +1289,6 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
         self.padding_mode: str = padding_mode
         self.align_corners = align_corners
         self.dtype = dtype
-        self.lazy = lazy
 
         self.x = 0.0
         self.y = 0.0
@@ -1376,8 +1376,8 @@ class RandFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
 
     def __init__(self, prob: float = 0.1, spatial_axis: Sequence[int] | int | None = None, lazy: bool = False) -> None:
         RandomizableTransform.__init__(self, prob)
+        LazyTransform.__init__(self, lazy=lazy)
         self.flipper = Flip(spatial_axis=spatial_axis, lazy=lazy)
-        self.lazy = lazy
 
     def __call__(self, img: torch.Tensor, randomize: bool = True, lazy: bool | None = None) -> torch.Tensor:
         """
@@ -1420,9 +1420,9 @@ class RandAxisFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
 
     def __init__(self, prob: float = 0.1, lazy: bool = False) -> None:
         RandomizableTransform.__init__(self, prob)
+        LazyTransform.__init__(self, lazy=lazy)
         self._axis: int | None = None
         self.flipper = Flip(spatial_axis=self._axis)
-        self.lazy = lazy
 
     def randomize(self, data: NdarrayOrTensor) -> None:
         super().randomize(None)
@@ -1515,6 +1515,7 @@ class RandZoom(RandomizableTransform, InvertibleTransform, LazyTransform):
         **kwargs,
     ) -> None:
         RandomizableTransform.__init__(self, prob)
+        LazyTransform.__init__(self, lazy=lazy)
         self.min_zoom = ensure_tuple(min_zoom)
         self.max_zoom = ensure_tuple(max_zoom)
         if len(self.min_zoom) != len(self.max_zoom):
@@ -1526,7 +1527,6 @@ class RandZoom(RandomizableTransform, InvertibleTransform, LazyTransform):
         self.align_corners = align_corners
         self.dtype = dtype
         self.keep_size = keep_size
-        self.lazy = lazy
         self.kwargs = kwargs
 
         self._zoom: Sequence[float] = [1.0]
@@ -1652,6 +1652,7 @@ class AffineGrid(LazyTransform):
         affine: NdarrayOrTensor | None = None,
         lazy: bool = False,
     ) -> None:
+        LazyTransform.__init__(self, lazy=lazy)
         self.rotate_params = rotate_params
         self.shear_params = shear_params
         self.translate_params = translate_params
@@ -1661,7 +1662,6 @@ class AffineGrid(LazyTransform):
         self.dtype = _dtype if _dtype in (torch.float16, torch.float64, None) else torch.float32
         self.align_corners = align_corners
         self.affine = affine
-        self.lazy = lazy
 
     def __call__(
         self, spatial_size: Sequence[int] | None = None, grid: torch.Tensor | None = None, lazy: bool | None = None
@@ -1781,6 +1781,7 @@ class RandAffineGrid(Randomizable, LazyTransform):
             - :py:meth:`monai.transforms.utils.create_scale`
 
         """
+        LazyTransform.__init__(self, lazy=lazy)
         self.rotate_range = ensure_tuple(rotate_range)
         self.shear_range = ensure_tuple(shear_range)
         self.translate_range = ensure_tuple(translate_range)
@@ -1794,7 +1795,6 @@ class RandAffineGrid(Randomizable, LazyTransform):
         self.device = device
         self.dtype = dtype
         self.affine: torch.Tensor | None = torch.eye(4, dtype=torch.float64)
-        self.lazy = lazy
 
     def _get_rand_param(self, param_range, add_scalar: float = 0.0):
         out_param = []
@@ -2140,6 +2140,7 @@ class Affine(InvertibleTransform, LazyTransform):
             lazy: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False
         """
+        LazyTransform.__init__(self, lazy=lazy)
         self.affine_grid = AffineGrid(
             rotate_params=rotate_params,
             shear_params=shear_params,
@@ -2157,7 +2158,6 @@ class Affine(InvertibleTransform, LazyTransform):
         self.spatial_size = spatial_size
         self.mode = mode
         self.padding_mode: str = padding_mode
-        self.lazy = lazy
 
     def __call__(
         self,
@@ -2328,6 +2328,7 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
 
         """
         RandomizableTransform.__init__(self, prob)
+        LazyTransform.__init__(self, lazy=lazy)
 
         self.rand_affine_grid = RandAffineGrid(
             rotate_range=rotate_range,
@@ -2344,7 +2345,6 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
         self._cached_grid = self._init_identity_cache(lazy)
         self.mode = mode
         self.padding_mode: str = padding_mode
-        self.lazy = lazy
 
     def _init_identity_cache(self, lazy: bool):
         """
