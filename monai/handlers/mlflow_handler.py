@@ -191,6 +191,7 @@ class MLFlowHandler:
             run_name = f"run_{time.strftime('%Y%m%d_%H%M%S')}" if self.run_name is None else self.run_name
             runs = self.client.search_runs(self.experiment.experiment_id)
             runs = [r for r in runs if r.info.run_name == run_name or not self.run_name]
+            runs = [r for r in runs if r.info.status != "FINISHED"]
             if runs:
                 self.cur_run = self.client.get_run(runs[-1].info.run_id)  # pick latest active run
             else:
