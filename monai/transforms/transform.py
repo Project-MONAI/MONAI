@@ -79,20 +79,16 @@ def _apply_transform(
     logger_name: str | None = None,
 ) -> ReturnType:
     """
-    Perform transformation `transform` with the provided parameters `parameters`.
+    Perform a transform 'transform' on 'data', according to the other parameters specified.
 
-    If `parameters` is a tuple and `unpack_items` is True, each parameter of `parameters` is unpacked
-    as arguments to `transform`.
-    Otherwise `parameters` is considered as single argument to `transform`.
+    If `data` is a tuple and `unpack_parameters` is True, each parameter of `data` is unpacked
+    as arguments to `transform`. Otherwise `data` is considered as single argument to `transform`.
 
-    For the 1.2 release, we are limited here to having executing transforms that
-    are lazy but set to not be lazy _after_ we have applied the pending list. This
-    is because the transform implementations for 1.2 don't have unified code paths for
-    lazy and non-lazy operation, so it is not possible to pass a tensor with pending
-    operations and have the transform handle them correctly.
-    In order to have this functionality for 1.2, we need to provide lazy
-    overrides on __call__ methods for lazy array and dictionary transforms, and we need
-    pure lazy transforms. See ``Compose`` for more information about lazy resampling.
+    If 'lazy' is True, this method first checks whether it can execute this method lazily. If it
+    can't, it will ensure that all pending lazy transforms on 'data' are applied before applying
+    this 'transform' to it. If 'lazy' is True, and 'overrides' are provided, those overrides will
+    be applied to the pending operations on 'data'. See ``Compose`` for more details on lazy
+    resampling, which is an experimental feature for 1.2.
 
     Please note, this class is function is designed to be called by ``apply_transform``.
     In general, you should not need to make specific use of it unless you are implementing
