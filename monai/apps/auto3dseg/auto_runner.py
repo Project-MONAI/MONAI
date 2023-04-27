@@ -107,7 +107,7 @@ class AutoRunner:
         .. code-block:: python
 
             work_dir = "./work_dir"
-            input = "path_to_yaml_data_cfg"
+            input = "path/to/input_yaml"
             runner = AutoRunner(work_dir=work_dir, input=input)
             runner.run()
 
@@ -116,7 +116,7 @@ class AutoRunner:
         .. code-block:: python
 
             work_dir = "./work_dir"
-            input = "path_to_yaml_data_cfg"
+            input = "path/to/input_yaml"
             algos = ["segresnet", "dints"]
             runner = AutoRunner(work_dir=work_dir, input=input, algos=algos)
             runner.run()
@@ -126,7 +126,7 @@ class AutoRunner:
         .. code-block:: python
 
             work_dir = "./work_dir"
-            input = "path_to_yaml_data_cfg"
+            input = "path/to/input_yaml"
             algos = "segresnet"
             templates_path_or_url = "./local_path_to/algorithm_templates"
             runner = AutoRunner(work_dir=work_dir, input=input, algos=algos, templates_path_or_url=templates_path_or_url)
@@ -136,11 +136,10 @@ class AutoRunner:
 
         .. code-block:: python
 
-            input = "path_to_yaml_data_cfg"
+            input = "path/to/input_yaml"
             runner = AutoRunner(input=input)
             train_param = {
-                "num_iterations": 8,
-                "num_iterations_per_validation": 4,
+                "num_epochs_per_validation": 1,
                 "num_images_per_batch": 2,
                 "num_epochs": 2,
             }
@@ -151,7 +150,7 @@ class AutoRunner:
 
         .. code-block:: python
 
-            input = "path_to_yaml_data_cfg"
+            input = "path/to/input_yaml"
             runner = AutoRunner(input=input)
             runner.set_num_fold(n_fold = 2)
             runner.run()
@@ -160,7 +159,7 @@ class AutoRunner:
 
         .. code-block:: python
 
-            input = "path_to_yaml_data_cfg"
+            input = "path/to/input_yaml"
             pred_params = {
                 'files_slices': slice(0,2),
                 'mode': "vote",
@@ -174,13 +173,7 @@ class AutoRunner:
 
         .. code-block:: python
 
-            input = "path_to_yaml_data_cfg"
-            pred_param = {
-                "num_iterations": 8,
-                "num_iterations_per_validation": 4,
-                "num_images_per_batch": 2,
-                "num_epochs": 2,
-            }
+            input = "path/to/input_yaml"
             runner = AutoRunner(input=input, hpo=True)
             runner.set_nni_search_space({"learning_rate": {"_type": "choice", "_value": [0.0001, 0.001, 0.01, 0.1]}})
             runner.run()
@@ -469,7 +462,7 @@ class AutoRunner:
 
         Examples:
             For BundleAlgo objects, the training parameter to shorten the training time to a few epochs can be
-                {"num_iterations": 8, "num_iterations_per_validation": 4}
+                {"num_epochs": 2, "num_epochs_per_validation": 1}
 
         """
         self.train_params = deepcopy(params) if params is not None else {}
@@ -593,10 +586,6 @@ class AutoRunner:
         Args:
             params: a dict that defines the overriding key-value pairs during training. The overriding method
                 is defined by the algo class.
-
-        Examples:
-            For BundleAlgo objects, the training parameter to shorten the training time to a few epochs can be
-                {"num_iterations": 8, "num_iterations_per_validation": 4}
 
         """
         if params is None:
