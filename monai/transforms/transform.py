@@ -23,6 +23,7 @@ import numpy as np
 import torch
 
 from monai import config, transforms
+from monai.apps.utils import get_logger
 from monai.config import KeysCollection
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.lazy.functional import apply_pending_transforms
@@ -44,9 +45,12 @@ __all__ = [
 ReturnType = TypeVar("ReturnType")
 
 
-def _log_pending_info(logger: Any | None, data: Any, transform: Any, activity: str, lazy: bool | None = None):
-    if logger is None:
+def _log_pending_info(
+    data: Any, transform: Any, activity: str, lazy: bool | None = None, logger_name: str | None = None
+):
+    if logger_name is None:
         return
+    logger = get_logger(logger_name)
 
     if isinstance(transform, LazyTrait):
         if lazy is not None and lazy != transform.lazy:
@@ -103,20 +107,16 @@ def _apply_transform(
         ReturnType: The return type of `transform`.
     """
 
-    logger = None
-    if logger_name is not None:
-        logger = logging.getLogger(logger_name)
-
     lazy_tx = isinstance(transform, LazyTrait)
 
     if lazy_tx is False or lazy is False:
-        _log_pending_info(logger, data, transform, "Apply pending transforms", lazy)
+        _log_pending_info(data, transform, "Apply pending transforms", lazy, logger_name)
         data = apply_pending_transforms(data, overrides)
     elif lazy is None and transform.lazy is False:  # type: ignore[attr-defined]
-        _log_pending_info(logger, data, transform, "Apply pending transforms", lazy)
+        _log_pending_info(data, transform, "Apply pending transforms", lazy, logger_name)
         data = apply_pending_transforms(data, overrides)
     else:
-        _log_pending_info(logger, data, transform, "Accumulate pending transforms", lazy)
+        _log_pending_info(data, transform, "Accumulate pending transforms", lazy, logger_name)
 
     if isinstance(data, tuple) and unpack_parameters:
         return transform(*data, lazy=lazy) if lazy_tx else transform(*data)
