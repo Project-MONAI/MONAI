@@ -34,25 +34,115 @@ __all__ = ["nnUNetV2Runner"]
 
 
 class nnUNetV2Runner:  # noqa: N801
+    """
+    ``nnUNetV2Runner`` provides an interface in MONAI to use `nnU-Net` V2 library to analyze, train, and evaluate
+    neural networks for medical image segmentation tasks.
+    
+    ``nnUNetV2Runner`` can be used in two ways:
+    
+    #. with one line of code to execute the complete pipeline.
+    #. with a series of commands to run the each modules in the pipeline.
+
+    The output of the interface is a directory that contains:
+
+    #. converted dataset met requirement of nnU-Net V2
+    #. data analysis results
+    #. checkpoints from the trained U-Net models
+    #. validation accuracy in each fold of cross-validation
+    #. the predictions on the testing datasets from the final algorithm ensemble and potential post-processing
+
+    Examples:
+        - Use the one-liner to start the nnU-Net workflow
+
+        .. code-block:: bash
+
+            python -m monai.apps.nnunet nnUNetV2Runner run --input_config ./input.yaml
+
+        - Use `convert_dataset` to prepare the data to meet nnU-Net requirements, generate dataset JSON file,
+            and copy the dataset to a location specified by ``nnunet_raw`` in the input config file
+
+        .. code-block:: bash
+
+            python -m monai.apps.nnunet nnUNetV2Runner convert_dataset --input_config="./input.yaml"
+
+        - `convert_msd_dataset` is an alternative option to prepare the data if the dataset is MSD.
+
+        .. code-block:: bash
+
+            python -m monai.apps.nnunet nnUNetV2Runner convert_msd_dataset \\
+                --input "./input.yaml" --data_dir "/path/to/Task09_Spleen"
+
+        - experiment planning and data pre-processing
+
+        .. code-block:: bash
+
+            python -m monai.apps.nnunet nnUNetV2Runner plan_and_process --input "./input.yaml"
+
+        - training all 20 models
+
+        .. code-block:: bash
+
+            python -m monai.apps.nnunet nnUNetV2Runner train --input "./input.yaml"
+
+        - training a single model
+
+        .. code-block:: bash
+
+            python -m monai.apps.nnunet nnUNetV2Runner train_single_model --input "./input.yaml" \\
+                --config "3d_fullres" \\
+                --fold 0 \\
+                --trainer_class_name "nnUNetTrainer_5epochs" \\
+                --export_validation_probabilities true
+
+        - multi-gpu training for all 20 models
+
+        .. code-block:: bash
+
+            export CUDA_VISIBLE_DEVICES=0,1  # optional
+            python -m monai.apps.nnunet nnUNetV2Runner train --input "./input.yaml" --num_gpus 2
+
+        - multi-gpu training for a single model
+
+        .. code-block:: bash
+
+            export CUDA_VISIBLE_DEVICES=0,1 # optional
+            python -m monai.apps.nnunet nnUNetV2Runner train_single_model --input "./input.yaml" \\
+                --config "3d_fullres" \\
+                --fold 0 \\
+                --trainer_class_name "nnUNetTrainer_5epochs" \\
+                --export_validation_probabilities true \\
+                --num_gpus 2
+
+        - find best configuration
+
+        .. code-block:: bash
+
+            python -m monai.apps.nnunet nnUNetV2Runner find_best_configuration --input "./input.yaml"
+
+        - predict, ensemble, and post-process
+
+        .. code-block:: bash
+
+            python -m monai.apps.nnunet nnUNetV2Runner predict_ensemble_postprocessing --input "./input.yaml"
+
+    Args:
+        input_config: the configuration dictionary or the file path to the configuration in form of YAML.
+            The keys required in the configuration are:
+                - ``"datalist"``: File path to the datalist for the train/testing splits
+                - ``"dataroot"``: File path to the dataset
+                - ``"modality"``: Imaging modality, e.g. "CT", ["T2", "ADC"]
+            Currently the configuration supports these optional key:
+                - ``"nnunet_raw"``: File path that will be written to env variable for nnU-Net
+                - ``"nnunet_preprocessed"``: File path that will be written to env variable for nnU-Net
+                - ``"nnunet_results"``: File path that will be written to env variable for nnU-Net
+                - ``"nnUNet_trained_models"``
+                - ``"dataset_name_or_id"``: Name or Integer ID of the dataset
+            If an optional key is not specified, then the pipeline will use the default values.
+        work_dir: working directory to save the intermediate and final results.
+    
+    """
+
     def __init__(self, input_config: Any, work_dir: str = "work_dir") -> None:
-        """
-        An interface for handling `nnU-Net` V2.
-        The users can run the nnU-Net V2 with default settings in one line of code.
-        They can also run parts of the process of nnU-Net V2 instead of the complete pipeline.
-
-        The output of the interface is a directory that contains:
-
-            - converted dataset met requirement of nnU-Net V2
-            - data analysis results
-            - checkpoints from the trained U-Net models
-            - validation accuracy in each fold of cross-validation
-            - the predictions on the testing datasets from the final algorithm ensemble and potential post-processing
-
-        Args:
-            input_config: the configuration dictionary or the file path to the configuration in form of YAML.
-                The configuration should contain ``datalist``, ``dataroot``, ``modality``.
-            work_dir: working directory to save the intermediate and final results.
-        """
         self.input_info: dict = {}
         self.input_config_or_dict = input_config
         self.work_dir = work_dir
@@ -95,7 +185,11 @@ class nnUNetV2Runner:  # noqa: N801
 
             self.dataset_name = maybe_convert_to_dataset_name(int(self.dataset_name_or_id))
         except BaseException:
-            logger.warning("Dataset ID does not exist! Check input '.yaml' if this is unexpected.")
+            logger.warning(
+                f"Dataset with name/ID: {self.dataset_name_or_id} cannot be found in the record. "
+                "Please ignore the message above if you are running the pipeline from a fresh start. "
+                "But if the dataset is expected to be found, please check your input_config."
+            )
 
         from nnunetv2.configuration import default_num_processes
 
@@ -105,6 +199,7 @@ class nnUNetV2Runner:  # noqa: N801
         self.best_configuration: dict = {}
 
     def convert_dataset(self):
+        """Convert and make a copy the dataset to meet requirements of nnU-Net workflow."""
         try:
             raw_data_foldername_prefix = str(int(self.dataset_name_or_id) + 1000)
             raw_data_foldername_prefix = "Dataset" + raw_data_foldername_prefix[-3:]
@@ -136,7 +231,7 @@ class nnUNetV2Runner:  # noqa: N801
                 os.makedirs(os.path.join(raw_data_foldername, "imagesTr"))
                 os.makedirs(os.path.join(raw_data_foldername, "labelsTr"))
             else:
-                logger.warning("Input '.json' data list is incorrect.")
+                logger.warning(f"The datalist file has incorrect format: the `training` key is not found.")
                 return
 
             test_key = None
@@ -167,12 +262,17 @@ class nnUNetV2Runner:  # noqa: N801
                 num_input_channels=num_input_channels,
                 output_datafolder=raw_data_foldername,
             )
-        except BaseException:
-            logger.warning("Input '.yaml' is incorrect.")
+        except BaseException as err:
+            logger.warning(
+                "Input config may be incorrect."
+                f"The error/exception message is:\n {err}"
+            )
             return
 
     def convert_msd_dataset(self, data_dir: str, overwrite_id: str | None = None, n_proc: int = -1) -> None:
         """
+        Convert and make a copy the MSD dataset to meet requirements of nnU-Net workflow.
+
         Args:
             data_dir: downloaded and extracted MSD dataset folder. CANNOT be nnUNetv1 dataset!
                 Example: "/workspace/downloads/Task05_Prostate".
@@ -194,16 +294,18 @@ class nnUNetV2Runner:  # noqa: N801
         verbose: bool = False,
     ) -> None:
         """
+        Extracts the dataset fingerprint used for experiment planning.
+
         Args:
             fpe: [OPTIONAL] Name of the Dataset Fingerprint Extractor class that should be used. Default is
-                'DatasetFingerprintExtractor'
+                "DatasetFingerprintExtractor".
             npfp: [OPTIONAL] Number of processes used for fingerprint extraction.
             verify_dataset_integrity: [RECOMMENDED] set this flag to check the dataset integrity. This is
                 useful and should be done once for each dataset!
             clean: [OPTIONAL] Set this flag to overwrite existing fingerprints. If this flag is not set and a
                 fingerprint already exists, the fingerprint extractor will not run.
             verbose: set this to print a lot of stuff. Useful for debugging. Will disable progress bar!
-                Recommended for cluster environments
+                Recommended for cluster environments.
         """
         from nnunetv2.experiment_planning.plan_and_preprocess_api import extract_fingerprints
 
@@ -221,27 +323,29 @@ class nnUNetV2Runner:  # noqa: N801
         overwrite_plans_name: str = "nnUNetPlans",
     ) -> None:
         """
+        Generate a configuration file that specifies the details of the experiment.
+
         Args:
-            pl: [OPTIONAL] Name of the Experiment Planner class that should be used. Default is 'ExperimentPlanner'.
+            pl: [OPTIONAL] Name of the Experiment Planner class that should be used. Default is "ExperimentPlanner".
                 Note: There is no longer a distinction between 2d and 3d planner. It's an all in one solution now.
-            gpu_memory_target:[OPTIONAL] DANGER ZONE! Sets a custom GPU memory target. Default: 8 [GB].
+            gpu_memory_target: [OPTIONAL] DANGER ZONE! Sets a custom GPU memory target. Default: 8 [GB].
                 Changing this will affect patch and batch size and will definitely affect your models performance!
                 Only use this if you really know what you are doing and NEVER use this without running the
                 default nnU-Net first (as a baseline).
-            preprocessor_name:[OPTIONAL] DANGER ZONE! Sets a custom preprocessor class. This class must be located in
-                nnunetv2.preprocessing. Default: 'DefaultPreprocessor'. Changing this may affect your models performance!
+            preprocessor_name: [OPTIONAL] DANGER ZONE! Sets a custom preprocessor class. This class must be located in
+                nnunetv2.preprocessing. Default: "DefaultPreprocessor". Changing this may affect your models performance!
                 Only use this if you really know what you are doing and NEVER use this without running the
                 default nnU-Net first (as a baseline).
-            overwrite_target_spacing':[OPTIONAL] DANGER ZONE! Sets a custom target spacing for the 3d_fullres
+            overwrite_target_spacing: [OPTIONAL] DANGER ZONE! Sets a custom target spacing for the 3d_fullres
                 and 3d_cascade_fullres configurations. Default: None [no changes]. Changing this will affect
                 image size and potentially patch and batch size. This will definitely affect your models performance!
                 Only use this if you really know what you are doing and NEVER use this without running the
                 default nnU-Net first (as a baseline). Changing the target spacing for the other configurations
                 is currently not implemented. New target spacing must be a list of three numbers!
-            overwrite_plans_name':[OPTIONAL] DANGER ZONE! If you used -gpu_memory_target, -preprocessor_name or
+            overwrite_plans_name: [OPTIONAL] DANGER ZONE! If you used -gpu_memory_target, -preprocessor_name or
                 -overwrite_target_spacing it is best practice to use -overwrite_plans_name to generate
                 a differently named plans file such that the nnunet default plans are not overwritten.
-                You will then need to specify your custom plan
+                You will then need to specify your custom plan.
         """
         from nnunetv2.experiment_planning.plan_and_preprocess_api import plan_experiments
 
@@ -263,12 +367,14 @@ class nnUNetV2Runner:  # noqa: N801
         verbose: bool = False,
     ) -> None:
         """
+        Apply a set of the preprocessing operations to the input data before the training.
+
         Args:
             overwrite_plans_name: [OPTIONAL] You can use this to specify a custom plans file that you may have
                 generated.
             c: [OPTIONAL] Configurations for which the preprocessing should be run. Default: 2d 3f_fullres
                 3d_lowres. 3d_cascade_fullres does not need to be specified because it uses the data
-                from 3f_fullres. Configurations that do not exist for some dataset will be skipped)
+                from 3f_fullres. Configurations that do not exist for some dataset will be skipped).
             n_proc: [OPTIONAL] Use this to define how many processes are to be used. If this is just one number then
                 this number of processes is used for all configurations specified with -c. If it's a
                 list of numbers this list must have as many elements as there are configurations. We
@@ -279,9 +385,9 @@ class nnUNetV2Runner:  # noqa: N801
                 often than not the number of processes that can be used is limited by the amount of
                 RAM available. Image resampling takes up a lot of RAM. MONITOR RAM USAGE AND
                 DECREASE -n_proc IF YOUR RAM FILLS UP TOO MUCH!. Default: 8 4 8 (=8 processes for 2d, 4
-                for 3d_fullres and 8 for 3d_lowres if -c is at its default)
+                for 3d_fullres and 8 for 3d_lowres if -c is at its default).
             verbose:Set this to print a lot of stuff. Useful for debugging. Will disable progress bar!
-                Recommended for cluster environments
+                Recommended for cluster environments.
         """
         from nnunetv2.experiment_planning.plan_and_preprocess_api import preprocess
 
@@ -311,10 +417,12 @@ class nnUNetV2Runner:  # noqa: N801
         verbose: bool = False,
     ) -> None:
         """
+        Performs experiment planning and preprocessing before the training.
+
         Args:
             fpe: [OPTIONAL] Name of the Dataset Fingerprint Extractor class that should be used. Default is
-                'DatasetFingerprintExtractor'
-            npfp: [OPTIONAL] Number of processes used for fingerprint extraction. Default: 8
+                "DatasetFingerprintExtractor".
+            npfp: [OPTIONAL] Number of processes used for fingerprint extraction. Default: 8.
             verify_dataset_integrity: [RECOMMENDED] set this flag to check the dataset integrity.
                 This is useful and should be done once for each dataset!
             no_pp: [OPTIONAL] Set this to only run fingerprint extraction and experiment planning (no
@@ -322,15 +430,14 @@ class nnUNetV2Runner:  # noqa: N801
             clean:[OPTIONAL] Set this flag to overwrite existing fingerprints. If this flag is not set and a
                 fingerprint already exists, the fingerprint extractor will not run. REQUIRED IF YOU
                 CHANGE THE DATASET FINGERPRINT EXTRACTOR OR MAKE CHANGES TO THE DATASET!
-            pl: [OPTIONAL] Name of the Experiment Planner class that should be used. Default is
-                ExperimentPlanner'. Note: There is no longer a distinction between 2d and 3d planner.
-                It's an all in one solution now.
+            pl: [OPTIONAL] Name of the Experiment Planner class that should be used. Default is "ExperimentPlanner".
+                Note: There is no longer a distinction between 2d and 3d planner. It's an all in one solution now.
             gpu_memory_target: [OPTIONAL] DANGER ZONE! Sets a custom GPU memory target. Default: 8 [GB].
                 Changing this will affect patch and batch size and will
                 definitely affect your models performance! Only use this if you really know what you
                 are doing and NEVER use this without running the default nnU-Net first (as a baseline).
             preprocessor_name: [OPTIONAL] DANGER ZONE! Sets a custom preprocessor class. This class must be located in
-                nnunetv2.preprocessing. Default: 'DefaultPreprocessor'. Changing this may affect your
+                nnunetv2.preprocessing. Default: "DefaultPreprocessor". Changing this may affect your
                 models performance! Only use this if you really know what you
                 are doing and NEVER use this without running the default nnU-Net first (as a baseline).
             overwrite_target_spacing: [OPTIONAL] DANGER ZONE! Sets a custom target spacing for the 3d_fullres and
@@ -357,9 +464,9 @@ class nnUNetV2Runner:  # noqa: N801
                 often than not the number of processes that can be used is limited by the amount of
                 RAM available. Image resampling takes up a lot of RAM. MONITOR RAM USAGE AND
                 DECREASE -n_proc IF YOUR RAM FILLS UP TOO MUCH!. Default: 8 4 8 (=8 processes for 2d, 4
-                for 3d_fullres and 8 for 3d_lowres if -c is at its default)
+                for 3d_fullres and 8 for 3d_lowres if -c is at its default).
             verbose: Set this to print a lot of stuff. Useful for debugging. Will disable progress bar!
-                (Recommended for cluster environments')
+                (Recommended for cluster environments).
         """
         self.extract_fingerprints(fpe, npfp, verify_dataset_integrity, clean, verbose)
         self.plan_experiments(pl, gpu_memory_target, preprocessor_name, overwrite_target_spacing, overwrite_plans_name)
@@ -367,27 +474,33 @@ class nnUNetV2Runner:  # noqa: N801
         if not no_pp:
             self.preprocess(c, n_proc, overwrite_plans_name, verbose)
 
-    def train_single_model(self, config: Any, fold: int, gpu_id: int = 0, **kwargs: Any) -> None:
+    def train_single_model(self, config: Any, fold: int, **kwargs: Any) -> None:
         """
-        Args:
-            config: configuration that should be trained.
-            fold: fold of the 5-fold cross-validation. Should be an int between 0 and 4.
-            trainer_class_name: name of the custom trainer class. default: 'nnUNetTrainer'.
-            plans_identifier: custom plans identifier. default: 'nnUNetPlans'.
-            pretrained_weights: path to nnU-Net checkpoint file to be used as pretrained model. Will only be used
-                when actually training. Beta. Use with caution. default: False.
-            num_gpus: number of GPUs to use for training. default: 1.
-            use_compressed_data: true to use compressed data for training. Reading compressed data is much more CPU and
-                (potentially) RAM intensive and should only be used if you know what you are doing default: False.
-            export_validation_probabilities: true to save softmax predictions from final validation as npz files
-                (in addition to predicted segmentations). Needed for finding the best ensemble. default: False.
-            continue_training: continue training from latest checkpoint. default: False.
-            only_run_validation: true to run the validation only. Requires training to have finished. default: False.
-            disable_checkpointing: true to disable checkpointing. Ideal for testing things out and you don't want to
-                flood your hard drive with checkpoints. default: False.
-        """
-        os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_id}"
+        Run the training for a single model specified by the configuration provided.
 
+        Args:
+            config: configuration that should be trained. Examples: "2d", "3d_fullres", "3d_lowres".
+            fold: fold of the 5-fold cross-validation. Should be an int between 0 and 4.
+        from nnunetv2.run.run_training import run_training
+            kwargs: this optional parameter allows you to specify additional arguments in
+                ``nnunetv2.run.run_training.run_training``. Currently supported args are
+                    - trainer_class_name: name of the custom trainer class. Default: "nnUNetTrainer".
+                    - plans_identifier: custom plans identifier. Default: "nnUNetPlans".
+                    - pretrained_weights: path to nnU-Net checkpoint file to be used as pretrained model. Will only be
+                        used when actually training. Beta. Use with caution. Default: False.
+                    - num_gpus: number of GPUs to use for training. Default: 1.
+                    - use_compressed_data: true to use compressed data for training. Reading compressed data is much
+                        more CPU and (potentially) RAM intensive and should only be used if you know what you are
+                        doing. Default: False.
+                    - export_validation_probabilities: true to save softmax predictions from final validation as npz
+                        files (in addition to predicted segmentations). Needed for finding the best ensemble.
+                        Default: False.
+                    - continue_training: continue training from latest checkpoint. Default: False.
+                    - only_run_validation: true to run the validation only. Requires training to have finished.
+                        Default: False.
+                    - disable_checkpointing: true to disable checkpointing. Ideal for testing things out and you
+                        don't want to flood your hard drive with checkpoints. Default: False.
+        """
         from nnunetv2.run.run_training import run_training
 
         run_training(dataset_name_or_id=self.dataset_name_or_id, configuration=config, fold=fold, **kwargs)
@@ -399,10 +512,14 @@ class nnUNetV2Runner:  # noqa: N801
         **kwargs: Any,
     ) -> None:
         """
+        Run the training for all the models specified by the configurations.
+
         Args:
             configs: configurations that should be trained.
-                default: ("2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres").
-            device_ids: ids of GPUs to use for training. default: None (all available GPUs).
+                Default: ("2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres").
+            device_ids: ids of GPUs to use for training. Default: None (all available GPUs).
+            kwargs: this optional parameter allows you to specify additional arguments defined in the 
+                ``train_single_model`` method.
         """
 
         if device_ids is None:
@@ -424,6 +541,16 @@ class nnUNetV2Runner:  # noqa: N801
         device_ids: tuple | None = None,
         **kwargs: Any,
     ) -> list:
+        """
+        Create the line command for subprocess call for parallel training.
+
+        Args:
+            configs: configurations that should be trained.
+                Default: ("2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres").
+            device_ids: ids of GPUs to use for training. Default: None (all available GPUs).
+            kwargs: this optional parameter allows you to specify additional arguments defined in the 
+                ``train_single_model`` method.
+        """
         # unpack compressed files
         folder_names = []
         for root, _, files in os.walk(os.path.join(self.nnunet_preprocessed, self.dataset_name)):
@@ -433,7 +560,7 @@ class nnUNetV2Runner:  # noqa: N801
         from nnunetv2.training.dataloading.utils import unpack_dataset
 
         for folder_name in folder_names:
-            logger.warning(f"[info] unpacking '{folder_name}'...")
+            logger.warning(f"unpacking '{folder_name}'...")
             unpack_dataset(
                 folder=folder_name,
                 unpack_segmentation=True,
@@ -484,9 +611,9 @@ class nnUNetV2Runner:  # noqa: N801
                 if not gpu_cmd:
                     continue
                 logger.warning(
-                    f"\n[info] training - stage {s + 1}:\n"
-                    f"[info] for gpu {gpu_id}, commands: {gpu_cmd}\n"
-                    f"[info] log '.txt' inside '{os.path.join(self.nnunet_results, self.dataset_name)}'"
+                    f"\ntraining - stage {s + 1}:\n"
+                    f"for gpu {gpu_id}, commands: {gpu_cmd}\n"
+                    f"log '.txt' inside '{os.path.join(self.nnunet_results, self.dataset_name)}'"
                 )
         for stage in all_cmds:
             processes = []
@@ -532,8 +659,8 @@ class nnUNetV2Runner:  # noqa: N801
     ) -> None:
         """
         Args:
-            plans: list of plan identifiers. Default: nnUNetPlans
-            configs: list of configurations. Default: ['2d', '3d_fullres', '3d_lowres', '3d_cascade_fullres']
+            plans: list of plan identifiers. Default: nnUNetPlans.
+            configs: list of configurations. Default: ["2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres"]
             trainers: list of trainers. Default: nnUNetTrainer
             num_processes: number of processes to use for ensembling, postprocessing etc
             folds: folds to use. Default: 0 1 2 3 4
