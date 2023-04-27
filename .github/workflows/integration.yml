@@ -58,6 +58,7 @@ jobs:
       run: |
         pwd && git log -1 && which python
         ./runtests.sh -b
+        python -m tests.test_auto3dseg_bundlegen
         python -m tests.test_auto3dseg_ensemble
         python -m tests.test_auto3dseg_hpo
         python -m tests.test_integration_autorunner
