@@ -46,9 +46,6 @@ def import_bundle_algo_history(
 
         algo, algo_meta_data = algo_from_pickle(obj_filename, template_path=template_path)
 
-        if isinstance(algo, BundleAlgo):  # algo's template path needs override
-            algo.template_path = algo_meta_data["template_path"]
-
         best_metric = algo_meta_data.get(AlgoKeys.SCORE, None)
         if best_metric is None:
             try:
