@@ -76,7 +76,7 @@ class MLFlowHandler:
             The default behavior is to track loss from output[0] as output is a decollated list
             and we replicated loss value for every item of the decollated list.
             `engine.state` and `output_transform` inherit from the ignite concept:
-            https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:
+            https://pytorch-ignite.ai/concepts/03-state/, explanation and usage example are in the tutorial:
             https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
         global_epoch_transform: a callable that is used to customize global epoch number.
             For example, in evaluation, the evaluator engine might want to track synced epoch number
@@ -84,13 +84,13 @@ class MLFlowHandler:
         state_attributes: expected attributes from `engine.state`, if provided, will extract them
             when epoch completed.
         tag_name: when iteration output is a scalar, `tag_name` is used to track, defaults to `'Loss'`.
-        experiment_name: name for an experiment, defaults to `default_experiment`.
-        run_name: name for run in an experiment.
-        experiment_param: a dict recording parameters which will not change through whole experiment,
+        experiment_name: a name for an experiment, defaults to `monai_experiment`.
+        run_name: a name for a run in an experiment.
+        experiment_param: a dict recording parameters which will not change through the whole workflow,
             like torch version, cuda version and so on.
-        artifacts: paths to images that need to be recorded after a whole run.
-        optimizer_param_names: parameters' name in optimizer that need to be record during running,
-            defaults to "lr".
+        artifacts: paths to images that need to be recorded after running the workflow.
+        optimizer_param_names: parameter names in the optimizer that need to be recorded during running,
+            default to "lr".
         close_on_complete: whether to close the mlflow run in `complete` phase in workflow, default to False.
 
     For more details of MLFlow usage, please refer to: https://mlflow.org/docs/latest/index.html.
@@ -99,6 +99,7 @@ class MLFlowHandler:
 
     # parameters that are logged at the start of training
     default_tracking_params = ["max_epochs", "epoch_length"]
+    finish_status = mlflow.entities.RunStatus.to_string(mlflow.entities.RunStatus.FINISHED)
 
     def __init__(
         self,
@@ -191,7 +192,8 @@ class MLFlowHandler:
             run_name = f"run_{time.strftime('%Y%m%d_%H%M%S')}" if self.run_name is None else self.run_name
             runs = self.client.search_runs(self.experiment.experiment_id)
             runs = [r for r in runs if r.info.run_name == run_name or not self.run_name]
-            runs = [r for r in runs if r.info.status != "FINISHED"]
+            # runs marked as finish should not record info any more
+            runs = [r for r in runs if r.info.status != self.finish_status]
             if runs:
                 self.cur_run = self.client.get_run(runs[-1].info.run_id)  # pick latest active run
             else:

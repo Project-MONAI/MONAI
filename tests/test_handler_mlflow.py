@@ -99,7 +99,7 @@ class TestHandlerMLFlow(unittest.TestCase):
                 run_id_list.append(cur_run.info.run_id)
                 handler.close()
             # check logging output
-            self.assertTrue(run_id_list[0] != run_id_list[1])
+            self.assertNotEqual(run_id_list[0], run_id_list[1])
 
     def test_metrics_track(self):
         experiment_param = {"backbone": "efficientnet_b0"}
