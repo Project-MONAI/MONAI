@@ -73,14 +73,17 @@ class TestHandlerMLFlow(unittest.TestCase):
             # set up engine
             def _train_func(engine, batch):
                 return [batch + 1.0]
+
             run_id_list = []
             for _ in range(2):
                 engine = Engine(_train_func)
+
                 @engine.on(Events.EPOCH_COMPLETED)
                 def _update_metric(engine):
                     current_metric = engine.state.metrics.get("acc", 0.1)
                     engine.state.metrics["acc"] = current_metric + 0.1
                     engine.state.test = current_metric
+
                 # set up testing handler
                 test_path = os.path.join(tempdir, "mlflow_test")
                 handler = MLFlowHandler(
