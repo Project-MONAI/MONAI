@@ -365,12 +365,18 @@ TEST_COMPOSE_EXECUTE_LOGGING_TEST_CASES = [
         (Flip(0), Spacing((1.2, 1.2)), Flip(1), Rotate90(1), Zoom(0.8), NormalizeIntensity()),
         False,
         (
-            "Apply pending transforms - lazy: False, pending: 0, upcoming 'Flip', transform.lazy: False\n"
-            "Apply pending transforms - lazy: False, pending: 0, upcoming 'Spacing', transform.lazy: False\n"
-            "Apply pending transforms - lazy: False, pending: 0, upcoming 'Flip', transform.lazy: False\n"
-            "Apply pending transforms - lazy: False, pending: 0, upcoming 'Rotate90', transform.lazy: False\n"
-            "Apply pending transforms - lazy: False, pending: 0, upcoming 'Zoom', transform.lazy: False\n"
-            "Apply pending transforms - lazy: False, pending: 0, upcoming 'NormalizeIntensity', transform is not lazy\n"
+            "Apply pending transforms - lazy: False, pending: 0, "
+            "upcoming 'Flip', transform.lazy: False\n"
+            "Apply pending transforms - lazy: False, pending: 0, "
+            "upcoming 'Spacing', transform.lazy: False\n"
+            "Apply pending transforms - lazy: False, pending: 0, "
+            "upcoming 'Flip', transform.lazy: False\n"
+            "Apply pending transforms - lazy: False, pending: 0, "
+            "upcoming 'Rotate90', transform.lazy: False\n"
+            "Apply pending transforms - lazy: False, pending: 0, "
+            "upcoming 'Zoom', transform.lazy: False\n"
+            "Apply pending transforms - lazy: False, pending: 0, "
+            "upcoming 'NormalizeIntensity', transform is not lazy\n"
         ),
     ],
     [
@@ -378,12 +384,18 @@ TEST_COMPOSE_EXECUTE_LOGGING_TEST_CASES = [
         (Flip(0), Spacing((1.2, 1.2)), Flip(1), Rotate90(1), Zoom(0.8), NormalizeIntensity()),
         True,
         (
-            "Accumulate pending transforms - lazy: True, pending: 0, upcoming 'Flip', transform.lazy: False (overridden)\n"
-            "Accumulate pending transforms - lazy: True, pending: 1, upcoming 'Spacing', transform.lazy: False (overridden)\n"
-            "Accumulate pending transforms - lazy: True, pending: 2, upcoming 'Flip', transform.lazy: False (overridden)\n"
-            "Accumulate pending transforms - lazy: True, pending: 3, upcoming 'Rotate90', transform.lazy: False (overridden)\n"
-            "Accumulate pending transforms - lazy: True, pending: 4, upcoming 'Zoom', transform.lazy: False (overridden)\n"
-            "Apply pending transforms - lazy: True, pending: 5, upcoming 'NormalizeIntensity', transform is not lazy\n"
+            "Accumulate pending transforms - lazy: True, pending: 0, "
+            "upcoming 'Flip', transform.lazy: False (overridden)\n"
+            "Accumulate pending transforms - lazy: True, pending: 1, "
+            "upcoming 'Spacing', transform.lazy: False (overridden)\n"
+            "Accumulate pending transforms - lazy: True, pending: 2, "
+            "upcoming 'Flip', transform.lazy: False (overridden)\n"
+            "Accumulate pending transforms - lazy: True, pending: 3, "
+            "upcoming 'Rotate90', transform.lazy: False (overridden)\n"
+            "Accumulate pending transforms - lazy: True, pending: 4, "
+            "upcoming 'Zoom', transform.lazy: False (overridden)\n"
+            "Apply pending transforms - lazy: True, pending: 5, "
+            "upcoming 'NormalizeIntensity', transform is not lazy\n"
         ),
     ],
     [
@@ -391,13 +403,20 @@ TEST_COMPOSE_EXECUTE_LOGGING_TEST_CASES = [
         (Flipd(("a", "b"), 0), Spacingd(("a", "b"), 1.2), Rotate90d(("a", "b"), 1), NormalizeIntensityd(("a",))),
         True,
         (
-            "Accumulate pending transforms - lazy mode: True, key: 'a', pending: 0, upcoming 'Flipd', transform.lazy: False (overridden)\n"
-            "Accumulate pending transforms - lazy mode: True, key: 'b', pending: 0, upcoming 'Flipd', transform.lazy: False (overridden)\n"
-            "Accumulate pending transforms - lazy mode: True, key: 'a', pending: 1, upcoming 'Spacingd', transform.lazy: False (overridden)\n"
-            "Accumulate pending transforms - lazy mode: True, key: 'b', pending: 1, upcoming 'Spacingd', transform.lazy: False (overridden)\n"
-            "Accumulate pending transforms - lazy mode: True, key: 'a', pending: 2, upcoming 'Rotate90d', transform.lazy: False (overridden)\n"
-            "Accumulate pending transforms - lazy mode: True, key: 'b', pending: 2, upcoming 'Rotate90d', transform.lazy: False (overridden)\n"
-            "Apply pending transforms - lazy mode: True, key: 'a', pending: 3, upcoming 'NormalizeIntensityd', transform is not lazy\n"
+            "Accumulate pending transforms - lazy mode: True, key: 'a', pending: 0, "
+            "upcoming 'Flipd', transform.lazy: False (overridden)\n"
+            "Accumulate pending transforms - lazy mode: True, key: 'b', pending: 0, "
+            "upcoming 'Flipd', transform.lazy: False (overridden)\n"
+            "Accumulate pending transforms - lazy mode: True, key: 'a', pending: 1, "
+            "upcoming 'Spacingd', transform.lazy: False (overridden)\n"
+            "Accumulate pending transforms - lazy mode: True, key: 'b', pending: 1, "
+            "upcoming 'Spacingd', transform.lazy: False (overridden)\n"
+            "Accumulate pending transforms - lazy mode: True, key: 'a', pending: 2, "
+            "upcoming 'Rotate90d', transform.lazy: False (overridden)\n"
+            "Accumulate pending transforms - lazy mode: True, key: 'b', pending: 2, "
+            "upcoming 'Rotate90d', transform.lazy: False (overridden)\n"
+            "Apply pending transforms - lazy mode: True, key: 'a', pending: 3, "
+            "upcoming 'NormalizeIntensityd', transform is not lazy\n"
         ),
     ],
 ]
