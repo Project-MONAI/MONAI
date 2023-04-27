@@ -522,7 +522,7 @@ class TestLazyComposePipelineFixes(unittest.TestCase):
     @parameterized.expand(TEST_LAZY_COMPOSE_PIPELINE_FIX_CASES)
     def test_lazy_compose_pipeline_fixes(self, pipeline):
         data = torch.unsqueeze(torch.tensor(np.arange(12 * 16).reshape(12, 16)), dim=0)
-        c = Compose(deepcopy(pipeline), lazy_evaluation=True)
+        c = Compose(deepcopy(pipeline), lazy=True)
         _ = c(data)
 
 
