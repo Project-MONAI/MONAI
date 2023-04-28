@@ -100,7 +100,7 @@ class nnUNetV2Runner:  # noqa: N801
 
             python -m monai.apps.nnunet nnUNetV2Runner train --input "./input.yaml"
 
-        - training a single model on a single GPU for 5 epochs
+        - training a single model on a single GPU for 5 epochs. Here ``config`` is used to specify the configuration.
 
         .. code-block:: bash
 
@@ -117,14 +117,12 @@ class nnUNetV2Runner:  # noqa: N801
 
             python -m monai.apps.nnunet nnUNetV2Runner train --input "./input.yaml" --device_ids "(0,1)"
 
-        - multi-gpu training for a single model
+        - 5-fold training for a single model on 2 GPUs. Here ``configs`` is used to specify the configurations.
 
         .. code-block:: bash
 
-            export CUDA_VISIBLE_DEVICES=0,1 # optional
             python -m monai.apps.nnunet nnUNetV2Runner train --input "./input.yaml" \\
-                --config "3d_fullres" \\
-                --fold 0 \\
+                --configs "3d_fullres" \\
                 --trainer_class_name "nnUNetTrainer_5epochs" \\
                 --export_validation_probabilities true \\
                 --device_ids "(0,1)"
