@@ -78,28 +78,29 @@ class nnUNetV2Runner:  # noqa: N801
 
             python -m monai.apps.nnunet nnUNetV2Runner plan_and_process --input "./input.yaml"
 
-        - training all 20 models
+        - training all 20 models using all GPUs available.
+            "CUDA_VISIBLE_DEVICES" environment variable is not supported.
 
         .. code-block:: bash
 
             python -m monai.apps.nnunet nnUNetV2Runner train --input "./input.yaml"
 
-        - training a single model
+        - training a single model on a single GPU for 5 epochs
 
         .. code-block:: bash
 
             python -m monai.apps.nnunet nnUNetV2Runner train_single_model --input "./input.yaml" \\
                 --config "3d_fullres" \\
                 --fold 0 \\
+                --gpu_id 0 \\
                 --trainer_class_name "nnUNetTrainer_5epochs" \\
                 --export_validation_probabilities true
 
-        - multi-gpu training for all 20 models
+        - training for all 20 models on 2 GPUs
 
         .. code-block:: bash
 
-            export CUDA_VISIBLE_DEVICES=0,1  # optional
-            python -m monai.apps.nnunet nnUNetV2Runner train --input "./input.yaml" --num_gpus 2
+            python -m monai.apps.nnunet nnUNetV2Runner train --input "./input.yaml" --device_ids "(0,1)"
 
         - multi-gpu training for a single model
 
@@ -471,13 +472,15 @@ class nnUNetV2Runner:  # noqa: N801
         if not no_pp:
             self.preprocess(c, n_proc, overwrite_plans_name, verbose)
 
-    def train_single_model(self, config: Any, fold: int, **kwargs: Any) -> None:
+    def train_single_model(self, config: Any, fold: int, gpu_id: int = 0, **kwargs: Any) -> None:
         """
-        Run the training for a single model specified by the configuration provided.
+        Run the training on a single GPU with one specified configuration provided.
+        Note: this will override the environment variable `CUDA_VISIBLE_DEVICES`.
 
         Args:
             config: configuration that should be trained. Examples: "2d", "3d_fullres", "3d_lowres".
             fold: fold of the 5-fold cross-validation. Should be an int between 0 and 4.
+            gpu_id: an integer to select the device to use. Default: 0.
         from nnunetv2.run.run_training import run_training
             kwargs: this optional parameter allows you to specify additional arguments in
                 ``nnunetv2.run.run_training.run_training``. Currently supported args are
@@ -485,7 +488,6 @@ class nnUNetV2Runner:  # noqa: N801
                     - plans_identifier: custom plans identifier. Default: "nnUNetPlans".
                     - pretrained_weights: path to nnU-Net checkpoint file to be used as pretrained model. Will only be
                         used when actually training. Beta. Use with caution. Default: False.
-                    - num_gpus: number of GPUs to use for training. Default: 1.
                     - use_compressed_data: true to use compressed data for training. Reading compressed data is much
                         more CPU and (potentially) RAM intensive and should only be used if you know what you are
                         doing. Default: False.
@@ -498,6 +500,8 @@ class nnUNetV2Runner:  # noqa: N801
                     - disable_checkpointing: true to disable checkpointing. Ideal for testing things out and you
                         don't want to flood your hard drive with checkpoints. Default: False.
         """
+        os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_id}"
+
         from nnunetv2.run.run_training import run_training
 
         run_training(dataset_name_or_id=self.dataset_name_or_id, configuration=config, fold=fold, **kwargs)
@@ -510,11 +514,13 @@ class nnUNetV2Runner:  # noqa: N801
     ) -> None:
         """
         Run the training for all the models specified by the configurations.
+        Note: to set the number of GPUs to use, use ``devices_ids`` instead of the `CUDA_VISIBLE_DEVICES`
+        environment variable.
 
         Args:
             configs: configurations that should be trained.
                 Default: ("2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres").
-            device_ids: ids of GPUs to use for training. Default: None (all available GPUs).
+            device_ids: a tuple of GPU device IDs to use for the training. Default: None (all available GPUs).
             kwargs: this optional parameter allows you to specify additional arguments defined in the
                 ``train_single_model`` method.
         """
@@ -544,7 +550,7 @@ class nnUNetV2Runner:  # noqa: N801
         Args:
             configs: configurations that should be trained.
                 Default: ("2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres").
-            device_ids: ids of GPUs to use for training. Default: None (all available GPUs).
+            device_ids: a tuple of GPU device IDs to use for the training. Default: None (all available GPUs).
             kwargs: this optional parameter allows you to specify additional arguments defined in the
                 ``train_single_model`` method.
         """
@@ -581,8 +587,8 @@ class nnUNetV2Runner:  # noqa: N801
                         the_device = device_ids[_index % n_devices]  # type: ignore
                         cmd = (
                             "python -m monai.apps.nnunet nnUNetV2Runner train_single_model "
-                            + f"--input_config '{self.input_config_or_dict}' --config '{_config}' "
-                            + f"--fold {_i} --gpu_id {the_device}"
+                            + f"--input_config '{self.input_config_or_dict}' --work_dir '{self.work_dir}' "
+                            + f"--config '{_config}' --fold {_i} --gpu_id {the_device}"
                         )
                         for _key, _value in kwargs.items():
                             cmd += f" --{_key} {_value}"
@@ -597,10 +603,16 @@ class nnUNetV2Runner:  # noqa: N801
         **kwargs: Any,
     ) -> None:
         """
+        Create the line command for subprocess call for parallel training.
+        Note: to set the number of GPUs to use, use ``devices_ids`` instead of the `CUDA_VISIBLE_DEVICES`
+        environment variable.
+
         Args:
             configs: configurations that should be trained.
                 default: ("2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres").
-            device_ids: device ids to use for training. default: None.
+            device_ids: a tuple of GPU device IDs to use for the training. Default: None (all available GPUs).
+            kwargs: this optional parameter allows you to specify additional arguments defined in the
+                ``train_single_model`` method.
         """
         all_cmds = self.train_parallel_cmd(configs=configs, device_ids=device_ids, **kwargs)
         for s, cmds in enumerate(all_cmds):
@@ -655,16 +667,19 @@ class nnUNetV2Runner:  # noqa: N801
         strict: bool = False,
     ) -> None:
         """
+        Find the best model configurations.
+
         Args:
             plans: list of plan identifiers. Default: nnUNetPlans.
-            configs: list of configurations. Default: ["2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres"]
-            trainers: list of trainers. Default: nnUNetTrainer
-            num_processes: number of processes to use for ensembling, postprocessing etc
-            folds: folds to use. Default: 0 1 2 3 4
-            allow_ensembling: Set this flag to enable ensembling
+            configs: list of configurations. Default: ["2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres"].
+            trainers: list of trainers. Default: nnUNetTrainer.
+            allow_ensembling: Set this flag to enable ensembling.
+            num_processes: number of processes to use for ensembling, postprocessing etc.
             overwrite: If set we will overwrite already ensembled files etc. May speed up consecutive
                 runs of this command (why would oyu want to do that?) at the risk of not updating
                 outdated results.
+            folds: folds to use. Default: (0, 1, 2, 3, 4).
+            strict: 
         """
         from nnunetv2.evaluation.find_best_configuration import (
             dumb_trainer_config_plans_to_trained_models_dict,
@@ -857,11 +872,11 @@ class nnUNetV2Runner:  # noqa: N801
         Run the nnU-Net pipeline.
 
         Args:
-            run_convert_dataset: whether to convert datasets, defaults to False.
-            run_plan_and_process: whether to preprocess and analyze the dataset, defaults to False.
-            run_train: whether to train models, defaults to False.
-            run_find_best_configuration: whether to find the best model (ensemble) configurations, defaults to False.
-            run_predict_ensemble_postprocessing: whether to make predictions on test datasets, defaults to False.
+            run_convert_dataset: whether to convert datasets, defaults to True.
+            run_plan_and_process: whether to preprocess and analyze the dataset, defaults to True.
+            run_train: whether to train models, defaults to True.
+            run_find_best_configuration: whether to find the best model (ensemble) configurations, defaults to True.
+            run_predict_ensemble_postprocessing: whether to make predictions on test datasets, defaults to True.
         """
         if run_convert_dataset:
             self.convert_dataset()
