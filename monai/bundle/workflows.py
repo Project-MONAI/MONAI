@@ -130,7 +130,7 @@ class BundleWorkflow(ABC):
         """
         return self.workflow
 
-    def add_property(self, name: str, required: str, desc: str | None = None):
+    def add_property(self, name: str, required: str, desc: str | None = None) -> None:
         """
         Besides the default predefined properties, some 3rd party aplications may need the bundle
         definition to provide additonal properties for the specific use cases, if the bundlle can't
@@ -142,6 +142,8 @@ class BundleWorkflow(ABC):
             required: whether the property is "must-have".
             desc: descriptions for the property.
         """
+        if self.properties is None:
+            self.properties = {}
         if name in self.properties:
             warnings.warn(f"property '{name}' already exists in the properties list, overriding it.")
         self.properties[name] = {BundleProperty.DESC: desc, BundleProperty.REQUIRED: required}
@@ -333,7 +335,9 @@ class ConfigWorkflow(BundleWorkflow):
             self._is_initialized = False
             self.parser.ref_resolver.reset()
 
-    def add_property(self, name: str, required: str, config_id: str, desc: str | None = None):
+    def add_property(  # type: ignore[override]
+        self, name: str, required: str, config_id: str, desc: str | None = None
+    ) -> None:
         """
         Besides the default predefined properties, some 3rd party aplications may need the bundle
         definition to provide additonal properties for the specific use cases, if the bundlle can't
@@ -348,7 +352,7 @@ class ConfigWorkflow(BundleWorkflow):
 
         """
         super().add_property(name=name, required=required, desc=desc)
-        self.properties[name][BundlePropertyConfig.ID] = config_id
+        self.properties[name][BundlePropertyConfig.ID] = config_id  # type: ignore[index]
 
     def _check_optional_id(self, name: str, property: dict) -> bool:
         """
