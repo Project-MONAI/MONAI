@@ -803,11 +803,15 @@ class nnUNetV2Runner:  # noqa: N801
         **kwargs: Any,
     ) -> None:
         """
+        Run prediction, ensemble, postprocessing optionally.
+
         Args:
             folds: which folds to use
             run_ensemble: whether to run ensembling.
             run_predict: whether to predict using trained checkpoints
             run_postprocessing: whether to conduct post-processing
+            kwargs: this optional parameter allows you to specify additional arguments defined in the
+                ``predict`` method.
         """
         from nnunetv2.ensembling.ensemble import ensemble_folders
         from nnunetv2.postprocessing.remove_connected_components import apply_postprocessing_to_folder
