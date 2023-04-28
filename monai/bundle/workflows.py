@@ -140,8 +140,7 @@ class BundleWorkflow(ABC):
         Args:
             name: the name of target property.
             required: whether the property is "must-have".
-            desc: description document for the property.
-
+            desc: descriptions for the property.
         """
         if name in self.properties:
             warnings.warn(f"property '{name}' already exists in the properties list, overriding it.")
@@ -345,7 +344,7 @@ class ConfigWorkflow(BundleWorkflow):
             name: the name of target property.
             required: whether the property is "must-have".
             config_id: the config ID of target property in the bundle definition.
-            desc: description document for the property.
+            desc: descriptions for the property.
 
         """
         super().add_property(name=name, required=required, desc=desc)
