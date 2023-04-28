@@ -74,8 +74,8 @@ class TestHandlerMLFlow(unittest.TestCase):
             def _train_func(engine, batch):
                 return [batch + 1.0]
 
-            run_id_list = []
-            for _ in range(2):
+            create_engine_times = 3
+            for _ in range(create_engine_times):
                 engine = Engine(_train_func)
 
                 @engine.on(Events.EPOCH_COMPLETED)
@@ -95,11 +95,10 @@ class TestHandlerMLFlow(unittest.TestCase):
                 )
                 handler.attach(engine)
                 engine.run(range(3), max_epochs=2)
-                cur_run = handler.client.search_runs(handler.experiment.experiment_id)[0]
-                run_id_list.append(cur_run.info.run_id)
+                run_cnt = len(handler.client.search_runs(handler.experiment.experiment_id))
                 handler.close()
-            # check the two runs are different
-            self.assertNotEqual(run_id_list[0], run_id_list[1])
+            # the run count should equal to the times of creating engine
+            self.assertEqual(create_engine_times, run_cnt)
 
     def test_metrics_track(self):
         experiment_param = {"backbone": "efficientnet_b0"}
