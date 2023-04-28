@@ -610,7 +610,10 @@ def run(
         # Execute this module as a CLI entry:
         python -m monai.bundle run --meta_file <meta path> --config_file <config path>
 
-        # Execute with specified `run_id=runtest`, `init_id=inittest`, `final_id=finaltest`:
+        # Execute with specified `run_id=training`:
+        python -m monai.bundle run training --meta_file <meta path> --config_file <config path>
+
+        # Execute with all specified `run_id=runtest`, `init_id=inittest`, `final_id=finaltest`:
         python -m monai.bundle run --run_id runtest --init_id inittest --final_id finaltest ...
 
         # Override config values at runtime by specifying the component id and its new value:
