@@ -133,7 +133,7 @@ class BundleWorkflow(ABC):
     def add_property(self, name: str, required: str, desc: str | None = None):
         """
         Besides the default predefined properties, some 3rd party aplications may need the bundle
-        dfinition to provide additonal properties for the specific use cases, if the bundlle can't
+        definition to provide additonal properties for the specific use cases, if the bundlle can't
         provide the property, means it can't work with the application.
         This utility adds the property for the application requirements check and access.
 
@@ -337,7 +337,7 @@ class ConfigWorkflow(BundleWorkflow):
     def add_property(self, name: str, required: str, config_id: str, desc: str | None = None):
         """
         Besides the default predefined properties, some 3rd party aplications may need the bundle
-        dfinition to provide additonal properties for the specific use cases, if the bundlle can't
+        definition to provide additonal properties for the specific use cases, if the bundlle can't
         provide the property, means it can't work with the application.
         This utility adds the property for the application requirements check and access.
 
