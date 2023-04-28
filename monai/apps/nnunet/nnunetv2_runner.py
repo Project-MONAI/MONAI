@@ -85,26 +85,26 @@ class nnUNetV2Runner:  # noqa: N801
         .. code-block:: bash
 
             python -m monai.apps.nnunet nnUNetV2Runner convert_msd_dataset \\
-                --input "./input.yaml" --data_dir "/path/to/Task09_Spleen"
+                --input_config "./input.yaml" --data_dir "/path/to/Task09_Spleen"
 
         - experiment planning and data pre-processing
 
         .. code-block:: bash
 
-            python -m monai.apps.nnunet nnUNetV2Runner plan_and_process --input "./input.yaml"
+            python -m monai.apps.nnunet nnUNetV2Runner plan_and_process --input_config "./input.yaml"
 
         - training all 20 models using all GPUs available.
             "CUDA_VISIBLE_DEVICES" environment variable is not supported.
 
         .. code-block:: bash
 
-            python -m monai.apps.nnunet nnUNetV2Runner train --input "./input.yaml"
+            python -m monai.apps.nnunet nnUNetV2Runner train --input_config "./input.yaml"
 
         - training a single model on a single GPU for 5 epochs. Here ``config`` is used to specify the configuration.
 
         .. code-block:: bash
 
-            python -m monai.apps.nnunet nnUNetV2Runner train_single_model --input "./input.yaml" \\
+            python -m monai.apps.nnunet nnUNetV2Runner train_single_model --input_config "./input.yaml" \\
                 --config "3d_fullres" \\
                 --fold 0 \\
                 --gpu_id 0 \\
@@ -115,13 +115,13 @@ class nnUNetV2Runner:  # noqa: N801
 
         .. code-block:: bash
 
-            python -m monai.apps.nnunet nnUNetV2Runner train --input "./input.yaml" --device_ids "(0,1)"
+            python -m monai.apps.nnunet nnUNetV2Runner train --input_config "./input.yaml" --device_ids "(0,1)"
 
         - 5-fold training for a single model on 2 GPUs. Here ``configs`` is used to specify the configurations.
 
         .. code-block:: bash
 
-            python -m monai.apps.nnunet nnUNetV2Runner train --input "./input.yaml" \\
+            python -m monai.apps.nnunet nnUNetV2Runner train --input_config "./input.yaml" \\
                 --configs "3d_fullres" \\
                 --trainer_class_name "nnUNetTrainer_5epochs" \\
                 --export_validation_probabilities true \\
@@ -131,13 +131,13 @@ class nnUNetV2Runner:  # noqa: N801
 
         .. code-block:: bash
 
-            python -m monai.apps.nnunet nnUNetV2Runner find_best_configuration --input "./input.yaml"
+            python -m monai.apps.nnunet nnUNetV2Runner find_best_configuration --input_config "./input.yaml"
 
         - predict, ensemble, and post-process
 
         .. code-block:: bash
 
-            python -m monai.apps.nnunet nnUNetV2Runner predict_ensemble_postprocessing --input "./input.yaml"
+            python -m monai.apps.nnunet nnUNetV2Runner predict_ensemble_postprocessing --input_config "./input.yaml"
 
     """
 
