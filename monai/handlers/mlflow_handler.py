@@ -86,8 +86,10 @@ class MLFlowHandler:
         state_attributes: expected attributes from `engine.state`, if provided, will extract them
             when epoch completed.
         tag_name: when iteration output is a scalar, `tag_name` is used to track, defaults to `'Loss'`.
-        experiment_name: a name for an experiment, defaults to `monai_experiment`.
-        run_name: a name for a run in an experiment.
+        experiment_name: the experiment name of MLflow, defaults to `monai_experiment`. An experiment can be
+            used to record several runs.
+        run_name: the run name in an experiment. A run can be used to record information about a workflow,
+            like the loss, metrics and so on.
         experiment_param: a dict recording parameters which will not change through the whole workflow,
             like torch version, cuda version and so on.
         artifacts: paths to images that need to be recorded after running the workflow.
