@@ -109,7 +109,7 @@ class nnUNetV2Runner:  # noqa: N801
                 --fold 0 \\
                 --gpu_id 0 \\
                 --trainer_class_name "nnUNetTrainer_5epochs" \\
-                --export_validation_probabilities true
+                --export_validation_probabilities True
 
         - training for all 20 models (4 configurations by 5 folds) on 2 GPUs
 
@@ -124,7 +124,7 @@ class nnUNetV2Runner:  # noqa: N801
             python -m monai.apps.nnunet nnUNetV2Runner train --input_config "./input.yaml" \\
                 --configs "3d_fullres" \\
                 --trainer_class_name "nnUNetTrainer_5epochs" \\
-                --export_validation_probabilities true \\
+                --export_validation_probabilities True \\
                 --device_ids "(0,1)"
 
         - find the best configuration
@@ -486,16 +486,16 @@ class nnUNetV2Runner:  # noqa: N801
                     - plans_identifier: custom plans identifier. Default: "nnUNetPlans".
                     - pretrained_weights: path to nnU-Net checkpoint file to be used as pretrained model. Will only be
                         used when actually training. Beta. Use with caution. Default: False.
-                    - use_compressed_data: true to use compressed data for training. Reading compressed data is much
+                    - use_compressed_data: True to use compressed data for training. Reading compressed data is much
                         more CPU and (potentially) RAM intensive and should only be used if you know what you are
                         doing. Default: False.
-                    - export_validation_probabilities: true to save softmax predictions from final validation as npz
+                    - export_validation_probabilities: True to save softmax predictions from final validation as npz
                         files (in addition to predicted segmentations). Needed for finding the best ensemble.
                         Default: False.
                     - continue_training: continue training from latest checkpoint. Default: False.
-                    - only_run_validation: true to run the validation only. Requires training to have finished.
+                    - only_run_validation: True to run the validation only. Requires training to have finished.
                         Default: False.
-                    - disable_checkpointing: true to disable checkpointing. Ideal for testing things out and you
+                    - disable_checkpointing: True to disable checkpointing. Ideal for testing things out and you
                         don't want to flood your hard drive with checkpoints. Default: False.
         """
         os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_id}"
