@@ -70,7 +70,7 @@ class TestHandlerMLFlow(unittest.TestCase):
 
     def test_multi_run(self):
         with tempfile.TemporaryDirectory() as tempdir:
-            # set up engine
+            # set up the train function for engine
             def _train_func(engine, batch):
                 return [batch + 1.0]
 
@@ -98,7 +98,7 @@ class TestHandlerMLFlow(unittest.TestCase):
                 cur_run = handler.client.search_runs(handler.experiment.experiment_id)[0]
                 run_id_list.append(cur_run.info.run_id)
                 handler.close()
-            # check logging output
+            # check the two runs are different
             self.assertNotEqual(run_id_list[0], run_id_list[1])
 
     def test_metrics_track(self):
