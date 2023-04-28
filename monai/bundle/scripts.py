@@ -608,16 +608,19 @@ def run(
     .. code-block:: bash
 
         # Execute this module as a CLI entry:
-        python -m monai.bundle run training --meta_file <meta path> --config_file <config path>
+        python -m monai.bundle run --meta_file <meta path> --config_file <config path>
+
+        # Execute with specified `run_id=runtest`, `init_id=inittest`, `final_id=finaltest`:
+        python -m monai.bundle run --run_id runtest --init_id inittest --final_id finaltest ...
 
         # Override config values at runtime by specifying the component id and its new value:
-        python -m monai.bundle run training --net#input_chns 1 ...
+        python -m monai.bundle run --net#input_chns 1 ...
 
         # Override config values with another config file `/path/to/another.json`:
-        python -m monai.bundle run evaluating --net %/path/to/another.json ...
+        python -m monai.bundle run --net %/path/to/another.json ...
 
         # Override config values with part content of another config file:
-        python -m monai.bundle run training --net %/data/other.json#net_arg ...
+        python -m monai.bundle run --net %/data/other.json#net_arg ...
 
         # Set default args of `run` in a JSON / YAML file, help to record and simplify the command line.
         # Other args still can override the default args at runtime:
@@ -1462,7 +1465,7 @@ def init_bundle(
         Describe your model here and how to run it, for example using `inference.json`:
 
         ```
-        python -m monai.bundle run evaluating \
+        python -m monai.bundle run \
             --meta_file /path/to/bundle/configs/metadata.json \
             --config_file /path/to/bundle/configs/inference.json \
             --dataset_dir ./input \
