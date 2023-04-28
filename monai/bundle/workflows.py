@@ -144,8 +144,7 @@ class BundleWorkflow(ABC):
 
         """
         if name in self.properties:
-            warnings.warn(f"property '{name}' already exists in the properties list.")
-            return
+            warnings.warn(f"property '{name}' already exists in the properties list, overriding it.")
         self.properties[name] = {BundleProperty.DESC: desc, BundleProperty.REQUIRED: required}
 
     def check_properties(self) -> list[str] | None:
