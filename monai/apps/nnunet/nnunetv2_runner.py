@@ -687,7 +687,7 @@ class nnUNetV2Runner:  # noqa: N801
                 runs of this command (why would oyu want to do that?) at the risk of not updating
                 outdated results.
             folds: folds to use. Default: (0, 1, 2, 3, 4).
-            strict: 
+            strict: a switch that triggers RunTimeError if the logging folder cannot be found. Default: False.
         """
         from nnunetv2.evaluation.find_best_configuration import (
             dumb_trainer_config_plans_to_trained_models_dict,
