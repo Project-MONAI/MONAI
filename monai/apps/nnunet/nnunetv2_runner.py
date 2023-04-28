@@ -54,15 +54,15 @@ class nnUNetV2Runner:  # noqa: N801
     Args:
         input_config: the configuration dictionary or the file path to the configuration in form of YAML.
             The keys required in the configuration are:
-                - ``"datalist"``: File path to the datalist for the train/testing splits
-                - ``"dataroot"``: File path to the dataset
-                - ``"modality"``: Imaging modality, e.g. "CT", ["T2", "ADC"]
+            - ``"datalist"``: File path to the datalist for the train/testing splits
+            - ``"dataroot"``: File path to the dataset
+            - ``"modality"``: Imaging modality, e.g. "CT", ["T2", "ADC"]
             Currently the configuration supports these optional key:
-                - ``"nnunet_raw"``: File path that will be written to env variable for nnU-Net
-                - ``"nnunet_preprocessed"``: File path that will be written to env variable for nnU-Net
-                - ``"nnunet_results"``: File path that will be written to env variable for nnU-Net
-                - ``"nnUNet_trained_models"``
-                - ``"dataset_name_or_id"``: Name or Integer ID of the dataset
+            - ``"nnunet_raw"``: File path that will be written to env variable for nnU-Net
+            - ``"nnunet_preprocessed"``: File path that will be written to env variable for nnU-Net
+            - ``"nnunet_results"``: File path that will be written to env variable for nnU-Net
+            - ``"nnUNet_trained_models"``
+            - ``"dataset_name_or_id"``: Name or Integer ID of the dataset
             If an optional key is not specified, then the pipeline will use the default values.
         work_dir: working directory to save the intermediate and final results.
 
