@@ -51,6 +51,21 @@ class nnUNetV2Runner:  # noqa: N801
     #. validation accuracy in each fold of cross-validation
     #. the predictions on the testing datasets from the final algorithm ensemble and potential post-processing
 
+    Args:
+        input_config: the configuration dictionary or the file path to the configuration in form of YAML.
+            The keys required in the configuration are:
+                - ``"datalist"``: File path to the datalist for the train/testing splits
+                - ``"dataroot"``: File path to the dataset
+                - ``"modality"``: Imaging modality, e.g. "CT", ["T2", "ADC"]
+            Currently the configuration supports these optional key:
+                - ``"nnunet_raw"``: File path that will be written to env variable for nnU-Net
+                - ``"nnunet_preprocessed"``: File path that will be written to env variable for nnU-Net
+                - ``"nnunet_results"``: File path that will be written to env variable for nnU-Net
+                - ``"nnUNet_trained_models"``
+                - ``"dataset_name_or_id"``: Name or Integer ID of the dataset
+            If an optional key is not specified, then the pipeline will use the default values.
+        work_dir: working directory to save the intermediate and final results.
+
     Examples:
         - Use the one-liner to start the nnU-Net workflow
 
@@ -96,7 +111,7 @@ class nnUNetV2Runner:  # noqa: N801
                 --trainer_class_name "nnUNetTrainer_5epochs" \\
                 --export_validation_probabilities true
 
-        - training for all 20 models on 2 GPUs
+        - training for all 20 models (4 configurations by 5 folds) on 2 GPUs
 
         .. code-block:: bash
 
@@ -107,12 +122,12 @@ class nnUNetV2Runner:  # noqa: N801
         .. code-block:: bash
 
             export CUDA_VISIBLE_DEVICES=0,1 # optional
-            python -m monai.apps.nnunet nnUNetV2Runner train_single_model --input "./input.yaml" \\
+            python -m monai.apps.nnunet nnUNetV2Runner train --input "./input.yaml" \\
                 --config "3d_fullres" \\
                 --fold 0 \\
                 --trainer_class_name "nnUNetTrainer_5epochs" \\
                 --export_validation_probabilities true \\
-                --num_gpus 2
+                --device_ids "(0,1)"
 
         - find best configuration
 
@@ -125,21 +140,6 @@ class nnUNetV2Runner:  # noqa: N801
         .. code-block:: bash
 
             python -m monai.apps.nnunet nnUNetV2Runner predict_ensemble_postprocessing --input "./input.yaml"
-
-    Args:
-        input_config: the configuration dictionary or the file path to the configuration in form of YAML.
-            The keys required in the configuration are:
-                - ``"datalist"``: File path to the datalist for the train/testing splits
-                - ``"dataroot"``: File path to the dataset
-                - ``"modality"``: Imaging modality, e.g. "CT", ["T2", "ADC"]
-            Currently the configuration supports these optional key:
-                - ``"nnunet_raw"``: File path that will be written to env variable for nnU-Net
-                - ``"nnunet_preprocessed"``: File path that will be written to env variable for nnU-Net
-                - ``"nnunet_results"``: File path that will be written to env variable for nnU-Net
-                - ``"nnUNet_trained_models"``
-                - ``"dataset_name_or_id"``: Name or Integer ID of the dataset
-            If an optional key is not specified, then the pipeline will use the default values.
-        work_dir: working directory to save the intermediate and final results.
 
     """
 
@@ -264,7 +264,7 @@ class nnUNetV2Runner:  # noqa: N801
                 output_datafolder=raw_data_foldername,
             )
         except BaseException as err:
-            logger.warning("Input config may be incorrect." f"The error/exception message is:\n {err}")
+            logger.warning("Input config may be incorrect. Detail info: error/exception message is:\n {err}")
             return
 
     def convert_msd_dataset(self, data_dir: str, overwrite_id: str | None = None, n_proc: int = -1) -> None:
@@ -637,9 +637,13 @@ class nnUNetV2Runner:  # noqa: N801
 
     def validate_single_model(self, config: str, fold: int, **kwargs: Any) -> None:
         """
+        Perform validation on single model.
+
         Args:
             config: configuration that should be trained.
             fold: fold of the 5-fold cross-validation. Should be an int between 0 and 4.
+            kwargs: this optional parameter allows you to specify additional arguments defined in the
+                ``train_single_model`` method.
         """
         self.train_single_model(config=config, fold=fold, only_run_validation=True, **kwargs)
 
@@ -647,9 +651,13 @@ class nnUNetV2Runner:  # noqa: N801
         self, configs: tuple = (M.N_3D_FULLRES, M.N_2D, M.N_3D_LOWRES, M.N_3D_CASCADE_FULLRES), **kwargs: Any
     ) -> None:
         """
+        Perform validation in all models defined by the configurations over 5 folds.
+
         Args:
             configs: configurations that should be trained.
                 default: ("2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres").
+            kwargs: this optional parameter allows you to specify additional arguments defined in the
+                ``train_single_model`` method.
         """
         for cfg in ensure_tuple(configs):
             for _fold in range(self.num_folds):
