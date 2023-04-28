@@ -958,6 +958,17 @@ MRI Transforms
     :special-members: __call__
 
 
+Lazy
+^^^^
+
+`ApplyPending`
+""""""""""""""
+
+.. autoclass:: ApplyPending
+    :members:
+    :special-members: __call__
+
+
 Utility
 ^^^^^^^
 
@@ -1909,6 +1920,17 @@ Smooth Field (Dict)
 `ReferenceBasedNormalizeIntensityd`
 """""""""""""""""""""""""""""""""""
 .. autoclass:: monai.apps.reconstruction.transforms.dictionary.ReferenceBasedNormalizeIntensityd
+    :special-members: __call__
+
+
+Lazy (Dict)
+^^^^^^^^^^^
+
+`ApplyPendingd`
+""""""""""""""
+
+.. autoclass:: ApplyPendingd
+    :members:
     :special-members: __call__
 
 
