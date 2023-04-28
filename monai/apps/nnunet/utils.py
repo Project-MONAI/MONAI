@@ -82,7 +82,7 @@ def create_new_data_copy(
         if _key is None:
             continue
 
-        logger.info(f"converting data section: {_key}...")
+        logger.warning(f"converting data section: {_key}...")
         for _k in tqdm(range(len(datalist_json[_key]))) if has_tqdm else range(len(datalist_json[_key])):
             orig_img_name = (
                 datalist_json[_key][_k]["image"]
