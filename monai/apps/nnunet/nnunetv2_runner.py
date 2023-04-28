@@ -263,7 +263,7 @@ class nnUNetV2Runner:  # noqa: N801
                 num_input_channels=num_input_channels,
                 output_datafolder=raw_data_foldername,
             )
-        except BaseException as err:
+        except BaseException:
             logger.warning("Input config may be incorrect. Detail info: error/exception message is:\n {err}")
             return
 
@@ -687,7 +687,7 @@ class nnUNetV2Runner:  # noqa: N801
                 runs of this command (why would oyu want to do that?) at the risk of not updating
                 outdated results.
             folds: folds to use. Default: (0, 1, 2, 3, 4).
-            strict: 
+            strict:
         """
         from nnunetv2.evaluation.find_best_configuration import (
             dumb_trainer_config_plans_to_trained_models_dict,
