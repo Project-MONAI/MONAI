@@ -13,10 +13,10 @@
 from __future__ import annotations
 
 from monai.config import KeysCollection
-from monai.transforms import MapTransform
 from monai.transforms.inverse import InvertibleTransform
+from monai.transforms.transform import MapTransform
 
-__all__ = ["ApplyPendingd"]
+__all__ = ["ApplyPendingd", "ApplyPendingD", "ApplyPendingDict"]
 
 
 class ApplyPendingd(InvertibleTransform, MapTransform):
@@ -26,20 +26,24 @@ class ApplyPendingd(InvertibleTransform, MapTransform):
     but its presence causes the pipeline to be executed as it doesn't implement ``LazyTrait``
 
     See ``Compose`` for a detailed explanation of the lazy resampling feature.
+
+    Args:
+        keys: the keys on which the transform operates. As of 1.2, this field must be set
+        but it doesn't alter the behaviour of lazy resampling.
     """
 
-    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False):
-        super().__init__(keys, allow_missing_keys)
+    def __init__(self, keys: KeysCollection):
+        super().__init__(keys, True)
 
     def __call__(self, data):
         if not isinstance(data, dict):
-            raise ValueError("'data' must be of type dict but is '{type(data)}'")
+            raise ValueError(f"'data' must be of type dict but is '{type(data)}'")
 
         return data
 
     def inverse(self, data):
         if not isinstance(data, dict):
-            raise ValueError("'data' must be of type dict but is '{type(data)}'")
+            raise ValueError(f"'data' must be of type dict but is '{type(data)}'")
 
         return data
 

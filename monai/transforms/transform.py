@@ -62,11 +62,12 @@ def _log_pending_info(
 
     if isinstance(transform, MapTransform):
         for k in transform.keys:
-            pcount = len(data[k].pending_operations) if isinstance(data[k], MetaTensor) else 0
-            logger.info(
-                f"{activity} - lazy mode: {lazy}, key: '{k}', "
-                f"pending: {pcount}, upcoming '{transform.__class__.__name__}'{tlazy}"
-            )
+            if k in data:
+                pcount = len(data[k].pending_operations) if isinstance(data[k], MetaTensor) else 0
+                logger.info(
+                    f"{activity} - lazy mode: {lazy}, key: '{k}', "
+                    f"pending: {pcount}, upcoming '{transform.__class__.__name__}'{tlazy}"
+                )
     else:
         pcount = len(data.pending_operations) if isinstance(data, MetaTensor) else 0
         logger.info(
@@ -111,10 +112,10 @@ def _apply_transform(
 
     if lazy_tx is False or lazy is False:
         _log_pending_info(data, transform, "Apply pending transforms", lazy, logger_name)
-        data = apply_pending_transforms(data, overrides)
+        data = apply_pending_transforms(data, overrides, logger_name)
     elif lazy is None and transform.lazy is False:  # type: ignore[attr-defined]
         _log_pending_info(data, transform, "Apply pending transforms", lazy, logger_name)
-        data = apply_pending_transforms(data, overrides)
+        data = apply_pending_transforms(data, overrides, logger_name)
     else:
         _log_pending_info(data, transform, "Accumulate pending transforms", lazy, logger_name)
 

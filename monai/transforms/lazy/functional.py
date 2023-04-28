@@ -15,6 +15,7 @@ from typing import Any
 
 import torch
 
+from monai.apps.utils import get_logger
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
 from monai.transforms.lazy.utils import (
@@ -29,6 +30,15 @@ from monai.utils import LazyAttr, look_up_option
 __all__ = ["apply_pending", "apply_pending_transforms"]
 
 __override_keywords = {"mode", "padding_mode", "dtype", "align_corners", "resample_mode", "device"}
+
+
+def _log_applied_info(data: Any, key=None, logger_name: str | None = None):
+    if logger_name is None:
+        return
+    logger = get_logger(logger_name)
+
+    key_str = "" if key is None else f"key: '{key}', "
+    logger.info(f"Pending transforms applied: {key_str}applied_operations: {len(data.applied_operations)}")
 
 
 def apply_pending_transforms(data, overrides: dict | None = None, logger_name: str | None = None):
@@ -61,25 +71,24 @@ def apply_pending_transforms(data, overrides: dict | None = None, logger_name: s
         return tuple(apply_pending_transforms(d, logger_name=logger_name) for d in data)
 
     if isinstance(data, dict):
-        d = data
-        for k, v in d.items():
-            if isinstance(v, MetaTensor) and v.has_pending_operations:
-                overrides_ = None if overrides is None else overrides[k]
-                d[k], _ = apply_pending(v, overrides=overrides_, logger_name=logger_name)
-        return d
+        needs_apply_pending = any(isinstance(v, MetaTensor) and v.has_pending_operations for k, v in data.items())
+        if needs_apply_pending:
+            d = dict(data)
+            for k, v in d.items():
+                if isinstance(v, MetaTensor) and v.has_pending_operations:
+                    overrides_ = None if overrides is None else overrides[k]
+                    d[k], _ = apply_pending(v, overrides=overrides_)
+                    _log_applied_info(d[k], key=k, logger_name=logger_name)
+            return d
 
     if isinstance(data, MetaTensor) and data.has_pending_operations:
-        data, _ = apply_pending(data, overrides=overrides, logger_name=logger_name)
+        data, _ = apply_pending(data, overrides=overrides)
+        _log_applied_info(data, logger_name=logger_name)
 
     return data
 
 
-def apply_pending(
-    data: torch.Tensor | MetaTensor,
-    pending: list | None = None,
-    overrides: dict | None = None,
-    logger_name: str | None = None,
-):
+def apply_pending(data: torch.Tensor | MetaTensor, pending: list | None = None, overrides: dict | None = None):
     """
     This method applies pending transforms to `data` tensors.
     Currently, only 2d and 3d inputs are supported.

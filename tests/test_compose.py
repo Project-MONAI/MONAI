@@ -24,6 +24,8 @@ from parameterized import parameterized
 from monai.data import DataLoader, Dataset
 from monai.transforms import (
     AddChannel,
+    ApplyPending,
+    ApplyPendingd,
     Compose,
     Flip,
     NormalizeIntensity,
@@ -35,7 +37,7 @@ from monai.transforms import (
     Zoom,
 )
 from monai.transforms.compose import execute_compose
-from monai.transforms.spatial.dictionary import Flipd, Rotate90d, Spacingd
+from monai.transforms.spatial.dictionary import Flipd, Rotate90d, Spacingd, Zoomd
 from monai.transforms.transform import Randomizable
 from monai.utils import set_determinism
 
@@ -365,18 +367,46 @@ TEST_COMPOSE_EXECUTE_LOGGING_TEST_CASES = [
         (Flip(0), Spacing((1.2, 1.2)), Flip(1), Rotate90(1), Zoom(0.8), NormalizeIntensity()),
         False,
         (
-            "Apply pending transforms - lazy: False, pending: 0, "
+            "INFO - Apply pending transforms - lazy: False, pending: 0, "
             "upcoming 'Flip', transform.lazy: False\n"
-            "Apply pending transforms - lazy: False, pending: 0, "
+            "INFO - Apply pending transforms - lazy: False, pending: 0, "
             "upcoming 'Spacing', transform.lazy: False\n"
-            "Apply pending transforms - lazy: False, pending: 0, "
+            "INFO - Apply pending transforms - lazy: False, pending: 0, "
             "upcoming 'Flip', transform.lazy: False\n"
-            "Apply pending transforms - lazy: False, pending: 0, "
+            "INFO - Apply pending transforms - lazy: False, pending: 0, "
             "upcoming 'Rotate90', transform.lazy: False\n"
-            "Apply pending transforms - lazy: False, pending: 0, "
+            "INFO - Apply pending transforms - lazy: False, pending: 0, "
             "upcoming 'Zoom', transform.lazy: False\n"
-            "Apply pending transforms - lazy: False, pending: 0, "
+            "INFO - Apply pending transforms - lazy: False, pending: 0, "
             "upcoming 'NormalizeIntensity', transform is not lazy\n"
+        ),
+    ],
+    [
+        None,
+        (
+            Flip(0, lazy=True),
+            Spacing((1.2, 1.2), lazy=True),
+            Flip(1, lazy=True),
+            Rotate90(1),
+            Zoom(0.8, lazy=True),
+            NormalizeIntensity(),
+        ),
+        None,
+        (
+            "INFO - Accumulate pending transforms - lazy: None, pending: 0, "
+            "upcoming 'Flip', transform.lazy: True\n"
+            "INFO - Accumulate pending transforms - lazy: None, pending: 1, "
+            "upcoming 'Spacing', transform.lazy: True\n"
+            "INFO - Accumulate pending transforms - lazy: None, pending: 2, "
+            "upcoming 'Flip', transform.lazy: True\n"
+            "INFO - Apply pending transforms - lazy: None, pending: 3, "
+            "upcoming 'Rotate90', transform.lazy: False\n"
+            "INFO - Pending transforms applied: applied_operations: 3\n"
+            "INFO - Accumulate pending transforms - lazy: None, pending: 0, "
+            "upcoming 'Zoom', transform.lazy: True\n"
+            "INFO - Apply pending transforms - lazy: None, pending: 1, "
+            "upcoming 'NormalizeIntensity', transform is not lazy\n"
+            "INFO - Pending transforms applied: applied_operations: 5\n"
         ),
     ],
     [
@@ -384,18 +414,19 @@ TEST_COMPOSE_EXECUTE_LOGGING_TEST_CASES = [
         (Flip(0), Spacing((1.2, 1.2)), Flip(1), Rotate90(1), Zoom(0.8), NormalizeIntensity()),
         True,
         (
-            "Accumulate pending transforms - lazy: True, pending: 0, "
+            "INFO - Accumulate pending transforms - lazy: True, pending: 0, "
             "upcoming 'Flip', transform.lazy: False (overridden)\n"
-            "Accumulate pending transforms - lazy: True, pending: 1, "
+            "INFO - Accumulate pending transforms - lazy: True, pending: 1, "
             "upcoming 'Spacing', transform.lazy: False (overridden)\n"
-            "Accumulate pending transforms - lazy: True, pending: 2, "
+            "INFO - Accumulate pending transforms - lazy: True, pending: 2, "
             "upcoming 'Flip', transform.lazy: False (overridden)\n"
-            "Accumulate pending transforms - lazy: True, pending: 3, "
+            "INFO - Accumulate pending transforms - lazy: True, pending: 3, "
             "upcoming 'Rotate90', transform.lazy: False (overridden)\n"
-            "Accumulate pending transforms - lazy: True, pending: 4, "
+            "INFO - Accumulate pending transforms - lazy: True, pending: 4, "
             "upcoming 'Zoom', transform.lazy: False (overridden)\n"
-            "Apply pending transforms - lazy: True, pending: 5, "
+            "INFO - Apply pending transforms - lazy: True, pending: 5, "
             "upcoming 'NormalizeIntensity', transform is not lazy\n"
+            "INFO - Pending transforms applied: applied_operations: 5\n"
         ),
     ],
     [
@@ -403,20 +434,121 @@ TEST_COMPOSE_EXECUTE_LOGGING_TEST_CASES = [
         (Flipd(("a", "b"), 0), Spacingd(("a", "b"), 1.2), Rotate90d(("a", "b"), 1), NormalizeIntensityd(("a",))),
         True,
         (
-            "Accumulate pending transforms - lazy mode: True, key: 'a', pending: 0, "
+            "INFO - Accumulate pending transforms - lazy mode: True, key: 'a', pending: 0, "
             "upcoming 'Flipd', transform.lazy: False (overridden)\n"
-            "Accumulate pending transforms - lazy mode: True, key: 'b', pending: 0, "
+            "INFO - Accumulate pending transforms - lazy mode: True, key: 'b', pending: 0, "
             "upcoming 'Flipd', transform.lazy: False (overridden)\n"
-            "Accumulate pending transforms - lazy mode: True, key: 'a', pending: 1, "
+            "INFO - Accumulate pending transforms - lazy mode: True, key: 'a', pending: 1, "
             "upcoming 'Spacingd', transform.lazy: False (overridden)\n"
-            "Accumulate pending transforms - lazy mode: True, key: 'b', pending: 1, "
+            "INFO - Accumulate pending transforms - lazy mode: True, key: 'b', pending: 1, "
             "upcoming 'Spacingd', transform.lazy: False (overridden)\n"
-            "Accumulate pending transforms - lazy mode: True, key: 'a', pending: 2, "
+            "INFO - Accumulate pending transforms - lazy mode: True, key: 'a', pending: 2, "
             "upcoming 'Rotate90d', transform.lazy: False (overridden)\n"
-            "Accumulate pending transforms - lazy mode: True, key: 'b', pending: 2, "
+            "INFO - Accumulate pending transforms - lazy mode: True, key: 'b', pending: 2, "
             "upcoming 'Rotate90d', transform.lazy: False (overridden)\n"
-            "Apply pending transforms - lazy mode: True, key: 'a', pending: 3, "
+            "INFO - Apply pending transforms - lazy mode: True, key: 'a', pending: 3, "
             "upcoming 'NormalizeIntensityd', transform is not lazy\n"
+            "INFO - Pending transforms applied: key: 'a', applied_operations: 3\n"
+            "INFO - Pending transforms applied: key: 'b', applied_operations: 3\n"
+        ),
+    ],
+    [
+        ("a", "b"),
+        (
+            Flipd(keys="a", spatial_axis=0),
+            Rotate90d(keys="b", k=1, allow_missing_keys=True),
+            Zoomd(keys=("a", "b"), zoom=0.8, allow_missing_keys=True),
+            Spacingd(keys="a", pixdim=1.2),
+        ),
+        True,
+        (
+            "INFO - Accumulate pending transforms - lazy mode: True, key: 'a', pending: 0, "
+            "upcoming 'Flipd', transform.lazy: False (overridden)\n"
+            "INFO - Accumulate pending transforms - lazy mode: True, key: 'b', pending: 0, "
+            "upcoming 'Rotate90d', transform.lazy: False (overridden)\n"
+            "INFO - Accumulate pending transforms - lazy mode: True, key: 'a', pending: 1, "
+            "upcoming 'Zoomd', transform.lazy: False (overridden)\n"
+            "INFO - Accumulate pending transforms - lazy mode: True, key: 'b', pending: 1, "
+            "upcoming 'Zoomd', transform.lazy: False (overridden)\n"
+            "INFO - Accumulate pending transforms - lazy mode: True, key: 'a', pending: 2, "
+            "upcoming 'Spacingd', transform.lazy: False (overridden)\n"
+            "INFO - Pending transforms applied: key: 'a', applied_operations: 3\n"
+            "INFO - Pending transforms applied: key: 'b', applied_operations: 2\n"
+        ),
+    ],
+    [
+        None,
+        (Flip(0), Spacing((1.2, 1.2)), Flip(1), ApplyPending(), Rotate90(1), Zoom(0.8), NormalizeIntensity()),
+        False,
+        (
+            "INFO - Apply pending transforms - lazy: False, pending: 0, "
+            "upcoming 'Flip', transform.lazy: False\n"
+            "INFO - Apply pending transforms - lazy: False, pending: 0, "
+            "upcoming 'Spacing', transform.lazy: False\n"
+            "INFO - Apply pending transforms - lazy: False, pending: 0, "
+            "upcoming 'Flip', transform.lazy: False\n"
+            "INFO - Apply pending transforms - lazy: False, pending: 0, "
+            "upcoming 'ApplyPending', transform is not lazy\n"
+            "INFO - Apply pending transforms - lazy: False, pending: 0, "
+            "upcoming 'Rotate90', transform.lazy: False\n"
+            "INFO - Apply pending transforms - lazy: False, pending: 0, "
+            "upcoming 'Zoom', transform.lazy: False\n"
+            "INFO - Apply pending transforms - lazy: False, pending: 0, "
+            "upcoming 'NormalizeIntensity', transform is not lazy\n"
+        ),
+    ],
+    [
+        None,
+        (Flip(0), Spacing((1.2, 1.2)), Flip(1), ApplyPending(), Rotate90(1), Zoom(0.8), NormalizeIntensity()),
+        True,
+        (
+            "INFO - Accumulate pending transforms - lazy: True, pending: 0, "
+            "upcoming 'Flip', transform.lazy: False (overridden)\n"
+            "INFO - Accumulate pending transforms - lazy: True, pending: 1, "
+            "upcoming 'Spacing', transform.lazy: False (overridden)\n"
+            "INFO - Accumulate pending transforms - lazy: True, pending: 2, "
+            "upcoming 'Flip', transform.lazy: False (overridden)\n"
+            "INFO - Apply pending transforms - lazy: True, pending: 3, "
+            "upcoming 'ApplyPending', transform is not lazy\n"
+            "INFO - Pending transforms applied: applied_operations: 3\n"
+            "INFO - Accumulate pending transforms - lazy: True, pending: 0, "
+            "upcoming 'Rotate90', transform.lazy: False (overridden)\n"
+            "INFO - Accumulate pending transforms - lazy: True, pending: 1, "
+            "upcoming 'Zoom', transform.lazy: False (overridden)\n"
+            "INFO - Apply pending transforms - lazy: True, pending: 2, "
+            "upcoming 'NormalizeIntensity', transform is not lazy\n"
+            "INFO - Pending transforms applied: applied_operations: 5\n"
+        ),
+    ],
+    [
+        ("a", "b"),
+        (
+            Flipd(keys="a", spatial_axis=0),
+            Rotate90d(keys="b", k=1, allow_missing_keys=True),
+            ApplyPendingd(keys=("a", "b")),
+            Zoomd(keys=("a", "b"), zoom=0.8, allow_missing_keys=True),
+            Spacingd(keys="a", pixdim=1.2),
+        ),
+        True,
+        (
+            "INFO - Accumulate pending transforms - lazy mode: True, key: 'a', pending: 0, "
+            "upcoming 'Flipd', transform.lazy: False (overridden)\n"
+            "INFO - Accumulate pending transforms - lazy mode: True, key: 'b', pending: 0, "
+            "upcoming 'Rotate90d', transform.lazy: False (overridden)\n"
+            "INFO - Apply pending transforms - lazy mode: True, key: 'a', pending: 1, "
+            "upcoming 'ApplyPendingd', transform is not lazy\n"
+            "INFO - Apply pending transforms - lazy mode: True, key: 'b', pending: 1, "
+            "upcoming 'ApplyPendingd', transform is not lazy\n"
+            "INFO - Pending transforms applied: key: 'a', applied_operations: 1\n"
+            "INFO - Pending transforms applied: key: 'b', applied_operations: 1\n"
+            "INFO - Accumulate pending transforms - lazy mode: True, key: 'a', pending: 0, "
+            "upcoming 'Zoomd', transform.lazy: False (overridden)\n"
+            "INFO - Accumulate pending transforms - lazy mode: True, key: 'b', pending: 0, "
+            "upcoming 'Zoomd', transform.lazy: False (overridden)\n"
+            "INFO - Accumulate pending transforms - lazy mode: True, key: 'a', pending: 1, "
+            "upcoming 'Spacingd', transform.lazy: False (overridden)\n"
+            "INFO - Pending transforms applied: key: 'a', applied_operations: 3\n"
+            "INFO - Pending transforms applied: key: 'b', applied_operations: 2\n"
         ),
     ],
 ]
@@ -437,6 +569,8 @@ class TestComposeExecuteWithLogging(unittest.TestCase):
     def test_compose_with_logging(self, keys, pipeline, lazy, expected):
         stream = StringIO()
         handler = logging.StreamHandler(stream)
+        formatter = logging.Formatter("%(levelname)s - %(message)s")
+        handler.setFormatter(formatter)
         logger = logging.getLogger("a_logger_name")
         logger.setLevel(logging.INFO)
         while len(logger.handlers) > 0:

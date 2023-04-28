@@ -41,7 +41,7 @@ from monai.utils import MAX_SEED, TraceKeys, ensure_tuple, get_seed
 
 logger = get_logger(__name__)
 
-__all__ = ["Compose", "OneOf", "RandomOrder", "SomeOf"]
+__all__ = ["Compose", "OneOf", "RandomOrder", "SomeOf", "execute_compose"]
 
 
 def execute_compose(
