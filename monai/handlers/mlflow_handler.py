@@ -23,7 +23,9 @@ from monai.config import IgniteInfo
 from monai.utils import ensure_tuple, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
-mlflow, _ = optional_import("mlflow")
+mlflow, _ = optional_import(
+    "mlflow", descriptor="MLFlow is not installed. Please install it before using MLFlowHandler."
+)
 mlflow.entities, _ = optional_import("mlflow.entities")
 
 if TYPE_CHECKING:
@@ -99,8 +101,6 @@ class MLFlowHandler:
 
     # parameters that are logged at the start of training
     default_tracking_params = ["max_epochs", "epoch_length"]
-    # the finish status of a mlflow run
-    run_finish_status = mlflow.entities.RunStatus.to_string(mlflow.entities.RunStatus.FINISHED)
 
     def __init__(
         self,
@@ -134,6 +134,7 @@ class MLFlowHandler:
         self.artifacts = ensure_tuple(artifacts)
         self.optimizer_param_names = ensure_tuple(optimizer_param_names)
         self.client = mlflow.MlflowClient(tracking_uri=tracking_uri if tracking_uri else None)
+        self.run_finish_status = mlflow.entities.RunStatus.to_string(mlflow.entities.RunStatus.FINISHED)
         self.close_on_complete = close_on_complete
         self.experiment = None
         self.cur_run = None
