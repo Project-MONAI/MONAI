@@ -23,10 +23,10 @@ from monai.config import IgniteInfo
 from monai.utils import ensure_tuple, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
-mlflow, _ = optional_import(
-    "mlflow", descriptor="MLFlow is not installed. Please install it before using MLFlowHandler."
+mlflow, _ = optional_import("mlflow", descriptor="Please install mlflow before using MLFlowHandler.")
+mlflow.entities, _ = optional_import(
+    "mlflow.entities", descriptor="Please install mlflow.entities before using MLFLowHandler."
 )
-mlflow.entities, _ = optional_import("mlflow.entities")
 
 if TYPE_CHECKING:
     from ignite.engine import Engine
