@@ -37,9 +37,9 @@ class nnUNetV2Runner:  # noqa: N801
     """
     ``nnUNetV2Runner`` provides an interface in MONAI to use `nnU-Net` V2 library to analyze, train, and evaluate
     neural networks for medical image segmentation tasks.
-    
+
     ``nnUNetV2Runner`` can be used in two ways:
-    
+
     #. with one line of code to execute the complete pipeline.
     #. with a series of commands to run the each modules in the pipeline.
 
@@ -139,7 +139,7 @@ class nnUNetV2Runner:  # noqa: N801
                 - ``"dataset_name_or_id"``: Name or Integer ID of the dataset
             If an optional key is not specified, then the pipeline will use the default values.
         work_dir: working directory to save the intermediate and final results.
-    
+
     """
 
     def __init__(self, input_config: Any, work_dir: str = "work_dir") -> None:
@@ -231,7 +231,7 @@ class nnUNetV2Runner:  # noqa: N801
                 os.makedirs(os.path.join(raw_data_foldername, "imagesTr"))
                 os.makedirs(os.path.join(raw_data_foldername, "labelsTr"))
             else:
-                logger.warning(f"The datalist file has incorrect format: the `training` key is not found.")
+                logger.warning("The datalist file has incorrect format: the `training` key is not found.")
                 return
 
             test_key = None
@@ -263,10 +263,7 @@ class nnUNetV2Runner:  # noqa: N801
                 output_datafolder=raw_data_foldername,
             )
         except BaseException as err:
-            logger.warning(
-                "Input config may be incorrect."
-                f"The error/exception message is:\n {err}"
-            )
+            logger.warning("Input config may be incorrect." f"The error/exception message is:\n {err}")
             return
 
     def convert_msd_dataset(self, data_dir: str, overwrite_id: str | None = None, n_proc: int = -1) -> None:
@@ -333,8 +330,8 @@ class nnUNetV2Runner:  # noqa: N801
                 Only use this if you really know what you are doing and NEVER use this without running the
                 default nnU-Net first (as a baseline).
             preprocessor_name: [OPTIONAL] DANGER ZONE! Sets a custom preprocessor class. This class must be located in
-                nnunetv2.preprocessing. Default: "DefaultPreprocessor". Changing this may affect your models performance!
-                Only use this if you really know what you are doing and NEVER use this without running the
+                nnunetv2.preprocessing. Default: "DefaultPreprocessor". Changing this may affect your models
+                performance! Only use this if you really know what you are doing and NEVER use this without running the
                 default nnU-Net first (as a baseline).
             overwrite_target_spacing: [OPTIONAL] DANGER ZONE! Sets a custom target spacing for the 3d_fullres
                 and 3d_cascade_fullres configurations. Default: None [no changes]. Changing this will affect
@@ -518,7 +515,7 @@ class nnUNetV2Runner:  # noqa: N801
             configs: configurations that should be trained.
                 Default: ("2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres").
             device_ids: ids of GPUs to use for training. Default: None (all available GPUs).
-            kwargs: this optional parameter allows you to specify additional arguments defined in the 
+            kwargs: this optional parameter allows you to specify additional arguments defined in the
                 ``train_single_model`` method.
         """
 
@@ -548,7 +545,7 @@ class nnUNetV2Runner:  # noqa: N801
             configs: configurations that should be trained.
                 Default: ("2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres").
             device_ids: ids of GPUs to use for training. Default: None (all available GPUs).
-            kwargs: this optional parameter allows you to specify additional arguments defined in the 
+            kwargs: this optional parameter allows you to specify additional arguments defined in the
                 ``train_single_model`` method.
         """
         # unpack compressed files
@@ -857,6 +854,8 @@ class nnUNetV2Runner:  # noqa: N801
         run_predict_ensemble_postprocessing: bool = True,
     ) -> None:
         """
+        Run the nnU-Net pipeline.
+
         Args:
             run_convert_dataset: whether to convert datasets, defaults to False.
             run_plan_and_process: whether to preprocess and analyze the dataset, defaults to False.
