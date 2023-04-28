@@ -32,6 +32,7 @@ from monai.apps.utils import get_logger
 from monai.auto3dseg.algo_gen import Algo, AlgoGen
 from monai.auto3dseg.utils import algo_to_pickle
 from monai.bundle.config_parser import ConfigParser
+from monai.config import PathLike
 from monai.utils import ensure_tuple
 from monai.utils.enums import AlgoKeys
 
@@ -63,7 +64,7 @@ class BundleAlgo(Algo):
 
     """
 
-    def __init__(self, template_path: str):
+    def __init__(self, template_path: PathLike):
         """
         Create an Algo instance based on the predefined Algo template.
 
@@ -153,9 +154,9 @@ class BundleAlgo(Algo):
             os.makedirs(self.output_path, exist_ok=True)
             if os.path.isdir(self.output_path):
                 shutil.rmtree(self.output_path)
-            shutil.copytree(self.template_path, self.output_path)
+            shutil.copytree(str(self.template_path), self.output_path)
         else:
-            self.output_path = self.template_path
+            self.output_path = str(self.template_path)
         if kwargs.pop("fill_template", True):
             self.fill_records = self.fill_template_config(self.data_stats_files, self.output_path, **kwargs)
         logger.info(f"Generated:{self.output_path}")
