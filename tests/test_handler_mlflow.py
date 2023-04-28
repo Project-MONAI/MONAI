@@ -74,6 +74,7 @@ class TestHandlerMLFlow(unittest.TestCase):
             def _train_func(engine, batch):
                 return [batch + 1.0]
 
+            # create and run an engine several times to get several runs
             create_engine_times = 3
             for _ in range(create_engine_times):
                 engine = Engine(_train_func)
