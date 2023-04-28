@@ -41,23 +41,23 @@ class nnUNetV2Runner:  # noqa: N801
     ``nnUNetV2Runner`` can be used in two ways:
 
     #. with one line of code to execute the complete pipeline.
-    #. with a series of commands to run the each modules in the pipeline.
+    #. with a series of commands to run each modules in the pipeline.
 
     The output of the interface is a directory that contains:
 
-    #. converted dataset met requirement of nnU-Net V2
+    #. converted dataset met the requirement of nnU-Net V2
     #. data analysis results
     #. checkpoints from the trained U-Net models
     #. validation accuracy in each fold of cross-validation
     #. the predictions on the testing datasets from the final algorithm ensemble and potential post-processing
 
     Args:
-        input_config: the configuration dictionary or the file path to the configuration in form of YAML.
+        input_config: the configuration dictionary or the file path to the configuration in the form of YAML.
             The keys required in the configuration are:
             - ``"datalist"``: File path to the datalist for the train/testing splits
             - ``"dataroot"``: File path to the dataset
             - ``"modality"``: Imaging modality, e.g. "CT", ["T2", "ADC"]
-            Currently the configuration supports these optional key:
+            Currently, the configuration supports these optional keys:
             - ``"nnunet_raw"``: File path that will be written to env variable for nnU-Net
             - ``"nnunet_preprocessed"``: File path that will be written to env variable for nnU-Net
             - ``"nnunet_results"``: File path that will be written to env variable for nnU-Net
@@ -127,7 +127,7 @@ class nnUNetV2Runner:  # noqa: N801
                 --export_validation_probabilities true \\
                 --device_ids "(0,1)"
 
-        - find best configuration
+        - find the best configuration
 
         .. code-block:: bash
 
@@ -198,12 +198,12 @@ class nnUNetV2Runner:  # noqa: N801
         self.best_configuration: dict = {}
 
     def convert_dataset(self):
-        """Convert and make a copy the dataset to meet requirements of nnU-Net workflow."""
+        """Convert and make a copy the dataset to meet the requirements of nnU-Net workflow."""
         try:
             raw_data_foldername_prefix = str(int(self.dataset_name_or_id) + 1000)
             raw_data_foldername_prefix = "Dataset" + raw_data_foldername_prefix[-3:]
 
-            # check if dataset is created
+            # check if the dataset is created
             subdirs = glob.glob(f"{self.nnunet_raw}/*")
             dataset_ids = [_item.split(os.sep)[-1] for _item in subdirs]
             dataset_ids = [_item.split("_")[0] for _item in dataset_ids]
@@ -273,7 +273,7 @@ class nnUNetV2Runner:  # noqa: N801
             data_dir: downloaded and extracted MSD dataset folder. CANNOT be nnUNetv1 dataset!
                 Example: "/workspace/downloads/Task05_Prostate".
             overwrite_id: Overwrite the dataset id. If not set then use the id of the MSD task (inferred from
-                folder name). Only use this if you already have an equivalently numbered dataset!
+                the folder name). Only use this if you already have an equivalently numbered dataset!
             n_proc: Number of processes used.
         """
         from nnunetv2.dataset_conversion.convert_MSD_dataset import convert_msd_dataset
@@ -323,18 +323,18 @@ class nnUNetV2Runner:  # noqa: N801
 
         Args:
             pl: [OPTIONAL] Name of the Experiment Planner class that should be used. Default is "ExperimentPlanner".
-                Note: There is no longer a distinction between 2d and 3d planner. It's an all in one solution now.
+                Note: There is no longer a distinction between 2d and 3d planner. It's an all-in-one solution now.
             gpu_memory_target: [OPTIONAL] DANGER ZONE! Sets a custom GPU memory target. Default: 8 [GB].
-                Changing this will affect patch and batch size and will definitely affect your models performance!
+                Changing this will affect patch and batch size and will definitely affect your models' performance!
                 Only use this if you really know what you are doing and NEVER use this without running the
                 default nnU-Net first (as a baseline).
             preprocessor_name: [OPTIONAL] DANGER ZONE! Sets a custom preprocessor class. This class must be located in
-                nnunetv2.preprocessing. Default: "DefaultPreprocessor". Changing this may affect your models
+                nnunetv2.preprocessing. Default: "DefaultPreprocessor". Changing this may affect your models'
                 performance! Only use this if you really know what you are doing and NEVER use this without running the
                 default nnU-Net first (as a baseline).
             overwrite_target_spacing: [OPTIONAL] DANGER ZONE! Sets a custom target spacing for the 3d_fullres
                 and 3d_cascade_fullres configurations. Default: None [no changes]. Changing this will affect
-                image size and potentially patch and batch size. This will definitely affect your models performance!
+                image size and potentially patch and batch size. This will definitely affect your models' performance!
                 Only use this if you really know what you are doing and NEVER use this without running the
                 default nnU-Net first (as a baseline). Changing the target spacing for the other configurations
                 is currently not implemented. New target spacing must be a list of three numbers!
@@ -363,26 +363,26 @@ class nnUNetV2Runner:  # noqa: N801
         verbose: bool = False,
     ) -> None:
         """
-        Apply a set of the preprocessing operations to the input data before the training.
+        Apply a set of preprocessing operations to the input data before the training.
 
         Args:
             overwrite_plans_name: [OPTIONAL] You can use this to specify a custom plans file that you may have
                 generated.
             c: [OPTIONAL] Configurations for which the preprocessing should be run. Default: 2d 3f_fullres
                 3d_lowres. 3d_cascade_fullres does not need to be specified because it uses the data
-                from 3f_fullres. Configurations that do not exist for some dataset will be skipped).
+                from 3f_fullres. Configurations that do not exist for some datasets will be skipped).
             n_proc: [OPTIONAL] Use this to define how many processes are to be used. If this is just one number then
                 this number of processes is used for all configurations specified with -c. If it's a
                 list of numbers this list must have as many elements as there are configurations. We
-                then iterate over zip(configs, num_processes) to determine then umber of processes
-                used for each configuration. More processes is always faster (up to the number of
-                threads your PC can support, so 8 for a 4 core CPU with hyperthreading. If you don't
+                then iterate over zip(configs, num_processes) to determine the number of processes
+                used for each configuration. More processes are always faster (up to the number of
+                threads your PC can support, so 8 for a 4-core CPU with hyperthreading. If you don't
                 know what that is then don't touch it, or at least don't increase it!). DANGER: More
                 often than not the number of processes that can be used is limited by the amount of
                 RAM available. Image resampling takes up a lot of RAM. MONITOR RAM USAGE AND
-                DECREASE -n_proc IF YOUR RAM FILLS UP TOO MUCH!. Default: 8 4 8 (=8 processes for 2d, 4
+                DECREASE -n_proc IF YOUR RAM FILLS UP TOO MUCH! Default: 8 4 8 (=8 processes for 2d, 4
                 for 3d_fullres and 8 for 3d_lowres if -c is at its default).
-            verbose:Set this to print a lot of stuff. Useful for debugging. Will disable progress bar!
+            verbose: Set this to print a lot of stuff. Useful for debugging. Will disable the progress bar!
                 Recommended for cluster environments.
         """
         from nnunetv2.experiment_planning.plan_and_preprocess_api import preprocess
@@ -427,14 +427,14 @@ class nnUNetV2Runner:  # noqa: N801
                 fingerprint already exists, the fingerprint extractor will not run. REQUIRED IF YOU
                 CHANGE THE DATASET FINGERPRINT EXTRACTOR OR MAKE CHANGES TO THE DATASET!
             pl: [OPTIONAL] Name of the Experiment Planner class that should be used. Default is "ExperimentPlanner".
-                Note: There is no longer a distinction between 2d and 3d planner. It's an all in one solution now.
+                Note: There is no longer a distinction between 2d and 3d planner. It's an all-in-one solution now.
             gpu_memory_target: [OPTIONAL] DANGER ZONE! Sets a custom GPU memory target. Default: 8 [GB].
                 Changing this will affect patch and batch size and will
-                definitely affect your models performance! Only use this if you really know what you
+                definitely affect your models' performance! Only use this if you really know what you
                 are doing and NEVER use this without running the default nnU-Net first (as a baseline).
             preprocessor_name: [OPTIONAL] DANGER ZONE! Sets a custom preprocessor class. This class must be located in
                 nnunetv2.preprocessing. Default: "DefaultPreprocessor". Changing this may affect your
-                models performance! Only use this if you really know what you
+                models' performance! Only use this if you really know what you
                 are doing and NEVER use this without running the default nnU-Net first (as a baseline).
             overwrite_target_spacing: [OPTIONAL] DANGER ZONE! Sets a custom target spacing for the 3d_fullres and
                 3d_cascade_fullres configurations. Default: None [no changes]. Changing this will affect image size and
@@ -442,24 +442,24 @@ class nnUNetV2Runner:  # noqa: N801
                 Only use this if you really know what you are doing and NEVER use this without running the
                 default nnU-Net first (as a baseline). Changing the target spacing for the other
                 configurations is currently not implemented. New target spacing must be a list of three numbers!
-            overwrite_plans_name: [OPTIONAL] uSE A CUSTOM PLANS IDENTIFIER. If you used -gpu_memory_target,
+            overwrite_plans_name: [OPTIONAL] USE A CUSTOM PLANS IDENTIFIER. If you used -gpu_memory_target,
                 -preprocessor_name or -overwrite_target_spacing it is best practice to use -overwrite_plans_name to
                 generate a differently named plans file such that the nnunet default plans are not
                 overwritten. You will then need to specify your custom plans file with -p whenever
-                running other nnunet commands (training, inference etc)
+                running other nnunet commands (training, inference, etc)
             c: [OPTIONAL] Configurations for which the preprocessing should be run. Default: 2d 3f_fullres
                 3d_lowres. 3d_cascade_fullres does not need to be specified because it uses the data
-                from 3f_fullres. Configurations that do not exist for some dataset will be skipped.
+                from 3f_fullres. Configurations that do not exist for some datasets will be skipped.
             n_proc: [OPTIONAL] Use this to define how many processes are to be used. If this is just one number then
                 this number of processes is used for all configurations specified with -c. If it's a
                 list of numbers this list must have as many elements as there are configurations. We
-                then iterate over zip(configs, num_processes) to determine then umber of processes
-                used for each configuration. More processes is always faster (up to the number of
-                threads your PC can support, so 8 for a 4 core CPU with hyperthreading. If you don't
+                then iterate over zip(configs, num_processes) to determine the number of processes
+                used for each configuration. More processes are always faster (up to the number of
+                threads your PC can support, so 8 for a 4-core CPU with hyperthreading. If you don't
                 know what that is then don't touch it, or at least don't increase it!). DANGER: More
                 often than not the number of processes that can be used is limited by the amount of
                 RAM available. Image resampling takes up a lot of RAM. MONITOR RAM USAGE AND
-                DECREASE -n_proc IF YOUR RAM FILLS UP TOO MUCH!. Default: 8 4 8 (=8 processes for 2d, 4
+                DECREASE -n_proc IF YOUR RAM FILLS UP TOO MUCH! Default: 8 4 8 (=8 processes for 2d, 4
                 for 3d_fullres and 8 for 3d_lowres if -c is at its default).
             verbose: Set this to print a lot of stuff. Useful for debugging. Will disable progress bar!
                 (Recommended for cluster environments).
@@ -528,7 +528,7 @@ class nnUNetV2Runner:  # noqa: N801
             output = result.stdout.decode("utf-8")
             num_gpus = len(output.strip().split("\n"))
             device_ids = tuple(range(num_gpus))
-        logger.warning(f"number of gpus is {len(device_ids)}, device ids are {device_ids}")
+        logger.warning(f"number of GPUs is {len(device_ids)}, device ids are {device_ids}")
         if len(device_ids) > 1:
             self.train_parallel(configs=ensure_tuple(configs), device_ids=device_ids, **kwargs)
         else:
@@ -680,12 +680,11 @@ class nnUNetV2Runner:  # noqa: N801
             configs: list of configurations. Default: ["2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres"].
             trainers: list of trainers. Default: nnUNetTrainer.
             allow_ensembling: Set this flag to enable ensembling.
-            num_processes: number of processes to use for ensembling, postprocessing etc.
+            num_processes: number of processes to use for ensembling, postprocessing, etc.
             overwrite: If set we will overwrite already ensembled files etc. May speed up consecutive
-                runs of this command (why would oyu want to do that?) at the risk of not updating
-                outdated results.
+                runs of this command (not recommended) at the risk of not updating outdated results.
             folds: folds to use. Default: (0, 1, 2, 3, 4).
-            strict:a switch that triggers RunTimeError if the logging folder cannot be found. Default: False.
+            strict: a switch that triggers RunTimeError if the logging folder cannot be found. Default: False.
         """
         from nnunetv2.evaluation.find_best_configuration import (
             dumb_trainer_config_plans_to_trained_models_dict,
@@ -761,7 +760,7 @@ class nnUNetV2Runner:  # noqa: N801
             num_processes_preprocessing: out-of-RAM issues.
             num_processes_segmentation_export: Number of processes used for segmentation export.
                 More is not always better. Beware of out-of-RAM issues.
-            gpu_id: which gpu to use for prediction.
+            gpu_id: which GPU to use for prediction.
         """
         os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_id}"
 
@@ -803,7 +802,7 @@ class nnUNetV2Runner:  # noqa: N801
         **kwargs: Any,
     ) -> None:
         """
-        Run prediction, ensemble, postprocessing optionally.
+        Run prediction, ensemble, and/or postprocessing optionally.
 
         Args:
             folds: which folds to use
