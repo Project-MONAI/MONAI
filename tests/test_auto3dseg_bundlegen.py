@@ -25,7 +25,13 @@ from monai.apps.auto3dseg.utils import export_bundle_algo_history, import_bundle
 from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
 from monai.utils import set_determinism
-from tests.utils import get_testing_algo_template_path, skip_if_downloading_fails, skip_if_no_cuda, skip_if_quick
+from tests.utils import (
+    SkipIfBeforePyTorchVersion,
+    get_testing_algo_template_path,
+    skip_if_downloading_fails,
+    skip_if_no_cuda,
+    skip_if_quick,
+)
 
 num_images_perfold = max(torch.cuda.device_count(), 4)
 num_images_per_batch = 2
@@ -97,6 +103,7 @@ def run_auto3dseg_before_bundlegen(test_path, work_dir):
 
 
 @skip_if_no_cuda
+@SkipIfBeforePyTorchVersion((1, 11, 1))
 @skip_if_quick
 class TestBundleGen(unittest.TestCase):
     def setUp(self) -> None:
