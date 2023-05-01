@@ -57,6 +57,7 @@ ValidationError, _ = optional_import("jsonschema.exceptions", name="ValidationEr
 Checkpoint, has_ignite = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Checkpoint")
 requests_get, has_requests = optional_import("requests", name="get")
 onnx, _ = optional_import("onnx")
+huggingface_hub, _ = optional_import("huggingface_hub")
 
 logger = get_logger(module_name=__name__)
 
