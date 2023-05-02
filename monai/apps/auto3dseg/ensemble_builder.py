@@ -147,7 +147,7 @@ class AlgoEnsemble(ABC):
                     to the label class prediction, otherwise argmax(x) is used.
 
         Returns:
-            A list of tensors.
+            A list of tensors or file paths, depending on whether ``"image_save_func"`` is set.
         """
         param = {} if pred_param is None else deepcopy(pred_param)
         files = self.infer_files
