@@ -21,6 +21,7 @@ from monai.networks import eval_mode
 from monai.networks.nets import TorchVisionFCModel, UNet
 from monai.networks.utils import look_up_named_module, set_named_module
 from monai.utils import min_version, optional_import
+from tests.utils import skip_if_downloading_fails
 
 Inception_V3_Weights, has_enum = optional_import("torchvision.models.inception", name="Inception_V3_Weights")
 
@@ -176,7 +177,8 @@ class TestTorchVisionFCModel(unittest.TestCase):
     )
     @skipUnless(has_tv, "Requires TorchVision.")
     def test_with_pretrained(self, input_param, input_shape, expected_shape, expected_value):
-        net = TorchVisionFCModel(**input_param).to(device)
+        with skip_if_downloading_fails():
+            net = TorchVisionFCModel(**input_param).to(device)
         with eval_mode(net):
             result = net.forward(torch.randn(input_shape).to(device))
             value = next(net.features.parameters())[0, 0, 0, 0].item()
