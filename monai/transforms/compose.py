@@ -24,7 +24,6 @@ import numpy as np
 import monai
 from monai.apps.utils import get_logger
 from monai.config import NdarrayOrTensor
-from monai.data.meta_tensor import MetaTensor
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.lazy.array import ApplyPending
 from monai.transforms.lazy.dictionary import ApplyPendingd
