@@ -33,7 +33,7 @@ from monai.transforms.lazy.utils import (
 # from monai.transforms.traits import MapTrait
 from monai.utils import LazyAttr, look_up_option
 
-__all__ = ["apply_pending", "apply_pending_transforms"]
+__all__ = ["apply_pending"]
 
 __override_keywords = {"mode", "padding_mode", "dtype", "align_corners", "resample_mode", "device"}
 

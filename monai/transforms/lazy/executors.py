@@ -20,7 +20,7 @@ from monai.transforms.lazy.dictionary import ApplyPendingd
 from monai.transforms.lazy.functional import apply_pending
 from monai.transforms.traits import LazyTrait, MapTrait
 
-__all__ = ["apply_pending_transforms"]
+__all__ = ["apply_pending_transforms", "apply_pending_transforms_in_order", "apply_pending_transforms_out_of_order"]
 
 
 def _log_pending_info(
