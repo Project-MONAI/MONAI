@@ -230,7 +230,7 @@ class nnUNetV2Runner:  # noqa: N801
                 os.makedirs(os.path.join(raw_data_foldername, "imagesTr"))
                 os.makedirs(os.path.join(raw_data_foldername, "labelsTr"))
             else:
-                logger.warning("The datalist file has incorrect format: the `training` key is not found.")
+                logger.error("The datalist file has incorrect format: the `training` key is not found.")
                 return
 
             test_key = None
@@ -307,7 +307,7 @@ class nnUNetV2Runner:  # noqa: N801
 
         npfp = self.default_num_processes if npfp < 0 else npfp
 
-        logger.warning("Fingerprint extraction...")
+        logger.info("Fingerprint extraction...")
         extract_fingerprints([int(self.dataset_name_or_id)], fpe, npfp, verify_dataset_integrity, clean, verbose)
 
     def plan_experiments(
@@ -345,7 +345,7 @@ class nnUNetV2Runner:  # noqa: N801
         """
         from nnunetv2.experiment_planning.plan_and_preprocess_api import plan_experiments
 
-        logger.warning("Experiment planning...")
+        logger.info("Experiment planning...")
         plan_experiments(
             [int(self.dataset_name_or_id)],
             pl,
@@ -387,7 +387,7 @@ class nnUNetV2Runner:  # noqa: N801
         """
         from nnunetv2.experiment_planning.plan_and_preprocess_api import preprocess
 
-        logger.warning("Preprocessing...")
+        logger.info("Preprocessing...")
         preprocess(
             [int(self.dataset_name_or_id)],
             overwrite_plans_name,
@@ -528,7 +528,7 @@ class nnUNetV2Runner:  # noqa: N801
             output = result.stdout.decode("utf-8")
             num_gpus = len(output.strip().split("\n"))
             device_ids = tuple(range(num_gpus))
-        logger.warning(f"number of GPUs is {len(device_ids)}, device ids are {device_ids}")
+        logger.info(f"number of GPUs is {len(device_ids)}, device ids are {device_ids}")
         if len(device_ids) > 1:
             self.train_parallel(configs=ensure_tuple(configs), device_ids=device_ids, **kwargs)
         else:
@@ -561,7 +561,7 @@ class nnUNetV2Runner:  # noqa: N801
         from nnunetv2.training.dataloading.utils import unpack_dataset
 
         for folder_name in folder_names:
-            logger.warning(f"unpacking '{folder_name}'...")
+            logger.info(f"unpacking '{folder_name}'...")
             unpack_dataset(
                 folder=folder_name,
                 unpack_segmentation=True,
@@ -617,7 +617,7 @@ class nnUNetV2Runner:  # noqa: N801
             for gpu_id, gpu_cmd in cmds.items():
                 if not gpu_cmd:
                     continue
-                logger.warning(
+                logger.info(
                     f"\ntraining - stage {s + 1}:\n"
                     f"for gpu {gpu_id}, commands: {gpu_cmd}\n"
                     f"log '.txt' inside '{os.path.join(self.nnunet_results, self.dataset_name)}'"
