@@ -1927,7 +1927,7 @@ Lazy (Dict)
 ^^^^^^^^^^^
 
 `ApplyPendingd`
-""""""""""""""
+"""""""""""""""
 
 .. autoclass:: ApplyPendingd
     :members:

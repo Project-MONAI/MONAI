@@ -11,12 +11,12 @@
 
 from __future__ import annotations
 
-from monai.transforms.inverse import InvertibleTransform
+from monai.transforms.traits import InvertibleTrait
 
 __all__ = ["ApplyPending"]
 
 
-class ApplyPending(InvertibleTransform):
+class ApplyPending(InvertibleTrait):
     """
     ApplyPending can be inserted into a pipeline that is being executed lazily in order to ensure
     resampling happens before the next transform. It doesn't do anything itself, but its presence

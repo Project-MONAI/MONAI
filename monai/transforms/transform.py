@@ -23,11 +23,10 @@ import numpy as np
 import torch
 
 from monai import config, transforms
-from monai.apps.utils import get_logger
 from monai.config import KeysCollection
 from monai.data.meta_tensor import MetaTensor
-from monai.transforms.lazy.functional import apply_pending_transforms
-from monai.transforms.traits import LazyTrait, RandomizableTrait, ThreadUnsafe
+from monai.transforms.lazy.executors import apply_pending_transforms_in_order, apply_pending_transforms_out_of_order
+from monai.transforms.traits import LazyTrait, MapTrait, RandomizableTrait, ThreadUnsafe
 from monai.utils import MAX_SEED, ensure_tuple, first
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import MONAIEnvVars
@@ -45,41 +44,12 @@ __all__ = [
 ReturnType = TypeVar("ReturnType")
 
 
-def _log_pending_info(
-    data: Any, transform: Any, activity: str, lazy: bool | None = None, logger_name: str | None = None
-):
-    if logger_name is None:
-        return
-    logger = get_logger(logger_name)
-
-    if isinstance(transform, LazyTrait):
-        if lazy is not None and lazy != transform.lazy:
-            tlazy = f", transform.lazy: {transform.lazy} (overridden)"
-        else:
-            tlazy = f", transform.lazy: {transform.lazy}"
-    else:
-        tlazy = ", transform is not lazy"
-
-    if isinstance(transform, MapTransform):
-        for k in transform.keys:
-            if k in data:
-                pcount = len(data[k].pending_operations) if isinstance(data[k], MetaTensor) else 0
-                logger.info(
-                    f"{activity} - lazy mode: {lazy}, key: '{k}', "
-                    f"pending: {pcount}, upcoming '{transform.__class__.__name__}'{tlazy}"
-                )
-    else:
-        pcount = len(data.pending_operations) if isinstance(data, MetaTensor) else 0
-        logger.info(
-            f"{activity} - lazy: {lazy}, " f"pending: {pcount}, upcoming '{transform.__class__.__name__}'{tlazy}"
-        )
-
-
 def _apply_transform(
     transform: Callable[..., ReturnType],
     data: Any,
     unpack_parameters: bool = False,
     lazy: bool | None = False,
+    lazy_strategy: str | None = "in_order",
     overrides: dict | None = None,
     logger_name: str | None = None,
 ) -> ReturnType:
@@ -101,28 +71,39 @@ def _apply_transform(
 
     Args:
         transform: a callable to be used to transform `data`.
-        parameters: parameters for the `transform`.
+        data: the tensorlike or dictionary of tensorlikes to be executed on
         unpack_parameters: whether to unpack parameters for `transform`. Defaults to False.
+        lazy: whether to enable lazy evaluation for lazy transforms. If False, transforms will be
+            carried out on a transform by transform basis. If True, all lazy transforms will
+            be executed by accumulating changes and resampling as few times as possible.
+        lazy_strategy: this field controls how execution occurs when processing data lazily. Permitted
+            options are "in_order", "out_of_order". Please see `Compose`_ for more details of what these
+            options mean. In general, you should not need to change this from its default.
+        overrides: this optional parameter allows you to specify a dictionary of parameters that should be overridden
+            when executing a pipeline. These each parameter that is compatible with a given transform is then applied
+            to that transform before it is executed. Note that overrides are currently only applied when lazy
+            is True. If lazy is False they are ignored.
+            currently supported args are:
+            {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``},
+            please see also :py:func:`monai.transforms.lazy.apply_pending` and ``Compose`` for more details.
+         logger_name: The name of the logger that should be used during transform execution. If None, logging is
+            suppressed.
 
     Returns:
         ReturnType: The return type of `transform`.
     """
 
-    lazy_tx = isinstance(transform, LazyTrait)
-
-    if lazy_tx is False or lazy is False:
-        _log_pending_info(data, transform, "Apply pending transforms", lazy, logger_name)
-        data = apply_pending_transforms(data, overrides, logger_name)
-    elif lazy is None and transform.lazy is False:  # type: ignore[attr-defined]
-        _log_pending_info(data, transform, "Apply pending transforms", lazy, logger_name)
-        data = apply_pending_transforms(data, overrides, logger_name)
+    if lazy_strategy == "in_order":
+        data = apply_pending_transforms_in_order(transform, data, lazy, overrides, logger_name)
+    elif lazy_strategy == "out_of_order":
+        data = apply_pending_transforms_out_of_order(transform, data, lazy, overrides, logger_name)
     else:
-        _log_pending_info(data, transform, "Accumulate pending transforms", lazy, logger_name)
+        raise ValueError(f"'lazy_strategy' must be one of {('in_order', 'out_of_order')} but is '{lazy_strategy}")
 
     if isinstance(data, tuple) and unpack_parameters:
-        return transform(*data, lazy=lazy) if lazy_tx else transform(*data)
+        return transform(*data, lazy=lazy) if isinstance(transform, LazyTrait) else transform(*data)
 
-    return transform(data, lazy=lazy) if lazy_tx else transform(data)
+    return transform(data, lazy=lazy) if isinstance(transform, LazyTrait) else transform(data)
 
 
 def apply_transform(
@@ -131,6 +112,7 @@ def apply_transform(
     map_items: bool = True,
     unpack_items: bool = False,
     lazy: bool | None = False,
+    lazy_strategy: str = "in_order",
     overrides: dict | None = None,
     logger_name: str | None = None,
 ) -> list[ReturnType] | ReturnType:
@@ -148,6 +130,9 @@ def apply_transform(
             if `data` is a list or tuple. Defaults to True.
         unpack_items: whether to unpack parameters using `*`. Defaults to False.
         lazy: whether to execute in lazy mode or not. See ``Compose`` for more information about lazy resampling.
+        lazy_strategy: this field controls how execution occurs when processing data lazily. Permitted
+            options are "in_order", "out_of_order". Please see `Compose`_ for more details of what these
+            options mean. In general, you should not need to change this from its default.
         overrides: optional overrides to apply to transform parameters. This parameter is ignored unless transforms
             are being executed lazily.
 
@@ -159,8 +144,8 @@ def apply_transform(
     """
     try:
         if isinstance(data, (list, tuple)) and map_items:
-            return [_apply_transform(transform, item, unpack_items, lazy, overrides) for item in data]
-        return _apply_transform(transform, data, unpack_items, lazy, overrides, logger_name)
+            return [_apply_transform(transform, item, unpack_items, lazy, lazy_strategy, overrides) for item in data]
+        return _apply_transform(transform, data, unpack_items, lazy, lazy_strategy, overrides, logger_name)
     except Exception as e:
         # if in debug mode, don't swallow exception so that the breakpoint
         # appears where the exception was raised.
@@ -376,7 +361,7 @@ class RandomizableTransform(Randomizable, Transform):
         self._do_transform = self.R.rand() < self.prob
 
 
-class MapTransform(Transform):
+class MapTransform(Transform, MapTrait):
     """
     A subclass of :py:class:`monai.transforms.Transform` with an assumption
     that the ``data`` input of ``self.__call__`` is a MutableMapping such as ``dict``.
@@ -412,6 +397,7 @@ class MapTransform(Transform):
         return Transform.__new__(cls)
 
     def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
+        super().__init__()
         self.keys: tuple[Hashable, ...] = ensure_tuple(keys)
         self.allow_missing_keys = allow_missing_keys
         if not self.keys:

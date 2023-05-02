@@ -21,22 +21,24 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
+import monai.transforms as mt
 from monai.data import DataLoader, Dataset
-from monai.transforms import (
-    AddChannel,
-    ApplyPending,
-    ApplyPendingd,
-    Compose,
-    Flip,
-    NormalizeIntensity,
-    NormalizeIntensityd,
-    Rotate,
-    Rotate90,
-    Rotated,
-    Spacing,
-    Zoom,
-)
-from monai.transforms.compose import execute_compose
+
+# from monai.transforms import (
+#     AddChannel,
+#     ApplyPending,
+#     ApplyPendingd,
+#     Compose,
+#     Flip,
+#     NormalizeIntensity,
+#     NormalizeIntensityd,
+#     Rotate,
+#     Rotate90,
+#     Rotated,
+#     Spacing,
+#     Zoom,
+# )
+from monai.transforms.compose import ComposeCompiler, execute_compose
 from monai.transforms.spatial.dictionary import Flipd, Rotate90d, Spacingd, Zoomd
 from monai.transforms.transform import Randomizable
 from monai.utils import set_determinism
@@ -53,7 +55,7 @@ class _RandXform(Randomizable):
 
 class TestCompose(unittest.TestCase):
     def test_empty_compose(self):
-        c = Compose()
+        c = mt.Compose()
         i = 1
         self.assertEqual(c(i), 1)
 
@@ -64,7 +66,7 @@ class TestCompose(unittest.TestCase):
         def b(i):
             return i + "b"
 
-        c = Compose([a, b, a, b])
+        c = mt.Compose([a, b, a, b])
         self.assertEqual(c(""), "abab")
 
     def test_dict_compose(self):
@@ -82,7 +84,7 @@ class TestCompose(unittest.TestCase):
         data = {"a": 0, "b": 0}
         expected = {"a": 3, "b": 2}
 
-        self.assertDictEqual(Compose(transforms)(data), expected)
+        self.assertDictEqual(mt.Compose(transforms)(data), expected)
         self.assertDictEqual(execute_compose(data, transforms), expected)
 
     def test_list_dict_compose(self):
@@ -105,7 +107,7 @@ class TestCompose(unittest.TestCase):
         transforms = [a, a, b, c, c]
         data = {"a": 0, "b": 0, "c": 0}
         expected = {"a": 2, "b": 1, "c": 2}
-        value = Compose(transforms)(data)
+        value = mt.Compose(transforms)(data)
         for item in value:
             self.assertDictEqual(item, expected)
         value = execute_compose(data, transforms)
@@ -122,7 +124,7 @@ class TestCompose(unittest.TestCase):
         transforms = [a, b, a, b]
         data = ("", "")
         expected = ("abab", "a2b2a2b2")
-        self.assertEqual(Compose(transforms, map_items=False, unpack_items=True)(data), expected)
+        self.assertEqual(mt.Compose(transforms, map_items=False, unpack_items=True)(data), expected)
         self.assertEqual(execute_compose(data, transforms, map_items=False, unpack_items=True), expected)
 
     def test_list_non_dict_compose_with_unpack(self):
@@ -135,7 +137,7 @@ class TestCompose(unittest.TestCase):
         transforms = [a, b, a, b]
         data = [("", ""), ("t", "t")]
         expected = [("abab", "a2b2a2b2"), ("tabab", "ta2b2a2b2")]
-        self.assertEqual(Compose(transforms, unpack_items=True)(data), expected)
+        self.assertEqual(mt.Compose(transforms, unpack_items=True)(data), expected)
         self.assertEqual(execute_compose(data, transforms, unpack_items=True), expected)
 
     def test_list_dict_compose_no_map(self):
@@ -159,7 +161,7 @@ class TestCompose(unittest.TestCase):
         transforms = [a, a, b, c, c]
         data = {"a": 0, "b": 0, "c": 0}
         expected = {"a": 2, "b": 1, "c": 2}
-        value = Compose(transforms, map_items=False)(data)
+        value = mt.Compose(transforms, map_items=False)(data)
         for item in value:
             self.assertDictEqual(item, expected)
         value = execute_compose(data, transforms, map_items=False)
@@ -177,7 +179,7 @@ class TestCompose(unittest.TestCase):
                 self.randomize()
                 return self.rand + data
 
-        c = Compose([_Acc(), _Acc()])
+        c = mt.Compose([_Acc(), _Acc()])
         self.assertNotAlmostEqual(c(0), c(0))
         c.set_random_state(123)
         self.assertAlmostEqual(c(1), 1.61381597)
@@ -193,17 +195,17 @@ class TestCompose(unittest.TestCase):
             def __call__(self, data):
                 pass
 
-        c = Compose([_RandomClass(), _RandomClass()])
+        c = mt.Compose([_RandomClass(), _RandomClass()])
         with self.assertWarns(Warning):
             c.randomize()
 
     def test_err_msg(self):
-        transforms = Compose([abs, AddChannel(), round])
+        transforms = mt.Compose([abs, mt.AddChannel(), round])
         with self.assertRaisesRegex(Exception, "AddChannel"):
             transforms(42.1)
 
     def test_data_loader(self):
-        xform_1 = Compose([_RandXform()])
+        xform_1 = mt.Compose([_RandXform()])
         train_ds = Dataset([1], transform=xform_1)
 
         xform_1.set_random_state(123)
@@ -227,7 +229,7 @@ class TestCompose(unittest.TestCase):
 
     def test_data_loader_2(self):
         set_determinism(seed=123)
-        xform_2 = Compose([_RandXform(), _RandXform()])
+        xform_2 = mt.Compose([_RandXform(), _RandXform()])
         train_ds = Dataset([1], transform=xform_2)
 
         out_2 = train_ds[0]
@@ -248,25 +250,25 @@ class TestCompose(unittest.TestCase):
         set_determinism(None)
 
     def test_flatten_and_len(self):
-        x = AddChannel()
-        t1 = Compose([x, x, x, x, Compose([Compose([x, x]), x, x])])
+        x = mt.AddChannel()
+        t1 = mt.Compose([x, x, x, x, mt.Compose([mt.Compose([x, x]), x, x])])
 
         t2 = t1.flatten()
         for t in t2.transforms:
-            self.assertNotIsInstance(t, Compose)
+            self.assertNotIsInstance(t, mt.Compose)
 
         # test len
         self.assertEqual(len(t1), 8)
 
     def test_backwards_compatible_imports(self):
-        from monai.transforms.compose import MapTransform, RandomizableTransform, Transform  # noqa: F401
+        from monai.transforms.transform import MapTransform, RandomizableTransform, Transform  # noqa: F401
 
 
 TEST_COMPOSE_EXECUTE_TEST_CASES = [
     [None, tuple()],
-    [None, (Rotate(np.pi / 8),)],
-    [None, (Flip(0), Flip(1), Rotate90(1), Zoom(0.8), NormalizeIntensity())],
-    [("a",), (Rotated(("a",), np.pi / 8),)],
+    [None, (mt.Rotate(np.pi / 8),)],
+    [None, (mt.Flip(0), mt.Flip(1), mt.Rotate90(1), mt.Zoom(0.8), mt.NormalizeIntensity())],
+    [("a",), (mt.Rotated(("a",), np.pi / 8),)],
 ]
 
 
@@ -285,10 +287,10 @@ class TestComposeExecute(unittest.TestCase):
     def test_compose_execute_equivalence(self, keys, pipeline):
         data = self.data_from_keys(keys)
 
-        expected = Compose(deepcopy(pipeline))(data)
+        expected = mt.Compose(deepcopy(pipeline))(data)
 
         for cutoff in range(len(pipeline)):
-            c = Compose(deepcopy(pipeline))
+            c = mt.Compose(deepcopy(pipeline))
             actual = c(c(data, end=cutoff), start=cutoff)
             if isinstance(actual, dict):
                 for k in actual.keys():
@@ -309,14 +311,14 @@ class TestComposeExecute(unittest.TestCase):
         data = self.data_from_keys(keys)
 
         with self.assertRaises(ValueError):
-            c = Compose(deepcopy(pipeline))
+            c = mt.Compose(deepcopy(pipeline))
             c(data, start=None)
 
         with self.assertRaises(ValueError):
             execute_compose(data, deepcopy(pipeline), start=None)
 
         with self.assertRaises(ValueError):
-            c = Compose(deepcopy(pipeline))
+            c = mt.Compose(deepcopy(pipeline))
             c(data, start=-1)
 
         with self.assertRaises(ValueError):
@@ -327,7 +329,7 @@ class TestComposeExecute(unittest.TestCase):
         data = self.data_from_keys(keys)
 
         with self.assertRaises(ValueError):
-            c = Compose(deepcopy(pipeline))
+            c = mt.Compose(deepcopy(pipeline))
             c(data, start=2, end=1)
 
         with self.assertRaises(ValueError):
@@ -338,7 +340,7 @@ class TestComposeExecute(unittest.TestCase):
         data = self.data_from_keys(keys)
 
         with self.assertRaises(ValueError):
-            c = Compose(deepcopy(pipeline))
+            c = mt.Compose(deepcopy(pipeline))
             c(data, end=len(pipeline) + 1)
 
         with self.assertRaises(ValueError):
@@ -348,7 +350,7 @@ class TestComposeExecute(unittest.TestCase):
     def test_compose_execute_empty_range(self, keys, pipeline):
         data = self.data_from_keys(keys)
 
-        c = Compose(deepcopy(pipeline))
+        c = mt.Compose(deepcopy(pipeline))
         for i in range(len(pipeline)):
             result = c(data, start=i, end=i)
             self.assertIs(data, result)
@@ -357,14 +359,14 @@ class TestComposeExecute(unittest.TestCase):
     def test_compose_with_logger_name(self, keys, pipeline):
         data = self.data_from_keys(keys)
 
-        c = Compose(deepcopy(pipeline), logger_name="a_logger_name")
+        c = mt.Compose(deepcopy(pipeline), logger_name="a_logger_name")
         c(data)
 
 
 TEST_COMPOSE_EXECUTE_LOGGING_TEST_CASES = [
     [
         None,
-        (Flip(0), Spacing((1.2, 1.2)), Flip(1), Rotate90(1), Zoom(0.8), NormalizeIntensity()),
+        (mt.Flip(0), mt.Spacing((1.2, 1.2)), mt.Flip(1), mt.Rotate90(1), mt.Zoom(0.8), mt.NormalizeIntensity()),
         False,
         (
             "INFO - Apply pending transforms - lazy: False, pending: 0, "
@@ -384,12 +386,12 @@ TEST_COMPOSE_EXECUTE_LOGGING_TEST_CASES = [
     [
         None,
         (
-            Flip(0, lazy=True),
-            Spacing((1.2, 1.2), lazy=True),
-            Flip(1, lazy=True),
-            Rotate90(1),
-            Zoom(0.8, lazy=True),
-            NormalizeIntensity(),
+            mt.Flip(0, lazy=True),
+            mt.Spacing((1.2, 1.2), lazy=True),
+            mt.Flip(1, lazy=True),
+            mt.Rotate90(1),
+            mt.Zoom(0.8, lazy=True),
+            mt.NormalizeIntensity(),
         ),
         None,
         (
@@ -411,7 +413,7 @@ TEST_COMPOSE_EXECUTE_LOGGING_TEST_CASES = [
     ],
     [
         None,
-        (Flip(0), Spacing((1.2, 1.2)), Flip(1), Rotate90(1), Zoom(0.8), NormalizeIntensity()),
+        (mt.Flip(0), mt.Spacing((1.2, 1.2)), mt.Flip(1), mt.Rotate90(1), mt.Zoom(0.8), mt.NormalizeIntensity()),
         True,
         (
             "INFO - Accumulate pending transforms - lazy: True, pending: 0, "
@@ -431,7 +433,12 @@ TEST_COMPOSE_EXECUTE_LOGGING_TEST_CASES = [
     ],
     [
         ("a", "b"),
-        (Flipd(("a", "b"), 0), Spacingd(("a", "b"), 1.2), Rotate90d(("a", "b"), 1), NormalizeIntensityd(("a",))),
+        (
+            mt.Flipd(("a", "b"), 0),
+            mt.Spacingd(("a", "b"), 1.2),
+            mt.Rotate90d(("a", "b"), 1),
+            mt.NormalizeIntensityd(("a",)),
+        ),
         True,
         (
             "INFO - Accumulate pending transforms - lazy mode: True, key: 'a', pending: 0, "
@@ -455,10 +462,10 @@ TEST_COMPOSE_EXECUTE_LOGGING_TEST_CASES = [
     [
         ("a", "b"),
         (
-            Flipd(keys="a", spatial_axis=0),
-            Rotate90d(keys="b", k=1, allow_missing_keys=True),
-            Zoomd(keys=("a", "b"), zoom=0.8, allow_missing_keys=True),
-            Spacingd(keys="a", pixdim=1.2),
+            mt.Flipd(keys="a", spatial_axis=0),
+            mt.Rotate90d(keys="b", k=1, allow_missing_keys=True),
+            mt.Zoomd(keys=("a", "b"), zoom=0.8, allow_missing_keys=True),
+            mt.Spacingd(keys="a", pixdim=1.2),
         ),
         True,
         (
@@ -478,7 +485,15 @@ TEST_COMPOSE_EXECUTE_LOGGING_TEST_CASES = [
     ],
     [
         None,
-        (Flip(0), Spacing((1.2, 1.2)), Flip(1), ApplyPending(), Rotate90(1), Zoom(0.8), NormalizeIntensity()),
+        (
+            mt.Flip(0),
+            mt.Spacing((1.2, 1.2)),
+            mt.Flip(1),
+            mt.ApplyPending(),
+            mt.Rotate90(1),
+            mt.Zoom(0.8),
+            mt.NormalizeIntensity(),
+        ),
         False,
         (
             "INFO - Apply pending transforms - lazy: False, pending: 0, "
@@ -499,7 +514,15 @@ TEST_COMPOSE_EXECUTE_LOGGING_TEST_CASES = [
     ],
     [
         None,
-        (Flip(0), Spacing((1.2, 1.2)), Flip(1), ApplyPending(), Rotate90(1), Zoom(0.8), NormalizeIntensity()),
+        (
+            mt.Flip(0),
+            mt.Spacing((1.2, 1.2)),
+            mt.Flip(1),
+            mt.ApplyPending(),
+            mt.Rotate90(1),
+            mt.Zoom(0.8),
+            mt.NormalizeIntensity(),
+        ),
         True,
         (
             "INFO - Accumulate pending transforms - lazy: True, pending: 0, "
@@ -523,11 +546,11 @@ TEST_COMPOSE_EXECUTE_LOGGING_TEST_CASES = [
     [
         ("a", "b"),
         (
-            Flipd(keys="a", spatial_axis=0),
-            Rotate90d(keys="b", k=1, allow_missing_keys=True),
-            ApplyPendingd(keys=("a", "b")),
-            Zoomd(keys=("a", "b"), zoom=0.8, allow_missing_keys=True),
-            Spacingd(keys="a", pixdim=1.2),
+            mt.Flipd(keys="a", spatial_axis=0),
+            mt.Rotate90d(keys="b", k=1, allow_missing_keys=True),
+            mt.ApplyPendingd(keys=("a", "b")),
+            mt.Zoomd(keys=("a", "b"), zoom=0.8, allow_missing_keys=True),
+            mt.Spacingd(keys="a", pixdim=1.2),
         ),
         True,
         (
@@ -578,7 +601,7 @@ class TestComposeExecuteWithLogging(unittest.TestCase):
         logger.addHandler(handler)
 
         data = self.data_from_keys(keys)
-        c = Compose(deepcopy(pipeline), lazy=lazy, logger_name="a_logger_name")
+        c = mt.Compose(deepcopy(pipeline), lazy=lazy, logger_name="a_logger_name")
         c(data)
 
         handler.flush()
@@ -630,10 +653,10 @@ class TestComposeExecuteWithFlags(unittest.TestCase):
                     data[k] = torch.unsqueeze(torch.tensor(np.arange(24 * 32)).reshape(24, 32) + i_k * 768, dim=0)
             return data
 
-        expected = Compose(pipeline, **flags)(data)
+        expected = mt.Compose(pipeline, **flags)(data)
 
         for cutoff in range(len(pipeline)):
-            c = Compose(deepcopy(pipeline), **flags)
+            c = mt.Compose(deepcopy(pipeline), **flags)
             actual = c(c(data, end=cutoff), start=cutoff)
             if isinstance(actual, dict):
                 for k in actual.keys():
@@ -650,15 +673,133 @@ class TestComposeExecuteWithFlags(unittest.TestCase):
                 self.assertTrue(expected, actual)
 
 
-TEST_LAZY_COMPOSE_PIPELINE_FIX_CASES = [[(Flip(0), Flip(1), Rotate90(1), Zoom(0.8), NormalizeIntensity())]]
+TEST_LAZY_COMPOSE_PIPELINE_FIX_CASES = [
+    [(mt.Flip(0), mt.Flip(1), mt.Rotate90(1), mt.Zoom(0.8), mt.NormalizeIntensity())]
+]
 
 
 class TestLazyComposePipelineFixes(unittest.TestCase):
     @parameterized.expand(TEST_LAZY_COMPOSE_PIPELINE_FIX_CASES)
     def test_lazy_compose_pipeline_fixes(self, pipeline):
         data = torch.unsqueeze(torch.tensor(np.arange(12 * 16).reshape(12, 16)), dim=0)
-        c = Compose(deepcopy(pipeline), lazy=True)
+        c = mt.Compose(deepcopy(pipeline), lazy=True)
         _ = c(data)
+
+
+class TNonLazy(mt.Transform):
+    def __init__(self, tag):
+        self.tag = tag
+
+    def __call__(self, data):
+        return data
+
+
+class TLazy(mt.LazyTransform):
+    def __init__(self, tag, lazy):
+        super().__init__(lazy)
+        self.tag = tag
+
+    def __call__(self, data):
+        return data
+
+
+class TApplyPending(mt.ApplyPending):
+    def __init__(self, tag):
+        self.tag = tag
+
+
+TRANSFORM_REORDERING_TEST_CASES = [
+    (
+        [TNonLazy("a"), TLazy("lb", True), TLazy("lc", True), TApplyPending("ad"), TLazy("le", True), TNonLazy("f")],
+        {"reorder": "lazy_last"},
+        ["a", "lb", "lc", "ad", "f", "le"],
+        ["a", "lb", "lc", "ad", "f", "le"],
+    ),
+    (
+        [TNonLazy("a"), TLazy("lb", True), TLazy("lc", True), TApplyPending("ad"), TLazy("le", False), TNonLazy("f")],
+        {"reorder": "lazy_last"},
+        ["a", "lb", "lc", "ad", "le", "f"],
+        ["a", "lb", "lc", "ad", "f", "le"],
+    ),
+    (
+        [TLazy("la", True), TNonLazy("b"), TLazy("lc", True), TApplyPending("ad"), TLazy("le", True), TNonLazy("f")],
+        {"reorder": "lazy_last"},
+        ["b", "la", "lc", "ad", "f", "le"],
+        ["b", "la", "lc", "ad", "f", "le"],
+    ),
+    (
+        [TLazy("la", False), TNonLazy("b"), TLazy("lc", True), TApplyPending("ad"), TLazy("le", True), TNonLazy("f")],
+        {"reorder": "lazy_last"},
+        ["la", "b", "lc", "ad", "f", "le"],
+        ["b", "la", "lc", "ad", "f", "le"],
+    ),
+    (
+        [TLazy("la", True), TNonLazy("b"), TLazy("lc", True), TApplyPending("ad"), TLazy("le", True), TNonLazy("f")],
+        {"reorder": "lazy_last"},
+        ["b", "la", "lc", "ad", "f", "le"],
+        ["b", "la", "lc", "ad", "f", "le"],
+    ),
+    (
+        [TNonLazy("a"), TLazy("lb", True), TLazy("lc", True), TApplyPending("ad"), TLazy("le", False), TNonLazy("f")],
+        {"reorder": "lazy_last"},
+        ["a", "lb", "lc", "ad", "le", "f"],
+        ["a", "lb", "lc", "ad", "f", "le"],
+    ),
+    (
+        [TLazy("la", True), TLazy("lb", True), TNonLazy("c"), TApplyPending("ad"), TApplyPending("ae"), TNonLazy("f")],
+        {"reorder": "lazy_last"},
+        ["c", "la", "lb", "ad", "ae", "f"],
+        ["c", "la", "lb", "ad", "ae", "f"],
+    ),
+    (
+        [TNonLazy("a"), TLazy("lb", True), TLazy("lc", True), TApplyPending("ad"), TLazy("le", True), TNonLazy("f")],
+        {"reorder": "lazy_last"},
+        ["a", "lb", "lc", "ad", "f", "le"],
+        ["a", "lb", "lc", "ad", "f", "le"],
+    ),
+    (
+        [
+            TNonLazy("a"),
+            TLazy("lb", True),
+            TLazy("lc", True),
+            TApplyPending("ad"),
+            TLazy("le", True),
+            TApplyPending("af"),
+            TApplyPending("ag"),
+        ],
+        {"reorder": "lazy_last"},
+        ["a", "lb", "lc", "ad", "le", "af", "ag"],
+        ["a", "lb", "lc", "ad", "le", "af", "ag"],
+    ),
+    (
+        [TLazy("la", True), TLazy("lb", True), TNonLazy("c"), TLazy("ld", True)],
+        {"reorder": "lazy_last"},
+        ["c", "la", "lb", "ld"],
+        ["c", "la", "lb", "ld"],
+    ),
+    (
+        [TLazy("la", True), TLazy("lb", False), TNonLazy("c"), TLazy("ld", True)],
+        {"reorder": "lazy_last"},
+        ["lb", "c", "la", "ld"],
+        ["c", "la", "lb", "ld"],
+    ),
+]
+
+
+class TestTransformReordering(unittest.TestCase):
+    @parameterized.expand(TRANSFORM_REORDERING_TEST_CASES)
+    def test_transform_reordering_test_cases(self, transforms, options, lazy_enabled_expected, lazy_on_expected):
+        with self.subTest("enable lazy"):
+            c = ComposeCompiler()(transforms, lazy=None, options={"reorder": "lazy_last"})
+            reordered = [transforms[i] for i in c["indices"]]
+            actual = [t.tag for t in reordered]
+            self.assertListEqual(actual, lazy_enabled_expected)
+
+        with self.subTest("force lazy"):
+            c = ComposeCompiler()(transforms, lazy=True, options={"reorder": "lazy_last"})
+            reordered = [transforms[i] for i in c["indices"]]
+            actual = [t.tag for t in reordered]
+            self.assertListEqual(actual, lazy_on_expected)
 
 
 if __name__ == "__main__":

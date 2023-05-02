@@ -62,7 +62,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
             mt.Orientationd(keys=["img", "seg"], axcodes="ARS"),
             mt.RandRotate90d(keys=["img", "seg"], prob=1.0, spatial_axes=(1, 2)),
             mt.ScaleIntensityd(keys="img"),
-            mt.IdentityD(keys=["seg"]),
+            mt.ApplyPendingd(keys=["seg"]),
             mt.RandCropByPosNegLabeld(
                 keys=["img", "seg"], label_key="seg", spatial_size=[76, 82, 80], pos=1, neg=1, num_samples=4
             ),

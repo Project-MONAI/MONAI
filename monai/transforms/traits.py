@@ -14,7 +14,9 @@ A collection of generic traits for MONAI transforms.
 
 from __future__ import annotations
 
-__all__ = ["LazyTrait", "RandomizableTrait", "MultiSampleTrait", "ThreadUnsafe"]
+__all__ = ["LazyTrait", "InvertibleTrait", "MapTrait", "RandomizableTrait", "MultiSampleTrait", "ThreadUnsafe"]
+
+from typing import Any
 
 
 class LazyTrait:
@@ -43,6 +45,26 @@ class LazyTrait:
             enabled: True if the transform should operate in a lazy fashion, False if not.
         """
         raise NotImplementedError()
+
+
+class InvertibleTrait:
+    """
+    An interface to indicate that the transform can be inverted, i.e. undone by performing
+    the inverse of the operation performed during `__call__`.
+    """
+
+    def inverse(self, data: Any) -> Any:
+        raise NotImplementedError()
+
+
+class MapTrait:
+    """
+    An interface to indicate that the transform has the capability to execute on dictionaries
+    of tensors rather than individual tensors.
+    """
+
+    def __init__(self):
+        self.keys = None
 
 
 class RandomizableTrait:

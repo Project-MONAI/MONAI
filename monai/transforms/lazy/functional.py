@@ -15,9 +15,13 @@ from typing import Any
 
 import torch
 
-from monai.apps.utils import get_logger
+# from monai.apps.utils import get_logger
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
+
+# from monai.transforms.lazy.array import ApplyPending
+# from monai.transforms.lazy.dictionary import ApplyPendingd
+# from monai.transforms.traits import LazyTrait
 from monai.transforms.lazy.utils import (
     affine_from_pending,
     combine_transforms,
@@ -25,67 +29,13 @@ from monai.transforms.lazy.utils import (
     kwargs_from_pending,
     resample,
 )
+
+# from monai.transforms.traits import MapTrait
 from monai.utils import LazyAttr, look_up_option
 
 __all__ = ["apply_pending", "apply_pending_transforms"]
 
 __override_keywords = {"mode", "padding_mode", "dtype", "align_corners", "resample_mode", "device"}
-
-
-def _log_applied_info(data: Any, key=None, logger_name: str | None = None):
-    if logger_name is None:
-        return
-    logger = get_logger(logger_name)
-
-    key_str = "" if key is None else f"key: '{key}', "
-    logger.info(f"Pending transforms applied: {key_str}applied_operations: {len(data.applied_operations)}")
-
-
-def apply_pending_transforms(data, overrides: dict | None = None, logger_name: str | None = None):
-    """
-    apply_pending_transforms iterates over a tuple, list, or dictionary of data, recursively calling itself
-    to get a single tensor. If that tensor is a MetaTensor with pending lazy transforms, it then calls
-    ``apply_pending_to_tensor`` on each element to perform the executing of the pending transforms.
-
-    This method optionally takes a set of overrides that can be used to change specific parameters on the
-    transform pipeline. See ``Compose`` for more details. This method takes a logger_name that can be used
-    to override the default logger, to provide telemetry during the execution of pending transforms.
-
-    This method is intended primarily for use by ``execute_compose`` and other methods that handle the
-    underlying execution of transform pipelines. You should not need to use it in the general case, unless
-    you are developing functionality to perform such operations.
-
-    Args:
-        data: a ``torch.Tensor`` or ``MetaTensor``, or list, tuple or dictionary of tensors.
-        overrides: An optional dictionary that specifies parameters that can be used to override transform
-            arguments when they are called
-        logger_name: An optional name for a logger to be used when applying pending transforms. If None,
-            logging is suppressed.
-    Returns:
-
-    """
-    if isinstance(data, list):
-        return [apply_pending_transforms(d, logger_name=logger_name) for d in data]
-
-    if isinstance(data, tuple):
-        return tuple(apply_pending_transforms(d, logger_name=logger_name) for d in data)
-
-    if isinstance(data, dict):
-        needs_apply_pending = any(isinstance(v, MetaTensor) and v.has_pending_operations for k, v in data.items())
-        if needs_apply_pending:
-            d = dict(data)
-            for k, v in d.items():
-                if isinstance(v, MetaTensor) and v.has_pending_operations:
-                    overrides_ = None if overrides is None else overrides[k]
-                    d[k], _ = apply_pending(v, overrides=overrides_)
-                    _log_applied_info(d[k], key=k, logger_name=logger_name)
-            return d
-
-    if isinstance(data, MetaTensor) and data.has_pending_operations:
-        data, _ = apply_pending(data, overrides=overrides)
-        _log_applied_info(data, logger_name=logger_name)
-
-    return data
 
 
 def apply_pending(data: torch.Tensor | MetaTensor, pending: list | None = None, overrides: dict | None = None):

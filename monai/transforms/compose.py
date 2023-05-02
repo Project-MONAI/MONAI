@@ -24,10 +24,13 @@ import numpy as np
 import monai
 from monai.apps.utils import get_logger
 from monai.config import NdarrayOrTensor
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms.inverse import InvertibleTransform
+from monai.transforms.lazy.array import ApplyPending
+from monai.transforms.lazy.dictionary import ApplyPendingd
 
 # For backwards compatibility (so this still works: from monai.transforms.compose import MapTransform)
-from monai.transforms.lazy.functional import apply_pending_transforms
+from monai.transforms.lazy.executors import apply_pending_transforms
 from monai.transforms.traits import LazyTrait, ThreadUnsafe
 from monai.transforms.transform import (  # noqa: F401
     LazyTransform,
@@ -52,6 +55,7 @@ def execute_compose(
     start: int = 0,
     end: int | None = None,
     lazy: bool | None = False,
+    lazy_strategy: str = "in_order",
     overrides: dict | None = None,
     threading: bool = False,
     logger_name: str | None = None,
@@ -75,6 +79,9 @@ def execute_compose(
         lazy: whether to enable lazy evaluation for lazy transforms. If False, transforms will be
             carried out on a transform by transform basis. If True, all lazy transforms will
             be executed by accumulating changes and resampling as few times as possible.
+        lazy_strategy: this field controls how execution occurs when processing data lazily. Permitted
+            options are "in_order", "out_of_order". Please see `Compose`_ for more details of what these
+            options mean. In general, you should not need to change this from its default.
         overrides: this optional parameter allows you to specify a dictionary of parameters that should be overridden
             when executing a pipeline. These each parameter that is compatible with a given transform is then applied
             to that transform before it is executed. Note that overrides are currently only applied when lazy
@@ -109,10 +116,136 @@ def execute_compose(
         if threading:
             _transform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
         data = apply_transform(
-            _transform, data, map_items, unpack_items, lazy=lazy, overrides=overrides, logger_name=logger_name
+            _transform,
+            data,
+            map_items,
+            unpack_items,
+            lazy=lazy,
+            lazy_strategy=lazy_strategy,
+            overrides=overrides,
+            logger_name=logger_name,
         )
-    data = apply_pending_transforms(data, overrides, logger_name=logger_name)
+    data = apply_pending_transforms(data, None, overrides, logger_name=logger_name)
     return data
+
+
+class ComposeCompiler:
+    """
+    The ComposeCompiler is an implementation class that is required to parse options for Compose. It should currently
+    be considered an implementation detail that should not be interacted with directly by users of MONAI, although that
+    may change in subsequent releases. Its job is to parse options provided to `Compose.__call__`_ to set execution
+    modes for lazy resampling.
+
+    See `Compose`_ for a detailed explanation of lazy resampling.
+    """
+
+    def __init__(self):
+        # construct the list of options
+        options = {"reorder": {"lazy_last": self.reorder_lazy_last, "lazy_last_nosync": self.reorder_lazy_last_nosync}}
+        self.options = options
+
+    def __call__(self, transforms, lazy: bool | None, options: dict | None = None):
+        """
+        Get a policy object that controls the way `Compose`_ executes a list of transforms.
+
+        Args:
+            transforms: a list of transforms to be executed
+            lazy: the current lazy mode (False, None, or True)
+            options: the options that determine the execution policy
+
+        Returns:
+            a dictionary specifying the execution policy
+
+        """
+        if lazy is False or options is None:
+            return ComposeCompiler.generate_policy()
+
+        if len(options.keys()) > 1:
+            raise ValueError("Only one option can currently be set")
+
+        for k, v in options.items():
+            if k not in self.options.keys():
+                raise KeyError(
+                    f"'{k}' is not a valid option key. Valid options are " f"{tuple(k for k in self.options.keys())}"
+                )
+
+            option = self.options[k]
+            if v not in option.keys():
+                raise KeyError(f"'{v}' is not a valid option value. Value options for " f"'{k}' are {option.keys()}")
+
+            action = option[v]
+
+            return action(transforms=transforms, lazy=lazy)
+
+    @classmethod
+    def reorder_lazy_last(cls, *, transforms: list, lazy: bool | None, **kwargs):
+        subsections = list()
+        subsection_starts = list()
+        # pass 1: split the transform list into subsections
+        i_s = 0
+        for i_t in range(len(transforms)):
+            if isinstance(transforms[i_t], (ApplyPending, ApplyPendingd)):
+                # this subsection ends and is added to the subsection list
+                if i_s < i_t:
+                    subsections.append(transforms[i_s:i_t])
+                    subsection_starts.append(i_s)
+                # add apply pending in its own list
+                subsections.append([transforms[i_t]])
+                subsection_starts.append(i_t)
+                i_s = i_t + 1
+
+        if i_s != len(transforms):
+            subsections.append(transforms[i_s:])
+            subsection_starts.append(i_s)
+
+        # pass 2: calculate the permuted indices
+        permuted_indices = list()
+        for sub_start, subsection in zip(subsection_starts, subsections):
+            for i_s, s in enumerate(subsection):
+                if not cls._executing_lazily(s, lazy):
+                    permuted_indices.append(i_s + sub_start)
+            for i_s, s in enumerate(subsection):
+                if cls._executing_lazily(s, lazy):
+                    permuted_indices.append(i_s + sub_start)
+
+        # pass 2: sort the subsections
+        reordered = list()
+        for subsection in subsections:
+            # non-lazy, lazy
+            subsection = [t for t in subsection if not cls._executing_lazily(t, lazy)] + [
+                t for t in subsection if cls._executing_lazily(t, lazy)
+            ]
+            reordered.extend(subsection)
+
+        return ComposeCompiler.generate_policy({"indices": permuted_indices})
+
+    @classmethod
+    def reorder_lazy_last_nosync(cls, *, transforms: list, **_):
+        """
+        'reorder: lazy_last_nosync' is implemented through use of the 'out_of_order' execution
+        policy. See 'Compose'_ for details of this policy.
+        Args:
+            transforms: Not used by this method
+
+        Returns:
+
+        """
+        return cls.generate_policy({"can_invert": False, "lazy_policy": "out_of_order"})
+
+    @staticmethod
+    def generate_policy(overrides: dict | None = None):
+        default_policy = {"indices": None, "transforms": None, "can_invert": True, "lazy_policy": "in_order"}
+        if overrides is not None:
+            for k, v in overrides.items():
+                default_policy[k] = v
+        return default_policy
+
+    @staticmethod
+    def _executing_lazily(t, lazy_policy):
+        if isinstance(t, LazyTrait):
+            lazy_ = t.lazy if lazy_policy is None else lazy_policy
+            return lazy_
+        return False
 
 
 class Compose(Randomizable, InvertibleTransform):
@@ -262,6 +395,7 @@ class Compose(Randomizable, InvertibleTransform):
         unpack_items: bool = False,
         lazy: bool | None = False,
         overrides: dict | None = None,
+        options: dict | None = None,
         logger_name: str | None = None,
     ) -> None:
         if transforms is None:
@@ -272,6 +406,7 @@ class Compose(Randomizable, InvertibleTransform):
         self.set_random_state(seed=get_seed())
         self.lazy = lazy
         self.overrides = overrides
+        self.options = options
         self.logger_name = logger_name
 
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> Compose:
@@ -350,33 +485,94 @@ class Compose(Randomizable, InvertibleTransform):
         return len(self.flatten().transforms)
 
     def __call__(self, input_, start=0, end=None, threading=False, lazy: bool | None = None):
-        return execute_compose(
+        lazy_ = self.lazy if lazy is None else lazy
+        policy = ComposeCompiler()(self.transforms, lazy_)
+        lazy_strategy = policy["lazy_policy"]
+        indices = policy["indices"]
+
+        # permute the transforms if required
+        transforms = self.transforms if indices is None else [self.transforms[i] for i in indices]
+
+        result = execute_compose(
             input_,
-            self.transforms,
+            transforms,
             start=start,
             end=end,
             map_items=self.map_items,
             unpack_items=self.unpack_items,
             lazy=self.lazy,  # type: ignore
+            lazy_strategy=lazy_strategy,
             overrides=self.overrides,
             threading=threading,
             logger_name=self.logger_name,
         )
 
-    def inverse(self, data):
-        invertible_transforms = [t for t in self.flatten().transforms if isinstance(t, InvertibleTransform)]
-        if not invertible_transforms:
-            warnings.warn("inverse has been called but no invertible transforms have been supplied")
+        # if the transforms were permuted, record it in the metadata for inversion
+        if indices is not None:
+            if isinstance(result, monai.data.MetaTensor):
+                self.push_transform(result, extra_info={"applied_order": indices})
+            elif isinstance(result, Mapping):
+                for key in result:  # dictionary not change size during iteration
+                    if isinstance(result[key], monai.data.MetaTensor) or self.trace_key(key) in result:
+                        self.push_transform(result, key, extra_info={"applied_order": indices})
 
-        # loop backwards over transforms
-        for t in reversed(invertible_transforms):
-            if isinstance(t, LazyTrait) and t.lazy:
-                warnings.warn(
-                    f"inversing {t.__class__.__name__} lazily may not implemented"
-                    "please set `lazy=False` before calling inverse."
+        return result
+
+    def inverse(self, data):
+        if self.options is not None:
+            compiler = ComposeCompiler()
+            policy = compiler(self.transforms, self.lazy, self.options)
+        else:
+            policy = ComposeCompiler().generate_policy()
+
+        indices = policy["indices"]
+        can_invert = policy["can_invert"]
+        if can_invert is False:
+            raise ValueError("'inverse' is not supported with options {self.options}")
+
+        data_ = deepcopy(data)
+
+        if indices is not None:
+            applied_order = None
+            if isinstance(data_, monai.data.MetaTensor):
+                applied_order = self.pop_transform(data_)[TraceKeys.EXTRA_INFO]["applied_order"]
+            elif isinstance(data_, Mapping):
+                for key in data_:
+                    if isinstance(data_[key], monai.data.MetaTensor) or self.trace_key(key) in data_:
+                        applied_order = self.pop_transform(data_, key)[TraceKeys.EXTRA_INFO]["applied_order"]
+            else:
+                raise RuntimeError(
+                    f"Inverse only implemented for Mapping (dictionary) or MetaTensor data, got type {type(data)}."
                 )
-            data = apply_transform(t.inverse, data, self.map_items, self.unpack_items)
-        return data
+            if applied_order is None:
+                # no invertible transforms have been applied
+                return data_
+
+            # loop backwards over transforms
+            for o in reversed(applied_order):
+                if isinstance(self.transforms[o], InvertibleTransform):
+                    data_ = apply_transform(self.transforms[o].inverse, data_, self.map_items, self.unpack_items)
+        else:
+            invertible_transforms = [t for t in self.flatten().transforms if isinstance(t, InvertibleTransform)]
+            if not invertible_transforms:
+                warnings.warn("inverse has been called but no invertible transforms have been supplied")
+
+            if self.lazy is not False:
+                warnings.warn(
+                    f"'lazy' is set to {self.lazy} but lazy execution is not supported when inverting. "
+                    f"'lazy' has been overridden to False for the call to inverse"
+                )
+            # loop backwards over transforms
+            for t in reversed(invertible_transforms):
+                # if isinstance(t, LazyTrait) and t.lazy:
+                #     warnings.warn(
+                #         f"inversing {t.__class__.__name__} lazily may not implemented"
+                #         "please set `lazy=False` before calling inverse."
+                #     )
+                data_ = apply_transform(
+                    t.inverse, data_, self.map_items, self.unpack_items, lazy=False, logger_name=self.logger_name
+                )
+        return data_
 
 
 class OneOf(Compose):
@@ -759,8 +955,7 @@ class SomeOf(Compose):
 
         # loop backwards over transforms
         for o in reversed(applied_order):
-            transform = self.transforms[o]
-            if isinstance(transform, InvertibleTransform):
+            if isinstance(self.transforms[o], InvertibleTransform):
                 data = apply_transform(self.transforms[o].inverse, data, self.map_items, self.unpack_items)
 
         return data

@@ -13,13 +13,12 @@
 from __future__ import annotations
 
 from monai.config import KeysCollection
-from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.transform import MapTransform
+from monai.transforms.traits import InvertibleTrait, MapTrait
 
 __all__ = ["ApplyPendingd", "ApplyPendingD", "ApplyPendingDict"]
 
 
-class ApplyPendingd(InvertibleTransform, MapTransform):
+class ApplyPendingd(InvertibleTrait, MapTrait):
     """
     ApplyPendingd can be inserted into a pipeline that is being executed lazily in order
     to ensure resampling happens before the next transform. It doesn't do anything itself,
@@ -28,12 +27,11 @@ class ApplyPendingd(InvertibleTransform, MapTransform):
     See ``Compose`` for a detailed explanation of the lazy resampling feature.
 
     Args:
-        keys: the keys on which the transform operates. As of 1.2, this field must be set
-        but it doesn't alter the behaviour of lazy resampling.
+        keys: the keys for tensors that should have their pending transforms executed
     """
 
-    def __init__(self, keys: KeysCollection):
-        super().__init__(keys, True)
+    def __init__(self, keys: KeysCollection | None):
+        self.keys = keys
 
     def __call__(self, data):
         if not isinstance(data, dict):
