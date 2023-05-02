@@ -30,7 +30,6 @@ from monai.transforms.lazy.utils import (
     resample,
 )
 
-# from monai.transforms.traits import MapTrait
 from monai.utils import LazyAttr, look_up_option
 
 __all__ = ["apply_pending"]

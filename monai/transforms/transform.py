@@ -25,8 +25,8 @@ import torch
 from monai import config, transforms
 from monai.config import KeysCollection
 from monai.data.meta_tensor import MetaTensor
-from monai.transforms.lazy.executors import apply_pending_transforms_in_order, apply_pending_transforms_out_of_order
-from monai.transforms.traits import LazyTrait, MapTrait, RandomizableTrait, ThreadUnsafe
+# from monai.transforms.lazy.executors import apply_pending_transforms_in_order, apply_pending_transforms_out_of_order
+from monai.transforms.traits import LazyTrait, RandomizableTrait, ThreadUnsafe
 from monai.utils import MAX_SEED, ensure_tuple, first
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import MONAIEnvVars
@@ -92,6 +92,7 @@ def _apply_transform(
     Returns:
         ReturnType: The return type of `transform`.
     """
+    from monai.transforms.lazy.executors import apply_pending_transforms_in_order, apply_pending_transforms_out_of_order
 
     if lazy_strategy == "in_order":
         data = apply_pending_transforms_in_order(transform, data, lazy, overrides, logger_name)
@@ -361,7 +362,7 @@ class RandomizableTransform(Randomizable, Transform):
         self._do_transform = self.R.rand() < self.prob
 
 
-class MapTransform(Transform, MapTrait):
+class MapTransform(Transform):
     """
     A subclass of :py:class:`monai.transforms.Transform` with an assumption
     that the ``data`` input of ``self.__call__`` is a MutableMapping such as ``dict``.

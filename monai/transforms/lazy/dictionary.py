@@ -13,12 +13,13 @@
 from __future__ import annotations
 
 from monai.config import KeysCollection
-from monai.transforms.traits import InvertibleTrait, MapTrait
+from monai.transforms.traits import InvertibleTrait
+from monai.transforms.transform import MapTransform
 
 __all__ = ["ApplyPendingd", "ApplyPendingD", "ApplyPendingDict"]
 
 
-class ApplyPendingd(InvertibleTrait, MapTrait):
+class ApplyPendingd(InvertibleTrait, MapTransform):
     """
     ApplyPendingd can be inserted into a pipeline that is being executed lazily in order
     to ensure resampling happens before the next transform. It doesn't do anything itself,
@@ -30,7 +31,7 @@ class ApplyPendingd(InvertibleTrait, MapTrait):
         keys: the keys for tensors that should have their pending transforms executed
     """
 
-    def __init__(self, keys: KeysCollection | None):
+    def __init__(self, keys: KeysCollection):
         self.keys = keys
 
     def __call__(self, data):

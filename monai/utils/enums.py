@@ -316,6 +316,7 @@ class TraceKeys(StrEnum):
     KEY_SUFFIX: str = "_transforms"
     NONE: str = "none"
     TRACING: str = "tracing"
+    INVERT_DISABLED: str = "invert_disabled"
     LAZY: str = "lazy"
 
 

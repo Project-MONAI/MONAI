@@ -704,6 +704,7 @@ class TLazy(mt.LazyTransform):
 
 class TApplyPending(mt.ApplyPending):
     def __init__(self, tag):
+        super().__init__()
         self.tag = tag
 
 

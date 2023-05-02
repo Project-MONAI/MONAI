@@ -229,11 +229,11 @@ class ComposeCompiler:
         Returns:
 
         """
-        return cls.generate_policy({"can_invert": False, "lazy_policy": "out_of_order"})
+        return cls.generate_policy({"lazy_policy": "out_of_order"})
 
     @staticmethod
     def generate_policy(overrides: dict | None = None):
-        default_policy = {"indices": None, "transforms": None, "can_invert": True, "lazy_policy": "in_order"}
+        default_policy = {"indices": None, "transforms": None, "lazy_policy": "in_order"}
         if overrides is not None:
             for k, v in overrides.items():
                 default_policy[k] = v
@@ -485,7 +485,7 @@ class Compose(Randomizable, InvertibleTransform):
 
     def __call__(self, input_, start=0, end=None, threading=False, lazy: bool | None = None):
         lazy_ = self.lazy if lazy is None else lazy
-        policy = ComposeCompiler()(self.transforms, lazy_)
+        policy = ComposeCompiler()(self.transforms, lazy_, self.options)
         lazy_strategy = policy["lazy_policy"]
         indices = policy["indices"]
 
@@ -525,9 +525,8 @@ class Compose(Randomizable, InvertibleTransform):
             policy = ComposeCompiler().generate_policy()
 
         indices = policy["indices"]
-        can_invert = policy["can_invert"]
-        if can_invert is False:
-            raise ValueError("'inverse' is not supported with options {self.options}")
+
+        self._raise_if_not_invertible(data)
 
         data_ = deepcopy(data)
 
@@ -572,6 +571,30 @@ class Compose(Randomizable, InvertibleTransform):
                     t.inverse, data_, self.map_items, self.unpack_items, lazy=False, logger_name=self.logger_name
                 )
         return data_
+
+    def _check_invertible(self, data: Any):
+        invert_disabled_reasons = list()
+        if isinstance(data, monai.data.MetaTensor):
+            for op in data.applied_operations:
+                reasons = op.get(TraceKeys.INVERT_DISABLED, None)
+                if reasons is not None:
+                    invert_disabled_reasons.extend(reasons)
+        elif isinstance(data, dict):
+            for k, d in data.items():
+                for op in d.applied_operations:
+                    reasons = op.get(TraceKeys.INVERT_DISABLED, None)
+                    if reasons is not None:
+                        invert_disabled_reasons.extend(reasons)
+
+        if len(invert_disabled_reasons) > 0:
+            return False, invert_disabled_reasons
+
+    def _raise_if_not_invertible(self, data: Any):
+        invertible, reasons = self._check_invertible(data)
+        if invertible is False:
+            raise RuntimeError(
+                "Unable to run inverse on 'data' for the following reasons: "
+                f"{', '.join(reasons)}")
 
 
 class OneOf(Compose):

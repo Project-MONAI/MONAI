@@ -18,7 +18,9 @@ from monai.data.meta_tensor import MetaTensor
 from monai.transforms.lazy.array import ApplyPending
 from monai.transforms.lazy.dictionary import ApplyPendingd
 from monai.transforms.lazy.functional import apply_pending
-from monai.transforms.traits import LazyTrait, MapTrait
+from monai.transforms.traits import LazyTrait
+from monai.transforms.transform import MapTransform
+
 
 __all__ = ["apply_pending_transforms", "apply_pending_transforms_in_order", "apply_pending_transforms_out_of_order"]
 
@@ -38,7 +40,7 @@ def _log_pending_info(
     else:
         tlazy = ", transform is not lazy"
 
-    if isinstance(transform, MapTrait):
+    if isinstance(transform, MapTransform):
         for k in transform.keys:
             if k in data:
                 pcount = len(data[k].pending_operations) if isinstance(data[k], MetaTensor) else 0
@@ -200,3 +202,5 @@ def apply_pending_transforms_out_of_order(
         return apply_pending_transforms(data, None, overrides, logger_name)
 
     _log_pending_info(transform, data, "Accumulate pending transforms", lazy, logger_name)
+
+    return data

@@ -223,17 +223,16 @@ class TraceableTransform(Transform):
             if out_obj.pending_operations:
                 transform_name = info.get(TraceKeys.CLASS_NAME, "") if isinstance(info, dict) else ""
                 msg = (
-                    f"Applying transform {transform_name} to a MetaTensor with pending operations "
-                    "is not supported (as this eventually changes the ordering of applied_operations when the pending "
-                    f"operations are executed). Please clear the pending operations before transform {transform_name}."
-                    f"\nPending operations: {[x.get(TraceKeys.CLASS_NAME) for x in out_obj.pending_operations]}."
+                    f"Transform {transform_name} has been applied to a MetaTensor with pending operations: "
+                    f"{[x.get(TraceKeys.CLASS_NAME) for x in out_obj.pending_operations]}"
                 )
+                if key is not None:
+                    msg += f" for key {key}"
+
                 pend = out_obj.pending_operations[-1]
-                if not isinstance(pend.get(TraceKeys.EXTRA_INFO), dict):
-                    pend[TraceKeys.EXTRA_INFO] = dict(pend.get(TraceKeys.EXTRA_INFO, {}))
-                if not isinstance(info.get(TraceKeys.EXTRA_INFO), dict):
-                    info[TraceKeys.EXTRA_INFO] = dict(info.get(TraceKeys.EXTRA_INFO, {}))
-                info[TraceKeys.EXTRA_INFO]["warn"] = pend[TraceKeys.EXTRA_INFO]["warn"] = msg
+                reasons = pend.get(TraceKeys.INVERT_DISABLED, list())
+                reasons.append(msg)
+                info[TraceKeys.INVERT_DISABLED] = reasons
             out_obj.push_applied_operation(info)
         if isinstance(data, Mapping):
             if not isinstance(data, dict):
