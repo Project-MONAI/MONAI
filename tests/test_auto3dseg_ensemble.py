@@ -46,7 +46,7 @@ num_images_perfold = max(torch.cuda.device_count(), 4)
 num_images_per_batch = 2
 
 fake_datalist: dict[str, list[dict]] = {
-    "testing": [{"image": "val_001.fake.nii.gz"}, {"image": "val_002.fake.nii.gz"}],
+    "testing": [{"image": f"ts_image_{idx:03d}.nii.gz"} for idx in range(num_images_perfold)],
     "training": [
         {
             "fold": f,
