@@ -19,7 +19,7 @@ import warnings
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from pydoc import locate
-from shutil import copyfile, copytree
+from shutil import copyfile
 from textwrap import dedent
 from typing import Any, Callable
 
@@ -212,7 +212,7 @@ def _get_latest_bundle_version(source: str, name: str, repo: str) -> dict[str, l
         repo_owner, repo_name, tag_name = repo.split("/")
         return get_bundle_versions(name, repo=f"{repo_owner}/{repo_name}", tag=tag_name)["latest_version"]
     elif source == "huggingface_hub":
-        git_revisions = huggingface_hub.list_repo_refs(repo_id=f"{repo}/{name}", repo_type="model")
+        huggingface_hub.list_repo_refs(repo_id=f"{repo}/{name}", repo_type="model")
         #TODO: implement this
         return None
     else:
