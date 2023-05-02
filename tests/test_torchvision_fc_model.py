@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import unittest
+from test.utils import skip_if_downloading_fails
 from unittest import skipUnless
 
 import torch
@@ -176,7 +177,8 @@ class TestTorchVisionFCModel(unittest.TestCase):
     )
     @skipUnless(has_tv, "Requires TorchVision.")
     def test_with_pretrained(self, input_param, input_shape, expected_shape, expected_value):
-        net = TorchVisionFCModel(**input_param).to(device)
+        with skip_if_downloading_fails():
+            net = TorchVisionFCModel(**input_param).to(device)
         with eval_mode(net):
             result = net.forward(torch.randn(input_shape).to(device))
             value = next(net.features.parameters())[0, 0, 0, 0].item()
