@@ -136,15 +136,17 @@ class AlgoEnsemble(ABC):
                 in this function, and the second group will be passed to the `InferClass` to override the
                 parameters of the class functions.
                 The first group contains:
-                - ``"infer_files"``: file paths to the images to read in a list.
-                - ``"files_slices"``: a value type of `slice`. The files_slices will slice the ``"infer_files"`` and
-                  only make prediction on the infer_files[file_slices].
-                - ``"mode"``: ensemble mode. Currently "mean" and "vote" (majority voting) schemes are supported.
-                - ``"image_save_func"``: a dictionary used to instantiate the ``SaveImage`` transform. When specified,
-                  the ensemble prediction will save the prediciton files, instead of keeping the files in the memory.
-                  Example: `{"_target_": "SaveImage", "output_dir": "./"}`
-                - ``"sigmoid"``: use the sigmoid function (e.g. x > 0.5) to convert the prediction probability map
-                  to the label class prediction, otherwise argmax(x) is used.
+
+                    - ``"infer_files"``: file paths to the images to read in a list.
+                    - ``"files_slices"``: a value type of `slice`. The files_slices will slice the ``"infer_files"`` and
+                      only make prediction on the infer_files[file_slices].
+                    - ``"mode"``: ensemble mode. Currently "mean" and "vote" (majority voting) schemes are supported.
+                    - ``"image_save_func"``: a dictionary used to instantiate the ``SaveImage`` transform. When specified,
+                      the ensemble prediction will save the prediciton files, instead of keeping the files in the memory.
+                      Example: `{"_target_": "SaveImage", "output_dir": "./"}`
+                    - ``"sigmoid"``: use the sigmoid function (e.g. x > 0.5) to convert the prediction probability map
+                      to the label class prediction, otherwise argmax(x) is used.
+
                 The parameters in the second group is defined in the ``config`` of each Algo templates. Please check:
                 https://github.com/Project-MONAI/research-contributions/tree/main/auto3dseg/algorithm_templates
 
