@@ -19,7 +19,7 @@ import warnings
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from pydoc import locate
-from shutil import copyfile, copytree, rmtree
+from shutil import copyfile, copytree
 from textwrap import dedent
 from typing import Any, Callable
 
@@ -193,13 +193,11 @@ def _download_from_ngc(
     extractall(filepath=filepath, output_dir=extract_path, has_base=True)
 
 
-def _download_from_huggingface_hub(repo: str, download_path: str, filename: str) -> None:
+def _download_from_huggingface_hub(repo: str, download_path: str, filename: str, version: str) -> None:
     if len(repo.split("/")) != 2:
-        raise ValueError("if source is `hf_hub`, repo should be in the form `repo_owner/repo_name`")
-    snapshot_folder = huggingface_hub.snapshot_download(repo_id=repo, cache_dir=download_path)
-    download_dir = os.path.join(download_path, filename)
-    copytree(snapshot_folder, download_dir, dirs_exist_ok=True)
-    rmtree(snapshot_folder)
+        raise ValueError("if source is `huggingface_hub`, repo should be in the form `repo_owner/repo_name`")
+    extract_path = os.path.join(download_path, filename)
+    huggingface_hub.snapshot_download(repo_id=repo, revision=version, local_dir=extract_path, local_dir_use_symlinks="auto")
 
 
 def _get_latest_bundle_version(source: str, name: str, repo: str) -> dict[str, list[str] | str] | Any | None:
@@ -213,6 +211,10 @@ def _get_latest_bundle_version(source: str, name: str, repo: str) -> dict[str, l
     elif source == "github":
         repo_owner, repo_name, tag_name = repo.split("/")
         return get_bundle_versions(name, repo=f"{repo_owner}/{repo_name}", tag=tag_name)["latest_version"]
+    elif source == "huggingface_hub":
+        git_revisions = huggingface_hub.list_repo_refs(repo_id=f"{repo}/{name}", repo_type="model")
+        #TODO: implement this
+        return None
     else:
         raise ValueError(f"To get the latest bundle version, source should be 'github' or 'ngc', got {source}.")
 
@@ -278,7 +280,7 @@ def download(
             "monai_brats_mri_segmentation" in ngc:
             https://catalog.ngc.nvidia.com/models?filters=&orderBy=scoreDESC&query=monai.
         version: version name of the target bundle to download, like: "0.1.0". If `None`, will download
-            the latest version.
+            the latest version. If `source` is "huggingface_hub", this argument is a Git revision id.
         bundle_dir: target directory to store the downloaded data.
             Default is `bundle` subfolder under `torch.hub.get_dir()`.
         source: storage location name. This argument is used when `url` is `None`.
@@ -352,7 +354,8 @@ def download(
             _download_from_huggingface_hub(
                 repo=repo_,
                 download_path=bundle_dir_,
-                filename=name_
+                filename=name_,
+                version=version_,
             )
         else:
             raise NotImplementedError(
@@ -387,7 +390,7 @@ def load(
             "monai_brats_mri_segmentation" in ngc:
             https://catalog.ngc.nvidia.com/models?filters=&orderBy=scoreDESC&query=monai.
         version: version name of the target bundle to download, like: "0.1.0". If `None`, will download
-            the latest version.
+            the latest version. If `source` is "huggingface_hub", this argument is a Git revision id.
         model_file: the relative path of the model weights or TorchScript module within bundle.
             If `None`, "models/model.pt" or "models/model.ts" will be used.
         load_ts_module: a flag to specify if loading the TorchScript module.
@@ -396,9 +399,10 @@ def load(
         source: storage location name. This argument is used when `model_file` is not existing locally and need to be
             downloaded first.
             In default, the value is achieved from the environment variable BUNDLE_DOWNLOAD_SRC, and
-            it should be "ngc" or "github".
-        repo: repo name. This argument is used when `url` is `None` and `source` is "github".
-            If used, it should be in the form of "repo_owner/repo_name/release_tag".
+            it should be "ngc", "github", or "huggingface_hub".
+        repo: repo name. This argument is used when `url` is `None` and `source` is "github" or "huggingface_hub".
+            If `source` is "github", it should be in the form of "repo_owner/repo_name/release_tag".
+            If `source` is "huggingface_hub", it should be in the form of "repo_owner/repo_name".
         remove_prefix: This argument is used when `source` is "ngc". Currently, all ngc bundles
             have the ``monai_`` prefix, which is not existing in their model zoo contrasts. In order to
             maintain the consistency between these two sources, remove prefix is necessary.
