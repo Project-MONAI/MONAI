@@ -518,7 +518,7 @@ class nnUNetV2Runner:  # noqa: N801
         Args:
             configs: configurations that should be trained.
                 Default: ("2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres").
-            device_ids: a tuple of GPU device IDs to use for the training. Default: None (all available GPUs).
+            device_ids: a tuple/list of GPU device IDs to use for the training. Default: None (all available GPUs).
             kwargs: this optional parameter allows you to specify additional arguments defined in the
                 ``train_single_model`` method.
         """
