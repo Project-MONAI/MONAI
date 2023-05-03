@@ -40,7 +40,7 @@ from monai.transforms.transform import (  # noqa: F401
     apply_transform,
 )
 from monai.transforms.utils import is_tensor_invertible
-from monai.utils import MAX_SEED, TraceKeys, TraceStatusKeys, ensure_tuple, get_seed
+from monai.utils import MAX_SEED, TraceKeys, ensure_tuple, get_seed
 
 logger = get_logger(__name__)
 
@@ -582,7 +582,7 @@ class Compose(Randomizable, InvertibleTransform):
                 reason_text = "\n".join(reasons)
                 raise RuntimeError(f"Unable to run inverse on 'data' for the following reasons:\n{reason_text}")
             else:
-                raise RuntimeError(f"Unable to run inverse on 'data'; no reason logged in trace data")
+                raise RuntimeError("Unable to run inverse on 'data'; no reason logged in trace data")
 
 
 class OneOf(Compose):
