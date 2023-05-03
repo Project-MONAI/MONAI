@@ -1327,7 +1327,7 @@ def map_spatial_axes(
 
 
 @contextmanager
-def allow_missing_keys_mode(transform: MapTransform | Compose | tuple[MapTransform] | tuple[Compose]):
+def allow_missing_keys_mode(transform: MapTransform | "Compose" | tuple[MapTransform] | tuple["Compose"]):
     """Temporarily set all MapTransforms to not throw an error if keys are missing. After, revert to original states.
 
     Args:
@@ -1974,13 +1974,35 @@ def resolves_modes(
 
 
 def is_tensor_invertible(data: Any):
+    def check_applied_operations(entry):
+        if isinstance(entry, list):
+            results = list()
+            for sub_entry in entry:
+                results.extend(check_applied_operations(sub_entry))
+            return results
+        else:
+            if TraceKeys.STATUSES in entry:
+                if TraceStatusKeys.PENDING_DURING_APPLY in entry[TraceKeys.STATUSES]:
+                    reason = entry[TraceKeys.STATUSES][TraceStatusKeys.PENDING_DURING_APPLY]
+                    if reason is None:
+                        return ["Pending operations while applying an operation"]
+                    return reason if isinstance(reason, list) else [reason]
+            return []
+
     invert_disabled_reasons = list()
-    if isinstance(data, monai.data.MetaTensor):
+    if isinstance(data, (list, tuple)):
+        for d in data:
+            _, reasons = is_tensor_invertible(d)
+            if reasons is not None:
+                invert_disabled_reasons.extend(reasons)
+    elif isinstance(data, monai.data.MetaTensor):
         for op in data.applied_operations:
-            if TraceKeys.STATUSES in op:
-                if TraceStatusKeys.PENDING_DURING_APPLY in op[TraceKeys.STATUSES]:
-                    reason = op[TraceKeys.STATUSES][TraceStatusKeys.PENDING_DURING_APPLY]
-                    invert_disabled_reasons.extend(["PENDING DURING APPLY"] if reason is None else reason)
+            invert_disabled_reasons.extend(check_applied_operations(op))
+            # if op
+            # if TraceKeys.STATUSES in op:
+            #     if TraceStatusKeys.PENDING_DURING_APPLY in op[TraceKeys.STATUSES]:
+            #         reason = op[TraceKeys.STATUSES][TraceStatusKeys.PENDING_DURING_APPLY]
+            #         invert_disabled_reasons.extend(["PENDING DURING APPLY"] if reason is None else reason)
     elif isinstance(data, dict):
         for k, d in data.items():
             _, reasons = is_tensor_invertible(d)

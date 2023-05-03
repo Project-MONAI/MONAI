@@ -25,7 +25,13 @@ __all__ = ["apply_pending_transforms", "apply_pending_transforms_in_order", "app
 
 
 def _log_pending_info(
-    transform: Any, data: Any, activity: str, lazy: bool | None = None, logger_name: str | None = None
+    transform: Any,
+    data: Any,
+    activity: str,
+    *,
+    lazy: bool | None = None,
+    key: str | None = None,
+    logger_name: str | None = None,
 ):
     if logger_name is None:
         return
@@ -40,7 +46,8 @@ def _log_pending_info(
         tlazy = ", transform is not lazy"
 
     if isinstance(transform, MapTransform):
-        for k in transform.keys:
+        transform_keys = transform.keys if key is None else (key,)
+        for k in transform_keys:
             if k in data:
                 pcount = len(data[k].pending_operations) if isinstance(data[k], MetaTensor) else 0
                 logger.info(
@@ -49,9 +56,15 @@ def _log_pending_info(
                 )
     else:
         pcount = len(data.pending_operations) if isinstance(data, MetaTensor) else 0
-        logger.info(
-            f"{activity} - lazy: {lazy}, " f"pending: {pcount}, upcoming '{transform.__class__.__name__}'{tlazy}"
-        )
+        if key is None:
+            logger.info(
+                f"{activity} - lazy: {lazy}, " f"pending: {pcount}, upcoming '{transform.__class__.__name__}'{tlazy}"
+            )
+        else:
+            logger.info(
+                f"{activity} - lazy mode: {lazy}, key: '{key}', "
+                f"pending: {pcount}, upcoming '{transform.__class__.__name__}'{tlazy}"
+            )
 
 
 def _log_applied_info(data: Any, key=None, logger_name: str | None = None):
@@ -61,6 +74,33 @@ def _log_applied_info(data: Any, key=None, logger_name: str | None = None):
 
     key_str = "" if key is None else f"key: '{key}', "
     logger.info(f"Pending transforms applied: {key_str}applied_operations: {len(data.applied_operations)}")
+
+
+def patch_for_in_order_needs_implicit_apply_pending(transform, data, lazy, overrides, logger_name):
+    from monai.transforms.croppad.array import CropForeground, RandCropByLabelClasses, RandCropByPosNegLabel
+    from monai.transforms.croppad.dictionary import CropForegroundd, RandCropByLabelClassesd, RandCropByPosNegLabeld
+
+    if isinstance(data, dict):
+        if isinstance(transform, CropForegroundd):
+            k = transform.source_key
+        elif isinstance(transform, (RandCropByLabelClassesd, RandCropByPosNegLabeld)):
+            k = transform.label_key
+        else:
+            return data
+
+        if isinstance(data[k], MetaTensor) and data[k].has_pending_operations:
+            d = dict(data)
+            k = transform.source_key
+            _log_pending_info(transform, data, "Apply prior to executing", key=k, lazy=lazy, logger_name=logger_name)
+            d[k] = apply_pending(data[k], overrides=overrides.get(k, None))
+            return d
+    elif isinstance(data, MetaTensor) and data.has_pending_operations:
+        if isinstance(transform, CropForeground, RandCropByLabelClasses, RandCropByPosNegLabel):
+            _log_pending_info(transform, data, "Apply prior to executing", lazy=lazy, logger_name=logger_name)
+            data = apply_pending(data, overrides)
+            return data
+
+    return data
 
 
 def apply_pending_transforms(
@@ -142,23 +182,26 @@ def apply_pending_transforms_in_order(
 
     """
     if lazy is False:
-        _log_pending_info(transform, data, "Apply pending transforms", lazy, logger_name)
+        _log_pending_info(transform, data, "Apply pending transforms", lazy=lazy, logger_name=logger_name)
         return apply_pending_transforms(data, None, overrides, logger_name)
 
     lazy_ = transform.lazy if isinstance(transform, LazyTrait) and lazy is None else lazy
     if not isinstance(transform, LazyTrait) or lazy_ is False:
-        _log_pending_info(transform, data, "Apply pending transforms", lazy, logger_name)
+        _log_pending_info(transform, data, "Apply pending transforms", lazy=lazy, logger_name=logger_name)
         return apply_pending_transforms(data, None, overrides, logger_name)
 
     if isinstance(transform, ApplyPendingd):
-        _log_pending_info(transform, data, "Apply pending transforms", lazy, logger_name)
+        _log_pending_info(transform, data, "Apply pending transforms", lazy=lazy, logger_name=logger_name)
         return apply_pending_transforms(data, transform.keys, overrides, logger_name)
 
     if isinstance(transform, ApplyPending):
-        _log_pending_info(transform, data, "Apply pending transforms", lazy, logger_name)
+        _log_pending_info(transform, data, "Apply pending transforms", lazy=lazy, logger_name=logger_name)
         return apply_pending_transforms(data, None, overrides, logger_name)
 
-    _log_pending_info(transform, data, "Accumulate pending transforms", lazy, logger_name)
+    if lazy is not False:
+        patch_for_in_order_needs_implicit_apply_pending(transform, data, lazy, overrides, logger_name)
+
+    _log_pending_info(transform, data, "Accumulate pending transforms", lazy=lazy, logger_name=logger_name)
 
     return data
 
@@ -189,17 +232,17 @@ def apply_pending_transforms_out_of_order(
 
     """
     if lazy is False:
-        _log_pending_info(transform, data, "Apply pending transforms", lazy, logger_name)
+        _log_pending_info(transform, data, "Apply pending transforms", lazy=lazy, logger_name=logger_name)
         return apply_pending_transforms(data, None, overrides, logger_name)
 
     if isinstance(transform, ApplyPendingd):
-        _log_pending_info(transform, data, "Apply pending transforms", lazy, logger_name)
+        _log_pending_info(transform, data, "Apply pending transforms", lazy=lazy, logger_name=logger_name)
         return apply_pending_transforms(data, transform.keys, overrides, logger_name)
 
     if isinstance(transform, ApplyPending):
-        _log_pending_info(transform, data, "Apply pending transforms", lazy, logger_name)
+        _log_pending_info(transform, data, "Apply pending transforms", lazy=lazy, logger_name=logger_name)
         return apply_pending_transforms(data, None, overrides, logger_name)
 
-    _log_pending_info(transform, data, "Accumulate pending transforms", lazy, logger_name)
+    _log_pending_info(transform, data, "Accumulate pending transforms", lazy=lazy, logger_name=logger_name)
 
     return data

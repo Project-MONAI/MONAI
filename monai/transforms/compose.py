@@ -125,6 +125,8 @@ def execute_compose(
             overrides=overrides,
             logger_name=logger_name,
         )
+    if isinstance(data, (list, tuple)) and map_items:
+        data = [apply_pending_transforms(d, None, overrides, logger_name=logger_name) for d in data]
     data = apply_pending_transforms(data, None, overrides, logger_name=logger_name)
     return data
 
