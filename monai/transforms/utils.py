@@ -1326,7 +1326,7 @@ def map_spatial_axes(
 
 
 @contextmanager
-def allow_missing_keys_mode(transform: MapTransform | "Compose" | tuple[MapTransform] | tuple["Compose"]):
+def allow_missing_keys_mode(transform: MapTransform | Compose | tuple[MapTransform] | tuple[Compose]):
     """Temporarily set all MapTransforms to not throw an error if keys are missing. After, revert to original states.
 
     Args:
@@ -1540,7 +1540,7 @@ class Fourier:
         return out
 
 
-def get_number_image_type_conversions(transform: "Compose", test_data: Any, key: Hashable | None = None) -> int:
+def get_number_image_type_conversions(transform: Compose, test_data: Any, key: Hashable | None = None) -> int:
     """
     Get the number of times that the data need to be converted (e.g., numpy to torch).
     Conversions between different devices are also counted (e.g., CPU to GPU).
