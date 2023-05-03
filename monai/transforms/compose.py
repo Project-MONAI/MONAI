@@ -39,7 +39,8 @@ from monai.transforms.transform import (  # noqa: F401
     Transform,
     apply_transform,
 )
-from monai.utils import MAX_SEED, TraceKeys, ensure_tuple, get_seed
+from monai.transforms.utils import is_tensor_invertible
+from monai.utils import MAX_SEED, TraceKeys, TraceStatusKeys, ensure_tuple, get_seed
 
 logger = get_logger(__name__)
 
@@ -526,7 +527,7 @@ class Compose(Randomizable, InvertibleTransform):
 
         indices = policy["indices"]
 
-        self._raise_if_not_invertible(data)
+        self._raise_if_tensor_is_not_invertible(data)
 
         data_ = deepcopy(data)
 
@@ -572,29 +573,16 @@ class Compose(Randomizable, InvertibleTransform):
                 )
         return data_
 
-    def _check_invertible(self, data: Any):
-        invert_disabled_reasons = list()
-        if isinstance(data, monai.data.MetaTensor):
-            for op in data.applied_operations:
-                reasons = op.get(TraceKeys.INVERT_DISABLED, None)
-                if reasons is not None:
-                    invert_disabled_reasons.extend(reasons)
-        elif isinstance(data, dict):
-            for k, d in data.items():
-                for op in d.applied_operations:
-                    reasons = op.get(TraceKeys.INVERT_DISABLED, None)
-                    if reasons is not None:
-                        invert_disabled_reasons.extend(reasons)
+    @staticmethod
+    def _raise_if_tensor_is_not_invertible(data: Any):
+        invertible, reasons = is_tensor_invertible(data)
 
-        if len(invert_disabled_reasons) > 0:
-            return False, invert_disabled_reasons
-
-    def _raise_if_not_invertible(self, data: Any):
-        invertible, reasons = self._check_invertible(data)
         if invertible is False:
-            raise RuntimeError(
-                "Unable to run inverse on 'data' for the following reasons: "
-                f"{', '.join(reasons)}")
+            if reasons is not None:
+                reason_text = '\n'.join(reasons)
+                raise RuntimeError(f"Unable to run inverse on 'data' for the following reasons:\n{reason_text}")
+            else:
+                raise RuntimeError(f"Unable to run inverse on 'data'; no reason logged in trace data")
 
 
 class OneOf(Compose):

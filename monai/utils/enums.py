@@ -36,6 +36,7 @@ __all__ = [
     "SkipMode",
     "Method",
     "TraceKeys",
+    "TraceStatusKeys",
     "CommonKeys",
     "GanKeys",
     "PostFix",
@@ -316,8 +317,14 @@ class TraceKeys(StrEnum):
     KEY_SUFFIX: str = "_transforms"
     NONE: str = "none"
     TRACING: str = "tracing"
-    INVERT_DISABLED: str = "invert_disabled"
+    STATUSES: str = "statuses"
     LAZY: str = "lazy"
+
+
+class TraceStatusKeys(StrEnum):
+    """Enumerable status keys for the TraceKeys.STATUS flag"""
+
+    PENDING_DURING_APPLY = "pending_during_apply"
 
 
 class CommonKeys(StrEnum):

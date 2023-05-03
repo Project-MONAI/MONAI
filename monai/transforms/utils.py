@@ -28,7 +28,7 @@ from monai.config import DtypeLike, IndexSelection
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 from monai.networks.layers import GaussianFilter
 from monai.networks.utils import meshgrid_ij
-from monai.transforms.compose import Compose, OneOf
+# from monai.transforms.compose import Compose, OneOf
 from monai.transforms.transform import MapTransform, Transform, apply_transform
 from monai.transforms.utils_pytorch_numpy_unification import (
     any_np_pt,
@@ -52,6 +52,7 @@ from monai.utils import (
     PytorchPadMode,
     SplineMode,
     TraceKeys,
+    TraceStatusKeys,
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
@@ -121,6 +122,7 @@ __all__ = [
     "sync_meta_info",
     "reset_ops_id",
     "resolves_modes",
+    "is_tensor_invertible",
 ]
 
 
@@ -1324,7 +1326,7 @@ def map_spatial_axes(
 
 
 @contextmanager
-def allow_missing_keys_mode(transform: MapTransform | Compose | tuple[MapTransform] | tuple[Compose]):
+def allow_missing_keys_mode(transform: MapTransform | "Compose" | tuple[MapTransform] | tuple["Compose"]):
     """Temporarily set all MapTransforms to not throw an error if keys are missing. After, revert to original states.
 
     Args:
@@ -1340,6 +1342,8 @@ def allow_missing_keys_mode(transform: MapTransform | Compose | tuple[MapTransfo
         with allow_missing_keys_mode(t):
             _ = t(data)  # OK!
     """
+    from monai.transforms.compose import Compose
+
     # If given a sequence of transforms, Compose them to get a single list
     if issequenceiterable(transform):
         transform = Compose(transform)
@@ -1536,7 +1540,7 @@ class Fourier:
         return out
 
 
-def get_number_image_type_conversions(transform: Compose, test_data: Any, key: Hashable | None = None) -> int:
+def get_number_image_type_conversions(transform: "Compose", test_data: Any, key: Hashable | None = None) -> int:
     """
     Get the number of times that the data need to be converted (e.g., numpy to torch).
     Conversions between different devices are also counted (e.g., CPU to GPU).
@@ -1546,6 +1550,7 @@ def get_number_image_type_conversions(transform: Compose, test_data: Any, key: H
         test_data: data to be used to count the number of conversions
         key: if using dictionary transforms, this key will be used to check the number of conversions.
     """
+    from monai.transforms.compose import OneOf
 
     def _get_data(obj, key):
         return obj if key is None else obj[key]
@@ -1965,6 +1970,25 @@ def resolves_modes(
     else:
         _interp_mode = GridSampleMode(_interp_mode)
     return backend, _interp_mode, _padding_mode, _kwargs
+
+
+def is_tensor_invertible(data: Any):
+    invert_disabled_reasons = list()
+    if isinstance(data, monai.data.MetaTensor):
+        for op in data.applied_operations:
+            if TraceKeys.STATUSES in op:
+                if TraceStatusKeys.PENDING_DURING_APPLY in op[TraceKeys.STATUSES]:
+                    reason = op[TraceKeys.STATUSES][TraceStatusKeys.PENDING_DURING_APPLY]
+                    invert_disabled_reasons.extend(["PENDING DURING APPLY"] if reason is None else reason)
+    elif isinstance(data, dict):
+        for k, d in data.items():
+            _, reasons = is_tensor_invertible(d)
+            if reasons is not None:
+                invert_disabled_reasons.extend(reasons)
+
+    if len(invert_disabled_reasons) > 0:
+        return False, invert_disabled_reasons
+    return True, None
 
 
 if __name__ == "__main__":

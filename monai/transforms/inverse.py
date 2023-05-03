@@ -25,7 +25,15 @@ from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
 from monai.transforms.traits import InvertibleTrait, LazyTrait
 from monai.transforms.transform import Transform
-from monai.utils import LazyAttr, MetaKeys, TraceKeys, convert_to_dst_type, convert_to_numpy, convert_to_tensor
+from monai.utils import (
+    LazyAttr,
+    MetaKeys,
+    TraceKeys,
+    TraceStatusKeys,
+    convert_to_dst_type,
+    convert_to_numpy,
+    convert_to_tensor,
+)
 
 __all__ = ["TraceableTransform", "InvertibleTransform"]
 
@@ -230,9 +238,11 @@ class TraceableTransform(Transform):
                     msg += f" for key {key}"
 
                 pend = out_obj.pending_operations[-1]
-                reasons = pend.get(TraceKeys.INVERT_DISABLED, list())
-                reasons.append(msg)
-                info[TraceKeys.INVERT_DISABLED] = reasons
+                statuses = pend.get(TraceKeys.STATUSES, dict())
+                messages = statuses.get(TraceStatusKeys.PENDING_DURING_APPLY, list())
+                messages.append(msg)
+                statuses[TraceStatusKeys.PENDING_DURING_APPLY] = messages
+                info[TraceKeys.STATUSES] = statuses
             out_obj.push_applied_operation(info)
         if isinstance(data, Mapping):
             if not isinstance(data, dict):
