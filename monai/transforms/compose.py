@@ -579,7 +579,7 @@ class Compose(Randomizable, InvertibleTransform):
 
         if invertible is False:
             if reasons is not None:
-                reason_text = '\n'.join(reasons)
+                reason_text = "\n".join(reasons)
                 raise RuntimeError(f"Unable to run inverse on 'data' for the following reasons:\n{reason_text}")
             else:
                 raise RuntimeError(f"Unable to run inverse on 'data'; no reason logged in trace data")

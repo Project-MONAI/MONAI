@@ -21,7 +21,6 @@ from monai.transforms.lazy.functional import apply_pending
 from monai.transforms.traits import LazyTrait
 from monai.transforms.transform import MapTransform
 
-
 __all__ = ["apply_pending_transforms", "apply_pending_transforms_in_order", "apply_pending_transforms_out_of_order"]
 
 

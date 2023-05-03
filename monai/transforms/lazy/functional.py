@@ -29,7 +29,6 @@ from monai.transforms.lazy.utils import (
     kwargs_from_pending,
     resample,
 )
-
 from monai.utils import LazyAttr, look_up_option
 
 __all__ = ["apply_pending"]
