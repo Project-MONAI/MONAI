@@ -17,7 +17,6 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 from __future__ import annotations
 
-import warnings
 from collections.abc import Callable, Hashable, Mapping, Sequence
 from copy import deepcopy
 from typing import Any

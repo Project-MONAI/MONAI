@@ -1327,7 +1327,7 @@ def map_spatial_axes(
 
 
 @contextmanager
-def allow_missing_keys_mode(transform: MapTransform | "Compose" | tuple[MapTransform] | tuple["Compose"]):
+def allow_missing_keys_mode(transform: MapTransform | Compose | tuple[MapTransform] | tuple[Compose]):
     """Temporarily set all MapTransforms to not throw an error if keys are missing. After, revert to original states.
 
     Args:
