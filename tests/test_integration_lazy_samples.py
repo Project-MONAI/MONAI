@@ -201,7 +201,7 @@ class IntegrationLazyResampling(DistTestCase):
         results_expected = run_training_test(
             self.data_dir, device=self.device, cachedataset=0, readers=_readers, num_workers=_w, lazy=False
         )
-        for options in ({"reorder": "lazy_last_nosync"},):
+        for options in (None, {"reorder": "lazy_last_nosync"},):
             results = run_training_test(
                 self.data_dir,
                 device=self.device,
