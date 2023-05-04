@@ -51,6 +51,7 @@ def evaluate_with_overrides(
     overrides: dict | None = None,
     override_keys: Sequence[str] | None = None,
     verbose: bool = False,
+    mode: str = "default",
 ):
     """
     The previously applied transform may have been lazily applied to MetaTensor `data` and
@@ -73,16 +74,19 @@ def evaluate_with_overrides(
         override: keyword arguments to apply transforms.
         override_keys: to which the override arguments are used when apply transforms.
         verbose: whether to print debugging info when evaluate MetaTensor with pending operations.
+        mode: "default" or "strict".
 
     """
     if not lazy_evaluation:
         return data  # eager evaluation
     overrides = (overrides or {}).copy()
     if isinstance(data, monai.data.MetaTensor):
+        if isinstance(upcoming, mt.MapTransform) and override_keys not in upcoming.keys:
+            return data
         if data.has_pending_operations and (
             (upcoming is None)
-            or (isinstance(upcoming, mt.Identity))
-            or (isinstance(upcoming, mt.Identityd) and override_keys in upcoming.keys)
+            or (isinstance(upcoming, (mt.Identity, mt.Identityd)))
+            or (mode == "strict" and not isinstance(upcoming, mt.LazyTransform))
         ):
             data, _ = mt.apply_transforms(data, None, overrides=overrides)
             if verbose:
@@ -109,12 +113,14 @@ def evaluate_with_overrides(
         for k in data:
             if k in keys_to_override:
                 dict_for_key = dict_overrides[override_keys.index(k)]
-                data[k] = evaluate_with_overrides(data[k], upcoming, lazy_evaluation, dict_for_key, k, verbose)
+                data[k] = evaluate_with_overrides(data[k], upcoming, lazy_evaluation, dict_for_key, k, verbose, mode)
             else:
-                data[k] = evaluate_with_overrides(data[k], upcoming, lazy_evaluation, None, k, verbose)
+                data[k] = evaluate_with_overrides(data[k], upcoming, lazy_evaluation, None, k, verbose, mode)
 
     if isinstance(data, (list, tuple)):
-        return [evaluate_with_overrides(v, upcoming, lazy_evaluation, overrides, override_keys, verbose) for v in data]
+        return [
+            evaluate_with_overrides(v, upcoming, lazy_evaluation, overrides, override_keys, verbose, mode) for v in data
+        ]
     return data
 
 
@@ -131,6 +137,7 @@ def execute_compose(
     threading: bool = False,
     log_stats: bool = False,
     verbose: bool = False,
+    mode: str = "default",
 ) -> NdarrayOrTensor | Sequence[NdarrayOrTensor] | Mapping[Any, NdarrayOrTensor]:
     """
     ``execute_compose`` provides the implementation that the ``Compose`` class uses to execute a sequence
@@ -168,6 +175,7 @@ def execute_compose(
             for NumPy array and PyTorch Tensor, log the data shape and value range,
             for other metadata, log the values directly. default to `False`.
         verbose: whether to print debugging info when lazy_evaluation=True.
+        mode: "strict" or "default".
 
     Returns:
         A tensorlike, sequence of tensorlikes or dict of tensorlists containing the result of running
@@ -195,10 +203,11 @@ def execute_compose(
             overrides=overrides,
             override_keys=override_keys,
             verbose=verbose,
+            mode=mode,
         )
         data = apply_transform(_transform, data, map_items, unpack_items, log_stats)
     data = evaluate_with_overrides(
-        data, None, lazy_evaluation=lazy_evaluation, overrides=overrides, override_keys=override_keys, verbose=verbose
+        data, None, lazy_evaluation, overrides=overrides, override_keys=override_keys, verbose=verbose, mode=mode
     )
     return data
 
@@ -326,6 +335,9 @@ class Compose(Randomizable, InvertibleTransform):
         override_keys: this optional parameter specifies the keys to which ``overrides`` are to be applied. If
             ``overrides`` is set, ``override_keys`` must also be set.
         verbose: whether to print debugging info when lazy_evaluation=True.
+        mode: "default" or "strict"; only available when `lazy_evaluation=True`.
+            "default": run transforms lazily as much as possible for preprocessing performance.
+            "strict": only run consecutive LazyTransform classes lazily.
     """
 
     def __init__(
@@ -338,6 +350,7 @@ class Compose(Randomizable, InvertibleTransform):
         overrides: dict | None = None,
         override_keys: Sequence[str] | None = None,
         verbose: bool = False,
+        mode: str = "default",
     ) -> None:
         if transforms is None:
             transforms = []
@@ -351,6 +364,7 @@ class Compose(Randomizable, InvertibleTransform):
         self.overrides = overrides
         self.override_keys = override_keys
         self.verbose = verbose
+        self.mode = mode
 
         if self.lazy_evaluation is not None:
             for t in self.flatten().transforms:  # TODO: test Compose of Compose/OneOf
@@ -461,6 +475,7 @@ class Compose(Randomizable, InvertibleTransform):
             threading=threading,
             log_stats=self.log_stats,
             verbose=self.verbose,
+            mode=self.mode,
         )
 
     def inverse(self, data):

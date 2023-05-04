@@ -74,6 +74,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
         overrides=lazy_kwargs,
         override_keys=("img", "seg"),
         verbose=num_workers > 0,  # testing both flags
+        mode="strict",
     )
 
     # create a training data loader
@@ -149,15 +150,6 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
                 saver(item)  # just testing the saving
                 saver(in_img)
                 saver(in_seg)
-    if lazy:
-        inverted = 0
-        try:
-            inverted = [inverter(b_data) for b_data in decollate_batch(batch_data)]
-        except RuntimeError as e:
-            if "Lambda" in str(e):
-                inverted = None
-        assert inverted is None, "invert LambdaD + lazy is not supported"
-    else:
         [inverter(b_data) for b_data in decollate_batch(batch_data)]  # expecting no error
     return ops
 

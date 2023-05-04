@@ -95,11 +95,10 @@ class TestInvert(unittest.TestCase):
         transform = Compose(
             [LoadImage(image_only=True), EnsureChannelFirst(), Orientation("RPS"), Lambda(func=lambda x: x)],
             lazy_evaluation=True,
+            mode="strict",
         )
         output = transform([im_fname for _ in range(2)])
-        with self.assertRaises(RuntimeError):  # transform id mismatch because of lambda
-            with self.assertWarns(Warning):  # warning of wrong ordering lazy + nonlazy_invertible
-                transform.inverse(output)
+        transform.inverse(output)
 
 
 if __name__ == "__main__":
