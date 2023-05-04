@@ -95,7 +95,7 @@ def patch_for_in_order_needs_implicit_apply_pending(transform, data, lazy, overr
             d[k] = apply_pending(data[k], overrides=overrides.get(k, None))
             return d
     elif isinstance(data, MetaTensor) and data.has_pending_operations:
-        if isinstance(transform, CropForeground, RandCropByLabelClasses, RandCropByPosNegLabel):
+        if isinstance(transform, (CropForeground, RandCropByLabelClasses, RandCropByPosNegLabel)):
             _log_pending_info(transform, data, "Apply prior to executing", lazy=lazy, logger_name=logger_name)
             data = apply_pending(data, overrides)
             return data
