@@ -2007,7 +2007,7 @@ def is_tensor_invertible(data: Any):
             #         reason = op[TraceKeys.STATUSES][TraceStatusKeys.PENDING_DURING_APPLY]
             #         invert_disabled_reasons.extend(["PENDING DURING APPLY"] if reason is None else reason)
     elif isinstance(data, dict):
-        for k, d in data.items():
+        for d in data.values():
             _, reasons = is_tensor_invertible(d)
             if reasons is not None:
                 invert_disabled_reasons.extend(reasons)
