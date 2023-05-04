@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from .lr_finder import LearningRateFinder
 from .lr_scheduler import ExponentialLR, LinearLR, WarmupCosineSchedule
 from .novograd import Novograd

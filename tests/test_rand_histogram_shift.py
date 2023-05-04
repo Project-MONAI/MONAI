@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -42,6 +44,16 @@ for p in TEST_NDARRAYS:
         ]
     )
 
+WARN_TESTS = []
+for p in TEST_NDARRAYS:
+    WARN_TESTS.append(
+        [
+            {"num_control_points": 5, "prob": 1.0},
+            {"img": p(np.zeros(8).reshape((1, 2, 2, 2)))},
+            np.zeros(8).reshape((1, 2, 2, 2)),
+        ]
+    )
+
 
 class TestRandHistogramShift(unittest.TestCase):
     @parameterized.expand(TESTS)
@@ -68,6 +80,12 @@ class TestRandHistogramShift(unittest.TestCase):
             yi = tr.interp(array_type([[-2, 11], [1, 3], [8, 10]]), x, y)
             self.assertEqual(yi.shape, (3, 2))
             assert_allclose(yi, array_type([[1.0, 5.0], [0.5, -0.5], [4.0, 5.0]]))
+
+    @parameterized.expand(WARN_TESTS)
+    def test_warn(self, input_param, input_data, expected_val):
+        with self.assertWarns(Warning):
+            result = RandHistogramShift(**input_param)(**input_data)
+            assert_allclose(result, expected_val, type_test="tensor")
 
 
 if __name__ == "__main__":

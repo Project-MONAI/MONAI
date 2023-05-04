@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
-from typing import List
 
 import torch
 from torch import nn
@@ -122,7 +123,7 @@ class Warp(nn.Module):
         if not USE_COMPILED:  # pytorch native grid_sample
             for i, dim in enumerate(grid.shape[1:-1]):
                 grid[..., i] = grid[..., i] * 2 / (dim - 1) - 1
-            index_ordering: List[int] = list(range(spatial_dims - 1, -1, -1))
+            index_ordering: list[int] = list(range(spatial_dims - 1, -1, -1))
             grid = grid[..., index_ordering]  # z, y, x -> x, y, z
             return F.grid_sample(
                 image, grid, mode=self._interp_mode, padding_mode=f"{self._padding_mode}", align_corners=True

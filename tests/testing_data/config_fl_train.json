@@ -1,6 +1,7 @@
 {
     "bundle_root": "tests/testing_data",
     "dataset_dir": "@bundle_root",
+    "val_interval": 1,
     "imports": [
         "$import os"
     ],
@@ -66,13 +67,6 @@
                 "min_zoom": 0.9,
                 "max_zoom": 1.1,
                 "prob": 0.5
-            },
-            {
-                "_target_": "ToTensord",
-                "keys": [
-                    "image",
-                    "label"
-                ]
             }
         ],
         "preprocessing": {
@@ -105,6 +99,12 @@
         },
         "handlers": [
             {
+                "_target_": "ValidationHandler",
+                "validator": "@validate#evaluator",
+                "epoch_level": true,
+                "interval": "@val_interval"
+            },
+            {
                 "_target_": "StatsHandler",
                 "tag_name": "train_loss",
                 "output_transform": "$monai.handlers.from_engine(['loss'], first=True)"
@@ -121,5 +121,96 @@
             "inferer": "@train#inferer",
             "train_handlers": "@train#handlers"
         }
-    }
+    },
+    "validate": {
+        "preprocessing": {
+            "_target_": "Compose",
+            "transforms": [
+                {
+                    "_target_": "LoadImaged",
+                    "keys": [
+                        "image"
+                    ],
+                    "image_only": true
+                },
+                {
+                    "_target_": "EnsureChannelFirstD",
+                    "keys": [
+                        "image"
+                    ]
+                },
+                {
+                    "_target_": "ScaleIntensityd",
+                    "keys": [
+                        "image"
+                    ]
+                }
+            ]
+        },
+        "dataset": {
+            "_target_": "Dataset",
+            "data": [
+                {
+                    "image": "$os.path.join(@dataset_dir, 'image0.jpeg')",
+                    "label": 0
+                },
+                {
+                    "image": "$os.path.join(@dataset_dir, 'image1.jpeg')",
+                    "label": 1
+                }
+            ],
+            "transform": "@validate#preprocessing"
+        },
+        "dataloader": {
+            "_target_": "DataLoader",
+            "dataset": "@validate#dataset",
+            "batch_size": 1,
+            "shuffle": false,
+            "num_workers": 2
+        },
+        "inferer": {
+            "_target_": "SimpleInferer"
+        },
+        "postprocessing": {
+            "_target_": "Compose",
+            "transforms": [
+                {
+                    "_target_": "Activationsd",
+                    "keys": "pred",
+                    "softmax": true
+                }
+            ]
+        },
+        "key_metric": {
+            "accuracy": {
+                "_target_": "ignite.metrics.Accuracy",
+                "output_transform": "$monai.handlers.from_engine(['pred', 'label'])"
+            }
+        },
+        "handlers": [
+            {
+                "_target_": "StatsHandler",
+                "iteration_log": false
+            }
+        ],
+        "evaluator": {
+            "_target_": "SupervisedEvaluator",
+            "device": "@device",
+            "val_data_loader": "@validate#dataloader",
+            "network": "@network",
+            "inferer": "@validate#inferer",
+            "val_handlers": "@validate#handlers",
+            "postprocessing": "@validate#postprocessing",
+            "key_val_metric": "@validate#key_metric"
+        }
+    },
+    "initialize": [
+        "$monai.utils.set_determinism(seed=123)"
+    ],
+    "run": [
+        "$@train#trainer.run()"
+    ],
+    "finalize": [
+        "$monai.utils.set_determinism(seed=None)"
+    ]
 }

@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Type, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import numpy as np
 import torch
@@ -40,8 +42,8 @@ class PatchEmbeddingBlock(nn.Module):
     def __init__(
         self,
         in_channels: int,
-        img_size: Union[Sequence[int], int],
-        patch_size: Union[Sequence[int], int],
+        img_size: Sequence[int] | int,
+        patch_size: Sequence[int] | int,
         hidden_size: int,
         num_heads: int,
         pos_embed: str,
@@ -137,10 +139,10 @@ class PatchEmbed(nn.Module):
 
     def __init__(
         self,
-        patch_size: Union[Sequence[int], int] = 2,
+        patch_size: Sequence[int] | int = 2,
         in_chans: int = 1,
         embed_dim: int = 48,
-        norm_layer: Type[LayerNorm] = nn.LayerNorm,
+        norm_layer: type[LayerNorm] = nn.LayerNorm,
         spatial_dims: int = 3,
     ) -> None:
         """

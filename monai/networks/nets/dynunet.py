@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Optional, Sequence, Tuple, Type, Union
+# isort: dont-add-import: from __future__ import annotations
+
+from typing import List, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -267,10 +269,11 @@ class DynUNet(nn.Module):
         out = self.skip_layers(x)
         out = self.output_block(out)
         if self.training and self.deep_supervision:
-            out_all = [out]
-            for feature_map in self.heads:
-                out_all.append(interpolate(feature_map, out.shape[2:]))
-            return torch.stack(out_all, dim=1)
+            out_all = torch.zeros(out.shape[0], len(self.heads) + 1, *out.shape[1:], device=out.device, dtype=out.dtype)
+            out_all[:, 0] = out
+            for idx, feature_map in enumerate(self.heads):
+                out_all[:, idx + 1] = interpolate(feature_map, out.shape[2:])
+            return out_all
         return out
 
     def get_input_block(self):
@@ -303,23 +306,29 @@ class DynUNet(nn.Module):
     def get_downsamples(self):
         inp, out = self.filters[:-2], self.filters[1:-1]
         strides, kernel_size = self.strides[1:-1], self.kernel_size[1:-1]
-        return self.get_module_list(inp, out, kernel_size, strides, self.conv_block)
+        return self.get_module_list(inp, out, kernel_size, strides, self.conv_block)  # type: ignore
 
     def get_upsamples(self):
         inp, out = self.filters[1:][::-1], self.filters[:-1][::-1]
         strides, kernel_size = self.strides[1:][::-1], self.kernel_size[1:][::-1]
         upsample_kernel_size = self.upsample_kernel_size[::-1]
         return self.get_module_list(
-            inp, out, kernel_size, strides, UnetUpBlock, upsample_kernel_size, trans_bias=self.trans_bias
+            inp,  # type: ignore
+            out,  # type: ignore
+            kernel_size,
+            strides,
+            UnetUpBlock,  # type: ignore
+            upsample_kernel_size,
+            trans_bias=self.trans_bias,
         )
 
     def get_module_list(
         self,
-        in_channels: Sequence[int],
-        out_channels: Sequence[int],
+        in_channels: List[int],
+        out_channels: List[int],
         kernel_size: Sequence[Union[Sequence[int], int]],
         strides: Sequence[Union[Sequence[int], int]],
-        conv_block: Type[nn.Module],
+        conv_block: nn.Module,
         upsample_kernel_size: Optional[Sequence[Union[Sequence[int], int]]] = None,
         trans_bias: bool = False,
     ):

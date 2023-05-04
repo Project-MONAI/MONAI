@@ -9,11 +9,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import sys
 import unittest
+from copy import deepcopy
+
+import numpy as np
+import torch
+from parameterized import parameterized
 
 from monai.data import DataLoader, Dataset
-from monai.transforms import AddChannel, Compose
+from monai.transforms import AddChannel, Compose, Flip, NormalizeIntensity, Rotate, Rotate90, Rotated, Zoom
+from monai.transforms.compose import execute_compose
 from monai.transforms.transform import Randomizable
 from monai.utils import set_determinism
 
@@ -54,8 +62,12 @@ class TestCompose(unittest.TestCase):
             d["b"] += 1
             return d
 
-        c = Compose([a, b, a, b, a])
-        self.assertDictEqual(c({"a": 0, "b": 0}), {"a": 3, "b": 2})
+        transforms = [a, b, a, b, a]
+        data = {"a": 0, "b": 0}
+        expected = {"a": 3, "b": 2}
+
+        self.assertDictEqual(Compose(transforms)(data), expected)
+        self.assertDictEqual(execute_compose(data, transforms), expected)
 
     def test_list_dict_compose(self):
         def a(d):  # transform to handle dict data
@@ -74,10 +86,15 @@ class TestCompose(unittest.TestCase):
             d["c"] += 1
             return d
 
-        transforms = Compose([a, a, b, c, c])
-        value = transforms({"a": 0, "b": 0, "c": 0})
+        transforms = [a, a, b, c, c]
+        data = {"a": 0, "b": 0, "c": 0}
+        expected = {"a": 2, "b": 1, "c": 2}
+        value = Compose(transforms)(data)
         for item in value:
-            self.assertDictEqual(item, {"a": 2, "b": 1, "c": 2})
+            self.assertDictEqual(item, expected)
+        value = execute_compose(data, transforms)
+        for item in value:
+            self.assertDictEqual(item, expected)
 
     def test_non_dict_compose_with_unpack(self):
         def a(i, i2):
@@ -86,8 +103,11 @@ class TestCompose(unittest.TestCase):
         def b(i, i2):
             return i + "b", i2 + "b2"
 
-        c = Compose([a, b, a, b], map_items=False, unpack_items=True)
-        self.assertEqual(c(("", "")), ("abab", "a2b2a2b2"))
+        transforms = [a, b, a, b]
+        data = ("", "")
+        expected = ("abab", "a2b2a2b2")
+        self.assertEqual(Compose(transforms, map_items=False, unpack_items=True)(data), expected)
+        self.assertEqual(execute_compose(data, transforms, map_items=False, unpack_items=True), expected)
 
     def test_list_non_dict_compose_with_unpack(self):
         def a(i, i2):
@@ -96,8 +116,11 @@ class TestCompose(unittest.TestCase):
         def b(i, i2):
             return i + "b", i2 + "b2"
 
-        c = Compose([a, b, a, b], unpack_items=True)
-        self.assertEqual(c([("", ""), ("t", "t")]), [("abab", "a2b2a2b2"), ("tabab", "ta2b2a2b2")])
+        transforms = [a, b, a, b]
+        data = [("", ""), ("t", "t")]
+        expected = [("abab", "a2b2a2b2"), ("tabab", "ta2b2a2b2")]
+        self.assertEqual(Compose(transforms, unpack_items=True)(data), expected)
+        self.assertEqual(execute_compose(data, transforms, unpack_items=True), expected)
 
     def test_list_dict_compose_no_map(self):
         def a(d):  # transform to handle dict data
@@ -117,10 +140,15 @@ class TestCompose(unittest.TestCase):
                 di["c"] += 1
             return d
 
-        transforms = Compose([a, a, b, c, c], map_items=False)
-        value = transforms({"a": 0, "b": 0, "c": 0})
+        transforms = [a, a, b, c, c]
+        data = {"a": 0, "b": 0, "c": 0}
+        expected = {"a": 2, "b": 1, "c": 2}
+        value = Compose(transforms, map_items=False)(data)
         for item in value:
-            self.assertDictEqual(item, {"a": 2, "b": 1, "c": 2})
+            self.assertDictEqual(item, expected)
+        value = execute_compose(data, transforms, map_items=False)
+        for item in value:
+            self.assertDictEqual(item, expected)
 
     def test_random_compose(self):
         class _Acc(Randomizable):
@@ -216,6 +244,109 @@ class TestCompose(unittest.TestCase):
 
     def test_backwards_compatible_imports(self):
         from monai.transforms.compose import MapTransform, RandomizableTransform, Transform  # noqa: F401
+
+
+TEST_COMPOSE_EXECUTE_TEST_CASES = [
+    [None, tuple()],
+    [None, (Rotate(np.pi / 8),)],
+    [None, (Flip(0), Flip(1), Rotate90(1), Zoom(0.8), NormalizeIntensity())],
+    [("a",), (Rotated(("a",), np.pi / 8),)],
+]
+
+
+class TestComposeExecute(unittest.TestCase):
+    @parameterized.expand(TEST_COMPOSE_EXECUTE_TEST_CASES)
+    def test_compose_execute_equivalence(self, keys, pipeline):
+        if keys is None:
+            data = torch.unsqueeze(torch.tensor(np.arange(24 * 32).reshape(24, 32)), axis=0)
+        else:
+            data = {}
+            for i_k, k in enumerate(keys):
+                data[k] = torch.unsqueeze(torch.tensor(np.arange(24 * 32)).reshape(24, 32) + i_k * 768, axis=0)
+
+        expected = Compose(deepcopy(pipeline))(data)
+
+        for cutoff in range(len(pipeline)):
+            c = Compose(deepcopy(pipeline))
+            actual = c(c(data, end=cutoff), start=cutoff)
+            if isinstance(actual, dict):
+                for k in actual.keys():
+                    self.assertTrue(torch.allclose(expected[k], actual[k]))
+            else:
+                self.assertTrue(torch.allclose(expected, actual))
+
+            p = deepcopy(pipeline)
+            actual = execute_compose(execute_compose(data, p, start=0, end=cutoff), p, start=cutoff)
+            if isinstance(actual, dict):
+                for k in actual.keys():
+                    self.assertTrue(torch.allclose(expected[k], actual[k]))
+            else:
+                self.assertTrue(torch.allclose(expected, actual))
+
+
+class TestOps:
+    @staticmethod
+    def concat(value):
+        def _inner(data):
+            return data + value
+
+        return _inner
+
+    @staticmethod
+    def concatd(value):
+        def _inner(data):
+            return {k: v + value for k, v in data.items()}
+
+        return _inner
+
+    @staticmethod
+    def concata(value):
+        def _inner(data1, data2):
+            return data1 + value, data2 + value
+
+        return _inner
+
+
+TEST_COMPOSE_EXECUTE_FLAG_TEST_CASES = [
+    [{}, ("",), (TestOps.concat("a"), TestOps.concat("b"))],
+    [{"unpack_items": True}, ("x", "y"), (TestOps.concat("a"), TestOps.concat("b"))],
+    [{"map_items": False}, {"x": "1", "y": "2"}, (TestOps.concatd("a"), TestOps.concatd("b"))],
+    [{"unpack_items": True, "map_items": False}, ("x", "y"), (TestOps.concata("a"), TestOps.concata("b"))],
+]
+
+
+class TestComposeExecuteWithFlags(unittest.TestCase):
+    @parameterized.expand(TEST_COMPOSE_EXECUTE_FLAG_TEST_CASES)
+    def test_compose_execute_equivalence_with_flags(self, flags, data, pipeline):
+        expected = Compose(pipeline, **flags)(data)
+
+        for cutoff in range(len(pipeline)):
+            c = Compose(deepcopy(pipeline), **flags)
+            actual = c(c(data, end=cutoff), start=cutoff)
+            if isinstance(actual, dict):
+                for k in actual.keys():
+                    self.assertEqual(expected[k], actual[k])
+            else:
+                self.assertTrue(expected, actual)
+
+            p = deepcopy(pipeline)
+            actual = execute_compose(execute_compose(data, p, start=0, end=cutoff, **flags), p, start=cutoff, **flags)
+            if isinstance(actual, dict):
+                for k in actual.keys():
+                    self.assertTrue(expected[k], actual[k])
+            else:
+                self.assertTrue(expected, actual)
+
+
+TEST_LAZY_COMPOSE_PIPELINE_FIX_CASES = [[(Flip(0), Flip(1), Rotate90(1), Zoom(0.8), NormalizeIntensity())]]
+
+
+class TestLazyComposePipelineFixes(unittest.TestCase):
+    @parameterized.expand(TEST_LAZY_COMPOSE_PIPELINE_FIX_CASES)
+    def test_lazy_compose_pipeline_fixes(self, pipeline):
+        data = torch.unsqueeze(torch.tensor(np.arange(12 * 16).reshape(12, 16)), dim=0)
+        c = Compose(deepcopy(pipeline), lazy_evaluation=True)
+        _ = c(data)
 
 
 if __name__ == "__main__":

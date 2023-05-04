@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union
+from __future__ import annotations
 
 import torch
 from torch.nn.modules.loss import _Loss
@@ -33,7 +33,7 @@ class BoxGIoULoss(_Loss):
             - ``"sum"``: the output will be summed.
     """
 
-    def __init__(self, reduction: Union[LossReduction, str] = LossReduction.MEAN) -> None:
+    def __init__(self, reduction: LossReduction | str = LossReduction.MEAN) -> None:
         super().__init__(reduction=LossReduction(reduction).value)
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:

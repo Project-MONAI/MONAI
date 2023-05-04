@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 from copy import deepcopy
 
@@ -17,6 +19,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import Affined
+from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose, test_local_inversion
 
 TESTS = []
@@ -73,6 +76,13 @@ for p in TEST_NDARRAYS_ALL:
         TESTS.append(
             [
                 dict(keys="img", padding_mode="zeros", spatial_size=(-1, 0, 0), device=device),
+                {"img": p(np.arange(27).reshape((1, 3, 3, 3)))},
+                p(np.arange(27).reshape(1, 3, 3, 3)),
+            ]
+        )
+        TESTS.append(
+            [
+                dict(keys="img", padding_mode="zeros", spatial_size=(-1, 0, 0), device=device, align_corners=False),
                 {"img": p(np.arange(27).reshape((1, 3, 3, 3)))},
                 p(np.arange(27).reshape(1, 3, 3, 3)),
             ]
@@ -165,6 +175,15 @@ class TestAffined(unittest.TestCase):
         result = g(input_data)
         test_local_inversion(g, result, input_copy, dict_key="img")
         assert_allclose(result["img"], expected_val, rtol=1e-4, atol=1e-4, type_test="tensor")
+
+        # test lazy
+        lazy_input_param = input_param.copy()
+        for align_corners in [True, False]:
+            lazy_input_param["align_corners"] = align_corners
+            resampler = Affined(**lazy_input_param)
+            call_param = {"data": input_data}
+            non_lazy_result = resampler(**call_param)
+            test_resampler_lazy(resampler, non_lazy_result, lazy_input_param, call_param, output_key="img")
 
 
 if __name__ == "__main__":

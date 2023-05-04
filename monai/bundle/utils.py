@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import json
 import os
 import zipfile
@@ -156,7 +158,7 @@ DEFAULT_MLFLOW_SETTINGS = {
 DEFAULT_EXP_MGMT_SETTINGS = {"mlflow": DEFAULT_MLFLOW_SETTINGS}  # default experiment management settings
 
 
-def load_bundle_config(bundle_path: str, *config_names, **load_kw_args) -> Any:
+def load_bundle_config(bundle_path: str, *config_names: str, **load_kw_args: Any) -> Any:
     """
     Load the metadata and nominated configuration files from a MONAI bundle without loading the network itself.
 

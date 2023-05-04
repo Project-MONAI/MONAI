@@ -9,22 +9,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
-import numpy
+import numpy as np
 import torch
 
 from monai.metrics import FBetaScore
 from tests.utils import assert_allclose
 
+_device = "cuda:0" if torch.cuda.is_available() else "cpu"
+
 
 class TestFBetaScore(unittest.TestCase):
-    def test_expecting_success(self):
+    def test_expecting_success_and_device(self):
         metric = FBetaScore()
-        metric(
-            y_pred=torch.Tensor([[1, 1, 1], [1, 1, 1], [1, 1, 1]]), y=torch.Tensor([[1, 0, 1], [0, 1, 0], [1, 0, 1]])
-        )
-        assert_allclose(metric.aggregate()[0], torch.Tensor([0.714286]), atol=1e-6, rtol=1e-6)
+        y_pred = torch.tensor([[1, 1, 1], [1, 1, 1], [1, 1, 1]], device=_device)
+        y = torch.tensor([[1, 0, 1], [0, 1, 0], [1, 0, 1]], device=_device)
+        metric(y_pred=y_pred, y=y)
+        result = metric.aggregate()[0]
+        assert_allclose(result, torch.Tensor([0.714286]), atol=1e-6, rtol=1e-6)
+        np.testing.assert_equal(result.device, y_pred.device)
 
     def test_expecting_success2(self):
         metric = FBetaScore(beta=0.5)
@@ -56,7 +62,7 @@ class TestFBetaScore(unittest.TestCase):
         metric = FBetaScore(get_not_nans=True)
         metric(
             y_pred=torch.Tensor([[1, 1, 1], [1, 1, 1], [1, 1, 1]]),
-            y=torch.Tensor([[1, 0, 1], [numpy.NaN, numpy.NaN, numpy.NaN], [1, 0, 1]]),
+            y=torch.Tensor([[1, 0, 1], [np.NaN, np.NaN, np.NaN], [1, 0, 1]]),
         )
         assert_allclose(metric.aggregate()[0][0], torch.Tensor([0.727273]), atol=1e-6, rtol=1e-6)
 
