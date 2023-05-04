@@ -18,7 +18,7 @@ from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
 from contextlib import contextmanager
 from functools import lru_cache, wraps
 from inspect import getmembers, isclass
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
