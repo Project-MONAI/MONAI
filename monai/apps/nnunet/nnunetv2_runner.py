@@ -64,6 +64,9 @@ class nnUNetV2Runner:  # noqa: N801
             - ``"nnUNet_trained_models"``
             - ``"dataset_name_or_id"``: Name or Integer ID of the dataset
             If an optional key is not specified, then the pipeline will use the default values.
+        trainer_class_name: the trainer class names offered by nnUNetV2 exhibit variations in training duration.
+            Default: "nnUNetTrainer". Other options: "nnUNetTrainer_Xepoch". X could be one of 1,5,10,20,50,100,
+            250,2000,4000,8000.
         work_dir: working directory to save the intermediate and final results.
 
     Examples:
@@ -502,9 +505,6 @@ class nnUNetV2Runner:  # noqa: N801
                     - disable_checkpointing: True to disable checkpointing. Ideal for testing things out and you
                         don't want to flood your hard drive with checkpoints. Default: False.
         """
-        if isinstance(gpu_id, str):
-            gpu_id = tuple(map(int, gpu_id.replace('"', "").split(",")))
-
         if isinstance(gpu_id, tuple):
             if len(gpu_id) > 1:
                 gpu_ids_str = ""
@@ -519,13 +519,20 @@ class nnUNetV2Runner:  # noqa: N801
         from nnunetv2.run.run_training import run_training
 
         if isinstance(gpu_id, int):
-            run_training(dataset_name_or_id=self.dataset_name_or_id, configuration=config, fold=fold, **kwargs)
+            run_training(
+                dataset_name_or_id=self.dataset_name_or_id,
+                configuration=config,
+                fold=fold,
+                trainer_class_name=self.trainer_class_name,
+                **kwargs,
+            )
         else:
             run_training(
                 dataset_name_or_id=self.dataset_name_or_id,
                 configuration=config,
                 fold=fold,
                 num_gpus=len(gpu_id),
+                trainer_class_name=self.trainer_class_name,
                 **kwargs,
             )
 
@@ -547,7 +554,6 @@ class nnUNetV2Runner:  # noqa: N801
             kwargs: this optional parameter allows you to specify additional arguments defined in the
                 ``train_single_model`` method.
         """
-
         if device_ids is None:
             result = subprocess.run(["nvidia-smi", "--list-gpus"], stdout=subprocess.PIPE)
             output = result.stdout.decode("utf-8")
@@ -555,18 +561,11 @@ class nnUNetV2Runner:  # noqa: N801
             device_ids = tuple(range(num_gpus))
         logger.info(f"number of GPUs is {len(device_ids)}, device ids are {device_ids}")
         if len(device_ids) > 1:
-            self.train_parallel(
-                configs=ensure_tuple(configs),
-                device_ids=device_ids,
-                trainer_class_name=self.trainer_class_name,
-                **kwargs,
-            )
+            self.train_parallel(configs=ensure_tuple(configs), device_ids=device_ids, **kwargs)
         else:
             for cfg in ensure_tuple(configs):
                 for _fold in range(self.num_folds):
-                    self.train_single_model(
-                        config=cfg, fold=_fold, trainer_class_name=self.trainer_class_name, **kwargs
-                    )
+                    self.train_single_model(config=cfg, fold=_fold, **kwargs)
 
     def train_parallel_cmd(
         self,
@@ -618,7 +617,8 @@ class nnUNetV2Runner:  # noqa: N801
                         cmd = (
                             "python -m monai.apps.nnunet nnUNetV2Runner train_single_model "
                             + f"--input_config '{self.input_config_or_dict}' --work_dir '{self.work_dir}' "
-                            + f"--config '{_config}' --fold {_i} --gpu_id {the_device}"
+                            + f"--config '{_config}' --fold {_i} --gpu_id {the_device} "
+                            + f"--trainer_class_name {self.trainer_class_name}"
                         )
                         for _key, _value in kwargs.items():
                             cmd += f" --{_key} {_value}"
@@ -660,7 +660,7 @@ class nnUNetV2Runner:  # noqa: N801
                 if not stage[device_id]:
                     continue
                 cmd_str = "; ".join(stage[device_id])
-                logger.info(f"\ncurrent command:\n{cmd_str}")
+                logger.info(f"Current running command on GPU device {device_id}:\n{cmd_str}\n")
                 processes.append(subprocess.Popen(cmd_str, shell=True, stdout=subprocess.DEVNULL))
             # finish this stage first
             for p in processes:
