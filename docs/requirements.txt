@@ -37,4 +37,3 @@ optuna
 opencv-python-headless
 onnx>=1.13.0
 onnxruntime; python_version <= '3.10'
-urllib3<2  # https://github.com/Project-MONAI/MONAI/issues/6473
