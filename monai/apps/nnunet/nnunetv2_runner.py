@@ -141,9 +141,12 @@ class nnUNetV2Runner:  # noqa: N801
 
     """
 
-    def __init__(self, input_config: Any, work_dir: str = "work_dir") -> None:
+    def __init__(
+        self, input_config: Any, trainer_class_name: str = "nnUNetTrainer", work_dir: str = "work_dir"
+    ) -> None:
         self.input_info: dict = {}
         self.input_config_or_dict = input_config
+        self.trainer_class_name = trainer_class_name
         self.work_dir = work_dir
 
         if isinstance(self.input_config_or_dict, dict):
@@ -470,7 +473,7 @@ class nnUNetV2Runner:  # noqa: N801
         if not no_pp:
             self.preprocess(c, n_proc, overwrite_plans_name, verbose)
 
-    def train_single_model(self, config: Any, fold: int, gpu_id: int = 0, **kwargs: Any) -> None:
+    def train_single_model(self, config: Any, fold: int, gpu_id: int | str | tuple = 0, **kwargs: Any) -> None:
         """
         Run the training on a single GPU with one specified configuration provided.
         Note: this will override the environment variable `CUDA_VISIBLE_DEVICES`.
@@ -478,7 +481,8 @@ class nnUNetV2Runner:  # noqa: N801
         Args:
             config: configuration that should be trained. Examples: "2d", "3d_fullres", "3d_lowres".
             fold: fold of the 5-fold cross-validation. Should be an int between 0 and 4.
-            gpu_id: an integer to select the device to use. Default: 0.
+            gpu_id: an integer to select the device to use, or a str/tuple of device indices used for multi-GPU
+                training (e.g., "0,1"). Default: 0.
         from nnunetv2.run.run_training import run_training
             kwargs: this optional parameter allows you to specify additional arguments in
                 ``nnunetv2.run.run_training.run_training``. Currently supported args are
@@ -498,11 +502,32 @@ class nnUNetV2Runner:  # noqa: N801
                     - disable_checkpointing: True to disable checkpointing. Ideal for testing things out and you
                         don't want to flood your hard drive with checkpoints. Default: False.
         """
-        os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_id}"
+        if isinstance(gpu_id, str):
+            gpu_id = tuple(map(int, gpu_id.replace('"', "").split(",")))
+
+        if isinstance(gpu_id, tuple):
+            if len(gpu_id) > 1:
+                gpu_ids_str = ""
+                for _i in range(len(gpu_id)):
+                    gpu_ids_str += f"{gpu_id[_i]},"
+                os.environ["CUDA_VISIBLE_DEVICES"] = gpu_ids_str[:-1]
+            else:
+                os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_id[0]}"
+        else:
+            os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_id}"
 
         from nnunetv2.run.run_training import run_training
 
-        run_training(dataset_name_or_id=self.dataset_name_or_id, configuration=config, fold=fold, **kwargs)
+        if isinstance(gpu_id, int):
+            run_training(dataset_name_or_id=self.dataset_name_or_id, configuration=config, fold=fold, **kwargs)
+        else:
+            run_training(
+                dataset_name_or_id=self.dataset_name_or_id,
+                configuration=config,
+                fold=fold,
+                num_gpus=len(gpu_id),
+                **kwargs,
+            )
 
     def train(
         self,
@@ -530,11 +555,18 @@ class nnUNetV2Runner:  # noqa: N801
             device_ids = tuple(range(num_gpus))
         logger.info(f"number of GPUs is {len(device_ids)}, device ids are {device_ids}")
         if len(device_ids) > 1:
-            self.train_parallel(configs=ensure_tuple(configs), device_ids=device_ids, **kwargs)
+            self.train_parallel(
+                configs=ensure_tuple(configs),
+                device_ids=device_ids,
+                trainer_class_name=self.trainer_class_name,
+                **kwargs,
+            )
         else:
             for cfg in ensure_tuple(configs):
                 for _fold in range(self.num_folds):
-                    self.train_single_model(config=cfg, fold=_fold, **kwargs)
+                    self.train_single_model(
+                        config=cfg, fold=_fold, trainer_class_name=self.trainer_class_name, **kwargs
+                    )
 
     def train_parallel_cmd(
         self,
