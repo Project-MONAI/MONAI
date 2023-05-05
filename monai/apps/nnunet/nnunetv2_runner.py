@@ -650,7 +650,7 @@ class nnUNetV2Runner:  # noqa: N801
                 if not gpu_cmd:
                     continue
                 logger.info(
-                    f"\ntraining - stage {s + 1}:\n"
+                    f"training - stage {s + 1}:\n"
                     f"for gpu {gpu_id}, commands: {gpu_cmd}\n"
                     f"log '.txt' inside '{os.path.join(self.nnunet_results, self.dataset_name)}'"
                 )
