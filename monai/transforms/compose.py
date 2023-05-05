@@ -179,7 +179,7 @@ class ComposeCompiler:
 
             action = option[v]
 
-            return action(transforms=transforms, lazy=lazy)
+            return action(transforms=transforms, lazy=lazy)  # type: ignore[operator]
 
     @classmethod
     def reorder_lazy_last(cls, *, transforms: list, lazy: bool | None, **kwargs):
