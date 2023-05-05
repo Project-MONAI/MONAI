@@ -473,7 +473,7 @@ class nnUNetV2Runner:  # noqa: N801
         if not no_pp:
             self.preprocess(c, n_proc, overwrite_plans_name, verbose)
 
-    def train_single_model(self, config: Any, fold: int, gpu_id: int | str | tuple = 0, **kwargs: Any) -> None:
+    def train_single_model(self, config: Any, fold: int, gpu_id: int | tuple = 0, **kwargs: Any) -> None:
         """
         Run the training on a single GPU with one specified configuration provided.
         Note: this will override the environment variable `CUDA_VISIBLE_DEVICES`.
@@ -481,8 +481,8 @@ class nnUNetV2Runner:  # noqa: N801
         Args:
             config: configuration that should be trained. Examples: "2d", "3d_fullres", "3d_lowres".
             fold: fold of the 5-fold cross-validation. Should be an int between 0 and 4.
-            gpu_id: an integer to select the device to use, or a str/tuple of device indices used for multi-GPU
-                training (e.g., "0,1"). Default: 0.
+            gpu_id: an integer to select the device to use, or a tuple of GPU device indices used for multi-GPU
+                training (e.g., (0,1)). Default: 0.
         from nnunetv2.run.run_training import run_training
             kwargs: this optional parameter allows you to specify additional arguments in
                 ``nnunetv2.run.run_training.run_training``. Currently supported args are
@@ -660,6 +660,7 @@ class nnUNetV2Runner:  # noqa: N801
                 if not stage[device_id]:
                     continue
                 cmd_str = "; ".join(stage[device_id])
+                logger.info(f"\ncurrent command:\n{cmd_str}")
                 processes.append(subprocess.Popen(cmd_str, shell=True, stdout=subprocess.DEVNULL))
             # finish this stage first
             for p in processes:
