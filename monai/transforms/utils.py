@@ -409,9 +409,7 @@ def map_classes_to_indices(
         if img_flat is not None:
             label_flat = img_flat & label_flat
         # no need to save the indices in GPU, otherwise, still need to move to CPU at runtime when crop by indices
-        output_type = (
-            torch.Tensor if isinstance(label, monai.data.MetaTensor) else type(label)
-        )  # output in tensor or ndarray
+        output_type = torch.Tensor if isinstance(label, monai.data.MetaTensor) else None
         cls_indices: NdarrayOrTensor = convert_data_type(
             nonzero(label_flat), output_type=output_type, device=torch.device("cpu")
         )[0]
