@@ -32,7 +32,7 @@ class ApplyPendingd(InvertibleTrait, MapTransform):
     """
 
     def __init__(self, keys: KeysCollection):
-        self.keys = keys
+        super().__init__(keys)
 
     def __call__(self, data):
         if not isinstance(data, dict):

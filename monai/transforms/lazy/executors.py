@@ -11,9 +11,10 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Sequence, Mapping
 
 from monai.apps.utils import get_logger
+from monai.config import NdarrayOrTensor
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.lazy.array import ApplyPending
 from monai.transforms.lazy.dictionary import ApplyPendingd
@@ -104,7 +105,10 @@ def patch_for_in_order_needs_implicit_apply_pending(transform, data, lazy, overr
 
 
 def apply_pending_transforms(
-    data: dict, keys: tuple | None, overrides: dict | None = None, logger_name: str | None = None
+    data: NdarrayOrTensor | Sequence[NdarrayOrTensor] | Mapping[Any, NdarrayOrTensor],
+    keys: tuple | None,
+    overrides: dict | None = None,
+    logger_name: str | None = None
 ):
     """
     apply_pending_transforms is called with either a tensor or a dictionary, some entries of which contain
@@ -198,8 +202,7 @@ def apply_pending_transforms_in_order(
         _log_pending_info(transform, data, "Apply pending transforms", lazy=lazy, logger_name=logger_name)
         return apply_pending_transforms(data, None, overrides, logger_name)
 
-    if lazy is not False:
-        patch_for_in_order_needs_implicit_apply_pending(transform, data, lazy, overrides, logger_name)
+    patch_for_in_order_needs_implicit_apply_pending(transform, data, lazy, overrides, logger_name)
 
     _log_pending_info(transform, data, "Accumulate pending transforms", lazy=lazy, logger_name=logger_name)
 

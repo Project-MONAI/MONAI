@@ -148,7 +148,9 @@ class ComposeCompiler:
 
     def __call__(self, transforms, lazy: bool | None, options: dict | None = None):
         """
-        Get a policy object that controls the way `Compose`_ executes a list of transforms.
+        Get a policy object that controls the way `Compose`_ executes a list of transforms. At present, the user can
+        only specify a single flag, but this design will be extended in future releases to allow multiple flags to
+        control different aspects of transform execution.
 
         Args:
             transforms: a list of transforms to be executed
@@ -181,6 +183,27 @@ class ComposeCompiler:
 
     @classmethod
     def reorder_lazy_last(cls, *, transforms: list, lazy: bool | None, **kwargs):
+        """
+        'reorder_lazy_last` effectively reorders a sequence of transforms so that lazy transforms are grouped together
+        after non-lazy ones. This operation can significantly change the behaviour of your pipeline and so should only
+        be used once you are clear about its behaviour.
+
+        Example::
+
+            transforms = [LoadImage, Flip, GaussianNoise, Rotate90, ApplyPending, Zoom, Rotate]
+
+            # ApplyPending effectively splits the pipeline up into two subranges. No transform can move after or before
+            # an ApplyPending instance, so we end up with transforms before and after ApplyPending
+
+            sub_ranges = [[LoadImage, Flip, GaussianNoise, Rotate90], [ApplyPending], [Zoom, Rotate]]
+
+            # Each subrange is then sorted so that non-lazy transform stay in their relative order but go before the
+            # lazy transforms (which also stay in their relative order)
+
+            sub_ranges = [[LoadImage, GaussianNoise, Flip, Rotate90], [Apply
+
+        ::
+        """
         subsections = list()
         subsection_starts = list()
         # pass 1: split the transform list into subsections
