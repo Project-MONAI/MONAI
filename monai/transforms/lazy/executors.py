@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Sequence, Mapping
+from typing import Any, Mapping, Sequence
 
 from monai.apps.utils import get_logger
 from monai.config import NdarrayOrTensor
@@ -108,7 +108,7 @@ def apply_pending_transforms(
     data: NdarrayOrTensor | Sequence[NdarrayOrTensor] | Mapping[Any, NdarrayOrTensor],
     keys: tuple | None,
     overrides: dict | None = None,
-    logger_name: str | None = None
+    logger_name: str | None = None,
 ):
     """
     apply_pending_transforms is called with either a tensor or a dictionary, some entries of which contain
