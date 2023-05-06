@@ -67,6 +67,9 @@ class nnUNetV2Runner:  # noqa: N801
         trainer_class_name: the trainer class names offered by nnUNetV2 exhibit variations in training duration.
             Default: "nnUNetTrainer". Other options: "nnUNetTrainer_Xepoch". X could be one of 1,5,10,20,50,100,
             250,2000,4000,8000.
+        export_validation_probabilities: True to save softmax predictions from final validation as npz
+            files (in addition to predicted segmentations). Needed for finding the best ensemble.
+            Default: True.
         work_dir: working directory to save the intermediate and final results.
 
     Examples:
@@ -145,11 +148,16 @@ class nnUNetV2Runner:  # noqa: N801
     """
 
     def __init__(
-        self, input_config: Any, trainer_class_name: str = "nnUNetTrainer", work_dir: str = "work_dir"
+        self,
+        input_config: Any,
+        trainer_class_name: str = "nnUNetTrainer",
+        work_dir: str = "work_dir",
+        export_validation_probabilities: bool = True,
     ) -> None:
         self.input_info: dict = {}
         self.input_config_or_dict = input_config
         self.trainer_class_name = trainer_class_name
+        self.export_validation_probabilities = export_validation_probabilities
         self.work_dir = work_dir
 
         if isinstance(self.input_config_or_dict, dict):
@@ -496,9 +504,6 @@ class nnUNetV2Runner:  # noqa: N801
                     - use_compressed_data: True to use compressed data for training. Reading compressed data is much
                         more CPU and (potentially) RAM intensive and should only be used if you know what you are
                         doing. Default: False.
-                    - export_validation_probabilities: True to save softmax predictions from final validation as npz
-                        files (in addition to predicted segmentations). Needed for finding the best ensemble.
-                        Default: False.
                     - continue_training: continue training from latest checkpoint. Default: False.
                     - only_run_validation: True to run the validation only. Requires training to have finished.
                         Default: False.
@@ -524,6 +529,7 @@ class nnUNetV2Runner:  # noqa: N801
                 configuration=config,
                 fold=fold,
                 trainer_class_name=self.trainer_class_name,
+                export_validation_probabilities=self.export_validation_probabilities,
                 **kwargs,
             )
         else:
@@ -533,6 +539,7 @@ class nnUNetV2Runner:  # noqa: N801
                 fold=fold,
                 num_gpus=len(gpu_id),
                 trainer_class_name=self.trainer_class_name,
+                export_validation_probabilities=self.export_validation_probabilities,
                 **kwargs,
             )
 
@@ -618,7 +625,8 @@ class nnUNetV2Runner:  # noqa: N801
                             "python -m monai.apps.nnunet nnUNetV2Runner train_single_model "
                             + f"--input_config '{self.input_config_or_dict}' --work_dir '{self.work_dir}' "
                             + f"--config '{_config}' --fold {_i} --gpu_id {the_device} "
-                            + f"--trainer_class_name {self.trainer_class_name}"
+                            + f"--trainer_class_name {self.trainer_class_name} "
+                            + f"--export_validation_probabilities {self.export_validation_probabilities}"
                         )
                         for _key, _value in kwargs.items():
                             cmd += f" --{_key} {_value}"
@@ -698,7 +706,7 @@ class nnUNetV2Runner:  # noqa: N801
         self,
         plans: tuple | str = "nnUNetPlans",
         configs: tuple | str = (M.N_2D, M.N_3D_FULLRES, M.N_3D_LOWRES, M.N_3D_CASCADE_FULLRES),
-        trainers: tuple | str = "nnUNetTrainer",
+        trainers: tuple | str | None = None,
         allow_ensembling: bool = True,
         num_processes: int = -1,
         overwrite: bool = True,
@@ -726,6 +734,9 @@ class nnUNetV2Runner:  # noqa: N801
 
         configs = ensure_tuple(configs)
         plans = ensure_tuple(plans)
+
+        if trainers == None:
+            trainers = self.trainer_class_name
         trainers = ensure_tuple(trainers)
 
         models = dumb_trainer_config_plans_to_trained_models_dict(trainers, configs, plans)
