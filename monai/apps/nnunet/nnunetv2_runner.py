@@ -484,7 +484,7 @@ class nnUNetV2Runner:  # noqa: N801
         if not no_pp:
             self.preprocess(c, n_proc, overwrite_plans_name, verbose)
 
-    def train_single_model(self, config: Any, fold: int, gpu_id: int | tuple = 0, **kwargs: Any) -> None:
+    def train_single_model(self, config: Any, fold: int, gpu_id: tuple | list | int = 0, **kwargs: Any) -> None:
         """
         Run the training on a single GPU with one specified configuration provided.
         Note: this will override the environment variable `CUDA_VISIBLE_DEVICES`.
@@ -514,7 +514,7 @@ class nnUNetV2Runner:  # noqa: N801
             kwargs.pop("num_gpus")
             logger.warning("please use device_id to set the GPUs to use")
 
-        if isinstance(gpu_id, tuple):
+        if isinstance(gpu_id, tuple) or isinstance(gpu_id, list):
             if len(gpu_id) > 1:
                 gpu_ids_str = ""
                 for _i in range(len(gpu_id)):
@@ -550,7 +550,7 @@ class nnUNetV2Runner:  # noqa: N801
     def train(
         self,
         configs: tuple | str = (M.N_3D_FULLRES, M.N_2D, M.N_3D_LOWRES, M.N_3D_CASCADE_FULLRES),
-        device_ids: tuple | None = None,
+        device_ids: tuple | list | None = None,
         **kwargs: Any,
     ) -> None:
         """
