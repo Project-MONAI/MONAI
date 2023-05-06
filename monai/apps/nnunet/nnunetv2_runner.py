@@ -735,7 +735,7 @@ class nnUNetV2Runner:  # noqa: N801
         configs = ensure_tuple(configs)
         plans = ensure_tuple(plans)
 
-        if trainers == None:
+        if trainers is None:
             trainers = self.trainer_class_name
         trainers = ensure_tuple(trainers)
 
