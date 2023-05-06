@@ -492,7 +492,7 @@ class nnUNetV2Runner:  # noqa: N801
         Args:
             config: configuration that should be trained. Examples: "2d", "3d_fullres", "3d_lowres".
             fold: fold of the 5-fold cross-validation. Should be an int between 0 and 4.
-            gpu_id: an integer to select the device to use, or a tuple of GPU device indices used for multi-GPU
+            gpu_id: an integer to select the device to use, or a tuple/list of GPU device indices used for multi-GPU
                 training (e.g., (0,1)). Default: 0.
         from nnunetv2.run.run_training import run_training
             kwargs: this optional parameter allows you to specify additional arguments in
