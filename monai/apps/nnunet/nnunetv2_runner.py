@@ -712,9 +712,9 @@ class nnUNetV2Runner:  # noqa: N801
             plans: list of plan identifiers. Default: nnUNetPlans.
             configs: list of configurations. Default: ["2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres"].
             trainers: list of trainers. Default: nnUNetTrainer.
-            allow_ensembling: Set this flag to enable ensembling.
+            allow_ensembling: set this flag to enable ensembling.
             num_processes: number of processes to use for ensembling, postprocessing, etc.
-            overwrite: If set we will overwrite already ensembled files etc. May speed up consecutive
+            overwrite: if set we will overwrite already ensembled files etc. May speed up consecutive
                 runs of this command (not recommended) at the risk of not updating outdated results.
             folds: folds to use. Default: (0, 1, 2, 3, 4).
             strict: a switch that triggers RunTimeError if the logging folder cannot be found. Default: False.
