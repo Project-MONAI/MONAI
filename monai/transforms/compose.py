@@ -131,9 +131,9 @@ def execute_compose(
     return data
 
 
-class ComposeCompiler:
+class ExecutionOptions:
     """
-    The ComposeCompiler is an implementation class that is required to parse options for Compose. It should currently
+    ExecutionOptions is an implementation class that is required to parse options for Compose. It should currently
     be considered an implementation detail that should not be interacted with directly by users of MONAI, although that
     may change in subsequent releases. Its job is to parse options provided to `Compose.__call__`_ to set execution
     modes for lazy resampling.
@@ -162,7 +162,7 @@ class ComposeCompiler:
 
         """
         if lazy is False or options is None:
-            return ComposeCompiler.generate_policy()
+            return ExecutionOptions.generate_policy()
 
         if len(options.keys()) > 1:
             raise ValueError("Only one option can currently be set")
@@ -242,7 +242,7 @@ class ComposeCompiler:
             ]
             reordered.extend(subsection)
 
-        return ComposeCompiler.generate_policy({"indices": permuted_indices})
+        return ExecutionOptions.generate_policy({"indices": permuted_indices})
 
     @classmethod
     def reorder_lazy_last_nosync(cls, *, transforms: list, **_):
@@ -511,7 +511,7 @@ class Compose(Randomizable, InvertibleTransform):
 
     def __call__(self, input_, start=0, end=None, threading=False, lazy: bool | None = None):
         lazy_ = self.lazy if lazy is None else lazy
-        policy = ComposeCompiler()(self.transforms, lazy_, self.options)
+        policy = ExecutionOptions()(self.transforms, lazy_, self.options)
         lazy_strategy = policy["lazy_policy"]
         indices = policy["indices"]
 
@@ -544,38 +544,31 @@ class Compose(Randomizable, InvertibleTransform):
         return result
 
     def inverse(self, data):
-        if self.options is not None:
-            compiler = ComposeCompiler()
-            policy = compiler(self.transforms, self.lazy, self.options)
-        else:
-            policy = ComposeCompiler().generate_policy()
-
+        policy = ExecutionOptions()(self.transforms, self.lazy, self.options)
         indices = policy["indices"]
 
         self._raise_if_tensor_is_not_invertible(data)
 
-        data_ = deepcopy(data)
-
         if indices is not None:
             applied_order = None
-            if isinstance(data_, monai.data.MetaTensor):
-                applied_order = self.pop_transform(data_)[TraceKeys.EXTRA_INFO]["applied_order"]
-            elif isinstance(data_, Mapping):
-                for key in data_:
-                    if isinstance(data_[key], monai.data.MetaTensor) or self.trace_key(key) in data_:
-                        applied_order = self.pop_transform(data_, key)[TraceKeys.EXTRA_INFO]["applied_order"]
+            if isinstance(data, monai.data.MetaTensor):
+                applied_order = self.pop_transform(data)[TraceKeys.EXTRA_INFO]["applied_order"]
+            elif isinstance(data, Mapping):
+                for key in data:
+                    if isinstance(data[key], monai.data.MetaTensor) or self.trace_key(key) in data:
+                        applied_order = self.pop_transform(data, key)[TraceKeys.EXTRA_INFO]["applied_order"]
             else:
                 raise RuntimeError(
                     f"Inverse only implemented for Mapping (dictionary) or MetaTensor data, got type {type(data)}."
                 )
             if applied_order is None:
                 # no invertible transforms have been applied
-                return data_
+                return data
 
             # loop backwards over transforms
             for o in reversed(applied_order):
                 if isinstance(self.transforms[o], InvertibleTransform):
-                    data_ = apply_transform(self.transforms[o].inverse, data_, self.map_items, self.unpack_items)
+                    data = apply_transform(self.transforms[o].inverse, data, self.map_items, self.unpack_items)
         else:
             invertible_transforms = [t for t in self.flatten().transforms if isinstance(t, InvertibleTransform)]
             if not invertible_transforms:
@@ -593,10 +586,10 @@ class Compose(Randomizable, InvertibleTransform):
                 #         f"inversing {t.__class__.__name__} lazily may not implemented"
                 #         "please set `lazy=False` before calling inverse."
                 #     )
-                data_ = apply_transform(
-                    t.inverse, data_, self.map_items, self.unpack_items, lazy=False, logger_name=self.logger_name
+                data = apply_transform(
+                    t.inverse, data, self.map_items, self.unpack_items, lazy=False, logger_name=self.logger_name
                 )
-        return data_
+        return data
 
     @staticmethod
     def _raise_if_tensor_is_not_invertible(data: Any):

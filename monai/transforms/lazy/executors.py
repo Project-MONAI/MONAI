@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Mapping, Sequence
+from typing import Any, Mapping
 
 from monai.apps.utils import get_logger
 from monai.config import NdarrayOrTensor
@@ -105,7 +105,7 @@ def patch_for_in_order_needs_implicit_apply_pending(transform, data, lazy, overr
 
 
 def apply_pending_transforms(
-    data: NdarrayOrTensor | Sequence[NdarrayOrTensor] | Mapping[Any, NdarrayOrTensor],
+    data: NdarrayOrTensor | Mapping[Any, NdarrayOrTensor],
     keys: tuple | None,
     overrides: dict | None = None,
     logger_name: str | None = None,
@@ -126,7 +126,7 @@ def apply_pending_transforms(
     you are developing functionality to perform such operations.
 
     Args:
-        data: a ``torch.Tensor`` or ``MetaTensor``, or list, tuple or dictionary of tensors.
+        data: a ``torch.Tensor`` or ``MetaTensor``, or dictionary of tensors.
         keys: an optional tuple of keys that filters the keys on 'data' if it is a dict
         overrides: An optional dictionary that specifies parameters that can be used to override transform
             arguments when they are called. When 'data' is a dict, this dictionary should contain a dictionary
