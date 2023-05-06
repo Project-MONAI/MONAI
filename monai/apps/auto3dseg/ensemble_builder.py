@@ -459,6 +459,9 @@ class EnsembleRunner:
             os.makedirs(output_dir, exist_ok=True)
             logger.info(f"Directory {output_dir} is created to save ensemble predictions")
 
+        input_yaml = ConfigParser.load_config_file(self.data_src_cfg_name)
+        data_root_dir = input_yaml.get("dataroot", "")
+
         save_image = {
             "_target_": "SaveImage",
             "output_dir": output_dir,
@@ -467,6 +470,8 @@ class EnsembleRunner:
             "resample": kwargs.pop("resample", False),
             "print_log": False,
             "savepath_in_metadict": True,
+            "data_root_dir": kwargs.pop("data_root_dir", data_root_dir),
+            "separate_folder": kwargs.pop("separate_folder", False),
         }
 
         are_all_args_save_image, extra_args = check_kwargs_exist_in_class_init(SaveImage, kwargs)
