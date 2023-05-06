@@ -570,7 +570,7 @@ class nnUNetV2Runner:  # noqa: N801
     def train_parallel_cmd(
         self,
         configs: tuple | str = (M.N_3D_FULLRES, M.N_2D, M.N_3D_LOWRES, M.N_3D_CASCADE_FULLRES),
-        device_ids: tuple | None = None,
+        device_ids: tuple | list | None = None,
         **kwargs: Any,
     ) -> list:
         """
@@ -579,7 +579,7 @@ class nnUNetV2Runner:  # noqa: N801
         Args:
             configs: configurations that should be trained.
                 Default: ("2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres").
-            device_ids: a tuple of GPU device IDs to use for the training. Default: None (all available GPUs).
+            device_ids: a tuple/list of GPU device IDs to use for the training. Default: None (all available GPUs).
             kwargs: this optional parameter allows you to specify additional arguments defined in the
                 ``train_single_model`` method.
         """
