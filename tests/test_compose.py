@@ -23,22 +23,7 @@ from parameterized import parameterized
 
 import monai.transforms as mt
 from monai.data import DataLoader, Dataset
-
-# from monai.transforms import (
-#     AddChannel,
-#     ApplyPending,
-#     ApplyPendingd,
-#     Compose,
-#     Flip,
-#     NormalizeIntensity,
-#     NormalizeIntensityd,
-#     Rotate,
-#     Rotate90,
-#     Rotated,
-#     Spacing,
-#     Zoom,
-# )
-from monai.transforms.compose import ComposeCompiler, execute_compose
+from monai.transforms.compose import ExecutionOptions, execute_compose
 from monai.transforms.transform import Randomizable
 from monai.utils import set_determinism
 
@@ -790,13 +775,13 @@ class TestTransformReordering(unittest.TestCase):
     @parameterized.expand(TRANSFORM_REORDERING_TEST_CASES)
     def test_transform_reordering_test_cases(self, transforms, options, lazy_enabled_expected, lazy_on_expected):
         with self.subTest("enable lazy"):
-            c = ComposeCompiler()(transforms, lazy=None, options={"reorder": "lazy_last"})
+            c = ExecutionOptions()(transforms, lazy=None, options={"reorder": "lazy_last"})
             reordered = [transforms[i] for i in c["indices"]]
             actual = [t.tag for t in reordered]
             self.assertListEqual(actual, lazy_enabled_expected)
 
         with self.subTest("force lazy"):
-            c = ComposeCompiler()(transforms, lazy=True, options={"reorder": "lazy_last"})
+            c = ExecutionOptions()(transforms, lazy=True, options={"reorder": "lazy_last"})
             reordered = [transforms[i] for i in c["indices"]]
             actual = [t.tag for t in reordered]
             self.assertListEqual(actual, lazy_on_expected)
