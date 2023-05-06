@@ -510,6 +510,10 @@ class nnUNetV2Runner:  # noqa: N801
                     - disable_checkpointing: True to disable checkpointing. Ideal for testing things out and you
                         don't want to flood your hard drive with checkpoints. Default: False.
         """
+        if "num_gpus" in kwargs:
+            kwargs.pop("num_gpus")
+            logger.warning("please use device_id to set the GPUs to use")
+
         if isinstance(gpu_id, tuple):
             if len(gpu_id) > 1:
                 gpu_ids_str = ""
