@@ -518,7 +518,7 @@ class nnUNetV2Runner:  # noqa: N801
 
         from nnunetv2.run.run_training import run_training
 
-        if isinstance(gpu_id, int):
+        if isinstance(gpu_id, int) or len(gpu_id) == 1:
             run_training(
                 dataset_name_or_id=self.dataset_name_or_id,
                 configuration=config,
@@ -565,7 +565,7 @@ class nnUNetV2Runner:  # noqa: N801
         else:
             for cfg in ensure_tuple(configs):
                 for _fold in range(self.num_folds):
-                    self.train_single_model(config=cfg, fold=_fold, **kwargs)
+                    self.train_single_model(config=cfg, fold=_fold, gpu_id=device_ids, **kwargs)
 
     def train_parallel_cmd(
         self,
