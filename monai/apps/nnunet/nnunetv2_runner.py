@@ -512,7 +512,7 @@ class nnUNetV2Runner:  # noqa: N801
         """
         if "num_gpus" in kwargs:
             kwargs.pop("num_gpus")
-            logger.warning("please use device_id to set the GPUs to use")
+            logger.warning("please use gpu_id to set the GPUs to use")
 
         if isinstance(gpu_id, tuple) or isinstance(gpu_id, list):
             if len(gpu_id) > 1:
