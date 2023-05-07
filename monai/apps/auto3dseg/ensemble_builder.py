@@ -403,7 +403,7 @@ class EnsembleRunner:
 
     def __init__(
         self,
-        data_src_cfg_name,
+        data_src_cfg_name: str,
         work_dir: str = "./work_dir",
         num_fold: int = 5,
         ensemble_method_name: str = "AlgoEnsembleBestByFold",
