@@ -641,7 +641,7 @@ class nnUNetV2Runner:  # noqa: N801
     def train_parallel(
         self,
         configs: tuple | str = (M.N_3D_FULLRES, M.N_2D, M.N_3D_LOWRES, M.N_3D_CASCADE_FULLRES),
-        device_ids: tuple | None = None,
+        device_ids: tuple | list | None = None,
         **kwargs: Any,
     ) -> None:
         """
