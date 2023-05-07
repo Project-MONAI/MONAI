@@ -31,7 +31,7 @@ from monai.auto3dseg.utils import datafold_read
 from monai.bundle import ConfigParser
 from monai.data import partition_dataset
 from monai.transforms import MeanEnsemble, SaveImage, VoteEnsemble
-from monai.utils import RankFilter
+from monai.utils import RankFilter, deprecated_arg
 from monai.utils.enums import AlgoKeys
 from monai.utils.misc import check_kwargs_exist_in_class_init, prob2class
 from monai.utils.module import look_up_option, optional_import
@@ -290,7 +290,7 @@ class AlgoEnsembleBuilder:
 
     Args:
         history: a collection of trained bundleAlgo algorithms.
-        data_src_cfg_filename: filename of the data source.
+        data_src_cfg_name: filename of the data source.
 
     Examples:
 
@@ -302,13 +302,20 @@ class AlgoEnsembleBuilder:
 
     """
 
-    def __init__(self, history: Sequence[dict[str, Any]], data_src_cfg_filename: str | None = None):
+    @deprecated_arg(
+        "data_src_cfg_filename",
+        since="1.2",
+        removed="1.3",
+        new_name="data_src_cfg_name",
+        msg_suffix="please use `data_src_cfg_name` instead.",
+    )
+    def __init__(self, history: Sequence[dict[str, Any]], data_src_cfg_name: str | None = None):
         self.infer_algos: list[dict[AlgoKeys, Any]] = []
         self.ensemble: AlgoEnsemble
         self.data_src_cfg = ConfigParser(globals=False)
 
-        if data_src_cfg_filename is not None and os.path.exists(str(data_src_cfg_filename)):
-            self.data_src_cfg.read_config(data_src_cfg_filename)
+        if data_src_cfg_name is not None and os.path.exists(str(data_src_cfg_name)):
+            self.data_src_cfg.read_config(data_src_cfg_name)
 
         for algo_dict in history:
             # load inference_config_paths
@@ -366,17 +373,21 @@ class AlgoEnsembleBuilder:
 
 class EnsembleRunner:
     """
-    The Runner for ensembler
+    The Runner for ensembler. It ensembles predictions and saves them to the disk with a support of using multi-GPU.
 
     Args:
-        work_dir: working directory to save the intermediate and final results.
         data_src_cfg_name: filename of the data source.
-        num_fold: number of fold.
-        ensemble_method_name: method to ensemble predictions from different model.
+        work_dir: working directory to save the intermediate and final results. Default is `./work_dir`.
+        num_fold: number of fold. Default is 5.
+        ensemble_method_name: method to ensemble predictions from different model. Default is AlgoEnsembleBestByFold.
                               Suported methods: ["AlgoEnsembleBestN", "AlgoEnsembleBestByFold"].
-        mgpu: if using multi-gpu.
+        mgpu: if using multi-gpu. Default is True.
         kwargs: additional image writing, ensembling parameters and prediction parameters for the ensemble inference.
-    Examples:
+              - for image saving, please check the supported parameters in SaveImage transform.
+              - for prediction parameters, please check the supported parameters in the ``AlgoEnsemble`` callables.
+              - for ensemble parameters, please check the documentation of the selected AlgoEnsemble callable.
+
+    Example:
 
         .. code-block:: python
 
@@ -392,7 +403,7 @@ class EnsembleRunner:
 
     def __init__(
         self,
-        data_src_cfg_name: str = "./work_dir/input.yaml",
+        data_src_cfg_name: str,
         work_dir: str = "./work_dir",
         num_fold: int = 5,
         ensemble_method_name: str = "AlgoEnsembleBestByFold",
@@ -459,6 +470,9 @@ class EnsembleRunner:
             os.makedirs(output_dir, exist_ok=True)
             logger.info(f"Directory {output_dir} is created to save ensemble predictions")
 
+        input_yaml = ConfigParser.load_config_file(self.data_src_cfg_name)
+        data_root_dir = input_yaml.get("dataroot", "")
+
         save_image = {
             "_target_": "SaveImage",
             "output_dir": output_dir,
@@ -467,6 +481,8 @@ class EnsembleRunner:
             "resample": kwargs.pop("resample", False),
             "print_log": False,
             "savepath_in_metadict": True,
+            "data_root_dir": kwargs.pop("data_root_dir", data_root_dir),
+            "separate_folder": kwargs.pop("separate_folder", False),
         }
 
         are_all_args_save_image, extra_args = check_kwargs_exist_in_class_init(SaveImage, kwargs)
