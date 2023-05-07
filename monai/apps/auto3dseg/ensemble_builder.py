@@ -383,10 +383,9 @@ class EnsembleRunner:
                               Suported methods: ["AlgoEnsembleBestN", "AlgoEnsembleBestByFold"].
         mgpu: if using multi-gpu. Default is True.
         kwargs: additional image writing, ensembling parameters and prediction parameters for the ensemble inference.
-                - for image saving, please check the supported parameters in SaveImage transform.
-                - for prediction parameters, please check the supported parameters
-                    in the ``__call__`` method in ``AlgoEnsemble``.
-                - for ensemble parameters, please check the documentation of the selected AlgoEnsemble class.
+              - for image saving, please check the supported parameters in SaveImage transform.
+              - for prediction parameters, please check the supported parameters in the ``AlgoEnsemble`` callables.
+              - for ensemble parameters, please check the documentation of the selected AlgoEnsemble callable.
 
     Example:
 
