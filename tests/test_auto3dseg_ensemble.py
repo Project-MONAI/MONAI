@@ -30,7 +30,7 @@ from monai.apps.auto3dseg import (
 from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
 from monai.transforms import SaveImage
-from monai.utils import optional_import, set_determinism, check_parent_dir
+from monai.utils import check_parent_dir, optional_import, set_determinism
 from monai.utils.enums import AlgoKeys
 from tests.utils import (
     SkipIfBeforePyTorchVersion,
@@ -74,6 +74,7 @@ train_param = (
 
 pred_param = {"files_slices": slice(0, 1), "mode": "mean", "sigmoid": True}
 
+
 def create_sim_data(dataroot, sim_datalist, sim_dim, **kwargs):
     """
     Create simulated data using create_test_image_3d.
@@ -99,6 +100,7 @@ def create_sim_data(dataroot, sim_datalist, sim_dim, **kwargs):
             label_fpath = os.path.join(dataroot, d["label"])
             check_parent_dir(label_fpath)
             nib.save(nib_image, label_fpath)
+
 
 @skip_if_quick
 @skip_if_no_cuda
