@@ -24,7 +24,7 @@ import torch
 import torch.distributed as dist
 
 from monai.apps.auto3dseg.bundle_gen import BundleAlgo
-from monai.apps.auto3dseg.utils import import_bundle_algo_history, get_name_from_algo_id
+from monai.apps.auto3dseg.utils import get_name_from_algo_id, import_bundle_algo_history
 from monai.apps.utils import get_logger
 from monai.auto3dseg import concat_val_to_np
 from monai.auto3dseg.utils import datafold_read
@@ -126,7 +126,7 @@ class AlgoEnsemble(ABC):
                 return VoteEnsemble()(classes)  # do not specify num_classes for one-hot encoding
             else:
                 return VoteEnsemble(num_classes=preds[0].shape[0])(classes)
-    
+
     def _apply_model_specific_param(self, model_specific_param: dict, param: dict, algo_name: str) -> dict:
         """
         Apply the model-specific params to the prediction params based on the name of the Algo.
@@ -135,7 +135,7 @@ class AlgoEnsemble(ABC):
             model_specific_param: a dict that has structure of {"<name of algo>": "<pred_params for that algo>"}.
             param: the prediction params to override.
             algo_name: name of the Algo
-        
+
         Returns:
             param after being updated with the model-specific param
         """
