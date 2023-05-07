@@ -72,7 +72,15 @@ train_param = (
     else {}
 )
 
-pred_param = {"files_slices": slice(0, 1), "mode": "mean", "sigmoid": True}
+pred_param = {
+    "files_slices": slice(0, 1),
+    "mode": "mean",
+    "sigmoid": True,
+    "model_specific_params":{
+        "segresnet": {"network#init_filters": 8},
+        "swinunetr": {"network#feature_size": 12},
+    }
+}
 
 
 def create_sim_data(dataroot, sim_datalist, sim_dim, **kwargs):
@@ -171,11 +179,6 @@ class TestEnsembleBuilder(unittest.TestCase):
         builder = AlgoEnsembleBuilder(history, data_src_cfg_name=self.data_src_cfg_name)
         builder.set_ensemble_method(AlgoEnsembleBestN(n_best=1))
         ensemble = builder.get_ensemble()
-        name = ensemble.get_algo_ensemble()[0][AlgoKeys.ID]
-        if name.startswith("segresnet"):
-            pred_param["network#init_filters"] = 8
-        elif name.startswith("swinunetr"):
-            pred_param["network#feature_size"] = 12
         preds = ensemble(pred_param)
         self.assertTupleEqual(preds[0].shape, (2, 24, 24, 24))
 
