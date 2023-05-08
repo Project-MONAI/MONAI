@@ -22,7 +22,7 @@ class TestMultiInputUNet(UNet):
     function supports to verify networks that have multiple args as the input in the forward function.
     """
 
-    def forward(self, x: torch.Tensor, extra_arg1: int, extra_arg2: int) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, extra_arg1: int, extra_arg2: int) -> torch.Tensor:  # type: ignore
         x = self.model(x)
         x += extra_arg1
         x += extra_arg2
