@@ -550,7 +550,7 @@ class nnUNetV2Runner:  # noqa: N801
     def train(
         self,
         configs: tuple | str = (M.N_3D_FULLRES, M.N_2D, M.N_3D_LOWRES, M.N_3D_CASCADE_FULLRES),
-        gpu_id_for_all: tuple | list | None = None,
+        gpu_id_for_all: tuple | list | int | None = None,
         **kwargs: Any,
     ) -> None:
         """
@@ -561,7 +561,7 @@ class nnUNetV2Runner:  # noqa: N801
         Args:
             configs: configurations that should be trained.
                 Default: ("2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres").
-            gpu_id_for_all: a tuple/list/integer of GPU device IDs to use for the training. Default:
+            gpu_id_for_all: a tuple/list/integer of GPU device ID(s) to use for the training. Default:
                 None (all available GPUs).
             kwargs: this optional parameter allows you to specify additional arguments defined in the
                 ``train_single_model`` method.
@@ -593,7 +593,7 @@ class nnUNetV2Runner:  # noqa: N801
         Args:
             configs: configurations that should be trained.
                 Default: ("2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres").
-            gpu_id_for_all: a tuple/list/integer of GPU device IDs to use for the training. Default:
+            gpu_id_for_all: a tuple/list/integer of GPU device ID(s) to use for the training. Default:
                 None (all available GPUs).
             kwargs: this optional parameter allows you to specify additional arguments defined in the
                 ``train_single_model`` method.
@@ -656,7 +656,7 @@ class nnUNetV2Runner:  # noqa: N801
         Args:
             configs: configurations that should be trained.
                 default: ("2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres").
-            gpu_id_for_all: a tuple/list/integer of GPU device IDs to use for the training. Default:
+            gpu_id_for_all: a tuple/list/integer of GPU device ID(s) to use for the training. Default:
                 None (all available GPUs).
             kwargs: this optional parameter allows you to specify additional arguments defined in the
                 ``train_single_model`` method.
