@@ -40,6 +40,7 @@ https://github.com/pytorch/vision/blob/main/torchvision/models/detection/retinan
 from __future__ import annotations
 
 import math
+import warnings
 from collections.abc import Callable, Sequence
 from typing import Any, Dict
 
@@ -125,7 +126,10 @@ class RetinaNetClassificationHead(nn.Module):
             cls_logits_maps.append(cls_logits)
 
             if torch.isnan(cls_logits).any() or torch.isinf(cls_logits).any():
-                raise ValueError("cls_logits is NaN or Inf.")
+                if torch.is_grad_enabled():
+                    raise ValueError("cls_logits is NaN or Inf.")
+                else:
+                    warnings.warn("cls_logits is NaN or Inf.")
 
         return cls_logits_maps
 
@@ -194,7 +198,10 @@ class RetinaNetRegressionHead(nn.Module):
             box_regression_maps.append(box_regression)
 
             if torch.isnan(box_regression).any() or torch.isinf(box_regression).any():
-                raise ValueError("box_regression is NaN or Inf.")
+                if torch.is_grad_enabled():
+                    raise ValueError("box_regression is NaN or Inf.")
+                else:
+                    warnings.warn("box_regression is NaN or Inf.")
 
         return box_regression_maps
 

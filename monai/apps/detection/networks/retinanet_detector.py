@@ -617,7 +617,10 @@ class RetinaNetDetector(nn.Module):
             reshaped_result_map = reshaped_result_map.reshape(batch_size, -1, num_channel)
 
             if torch.isnan(reshaped_result_map).any() or torch.isinf(reshaped_result_map).any():
-                raise ValueError("Concatenated result is NaN or Inf.")
+                if torch.is_grad_enabled():
+                    raise ValueError("Concatenated result is NaN or Inf.")
+                else:
+                    warnings.warn("Concatenated result is NaN or Inf.")
 
             all_reshaped_result_map.append(reshaped_result_map)
 
@@ -893,7 +896,10 @@ class RetinaNetDetector(nn.Module):
         """
 
         if torch.isnan(cls_logits_per_image).any() or torch.isinf(cls_logits_per_image).any():
-            raise ValueError("NaN or Inf in predicted classification logits.")
+            if torch.is_grad_enabled():
+                raise ValueError("NaN or Inf in predicted classification logits.")
+            else:
+                warnings.warn("NaN or Inf in predicted classification logits.")
 
         foreground_idxs_per_image = matched_idxs_per_image >= 0
 
@@ -973,7 +979,10 @@ class RetinaNetDetector(nn.Module):
         """
 
         if torch.isnan(box_regression_per_image).any() or torch.isinf(box_regression_per_image).any():
-            raise ValueError("NaN or Inf in predicted box regression.")
+            if torch.is_grad_enabled():
+                raise ValueError("NaN or Inf in predicted box regression.")
+            else:
+                warnings.warn("NaN or Inf in predicted box regression.")
 
         foreground_idxs_per_image = torch.where(matched_idxs_per_image >= 0)[0]
         num_gt_box = targets_per_image[self.target_box_key].shape[0]
