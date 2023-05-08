@@ -11,15 +11,19 @@
 
 from __future__ import annotations
 
-from .auto_runner import AutoRunner
-from .bundle_gen import BundleAlgo, BundleGen
-from .data_analyzer import DataAnalyzer
-from .ensemble_builder import (
-    AlgoEnsemble,
-    AlgoEnsembleBestByFold,
-    AlgoEnsembleBestN,
-    AlgoEnsembleBuilder,
-    EnsembleRunner,
-)
-from .hpo_gen import NNIGen, OptunaGen
-from .utils import export_bundle_algo_history, get_name_from_algo_id, import_bundle_algo_history
+import torch
+
+from monai.networks.nets import UNet
+
+
+class TestMultiInputUNet(UNet):
+    """
+    This class is used for "tests/test_bundle_verify_net.py" to show that the monai.bundle.verify_net_in_out
+    function supports to verify networks that have multiple args as the input in the forward function.
+    """
+
+    def forward(self, x: torch.Tensor, extra_arg1: int, extra_arg2: int) -> torch.Tensor:  # type: ignore
+        x = self.model(x)
+        x += extra_arg1
+        x += extra_arg2
+        return x

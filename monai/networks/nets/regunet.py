@@ -65,7 +65,7 @@ class RegUNet(nn.Module):
             out_activation: activation at the last layer
             out_channels: number of channels for the output
             extract_levels: list, which levels from net to extract. The maximum level must equal to ``depth``
-            pooling: for down-sampling, use non-parameterized pooling if true, otherwise use conv3d
+            pooling: for down-sampling, use non-parameterized pooling if true, otherwise use conv
             concat_skip: when up-sampling, concatenate skipped tensor if true, otherwise use addition
             encode_kernel_sizes: kernel size for down-sampling
         """
@@ -234,7 +234,22 @@ class RegUNet(nn.Module):
 
 
 class AffineHead(nn.Module):
-    def __init__(self, spatial_dims: int, image_size: list[int], decode_size: list[int], in_channels: int):
+    def __init__(
+        self,
+        spatial_dims: int,
+        image_size: list[int],
+        decode_size: list[int],
+        in_channels: int,
+        save_theta: bool = False,
+    ):
+        """
+        Args:
+            spatial_dims: number of spatial dimensions
+            image_size: output spatial size
+            decode_size: input spatial size (two or three integers depending on ``spatial_dims``)
+            in_channels: number of input channels
+            save_theta: whether to save the theta matrix estimation
+        """
         super().__init__()
         self.spatial_dims = spatial_dims
         if spatial_dims == 2:
@@ -254,6 +269,9 @@ class AffineHead(nn.Module):
         # init weight/bias
         self.fc.weight.data.zero_()
         self.fc.bias.data.copy_(out_init)
+
+        self.save_theta = save_theta
+        self.theta = torch.Tensor()
 
     @staticmethod
     def get_reference_grid(image_size: tuple[int] | list[int]) -> torch.Tensor:
@@ -278,6 +296,8 @@ class AffineHead(nn.Module):
         f = x[0]
         self.grid = self.grid.to(device=f.device)
         theta = self.fc(f.reshape(f.shape[0], -1))
+        if self.save_theta:
+            self.theta = theta.detach()
         out: torch.Tensor = self.affine_transform(theta) - self.grid
         return out
 
@@ -305,7 +325,22 @@ class GlobalNet(RegUNet):
         pooling: bool = True,
         concat_skip: bool = False,
         encode_kernel_sizes: int | list[int] = 3,
+        save_theta: bool = False,
     ):
+        """
+        Args:
+            image_size: output displacement field spatial size
+            spatial_dims: number of spatial dims
+            in_channels: number of input channels
+            num_channel_initial: number of initial channels
+            depth: input is at level 0, bottom is at level depth.
+            out_kernel_initializer: kernel initializer for the last layer
+            out_activation: activation at the last layer
+            pooling: for down-sampling, use non-parameterized pooling if true, otherwise use conv
+            concat_skip: when up-sampling, concatenate skipped tensor if true, otherwise use addition
+            encode_kernel_sizes: kernel size for down-sampling
+            save_theta: whether to save the theta matrix estimation
+        """
         for size in image_size:
             if size % (2**depth) != 0:
                 raise ValueError(
@@ -315,6 +350,7 @@ class GlobalNet(RegUNet):
                 )
         self.image_size = image_size
         self.decode_size = [size // (2**depth) for size in image_size]
+        self.save_theta = save_theta
         super().__init__(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
@@ -334,6 +370,7 @@ class GlobalNet(RegUNet):
             image_size=self.image_size,
             decode_size=self.decode_size,
             in_channels=self.num_channels[-1],
+            save_theta=self.save_theta,
         )
 
 
