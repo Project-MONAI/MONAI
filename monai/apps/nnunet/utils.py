@@ -47,7 +47,7 @@ def analyze_data(datalist_json: dict, data_dir: str) -> tuple[int, int]:
         os.path.join(data_dir, datalist_json["training"][0]["image"])
     )
     num_input_channels = img.size()[0] if img.dim() == 4 else 1
-    logger.warning(f"[info] num_input_channels: {num_input_channels}")
+    logger.info(f"num_input_channels: {num_input_channels}")
 
     num_foreground_classes = 0
     for _i in range(len(datalist_json["training"])):
@@ -55,7 +55,7 @@ def analyze_data(datalist_json: dict, data_dir: str) -> tuple[int, int]:
             os.path.join(data_dir, datalist_json["training"][_i]["label"])
         )
         num_foreground_classes = max(num_foreground_classes, int(seg.max()))
-    logger.warning(f"[info] num_foreground_classes: {num_foreground_classes}")
+    logger.info(f"num_foreground_classes: {num_foreground_classes}")
 
     return num_input_channels, num_foreground_classes
 
@@ -82,7 +82,7 @@ def create_new_data_copy(
         if _key is None:
             continue
 
-        logger.warning(f"[info] converting data section: {_key}...")
+        logger.info(f"converting data section: {_key}...")
         for _k in tqdm(range(len(datalist_json[_key]))) if has_tqdm else range(len(datalist_json[_key])):
             orig_img_name = (
                 datalist_json[_key][_k]["image"]

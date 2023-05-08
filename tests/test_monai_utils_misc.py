@@ -15,7 +15,7 @@ import unittest
 
 from parameterized import parameterized
 
-from monai.utils.misc import to_tuple_of_dictionaries
+from monai.utils.misc import check_kwargs_exist_in_class_init, to_tuple_of_dictionaries
 
 TO_TUPLE_OF_DICTIONARIES_TEST_CASES = [
     ({}, tuple(), tuple()),
@@ -38,6 +38,11 @@ TO_TUPLE_OF_DICTIONARIES_TEST_CASES = [
 ]
 
 
+class MiscClass:
+    def __init__(self, arg1, arg2, kwargs1=None, kwargs2=None):
+        pass
+
+
 class TestToTupleOfDictionaries(unittest.TestCase):
     @parameterized.expand(TO_TUPLE_OF_DICTIONARIES_TEST_CASES)
     def test_to_tuple_of_dictionaries(self, dictionary, keys, expected):
@@ -52,3 +57,20 @@ class TestToTupleOfDictionaries(unittest.TestCase):
             actual = to_tuple_of_dictionaries(dictionary, keys)
             print(actual, expected)
             self.assertTupleEqual(actual, expected)
+
+
+class TestMiscKwargs(unittest.TestCase):
+    def test_kwargs(self):
+        present, extra_args = self._custom_user_function(MiscClass, 1, kwargs1="value1", kwargs2="value2")
+        self.assertEqual(present, True)
+        self.assertEqual(extra_args, set())
+        present, extra_args = self._custom_user_function(MiscClass, 1, kwargs1="value1", kwargs3="value3")
+        self.assertEqual(present, False)
+        self.assertEqual(extra_args, {"kwargs3"})
+
+    def _custom_user_function(self, cls, *args, **kwargs):
+        return check_kwargs_exist_in_class_init(cls, kwargs)
+
+
+if __name__ == "__main__":
+    unittest.main()

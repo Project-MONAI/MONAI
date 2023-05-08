@@ -31,6 +31,7 @@ def run_testsuit():
     exclude_cases = [  # these cases use external dependencies
         "test_ahnet",
         "test_arraydataset",
+        "test_auto3dseg_bundlegen",
         "test_auto3dseg_ensemble",
         "test_auto3dseg_hpo",
         "test_auto3dseg",

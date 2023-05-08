@@ -24,6 +24,7 @@ from monai.transforms import (
     Compose,
     EnsureChannelFirst,
     Invert,
+    Lambda,
     LoadImage,
     Orientation,
     RandAffine,
@@ -87,6 +88,18 @@ class TestInvert(unittest.TestCase):
         print("invert diff", reverted.size - n_good)
         self.assertTrue((reverted.size - n_good) < 300000, f"diff. {reverted.size - n_good}")
         set_determinism(seed=None)
+
+    def test_invert_warn_pending(self):
+        set_determinism(seed=0)
+        im_fname = make_nifti_image(create_test_image_3d(101, 100, 107, noise_max=100)[1])  # label image, discrete
+        transform = Compose(
+            [LoadImage(image_only=True), EnsureChannelFirst(), Orientation("RPS"), Lambda(func=lambda x: x)],
+            lazy_evaluation=True,
+        )
+        output = transform([im_fname for _ in range(2)])
+        with self.assertRaises(RuntimeError):  # transform id mismatch because of lambda
+            with self.assertWarns(Warning):  # warning of wrong ordering lazy + nonlazy_invertible
+                transform.inverse(output)
 
 
 if __name__ == "__main__":

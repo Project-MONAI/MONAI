@@ -32,11 +32,12 @@ from monai.apps.utils import get_logger
 from monai.auto3dseg.algo_gen import Algo, AlgoGen
 from monai.auto3dseg.utils import algo_to_pickle
 from monai.bundle.config_parser import ConfigParser
+from monai.config import PathLike
 from monai.utils import ensure_tuple
 from monai.utils.enums import AlgoKeys
 
 logger = get_logger(module_name=__name__)
-ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "23ea143")
+ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "14a695e")
 
 __all__ = ["BundleAlgo", "BundleGen"]
 
@@ -63,7 +64,7 @@ class BundleAlgo(Algo):
 
     """
 
-    def __init__(self, template_path: str):
+    def __init__(self, template_path: PathLike):
         """
         Create an Algo instance based on the predefined Algo template.
 
@@ -153,9 +154,9 @@ class BundleAlgo(Algo):
             os.makedirs(self.output_path, exist_ok=True)
             if os.path.isdir(self.output_path):
                 shutil.rmtree(self.output_path)
-            shutil.copytree(self.template_path, self.output_path)
+            shutil.copytree(str(self.template_path), self.output_path)
         else:
-            self.output_path = self.template_path
+            self.output_path = str(self.template_path)
         if kwargs.pop("fill_template", True):
             self.fill_records = self.fill_template_config(self.data_stats_files, self.output_path, **kwargs)
         logger.info(f"Generated:{self.output_path}")
@@ -524,6 +525,7 @@ class BundleGen(AlgoGen):
         num_fold: int = 5,
         gpu_customization: bool = False,
         gpu_customization_specs: dict[str, Any] | None = None,
+        allow_skip: bool = True,
     ) -> None:
         """
         Generate the bundle scripts/configs for each bundleAlgo
@@ -537,6 +539,8 @@ class BundleGen(AlgoGen):
                 experiments.
             gpu_customization_specs (optinal): the dictionary to enable users overwrite the HPO settings. user can
                 overwrite part of variables as follows or all of them. The structure is as follows.
+            allow_skip: a switch to determine if some Algo in the default templates can be skipped based on the
+                analysis on the dataset from Auto3DSeg DataAnalyzer.
 
                 .. code-block:: python
 
@@ -566,10 +570,13 @@ class BundleGen(AlgoGen):
                 gen_algo.set_data_stats(data_stats)
                 gen_algo.set_data_source(data_src_cfg)
                 name = f"{gen_algo.name}_{f_id}"
-                skip_bundlegen, skip_info = gen_algo.pre_check_skip_algo()
-                if skip_bundlegen:
-                    logger.info(f"{name} is skipped! {skip_info}")
-                    continue
+
+                if allow_skip:
+                    skip_bundlegen, skip_info = gen_algo.pre_check_skip_algo()
+                    if skip_bundlegen:
+                        logger.info(f"{name} is skipped! {skip_info}")
+                        continue
+
                 if gpu_customization:
                     gen_algo.export_to_disk(
                         output_folder,

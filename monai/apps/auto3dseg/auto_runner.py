@@ -29,7 +29,9 @@ from monai.apps.auto3dseg.utils import export_bundle_algo_history, import_bundle
 from monai.apps.utils import get_logger
 from monai.auto3dseg.utils import algo_to_pickle
 from monai.bundle import ConfigParser
+from monai.transforms import SaveImage
 from monai.utils import AlgoKeys, has_option, look_up_option, optional_import
+from monai.utils.misc import check_kwargs_exist_in_class_init
 
 logger = get_logger(module_name=__name__)
 
@@ -80,6 +82,8 @@ class AutoRunner:
             algorithm generation, or training, and start the pipeline from scratch.
         templates_path_or_url: the folder with the algorithm templates or a url. If None provided, the default template
             zip url will be downloaded and extracted into the work_dir.
+        allow_skip: a switch passed to BundleGen process which determines if some Algo in the default templates
+            can be skipped based on the analysis on the dataset from Auto3DSeg DataAnalyzer.
         kwargs: image writing parameters for the ensemble inference. The kwargs format follows the SaveImage
             transform. For more information, check https://docs.monai.io/en/stable/transforms.html#saveimage.
 
@@ -103,7 +107,7 @@ class AutoRunner:
         .. code-block:: python
 
             work_dir = "./work_dir"
-            input = "path_to_yaml_data_cfg"
+            input = "path/to/input_yaml"
             runner = AutoRunner(work_dir=work_dir, input=input)
             runner.run()
 
@@ -112,7 +116,7 @@ class AutoRunner:
         .. code-block:: python
 
             work_dir = "./work_dir"
-            input = "path_to_yaml_data_cfg"
+            input = "path/to/input_yaml"
             algos = ["segresnet", "dints"]
             runner = AutoRunner(work_dir=work_dir, input=input, algos=algos)
             runner.run()
@@ -122,7 +126,7 @@ class AutoRunner:
         .. code-block:: python
 
             work_dir = "./work_dir"
-            input = "path_to_yaml_data_cfg"
+            input = "path/to/input_yaml"
             algos = "segresnet"
             templates_path_or_url = "./local_path_to/algorithm_templates"
             runner = AutoRunner(work_dir=work_dir, input=input, algos=algos, templates_path_or_url=templates_path_or_url)
@@ -132,12 +136,10 @@ class AutoRunner:
 
         .. code-block:: python
 
-            input = "path_to_yaml_data_cfg"
+            input = "path/to/input_yaml"
             runner = AutoRunner(input=input)
             train_param = {
-                "CUDA_VISIBLE_DEVICES": [0],
-                "num_iterations": 8,
-                "num_iterations_per_validation": 4,
+                "num_epochs_per_validation": 1,
                 "num_images_per_batch": 2,
                 "num_epochs": 2,
             }
@@ -148,7 +150,7 @@ class AutoRunner:
 
         .. code-block:: python
 
-            input = "path_to_yaml_data_cfg"
+            input = "path/to/input_yaml"
             runner = AutoRunner(input=input)
             runner.set_num_fold(n_fold = 2)
             runner.run()
@@ -157,7 +159,7 @@ class AutoRunner:
 
         .. code-block:: python
 
-            input = "path_to_yaml_data_cfg"
+            input = "path/to/input_yaml"
             pred_params = {
                 'files_slices': slice(0,2),
                 'mode': "vote",
@@ -171,14 +173,7 @@ class AutoRunner:
 
         .. code-block:: python
 
-            input = "path_to_yaml_data_cfg"
-            pred_param = {
-                "CUDA_VISIBLE_DEVICES": [0],
-                "num_iterations": 8,
-                "num_iterations_per_validation": 4,
-                "num_images_per_batch": 2,
-                "num_epochs": 2,
-            }
+            input = "path/to/input_yaml"
             runner = AutoRunner(input=input, hpo=True)
             runner.set_nni_search_space({"learning_rate": {"_type": "choice", "_value": [0.0001, 0.001, 0.01, 0.1]}})
             runner.run()
@@ -214,6 +209,7 @@ class AutoRunner:
         ensemble: bool = True,
         not_use_cache: bool = False,
         templates_path_or_url: str | None = None,
+        allow_skip: bool = True,
         **kwargs: Any,
     ):
         logger.info(f"AutoRunner using work directory {work_dir}")
@@ -224,6 +220,7 @@ class AutoRunner:
         self.data_src_cfg_name = os.path.join(self.work_dir, "input.yaml")
         self.algos = algos
         self.templates_path_or_url = templates_path_or_url
+        self.allow_skip = allow_skip
         self.kwargs = deepcopy(kwargs)
 
         if input is None and os.path.isfile(self.data_src_cfg_name):
@@ -465,7 +462,7 @@ class AutoRunner:
 
         Examples:
             For BundleAlgo objects, the training parameter to shorten the training time to a few epochs can be
-                {"num_iterations": 8, "num_iterations_per_validation": 4}
+                {"num_epochs": 2, "num_epochs_per_validation": 1}
 
         """
         self.train_params = deepcopy(params) if params is not None else {}
@@ -557,7 +554,14 @@ class AutoRunner:
 
         """
 
-        self.kwargs.update(kwargs)
+        are_all_args_present, extra_args = check_kwargs_exist_in_class_init(SaveImage, kwargs)
+        if are_all_args_present:
+            self.kwargs.update(kwargs)
+        else:
+            raise ValueError(
+                f"{extra_args} are not supported in monai.transforms.SaveImage,"
+                "Check https://docs.monai.io/en/stable/transforms.html#saveimage for more information."
+            )
 
     def set_prediction_params(self, params: dict[str, Any] | None = None) -> None:
         """
@@ -582,10 +586,6 @@ class AutoRunner:
         Args:
             params: a dict that defines the overriding key-value pairs during training. The overriding method
                 is defined by the algo class.
-
-        Examples:
-            For BundleAlgo objects, the training parameter to shorten the training time to a few epochs can be
-                {"num_iterations": 8, "num_iterations_per_validation": 4}
 
         """
         if params is None:
@@ -769,9 +769,10 @@ class AutoRunner:
                     num_fold=self.num_fold,
                     gpu_customization=self.gpu_customization,
                     gpu_customization_specs=self.gpu_customization_specs,
+                    allow_skip=self.allow_skip,
                 )
             else:
-                bundle_generator.generate(self.work_dir, num_fold=self.num_fold)
+                bundle_generator.generate(self.work_dir, num_fold=self.num_fold, allow_skip=self.allow_skip)
             history = bundle_generator.get_history()
             export_bundle_algo_history(history)
             self.export_cache(algo_gen=True)

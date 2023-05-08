@@ -503,6 +503,7 @@ class SlidingWindowInferer(Inferer):
 
         device = kwargs.pop("device", self.device)
         buffer_steps = kwargs.pop("buffer_steps", self.buffer_steps)
+        buffer_dim = kwargs.pop("buffer_dim", self.buffer_dim)
 
         if device is None and self.cpu_thresh is not None and inputs.shape[2:].numel() > self.cpu_thresh:
             device = "cpu"  # stitch in cpu memory if image is too large
@@ -523,7 +524,7 @@ class SlidingWindowInferer(Inferer):
             self.roi_weight_map,
             None,
             buffer_steps,
-            self.buffer_dim,
+            buffer_dim,
             *args,
             **kwargs,
         )
@@ -566,6 +567,12 @@ class SlidingWindowInfererAdapt(SlidingWindowInferer):
         gpu_stitching = inputs.is_cuda and not cpu_cond
         buffered_stitching = inputs.is_cuda and cpu_cond and not skip_buffer
         buffer_steps = max(1, self.buffer_steps) if self.buffer_steps is not None else 1
+        buffer_dim = -1
+
+        sh = list(inputs.shape[2:])
+        max_dim = sh.index(max(sh))
+        if inputs.shape[max_dim + 2] / inputs.shape[-1] >= 2:
+            buffer_dim = max_dim
 
         for _ in range(10):  # at most 10 trials
             try:
@@ -574,6 +581,7 @@ class SlidingWindowInfererAdapt(SlidingWindowInferer):
                     network,
                     device=inputs.device if gpu_stitching else torch.device("cpu"),
                     buffer_steps=buffer_steps if buffered_stitching else None,
+                    buffer_dim=buffer_dim,
                     *args,
                     **kwargs,
                 )
@@ -589,24 +597,23 @@ class SlidingWindowInfererAdapt(SlidingWindowInferer):
 
                     if skip_buffer:
                         buffered_stitching = False
-                        logger.warning(f"GPU stitching failed, attempting on CPU, image dim {inputs.shape}..")
+                        logger.warning(f"GPU stitching failed, attempting on CPU, image dim {inputs.shape}.")
 
                     else:
                         buffered_stitching = True
                         self.buffer_steps = buffer_steps
                         logger.warning(
-                            f"GPU stitching failed, attempting with buffer {buffer_steps}, image dim {inputs.shape}.."
+                            f"GPU stitching failed, buffer {buffer_steps} dim {buffer_dim}, image dim {inputs.shape}."
                         )
                 elif buffer_steps > 1:
                     buffer_steps = max(1, buffer_steps // 2)
                     self.buffer_steps = buffer_steps
                     logger.warning(
-                        f"GPU buffered stitching failed, image dim {inputs.shape} reducing buffer to {buffer_steps}"
+                        f"GPU buffered stitching failed, image dim {inputs.shape} reducing buffer to {buffer_steps}."
                     )
                 else:
                     buffered_stitching = False
-                    self.buffer_steps = 0  # disable future buffer attempts
-                    logger.warning(f"GPU buffered stitching failed, attempting on CPU, image dim {inputs.shape}")
+                    logger.warning(f"GPU buffered stitching failed, attempting on CPU, image dim {inputs.shape}.")
         raise RuntimeError(  # not possible to finish after the trials
             f"SlidingWindowInfererAdapt {skip_buffer} {cpu_cond} {gpu_stitching} {buffered_stitching} {buffer_steps}"
         )
