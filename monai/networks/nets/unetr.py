@@ -43,23 +43,25 @@ class UNETR(nn.Module):
         dropout_rate: float = 0.0,
         spatial_dims: int = 3,
         qkv_bias: bool = False,
+        save_attn: bool = False,
     ) -> None:
         """
         Args:
-            in_channels: dimension of input channels.
-            out_channels: dimension of output channels.
-            img_size: dimension of input image.
-            feature_size: dimension of network feature size.
-            hidden_size: dimension of hidden layer.
-            mlp_dim: dimension of feedforward layer.
-            num_heads: number of attention heads.
-            pos_embed: position embedding layer type.
-            norm_name: feature normalization type and arguments.
-            conv_block: bool argument to determine if convolutional block is used.
-            res_block: bool argument to determine if residual block is used.
-            dropout_rate: faction of the input units to drop.
-            spatial_dims: number of spatial dims.
-            qkv_bias: apply the bias term for the qkv linear layer in self attention block
+            in_channels (int): dimension of input channels.
+            out_channels (int): dimension of output channels.
+            img_size (Sequence[int] | int): dimension of input image.
+            feature_size (int, optional): dimension of network feature size. Defaults to 16.
+            hidden_size (int, optional): dimension of hidden layer. Defaults to 768.
+            mlp_dim (int, optional): dimension of feedforward layer. Defaults to 3072.
+            num_heads (int, optional): number of attention heads. Defaults to 12.
+            pos_embed (str, optional): position embedding layer type. Defaults to "conv".
+            norm_name (tuple | str, optional): feature normalization type and arguments. Defaults to "instance".
+            conv_block (bool, optional): if convolutional block is used. Defaults to True.
+            res_block (bool, optional): if residual block is used. Defaults to True.
+            dropout_rate (float, optional): fraction of the input units to drop. Defaults to 0.0.
+            spatial_dims (int, optional): number of spatial dims. Defaults to 3.
+            qkv_bias (bool, optional): apply the bias term for the qkv linear layer in self attention block. Defaults to False.
+            save_attn (bool, optional): to make accessible the attention in self attention block. Defaults to False.
 
         Examples::
 
@@ -101,6 +103,7 @@ class UNETR(nn.Module):
             dropout_rate=dropout_rate,
             spatial_dims=spatial_dims,
             qkv_bias=qkv_bias,
+            save_attn=save_attn,
         )
         self.encoder1 = UnetrBasicBlock(
             spatial_dims=spatial_dims,
