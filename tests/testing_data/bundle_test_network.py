@@ -17,10 +17,11 @@ from monai.networks.nets import UNet
 
 
 class TestMultiInputUNet(UNet):
-    '''
+    """
     This class is used for "tests/test_bundle_verify_net.py" to show that the monai.bundle.verify_net_in_out
     function supports to verify networks that have multiple args as the input in the forward function.
-    '''
+    """
+
     def forward(self, x: torch.Tensor, extra_arg1: int, extra_arg2: int) -> torch.Tensor:
         x = self.model(x)
         x += extra_arg1
