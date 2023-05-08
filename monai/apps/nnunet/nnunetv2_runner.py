@@ -121,7 +121,7 @@ class nnUNetV2Runner:  # noqa: N801
 
         .. code-block:: bash
 
-            python -m monai.apps.nnunet nnUNetV2Runner train --input_config "./input.yaml" --device_ids "(0,1)"
+            python -m monai.apps.nnunet nnUNetV2Runner train --input_config "./input.yaml" --gpu_id_for_all "0,1"
 
         - 5-fold training for a single model on 2 GPUs. Here ``configs`` is used to specify the configurations.
 
@@ -131,7 +131,7 @@ class nnUNetV2Runner:  # noqa: N801
                 --configs "3d_fullres" \\
                 --trainer_class_name "nnUNetTrainer_5epochs" \\
                 --export_validation_probabilities True \\
-                --device_ids "(0,1)"
+                --gpu_id_for_all "0,1"
 
         - find the best configuration
 
@@ -550,38 +550,41 @@ class nnUNetV2Runner:  # noqa: N801
     def train(
         self,
         configs: tuple | str = (M.N_3D_FULLRES, M.N_2D, M.N_3D_LOWRES, M.N_3D_CASCADE_FULLRES),
-        device_ids: tuple | list | None = None,
+        gpu_id_for_all: tuple | list | int | None = None,
         **kwargs: Any,
     ) -> None:
         """
         Run the training for all the models specified by the configurations.
-        Note: to set the number of GPUs to use, use ``devices_ids`` instead of the `CUDA_VISIBLE_DEVICES`
+        Note: to set the number of GPUs to use, use ``gpu_id_for_all`` instead of the `CUDA_VISIBLE_DEVICES`
         environment variable.
 
         Args:
             configs: configurations that should be trained.
                 Default: ("2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres").
-            device_ids: a tuple/list of GPU device IDs to use for the training. Default: None (all available GPUs).
+            gpu_id_for_all: a tuple/list/integer of GPU device ID(s) to use for the training. Default:
+                None (all available GPUs).
             kwargs: this optional parameter allows you to specify additional arguments defined in the
                 ``train_single_model`` method.
         """
-        if device_ids is None:
+        if gpu_id_for_all is None:
             result = subprocess.run(["nvidia-smi", "--list-gpus"], stdout=subprocess.PIPE)
             output = result.stdout.decode("utf-8")
             num_gpus = len(output.strip().split("\n"))
-            device_ids = tuple(range(num_gpus))
-        logger.info(f"number of GPUs is {len(device_ids)}, device ids are {device_ids}")
-        if len(device_ids) > 1:
-            self.train_parallel(configs=ensure_tuple(configs), device_ids=device_ids, **kwargs)
+            gpu_id_for_all = tuple(range(num_gpus))
+        elif isinstance(gpu_id_for_all, int):
+            gpu_id_for_all = ensure_tuple(gpu_id_for_all)
+        logger.info(f"number of GPUs is {len(gpu_id_for_all)}, device ids are {gpu_id_for_all}")
+        if len(gpu_id_for_all) > 1:
+            self.train_parallel(configs=ensure_tuple(configs), gpu_id_for_all=gpu_id_for_all, **kwargs)
         else:
             for cfg in ensure_tuple(configs):
                 for _fold in range(self.num_folds):
-                    self.train_single_model(config=cfg, fold=_fold, gpu_id=device_ids, **kwargs)
+                    self.train_single_model(config=cfg, fold=_fold, gpu_id=gpu_id_for_all, **kwargs)
 
     def train_parallel_cmd(
         self,
         configs: tuple | str = (M.N_3D_FULLRES, M.N_2D, M.N_3D_LOWRES, M.N_3D_CASCADE_FULLRES),
-        device_ids: tuple | list | None = None,
+        gpu_id_for_all: tuple | list | int | None = None,
         **kwargs: Any,
     ) -> list:
         """
@@ -590,7 +593,8 @@ class nnUNetV2Runner:  # noqa: N801
         Args:
             configs: configurations that should be trained.
                 Default: ("2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres").
-            device_ids: a tuple/list of GPU device IDs to use for the training. Default: None (all available GPUs).
+            gpu_id_for_all: a tuple/list/integer of GPU device ID(s) to use for the training. Default:
+                None (all available GPUs).
             kwargs: this optional parameter allows you to specify additional arguments defined in the
                 ``train_single_model`` method.
         """
@@ -613,7 +617,7 @@ class nnUNetV2Runner:  # noqa: N801
 
         # model training
         kwargs = kwargs or {}
-        devices = ensure_tuple(device_ids)
+        devices = ensure_tuple(gpu_id_for_all)
         n_devices = len(devices)
         _configs = [[M.N_3D_FULLRES, M.N_2D, M.N_3D_LOWRES], [M.N_3D_CASCADE_FULLRES]]
         all_cmds: list = []
@@ -624,7 +628,7 @@ class nnUNetV2Runner:  # noqa: N801
             for _config in _configs[_stage]:
                 if _config in ensure_tuple(configs):
                     for _i in range(self.num_folds):
-                        the_device = device_ids[_index % n_devices]  # type: ignore
+                        the_device = gpu_id_for_all[_index % n_devices]  # type: ignore
                         cmd = (
                             "python -m monai.apps.nnunet nnUNetV2Runner train_single_model "
                             + f"--input_config '{self.input_config_or_dict}' --work_dir '{self.work_dir}' "
@@ -641,22 +645,23 @@ class nnUNetV2Runner:  # noqa: N801
     def train_parallel(
         self,
         configs: tuple | str = (M.N_3D_FULLRES, M.N_2D, M.N_3D_LOWRES, M.N_3D_CASCADE_FULLRES),
-        device_ids: tuple | list | None = None,
+        gpu_id_for_all: tuple | list | int | None = None,
         **kwargs: Any,
     ) -> None:
         """
         Create the line command for subprocess call for parallel training.
-        Note: to set the number of GPUs to use, use ``devices_ids`` instead of the `CUDA_VISIBLE_DEVICES`
+        Note: to set the number of GPUs to use, use ``gpu_id_for_all`` instead of the `CUDA_VISIBLE_DEVICES`
         environment variable.
 
         Args:
             configs: configurations that should be trained.
                 default: ("2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres").
-            device_ids: a tuple of GPU device IDs to use for the training. Default: None (all available GPUs).
+            gpu_id_for_all: a tuple/list/integer of GPU device ID(s) to use for the training. Default:
+                None (all available GPUs).
             kwargs: this optional parameter allows you to specify additional arguments defined in the
                 ``train_single_model`` method.
         """
-        all_cmds = self.train_parallel_cmd(configs=configs, device_ids=device_ids, **kwargs)
+        all_cmds = self.train_parallel_cmd(configs=configs, gpu_id_for_all=gpu_id_for_all, **kwargs)
         for s, cmds in enumerate(all_cmds):
             for gpu_id, gpu_cmd in cmds.items():
                 if not gpu_cmd:
