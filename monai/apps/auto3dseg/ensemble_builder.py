@@ -127,19 +127,19 @@ class AlgoEnsemble(ABC):
             else:
                 return VoteEnsemble(num_classes=preds[0].shape[0])(classes)
 
-    def _apply_model_specific_param(self, model_specific_param: dict, param: dict, algo_name: str) -> dict:
+    def _apply_algo_specific_param(self, algo_spec_param: dict, param: dict, algo_name: str) -> dict:
         """
         Apply the model-specific params to the prediction params based on the name of the Algo.
 
         Args:
-            model_specific_param: a dict that has structure of {"<name of algo>": "<pred_params for that algo>"}.
+            algo_spec_param: a dict that has structure of {"<name of algo>": "<pred_params for that algo>"}.
             param: the prediction params to override.
             algo_name: name of the Algo
 
         Returns:
             param after being updated with the model-specific param
         """
-        _param_to_override = deepcopy(model_specific_param)
+        _param_to_override = deepcopy(algo_spec_param)
         _param = deepcopy(param)
         for k, v in _param_to_override.items():
             if k.lower() == algo_name.lower():
@@ -165,7 +165,7 @@ class AlgoEnsemble(ABC):
                       Example: `{"_target_": "SaveImage", "output_dir": "./"}`
                     - ``"sigmoid"``: use the sigmoid function (e.g. x > 0.5) to convert the prediction probability map
                       to the label class prediction, otherwise argmax(x) is used.
-                    - ``"model_specific_param"``: a dictionary to add pred_params that are specific to a model.
+                    - ``"algo_spec_params"``: a dictionary to add pred_params that are specific to a model.
                       The dict has a format of {"<name of algo>": "<pred_params for that algo>"}.
 
                 The parameters in the second group is defined in the ``config`` of each Algo templates. Please check:
@@ -193,7 +193,7 @@ class AlgoEnsemble(ABC):
         if "image_save_func" in param:
             img_saver = ConfigParser(param["image_save_func"]).get_parsed_content()
 
-        model_specific_params = param.pop("model_specific_params", None)
+        algo_spec_params = param.pop("algo_spec_params", {})
 
         outputs = []
         for _, file in (
@@ -205,7 +205,7 @@ class AlgoEnsemble(ABC):
             for algo in self.algo_ensemble:
                 infer_algo_name = get_name_from_algo_id(algo[AlgoKeys.ID])
                 infer_instance = algo[AlgoKeys.ALGO]
-                _param = self._apply_model_specific_param(model_specific_params, param, infer_algo_name)
+                _param = self._apply_algo_specific_param(algo_spec_params, param, infer_algo_name)
                 pred = infer_instance.predict(predict_files=[file], predict_params=_param)
                 preds.append(pred[0])
             if "image_save_func" in param:

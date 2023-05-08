@@ -76,7 +76,7 @@ pred_param = {
     "files_slices": slice(0, 1),
     "mode": "mean",
     "sigmoid": True,
-    "model_specific_params": {"segresnet": {"network#init_filters": 8}, "swinunetr": {"network#feature_size": 12}},
+    "algo_spec_params": {"segresnet": {"network#init_filters": 8}, "swinunetr": {"network#feature_size": 12}},
 }
 
 
