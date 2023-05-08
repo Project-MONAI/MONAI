@@ -24,7 +24,7 @@ import torch
 import torch.distributed as dist
 
 from monai.apps.auto3dseg.bundle_gen import BundleAlgo
-from monai.apps.auto3dseg.utils import import_bundle_algo_history
+from monai.apps.auto3dseg.utils import get_name_from_algo_id, import_bundle_algo_history
 from monai.apps.utils import get_logger
 from monai.auto3dseg import concat_val_to_np
 from monai.auto3dseg.utils import datafold_read
@@ -127,6 +127,25 @@ class AlgoEnsemble(ABC):
             else:
                 return VoteEnsemble(num_classes=preds[0].shape[0])(classes)
 
+    def _apply_algo_specific_param(self, algo_spec_param: dict, param: dict, algo_name: str) -> dict:
+        """
+        Apply the model-specific params to the prediction params based on the name of the Algo.
+
+        Args:
+            algo_spec_param: a dict that has structure of {"<name of algo>": "<pred_params for that algo>"}.
+            param: the prediction params to override.
+            algo_name: name of the Algo
+
+        Returns:
+            param after being updated with the model-specific param
+        """
+        _param_to_override = deepcopy(algo_spec_param)
+        _param = deepcopy(param)
+        for k, v in _param_to_override.items():
+            if k.lower() == algo_name.lower():
+                _param.update(v)
+        return _param
+
     def __call__(self, pred_param: dict | None = None) -> list:
         """
         Use the ensembled model to predict result.
@@ -146,6 +165,8 @@ class AlgoEnsemble(ABC):
                       Example: `{"_target_": "SaveImage", "output_dir": "./"}`
                     - ``"sigmoid"``: use the sigmoid function (e.g. x > 0.5) to convert the prediction probability map
                       to the label class prediction, otherwise argmax(x) is used.
+                    - ``"algo_spec_params"``: a dictionary to add pred_params that are specific to a model.
+                      The dict has a format of {"<name of algo>": "<pred_params for that algo>"}.
 
                 The parameters in the second group is defined in the ``config`` of each Algo templates. Please check:
                 https://github.com/Project-MONAI/research-contributions/tree/main/auto3dseg/algorithm_templates
@@ -172,6 +193,8 @@ class AlgoEnsemble(ABC):
         if "image_save_func" in param:
             img_saver = ConfigParser(param["image_save_func"]).get_parsed_content()
 
+        algo_spec_params = param.pop("algo_spec_params", {})
+
         outputs = []
         for _, file in (
             enumerate(tqdm(files, desc="Ensembling (rank 0)..."))
@@ -180,8 +203,10 @@ class AlgoEnsemble(ABC):
         ):
             preds = []
             for algo in self.algo_ensemble:
+                infer_algo_name = get_name_from_algo_id(algo[AlgoKeys.ID])
                 infer_instance = algo[AlgoKeys.ALGO]
-                pred = infer_instance.predict(predict_files=[file], predict_params=param)
+                _param = self._apply_algo_specific_param(algo_spec_params, param, infer_algo_name)
+                pred = infer_instance.predict(predict_files=[file], predict_params=_param)
                 preds.append(pred[0])
             if "image_save_func" in param:
                 try:
