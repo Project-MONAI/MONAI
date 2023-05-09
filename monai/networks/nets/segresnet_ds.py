@@ -388,7 +388,7 @@ class SegResNetDS(nn.Module):
         a = [i % j == 0 for i, j in zip(x.shape[2:], self.shape_factor())]
         return all(a)
 
-    def _forward(self, x: torch.Tensor) -> Union[torch.Tensor, list[torch.Tensor]]:
+    def _forward(self, x: torch.Tensor) -> Union[None, torch.Tensor, list[torch.Tensor]]:
         if self.preprocess is not None:
             x = self.preprocess(x)
 
@@ -424,5 +424,5 @@ class SegResNetDS(nn.Module):
         # return a list of DS outputs
         return outputs
 
-    def forward(self, x: torch.Tensor) -> Union[torch.Tensor, list[torch.Tensor]]:
+    def forward(self, x: torch.Tensor) -> Union[None, torch.Tensor, list[torch.Tensor]]:
         return self._forward(x)
