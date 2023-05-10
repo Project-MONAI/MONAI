@@ -23,7 +23,7 @@ from monai import transforms
 from monai.data.meta_obj import MetaObj, get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
-from monai.transforms.traits import InvertibleTrait, LazyTrait
+from monai.transforms.traits import InvertibleTrait
 from monai.transforms.transform import Transform
 from monai.utils import (
     LazyAttr,
