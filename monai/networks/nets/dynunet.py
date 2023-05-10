@@ -11,7 +11,7 @@
 
 # isort: dont-add-import: from __future__ import annotations
 
-from typing import List, Optional, Sequence, Tuple, Union
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -32,7 +32,7 @@ class DynUNetSkipLayer(nn.Module):
     forward passes of the network.
     """
 
-    heads: Optional[List[torch.Tensor]]
+    heads: Optional[Dict[str, List[torch.Tensor]]]
 
     def __init__(self, index, downsample, upsample, next_layer, heads=None, super_head=None):
         super().__init__()
@@ -48,7 +48,7 @@ class DynUNetSkipLayer(nn.Module):
         nextout = self.next_layer(downout)
         upout = self.upsample(nextout, downout)
         if self.super_head is not None and self.heads is not None and self.index > 0:
-            self.heads[self.index - 1] = self.super_head(upout)
+            self.heads[str(upout.device)][self.index - 1] = self.super_head(upout)
 
         return upout
 
@@ -169,7 +169,7 @@ class DynUNet(nn.Module):
         self.deep_supervision = deep_supervision
         self.deep_supr_num = deep_supr_num
         # initialize the typed list of supervision head outputs so that Torchscript can recognize what's going on
-        self.heads: List[torch.Tensor] = [torch.rand(1)] * self.deep_supr_num
+        self.heads: Dict[str, List[torch.Tensor]] = {"device": [torch.rand(1)] * self.deep_supr_num}
         if self.deep_supervision:
             self.deep_supervision_heads = self.get_deep_supervision_heads()
             self.check_deep_supr_num()
@@ -266,12 +266,15 @@ class DynUNet(nn.Module):
             self.filters = filters[: len(self.strides)]
 
     def forward(self, x):
+        if self.deep_supervision:
+            self.heads[str(x.device)] = list(self.heads["device"])
         out = self.skip_layers(x)
         out = self.output_block(out)
         if self.training and self.deep_supervision:
-            out_all = torch.zeros(out.shape[0], len(self.heads) + 1, *out.shape[1:], device=out.device, dtype=out.dtype)
+            heads = self.heads[str(x.device)]
+            out_all = torch.zeros(out.shape[0], len(heads) + 1, *out.shape[1:], device=out.device, dtype=out.dtype)
             out_all[:, 0] = out
-            for idx, feature_map in enumerate(self.heads):
+            for idx, feature_map in enumerate(heads):
                 out_all[:, idx + 1] = interpolate(feature_map, out.shape[2:])
             return out_all
         return out
