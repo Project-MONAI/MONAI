@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Sequence
+from typing import Optional
 
 import torch
 import torch.nn.functional as F
@@ -154,7 +155,7 @@ class FocalLoss(_Loss):
         ce = i - i * t + max_val + ((-max_val).exp() + (-i - max_val).exp()).log()
 
         if self.weight is not None:
-            class_weight: torch.Tensor | None = None
+            class_weight: Optional[torch.Tensor] = None
             if isinstance(self.weight, (float, int)):
                 class_weight = torch.as_tensor([self.weight] * i.size(1))
             else:

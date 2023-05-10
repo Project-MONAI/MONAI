@@ -695,7 +695,9 @@ def convert_to_onnx(
         set_determinism(seed=None)
         # compare onnx/ort and PyTorch results
         for r1, r2 in zip(torch_out, onnx_out):
-            torch.testing.assert_allclose(r1.cpu(), r2, rtol=rtol, atol=atol)
+            if isinstance(r1, torch.Tensor):
+                assert_fn = torch.testing.assert_close if pytorch_after(1, 11) else torch.testing.assert_allclose
+                assert_fn(r1.cpu(), convert_to_tensor(r2, track_meta=False), rtol=rtol, atol=atol)  # type: ignore
 
     return onnx_model
 
