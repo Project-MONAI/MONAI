@@ -47,6 +47,7 @@ from monai.transforms.croppad.array import (
     SpatialPad,
 )
 from monai.transforms.inverse import InvertibleTransform
+from monai.transforms.lazy.executors import apply_pending_transforms
 from monai.transforms.traits import LazyTrait, MultiSampleTrait
 from monai.transforms.transform import LazyTransform, MapTransform, Randomizable
 from monai.transforms.utils import is_positive
@@ -721,12 +722,6 @@ class CropForegroundd(Cropd):
                 note that `np.pad` treats channel dimension as the first dimension.
 
         """
-        # if lazy is True:
-        #     warnings.warn(
-        #         "CropForegroundd cannot currently execute lazily; " "ignoring lazy=True set during initialization"
-        #     )
-        #     lazy = False
-
         self.source_key = source_key
         self.start_coord_key = start_coord_key
         self.end_coord_key = end_coord_key
@@ -747,11 +742,11 @@ class CropForegroundd(Cropd):
         self._lazy = value
         self.cropper.lazy = value
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
-        # if lazy is True:
-        #     warnings.warn("CropForegroundd cannot currently execute lazily; ignoring lazy=True")
-        #     lazy = False
+    @property
+    def partially_lazy(self):
+        return True
 
+    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         self.cropper: CropForeground
         box_start, box_end = self.cropper.compute_bounding_box(img=d[self.source_key])
@@ -904,12 +899,6 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, LazyTransform, MultiSam
         lazy: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
-        # if lazy is True:
-        #     warnings.warn(
-        #         "RandCropByPosNegLabeld cannot currently execute lazily; "
-        #         "ignoring lazy=True set during initialization"
-        #     )
-        #     lazy = False
         LazyTransform.__init__(self, lazy)
         self.label_key = label_key
         self.image_key = image_key
@@ -946,13 +935,13 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, LazyTransform, MultiSam
         self._lazy = value
         self.cropper.lazy = value
 
+    @property
+    def partially_lazy(self):
+        return True
+
     def __call__(
         self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None
     ) -> list[dict[Hashable, torch.Tensor]]:
-        # if lazy is True:
-        #     warnings.warn("RandCropByPosNegLabeld cannot currently execute lazily; ignoring lazy=True")
-        #     lazy = False
-
         d = dict(data)
         fg_indices = d.pop(self.fg_indices_key, None)
         bg_indices = d.pop(self.bg_indices_key, None)
@@ -1068,12 +1057,6 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSa
         lazy: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
-        # if lazy is True:
-        #     warnings.warn(
-        #         "RandCropByLabelClassesd cannot currently execute lazily; "
-        #         "ignoring lazy=True set during initialization"
-        #     )
-        #     lazy = False
         LazyTransform.__init__(self, lazy)
         self.label_key = label_key
         self.image_key = image_key
@@ -1107,10 +1090,11 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSa
         self._lazy = value
         self.cropper.lazy = value
 
+    @property
+    def partially_lazy(self):
+        return True
+
     def __call__(self, data: Mapping[Hashable, Any], lazy: bool | None = None) -> list[dict[Hashable, torch.Tensor]]:
-        # if lazy is True:
-        #     warnings.warn("RandCropByLabelClassesd cannot currently execute lazily; ignoring lazy=True")
-        #     lazy = False
         d = dict(data)
         self.randomize(d.get(self.label_key), d.pop(self.indices_key, None), d.get(self.image_key))  # type: ignore
 

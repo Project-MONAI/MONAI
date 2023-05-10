@@ -321,6 +321,10 @@ class LazyTransform(Transform, LazyTrait):
                 raise TypeError(f"lazy must be a bool but is of type {type(lazy)}")
         self._lazy = lazy
 
+    @property
+    def partially_lazy(self):
+        return False
+
 
 class RandomizableTransform(Randomizable, Transform):
     """

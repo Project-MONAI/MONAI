@@ -77,33 +77,6 @@ def _log_applied_info(data: Any, key=None, logger_name: str | None = None):
     logger.info(f"Pending transforms applied: {key_str}applied_operations: {len(data.applied_operations)}")
 
 
-def patch_for_in_order_needs_implicit_apply_pending(transform, data, lazy, overrides, logger_name):
-    from monai.transforms.croppad.array import CropForeground, RandCropByLabelClasses, RandCropByPosNegLabel
-    from monai.transforms.croppad.dictionary import CropForegroundd, RandCropByLabelClassesd, RandCropByPosNegLabeld
-
-    if isinstance(data, dict):
-        if isinstance(transform, CropForegroundd):
-            k = transform.source_key
-        elif isinstance(transform, (RandCropByLabelClassesd, RandCropByPosNegLabeld)):
-            k = transform.label_key
-        else:
-            return data
-
-        if isinstance(data[k], MetaTensor) and data[k].has_pending_operations:
-            d = dict(data)
-            k = transform.source_key
-            _log_pending_info(transform, data, "Apply prior to executing", key=k, lazy=lazy, logger_name=logger_name)
-            d[k] = apply_pending(data[k], overrides=overrides.get(k, None))
-            return d
-    elif isinstance(data, MetaTensor) and data.has_pending_operations:
-        if isinstance(transform, (CropForeground, RandCropByLabelClasses, RandCropByPosNegLabel)):
-            _log_pending_info(transform, data, "Apply prior to executing", lazy=lazy, logger_name=logger_name)
-            data = apply_pending(data, overrides)
-            return data
-
-    return data
-
-
 def apply_pending_transforms(
     data: NdarrayOrTensor | Mapping[Any, NdarrayOrTensor],
     keys: tuple | None,
@@ -185,27 +158,26 @@ def apply_pending_transforms_in_order(
         an object of the same type as data if pending transforms were applied, or 'data' if they were not
 
     """
-    if lazy is False:
-        _log_pending_info(transform, data, "Apply pending transforms", lazy=lazy, logger_name=logger_name)
-        return apply_pending_transforms(data, None, overrides, logger_name)
+    apply_pending = False
+    keys = None
+    if isinstance(transform, LazyTrait):
+        if transform.partially_lazy:
+            apply_pending = True
+        else:
+            apply_pending = not (transform.lazy if lazy is None else lazy)
+    elif isinstance(transform, ApplyPending):
+        apply_pending = True
+    elif isinstance(transform, ApplyPendingd):
+        apply_pending = True
+        keys = transform.keys
+    else:
+        apply_pending = True
 
-    lazy_ = transform.lazy if isinstance(transform, LazyTrait) and lazy is None else lazy
-    if not isinstance(transform, LazyTrait) or lazy_ is False:
+    if apply_pending is True:
         _log_pending_info(transform, data, "Apply pending transforms", lazy=lazy, logger_name=logger_name)
-        return apply_pending_transforms(data, None, overrides, logger_name)
-
-    if isinstance(transform, ApplyPendingd):
-        _log_pending_info(transform, data, "Apply pending transforms", lazy=lazy, logger_name=logger_name)
-        return apply_pending_transforms(data, transform.keys, overrides, logger_name)
-
-    if isinstance(transform, ApplyPending):
-        _log_pending_info(transform, data, "Apply pending transforms", lazy=lazy, logger_name=logger_name)
-        return apply_pending_transforms(data, None, overrides, logger_name)
-
-    patch_for_in_order_needs_implicit_apply_pending(transform, data, lazy, overrides, logger_name)
+        return apply_pending_transforms(data, keys, overrides, logger_name)
 
     _log_pending_info(transform, data, "Accumulate pending transforms", lazy=lazy, logger_name=logger_name)
-
     return data
 
 

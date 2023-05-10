@@ -808,11 +808,6 @@ class CropForeground(Crop):
                 note that `np.pad` treats channel dimension as the first dimension.
 
         """
-        # if lazy is True:
-        #     warnings.warn(
-        #         "CropForeground cannot currently execute lazily; " "ignoring lazy=True set during initialization"
-        #     )
-        #     lazy = False
         LazyTransform.__init__(self, lazy)
         self.select_fn = select_fn
         self.channel_indices = ensure_tuple(channel_indices) if channel_indices is not None else None
@@ -826,6 +821,10 @@ class CropForeground(Crop):
     def lazy(self, _val: bool):
         self._lazy = _val
         self.padder.lazy = _val
+
+    @property
+    def partially_lazy(self):
+        return False
 
     def compute_bounding_box(self, img: torch.Tensor) -> tuple[np.ndarray, np.ndarray]:
         """
@@ -897,10 +896,6 @@ class CropForeground(Crop):
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't change the channel dim.
         """
-        # if lazy is True:
-        #     warnings.warn("CropForeground cannot currently execute lazily; ignoring lazy=True")
-        #     lazy = False
-
         box_start, box_end = self.compute_bounding_box(img)
         lazy_ = self.lazy if lazy is None else lazy
         cropped = self.crop_pad(img, box_start, box_end, mode, lazy=lazy_, **pad_kwargs)
@@ -1073,11 +1068,6 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
         allow_smaller: bool = False,
         lazy: bool = False,
     ) -> None:
-        # if lazy is True:
-        #     warnings.warn(
-        #         "RandCropByPosNegLabel cannot currently execute lazily; " "ignoring lazy=True set during initialization"
-        #     )
-        #     lazy = False
         LazyTransform.__init__(self, lazy)
         self.spatial_size = spatial_size
         self.label = label
@@ -1129,6 +1119,10 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
     def lazy(self, _val: bool):
         self._lazy = _val
 
+    @property
+    def partially_lazy(self):
+        return False
+
     def __call__(
         self,
         img: torch.Tensor,
@@ -1154,10 +1148,6 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
             randomize: whether to execute the random operations, default to `True`.
 
         """
-        # if lazy is True:
-        #     warnings.warn("RandCropByPosNegLabel cannot currently execute lazily; ignoring lazy=True")
-        #     lazy = False
-
         if image is None:
             image = self.image
         if randomize:
@@ -1265,12 +1255,6 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
         max_samples_per_class: int | None = None,
         lazy: bool = False,
     ) -> None:
-        # if lazy is True:
-        #     warnings.warn(
-        #         "RandCropByLabelClasses cannot currently execute lazily; "
-        #         "ignoring lazy=True set during initialization"
-        #     )
-        #     lazy = False
         LazyTransform.__init__(self, lazy)
         self.spatial_size = spatial_size
         self.ratios = ratios
@@ -1313,6 +1297,10 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
     def lazy(self, _val: bool):
         self._lazy = _val
 
+    @property
+    def partially_lazy(self):
+        return False
+
     def __call__(
         self,
         img: torch.Tensor,
@@ -1333,10 +1321,6 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
             randomize: whether to execute the random operations, default to `True`.
 
         """
-        # if lazy is True:
-        #     warnings.warn("RandCropByLabelClasses cannot currently execute lazily; ignoring lazy=True")
-        #     lazy = False
-
         if image is None:
             image = self.image
         if randomize:

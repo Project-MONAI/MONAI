@@ -46,6 +46,17 @@ class LazyTrait:
         """
         raise NotImplementedError()
 
+    @property
+    def partially_lazy(self):
+        """
+        Get whether the transform is "partially lazy" or not. A partially lazy transform
+        requires that all of the pending operations on its input transforms are up to date
+        before it is executed, but it can still execute lazily by adding pending operations
+        to the input tensors.
+        Returns:
+            True if the transform is partially lazy and False if it is not
+        """
+
 
 class InvertibleTrait:
     """
