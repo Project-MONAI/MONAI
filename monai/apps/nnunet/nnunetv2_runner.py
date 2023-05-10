@@ -497,7 +497,6 @@ class nnUNetV2Runner:  # noqa: N801
         from nnunetv2.run.run_training import run_training
             kwargs: this optional parameter allows you to specify additional arguments in
                 ``nnunetv2.run.run_training.run_training``. Currently supported args are
-                    - trainer_class_name: name of the custom trainer class. Default: "nnUNetTrainer".
                     - plans_identifier: custom plans identifier. Default: "nnUNetPlans".
                     - pretrained_weights: path to nnU-Net checkpoint file to be used as pretrained model. Will only be
                         used when actually training. Beta. Use with caution. Default: False.
@@ -513,6 +512,14 @@ class nnUNetV2Runner:  # noqa: N801
         if "num_gpus" in kwargs:
             kwargs.pop("num_gpus")
             logger.warning("please use gpu_id to set the GPUs to use")
+
+        if "trainer_class_name" in kwargs:
+            kwargs.pop("trainer_class_name")
+            logger.warning("please specify the `trainer_class_name` in the __init__ of `nnUNetV2Runner`.")
+
+        if "export_validation_probabilities" in kwargs:
+            kwargs.pop("export_validation_probabilities")
+            logger.warning("please specify the `export_validation_probabilities` in the __init__ of `nnUNetV2Runner`.")
 
         if isinstance(gpu_id, tuple) or isinstance(gpu_id, list):
             if len(gpu_id) > 1:
