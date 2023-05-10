@@ -121,7 +121,7 @@ class AutoRunner:
             runner = AutoRunner(work_dir=work_dir, input=input, algos=algos)
             runner.run()
 
-        - User can specify a a local folder with algorithms templates and run AutoRunner:
+        - User can specify a local folder with algorithms templates and run AutoRunner:
 
         .. code-block:: python
 
@@ -414,7 +414,7 @@ class AutoRunner:
                 parameters for each bundleAlgo based on gpus. Custom parameters are obtained through dummy
                 training to simulate the actual model training process and hyperparameter optimization (HPO)
                 experiments.
-            gpu_customization_specs (optinal): the dictionary to enable users overwrite the HPO settings. user can
+            gpu_customization_specs (optional): the dictionary to enable users overwrite the HPO settings. user can
                 overwrite part of variables as follows or all of them. The structure is as follows.
 
                 .. code-block:: python
@@ -427,10 +427,10 @@ class AutoRunner:
                         }
                     }
 
-            ALGO: the name of algorithm. It could be one of algorithm names (e.g., 'dints') or 'unversal' which
+            ALGO: the name of algorithm. It could be one of algorithm names (e.g., 'dints') or 'universal' which
                 would apply changes to all algorithms. Possible options are
 
-                - {``"unversal"``, ``"dints"``, ``"segresnet"``, ``"segresnet2d"``, ``"swinunetr"``}.
+                - {``"universal"``, ``"dints"``, ``"segresnet"``, ``"segresnet2d"``, ``"swinunetr"``}.
 
             num_trials: the number of HPO trials/experiments to run.
             range_num_images_per_batch: the range of number of images per mini-batch.
@@ -468,7 +468,7 @@ class AutoRunner:
         self.train_params = deepcopy(params) if params is not None else {}
         if "CUDA_VISIBLE_DEVICES" in self.train_params:
             warnings.warn(
-                "CUDA_VISIBLE_DEVICES is deprecated from 'set_training_params'. Use 'set_device_info' intead.",
+                "CUDA_VISIBLE_DEVICES is deprecated from 'set_training_params'. Use 'set_device_info' instead.",
                 DeprecationWarning,
             )
 
@@ -483,7 +483,7 @@ class AutoRunner:
         Set the device related info
 
         Args:
-            cuda_visible_device: define GPU ids for data analyzer, training, and ensembling.
+            cuda_visible_devices: define GPU ids for data analyzer, training, and ensembling.
                 List of GPU ids [0,1,2,3] or a string "0,1,2,3".
                 Default using env "CUDA_VISIBLE_DEVICES" or all devices available.
             num_nodes: number of nodes for training and ensembling.
@@ -497,7 +497,7 @@ class AutoRunner:
                     - single node multi-GPU running "torchrun --nnodes=1 --nproc_per_node=2 "
 
                 If user define this prefix, please make sure --nproc_per_node matches cuda_visible_device or
-                os.env['CUDA_VISIBLE_DEVICES]. Also always set --nnodes=1. Set num_nodes for multi-node.
+                os.env['CUDA_VISIBLE_DEVICES']. Also always set --nnodes=1. Set num_nodes for multi-node.
         """
         self.device_setting: dict[str, Any] = {}
         if cuda_visible_devices is None:
@@ -527,14 +527,14 @@ class AutoRunner:
         self.device_setting["CMD_PREFIX"] = cmd_prefix
 
         if cmd_prefix is not None:
-            logger.info(f"Using user defined command running prefix {cmd_prefix}, will overide other settings")
+            logger.info(f"Using user defined command running prefix {cmd_prefix}, will override other settings")
 
     def set_ensemble_method(self, ensemble_method_name: str = "AlgoEnsembleBestByFold", **kwargs: Any) -> None:
         """
         Set the bundle ensemble method name and parameters for save image transform parameters.
 
         Args:
-            params: the name of the ensemble method. Only two methods are supported "AlgoEnsembleBestN"
+            ensemble_method_name: the name of the ensemble method. Only two methods are supported "AlgoEnsembleBestN"
                 and "AlgoEnsembleBestByFold".
             kwargs: the keyword arguments used to define the ensemble method. Currently only ``n_best`` for
                 ``AlgoEnsembleBestN`` is supported.
