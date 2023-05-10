@@ -18,6 +18,7 @@ import unittest
 
 import nibabel as nib
 import numpy as np
+import sys
 import torch
 
 from monai.apps.auto3dseg import BundleGen, DataAnalyzer
@@ -126,6 +127,7 @@ class TestBundleGen(unittest.TestCase):
         data_src_cfg = os.path.join(work_dir, "data_src_cfg.yaml")
         ConfigParser.export_config_file(data_src, data_src_cfg)
 
+        sys_path = sys.path.copy()
         with skip_if_downloading_fails():
             bundle_generator = BundleGen(
                 algo_path=work_dir,
@@ -138,6 +140,7 @@ class TestBundleGen(unittest.TestCase):
         history_before = bundle_generator.get_history()
         export_bundle_algo_history(history_before)
 
+        sys.path = sys_path  # prevent the import_bundle_algo_history from using the path "work_dir/algorithm_templates"
         tempfile.TemporaryDirectory()
         work_dir_new = os.path.join(test_path, "workdir_2")
         shutil.move(work_dir, work_dir_new)
