@@ -13,12 +13,12 @@ from __future__ import annotations
 
 import os
 import shutil
+import sys
 import tempfile
 import unittest
 
 import nibabel as nib
 import numpy as np
-import sys
 import torch
 
 from monai.apps.auto3dseg import BundleGen, DataAnalyzer
