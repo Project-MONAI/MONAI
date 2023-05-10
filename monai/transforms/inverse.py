@@ -86,7 +86,7 @@ class TraceableTransform(Transform):
     @staticmethod
     def transform_info_keys():
         """The keys to store necessary info of an applied transform."""
-        return (TraceKeys.CLASS_NAME, TraceKeys.ID, TraceKeys.TRACING, TraceKeys.LAZY, TraceKeys.DO_TRANSFORM)
+        return (TraceKeys.CLASS_NAME, TraceKeys.ID, TraceKeys.TRACING, TraceKeys.DO_TRANSFORM)
 
     def get_transform_info(self) -> dict:
         """
@@ -96,7 +96,6 @@ class TraceableTransform(Transform):
             self.__class__.__name__,
             id(self),
             self.tracing,
-            self.lazy if isinstance(self, LazyTrait) else False,
             self._do_transform if hasattr(self, "_do_transform") else True,
         )
         return dict(zip(self.transform_info_keys(), vals))
@@ -206,6 +205,10 @@ class TraceableTransform(Transform):
             info[TraceKeys.ORIG_SIZE] = data_t.peek_pending_shape()
         elif hasattr(data_t, "shape"):
             info[TraceKeys.ORIG_SIZE] = data_t.shape[1:]
+
+        # add lazy status to the transform info
+        info[TraceKeys.LAZY] = lazy
+
         # include extra_info
         if extra_info is not None:
             extra_info.pop(LazyAttr.SHAPE, None)

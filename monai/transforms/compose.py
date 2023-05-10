@@ -136,7 +136,7 @@ class ExecutionOptions:
     ExecutionOptions is an implementation class that is required to parse options for Compose. It should currently
     be considered an implementation detail that should not be interacted with directly by users of MONAI, although that
     may change in subsequent releases. Its job is to parse options provided to `Compose.__call__`_ to set execution
-    modes for lazy resampling.
+    modes for executing the pipeline.
 
     See `Compose`_ for a detailed explanation of lazy resampling.
     """
@@ -433,6 +433,7 @@ class Compose(Randomizable, InvertibleTransform):
         self.overrides = overrides
         self.options = options
         self.logger_name = logger_name
+        self.execution_options = ExecutionOptions()
 
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> Compose:
         super().set_random_state(seed=seed, state=state)
@@ -511,7 +512,7 @@ class Compose(Randomizable, InvertibleTransform):
 
     def __call__(self, input_, start=0, end=None, threading=False, lazy: bool | None = None):
         lazy_ = self.lazy if lazy is None else lazy
-        policy = ExecutionOptions()(self.transforms, lazy_, self.options)
+        policy = self.execution_options(self.transforms, lazy_, self.options)
         lazy_strategy = policy["lazy_policy"]
         indices = policy["indices"]
 
@@ -544,7 +545,7 @@ class Compose(Randomizable, InvertibleTransform):
         return result
 
     def inverse(self, data):
-        policy = ExecutionOptions()(self.transforms, self.lazy, self.options)
+        policy = self.execution_options(self.transforms, self.lazy, self.options)
         indices = policy["indices"]
 
         self._raise_if_tensor_is_not_invertible(data)

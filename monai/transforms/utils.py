@@ -1976,22 +1976,57 @@ def resolves_modes(
     return backend, _interp_mode, _padding_mode, _kwargs
 
 
-def is_tensor_invertible(data: Any):
-    def check_applied_operations(entry):
-        if isinstance(entry, list):
-            results = list()
-            for sub_entry in entry:
-                results.extend(check_applied_operations(sub_entry))
-            return results
-        else:
-            if TraceKeys.STATUSES in entry:
-                if TraceStatusKeys.PENDING_DURING_APPLY in entry[TraceKeys.STATUSES]:
-                    reason = entry[TraceKeys.STATUSES][TraceStatusKeys.PENDING_DURING_APPLY]
-                    if reason is None:
-                        return ["Pending operations while applying an operation"]
-                    return reason if isinstance(reason, list) else [reason]
-            return []
+def check_applied_operations(entry: list | dict, status_key: str, default_message: str = "No message provided"):
+    """
+    Check the operations of a MetaTensor to determine whether there are any statuses
+    Args:
+        entry: a dictionary that may contain TraceKey.STATUS entries, or a list of such dictionaries
+        status_key: the status key to search for. This must be an entry in `TraceStatusKeys`_
+        default_message: The message to provide if no messages are provided for the given status key entry
 
+    Returns:
+        A list of status messages matching the providing status key
+
+    """
+    if isinstance(entry, list):
+        results = list()
+        for sub_entry in entry:
+            results.extend(check_applied_operations(sub_entry, status_key, default_message))
+        return results
+    else:
+        status_key_ = TraceStatusKeys(status_key)
+        if TraceKeys.STATUSES in entry:
+            if status_key_ in entry[TraceKeys.STATUSES]:
+                reason = entry[TraceKeys.STATUSES][status_key_]
+                if reason is None:
+                    return [default_message]
+                return reason if isinstance(reason, list) else [reason]
+        return []
+
+
+def is_tensor_invertible(data: torch.Tensor):
+    """
+    Checks whether a given tensor is invertible. The rules are as follows:
+    1. If the tensor is not a MetaTensor, it is not invertible
+    2. If the tensor is a MetaTensor but it has `TraceStatusKeys.PENDING_DURING_APPLY` in the `TraceKeys.STATUS` of any
+       of its `applied_operations` it is not invertible
+    3. Otherwise, it is invertible
+
+    This function also accepts:
+     * dictionaries of tensors
+     * lists or tuples of tensors
+     * list or tuples of dictionaries of tensors
+    In any of the above scenarios, it iterates through the collections and executes itself recursively until it is
+    operating on tensors.
+
+    Args:
+        data: a `torch.Tensor` or `MetaTensor` or collections of torch.Tensor or MetaTensor, as described above
+
+    Returns:
+        A tuple. The first entry is `False` or `True`. The second entry is the status messages that can be used for the
+        user to help debug their pipelines.
+
+    """
     invert_disabled_reasons = list()
     if isinstance(data, (list, tuple)):
         for d in data:
@@ -2000,12 +2035,11 @@ def is_tensor_invertible(data: Any):
                 invert_disabled_reasons.extend(reasons)
     elif isinstance(data, monai.data.MetaTensor):
         for op in data.applied_operations:
-            invert_disabled_reasons.extend(check_applied_operations(op))
-            # if op
-            # if TraceKeys.STATUSES in op:
-            #     if TraceStatusKeys.PENDING_DURING_APPLY in op[TraceKeys.STATUSES]:
-            #         reason = op[TraceKeys.STATUSES][TraceStatusKeys.PENDING_DURING_APPLY]
-            #         invert_disabled_reasons.extend(["PENDING DURING APPLY"] if reason is None else reason)
+            invert_disabled_reasons.extend(
+                check_applied_operations(
+                    op, TraceStatusKeys.PENDING_DURING_APPLY, "Pending operations while applying an operation"
+                )
+            )
     elif isinstance(data, dict):
         for d in data.values():
             _, reasons = is_tensor_invertible(d)
