@@ -51,20 +51,20 @@ class ViTAutoEnc(nn.Module):
     ) -> None:
         """
         Args:
-            in_channels (int): dimension of input channels or the number of channels for input.
-            img_size (Sequence[int] | int): dimension of input image.
-            patch_size (Sequence[int] | int): dimension of patch size
-            out_channels (int, optional):  number of output channels. Defaults to 1.
-            deconv_chns (int, optional): number of channels for the deconvolution layers. Defaults to 16.
-            hidden_size (int, optional): dimension of hidden layer. Defaults to 768.
-            mlp_dim (int, optional): dimension of feedforward layer. Defaults to 3072.
-            num_layers (int, optional):  number of transformer blocks. Defaults to 12.
-            num_heads (int, optional): number of attention heads. Defaults to 12.
-            pos_embed (str, optional): position embedding layer type. Defaults to "conv".
-            dropout_rate (float, optional): faction of the input units to drop. Defaults to 0.0.
-            spatial_dims (int, optional): number of spatial dimensions. Defaults to 3.
-            qkv_bias (bool, optional) : apply bias to the qkv linear layer in self attention block. Defaults to False.
-            save_attn (bool, optional): to make accessible the attention in self attention block. Defaults to False. Defaults to False.
+            in_channels: dimension of input channels or the number of channels for input.
+            img_size: dimension of input image.
+            patch_size: dimension of patch size
+            out_channels:  number of output channels. Defaults to 1.
+            deconv_chns: number of channels for the deconvolution layers. Defaults to 16.
+            hidden_size: dimension of hidden layer. Defaults to 768.
+            mlp_dim: dimension of feedforward layer. Defaults to 3072.
+            num_layers:  number of transformer blocks. Defaults to 12.
+            num_heads: number of attention heads. Defaults to 12.
+            pos_embed: position embedding layer type. Defaults to "conv".
+            dropout_rate: faction of the input units to drop. Defaults to 0.0.
+            spatial_dims: number of spatial dimensions. Defaults to 3.
+            qkv_bias: apply bias to the qkv linear layer in self attention block. Defaults to False.
+            save_attn: to make accessible the attention in self attention block. Defaults to False. Defaults to False.
 
         Examples::
 
