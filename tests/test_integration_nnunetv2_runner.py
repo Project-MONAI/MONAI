@@ -81,11 +81,11 @@ class TestnnUNetV2Runner(unittest.TestCase):
 
     @skip_if_no_cuda
     def test_nnunetv2runner(self) -> None:
-        runner = nnUNetV2Runner(input_config=self.data_src_cfg)
+        runner = nnUNetV2Runner(input_config=self.data_src_cfg, trainer_class_name="nnUNetTrainer_1epoch")
         with skip_if_downloading_fails():
             runner.run(run_train=False, run_find_best_configuration=False, run_predict_ensemble_postprocessing=False)
-            runner.train(configs="3d_fullres", trainer_class_name="nnUNetTrainer_1epoch")
-            runner.find_best_configuration(configs="3d_fullres", trainers="nnUNetTrainer_1epoch")
+            runner.train(configs="3d_fullres")
+            runner.find_best_configuration(configs="3d_fullres")
             runner.predict_ensemble_postprocessing()
 
     def tearDown(self) -> None:
