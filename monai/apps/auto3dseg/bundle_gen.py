@@ -545,7 +545,7 @@ class BundleGen(AlgoGen):
                 .. code-block:: python
 
                     gpu_customization_specs = {
-                        'ALOG': {
+                        'ALGO': {
                             'num_trials': 6,
                             'range_num_images_per_batch': [1, 20],
                             'range_num_sw_batch_size': [1, 20]
