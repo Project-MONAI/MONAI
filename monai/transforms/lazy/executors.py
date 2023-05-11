@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
 from monai.apps.utils import get_logger
 from monai.config import NdarrayOrTensor
@@ -78,7 +78,7 @@ def _log_applied_info(data: Any, key=None, logger_name: str | None = None):
 
 
 def apply_pending_transforms(
-    data: NdarrayOrTensor | Mapping[Any, NdarrayOrTensor],
+    data: NdarrayOrTensor | Sequence[Any, NdarrayOrTensor] | Mapping[Any, NdarrayOrTensor],
     keys: tuple | None,
     overrides: dict | None = None,
     logger_name: str | None = None,
@@ -109,6 +109,11 @@ def apply_pending_transforms(
     Returns:
         an object of the same type as data if pending transforms were applied, or 'data' if they were not
     """
+    if isinstance(data, list):
+        return [apply_pending_transforms(d, keys, overrides, logger_name) for d in data]
+    if isinstance(data, tuple):
+        return tuple(apply_pending_transforms(d, keys, overrides, logger_name) for d in data)
+
     if isinstance(data, dict):
         # get the keys from 'data' for metatensors with pending operations. If 'keys' is set, select
         # only data keys that are in 'keys'
@@ -206,18 +211,19 @@ def apply_pending_transforms_out_of_order(
         an object of the same type as data if pending transforms were applied, or 'data' if they were not
 
     """
+    apply_pending = False
+    keys = None
     if lazy is False:
-        _log_pending_info(transform, data, "Apply pending transforms", lazy=lazy, logger_name=logger_name)
-        return apply_pending_transforms(data, None, overrides, logger_name)
+        apply_pending = True
+    elif isinstance(transform, ApplyPending):
+        apply_pending = True
+    elif isinstance(transform, ApplyPendingd):
+        apply_pending = True
+        keys = transform.keys
 
-    if isinstance(transform, ApplyPendingd):
+    if apply_pending is True:
         _log_pending_info(transform, data, "Apply pending transforms", lazy=lazy, logger_name=logger_name)
-        return apply_pending_transforms(data, transform.keys, overrides, logger_name)
-
-    if isinstance(transform, ApplyPending):
-        _log_pending_info(transform, data, "Apply pending transforms", lazy=lazy, logger_name=logger_name)
-        return apply_pending_transforms(data, None, overrides, logger_name)
+        return apply_pending_transforms(data, keys, overrides, logger_name)
 
     _log_pending_info(transform, data, "Accumulate pending transforms", lazy=lazy, logger_name=logger_name)
-
     return data
