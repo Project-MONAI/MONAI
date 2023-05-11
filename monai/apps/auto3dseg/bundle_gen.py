@@ -254,8 +254,8 @@ class BundleAlgo(Algo):
 
         Args:
             train_params:  training parameters
-            device_settings: device related settings, should follow the device_setting in auto_runner.set_device_info.
-            'CUDA_VISIBLE_DEVICES' should be a string e.g. '0,1,2,3'
+            device_setting: device related settings, should follow the device_setting in auto_runner.set_device_info.
+                'CUDA_VISIBLE_DEVICES' should be a string e.g. '0,1,2,3'
         """
         if device_setting is not None:
             self.device_setting.update(device_setting)
@@ -545,17 +545,17 @@ class BundleGen(AlgoGen):
                 .. code-block:: python
 
                     gpu_customization_specs = {
-                        'ALOG': {
+                        'ALGO': {
                             'num_trials': 6,
                             'range_num_images_per_batch': [1, 20],
                             'range_num_sw_batch_size': [1, 20]
                         }
                     }
 
-            ALGO: the name of algorithm. It could be one of algorithm names (e.g., 'dints') or 'unversal' which
+            ALGO: the name of algorithm. It could be one of algorithm names (e.g., 'dints') or 'universal' which
                 would apply changes to all algorithms. Possible options are
 
-                - {``"unversal"``, ``"dints"``, ``"segresnet"``, ``"segresnet2d"``, ``"swinunetr"``}.
+                - {``"universal"``, ``"dints"``, ``"segresnet"``, ``"segresnet2d"``, ``"swinunetr"``}.
 
             num_trials: the number of HPO trials/experiments to run.
             range_num_images_per_batch: the range of number of images per mini-batch.

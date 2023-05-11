@@ -1653,9 +1653,9 @@ class ImageFilter(Transform):
 
     def _check_kwargs_are_present(self, filter, **kwargs):
         if filter == "gauss" and "sigma" not in kwargs.keys():
-            raise KeyError("`filter='gauss', requires the additonal keyword argument `sigma`")
+            raise KeyError("`filter='gauss', requires the additional keyword argument `sigma`")
         if filter == "savitzky_golay" and "order" not in kwargs.keys():
-            raise KeyError("`filter='savitzky_golay', requires the additonal keyword argument `order`")
+            raise KeyError("`filter='savitzky_golay', requires the additional keyword argument `order`")
 
     def _get_filter_from_string(self, filter: str, size: int, ndim: int) -> nn.Module | Callable:
         if filter == "mean":

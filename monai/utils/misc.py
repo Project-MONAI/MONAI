@@ -812,7 +812,7 @@ def check_kwargs_exist_in_class_init(cls, kwargs):
         kwargs: kwargs to examine.
 
     Returns:
-        a boolean inidicating if all keys exist.
+        a boolean indicating if all keys exist.
         a set of extra keys that are not used in the __init__.
     """
     init_signature = inspect.signature(cls.__init__)

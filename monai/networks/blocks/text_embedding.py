@@ -46,7 +46,7 @@ class TextEncoder(nn.Module):
     ) -> None:
         """
         Args:
-            out_channels: number of output channels, to control text-baesd embedding for classes.
+            out_channels: number of output channels, to control text-based embedding for classes.
             spatial_dims: number of spatial dims.
             text_dim: dimension of text embeddings.
             hidden_size: dimension of hidden features, compatible to different vision feature dimensions.

@@ -697,7 +697,7 @@ def convert_to_onnx(
         for r1, r2 in zip(torch_out, onnx_out):
             if isinstance(r1, torch.Tensor):
                 assert_fn = torch.testing.assert_close if pytorch_after(1, 11) else torch.testing.assert_allclose
-                assert_fn(r1.cpu(), convert_to_tensor(r2, track_meta=False), rtol=rtol, atol=atol)  # type: ignore
+                assert_fn(r1.cpu(), convert_to_tensor(r2, dtype=r1.dtype), rtol=rtol, atol=atol)  # type: ignore
 
     return onnx_model
 

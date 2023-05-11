@@ -324,7 +324,7 @@ class OptunaGen(HPOGen):
         self, trial: Any, obj_filename: str, output_folder: str = ".", template_path: PathLike | None = None
     ) -> Any:
         """
-        Callabe that Optuna will use to optimize the hyper-parameters
+        Callable that Optuna will use to optimize the hyper-parameters
 
         Args:
             obj_filename: the pickle-exported Algo object.

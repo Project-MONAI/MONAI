@@ -1413,7 +1413,7 @@ def convert_applied_interp_mode(trans_info, mode: str = "nearest", align_corners
 
 
 def reset_ops_id(data):
-    """find MetaTensors in list or dict `data` and (in-place) set ``TraceKeys.ID`` to ``Tracekys.NONE``."""
+    """find MetaTensors in list or dict `data` and (in-place) set ``TraceKeys.ID`` to ``Tracekeys.NONE``."""
     if isinstance(data, (list, tuple)):
         return [reset_ops_id(d) for d in data]
     if isinstance(data, monai.data.MetaTensor):
@@ -1931,7 +1931,7 @@ def resolves_modes(
 
     Args:
         interp_mode: interpolation mode.
-        padding_mdoe: padding mode.
+        padding_mode: padding mode.
         backend: optional backend of `TransformBackends`. If None, the backend will be decided from `interp_mode`.
         kwargs: additional keyword arguments. currently support ``torch_interpolate_spatial_nd``, to provide
             additional information to determine ``linear``, ``bilinear`` and ``trilinear``;
