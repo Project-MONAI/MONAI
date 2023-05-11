@@ -16,9 +16,9 @@ from torch import nn
 from torch.utils import model_zoo
 
 url_map = {
-    "clip_encoding_univeral_model_32": (
+    "clip_encoding_universal_model_32": (
         "https://github.com/Project-MONAI/MONAI-extra-test-data/"
-        "releases/download/0.8.1/clip_encoding_univeral_model.pth"
+        "releases/download/0.8.1/clip_encoding_universal_model.pth"
     )
 }
 
@@ -41,7 +41,7 @@ class TextEncoder(nn.Module):
         spatial_dims: int = 3,
         text_dim: int = 512,
         hidden_size: int = 256,
-        encoding: str = "clip_encoding_univeral_model_32",
+        encoding: str = "clip_encoding_universal_model_32",
         pretrained: bool = True,
     ) -> None:
         """
