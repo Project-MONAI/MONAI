@@ -82,14 +82,26 @@ TEST_CASE_3 = [
     WSI_GENERIC_TIFF_PATH,
     {"channel_dim": -1},
     {"location": (WSI_GENERIC_TIFF_HEIGHT // 2, WSI_GENERIC_TIFF_WIDTH // 2), "size": (4, 1), "level": 0},
-    np.moveaxis(np.array([[[246], [246], [246], [246]], [[246], [246], [246], [246]], [[246], [246], [246], [246]]], dtype=np.uint8), 0, -1),
+    np.moveaxis(
+        np.array(
+            [[[246], [246], [246], [246]], [[246], [246], [246], [246]], [[246], [246], [246], [246]]], dtype=np.uint8
+        ),
+        0,
+        -1,
+    ),
 ]
 
 TEST_CASE_4 = [
     WSI_GENERIC_TIFF_PATH,
     {"channel_dim": 2},
     {"location": (0, 0), "size": (4, 1), "level": 8},
-    np.moveaxis(np.array([[[242], [242], [242], [242]], [[242], [242], [242], [242]], [[242], [242], [242], [242]]], dtype=np.uint8), 0, -1),
+    np.moveaxis(
+        np.array(
+            [[[242], [242], [242], [242]], [[242], [242], [242], [242]], [[242], [242], [242], [242]]], dtype=np.uint8
+        ),
+        0,
+        -1,
+    ),
 ]
 
 TEST_CASE_5 = [
