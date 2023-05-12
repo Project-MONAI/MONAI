@@ -32,11 +32,12 @@ from monai.apps.utils import get_logger
 from monai.auto3dseg.algo_gen import Algo, AlgoGen
 from monai.auto3dseg.utils import algo_to_pickle
 from monai.bundle.config_parser import ConfigParser
+from monai.config import PathLike
 from monai.utils import ensure_tuple
 from monai.utils.enums import AlgoKeys
 
 logger = get_logger(module_name=__name__)
-ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "e619d26")
+ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "14a695e")
 
 __all__ = ["BundleAlgo", "BundleGen"]
 
@@ -51,8 +52,8 @@ class BundleAlgo(Algo):
 
         from monai.apps.auto3dseg import BundleAlgo
 
-        data_stats_yaml = "/workspace/datastats.yaml"
-        algo = BundleAlgo(template_path=../algorithms/templates/segresnet2d/configs)
+        data_stats_yaml = "../datastats.yaml"
+        algo = BundleAlgo(template_path="../algorithm_templates")
         algo.set_data_stats(data_stats_yaml)
         # algo.set_data_src("../data_src.json")
         algo.export_to_disk(".", algo_name="segresnet2d_1")
@@ -63,12 +64,13 @@ class BundleAlgo(Algo):
 
     """
 
-    def __init__(self, template_path: str):
+    def __init__(self, template_path: PathLike):
         """
         Create an Algo instance based on the predefined Algo template.
 
         Args:
-            template_path: path to the root of the algo template.
+            template_path: path to a folder that contains the algorithm templates.
+                Please check https://github.com/Project-MONAI/research-contributions/tree/main/auto3dseg/algorithm_templates
 
         """
 
@@ -153,9 +155,10 @@ class BundleAlgo(Algo):
             os.makedirs(self.output_path, exist_ok=True)
             if os.path.isdir(self.output_path):
                 shutil.rmtree(self.output_path)
-            shutil.copytree(self.template_path, self.output_path)
+            # copy algorithm_templates/<Algo> to the working directory output_path
+            shutil.copytree(os.path.join(str(self.template_path), self.name), self.output_path)
         else:
-            self.output_path = self.template_path
+            self.output_path = str(self.template_path)
         if kwargs.pop("fill_template", True):
             self.fill_records = self.fill_template_config(self.data_stats_files, self.output_path, **kwargs)
         logger.info(f"Generated:{self.output_path}")
@@ -211,23 +214,36 @@ class BundleAlgo(Algo):
         if devices_info:
             warnings.warn(f"input devices_info {devices_info} is deprecated and ignored.")
 
-        logger.info(f"Launching: {cmd}")
         ps_environ = os.environ.copy()
         ps_environ["CUDA_VISIBLE_DEVICES"] = str(self.device_setting["CUDA_VISIBLE_DEVICES"])
         if int(self.device_setting["NUM_NODES"]) > 1:
             if self.device_setting["MN_START_METHOD"] == "bcprun":
-                cmd = f"bcprun -n {self.device_setting['NUM_NODES']} -p {self.device_setting['n_devices']} -c {cmd}"
+                cmd_list = [
+                    "bcprun",
+                    "-n",
+                    str(self.device_setting["NUM_NODES"]),
+                    "-p",
+                    str(self.device_setting["n_devices"]),
+                    "-c",
+                    cmd,
+                ]
             else:
                 raise NotImplementedError(
                     f"{self.device_setting['MN_START_METHOD']} is not supported yet. "
                     "Try modify BundleAlgo._run_cmd for your cluster."
                 )
-        cmd_list = cmd.split()
+        else:
+            cmd_list = cmd.split()
+
         _idx = 0
         for _idx, c in enumerate(cmd_list):
             if "=" not in c:  # remove variable assignments before the command such as "OMP_NUM_THREADS=1"
                 break
-        return subprocess.run(cmd_list[_idx:], env=ps_environ, check=True)
+        cmd_list = cmd_list[_idx:]
+
+        logger.info(f"Launching: {' '.join(cmd_list)}")
+
+        return subprocess.run(cmd_list, env=ps_environ, check=True)
 
     def train(
         self, train_params: None | dict = None, device_setting: None | dict = None
@@ -238,8 +254,8 @@ class BundleAlgo(Algo):
 
         Args:
             train_params:  training parameters
-            device_settings: device related settings, should follow the device_setting in auto_runner.set_device_info.
-            'CUDA_VISIBLE_DEVICES' should be a string e.g. '0,1,2,3'
+            device_setting: device related settings, should follow the device_setting in auto_runner.set_device_info.
+                'CUDA_VISIBLE_DEVICES' should be a string e.g. '0,1,2,3'
         """
         if device_setting is not None:
             self.device_setting.update(device_setting)
@@ -328,10 +344,10 @@ default_algo_zip = (
 
 # default algorithms
 default_algos = {
-    "segresnet2d": dict(_target_="segresnet2d.scripts.algo.Segresnet2dAlgo", template_path="segresnet2d"),
-    "dints": dict(_target_="dints.scripts.algo.DintsAlgo", template_path="dints"),
-    "swinunetr": dict(_target_="swinunetr.scripts.algo.SwinunetrAlgo", template_path="swinunetr"),
-    "segresnet": dict(_target_="segresnet.scripts.algo.SegresnetAlgo", template_path="segresnet"),
+    "segresnet2d": dict(_target_="segresnet2d.scripts.algo.Segresnet2dAlgo"),
+    "dints": dict(_target_="dints.scripts.algo.DintsAlgo"),
+    "swinunetr": dict(_target_="swinunetr.scripts.algo.SwinunetrAlgo"),
+    "segresnet": dict(_target_="segresnet.scripts.algo.SegresnetAlgo"),
 }
 
 
@@ -363,7 +379,7 @@ def _download_algos_url(url: str, at_path: str) -> dict[str, dict[str, str]]:
 
     algos_all = deepcopy(default_algos)
     for name in algos_all:
-        algos_all[name]["template_path"] = os.path.join(at_path, algos_all[name]["template_path"])
+        algos_all[name]["template_path"] = at_path
 
     return algos_all
 
@@ -384,9 +400,7 @@ def _copy_algos_folder(folder, at_path):
     algos_all = {}
     for name in os.listdir(at_path):
         if os.path.exists(os.path.join(folder, name, "scripts", "algo.py")):
-            algos_all[name] = dict(
-                _target_=f"{name}.scripts.algo.{name.capitalize()}Algo", template_path=os.path.join(at_path, name)
-            )
+            algos_all[name] = dict(_target_=f"{name}.scripts.algo.{name.capitalize()}Algo", template_path=at_path)
             logger.info(f"Copying template: {name} -- {algos_all[name]}")
     if not algos_all:
         raise ValueError(f"Unable to find any algos in {folder}")
@@ -449,7 +463,7 @@ class BundleGen(AlgoGen):
         self.algos: Any = []
         if isinstance(algos, dict):
             for algo_name, algo_params in sorted(algos.items()):
-                template_path = os.path.dirname(algo_params.get("template_path", "."))
+                template_path = algo_params.get("template_path", ".")
                 if len(template_path) > 0 and template_path not in sys.path:
                     sys.path.append(template_path)
 
@@ -472,7 +486,7 @@ class BundleGen(AlgoGen):
             raise ValueError("Unexpected error algos is not a dict")
 
         self.data_stats_filename = data_stats_filename
-        self.data_src_cfg_filename = data_src_cfg_name
+        self.data_src_cfg_name = data_src_cfg_name
         self.history: list[dict] = []
 
     def set_data_stats(self, data_stats_filename: str) -> None:
@@ -488,18 +502,18 @@ class BundleGen(AlgoGen):
         """Get the filename of the data stats"""
         return self.data_stats_filename
 
-    def set_data_src(self, data_src_cfg_filename):
+    def set_data_src(self, data_src_cfg_name):
         """
         Set the data source filename
 
         Args:
-            data_src_cfg_filename: filename of data_source file
+            data_src_cfg_name: filename of data_source file
         """
-        self.data_src_cfg_filename = data_src_cfg_filename
+        self.data_src_cfg_name = data_src_cfg_name
 
     def get_data_src(self):
         """Get the data source filename"""
-        return self.data_src_cfg_filename
+        return self.data_src_cfg_name
 
     def get_history(self) -> list:
         """Get the history of the bundleAlgo object with their names/identifiers"""
@@ -511,6 +525,7 @@ class BundleGen(AlgoGen):
         num_fold: int = 5,
         gpu_customization: bool = False,
         gpu_customization_specs: dict[str, Any] | None = None,
+        allow_skip: bool = True,
     ) -> None:
         """
         Generate the bundle scripts/configs for each bundleAlgo
@@ -524,21 +539,23 @@ class BundleGen(AlgoGen):
                 experiments.
             gpu_customization_specs (optinal): the dictionary to enable users overwrite the HPO settings. user can
                 overwrite part of variables as follows or all of them. The structure is as follows.
+            allow_skip: a switch to determine if some Algo in the default templates can be skipped based on the
+                analysis on the dataset from Auto3DSeg DataAnalyzer.
 
                 .. code-block:: python
 
                     gpu_customization_specs = {
-                        'ALOG': {
+                        'ALGO': {
                             'num_trials': 6,
                             'range_num_images_per_batch': [1, 20],
                             'range_num_sw_batch_size': [1, 20]
                         }
                     }
 
-            ALGO: the name of algorithm. It could be one of algorithm names (e.g., 'dints') or 'unversal' which
+            ALGO: the name of algorithm. It could be one of algorithm names (e.g., 'dints') or 'universal' which
                 would apply changes to all algorithms. Possible options are
 
-                - {``"unversal"``, ``"dints"``, ``"segresnet"``, ``"segresnet2d"``, ``"swinunetr"``}.
+                - {``"universal"``, ``"dints"``, ``"segresnet"``, ``"segresnet2d"``, ``"swinunetr"``}.
 
             num_trials: the number of HPO trials/experiments to run.
             range_num_images_per_batch: the range of number of images per mini-batch.
@@ -553,10 +570,13 @@ class BundleGen(AlgoGen):
                 gen_algo.set_data_stats(data_stats)
                 gen_algo.set_data_source(data_src_cfg)
                 name = f"{gen_algo.name}_{f_id}"
-                skip_bundlegen, skip_info = gen_algo.pre_check_skip_algo()
-                if skip_bundlegen:
-                    logger.info(f"{name} is skipped! {skip_info}")
-                    continue
+
+                if allow_skip:
+                    skip_bundlegen, skip_info = gen_algo.pre_check_skip_algo()
+                    if skip_bundlegen:
+                        logger.info(f"{name} is skipped! {skip_info}")
+                        continue
+
                 if gpu_customization:
                     gen_algo.export_to_disk(
                         output_folder,

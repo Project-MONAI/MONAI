@@ -58,6 +58,7 @@ jobs:
       run: |
         pwd && git log -1 && which python
         ./runtests.sh -b
+        python -m tests.test_auto3dseg_bundlegen
         python -m tests.test_auto3dseg_ensemble
         python -m tests.test_auto3dseg_hpo
         python -m tests.test_integration_autorunner
@@ -69,7 +70,7 @@ jobs:
       run: ./runtests.sh --build --net
 
     - name: Add reaction
-      uses: peter-evans/create-or-update-comment@v2
+      uses: peter-evans/create-or-update-comment@v3
       if: github.event.pull_request.number != ''
       with:
         token: ${{ secrets.PR_MAINTAIN }}
@@ -155,7 +156,7 @@ jobs:
       run: ./runtests.sh --build --unittests
 
     - name: Add reaction
-      uses: peter-evans/create-or-update-comment@v2
+      uses: peter-evans/create-or-update-comment@v3
       if: github.event.pull_request.number != ''
       with:
         token: ${{ secrets.PR_MAINTAIN }}

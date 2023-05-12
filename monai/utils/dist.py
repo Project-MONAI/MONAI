@@ -198,7 +198,7 @@ class RankFilter(Filter):
             self.rank: int = rank if rank is not None else dist.get_rank()
         else:
             warnings.warn(
-                "The torch.distributed is either unavailable and uninitiated when RankFilter is instiantiated. "
+                "The torch.distributed is either unavailable and uninitiated when RankFilter is instantiated. "
                 "If torch.distributed is used, please ensure that the RankFilter() is called "
                 "after torch.distributed.init_process_group() in the script."
             )

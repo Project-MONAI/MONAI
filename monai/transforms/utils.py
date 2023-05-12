@@ -16,7 +16,7 @@ import random
 import warnings
 from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
 from contextlib import contextmanager
-from functools import wraps
+from functools import lru_cache, wraps
 from inspect import getmembers, isclass
 from typing import Any
 
@@ -44,10 +44,13 @@ from monai.transforms.utils_pytorch_numpy_unification import (
 )
 from monai.utils import (
     GridSampleMode,
+    GridSamplePadMode,
     InterpolateMode,
+    NdimageMode,
     NumpyPadMode,
     PostFix,
     PytorchPadMode,
+    SplineMode,
     TraceKeys,
     ensure_tuple,
     ensure_tuple_rep,
@@ -58,6 +61,7 @@ from monai.utils import (
     look_up_option,
     min_version,
     optional_import,
+    pytorch_after,
 )
 from monai.utils.enums import TransformBackends
 from monai.utils.type_conversion import convert_data_type, convert_to_cupy, convert_to_dst_type, convert_to_tensor
@@ -116,6 +120,7 @@ __all__ = [
     "attach_hook",
     "sync_meta_info",
     "reset_ops_id",
+    "resolves_modes",
 ]
 
 
@@ -404,7 +409,10 @@ def map_classes_to_indices(
         if img_flat is not None:
             label_flat = img_flat & label_flat
         # no need to save the indices in GPU, otherwise, still need to move to CPU at runtime when crop by indices
-        cls_indices: NdarrayOrTensor = convert_data_type(nonzero(label_flat), device=torch.device("cpu"))[0]
+        output_type = torch.Tensor if isinstance(label, monai.data.MetaTensor) else None
+        cls_indices: NdarrayOrTensor = convert_data_type(
+            nonzero(label_flat), output_type=output_type, device=torch.device("cpu")
+        )[0]
         if max_samples_per_class and len(cls_indices) > max_samples_per_class and len(cls_indices) > 1:
             sample_id = np.round(np.linspace(0, len(cls_indices) - 1, max_samples_per_class)).astype(int)
             indices.append(cls_indices[sample_id])
@@ -1405,7 +1413,7 @@ def convert_applied_interp_mode(trans_info, mode: str = "nearest", align_corners
 
 
 def reset_ops_id(data):
-    """find MetaTensors in list or dict `data` and (in-place) set ``TraceKeys.ID`` to ``Tracekys.NONE``."""
+    """find MetaTensors in list or dict `data` and (in-place) set ``TraceKeys.ID`` to ``Tracekeys.NONE``."""
     if isinstance(data, (list, tuple)):
         return [reset_ops_id(d) for d in data]
     if isinstance(data, monai.data.MetaTensor):
@@ -1841,6 +1849,125 @@ def squarepulse(sig, duty: float = 0.5):
     mask3 = (~mask1) & (~mask2)
     y[mask3] = -1
     return y
+
+
+def _to_numpy_resample_interp_mode(interp_mode):
+    ret = look_up_option(str(interp_mode), SplineMode, default=None)
+    if ret is not None:
+        return int(ret)
+    _mapping = {
+        InterpolateMode.NEAREST: SplineMode.ZERO,
+        InterpolateMode.NEAREST_EXACT: SplineMode.ZERO,
+        InterpolateMode.LINEAR: SplineMode.ONE,
+        InterpolateMode.BILINEAR: SplineMode.ONE,
+        InterpolateMode.TRILINEAR: SplineMode.ONE,
+        InterpolateMode.BICUBIC: SplineMode.THREE,
+        InterpolateMode.AREA: SplineMode.ZERO,
+    }
+    ret = look_up_option(str(interp_mode), _mapping, default=None)
+    if ret is not None:
+        return ret
+    return look_up_option(str(interp_mode), list(_mapping) + list(SplineMode))  # for better error msg
+
+
+def _to_torch_resample_interp_mode(interp_mode):
+    ret = look_up_option(str(interp_mode), InterpolateMode, default=None)
+    if ret is not None:
+        return ret
+    _mapping = {
+        SplineMode.ZERO: InterpolateMode.NEAREST_EXACT if pytorch_after(1, 11) else InterpolateMode.NEAREST,
+        SplineMode.ONE: InterpolateMode.LINEAR,
+        SplineMode.THREE: InterpolateMode.BICUBIC,
+    }
+    ret = look_up_option(str(interp_mode), _mapping, default=None)
+    if ret is not None:
+        return ret
+    return look_up_option(str(interp_mode), list(_mapping) + list(InterpolateMode))
+
+
+def _to_numpy_resample_padding_mode(m):
+    ret = look_up_option(str(m), NdimageMode, default=None)
+    if ret is not None:
+        return ret
+    _mapping = {
+        GridSamplePadMode.ZEROS: NdimageMode.CONSTANT,
+        GridSamplePadMode.BORDER: NdimageMode.NEAREST,
+        GridSamplePadMode.REFLECTION: NdimageMode.REFLECT,
+    }
+    ret = look_up_option(str(m), _mapping, default=None)
+    if ret is not None:
+        return ret
+    return look_up_option(str(m), list(_mapping) + list(NdimageMode))
+
+
+def _to_torch_resample_padding_mode(m):
+    ret = look_up_option(str(m), GridSamplePadMode, default=None)
+    if ret is not None:
+        return ret
+    _mapping = {
+        NdimageMode.CONSTANT: GridSamplePadMode.ZEROS,
+        NdimageMode.GRID_CONSTANT: GridSamplePadMode.ZEROS,
+        NdimageMode.NEAREST: GridSamplePadMode.BORDER,
+        NdimageMode.REFLECT: GridSamplePadMode.REFLECTION,
+        NdimageMode.WRAP: GridSamplePadMode.REFLECTION,
+        NdimageMode.GRID_WRAP: GridSamplePadMode.REFLECTION,
+        NdimageMode.GRID_MIRROR: GridSamplePadMode.REFLECTION,
+    }
+    ret = look_up_option(str(m), _mapping, default=None)
+    if ret is not None:
+        return ret
+    return look_up_option(str(m), list(_mapping) + list(GridSamplePadMode))
+
+
+@lru_cache(None)
+def resolves_modes(
+    interp_mode: str | None = "constant", padding_mode="zeros", backend=TransformBackends.TORCH, **kwargs
+):
+    """
+    Automatically adjust the resampling interpolation mode and padding mode,
+    so that they are compatible with the corresponding API of the `backend`.
+    Depending on the availability of the backends, when there's no exact
+    equivalent, a similar mode is returned.
+
+    Args:
+        interp_mode: interpolation mode.
+        padding_mode: padding mode.
+        backend: optional backend of `TransformBackends`. If None, the backend will be decided from `interp_mode`.
+        kwargs: additional keyword arguments. currently support ``torch_interpolate_spatial_nd``, to provide
+            additional information to determine ``linear``, ``bilinear`` and ``trilinear``;
+            ``use_compiled`` to use MONAI's precompiled backend (pytorch c++ extensions), default to ``False``.
+    """
+    _interp_mode, _padding_mode, _kwargs = None, None, (kwargs or {}).copy()
+    if backend is None:  # infer backend
+        backend = (
+            TransformBackends.NUMPY
+            if look_up_option(str(interp_mode), SplineMode, default=None) is not None
+            else TransformBackends.TORCH
+        )
+    if backend == TransformBackends.NUMPY:
+        _interp_mode = _to_numpy_resample_interp_mode(interp_mode)
+        _padding_mode = _to_numpy_resample_padding_mode(padding_mode)
+        return backend, _interp_mode, _padding_mode, _kwargs
+    _interp_mode = _to_torch_resample_interp_mode(interp_mode)
+    _padding_mode = _to_torch_resample_padding_mode(padding_mode)
+    if str(_interp_mode).endswith("linear"):
+        nd = _kwargs.pop("torch_interpolate_spatial_nd", 2)
+        if nd == 1:
+            _interp_mode = InterpolateMode.LINEAR
+        elif nd == 3:
+            _interp_mode = InterpolateMode.TRILINEAR
+        else:
+            _interp_mode = InterpolateMode.BILINEAR  # torch grid_sample bilinear is trilinear in 3D
+    if not _kwargs.pop("use_compiled", False):
+        return backend, _interp_mode, _padding_mode, _kwargs
+    _padding_mode = 1 if _padding_mode == "reflection" else _padding_mode
+    if _interp_mode == "bicubic":
+        _interp_mode = 3
+    elif str(_interp_mode).endswith("linear"):
+        _interp_mode = 1
+    else:
+        _interp_mode = GridSampleMode(_interp_mode)
+    return backend, _interp_mode, _padding_mode, _kwargs
 
 
 if __name__ == "__main__":

@@ -741,6 +741,7 @@ def test_script_save(net, *inputs, device=None, rtol=1e-4, atol=0.0):
         if sys.version_info.major == 3 and sys.version_info.minor == 11:
             warnings.warn("skipping py 3.11")
             return
+        raise
 
 
 def test_onnx_save(net, *inputs, device=None, rtol=1e-4, atol=0.0):
@@ -770,6 +771,7 @@ def test_onnx_save(net, *inputs, device=None, rtol=1e-4, atol=0.0):
         if sys.version_info.major == 3 and sys.version_info.minor == 11:
             warnings.warn("skipping py 3.11")
             return
+        raise
 
 
 def download_url_or_skip_test(*args, **kwargs):
