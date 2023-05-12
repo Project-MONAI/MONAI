@@ -648,7 +648,7 @@ def run(
             if other string, treat it as file path to load the tracking settings.
             if `dict`, treat it as tracking settings.
             will patch the target config content with `tracking handlers` and the top-level items of `configs`.
-            for detailed usage examples, plesae check the tutorial:
+            for detailed usage examples, please check the tutorial:
             https://github.com/Project-MONAI/tutorials/blob/main/experiment_management/bundle_integrate_mlflow.ipynb.
         args_file: a JSON or YAML file to provide default values for `runner_id`, `meta_file`,
             `config_file`, `logging`, and override pairs. so that the command line inputs can be simplified.
@@ -699,7 +699,7 @@ def run(
 def run_workflow(workflow: str | BundleWorkflow | None = None, args_file: str | None = None, **kwargs: Any) -> None:
     """
     Specify `bundle workflow` to run monai bundle components and workflows.
-    The workflow should be suclass of `BundleWorkflow` and be available to import.
+    The workflow should be subclass of `BundleWorkflow` and be available to import.
     It can be MONAI existing bundle workflows or user customized workflows.
 
     Typical usage examples:

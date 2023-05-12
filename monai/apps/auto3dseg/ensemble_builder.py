@@ -84,7 +84,7 @@ class AlgoEnsemble(ABC):
 
         Args:
             dataroot: the path of the files
-            data_src_cfg_file: the data source file path
+            data_list_or_path: the data source file path
         """
 
         self.infer_files = []
@@ -405,7 +405,7 @@ class EnsembleRunner:
         work_dir: working directory to save the intermediate and final results. Default is `./work_dir`.
         num_fold: number of fold. Default is 5.
         ensemble_method_name: method to ensemble predictions from different model. Default is AlgoEnsembleBestByFold.
-                              Suported methods: ["AlgoEnsembleBestN", "AlgoEnsembleBestByFold"].
+                              Supported methods: ["AlgoEnsembleBestN", "AlgoEnsembleBestByFold"].
         mgpu: if using multi-gpu. Default is True.
         kwargs: additional image writing, ensembling parameters and prediction parameters for the ensemble inference.
               - for image saving, please check the supported parameters in SaveImage transform.
@@ -606,9 +606,8 @@ class EnsembleRunner:
         algo_config.yaml file, which is pre-filled by the fill_template_config function in the same instance.
 
         Args:
-            train_params:  training parameters
-            device_settings: device related settings, should follow the device_setting in auto_runner.set_device_info.
-            'CUDA_VISIBLE_DEVICES' should be a string e.g. '0,1,2,3'
+            device_setting: device related settings, should follow the device_setting in auto_runner.set_device_info.
+                'CUDA_VISIBLE_DEVICES' should be a string e.g. '0,1,2,3'
         """
         # device_setting set default value and sanity check, in case device_setting not from autorunner
         if device_setting is not None:
