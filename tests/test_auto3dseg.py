@@ -184,7 +184,7 @@ class TestDataAnalyzer(unittest.TestCase):
         )
 
         analyser = DataAnalyzer(
-            self.datalist_file, self.dataroot_dir, output_path=self.datastat_file, label_key=label_key
+            self.datalist_file, self.dataroot_dir, output_path=self.datastat_file, label_key=label_key, device=device
         )
         datastat = analyser.get_all_case_stats()
 

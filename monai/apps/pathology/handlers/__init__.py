@@ -10,5 +10,3 @@
 # limitations under the License.
 
 from __future__ import annotations
-
-from .prob_map_producer import ProbMapProducer

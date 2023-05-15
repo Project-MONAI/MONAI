@@ -23,8 +23,10 @@ from monai.config import IgniteInfo
 from monai.utils import ensure_tuple, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
-mlflow, _ = optional_import("mlflow")
-mlflow.entities, _ = optional_import("mlflow.entities")
+mlflow, _ = optional_import("mlflow", descriptor="Please install mlflow before using MLFlowHandler.")
+mlflow.entities, _ = optional_import(
+    "mlflow.entities", descriptor="Please install mlflow.entities before using MLFlowHandler."
+)
 
 if TYPE_CHECKING:
     from ignite.engine import Engine
@@ -76,7 +78,7 @@ class MLFlowHandler:
             The default behavior is to track loss from output[0] as output is a decollated list
             and we replicated loss value for every item of the decollated list.
             `engine.state` and `output_transform` inherit from the ignite concept:
-            https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:
+            https://pytorch-ignite.ai/concepts/03-state/, explanation and usage example are in the tutorial:
             https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
         global_epoch_transform: a callable that is used to customize global epoch number.
             For example, in evaluation, the evaluator engine might want to track synced epoch number
@@ -84,13 +86,15 @@ class MLFlowHandler:
         state_attributes: expected attributes from `engine.state`, if provided, will extract them
             when epoch completed.
         tag_name: when iteration output is a scalar, `tag_name` is used to track, defaults to `'Loss'`.
-        experiment_name: name for an experiment, defaults to `default_experiment`.
-        run_name: name for run in an experiment.
-        experiment_param: a dict recording parameters which will not change through whole experiment,
+        experiment_name: the experiment name of MLflow, default to `'monai_experiment'`. An experiment can be
+            used to record several runs.
+        run_name: the run name in an experiment. A run can be used to record information about a workflow,
+            like the loss, metrics and so on.
+        experiment_param: a dict recording parameters which will not change through the whole workflow,
             like torch version, cuda version and so on.
-        artifacts: paths to images that need to be recorded after a whole run.
-        optimizer_param_names: parameters' name in optimizer that need to be record during running,
-            defaults to "lr".
+        artifacts: paths to images that need to be recorded after running the workflow.
+        optimizer_param_names: parameter names in the optimizer that need to be recorded during running the
+            workflow, default to `'lr'`.
         close_on_complete: whether to close the mlflow run in `complete` phase in workflow, default to False.
 
     For more details of MLFlow usage, please refer to: https://mlflow.org/docs/latest/index.html.
@@ -132,6 +136,7 @@ class MLFlowHandler:
         self.artifacts = ensure_tuple(artifacts)
         self.optimizer_param_names = ensure_tuple(optimizer_param_names)
         self.client = mlflow.MlflowClient(tracking_uri=tracking_uri if tracking_uri else None)
+        self.run_finish_status = mlflow.entities.RunStatus.to_string(mlflow.entities.RunStatus.FINISHED)
         self.close_on_complete = close_on_complete
         self.experiment = None
         self.cur_run = None
@@ -191,6 +196,8 @@ class MLFlowHandler:
             run_name = f"run_{time.strftime('%Y%m%d_%H%M%S')}" if self.run_name is None else self.run_name
             runs = self.client.search_runs(self.experiment.experiment_id)
             runs = [r for r in runs if r.info.run_name == run_name or not self.run_name]
+            # runs marked as finish should not record info any more
+            runs = [r for r in runs if r.info.status != self.run_finish_status]
             if runs:
                 self.cur_run = self.client.get_run(runs[-1].info.run_id)  # pick latest active run
             else:
@@ -264,8 +271,7 @@ class MLFlowHandler:
 
         """
         if self.cur_run:
-            status = mlflow.entities.RunStatus.to_string(mlflow.entities.RunStatus.FINISHED)
-            self.client.set_terminated(self.cur_run.info.run_id, status)
+            self.client.set_terminated(self.cur_run.info.run_id, self.run_finish_status)
             self.cur_run = None
 
     def epoch_completed(self, engine: Engine) -> None:

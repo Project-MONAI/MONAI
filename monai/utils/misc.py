@@ -23,6 +23,7 @@ import warnings
 from ast import literal_eval
 from collections.abc import Callable, Iterable, Sequence
 from distutils.util import strtobool
+from math import log10
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, cast, overload
 
@@ -68,6 +69,10 @@ __all__ = [
     "label_union",
     "path_to_uri",
     "pprint_edges",
+    "check_key_duplicates",
+    "CheckKeyDuplicatesYamlLoader",
+    "ConvertUnits",
+    "check_kwargs_exist_in_class_init",
 ]
 
 _seed = None
@@ -723,3 +728,96 @@ class CheckKeyDuplicatesYamlLoader(SafeLoader):
                     warnings.warn(f"Duplicate key: `{key}`")
             mapping.add(key)
         return super().construct_mapping(node, deep)
+
+
+class ConvertUnits:
+    """
+    Convert the values from input unit to the target unit
+
+    Args:
+        input_unit: the unit of the input quantity
+        target_unit: the unit of the target quantity
+
+    """
+
+    imperial_unit_of_length = {"inch": 0.0254, "foot": 0.3048, "yard": 0.9144, "mile": 1609.344}
+
+    unit_prefix = {
+        "peta": 15,
+        "tera": 12,
+        "giga": 9,
+        "mega": 6,
+        "kilo": 3,
+        "hecto": 2,
+        "deca": 1,
+        "deci": -1,
+        "centi": -2,
+        "milli": -3,
+        "micro": -6,
+        "nano": -9,
+        "pico": -12,
+        "femto": -15,
+    }
+    base_units = ["meter", "byte", "bit"]
+
+    def __init__(self, input_unit: str, target_unit: str) -> None:
+        self.input_unit, input_base = self._get_valid_unit_and_base(input_unit)
+        self.target_unit, target_base = self._get_valid_unit_and_base(target_unit)
+        if input_base == target_base:
+            self.unit_base = input_base
+        else:
+            raise ValueError(
+                "Both input and target units should be from the same quantity. "
+                f"Input quantity is {input_base} while target quantity is {target_base}"
+            )
+        self._calculate_conversion_factor()
+
+    def _get_valid_unit_and_base(self, unit):
+        unit = str(unit).lower()
+        if unit in self.imperial_unit_of_length:
+            return unit, "meter"
+        for base_unit in self.base_units:
+            if unit.endswith(base_unit):
+                return unit, base_unit
+        raise ValueError(f"Currently, it only supports length conversion but `{unit}` is given.")
+
+    def _get_unit_power(self, unit):
+        """Calculate the power of the unit factor with respect to the base unit"""
+        if unit in self.imperial_unit_of_length:
+            return log10(self.imperial_unit_of_length[unit])
+
+        prefix = unit[: len(self.unit_base)]
+        if prefix == "":
+            return 1.0
+        return self.unit_prefix[prefix]
+
+    def _calculate_conversion_factor(self):
+        """Calculate unit conversion factor with respect to the input unit"""
+        if self.input_unit == self.target_unit:
+            return 1.0
+        input_power = self._get_unit_power(self.input_unit)
+        target_power = self._get_unit_power(self.target_unit)
+        self.conversion_factor = 10 ** (input_power - target_power)
+
+    def __call__(self, value: int | float) -> Any:
+        return float(value) * self.conversion_factor
+
+
+def check_kwargs_exist_in_class_init(cls, kwargs):
+    """
+    Check if the all keys in kwargs exist in the __init__ method of the class.
+
+    Args:
+        cls: the class to check.
+        kwargs: kwargs to examine.
+
+    Returns:
+        a boolean indicating if all keys exist.
+        a set of extra keys that are not used in the __init__.
+    """
+    init_signature = inspect.signature(cls.__init__)
+    init_params = set(init_signature.parameters) - {"self"}  # Exclude 'self' from the parameter list
+    input_kwargs = set(kwargs)
+    extra_kwargs = input_kwargs - init_params
+
+    return extra_kwargs == set(), extra_kwargs

@@ -150,7 +150,7 @@ class SmoothGrad(VanillaGrad):
 class GuidedBackpropGrad(VanillaGrad):
     """
     Based on Springenberg and Dosovitskiy et al. https://arxiv.org/abs/1412.6806,
-    compute gradient-based saliency maps by backpropagating positive graidents and inputs (see ``_AutoGradReLU``).
+    compute gradient-based saliency maps by backpropagating positive gradients and inputs (see ``_AutoGradReLU``).
 
     See also:
 
