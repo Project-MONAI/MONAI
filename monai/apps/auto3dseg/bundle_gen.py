@@ -37,7 +37,7 @@ from monai.utils import ensure_tuple
 from monai.utils.enums import AlgoKeys
 
 logger = get_logger(module_name=__name__)
-ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "14a695e")
+ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "e2069b1")
 
 __all__ = ["BundleAlgo", "BundleGen"]
 
