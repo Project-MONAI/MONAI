@@ -111,7 +111,7 @@ class WandbStatsHandler:
             tag_name: When iteration output is a scalar, tag_name is used to plot, defaults to `'Loss'`.
         """
         if wandb.run is None:
-            raise wandb.Error("You must call `wandb.init()` before WandbStatsHandler()")
+            raise wandb.Error("You must call `wandb.init()` before using `WandbStatsHandler()`")
 
         self.iteration_log = iteration_log
         self.epoch_log = epoch_log
