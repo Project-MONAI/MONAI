@@ -26,11 +26,7 @@ if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
     Engine, _ = optional_import(
-        "ignite.engine",
-        IgniteInfo.OPT_IMPORT_VERSION,
-        min_version,
-        "Engine",
-        as_type="decorator",
+        "ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine", as_type="decorator"
     )
 
 DEFAULT_TAG = "Loss"
@@ -133,8 +129,7 @@ class WandbStatsHandler:
         """
         if self.iteration_log and not engine.has_event_handler(self.iteration_completed, Events.ITERATION_COMPLETED):
             engine.add_event_handler(
-                Events.ITERATION_COMPLETED(every=self.iteration_interval),
-                self.iteration_completed,
+                Events.ITERATION_COMPLETED(every=self.iteration_interval), self.iteration_completed
             )
         if self.epoch_log and not engine.has_event_handler(self.epoch_completed, Events.EPOCH_COMPLETED):
             engine.add_event_handler(Events.EPOCH_COMPLETED(every=self.epoch_interval), self.epoch_completed)
