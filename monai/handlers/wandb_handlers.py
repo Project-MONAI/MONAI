@@ -87,7 +87,7 @@ class WandbStatsHandler:
             epoch_log: Whether to write data to Weights & Biases when epoch completed, default to
                 `True`.
             epoch_event_writer: Customized callable Weights & Biases writer for epoch level. Must
-                accept parameter "engine" and "summary_writer", use default event writer if None.
+                accept the parameter "engine" and "summary_writer", use default event writer if None.
             epoch_interval: The epoch interval at which the epoch_event_writer is called. Defaults
                 to 1.
             iteration_event_writer: Customized callable Weights & Biases writer for iteration level.
