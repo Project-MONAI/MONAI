@@ -15,7 +15,6 @@ import warnings
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 import torch
-import wandb
 
 from monai.config import IgniteInfo
 from monai.utils import is_scalar, min_version, optional_import
@@ -28,6 +27,12 @@ else:
     Engine, _ = optional_import(
         "ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine", as_type="decorator"
     )
+
+if TYPE_CHECKING:
+    import wandb
+else:
+    wandb, _ = optional_import("wandb")
+    
 
 DEFAULT_TAG = "Loss"
 
