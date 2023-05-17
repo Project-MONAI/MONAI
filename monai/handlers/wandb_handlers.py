@@ -45,27 +45,8 @@ class WandbStatsHandler:
     ``engine.state.metrics``.
 
     Default behaviors:
-        - When EPOCH_COMPLETED, write each dictionary item in
-          ``engine.state.metrics`` to TensorBoard.
-        - When ITERATION_COMPLETED, write each dictionary item in
-          ``self.output_transform(engine.state.output)`` to TensorBoard.
-
-    Usage example:
-    ```python
-    # WandbStatsHandler for logging training metrics and losses at
-    # every iteration to Weights & Biases
-    train_wandb_stats_handler = WandbStatsHandler(output_transform=lambda x: x)
-    train_wandb_stats_handler.attach(trainer)
-
-    # WandbStatsHandler for logging validation metrics and losses at
-    # every iteration to Weights & Biases
-    val_wandb_stats_handler = WandbStatsHandler(
-        output_transform=lambda x: None,
-        global_epoch_transform=lambda x: trainer.state.epoch,
-    )
-    val_wandb_stats_handler.attach(evaluator)
-    ```
-
+        - When EPOCH_COMPLETED, write each dictionary item in ``engine.state.metrics`` to Weights & Biases.
+        - When ITERATION_COMPLETED, write each dictionary item in ``self.output_transform(engine.state.output)`` to Weights & Biases.
     """
 
     def __init__(
