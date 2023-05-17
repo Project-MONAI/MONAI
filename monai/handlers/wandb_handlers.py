@@ -43,10 +43,6 @@ class WandbStatsHandler:
     logic. It can be used for any Ignite Engine(trainer, validator and evaluator) and support both
     epoch level and iteration level. The expected data source is Ignite ``engine.state.output`` and
     ``engine.state.metrics``.
-
-    Default behaviors:
-        - When EPOCH_COMPLETED, write each dictionary item in ``engine.state.metrics`` to Weights & Biases.
-        - When ITERATION_COMPLETED, write each dictionary item in ``self.output_transform(engine.state.output)`` to Weights & Biases.
     """
 
     def __init__(
