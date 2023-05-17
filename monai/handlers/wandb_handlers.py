@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     import wandb
 else:
     wandb, _ = optional_import("wandb")
-    
+
 
 DEFAULT_TAG = "Loss"
 
