@@ -582,9 +582,18 @@ class EnsembleRunner:
         builder.set_ensemble_method(self.ensemble_method)
         self.ensembler = builder.get_ensemble()
         infer_files = self.ensembler.infer_files
-        infer_files = partition_dataset(
-            data=infer_files, shuffle=False, num_partitions=self.world_size, even_divisible=True
-        )[self.rank]
+        if len(infer_files) < self.world_size:
+            if len(infer_files) == 0:
+                logger.info(f"No existing infer files. Ensembler ending.")
+                return 
+            infer_files = partition_dataset(data=infer_files, shuffle=False, 
+                                            num_partitions=len(infer_files))[self.rank] \
+                                            if self.rank < len(infer_files) else []
+        else:
+            infer_files = partition_dataset(
+                data=infer_files, shuffle=False, num_partitions=self.world_size, even_divisible=True
+            )[self.rank]
+
         # TO DO: Add some function in ensembler for infer_files update?
         self.ensembler.infer_files = infer_files
         # add rank to pred_params
