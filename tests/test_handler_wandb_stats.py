@@ -44,11 +44,12 @@ class TestWandbStatsHandler(unittest.TestCase):
         handler.attach(engine)
 
         engine.run(range(3), max_epochs=2)
-        handler.close()
 
         self.assertTrue(os.path.isdir(tempdir.name))
         self.assertTrue(len(glob.glob(os.path.join(tempdir.name, "*"))) > 0)
         # self.assertTrue(len(glob.glob(os.path.join("wandb", "*"))) > 0)
         # self.assertTrue(len(glob.glob(os.path.join("wandb", "debug*"))) > 0)
+        
+        wandb.finish()
 
         shutil.rmtree(tempdir.name)
