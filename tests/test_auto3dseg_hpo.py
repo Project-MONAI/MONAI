@@ -43,7 +43,7 @@ override_param = (
         "num_warmup_epochs": 1,
         "use_pretrain": False,
         "pretrained_path": "",
-        "auto_scale_allowed": False
+        "auto_scale_allowed": False,
     }
     if torch.cuda.is_available()
     else {}
