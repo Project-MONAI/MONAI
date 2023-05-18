@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import os
+import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Sequence
 from inspect import _empty, isclass, signature
@@ -103,7 +104,7 @@ class SlidingWindowSplitter(Splitter):
         filter_fn: a callable to filter patches. It should accepts exactly two parameters (patch, location), and
             return True for a patch to keep. Defaults to no filtering.
         pad_mode: string define the mode for `torch.nn.functional.pad`. The acceptable values are
-            `"constant"`, `"reflect"`, `"replicate"`, `"circular"` or `None`. Default to `None`.
+            `"constant"`, `"reflect"`, `"replicate"`, `"circular"` or `None`. Default to `"constant"`.
             If None, no padding will be applied, so it will drop the patches crossing the border of
             the image (either when the offset is negative or the image is non-divisible by the patch_size).
         pad_value: the value for `"constant"` padding. Defaults to 0.
@@ -297,12 +298,12 @@ class WSISlidingWindowSplitter(SlidingWindowSplitter):
             that defines number of pixels for overlap. Defaults to 0.0.
         filter_fn: a callable to filter patches. It should accepts exactly two parameters (patch, location), and
             return True for a patch to keep. Defaults to no filtering.
-        pad_mode: define the mode for padding. Either "constant" or None. Default to None.
+        pad_mode: define the mode for padding. Either "constant" or None. Default to "constant".
             Padding is only supported with "OpenSlide" or "cuCIM" backend, and the filling value is 256.
         device: the device where the patches are generated. Defaults to the device of inputs.
         reader: the module to be used for loading whole slide imaging. If `reader` is
 
-            - a string, it defines the backend of `monai.data.WSIReader`. Defaults to cuCIM.
+            - a string, it defines the backend of `monai.data.WSIReader`. Defaults to OpenSlide.
             - a class (inherited from `BaseWSIReader`), it is initialized and set as wsi_reader.
             - an instance of a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
 
@@ -336,12 +337,11 @@ class WSISlidingWindowSplitter(SlidingWindowSplitter):
         )
         # Set WSI reader
         self._set_reader(reader, reader_kwargs)
-        if self.reader.backend.lower() == "tifffile":
-            raise ValueError(
-                "'TiffFile' reader is not appropriate for efficiently loading patches, so it is prohibited. "
-                "Please either use other readers such as 'OpenSlide' and 'cuCIM', or "
-                "first load the whole slide image using `monai.data.WSIReader` with `backend=tifffile` "
-                "(or `monai.data.TiffFileWSIReader`), and then use `SlidingWindowSplitter` instead."
+        if self.reader.backend.lower() not in ["openslide", "cucim"]:
+            warnings.warn(
+                f"WSIReader with {self.reader.backend.lower()} backend is not supported for efficiently loading patches. "
+                "This may cause an significant slow down and a large memory foot print. "
+                "Please use other backends such as 'OpenSlide' or 'cuCIM' instead."
             )
 
     def _set_reader(self, reader: str | BaseWSIReader | type[BaseWSIReader] | None, reader_kwargs: dict) -> None:

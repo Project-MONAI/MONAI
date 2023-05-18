@@ -26,7 +26,7 @@ TENSOR_4x4_WITH_NAN[..., 2:, 2:] = float("nan")
 
 # no-overlapping 2x2
 TEST_CASE_0_DEFAULT_DTYPE = [
-    dict(output_shape=TENSOR_4x4.shape),
+    dict(merging_shape=TENSOR_4x4.shape),
     [
         (TENSOR_4x4[..., :2, :2], (0, 0)),
         (TENSOR_4x4[..., :2, 2:], (0, 2)),
@@ -38,7 +38,7 @@ TEST_CASE_0_DEFAULT_DTYPE = [
 
 # overlapping 2x2
 TEST_CASE_1_DEFAULT_DTYPE = [
-    dict(output_shape=TENSOR_4x4.shape),
+    dict(merging_shape=TENSOR_4x4.shape),
     [
         (TENSOR_4x4[..., 0:2, 0:2], (0, 0)),
         (TENSOR_4x4[..., 0:2, 1:3], (0, 1)),
@@ -55,7 +55,7 @@ TEST_CASE_1_DEFAULT_DTYPE = [
 
 # overlapping 3x3 (non-divisible)
 TEST_CASE_2_DEFAULT_DTYPE = [
-    dict(output_shape=TENSOR_4x4.shape),
+    dict(merging_shape=TENSOR_4x4.shape),
     [
         (TENSOR_4x4[..., :3, :3], (0, 0)),
         (TENSOR_4x4[..., :3, 1:], (0, 1)),
@@ -67,7 +67,7 @@ TEST_CASE_2_DEFAULT_DTYPE = [
 
 #  overlapping 2x2 with NaN values
 TEST_CASE_3_DEFAULT_DTYPE = [
-    dict(output_shape=TENSOR_4x4_WITH_NAN.shape),
+    dict(merging_shape=TENSOR_4x4_WITH_NAN.shape),
     [
         (TENSOR_4x4_WITH_NAN[..., 0:2, 0:2], (0, 0)),
         (TENSOR_4x4_WITH_NAN[..., 0:2, 1:3], (0, 1)),
@@ -84,14 +84,14 @@ TEST_CASE_3_DEFAULT_DTYPE = [
 
 # non-overlapping 2x2 with missing patch
 TEST_CASE_4_DEFAULT_DTYPE = [
-    dict(output_shape=TENSOR_4x4.shape),
+    dict(merging_shape=TENSOR_4x4.shape),
     [(TENSOR_4x4[..., :2, :2], (0, 0)), (TENSOR_4x4[..., :2, 2:], (0, 2)), (TENSOR_4x4[..., 2:, :2], (2, 0))],
     TENSOR_4x4_WITH_NAN,
 ]
 
 # with value_dtype set to half precision
 TEST_CASE_5_VALUE_DTYPE = [
-    dict(output_shape=TENSOR_4x4.shape, value_dtype=torch.float16),
+    dict(merging_shape=TENSOR_4x4.shape, value_dtype=torch.float16),
     [
         (TENSOR_4x4[..., :2, :2], (0, 0)),
         (TENSOR_4x4[..., :2, 2:], (0, 2)),
@@ -102,7 +102,7 @@ TEST_CASE_5_VALUE_DTYPE = [
 ]
 # with count_dtype set to int32
 TEST_CASE_6_COUNT_DTYPE = [
-    dict(output_shape=TENSOR_4x4.shape, count_dtype=torch.int32),
+    dict(merging_shape=TENSOR_4x4.shape, count_dtype=torch.int32),
     [
         (TENSOR_4x4[..., :2, :2], (0, 0)),
         (TENSOR_4x4[..., :2, 2:], (0, 2)),
@@ -113,7 +113,7 @@ TEST_CASE_6_COUNT_DTYPE = [
 ]
 # with both value_dtype, count_dtype set to double precision
 TEST_CASE_7_COUNT_VALUE_DTYPE = [
-    dict(output_shape=TENSOR_4x4.shape, value_dtype=torch.float64, count_dtype=torch.float64),
+    dict(merging_shape=TENSOR_4x4.shape, value_dtype=torch.float64, count_dtype=torch.float64),
     [
         (TENSOR_4x4[..., :2, :2], (0, 0)),
         (TENSOR_4x4[..., :2, 2:], (0, 2)),
@@ -125,7 +125,7 @@ TEST_CASE_7_COUNT_VALUE_DTYPE = [
 
 # shape larger than what is covered by patches
 TEST_CASE_8_LARGER_SHAPE = [
-    dict(output_shape=(2, 3, 4, 6)),
+    dict(merging_shape=(2, 3, 4, 6)),
     [
         (TENSOR_4x4[..., :2, :2], (0, 0)),
         (TENSOR_4x4[..., :2, 2:], (0, 2)),
@@ -166,13 +166,13 @@ class AvgMergerTests(unittest.TestCase):
 
     def test_avg_merger_finalized_error(self):
         with self.assertRaises(ValueError):
-            merger = AvgMerger(output_shape=(1, 3, 2, 3))
+            merger = AvgMerger(merging_shape=(1, 3, 2, 3))
             merger.finalize()
             merger.aggregate(torch.zeros(1, 3, 2, 2), (3, 3))
 
-    def test_avg_merge_none_output_shape_error(self):
+    def test_avg_merge_none_merging_shape_error(self):
         with self.assertRaises(ValueError):
-            AvgMerger(output_shape=None)
+            AvgMerger(merging_shape=None)
 
 
 if __name__ == "__main__":

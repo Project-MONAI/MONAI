@@ -59,7 +59,7 @@ TEST_CASE_4_SPLIT_LIST = [
         (TENSOR_4x4[..., 2:, :2], (2, 0)),
         (TENSOR_4x4[..., 2:, 2:], (2, 2)),
     ],
-    dict(splitter=None, merger_cls=AvgMerger, output_shape=(2, 3, 4, 4)),
+    dict(splitter=None, merger_cls=AvgMerger, merging_shape=(2, 3, 4, 4)),
     lambda x: x,
     TENSOR_4x4,
 ]
@@ -72,7 +72,7 @@ TEST_CASE_5_SPLIT_LIST = [
         (TENSOR_4x4[..., 2:, :2], (2, 0)),
         (TENSOR_4x4[..., 2:, 2:], (2, 2)),
     ],
-    dict(merger_cls=AvgMerger, output_shape=(2, 3, 4, 4)),
+    dict(merger_cls=AvgMerger, merging_shape=(2, 3, 4, 4)),
     lambda x: x,
     TENSOR_4x4,
 ]
@@ -178,17 +178,29 @@ TEST_CASE_0_DICT = [
 # invalid splitter: not callable
 TEST_CASE_ERROR_0 = [None, dict(splitter=1), TypeError]
 # invalid merger: non-existent merger
-TEST_CASE_ERROR_1 = [None, dict(splitter=lambda x: x, merger_cls="NonExistent"), ValueError]
+TEST_CASE_ERROR_1 = [
+    None,
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger_cls="NonExistent"),
+    ValueError,
+]
 # invalid merger: callable
-TEST_CASE_ERROR_2 = [None, dict(splitter=lambda x: x, merger_cls=lambda x: x), TypeError]
+TEST_CASE_ERROR_2 = [None, dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger_cls=lambda x: x), TypeError]
 # invalid merger: Merger object
-TEST_CASE_ERROR_3 = [None, dict(splitter=lambda x: x, merger_cls=AvgMerger(output_shape=(1, 1))), TypeError]
+TEST_CASE_ERROR_3 = [
+    None,
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger_cls=AvgMerger(merging_shape=(1, 1))),
+    TypeError,
+]
 # invalid merger: list of Merger class
-TEST_CASE_ERROR_4 = [None, dict(splitter=lambda x: x, merger_cls=[AvgMerger, AvgMerger]), TypeError]
+TEST_CASE_ERROR_4 = [
+    None,
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger_cls=[AvgMerger, AvgMerger]),
+    TypeError,
+]
 # invalid preprocessing
-TEST_CASE_ERROR_5 = [None, dict(splitter=lambda x: x, preprocessing=1), TypeError]
+TEST_CASE_ERROR_5 = [None, dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), preprocessing=1), TypeError]
 # invalid postprocessing
-TEST_CASE_ERROR_6 = [None, dict(splitter=lambda x: x, postprocessing=1), TypeError]
+TEST_CASE_ERROR_6 = [None, dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), postprocessing=1), TypeError]
 # provide splitter when data is already split (splitter is not None)
 TEST_CASE_ERROR_7 = [
     [
@@ -204,7 +216,7 @@ TEST_CASE_ERROR_7 = [
 TEST_CASE_ERROR_8 = [torch.zeros(2, 2), dict(splitter=None), ValueError]
 # invalid inputs: split patches MetaTensor without location metadata
 TEST_CASE_ERROR_9 = [MetaTensor(torch.zeros(2, 2)), dict(splitter=None), ValueError]
-# output_shape is not provided for the merger
+# merging_shape is not provided for the merger
 TEST_CASE_ERROR_10 = [
     [
         (TENSOR_4x4[..., :2, :2], (0, 0)),

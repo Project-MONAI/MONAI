@@ -102,13 +102,13 @@ class PatchInferer(Inferer):
             Defaults to None, where all the keys are used.
         crop: whether to crop the output to match the input shape. Defaults to True.
         merger_kwargs: arguments to be passed to `merger_cls` for instantiation.
-            `output_shape` is calculated automatically based on the input shape and
+            `merging_shape` is calculated automatically based on the input shape and
             the output patch shape unless it is passed here.
     """
 
     def __init__(
         self,
-        splitter: Splitter | Callable | None = None,
+        splitter: Splitter | None = None,
         merger_cls: type[Merger] | str = AvgMerger,
         batch_size: int = 1,
         preprocessing: Callable | None = None,
@@ -118,18 +118,11 @@ class PatchInferer(Inferer):
         **merger_kwargs: Any,
     ) -> None:
         Inferer.__init__(self)
-
         # splitter
         if splitter is not None and not isinstance(splitter, Splitter):
-            if callable(splitter):
-                warnings.warn(
-                    "`splitter` is a callable instead of `Splitter` object, please make sure that it returns "
-                    "the correct values. Either Iterable[tuple[torch.Tensor, Sequence[int]]], or "
-                    "a MetaTensor with defined `PatchKey.LOCATION` metadata."
-                )
-            else:
+            if not isinstance(splitter, Splitter):
                 raise TypeError(
-                    f"'splitter' should be a `Splitter` object  (or a callable that returns "
+                    f"'splitter' should be a `Splitter` object that returns: "
                     "an iterable of pairs of (patch, location) or a MetaTensor that has `PatchKeys.LOCATION` metadata)."
                     f"{type(splitter)} is given."
                 )
@@ -227,34 +220,29 @@ class PatchInferer(Inferer):
         in_patch = torch.chunk(patches, batch_size)[0]
         mergers = []
         ratios = []
-        crop_shapes = []
         for out_patch_batch in outputs:
             out_patch = torch.chunk(out_patch_batch, batch_size)[0]
             # calculate the ratio of input and output patch sizes
             ratio = tuple(op / ip for ip, op in zip(in_patch.shape[2:], out_patch.shape[2:]))
 
-            # calculate output_shape and crop_shape and initialize the mergers
-            kw_output_shape = self.merger_kwargs.get("output_shape")
-            crop_shape = None
-            if kw_output_shape:
-                # output_shape is provided by user
-                merger = self.merger_cls(**self.merger_kwargs)
-            else:
-                # output_shape needs to be calculated
-                crop_shape, output_shape = self._get_output_shape(inputs, out_patch, ratio)
-                if output_shape:
-                    merger = self.merger_cls(output_shape=output_shape, **self.merger_kwargs)
-                else:
-                    raise ValueError(
-                        "`output_shape` should cannot be calculated and needs to be provided "
-                        "(i.e., the splitter is not provided or not a subclass of `monai.inferer.Splitter`)."
-                    )
-            # add to the list
+            # calculate merging_shape and final_shape
+            merger_kwargs = self.merger_kwargs.copy()
+            final_shape, merging_shape = self._get_merged_shapes(inputs, out_patch, ratio)
+            if "merging_shape" not in merger_kwargs:
+                merger_kwargs["merging_shape"] = merging_shape
+                if merger_kwargs["merging_shape"] is None:
+                    raise ValueError("`merging_shape` cannot be `None`.")
+            if "final_shape" not in merger_kwargs:
+                merger_kwargs["final_shape"] = final_shape
+
+            # initialize the merger
+            merger = self.merger_cls(**merger_kwargs)
+
+            # store mergers and input/output ratios
             mergers.append(merger)
             ratios.append(ratio)
-            crop_shapes.append(crop_shape)
 
-        return mergers, ratios, crop_shapes
+        return mergers, ratios
 
     def _aggregate(self, outputs, locations, batch_size, mergers, ratios):
         for output_patches, merger, ratio in zip(outputs, mergers, ratios):
@@ -263,8 +251,8 @@ class PatchInferer(Inferer):
                 out_loc = [round(l * r) for l, r in zip(in_loc, ratio)]
                 merger.aggregate(out_patch, out_loc)
 
-    def _get_output_shape(self, inputs, out_patch, ratio):
-        """Define the shape of output merged tensors (non-padded and padded)"""
+    def _get_merged_shapes(self, inputs, out_patch, ratio):
+        """Define the shape of merged tensors (non-padded and padded)"""
         if (
             self.splitter is None
             or not hasattr(self.splitter, "get_input_shape")
@@ -281,10 +269,13 @@ class PatchInferer(Inferer):
         padded_output_spatial_shape = tuple(round(s * r) for s, r in zip(padded_spatial_shape, ratio))
 
         # output shapes
-        crop_shape = out_patch.shape[:2] + output_spatial_shape
-        output_shape = out_patch.shape[:2] + padded_output_spatial_shape
+        final_shape = out_patch.shape[:2] + output_spatial_shape
+        merging_shape = out_patch.shape[:2] + padded_output_spatial_shape
 
-        return crop_shape, output_shape
+        if not self.crop:
+            final_shape = merging_shape
+
+        return final_shape, merging_shape
 
     def __call__(
         self,
@@ -306,6 +297,7 @@ class PatchInferer(Inferer):
         """
         patches_locations: Iterable[tuple[torch.Tensor, Sequence[int]]] | MetaTensor
         if self.splitter is None:
+            # handle situations where the splitter is not provided
             if isinstance(inputs, torch.Tensor):
                 if isinstance(inputs, MetaTensor):
                     if PatchKeys.LOCATION not in inputs.meta:
@@ -324,6 +316,7 @@ class PatchInferer(Inferer):
                     )
             patches_locations = inputs
         else:
+            # apply splitter
             patches_locations = self.splitter(inputs)
 
         ratios: list[float] = []
@@ -333,17 +326,12 @@ class PatchInferer(Inferer):
             outputs = self._run_inference(network, patches, *args, **kwargs)
             # initialize the mergers
             if not mergers:
-                mergers, ratios, crop_shapes = self._initialize_mergers(inputs, outputs, patches, batch_size)
+                mergers, ratios = self._initialize_mergers(inputs, outputs, patches, batch_size)
             # aggregate outputs
             self._aggregate(outputs, locations, batch_size, mergers, ratios)
 
         # finalize the mergers and get the results
-        merged_outputs = []
-        for merger, crop_shape in zip(mergers, crop_shapes):
-            merged_ = merger.finalize()
-            if self.crop and crop_shape and isinstance(merged_, torch.Tensor):
-                merged_ = merged_[tuple(slice(0, end) for end in crop_shape)]
-            merged_outputs.append(merged_)
+        merged_outputs = [merger.finalize() for merger in mergers]
 
         # return according to the model output
         if self.output_keys:

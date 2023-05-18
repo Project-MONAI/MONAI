@@ -187,12 +187,6 @@ TEST_CASE_ERROR_9 = [
 
 # invalid reader
 TEST_CASE_ERROR_10 = [WSI_GENERIC_TIFF_PATH, {"patch_size": (2, 2), "reader": ImageReader}, ValueError]
-# invalid reader that does not support padding
-TEST_CASE_ERROR_11 = [
-    WSI_GENERIC_TIFF_PATH,
-    {"patch_size": (2, 2), "pad_mode": "constant", "reader": TiffFileWSIReader},
-    ValueError,
-]
 
 
 @skipUnless(WSI_READER_STR, "Requires cucim or openslide!")
@@ -243,7 +237,6 @@ class WSISlidingWindowSplitterTests(unittest.TestCase):
             TEST_CASE_ERROR_8,
             TEST_CASE_ERROR_9,
             TEST_CASE_ERROR_10,
-            TEST_CASE_ERROR_11,
         ]
     )
     def test_split_patches_errors(self, image, arguments, expected_error):
