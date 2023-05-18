@@ -34,7 +34,8 @@ def compute_fp_tp_probs_nd(
     Args:
         probs: an array with shape (n,) that represents the probabilities of the detections.
             Where, n is the number of predicted detections.
-        coords: an array with shape (n, n_dim) that represents the coordinates of the detections in the same order as in `evaluation_mask`.
+        coords: an array with shape (n, n_dim) that represents the coordinates of the detections.
+            The dimensions must be in the same order as in `evaluation_mask`.
         evaluation_mask: the ground truth mask for evaluation.
         labels_to_exclude: labels in this list will not be counted for metric calculation.
 
