@@ -584,9 +584,9 @@ class EnsembleRunner:
         infer_files = self.ensembler.infer_files
         if len(infer_files) < self.world_size:
             if len(infer_files) == 0:
-                logger.info(f"No existing infer files. Ensembler ending.")
-                return 
-            infer_files = partition_dataset(data=infer_files, shuffle=False, 
+                logger.info("No existing infer files. Ensembler ending.")
+                return
+            infer_files = partition_dataset(data=infer_files, shuffle=False,
                                             num_partitions=len(infer_files))[self.rank] \
                                             if self.rank < len(infer_files) else []
         else:
