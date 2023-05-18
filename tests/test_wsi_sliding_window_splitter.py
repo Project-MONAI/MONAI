@@ -18,7 +18,7 @@ from unittest import skipUnless
 import torch
 from parameterized import parameterized
 
-from monai.data import CuCIMWSIReader, ImageReader, OpenSlideWSIReader, TiffFileWSIReader, WSIReader
+from monai.data import CuCIMWSIReader, ImageReader, OpenSlideWSIReader, WSIReader
 from monai.inferers import WSISlidingWindowSplitter
 from tests.utils import download_url_or_skip_test, optional_import, testing_data_config
 
