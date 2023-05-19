@@ -780,8 +780,6 @@ class CropForeground(Crop):
         And adjust bounding box coords to be divisible by `k`.
 
         """
-        if isinstance(img, MetaTensor) and img.pending_operations:
-            warnings.warn("foreground computation may not be accurate if the image has pending operations.")
         box_start, box_end = generate_spatial_bounding_box(
             img, self.select_fn, self.channel_indices, self.margin, self.allow_smaller
         )
@@ -818,6 +816,18 @@ class CropForeground(Crop):
         if get_track_meta() and isinstance(ret, MetaTensor):
             if not self.lazy_evaluation:
                 ret.applied_operations[-1][TraceKeys.EXTRA_INFO]["pad_info"] = ret.applied_operations.pop()
+            else:
+                pad_info = ret.pending_operations.pop()
+                crop_info = ret.pending_operations.pop()
+                extra = crop_info[TraceKeys.EXTRA_INFO]
+                extra["pad_info"] = pad_info
+                self.push_transform(
+                    ret,
+                    orig_size=crop_info.get(TraceKeys.ORIG_SIZE),
+                    sp_size=pad_info[LazyAttr.SHAPE],
+                    affine=crop_info[LazyAttr.AFFINE] @ pad_info[LazyAttr.AFFINE],
+                    extra_info=extra,
+                )
         return ret
 
     def __call__(  # type: ignore[override]
@@ -869,8 +879,6 @@ class RandWeightedCrop(Randomizable, TraceableTransform, LazyTransform, MultiSam
         self.centers: list[np.ndarray] = []
 
     def randomize(self, weight_map: NdarrayOrTensor) -> None:
-        if isinstance(weight_map, MetaTensor) and weight_map.pending_operations:
-            warnings.warn("weight map has pending operations, the sampling may not be correct.")
         self.centers = weighted_patch_samples(
             spatial_size=self.spatial_size, w=weight_map[0], n_samples=self.num_samples, r_state=self.R
         )  # using only the first channel as weight map
@@ -1015,10 +1023,6 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
         fg_indices_ = self.fg_indices if fg_indices is None else fg_indices
         bg_indices_ = self.bg_indices if bg_indices is None else bg_indices
         if fg_indices_ is None or bg_indices_ is None:
-            if isinstance(label, MetaTensor) and label.pending_operations:
-                warnings.warn("label has pending operations, the fg/bg indices may be incorrect.")
-            if isinstance(image, MetaTensor) and image.pending_operations:
-                warnings.warn("image has pending operations, the fg/bg indices may be incorrect.")
             if label is None:
                 raise ValueError("label must be provided.")
             fg_indices_, bg_indices_ = map_binary_to_indices(label, image, self.image_threshold)
@@ -1153,6 +1157,8 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
             the requested ROI in any dimension. If `True`, any smaller dimensions will remain
             unchanged.
         warn: if `True` prints a warning if a class is not present in the label.
+        max_samples_per_class: maximum length of indices to sample in each class to reduce memory consumption.
+            Default is None, no subsampling.
 
     """
 
@@ -1170,6 +1176,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
         indices: list[NdarrayOrTensor] | None = None,
         allow_smaller: bool = False,
         warn: bool = True,
+        max_samples_per_class: int | None = None,
     ) -> None:
         self.spatial_size = spatial_size
         self.ratios = ratios
@@ -1182,6 +1189,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
         self.indices = indices
         self.allow_smaller = allow_smaller
         self.warn = warn
+        self.max_samples_per_class = max_samples_per_class
 
     def randomize(
         self,
@@ -1191,13 +1199,11 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
     ) -> None:
         indices_ = self.indices if indices is None else indices
         if indices_ is None:
-            if isinstance(label, MetaTensor) and label.pending_operations:
-                warnings.warn("label has pending operations, the fg/bg indices may be incorrect.")
-            if isinstance(image, MetaTensor) and image.pending_operations:
-                warnings.warn("image has pending operations, the fg/bg indices may be incorrect.")
             if label is None:
                 raise ValueError("label must not be None.")
-            indices_ = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
+            indices_ = map_classes_to_indices(
+                label, self.num_classes, image, self.image_threshold, self.max_samples_per_class
+            )
         _shape = None
         if label is not None:
             _shape = label.peek_pending_shape() if isinstance(label, MetaTensor) else label.shape[1:]

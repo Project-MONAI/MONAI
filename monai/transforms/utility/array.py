@@ -797,6 +797,8 @@ class Lambda(InvertibleTransform):
     Args:
         func: Lambda/function to be applied.
         inv_func: Lambda/function of inverse operation, default to `lambda x: x`.
+        track_meta:  If `False`, then standard data objects will be returned (e.g., torch.Tensor` and `np.ndarray`)
+            as opposed to MONAI's enhanced objects. By default, this is `True`.
 
     Raises:
         TypeError: When ``func`` is not an ``Optional[Callable]``.
@@ -805,11 +807,14 @@ class Lambda(InvertibleTransform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, func: Callable | None = None, inv_func: Callable = no_collation) -> None:
+    def __init__(
+        self, func: Callable | None = None, inv_func: Callable = no_collation, track_meta: bool = True
+    ) -> None:
         if func is not None and not callable(func):
             raise TypeError(f"func must be None or callable but is {type(func).__name__}.")
         self.func = func
         self.inv_func = inv_func
+        self.track_meta = track_meta
 
     def __call__(self, img: NdarrayOrTensor, func: Callable | None = None):
         """
@@ -827,7 +832,7 @@ class Lambda(InvertibleTransform):
             raise TypeError(f"func must be None or callable but is {type(fn).__name__}.")
         out = fn(img)
         # convert to MetaTensor if necessary
-        if isinstance(out, (np.ndarray, torch.Tensor)) and not isinstance(out, MetaTensor) and get_track_meta():
+        if isinstance(out, (np.ndarray, torch.Tensor)) and not isinstance(out, MetaTensor) and self.track_meta:
             out = MetaTensor(out)
         if isinstance(out, MetaTensor):
             self.push_transform(out)
@@ -848,21 +853,29 @@ class RandLambda(Lambda, RandomizableTransform):
         func: Lambda/function to be applied.
         prob: probability of executing the random function, default to 1.0, with 100% probability to execute.
         inv_func: Lambda/function of inverse operation, default to `lambda x: x`.
+        track_meta:  If `False`, then standard data objects will be returned (e.g., torch.Tensor` and `np.ndarray`)
+            as opposed to MONAI's enhanced objects. By default, this is `True`.
 
     For more details, please check :py:class:`monai.transforms.Lambda`.
     """
 
     backend = Lambda.backend
 
-    def __init__(self, func: Callable | None = None, prob: float = 1.0, inv_func: Callable = no_collation) -> None:
-        Lambda.__init__(self=self, func=func, inv_func=inv_func)
+    def __init__(
+        self,
+        func: Callable | None = None,
+        prob: float = 1.0,
+        inv_func: Callable = no_collation,
+        track_meta: bool = True,
+    ) -> None:
+        Lambda.__init__(self=self, func=func, inv_func=inv_func, track_meta=track_meta)
         RandomizableTransform.__init__(self=self, prob=prob)
 
     def __call__(self, img: NdarrayOrTensor, func: Callable | None = None):
         self.randomize(img)
         out = deepcopy(super().__call__(img, func) if self._do_transform else img)
         # convert to MetaTensor if necessary
-        if not isinstance(out, MetaTensor) and get_track_meta():
+        if not isinstance(out, MetaTensor) and self.track_meta:
             out = MetaTensor(out)
         if isinstance(out, MetaTensor):
             lambda_info = self.pop_transform(out) if self._do_transform else {}
@@ -988,7 +1001,11 @@ class ClassesToIndices(Transform, MultiSampleTrait):
     backend = [TransformBackends.NUMPY, TransformBackends.TORCH]
 
     def __init__(
-        self, num_classes: int | None = None, image_threshold: float = 0.0, output_shape: Sequence[int] | None = None
+        self,
+        num_classes: int | None = None,
+        image_threshold: float = 0.0,
+        output_shape: Sequence[int] | None = None,
+        max_samples_per_class: int | None = None,
     ) -> None:
         """
         Compute indices of every class of the input label data, return a list of indices.
@@ -1002,11 +1019,14 @@ class ClassesToIndices(Transform, MultiSampleTrait):
             image_threshold: if enabled `image` at runtime, use ``image > image_threshold`` to
                 determine the valid image content area and select only the indices of classes in this area.
             output_shape: expected shape of output indices. if not None, unravel indices to specified shape.
+            max_samples_per_class: maximum length of indices to sample in each class to reduce memory consumption.
+                Default is None, no subsampling.
 
         """
         self.num_classes = num_classes
         self.image_threshold = image_threshold
         self.output_shape = output_shape
+        self.max_samples_per_class = max_samples_per_class
 
     def __call__(
         self, label: NdarrayOrTensor, image: NdarrayOrTensor | None = None, output_shape: Sequence[int] | None = None
@@ -1023,7 +1043,9 @@ class ClassesToIndices(Transform, MultiSampleTrait):
         if output_shape is None:
             output_shape = self.output_shape
         indices: list[NdarrayOrTensor]
-        indices = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
+        indices = map_classes_to_indices(
+            label, self.num_classes, image, self.image_threshold, self.max_samples_per_class
+        )
         if output_shape is not None:
             indices = [unravel_indices(cls_indices, output_shape) for cls_indices in indices]
 
@@ -1585,13 +1607,11 @@ class ImageFilter(Transform):
                 raise ValueError("`filter_size` should be a single uneven integer.")
             if filter not in self.supported_filters:
                 raise NotImplementedError(f"{filter}. Supported filters are {self.supported_filters}.")
-        elif isinstance(filter, torch.Tensor) or isinstance(filter, np.ndarray):
+        elif isinstance(filter, (torch.Tensor, np.ndarray)):
             if filter.ndim not in [1, 2, 3]:
                 raise ValueError("Only 1D, 2D, and 3D filters are supported.")
             self._check_all_values_uneven(filter.shape)
-        elif isinstance(filter, (nn.Module, Transform)):
-            pass
-        else:
+        elif not isinstance(filter, (nn.Module, Transform)):
             raise TypeError(
                 f"{type(filter)} is not supported."
                 "Supported types are `class 'str'`, `class 'torch.Tensor'`, `class 'np.ndarray'`, "
@@ -1600,9 +1620,9 @@ class ImageFilter(Transform):
 
     def _check_kwargs_are_present(self, filter, **kwargs):
         if filter == "gauss" and "sigma" not in kwargs.keys():
-            raise KeyError("`filter='gauss', requires the additonal keyword argument `sigma`")
+            raise KeyError("`filter='gauss', requires the additional keyword argument `sigma`")
         if filter == "savitzky_golay" and "order" not in kwargs.keys():
-            raise KeyError("`filter='savitzky_golay', requires the additonal keyword argument `order`")
+            raise KeyError("`filter='savitzky_golay', requires the additional keyword argument `order`")
 
     def _get_filter_from_string(self, filter: str, size: int, ndim: int) -> nn.Module | Callable:
         if filter == "mean":

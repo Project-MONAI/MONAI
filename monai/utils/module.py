@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import enum
+import functools
 import os
 import pdb
 import re
@@ -508,6 +509,7 @@ def get_package_version(dep_name, default="NOT INSTALLED or UNKNOWN VERSION."):
     return default
 
 
+@functools.lru_cache(None)
 def get_torch_version_tuple():
     """
     Returns:
@@ -562,6 +564,7 @@ def version_leq(lhs: str, rhs: str) -> bool:
     return True
 
 
+@functools.lru_cache(None)
 def pytorch_after(major: int, minor: int, patch: int = 0, current_ver_string: str | None = None) -> bool:
     """
     Compute whether the current pytorch version is after or equal to the specified version.

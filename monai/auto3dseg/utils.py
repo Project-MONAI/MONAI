@@ -11,10 +11,10 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import pickle
 import sys
-import warnings
 from copy import deepcopy
 from numbers import Number
 from typing import Any, cast
@@ -25,6 +25,7 @@ import torch
 from monai.auto3dseg import Algo
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import ID_SEP_KEY
+from monai.config import PathLike
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import CropForeground, ToCupy
 from monai.utils import min_version, optional_import
@@ -272,20 +273,20 @@ def verify_report_format(report: dict, report_format: dict) -> bool:
     return True
 
 
-def algo_to_pickle(algo: Algo, **algo_meta_data: Any) -> str:
+def algo_to_pickle(algo: Algo, template_path: PathLike | None = None, **algo_meta_data: Any) -> str:
     """
-    Export the Algo object to pickle file
+    Export the Algo object to pickle file.
 
     Args:
-        algo: Algo-like object
-        algo_meta_data: additional keyword to save into the dictionary. It may include template_path
-            which is used to instantiate the class. It may also include model training info
+        algo: Algo-like object.
+        template_path: a str path that is needed to be added to the sys.path to instantiate the class.
+        algo_meta_data: additional keyword to save into the dictionary, for example, model training info
             such as acc/best_metrics
 
     Returns:
         filename of the pickled Algo object
     """
-    data = {"algo_bytes": pickle.dumps(algo)}
+    data = {"algo_bytes": pickle.dumps(algo), "template_path": str(template_path)}
     pkl_filename = os.path.join(algo.get_output_path(), "algo_object.pkl")
     for k, v in algo_meta_data.items():
         data.update({k: v})
@@ -295,22 +296,24 @@ def algo_to_pickle(algo: Algo, **algo_meta_data: Any) -> str:
     return pkl_filename
 
 
-def algo_from_pickle(pkl_filename: str, **kwargs: Any) -> Any:
+def algo_from_pickle(pkl_filename: str, template_path: PathLike | None = None, **kwargs: Any) -> Any:
     """
-    Import the Algo object from a pickle file
+    Import the Algo object from a pickle file.
 
     Args:
-        pkl_filename: name of the pickle file
-        algo_templates_dir: the algorithm script folder which is needed to instantiate the object.
-            If it is None, the function will use the internal ``'algo_templates_dir`` in the object
-            dict.
+        pkl_filename: the name of the pickle file.
+        template_path: a folder containing files to instantiate the Algo. Besides the `template_path`,
+        this function will also attempt to use the `template_path` saved in the pickle file and a directory
+        named `algorithm_templates` in the parent folder of the folder containing the pickle file.
 
     Returns:
-        algo: Algo-like object
+        algo: the Algo object saved in the pickle file.
+        algo_meta_data: additional keyword saved in the pickle file, for example, acc/best_metrics.
 
     Raises:
-        ValueError if the pkl_filename does not contain a dict, or the dict does not contain
-            ``template_path`` or ``algo_bytes``
+        ValueError if the pkl_filename does not contain a dict, or the dict does not contain `algo_bytes`.
+        ModuleNotFoundError if it is unable to instantiate the Algo class.
+
     """
     with open(pkl_filename, "rb") as f_pi:
         data_bytes = f_pi.read()
@@ -323,30 +326,48 @@ def algo_from_pickle(pkl_filename: str, **kwargs: Any) -> Any:
         raise ValueError(f"key [algo_bytes] not found in {data}. Unable to instantiate.")
 
     algo_bytes = data.pop("algo_bytes")
-    algo_meta_data = {}
+    algo_template_path = data.pop("template_path", None)
 
-    if "template_path" in kwargs:  # add template_path to sys.path
-        template_path = kwargs["template_path"]
-        if template_path is None:  # then load template_path from pickled data
-            if "template_path" not in data:
-                raise ValueError(f"key [template_path] not found in {data}")
-            template_path = data.pop("template_path")
+    template_paths_candidates: list[str] = []
 
-        if not os.path.isdir(template_path):
-            raise ValueError(f"Algorithm templates {template_path} is not a directory")
-        # Example of template path: "algorithm_templates/dints".
-        sys.path.insert(0, os.path.abspath(os.path.join(template_path, "..")))
-        algo_meta_data.update({"template_path": template_path})
+    if os.path.isdir(str(template_path)):
+        template_paths_candidates.append(os.path.abspath(str(template_path)))
+        template_paths_candidates.append(os.path.abspath(os.path.join(str(template_path), "..")))
 
-    algo = pickle.loads(algo_bytes)
+    if os.path.isdir(str(algo_template_path)):
+        template_paths_candidates.append(os.path.abspath(algo_template_path))
+        template_paths_candidates.append(os.path.abspath(os.path.join(algo_template_path, "..")))
+
     pkl_dir = os.path.dirname(pkl_filename)
-    if pkl_dir != algo.get_output_path():
-        warnings.warn(
-            f"{algo.get_output_path()} does not contain {pkl_filename}."
-            f"Now override the Algo output_path with: {pkl_dir}"
-        )
+    algo_template_path_fuzzy = os.path.join(pkl_dir, "..", "algorithm_templates")
+
+    if os.path.isdir(algo_template_path_fuzzy):
+        template_paths_candidates.append(os.path.abspath(algo_template_path_fuzzy))
+
+    if len(template_paths_candidates) == 0:
+        # no template_path provided or needed
+        algo = pickle.loads(algo_bytes)
+        algo.template_path = None
+    else:
+        for i, p in enumerate(template_paths_candidates):
+            try:
+                sys.path.append(p)
+                algo = pickle.loads(algo_bytes)
+                break
+            except ModuleNotFoundError as not_found_err:
+                logging.debug(f"Folder {p} doesn't contain the Algo templates for Algo instantiation.")
+                sys.path.pop()
+                if i == len(template_paths_candidates) - 1:
+                    raise ValueError(
+                        f"Failed to instantiate {pkl_filename} with {template_paths_candidates}"
+                    ) from not_found_err
+        algo.template_path = p
+
+    if os.path.abspath(pkl_dir) != os.path.abspath(algo.get_output_path()):
+        logging.debug(f"{algo.get_output_path()} is changed. Now override the Algo output_path with: {pkl_dir}.")
         algo.output_path = pkl_dir
 
+    algo_meta_data = {}
     for k, v in data.items():
         algo_meta_data.update({k: v})
 

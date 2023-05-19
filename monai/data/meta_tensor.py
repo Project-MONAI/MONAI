@@ -510,9 +510,16 @@ class MetaTensor(MetaObj, torch.Tensor):
             self.as_tensor().new_empty(size=size, dtype=dtype, device=device, requires_grad=requires_grad)
         )
 
-    def clone(self):
-        """returns a copy of the MetaTensor instance."""
-        new_inst = MetaTensor(self.as_tensor().clone())
+    def clone(self, **kwargs):
+        """
+        Returns a copy of the MetaTensor instance.
+
+        Args:
+            kwargs: additional keyword arguments to `torch.clone`.
+
+        See also: https://pytorch.org/docs/stable/generated/torch.clone.html
+        """
+        new_inst = MetaTensor(self.as_tensor().clone(**kwargs))
         new_inst.__dict__ = deepcopy(self.__dict__)
         return new_inst
 
@@ -582,6 +589,12 @@ class MetaTensor(MetaObj, torch.Tensor):
         Use ``print_verbose`` for associated metadata.
         """
         return f"meta{str(self.as_tensor())}"
+
+    def __format__(self, format_spec):
+        """
+        returns the output of pytorch tensor's ``__format__`` method.
+        """
+        return self.as_tensor().__format__(format_spec)
 
     def print_verbose(self) -> None:
         """Verbose print with meta data."""

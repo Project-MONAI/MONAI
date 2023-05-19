@@ -21,11 +21,9 @@ from monai.config.type_definitions import DtypeLike, NdarrayOrTensor, NdarrayTen
 from monai.data.box_utils import COMPUTE_DTYPE, TO_REMOVE, get_spatial_dims
 from monai.transforms import Resize
 from monai.transforms.utils import create_scale
-from monai.utils import look_up_option, optional_import
+from monai.utils import look_up_option
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
-
-scipy, _ = optional_import("scipy")
 
 
 def _apply_affine_to_points(points: torch.Tensor, affine: torch.Tensor, include_shift: bool = True) -> torch.Tensor:
