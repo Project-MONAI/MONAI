@@ -128,28 +128,28 @@ TEST_CASE_10_STR_MERGER = [
 ]
 
 
-# non-divisible patch_size leading to larger image (without cropping)
+# non-divisible patch_size leading to larger image (without matching spatial shape)
 TEST_CASE_11_PADDING = [
     TENSOR_4x4,
     dict(
         splitter=SlidingWindowSplitter(patch_size=(2, 3), pad_mode="constant", pad_value=0.0),
         merger_cls=AvgMerger,
-        crop=False,
+        match_spatial_shape=False,
     ),
     lambda x: x,
     pad(TENSOR_4x4, (0, 2), value=0.0),
 ]
 
-# non-divisible patch_size with cropping
-TEST_CASE_12_CROPPING = [
+# non-divisible patch_size with matching spatial shapes
+TEST_CASE_12_MATCHING = [
     TENSOR_4x4,
     dict(splitter=SlidingWindowSplitter(patch_size=(2, 3), pad_mode=None), merger_cls=AvgMerger),
     lambda x: x,
     pad(TENSOR_4x4[..., :3], (0, 1), value=torch.nan),
 ]
 
-# non-divisible patch_size with cropping
-TEST_CASE_13_PADDING_CROPPING = [
+# non-divisible patch_size with matching spatial shapes
+TEST_CASE_13_PADDING_MATCHING = [
     TENSOR_4x4,
     dict(splitter=SlidingWindowSplitter(patch_size=(2, 3)), merger_cls=AvgMerger),
     lambda x: x,
@@ -244,8 +244,8 @@ class PatchInfererTests(unittest.TestCase):
             TEST_CASE_9_STR_MERGER,
             TEST_CASE_10_STR_MERGER,
             TEST_CASE_11_PADDING,
-            TEST_CASE_12_CROPPING,
-            TEST_CASE_13_PADDING_CROPPING,
+            TEST_CASE_12_MATCHING,
+            TEST_CASE_13_PADDING_MATCHING,
         ]
     )
     def test_patch_inferer_tensor(self, inputs, arguments, network, expected):

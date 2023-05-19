@@ -100,7 +100,7 @@ class PatchInferer(Inferer):
         output_keys: if the network output is a dictionary, this defines the keys of
             the output dictionary to be used for merging.
             Defaults to None, where all the keys are used.
-        crop: whether to crop the output to match the input shape. Defaults to True.
+        match_spatial_shape: whether to crop the output to match the input shape. Defaults to True.
         merger_kwargs: arguments to be passed to `merger_cls` for instantiation.
             `merging_shape` is calculated automatically based on the input shape and
             the output patch shape unless it is passed here.
@@ -114,7 +114,7 @@ class PatchInferer(Inferer):
         preprocessing: Callable | None = None,
         postprocessing: Callable | None = None,
         output_keys: Sequence | None = None,
-        crop: bool = True,
+        match_spatial_shape: bool = True,
         **merger_kwargs: Any,
     ) -> None:
         Inferer.__init__(self)
@@ -161,7 +161,7 @@ class PatchInferer(Inferer):
         self.output_keys = output_keys
 
         # whether to crop the output to match the input shape
-        self.crop = crop
+        self.match_spatial_shape = match_spatial_shape
 
     def _batch_sampler(
         self, patches: Iterable[tuple[torch.Tensor, Sequence[int]]] | MetaTensor
@@ -268,7 +268,7 @@ class PatchInferer(Inferer):
         final_shape = out_patch.shape[:2] + output_spatial_shape
         merging_shape = out_patch.shape[:2] + padded_output_spatial_shape
 
-        if not self.crop:
+        if not self.match_spatial_shape:
             final_shape = merging_shape
 
         return final_shape, merging_shape
