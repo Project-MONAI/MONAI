@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Optional, Sequence, Tuple, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import numpy as np
 import torch
@@ -60,15 +62,15 @@ class SegResNet(nn.Module):
         init_filters: int = 8,
         in_channels: int = 1,
         out_channels: int = 2,
-        dropout_prob: Optional[float] = None,
-        act: Union[Tuple, str] = ("RELU", {"inplace": True}),
-        norm: Union[Tuple, str] = ("GROUP", {"num_groups": 8}),
+        dropout_prob: float | None = None,
+        act: tuple | str = ("RELU", {"inplace": True}),
+        norm: tuple | str = ("GROUP", {"num_groups": 8}),
         norm_name: str = "",
         num_groups: int = 8,
         use_conv_final: bool = True,
         blocks_down: tuple = (1, 2, 2, 4),
         blocks_up: tuple = (1, 1, 1),
-        upsample_mode: Union[UpsampleMode, str] = UpsampleMode.NONTRAINABLE,
+        upsample_mode: UpsampleMode | str = UpsampleMode.NONTRAINABLE,
     ):
         super().__init__()
 
@@ -101,7 +103,7 @@ class SegResNet(nn.Module):
     def _make_down_layers(self):
         down_layers = nn.ModuleList()
         blocks_down, spatial_dims, filters, norm = (self.blocks_down, self.spatial_dims, self.init_filters, self.norm)
-        for i in range(len(blocks_down)):
+        for i, item in enumerate(blocks_down):
             layer_in_channels = filters * 2**i
             pre_conv = (
                 get_conv_layer(spatial_dims, layer_in_channels // 2, layer_in_channels, stride=2)
@@ -109,8 +111,7 @@ class SegResNet(nn.Module):
                 else nn.Identity()
             )
             down_layer = nn.Sequential(
-                pre_conv,
-                *[ResBlock(spatial_dims, layer_in_channels, norm=norm, act=self.act) for _ in range(blocks_down[i])],
+                pre_conv, *[ResBlock(spatial_dims, layer_in_channels, norm=norm, act=self.act) for _ in range(item)]
             )
             down_layers.append(down_layer)
         return down_layers
@@ -152,7 +153,7 @@ class SegResNet(nn.Module):
             get_conv_layer(self.spatial_dims, self.init_filters, out_channels, kernel_size=1, bias=True),
         )
 
-    def encode(self, x: torch.Tensor) -> Tuple[torch.Tensor, List[torch.Tensor]]:
+    def encode(self, x: torch.Tensor) -> tuple[torch.Tensor, list[torch.Tensor]]:
         x = self.convInit(x)
         if self.dropout_prob is not None:
             x = self.dropout(x)
@@ -165,7 +166,7 @@ class SegResNet(nn.Module):
 
         return x, down_x
 
-    def decode(self, x: torch.Tensor, down_x: List[torch.Tensor]) -> torch.Tensor:
+    def decode(self, x: torch.Tensor, down_x: list[torch.Tensor]) -> torch.Tensor:
         for i, (up, upl) in enumerate(zip(self.up_samples, self.up_layers)):
             x = up(x) + down_x[i + 1]
             x = upl(x)
@@ -226,13 +227,13 @@ class SegResNetVAE(SegResNet):
         init_filters: int = 8,
         in_channels: int = 1,
         out_channels: int = 2,
-        dropout_prob: Optional[float] = None,
-        act: Union[str, tuple] = ("RELU", {"inplace": True}),
-        norm: Union[Tuple, str] = ("GROUP", {"num_groups": 8}),
+        dropout_prob: float | None = None,
+        act: str | tuple = ("RELU", {"inplace": True}),
+        norm: tuple | str = ("GROUP", {"num_groups": 8}),
         use_conv_final: bool = True,
         blocks_down: tuple = (1, 2, 2, 4),
         blocks_up: tuple = (1, 1, 1),
-        upsample_mode: Union[UpsampleMode, str] = UpsampleMode.NONTRAINABLE,
+        upsample_mode: UpsampleMode | str = UpsampleMode.NONTRAINABLE,
     ):
         super().__init__(
             spatial_dims=spatial_dims,

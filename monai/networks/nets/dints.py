@@ -9,9 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
 
+import datetime
 import warnings
-from typing import List, Optional, Tuple, Union
+from typing import Optional
 
 import numpy as np
 import torch
@@ -39,7 +41,7 @@ __all__ = ["DiNTS", "TopologyConstruction", "TopologyInstance", "TopologySearch"
 class CellInterface(torch.nn.Module):
     """interface for torchscriptable Cell"""
 
-    def forward(self, x: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, weight: Optional[torch.Tensor]) -> torch.Tensor:  # type: ignore
         pass
 
 
@@ -47,7 +49,7 @@ class CellInterface(torch.nn.Module):
 class StemInterface(torch.nn.Module):
     """interface for torchscriptable Stem"""
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore
         pass
 
 
@@ -76,15 +78,6 @@ class _IdentityWithRAMCost(nn.Identity):
         self.ram_cost = 0
 
 
-class _CloseWithRAMCost(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.ram_cost = 0
-
-    def forward(self, x):
-        return torch.tensor(0.0, requires_grad=False).to(x)
-
-
 class _ActiConvNormBlockWithRAMCost(ActiConvNormBlock):
     """The class wraps monai layers with ram estimation. The ram_cost = total_ram/output_size is estimated.
     Here is the estimation:
@@ -104,8 +97,8 @@ class _ActiConvNormBlockWithRAMCost(ActiConvNormBlock):
         kernel_size: int,
         padding: int,
         spatial_dims: int = 3,
-        act_name: Union[Tuple, str] = "RELU",
-        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
+        act_name: tuple | str = "RELU",
+        norm_name: tuple | str = ("INSTANCE", {"affine": True}),
     ):
         super().__init__(in_channel, out_channel, kernel_size, padding, spatial_dims, act_name, norm_name)
         self.ram_cost = 1 + in_channel / out_channel * 2
@@ -119,8 +112,8 @@ class _P3DActiConvNormBlockWithRAMCost(P3DActiConvNormBlock):
         kernel_size: int,
         padding: int,
         p3dmode: int = 0,
-        act_name: Union[Tuple, str] = "RELU",
-        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
+        act_name: tuple | str = "RELU",
+        norm_name: tuple | str = ("INSTANCE", {"affine": True}),
     ):
         super().__init__(in_channel, out_channel, kernel_size, padding, p3dmode, act_name, norm_name)
         # 1 in_channel (activation) + 1 in_channel (convolution) +
@@ -134,8 +127,8 @@ class _FactorizedIncreaseBlockWithRAMCost(FactorizedIncreaseBlock):
         in_channel: int,
         out_channel: int,
         spatial_dims: int = 3,
-        act_name: Union[Tuple, str] = "RELU",
-        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
+        act_name: tuple | str = "RELU",
+        norm_name: tuple | str = ("INSTANCE", {"affine": True}),
     ):
         super().__init__(in_channel, out_channel, spatial_dims, act_name, norm_name)
         # s0 is upsampled 2x from s1, representing feature sizes at two resolutions.
@@ -150,8 +143,8 @@ class _FactorizedReduceBlockWithRAMCost(FactorizedReduceBlock):
         in_channel: int,
         out_channel: int,
         spatial_dims: int = 3,
-        act_name: Union[Tuple, str] = "RELU",
-        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
+        act_name: tuple | str = "RELU",
+        norm_name: tuple | str = ("INSTANCE", {"affine": True}),
     ):
         super().__init__(in_channel, out_channel, spatial_dims, act_name, norm_name)
         # s0 is upsampled 2x from s1, representing feature sizes at two resolutions.
@@ -175,9 +168,10 @@ class MixedOp(nn.Module):
             arch_code_c = np.ones(len(ops))
         self.ops = nn.ModuleList()
         for arch_c, op_name in zip(arch_code_c, ops):
-            self.ops.append(_CloseWithRAMCost() if arch_c == 0 else ops[op_name](c))
+            if arch_c > 0:
+                self.ops.append(ops[op_name](c))
 
-    def forward(self, x: torch.Tensor, weight: torch.Tensor):
+    def forward(self, x: torch.Tensor, weight: Optional[torch.Tensor] = None):
         """
         Args:
             x: input tensor.
@@ -186,9 +180,10 @@ class MixedOp(nn.Module):
             out: weighted average of the operation results.
         """
         out = 0.0
-        weight = weight.to(x)
+        if weight is not None:
+            weight = weight.to(x)
         for idx, _op in enumerate(self.ops):
-            out = out + _op(x) * weight[idx]
+            out = (out + _op(x)) if weight is None else out + _op(x) * weight[idx]
         return out
 
 
@@ -245,8 +240,8 @@ class Cell(CellInterface):
         rate: int,
         arch_code_c=None,
         spatial_dims: int = 3,
-        act_name: Union[Tuple, str] = "RELU",
-        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
+        act_name: tuple | str = "RELU",
+        norm_name: tuple | str = ("INSTANCE", {"affine": True}),
     ):
         super().__init__()
         self._spatial_dims = spatial_dims
@@ -304,7 +299,7 @@ class Cell(CellInterface):
 
         self.op = MixedOp(c, self.OPS, arch_code_c)
 
-    def forward(self, x: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, weight: Optional[torch.Tensor]) -> torch.Tensor:
         """
         Args:
             x: input tensor
@@ -358,8 +353,8 @@ class DiNTS(nn.Module):
         dints_space,
         in_channels: int,
         num_classes: int,
-        act_name: Union[Tuple, str] = "RELU",
-        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
+        act_name: tuple | str = "RELU",
+        norm_name: tuple | str = ("INSTANCE", {"affine": True}),
         spatial_dims: int = 3,
         use_downsample: bool = True,
         node_a=None,
@@ -556,23 +551,30 @@ class TopologyConstruction(nn.Module):
 
     def __init__(
         self,
-        arch_code: Optional[list] = None,
+        arch_code: list | None = None,
         channel_mul: float = 1.0,
         cell=Cell,
         num_blocks: int = 6,
         num_depths: int = 3,
         spatial_dims: int = 3,
-        act_name: Union[Tuple, str] = "RELU",
-        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
+        act_name: tuple | str = "RELU",
+        norm_name: tuple | str = ("INSTANCE", {"affine": True}),
         use_downsample: bool = True,
         device: str = "cpu",
     ):
-
         super().__init__()
 
-        self.filter_nums = [int(n_feat * channel_mul) for n_feat in (32, 64, 128, 256, 512)]
+        n_feats = tuple([32 * (2**_i) for _i in range(num_depths + 1)])
+        self.filter_nums = [int(n_feat * channel_mul) for n_feat in n_feats]
+
         self.num_blocks = num_blocks
         self.num_depths = num_depths
+        print(
+            "{} - Length of input patch is recommended to be a multiple of {:d}.".format(
+                datetime.datetime.now(), 2 ** (num_depths + int(use_downsample))
+            )
+        )
+
         self._spatial_dims = spatial_dims
         self._act_name = act_name
         self._norm_name = norm_name
@@ -639,8 +641,8 @@ class TopologyInstance(TopologyConstruction):
         num_blocks: int = 6,
         num_depths: int = 3,
         spatial_dims: int = 3,
-        act_name: Union[Tuple, str] = "RELU",
-        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
+        act_name: tuple | str = "RELU",
+        norm_name: tuple | str = ("INSTANCE", {"affine": True}),
         use_downsample: bool = True,
         device: str = "cpu",
     ):
@@ -663,21 +665,19 @@ class TopologyInstance(TopologyConstruction):
             device=device,
         )
 
-    def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
+    def forward(self, x: list[torch.Tensor]) -> list[torch.Tensor]:
         """
         Args:
             x: input tensor.
         """
         # generate path activation probability
-        inputs, outputs = x, [torch.tensor(0.0).to(x[0])] * self.num_depths
+        inputs = x
         for blk_idx in range(self.num_blocks):
-            outputs = [torch.tensor(0.0).to(x[0])] * self.num_depths
+            outputs = [torch.tensor(0.0, dtype=x[0].dtype, device=x[0].device)] * self.num_depths
             for res_idx, activation in enumerate(self.arch_code_a[blk_idx].data):
                 if activation:
                     mod: CellInterface = self.cell_tree[str((blk_idx, res_idx))]
-                    _out = mod.forward(
-                        x=inputs[self.arch_code2in[res_idx]], weight=torch.ones_like(self.arch_code_c[blk_idx, res_idx])
-                    )
+                    _out = mod.forward(x=inputs[self.arch_code2in[res_idx]], weight=None)
                     outputs[self.arch_code2out[res_idx]] = outputs[self.arch_code2out[res_idx]] + _out
             inputs = outputs
 
@@ -730,16 +730,19 @@ class TopologySearch(TopologyConstruction):
           The return value will exclude path activation of all 0.
     """
 
+    node2out: list[list]
+    node2in: list[list]
+
     def __init__(
         self,
         channel_mul: float = 1.0,
         cell=Cell,
-        arch_code: Optional[list] = None,
+        arch_code: list | None = None,
         num_blocks: int = 6,
         num_depths: int = 3,
         spatial_dims: int = 3,
-        act_name: Union[Tuple, str] = "RELU",
-        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
+        act_name: tuple | str = "RELU",
+        norm_name: tuple | str = ("INSTANCE", {"affine": True}),
         use_downsample: bool = True,
         device: str = "cpu",
     ):
@@ -882,13 +885,13 @@ class TopologySearch(TopologyConstruction):
         sizes = []
         for res_idx in range(self.num_depths):
             sizes.append(batch_size * self.filter_nums[res_idx] * (image_size // (2**res_idx)).prod())
-        sizes = torch.tensor(sizes).to(torch.float32).to(self.device) / (2 ** (int(self.use_downsample)))
+        sizes = torch.tensor(sizes, dtype=torch.float32, device=self.device) / (2 ** (int(self.use_downsample)))
         probs_a, arch_code_prob_a = self.get_prob_a(child=False)
         cell_prob = F.softmax(self.log_alpha_c, dim=-1)
         if full:
             arch_code_prob_a = arch_code_prob_a.detach()
             arch_code_prob_a.fill_(1)
-        ram_cost = torch.from_numpy(self.ram_cost).to(torch.float32).to(self.device)
+        ram_cost = torch.from_numpy(self.ram_cost).to(dtype=torch.float32, device=self.device)
         usage = 0.0
         for blk_idx in range(self.num_blocks):
             # node activation for input

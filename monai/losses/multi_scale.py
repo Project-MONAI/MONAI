@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Optional, Union
+from __future__ import annotations
 
 import torch
 from torch.nn.modules.loss import _Loss
@@ -49,9 +49,9 @@ class MultiScaleLoss(_Loss):
     def __init__(
         self,
         loss: _Loss,
-        scales: Optional[List] = None,
+        scales: list | None = None,
         kernel: str = "gaussian",
-        reduction: Union[LossReduction, str] = LossReduction.MEAN,
+        reduction: LossReduction | str = LossReduction.MEAN,
     ) -> None:
         """
         Args:
@@ -60,7 +60,7 @@ class MultiScaleLoss(_Loss):
             kernel: gaussian or cauchy.
         """
         super().__init__(reduction=LossReduction(reduction).value)
-        if kernel not in kernel_fn_dict.keys():
+        if kernel not in kernel_fn_dict:
             raise ValueError(f"got unsupported kernel type: {kernel}", "only support gaussian and cauchy")
         self.kernel_fn = kernel_fn_dict[kernel]
         self.loss = loss

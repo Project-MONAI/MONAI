@@ -9,14 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
+from typing import Optional
 
 import torch
 import torch.nn as nn
 
 from monai.networks.blocks import Convolution, UpSample
 from monai.networks.layers.factories import Conv, Pool
-from monai.utils import deprecated_arg, ensure_tuple_rep
+from monai.utils import ensure_tuple_rep
 
 __all__ = ["BasicUnet", "Basicunet", "basicunet", "BasicUNet"]
 
@@ -24,17 +27,15 @@ __all__ = ["BasicUnet", "Basicunet", "basicunet", "BasicUNet"]
 class TwoConv(nn.Sequential):
     """two convolutions."""
 
-    @deprecated_arg(name="dim", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead.")
     def __init__(
         self,
         spatial_dims: int,
         in_chns: int,
         out_chns: int,
-        act: Union[str, tuple],
-        norm: Union[str, tuple],
+        act: str | tuple,
+        norm: str | tuple,
         bias: bool,
-        dropout: Union[float, tuple] = 0.0,
-        dim: Optional[int] = None,
+        dropout: float | tuple = 0.0,
     ):
         """
         Args:
@@ -46,13 +47,9 @@ class TwoConv(nn.Sequential):
             bias: whether to have a bias term in convolution blocks.
             dropout: dropout ratio. Defaults to no dropout.
 
-        .. deprecated:: 0.6.0
-            ``dim`` is deprecated, use ``spatial_dims`` instead.
         """
         super().__init__()
 
-        if dim is not None:
-            spatial_dims = dim
         conv_0 = Convolution(spatial_dims, in_chns, out_chns, act=act, norm=norm, dropout=dropout, bias=bias, padding=1)
         conv_1 = Convolution(
             spatial_dims, out_chns, out_chns, act=act, norm=norm, dropout=dropout, bias=bias, padding=1
@@ -64,17 +61,15 @@ class TwoConv(nn.Sequential):
 class Down(nn.Sequential):
     """maxpooling downsampling and two convolutions."""
 
-    @deprecated_arg(name="dim", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead.")
     def __init__(
         self,
         spatial_dims: int,
         in_chns: int,
         out_chns: int,
-        act: Union[str, tuple],
-        norm: Union[str, tuple],
+        act: str | tuple,
+        norm: str | tuple,
         bias: bool,
-        dropout: Union[float, tuple] = 0.0,
-        dim: Optional[int] = None,
+        dropout: float | tuple = 0.0,
     ):
         """
         Args:
@@ -86,12 +81,8 @@ class Down(nn.Sequential):
             bias: whether to have a bias term in convolution blocks.
             dropout: dropout ratio. Defaults to no dropout.
 
-        .. deprecated:: 0.6.0
-            ``dim`` is deprecated, use ``spatial_dims`` instead.
         """
         super().__init__()
-        if dim is not None:
-            spatial_dims = dim
         max_pooling = Pool["MAX", spatial_dims](kernel_size=2)
         convs = TwoConv(spatial_dims, in_chns, out_chns, act, norm, bias, dropout)
         self.add_module("max_pooling", max_pooling)
@@ -101,29 +92,28 @@ class Down(nn.Sequential):
 class UpCat(nn.Module):
     """upsampling, concatenation with the encoder feature map, two convolutions"""
 
-    @deprecated_arg(name="dim", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead.")
     def __init__(
         self,
         spatial_dims: int,
         in_chns: int,
         cat_chns: int,
         out_chns: int,
-        act: Union[str, tuple],
-        norm: Union[str, tuple],
+        act: str | tuple,
+        norm: str | tuple,
         bias: bool,
-        dropout: Union[float, tuple] = 0.0,
+        dropout: float | tuple = 0.0,
         upsample: str = "deconv",
-        pre_conv: Optional[Union[nn.Module, str]] = "default",
+        pre_conv: nn.Module | str | None = "default",
         interp_mode: str = "linear",
-        align_corners: Optional[bool] = True,
+        align_corners: bool | None = True,
         halves: bool = True,
-        dim: Optional[int] = None,
+        is_pad: bool = True,
     ):
         """
         Args:
             spatial_dims: number of spatial dimensions.
             in_chns: number of input channels to be upsampled.
-            cat_chns: number of channels from the decoder.
+            cat_chns: number of channels from the encoder.
             out_chns: number of output channels.
             act: activation type and arguments.
             norm: feature normalization type and arguments.
@@ -139,13 +129,10 @@ class UpCat(nn.Module):
                 Only used in the "nontrainable" mode.
             halves: whether to halve the number of channels during upsampling.
                 This parameter does not work on ``nontrainable`` mode if ``pre_conv`` is `None`.
+            is_pad: whether to pad upsampling features to fit features from encoder. Defaults to True.
 
-        .. deprecated:: 0.6.0
-            ``dim`` is deprecated, use ``spatial_dims`` instead.
         """
         super().__init__()
-        if dim is not None:
-            spatial_dims = dim
         if upsample == "nontrainable" and pre_conv is None:
             up_chns = in_chns
         else:
@@ -161,24 +148,26 @@ class UpCat(nn.Module):
             align_corners=align_corners,
         )
         self.convs = TwoConv(spatial_dims, cat_chns + up_chns, out_chns, act, norm, bias, dropout)
+        self.is_pad = is_pad
 
     def forward(self, x: torch.Tensor, x_e: Optional[torch.Tensor]):
         """
 
         Args:
             x: features to be upsampled.
-            x_e: features from the encoder.
+            x_e: optional features from the encoder, if None, this branch is not in use.
         """
         x_0 = self.upsample(x)
 
-        if x_e is not None:
-            # handling spatial shapes due to the 2x maxpooling with odd edge lengths.
-            dimensions = len(x.shape) - 2
-            sp = [0] * (dimensions * 2)
-            for i in range(dimensions):
-                if x_e.shape[-i - 1] != x_0.shape[-i - 1]:
-                    sp[i * 2 + 1] = 1
-            x_0 = torch.nn.functional.pad(x_0, sp, "replicate")
+        if x_e is not None and torch.jit.isinstance(x_e, torch.Tensor):
+            if self.is_pad:
+                # handling spatial shapes due to the 2x maxpooling with odd edge lengths.
+                dimensions = len(x.shape) - 2
+                sp = [0] * (dimensions * 2)
+                for i in range(dimensions):
+                    if x_e.shape[-i - 1] != x_0.shape[-i - 1]:
+                        sp[i * 2 + 1] = 1
+                x_0 = torch.nn.functional.pad(x_0, sp, "replicate")
             x = self.convs(torch.cat([x_e, x_0], dim=1))  # input channels: (cat_chns + up_chns)
         else:
             x = self.convs(x_0)
@@ -187,21 +176,17 @@ class UpCat(nn.Module):
 
 
 class BasicUNet(nn.Module):
-    @deprecated_arg(
-        name="dimensions", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
-    )
     def __init__(
         self,
         spatial_dims: int = 3,
         in_channels: int = 1,
         out_channels: int = 2,
         features: Sequence[int] = (32, 32, 64, 128, 256, 32),
-        act: Union[str, tuple] = ("LeakyReLU", {"negative_slope": 0.1, "inplace": True}),
-        norm: Union[str, tuple] = ("instance", {"affine": True}),
+        act: str | tuple = ("LeakyReLU", {"negative_slope": 0.1, "inplace": True}),
+        norm: str | tuple = ("instance", {"affine": True}),
         bias: bool = True,
-        dropout: Union[float, tuple] = 0.0,
+        dropout: float | tuple = 0.0,
         upsample: str = "deconv",
-        dimensions: Optional[int] = None,
     ):
         """
         A UNet implementation with 1D/2D/3D supports.
@@ -231,9 +216,6 @@ class BasicUNet(nn.Module):
             upsample: upsampling mode, available options are
                 ``"deconv"``, ``"pixelshuffle"``, ``"nontrainable"``.
 
-        .. deprecated:: 0.6.0
-            ``dimensions`` is deprecated, use ``spatial_dims`` instead.
-
         Examples::
 
             # for spatial 2D
@@ -252,9 +234,6 @@ class BasicUNet(nn.Module):
 
         """
         super().__init__()
-        if dimensions is not None:
-            spatial_dims = dimensions
-
         fea = ensure_tuple_rep(features, 6)
         print(f"BasicUNet features: {fea}.")
 
@@ -275,13 +254,13 @@ class BasicUNet(nn.Module):
         """
         Args:
             x: input should have spatially N dimensions
-                ``(Batch, in_channels, dim_0[, dim_1, ..., dim_N])``, N is defined by `dimensions`.
+                ``(Batch, in_channels, dim_0[, dim_1, ..., dim_N-1])``, N is defined by `spatial_dims`.
                 It is recommended to have ``dim_n % 16 == 0`` to ensure all maxpooling inputs have
                 even edge lengths.
 
         Returns:
             A torch Tensor of "raw" predictions in shape
-            ``(Batch, out_channels, dim_0[, dim_1, ..., dim_N])``.
+            ``(Batch, out_channels, dim_0[, dim_1, ..., dim_N-1])``.
         """
         x0 = self.conv_0(x)
 

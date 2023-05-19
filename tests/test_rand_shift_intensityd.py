@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -29,7 +31,7 @@ class TestRandShiftIntensityd(NumpyImageTestCase2D):
             # simulate the randomize() of transform
             np.random.random()
             expected = self.imt + np.random.uniform(low=-1.0, high=1.0)
-            assert_allclose(result[key], p(expected))
+            assert_allclose(result[key], p(expected), type_test="tensor")
 
     def test_factor(self):
         key = "img"

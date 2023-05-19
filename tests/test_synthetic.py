@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -21,7 +23,7 @@ TEST_CASES = [
     [2, {"width": 64, "height": 64, "rad_max": 10, "rad_min": 4}, 0.1479004, 0.739502, (64, 64), 5],
     [
         2,
-        {"width": 32, "height": 28, "num_objs": 3, "rad_max": 5, "rad_min": 1, "noise_max": 0.2},
+        {"width": 28, "height": 32, "num_objs": 3, "rad_max": 5, "rad_min": 1, "noise_max": 0.2},
         0.1709315,
         0.4040179,
         (32, 28),

@@ -8,14 +8,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Optional, Tuple, Union
+
+from __future__ import annotations
 
 import torch
 from torch.nn import functional as F
 from torch.nn.modules.loss import _Loss
 
 from monai.networks.layers import gaussian_1d, separable_filtering
-from monai.utils import LossReduction, deprecated_arg
+from monai.utils import LossReduction
 from monai.utils.module import look_up_option
 
 
@@ -60,16 +61,14 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         DeepReg (https://github.com/DeepRegNet/DeepReg)
     """
 
-    @deprecated_arg(name="ndim", since="0.6", msg_suffix="Please use `spatial_dims` instead.")
     def __init__(
         self,
         spatial_dims: int = 3,
         kernel_size: int = 3,
         kernel_type: str = "rectangular",
-        reduction: Union[LossReduction, str] = LossReduction.MEAN,
-        smooth_nr: float = 1e-5,
+        reduction: LossReduction | str = LossReduction.MEAN,
+        smooth_nr: float = 0.0,
         smooth_dr: float = 1e-5,
-        ndim: Optional[int] = None,
     ) -> None:
         """
         Args:
@@ -85,13 +84,9 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
             smooth_nr: a small constant added to the numerator to avoid nan.
             smooth_dr: a small constant added to the denominator to avoid nan.
 
-        .. deprecated:: 0.6.0
-            ``ndim`` is deprecated, use ``spatial_dims``.
         """
         super().__init__(reduction=LossReduction(reduction).value)
 
-        if ndim is not None:
-            spatial_dims = ndim
         self.ndim = spatial_dims
         if self.ndim not in {1, 2, 3}:
             raise ValueError(f"Unsupported ndim: {self.ndim}-d, only 1-d, 2-d, and 3-d inputs are supported")
@@ -102,6 +97,7 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
 
         _kernel = look_up_option(kernel_type, kernel_dict)
         self.kernel = _kernel(self.kernel_size)
+        self.kernel.require_grads = False
         self.kernel_vol = self.get_kernel_vol()
 
         self.smooth_nr = float(smooth_nr)
@@ -126,14 +122,15 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         if target.shape != pred.shape:
             raise ValueError(f"ground truth has differing shape ({target.shape}) from pred ({pred.shape})")
 
-        t2, p2, tp = target**2, pred**2, target * pred
+        t2, p2, tp = target * target, pred * pred, target * pred
         kernel, kernel_vol = self.kernel.to(pred), self.kernel_vol.to(pred)
+        kernels = [kernel] * self.ndim
         # sum over kernel
-        t_sum = separable_filtering(target, kernels=[kernel.to(pred)] * self.ndim)
-        p_sum = separable_filtering(pred, kernels=[kernel.to(pred)] * self.ndim)
-        t2_sum = separable_filtering(t2, kernels=[kernel.to(pred)] * self.ndim)
-        p2_sum = separable_filtering(p2, kernels=[kernel.to(pred)] * self.ndim)
-        tp_sum = separable_filtering(tp, kernels=[kernel.to(pred)] * self.ndim)
+        t_sum = separable_filtering(target, kernels=kernels)
+        p_sum = separable_filtering(pred, kernels=kernels)
+        t2_sum = separable_filtering(t2, kernels=kernels)
+        p2_sum = separable_filtering(p2, kernels=kernels)
+        tp_sum = separable_filtering(tp, kernels=kernels)
 
         # average over kernel
         t_avg = t_sum / kernel_vol
@@ -149,12 +146,13 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         #     = sum[t*p] - sum[t] * mean[p] = cross
         # the following is actually squared ncc
         cross = tp_sum - p_avg * t_sum
-        t_var = t2_sum - t_avg * t_sum  # std[t] ** 2
-        p_var = p2_sum - p_avg * p_sum  # std[p] ** 2
-        t_var = torch.max(t_var, torch.zeros_like(t_var))
-        p_var = torch.max(p_var, torch.zeros_like(p_var))
-        ncc: torch.Tensor = (cross * cross + self.smooth_nr) / (t_var * p_var + self.smooth_dr)
-        # shape = (batch, 1, D, H, W)
+        t_var = torch.max(
+            t2_sum - t_avg * t_sum, torch.as_tensor(self.smooth_dr, dtype=t2_sum.dtype, device=t2_sum.device)
+        )
+        p_var = torch.max(
+            p2_sum - p_avg * p_sum, torch.as_tensor(self.smooth_dr, dtype=p2_sum.dtype, device=p2_sum.device)
+        )
+        ncc: torch.Tensor = (cross * cross + self.smooth_nr) / (t_var * p_var)
 
         if self.reduction == LossReduction.SUM.value:
             return torch.sum(ncc).neg()  # sum over the batch, channel and spatial ndims
@@ -178,7 +176,7 @@ class GlobalMutualInformationLoss(_Loss):
         kernel_type: str = "gaussian",
         num_bins: int = 23,
         sigma_ratio: float = 0.5,
-        reduction: Union[LossReduction, str] = LossReduction.MEAN,
+        reduction: LossReduction | str = LossReduction.MEAN,
         smooth_nr: float = 1e-7,
         smooth_dr: float = 1e-7,
     ) -> None:
@@ -224,7 +222,7 @@ class GlobalMutualInformationLoss(_Loss):
 
     def parzen_windowing(
         self, pred: torch.Tensor, target: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         if self.kernel_type == "gaussian":
             pred_weight, pred_probability = self.parzen_windowing_gaussian(pred)
             target_weight, target_probability = self.parzen_windowing_gaussian(target)
@@ -237,7 +235,7 @@ class GlobalMutualInformationLoss(_Loss):
             raise ValueError
         return pred_weight, pred_probability, target_weight, target_probability
 
-    def parzen_windowing_b_spline(self, img: torch.Tensor, order: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    def parzen_windowing_b_spline(self, img: torch.Tensor, order: int) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Parzen windowing with b-spline kernel (adapted from ITK)
 
@@ -290,7 +288,7 @@ class GlobalMutualInformationLoss(_Loss):
         probability = torch.mean(weight, dim=-2, keepdim=True)  # (batch, 1, num_bins)
         return weight, probability
 
-    def parzen_windowing_gaussian(self, img: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def parzen_windowing_gaussian(self, img: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Parzen windowing with gaussian kernel (adapted from DeepReg implementation)
         Note: the input is expected to range between 0 and 1

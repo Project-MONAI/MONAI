@@ -2,13 +2,13 @@
 requires = [
   "wheel",
   "setuptools",
-  "torch>=1.7",
+  "torch>=1.9",
   "ninja",
 ]
 
 [tool.black]
 line-length = 120
-target-version = ['py37', 'py38', 'py39']
+target-version = ['py38', 'py39', 'py310']
 include = '\.pyi?$'
 exclude = '''
 (
@@ -20,6 +20,7 @@ exclude = '''
     | \.mypy_cache
     | \.tox
     | \.venv
+    | venv
     | \.pytype
     | _build
     | buck-out
@@ -30,3 +31,44 @@ exclude = '''
   | monai/_version.py
 )
 '''
+
+[tool.pycln]
+all = true
+exclude = "monai/bundle/__main__.py"
+
+[tool.ruff]
+line-length = 133
+ignore-init-module-imports = true
+ignore = ["F401", "E741"]
+
+[tool.pytype]
+# Space-separated list of files or directories to exclude.
+exclude = ["versioneer.py", "_version.py"]
+# Space-separated list of files or directories to process.
+inputs = ["monai"]
+# Keep going past errors to analyze as many files as possible.
+keep_going = true
+# Run N jobs in parallel.
+jobs = 8
+# All pytype output goes here.
+output = ".pytype"
+# Paths to source code directories, separated by ':'.
+pythonpath = "."
+# Check attribute values against their annotations.
+check_attribute_types = true
+# Check container mutations against their annotations.
+check_container_types = true
+# Check parameter defaults and assignments against their annotations.
+check_parameter_types = true
+# Check variable values against their annotations.
+check_variable_types = true
+# Comma or space separated list of error names to ignore.
+disable = ["pyi-error"]
+# Report errors.
+report_errors = true
+# Experimental: Infer precise return types even for invalid function calls.
+precise_return = true
+# Experimental: solve unknown types to label with structural types.
+protocols = true
+# Experimental: Only load submodules that are explicitly imported.
+strict_import = false

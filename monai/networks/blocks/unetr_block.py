@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
 
-from typing import Sequence, Tuple, Union
+from collections.abc import Sequence
 
 import torch
 import torch.nn as nn
@@ -29,9 +30,9 @@ class UnetrUpBlock(nn.Module):
         spatial_dims: int,
         in_channels: int,
         out_channels: int,
-        kernel_size: Union[Sequence[int], int],
-        upsample_kernel_size: Union[Sequence[int], int],
-        norm_name: Union[Tuple, str],
+        kernel_size: Sequence[int] | int,
+        upsample_kernel_size: Sequence[int] | int,
+        norm_name: tuple | str,
         res_block: bool = False,
     ) -> None:
         """
@@ -97,10 +98,10 @@ class UnetrPrUpBlock(nn.Module):
         in_channels: int,
         out_channels: int,
         num_layer: int,
-        kernel_size: Union[Sequence[int], int],
-        stride: Union[Sequence[int], int],
-        upsample_kernel_size: Union[Sequence[int], int],
-        norm_name: Union[Tuple, str],
+        kernel_size: Sequence[int] | int,
+        stride: Sequence[int] | int,
+        upsample_kernel_size: Sequence[int] | int,
+        norm_name: tuple | str,
         conv_block: bool = False,
         res_block: bool = False,
     ) -> None:
@@ -216,9 +217,9 @@ class UnetrBasicBlock(nn.Module):
         spatial_dims: int,
         in_channels: int,
         out_channels: int,
-        kernel_size: Union[Sequence[int], int],
-        stride: Union[Sequence[int], int],
-        norm_name: Union[Tuple, str],
+        kernel_size: Sequence[int] | int,
+        stride: Sequence[int] | int,
+        norm_name: tuple | str,
         res_block: bool = False,
     ) -> None:
         """

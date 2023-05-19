@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -40,7 +42,6 @@ TEST_CASE_RAND_ROTATE_1 = [
     np.array([[[0.0, 1.0], [2.0, 3.0]], [[0.0, 1.0], [2.0, 3.0]], [[0.0, 1.0], [2.0, 3.0]]], dtype=np.float32),
     np.array([[[1.0, 3.0], [0.0, 2.0]], [[1.0, 3.0], [0.0, 2.0]], [[1.0, 3.0], [0.0, 2.0]]], dtype=np.float32),
 ]
-
 
 TEST_CASE_RAND_ROTATE_2 = [
     {"name": "rand_image_rotate_90", "prob": 0.0, "max_k": 1, "spatial_axis": (-2, -1)},
@@ -91,14 +92,10 @@ class TestRandCuCIM(unittest.TestCase):
     )
     def test_tramsforms_numpy_single(self, params, input, expected):
         input = np.copy(input)
-        output = RandCuCIM(apply_prob=1.0, **params)(input)
+        output = RandCuCIM(**params)(input)
         self.assertTrue(output.dtype == expected.dtype)
         self.assertTrue(isinstance(output, np.ndarray))
         cp.testing.assert_allclose(output, expected)
-        output = RandCuCIM(apply_prob=0.0, **params)(input)
-        self.assertTrue(output.dtype == input.dtype)
-        self.assertTrue(isinstance(output, np.ndarray))
-        cp.testing.assert_allclose(output, input)
 
     @parameterized.expand(
         [
@@ -115,14 +112,10 @@ class TestRandCuCIM(unittest.TestCase):
     def test_tramsforms_numpy_batch(self, params, input, expected):
         input = np.copy(input[cp.newaxis, ...])
         expected = expected[cp.newaxis, ...]
-        output = RandCuCIM(apply_prob=1.0, **params)(input)
+        output = RandCuCIM(**params)(input)
         self.assertTrue(output.dtype == expected.dtype)
         self.assertTrue(isinstance(output, np.ndarray))
         cp.testing.assert_allclose(output, expected)
-        output = RandCuCIM(apply_prob=0.0, **params)(input)
-        self.assertTrue(output.dtype == input.dtype)
-        self.assertTrue(isinstance(output, np.ndarray))
-        cp.testing.assert_allclose(output, input)
 
     @parameterized.expand(
         [
@@ -139,14 +132,10 @@ class TestRandCuCIM(unittest.TestCase):
     def test_tramsforms_cupy_single(self, params, input, expected):
         input = cp.asarray(input)
         expected = cp.asarray(expected)
-        output = RandCuCIM(apply_prob=1.0, **params)(input)
+        output = RandCuCIM(**params)(input)
         self.assertTrue(output.dtype == expected.dtype)
         self.assertTrue(isinstance(output, cp.ndarray))
         cp.testing.assert_allclose(output, expected)
-        output = RandCuCIM(apply_prob=0.0, **params)(input)
-        self.assertTrue(output.dtype == input.dtype)
-        self.assertTrue(isinstance(output, cp.ndarray))
-        cp.testing.assert_allclose(output, input)
 
     @parameterized.expand(
         [
@@ -167,10 +156,6 @@ class TestRandCuCIM(unittest.TestCase):
         self.assertTrue(output.dtype == expected.dtype)
         self.assertTrue(isinstance(output, cp.ndarray))
         cp.testing.assert_allclose(output, expected)
-        output = RandCuCIM(apply_prob=0.0, **params)(input)
-        self.assertTrue(output.dtype == input.dtype)
-        self.assertTrue(isinstance(output, cp.ndarray))
-        cp.testing.assert_allclose(output, input)
 
 
 if __name__ == "__main__":

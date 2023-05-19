@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import gc
 import unittest
 from unittest import skipUnless
@@ -23,7 +25,6 @@ from monai.handlers import GarbageCollector
 from monai.utils import min_version, optional_import
 
 Events, has_ignite = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
-
 
 TEST_CASE_0 = [[0, 1, 2], "epoch"]
 

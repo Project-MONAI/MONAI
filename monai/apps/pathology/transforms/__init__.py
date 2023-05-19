@@ -9,8 +9,56 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .spatial.array import SplitOnGrid, TileOnGrid
-from .spatial.dictionary import SplitOnGridd, SplitOnGridD, SplitOnGridDict, TileOnGridd, TileOnGridD, TileOnGridDict
+from __future__ import annotations
+
+from .post.array import (
+    GenerateDistanceMap,
+    GenerateInstanceBorder,
+    GenerateInstanceCentroid,
+    GenerateInstanceContour,
+    GenerateInstanceType,
+    GenerateSuccinctContour,
+    GenerateWatershedMarkers,
+    GenerateWatershedMask,
+    HoVerNetInstanceMapPostProcessing,
+    HoVerNetNuclearTypePostProcessing,
+    Watershed,
+)
+from .post.dictionary import (
+    GenerateDistanceMapD,
+    GenerateDistanceMapd,
+    GenerateDistanceMapDict,
+    GenerateInstanceBorderD,
+    GenerateInstanceBorderd,
+    GenerateInstanceBorderDict,
+    GenerateInstanceCentroidD,
+    GenerateInstanceCentroidd,
+    GenerateInstanceCentroidDict,
+    GenerateInstanceContourD,
+    GenerateInstanceContourd,
+    GenerateInstanceContourDict,
+    GenerateInstanceTypeD,
+    GenerateInstanceTyped,
+    GenerateInstanceTypeDict,
+    GenerateSuccinctContourD,
+    GenerateSuccinctContourd,
+    GenerateSuccinctContourDict,
+    GenerateWatershedMarkersD,
+    GenerateWatershedMarkersd,
+    GenerateWatershedMarkersDict,
+    GenerateWatershedMaskD,
+    GenerateWatershedMaskd,
+    GenerateWatershedMaskDict,
+    HoVerNetInstanceMapPostProcessingD,
+    HoVerNetInstanceMapPostProcessingd,
+    HoVerNetInstanceMapPostProcessingDict,
+    HoVerNetNuclearTypePostProcessingD,
+    HoVerNetNuclearTypePostProcessingd,
+    HoVerNetNuclearTypePostProcessingDict,
+    WatershedD,
+    Watershedd,
+    WatershedDict,
+)
 from .stain.array import ExtractHEStains, NormalizeHEStains
 from .stain.dictionary import (
     ExtractHEStainsd,

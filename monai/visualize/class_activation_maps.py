@@ -9,8 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
-from typing import Callable, Dict, Sequence, Union
+from collections.abc import Callable, Sequence
+from typing import cast
 
 import numpy as np
 import torch
@@ -51,8 +54,8 @@ class ModelWithHooks:
 
     def __init__(
         self,
-        nn_module,
-        target_layer_names: Union[str, Sequence[str]],
+        nn_module: nn.Module,
+        target_layer_names: str | Sequence[str],
         register_forward: bool = False,
         register_backward: bool = False,
     ):
@@ -67,10 +70,10 @@ class ModelWithHooks:
         self.model = nn_module
         self.target_layers = ensure_tuple(target_layer_names)
 
-        self.gradients: Dict[str, torch.Tensor] = {}
-        self.activations: Dict[str, torch.Tensor] = {}
-        self.score = None
-        self.class_idx = None
+        self.gradients: dict[str, torch.Tensor] = {}
+        self.activations: dict[str, torch.Tensor] = {}
+        self.score: torch.Tensor | None = None
+        self.class_idx: int | None = None
         self.register_backward = register_backward
         self.register_forward = register_forward
 
@@ -89,7 +92,7 @@ class ModelWithHooks:
                     mod.register_backward_hook(self.backward_hook(name))
             if self.register_forward:
                 mod.register_forward_hook(self.forward_hook(name))
-        if len(_registered) != len(self.target_layers):
+        if self.target_layers and (len(_registered) != len(self.target_layers)):
             warnings.warn(f"Not all target_layers exist in the network module: targets: {self.target_layers}.")
 
     def backward_hook(self, name):
@@ -104,7 +107,7 @@ class ModelWithHooks:
 
         return _hook
 
-    def get_layer(self, layer_id: Union[str, Callable]):
+    def get_layer(self, layer_id: str | Callable[[nn.Module], nn.Module]) -> nn.Module:
         """
 
         Args:
@@ -119,30 +122,30 @@ class ModelWithHooks:
         if isinstance(layer_id, str):
             for name, mod in self.model.named_modules():
                 if name == layer_id:
-                    return mod
+                    return cast(nn.Module, mod)
         raise NotImplementedError(f"Could not find {layer_id}.")
 
-    def class_score(self, logits, class_idx):
+    def class_score(self, logits: torch.Tensor, class_idx: int) -> torch.Tensor:
         return logits[:, class_idx].squeeze()
 
-    def __call__(self, x, class_idx=None, retain_graph=False):
+    def __call__(self, x, class_idx=None, retain_graph=False, **kwargs):
         train = self.model.training
         self.model.eval()
-        logits = self.model(x)
+        logits = self.model(x, **kwargs)
         self.class_idx = logits.max(1)[-1] if class_idx is None else class_idx
         acti, grad = None, None
         if self.register_forward:
             acti = tuple(self.activations[layer] for layer in self.target_layers)
         if self.register_backward:
-            self.score = self.class_score(logits, self.class_idx)
+            self.score = self.class_score(logits, cast(int, self.class_idx))
             self.model.zero_grad()
             self.score.sum().backward(retain_graph=retain_graph)
             for layer in self.target_layers:
                 if layer not in self.gradients:
-                    raise RuntimeError(
+                    warnings.warn(
                         f"Backward hook for {layer} is not triggered; `requires_grad` of {layer} should be `True`."
                     )
-            grad = tuple(self.gradients[layer] for layer in self.target_layers)
+            grad = tuple(self.gradients[layer] for layer in self.target_layers if layer in self.gradients)
         if train:
             self.model.train()
         return logits, acti, grad
@@ -164,6 +167,7 @@ class CAMBase:
         postprocessing: Callable = default_normalizer,
         register_backward: bool = True,
     ) -> None:
+        self.nn_module: ModelWithHooks
         # Convert to model with hooks if necessary
         if not isinstance(nn_module, ModelWithHooks):
             self.nn_module = ModelWithHooks(
@@ -175,17 +179,18 @@ class CAMBase:
         self.upsampler = upsampler
         self.postprocessing = postprocessing
 
-    def feature_map_size(self, input_size, device="cpu", layer_idx=-1):
+    def feature_map_size(self, input_size, device="cpu", layer_idx=-1, **kwargs):
         """
         Computes the actual feature map size given `nn_module` and the target_layer name.
         Args:
             input_size: shape of the input tensor
             device: the device used to initialise the input tensor
             layer_idx: index of the target layer if there are multiple target layers. Defaults to -1.
+            kwargs: any extra arguments to be passed on to the module as part of its `__call__`.
         Returns:
             shape of the actual feature map.
         """
-        return self.compute_map(torch.zeros(*input_size, device=device), layer_idx=layer_idx).shape
+        return self.compute_map(torch.zeros(*input_size, device=device), layer_idx=layer_idx, **kwargs).shape
 
     def compute_map(self, x, class_idx=None, layer_idx=-1):
         """
@@ -203,12 +208,9 @@ class CAMBase:
 
     def _upsample_and_post_process(self, acti_map, x):
         # upsampling and postprocessing
-        if self.upsampler:
-            img_spatial = x.shape[2:]
-            acti_map = self.upsampler(img_spatial)(acti_map)
-        if self.postprocessing:
-            acti_map = self.postprocessing(acti_map)
-        return acti_map
+        img_spatial = x.shape[2:]
+        acti_map = self.upsampler(img_spatial)(acti_map)
+        return self.postprocessing(acti_map)
 
     def __call__(self):
         raise NotImplementedError()
@@ -237,10 +239,10 @@ class CAM(CAMBase):
         result = cam(x=torch.rand((1, 1, 48, 64)))
 
         # resnet 2d
-        from monai.networks.nets import se_resnet50
+        from monai.networks.nets import seresnet50
         from monai.visualize import CAM
 
-        model_2d = se_resnet50(spatial_dims=2, in_channels=3, num_classes=4)
+        model_2d = seresnet50(spatial_dims=2, in_channels=3, num_classes=4)
         cam = CAM(nn_module=model_2d, target_layers="layer4", fc_layers="last_linear")
         result = cam(x=torch.rand((2, 3, 48, 64)))
 
@@ -260,7 +262,7 @@ class CAM(CAMBase):
         self,
         nn_module: nn.Module,
         target_layers: str,
-        fc_layers: Union[str, Callable] = "fc",
+        fc_layers: str | Callable = "fc",
         upsampler: Callable = default_upsampler,
         postprocessing: Callable = default_normalizer,
     ) -> None:
@@ -286,8 +288,8 @@ class CAM(CAMBase):
         )
         self.fc_layers = fc_layers
 
-    def compute_map(self, x, class_idx=None, layer_idx=-1):
-        logits, acti, _ = self.nn_module(x)
+    def compute_map(self, x, class_idx=None, layer_idx=-1, **kwargs):
+        logits, acti, _ = self.nn_module(x, **kwargs)
         acti = acti[layer_idx]
         if class_idx is None:
             class_idx = logits.max(1)[-1]
@@ -298,7 +300,7 @@ class CAM(CAMBase):
         output = torch.stack([output[i, b : b + 1] for i, b in enumerate(class_idx)], dim=0)
         return output.reshape(b, 1, *spatial)  # resume the spatial dims on the selected class
 
-    def __call__(self, x, class_idx=None, layer_idx=-1):
+    def __call__(self, x, class_idx=None, layer_idx=-1, **kwargs):
         """
         Compute the activation map with upsampling and postprocessing.
 
@@ -306,11 +308,12 @@ class CAM(CAMBase):
             x: input tensor, shape must be compatible with `nn_module`.
             class_idx: index of the class to be visualized. Default to argmax(logits)
             layer_idx: index of the target layer if there are multiple target layers. Defaults to -1.
+            kwargs: any extra arguments to be passed on to the module as part of its `__call__`.
 
         Returns:
             activation maps
         """
-        acti_map = self.compute_map(x, class_idx, layer_idx)
+        acti_map = self.compute_map(x, class_idx, layer_idx, **kwargs)
         return self._upsample_and_post_process(acti_map, x)
 
 
@@ -337,10 +340,10 @@ class GradCAM(CAMBase):
         result = cam(x=torch.rand((1, 1, 48, 64)))
 
         # resnet 2d
-        from monai.networks.nets import se_resnet50
+        from monai.networks.nets import seresnet50
         from monai.visualize import GradCAM
 
-        model_2d = se_resnet50(spatial_dims=2, in_channels=3, num_classes=4)
+        model_2d = seresnet50(spatial_dims=2, in_channels=3, num_classes=4)
         cam = GradCAM(nn_module=model_2d, target_layers="layer4")
         result = cam(x=torch.rand((2, 3, 48, 64)))
 
@@ -356,15 +359,15 @@ class GradCAM(CAMBase):
 
     """
 
-    def compute_map(self, x, class_idx=None, retain_graph=False, layer_idx=-1):
-        _, acti, grad = self.nn_module(x, class_idx=class_idx, retain_graph=retain_graph)
+    def compute_map(self, x, class_idx=None, retain_graph=False, layer_idx=-1, **kwargs):
+        _, acti, grad = self.nn_module(x, class_idx=class_idx, retain_graph=retain_graph, **kwargs)
         acti, grad = acti[layer_idx], grad[layer_idx]
         b, c, *spatial = grad.shape
         weights = grad.view(b, c, -1).mean(2).view(b, c, *[1] * len(spatial))
         acti_map = (weights * acti).sum(1, keepdim=True)
         return F.relu(acti_map)
 
-    def __call__(self, x, class_idx=None, layer_idx=-1, retain_graph=False):
+    def __call__(self, x, class_idx=None, layer_idx=-1, retain_graph=False, **kwargs):
         """
         Compute the activation map with upsampling and postprocessing.
 
@@ -373,11 +376,12 @@ class GradCAM(CAMBase):
             class_idx: index of the class to be visualized. Default to argmax(logits)
             layer_idx: index of the target layer if there are multiple target layers. Defaults to -1.
             retain_graph: whether to retain_graph for torch module backward call.
+            kwargs: any extra arguments to be passed on to the module as part of its `__call__`.
 
         Returns:
             activation maps
         """
-        acti_map = self.compute_map(x, class_idx=class_idx, retain_graph=retain_graph, layer_idx=layer_idx)
+        acti_map = self.compute_map(x, class_idx=class_idx, retain_graph=retain_graph, layer_idx=layer_idx, **kwargs)
         return self._upsample_and_post_process(acti_map, x)
 
 
@@ -395,15 +399,15 @@ class GradCAMpp(GradCAM):
 
     """
 
-    def compute_map(self, x, class_idx=None, retain_graph=False, layer_idx=-1):
-        _, acti, grad = self.nn_module(x, class_idx=class_idx, retain_graph=retain_graph)
+    def compute_map(self, x, class_idx=None, retain_graph=False, layer_idx=-1, **kwargs):
+        _, acti, grad = self.nn_module(x, class_idx=class_idx, retain_graph=retain_graph, **kwargs)
         acti, grad = acti[layer_idx], grad[layer_idx]
         b, c, *spatial = grad.shape
         alpha_nr = grad.pow(2)
         alpha_dr = alpha_nr.mul(2) + acti.mul(grad.pow(3)).view(b, c, -1).sum(-1).view(b, c, *[1] * len(spatial))
         alpha_dr = torch.where(alpha_dr != 0.0, alpha_dr, torch.ones_like(alpha_dr))
         alpha = alpha_nr.div(alpha_dr + 1e-7)
-        relu_grad = F.relu(self.nn_module.score.exp() * grad)
+        relu_grad = F.relu(cast(torch.Tensor, self.nn_module.score).exp() * grad)
         weights = (alpha * relu_grad).view(b, c, -1).sum(-1).view(b, c, *[1] * len(spatial))
         acti_map = (weights * acti).sum(1, keepdim=True)
         return F.relu(acti_map)

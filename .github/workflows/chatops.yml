@@ -1,3 +1,4 @@
+# triggering the workflows by commenting `/black` and `/integration-test`
 name: chatops
 
 # currently dispatches /black command to project-monai/monai-code-formatter
@@ -9,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: dispatch
-        uses: peter-evans/slash-command-dispatch@v1.2.0
+        uses: peter-evans/slash-command-dispatch@v3.0.1
         with:
           token: ${{ secrets.PR_MAINTAIN }}
           reaction-token: ${{ secrets.GITHUB_TOKEN }}

@@ -9,9 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
+from collections.abc import Callable
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
@@ -48,9 +51,9 @@ class TestTimeAugmentation:
     """
     Class for performing test time augmentations. This will pass the same image through the network multiple times.
 
-    The user passes transform(s) to be applied to each realisation, and provided that at least one of those transforms
+    The user passes transform(s) to be applied to each realization, and provided that at least one of those transforms
     is random, the network's output will vary. Provided that inverse transformations exist for all supplied spatial
-    transforms, the inverse can be applied to each realisation of the network's output. Once in the same spatial
+    transforms, the inverse can be applied to each realization of the network's output. Once in the same spatial
     reference, the results can then be combined and metrics computed.
 
     Test time augmentations are a useful feature for computing network uncertainty, as well as observing the network's
@@ -63,20 +66,21 @@ class TestTimeAugmentation:
         https://doi.org/10.1016/j.neucom.2019.01.103
 
     Args:
-        transform: transform (or composed) to be applied to each realisation. At least one transform must be of type
-            `Randomizable`. All random transforms must be of type `InvertibleTransform`.
-        batch_size: number of realisations to infer at once.
+        transform: transform (or composed) to be applied to each realization. At least one transform must be of type
+        `RandomizableTrait` (i.e. `Randomizable`, `RandomizableTransform`, or `RandomizableTrait`).
+            . All random transforms must be of type `InvertibleTransform`.
+        batch_size: number of realizations to infer at once.
         num_workers: how many subprocesses to use for data.
         inferrer_fn: function to use to perform inference.
         device: device on which to perform inference.
         image_key: key used to extract image from input dictionary.
         orig_key: the key of the original input data in the dict. will get the applied transform information
             for this input data, then invert them for the expected data with `image_key`.
-        orig_meta_keys: the key of the meta data of original input data, will get the `affine`, `data_shape`, etc.
-            the meta data is a dictionary object which contains: filename, original_shape, etc.
+        orig_meta_keys: the key of the metadata of original input data, will get the `affine`, `data_shape`, etc.
+            the metadata is a dictionary object which contains: filename, original_shape, etc.
             if None, will try to construct meta_keys by `{orig_key}_{meta_key_postfix}`.
-        meta_key_postfix: use `key_{postfix}` to fetch the meta data according to the key data,
-            default is `meta_dict`, the meta data is a dictionary object.
+        meta_key_postfix: use `key_{postfix}` to fetch the metadata according to the key data,
+            default is `meta_dict`, the metadata is a dictionary object.
             For example, to handle key `image`,  read/write affine matrices from the
             metadata `image_meta_dict` dictionary's `affine` field.
             this arg only works when `meta_keys=None`.
@@ -108,14 +112,14 @@ class TestTimeAugmentation:
         batch_size: int,
         num_workers: int = 0,
         inferrer_fn: Callable = _identity,
-        device: Union[str, torch.device] = "cpu",
+        device: str | torch.device = "cpu",
         image_key=CommonKeys.IMAGE,
         orig_key=CommonKeys.LABEL,
         nearest_interp: bool = True,
-        orig_meta_keys: Optional[str] = None,
+        orig_meta_keys: str | None = None,
         meta_key_postfix=DEFAULT_POST_FIX,
         to_tensor: bool = True,
-        output_device: Union[str, torch.device] = "cpu",
+        output_device: str | torch.device = "cpu",
         post_func: Callable = _identity,
         return_full_data: bool = False,
         progress: bool = True,
@@ -162,12 +166,12 @@ class TestTimeAugmentation:
                 )
 
     def __call__(
-        self, data: Dict[str, Any], num_examples: int = 10
-    ) -> Union[Tuple[NdarrayOrTensor, NdarrayOrTensor, NdarrayOrTensor, float], NdarrayOrTensor]:
+        self, data: dict[str, Any], num_examples: int = 10
+    ) -> tuple[NdarrayOrTensor, NdarrayOrTensor, NdarrayOrTensor, float] | NdarrayOrTensor:
         """
         Args:
             data: dictionary data to be processed.
-            num_examples: number of realisations to be processed and results combined.
+            num_examples: number of realizations to be processed and results combined.
 
         Returns:
             - if `return_full_data==False`: mode, mean, std, vvc. The mode, mean and standard deviation are
@@ -188,7 +192,7 @@ class TestTimeAugmentation:
         ds = Dataset(data_in, self.transform)
         dl = DataLoader(ds, num_workers=self.num_workers, batch_size=self.batch_size, collate_fn=pad_list_data_collate)
 
-        outs: List = []
+        outs: list = []
 
         for b in tqdm(dl) if has_tqdm and self.progress else dl:
             # do model forward pass

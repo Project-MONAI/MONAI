@@ -22,9 +22,29 @@ Generic Interfaces
     :members:
     :special-members: __call__
 
+`RandomizableTrait`
+^^^^^^^^^^^^^^^^^^^
+.. autoclass:: RandomizableTrait
+    :members:
+
+`LazyTrait`
+^^^^^^^^^^^
+.. autoclass:: LazyTrait
+    :members:
+
+`MultiSampleTrait`
+^^^^^^^^^^^^^^^^^^
+.. autoclass:: MultiSampleTrait
+    :members:
+
 `Randomizable`
 ^^^^^^^^^^^^^^
 .. autoclass:: Randomizable
+    :members:
+
+`LazyTransform`
+^^^^^^^^^^^^^^^
+.. autoclass:: LazyTransform
     :members:
 
 `RandomizableTransform`
@@ -62,6 +82,31 @@ Generic Interfaces
 ^^^^^^^
 .. autoclass:: OneOf
     :members:
+
+`RandomOrder`
+^^^^^^^^^^^^^
+.. autoclass:: RandomOrder
+    :members:
+
+`SomeOf`
+^^^^^^^^^^^^^
+.. autoclass:: SomeOf
+    :members:
+
+Functionals
+-----------
+
+Crop and Pad (functional)
+^^^^^^^^^^^^^^^^^^^^^^^^^
+.. automodule:: monai.transforms.croppad.functional
+    :members:
+
+Spatial (functional)
+^^^^^^^^^^^^^^^^^^^^
+.. automodule:: monai.transforms.spatial.functional
+    :members:
+
+.. currentmodule:: monai.transforms
 
 Vanilla Transforms
 ------------------
@@ -102,6 +147,12 @@ Crop and Pad
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/DivisiblePad.png
     :alt: example of DivisiblePad
 .. autoclass:: DivisiblePad
+    :members:
+    :special-members: __call__
+
+`Crop`
+""""""
+.. autoclass:: Crop
     :members:
     :special-members: __call__
 
@@ -330,6 +381,14 @@ Intensity
     :members:
     :special-members: __call__
 
+`MedianSmooth`
+""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/MedianSmooth.png
+    :alt: example of MedianSmooth
+.. autoclass:: MedianSmooth
+    :members:
+    :special-members: __call__
+
 `GaussianSmooth`
 """"""""""""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/GaussianSmooth.png
@@ -446,6 +505,22 @@ Intensity
     :members:
     :special-members: __call__
 
+
+`ForegroundMask`
+""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/ForegroundMask.png
+    :alt: example of ForegroundMask
+.. autoclass:: ForegroundMask
+    :members:
+    :special-members: __call__
+
+`ComputeHoVerMaps`
+""""""""""""""""""
+.. autoclass:: ComputeHoVerMaps
+    :members:
+    :special-members: __call__
+
+
 IO
 ^^
 
@@ -515,6 +590,14 @@ Post-processing
     :members:
     :special-members: __call__
 
+`RemoveSmallObjects`
+""""""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RemoveSmallObjects.png
+    :alt: example of RemoveSmallObjects
+.. autoclass:: RemoveSmallObjects
+    :members:
+    :special-members: __call__
+
 `LabelFilter`
 """""""""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/LabelFilter.png
@@ -548,9 +631,84 @@ Post-processing
 .. autoclass:: ProbNMS
   :members:
 
+`SobelGradients`
+""""""""""""""""
+.. autoclass:: SobelGradients
+  :members:
+  :special-members: __call__
+
 `VoteEnsemble`
 """"""""""""""
 .. autoclass:: VoteEnsemble
+    :members:
+    :special-members: __call__
+
+Signal
+^^^^^^^
+
+`SignalRandDrop`
+""""""""""""""""
+.. autoclass:: SignalRandDrop
+    :members:
+    :special-members: __call__
+
+`SignalRandScale`
+"""""""""""""""""
+.. autoclass:: SignalRandScale
+    :members:
+    :special-members: __call__
+
+`SignalRandShift`
+"""""""""""""""""
+.. autoclass:: SignalRandShift
+    :members:
+    :special-members: __call__
+
+`SignalRandAddSine`
+"""""""""""""""""""
+.. autoclass:: SignalRandAddSine
+    :members:
+    :special-members: __call__
+
+`SignalRandAddSquarePulse`
+""""""""""""""""""""""""""
+.. autoclass:: SignalRandAddSquarePulse
+    :members:
+    :special-members: __call__
+
+`SignalRandAddGaussianNoise`
+""""""""""""""""""""""""""""
+.. autoclass:: SignalRandAddGaussianNoise
+    :members:
+    :special-members: __call__
+
+`SignalRandAddSinePartial`
+""""""""""""""""""""""""""
+.. autoclass:: SignalRandAddSinePartial
+    :members:
+    :special-members: __call__
+
+`SignalRandAddSquarePulsePartial`
+"""""""""""""""""""""""""""""""""
+.. autoclass:: SignalRandAddSquarePulsePartial
+    :members:
+    :special-members: __call__
+
+`SignalFillEmpty`
+"""""""""""""""""
+.. autoclass:: SignalFillEmpty
+    :members:
+    :special-members: __call__
+
+`SignalRemoveFrequency`
+"""""""""""""""""""""""
+.. autoclass:: SignalRemoveFrequency
+    :members:
+    :special-members: __call__
+
+`SignalContinuousWavelet`
+"""""""""""""""""""""""""
+.. autoclass:: SignalContinuousWavelet
     :members:
     :special-members: __call__
 
@@ -737,6 +895,18 @@ Spatial
     :members:
     :special-members: __call__
 
+`GridPatch`
+"""""""""""
+.. autoclass:: GridPatch
+    :members:
+    :special-members: __call__
+
+`RandGridPatch`
+"""""""""""""""
+.. autoclass:: RandGridPatch
+    :members:
+    :special-members: __call__
+
 `GridSplit`
 """""""""""
 .. autoclass:: GridSplit
@@ -770,6 +940,23 @@ Smooth Field
 .. autoclass:: RandSmoothDeform
     :members:
     :special-members: __call__
+
+
+MRI Transforms
+^^^^^^^^^^^^^^
+
+`Kspace under-sampling`
+"""""""""""""""""""""""
+.. autoclass:: monai.apps.reconstruction.transforms.array.KspaceMask
+    :members:
+    :special-members: __call__
+
+.. autoclass:: monai.apps.reconstruction.transforms.array.RandomKspaceMask
+    :special-members: __call__
+
+.. autoclass:: monai.apps.reconstruction.transforms.array.EquispacedKspaceMask
+    :special-members: __call__
+
 
 Utility
 ^^^^^^^
@@ -967,12 +1154,29 @@ Utility
     :members:
     :special-members: __call__
 
+`ImageFilter`
+"""""""""""""
+.. autoclass:: ImageFilter
+    :members:
+    :special-members: __call__
+
+`RandImageFilter`
+"""""""""""""""""
+.. autoclass:: RandImageFilter
+    :members:
+    :special-members: __call__
 
 Dictionary Transforms
 ---------------------
 
 Crop and Pad (Dict)
 ^^^^^^^^^^^^^^^^^^^
+
+`Padd`
+""""""
+.. autoclass:: Padd
+    :members:
+    :special-members: __call__
 
 `SpatialPadd`
 """""""""""""
@@ -995,6 +1199,18 @@ Crop and Pad (Dict)
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/DivisiblePadd.png
     :alt: example of DivisiblePadd
 .. autoclass:: DivisiblePadd
+    :members:
+    :special-members: __call__
+
+`Cropd`
+"""""""
+.. autoclass:: Cropd
+    :members:
+    :special-members: __call__
+
+`RandCropd`
+"""""""""""
+.. autoclass:: RandCropd
     :members:
     :special-members: __call__
 
@@ -1263,6 +1479,14 @@ Intensity (Dict)
     :members:
     :special-members: __call__
 
+`MedianSmoothd`
+"""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/MedianSmoothd.png
+    :alt: example of MedianSmoothd
+.. autoclass:: MedianSmoothd
+    :members:
+    :special-members: __call__
+
 `GaussianSmoothd`
 """""""""""""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/GaussianSmoothd.png
@@ -1327,6 +1551,19 @@ Intensity (Dict)
     :members:
     :special-members: __call__
 
+`ForegroundMaskd`
+"""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/ForegroundMaskd.png
+    :alt: example of ForegroundMaskd
+.. autoclass:: ForegroundMaskd
+    :members:
+    :special-members: __call__
+
+`ComputeHoVerMapsd`
+"""""""""""""""""""
+.. autoclass:: ComputeHoVerMapsd
+    :members:
+    :special-members: __call__
 
 IO (Dict)
 ^^^^^^^^^
@@ -1365,6 +1602,14 @@ Post-processing (Dict)
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/KeepLargestConnectedComponentd.png
     :alt: example of KeepLargestConnectedComponentd
 .. autoclass:: KeepLargestConnectedComponentd
+    :members:
+    :special-members: __call__
+
+`RemoveSmallObjectsd`
+"""""""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RemoveSmallObjectsd.png
+    :alt: example of RemoveSmallObjectsd
+.. autoclass:: RemoveSmallObjectsd
     :members:
     :special-members: __call__
 
@@ -1425,6 +1670,14 @@ Post-processing (Dict)
 .. autoclass:: ProbNMSd
   :members:
   :special-members: __call__
+
+
+`SobelGradientsd`
+"""""""""""""""""
+.. autoclass:: SobelGradientsd
+  :members:
+  :special-members: __call__
+
 
 Spatial (Dict)
 ^^^^^^^^^^^^^^
@@ -1510,6 +1763,18 @@ Spatial (Dict)
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandZoomd.png
     :alt: example of RandZoomd
 .. autoclass:: RandZoomd
+    :members:
+    :special-members: __call__
+
+`GridPatchd`
+""""""""""""
+.. autoclass:: GridPatchd
+    :members:
+    :special-members: __call__
+
+`RandGridPatchd`
+""""""""""""""""
+.. autoclass:: RandGridPatchd
     :members:
     :special-members: __call__
 
@@ -1619,6 +1884,34 @@ Smooth Field (Dict)
     :members:
     :special-members: __call__
 
+
+`MRI transforms (Dict)`
+^^^^^^^^^^^^^^^^^^^^^^^
+
+`Kspace under-sampling (Dict)`
+""""""""""""""""""""""""""""""
+.. autoclass:: monai.apps.reconstruction.transforms.dictionary.RandomKspaceMaskd
+    :special-members: __call__
+
+.. autoclass:: monai.apps.reconstruction.transforms.dictionary.EquispacedKspaceMaskd
+    :special-members: __call__
+
+`ExtractDataKeyFromMetaKeyd`
+""""""""""""""""""""""""""""
+.. autoclass:: monai.apps.reconstruction.transforms.dictionary.ExtractDataKeyFromMetaKeyd
+    :special-members: __call__
+
+`ReferenceBasedSpatialCropd`
+""""""""""""""""""""""""""""
+.. autoclass:: monai.apps.reconstruction.transforms.dictionary.ReferenceBasedSpatialCropd
+    :special-members: __call__
+
+`ReferenceBasedNormalizeIntensityd`
+"""""""""""""""""""""""""""""""""""
+.. autoclass:: monai.apps.reconstruction.transforms.dictionary.ReferenceBasedNormalizeIntensityd
+    :special-members: __call__
+
+
 Utility (Dict)
 ^^^^^^^^^^^^^^
 
@@ -1715,6 +2008,12 @@ Utility (Dict)
 `SelectItemsd`
 """"""""""""""
 .. autoclass:: SelectItemsd
+    :members:
+    :special-members: __call__
+
+`FlattenSubKeysd`
+"""""""""""""""""
+.. autoclass:: FlattenSubKeysd
     :members:
     :special-members: __call__
 
@@ -1856,6 +2155,19 @@ Utility (Dict)
     :members:
     :special-members: __call__
 
+`ImageFilterd`
+""""""""""""""
+.. autoclass:: ImageFilterd
+    :members:
+    :special-members: __call__
+
+`RandImageFilterd`
+""""""""""""""""""
+.. autoclass:: RandImageFilterd
+    :members:
+    :special-members: __call__
+
+
 MetaTensor
 ^^^^^^^^^^
 
@@ -1899,3 +2211,9 @@ Utilities
 
 .. automodule:: monai.transforms.utils_pytorch_numpy_unification
     :members:
+
+Lazy
+----
+.. automodule:: monai.transforms.lazy
+    :members:
+    :imported-members:

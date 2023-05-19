@@ -9,12 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Dict, List, Tuple
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from monai.apps.pathology.utils import PathologyProbNMS, compute_isolated_tumor_cells, compute_multi_instance_mask
-from monai.data.image_reader import WSIReader
+from monai.config import NdarrayOrTensor
+from monai.data.wsi_reader import WSIReader
 from monai.metrics import compute_fp_tp_probs, compute_froc_curve_data, compute_froc_score
 from monai.utils import min_version, optional_import
 
@@ -52,7 +55,7 @@ class LesionFROC:
             Defaults to (0.25, 0.5, 1, 2, 4, 8) which is the same as the CAMELYON 16 Challenge.
         nms_sigma: the standard deviation for gaussian filter of non-maximal suppression. Defaults to 0.0.
         nms_prob_threshold: the probability threshold of non-maximal suppression. Defaults to 0.5.
-        nms_box_size: the box size (in pixel) to be removed around the the pixel for non-maximal suppression.
+        nms_box_size: the box size (in pixel) to be removed around the pixel for non-maximal suppression.
         image_reader_name: the name of library to be used for loading whole slide imaging, either CuCIM or OpenSlide.
             Defaults to CuCIM.
 
@@ -63,16 +66,15 @@ class LesionFROC:
 
     def __init__(
         self,
-        data: List[Dict],
+        data: list[dict],
         grow_distance: int = 75,
         itc_diameter: int = 200,
-        eval_thresholds: Tuple = (0.25, 0.5, 1, 2, 4, 8),
+        eval_thresholds: tuple = (0.25, 0.5, 1, 2, 4, 8),
         nms_sigma: float = 0.0,
         nms_prob_threshold: float = 0.5,
         nms_box_size: int = 48,
         image_reader_name: str = "cuCIM",
     ) -> None:
-
         self.data = data
         self.grow_distance = grow_distance
         self.itc_diameter = itc_diameter
@@ -80,7 +82,7 @@ class LesionFROC:
         self.image_reader = WSIReader(image_reader_name)
         self.nms = PathologyProbNMS(sigma=nms_sigma, prob_threshold=nms_prob_threshold, box_size=nms_box_size)
 
-    def prepare_inference_result(self, sample: Dict):
+    def prepare_inference_result(self, sample: dict) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Prepare the probability map for detection evaluation.
 
@@ -127,7 +129,8 @@ class LesionFROC:
         by comparing the model outputs with the prepared ground truths for all samples
 
         """
-        total_fp_probs, total_tp_probs = [], []
+        total_fp_probs: list[NdarrayOrTensor] = []
+        total_tp_probs: list[NdarrayOrTensor] = []
         total_num_targets = 0
         num_images = len(self.data)
 

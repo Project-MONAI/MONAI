@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -45,6 +47,9 @@ class TestSliceInferer(unittest.TestCase):
         result = inferer(input_volume, model)
 
         self.assertTupleEqual(result.shape, input_volume.shape)
+
+        # test that the inferer can be run multiple times
+        result = inferer(input_volume, model)
 
 
 if __name__ == "__main__":

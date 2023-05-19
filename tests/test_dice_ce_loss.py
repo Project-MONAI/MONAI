@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -32,6 +34,14 @@ TEST_CASES = [
         {
             "input": torch.tensor([[[1.0, 1.0, 0.0], [0.0, 0.0, 1.0]], [[1.0, 0.0, 1.0], [0.0, 1.0, 0.0]]]),
             "target": torch.tensor([[[1.0, 1.0, 0.0], [0.0, 0.0, 1.0]], [[1.0, 0.0, 1.0], [0.0, 1.0, 0.0]]]),
+        },
+        0.3133,
+    ],
+    [  # shape: (2, 2, 3), (2, 2, 3), one-hot target
+        {"to_onehot_y": False},
+        {
+            "input": torch.tensor([[[1.0, 1.0, 0.0], [0.0, 0.0, 1.0]], [[1.0, 0.0, 1.0], [0.0, 1.0, 0.0]]]),
+            "target": torch.tensor([[[1, 1, 0], [0, 0, 1]], [[1, 0, 1], [0, 1, 0]]], dtype=torch.uint8),
         },
         0.3133,
     ],

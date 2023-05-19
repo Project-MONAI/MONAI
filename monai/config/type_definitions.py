@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 from typing import Collection, Hashable, Iterable, Sequence, TypeVar, Union
 
@@ -38,8 +40,8 @@ __all__ = [
     "NdarrayOrTensor",
     "TensorOrList",
     "PathLike",
+    "SequenceStr",
 ]
-
 
 #: KeysCollection
 #
@@ -77,3 +79,7 @@ TensorOrList = Union[torch.Tensor, Sequence[torch.Tensor]]
 
 #: PathLike: The PathLike type is used for defining a file path.
 PathLike = Union[str, os.PathLike]
+
+#: SequenceStr
+# string or a sequence of strings for `mode` types.
+SequenceStr = Union[Sequence[str], str]

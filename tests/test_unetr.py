@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -16,7 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.unetr import UNETR
-from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
+from tests.utils import SkipIfBeforePyTorchVersion, skip_if_quick, test_script_save
 
 TEST_CASE_UNETR = []
 for dropout_rate in [0.4]:
@@ -53,6 +55,7 @@ for dropout_rate in [0.4]:
                                             TEST_CASE_UNETR.append(test_case)
 
 
+@skip_if_quick
 class TestUNETR(unittest.TestCase):
     @parameterized.expand(TEST_CASE_UNETR)
     def test_shape(self, input_param, input_shape, expected_shape):

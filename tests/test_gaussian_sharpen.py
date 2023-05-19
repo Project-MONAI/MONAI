@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 from parameterized import parameterized
@@ -81,9 +83,9 @@ for p in TEST_NDARRAYS:
 
 class TestGaussianSharpen(unittest.TestCase):
     @parameterized.expand(TESTS)
-    def test_value(self, argments, image, expected_data):
-        result = GaussianSharpen(**argments)(image)
-        assert_allclose(result, expected_data, atol=0, rtol=1e-4, type_test=False)
+    def test_value(self, arguments, image, expected_data):
+        result = GaussianSharpen(**arguments)(image)
+        assert_allclose(result, expected_data, atol=0, rtol=1e-4, type_test="tensor")
 
 
 if __name__ == "__main__":

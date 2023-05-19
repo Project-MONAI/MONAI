@@ -9,21 +9,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
 
-from typing import List, Optional, Tuple, Union
+from typing import Any, cast
 
 import numpy as np
 import torch
 
+from monai.config import NdarrayOrTensor
+
 
 def compute_fp_tp_probs(
-    probs: Union[np.ndarray, torch.Tensor],
-    y_coord: Union[np.ndarray, torch.Tensor],
-    x_coord: Union[np.ndarray, torch.Tensor],
-    evaluation_mask: Union[np.ndarray, torch.Tensor],
-    labels_to_exclude: Optional[List] = None,
+    probs: NdarrayOrTensor,
+    y_coord: NdarrayOrTensor,
+    x_coord: NdarrayOrTensor,
+    evaluation_mask: NdarrayOrTensor,
+    labels_to_exclude: list | None = None,
     resolution_level: int = 0,
-):
+) -> tuple[NdarrayOrTensor, NdarrayOrTensor, int]:
     """
     This function is modified from the official evaluation code of
     `CAMELYON 16 Challenge <https://camelyon16.grand-challenge.org/>`_, and used to distinguish
@@ -75,15 +78,12 @@ def compute_fp_tp_probs(
             tp_probs[i - 1] = probs[np.where(hittedlabel == i)].max()
 
     num_targets = max_label - len(labels_to_exclude)
-    return fp_probs, tp_probs, num_targets
+    return fp_probs, tp_probs, cast(int, num_targets)
 
 
 def compute_froc_curve_data(
-    fp_probs: Union[np.ndarray, torch.Tensor],
-    tp_probs: Union[np.ndarray, torch.Tensor],
-    num_targets: int,
-    num_images: int,
-):
+    fp_probs: np.ndarray | torch.Tensor, tp_probs: np.ndarray | torch.Tensor, num_targets: int, num_images: int
+) -> tuple[np.ndarray, np.ndarray]:
     """
     This function is modified from the official evaluation code of
     `CAMELYON 16 Challenge <https://camelyon16.grand-challenge.org/>`_, and used to compute
@@ -118,8 +118,8 @@ def compute_froc_curve_data(
 
 
 def compute_froc_score(
-    fps_per_image: np.ndarray, total_sensitivity: np.ndarray, eval_thresholds: Tuple = (0.25, 0.5, 1, 2, 4, 8)
-):
+    fps_per_image: np.ndarray, total_sensitivity: np.ndarray, eval_thresholds: tuple = (0.25, 0.5, 1, 2, 4, 8)
+) -> Any:
     """
     This function is modified from the official evaluation code of
     `CAMELYON 16 Challenge <https://camelyon16.grand-challenge.org/>`_, and used to compute

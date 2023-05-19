@@ -9,11 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import warnings
 from collections import OrderedDict
 from pathlib import Path
-from typing import Dict, Optional, Union
 
 import numpy as np
 import torch
@@ -27,7 +28,7 @@ class CSVSaver:
     Save the data in a dictionary format cache, and write to a CSV file finally.
     Typically, the data can be classification predictions, call `save` for single data
     or call `save_batch` to save a batch of data together, and call `finalize` to write
-    the cached data into CSV file. If no meta data provided, use index from 0 to save data.
+    the cached data into CSV file. If no metadata provided, use index from 0 to save data.
     Note that this saver can't support multi-processing because it reads / writes single
     CSV file and can't guarantee the data order in multi-processing situation.
 
@@ -81,14 +82,14 @@ class CSVSaver:
         # clear cache content after writing
         self.reset_cache()
 
-    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
+    def save(self, data: torch.Tensor | np.ndarray, meta_data: dict | None = None) -> None:
         """Save data into the cache dictionary. The metadata should have the following key:
             - ``'filename_or_obj'`` -- save the data corresponding to file name or object.
         If meta_data is None, use the default index from 0 to save data instead.
 
         Args:
             data: target data content that save into cache.
-            meta_data: the meta data information corresponding to the data.
+            meta_data: the metadata information corresponding to the data.
 
         """
         save_key = meta_data[Key.FILENAME_OR_OBJ] if meta_data else str(self._data_index)
@@ -97,7 +98,7 @@ class CSVSaver:
             data = data.detach().cpu().numpy()
         self._cache_dict[save_key] = np.asarray(data, dtype=float)
 
-    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
+    def save_batch(self, batch_data: torch.Tensor | np.ndarray, meta_data: dict | None = None) -> None:
         """Save a batch of data into the cache dictionary.
 
         Args:

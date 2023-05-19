@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -339,7 +341,7 @@ class TestKeepLargestConnectedComponentd(unittest.TestCase):
     def test_correct_results(self, _, args, input_dict, expected):
         converter = KeepLargestConnectedComponentd(**args)
         result = converter(input_dict)
-        assert_allclose(result["img"], expected, type_test=False)
+        assert_allclose(result["img"], expected, type_test="tensor")
 
 
 if __name__ == "__main__":

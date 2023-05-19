@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -23,7 +25,7 @@ from monai.apps.deepedit.transforms import (
     FindDiscrepancyRegionsDeepEditd,
     SplitPredsLabeld,
 )
-from monai.data import Dataset
+from monai.data import DataLoader, Dataset
 from monai.engines import SupervisedTrainer
 from monai.engines.utils import IterationEvents
 from monai.losses import DiceCELoss
@@ -62,7 +64,7 @@ class TestInteractions(unittest.TestCase):
             ]
         )
         dataset = Dataset(data, transform=pre_transforms)
-        data_loader = torch.utils.data.DataLoader(dataset, batch_size=5)
+        data_loader = DataLoader(dataset, batch_size=5)
 
         iteration_transforms = [
             FindDiscrepancyRegionsDeepEditd(keys="label", pred="pred", discrepancy="discrepancy"),
@@ -92,7 +94,7 @@ class TestInteractions(unittest.TestCase):
 
         # set up engine
         engine = SupervisedTrainer(
-            device=torch.device("cpu"),
+            device="cpu",
             max_epochs=1,
             train_data_loader=data_loader,
             network=network,

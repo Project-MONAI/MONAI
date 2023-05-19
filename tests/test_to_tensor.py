@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -21,13 +23,11 @@ cp, _ = optional_import("cupy")
 
 im = [[1, 2], [3, 4]]
 
-TESTS = []
-TESTS.append((im, (2, 2)))
+TESTS = [(im, (2, 2))]
 for p in TEST_NDARRAYS:
     TESTS.append((p(im), (2, 2)))
 
-TESTS_SINGLE = []
-TESTS_SINGLE.append([5])
+TESTS_SINGLE = [[5]]
 for p in TEST_NDARRAYS:
     TESTS_SINGLE.append([p(5)])
 
@@ -42,7 +42,7 @@ class TestToTensor(unittest.TestCase):
 
     @parameterized.expand(TESTS_SINGLE)
     def test_single_input(self, test_data):
-        result = ToTensor()(test_data)
+        result = ToTensor(track_meta=True)(test_data)
         self.assertTrue(isinstance(result, torch.Tensor))
         assert_allclose(result, test_data, type_test=False)
         self.assertEqual(result.ndim, 0)

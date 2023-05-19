@@ -9,7 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Union
+from __future__ import annotations
+
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING
 
 from monai.config import IgniteInfo
 from monai.data import decollate_batch
@@ -79,10 +82,10 @@ class MetricsSaver:
     def __init__(
         self,
         save_dir: str,
-        metrics: Optional[Union[str, Sequence[str]]] = "*",
-        metric_details: Optional[Union[str, Sequence[str]]] = None,
+        metrics: str | Sequence[str] | None = "*",
+        metric_details: str | Sequence[str] | None = None,
         batch_transform: Callable = lambda x: x,
-        summary_ops: Optional[Union[str, Sequence[str]]] = None,
+        summary_ops: str | Sequence[str] | None = None,
         save_rank: int = 0,
         delimiter: str = ",",
         output_type: str = "csv",
@@ -95,7 +98,7 @@ class MetricsSaver:
         self.save_rank = save_rank
         self.deli = delimiter
         self.output_type = output_type
-        self._filenames: List[str] = []
+        self._filenames: list[str] = []
 
     def attach(self, engine: Engine) -> None:
         """
@@ -144,7 +147,7 @@ class MetricsSaver:
                 _metrics = {k: v for k, v in engine.state.metrics.items() if k in self.metrics or "*" in self.metrics}
             _metric_details = {}
             if hasattr(engine.state, "metric_details"):
-                details = engine.state.metric_details  # type: ignore
+                details = engine.state.metric_details
                 if self.metric_details is not None and len(details) > 0:
                     for k, v in details.items():
                         if k in self.metric_details or "*" in self.metric_details:

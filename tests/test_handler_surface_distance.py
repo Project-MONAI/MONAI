@@ -9,18 +9,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
-from typing import Tuple
 
 import numpy as np
 import torch
 from ignite.engine import Engine
 
 from monai.handlers import SurfaceDistance
+from tests.utils import assert_allclose
 
 
 def create_spherical_seg_3d(
-    radius: float = 20.0, centre: Tuple[int, int, int] = (49, 49, 49), im_shape: Tuple[int, int, int] = (99, 99, 99)
+    radius: float = 20.0, centre: tuple[int, int, int] = (49, 49, 49), im_shape: tuple[int, int, int] = (99, 99, 99)
 ) -> np.ndarray:
     """
     Return a 3D image with a sphere inside. Voxel values will be
@@ -102,7 +104,9 @@ class TestHandlerSurfaceDistance(unittest.TestCase):
         sur_metric.update([y_pred, y])
         y_pred, y = TEST_SAMPLE_2
         sur_metric.update([y_pred, y])
-        torch.testing.assert_allclose(sur_metric.compute().float(), torch.tensor([4.1713, 0.0000]))
+        assert_allclose(
+            sur_metric.compute().float(), torch.tensor([4.1713, 0.0000]), atol=1e-4, rtol=1e-4, type_test=False
+        )
 
 
 if __name__ == "__main__":

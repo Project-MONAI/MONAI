@@ -8,7 +8,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """
 Collection of the remote MMAR descriptors
 
@@ -16,8 +15,10 @@ See Also:
     - https://docs.nvidia.com/clara/clara-train-sdk/pt/mmar.html
 """
 
+from __future__ import annotations
+
 import os
-from typing import Any, Dict, Tuple
+from typing import Any
 
 __all__ = ["MODEL_DESC", "RemoteMMARKeys"]
 
@@ -40,7 +41,7 @@ class RemoteMMARKeys:
     VERSION = "version"  # version of the MMAR
 
 
-MODEL_DESC: Tuple[Dict[Any, Any], ...] = (
+MODEL_DESC: tuple[dict[Any, Any], ...] = (
     {
         RemoteMMARKeys.ID: "clara_pt_spleen_ct_segmentation_1",
         RemoteMMARKeys.NAME: "clara_pt_spleen_ct_segmentation",

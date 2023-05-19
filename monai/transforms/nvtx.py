@@ -12,7 +12,10 @@
 Wrapper around NVIDIA Tools Extension for profiling MONAI transformations
 """
 
-from monai.transforms.transform import RandomizableTransform, Transform
+from __future__ import annotations
+
+from monai.transforms.traits import RandomizableTrait
+from monai.transforms.transform import Transform
 from monai.utils import optional_import
 
 _nvtx, _ = optional_import("torch._C._nvtx", descriptor="NVTX is not installed. Are you sure you have a CUDA build?")
@@ -63,9 +66,9 @@ class RangePush(Transform):
         return data
 
 
-class RandRangePush(RangePush, RandomizableTransform):
+class RandRangePush(RangePush, RandomizableTrait):
     """
-    Pushes a range onto a stack of nested range span (RandomizableTransform).
+    Pushes a range onto a stack of nested range span (for randomizable transforms).
     Stores zero-based depth of the range that is started.
 
     Args:
@@ -84,9 +87,9 @@ class RangePop(Transform):
         return data
 
 
-class RandRangePop(RangePop, RandomizableTransform):
+class RandRangePop(RangePop, RandomizableTrait):
     """
-    Pops a range off of a stack of nested range spans (RandomizableTransform).
+    Pops a range off of a stack of nested range spans (for randomizable transforms).
     Stores zero-based depth of the range that is ended.
     """
 
@@ -107,10 +110,9 @@ class Mark(Transform):
         return data
 
 
-class RandMark(Mark, RandomizableTransform):
+class RandMark(Mark, RandomizableTrait):
     """
-    Mark an instantaneous event that occurred at some point.
-    (RandomizableTransform)
+    Mark an instantaneous event that occurred at some point (for randomizable transforms).
 
     Args:
         msg: ASCII message to associate with the event.

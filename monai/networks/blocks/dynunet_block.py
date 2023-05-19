@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Tuple, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import numpy as np
 import torch
@@ -43,11 +45,11 @@ class UnetResBlock(nn.Module):
         spatial_dims: int,
         in_channels: int,
         out_channels: int,
-        kernel_size: Union[Sequence[int], int],
-        stride: Union[Sequence[int], int],
-        norm_name: Union[Tuple, str],
-        act_name: Union[Tuple, str] = ("leakyrelu", {"inplace": True, "negative_slope": 0.01}),
-        dropout: Optional[Union[Tuple, str, float]] = None,
+        kernel_size: Sequence[int] | int,
+        stride: Sequence[int] | int,
+        norm_name: tuple | str,
+        act_name: tuple | str = ("leakyrelu", {"inplace": True, "negative_slope": 0.01}),
+        dropout: tuple | str | float | None = None,
     ):
         super().__init__()
         self.conv1 = get_conv_layer(
@@ -57,22 +59,41 @@ class UnetResBlock(nn.Module):
             kernel_size=kernel_size,
             stride=stride,
             dropout=dropout,
-            conv_only=True,
+            act=None,
+            norm=None,
+            conv_only=False,
         )
         self.conv2 = get_conv_layer(
-            spatial_dims, out_channels, out_channels, kernel_size=kernel_size, stride=1, dropout=dropout, conv_only=True
-        )
-        self.conv3 = get_conv_layer(
-            spatial_dims, in_channels, out_channels, kernel_size=1, stride=stride, dropout=dropout, conv_only=True
+            spatial_dims,
+            out_channels,
+            out_channels,
+            kernel_size=kernel_size,
+            stride=1,
+            dropout=dropout,
+            act=None,
+            norm=None,
+            conv_only=False,
         )
         self.lrelu = get_act_layer(name=act_name)
         self.norm1 = get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=out_channels)
         self.norm2 = get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=out_channels)
-        self.norm3 = get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=out_channels)
         self.downsample = in_channels != out_channels
         stride_np = np.atleast_1d(stride)
         if not np.all(stride_np == 1):
             self.downsample = True
+        if self.downsample:
+            self.conv3 = get_conv_layer(
+                spatial_dims,
+                in_channels,
+                out_channels,
+                kernel_size=1,
+                stride=stride,
+                dropout=dropout,
+                act=None,
+                norm=None,
+                conv_only=False,
+            )
+            self.norm3 = get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=out_channels)
 
     def forward(self, inp):
         residual = inp
@@ -81,8 +102,9 @@ class UnetResBlock(nn.Module):
         out = self.lrelu(out)
         out = self.conv2(out)
         out = self.norm2(out)
-        if self.downsample:
+        if hasattr(self, "conv3"):
             residual = self.conv3(residual)
+        if hasattr(self, "norm3"):
             residual = self.norm3(residual)
         out += residual
         out = self.lrelu(out)
@@ -91,7 +113,7 @@ class UnetResBlock(nn.Module):
 
 class UnetBasicBlock(nn.Module):
     """
-    A CNN module module that can be used for DynUNet, based on:
+    A CNN module that can be used for DynUNet, based on:
     `Automated Design of Deep Learning Methods for Biomedical Image Segmentation <https://arxiv.org/abs/1904.08128>`_.
     `nnU-Net: Self-adapting Framework for U-Net-Based Medical Image Segmentation <https://arxiv.org/abs/1809.10486>`_.
 
@@ -112,11 +134,11 @@ class UnetBasicBlock(nn.Module):
         spatial_dims: int,
         in_channels: int,
         out_channels: int,
-        kernel_size: Union[Sequence[int], int],
-        stride: Union[Sequence[int], int],
-        norm_name: Union[Tuple, str],
-        act_name: Union[Tuple, str] = ("leakyrelu", {"inplace": True, "negative_slope": 0.01}),
-        dropout: Optional[Union[Tuple, str, float]] = None,
+        kernel_size: Sequence[int] | int,
+        stride: Sequence[int] | int,
+        norm_name: tuple | str,
+        act_name: tuple | str = ("leakyrelu", {"inplace": True, "negative_slope": 0.01}),
+        dropout: tuple | str | float | None = None,
     ):
         super().__init__()
         self.conv1 = get_conv_layer(
@@ -126,10 +148,20 @@ class UnetBasicBlock(nn.Module):
             kernel_size=kernel_size,
             stride=stride,
             dropout=dropout,
-            conv_only=True,
+            act=None,
+            norm=None,
+            conv_only=False,
         )
         self.conv2 = get_conv_layer(
-            spatial_dims, out_channels, out_channels, kernel_size=kernel_size, stride=1, dropout=dropout, conv_only=True
+            spatial_dims,
+            out_channels,
+            out_channels,
+            kernel_size=kernel_size,
+            stride=1,
+            dropout=dropout,
+            act=None,
+            norm=None,
+            conv_only=False,
         )
         self.lrelu = get_act_layer(name=act_name)
         self.norm1 = get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=out_channels)
@@ -170,12 +202,12 @@ class UnetUpBlock(nn.Module):
         spatial_dims: int,
         in_channels: int,
         out_channels: int,
-        kernel_size: Union[Sequence[int], int],
-        stride: Union[Sequence[int], int],
-        upsample_kernel_size: Union[Sequence[int], int],
-        norm_name: Union[Tuple, str],
-        act_name: Union[Tuple, str] = ("leakyrelu", {"inplace": True, "negative_slope": 0.01}),
-        dropout: Optional[Union[Tuple, str, float]] = None,
+        kernel_size: Sequence[int] | int,
+        stride: Sequence[int] | int,
+        upsample_kernel_size: Sequence[int] | int,
+        norm_name: tuple | str,
+        act_name: tuple | str = ("leakyrelu", {"inplace": True, "negative_slope": 0.01}),
+        dropout: tuple | str | float | None = None,
         trans_bias: bool = False,
     ):
         super().__init__()
@@ -188,7 +220,9 @@ class UnetUpBlock(nn.Module):
             stride=upsample_stride,
             dropout=dropout,
             bias=trans_bias,
-            conv_only=True,
+            act=None,
+            norm=None,
+            conv_only=False,
             is_transposed=True,
         )
         self.conv_block = UnetBasicBlock(
@@ -212,11 +246,20 @@ class UnetUpBlock(nn.Module):
 
 class UnetOutBlock(nn.Module):
     def __init__(
-        self, spatial_dims: int, in_channels: int, out_channels: int, dropout: Optional[Union[Tuple, str, float]] = None
+        self, spatial_dims: int, in_channels: int, out_channels: int, dropout: tuple | str | float | None = None
     ):
         super().__init__()
         self.conv = get_conv_layer(
-            spatial_dims, in_channels, out_channels, kernel_size=1, stride=1, dropout=dropout, bias=True, conv_only=True
+            spatial_dims,
+            in_channels,
+            out_channels,
+            kernel_size=1,
+            stride=1,
+            dropout=dropout,
+            bias=True,
+            act=None,
+            norm=None,
+            conv_only=False,
         )
 
     def forward(self, inp):
@@ -227,11 +270,11 @@ def get_conv_layer(
     spatial_dims: int,
     in_channels: int,
     out_channels: int,
-    kernel_size: Union[Sequence[int], int] = 3,
-    stride: Union[Sequence[int], int] = 1,
-    act: Optional[Union[Tuple, str]] = Act.PRELU,
-    norm: Union[Tuple, str] = Norm.INSTANCE,
-    dropout: Optional[Union[Tuple, str, float]] = None,
+    kernel_size: Sequence[int] | int = 3,
+    stride: Sequence[int] | int = 1,
+    act: tuple | str | None = Act.PRELU,
+    norm: tuple | str | None = Norm.INSTANCE,
+    dropout: tuple | str | float | None = None,
     bias: bool = False,
     conv_only: bool = True,
     is_transposed: bool = False,
@@ -257,10 +300,7 @@ def get_conv_layer(
     )
 
 
-def get_padding(
-    kernel_size: Union[Sequence[int], int], stride: Union[Sequence[int], int]
-) -> Union[Tuple[int, ...], int]:
-
+def get_padding(kernel_size: Sequence[int] | int, stride: Sequence[int] | int) -> tuple[int, ...] | int:
     kernel_size_np = np.atleast_1d(kernel_size)
     stride_np = np.atleast_1d(stride)
     padding_np = (kernel_size_np - stride_np + 1) / 2
@@ -272,8 +312,8 @@ def get_padding(
 
 
 def get_output_padding(
-    kernel_size: Union[Sequence[int], int], stride: Union[Sequence[int], int], padding: Union[Sequence[int], int]
-) -> Union[Tuple[int, ...], int]:
+    kernel_size: Sequence[int] | int, stride: Sequence[int] | int, padding: Sequence[int] | int
+) -> tuple[int, ...] | int:
     kernel_size_np = np.atleast_1d(kernel_size)
     stride_np = np.atleast_1d(stride)
     padding_np = np.atleast_1d(padding)

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -37,7 +39,7 @@ class TestAdjustContrastd(NumpyImageTestCase2D):
                 img_min = self.imt.min()
                 img_range = self.imt.max() - img_min
                 expected = np.power(((self.imt - img_min) / float(img_range + epsilon)), gamma) * img_range + img_min
-            assert_allclose(expected, result["img"], rtol=1e-05, type_test=False)
+            assert_allclose(result["img"], expected, rtol=1e-05, type_test="tensor")
 
 
 if __name__ == "__main__":

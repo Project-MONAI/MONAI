@@ -9,10 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
-from typing import Union, cast
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
+
+if TYPE_CHECKING:
+    import numpy.typing as npt
+
 import torch
 
 from monai.utils import Average, look_up_option
@@ -26,6 +32,8 @@ class ROCAUCMetric(CumulativeIterationMetric):
     `sklearn.metrics.roc_auc_score <https://scikit-learn.org/stable/modules/generated/
     sklearn.metrics.roc_auc_score.html#sklearn.metrics.roc_auc_score>`_.
     The input `y_pred` and `y` can be a list of `channel-first` Tensor or a `batch-first` Tensor.
+
+    Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
 
     Args:
         average: {``"macro"``, ``"weighted"``, ``"micro"``, ``"none"``}
@@ -42,14 +50,14 @@ class ROCAUCMetric(CumulativeIterationMetric):
 
     """
 
-    def __init__(self, average: Union[Average, str] = Average.MACRO) -> None:
+    def __init__(self, average: Average | str = Average.MACRO) -> None:
         super().__init__()
         self.average = average
 
-    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:  # type: ignore[override]
         return y_pred, y
 
-    def aggregate(self, average: Union[Average, str, None] = None):  # type: ignore
+    def aggregate(self, average: Average | str | None = None) -> np.ndarray | float | npt.ArrayLike:
         """
         Typically `y_pred` and `y` are stored in the cumulative buffers at each iteration,
         This function reads the buffers and computes the area under the ROC.
@@ -104,7 +112,9 @@ def _calculate(y_pred: torch.Tensor, y: torch.Tensor) -> float:
     return auc / (nneg * (n - nneg))
 
 
-def compute_roc_auc(y_pred: torch.Tensor, y: torch.Tensor, average: Union[Average, str] = Average.MACRO):
+def compute_roc_auc(
+    y_pred: torch.Tensor, y: torch.Tensor, average: Average | str = Average.MACRO
+) -> np.ndarray | float | npt.ArrayLike:
     """Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC). Referring to:
     `sklearn.metrics.roc_auc_score <https://scikit-learn.org/stable/modules/generated/
     sklearn.metrics.roc_auc_score.html#sklearn.metrics.roc_auc_score>`_.
@@ -168,5 +178,5 @@ def compute_roc_auc(y_pred: torch.Tensor, y: torch.Tensor, average: Union[Averag
         return np.mean(auc_values)
     if average == Average.WEIGHTED:
         weights = [sum(y_) for y_ in y]
-        return np.average(auc_values, weights=weights)
+        return np.average(auc_values, weights=weights)  # type: ignore[no-any-return]
     raise ValueError(f'Unsupported average: {average}, available options are ["macro", "weighted", "micro", "none"].')

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -30,6 +32,7 @@ class TestSplitChannel(unittest.TestCase):
     def test_shape(self, input_param, test_data, expected_shape):
         result = SplitChannel(**input_param)(test_data)
         for data in result:
+            self.assertEqual(type(data), type(test_data))
             self.assertTupleEqual(data.shape, expected_shape)
 
 

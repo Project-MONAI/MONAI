@@ -8,6 +8,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -15,6 +17,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.vitautoenc import ViTAutoEnc
+from tests.utils import skip_if_windows
 
 TEST_CASE_Vitautoenc = []
 for in_channels in [1, 4]:
@@ -63,6 +66,7 @@ TEST_CASE_Vitautoenc.append(
 
 class TestPatchEmbeddingBlock(unittest.TestCase):
     @parameterized.expand(TEST_CASE_Vitautoenc)
+    @skip_if_windows
     def test_shape(self, input_param, input_shape, expected_shape):
         net = ViTAutoEnc(**input_param)
         with eval_mode(net):

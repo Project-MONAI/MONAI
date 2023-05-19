@@ -9,8 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
-from typing import Optional, Sequence, Union
+from collections.abc import Sequence
+from typing import Optional
 
 import torch
 import torch.nn.functional as F
@@ -67,8 +70,8 @@ class FocalLoss(_Loss):
         include_background: bool = True,
         to_onehot_y: bool = False,
         gamma: float = 2.0,
-        weight: Optional[Union[Sequence[float], float, int, torch.Tensor]] = None,
-        reduction: Union[LossReduction, str] = LossReduction.MEAN,
+        weight: Sequence[float] | float | int | torch.Tensor | None = None,
+        reduction: LossReduction | str = LossReduction.MEAN,
     ) -> None:
         """
         Args:
@@ -100,7 +103,7 @@ class FocalLoss(_Loss):
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         self.gamma = gamma
-        self.weight: Optional[Union[Sequence[float], float, int, torch.Tensor]] = weight
+        self.weight: Sequence[float] | float | int | torch.Tensor | None = weight
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import math
 import os
 import shutil
@@ -34,8 +36,6 @@ from monai.transforms import (
     Compose,
     CropForegroundd,
     EnsureChannelFirstd,
-    EnsureType,
-    EnsureTyped,
     FgBgToIndicesd,
     LoadImaged,
     RandAffined,
@@ -94,8 +94,6 @@ class IntegrationFastTrain(DistTestCase):
                 # pre-compute foreground and background indexes
                 # and cache them to accelerate training
                 FgBgToIndicesd(keys="label", fg_postfix="_fg", bg_postfix="_bg"),
-                # change to execute transforms with Tensor data
-                EnsureTyped(keys=["image", "label"]),
                 # move the data to GPU and cache to avoid CPU -> GPU sync in every epoch
                 ToDeviced(keys=["image", "label"], device=device),
                 # randomly crop out patch samples from big
@@ -137,7 +135,6 @@ class IntegrationFastTrain(DistTestCase):
                 Spacingd(keys=["image", "label"], pixdim=(1.0, 1.0, 1.0), mode=("bilinear", "nearest")),
                 ScaleIntensityd(keys="image"),
                 CropForegroundd(keys=["image", "label"], source_key="image"),
-                EnsureTyped(keys=["image", "label"]),
                 # move the data to GPU and cache to avoid CPU -> GPU sync in every epoch
                 ToDeviced(keys=["image", "label"], device=device),
             ]
@@ -149,7 +146,7 @@ class IntegrationFastTrain(DistTestCase):
 
         # set CacheDataset, ThreadDataLoader and DiceCE loss for MONAI fast training
         train_ds = CacheDataset(data=train_files, transform=train_transforms, cache_rate=1.0, num_workers=8)
-        val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=5)
+        val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, runtime_cache=True)
         # disable multi-workers because `ThreadDataLoader` works with multi-threads
         train_loader = ThreadDataLoader(train_ds, num_workers=0, batch_size=4, shuffle=True)
         val_loader = ThreadDataLoader(val_ds, num_workers=0, batch_size=1)
@@ -170,8 +167,8 @@ class IntegrationFastTrain(DistTestCase):
         optimizer = Novograd(model.parameters(), learning_rate * 10)
         scaler = torch.cuda.amp.GradScaler()
 
-        post_pred = Compose([EnsureType(), AsDiscrete(argmax=True, to_onehot=2)])
-        post_label = Compose([EnsureType(), AsDiscrete(to_onehot=2)])
+        post_pred = AsDiscrete(argmax=True, to_onehot=2)
+        post_label = AsDiscrete(to_onehot=2)
 
         dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=False)
 

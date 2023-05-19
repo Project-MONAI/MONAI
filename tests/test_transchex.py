@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -38,7 +40,7 @@ for drop_out in [0.4]:
                                         "num_classes": num_classes,
                                         "drop_out": drop_out,
                                     },
-                                    (2, num_classes),  # type: ignore
+                                    (2, num_classes),
                                 ]
                                 TEST_CASE_TRANSCHEX.append(test_case)
 

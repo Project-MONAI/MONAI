@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -19,7 +21,6 @@ from monai.networks.nets.regunet import LocalNet
 from tests.utils import test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
-
 
 TEST_CASE_LOCALNET_2D = [
     [
@@ -33,6 +34,8 @@ TEST_CASE_LOCALNET_2D = [
             "extract_levels": (0, 1),
             "pooling": False,
             "concat_skip": True,
+            "mode": "bilinear",
+            "align_corners": True,
         },
         (1, 2, 16, 16),
         (1, 2, 16, 16),
@@ -65,6 +68,12 @@ class TestLocalNet(unittest.TestCase):
         with eval_mode(net):
             result = net(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
+
+    @parameterized.expand(TEST_CASE_LOCALNET_2D + TEST_CASE_LOCALNET_3D)
+    def test_extract_levels(self, input_param, input_shape, expected_shape):
+        net = LocalNet(**input_param).to(device)
+        self.assertEqual(len(net.decode_deconvs), len(input_param["extract_levels"]) - 1)
+        self.assertEqual(len(net.decode_convs), len(input_param["extract_levels"]) - 1)
 
     def test_script(self):
         input_param, input_shape, _ = TEST_CASE_LOCALNET_2D[0]

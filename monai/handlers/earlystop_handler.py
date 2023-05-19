@@ -9,7 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Optional
+from __future__ import annotations
+
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from monai.config import IgniteInfo
 from monai.utils import min_version, optional_import
@@ -20,7 +23,9 @@ EarlyStopping, _ = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERS
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
+    Engine, _ = optional_import(
+        "ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine", as_type="decorator"
+    )
 
 
 class EarlyStopHandler:
@@ -53,7 +58,7 @@ class EarlyStopHandler:
         self,
         patience: int,
         score_function: Callable,
-        trainer: Optional[Engine] = None,
+        trainer: Engine | None = None,
         min_delta: float = 0.0,
         cumulative_delta: bool = False,
         epoch_level: bool = True,
@@ -78,7 +83,7 @@ class EarlyStopHandler:
         else:
             engine.add_event_handler(Events.ITERATION_COMPLETED, self)
 
-    def set_trainer(self, trainer: Engine):
+    def set_trainer(self, trainer: Engine) -> None:
         """
         Set trainer to execute early stop if not setting properly in `__init__()`.
         """

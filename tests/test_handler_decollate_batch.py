@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -16,6 +18,7 @@ import torch
 from monai.engines import SupervisedEvaluator
 from monai.handlers import DecollateBatch, PostProcessing
 from monai.transforms import Activationsd, AsDiscreted, Compose, CopyItemsd
+from tests.utils import assert_allclose
 
 
 class TestHandlerDecollateBatch(unittest.TestCase):
@@ -53,7 +56,7 @@ class TestHandlerDecollateBatch(unittest.TestCase):
         expected = torch.tensor([[[[1.0], [1.0]], [[0.0], [0.0]]]])
 
         for o, e in zip(engine.state.output, expected):
-            torch.testing.assert_allclose(o["pred"], e)
+            assert_allclose(o["pred"], e)
             filename = o.get("filename_bak")
             if filename is not None:
                 self.assertEqual(filename, "test2")

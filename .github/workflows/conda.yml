@@ -1,4 +1,5 @@
-name: conda
+# daily tests for different OS with conda
+name: cron-conda
 
 on:
   schedule:
@@ -17,20 +18,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macOS-latest, ubuntu-latest]
-        python-version: ["3.7"]
+        os: [ubuntu-latest]
+        python-version: ["3.9"]
     runs-on: ${{ matrix.os }}
     env:
       QUICKTEST: True
     steps:
     - if: runner.os == 'windows'
       name: Config pagefile (Windows only)
-      uses: al-cheb/configure-pagefile-action@v1.2
+      uses: al-cheb/configure-pagefile-action@v1.3
       with:
-        minimum-size: 8
-        maximum-size: 16
+        minimum-size: 8GB
+        maximum-size: 16GB
         disk-root: "D:"
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - uses: conda-incubator/setup-miniconda@v2
       with:
         auto-update-conda: true

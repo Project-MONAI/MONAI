@@ -9,14 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
+from __future__ import annotations
+
 import re
 import warnings
-from typing import Any, Dict, Optional, Sequence, Set
+from collections.abc import Sequence
+from typing import Any
 
 from monai.bundle.config_item import ConfigComponent, ConfigExpression, ConfigItem
 from monai.bundle.utils import ID_REF_KEY, ID_SEP_KEY
-from monai.utils import look_up_option
+from monai.utils import allow_missing_reference, look_up_option
 
 __all__ = ["ReferenceResolver"]
 
@@ -53,12 +55,12 @@ class ReferenceResolver:
     # match a reference string, e.g. "@id#key", "@id#key#0", "@_target_#key"
     id_matcher = re.compile(rf"{ref}(?:\w*)(?:{sep}\w*)*")
     # if `allow_missing_reference` and can't find a reference ID, will just raise a warning and don't update the config
-    allow_missing_reference = not os.environ.get("MONAI_ALLOW_MISSING_REFERENCE", "0") == "0"
+    allow_missing_reference = allow_missing_reference
 
-    def __init__(self, items: Optional[Sequence[ConfigItem]] = None):
+    def __init__(self, items: Sequence[ConfigItem] | None = None):
         # save the items in a dictionary with the `ConfigItem.id` as key
-        self.items: Dict[str, Any] = {} if items is None else {i.get_id(): i for i in items}
-        self.resolved_content: Dict[str, Any] = {}
+        self.items: dict[str, ConfigItem] = {} if items is None else {i.get_id(): i for i in items}
+        self.resolved_content: dict[str, ConfigExpression | str | Any | None] = {}
 
     def reset(self):
         """
@@ -71,7 +73,7 @@ class ReferenceResolver:
     def is_resolved(self) -> bool:
         return bool(self.resolved_content)
 
-    def add_item(self, item: ConfigItem):
+    def add_item(self, item: ConfigItem) -> None:
         """
         Add a ``ConfigItem`` to the resolver.
 
@@ -84,7 +86,7 @@ class ReferenceResolver:
             return
         self.items[id] = item
 
-    def get_item(self, id: str, resolve: bool = False, **kwargs):
+    def get_item(self, id: str, resolve: bool = False, **kwargs: Any) -> ConfigItem | None:
         """
         Get the ``ConfigItem`` by id.
 
@@ -101,7 +103,9 @@ class ReferenceResolver:
             self._resolve_one_item(id=id, **kwargs)
         return self.items.get(id)
 
-    def _resolve_one_item(self, id: str, waiting_list: Optional[Set[str]] = None, **kwargs):
+    def _resolve_one_item(
+        self, id: str, waiting_list: set[str] | None = None, **kwargs: Any
+    ) -> ConfigExpression | str | Any | None:
         """
         Resolve and return one ``ConfigItem`` of ``id``, cache the resolved result in ``resolved_content``.
         If it has unresolved references, recursively resolve the referring items first.
@@ -111,14 +115,16 @@ class ReferenceResolver:
             waiting_list: set of ids pending to be resolved.
                 It's used to detect circular references such as:
                 `{"name": "A", "dep": "@B"}` and `{"name": "B", "dep": "@A"}`.
-             kwargs: keyword arguments to pass to ``_resolve_one_item()``.
-                Currently support ``instantiate`` and ``eval_expr``. Both are defaulting to True.
+            kwargs: keyword arguments to pass to ``_resolve_one_item()``.
+                Currently support ``instantiate``, ``eval_expr`` and ``default``.
+                `instantiate` and `eval_expr` are defaulting to True, `default` is the target config item
+                if the `id` is not in the config content, must be a `ConfigItem` object.
 
         """
         if id in self.resolved_content:
             return self.resolved_content[id]
         try:
-            item = look_up_option(id, self.items, print_all_options=False)
+            item = look_up_option(id, self.items, print_all_options=False, default=kwargs.get("default", "no_default"))
         except ValueError as err:
             raise KeyError(f"id='{id}' is not found in the config resolver.") from err
         item_config = item.get_config()
@@ -163,26 +169,28 @@ class ReferenceResolver:
         elif isinstance(item, ConfigExpression):
             run_eval = kwargs.get("eval_expr", True)
             self.resolved_content[id] = (
-                item.evaluate(locals={f"{self._vars}": self.resolved_content}) if run_eval else item
+                item.evaluate(globals={f"{self._vars}": self.resolved_content}) if run_eval else item
             )
         else:
             self.resolved_content[id] = new_config
         return self.resolved_content[id]
 
-    def get_resolved_content(self, id: str, **kwargs):
+    def get_resolved_content(self, id: str, **kwargs: Any) -> ConfigExpression | str | Any | None:
         """
         Get the resolved ``ConfigItem`` by id.
 
         Args:
             id: id name of the expected item.
-            kwargs: additional keyword arguments to be passed to ``_resolve_one_item``.
-                Currently support ``instantiate`` and ``eval_expr``. Both are defaulting to True.
+            kwargs: keyword arguments to pass to ``_resolve_one_item()``.
+                Currently support ``instantiate``, ``eval_expr`` and ``default``.
+                `instantiate` and `eval_expr` are defaulting to True, `default` is the target config item
+                if the `id` is not in the config content, must be a `ConfigItem` object.
 
         """
         return self._resolve_one_item(id=id, **kwargs)
 
     @classmethod
-    def match_refs_pattern(cls, value: str) -> Dict[str, int]:
+    def match_refs_pattern(cls, value: str) -> dict[str, int]:
         """
         Match regular expression for the input string to find the references.
         The reference string starts with ``"@"``, like: ``"@XXX#YYY#ZZZ"``.
@@ -191,7 +199,7 @@ class ReferenceResolver:
             value: input value to match regular expression.
 
         """
-        refs: Dict[str, int] = {}
+        refs: dict[str, int] = {}
         # regular expression pattern to match "@XXX" or "@XXX#YYY"
         result = cls.id_matcher.findall(value)
         value_is_expr = ConfigExpression.is_expression(value)
@@ -203,7 +211,7 @@ class ReferenceResolver:
         return refs
 
     @classmethod
-    def update_refs_pattern(cls, value: str, refs: Dict) -> str:
+    def update_refs_pattern(cls, value: str, refs: dict) -> str:
         """
         Match regular expression for the input string to update content with the references.
         The reference part starts with ``"@"``, like: ``"@XXX#YYY#ZZZ"``.
@@ -216,26 +224,32 @@ class ReferenceResolver:
         """
         # regular expression pattern to match "@XXX" or "@XXX#YYY"
         result = cls.id_matcher.findall(value)
+        # reversely sort the matched references by length
+        # and handle the longer first in case a reference item is substring of another longer item
+        result.sort(key=len, reverse=True)
         value_is_expr = ConfigExpression.is_expression(value)
         for item in result:
-            ref_id = item[len(cls.ref) :]  # remove the ref prefix "@"
-            if ref_id not in refs:
-                msg = f"can not find expected ID '{ref_id}' in the references."
-                if cls.allow_missing_reference:
-                    warnings.warn(msg)
-                    continue
-                else:
-                    raise KeyError(msg)
-            if value_is_expr:
-                # replace with local code, will be used in the `evaluate` logic with `locals={"refs": ...}`
-                value = value.replace(item, f"{cls._vars}['{ref_id}']")
-            elif value == item:
-                # the whole content is "@XXX", it will avoid the case that regular string contains "@"
-                value = refs[ref_id]
+            # only update reference when string starts with "$" or the whole content is "@XXX"
+            if value_is_expr or value == item:
+                ref_id = item[len(cls.ref) :]  # remove the ref prefix "@"
+                if ref_id not in refs:
+                    msg = f"can not find expected ID '{ref_id}' in the references."
+                    if cls.allow_missing_reference:
+                        warnings.warn(msg)
+                        continue
+                    else:
+                        raise KeyError(msg)
+                if value_is_expr:
+                    # replace with local code, `{"__local_refs": self.resolved_content}` will be added to
+                    # the `globals` argument of python `eval` in the `evaluate`
+                    value = value.replace(item, f"{cls._vars}['{ref_id}']")
+                elif value == item:
+                    # the whole content is "@XXX", it will avoid the case that regular string contains "@"
+                    value = refs[ref_id]
         return value
 
     @classmethod
-    def find_refs_in_config(cls, config, id: str, refs: Optional[Dict[str, int]] = None) -> Dict[str, int]:
+    def find_refs_in_config(cls, config: Any, id: str, refs: dict[str, int] | None = None) -> dict[str, int]:
         """
         Recursively search all the content of input config item to get the ids of references.
         References mean: the IDs of other config items (``"@XXX"`` in this config item), or the
@@ -248,7 +262,7 @@ class ReferenceResolver:
             refs: dict of the ID name and count of found references, default to `None`.
 
         """
-        refs_: Dict[str, int] = refs or {}
+        refs_: dict[str, int] = refs or {}
         if isinstance(config, str):
             for id, count in cls.match_refs_pattern(value=config).items():
                 refs_[id] = refs_.get(id, 0) + count
@@ -262,7 +276,7 @@ class ReferenceResolver:
         return refs_
 
     @classmethod
-    def update_config_with_refs(cls, config, id: str, refs: Optional[Dict] = None):
+    def update_config_with_refs(cls, config: Any, id: str, refs: dict | None = None) -> Any:
         """
         With all the references in ``refs``, update the input config content with references
         and return the new config.
@@ -273,7 +287,7 @@ class ReferenceResolver:
             refs: all the referring content with ids, default to `None`.
 
         """
-        refs_: Dict = refs or {}
+        refs_: dict = refs or {}
         if isinstance(config, str):
             return cls.update_refs_pattern(config, refs_)
         if not isinstance(config, (list, dict)):

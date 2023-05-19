@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import glob
 import inspect
 import os
@@ -38,8 +40,8 @@ class TestAllImport(unittest.TestCase):
     def test_transform_api(self):
         """monai subclasses of MapTransforms must have alias names ending with 'd', 'D', 'Dict'"""
         to_exclude = {"MapTransform"}  # except for these transforms
-        to_exclude_docs = {"Decollate", "Ensemble", "Invert", "SaveClassification", "RandTorchVision"}
-        to_exclude_docs.update({"DeleteItems", "SelectItems", "CopyItems", "ConcatItems"})
+        to_exclude_docs = {"Decollate", "Ensemble", "Invert", "SaveClassification", "RandTorchVision", "RandCrop"}
+        to_exclude_docs.update({"DeleteItems", "SelectItems", "FlattenSubKeys", "CopyItems", "ConcatItems"})
         to_exclude_docs.update({"ToMetaTensor", "FromMetaTensor"})
         xforms = {
             name: obj

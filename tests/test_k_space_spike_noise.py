@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 from copy import deepcopy
 
@@ -45,7 +47,6 @@ class TestKSpaceSpikeNoise(unittest.TestCase):
 
     @parameterized.expand(TESTS)
     def test_same_result(self, im_shape, im_type, k_intensity):
-
         im = self.get_data(im_shape, im_type)
         loc = [0, int(im.shape[1] / 2), 0] if len(im_shape) == 2 else [0, int(im.shape[1] / 2), 0, 0]
         t = KSpaceSpikeNoise(loc, k_intensity)
@@ -53,9 +54,7 @@ class TestKSpaceSpikeNoise(unittest.TestCase):
         out1 = t(deepcopy(im))
         out2 = t(deepcopy(im))
 
-        self.assertEqual(type(im), type(out1))
         if isinstance(out1, torch.Tensor):
-            self.assertEqual(im.device, out1.device)
             out1 = out1.cpu()
             out2 = out2.cpu()
 
@@ -63,15 +62,12 @@ class TestKSpaceSpikeNoise(unittest.TestCase):
 
     @parameterized.expand(TESTS)
     def test_highlighted_kspace_pixel(self, im_shape, as_tensor_input, k_intensity):
-
         im = self.get_data(im_shape, as_tensor_input)
         loc = [0, int(im.shape[1] / 2), 0] if len(im_shape) == 2 else [0, int(im.shape[1] / 2), 0, 0]
         t = KSpaceSpikeNoise(loc, k_intensity)
         out = t(im)
 
-        self.assertEqual(type(im), type(out))
         if isinstance(out, torch.Tensor):
-            self.assertEqual(im.device, out.device)
             out = out.cpu()
 
         if k_intensity is not None:

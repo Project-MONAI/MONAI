@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
@@ -41,6 +43,9 @@ class TestMatshow3d(unittest.TestCase):
             fig.savefig(tempimg)
             comp = compare_images(f"{testing_dir}/matshow3d_test.png", tempimg, 5e-2)
             self.assertIsNone(comp, f"value of comp={comp}")  # None indicates test passed
+
+        _, axes = pyplot.subplots()
+        matshow3d(ims[keys], fig=axes, figsize=(2, 2), frames_per_row=5, every_n=2, frame_dim=-1, show=False)
 
     def test_samples(self):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")

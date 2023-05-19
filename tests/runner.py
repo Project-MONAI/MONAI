@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import argparse
 import glob
 import inspect
@@ -112,7 +114,6 @@ def get_default_pattern(loader):
 
 
 if __name__ == "__main__":
-
     # Parse input arguments
     args = parse_args()
 
@@ -130,6 +131,7 @@ if __name__ == "__main__":
                 cases.append(f"tests.{test_module}")
             else:
                 print(f"monai test runner: excluding tests.{test_module}")
+        print(cases)
         tests = unittest.TestLoader().loadTestsFromNames(cases)
     discovery_time = pc.total_time
     print(f"time to discover tests: {discovery_time}s, total cases: {tests.countTestCases()}.")

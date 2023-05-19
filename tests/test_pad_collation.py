@@ -9,9 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import random
 import unittest
-from typing import List, Tuple
+from functools import wraps
 
 import numpy as np
 import torch
@@ -20,6 +22,7 @@ from parameterized import parameterized
 from monai.data import CacheDataset, DataLoader
 from monai.data.utils import decollate_batch, pad_list_data_collate
 from monai.transforms import (
+    BatchInverseTransform,
     Compose,
     PadListDataCollate,
     RandRotate,
@@ -31,20 +34,24 @@ from monai.transforms import (
     RandZoom,
     RandZoomd,
     ToTensor,
-    ToTensord,
 )
 from monai.utils import set_determinism
 
-TESTS: List[Tuple] = []
 
-for pad_collate in [
-    lambda x: pad_list_data_collate(batch=x, method="end", mode="constant"),
-    PadListDataCollate(method="end", mode="constant"),
-]:
+@wraps(pad_list_data_collate)
+def _testing_collate(x):
+    return pad_list_data_collate(batch=x, method="end", mode="constant")
+
+
+TESTS: list[tuple] = []
+
+for pad_collate in [_testing_collate, PadListDataCollate(method="end", mode="constant")]:
     TESTS.append((dict, pad_collate, RandSpatialCropd("image", roi_size=[8, 7], random_size=True)))
     TESTS.append((dict, pad_collate, RandRotated("image", prob=1, range_x=np.pi, keep_size=False, dtype=np.float64)))
     TESTS.append((dict, pad_collate, RandZoomd("image", prob=1, min_zoom=1.1, max_zoom=2.0, keep_size=False)))
-    TESTS.append((dict, pad_collate, Compose([RandRotate90d("image", prob=1, max_k=2), ToTensord("image")])))
+    TESTS.append(
+        (dict, pad_collate, Compose([RandRotate90d("image", prob=1, max_k=3), RandRotate90d("image", prob=1, max_k=4)]))
+    )
 
     TESTS.append((list, pad_collate, RandSpatialCrop(roi_size=[8, 7], random_size=True)))
     TESTS.append((list, pad_collate, RandRotate(prob=1, range_x=np.pi, keep_size=False, dtype=np.float64)))
@@ -56,13 +63,13 @@ class _Dataset(torch.utils.data.Dataset):
     def __init__(self, images, labels, transforms):
         self.images = images
         self.labels = labels
-        self.transforms = transforms
+        self.transform = transforms
 
     def __len__(self):
         return len(self.images)
 
     def __getitem__(self, index):
-        return self.transforms(self.images[index]), self.labels[index]
+        return self.transform(self.images[index]), self.labels[index]
 
 
 class TestPadCollation(unittest.TestCase):
@@ -80,7 +87,6 @@ class TestPadCollation(unittest.TestCase):
 
     @parameterized.expand(TESTS)
     def test_pad_collation(self, t_type, collate_method, transform):
-
         if t_type == dict:
             dataset = CacheDataset(self.dict_data, transform, progress=False)
         else:
@@ -97,9 +103,19 @@ class TestPadCollation(unittest.TestCase):
         # check collation in forward direction
         for data in loader:
             if t_type == dict:
+                shapes = []
                 decollated_data = decollate_batch(data)
                 for d in decollated_data:
-                    PadListDataCollate.inverse(d)
+                    output = PadListDataCollate.inverse(d)
+                    shapes.append(output["image"].shape)
+                    self.assertTrue(len(output["image"].applied_operations), len(dataset.transform.transforms))
+                self.assertTrue(len(set(shapes)) > 1)  # inverted shapes must be different because of random xforms
+
+        if t_type == dict:
+            batch_inverse = BatchInverseTransform(dataset.transform, loader)
+            for data in loader:
+                output = batch_inverse(data)
+                self.assertTrue(output[0]["image"].shape, (1, 10, 9))
 
 
 if __name__ == "__main__":

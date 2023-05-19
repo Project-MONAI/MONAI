@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import unittest
 from unittest import skipUnless
@@ -114,7 +116,6 @@ TEST_CASE_0 = [
     np.nan,
 ]
 
-
 TEST_CASE_1 = [
     {
         "data": [
@@ -163,7 +164,6 @@ TEST_CASE_3 = [
     1.0,
 ]
 
-
 TEST_CASE_4 = [
     {
         "data": [
@@ -195,7 +195,6 @@ TEST_CASE_5 = [
     },
     0.5,
 ]
-
 
 TEST_CASE_6 = [
     {

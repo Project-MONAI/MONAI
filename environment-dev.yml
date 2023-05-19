@@ -2,62 +2,13 @@ name: monai
 channels:
   - pytorch
   - defaults
+  - nvidia
   - conda-forge
 dependencies:
-  - numpy>=1.17
-  - pytorch>=1.6
-  - coverage>=5.5
-  - parameterized
-  - setuptools>=50.3.0,!=60.0.0
-  - ignite==0.4.8
-  - gdown>=3.6.4
-  - scipy
-  - nibabel
-  - pillow!=8.3.0  # https://github.com/python-pillow/Pillow/issues/5571
-  - tensorboard
-  - scikit-image>=0.14.2
-  - tqdm>=4.47.0
-  - python-lmdb
-  - flake8>=3.8.1
-  - flake8-bugbear
-  - flake8-comprehensions
-  - flake8-pyi
-  - pylint
-  - mccabe
-  - pep8-naming
-  - pycodestyle
-  - pyflakes
-  - isort
-  - types-pkg_resources
-  - ninja
+  - numpy>=1.20
+  - pytorch>=1.9
   - torchvision
-  - psutil
-  - Sphinx==3.5.3
-  - recommonmark==0.6.0
-  - sphinx-autodoc-typehints==1.11.1
-  - sphinx_rtd_theme==0.5.2
-  - pandas
-  - requests
-  - einops
-  - transformers
-  - mlflow
-  - tensorboardX
-  - pyyaml
-  - fire
-  - jsonschema
+  - pytorch-cuda=11.6
   - pip
   - pip:
-    # pip for itk as conda-forge version only up to v5.1
-    - itk>=5.2
-    # black currently at v19 on conda vs v21 on pip
-    - black
-    # conda mypy v. slow
-    - mypy>=0.790
-    # OS-specific needs to be done via pip:
-    #   https://github.com/conda/conda/issues/8089
-    - pytype>=2020.6.1; platform_system != "Windows"
-    - openslide-python==1.1.2
-    - cucim>=21.8.2; platform_system == "Linux"
-    - imagecodecs; platform_system == "Linux"
-    - tifffile; platform_system == "Linux"
-    - matplotlib!=3.5.0
+    - -r requirements-dev.txt

@@ -9,11 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import platform
 import re
 import sys
 from collections import OrderedDict
+from typing import TextIO
 
 import numpy as np
 import torch
@@ -27,6 +30,8 @@ try:
 except (OptionalImportError, ImportError, AttributeError):
     HAS_EXT = USE_COMPILED = False
 
+USE_META_DICT = os.environ.get("USE_META_DICT", "0") == "1"  # set to True for compatibility, use meta dict.
+
 psutil, has_psutil = optional_import("psutil")
 psutil_version = psutil.__version__ if has_psutil else "NOT INSTALLED or UNKNOWN VERSION."
 
@@ -38,6 +43,7 @@ __all__ = [
     "print_gpu_info",
     "print_debug_info",
     "USE_COMPILED",
+    "USE_META_DICT",
     "IgniteInfo",
 ]
 
@@ -62,6 +68,7 @@ def get_optional_config_values():
     output = OrderedDict()
 
     output["Pytorch Ignite"] = get_package_version("ignite")
+    output["ITK"] = get_package_version("itk")
     output["Nibabel"] = get_package_version("nibabel")
     output["scikit-image"] = get_package_version("skimage")
     output["Pillow"] = get_package_version("PIL")
@@ -75,6 +82,7 @@ def get_optional_config_values():
     output["einops"] = get_package_version("einops")
     output["transformers"] = get_package_version("transformers")
     output["mlflow"] = get_package_version("mlflow")
+    output["pynrrd"] = get_package_version("nrrd")
 
     return output
 
@@ -88,7 +96,7 @@ def print_config(file=sys.stdout):
     """
     for k, v in get_config_values().items():
         print(f"{k} version: {v}", file=file, flush=True)
-    print(f"MONAI flags: HAS_EXT = {HAS_EXT}, USE_COMPILED = {USE_COMPILED}")
+    print(f"MONAI flags: HAS_EXT = {HAS_EXT}, USE_COMPILED = {USE_COMPILED}, USE_META_DICT = {USE_META_DICT}")
     print(f"MONAI rev id: {monai.__revision_id__}")
     print(f"MONAI __file__: {monai.__file__}")
 
@@ -120,7 +128,8 @@ def get_system_info() -> OrderedDict:
     if output["System"] == "Windows":
         _dict_append(output, "Win32 version", platform.win32_ver)
         if hasattr(platform, "win32_edition"):
-            _dict_append(output, "Win32 edition", platform.win32_edition)  # type:ignore[attr-defined]
+            _dict_append(output, "Win32 edition", platform.win32_edition)
+
     elif output["System"] == "Darwin":
         _dict_append(output, "Mac version", lambda: platform.mac_ver()[0])
     else:
@@ -168,7 +177,7 @@ def get_system_info() -> OrderedDict:
     return output
 
 
-def print_system_info(file=sys.stdout) -> None:
+def print_system_info(file: TextIO = sys.stdout) -> None:
     """
     Print system info to `file`. Requires the optional library, `psutil`.
 
@@ -183,7 +192,6 @@ def print_system_info(file=sys.stdout) -> None:
 
 
 def get_gpu_info() -> OrderedDict:
-
     output: OrderedDict = OrderedDict()
 
     num_gpus = torch.cuda.device_count()
@@ -215,7 +223,7 @@ def get_gpu_info() -> OrderedDict:
     return output
 
 
-def print_gpu_info(file=sys.stdout) -> None:
+def print_gpu_info(file: TextIO = sys.stdout) -> None:
     """
     Print GPU info to `file`.
 
@@ -226,7 +234,7 @@ def print_gpu_info(file=sys.stdout) -> None:
         print(f"{k}: {v}", file=file, flush=True)
 
 
-def print_debug_info(file=sys.stdout) -> None:
+def print_debug_info(file: TextIO = sys.stdout) -> None:
     """
     Print config (installed dependencies, etc.) and system info for debugging.
 

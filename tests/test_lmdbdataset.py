@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
-import shutil
 import tempfile
 import unittest
 
@@ -20,7 +21,7 @@ from parameterized import parameterized
 
 from monai.data import LMDBDataset, json_hashing
 from monai.transforms import Compose, LoadImaged, SimulateDelayd, Transform
-from tests.utils import DistCall, DistTestCase, skip_if_windows
+from tests.utils import skip_if_windows
 
 TEST_CASE_1 = [
     Compose(
@@ -124,7 +125,7 @@ class TestLMDBDataset(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7])
     def test_shape(self, transform, expected_shape, kwargs=None):
         kwargs = kwargs or {}
-        test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]), np.eye(4))
+        test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]).astype(float), np.eye(4))
         with tempfile.TemporaryDirectory() as tempdir:
             nib.save(test_image, os.path.join(tempdir, "test_image1.nii.gz"))
             nib.save(test_image, os.path.join(tempdir, "test_label1.nii.gz"))
@@ -200,45 +201,6 @@ class TestLMDBDataset(unittest.TestCase):
             else:
                 with self.assertRaises(RuntimeError):
                     dataset_postcached.set_data(data=test_data_new)  # filename list updated, files do not exist
-
-
-@skip_if_windows
-class TestMPLMDBDataset(DistTestCase):
-    def setUp(self):
-        self.tempdir = tempfile.mkdtemp()
-
-    def tearDown(self):
-        shutil.rmtree(self.tempdir)
-
-    @DistCall(nnodes=1, nproc_per_node=1)
-    def test_mp_cache(self):
-        items = [[list(range(i))] for i in range(5)]
-
-        ds = LMDBDataset(items, transform=_InplaceXform(), cache_dir=self.tempdir, lmdb_kwargs={"map_size": 10 * 1024})
-        self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
-        ds1 = LMDBDataset(items, transform=_InplaceXform(), cache_dir=self.tempdir, lmdb_kwargs={"map_size": 10 * 1024})
-        self.assertEqual(list(ds1), list(ds))
-        self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
-
-        ds = LMDBDataset(
-            items,
-            transform=_InplaceXform(),
-            cache_dir=self.tempdir,
-            lmdb_kwargs={"map_size": 10 * 1024},
-            hash_func=json_hashing,
-        )
-        self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
-        ds1 = LMDBDataset(
-            items,
-            transform=_InplaceXform(),
-            cache_dir=self.tempdir,
-            lmdb_kwargs={"map_size": 10 * 1024},
-            hash_func=json_hashing,
-        )
-        self.assertEqual(list(ds1), list(ds))
-        self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
-
-        self.assertTrue(isinstance(ds1.info(), dict))
 
 
 if __name__ == "__main__":

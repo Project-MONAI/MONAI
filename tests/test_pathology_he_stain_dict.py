@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -163,7 +165,7 @@ class TestNormalizeHEStainsD(unittest.TestCase):
             NORMALIZE_STAINS_TEST_CASE_4,
         ]
     )
-    def test_result_value(self, argments, image, expected_data):
+    def test_result_value(self, arguments, image, expected_data):
         """
         Test that an input image returns an expected normalized image.
 
@@ -213,7 +215,7 @@ class TestNormalizeHEStainsD(unittest.TestCase):
             with self.assertRaises(TypeError):
                 NormalizeHEStainsD([key])({key: image})
         else:
-            result = NormalizeHEStainsD([key], **argments)({key: image})
+            result = NormalizeHEStainsD([key], **arguments)({key: image})
             np.testing.assert_allclose(result[key], expected_data)
 
 

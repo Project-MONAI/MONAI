@@ -41,6 +41,12 @@ Mean Dice metrics handler
     :members:
 
 
+Mean IoU metric handler
+-----------------------
+.. autoclass:: MeanIoUHandler
+    :members:
+
+
 ROC AUC metrics handler
 -----------------------
 .. autoclass:: ROCAUC
@@ -62,6 +68,12 @@ Hausdorff distance metrics handler
 Surface distance metrics handler
 --------------------------------
 .. autoclass:: SurfaceDistance
+    :members:
+
+
+Panoptic Quality metrics handler
+--------------------------------
+.. autoclass:: PanopticQuality
     :members:
 
 
@@ -89,15 +101,27 @@ Peak signal to noise ratio metrics handler
     :members:
 
 
+Metrics reloaded binary handler
+-------------------------------
+.. autoclass:: MetricsReloadedBinaryHandler
+    :members:
+
+
+Metrics reloaded categorical handler
+------------------------------------
+.. autoclass:: MetricsReloadedCategoricalHandler
+    :members:
+
+
 Metric logger
 -------------
 .. autoclass:: MetricLogger
     :members:
 
 
-Segmentation saver
-------------------
-.. autoclass:: SegmentationSaver
+Logfile handler
+---------------
+.. autoclass:: LogfileHandler
     :members:
 
 
@@ -165,6 +189,17 @@ MLFlow handler
 .. autoclass:: MLFlowHandler
     :members:
 
+ClearML handlers
+----------------
+.. autoclass:: ClearMLHandler
+    :members:
+
+.. autoclass:: ClearMLStatsHandler
+    :members:
+
+.. autoclass:: ClearMLImageHandler
+    :members:
+
 NVTX Handlers
 -------------
 .. automodule:: monai.handlers.nvtx_handlers
@@ -173,4 +208,9 @@ NVTX Handlers
 Utilities
 ---------
 .. automodule:: monai.handlers.utils
+  :members:
+
+Probability Map Handlers
+------------------------
+.. automodule:: monai.handlers.probability_maps
   :members:

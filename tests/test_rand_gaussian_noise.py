@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -35,7 +37,6 @@ class TestRandGaussianNoise(NumpyImageTestCase2D):
         np.random.seed(seed)
         np.random.random()
         expected = self.imt + np.random.normal(mean, np.random.uniform(0, std), size=self.imt.shape)
-        self.assertEqual(type(im), type(noised))
         if isinstance(noised, torch.Tensor):
             noised = noised.cpu()
         np.testing.assert_allclose(expected, noised, atol=1e-5)

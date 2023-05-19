@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Type, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import numpy as np
 import torch
@@ -40,8 +42,8 @@ class PatchEmbeddingBlock(nn.Module):
     def __init__(
         self,
         in_channels: int,
-        img_size: Union[Sequence[int], int],
-        patch_size: Union[Sequence[int], int],
+        img_size: Sequence[int] | int,
+        patch_size: Sequence[int] | int,
         hidden_size: int,
         num_heads: int,
         pos_embed: str,
@@ -137,10 +139,10 @@ class PatchEmbed(nn.Module):
 
     def __init__(
         self,
-        patch_size: Union[Sequence[int], int] = 2,
+        patch_size: Sequence[int] | int = 2,
         in_chans: int = 1,
         embed_dim: int = 48,
-        norm_layer: Type[LayerNorm] = nn.LayerNorm,  # type: ignore
+        norm_layer: type[LayerNorm] = nn.LayerNorm,
         spatial_dims: int = 3,
     ) -> None:
         """
@@ -154,7 +156,7 @@ class PatchEmbed(nn.Module):
 
         super().__init__()
 
-        if not (spatial_dims == 2 or spatial_dims == 3):
+        if spatial_dims not in (2, 3):
             raise ValueError("spatial dimension should be 2 or 3.")
 
         patch_size = ensure_tuple_rep(patch_size, spatial_dims)
@@ -180,7 +182,7 @@ class PatchEmbed(nn.Module):
                 x = F.pad(x, (0, 0, 0, 0, 0, self.patch_size[0] - d % self.patch_size[0]))
 
         elif len(x_shape) == 4:
-            _, _, h, w = x.size()
+            _, _, h, w = x_shape
             if w % self.patch_size[1] != 0:
                 x = F.pad(x, (0, self.patch_size[1] - w % self.patch_size[1]))
             if h % self.patch_size[0] != 0:

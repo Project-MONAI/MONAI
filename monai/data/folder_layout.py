@@ -9,13 +9,81 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+
+import monai
 from monai.config import PathLike
 from monai.data.utils import create_file_basename
 
-__all__ = ["FolderLayout"]
+__all__ = ["FolderLayoutBase", "FolderLayout", "default_name_formatter"]
 
 
-class FolderLayout:
+def default_name_formatter(metadict: dict, saver: monai.transforms.Transform) -> dict:
+    """Returns a kwargs dict for :py:meth:`FolderLayout.filename`,
+    according to the input metadata and SaveImage transform."""
+    subject = (
+        metadict.get(monai.utils.ImageMetaKey.FILENAME_OR_OBJ, getattr(saver, "_data_index", 0))
+        if metadict
+        else getattr(saver, "_data_index", 0)
+    )
+    patch_index = metadict.get(monai.utils.ImageMetaKey.PATCH_INDEX, None) if metadict else None
+    return {"subject": f"{subject}", "idx": patch_index}
+
+
+class FolderLayoutBase(ABC):
+    """
+    Abstract base class to define a common interface for FolderLayout and derived classes
+    Mainly, defines the ``filename(**kwargs) -> PathLike`` function, which must be defined
+    by the deriving class.
+
+    Example:
+
+    .. code-block:: python
+
+        from monai.data import FolderLayoutBase
+
+        class MyFolderLayout(FolderLayoutBase):
+            def __init__(
+                self,
+                basepath: Path,
+                extension: str = "",
+                makedirs: bool = False
+            ):
+                self.basepath = basepath
+                if not extension:
+                    self.extension = ""
+                elif extension.startswith("."):
+                    self.extension = extension:
+                else:
+                    self.extension = f".{extension}"
+                self.makedirs = makedirs
+
+            def filename(self, patient_no: int, image_name: str, **kwargs) -> Path:
+                sub_path = self.basepath / patient_no
+                if not sub_path.exists():
+                    sub_path.mkdir(parents=True)
+
+                file = image_name
+                for k, v in kwargs.items():
+                    file += f"_{k}-{v}"
+
+                file +=  self.extension
+                return sub_path / file
+
+    """
+
+    @abstractmethod
+    def filename(self, **kwargs) -> PathLike:
+        """
+        Create a filename with path based on the input kwargs.
+        Abstract method, implement your own.
+        """
+        raise NotImplementedError
+
+
+class FolderLayout(FolderLayoutBase):
     """
     A utility class to create organized filenames within ``output_dir``. The
     ``filename`` method could be used to create a filename following the folder structure.
@@ -66,7 +134,7 @@ class FolderLayout:
         self.makedirs = makedirs
         self.data_root_dir = data_root_dir
 
-    def filename(self, subject: PathLike = "subject", idx=None, **kwargs):
+    def filename(self, subject: PathLike = "subject", idx=None, **kwargs) -> PathLike:
         """
         Create a filename based on the input ``subject`` and ``idx``.
 

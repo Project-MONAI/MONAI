@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Dict, Sequence, Union
+from __future__ import annotations
+
+from collections.abc import Callable, Sequence
 
 import numpy as np
 import torch
@@ -37,56 +39,55 @@ class Interaction:
         train: True for training mode or False for evaluation mode
         click_probability_key: key to click/interaction probability
         label_names: Dict of label names
+        max_interactions: maximum number of interactions per iteration
     """
 
     def __init__(
         self,
         deepgrow_probability: float,
-        transforms: Union[Sequence[Callable], Callable],
+        transforms: Sequence[Callable] | Callable,
         train: bool,
-        label_names: Dict[str, int],
+        label_names: None | dict[str, int] = None,
         click_probability_key: str = "probability",
+        max_interactions: int = 1,
     ) -> None:
-
         self.deepgrow_probability = deepgrow_probability
         self.transforms = Compose(transforms) if not isinstance(transforms, Compose) else transforms
         self.train = train
         self.label_names = label_names
         self.click_probability_key = click_probability_key
+        self.max_interactions = max_interactions
 
-    def __call__(self, engine: Union[SupervisedTrainer, SupervisedEvaluator], batchdata: Dict[str, torch.Tensor]):
-
+    def __call__(self, engine: SupervisedTrainer | SupervisedEvaluator, batchdata: dict[str, torch.Tensor]) -> dict:
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
 
         if np.random.choice([True, False], p=[self.deepgrow_probability, 1 - self.deepgrow_probability]):
+            for j in range(self.max_interactions):
+                inputs, _ = engine.prepare_batch(batchdata)
+                inputs = inputs.to(engine.state.device)
 
-            # Run the inner loop only once
-            inputs, _ = engine.prepare_batch(batchdata)
-            inputs = inputs.to(engine.state.device)
+                engine.fire_event(IterationEvents.INNER_ITERATION_STARTED)
+                engine.network.eval()
 
-            engine.fire_event(IterationEvents.INNER_ITERATION_STARTED)
-
-            engine.network.eval()
-            with torch.no_grad():
-                if engine.amp:
-                    with torch.cuda.amp.autocast():
+                with torch.no_grad():
+                    if engine.amp:
+                        with torch.cuda.amp.autocast():
+                            predictions = engine.inferer(inputs, engine.network)
+                    else:
                         predictions = engine.inferer(inputs, engine.network)
-                else:
-                    predictions = engine.inferer(inputs, engine.network)
-            batchdata.update({CommonKeys.PRED: predictions})
+                batchdata.update({CommonKeys.PRED: predictions})
 
-            # decollate/collate batchdata to execute click transforms
-            batchdata_list = decollate_batch(batchdata, detach=True)
+                # decollate/collate batchdata to execute click transforms
+                batchdata_list = decollate_batch(batchdata, detach=True)
+                for i in range(len(batchdata_list)):
+                    batchdata_list[i][self.click_probability_key] = (
+                        (1.0 - ((1.0 / self.max_interactions) * j)) if self.train else 1.0
+                    )
+                    batchdata_list[i] = self.transforms(batchdata_list[i])
 
-            for i in range(len(batchdata_list)):
-                batchdata_list[i][self.click_probability_key] = 1.0
-                batchdata_list[i] = self.transforms(batchdata_list[i])
-
-            batchdata = list_data_collate(batchdata_list)
-
-            engine.fire_event(IterationEvents.INNER_ITERATION_COMPLETED)
-
+                batchdata = list_data_collate(batchdata_list)
+                engine.fire_event(IterationEvents.INNER_ITERATION_COMPLETED)
         else:
             # zero out input guidance channels
             batchdata_list = decollate_batch(batchdata, detach=True)
@@ -96,5 +97,4 @@ class Interaction:
 
         # first item in batch only
         engine.state.batch = batchdata
-
-        return engine._iteration(engine, batchdata)
+        return engine._iteration(engine, batchdata)  # type: ignore[arg-type]

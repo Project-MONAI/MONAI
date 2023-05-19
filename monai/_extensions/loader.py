@@ -9,13 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import platform
 from _thread import interrupt_main
 from contextlib import contextmanager
 from glob import glob
 from os import path
 from threading import Timer
-from typing import Optional
+from types import ModuleType
 
 import torch
 
@@ -30,7 +32,8 @@ def timeout(time, message):
     try:
         timer = Timer(time, interrupt_main)
         timer.daemon = True
-        yield timer.start()
+        timer.start()
+        yield
     except KeyboardInterrupt as e:
         if timer is not None and timer.is_alive():
             raise e  # interrupt from user?
@@ -44,8 +47,8 @@ def timeout(time, message):
 
 
 def load_module(
-    module_name: str, defines: Optional[dict] = None, verbose_build: bool = False, build_timeout: int = 300
-):
+    module_name: str, defines: dict | None = None, verbose_build: bool = False, build_timeout: int = 300
+) -> ModuleType:
     """
     Handles the loading of c++ extension modules.
 
@@ -87,4 +90,4 @@ def load_module(
             name=name, sources=source, extra_cflags=define_args, extra_cuda_cflags=define_args, verbose=verbose_build
         )
 
-    return module
+    return module  # type: ignore[no-any-return]

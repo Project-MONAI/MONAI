@@ -9,12 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
 
 import monai.networks.nets.attentionunet as att
-from tests.utils import skip_if_no_cuda
+from tests.utils import skip_if_no_cuda, skip_if_quick
 
 
 class TestAttentionUnet(unittest.TestCase):
@@ -34,12 +36,13 @@ class TestAttentionUnet(unittest.TestCase):
             output = block(g, x)
             self.assertEqual(output.shape, x.shape)
 
+    @skip_if_quick
     def test_attentionunet(self):
         for dims in [2, 3]:
             shape = (3, 1) + (92,) * dims
             input = torch.rand(*shape)
             model = att.AttentionUnet(
-                spatial_dims=dims, in_channels=1, out_channels=2, channels=(3, 4, 5), strides=(2, 2)
+                spatial_dims=dims, in_channels=1, out_channels=2, channels=(3, 4, 5), up_kernel_size=5, strides=(1, 2)
             )
             output = model(input)
             self.assertEqual(output.shape[2:], input.shape[2:])

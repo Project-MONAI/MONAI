@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 from monai.data import CacheDataset, DataLoader, create_test_image_2d
@@ -31,7 +33,7 @@ class TestTransformsWCacheDatasetAndPersistentWorkers(unittest.TestCase):
         b1 = next(iter(train_loader))
         b2 = next(iter(train_loader))
 
-        self.assertEqual(len(b1["img_transforms"]), len(b2["img_transforms"]))
+        self.assertEqual(len(b1["img"].applied_operations), len(b2["img"].applied_operations))
 
 
 if __name__ == "__main__":
