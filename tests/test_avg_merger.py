@@ -132,7 +132,7 @@ TEST_CASE_8_LARGER_SHAPE = [
         (TENSOR_4x4[..., 2:, :2], (2, 0)),
         (TENSOR_4x4[..., 2:, 2:], (2, 2)),
     ],
-    pad(TENSOR_4x4, (0, 2), value=torch.nan),
+    pad(TENSOR_4x4, (0, 2), value=float("nan")),
 ]
 
 
