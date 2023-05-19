@@ -253,16 +253,12 @@ class PatchInferer(Inferer):
 
     def _get_merged_shapes(self, inputs, out_patch, ratio):
         """Define the shape of merged tensors (non-padded and padded)"""
-        if (
-            self.splitter is None
-            or not hasattr(self.splitter, "get_input_shape")
-            or not hasattr(self.splitter, "get_output_shape")
-        ):
+        if self.splitter is None:
             return None, None
 
         # input spatial shapes
         original_spatial_shape = self.splitter.get_input_shape(inputs)
-        padded_spatial_shape = self.splitter.get_output_shape(inputs)
+        padded_spatial_shape = self.splitter.get_padded_shape(inputs)
 
         # output spatial shapes
         output_spatial_shape = tuple(round(s * r) for s, r in zip(original_spatial_shape, ratio))

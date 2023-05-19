@@ -58,7 +58,7 @@ class Splitter(ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def get_output_shape(self, inputs: Any) -> tuple:
+    def get_padded_shape(self, inputs: Any) -> tuple:
         """
         Return the actual spatial shape covered by the output split patches.
         For instance, if the input image is padded, the actual spatial shape will be enlarged
@@ -219,7 +219,7 @@ class SlidingWindowSplitter(Splitter):
         """
         return tuple(inputs.shape[2:])
 
-    def get_output_shape(self, inputs: Any) -> tuple:
+    def get_padded_shape(self, inputs: Any) -> tuple:
         """
         Return the actual spatial shape covered by the output split patches.
         For instance, if the input image is padded, the actual spatial shape will be enlarged
@@ -303,10 +303,11 @@ class WSISlidingWindowSplitter(SlidingWindowSplitter):
         device: the device where the patches are generated. Defaults to the device of inputs.
         reader: the module to be used for loading whole slide imaging. If `reader` is
 
-            - a string, it defines the backend of `monai.data.WSIReader`. Defaults to OpenSlide.
+            - a string, it defines the backend of `monai.data.WSIReader`. Defaults to "OpenSlide".
             - a class (inherited from `BaseWSIReader`), it is initialized and set as wsi_reader.
             - an instance of a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
 
+            To obtain an optimized performance please use either "cuCIM" or "OpenSlide" backend.
         reader_kwargs: the arguments to pass to `WSIReader` or the provided whole slide reader class.
             For instance, level=2, dtype=torch.float32, etc.
             Note that if `level` is not provided, `level=0` is assumed.
@@ -386,18 +387,17 @@ class WSISlidingWindowSplitter(SlidingWindowSplitter):
         level = self.reader_kwargs.get("level", 0)
         return self.reader.get_size(wsi, level)
 
-    def get_output_shape(self, inputs: Any) -> tuple:
+    def get_padded_shape(self, inputs: Any) -> tuple:
         """
-        Return the actual spatial shape covered by the output split patches.
-        For instance, if the input image is padded, the actual spatial shape will be enlarged
-        and not the same as input spatial shape.
+        Return the padded spatial shape covered by the output split patches.
+        If no padding is applied to the input shape, this will be the same as the input spatial shape.
 
         Args:
             inputs: either a tensor of shape BCHW[D], representing a batch of images,
                 or a filename (str) or list of filenames to the image(s).
 
         Returns:
-            padded_spatial_shape
+            tuple: the padded spatial shape
 
         """
         spatial_shape = self.get_input_shape(inputs)
