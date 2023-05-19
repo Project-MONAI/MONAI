@@ -145,7 +145,7 @@ TEST_CASE_12_MATCHING = [
     TENSOR_4x4,
     dict(splitter=SlidingWindowSplitter(patch_size=(2, 3), pad_mode=None), merger_cls=AvgMerger),
     lambda x: x,
-    pad(TENSOR_4x4[..., :3], (0, 1), value=torch.nan),
+    pad(TENSOR_4x4[..., :3], (0, 1), value=float("nan")),
 ]
 
 # non-divisible patch_size with matching spatial shapes
