@@ -39,15 +39,16 @@ jobs:
       with:
         auto-update-conda: true
         python-version: ${{ matrix.python-version }}
+        auto-activate-base: false
+        environment-file: environment-dev.yml
     - name: Install env (CPU ${{ runner.os }})
-      shell: bash -l {0}
+      shell: bash -el {0}
       run: |
         conda info
         conda list
-        conda env create --file environment-dev.yml
     - if: runner.os == 'windows'
       name: Windows only install
-      shell: bash -l {0}
+      shell: bash -el {0}
       run: |
         conda activate monai
         # this `cpuonly` and -c conda-forge is needed to reduce the paging file size on a github instance
@@ -56,7 +57,7 @@ jobs:
         conda install pytorch torchvision torchaudio cpuonly==2.0.0 -c pytorch -c conda-forge
         conda deactivate
     - name: Test env(CPU ${{ runner.os }})
-      shell: bash -l {0}
+      shell: bash -el {0}
       run: |
         conda activate monai
         $(pwd)/runtests.sh --build --unittests
