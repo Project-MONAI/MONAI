@@ -2,9 +2,6 @@
 name: cron-conda
 
 on:
-  push:
-    branches:
-      - temp-test
   schedule:
     - cron: "0 3 * * *"  # at 03:00 UTC
   # Allows you to run this workflow manually from the Actions tab
@@ -21,8 +18,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest]
-        python-version: ["3.9"]
+        os: [ubuntu-latest]
+        python-version: ["3.9", "3.10"]
     runs-on: ${{ matrix.os }}
     env:
       QUICKTEST: True
@@ -41,7 +38,8 @@ jobs:
         python-version: ${{ matrix.python-version }}
         auto-activate-base: false
         environment-file: environment-dev.yml
-    - name: Install env (CPU ${{ runner.os }})
+        activate-environment: monai
+    - name: Env info (CPU ${{ runner.os }})
       shell: bash -el {0}
       run: |
         conda info
@@ -56,7 +54,7 @@ jobs:
         # https://github.com/pytorch/vision/issues/4240
         conda install pytorch torchvision torchaudio cpuonly==2.0.0 -c pytorch -c conda-forge
         conda deactivate
-    - name: Test env(CPU ${{ runner.os }})
+    - name: Test env (CPU ${{ runner.os }})
       shell: bash -el {0}
       run: |
         conda activate monai
