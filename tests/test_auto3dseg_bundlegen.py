@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import sys
 import tempfile
 import unittest
 
@@ -25,7 +26,13 @@ from monai.apps.auto3dseg.utils import export_bundle_algo_history, import_bundle
 from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
 from monai.utils import set_determinism
-from tests.utils import get_testing_algo_template_path, skip_if_downloading_fails, skip_if_no_cuda, skip_if_quick
+from tests.utils import (
+    SkipIfBeforePyTorchVersion,
+    get_testing_algo_template_path,
+    skip_if_downloading_fails,
+    skip_if_no_cuda,
+    skip_if_quick,
+)
 
 num_images_perfold = max(torch.cuda.device_count(), 4)
 num_images_per_batch = 2
@@ -97,6 +104,7 @@ def run_auto3dseg_before_bundlegen(test_path, work_dir):
 
 
 @skip_if_no_cuda
+@SkipIfBeforePyTorchVersion((1, 11, 1))
 @skip_if_quick
 class TestBundleGen(unittest.TestCase):
     def setUp(self) -> None:
@@ -119,6 +127,7 @@ class TestBundleGen(unittest.TestCase):
         data_src_cfg = os.path.join(work_dir, "data_src_cfg.yaml")
         ConfigParser.export_config_file(data_src, data_src_cfg)
 
+        sys_path = sys.path.copy()
         with skip_if_downloading_fails():
             bundle_generator = BundleGen(
                 algo_path=work_dir,
@@ -131,6 +140,7 @@ class TestBundleGen(unittest.TestCase):
         history_before = bundle_generator.get_history()
         export_bundle_algo_history(history_before)
 
+        sys.path = sys_path  # prevent the import_bundle_algo_history from using the path "work_dir/algorithm_templates"
         tempfile.TemporaryDirectory()
         work_dir_new = os.path.join(test_path, "workdir_2")
         shutil.move(work_dir, work_dir_new)

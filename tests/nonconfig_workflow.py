@@ -41,7 +41,10 @@ class NonConfigWorkflow(BundleWorkflow):
         self.filename = filename
         self.output_dir = output_dir
         self._bundle_root = "will override"
+        self._dataset_dir = "."
         self._device = torch.device("cpu")
+        self._data = [{"image": self.filename}]
+        self._dataset = None
         self._network_def = None
         self._inferer = None
         self._preprocessing = None
@@ -54,8 +57,8 @@ class NonConfigWorkflow(BundleWorkflow):
             self._preprocessing = Compose(
                 [LoadImaged(keys="image"), EnsureChannelFirstd(keys="image"), ScaleIntensityd(keys="image")]
             )
-        dataset = Dataset(data=[{"image": self.filename}], transform=self._preprocessing)
-        dataloader = DataLoader(dataset, batch_size=1, num_workers=4)
+        self._dataset = Dataset(data=self._data, transform=self._preprocessing)
+        dataloader = DataLoader(self._dataset, batch_size=1, num_workers=4)
 
         if self._network_def is None:
             self._network_def = UNet(
@@ -97,6 +100,12 @@ class NonConfigWorkflow(BundleWorkflow):
     def _get_property(self, name, property):
         if name == "bundle_root":
             return self._bundle_root
+        if name == "dataset_dir":
+            return self._dataset_dir
+        if name == "dataset_data":
+            return self._data
+        if name == "dataset":
+            return self._dataset
         if name == "device":
             return self._device
         if name == "evaluator":
@@ -117,6 +126,12 @@ class NonConfigWorkflow(BundleWorkflow):
             self._bundle_root = value
         elif name == "device":
             self._device = value
+        elif name == "dataset_dir":
+            self._dataset_dir = value
+        elif name == "dataset_data":
+            self._data = value
+        elif name == "dataset":
+            self._dataset = value
         elif name == "evaluator":
             self._evaluator = value
         elif name == "network_def":

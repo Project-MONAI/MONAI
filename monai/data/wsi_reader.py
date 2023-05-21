@@ -824,7 +824,7 @@ class CuCIMWSIReader(BaseWSIReader):
                     f"The image is expected to have three or four color channels in '{mode}' mode but has "
                     f"{patch.shape[self.channel_dim]}. "
                 )
-            patch = patch[:3]
+            patch = np.take(patch, [0, 1, 2], self.channel_dim)
 
         return patch
 
@@ -1183,6 +1183,6 @@ class TiffFileWSIReader(BaseWSIReader):
                     f"The image is expected to have three or four color channels in '{mode}' mode but has "
                     f"{patch.shape[self.channel_dim]}. "
                 )
-            patch = patch[:3]
+            patch = np.take(patch, [0, 1, 2], self.channel_dim)
 
         return patch

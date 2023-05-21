@@ -70,7 +70,7 @@ jobs:
       run: ./runtests.sh --build --net
 
     - name: Add reaction
-      uses: peter-evans/create-or-update-comment@v2
+      uses: peter-evans/create-or-update-comment@v3
       if: github.event.pull_request.number != ''
       with:
         token: ${{ secrets.PR_MAINTAIN }}
@@ -156,7 +156,7 @@ jobs:
       run: ./runtests.sh --build --unittests
 
     - name: Add reaction
-      uses: peter-evans/create-or-update-comment@v2
+      uses: peter-evans/create-or-update-comment@v3
       if: github.event.pull_request.number != ''
       with:
         token: ${{ secrets.PR_MAINTAIN }}

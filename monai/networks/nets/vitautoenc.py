@@ -46,21 +46,25 @@ class ViTAutoEnc(nn.Module):
         pos_embed: str = "conv",
         dropout_rate: float = 0.0,
         spatial_dims: int = 3,
+        qkv_bias: bool = False,
+        save_attn: bool = False,
     ) -> None:
         """
         Args:
-            in_channels: dimension of input channels or the number of channels for input
+            in_channels: dimension of input channels or the number of channels for input.
             img_size: dimension of input image.
-            patch_size: dimension of patch size.
-            hidden_size: dimension of hidden layer.
-            out_channels: number of output channels.
-            deconv_chns: number of channels for the deconvolution layers.
-            mlp_dim: dimension of feedforward layer.
-            num_layers: number of transformer blocks.
-            num_heads: number of attention heads.
-            pos_embed: position embedding layer type.
-            dropout_rate: faction of the input units to drop.
-            spatial_dims: number of spatial dimensions.
+            patch_size: dimension of patch size
+            out_channels:  number of output channels. Defaults to 1.
+            deconv_chns: number of channels for the deconvolution layers. Defaults to 16.
+            hidden_size: dimension of hidden layer. Defaults to 768.
+            mlp_dim: dimension of feedforward layer. Defaults to 3072.
+            num_layers:  number of transformer blocks. Defaults to 12.
+            num_heads: number of attention heads. Defaults to 12.
+            pos_embed: position embedding layer type. Defaults to "conv".
+            dropout_rate: faction of the input units to drop. Defaults to 0.0.
+            spatial_dims: number of spatial dimensions. Defaults to 3.
+            qkv_bias: apply bias to the qkv linear layer in self attention block. Defaults to False.
+            save_attn: to make accessible the attention in self attention block. Defaults to False. Defaults to False.
 
         Examples::
 
@@ -89,7 +93,10 @@ class ViTAutoEnc(nn.Module):
             spatial_dims=self.spatial_dims,
         )
         self.blocks = nn.ModuleList(
-            [TransformerBlock(hidden_size, mlp_dim, num_heads, dropout_rate) for i in range(num_layers)]
+            [
+                TransformerBlock(hidden_size, mlp_dim, num_heads, dropout_rate, qkv_bias, save_attn)
+                for i in range(num_layers)
+            ]
         )
         self.norm = nn.LayerNorm(hidden_size)
 

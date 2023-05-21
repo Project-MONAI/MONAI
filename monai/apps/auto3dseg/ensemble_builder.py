@@ -24,14 +24,14 @@ import torch
 import torch.distributed as dist
 
 from monai.apps.auto3dseg.bundle_gen import BundleAlgo
-from monai.apps.auto3dseg.utils import import_bundle_algo_history
+from monai.apps.auto3dseg.utils import get_name_from_algo_id, import_bundle_algo_history
 from monai.apps.utils import get_logger
 from monai.auto3dseg import concat_val_to_np
 from monai.auto3dseg.utils import datafold_read
 from monai.bundle import ConfigParser
 from monai.data import partition_dataset
 from monai.transforms import MeanEnsemble, SaveImage, VoteEnsemble
-from monai.utils import RankFilter
+from monai.utils import RankFilter, deprecated_arg
 from monai.utils.enums import AlgoKeys
 from monai.utils.misc import check_kwargs_exist_in_class_init, prob2class
 from monai.utils.module import look_up_option, optional_import
@@ -84,7 +84,7 @@ class AlgoEnsemble(ABC):
 
         Args:
             dataroot: the path of the files
-            data_src_cfg_file: the data source file path
+            data_list_or_path: the data source file path
         """
 
         self.infer_files = []
@@ -127,6 +127,25 @@ class AlgoEnsemble(ABC):
             else:
                 return VoteEnsemble(num_classes=preds[0].shape[0])(classes)
 
+    def _apply_algo_specific_param(self, algo_spec_param: dict, param: dict, algo_name: str) -> dict:
+        """
+        Apply the model-specific params to the prediction params based on the name of the Algo.
+
+        Args:
+            algo_spec_param: a dict that has structure of {"<name of algo>": "<pred_params for that algo>"}.
+            param: the prediction params to override.
+            algo_name: name of the Algo
+
+        Returns:
+            param after being updated with the model-specific param
+        """
+        _param_to_override = deepcopy(algo_spec_param)
+        _param = deepcopy(param)
+        for k, v in _param_to_override.items():
+            if k.lower() == algo_name.lower():
+                _param.update(v)
+        return _param
+
     def __call__(self, pred_param: dict | None = None) -> list:
         """
         Use the ensembled model to predict result.
@@ -136,14 +155,24 @@ class AlgoEnsemble(ABC):
                 in this function, and the second group will be passed to the `InferClass` to override the
                 parameters of the class functions.
                 The first group contains:
-                'files_slices': a value type of `slice`. The files_slices will slice the infer_files and only
-                    make prediction on the infer_files[file_slices].
-                'mode': ensemble mode. Currently "mean" and "vote" (majority voting) schemes are supported.
-                'sigmoid': use the sigmoid function (e.g. x>0.5) to convert the prediction probability map to
-                    the label class prediction, otherwise argmax(x) is used.
+
+                    - ``"infer_files"``: file paths to the images to read in a list.
+                    - ``"files_slices"``: a value type of `slice`. The files_slices will slice the ``"infer_files"`` and
+                      only make prediction on the infer_files[file_slices].
+                    - ``"mode"``: ensemble mode. Currently "mean" and "vote" (majority voting) schemes are supported.
+                    - ``"image_save_func"``: a dictionary used to instantiate the ``SaveImage`` transform. When specified,
+                      the ensemble prediction will save the prediciton files, instead of keeping the files in the memory.
+                      Example: `{"_target_": "SaveImage", "output_dir": "./"}`
+                    - ``"sigmoid"``: use the sigmoid function (e.g. x > 0.5) to convert the prediction probability map
+                      to the label class prediction, otherwise argmax(x) is used.
+                    - ``"algo_spec_params"``: a dictionary to add pred_params that are specific to a model.
+                      The dict has a format of {"<name of algo>": "<pred_params for that algo>"}.
+
+                The parameters in the second group is defined in the ``config`` of each Algo templates. Please check:
+                https://github.com/Project-MONAI/research-contributions/tree/main/auto3dseg/algorithm_templates
 
         Returns:
-            A list of tensors.
+            A list of tensors or file paths, depending on whether ``"image_save_func"`` is set.
         """
         param = {} if pred_param is None else deepcopy(pred_param)
         files = self.infer_files
@@ -164,6 +193,8 @@ class AlgoEnsemble(ABC):
         if "image_save_func" in param:
             img_saver = ConfigParser(param["image_save_func"]).get_parsed_content()
 
+        algo_spec_params = param.pop("algo_spec_params", {})
+
         outputs = []
         for _, file in (
             enumerate(tqdm(files, desc="Ensembling (rank 0)..."))
@@ -172,8 +203,10 @@ class AlgoEnsemble(ABC):
         ):
             preds = []
             for algo in self.algo_ensemble:
+                infer_algo_name = get_name_from_algo_id(algo[AlgoKeys.ID])
                 infer_instance = algo[AlgoKeys.ALGO]
-                pred = infer_instance.predict(predict_files=[file], predict_params=param)
+                _param = self._apply_algo_specific_param(algo_spec_params, param, infer_algo_name)
+                pred = infer_instance.predict(predict_files=[file], predict_params=_param)
                 preds.append(pred[0])
             if "image_save_func" in param:
                 try:
@@ -282,7 +315,7 @@ class AlgoEnsembleBuilder:
 
     Args:
         history: a collection of trained bundleAlgo algorithms.
-        data_src_cfg_filename: filename of the data source.
+        data_src_cfg_name: filename of the data source.
 
     Examples:
 
@@ -294,13 +327,20 @@ class AlgoEnsembleBuilder:
 
     """
 
-    def __init__(self, history: Sequence[dict[str, Any]], data_src_cfg_filename: str | None = None):
+    @deprecated_arg(
+        "data_src_cfg_filename",
+        since="1.2",
+        removed="1.3",
+        new_name="data_src_cfg_name",
+        msg_suffix="please use `data_src_cfg_name` instead.",
+    )
+    def __init__(self, history: Sequence[dict[str, Any]], data_src_cfg_name: str | None = None):
         self.infer_algos: list[dict[AlgoKeys, Any]] = []
         self.ensemble: AlgoEnsemble
         self.data_src_cfg = ConfigParser(globals=False)
 
-        if data_src_cfg_filename is not None and os.path.exists(str(data_src_cfg_filename)):
-            self.data_src_cfg.read_config(data_src_cfg_filename)
+        if data_src_cfg_name is not None and os.path.exists(str(data_src_cfg_name)):
+            self.data_src_cfg.read_config(data_src_cfg_name)
 
         for algo_dict in history:
             # load inference_config_paths
@@ -358,17 +398,21 @@ class AlgoEnsembleBuilder:
 
 class EnsembleRunner:
     """
-    The Runner for ensembler
+    The Runner for ensembler. It ensembles predictions and saves them to the disk with a support of using multi-GPU.
 
     Args:
-        work_dir: working directory to save the intermediate and final results.
         data_src_cfg_name: filename of the data source.
-        num_fold: number of fold.
-        ensemble_method_name: method to ensemble predictions from different model.
-                              Suported methods: ["AlgoEnsembleBestN", "AlgoEnsembleBestByFold"].
-        mgpu: if using multi-gpu.
+        work_dir: working directory to save the intermediate and final results. Default is `./work_dir`.
+        num_fold: number of fold. Default is 5.
+        ensemble_method_name: method to ensemble predictions from different model. Default is AlgoEnsembleBestByFold.
+                              Supported methods: ["AlgoEnsembleBestN", "AlgoEnsembleBestByFold"].
+        mgpu: if using multi-gpu. Default is True.
         kwargs: additional image writing, ensembling parameters and prediction parameters for the ensemble inference.
-    Examples:
+              - for image saving, please check the supported parameters in SaveImage transform.
+              - for prediction parameters, please check the supported parameters in the ``AlgoEnsemble`` callables.
+              - for ensemble parameters, please check the documentation of the selected AlgoEnsemble callable.
+
+    Example:
 
         .. code-block:: python
 
@@ -384,7 +428,7 @@ class EnsembleRunner:
 
     def __init__(
         self,
-        data_src_cfg_name: str = "./work_dir/input.yaml",
+        data_src_cfg_name: str,
         work_dir: str = "./work_dir",
         num_fold: int = 5,
         ensemble_method_name: str = "AlgoEnsembleBestByFold",
@@ -451,6 +495,9 @@ class EnsembleRunner:
             os.makedirs(output_dir, exist_ok=True)
             logger.info(f"Directory {output_dir} is created to save ensemble predictions")
 
+        input_yaml = ConfigParser.load_config_file(self.data_src_cfg_name)
+        data_root_dir = input_yaml.get("dataroot", "")
+
         save_image = {
             "_target_": "SaveImage",
             "output_dir": output_dir,
@@ -459,6 +506,8 @@ class EnsembleRunner:
             "resample": kwargs.pop("resample", False),
             "print_log": False,
             "savepath_in_metadict": True,
+            "data_root_dir": kwargs.pop("data_root_dir", data_root_dir),
+            "separate_folder": kwargs.pop("separate_folder", False),
         }
 
         are_all_args_save_image, extra_args = check_kwargs_exist_in_class_init(SaveImage, kwargs)
@@ -557,9 +606,8 @@ class EnsembleRunner:
         algo_config.yaml file, which is pre-filled by the fill_template_config function in the same instance.
 
         Args:
-            train_params:  training parameters
-            device_settings: device related settings, should follow the device_setting in auto_runner.set_device_info.
-            'CUDA_VISIBLE_DEVICES' should be a string e.g. '0,1,2,3'
+            device_setting: device related settings, should follow the device_setting in auto_runner.set_device_info.
+                'CUDA_VISIBLE_DEVICES' should be a string e.g. '0,1,2,3'
         """
         # device_setting set default value and sanity check, in case device_setting not from autorunner
         if device_setting is not None:

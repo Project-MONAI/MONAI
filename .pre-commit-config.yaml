@@ -43,7 +43,8 @@ repos:
           (?x)(
               ^versioneer.py|
               ^monai/_version.py|
-              ^monai/networks/  # no PEP 604 for torchscript tensorrt
+              ^monai/networks/|  # no PEP 604 for torchscript tensorrt
+              ^monai/losses/  # no PEP 604 for torchscript tensorrt
           )
       - id: pyupgrade
         args: [--py37-plus, --keep-runtime-typing]

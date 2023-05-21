@@ -415,7 +415,10 @@ def map_classes_to_indices(
         if img_flat is not None:
             label_flat = img_flat & label_flat
         # no need to save the indices in GPU, otherwise, still need to move to CPU at runtime when crop by indices
-        cls_indices: NdarrayOrTensor = convert_data_type(nonzero(label_flat), device=torch.device("cpu"))[0]
+        output_type = torch.Tensor if isinstance(label, monai.data.MetaTensor) else None
+        cls_indices: NdarrayOrTensor = convert_data_type(
+            nonzero(label_flat), output_type=output_type, device=torch.device("cpu")
+        )[0]
         if max_samples_per_class and len(cls_indices) > max_samples_per_class and len(cls_indices) > 1:
             sample_id = np.round(np.linspace(0, len(cls_indices) - 1, max_samples_per_class)).astype(int)
             indices.append(cls_indices[sample_id])
@@ -1418,7 +1421,7 @@ def convert_applied_interp_mode(trans_info, mode: str = "nearest", align_corners
 
 
 def reset_ops_id(data):
-    """find MetaTensors in list or dict `data` and (in-place) set ``TraceKeys.ID`` to ``Tracekys.NONE``."""
+    """find MetaTensors in list or dict `data` and (in-place) set ``TraceKeys.ID`` to ``Tracekeys.NONE``."""
     if isinstance(data, (list, tuple)):
         return [reset_ops_id(d) for d in data]
     if isinstance(data, monai.data.MetaTensor):
@@ -1937,7 +1940,7 @@ def resolves_modes(
 
     Args:
         interp_mode: interpolation mode.
-        padding_mdoe: padding mode.
+        padding_mode: padding mode.
         backend: optional backend of `TransformBackends`. If None, the backend will be decided from `interp_mode`.
         kwargs: additional keyword arguments. currently support ``torch_interpolate_spatial_nd``, to provide
             additional information to determine ``linear``, ``bilinear`` and ``trilinear``;
