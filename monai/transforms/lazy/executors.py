@@ -166,7 +166,7 @@ def apply_pending_transforms_in_order(
     apply_pending = False
     keys = None
     if isinstance(transform, LazyTrait):
-        if transform.partially_lazy:
+        if transform.checks_data:
             apply_pending = True
         else:
             apply_pending = not (transform.lazy if lazy is None else lazy)

@@ -99,4 +99,6 @@ Lazy resampling works very differently. When you execute the same pipeline with 
    operates on the resulting data
 
 The single resampling operation has less noise induced by resampling, as it only occurs once in this pipeline rather
-than three times in the traditional pipeline. More importantly, although
+than three times in the traditional pipeline. More importantly, although the crop describes an operation to keep only a
+subset of the data sample, the crop is not performed until after the spatial transforms are completed, which means that
+all of the data sample that is within bounds is preserved and is part of the resulting output.

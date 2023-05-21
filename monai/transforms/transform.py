@@ -322,7 +322,7 @@ class LazyTransform(Transform, LazyTrait):
         self._lazy = lazy
 
     @property
-    def partially_lazy(self):
+    def checks_data(self):
         return False
 
 

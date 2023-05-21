@@ -47,14 +47,14 @@ class LazyTrait:
         raise NotImplementedError()
 
     @property
-    def partially_lazy(self):
+    def checks_data(self):
         """
-        Get whether the transform is "partially lazy" or not. A partially lazy transform
-        requires that all of the pending operations on its input transforms are up to date
-        before it is executed, but it can still execute lazily by adding pending operations
-        to the input tensors.
+        Get whether the transform checks the sample pixel/voxel data on its inputs or not as part of its
+        operation. A transform that checks data requires that all of the pending operations on its input
+        transforms are up to date before it is executed, but it can still execute lazily by adding pending
+        operations to the input tensors.
         Returns:
-            True if the transform is partially lazy and False if it is not
+            True if the transform checks data and False if it does not
         """
 
 
