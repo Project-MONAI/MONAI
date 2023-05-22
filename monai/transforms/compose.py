@@ -25,12 +25,10 @@ import monai
 from monai.apps.utils import get_logger
 from monai.config import NdarrayOrTensor
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.lazy.array import ApplyPending
-from monai.transforms.lazy.dictionary import ApplyPendingd
 
 # For backwards compatibility (so this still works: from monai.transforms.compose import MapTransform)
 from monai.transforms.lazy.executors import apply_pending_transforms
-from monai.transforms.traits import LazyTrait, ThreadUnsafe
+from monai.transforms.traits import ThreadUnsafe
 from monai.transforms.transform import (  # noqa: F401
     LazyTransform,
     MapTransform,
@@ -363,7 +361,6 @@ class Compose(Randomizable, InvertibleTransform):
         return len(self.flatten().transforms)
 
     def __call__(self, input_, start=0, end=None, threading=False, lazy: bool | None = None):
-        lazy_ = self.lazy if lazy is None else lazy
 
         result = execute_compose(
             input_,
