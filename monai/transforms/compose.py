@@ -450,11 +450,11 @@ class OneOf(Compose):
         map_items: bool = True,
         unpack_items: bool = False,
         log_stats: bool | str | None = False,
-        lazy: bool | None = None,
+        lazy: bool | None = False,
         overrides: dict | None = None,
         logger_name: bool | str | None = False,
     ) -> None:
-        super().__init__(transforms, map_items, unpack_items, lazy, overrides)
+        super().__init__(transforms, map_items, unpack_items, log_stats, lazy, overrides, logger_name)
         if len(self.transforms) == 0:
             weights = []
         elif weights is None or isinstance(weights, float):
@@ -586,15 +586,15 @@ class RandomOrder(Compose):
         map_items: bool = True,
         unpack_items: bool = False,
         log_stats: bool | str | None = False,
-        lazy: bool | None = None,
+        lazy: bool | None = False,
         overrides: dict | None = None,
         logger_name: bool | str | None = False,
     ) -> None:
-        super().__init__(transforms, map_items, unpack_items, lazy, overrides)
+        super().__init__(transforms, map_items, unpack_items, log_stats, lazy, overrides, logger_name)
         self.log_stats = log_stats
         self.logger_name = logger_name
 
-    def __call__(self, input_, start=0, end=None, threading=False, lazy: str | bool | None = None):
+    def __call__(self, input_, start=0, end=None, threading=False, lazy: bool | None = None):
         if start != 0:
             raise ValueError(f"RandomOrder requires 'start' parameter to be 0 (start set to {start})")
         if end is not None:
@@ -690,12 +690,13 @@ class SomeOf(Compose):
         unpack_items: bool = False,
         log_stats: bool | str | None = False,
         *,
+        lazy: bool | None = False,
         num_transforms: int | tuple[int, int] | None = None,
         replace: bool = False,
         weights: list[int] | None = None,
         logger_name: bool | str | None = False,
     ) -> None:
-        super().__init__(transforms, map_items, unpack_items, logger_name=logger_name)
+        super().__init__(transforms, map_items, unpack_items, log_stats=log_stats, lazy=lazy, logger_name=logger_name)
         self.min_num_transforms, self.max_num_transforms = self._ensure_valid_num_transforms(num_transforms)
         self.replace = replace
         self.weights = self._normalize_probabilities(weights)
@@ -754,7 +755,7 @@ class SomeOf(Compose):
 
         return ensure_tuple(list(weights))
 
-    def __call__(self, data, start=0, end=None, threading=False, lazy: str | bool | None = None):
+    def __call__(self, data, start=0, end=None, threading=False, lazy: bool | None = None):
         if start != 0:
             raise ValueError(f"SomeOf requires 'start' parameter to be 0 (start set to {start})")
         if end is not None:
