@@ -246,6 +246,9 @@ class Compose(Randomizable, InvertibleTransform):
             defaults to `True`.
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             defaults to `False`.
+        log_stats: log errors when they occur in the processing pipeline. By default, this is set to False, which
+            disables the logger for processing pipeline errors. Setting it to None or True will enable logging to the
+            default logger name. Setting it to a string specifies the logger to which errors should be logged
         lazy: whether to enable lazy evaluation for lazy transforms. This is an optional bool that can take
             the following values. If lazy=False, lazy execution is disabled and transforms will be
             carried out on a transform by transform basis. If lazy=True, all lazy transforms will
@@ -427,6 +430,9 @@ class OneOf(Compose):
             defaults to `True`.
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             defaults to `False`.
+        log_stats: log errors when they occur in the processing pipeline. By default, this is set to False, which
+            disables the logger for processing pipeline errors. Setting it to None or True will enable logging to the
+            default logger name. Setting it to a string specifies the logger to which errors should be logged
         lazy: whether to enable lazy evaluation for lazy transforms. If True, all lazy transforms will
             be executed by accumulating changes and resampling as few times as possible. If False, transforms will be
             carried out on a transform by transform basis.
@@ -564,6 +570,9 @@ class RandomOrder(Compose):
             defaults to `True`.
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             defaults to `False`.
+        log_stats: log errors when they occur in the processing pipeline. By default, this is set to False, which
+            disables the logger for processing pipeline errors. Setting it to None or True will enable logging to the
+            default logger name. Setting it to a string specifies the logger to which errors should be logged
         lazy: whether to enable lazy evaluation for lazy transforms. If True, all lazy transforms will
             be executed by accumulating changes and resampling as few times as possible. If False, transforms will be
             carried out on a transform by transform basis.
@@ -675,6 +684,9 @@ class SomeOf(Compose):
             Defaults to `True`.
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             Defaults to `False`.
+        log_stats: log errors when they occur in the processing pipeline. By default, this is set to False, which
+            disables the logger for processing pipeline errors. Setting it to None or True will enable logging to the
+            default logger name. Setting it to a string specifies the logger to which errors should be logged
         num_transforms: a 2-tuple, int, or None. The 2-tuple specifies the minimum and maximum (inclusive) number of
             transforms to sample at each iteration. If an int is given, the lower and upper bounds are set equal.
             None sets it to `len(transforms)`. Default to `None`.
