@@ -33,9 +33,7 @@ def _no_op(x):
     return x
 
 
-def run_training_test(
-    root_dir, device="cuda:0", cachedataset=0, readers=(None, None), num_workers=4, lazy=True, options=None
-):
+def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, None), num_workers=4, lazy=True):
     print(f"test case: {locals()}")
     images = sorted(glob(os.path.join(root_dir, "img*.nii.gz")))
     segs = sorted(glob(os.path.join(root_dir, "seg*.nii.gz")))
@@ -78,7 +76,6 @@ def run_training_test(
             mt.Lambdad(keys=["img"], func=_no_op),
         ],
         lazy=lazy,
-        options=options,
         overrides=lazy_kwargs,
     )
 
@@ -157,11 +154,7 @@ def run_training_test(
                 saver(in_img)
                 saver(in_seg)
     invertible, reasons = is_tensor_invertible(batch_data)
-    if options == {"reorder": "lazy_last_nosync"}:
-        assert invertible is False, f"the output of this pipeline with options {options} should not be invertible"
-    else:
-        assert invertible is True, f"the output of this pipeline with options {options} should be invertible"
-        inverted = [inverter(b_data) for b_data in decollate_batch(batch_data)]  # expecting no error
+    inverted = [inverter(b_data) for b_data in decollate_batch(batch_data)]  # expecting no error
 
     return ops
 
@@ -201,30 +194,23 @@ class IntegrationLazyResampling(DistTestCase):
         results_expected = run_training_test(
             self.data_dir, device=self.device, cachedataset=0, readers=_readers, num_workers=_w, lazy=False
         )
-        for options in (None, {"reorder": "lazy_last_nosync"}):
-            results = run_training_test(
-                self.data_dir,
-                device=self.device,
-                cachedataset=idx,
-                readers=_readers,
-                num_workers=_w,
-                lazy=True,
-                options=options,
-            )
-            self.assertFalse(np.allclose(results, [0]))
-            self.assertFalse(np.allclose(results_expected, [0]))
-            np.testing.assert_allclose(results, results_expected)
-            lazy_files = glob(os.path.join(self.data_dir, "output", "*_True_*.nii.gz"))
-            regular_files = glob(os.path.join(self.data_dir, "output", "*_False_*.nii.gz"))
-            diffs = []
-            for a, b in zip(sorted(lazy_files), sorted(regular_files)):
-                img_lazy = mt.LoadImage(image_only=True)(a)
-                img_regular = mt.LoadImage(image_only=True)(b)
-                diff = np.size(img_lazy) - np.sum(np.isclose(img_lazy, img_regular, atol=1e-4))
-                diff_rate = diff / np.size(img_lazy)
-                diffs.append(diff_rate)
-                np.testing.assert_allclose(diff_rate, 0.0, atol=0.03)
-            print("volume diff:", diffs)
+        results = run_training_test(
+            self.data_dir, device=self.device, cachedataset=idx, readers=_readers, num_workers=_w, lazy=True
+        )
+        self.assertFalse(np.allclose(results, [0]))
+        self.assertFalse(np.allclose(results_expected, [0]))
+        np.testing.assert_allclose(results, results_expected)
+        lazy_files = glob(os.path.join(self.data_dir, "output", "*_True_*.nii.gz"))
+        regular_files = glob(os.path.join(self.data_dir, "output", "*_False_*.nii.gz"))
+        diffs = []
+        for a, b in zip(sorted(lazy_files), sorted(regular_files)):
+            img_lazy = mt.LoadImage(image_only=True)(a)
+            img_regular = mt.LoadImage(image_only=True)(b)
+            diff = np.size(img_lazy) - np.sum(np.isclose(img_lazy, img_regular, atol=1e-4))
+            diff_rate = diff / np.size(img_lazy)
+            diffs.append(diff_rate)
+            np.testing.assert_allclose(diff_rate, 0.0, atol=0.03)
+        print("volume diff:", diffs)
 
     def test_training(self):
         for i in range(4):

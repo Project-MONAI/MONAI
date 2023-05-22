@@ -23,7 +23,7 @@ from parameterized import parameterized
 
 import monai.transforms as mt
 from monai.data import DataLoader, Dataset
-from monai.transforms.compose import ExecutionOptions, execute_compose
+from monai.transforms.compose import execute_compose
 from monai.transforms.transform import Randomizable
 from monai.utils import set_determinism
 
@@ -655,136 +655,6 @@ class TestComposeExecuteWithFlags(unittest.TestCase):
                     self.assertTrue(expected[k], actual[k])
             else:
                 self.assertTrue(expected, actual)
-
-
-TEST_LAZY_COMPOSE_PIPELINE_FIX_CASES = [
-    [(mt.Flip(0), mt.Flip(1), mt.Rotate90(1), mt.Zoom(0.8), mt.NormalizeIntensity())]
-]
-
-
-class TestLazyComposePipelineFixes(unittest.TestCase):
-    @parameterized.expand(TEST_LAZY_COMPOSE_PIPELINE_FIX_CASES)
-    def test_lazy_compose_pipeline_fixes(self, pipeline):
-        data = torch.unsqueeze(torch.tensor(np.arange(12 * 16).reshape(12, 16)), dim=0)
-        c = mt.Compose(deepcopy(pipeline), lazy=True)
-        _ = c(data)
-
-
-class TNonLazy(mt.Transform):
-    def __init__(self, tag):
-        self.tag = tag
-
-    def __call__(self, data):
-        return data
-
-
-class TLazy(mt.LazyTransform):
-    def __init__(self, tag, lazy):
-        super().__init__(lazy)
-        self.tag = tag
-
-    def __call__(self, data):
-        return data
-
-
-class TApplyPending(mt.ApplyPending):
-    def __init__(self, tag):
-        super().__init__()
-        self.tag = tag
-
-
-TRANSFORM_REORDERING_TEST_CASES = [
-    (
-        [TNonLazy("a"), TLazy("lb", True), TLazy("lc", True), TApplyPending("ad"), TLazy("le", True), TNonLazy("f")],
-        {"reorder": "lazy_last"},
-        ["a", "lb", "lc", "ad", "f", "le"],
-        ["a", "lb", "lc", "ad", "f", "le"],
-    ),
-    (
-        [TNonLazy("a"), TLazy("lb", True), TLazy("lc", True), TApplyPending("ad"), TLazy("le", False), TNonLazy("f")],
-        {"reorder": "lazy_last"},
-        ["a", "lb", "lc", "ad", "le", "f"],
-        ["a", "lb", "lc", "ad", "f", "le"],
-    ),
-    (
-        [TLazy("la", True), TNonLazy("b"), TLazy("lc", True), TApplyPending("ad"), TLazy("le", True), TNonLazy("f")],
-        {"reorder": "lazy_last"},
-        ["b", "la", "lc", "ad", "f", "le"],
-        ["b", "la", "lc", "ad", "f", "le"],
-    ),
-    (
-        [TLazy("la", False), TNonLazy("b"), TLazy("lc", True), TApplyPending("ad"), TLazy("le", True), TNonLazy("f")],
-        {"reorder": "lazy_last"},
-        ["la", "b", "lc", "ad", "f", "le"],
-        ["b", "la", "lc", "ad", "f", "le"],
-    ),
-    (
-        [TLazy("la", True), TNonLazy("b"), TLazy("lc", True), TApplyPending("ad"), TLazy("le", True), TNonLazy("f")],
-        {"reorder": "lazy_last"},
-        ["b", "la", "lc", "ad", "f", "le"],
-        ["b", "la", "lc", "ad", "f", "le"],
-    ),
-    (
-        [TNonLazy("a"), TLazy("lb", True), TLazy("lc", True), TApplyPending("ad"), TLazy("le", False), TNonLazy("f")],
-        {"reorder": "lazy_last"},
-        ["a", "lb", "lc", "ad", "le", "f"],
-        ["a", "lb", "lc", "ad", "f", "le"],
-    ),
-    (
-        [TLazy("la", True), TLazy("lb", True), TNonLazy("c"), TApplyPending("ad"), TApplyPending("ae"), TNonLazy("f")],
-        {"reorder": "lazy_last"},
-        ["c", "la", "lb", "ad", "ae", "f"],
-        ["c", "la", "lb", "ad", "ae", "f"],
-    ),
-    (
-        [TNonLazy("a"), TLazy("lb", True), TLazy("lc", True), TApplyPending("ad"), TLazy("le", True), TNonLazy("f")],
-        {"reorder": "lazy_last"},
-        ["a", "lb", "lc", "ad", "f", "le"],
-        ["a", "lb", "lc", "ad", "f", "le"],
-    ),
-    (
-        [
-            TNonLazy("a"),
-            TLazy("lb", True),
-            TLazy("lc", True),
-            TApplyPending("ad"),
-            TLazy("le", True),
-            TApplyPending("af"),
-            TApplyPending("ag"),
-        ],
-        {"reorder": "lazy_last"},
-        ["a", "lb", "lc", "ad", "le", "af", "ag"],
-        ["a", "lb", "lc", "ad", "le", "af", "ag"],
-    ),
-    (
-        [TLazy("la", True), TLazy("lb", True), TNonLazy("c"), TLazy("ld", True)],
-        {"reorder": "lazy_last"},
-        ["c", "la", "lb", "ld"],
-        ["c", "la", "lb", "ld"],
-    ),
-    (
-        [TLazy("la", True), TLazy("lb", False), TNonLazy("c"), TLazy("ld", True)],
-        {"reorder": "lazy_last"},
-        ["lb", "c", "la", "ld"],
-        ["c", "la", "lb", "ld"],
-    ),
-]
-
-
-class TestTransformReordering(unittest.TestCase):
-    @parameterized.expand(TRANSFORM_REORDERING_TEST_CASES)
-    def test_transform_reordering_test_cases(self, transforms, options, lazy_enabled_expected, lazy_on_expected):
-        with self.subTest("enable lazy"):
-            c = ExecutionOptions()(transforms, lazy=None, options={"reorder": "lazy_last"})
-            reordered = [transforms[i] for i in c["indices"]]
-            actual = [t.tag for t in reordered]
-            self.assertListEqual(actual, lazy_enabled_expected)
-
-        with self.subTest("force lazy"):
-            c = ExecutionOptions()(transforms, lazy=True, options={"reorder": "lazy_last"})
-            reordered = [transforms[i] for i in c["indices"]]
-            actual = [t.tag for t in reordered]
-            self.assertListEqual(actual, lazy_on_expected)
 
 
 if __name__ == "__main__":

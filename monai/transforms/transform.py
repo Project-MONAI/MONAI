@@ -50,9 +50,8 @@ def _apply_transform(
     data: Any,
     unpack_parameters: bool = False,
     lazy: bool | None = False,
-    lazy_strategy: str | None = "in_order",
     overrides: dict | None = None,
-    logger_name: str | None = None,
+    logger_name: bool | str | None = False,
 ) -> ReturnType:
     """
     Perform a transform 'transform' on 'data', according to the other parameters specified.
@@ -93,14 +92,9 @@ def _apply_transform(
     Returns:
         ReturnType: The return type of `transform`.
     """
-    from monai.transforms.lazy.executors import apply_pending_transforms_in_order, apply_pending_transforms_out_of_order
+    from monai.transforms.lazy.executors import apply_pending_transforms_in_order
 
-    if lazy_strategy == "in_order":
-        data = apply_pending_transforms_in_order(transform, data, lazy, overrides, logger_name)
-    elif lazy_strategy == "out_of_order":
-        data = apply_pending_transforms_out_of_order(transform, data, lazy, overrides, logger_name)
-    else:
-        raise ValueError(f"'lazy_strategy' must be one of {('in_order', 'out_of_order')} but is '{lazy_strategy}")
+    data = apply_pending_transforms_in_order(transform, data, lazy, overrides, logger_name)
 
     if isinstance(data, tuple) and unpack_parameters:
         return transform(*data, lazy=lazy) if isinstance(transform, LazyTrait) else transform(*data)
@@ -113,10 +107,10 @@ def apply_transform(
     data: Any,
     map_items: bool = True,
     unpack_items: bool = False,
+    log_stats: bool | str | None = False,
     lazy: bool | None = False,
-    lazy_strategy: str = "in_order",
     overrides: dict | None = None,
-    logger_name: str | None = None,
+    logger_name: bool | str | None = False,
 ) -> list[ReturnType] | ReturnType:
     """
     Transform `data` with `transform`.
@@ -146,19 +140,19 @@ def apply_transform(
     """
     try:
         if isinstance(data, (list, tuple)) and map_items:
-            return [
-                _apply_transform(transform, item, unpack_items, lazy, lazy_strategy, overrides, logger_name)
-                for item in data
-            ]
-        return _apply_transform(transform, data, unpack_items, lazy, lazy_strategy, overrides, logger_name)
+            return [_apply_transform(transform, item, unpack_items, lazy, overrides, logger_name) for item in data]
+        return _apply_transform(transform, data, unpack_items, lazy, overrides, logger_name)
     except Exception as e:
         # if in debug mode, don't swallow exception so that the breakpoint
         # appears where the exception was raised.
         if MONAIEnvVars.debug():
             raise
-        if logger_name is not None and not isinstance(transform, transforms.compose.Compose):
+        if log_stats is not False and not isinstance(transform, transforms.compose.Compose):
             # log the input data information of exact transform in the transform chain
-            datastats = transforms.utility.array.DataStats(data_shape=False, value_range=False, name=logger_name)
+            log_stats_logger_name = log_stats if isinstance(log_stats, str) else None
+            datastats = transforms.utility.array.DataStats(
+                data_shape=False, value_range=False, name=log_stats_logger_name
+            )
             logger = logging.getLogger(datastats._logger_name)
             logger.error(f"\n=== Transform input info -- {type(transform).__name__} ===")
             if isinstance(data, (list, tuple)):

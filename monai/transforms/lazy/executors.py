@@ -22,7 +22,7 @@ from monai.transforms.lazy.functional import apply_pending
 from monai.transforms.traits import LazyTrait
 from monai.transforms.transform import MapTransform
 
-__all__ = ["apply_pending_transforms", "apply_pending_transforms_in_order", "apply_pending_transforms_out_of_order"]
+__all__ = ["apply_pending_transforms", "apply_pending_transforms_in_order"]
 
 
 def _log_pending_info(
@@ -32,10 +32,11 @@ def _log_pending_info(
     *,
     lazy: bool | None = None,
     key: str | None = None,
-    logger_name: str | None = None,
+    logger_name: bool | str | None = False,
 ):
-    if logger_name is None:
+    if logger_name is False:
         return
+    logger_name = logger_name if isinstance(logger_name, str) else "apply_pending_transforms"
     logger = get_logger(logger_name)
 
     if isinstance(transform, LazyTrait):
@@ -68,9 +69,10 @@ def _log_pending_info(
             )
 
 
-def _log_applied_info(data: Any, key=None, logger_name: str | None = None):
-    if logger_name is None:
+def _log_applied_info(data: Any, key=None, logger_name: bool | str | None = False):
+    if logger_name is False:
         return
+    logger_name = logger_name if isinstance(logger_name, str) else "apply_pending_transforms"
     logger = get_logger(logger_name)
 
     key_str = "" if key is None else f"key: '{key}', "
@@ -81,7 +83,7 @@ def apply_pending_transforms(
     data: NdarrayOrTensor | Sequence[Any, NdarrayOrTensor] | Mapping[Any, NdarrayOrTensor],
     keys: tuple | None,
     overrides: dict | None = None,
-    logger_name: str | None = None,
+    logger_name: bool | str | None = False,
 ):
     """
     apply_pending_transforms is called with either a tensor or a dictionary, some entries of which contain
@@ -139,16 +141,20 @@ def apply_pending_transforms(
 
 
 def apply_pending_transforms_in_order(
-    transform, data, lazy: bool | None = None, overrides: dict | None = None, logger_name: str | None = None
+    transform, data, lazy: bool | None = None, overrides: dict | None = None, logger_name: bool | str | None = False
 ):
     """
-    This method causes "out of order" processing of pending transforms to occur.
-
-    Out of order processing for lazy resampling only causes pending transforms to be processed when
-    an `ApplyPending`_ or `ApplyPendingd`_ transform is encountered in the pipeline.
+    This method causes "in order" processing of pending transforms to occur.
+    "in order" processing of pending transforms ensures that all pending transforms have been applied to the
+    tensor before a non-lazy transform (or lazy transform that is executing non-lazily) is carried out.
+    It ensures that no operations will be added to a metatensors's apply_operations while there are outstanding
+    pending_operations. Note that there is only one mechanism for executing lazy resampling at present but this
+    is expected to change in future releases.
 
     This method is designed to be used only in the context of implementing lazy resampling functionality. In general
-    you should not need to interact with or use this method directly.
+    you should not need to interact with or use this method directly, and its API may change without warning between
+    releases.
+
     Args:
         transform: a transform that should be evaluated to determine whether pending transforms should be applied
         data: a tensor / MetaTensor, or dictionary containing tensors / MetaTensors whose pending transforms may
@@ -177,49 +183,6 @@ def apply_pending_transforms_in_order(
         keys = transform.keys
     else:
         apply_pending = True
-
-    if apply_pending is True:
-        _log_pending_info(transform, data, "Apply pending transforms", lazy=lazy, logger_name=logger_name)
-        return apply_pending_transforms(data, keys, overrides, logger_name)
-
-    _log_pending_info(transform, data, "Accumulate pending transforms", lazy=lazy, logger_name=logger_name)
-    return data
-
-
-def apply_pending_transforms_out_of_order(
-    transform, data, lazy: bool | None = None, overrides: dict | None = None, logger_name: str | None = None
-):
-    """
-    This method causes "out of order" processing of pending transforms to occur.
-
-    Out of order processing for lazy resampling only causes pending transforms to be processed when
-    an `ApplyPending`_ or `ApplyPendingd`_ transform is encountered in the pipeline.
-
-    This method is designed to be used only in the context of implementing lazy resampling functionality. In general
-    you should not need to interact with or use this method directly.
-    Args:
-        transform: a transform that should be evaluated to determine whether pending transforms should be applied
-        data: a tensor / MetaTensor, or dictionary containing tensors / MetaTensors whose pending transforms may
-            need to be applied
-        lazy: The lazy mode that is being applied (this can be False, True or None)
-        overrides: An optional dictionary containing overrides to be applied to the pending transforms when they
-            are lazily executed. If data is a dict, it should contain a dictionary of overrides for each key that
-            needs them
-        logger_name: An optional name for a logger to be used when applying pending transforms. If None,
-            logging is suppressed.
-    Returns:
-        an object of the same type as data if pending transforms were applied, or 'data' if they were not
-
-    """
-    apply_pending = False
-    keys = None
-    if lazy is False:
-        apply_pending = True
-    elif isinstance(transform, ApplyPending):
-        apply_pending = True
-    elif isinstance(transform, ApplyPendingd):
-        apply_pending = True
-        keys = transform.keys
 
     if apply_pending is True:
         _log_pending_info(transform, data, "Apply pending transforms", lazy=lazy, logger_name=logger_name)
