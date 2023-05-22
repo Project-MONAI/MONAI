@@ -150,9 +150,7 @@ def apply_transform(
         if log_stats is not False and not isinstance(transform, transforms.compose.Compose):
             # log the input data information of exact transform in the transform chain
             if isinstance(log_stats, str):
-                datastats = transforms.utility.array.DataStats(
-                    data_shape=False, value_range=False, name=log_stats
-                )
+                datastats = transforms.utility.array.DataStats(data_shape=False, value_range=False, name=log_stats)
             else:
                 datastats = transforms.utility.array.DataStats(data_shape=False, value_range=False)
             logger = logging.getLogger(datastats._logger_name)
