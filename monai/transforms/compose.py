@@ -246,6 +246,9 @@ class Compose(Randomizable, InvertibleTransform):
             defaults to `True`.
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             defaults to `False`.
+        log_stats: log errors when they occur in the processing pipeline. By default, this is set to False, which
+            disables the logger for processing pipeline errors. Setting it to None or True will enable logging to the
+            default logger name. Setting it to a string specifies the logger to which errors should be logged
         lazy: whether to enable lazy evaluation for lazy transforms. This is an optional bool that can take
             the following values. If lazy=False, lazy execution is disabled and transforms will be
             carried out on a transform by transform basis. If lazy=True, all lazy transforms will
@@ -427,6 +430,9 @@ class OneOf(Compose):
             defaults to `True`.
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             defaults to `False`.
+        log_stats: log errors when they occur in the processing pipeline. By default, this is set to False, which
+            disables the logger for processing pipeline errors. Setting it to None or True will enable logging to the
+            default logger name. Setting it to a string specifies the logger to which errors should be logged
         lazy: whether to enable lazy evaluation for lazy transforms. If True, all lazy transforms will
             be executed by accumulating changes and resampling as few times as possible. If False, transforms will be
             carried out on a transform by transform basis.
@@ -454,7 +460,7 @@ class OneOf(Compose):
         overrides: dict | None = None,
         logger_name: bool | str = False,
     ) -> None:
-        super().__init__(transforms, map_items, unpack_items, lazy, overrides)
+        super().__init__(transforms, map_items, unpack_items, log_stats, lazy, overrides, logger_name)
         if len(self.transforms) == 0:
             weights = []
         elif weights is None or isinstance(weights, float):
@@ -564,6 +570,9 @@ class RandomOrder(Compose):
             defaults to `True`.
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             defaults to `False`.
+        log_stats: log errors when they occur in the processing pipeline. By default, this is set to False, which
+            disables the logger for processing pipeline errors. Setting it to None or True will enable logging to the
+            default logger name. Setting it to a string specifies the logger to which errors should be logged
         lazy: whether to enable lazy evaluation for lazy transforms. If True, all lazy transforms will
             be executed by accumulating changes and resampling as few times as possible. If False, transforms will be
             carried out on a transform by transform basis.
@@ -590,11 +599,11 @@ class RandomOrder(Compose):
         overrides: dict | None = None,
         logger_name: bool | str = False,
     ) -> None:
-        super().__init__(transforms, map_items, unpack_items, lazy, overrides)
+        super().__init__(transforms, map_items, unpack_items, log_stats, lazy, overrides, logger_name)
         self.log_stats = log_stats
         self.logger_name = logger_name
 
-    def __call__(self, input_, start=0, end=None, threading=False, lazy: str | bool | None = None):
+    def __call__(self, input_, start=0, end=None, threading=False, lazy: bool | None = None):
         if start != 0:
             raise ValueError(f"RandomOrder requires 'start' parameter to be 0 (start set to {start})")
         if end is not None:
@@ -675,6 +684,9 @@ class SomeOf(Compose):
             Defaults to `True`.
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             Defaults to `False`.
+        log_stats: log errors when they occur in the processing pipeline. By default, this is set to False, which
+            disables the logger for processing pipeline errors. Setting it to None or True will enable logging to the
+            default logger name. Setting it to a string specifies the logger to which errors should be logged
         num_transforms: a 2-tuple, int, or None. The 2-tuple specifies the minimum and maximum (inclusive) number of
             transforms to sample at each iteration. If an int is given, the lower and upper bounds are set equal.
             None sets it to `len(transforms)`. Default to `None`.
@@ -690,12 +702,13 @@ class SomeOf(Compose):
         unpack_items: bool = False,
         log_stats: bool | str = False,
         *,
+        lazy: bool | None = False,
         num_transforms: int | tuple[int, int] | None = None,
         replace: bool = False,
         weights: list[int] | None = None,
         logger_name: bool | str = False,
     ) -> None:
-        super().__init__(transforms, map_items, unpack_items, logger_name=logger_name)
+        super().__init__(transforms, map_items, unpack_items, log_stats=log_stats, lazy=lazy, logger_name=logger_name)
         self.min_num_transforms, self.max_num_transforms = self._ensure_valid_num_transforms(num_transforms)
         self.replace = replace
         self.weights = self._normalize_probabilities(weights)
@@ -754,7 +767,7 @@ class SomeOf(Compose):
 
         return ensure_tuple(list(weights))
 
-    def __call__(self, data, start=0, end=None, threading=False, lazy: str | bool | None = None):
+    def __call__(self, data, start=0, end=None, threading=False, lazy: bool | None = None):
         if start != 0:
             raise ValueError(f"SomeOf requires 'start' parameter to be 0 (start set to {start})")
         if end is not None:
