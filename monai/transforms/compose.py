@@ -55,8 +55,8 @@ def execute_compose(
     lazy: bool | None = False,
     overrides: dict | None = None,
     threading: bool = False,
-    log_stats: bool | str | None = False,
-    logger_name: bool | str | None = False,
+    log_stats: bool | str = False,
+    logger_name: bool | str = False,
 ) -> NdarrayOrTensor | Sequence[NdarrayOrTensor] | Mapping[Any, NdarrayOrTensor]:
     """
     ``execute_compose`` provides the implementation that the ``Compose`` class uses to execute a sequence
@@ -269,10 +269,10 @@ class Compose(Randomizable, InvertibleTransform):
         transforms: Sequence[Callable] | Callable | None = None,
         map_items: bool = True,
         unpack_items: bool = False,
-        log_stats: bool | str | None = False,
+        log_stats: bool | str = False,
         lazy: bool | None = False,
         overrides: dict | None = None,
-        logger_name: bool | str | None = False,
+        logger_name: bool | str = False,
     ) -> None:
         if transforms is None:
             transforms = []
@@ -449,10 +449,10 @@ class OneOf(Compose):
         weights: Sequence[float] | float | None = None,
         map_items: bool = True,
         unpack_items: bool = False,
-        log_stats: bool | str | None = False,
+        log_stats: bool | str = False,
         lazy: bool | None = None,
         overrides: dict | None = None,
-        logger_name: bool | str | None = False,
+        logger_name: bool | str = False,
     ) -> None:
         super().__init__(transforms, map_items, unpack_items, lazy, overrides)
         if len(self.transforms) == 0:
@@ -585,10 +585,10 @@ class RandomOrder(Compose):
         transforms: Sequence[Callable] | Callable | None = None,
         map_items: bool = True,
         unpack_items: bool = False,
-        log_stats: bool | str | None = False,
+        log_stats: bool | str = False,
         lazy: bool | None = None,
         overrides: dict | None = None,
-        logger_name: bool | str | None = False,
+        logger_name: bool | str = False,
     ) -> None:
         super().__init__(transforms, map_items, unpack_items, lazy, overrides)
         self.log_stats = log_stats
@@ -688,12 +688,12 @@ class SomeOf(Compose):
         transforms: Sequence[Callable] | Callable | None = None,
         map_items: bool = True,
         unpack_items: bool = False,
-        log_stats: bool | str | None = False,
+        log_stats: bool | str = False,
         *,
         num_transforms: int | tuple[int, int] | None = None,
         replace: bool = False,
         weights: list[int] | None = None,
-        logger_name: bool | str | None = False,
+        logger_name: bool | str = False,
     ) -> None:
         super().__init__(transforms, map_items, unpack_items, logger_name=logger_name)
         self.min_num_transforms, self.max_num_transforms = self._ensure_valid_num_transforms(num_transforms)

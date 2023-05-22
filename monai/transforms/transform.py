@@ -51,7 +51,7 @@ def _apply_transform(
     unpack_parameters: bool = False,
     lazy: bool | None = False,
     overrides: dict | None = None,
-    logger_name: bool | str | None = False,
+    logger_name: bool | str = False,
 ) -> ReturnType:
     """
     Perform a transform 'transform' on 'data', according to the other parameters specified.
@@ -107,10 +107,10 @@ def apply_transform(
     data: Any,
     map_items: bool = True,
     unpack_items: bool = False,
-    log_stats: bool | str | None = False,
+    log_stats: bool | str = False,
     lazy: bool | None = False,
     overrides: dict | None = None,
-    logger_name: bool | str | None = False,
+    logger_name: bool | str = False,
 ) -> list[ReturnType] | ReturnType:
     """
     Transform `data` with `transform`.
@@ -149,10 +149,12 @@ def apply_transform(
             raise
         if log_stats is not False and not isinstance(transform, transforms.compose.Compose):
             # log the input data information of exact transform in the transform chain
-            log_stats_logger_name = log_stats if isinstance(log_stats, str) else None
-            datastats = transforms.utility.array.DataStats(
-                data_shape=False, value_range=False, name=log_stats_logger_name
-            )
+            if isinstance(log_stats, str):
+                datastats = transforms.utility.array.DataStats(
+                    data_shape=False, value_range=False, name=log_stats
+                )
+            else:
+                datastats = transforms.utility.array.DataStats(data_shape=False, value_range=False)
             logger = logging.getLogger(datastats._logger_name)
             logger.error(f"\n=== Transform input info -- {type(transform).__name__} ===")
             if isinstance(data, (list, tuple)):

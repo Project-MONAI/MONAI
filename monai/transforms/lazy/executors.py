@@ -32,7 +32,7 @@ def _log_pending_info(
     *,
     lazy: bool | None = None,
     key: str | None = None,
-    logger_name: bool | str | None = False,
+    logger_name: bool | str = False,
 ):
     if logger_name is False:
         return
@@ -69,7 +69,7 @@ def _log_pending_info(
             )
 
 
-def _log_applied_info(data: Any, key=None, logger_name: bool | str | None = False):
+def _log_applied_info(data: Any, key=None, logger_name: bool | str = False):
     if logger_name is False:
         return
     logger_name = logger_name if isinstance(logger_name, str) else "apply_pending_transforms"
@@ -80,10 +80,10 @@ def _log_applied_info(data: Any, key=None, logger_name: bool | str | None = Fals
 
 
 def apply_pending_transforms(
-    data: NdarrayOrTensor | Sequence[Any, NdarrayOrTensor] | Mapping[Any, NdarrayOrTensor],
+    data: NdarrayOrTensor | Sequence[Any | NdarrayOrTensor] | Mapping[Any, NdarrayOrTensor],
     keys: tuple | None,
     overrides: dict | None = None,
-    logger_name: bool | str | None = False,
+    logger_name: bool | str = False,
 ):
     """
     apply_pending_transforms is called with either a tensor or a dictionary, some entries of which contain
@@ -141,7 +141,7 @@ def apply_pending_transforms(
 
 
 def apply_pending_transforms_in_order(
-    transform, data, lazy: bool | None = None, overrides: dict | None = None, logger_name: bool | str | None = False
+    transform, data, lazy: bool | None = None, overrides: dict | None = None, logger_name: bool | str = False
 ):
     """
     This method causes "in order" processing of pending transforms to occur.
