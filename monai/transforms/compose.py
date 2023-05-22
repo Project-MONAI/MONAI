@@ -361,7 +361,6 @@ class Compose(Randomizable, InvertibleTransform):
         return len(self.flatten().transforms)
 
     def __call__(self, input_, start=0, end=None, threading=False, lazy: bool | None = None):
-
         result = execute_compose(
             input_,
             transforms=self.transforms,
