@@ -86,8 +86,12 @@ def execute_compose(
             please see also :py:func:`monai.transforms.lazy.apply_pending` and ``Compose`` for more details.
         threading: whether executing is happening in a threaded environment. If set, copies are made
             of transforms that have the ``RandomizedTrait`` interface.
-        logger_name: The name of the logger that should be used during transform execution. If None, logging is
-            suppressed.
+        log_stats: log errors when they occur in the processing pipeline. By default, this is set to False, which
+            disables the logger for processing pipeline errors. Setting it to True will enable logging to the
+            default logger name. Setting it to a string specifies the logger to which errors should be logged
+        logger_name: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
+            Setting this to False disables logging. Setting it to True enables logging to the default loggers.
+            Setting a string overrides the logger name to which logging is performed.
 
     Returns:
         A tensorlike, sequence of tensorlikes or dict of tensorlists containing the result of running
@@ -247,7 +251,7 @@ class Compose(Randomizable, InvertibleTransform):
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             defaults to `False`.
         log_stats: log errors when they occur in the processing pipeline. By default, this is set to False, which
-            disables the logger for processing pipeline errors. Setting it to None or True will enable logging to the
+            disables the logger for processing pipeline errors. Setting it to True will enable logging to the
             default logger name. Setting it to a string specifies the logger to which errors should be logged
         lazy: whether to enable lazy evaluation for lazy transforms. This is an optional bool that can take
             the following values. If lazy=False, lazy execution is disabled and transforms will be
@@ -263,8 +267,9 @@ class Compose(Randomizable, InvertibleTransform):
             currently supported args are:
             {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``},
             please see also :py:func:`monai.transforms.lazy.apply_transforms` for more details.
-        logger_name: this optional parameter allows you to specify a logger by name. If this is not set
-            it defaults to 'Compose'. You can also suppress logging by setting this to None.
+        logger_name: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
+            Setting this to False disables logging. Setting it to True enables logging to the default loggers.
+            Setting a string overrides the logger name to which logging is performed.
     """
 
     def __init__(
@@ -445,8 +450,9 @@ class OneOf(Compose):
             currently supported args are:
             {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``},
             please see also :py:func:`monai.transforms.lazy.apply_transforms` for more details.
-        logger_name: this optional parameter allows you to specify a logger by name. If this is not set
-            it defaults to 'OneOf'. You can also suppress logging by setting this to None.
+        logger_name: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
+            Setting this to False disables logging. Setting it to True enables logging to the default loggers.
+            Setting a string overrides the logger name to which logging is performed.
     """
 
     def __init__(
@@ -571,7 +577,7 @@ class RandomOrder(Compose):
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             defaults to `False`.
         log_stats: log errors when they occur in the processing pipeline. By default, this is set to False, which
-            disables the logger for processing pipeline errors. Setting it to None or True will enable logging to the
+            disables the logger for processing pipeline errors. Setting it to True will enable logging to the
             default logger name. Setting it to a string specifies the logger to which errors should be logged
         lazy: whether to enable lazy evaluation for lazy transforms. If True, all lazy transforms will
             be executed by accumulating changes and resampling as few times as possible. If False, transforms will be
@@ -585,8 +591,9 @@ class RandomOrder(Compose):
             currently supported args are:
             {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``},
             please see also :py:func:`monai.transforms.lazy.apply_transforms` for more details.
-        logger_name: this optional parameter allows you to specify a logger by name. If this is not set
-            it defaults to 'Compose'. You can also suppress logging by setting this to None.
+        logger_name: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
+            Setting this to False disables logging. Setting it to True enables logging to the default loggers.
+            Setting a string overrides the logger name to which logging is performed.
     """
 
     def __init__(
@@ -685,14 +692,16 @@ class SomeOf(Compose):
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             Defaults to `False`.
         log_stats: log errors when they occur in the processing pipeline. By default, this is set to False, which
-            disables the logger for processing pipeline errors. Setting it to None or True will enable logging to the
+            disables the logger for processing pipeline errors. Setting it to True will enable logging to the
             default logger name. Setting it to a string specifies the logger to which errors should be logged
         num_transforms: a 2-tuple, int, or None. The 2-tuple specifies the minimum and maximum (inclusive) number of
             transforms to sample at each iteration. If an int is given, the lower and upper bounds are set equal.
             None sets it to `len(transforms)`. Default to `None`.
         replace: whether to sample with replacement. Defaults to `False`.
         weights: weights to use in for sampling transforms. Will be normalized to 1. Default: None (uniform).
-        logger_name: the name of the logger to use when logging output.
+        logger_name: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
+            Setting this to False disables logging. Setting it to True enables logging to the default loggers.
+            Setting a string overrides the logger name to which logging is performed.
     """
 
     def __init__(
