@@ -18,7 +18,7 @@ from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
 from contextlib import contextmanager
 from functools import lru_cache, wraps
 from inspect import getmembers, isclass
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import numpy as np
 import torch
@@ -29,7 +29,7 @@ from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 from monai.networks.layers import GaussianFilter
 from monai.networks.utils import meshgrid_ij
 
-# from monai.transforms.compose import Compose, OneOf
+from monai.transforms.compose import Compose
 from monai.transforms.transform import MapTransform, Transform, apply_transform
 from monai.transforms.utils_pytorch_numpy_unification import (
     any_np_pt,
@@ -67,9 +67,6 @@ from monai.utils import (
 )
 from monai.utils.enums import TransformBackends
 from monai.utils.type_conversion import convert_data_type, convert_to_cupy, convert_to_dst_type, convert_to_tensor
-
-if TYPE_CHECKING:
-    from monai.transforms.compose import Compose
 
 measure, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
 morphology, has_morphology = optional_import("skimage.morphology")
