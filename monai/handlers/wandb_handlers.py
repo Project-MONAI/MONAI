@@ -79,8 +79,8 @@ class WandbStatsHandler:
                 when every iteration completed. The default behavior is to print loss from output[0] as
                 output is a decollated list and we replicated loss value for every item of the decollated
                 list. `engine.state` and `output_transform` inherit from the
-                ignite concept: https://pytorch.org/ignite/concepts.html#state, explanation and usage
-                example are in the tutorial:
+                ignite concept: https://pytorch.org/ignite/generated/ignite.engine.events.State.html,
+                explanation and usage example are in the tutorial:
                 https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
             global_epoch_transform: A callable that is used to customize global epoch number. For example,
                 in evaluation, the evaluator engine might want to use trainer engines epoch number when
