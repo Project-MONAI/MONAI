@@ -672,7 +672,7 @@ class RandScaleIntensityFixedMeand(RandomizableTransform, MapTransform):
 
     def set_random_state(
         self, seed: int | None = None, state: np.random.RandomState | None = None
-    ) -> "RandScaleIntensityFixedMean":
+    ) -> RandScaleIntensityFixedMean:
         super().set_random_state(seed, state)
         self.scaler.set_random_state(seed, state)
         return self
