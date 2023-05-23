@@ -85,7 +85,7 @@ class FocalLoss(_Loss):
                 The value should be in [0, 1]. Defaults to None.
             weight: weights to apply to the voxels of each class. If None no weights are applied.
                 The input can be a single value (same weight for all classes), a sequence of values (the length
-                of the sequence should be the same as the number of classes. If not ``include_background``, 
+                of the sequence should be the same as the number of classes. If not ``include_background``,
                 the number of classes should not include the background category class 0).
                 The value/values should be no less than 0. Defaults to None.
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
@@ -172,7 +172,7 @@ class FocalLoss(_Loss):
                 if class_weight.shape[0] != num_of_classes:
                     raise ValueError(
                         """the length of the `weight` sequence should be the same as the number of classes.
-                        If `include_background=False`, the weight should not include 
+                        If `include_background=False`, the weight should not include
                         the background category class 0."""
                     )
             if class_weight.min() < 0:
@@ -221,7 +221,7 @@ def softmax_focal_loss(
         broadcast_dims = [-1] + [1] * len(target.shape[2:])
         alpha_fac = alpha_fac.view(broadcast_dims)
         loss = alpha_fac * loss
-    
+
     return loss
 
 def sigmoid_focal_loss(
