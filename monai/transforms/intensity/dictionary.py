@@ -639,7 +639,7 @@ class RandScaleIntensityFixedMeand(RandomizableTransform, MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        factors: Sequence[float, float] | float,
+        factors: Sequence[float] | float,
         fixed_mean: bool = True,
         preserve_range: bool = False,
         prob: float = 0.1,
@@ -672,7 +672,7 @@ class RandScaleIntensityFixedMeand(RandomizableTransform, MapTransform):
 
     def set_random_state(
         self, seed: int | None = None, state: np.random.RandomState | None = None
-    ) -> RandScaleIntensityFixedMean:
+    ) -> RandScaleIntensityFixedMeand:
         super().set_random_state(seed, state)
         self.scaler.set_random_state(seed, state)
         return self
