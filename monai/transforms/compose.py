@@ -37,7 +37,6 @@ from monai.transforms.transform import (  # noqa: F401
     Transform,
     apply_transform,
 )
-from monai.transforms.utils import is_tensor_invertible
 from monai.utils import MAX_SEED, TraceKeys, ensure_tuple, get_seed
 
 logger = get_logger(__name__)
@@ -412,6 +411,7 @@ class Compose(Randomizable, InvertibleTransform):
 
     @staticmethod
     def _raise_if_tensor_is_not_invertible(data: Any):
+        from monai.transforms.utils import is_tensor_invertible
         invertible, reasons = is_tensor_invertible(data)
 
         if invertible is False:
