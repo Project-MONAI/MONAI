@@ -57,6 +57,7 @@ class WandbStatsHandler:
         global_epoch_transform: Callable = lambda x: x,
         state_attributes: Sequence[str] | None = None,
         tag_name: str = DEFAULT_TAG,
+        **kwargs,
     ):
         """
         Args:
@@ -89,7 +90,7 @@ class WandbStatsHandler:
             tag_name: When iteration output is a scalar, tag_name is used to plot, defaults to `'Loss'`.
         """
         if wandb.run is None:
-            raise wandb.Error("You must call `wandb.init()` before using `WandbStatsHandler()`")
+            wandb.init(**kwargs)
 
         self.iteration_log = iteration_log
         self.epoch_log = epoch_log
