@@ -412,6 +412,7 @@ class Compose(Randomizable, InvertibleTransform):
     @staticmethod
     def _raise_if_tensor_is_not_invertible(data: Any):
         from monai.transforms.utils import is_tensor_invertible
+
         invertible, reasons = is_tensor_invertible(data)
 
         if invertible is False:
