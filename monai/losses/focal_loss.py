@@ -212,8 +212,8 @@ def softmax_focal_loss(
     where p_i = exp(s_i) / sum_j exp(s_j), t is the target (ground truth) class, and
     s_j is the unnormalized score for class j.
     """
-    pt = input.softmax(1)
-    loss: torch.Tensor = - (1 - pt).pow(gamma) * input.log_softmax(1) * target
+    input_ls = input.log_softmax(1)
+    loss: torch.Tensor = - (1 - input_ls.exp()).pow(gamma) * input_ls * target
 
     if alpha is not None:
         # (1-alpha) for the background class and alpha for the other classes
