@@ -15,6 +15,7 @@ import unittest
 
 import numpy as np
 from parameterized import parameterized
+
 from monai.transforms import RandScaleIntensityFixedMean
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
