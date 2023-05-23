@@ -245,7 +245,7 @@ def sigmoid_focal_loss(
     # 1-sigmoid(i) if t==1; sigmoid(i) if t==0 <=>
     # 1-p if t==1; p if t==0 <=>
     # pfac, that is, the term (1 - pt)
-    invprobs = F.logsigmoid(-input * (target * 2 - 1)) # reduced chance of overflow
+    invprobs = F.logsigmoid(-input * (target * 2 - 1))  # reduced chance of overflow
     # (pfac.log() * gamma).exp() <=>
     # pfac.log().exp() ^ gamma <=>
     # pfac ^ gamma
