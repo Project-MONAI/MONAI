@@ -317,6 +317,18 @@ Intensity
     :members:
     :special-members: __call__
 
+`ScaleIntensityFixedMean`
+"""""""""""""""""""""""""
+.. autoclass:: ScaleIntensityFixedMean
+    :members:
+    :special-members: __call__
+
+`RandScaleIntensityFixedMean`
+"""""""""""""""""""""""""""""
+.. autoclass:: RandScaleIntensityFixedMean
+    :members:
+    :special-members: __call__
+
 `NormalizeIntensity`
 """"""""""""""""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/NormalizeIntensity.png
@@ -1372,6 +1384,12 @@ Intensity (Dict)
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandScaleIntensityd.png
     :alt: example of RandScaleIntensityd
 .. autoclass:: RandScaleIntensityd
+    :members:
+    :special-members: __call__
+
+`RandScaleIntensityFixedMeand`
+"""""""""""""""""""""""""""""""
+.. autoclass:: RandScaleIntensityFixedMeand
     :members:
     :special-members: __call__
 
