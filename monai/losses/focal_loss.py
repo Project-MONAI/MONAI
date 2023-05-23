@@ -190,7 +190,7 @@ class FocalLoss(_Loss):
             # parameterize if necessary. (Or justify why the mean should be there)
             average_spatial_dims = True
             if average_spatial_dims:
-                loss = loss.mean(dim=target.shape[2:])
+                loss = loss.mean(dim=list(range(2, len(target.shape))))
             loss = loss.sum()
         elif self.reduction == LossReduction.MEAN.value:
             loss = loss.mean()
