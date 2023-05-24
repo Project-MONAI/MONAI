@@ -280,9 +280,7 @@ class SlidingWindowSplitter(Splitter):
             if is_start_padded:
                 location = tuple(loc - p for loc, p in zip(location, pad_size[1::2]))
             # filter patch and yield
-            if self.filter_fn is None:
-                yield patch, location
-            elif self.filter_fn(patch, location):
+            if self.filter_fn is None or self.filter_fn(patch, location):
                 yield patch, location
 
 
@@ -388,29 +386,6 @@ class WSISlidingWindowSplitter(SlidingWindowSplitter):
         level = self.reader_kwargs.get("level", 0)
         return self.reader.get_size(wsi, level)
 
-    def get_padded_shape(self, inputs: Any) -> tuple:
-        """
-        Return the padded spatial shape covered by the output split patches.
-        If no padding is applied to the input shape, this will be the same as the input spatial shape.
-
-        Args:
-            inputs: either a tensor of shape BCHW[D], representing a batch of images,
-                or a filename (str) or list of filenames to the image(s).
-
-        Returns:
-            tuple: the padded spatial shape
-
-        """
-        spatial_shape = self.get_input_shape(inputs)
-        if not self.pad_mode:
-            return spatial_shape
-        spatial_ndim = len(spatial_shape)
-        patch_size, overlap, offset = self._get_valid_shape_parameters(spatial_shape)
-        pad_size, _ = self._calculate_pad_size(spatial_shape, spatial_ndim, patch_size, offset, overlap)
-        padded_spatial_shape = tuple(ss + ps + pe for ss, ps, pe in zip(spatial_shape, pad_size[1::2], pad_size[::2]))
-
-        return padded_spatial_shape
-
     def __call__(self, inputs: PathLike | Sequence[PathLike]) -> Iterable[tuple[torch.Tensor, Sequence[int]]]:
         """Split the input tensor into patches and return patches and locations.
 
@@ -456,7 +431,5 @@ class WSISlidingWindowSplitter(SlidingWindowSplitter):
             if is_start_padded:
                 location = tuple(loc - p for loc, p in zip(location, pad_size[1::2]))
             # filter patch and yield
-            if self.filter_fn is None:
-                yield patch, location
-            elif self.filter_fn(patch, location):
+            if self.filter_fn is None or self.filter_fn(patch, location):
                 yield patch, location
