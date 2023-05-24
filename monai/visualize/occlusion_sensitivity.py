@@ -9,8 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from collections.abc import Sequence
-from typing import Callable, Optional, Tuple, Union
+from __future__ import annotations
+
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any
 
 import numpy as np
 import torch
@@ -84,16 +86,16 @@ class OcclusionSensitivity:
     def __init__(
         self,
         nn_module: nn.Module,
-        pad_val: Optional[float] = None,
-        mask_size: Union[int, Sequence] = 16,
+        pad_val: float | None = None,
+        mask_size: int | Sequence = 16,
         n_batch: int = 16,
-        stride: Union[int, Sequence] = 1,
+        stride: int | Sequence = 1,
         per_channel: bool = True,
-        upsampler: Optional[Callable] = default_upsampler,
+        upsampler: Callable | None = default_upsampler,
         verbose: bool = True,
-        mode: Union[str, float, Callable] = "gaussian",
+        mode: str | float | Callable = "gaussian",
         overlap: float = 0.25,
-        activate: Union[bool, Callable] = True,
+        activate: bool | Callable = True,
     ) -> None:
         """
         Occlusion sensitivity constructor.
@@ -132,13 +134,13 @@ class OcclusionSensitivity:
         self.mode = mode
 
     @staticmethod
-    def constant_occlusion(x: torch.Tensor, val: float, mask_size: Sequence) -> Tuple[float, torch.Tensor]:
+    def constant_occlusion(x: torch.Tensor, val: float, mask_size: Sequence) -> tuple[float, torch.Tensor]:
         """Occlude with a constant occlusion. Multiplicative is zero, additive is constant value."""
         ones = torch.ones((*x.shape[:2], *mask_size), device=x.device, dtype=x.dtype)
         return 0, ones * val
 
     @staticmethod
-    def gaussian_occlusion(x: torch.Tensor, mask_size, sigma=0.25) -> Tuple[torch.Tensor, float]:
+    def gaussian_occlusion(x: torch.Tensor, mask_size: Sequence, sigma: float = 0.25) -> tuple[torch.Tensor, float]:
         """
         For Gaussian occlusion, Multiplicative is 1-Gaussian, additive is zero.
         Default sigma of 0.25 empirically shown to give reasonable kernel, see here:
@@ -165,12 +167,12 @@ class OcclusionSensitivity:
         cropped_grid: torch.Tensor,
         nn_module: nn.Module,
         x: torch.Tensor,
-        mul: Union[torch.Tensor, float],
-        add: Union[torch.Tensor, float],
+        mul: torch.Tensor | float,
+        add: torch.Tensor | float,
         mask_size: Sequence,
         occ_mode: str,
-        activate: Union[bool, Callable],
-        module_kwargs,
+        activate: bool | Callable,
+        module_kwargs: Mapping[str, Any],
     ) -> torch.Tensor:
         """
         Predictor function to be passed to the sliding window inferer. Takes a cropped meshgrid,
@@ -239,7 +241,7 @@ class OcclusionSensitivity:
     @staticmethod
     def crop_meshgrid(
         grid: MetaTensor, b_box: Sequence, mask_size: Sequence
-    ) -> Tuple[MetaTensor, SpatialCrop, Sequence]:
+    ) -> tuple[MetaTensor, SpatialCrop, Sequence]:
         """Crop the meshgrid so we only perform occlusion sensitivity on a subsection of the image."""
         # distance from center of mask to edge is -1 // 2.
         mask_edge = [(m - 1) // 2 for m in mask_size]
@@ -264,8 +266,8 @@ class OcclusionSensitivity:
         return cropped, cropper, mask_size
 
     def __call__(
-        self, x: torch.Tensor, b_box: Optional[Sequence] = None, **kwargs
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        self, x: torch.Tensor, b_box: Sequence | None = None, **kwargs: Any
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Args:
             x: Image to use for inference. Should be a tensor consisting of 1 batch.
@@ -311,8 +313,8 @@ class OcclusionSensitivity:
             raise ValueError(f"Image (spatial shape) {grid.shape[2:]} should be bigger than mask {mask_size}.")
 
         # get additive and multiplicative factors if they are unchanged for all patches (i.e., not mean_patch)
-        add: Optional[Union[float, torch.Tensor]]
-        mul: Optional[Union[float, torch.Tensor]]
+        add: float | torch.Tensor | None
+        mul: float | torch.Tensor | None
         # multiply by 0, add value
         if isinstance(self.mode, float):
             mul, add = self.constant_occlusion(x, self.mode, mask_size)

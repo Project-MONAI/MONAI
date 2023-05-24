@@ -9,57 +9,49 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
+import numpy as np
 import torch
-from parameterized import parameterized
 
 from monai.losses.ssim_loss import SSIMLoss
+from monai.utils import set_determinism
 
-x = torch.ones([1, 1, 10, 10]) / 2
-y1 = torch.ones([1, 1, 10, 10]) / 2
-y2 = torch.zeros([1, 1, 10, 10])
-data_range = x.max().unsqueeze(0)
-TESTS2D = []
-for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cpu"]:
-    TESTS2D.append((x.to(device), y1.to(device), data_range.to(device), torch.tensor(1.0).unsqueeze(0).to(device)))
-    TESTS2D.append((x.to(device), y2.to(device), data_range.to(device), torch.tensor(0.0).unsqueeze(0).to(device)))
-
-x = torch.ones([1, 1, 10, 10, 10]) / 2
-y1 = torch.ones([1, 1, 10, 10, 10]) / 2
-y2 = torch.zeros([1, 1, 10, 10, 10])
-data_range = x.max().unsqueeze(0)
-TESTS3D = []
-for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cpu"]:
-    TESTS3D.append((x.to(device), y1.to(device), data_range.to(device), torch.tensor(1.0).unsqueeze(0).to(device)))
-    TESTS3D.append((x.to(device), y2.to(device), data_range.to(device), torch.tensor(0.0).unsqueeze(0).to(device)))
-
-x = torch.ones([1, 1, 10, 10]) / 2
-y = torch.ones([1, 1, 10, 10]) / 2
-y.requires_grad_(True)
-data_range = x.max().unsqueeze(0)
-TESTS2D_GRAD = []
-for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cpu"]:
-    TESTS2D_GRAD.append([x.to(device), y.to(device), data_range.to(device)])
+# from tests.utils import test_script_save
 
 
 class TestSSIMLoss(unittest.TestCase):
-    @parameterized.expand(TESTS2D)
-    def test2d(self, x, y, drange, res):
-        result = 1 - SSIMLoss(spatial_dims=2)(x, y, drange)
-        self.assertTrue(isinstance(result, torch.Tensor))
-        self.assertTrue(torch.abs(res - result).item() < 0.001)
+    def test_shape(self):
+        set_determinism(0)
+        preds = torch.abs(torch.randn(2, 3, 16, 16))
+        target = torch.abs(torch.randn(2, 3, 16, 16))
+        preds = preds / preds.max()
+        target = target / target.max()
 
-    @parameterized.expand(TESTS2D_GRAD)
-    def test_grad(self, x, y, drange):
-        result = 1 - SSIMLoss(spatial_dims=2)(x, y, drange)
-        self.assertTrue(result.requires_grad)
+        result = SSIMLoss(spatial_dims=2, data_range=1.0, kernel_type="gaussian", reduction="mean").forward(
+            preds, target
+        )
+        expected_val = 0.9546
+        np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, rtol=1e-4)
 
-    @parameterized.expand(TESTS3D)
-    def test3d(self, x, y, drange, res):
-        result = 1 - SSIMLoss(spatial_dims=3)(x, y, drange)
-        self.assertTrue(isinstance(result, torch.Tensor))
-        self.assertTrue(torch.abs(res - result).item() < 0.001)
+        result = SSIMLoss(spatial_dims=2, data_range=1.0, kernel_type="gaussian", reduction="sum").forward(
+            preds, target
+        )
+        expected_val = 1.9092
+        np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, rtol=1e-4)
+
+        result = SSIMLoss(spatial_dims=2, data_range=1.0, kernel_type="gaussian", reduction="none").forward(
+            preds, target
+        )
+        expected_val = [[0.9121], [0.9971]]
+        np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, rtol=1e-4)
+
+    # def test_script(self):
+    #     loss = SSIMLoss(spatial_dims=2)
+    #     test_input = torch.ones(2, 2, 16, 16)
+    #     test_script_save(loss, test_input, test_input)
 
 
 if __name__ == "__main__":

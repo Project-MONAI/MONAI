@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
 from typing import Any
 
@@ -88,7 +90,7 @@ class LabelQualityScore(Metric):
         self.include_background = include_background
         self.scalar_reduction = scalar_reduction
 
-    def __call__(self, y_pred: Any, y: Any):
+    def __call__(self, y_pred: Any, y: Any) -> torch.Tensor | None:
         """
         Args:
             y_pred: Predicted segmentation, typically segmentation model output.
@@ -109,7 +111,7 @@ def compute_variance(
     spatial_map: bool = False,
     scalar_reduction: str = "mean",
     threshold: float = 0.0005,
-):
+) -> torch.Tensor | None:
     """
     Args:
         y_pred: [N, C, H, W, D] or [N, C, H, W] or [N, C, H] where N is repeats, C is channels and H, W, D stand for
@@ -162,7 +164,7 @@ def compute_variance(
 
 def label_quality_score(
     y_pred: torch.Tensor, y: torch.Tensor, include_background: bool = True, scalar_reduction: str = "mean"
-):
+) -> torch.Tensor | None:
     """
     The assumption is that the DL model makes better predictions than the provided label quality, hence the difference
     can be treated as a label quality score

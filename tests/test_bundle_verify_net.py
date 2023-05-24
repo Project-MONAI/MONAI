@@ -9,13 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
 
 from parameterized import parameterized
 
-from monai.bundle import ConfigParser
+from monai.bundle import ConfigParser, verify_net_in_out
 from tests.utils import command_line_tests, skip_if_no_cuda, skip_if_windows
 
 TEST_CASE_1 = [
@@ -52,6 +54,19 @@ class TestVerifyNetwork(unittest.TestCase):
             cmd += ["--_meta_#network_data_format#inputs#image#dtype", "float16"]
             cmd += ["--_meta_#network_data_format#outputs#pred#dtype", "float16"]
             command_line_tests(cmd)
+
+    @parameterized.expand([TEST_CASE_1])
+    @skip_if_no_cuda
+    def test_verify_fp16_extra_forward_args(self, meta_file, config_file):
+        verify_net_in_out(
+            net_id="network_def",
+            meta_file=meta_file,
+            config_file=config_file,
+            n=4,
+            any=16,
+            extra_forward_args={"extra_arg1": 1, "extra_arg2": 2},
+            **{"network_def#_target_": "tests.testing_data.bundle_test_network.TestMultiInputUNet"},
+        )
 
 
 if __name__ == "__main__":

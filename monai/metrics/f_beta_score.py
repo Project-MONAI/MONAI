@@ -9,11 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import torch
 
-from monai.metrics.utils import do_metric_reduction, ignore_background, is_binary_tensor
+from monai.metrics.utils import do_metric_reduction, ignore_background
 from monai.utils import MetricReduction
 
 from .metric import CumulativeIterationMetric
@@ -24,7 +26,7 @@ class FBetaScore(CumulativeIterationMetric):
         self,
         beta: float = 1.0,
         include_background: bool = True,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        reduction: MetricReduction | str = MetricReduction.MEAN,
         get_not_nans: bool = False,
     ) -> None:
         super().__init__()
@@ -33,21 +35,20 @@ class FBetaScore(CumulativeIterationMetric):
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
-        is_binary_tensor(y_pred, "y_pred")
-        is_binary_tensor(y, "y")
-
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         if y_pred.ndimension() < 2:
             raise ValueError("y_pred should have at least two dimensions.")
 
         return get_f_beta_score(y_pred=y_pred, y=y, include_background=self.include_background)
 
-    def aggregate(self, compute_sample: bool = False, reduction: Union[MetricReduction, str, None] = None):
+    def aggregate(
+        self, compute_sample: bool = False, reduction: MetricReduction | str | None = None
+    ) -> Sequence[torch.Tensor | tuple[torch.Tensor, torch.Tensor]]:
         data = self.get_buffer()
         if not isinstance(data, torch.Tensor):
             raise ValueError("the data to aggregate must be PyTorch Tensor.")
 
-        results = []
+        results: list[torch.Tensor | tuple[torch.Tensor, torch.Tensor]] = []
         f, not_nans = do_metric_reduction(data, reduction or self.reduction)
         f = compute_f_beta_score(f, self.beta)
         if self.get_not_nans:
@@ -58,7 +59,7 @@ class FBetaScore(CumulativeIterationMetric):
         return results
 
 
-def get_f_beta_score(y_pred: torch.Tensor, y: torch.Tensor, include_background: bool = True):
+def get_f_beta_score(y_pred: torch.Tensor, y: torch.Tensor, include_background: bool = True) -> torch.Tensor:
     if not include_background:
         y_pred, y = ignore_background(y_pred=y_pred, y=y)
 
@@ -88,7 +89,7 @@ def get_f_beta_score(y_pred: torch.Tensor, y: torch.Tensor, include_background: 
     return torch.stack([tp, fp, tn, fn], dim=-1)
 
 
-def compute_f_beta_score(confusion_matrix: torch.Tensor, beta: float):
+def compute_f_beta_score(confusion_matrix: torch.Tensor, beta: float) -> torch.Tensor:
     input_dim = confusion_matrix.ndimension()
     if input_dim == 1:
         confusion_matrix = confusion_matrix.unsqueeze(dim=0)

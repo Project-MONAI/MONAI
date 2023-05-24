@@ -135,6 +135,10 @@ tests/testing_data/endo.mp4
 tests/testing_data/ultrasound.avi
 tests/testing_data/train_data_stats.yaml
 tests/testing_data/eval_data_stats.yaml
+tests/testing_data/train_data_stats_by_case.yaml
+tests/testing_data/eval_data_stats_by_case.yaml
+tests/testing_data/CT_2D_head_fixed.mha
+tests/testing_data/CT_2D_head_moving.mha
 
 # clang format tool
 .clang-format-bin/
@@ -145,3 +149,4 @@ tests/testing_data/eval_data_stats.yaml
 
 # profiling results
 *.prof
+runs

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -18,9 +20,11 @@ from monai.transforms import CenterScaleCropd
 from tests.croppers import CropTest
 
 TESTS = [
-    [{"keys": "img", "roi_scale": [0.6, 0.3, -1]}, (3, 3, 3, 3), (3, 2, 1, 3)],
-    [{"keys": "img", "roi_scale": 0.6}, (3, 3, 3, 3), (3, 2, 2, 2)],
-    [{"keys": "img", "roi_scale": 0.5}, (3, 3, 3, 3), (3, 2, 2, 2)],
+    [{"keys": "img", "roi_scale": [0.6, 0.3, -1]}, (3, 3, 3, 3), (3, 2, 1, 3), False],
+    [{"keys": "img", "roi_scale": [0.6, 0.3, -1]}, (3, 3, 1, 3), (3, 2, 1, 3), True],
+    [{"keys": "img", "roi_scale": [0.6, 0.3, -1]}, (3, 3, 4, 3), (3, 2, 2, 3), True],
+    [{"keys": "img", "roi_scale": 0.6}, (3, 3, 3, 3), (3, 2, 2, 2), True],
+    [{"keys": "img", "roi_scale": 0.5}, (3, 3, 3, 3), (3, 2, 2, 2), True],
 ]
 
 TEST_VALUES = [
@@ -36,12 +40,16 @@ class TestCenterScaleCropd(CropTest):
     Cropper = CenterScaleCropd
 
     @parameterized.expand(TESTS)
-    def test_shape(self, input_param, input_shape, expected_shape):
+    def test_shape(self, input_param, input_shape, expected_shape, _):
         self.crop_test(input_param, input_shape, expected_shape)
 
     @parameterized.expand(TEST_VALUES)
     def test_value(self, input_param, input_arr, expected_arr):
         self.crop_test_value(input_param, input_arr, expected_arr)
+
+    @parameterized.expand(TESTS)
+    def test_pending_ops(self, input_param, input_shape, _, align_corners):
+        self.crop_test_pending_ops(input_param, input_shape, align_corners)
 
 
 if __name__ == "__main__":

@@ -9,8 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .data import MaskedInferenceWSIDataset, PatchWSIDataset, SmartCachePatchWSIDataset
-from .handlers import ProbMapProducer
+from __future__ import annotations
+
 from .losses import HoVerNetLoss
 from .metrics import LesionFROC
 from .transforms.stain.array import ExtractHEStains, NormalizeHEStains

@@ -88,6 +88,26 @@ Generic Interfaces
 .. autoclass:: RandomOrder
     :members:
 
+`SomeOf`
+^^^^^^^^^^^^^
+.. autoclass:: SomeOf
+    :members:
+
+Functionals
+-----------
+
+Crop and Pad (functional)
+^^^^^^^^^^^^^^^^^^^^^^^^^
+.. automodule:: monai.transforms.croppad.functional
+    :members:
+
+Spatial (functional)
+^^^^^^^^^^^^^^^^^^^^
+.. automodule:: monai.transforms.spatial.functional
+    :members:
+
+.. currentmodule:: monai.transforms
+
 Vanilla Transforms
 ------------------
 
@@ -2191,3 +2211,9 @@ Utilities
 
 .. automodule:: monai.transforms.utils_pytorch_numpy_unification
     :members:
+
+Lazy
+----
+.. automodule:: monai.transforms.lazy
+    :members:
+    :imported-members:

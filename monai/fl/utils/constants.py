@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from monai.utils.enums import StrEnum
 
 
@@ -47,20 +49,6 @@ class FlStatistics(StrEnum):
     FAIL_COUNT = "fail_count"
     TOTAL_DATA = "total_data"
     FEATURE_NAMES = "feature_names"
-
-
-class RequiredBundleKeys(StrEnum):
-    BUNDLE_ROOT = "bundle_root"
-
-
-class BundleKeys(StrEnum):
-    TRAINER = "train#trainer"
-    EVALUATOR = "validate#evaluator"
-    TRAIN_TRAINER_MAX_EPOCHS = "train#trainer#max_epochs"
-    VALIDATE_HANDLERS = "validate#handlers"
-    DATASET_DIR = "dataset_dir"
-    TRAIN_DATA = "train#dataset#data"
-    VALID_DATA = "validate#dataset#data"
 
 
 class FiltersType(StrEnum):

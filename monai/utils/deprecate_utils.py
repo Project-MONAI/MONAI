@@ -9,12 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import inspect
 import sys
 import warnings
+from collections.abc import Callable
 from functools import wraps
 from types import FunctionType
-from typing import Any, Callable, Optional, TypeVar
+from typing import Any, TypeVar
 
 from monai.utils.module import version_leq
 
@@ -36,11 +39,11 @@ def warn_deprecated(obj, msg, warning_category=FutureWarning):
 
 
 def deprecated(
-    since: Optional[str] = None,
-    removed: Optional[str] = None,
+    since: str | None = None,
+    removed: str | None = None,
     msg_suffix: str = "",
     version_val: str = __version__,
-    warning_category=FutureWarning,
+    warning_category: type[FutureWarning] = FutureWarning,
 ) -> Callable[[T], T]:
     """
     Marks a function or class as deprecated. If `since` is given this should be a version at or earlier than the
@@ -118,13 +121,13 @@ def deprecated(
 
 
 def deprecated_arg(
-    name,
-    since: Optional[str] = None,
-    removed: Optional[str] = None,
+    name: str,
+    since: str | None = None,
+    removed: str | None = None,
     msg_suffix: str = "",
     version_val: str = __version__,
-    new_name: Optional[str] = None,
-    warning_category=FutureWarning,
+    new_name: str | None = None,
+    warning_category: type[FutureWarning] = FutureWarning,
 ) -> Callable[[T], T]:
     """
     Marks a particular named argument of a callable as deprecated. The same conditions for `since` and `removed` as
@@ -171,7 +174,7 @@ def deprecated_arg(
     else:
         # compare the numbers
         is_deprecated = since is not None and version_leq(since, version_val)
-        is_removed = removed is not None and version_leq(removed, version_val)
+        is_removed = removed is not None and version_val != f"{sys.maxsize}" and version_leq(removed, version_val)
 
     def _decorator(func):
         argname = f"{func.__module__} {func.__qualname__}:{name}"
@@ -228,11 +231,11 @@ def deprecated_arg_default(
     name: str,
     old_default: Any,
     new_default: Any,
-    since: Optional[str] = None,
-    replaced: Optional[str] = None,
+    since: str | None = None,
+    replaced: str | None = None,
     msg_suffix: str = "",
     version_val: str = __version__,
-    warning_category=FutureWarning,
+    warning_category: type[FutureWarning] = FutureWarning,
 ) -> Callable[[T], T]:
     """
     Marks a particular arguments default of a callable as deprecated. It is changed from `old_default` to `new_default`
@@ -281,21 +284,21 @@ def deprecated_arg_default(
     else:
         # compare the numbers
         is_deprecated = since is not None and version_leq(since, version_val)
-        is_replaced = replaced is not None and version_leq(replaced, version_val)
+        is_replaced = replaced is not None and version_val != f"{sys.maxsize}" and version_leq(replaced, version_val)
 
     def _decorator(func):
         argname = f"{func.__module__} {func.__qualname__}:{name}"
 
-        msg_prefix = f"Default of argument `{name}`"
+        msg_prefix = f" Current default value of argument `{name}={old_default}`"
 
         if is_replaced:
-            msg_infix = f"was replaced in version {replaced} from `{old_default}` to `{new_default}`."
+            msg_infix = f"was changed in version {replaced} from `{name}={old_default}` to `{name}={new_default}`."
         elif is_deprecated:
-            msg_infix = f"has been deprecated since version {since} from `{old_default}` to `{new_default}`."
+            msg_infix = f"has been deprecated since version {since}."
             if replaced is not None:
-                msg_infix += f" It will be replaced in version {replaced}."
+                msg_infix += f" It will be changed to `{name}={new_default}` in version {replaced}."
         else:
-            msg_infix = f"has been deprecated from `{old_default}` to `{new_default}`."
+            msg_infix = f"has been deprecated from `{name}={old_default}` to `{name}={new_default}`."
 
         msg = f"{msg_prefix} {msg_infix} {msg_suffix}".strip()
 

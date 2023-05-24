@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
@@ -49,6 +51,17 @@ class TestITKWriter(unittest.TestCase):
             output = np.asarray(itk.imread(fname))
             np.testing.assert_allclose(output.shape, (5, 5, 3))
             np.testing.assert_allclose(output[1, 1], (5, 5, 4))
+
+    def test_no_channel(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            fname = os.path.join(tempdir, "testing.nii.gz")
+            writer = ITKWriter(output_dtype=np.uint8)
+            writer.set_data_array(np.arange(48).reshape(3, 4, 4), channel_dim=None)
+            writer.write(fname)
+
+            output = np.asarray(itk.imread(fname))
+            np.testing.assert_allclose(output.shape, (4, 4, 3))
+            np.testing.assert_allclose(output[1, 1], (5, 21, 37))
 
 
 if __name__ == "__main__":

@@ -9,8 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any, cast
 
 import torch
 
@@ -60,7 +63,7 @@ class IterationEvents(EventEnum):
     INNER_ITERATION_COMPLETED = "inner_iteration_completed"
 
 
-def get_devices_spec(devices: Optional[Sequence[Union[torch.device, str]]] = None) -> List[torch.device]:
+def get_devices_spec(devices: Sequence[torch.device | str] | None = None) -> list[torch.device]:
     """
     Get a valid specification for one or more devices. If `devices` is None get devices for all CUDA devices available.
     If `devices` is and zero-length structure a single CPU compute device is returned. In any other cases `devices` is
@@ -93,11 +96,11 @@ def get_devices_spec(devices: Optional[Sequence[Union[torch.device, str]]] = Non
 
 
 def default_prepare_batch(
-    batchdata: Union[Dict[str, torch.Tensor], torch.Tensor, Sequence[torch.Tensor]],
-    device: Optional[Union[str, torch.device]] = None,
+    batchdata: dict[str, torch.Tensor] | torch.Tensor | Sequence[torch.Tensor],
+    device: str | torch.device | None = None,
     non_blocking: bool = False,
-    **kwargs,
-) -> Union[Tuple[torch.Tensor, Optional[torch.Tensor]], torch.Tensor]:
+    **kwargs: Any,
+) -> tuple[torch.Tensor, torch.Tensor | None] | torch.Tensor:
     """
     Default function to prepare the data for current iteration.
 
@@ -156,11 +159,11 @@ class PrepareBatch(ABC):
     @abstractmethod
     def __call__(
         self,
-        batchdata: Dict[str, torch.Tensor],
-        device: Optional[Union[str, torch.device]] = None,
+        batchdata: dict[str, torch.Tensor],
+        device: str | torch.device | None = None,
         non_blocking: bool = False,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> Any:
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
@@ -171,11 +174,11 @@ class PrepareBatchDefault(PrepareBatch):
 
     def __call__(
         self,
-        batchdata: Union[Dict[str, torch.Tensor], torch.Tensor, Sequence[torch.Tensor]],
-        device: Optional[Union[str, torch.device]] = None,
+        batchdata: dict[str, torch.Tensor] | torch.Tensor | Sequence[torch.Tensor],
+        device: str | torch.device | None = None,
         non_blocking: bool = False,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> tuple[torch.Tensor, torch.Tensor | None] | torch.Tensor:
         """
         Args `batchdata`, `device`, `non_blocking` refer to the ignite API:
         https://pytorch.org/ignite/v0.4.8/generated/ignite.engine.create_supervised_trainer.html.
@@ -198,16 +201,16 @@ class PrepareBatchExtraInput(PrepareBatch):
             dictionary keyed to `v`.
     """
 
-    def __init__(self, extra_keys: Union[str, Sequence[str], Dict[str, str]]) -> None:
+    def __init__(self, extra_keys: str | Sequence[str] | dict[str, str]) -> None:
         self.extra_keys = extra_keys
 
     def __call__(
         self,
-        batchdata: Dict[str, torch.Tensor],
-        device: Optional[Union[str, torch.device]] = None,
+        batchdata: dict[str, torch.Tensor],
+        device: str | torch.device | None = None,
         non_blocking: bool = False,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> tuple[torch.Tensor, torch.Tensor, tuple, dict]:
         """
         Args `batchdata`, `device`, `non_blocking` refer to the ignite API:
         https://pytorch.org/ignite/v0.4.8/generated/ignite.engine.create_supervised_trainer.html.
@@ -217,7 +220,7 @@ class PrepareBatchExtraInput(PrepareBatch):
         args_ = list()
         kwargs_ = dict()
 
-        def _get_data(key: str):
+        def _get_data(key: str) -> torch.Tensor:
             data = batchdata[key]
 
             if isinstance(data, torch.Tensor):
@@ -232,20 +235,20 @@ class PrepareBatchExtraInput(PrepareBatch):
             for k, v in self.extra_keys.items():
                 kwargs_.update({k: _get_data(v)})
 
-        return image, label, tuple(args_), kwargs_
+        return cast(torch.Tensor, image), cast(torch.Tensor, label), tuple(args_), kwargs_
 
 
 def default_make_latent(
     num_latents: int,
     latent_size: int,
-    device: Optional[Union[str, torch.device]] = None,
+    device: str | torch.device | None = None,
     non_blocking: bool = False,
-    **kwargs,
+    **kwargs: Any,
 ) -> torch.Tensor:
     return torch.randn(num_latents, latent_size).to(device=device, non_blocking=non_blocking, **kwargs)
 
 
-def engine_apply_transform(batch: Any, output: Any, transform: Callable[..., Dict]):
+def engine_apply_transform(batch: Any, output: Any, transform: Callable[..., dict]) -> tuple[Any, Any]:
     """
     Apply transform on `batch` and `output`.
     If `batch` and `output` are dictionaries, temporarily combine them for the transform,
