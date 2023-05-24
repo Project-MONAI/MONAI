@@ -11,5 +11,10 @@
 
 from __future__ import annotations
 
-from .array import SplitOnGrid, TileOnGrid
-from .dictionary import SplitOnGridd, SplitOnGridD, SplitOnGridDict, TileOnGridd, TileOnGridD, TileOnGridDict
+from monai.apps.nnunet.nnunetv2_runner import nnUNetV2Runner
+
+if __name__ == "__main__":
+    from monai.utils import optional_import
+
+    fire, _ = optional_import("fire")
+    fire.Fire({"nnUNetV2Runner": nnUNetV2Runner})

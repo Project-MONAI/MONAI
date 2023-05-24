@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 from .adaptors import FunctionSignature, adaptor, apply_alias, to_kwargs
-from .compose import Compose, OneOf, RandomOrder
+from .compose import Compose, OneOf, RandomOrder, SomeOf
 from .croppad.array import (
     BorderPad,
     BoundingRect,
@@ -624,6 +624,7 @@ from .utils import (
     Fourier,
     allow_missing_keys_mode,
     attach_hook,
+    check_non_lazy_pending_ops,
     compute_divisible_spatial_size,
     convert_applied_interp_mode,
     convert_pad_mode,
@@ -659,6 +660,7 @@ from .utils import (
     rescale_instance_array,
     reset_ops_id,
     resize_center,
+    resolves_modes,
     sync_meta_info,
     weighted_patch_samples,
     zero_margins,

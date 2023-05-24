@@ -120,11 +120,11 @@ fi
 
 function check_import {
     echo "Python: ${PY_EXE}"
-    ${cmdPrefix}${PY_EXE} -W error -W ignore::DeprecationWarning -c "import monai"
+    ${cmdPrefix}${PY_EXE} -W error -W ignore::DeprecationWarning -W ignore::ResourceWarning -c "import monai"
 }
 
 function print_version {
-    ${cmdPrefix}${PY_EXE} -c 'import monai; monai.config.print_config()'
+    ${cmdPrefix}${PY_EXE} -c 'import monai; monai.config.print_config()'  # project-monai/monai#6167
 }
 
 function install_deps {
@@ -533,7 +533,8 @@ then
     # ensure that the necessary packages for code format testing are installed
     if ! is_pip_installed pylint
     then
-        install_deps
+        echo "Pip installing pylint ..."
+        ${cmdPrefix}${PY_EXE} -m pip install pylint>2.16
     fi
     ${cmdPrefix}${PY_EXE} -m pylint --version
 
@@ -623,6 +624,7 @@ fi
 if [ $doMinTests = true ]
 then
     echo "${separator}${blue}min${noColor}"
+    doCoverage=false
     ${cmdPrefix}${PY_EXE} -m tests.min_tests
 fi
 

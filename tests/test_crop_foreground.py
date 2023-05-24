@@ -16,6 +16,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
+from monai.config import USE_COMPILED
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import CropForeground
 from monai.transforms.lazy.functional import apply_transforms
@@ -136,6 +137,7 @@ class TestCropForeground(unittest.TestCase):
         assert_allclose(result, expected, rtol=1e-5)
 
     @parameterized.expand(TEST_LAZY_ERROR)
+    @unittest.skipIf(USE_COMPILED, "skip errors whe use compiled")
     def test_lazy_error(self, input_param, image, _expected_data, align_corners):
         with self.assertRaises(ValueError):
             crop_fn = CropForeground(**input_param)
@@ -143,6 +145,17 @@ class TestCropForeground(unittest.TestCase):
             crop_fn.lazy_evaluation = True
             pending_result = crop_fn(image)
             return apply_transforms(pending_result, mode="nearest", align_corners=align_corners)[0]
+
+    @parameterized.expand(TEST_COORDS + TESTS)
+    def test_inverse_pending_ops(self, input_param, image, _expected_data, align_corners):
+        crop_fn = CropForeground(**input_param)
+        crop_fn.lazy_evaluation = True
+        pending_result = crop_fn(image)
+        self.assertIsInstance(pending_result, MetaTensor)
+        result = apply_transforms(pending_result, mode="nearest", align_corners=align_corners)[0]
+        inverted = crop_fn.inverse(result)
+        self.assertEqual(image.shape, inverted.shape)
+        self.assertTrue((not inverted.applied_operations) and (not inverted.pending_operations))
 
 
 if __name__ == "__main__":

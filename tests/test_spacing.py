@@ -17,6 +17,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
+from monai.config import USE_COMPILED
 from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import affine_to_spacing
@@ -73,7 +74,9 @@ for device in TEST_DEVICES:
             torch.ones((1, 2, 1, 2)),  # data
             torch.tensor([[2, 1, 0, 4], [-1, -3, 0, 5], [0, 0, 2.0, 5], [0, 0, 0, 1]]),
             {},
-            torch.tensor([[[[0.95527864, 0.95527864]], [[1.0, 1.0]], [[1.0, 1.0]]]]),
+            torch.tensor([[[[0.75, 0.75]], [[0.75, 0.75]], [[0.75, 0.75]]]])
+            if USE_COMPILED
+            else torch.tensor([[[[0.95527864, 0.95527864]], [[1.0, 1.0]], [[1.0, 1.0]]]]),
             *device,
         ]
     )
@@ -235,7 +238,7 @@ for device in TEST_DEVICES:
     )
     TESTS.append(  # 5D input
         [
-            {"pixdim": 0.5, "padding_mode": "zeros", "mode": "nearest", "scale_extent": True},
+            {"pixdim": 0.5, "padding_mode": "constant", "mode": "nearest", "scale_extent": True},
             torch.ones((1, 368, 336, 368)),  # data
             torch.tensor(
                 [

@@ -23,14 +23,20 @@ import warnings
 from ast import literal_eval
 from collections.abc import Callable, Iterable, Sequence
 from distutils.util import strtobool
+from math import log10
 from pathlib import Path
-from typing import Any, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, TypeVar, cast, overload
 
 import numpy as np
 import torch
 
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor, PathLike
-from monai.utils.module import version_leq
+from monai.utils.module import optional_import, version_leq
+
+if TYPE_CHECKING:
+    from yaml import SafeLoader
+else:
+    SafeLoader, _ = optional_import("yaml", name="SafeLoader", as_type="base")
 
 __all__ = [
     "zip_with",
@@ -41,6 +47,7 @@ __all__ = [
     "ensure_tuple",
     "ensure_tuple_size",
     "ensure_tuple_rep",
+    "to_tuple_of_dictionaries",
     "fall_back_tuple",
     "is_scalar_tensor",
     "is_scalar",
@@ -62,6 +69,10 @@ __all__ = [
     "label_union",
     "path_to_uri",
     "pprint_edges",
+    "check_key_duplicates",
+    "CheckKeyDuplicatesYamlLoader",
+    "ConvertUnits",
+    "check_kwargs_exist_in_class_init",
 ]
 
 _seed = None
@@ -189,6 +200,37 @@ def ensure_tuple_rep(tup: Any, dim: int) -> tuple[Any, ...]:
         return tuple(tup)
 
     raise ValueError(f"Sequence must have length {dim}, got {len(tup)}.")
+
+
+def to_tuple_of_dictionaries(dictionary_of_tuples: dict, keys: Any) -> tuple[dict[Any, Any], ...]:
+    """
+    Given a dictionary whose values contain scalars or tuples (with the same length as ``keys``),
+    Create a dictionary for each key containing the scalar values mapping to that key.
+
+    Args:
+        dictionary_of_tuples: a dictionary whose values are scalars or tuples whose length is
+            the length of ``keys``
+        keys: a tuple of string values representing the keys in question
+
+    Returns:
+        a tuple of dictionaries that contain scalar values, one dictionary for each key
+
+    Raises:
+        ValueError: when values in the dictionary are tuples but not the same length as the length
+        of ``keys``
+
+    Examples:
+        >>> to_tuple_of_dictionaries({'a': 1 'b': (2, 3), 'c': (4, 4)}, ("x", "y"))
+        ({'a':1, 'b':2, 'c':4}, {'a':1, 'b':3, 'c':4})
+
+    """
+
+    keys = ensure_tuple(keys)
+    if len(keys) == 0:
+        return tuple({})
+
+    dict_overrides = {k: ensure_tuple_rep(v, len(keys)) for k, v in dictionary_of_tuples.items()}
+    return tuple({k: v[ik] for (k, v) in dict_overrides.items()} for ik in range(len(keys)))
 
 
 def fall_back_tuple(
@@ -647,3 +689,135 @@ def pprint_edges(val: Any, n_lines: int = 20) -> str:
         hidden_n = len(val_str) - n_lines * 2
         val_str = val_str[:n_lines] + [f"\n ... omitted {hidden_n} line(s)\n\n"] + val_str[-n_lines:]
     return "".join(val_str)
+
+
+def check_key_duplicates(ordered_pairs: Sequence[tuple[Any, Any]]) -> dict[Any, Any]:
+    """
+    Checks if there is a duplicated key in the sequence of `ordered_pairs`.
+    If there is - it will log a warning or raise ValueError
+    (if configured by environmental var `MONAI_FAIL_ON_DUPLICATE_CONFIG==1`)
+
+    Otherwise, it returns the dict made from this sequence.
+
+    Satisfies a format for an `object_pairs_hook` in `json.load`
+
+    Args:
+        ordered_pairs: sequence of (key, value)
+    """
+    keys = set()
+    for k, _ in ordered_pairs:
+        if k in keys:
+            if os.environ.get("MONAI_FAIL_ON_DUPLICATE_CONFIG", "0") == "1":
+                raise ValueError(f"Duplicate key: `{k}`")
+            else:
+                warnings.warn(f"Duplicate key: `{k}`")
+        else:
+            keys.add(k)
+    return dict(ordered_pairs)
+
+
+class CheckKeyDuplicatesYamlLoader(SafeLoader):
+    def construct_mapping(self, node, deep=False):
+        mapping = set()
+        for key_node, _ in node.value:
+            key = self.construct_object(key_node, deep=deep)
+            if key in mapping:
+                if os.environ.get("MONAI_FAIL_ON_DUPLICATE_CONFIG", "0") == "1":
+                    raise ValueError(f"Duplicate key: `{key}`")
+                else:
+                    warnings.warn(f"Duplicate key: `{key}`")
+            mapping.add(key)
+        return super().construct_mapping(node, deep)
+
+
+class ConvertUnits:
+    """
+    Convert the values from input unit to the target unit
+
+    Args:
+        input_unit: the unit of the input quantity
+        target_unit: the unit of the target quantity
+
+    """
+
+    imperial_unit_of_length = {"inch": 0.0254, "foot": 0.3048, "yard": 0.9144, "mile": 1609.344}
+
+    unit_prefix = {
+        "peta": 15,
+        "tera": 12,
+        "giga": 9,
+        "mega": 6,
+        "kilo": 3,
+        "hecto": 2,
+        "deca": 1,
+        "deci": -1,
+        "centi": -2,
+        "milli": -3,
+        "micro": -6,
+        "nano": -9,
+        "pico": -12,
+        "femto": -15,
+    }
+    base_units = ["meter", "byte", "bit"]
+
+    def __init__(self, input_unit: str, target_unit: str) -> None:
+        self.input_unit, input_base = self._get_valid_unit_and_base(input_unit)
+        self.target_unit, target_base = self._get_valid_unit_and_base(target_unit)
+        if input_base == target_base:
+            self.unit_base = input_base
+        else:
+            raise ValueError(
+                "Both input and target units should be from the same quantity. "
+                f"Input quantity is {input_base} while target quantity is {target_base}"
+            )
+        self._calculate_conversion_factor()
+
+    def _get_valid_unit_and_base(self, unit):
+        unit = str(unit).lower()
+        if unit in self.imperial_unit_of_length:
+            return unit, "meter"
+        for base_unit in self.base_units:
+            if unit.endswith(base_unit):
+                return unit, base_unit
+        raise ValueError(f"Currently, it only supports length conversion but `{unit}` is given.")
+
+    def _get_unit_power(self, unit):
+        """Calculate the power of the unit factor with respect to the base unit"""
+        if unit in self.imperial_unit_of_length:
+            return log10(self.imperial_unit_of_length[unit])
+
+        prefix = unit[: len(self.unit_base)]
+        if prefix == "":
+            return 1.0
+        return self.unit_prefix[prefix]
+
+    def _calculate_conversion_factor(self):
+        """Calculate unit conversion factor with respect to the input unit"""
+        if self.input_unit == self.target_unit:
+            return 1.0
+        input_power = self._get_unit_power(self.input_unit)
+        target_power = self._get_unit_power(self.target_unit)
+        self.conversion_factor = 10 ** (input_power - target_power)
+
+    def __call__(self, value: int | float) -> Any:
+        return float(value) * self.conversion_factor
+
+
+def check_kwargs_exist_in_class_init(cls, kwargs):
+    """
+    Check if the all keys in kwargs exist in the __init__ method of the class.
+
+    Args:
+        cls: the class to check.
+        kwargs: kwargs to examine.
+
+    Returns:
+        a boolean indicating if all keys exist.
+        a set of extra keys that are not used in the __init__.
+    """
+    init_signature = inspect.signature(cls.__init__)
+    init_params = set(init_signature.parameters) - {"self"}  # Exclude 'self' from the parameter list
+    input_kwargs = set(kwargs)
+    extra_kwargs = input_kwargs - init_params
+
+    return extra_kwargs == set(), extra_kwargs

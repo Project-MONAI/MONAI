@@ -39,7 +39,6 @@ from monai.transforms import (
     Compose,
     Randomizable,
     RandomizableTrait,
-    ThreadUnsafe,
     Transform,
     apply_transform,
     convert_to_contiguous,
@@ -209,6 +208,11 @@ class PersistentDataset(Dataset):
         not guaranteed, so caution should be used when modifying transforms to avoid unexpected
         errors. If in doubt, it is advisable to clear the cache directory.
 
+    Lazy Resampling:
+        If you make use of the lazy resampling feature of `monai.transforms.Compose`, please refer to
+        its documentation to familiarize yourself with the interaction between `PersistentDataset` and
+        lazy resampling.
+
     """
 
     def __init__(
@@ -316,13 +320,15 @@ class PersistentDataset(Dataset):
             random transform object
 
         """
-        for _transform in self.transform.transforms:
-            # execute all the deterministic transforms
-            if isinstance(_transform, RandomizableTrait) or not isinstance(_transform, Transform):
-                break
-            # this is to be consistent with CacheDataset even though it's not in a multi-thread situation.
-            _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
-            item_transformed = apply_transform(_xform, item_transformed)
+        if not isinstance(self.transform, Compose):
+            raise ValueError("transform must be an instance of monai.transforms.Compose.")
+
+        first_random = self.transform.get_index_of_first(
+            lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
+        )
+
+        item_transformed = self.transform(item_transformed, end=first_random, threading=True)
+
         if self.reset_ops_id:
             reset_ops_id(item_transformed)
         return item_transformed
@@ -340,15 +346,12 @@ class PersistentDataset(Dataset):
         """
         if not isinstance(self.transform, Compose):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
-        start_post_randomize_run = False
-        for _transform in self.transform.transforms:
-            if (
-                start_post_randomize_run
-                or isinstance(_transform, RandomizableTrait)
-                or not isinstance(_transform, Transform)
-            ):
-                start_post_randomize_run = True
-                item_transformed = apply_transform(_transform, item_transformed)
+
+        first_random = self.transform.get_index_of_first(
+            lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
+        )
+        if first_random is not None:
+            item_transformed = self.transform(item_transformed, start=first_random)
         return item_transformed
 
     def _cachecheck(self, item_transformed):
@@ -492,11 +495,9 @@ class CacheNTransDataset(PersistentDataset):
         """
         if not isinstance(self.transform, Compose):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
-        for i, _transform in enumerate(self.transform.transforms):
-            if i == self.cache_n_trans:
-                break
-            _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
-            item_transformed = apply_transform(_xform, item_transformed)
+
+        item_transformed = self.transform(item_transformed, end=self.cache_n_trans, threading=True)
+
         reset_ops_id(item_transformed)
         return item_transformed
 
@@ -512,10 +513,8 @@ class CacheNTransDataset(PersistentDataset):
         """
         if not isinstance(self.transform, Compose):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
-        for i, _transform in enumerate(self.transform.transforms):
-            if i >= self.cache_n_trans:
-                item_transformed = apply_transform(_transform, item_transformed)
-        return item_transformed
+
+        return self.transform(item_transformed, start=self.cache_n_trans)
 
 
 class LMDBDataset(PersistentDataset):
@@ -740,6 +739,11 @@ class CacheDataset(Dataset):
         So to debug or verify the program before real training, users can set `cache_rate=0.0` or `cache_num=0` to
         temporarily skip caching.
 
+    Lazy Resampling:
+        If you make use of the lazy resampling feature of `monai.transforms.Compose`, please refer to
+        its documentation to familiarize yourself with the interaction between `CacheDataset` and
+        lazy resampling.
+
     """
 
     def __init__(
@@ -879,12 +883,12 @@ class CacheDataset(Dataset):
             idx: the index of the input data sequence.
         """
         item = self.data[idx]
-        for _transform in self.transform.transforms:
-            # execute all the deterministic transforms
-            if isinstance(_transform, RandomizableTrait) or not isinstance(_transform, Transform):
-                break
-            _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
-            item = apply_transform(_xform, item)
+
+        first_random = self.transform.get_index_of_first(
+            lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
+        )
+        item = self.transform(item, end=first_random, threading=True)
+
         if self.as_contiguous:
             item = convert_to_contiguous(item, memory_format=torch.contiguous_format)
         return item
@@ -911,17 +915,16 @@ class CacheDataset(Dataset):
             data = self._cache[cache_index] = self._load_cache_item(cache_index)
 
         # load data from cache and execute from the first random transform
-        start_run = False
         if not isinstance(self.transform, Compose):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
-        for _transform in self.transform.transforms:
-            if start_run or isinstance(_transform, RandomizableTrait) or not isinstance(_transform, Transform):
-                # only need to deep copy data on first non-deterministic transform
-                if not start_run:
-                    start_run = True
-                    if self.copy_cache:
-                        data = deepcopy(data)
-                data = apply_transform(_transform, data)
+
+        first_random = self.transform.get_index_of_first(
+            lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
+        )
+        if first_random is not None:
+            data = deepcopy(data) if self.copy_cache is True else data
+            data = self.transform(data, start=first_random)
+
         return data
 
 
@@ -996,7 +999,6 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
             it may help improve the performance of following logic.
         runtime_cache: Default to `False`, other options are not implemented yet.
-
     """
 
     def __init__(

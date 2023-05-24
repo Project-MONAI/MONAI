@@ -23,6 +23,7 @@ import numpy as np
 import torch
 
 import monai
+from monai.config import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
@@ -31,9 +32,10 @@ from monai.networks.layers import AffineTransform
 from monai.transforms.croppad.array import ResizeWithPadOrCrop
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import TraceableTransform
-from monai.transforms.utils import create_rotate, create_translate, scale_affine
+from monai.transforms.utils import create_rotate, create_translate, resolves_modes, scale_affine
 from monai.transforms.utils_pytorch_numpy_unification import allclose
 from monai.utils import (
+    LazyAttr,
     TraceKeys,
     convert_to_dst_type,
     convert_to_numpy,
@@ -156,7 +158,7 @@ def spatial_resample(
         xform_shape = [-1] + in_sp_size
         img = img.reshape(xform_shape)
     img = img.to(dtype_pt)
-    if isinstance(mode, int):
+    if isinstance(mode, int) or USE_COMPILED:
         dst_xform = create_translate(spatial_rank, [float(d - 1) / 2 for d in spatial_size])
         xform = xform @ convert_to_dst_type(dst_xform, xform)[0]
         affine_xform = monai.transforms.Affine(
@@ -170,8 +172,9 @@ def spatial_resample(
         with affine_xform.trace_transform(False):
             img = affine_xform(img, mode=mode, padding_mode=padding_mode)
     else:
+        _, _m, _p, _ = resolves_modes(mode, padding_mode)
         affine_xform = AffineTransform(  # type: ignore
-            normalized=False, mode=mode, padding_mode=padding_mode, align_corners=align_corners, reverse_indexing=True
+            normalized=False, mode=_m, padding_mode=_p, align_corners=align_corners, reverse_indexing=True
         )
         img = affine_xform(img.unsqueeze(0), theta=xform.to(img), spatial_size=spatial_size).squeeze(0)  # type: ignore
     if additional_dims:
@@ -329,8 +332,9 @@ def resize(img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing,
                 anti_aliasing_sigma[axis] = anti_aliasing_sigma[axis] * int(factors[axis] > 1)
         anti_aliasing_filter = GaussianSmooth(sigma=anti_aliasing_sigma)
         img_ = convert_to_tensor(anti_aliasing_filter(img_), track_meta=False)
+    _, _m, _, _ = resolves_modes(mode, torch_interpolate_spatial_nd=len(img_.shape) - 1)
     resized = torch.nn.functional.interpolate(
-        input=img_.unsqueeze(0), size=out_size, mode=mode, align_corners=align_corners
+        input=img_.unsqueeze(0), size=out_size, mode=_m, align_corners=align_corners
     )
     out, *_ = convert_to_dst_type(resized.squeeze(0), out, dtype=torch.float32)
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
@@ -394,8 +398,9 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, t
     out = _maybe_new_metatensor(img)
     if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+    _, _m, _p, _ = resolves_modes(mode, padding_mode)
     xform = AffineTransform(
-        normalized=False, mode=mode, padding_mode=padding_mode, align_corners=align_corners, reverse_indexing=True
+        normalized=False, mode=_m, padding_mode=_p, align_corners=align_corners, reverse_indexing=True
     )
     img_t = out.to(dtype)
     transform_t, *_ = convert_to_dst_type(transform, img_t)
@@ -431,10 +436,7 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype,
 
     """
     im_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
-    output_size = [
-        int(math.floor(float(i) * z))
-        for i, z in zip(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:], scale_factor)
-    ]
+    output_size = [int(math.floor(float(i) * z)) for i, z in zip(im_shape, scale_factor)]
     xform = scale_affine(im_shape, output_size)
     extra_info = {
         "mode": mode,
@@ -444,9 +446,18 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype,
         "padcrop": {},
     }
     if keep_size:
-        if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
-            raise NotImplementedError("keep_size=True is not supported for lazy evaluation.")
-        output_size = [int(i) for i in img.shape[1:]]
+        do_pad_crop = not np.allclose(output_size, im_shape)
+        if do_pad_crop and transform_info.get(TraceKeys.LAZY_EVALUATION, False):  # update for lazy evaluation
+            _pad_crop = ResizeWithPadOrCrop(spatial_size=im_shape, mode=padding_mode)
+            _pad_crop.lazy_evaluation = True
+            _tmp_img = MetaTensor([], affine=torch.eye(len(output_size) + 1))
+            _tmp_img.push_pending_operation({LazyAttr.SHAPE: list(output_size), LazyAttr.AFFINE: xform})
+            lazy_cropped = _pad_crop(_tmp_img)
+            if isinstance(lazy_cropped, MetaTensor):
+                xform = lazy_cropped.peek_pending_affine()
+                extra_info["padcrop"] = lazy_cropped.pending_operations[-1]
+            extra_info["do_padcrop"] = do_pad_crop
+        output_size = [int(i) for i in im_shape]
     meta_info = TraceableTransform.track_transform_meta(
         img,
         sp_size=output_size,
@@ -460,11 +471,12 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype,
     if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     img_t = out.to(dtype)
+    _, _m, _, _ = resolves_modes(mode, torch_interpolate_spatial_nd=len(img_t.shape) - 1)
     zoomed: NdarrayOrTensor = torch.nn.functional.interpolate(
         recompute_scale_factor=True,
         input=img_t.unsqueeze(0),
         scale_factor=list(scale_factor),
-        mode=mode,
+        mode=_m,
         align_corners=align_corners,
     ).squeeze(0)
     out, *_ = convert_to_dst_type(zoomed, dst=out, dtype=torch.float32)

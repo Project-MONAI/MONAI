@@ -20,6 +20,7 @@ from typing import Any
 import torch
 import torch.nn as nn
 
+from monai.apps.utils import get_logger
 from monai.data.meta_tensor import MetaTensor
 from monai.inferers.merger import AvgMerger, Merger
 from monai.inferers.splitter import Splitter
@@ -27,7 +28,17 @@ from monai.inferers.utils import compute_importance_map, sliding_window_inferenc
 from monai.utils import BlendMode, PatchKeys, PytorchPadMode, ensure_tuple, optional_import
 from monai.visualize import CAM, GradCAM, GradCAMpp
 
-__all__ = ["Inferer", "PatchInferer", "SimpleInferer", "SlidingWindowInferer", "SaliencyInferer", "SliceInferer"]
+logger = get_logger(__name__)
+
+__all__ = [
+    "Inferer",
+    "PatchInferer",
+    "SimpleInferer",
+    "SlidingWindowInferer",
+    "SaliencyInferer",
+    "SliceInferer",
+    "SlidingWindowInfererAdapt",
+]
 
 
 class Inferer(ABC):
@@ -339,7 +350,7 @@ class SlidingWindowInferer(Inferer):
             corresponding components of img size. For example, `roi_size=(32, -1)` will be adapted
             to `(32, 64)` if the second spatial dimension size of img is `64`.
         sw_batch_size: the batch size to run window slices.
-        overlap: Amount of overlap between scans.
+        overlap: Amount of overlap between scans along each spatial dimension, defaults to ``0.25``.
         mode: {``"constant"``, ``"gaussian"``}
             How to blend output of overlapping windows. Defaults to ``"constant"``.
 
@@ -366,6 +377,13 @@ class SlidingWindowInferer(Inferer):
         cpu_thresh: when provided, dynamically switch to stitching on cpu (to save gpu memory)
             when input image volume is larger than this threshold (in pixels/voxels).
             Otherwise use ``"device"``. Thus, the output may end-up on either cpu or gpu.
+        buffer_steps: the number of sliding window iterations along the ``buffer_dim``
+            to be buffered on ``sw_device`` before writing to ``device``.
+            (Typically, ``sw_device`` is ``cuda`` and ``device`` is ``cpu``.)
+            default is None, no buffering. For the buffer dim, when spatial size is divisible by buffer_steps*roi_size,
+            (i.e. no overlapping among the buffers) non_blocking copy may be automatically enabled for efficiency.
+        buffer_dim: the spatial dimension along which the buffers are created.
+            0 indicates the first spatial dimension. Default is -1, the last spatial dimension.
 
     Note:
         ``sw_batch_size`` denotes the max number of windows per network inference iteration,
@@ -377,7 +395,7 @@ class SlidingWindowInferer(Inferer):
         self,
         roi_size: Sequence[int] | int,
         sw_batch_size: int = 1,
-        overlap: float = 0.25,
+        overlap: Sequence[float] | float = 0.25,
         mode: BlendMode | str = BlendMode.CONSTANT,
         sigma_scale: Sequence[float] | float = 0.125,
         padding_mode: PytorchPadMode | str = PytorchPadMode.CONSTANT,
@@ -387,6 +405,8 @@ class SlidingWindowInferer(Inferer):
         progress: bool = False,
         cache_roi_weight_map: bool = False,
         cpu_thresh: int | None = None,
+        buffer_steps: int | None = None,
+        buffer_dim: int = -1,
     ) -> None:
         super().__init__()
         self.roi_size = roi_size
@@ -400,6 +420,8 @@ class SlidingWindowInferer(Inferer):
         self.device = device
         self.progress = progress
         self.cpu_thresh = cpu_thresh
+        self.buffer_steps = buffer_steps
+        self.buffer_dim = buffer_dim
 
         # compute_importance_map takes long time when computing on cpu. We thus
         # compute it once if it's static and then save it for future usage
@@ -415,7 +437,8 @@ class SlidingWindowInferer(Inferer):
                 warnings.warn("cache_roi_weight_map=True, but cache is not created. (dynamic roi_size?)")
         except BaseException as e:
             raise RuntimeError(
-                "Seems to be OOM. Please try smaller roi_size, or use mode='constant' instead of mode='gaussian'. "
+                f"roi size {self.roi_size}, mode={mode}, sigma_scale={sigma_scale}, device={device}\n"
+                "Seems to be OOM. Please try smaller patch size or mode='constant' instead of mode='gaussian'."
             ) from e
 
     def __call__(
@@ -436,7 +459,10 @@ class SlidingWindowInferer(Inferer):
 
         """
 
-        device = self.device
+        device = kwargs.pop("device", self.device)
+        buffer_steps = kwargs.pop("buffer_steps", self.buffer_steps)
+        buffer_dim = kwargs.pop("buffer_dim", self.buffer_dim)
+
         if device is None and self.cpu_thresh is not None and inputs.shape[2:].numel() > self.cpu_thresh:
             device = "cpu"  # stitch in cpu memory if image is too large
 
@@ -455,8 +481,99 @@ class SlidingWindowInferer(Inferer):
             self.progress,
             self.roi_weight_map,
             None,
+            buffer_steps,
+            buffer_dim,
             *args,
             **kwargs,
+        )
+
+
+class SlidingWindowInfererAdapt(SlidingWindowInferer):
+    """
+    SlidingWindowInfererAdapt extends SlidingWindowInferer to automatically switch to buffered and then to CPU stitching,
+    when OOM on GPU. It also records a size of such large images to automatically
+    try CPU stitching for the next large image of a similar size.  If the stitching 'device' input parameter is provided,
+    automatic adaptation won't be attempted, please keep the default option device = None for adaptive behavior.
+    Note: the output might be on CPU (even if the input was on GPU), if the GPU memory was not sufficient.
+
+    """
+
+    def __call__(
+        self,
+        inputs: torch.Tensor,
+        network: Callable[..., torch.Tensor | Sequence[torch.Tensor] | dict[Any, torch.Tensor]],
+        *args: Any,
+        **kwargs: Any,
+    ) -> torch.Tensor | tuple[torch.Tensor, ...] | dict[Any, torch.Tensor]:
+        """
+
+        Args:
+            inputs: model input data for inference.
+            network: target model to execute inference.
+                supports callables such as ``lambda x: my_torch_model(x, additional_config)``
+            args: optional args to be passed to ``network``.
+            kwargs: optional keyword args to be passed to ``network``.
+
+        """
+
+        # if device is provided, use without any adaptations
+        if self.device is not None:
+            return super().__call__(inputs, network, *args, **kwargs)
+
+        skip_buffer = self.buffer_steps is not None and self.buffer_steps <= 0
+        cpu_cond = self.cpu_thresh is not None and inputs.shape[2:].numel() > self.cpu_thresh
+        gpu_stitching = inputs.is_cuda and not cpu_cond
+        buffered_stitching = inputs.is_cuda and cpu_cond and not skip_buffer
+        buffer_steps = max(1, self.buffer_steps) if self.buffer_steps is not None else 1
+        buffer_dim = -1
+
+        sh = list(inputs.shape[2:])
+        max_dim = sh.index(max(sh))
+        if inputs.shape[max_dim + 2] / inputs.shape[-1] >= 2:
+            buffer_dim = max_dim
+
+        for _ in range(10):  # at most 10 trials
+            try:
+                return super().__call__(
+                    inputs,
+                    network,
+                    device=inputs.device if gpu_stitching else torch.device("cpu"),
+                    buffer_steps=buffer_steps if buffered_stitching else None,
+                    buffer_dim=buffer_dim,
+                    *args,
+                    **kwargs,
+                )
+            except RuntimeError as e:
+                if not gpu_stitching and not buffered_stitching or "OutOfMemoryError" not in str(type(e).__name__):
+                    raise e
+
+                logger.info(e)
+
+                if gpu_stitching:  # if failed on gpu
+                    gpu_stitching = False
+                    self.cpu_thresh = inputs.shape[2:].numel() - 1  # update thresh
+
+                    if skip_buffer:
+                        buffered_stitching = False
+                        logger.warning(f"GPU stitching failed, attempting on CPU, image dim {inputs.shape}.")
+
+                    else:
+                        buffered_stitching = True
+                        self.buffer_steps = buffer_steps
+                        logger.warning(
+                            f"GPU stitching failed, buffer {buffer_steps} dim {buffer_dim}, image dim {inputs.shape}."
+                        )
+                elif buffer_steps > 1:
+                    buffer_steps = max(1, buffer_steps // 2)
+                    self.buffer_steps = buffer_steps
+                    logger.warning(
+                        f"GPU buffered stitching failed, image dim {inputs.shape} reducing buffer to {buffer_steps}."
+                    )
+                else:
+                    buffered_stitching = False
+                    logger.warning(f"GPU buffered stitching failed, attempting on CPU, image dim {inputs.shape}.")
+        raise RuntimeError(  # not possible to finish after the trials
+            f"SlidingWindowInfererAdapt {skip_buffer} {cpu_cond} {gpu_stitching} {buffered_stitching} {buffer_steps}"
         )
 
 

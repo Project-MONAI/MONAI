@@ -14,6 +14,8 @@ from __future__ import annotations
 import random
 from enum import Enum
 
+from monai.utils import deprecated
+
 __all__ = [
     "StrEnum",
     "NumpyPadMode",
@@ -56,6 +58,7 @@ __all__ = [
     "LazyAttr",
     "BundleProperty",
     "BundlePropertyConfig",
+    "AlgoKeys",
 ]
 
 
@@ -573,6 +576,7 @@ class ImageStatsKeys(StrEnum):
     CHANNELS = "channels"
     CROPPED_SHAPE = "cropped_shape"
     SPACING = "spacing"
+    SIZEMM = "sizemm"
     INTENSITY = "intensity"
     HISTOGRAM = "histogram"
 
@@ -591,6 +595,7 @@ class LabelStatsKeys(StrEnum):
     LABEL_NCOMP = "ncomponents"
 
 
+@deprecated(since="1.2", msg_suffix="please use `AlgoKeys` instead.")
 class AlgoEnsembleKeys(StrEnum):
     """
     Default keys for Mixed Ensemble
@@ -630,6 +635,7 @@ class LazyAttr(StrEnum):
     MetaTensor with pending operations requires some key attributes tracked especially when the primary array
     is not up-to-date due to lazy evaluation.
     This class specifies the set of key attributes to be tracked for each MetaTensor.
+    See also: :py:func:`monai.transforms.lazy.utils.resample` for more details.
     """
 
     SHAPE = "lazy_shape"  # spatial shape
@@ -638,6 +644,7 @@ class LazyAttr(StrEnum):
     INTERP_MODE = "lazy_interpolation_mode"
     DTYPE = "lazy_dtype"
     ALIGN_CORNERS = "lazy_align_corners"
+    RESAMPLE_MODE = "lazy_resample_mode"
 
 
 class BundleProperty(StrEnum):
@@ -661,3 +668,18 @@ class BundlePropertyConfig(StrEnum):
 
     ID = "id"
     REF_ID = "refer_id"
+
+
+class AlgoKeys(StrEnum):
+    """
+    Default keys for templated Auto3DSeg Algo.
+    `ID` is the identifier of the algorithm. The string has the format of <name>_<idx>_<other>.
+    `ALGO` is the Auto3DSeg Algo instance.
+    `IS_TRAINED` is the status that shows if the Algo has been trained.
+    `SCORE` is the score the Algo has achieved after training.
+    """
+
+    ID = "identifier"
+    ALGO = "algo_instance"
+    IS_TRAINED = "is_trained"
+    SCORE = "best_metric"

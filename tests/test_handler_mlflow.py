@@ -68,6 +68,39 @@ class TestHandlerMLFlow(unittest.TestCase):
             if tmpdir and os.path.exists(tmpdir):
                 shutil.rmtree(tmpdir)
 
+    def test_multi_run(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            # set up the train function for engine
+            def _train_func(engine, batch):
+                return [batch + 1.0]
+
+            # create and run an engine several times to get several runs
+            create_engine_times = 3
+            for _ in range(create_engine_times):
+                engine = Engine(_train_func)
+
+                @engine.on(Events.EPOCH_COMPLETED)
+                def _update_metric(engine):
+                    current_metric = engine.state.metrics.get("acc", 0.1)
+                    engine.state.metrics["acc"] = current_metric + 0.1
+                    engine.state.test = current_metric
+
+                # set up testing handler
+                test_path = os.path.join(tempdir, "mlflow_test")
+                handler = MLFlowHandler(
+                    iteration_log=False,
+                    epoch_log=True,
+                    tracking_uri=path_to_uri(test_path),
+                    state_attributes=["test"],
+                    close_on_complete=True,
+                )
+                handler.attach(engine)
+                engine.run(range(3), max_epochs=2)
+                run_cnt = len(handler.client.search_runs(handler.experiment.experiment_id))
+                handler.close()
+            # the run count should equal to the times of creating engine
+            self.assertEqual(create_engine_times, run_cnt)
+
     def test_metrics_track(self):
         experiment_param = {"backbone": "efficientnet_b0"}
         with tempfile.TemporaryDirectory() as tempdir:

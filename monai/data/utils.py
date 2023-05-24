@@ -17,7 +17,6 @@ import logging
 import math
 import os
 import pickle
-import warnings
 from collections import abc, defaultdict
 from collections.abc import Generator, Iterable, Mapping, Sequence, Sized
 from copy import deepcopy
@@ -164,7 +163,7 @@ def iter_patch_slices(
 
 
 def dense_patch_slices(
-    image_size: Sequence[int], patch_size: Sequence[int], scan_interval: Sequence[int]
+    image_size: Sequence[int], patch_size: Sequence[int], scan_interval: Sequence[int], return_slice: bool = True
 ) -> list[tuple[slice, ...]]:
     """
     Enumerate all slices defining ND patches of size `patch_size` from an `image_size` input image.
@@ -173,6 +172,7 @@ def dense_patch_slices(
         image_size: dimensions of image to iterate over
         patch_size: size of patches to generate slices
         scan_interval: dense patch sampling interval
+        return_slice: whether to return a list of slices (or tuples of indices), defaults to True
 
     Returns:
         a list of slice objects defining each patch
@@ -200,7 +200,9 @@ def dense_patch_slices(
             dim_starts.append(start_idx)
         starts.append(dim_starts)
     out = np.asarray([x.flatten() for x in np.meshgrid(*starts, indexing="ij")]).T
-    return [tuple(slice(s, s + patch_size[d]) for d, s in enumerate(x)) for x in out]
+    if return_slice:
+        return [tuple(slice(s, s + patch_size[d]) for d, s in enumerate(x)) for x in out]
+    return [tuple((s, s + patch_size[d]) for d, s in enumerate(x)) for x in out]  # type: ignore
 
 
 def iter_patch_position(
@@ -247,14 +249,14 @@ def iter_patch_position(
 
 
 def iter_patch(
-    arr: np.ndarray,
+    arr: NdarrayOrTensor,
     patch_size: Sequence[int] | int = 0,
     start_pos: Sequence[int] = (),
     overlap: Sequence[float] | float = 0.0,
     copy_back: bool = True,
     mode: str | None = NumpyPadMode.WRAP,
     **pad_opts: dict,
-):
+) -> Generator[tuple[NdarrayOrTensor, np.ndarray], None, None]:
     """
     Yield successive patches from `arr` of size `patch_size`. The iteration can start from position `start_pos` in `arr`
     but drawing from a padded array extended by the `patch_size` in each dimension (so these coordinates can be negative
@@ -268,9 +270,16 @@ def iter_patch(
         overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
             If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
         copy_back: if True data from the yielded patches is copied back to `arr` once the generator completes
-        mode: One of the listed string values in ``monai.utils.NumpyPadMode`` or ``monai.utils.PytorchPadMode``,
-            or a user supplied function. If None, no wrapping is performed. Defaults to ``"wrap"``.
-        pad_opts: padding options, see `numpy.pad`
+        mode: available modes: (Numpy) {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            (PyTorch) {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+            One of the listed string values or a user supplied function.
+            If None, no wrapping is performed. Defaults to ``"wrap"``.
+            See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
+            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+            requires pytorch >= 1.10 for best compatibility.
+        pad_opts: other arguments for the `np.pad` or `torch.pad` function.
+            note that `np.pad` treats channel dimension as the first dimension.
 
     Yields:
         Patches of array data from `arr` which are views into a padded array which can be modified, if `copy_back` is
@@ -285,6 +294,9 @@ def iter_patch(
              Nth_dim_start, Nth_dim_end]]
 
     """
+
+    from monai.transforms.croppad.functional import pad_nd  # needs to be here to avoid circular import
+
     # ensure patchSize and startPos are the right length
     patch_size_ = get_valid_patch_size(arr.shape, patch_size)
     start_pos = ensure_tuple_size(start_pos, arr.ndim)
@@ -296,7 +308,7 @@ def iter_patch(
     _overlap = [op if v else 0.0 for op, v in zip(ensure_tuple_rep(overlap, arr.ndim), is_v)]  # overlap if v else 0.0
     # pad image by maximum values needed to ensure patches are taken from inside an image
     if padded:
-        arrpad = np.pad(arr, tuple((p, p) for p in _pad_size), look_up_option(mode, NumpyPadMode).value, **pad_opts)
+        arrpad = pad_nd(arr, to_pad=[(p, p) for p in _pad_size], mode=mode, **pad_opts)  # type: ignore
         # choose a start position in the padded image
         start_pos_padded = tuple(s + p for s, p in zip(start_pos, _pad_size))
 
@@ -319,7 +331,7 @@ def iter_patch(
     # copy back data from the padded image if required
     if copy_back:
         slices = tuple(slice(p, p + s) for p, s in zip(_pad_size, arr.shape))
-        arr[...] = arrpad[slices]
+        arr[...] = arrpad[slices]  # type: ignore
 
 
 def get_valid_patch_size(image_size: Sequence[int], patch_size: Sequence[int] | int | np.ndarray) -> tuple[int, ...]:
@@ -776,7 +788,6 @@ def rectify_header_sform_qform(img_nii):
             return img_nii
 
     norm = affine_to_spacing(img_nii.affine, r=d)
-    warnings.warn(f"Modifying image pixdim from {pixdim} to {norm}")
 
     img_nii.header.set_zooms(norm)
     return img_nii
@@ -1048,6 +1059,7 @@ def compute_importance_map(
     mode: BlendMode | str = BlendMode.CONSTANT,
     sigma_scale: Sequence[float] | float = 0.125,
     device: torch.device | int | str = "cpu",
+    dtype: torch.dtype | str | None = torch.float32,
 ) -> torch.Tensor:
     """Get importance map for different weight modes.
 
@@ -1062,6 +1074,7 @@ def compute_importance_map(
         sigma_scale: Sigma_scale to calculate sigma for each dimension
             (sigma = sigma_scale * dim_size). Used for gaussian mode only.
         device: Device to put importance map on.
+        dtype: Data type of the output importance map.
 
     Raises:
         ValueError: When ``mode`` is not one of ["constant", "gaussian"].
@@ -1088,6 +1101,9 @@ def compute_importance_map(
         raise ValueError(
             f"Unsupported mode: {mode}, available options are [{BlendMode.CONSTANT}, {BlendMode.CONSTANT}]."
         )
+    # handle non-positive weights
+    min_non_zero = max(torch.min(importance_map).item(), 1e-3)
+    importance_map = torch.clamp_(importance_map.to(torch.float), min=min_non_zero).to(dtype)
     return importance_map
 
 

@@ -19,7 +19,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        python-version: ["3.9"]
+        python-version: ["3.9", "3.10"]
     runs-on: ${{ matrix.os }}
     env:
       QUICKTEST: True
@@ -28,23 +28,25 @@ jobs:
       name: Config pagefile (Windows only)
       uses: al-cheb/configure-pagefile-action@v1.3
       with:
-        minimum-size: 8
-        maximum-size: 16
+        minimum-size: 8GB
+        maximum-size: 16GB
         disk-root: "D:"
     - uses: actions/checkout@v3
     - uses: conda-incubator/setup-miniconda@v2
       with:
         auto-update-conda: true
         python-version: ${{ matrix.python-version }}
-    - name: Install env (CPU ${{ runner.os }})
-      shell: bash -l {0}
+        auto-activate-base: false
+        environment-file: environment-dev.yml
+        activate-environment: monai
+    - name: Env info (CPU ${{ runner.os }})
+      shell: bash -el {0}
       run: |
         conda info
         conda list
-        conda env create --file environment-dev.yml
     - if: runner.os == 'windows'
       name: Windows only install
-      shell: bash -l {0}
+      shell: bash -el {0}
       run: |
         conda activate monai
         # this `cpuonly` and -c conda-forge is needed to reduce the paging file size on a github instance
@@ -52,8 +54,8 @@ jobs:
         # https://github.com/pytorch/vision/issues/4240
         conda install pytorch torchvision torchaudio cpuonly==2.0.0 -c pytorch -c conda-forge
         conda deactivate
-    - name: Test env(CPU ${{ runner.os }})
-      shell: bash -l {0}
+    - name: Test env (CPU ${{ runner.os }})
+      shell: bash -el {0}
       run: |
         conda activate monai
         $(pwd)/runtests.sh --build --unittests

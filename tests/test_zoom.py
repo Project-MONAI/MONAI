@@ -29,16 +29,26 @@ from tests.utils import (
     test_local_inversion,
 )
 
-VALID_CASES = [(1.5, "nearest", True), (1.5, "nearest", False), (0.8, "bilinear"), (0.8, "area")]
+VALID_CASES = [
+    (1.5, "nearest", True),
+    (1.5, "nearest", False),
+    (0.8, "bilinear"),
+    (0.8, 1),
+    (0.8, "area"),
+    (1.5, "nearest", False, True),
+    (0.8, "area", False, True),
+]
 
 INVALID_CASES = [((None, None), "bilinear", TypeError), ((0.9, 0.9), "s", ValueError)]
 
 
 class TestZoom(NumpyImageTestCase2D):
     @parameterized.expand(VALID_CASES)
-    def test_pending_ops(self, zoom, mode, align_corners=False):
+    def test_pending_ops(self, zoom, mode, align_corners=False, keep_size=False):
         im = MetaTensor(self.imt[0], meta={"a": "b", "affine": DEFAULT_TEST_AFFINE})
-        zoom_fn = Zoom(zoom=zoom, mode="bilinear", keep_size=False, dtype=torch.float64, align_corners=align_corners)
+        zoom_fn = Zoom(
+            zoom=zoom, mode="bilinear", keep_size=keep_size, dtype=torch.float64, align_corners=align_corners
+        )
         # non-lazy
         expected = zoom_fn(im)
         self.assertIsInstance(expected, MetaTensor)
@@ -61,7 +71,7 @@ class TestZoom(NumpyImageTestCase2D):
             zoomed = zoom_fn(im)
             test_local_inversion(zoom_fn, zoomed, im)
             _order = 0
-            if mode.endswith("linear"):
+            if mode == 1 or mode.endswith("linear"):
                 _order = 1
             expected = []
             for channel in self.imt[0]:

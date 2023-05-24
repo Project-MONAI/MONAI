@@ -22,7 +22,7 @@ from parameterized import parameterized
 
 from monai._extensions import load_module
 from monai.networks.layers import GaussianMixtureModel
-from tests.utils import skip_if_darwin, skip_if_no_cuda, skip_if_windows
+from tests.utils import skip_if_darwin, skip_if_no_cuda, skip_if_quick, skip_if_windows
 
 TEST_CASES = [
     [
@@ -259,6 +259,7 @@ TEST_CASES = [
 ]
 
 
+@skip_if_quick
 class GMMTestCase(unittest.TestCase):
     def setUp(self):
         self._var = os.environ.get("TORCH_EXTENSIONS_DIR")

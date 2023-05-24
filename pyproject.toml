@@ -2,13 +2,13 @@
 requires = [
   "wheel",
   "setuptools",
-  "torch>=1.8",
+  "torch>=1.9",
   "ninja",
 ]
 
 [tool.black]
 line-length = 120
-target-version = ['py37', 'py38', 'py39', 'py310']
+target-version = ['py38', 'py39', 'py310']
 include = '\.pyi?$'
 exclude = '''
 (
@@ -35,6 +35,11 @@ exclude = '''
 [tool.pycln]
 all = true
 exclude = "monai/bundle/__main__.py"
+
+[tool.ruff]
+line-length = 133
+ignore-init-module-imports = true
+ignore = ["F401", "E741"]
 
 [tool.pytype]
 # Space-separated list of files or directories to exclude.

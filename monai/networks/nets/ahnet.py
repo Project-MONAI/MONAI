@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
+from typing import Union
 
 import torch
 import torch.nn as nn
@@ -279,7 +280,7 @@ class PSP(nn.Module):
         else:
             for project_module, pool_module in zip(self.project_modules, self.pool_modules):
                 interpolate_size = x.shape[2:]
-                align_corners: bool | None = None
+                align_corners: Union[bool, None] = None
                 if self.upsample_mode in ["trilinear", "bilinear"]:
                     align_corners = True
                 output = F.interpolate(

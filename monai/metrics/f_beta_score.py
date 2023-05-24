@@ -15,7 +15,7 @@ from collections.abc import Sequence
 
 import torch
 
-from monai.metrics.utils import do_metric_reduction, ignore_background, is_binary_tensor
+from monai.metrics.utils import do_metric_reduction, ignore_background
 from monai.utils import MetricReduction
 
 from .metric import CumulativeIterationMetric
@@ -36,9 +36,6 @@ class FBetaScore(CumulativeIterationMetric):
         self.get_not_nans = get_not_nans
 
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
-        is_binary_tensor(y_pred, "y_pred")
-        is_binary_tensor(y, "y")
-
         if y_pred.ndimension() < 2:
             raise ValueError("y_pred should have at least two dimensions.")
 

@@ -23,6 +23,7 @@ from monai.bundle.reference_resolver import ReferenceResolver
 from monai.bundle.utils import ID_REF_KEY, ID_SEP_KEY, MACRO_KEY
 from monai.config import PathLike
 from monai.utils import ensure_tuple, look_up_option, optional_import
+from monai.utils.misc import CheckKeyDuplicatesYamlLoader, check_key_duplicates
 
 if TYPE_CHECKING:
     import yaml
@@ -344,7 +345,8 @@ class ConfigParser:
             if config.startswith(MACRO_KEY):
                 path, ids = ConfigParser.split_path_id(config[len(MACRO_KEY) :])
                 parser = ConfigParser(config=self.get() if not path else ConfigParser.load_config_file(path))
-                return parser[ids]
+                # deepcopy to ensure the macro replacement is independent config content
+                return deepcopy(parser[ids])
         return config
 
     def resolve_macro_and_relative_ids(self):
@@ -355,7 +357,7 @@ class ConfigParser:
         ``"%default_net"``, ``"%/data/config.json#net"``.
 
         """
-        self.set(self._do_resolve(config=deepcopy(self.get())))
+        self.set(self._do_resolve(config=self.get()))
 
     def _do_parse(self, config: Any, id: str = "") -> None:
         """
@@ -374,14 +376,12 @@ class ConfigParser:
                 sub_id = f"{id}{ID_SEP_KEY}{k}" if id != "" else k
                 self._do_parse(config=v, id=sub_id)
 
-        # copy every config item to make them independent and add them to the resolver
-        item_conf = deepcopy(config)
-        if ConfigComponent.is_instantiable(item_conf):
-            self.ref_resolver.add_item(ConfigComponent(config=item_conf, id=id, locator=self.locator))
-        elif ConfigExpression.is_expression(item_conf):
-            self.ref_resolver.add_item(ConfigExpression(config=item_conf, id=id, globals=self.globals))
+        if ConfigComponent.is_instantiable(config):
+            self.ref_resolver.add_item(ConfigComponent(config=config, id=id, locator=self.locator))
+        elif ConfigExpression.is_expression(config):
+            self.ref_resolver.add_item(ConfigExpression(config=config, id=id, globals=self.globals))
         else:
-            self.ref_resolver.add_item(ConfigItem(config=item_conf, id=id))
+            self.ref_resolver.add_item(ConfigItem(config=config, id=id))
 
     @classmethod
     def load_config_file(cls, filepath: PathLike, **kwargs: Any) -> dict:
@@ -400,9 +400,9 @@ class ConfigParser:
             raise ValueError(f'unknown file input: "{filepath}"')
         with open(_filepath) as f:
             if _filepath.lower().endswith(cls.suffixes[0]):
-                return json.load(f, **kwargs)  # type: ignore[no-any-return]
+                return json.load(f, object_pairs_hook=check_key_duplicates, **kwargs)  # type: ignore[no-any-return]
             if _filepath.lower().endswith(cls.suffixes[1:]):
-                return yaml.safe_load(f, **kwargs)  # type: ignore[no-any-return]
+                return yaml.load(f, CheckKeyDuplicatesYamlLoader, **kwargs)  # type: ignore[no-any-return]
             raise ValueError(f"only support JSON or YAML config file so far, got name {_filepath}.")
 
     @classmethod

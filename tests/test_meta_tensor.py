@@ -177,6 +177,7 @@ class TestMetaTensor(unittest.TestCase):
         a = deepcopy(m)
         self.check(a, m, ids=False)
         # clone
+        a = m.clone(memory_format=torch.preserve_format)
         a = m.clone()
         self.check(a, m, ids=False)
         a = MetaTensor([[]], device=device, dtype=dtype)
@@ -430,8 +431,9 @@ class TestMetaTensor(unittest.TestCase):
 
     def test_str(self):
         t = MetaTensor([1.0], affine=torch.tensor(1), meta={"fname": "filename"})
-        self.assertEqual(str(t), "tensor([1.])")
-        self.assertEqual(t.__repr__(), "tensor([1.])")
+        self.assertEqual(str(t), "metatensor([1.])")
+        self.assertEqual(t.__repr__(), "metatensor([1.])")
+        self.assertEqual(f"{t[0]:.2f}", "1.00")
 
     def test_shape(self):
         s = MetaTensor([1])
