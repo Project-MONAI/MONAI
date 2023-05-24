@@ -119,7 +119,7 @@ class PatchInferer(Inferer):
     ) -> None:
         Inferer.__init__(self)
         # splitter
-        if splitter is not None and not isinstance(splitter, Splitter):
+        if not isinstance(splitter, (Splitter, type(None))):
             if not isinstance(splitter, Splitter):
                 raise TypeError(
                     f"'splitter' should be a `Splitter` object that returns: "
