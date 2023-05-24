@@ -705,8 +705,13 @@ class SomeOf(Compose):
         logger_name: bool | str = False,
     ) -> None:
         super().__init__(
-            transforms, map_items, unpack_items, log_stats=log_stats, lazy=lazy, overrides=overrides,
-            logger_name=logger_name
+            transforms,
+            map_items,
+            unpack_items,
+            log_stats=log_stats,
+            lazy=lazy,
+            overrides=overrides,
+            logger_name=logger_name,
         )
         self.min_num_transforms, self.max_num_transforms = self._ensure_valid_num_transforms(num_transforms)
         self.replace = replace
