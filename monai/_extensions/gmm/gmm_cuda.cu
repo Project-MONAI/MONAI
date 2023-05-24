@@ -21,6 +21,13 @@ limitations under the License.
 #define EPSILON 1e-5
 #define BLOCK_SIZE 32
 #define TILE(SIZE, STRIDE) ((((SIZE)-1) / (STRIDE)) + 1)
+#ifdef __HIP_PLATFORM_AMD__
+  #define __SHFL_DOWN(a, b)  __shfl_down(a, b)
+  #define __SHFL_XOR(a, b) __shfl_xor(a, b)
+#else
+  #define __SHFL_DOWN(a, b) __shfl_down_sync(0xffffffff,a, b)
+  #define __SHFL_XOR(a, b) __shfl_xor_sync(0xffffffff, a, b)
+#endif
 
 template <int warp_count, int load_count>
 __global__ void CovarianceReductionKernel(
@@ -82,19 +89,11 @@ __global__ void CovarianceReductionKernel(
 
   for (int i = 0; i < MATRIX_COMPONENT_COUNT; i++) {
     float matrix_component = matrix[i];
-#ifdef __HIP_PLATFORM_AMD__
-    matrix_component += __shfl_down(matrix_component, 16);
-    matrix_component += __shfl_down(matrix_component, 8);
-    matrix_component += __shfl_down(matrix_component, 4);
-    matrix_component += __shfl_down(matrix_component, 2);
-    matrix_component += __shfl_down(matrix_component, 1);
-#else
-    matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 16);
-    matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 8);
-    matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 4);
-    matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 2);
-    matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 1);
-#endif
+    matrix_component += __SHFL_DOWN(matrix_component, 16);
+    matrix_component += __SHFL_DOWN(matrix_component, 8);
+    matrix_component += __SHFL_DOWN(matrix_component, 4);
+    matrix_component += __SHFL_DOWN(matrix_component, 2);
+    matrix_component += __SHFL_DOWN(matrix_component, 1);
     if (lane_index == 0) {
       s_matrix_component[warp_index] = matrix_component;
     }
@@ -103,39 +102,21 @@ __global__ void CovarianceReductionKernel(
 
     if (warp_index == 0) {
       matrix_component = s_matrix_component[lane_index];
-#ifdef __HIP_PLATFORM_AMD__
       if (warp_count >= 32) {
-        matrix_component += __shfl_down(matrix_component, 16);
+        matrix_component += __SHFL_DOWN(matrix_component, 16);
       }
       if (warp_count >= 16) {
-        matrix_component += __shfl_down(matrix_component, 8);
+        matrix_component += __SHFL_DOWN(matrix_component, 8);
       }
       if (warp_count >= 8) {
-        matrix_component += __shfl_down(matrix_component, 4);
+        matrix_component += __SHFL_DOWN(matrix_component, 4);
       }
       if (warp_count >= 4) {
-        matrix_component += __shfl_down(matrix_component, 2);
+        matrix_component += __SHFL_DOWN(matrix_component, 2);
       }
       if (warp_count >= 2) {
-        matrix_component += __shfl_down(matrix_component, 1);
+        matrix_component += __SHFL_DOWN(matrix_component, 1);
       }
-#else
-      if (warp_count >= 32) {
-        matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 16);
-      }
-      if (warp_count >= 16) {
-        matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 8);
-      }
-      if (warp_count >= 8) {
-        matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 4);
-      }
-      if (warp_count >= 4) {
-        matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 2);
-      }
-      if (warp_count >= 2) {
-        matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 1);
-      }
-#endif
       if (lane_index == 0) {
         g_batch_matrices[matrix_offset + i] = matrix_component;
       }
@@ -178,19 +159,11 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
           matrix_component += g_batch_matrices[(matrix_offset + matrix_index) * GMM_COMPONENT_COUNT + index];
         }
       }
-#ifdef __HIP_PLATFORM_AMD__
-      matrix_component += __shfl_down(matrix_component, 16);
-      matrix_component += __shfl_down(matrix_component, 8);
-      matrix_component += __shfl_down(matrix_component, 4);
-      matrix_component += __shfl_down(matrix_component, 2);
-      matrix_component += __shfl_down(matrix_component, 1);
-#else
-      matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 16);
-      matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 8);
-      matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 4);
-      matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 2);
-      matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 1);
-#endif
+      matrix_component += __SHFL_DOWN(matrix_component, 16);
+      matrix_component += __SHFL_DOWN(matrix_component, 8);
+      matrix_component += __SHFL_DOWN(matrix_component, 4);
+      matrix_component += __SHFL_DOWN(matrix_component, 2);
+      matrix_component += __SHFL_DOWN(matrix_component, 1);
       if (lane_index == 0) {
         s_matrix_component[warp_index] = matrix_component;
       }
@@ -199,39 +172,21 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
 
       if (warp_index == 0) {
         matrix_component = s_matrix_component[lane_index];
-#ifdef __HIP_PLATFORM_AMD__
         if (warp_count >= 32) {
-          matrix_component += __shfl_down(matrix_component, 16);
+          matrix_component += __SHFL_DOWN(matrix_component, 16);
         }
         if (warp_count >= 16) {
-          matrix_component += __shfl_down(matrix_component, 8);
+          matrix_component += __SHFL_DOWN(matrix_component, 8);
         }
         if (warp_count >= 8) {
-          matrix_component += __shfl_down(matrix_component, 4);
+          matrix_component += __SHFL_DOWN(matrix_component, 4);
         }
         if (warp_count >= 4) {
-          matrix_component += __shfl_down(matrix_component, 2);
+          matrix_component += __SHFL_DOWN(matrix_component, 2);
         }
         if (warp_count >= 2) {
-          matrix_component += __shfl_down(matrix_component, 1);
+          matrix_component += __SHFL_DOWN(matrix_component, 1);
         }
-#else
-        if (warp_count >= 32) {
-          matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 16);
-        }
-        if (warp_count >= 16) {
-          matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 8);
-        }
-        if (warp_count >= 8) {
-          matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 4);
-        }
-        if (warp_count >= 4) {
-          matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 2);
-        }
-        if (warp_count >= 2) {
-          matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 1);
-        }
-#endif
         if (lane_index == 0) {
           float constant = i == 0 ? 0.0f : s_gmm[i] * s_gmm[j];
 
@@ -305,19 +260,11 @@ __global__ void GMMFindSplit(GMMSplit_t* gmmSplit, int gmmK, float* gmm) {
   }
 
   float max_value = eigenvalue;
-#ifdef __HIP_PLATFORM_AMD__
-  max_value = max(max_value, __shfl_xor(max_value, 16));
-  max_value = max(max_value, __shfl_xor(max_value, 8));
-  max_value = max(max_value, __shfl_xor(max_value, 4));
-  max_value = max(max_value, __shfl_xor(max_value, 2));
-  max_value = max(max_value, __shfl_xor(max_value, 1));
-#else
-  max_value = max(max_value, __shfl_xor_sync(0xffffffff, max_value, 16));
-  max_value = max(max_value, __shfl_xor_sync(0xffffffff, max_value, 8));
-  max_value = max(max_value, __shfl_xor_sync(0xffffffff, max_value, 4));
-  max_value = max(max_value, __shfl_xor_sync(0xffffffff, max_value, 2));
-  max_value = max(max_value, __shfl_xor_sync(0xffffffff, max_value, 1));
-#endif
+  max_value = max(max_value, __SHFL_XOR(max_value, 16));
+  max_value = max(max_value, __SHFL_XOR(max_value, 8));
+  max_value = max(max_value, __SHFL_XOR(max_value, 4));
+  max_value = max(max_value, __SHFL_XOR(max_value, 2));
+  max_value = max(max_value, __SHFL_XOR(max_value, 1));
   if (max_value == eigenvalue) {
     GMMSplit_t split;
 
@@ -397,20 +344,12 @@ __global__ void GMMcommonTerm(float* g_gmm) {
   float gmm_n = threadIdx.x < MIXTURE_SIZE ? g_batch_gmm[gmm_index * GMM_COMPONENT_COUNT] : 0.0f;
 
   float sum = gmm_n;
-#ifdef __HIP_PLATFORM_AMD__
-  sum += __shfl_xor(sum, 1);
-  sum += __shfl_xor(sum, 2);
-  sum += __shfl_xor(sum, 4);
-  sum += __shfl_xor(sum, 8);
-  sum += __shfl_xor(sum, 16);
+  sum += __SHFL_XOR(sum, 1);
+  sum += __SHFL_XOR(sum, 2);
+  sum += __SHFL_XOR(sum, 4);
+  sum += __SHFL_XOR(sum, 8);
+  sum += __SHFL_XOR(sum, 16);
 
-#else
-  sum += __shfl_xor_sync(0xffffffff, sum, 1);
-  sum += __shfl_xor_sync(0xffffffff, sum, 2);
-  sum += __shfl_xor_sync(0xffffffff, sum, 4);
-  sum += __shfl_xor_sync(0xffffffff, sum, 8);
-  sum += __shfl_xor_sync(0xffffffff, sum, 16);
-#endif
   if (threadIdx.x < MIXTURE_SIZE) {
     float det = g_batch_gmm[gmm_index * GMM_COMPONENT_COUNT + MATRIX_COMPONENT_COUNT] + EPSILON;
     float commonTerm = det > 0.0f ? gmm_n / (sqrtf(det) * sum) : gmm_n / sum;
