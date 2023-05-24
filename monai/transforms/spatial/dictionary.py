@@ -154,6 +154,9 @@ class SpatialResampled(MapTransform, InvertibleTransform, LazyTransform):
     changes) in the dictionary so that ``src_affine`` always refers to the current
     status of affine.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     See also:
         :py:class:`monai.transforms.SpatialResample`
     """
@@ -198,7 +201,7 @@ class SpatialResampled(MapTransform, InvertibleTransform, LazyTransform):
             dst_keys: the key of the corresponding ``dst_affine`` in the metadata dictionary.
             allow_missing_keys: don't raise exception if key is missing.
             lazy: a flag to indicate whether this transform should execute lazily or not.
-                Defaults to False
+                Defaults to False.
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         LazyTransform.__init__(self, lazy=lazy)
@@ -252,7 +255,13 @@ class SpatialResampled(MapTransform, InvertibleTransform, LazyTransform):
 
 
 class ResampleToMatchd(MapTransform, InvertibleTransform, LazyTransform):
-    """Dictionary-based wrapper of :py:class:`monai.transforms.ResampleToMatch`."""
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.ResampleToMatch`.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
+    """
 
     backend = ResampleToMatch.backend
 
@@ -355,6 +364,9 @@ class Spacingd(MapTransform, InvertibleTransform, LazyTransform):
 
     After resampling the input array, this transform will write the new affine
     to the `affine` field of metadata which is formed by ``key_{meta_key_postfix}``.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
 
     see also:
         :py:class:`monai.transforms.Spacing`
@@ -518,6 +530,9 @@ class Orientationd(MapTransform, InvertibleTransform, LazyTransform):
     This transform assumes the channel-first input format.
     In the case of using this transform for normalizing the orientations of images,
     it should be used before any anisotropic spatial transforms.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     backend = Orientation.backend
@@ -590,6 +605,9 @@ class Orientationd(MapTransform, InvertibleTransform, LazyTransform):
 class Rotate90d(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Rotate90`.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     backend = Rotate90.backend
@@ -651,6 +669,9 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform, La
     Dictionary-based version :py:class:`monai.transforms.RandRotate90`.
     With probability `prob`, input arrays are rotated by 90 degrees
     in the plane specified by `spatial_axes`.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     backend = Rotate90.backend
@@ -732,6 +753,9 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform, La
 class Resized(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Resize`.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
 
     Args:
         keys: keys of the corresponding items to be transformed.
@@ -837,6 +861,9 @@ class Resized(MapTransform, InvertibleTransform, LazyTransform):
 class Affined(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Affine`.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     backend = Affine.backend
@@ -966,6 +993,9 @@ class Affined(MapTransform, InvertibleTransform, LazyTransform):
 class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.RandAffine`.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     backend = RandAffine.backend
@@ -1436,6 +1466,9 @@ class Flipd(MapTransform, InvertibleTransform, LazyTransform):
     See `numpy.flip` for additional details.
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         keys: Keys to pick data for transformation.
         spatial_axis: Spatial axes along which to flip over. Default is None.
@@ -1494,6 +1527,9 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
 
     See `numpy.flip` for additional details.
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
 
     Args:
         keys: Keys to pick data for transformation.
@@ -1571,6 +1607,9 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform, La
     See `numpy.flip` for additional details.
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         keys: Keys to pick data for transformation.
         prob: Probability of flipping.
@@ -1644,6 +1683,9 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform, La
 class Rotated(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Rotate`.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
 
     Args:
         keys: Keys to pick data for transformation.
@@ -1733,6 +1775,9 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
     """
     Dictionary-based version :py:class:`monai.transforms.RandRotate`
     Randomly rotates the input arrays.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
 
     Args:
         keys: Keys to pick data for transformation.
@@ -1856,6 +1901,9 @@ class Zoomd(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Zoom`.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         keys: Keys to pick data for transformation.
         zoom: The zoom factor along the spatial axes.
@@ -1949,6 +1997,9 @@ class Zoomd(MapTransform, InvertibleTransform, LazyTransform):
 class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTransform):
     """
     Dict-based version :py:class:`monai.transforms.RandZoom`.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
 
     Args:
         keys: Keys to pick data for transformation.

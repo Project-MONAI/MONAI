@@ -76,18 +76,16 @@ def _apply_transform(
         lazy: whether to enable lazy evaluation for lazy transforms. If False, transforms will be
             carried out on a transform by transform basis. If True, all lazy transforms will
             be executed by accumulating changes and resampling as few times as possible.
-        lazy_strategy: this field controls how execution occurs when processing data lazily. Permitted
-            options are "in_order", "out_of_order". Please see `Compose`_ for more details of what these
-            options mean. In general, you should not need to change this from its default.
+            See the :ref:`lazy_resampling<Lazy Resampling topic> for more information about lazy resampling.
         overrides: this optional parameter allows you to specify a dictionary of parameters that should be overridden
             when executing a pipeline. These each parameter that is compatible with a given transform is then applied
-            to that transform before it is executed. Note that overrides are currently only applied when lazy
-            is True. If lazy is False they are ignored.
-            currently supported args are:
-            {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``},
-            please see also :py:func:`monai.transforms.lazy.apply_pending` and ``Compose`` for more details.
-         logger_name: The name of the logger that should be used during transform execution. If None, logging is
-            suppressed.
+            to that transform before it is executed. Note that overrides are currently only applied when
+            :ref:`lazy resampling<Lazy Resampling>` is enabled for the pipeline or a given transform. If lazy is False
+            they are ignored. Currently supported args are:
+            {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``}.
+        logger_name: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
+            Setting this to False disables logging. Setting it to True enables logging to the default loggers.
+            Setting a string overrides the logger name to which logging is performed.
 
     Returns:
         ReturnType: The return type of `transform`.
@@ -125,12 +123,14 @@ def apply_transform(
         map_items: whether to apply transform to each item in `data`,
             if `data` is a list or tuple. Defaults to True.
         unpack_items: whether to unpack parameters using `*`. Defaults to False.
-        lazy: whether to execute in lazy mode or not. See ``Compose`` for more information about lazy resampling.
-        lazy_strategy: this field controls how execution occurs when processing data lazily. Permitted
-            options are "in_order", "out_of_order". Please see `Compose`_ for more details of what these
-            options mean. In general, you should not need to change this from its default.
+        log_stats: log errors when they occur in the processing pipeline. By default, this is set to False, which
+            disables the logger for processing pipeline errors. Setting it to None or True will enable logging to the
+            default logger name. Setting it to a string specifies the logger to which errors should be logged.
+        lazy: whether to execute in lazy mode or not. See the :ref:`lazy_resampling<Lazy Resampling topic> for more
+        information about lazy resampling.
         overrides: optional overrides to apply to transform parameters. This parameter is ignored unless transforms
-            are being executed lazily.
+            are being executed lazily. See the :ref:`lazy_resampling<Lazy Resampling topic> for more details and
+            examples of its usage.
 
     Raises:
         Exception: When ``transform`` raises an exception.

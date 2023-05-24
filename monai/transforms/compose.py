@@ -86,7 +86,7 @@ def execute_compose(
             of transforms that have the ``RandomizedTrait`` interface.
         log_stats: log errors when they occur in the processing pipeline. By default, this is set to False, which
             disables the logger for processing pipeline errors. Setting it to True will enable logging to the
-            default logger name. Setting it to a string specifies the logger to which errors should be logged
+            default logger name. Setting it to a string specifies the logger to which errors should be logged.
         logger_name: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
             Setting this to False disables logging. Setting it to True enables logging to the default loggers.
             Setting a string overrides the logger name to which logging is performed.
@@ -211,8 +211,8 @@ class Compose(Randomizable, InvertibleTransform):
         * True: Always perform lazy resampling if possible. This will ignore the ``lazy`` properties
           of the transform instances
 
-        Please see the :ref:`Lazy Resampling` topic page for more details of this feature and examples
-        of its use.
+        Please see the :ref:`Lazy Resampling topic<lazy_resampling>` for more details of this feature
+        and examples of its use.
 
     Args:
         transforms: sequence of callables.
@@ -222,15 +222,15 @@ class Compose(Randomizable, InvertibleTransform):
             defaults to `False`.
         log_stats: log errors when they occur in the processing pipeline. By default, this is set to False, which
             disables the logger for processing pipeline errors. Setting it to True will enable logging to the
-            default logger name. Setting it to a string specifies the logger to which errors should be logged
-        lazy: whether to enable :ref:`lazy evaluation<Lazy Resampling>` for lazy transforms. If False, transforms will be
-            carried out on a transform by transform basis. If True, all lazy transforms will
-            be executed by accumulating changes and resampling as few times as possible. If lazy is None, `Compose` will
+            default logger name. Setting it to a string specifies the logger to which errors should be logged.
+        lazy: whether to enable :ref:`Lazy Resampling<lazy_resampling>` for lazy transforms. If False, transforms will
+            be carried out on a transform by transform basis. If True, all lazy transforms will be executed by
+            accumulating changes and resampling as few times as possible. If lazy is None, `Compose` will
             perform lazy execution on lazy transforms that have their `lazy` property set to True.
         overrides: this optional parameter allows you to specify a dictionary of parameters that should be overridden
             when executing a pipeline. These each parameter that is compatible with a given transform is then applied
             to that transform before it is executed. Note that overrides are currently only applied when
-            :ref:`lazy resampling<Lazy Resampling>` is enabled for the pipeline or a given transform. If lazy is False
+            :ref:`Lazy Resampling<lazy_resampling>` is enabled for the pipeline or a given transform. If lazy is False
             they are ignored. Currently supported args are:
             {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``}.
         logger_name: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
@@ -405,19 +405,17 @@ class OneOf(Compose):
             defaults to `False`.
         log_stats: log errors when they occur in the processing pipeline. By default, this is set to False, which
             disables the logger for processing pipeline errors. Setting it to None or True will enable logging to the
-            default logger name. Setting it to a string specifies the logger to which errors should be logged
-        lazy: whether to enable lazy evaluation for lazy transforms. If True, all lazy transforms will
-            be executed by accumulating changes and resampling as few times as possible. If False, transforms will be
-            carried out on a transform by transform basis.
-            A `monai.transforms.Identity[D]` transform in the pipeline will trigger the evaluation of
-            the pending operations and make the primary data up-to-date.
+            default logger name. Setting it to a string specifies the logger to which errors should be logged.
+        lazy: whether to enable :ref:`Lazy Resampling<lazy_resampling>` for lazy transforms. If False, transforms will
+            be carried out on a transform by transform basis. If True, all lazy transforms will be executed by
+            accumulating changes and resampling as few times as possible. If lazy is None, `Compose` will
+            perform lazy execution on lazy transforms that have their `lazy` property set to True.
         overrides: this optional parameter allows you to specify a dictionary of parameters that should be overridden
             when executing a pipeline. These each parameter that is compatible with a given transform is then applied
-            to that transform before it is executed. Note that overrides are currently only applied when lazy
-            is True. If lazy is False they are ignored.
-            currently supported args are:
-            {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``},
-            please see also :py:func:`monai.transforms.lazy.apply_transforms` for more details.
+            to that transform before it is executed. Note that overrides are currently only applied when
+            :ref:`Lazy Resampling<lazy_resampling>` is enabled for the pipeline or a given transform. If lazy is False
+            they are ignored. Currently supported args are:
+            {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``}.
         logger_name: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
             Setting this to False disables logging. Setting it to True enables logging to the default loggers.
             Setting a string overrides the logger name to which logging is performed.
@@ -544,30 +542,19 @@ class RandomOrder(Compose):
             defaults to `True`.
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             defaults to `False`.
-        lazy: whether to enable :ref:`lazy evaluation<Lazy Resampling>` for lazy transforms. If False, transforms will be
-            carried out on a transform by transform basis. If True, all lazy transforms will
-            be executed by accumulating changes and resampling as few times as possible.
+        log_stats: log errors when they occur in the processing pipeline. By default, this is set to False, which
+            disables the logger for processing pipeline errors. Setting it to True will enable logging to the
+            default logger name. Setting it to a string specifies the logger to which errors should be logged.
+        lazy: whether to enable :ref:`Lazy Resampling<lazy_resampling>` for lazy transforms. If False, transforms will
+            be carried out on a transform by transform basis. If True, all lazy transforms will be executed by
+            accumulating changes and resampling as few times as possible. If lazy is None, `Compose` will
+            perform lazy execution on lazy transforms that have their `lazy` property set to True.
         overrides: this optional parameter allows you to specify a dictionary of parameters that should be overridden
             when executing a pipeline. These each parameter that is compatible with a given transform is then applied
             to that transform before it is executed. Note that overrides are currently only applied when
-            :ref:`lazy resampling<Lazy Resampling>` is enabled for the pipeline or a given transform. If lazy is False
+            :ref:`Lazy Resampling<lazy_resampling>` is enabled for the pipeline or a given transform. If lazy is False
             they are ignored. Currently supported args are:
             {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``}.
-        log_stats: log errors when they occur in the processing pipeline. By default, this is set to False, which
-            disables the logger for processing pipeline errors. Setting it to True will enable logging to the
-            default logger name. Setting it to a string specifies the logger to which errors should be logged
-        lazy: whether to enable lazy evaluation for lazy transforms. If True, all lazy transforms will
-            be executed by accumulating changes and resampling as few times as possible. If False, transforms will be
-            carried out on a transform by transform basis.
-            A `monai.transforms.Identity[D]` transform in the pipeline will trigger the evaluation of
-            the pending operations and make the primary data up-to-date.
-        overrides: this optional parameter allows you to specify a dictionary of parameters that should be overridden
-            when executing a pipeline. These each parameter that is compatible with a given transform is then applied
-            to that transform before it is executed. Note that overrides are currently only applied when lazy
-            is True. If lazy is False they are ignored.
-            currently supported args are:
-            {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``},
-            please see also :py:func:`monai.transforms.lazy.apply_transforms` for more details.
         logger_name: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
             Setting this to False disables logging. Setting it to True enables logging to the default loggers.
             Setting a string overrides the logger name to which logging is performed.
@@ -670,21 +657,22 @@ class SomeOf(Compose):
             Defaults to `False`.
         log_stats: log errors when they occur in the processing pipeline. By default, this is set to False, which
             disables the logger for processing pipeline errors. Setting it to True will enable logging to the
-            default logger name. Setting it to a string specifies the logger to which errors should be logged
-        lazy: whether to enable :ref:`lazy evaluation<Lazy Resampling>` for lazy transforms. If False, transforms will be
-            carried out on a transform by transform basis. If True, all lazy transforms will
-            be executed by accumulating changes and resampling as few times as possible.
-        overrides: this optional parameter allows you to specify a dictionary of parameters that should be overridden
-            when executing a pipeline. These each parameter that is compatible with a given transform is then applied
-            to that transform before it is executed. Note that overrides are currently only applied when
-            :ref:`lazy resampling<Lazy Resampling>` is enabled for the pipeline or a given transform. If lazy is False
-            they are ignored. Currently supported args are:
-            {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``}.
+            default logger name. Setting it to a string specifies the logger to which errors should be logged.
         num_transforms: a 2-tuple, int, or None. The 2-tuple specifies the minimum and maximum (inclusive) number of
             transforms to sample at each iteration. If an int is given, the lower and upper bounds are set equal.
             None sets it to `len(transforms)`. Default to `None`.
         replace: whether to sample with replacement. Defaults to `False`.
         weights: weights to use in for sampling transforms. Will be normalized to 1. Default: None (uniform).
+        lazy: whether to enable :ref:`Lazy Resampling<lazy_resampling>` for lazy transforms. If False, transforms will
+            be carried out on a transform by transform basis. If True, all lazy transforms will be executed by
+            accumulating changes and resampling as few times as possible. If lazy is None, `Compose` will
+            perform lazy execution on lazy transforms that have their `lazy` property set to True.
+        overrides: this optional parameter allows you to specify a dictionary of parameters that should be overridden
+            when executing a pipeline. These each parameter that is compatible with a given transform is then applied
+            to that transform before it is executed. Note that overrides are currently only applied when
+            :ref:`Lazy Resampling<lazy_resampling>` is enabled for the pipeline or a given transform. If lazy is False
+            they are ignored. Currently supported args are:
+            {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``}.
         logger_name: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
             Setting this to False disables logging. Setting it to True enables logging to the default loggers.
             Setting a string overrides the logger name to which logging is performed.
@@ -697,11 +685,11 @@ class SomeOf(Compose):
         unpack_items: bool = False,
         log_stats: bool | str = False,
         *,
-        lazy: bool | None = False,
-        overrides: dict | None = None,
         num_transforms: int | tuple[int, int] | None = None,
         replace: bool = False,
         weights: list[int] | None = None,
+        lazy: bool | None = False,
+        overrides: dict | None = None,
         logger_name: bool | str = False,
     ) -> None:
         super().__init__(
