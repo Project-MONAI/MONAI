@@ -38,7 +38,8 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
     Be aware that the computation of boundaries is different from DeepMind's implementation
     https://github.com/deepmind/surface-distance. In this implementation, the length/area of a segmentation boundary is
     interpreted as the number of its edge pixels. In DeepMind's implementation, the length of a segmentation boundary
-    depends on the local neighborhood (cf. https://arxiv.org/abs/1809.04430). This issue is discussed here: https://github.com/Project-MONAI/MONAI/issues/4103.
+    depends on the local neighborhood (cf. https://arxiv.org/abs/1809.04430).
+    This issue is discussed here: https://github.com/Project-MONAI/MONAI/issues/4103.
 
     The class- and batch sample-wise NSD values can be aggregated with the function `aggregate`.
 
