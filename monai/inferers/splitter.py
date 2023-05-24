@@ -22,7 +22,7 @@ import torch
 
 from monai.data.utils import iter_patch_position
 from monai.data.wsi_reader import BaseWSIReader, WSIReader
-from monai.transforms import ToTensor
+from monai.transforms.utility.array import convert_to_tensor
 from monai.utils.misc import PathLike, ensure_tuple, ensure_tuple_rep
 
 __all__ = ["Splitter", "SlidingWindowSplitter", "WSISlidingWindowSplitter"]
@@ -275,7 +275,7 @@ class SlidingWindowSplitter(Splitter):
         # Splitting
         for location in iter_patch_position(spatial_shape, patch_size, offset, overlap, False):
             patch = self._get_patch(inputs, location, patch_size)  # type: ignore
-            patch = ToTensor(device=self.device)(patch)  # type: ignore
+            patch = convert_to_tensor(patch, device=self.device)
             # correct the location with respect to original inputs (remove starting pads)
             if is_start_padded:
                 location = tuple(loc - p for loc, p in zip(location, pad_size[1::2]))
@@ -286,7 +286,7 @@ class SlidingWindowSplitter(Splitter):
 
 class WSISlidingWindowSplitter(SlidingWindowSplitter):
     """
-    Split the whole slide image input into patches with sliding window strategy and a possible overlap.
+    Splits the whole slide image input into patches with sliding window strategy and a possible overlap.
     This extracts patches from file without loading the entire slide into memory.
     It also allows offsetting the starting position and filtering the patches.
 
@@ -427,7 +427,7 @@ class WSISlidingWindowSplitter(SlidingWindowSplitter):
         for location in iter_patch_position(spatial_shape, patch_size, offset, overlap, False):
             location_ = tuple(round(loc * downsample_ratio) for loc in location)
             patch = self._get_patch(wsi, location_, patch_size)
-            patch = ToTensor(device=self.device)(patch)  # type: ignore
+            patch = convert_to_tensor(patch, device=self.device)
             # correct the location with respect to original inputs (remove starting pads)
             if is_start_padded:
                 location = tuple(loc - p for loc, p in zip(location, pad_size[1::2]))
