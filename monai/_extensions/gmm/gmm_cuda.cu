@@ -22,11 +22,11 @@ limitations under the License.
 #define BLOCK_SIZE 32
 #define TILE(SIZE, STRIDE) ((((SIZE)-1) / (STRIDE)) + 1)
 #ifdef __HIP_PLATFORM_AMD__
-  #define __SHFL_DOWN(a, b)  __shfl_down(a, b)
-  #define __SHFL_XOR(a, b) __shfl_xor(a, b)
+#define __SHFL_DOWN(a, b) __shfl_down(a, b)
+#define __SHFL_XOR(a, b) __shfl_xor(a, b)
 #else
-  #define __SHFL_DOWN(a, b) __shfl_down_sync(0xffffffff,a, b)
-  #define __SHFL_XOR(a, b) __shfl_xor_sync(0xffffffff, a, b)
+#define __SHFL_DOWN(a, b) __shfl_down_sync(0xffffffff, a, b)
+#define __SHFL_XOR(a, b) __shfl_xor_sync(0xffffffff, a, b)
 #endif
 
 template <int warp_count, int load_count>
@@ -447,7 +447,8 @@ void GMMInitialize(
 
     CovarianceFinalizationKernel<WARPS, false><<<dim3(k, 1, batch_count), BLOCK>>>(block_gmm_scratch, gmm, block_count);
 
-    GMMFindSplit<<<dim3(1, 1, batch_count), dim3(BLOCK_SIZE, MIXTURE_COUNT)>>>(gmm_split_scratch, k / MIXTURE_COUNT, gmm);
+    GMMFindSplit<<<dim3(1, 1, batch_count), dim3(BLOCK_SIZE, MIXTURE_COUNT)>>>(
+        gmm_split_scratch, k / MIXTURE_COUNT, gmm);
     GMMDoSplit<<<dim3(TILE(element_count, BLOCK_SIZE * DO_SPLIT_DEGENERACY), 1, batch_count), BLOCK_SIZE>>>(
         gmm_split_scratch, (k / MIXTURE_COUNT) << 4, image, alpha, element_count);
   }
@@ -471,7 +472,8 @@ void GMMUpdate(
         <<<dim3(block_count, 1, batch_count), BLOCK>>>(i, image, alpha, block_gmm_scratch, element_count);
   }
 
-  CovarianceFinalizationKernel<WARPS, true><<<dim3(gmm_N, 1, batch_count), BLOCK>>>(block_gmm_scratch, gmm, block_count);
+  CovarianceFinalizationKernel<WARPS, true>
+      <<<dim3(gmm_N, 1, batch_count), BLOCK>>>(block_gmm_scratch, gmm, block_count);
 
   GMMcommonTerm<<<dim3(1, 1, batch_count), dim3(BLOCK_SIZE, MIXTURE_COUNT)>>>(gmm);
 }
