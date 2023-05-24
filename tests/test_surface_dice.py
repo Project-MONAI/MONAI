@@ -162,12 +162,13 @@ class TestAllSurfaceDiceMetrics(unittest.TestCase):
         np.testing.assert_array_equal(res10.cpu(), res11.cpu())
 
         expected_res0 = np.zeros((batch_size, n_class))
-        expected_res0[0, 1] = 1 - (200 * 110 + 198 * 108 + 9 * 200 * 2 + 9 * 108 * 2) / (200 * 110 * 4 + (58 + 48) * 200 * 2 + (58 + 48) * 108 * 2)
-        expected_res0[0, 0] = 1 - (200 * 110 + 198 * 108 + 9 * 200 * 2 + 9 * 108 * 2) / (200 * 110 * 4 + (28 + 18) * 200 * 2 + (28 + 18) * 108 * 2)
+        boundary_incorrect = 200 * 110 + 198 * 108 + 9 * 200 * 2 + 9 * 108 * 2
+        expected_res0[0, 1] = 1 - boundary_incorrect / (200 * 110 * 4 + (58 + 48) * 200 * 2 + (58 + 48) * 108 * 2)
+        expected_res0[0, 0] = 1 - boundary_incorrect / (200 * 110 * 4 + (28 + 18) * 200 * 2 + (28 + 18) * 108 * 2)
         expected_res0[1, 0] = 1
         expected_res0[1, 1] = np.nan
         for b, c in np.ndindex(batch_size, n_class):
-            np.testing.assert_allclose(expected_res0[b, c], res0[b, c].cpu(), verbose=True, err_msg=f"{b}, {c}: {expected_res0[b, c]} != {res0[b, c].cpu()}")
+            np.testing.assert_allclose(expected_res0[b, c], res0[b, c].cpu())
         np.testing.assert_array_equal(agg0.cpu(), np.nanmean(np.nanmean(expected_res0, axis=1), axis=0))
         np.testing.assert_equal(not_nans.cpu(), torch.tensor(2))
 
