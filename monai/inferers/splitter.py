@@ -177,10 +177,18 @@ class SlidingWindowSplitter(Splitter):
         # set the starting pad size only if the offset is negative
         pad_size[1::2] = (-min(off, 0) for off in offset)
         # set the ending pad size only if it is not divisible by the patch size
-        pad_size[::2] = (
-            0 if ps == 0 else (off - sh + ps) % round(ps - (ps * ov if isinstance(ov, float) else ov))
-            for sh, off, ps, ov in zip(spatial_shape, offset, patch_size, overlap)
-        )
+        end_padding = []
+        for sh, off, ps, ov in zip(spatial_shape, offset, patch_size, overlap):
+            if ps == 0:
+                pad_amount = 0
+            else:
+                if isinstance(ov, float):
+                    pad_amount = (off - sh + ps) % round(ps - (ps * ov))
+                else:
+                    pad_amount = (off - sh + ps) % round(ps - ov)
+            end_padding.append(pad_amount)
+
+        pad_size[::2] = end_padding
         return pad_size, any(pad_size[1::2])
 
     def _get_valid_shape_parameters(
