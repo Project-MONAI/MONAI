@@ -2006,15 +2006,18 @@ def check_applied_operations(entry: list | dict, status_key: str, default_messag
 def is_tensor_invertible(data: torch.Tensor):
     """
     Checks whether a given tensor is invertible. The rules are as follows:
-    1. If the tensor is not a MetaTensor, it is not invertible
-    2. If the tensor is a MetaTensor but it has `TraceStatusKeys.PENDING_DURING_APPLY` in the `TraceKeys.STATUS` of any
+
+    #. If the tensor is not a MetaTensor, it is not invertible
+    #. If the tensor is a MetaTensor but it has `TraceStatusKeys.PENDING_DURING_APPLY` in the `TraceKeys.STATUS` of any
        of its `applied_operations` it is not invertible
-    3. Otherwise, it is invertible
+    #. Otherwise, it is invertible
 
     This function also accepts:
-     * dictionaries of tensors
-     * lists or tuples of tensors
-     * list or tuples of dictionaries of tensors
+
+    * dictionaries of tensors
+    * lists or tuples of tensors
+    * list or tuples of dictionaries of tensors
+
     In any of the above scenarios, it iterates through the collections and executes itself recursively until it is
     operating on tensors.
 
