@@ -1,4 +1,4 @@
-.. _lazy resampling:
+.. _lazy_resampling:
 
 :github_url: https://github.com/Project-MONAI/MONAI
 
@@ -142,5 +142,23 @@ API changes
 ^^^^^^^^^^^
 
 A number of new arguments have been added to existing properties, which we'll go over in detail here. In particular,
-we'll focus on :class:`monai.transforms.compose.Compose` and :class:`monai.transforms.traits.LazyTrait`/
-:class:`monai.transforms.transform.LazyTransform` and the way that they interact with each other.
+we'll focus on :class:`monai.transforms.compose.Compose` and :class:`LazyTrait<monai.transforms.traits.LazyTrait>`/
+:class:`LazyTransform<monai.transforms.transform.LazyTransform>` and the way that they interact with each other.
+
+Compose
++++++++
+
+:class:`monai.transforms.compose.Compose<Compose>` gains a number of new arguments that can be used to control resampling
+behaviour. Each of them is covered in its own section:
+
+
+*``lazy``*
+
+``lazy`` controls whether execution is carried out in a lazy manner or not. It has three values that it can take:
+
+* `lazy=False` forces the pipeline to be executed in the standard way with every transform applied immediately
+* `lazy=True` forces the pipeline to be executed lazily. Every transform that implements
+  :class:`monai.transforms.traits.LazyTrait<LazyTrait>` (or inherits
+  :class:`monai.transforms.transform.LazyTransform<LazyTransform>`) will be executed lazily
+* `lazy=None` means that the pipeline can execute lazily, but only on transforms that have their own `lazy` property set to True.
+
