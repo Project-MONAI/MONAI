@@ -32,9 +32,13 @@ from .metric import CumulativeIterationMetric
 
 class SurfaceDiceMetric(CumulativeIterationMetric):
     """
-    Computes the Normalized Surface Distance (NSD) for each batch sample and class of
+    Computes the Normalized Surface Dice (NSD) for each batch sample and class of
     predicted segmentations `y_pred` and corresponding reference segmentations `y` according to equation :eq:`nsd`.
-    This implementation supports 2D images and 3D images.
+    This implementation is based on https://arxiv.org/abs/2111.05408 and supports 2D and 3D images.
+    Be aware that the computation of boundaries is different from DeepMind's implementation
+    https://github.com/deepmind/surface-distance. In this implementation, the length/area of a segmentation boundary is
+    interpreted as the number of its edge pixels. In DeepMind's implementation, the length of a segmentation boundary
+    depends on the local neighborhood (cf. https://arxiv.org/abs/1809.04430). This issue is discussed here: https://github.com/Project-MONAI/MONAI/issues/4103.
 
     The class- and batch sample-wise NSD values can be aggregated with the function `aggregate`.
 
