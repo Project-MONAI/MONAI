@@ -285,9 +285,10 @@ class SlidingWindowSplitter(Splitter):
 
 
 class WSISlidingWindowSplitter(SlidingWindowSplitter):
-    """Split the whole slide image input into patches with sliding window strategy and a possible overlap.
-    This extract patches from file without loading the entire slide into memory.
-    It also allows to offset the starting position and filter the patches.
+    """
+    Split the whole slide image input into patches with sliding window strategy and a possible overlap.
+    This extracts patches from file without loading the entire slide into memory.
+    It also allows offsetting the starting position and filtering the patches.
 
     Args:
         patch_size : the size of the patches to be generated.
