@@ -1,3 +1,5 @@
+.. _lazy resampling:
+
 :github_url: https://github.com/Project-MONAI/MONAI
 
 Lazy Resampling
