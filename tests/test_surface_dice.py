@@ -128,6 +128,49 @@ class TestAllSurfaceDiceMetrics(unittest.TestCase):
         np.testing.assert_array_equal(agg0.cpu(), np.nanmean(np.nanmean(expected_res0, axis=1), axis=0))
         np.testing.assert_equal(not_nans.cpu(), torch.tensor(2))
 
+    def test_tolerance_euclidean_distance_3d(self):
+        batch_size = 2
+        n_class = 2
+        predictions = torch.zeros((batch_size, 200, 110, 80), dtype=torch.int64, device=_device)
+        labels = torch.zeros((batch_size, 200, 110, 80), dtype=torch.int64, device=_device)
+        predictions[0, :, :, 20:] = 1
+        labels[0, :, :, 30:] = 1  # offset by 10
+        predictions_hot = F.one_hot(predictions, num_classes=n_class).permute(0, 4, 1, 2, 3)
+        labels_hot = F.one_hot(labels, num_classes=n_class).permute(0, 4, 1, 2, 3)
+
+        sd0 = SurfaceDiceMetric(class_thresholds=[0, 0], include_background=True)
+        res0 = sd0(predictions_hot, labels_hot)
+        agg0 = sd0.aggregate()  # aggregation: nanmean across image then nanmean across batch
+        sd0_nans = SurfaceDiceMetric(class_thresholds=[0, 0], include_background=True, get_not_nans=True)
+        res0_nans = sd0_nans(predictions_hot, labels_hot)
+        agg0_nans, not_nans = sd0_nans.aggregate()
+
+        np.testing.assert_array_equal(res0.cpu(), res0_nans.cpu())
+        np.testing.assert_equal(res0.device, predictions.device)
+        np.testing.assert_array_equal(agg0.cpu(), agg0_nans.cpu())
+        np.testing.assert_equal(agg0.device, predictions.device)
+
+        res1 = SurfaceDiceMetric(class_thresholds=[1, 1], include_background=True)(predictions_hot, labels_hot)
+        res10 = SurfaceDiceMetric(class_thresholds=[10, 10], include_background=True)(predictions_hot, labels_hot)
+        res11 = SurfaceDiceMetric(class_thresholds=[11, 11], include_background=True)(predictions_hot, labels_hot)
+
+        for res in [res0, res1, res10, res11]:
+            assert res.shape == torch.Size([2, 2])
+
+        assert res0[0, 0] < res1[0, 0] < res10[0, 0]
+        assert res0[0, 1] < res1[0, 1] < res10[0, 1]
+        np.testing.assert_array_equal(res10.cpu(), res11.cpu())
+
+        expected_res0 = np.zeros((batch_size, n_class))
+        expected_res0[0, 1] = 1 - (200 * 110 + 198 * 108 + 9 * 200 * 2 + 9 * 108 * 2) / (200 * 110 * 4 + (58 + 48) * 200 * 2 + (58 + 48) * 108 * 2)
+        expected_res0[0, 0] = 1 - (200 * 110 + 198 * 108 + 9 * 200 * 2 + 9 * 108 * 2) / (200 * 110 * 4 + (28 + 18) * 200 * 2 + (28 + 18) * 108 * 2)
+        expected_res0[1, 0] = 1
+        expected_res0[1, 1] = np.nan
+        for b, c in np.ndindex(batch_size, n_class):
+            np.testing.assert_allclose(expected_res0[b, c], res0[b, c].cpu(), verbose=True, err_msg=f"{b}, {c}: {expected_res0[b, c]} != {res0[b, c].cpu()}")
+        np.testing.assert_array_equal(agg0.cpu(), np.nanmean(np.nanmean(expected_res0, axis=1), axis=0))
+        np.testing.assert_equal(not_nans.cpu(), torch.tensor(2))
+
     def test_tolerance_all_distances(self):
         batch_size = 1
         n_class = 2
@@ -262,10 +305,10 @@ class TestAllSurfaceDiceMetrics(unittest.TestCase):
         # wrong dimensions
         with self.assertRaises(ValueError) as context:
             SurfaceDiceMetric(class_thresholds=[1, 1], include_background=True)(predictions, labels_hot)
-        self.assertEqual("y_pred and y should have four dimensions: [B,C,H,W].", str(context.exception))
+        self.assertEqual("y_pred and y should be one-hot encoded: [B,C,H,W] or [B,C,H,W,D].", str(context.exception))
         with self.assertRaises(ValueError) as context:
             SurfaceDiceMetric(class_thresholds=[1, 1], include_background=True)(predictions_hot, labels)
-        self.assertEqual("y_pred and y should have four dimensions: [B,C,H,W].", str(context.exception))
+        self.assertEqual("y_pred and y should be one-hot encoded: [B,C,H,W] or [B,C,H,W,D].", str(context.exception))
 
         # mismatch of shape of input tensors
         input_bad_shape = torch.clone(predictions_hot)
