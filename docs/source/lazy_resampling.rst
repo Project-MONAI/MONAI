@@ -161,4 +161,3 @@ behaviour. Each of them is covered in its own section:
   :class:`monai.transforms.traits.LazyTrait<LazyTrait>` (or inherits
   :class:`monai.transforms.transform.LazyTransform<LazyTransform>`) will be executed lazily
 * `lazy=None` means that the pipeline can execute lazily, but only on transforms that have their own `lazy` property set to True.
-
