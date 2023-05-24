@@ -92,8 +92,9 @@ class Splitter(ABC):
 
 
 class SlidingWindowSplitter(Splitter):
-    """Split the input into patches with sliding window strategy and a possible overlap.
-    It also allows to offset the starting position and filter the patches.
+    """
+    Splits the input into patches with sliding window strategy and a possible overlap.
+    It also allows offsetting the starting position and filtering the patches.
 
     Args:
         patch_size : the size of the patches to be generated.
