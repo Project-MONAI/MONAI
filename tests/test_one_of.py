@@ -254,12 +254,16 @@ class TestOneOfAPITests(unittest.TestCase):
     def test_execute_change_start_end(self, keys, pipeline):
         data = self.data_from_keys(keys)
 
+        c = OneOf(deepcopy(pipeline))
         with self.assertRaises(ValueError):
-            c = OneOf(deepcopy(pipeline))
+            c(data, start=1)
+        with self.assertRaises(ValueError):
             c(data, start=1)
 
+        c = OneOf(deepcopy(pipeline))
         with self.assertRaises(ValueError):
-            c = OneOf(deepcopy(pipeline))
+            c(data, end=1)
+        with self.assertRaises(ValueError):
             c(data, end=1)
 
 
