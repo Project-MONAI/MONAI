@@ -124,6 +124,9 @@ class SpatialResample(InvertibleTransform, LazyTransform):
 
     Internally this transform computes the affine transform matrix from ``src_affine`` to ``dst_affine``,
     by ``xform = linalg.solve(src_affine, dst_affine)``, and call ``monai.transforms.Affine`` with ``xform``.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY, TransformBackends.CUPY]
@@ -249,8 +252,13 @@ class SpatialResample(InvertibleTransform, LazyTransform):
 
 
 class ResampleToMatch(SpatialResample):
-    """Resample an image to match given metadata. The affine matrix will be aligned,
-    and the size of the output image will match."""
+    """
+    Resample an image to match given metadata. The affine matrix will be aligned,
+    and the size of the output image will match.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+    """
 
     def __call__(  # type: ignore
         self,
@@ -328,6 +336,9 @@ class ResampleToMatch(SpatialResample):
 class Spacing(InvertibleTransform, LazyTransform):
     """
     Resample input image into the specified `pixdim`.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     backend = SpatialResample.backend
@@ -540,6 +551,9 @@ class Spacing(InvertibleTransform, LazyTransform):
 class Orientation(InvertibleTransform, LazyTransform):
     """
     Change the input image's orientation into the specified based on `axcodes`.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     backend = [TransformBackends.NUMPY, TransformBackends.TORCH]
@@ -658,6 +672,9 @@ class Flip(InvertibleTransform, LazyTransform):
     See `torch.flip` documentation for additional details:
     https://pytorch.org/docs/stable/generated/torch.flip.html
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         spatial_axis: spatial axes along which to flip over. Default is None.
             The default `axis=None` will flip over all of the axes of the input array.
@@ -698,6 +715,9 @@ class Resize(InvertibleTransform, LazyTransform):
     """
     Resize the input image to given spatial size (with scaling, not cropping/padding).
     Implemented using :py:class:`torch.nn.functional.interpolate`.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
 
     Args:
         spatial_size: expected shape of spatial dimensions after resize operation.
@@ -856,6 +876,9 @@ class Rotate(InvertibleTransform, LazyTransform):
     """
     Rotates an input image by given angle using :py:class:`monai.networks.layers.AffineTransform`.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         angle: Rotation angle(s) in radians. should a float for 2D, three floats for 3D.
         keep_size: If it is True, the output shape is kept the same as the input.
@@ -989,6 +1012,9 @@ class Zoom(InvertibleTransform, LazyTransform):
     Different from :py:class:`monai.transforms.resize`, this transform takes scaling factors
     as input, and provides an option of preserving the input spatial size.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         zoom: The zoom factor along the spatial axes.
             If a float, zoom is the same for each spatial axis.
@@ -1120,6 +1146,8 @@ class Rotate90(InvertibleTransform, LazyTransform):
     See `torch.rot90` for additional details:
     https://pytorch.org/docs/stable/generated/torch.rot90.html#torch-rot90.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     backend = [TransformBackends.TORCH]
@@ -1171,6 +1199,9 @@ class RandRotate90(RandomizableTransform, InvertibleTransform, LazyTransform):
     """
     With probability `prob`, input arrays are rotated by 90 degrees
     in the plane specified by `spatial_axes`.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     backend = Rotate90.backend
@@ -1235,6 +1266,9 @@ class RandRotate90(RandomizableTransform, InvertibleTransform, LazyTransform):
 class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
     """
     Randomly rotate the input arrays.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
 
     Args:
         range_x: Range of rotation angle in radians in the plane defined by the first and second axes.
@@ -1370,6 +1404,9 @@ class RandFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
     See numpy.flip for additional details.
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         prob: Probability of flipping.
         spatial_axis: Spatial axes along which to flip over. Default is None.
@@ -1419,6 +1456,9 @@ class RandAxisFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
     Randomly select a spatial axis and flip along it.
     See numpy.flip for additional details.
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
 
     Args:
         prob: Probability of flipping.
@@ -1478,6 +1518,9 @@ class RandAxisFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
 class RandZoom(RandomizableTransform, InvertibleTransform, LazyTransform):
     """
     Randomly zooms input arrays with given probability within given zoom range.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
 
     Args:
         prob: Probability of zooming.
@@ -1624,6 +1667,9 @@ class AffineGrid(LazyTransform):
     """
     Affine transforms on the coordinates.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         rotate_params: a rotation angle in radians, a scalar for 2D image, a tuple of 3 floats for 3D.
             Defaults to no rotation.
@@ -1745,6 +1791,8 @@ class RandAffineGrid(Randomizable, LazyTransform):
     """
     Generate randomised affine grid.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     backend = AffineGrid.backend
@@ -2078,6 +2126,8 @@ class Affine(InvertibleTransform, LazyTransform):
     Transform ``img`` given the affine parameters.
     A tutorial is available: https://github.com/Project-MONAI/tutorials/blob/0.6.0/modules/transforms_demo_2d.ipynb.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     backend = list(set(AffineGrid.backend) & set(Resample.backend))
@@ -2273,6 +2323,8 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
     Random affine transform.
     A tutorial is available: https://github.com/Project-MONAI/tutorials/blob/0.6.0/modules/transforms_demo_2d.ipynb.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     backend = Affine.backend

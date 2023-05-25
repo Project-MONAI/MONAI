@@ -88,6 +88,9 @@ class Pad(InvertibleTransform, LazyTransform):
     `torch.nn.functional.pad` is used unless the mode or kwargs are not available in torch,
     in which case `np.pad` will be used.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         to_pad: the amount to pad in each dimension (including the channel) [(low_H, high_H), (low_W, high_W), ...].
             if None, must provide in the `__call__` at runtime.
@@ -98,6 +101,7 @@ class Pad(InvertibleTransform, LazyTransform):
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
             https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
             requires pytorch >= 1.10 for best compatibility.
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
 
@@ -147,6 +151,7 @@ class Pad(InvertibleTransform, LazyTransform):
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
                 https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+            lazy: a flag to override the lazy behaviour for this call, if set. Defaults to None.
             kwargs: other arguments for the `np.pad` or `torch.pad` function.
                 note that `np.pad` treats channel dimension as the first dimension.
 
@@ -181,6 +186,9 @@ class SpatialPad(Pad):
     """
     Performs padding to the data, symmetric for all sides or all on one side for each dimension.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         spatial_size: the spatial size of output data after padding, if a dimension of the input
             data size is larger than the pad size, will not pad that dimension.
@@ -195,6 +203,7 @@ class SpatialPad(Pad):
             One of the listed string values or a user supplied function. Defaults to ``"constant"``.
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
             https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
 
@@ -235,6 +244,9 @@ class BorderPad(Pad):
     """
     Pad the input data by adding specified borders to every dimension.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         spatial_border: specified size for every spatial border. Any -ve values will be set to 0. It can be 3 shapes:
 
@@ -252,6 +264,7 @@ class BorderPad(Pad):
             One of the listed string values or a user supplied function. Defaults to ``"constant"``.
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
             https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
 
@@ -288,6 +301,9 @@ class BorderPad(Pad):
 class DivisiblePad(Pad):
     """
     Pad the input data, so that the spatial sizes are divisible by `k`.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     backend = SpatialPad.backend
@@ -313,6 +329,7 @@ class DivisiblePad(Pad):
                 https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
             method: {``"symmetric"``, ``"end"``}
                 Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
+            lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
             kwargs: other arguments for the `np.pad` or `torch.pad` function.
                 note that `np.pad` treats channel dimension as the first dimension.
 
@@ -332,9 +349,11 @@ class Crop(InvertibleTransform, LazyTransform):
     """
     Perform crop operations on the input image.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
-        lazy: a flag to indicate whether this transform should execute lazily or not.
-            Defaults to False
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
     backend = [TransformBackends.TORCH]
@@ -436,6 +455,9 @@ class SpatialCrop(Crop):
         - a list of slices for each spatial dimension (allows for use of negative indexing and `None`)
         - a spatial center and size
         - the start and end coordinates of the ROI
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     def __init__(
@@ -456,6 +478,8 @@ class SpatialCrop(Crop):
             roi_end: voxel coordinates for end of the crop ROI, if a coordinate is out of image,
                 use the end coordinate of image.
             roi_slices: list of slices for each of the spatial dimensions.
+            lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
+
         """
         super().__init__(lazy)
         self.slices = self.compute_slices(
@@ -479,12 +503,16 @@ class CenterSpatialCrop(Crop):
     So the cropped result may be smaller than the expected ROI, and the cropped results of several images may
     not have exactly the same shape.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         roi_size: the spatial size of the crop region e.g. [224,224,128]
             if a dimension of ROI size is larger than image size, will not crop that dimension of the image.
             If its components have non-positive values, the corresponding size of input image will be used.
             for example: if the spatial size of input data is [40, 40, 40] and `roi_size=[32, 64, -1]`,
             the spatial size of output data will be [32, 40, 40].
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
     def __init__(self, roi_size: Sequence[int] | int, lazy: bool = False) -> None:
@@ -514,10 +542,13 @@ class CenterScaleCrop(Crop):
     """
     Crop at the center of image with specified scale of ROI size.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         roi_scale: specifies the expected scale of image size to crop. e.g. [0.3, 0.4, 0.5] or a number for all dims.
             If its components have non-positive values, will use `1.0` instead, which means the input image size.
-
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
     def __init__(self, roi_scale: Sequence[float] | float, lazy: bool = False):
@@ -542,6 +573,9 @@ class RandSpatialCrop(Randomizable, Crop):
     will not crop that dimension. So the cropped result may be smaller than the expected ROI, and the cropped results
     of several images may not have exactly the same shape.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         roi_size: if `random_size` is True, it specifies the minimum crop region.
             if `random_size` is False, it specifies the expected ROI size to crop. e.g. [224, 224, 128]
@@ -555,6 +589,7 @@ class RandSpatialCrop(Randomizable, Crop):
         random_center: crop at random position as center or the image center.
         random_size: crop with random size or specific size ROI.
             if True, the actual size is sampled from `randint(roi_size, max_roi_size + 1)`.
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
     @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
@@ -610,6 +645,9 @@ class RandScaleCrop(RandSpatialCrop):
     center or at the image center.  And allows to set the minimum and maximum
     scale of image size to limit the randomly generated ROI.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         roi_scale: if `random_size` is True, it specifies the minimum crop size: `roi_scale * image spatial size`.
             if `random_size` is False, it specifies the expected scale of image size to crop. e.g. [0.3, 0.4, 0.5].
@@ -622,6 +660,7 @@ class RandScaleCrop(RandSpatialCrop):
         random_size: crop with random size or specified size ROI by `roi_scale * image spatial size`.
             if True, the actual size is sampled from
             `randint(roi_scale * image spatial size, max_roi_scale * image spatial size + 1)`.
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
     @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
@@ -673,6 +712,9 @@ class RandSpatialCropSamples(Randomizable, TraceableTransform, LazyTransform, Mu
     will not crop that dimension. So the cropped result may be smaller than the expected ROI, and the cropped
     results of several images may not have exactly the same shape.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         roi_size: if `random_size` is True, it specifies the minimum crop region.
             if `random_size` is False, it specifies the expected ROI size to crop. e.g. [224, 224, 128]
@@ -687,6 +729,7 @@ class RandSpatialCropSamples(Randomizable, TraceableTransform, LazyTransform, Mu
         random_center: crop at random position as center or the image center.
         random_size: crop with random size or specific size ROI.
             The actual size is sampled from `randint(roi_size, img_size)`.
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
 
     Raises:
         ValueError: When ``num_samples`` is nonpositive.
@@ -772,6 +815,9 @@ class CropForeground(Crop):
           [3, 2],
           [2, 1]]]
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     """
 
     def __init__(
@@ -804,6 +850,7 @@ class CropForeground(Crop):
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
                 https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+            lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
             pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
                 note that `np.pad` treats channel dimension as the first dimension.
 
@@ -919,6 +966,9 @@ class RandWeightedCrop(Randomizable, TraceableTransform, LazyTransform, MultiSam
     """
     Samples a list of `num_samples` image patches according to the provided `weight_map`.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         spatial_size: the spatial size of the image patch e.g. [224, 224, 128].
             If its components have non-positive values, the corresponding size of `img` will be used.
@@ -926,6 +976,7 @@ class RandWeightedCrop(Randomizable, TraceableTransform, LazyTransform, MultiSam
         weight_map: weight map used to generate patch samples. The weights must be non-negative.
             Each element denotes a sampling weight of the spatial location. 0 indicates no sampling.
             It should be a single-channel array in shape, for example, `(1, spatial_dim_0, spatial_dim_1, ...)`.
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
     backend = SpatialCrop.backend
@@ -966,6 +1017,7 @@ class RandWeightedCrop(Randomizable, TraceableTransform, LazyTransform, MultiSam
                 Each element denotes a sampling weight of the spatial location. 0 indicates no sampling.
                 It should be a single-channel array in shape, for example, `(1, spatial_dim_0, spatial_dim_1, ...)`
             randomize: whether to execute random operations, default to `True`.
+            lazy: a flag to override the lazy behaviour for this call, if set. Defaults to None.
 
         Returns:
             A list of image patches
@@ -1016,6 +1068,9 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
     And if the crop ROI is partly out of the image, will automatically adjust the crop center to ensure the
     valid crop ROI.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         spatial_size: the spatial size of the crop region e.g. [224, 224, 128].
             if a dimension of ROI size is larger than image size, will not crop that dimension of the image.
@@ -1045,6 +1100,7 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
         allow_smaller: if `False`, an exception will be raised if the image is smaller than
             the requested ROI in any dimension. If `True`, any smaller dimensions will be set to
             match the cropped size (i.e., no cropping in that dimension).
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
 
     Raises:
         ValueError: When ``pos`` or ``neg`` are negative.
@@ -1146,6 +1202,7 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
             bg_indices: background indices to randomly select crop centers,
                 need to provide `fg_indices` and `bg_indices` together.
             randomize: whether to execute the random operations, default to `True`.
+            lazy: a flag to override the lazy behaviour for this call, if set. Defaults to None.
 
         """
         if image is None:
@@ -1210,6 +1267,9 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
     And if the crop ROI is partly out of the image, will automatically adjust the crop center to ensure the
     valid crop ROI.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         spatial_size: the spatial size of the crop region e.g. [224, 224, 128].
             if a dimension of ROI size is larger than image size, will not crop that dimension of the image.
@@ -1235,7 +1295,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
         warn: if `True` prints a warning if a class is not present in the label.
         max_samples_per_class: maximum length of indices to sample in each class to reduce memory consumption.
             Default is None, no subsampling.
-
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
     backend = SpatialCrop.backend
@@ -1319,7 +1379,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
                 use ``image > image_threshold`` to select the centers only in valid region. if None, use `self.image`.
             indices: list of indices for every class in the image, used to randomly select crop centers.
             randomize: whether to execute the random operations, default to `True`.
-
+            lazy: a flag to override the lazy behaviour for this call, if set. Defaults to None.
         """
         if image is None:
             image = self.image
@@ -1352,6 +1412,9 @@ class ResizeWithPadOrCrop(InvertibleTransform, LazyTransform):
     When the dimension is smaller than the target size, do symmetric padding along that dim.
     When the dimension is larger than the target size, do central cropping along that dim.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         spatial_size: the spatial size of output data after padding or crop.
             If has non-positive values, the corresponding size of input image will be used (no padding).
@@ -1365,6 +1428,7 @@ class ResizeWithPadOrCrop(InvertibleTransform, LazyTransform):
             https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
 
     """
 
@@ -1401,7 +1465,8 @@ class ResizeWithPadOrCrop(InvertibleTransform, LazyTransform):
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
                 https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
-            kwargs: other arguments for the `np.pad` or `torch.pad` function.
+            lazy: a flag to override the lazy behaviour for this call, if set. Defaults to None.
+            pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
                 note that `np.pad` treats channel dimension as the first dimension.
 
         """

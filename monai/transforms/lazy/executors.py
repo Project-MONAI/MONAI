@@ -153,7 +153,7 @@ def apply_pending_transforms_in_order(
 
     This method is designed to be used only in the context of implementing lazy resampling functionality. In general
     you should not need to interact with or use this method directly, and its API may change without warning between
-    releases.
+    releases. See the :ref:`lazy_resampling<Lazy Resampling topic> for more information about lazy resampling.
 
     Args:
         transform: a transform that should be evaluated to determine whether pending transforms should be applied

@@ -114,6 +114,8 @@ class Padd(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Pad`.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     backend = Pad.backend
@@ -139,7 +141,7 @@ class Padd(MapTransform, InvertibleTransform, LazyTransform):
                 https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
-
+            lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         LazyTransform.__init__(self, lazy)
@@ -181,6 +183,8 @@ class SpatialPadd(Padd):
     Dictionary-based wrapper of :py:class:`monai.transforms.SpatialPad`.
     Performs padding to the data, symmetric for all sides or all on one side for each dimension.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     def __init__(
@@ -212,6 +216,7 @@ class SpatialPadd(Padd):
                 https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
+            lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
             kwargs: other arguments for the `np.pad` or `torch.pad` function.
                 note that `np.pad` treats channel dimension as the first dimension.
 
@@ -225,6 +230,9 @@ class BorderPadd(Padd):
     """
     Pad the input data by adding specified borders to every dimension.
     Dictionary-based wrapper of :py:class:`monai.transforms.BorderPad`.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     backend = BorderPad.backend
@@ -261,6 +269,7 @@ class BorderPadd(Padd):
                 https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
+            lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
             kwargs: other arguments for the `np.pad` or `torch.pad` function.
                 note that `np.pad` treats channel dimension as the first dimension.
 
@@ -274,6 +283,9 @@ class DivisiblePadd(Padd):
     """
     Pad the input data, so that the spatial sizes are divisible by `k`.
     Dictionary-based wrapper of :py:class:`monai.transforms.DivisiblePad`.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     backend = DivisiblePad.backend
@@ -305,6 +317,7 @@ class DivisiblePadd(Padd):
             method: {``"symmetric"``, ``"end"``}
                 Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
             allow_missing_keys: don't raise exception if key is missing.
+            lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
             kwargs: other arguments for the `np.pad` or `torch.pad` function.
                 note that `np.pad` treats channel dimension as the first dimension.
 
@@ -320,12 +333,15 @@ class Cropd(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of abstract class :py:class:`monai.transforms.Crop`.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         cropper: crop transform for the input image.
         allow_missing_keys: don't raise exception if key is missing.
-
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
     backend = Crop.backend
@@ -359,12 +375,15 @@ class RandCropd(Cropd, Randomizable):
     """
     Base class for random crop transform.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         cropper: random crop transform for the input image.
         allow_missing_keys: don't raise exception if key is missing.
-
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
     backend = Crop.backend
@@ -414,6 +433,9 @@ class SpatialCropd(Cropd):
         - a list of slices for each spatial dimension (allows for use of -ve indexing and `None`)
         - a spatial center and size
         - the start and end coordinates of the ROI
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     def __init__(
@@ -439,7 +461,7 @@ class SpatialCropd(Cropd):
                 use the end coordinate of image.
             roi_slices: list of slices for each of the spatial dimensions.
             allow_missing_keys: don't raise exception if key is missing.
-
+            lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
         """
         cropper = SpatialCrop(roi_center, roi_size, roi_start, roi_end, roi_slices, lazy=lazy)
         super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys, lazy=lazy)
@@ -452,6 +474,9 @@ class CenterSpatialCropd(Cropd):
     So the cropped result may be smaller than the expected ROI, and the cropped results of several images may
     not have exactly the same shape.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
@@ -461,6 +486,7 @@ class CenterSpatialCropd(Cropd):
             for example: if the spatial size of input data is [40, 40, 40] and `roi_size=[32, 64, -1]`,
             the spatial size of output data will be [32, 40, 40].
         allow_missing_keys: don't raise exception if key is missing.
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
     def __init__(
@@ -476,12 +502,16 @@ class CenterScaleCropd(Cropd):
     Note: as using the same scaled ROI to crop, all the input data specified by `keys` should have
     the same spatial shape.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
         roi_scale: specifies the expected scale of image size to crop. e.g. [0.3, 0.4, 0.5] or a number for all dims.
             If its components have non-positive values, will use `1.0` instead, which means the input image size.
         allow_missing_keys: don't raise exception if key is missing.
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
     def __init__(
@@ -506,6 +536,9 @@ class RandSpatialCropd(RandCropd):
     will not crop that dimension. So the cropped result may be smaller than the expected ROI, and the cropped
     results of several images may not have exactly the same shape.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
@@ -523,6 +556,7 @@ class RandSpatialCropd(RandCropd):
             if True, the actual size is sampled from:
             `randint(roi_scale * image spatial size, max_roi_scale * image spatial size + 1)`.
         allow_missing_keys: don't raise exception if key is missing.
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
     @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
@@ -548,6 +582,9 @@ class RandScaleCropd(RandCropd):
     And allows to set the minimum and maximum scale of image size to limit the randomly generated ROI.
     Suppose all the expected fields specified by `keys` have same shape.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
@@ -563,6 +600,7 @@ class RandScaleCropd(RandCropd):
             if True, the actual size is sampled from:
             `randint(roi_scale * image spatial size, max_roi_scale * image spatial size + 1)`.
         allow_missing_keys: don't raise exception if key is missing.
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
     @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
@@ -593,6 +631,9 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, LazyTransform, MultiSa
     will not crop that dimension. So the cropped result may be smaller than the expected ROI, and the cropped
     results of several images may not have exactly the same shape.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
@@ -610,6 +651,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, LazyTransform, MultiSa
         random_size: crop with random size or specific size ROI.
             The actual size is sampled from `randint(roi_size, img_size)`.
         allow_missing_keys: don't raise exception if key is missing.
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
 
     Raises:
         ValueError: When ``num_samples`` is nonpositive.
@@ -675,6 +717,9 @@ class CropForegroundd(Cropd):
     - Select label > 0 in the third channel of a One-Hot label field as the foreground to crop all `keys` fields.
     Users can define arbitrary function to select expected foreground from the whole source image or specified
     channels. And it can also add margin to every dim of the bounding box of foreground object.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     def __init__(
@@ -717,6 +762,7 @@ class CropForegroundd(Cropd):
             start_coord_key: key to record the start coordinate of spatial bounding box for foreground.
             end_coord_key: key to record the end coordinate of spatial bounding box for foreground.
             allow_missing_keys: don't raise exception if key is missing.
+            lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
             pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
                 note that `np.pad` treats channel dimension as the first dimension.
 
@@ -764,6 +810,9 @@ class RandWeightedCropd(Randomizable, MapTransform, LazyTransform, MultiSampleTr
     """
     Samples a list of `num_samples` image patches according to the provided `weight_map`.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
@@ -773,6 +822,7 @@ class RandWeightedCropd(Randomizable, MapTransform, LazyTransform, MultiSampleTr
             If its components have non-positive values, the corresponding size of `img` will be used.
         num_samples: number of samples (image patches) to take in the returned list.
         allow_missing_keys: don't raise exception if key is missing.
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
 
     See Also:
         :py:class:`monai.transforms.RandWeightedCrop`
@@ -842,6 +892,9 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, LazyTransform, MultiSam
     And if the crop ROI is partly out of the image, will automatically adjust the crop center
     to ensure the valid crop ROI.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
@@ -872,6 +925,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, LazyTransform, MultiSam
             the requested ROI in any dimension. If `True`, any smaller dimensions will be set to
             match the cropped size (i.e., no cropping in that dimension).
         allow_missing_keys: don't raise exception if key is missing.
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
 
     Raises:
         ValueError: When ``pos`` or ``neg`` are negative.
@@ -1005,6 +1059,9 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSa
     And if the crop ROI is partly out of the image, will automatically adjust the crop center to ensure the
     valid crop ROI.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
@@ -1033,7 +1090,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSa
         warn: if `True` prints a warning if a class is not present in the label.
         max_samples_per_class: maximum length of indices in each class to reduce memory consumption.
             Default is None, no subsampling.
-
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
     backend = RandCropByLabelClasses.backend
@@ -1115,6 +1172,9 @@ class ResizeWithPadOrCropd(Padd):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.ResizeWithPadOrCrop`.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
@@ -1130,6 +1190,7 @@ class ResizeWithPadOrCropd(Padd):
         allow_missing_keys: don't raise exception if key is missing.
         method: {``"symmetric"``, ``"end"``}
             Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
 
