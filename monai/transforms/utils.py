@@ -1345,7 +1345,7 @@ def allow_missing_keys_mode(transform: MapTransform | Compose | tuple[MapTransfo
         with allow_missing_keys_mode(t):
             _ = t(data)  # OK!
     """
-    from monai.transforms.compose import Compose
+    # from monai.transforms.compose import Compose
 
     # If given a sequence of transforms, Compose them to get a single list
     if issequenceiterable(transform):

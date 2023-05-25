@@ -8,16 +8,15 @@ Lazy Resampling
 .. toctree::
    :maxdepth: 2
 
-   mb_specification
    config_syntax.md
 
 Introduction
 ^^^^^^^^^^^^
 
-Lazy Resampling is a new feature for MONAI 1.2. This feature is still experimental at this time and it is possible that
-behaviour and APIs will change in upcoming releases.
+Lazy Resampling is a new feature introduced in MONAI 1.2. This feature is still experimental at this time and it is
+possible that behaviour and APIs will change in upcoming releases.
 
-Lazy resamping reworks the way that preprocessing is performed. It improves upon standard preprocessing pipelines and
+Lazy resampling reworks the way that preprocessing is performed. It improves upon standard preprocessing pipelines and
 can provide significant benefits over traditional preprocessing. It can improve:
 * pipeline execution time
 * pipeline memory usage in CPU or GPU
@@ -79,7 +78,7 @@ The following will then happen when we call ``pipeline(inputs)``:
    border have undergone some kind of resample operation at that stage.
 
 Overall, there are up to three occasions where the data is either interpolated or resampled through spatial transforms
-(``Spaciald``, ``RandRotated`` and ``RandZoomd``). Furthermore, the crop that occurs means that the output data
+(``Spacingd``, ``RandRotated`` and ``RandZoomd``). Furthermore, the crop that occurs means that the output data
 samples might contain pixels for which there is data but that show padding values, because the data was thrown away by
 ``RandSpatialCrop``.
 
@@ -91,20 +90,21 @@ Lazy execution
 
 Lazy resampling works very differently. When you execute the same pipeline with `lazy=True`, the following happens:
 
-1. ``Spacingd`` is executed lazily. It puts a description of the operation that it wants to perform onto a list of
+#. ``Spacingd`` is executed lazily. It puts a description of the operation that it wants to perform onto a list of
    pending operations
-2. ``Orientationd`` is executed lazily. It adds a description of its own operation to the pending operation list so
+#. ``Orientationd`` is executed lazily. It adds a description of its own operation to the pending operation list so
    now there are 2 pending operations
-3. ``RandSpatialCropd`` is executedexecuting lazily. It adds a description of its own operation to the pending
+#. ``RandSpatialCropd`` is executed lazily. It adds a description of its own operation to the pending
    operation list so now there are 3 pending operations
-4. ``RandRotate90d`` is executedexecuting lazily. It adds a description of its own operation to the pending operation
+#. ``RandRotate90d`` is executed lazily. It adds a description of its own operation to the pending operation
    list so now there are 4 pending operations
-5. ``RandRotated`` is executedexecuting lazily. It adds a description of its own operation to the pending operation
+#. ``RandRotated`` is executed lazily. It adds a description of its own operation to the pending operation
    list so now there are 5 pending operations
-6. ``RandZoomd`` is executedexecuting lazily. It adds a description of its own operation to the pending operation
-   list so now there are 6 pending operations 1. [Spacingd, Orientationd, RandSpatialCropd, RandRotate90d, RandRotated,
-   RandZoomd] are all on the pending operations list but have yet to be carried out on the data
-7. ``RandGaussianNoised`` is not a lazy transform. It is now time for the pending operations to be evaluated. Their
+#. ``RandZoomd`` is executed lazily. It adds a description of its own operation to the pending operation
+   list so now there are 6 pending operations
+   #. [Spacingd, Orientationd, RandSpatialCropd, RandRotate90d, RandRotated, RandZoomd] are all on the pending
+      operations list but have yet to be carried out on the data
+#. ``RandGaussianNoised`` is not a lazy transform. It is now time for the pending operations to be evaluated. Their
    descriptions are mathematically composited together, to determine the operation that results from all of them being
    carried out. This is then applied in a single resample operation. Once that is done, RandGaussianNoised operates on
    the resulting data

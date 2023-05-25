@@ -223,8 +223,6 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = 
         img.affine = call_kwargs["dst_affine"]
         return img
 
-    # TODO: lazy evaluation - no need to separately set lazy to False
-    # resampler = monai.transforms.SpatialResample(lazy=False, **init_kwargs)
     resampler = monai.transforms.SpatialResample(**init_kwargs)
     resampler.lazy = False  # resampler is a lazytransform
     with resampler.trace_transform(False):  # don't track this transform in `img`

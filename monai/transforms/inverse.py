@@ -113,7 +113,6 @@ class TraceableTransform(Transform):
         """
         lazy_eval = kwargs.get("lazy", False)
         transform_info = self.get_transform_info()
-        # lazy_eval = transform_info.get(TraceKeys.lazy, False)
         do_transform = transform_info.get(TraceKeys.DO_TRANSFORM, True)
         kwargs = kwargs or {}
         replace = kwargs.pop("replace", False)  # whether to rewrite the most recently pushed transform info

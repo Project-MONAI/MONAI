@@ -160,7 +160,6 @@ def apply_pending_transforms_in_order(
         an object of the same type as data if pending transforms were applied, or 'data' if they were not
 
     """
-    apply_pending = False
     keys = None
     if isinstance(transform, LazyTrait):
         if transform.checks_data:
