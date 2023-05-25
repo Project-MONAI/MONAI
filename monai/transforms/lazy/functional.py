@@ -42,7 +42,7 @@ def apply_pending(data: torch.Tensor | MetaTensor, pending: list | None = None, 
     Currently, only 2d and 3d inputs are supported.
 
     This method is designed to be called by ``apply_pending_transforms`` and other methods / classes
-    that are part of the implementation of lazy resampling. In general, you should not need to tall
+    that are part of the implementation of lazy resampling. In general, you should not need to call
     this method unless you are directly developing custom lazy execution strategies.
 
     It works by calculating the overall effect of the accumulated pending transforms. When it runs
