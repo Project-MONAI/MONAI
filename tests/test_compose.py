@@ -260,7 +260,7 @@ class TestComposeExecute(unittest.TestCase):
     @staticmethod
     def data_from_keys(keys):
         if keys is None:
-            data = torch.unsqueeze(torch.tensor(np.arange(12 * 16).reshape(12, 16)), dim=0)
+            data = torch.arange(12 * 16).reshape(1, 12, 16)
         else:
             data = {}
             for i_k, k in enumerate(keys):
