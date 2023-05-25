@@ -34,7 +34,7 @@ def data_from_keys(keys, h, w):
     else:
         data = {}
         for i_k, k in enumerate(keys):
-            data[k] = torch.unsqueeze(torch.tensor(np.arange(h * w)).reshape(h, w) + i_k * h * w, dim=0)
+            data[k] = torch.arange(h * w).reshape(1, h, w).mul_(i_k * h * w)
     return data
 
 
