@@ -294,15 +294,19 @@ class TestComposeExecute(unittest.TestCase):
     def test_compose_execute_bad_start_param(self, keys, pipeline):
         data = self.data_from_keys(keys)
 
+        c = mt.Compose(deepcopy(pipeline))
         with self.assertRaises(ValueError):
-            c = mt.Compose(deepcopy(pipeline))
+            c(data, start=None)
+        with self.assertRaises(ValueError):
             c(data, start=None)
 
         with self.assertRaises(ValueError):
             execute_compose(data, deepcopy(pipeline), start=None)
 
+        c = mt.Compose(deepcopy(pipeline))
         with self.assertRaises(ValueError):
-            c = mt.Compose(deepcopy(pipeline))
+            c(data, start=-1)
+        with self.assertRaises(ValueError):
             c(data, start=-1)
 
         with self.assertRaises(ValueError):
