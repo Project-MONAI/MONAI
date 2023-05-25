@@ -73,7 +73,7 @@ def execute_compose(
         start: the index of the first transform to be executed. If not set, this defaults to 0
         end: the index after the last transform to be exectued. If set, the transform at index-1
             is the last transform that is executed. If this is not set, it defaults to len(transforms)
-        lazy: whether to enable :ref:`lazy evaluation<Lazy Resampling>` for lazy transforms. If False, transforms will be
+        lazy: whether to enable :ref:`lazy evaluation<lazy_resampling>` for lazy transforms. If False, transforms will be
             carried out on a transform by transform basis. If True, all lazy transforms will
             be executed by accumulating changes and resampling as few times as possible.
         overrides: this optional parameter allows you to specify a dictionary of parameters that should be overridden
