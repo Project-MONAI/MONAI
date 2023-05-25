@@ -87,6 +87,8 @@ class PatchInferer(Inferer):
     Args:
         splitter: a `Splitter` object that split the inputs into patches. Defaults to None.
             If not provided or None, the inputs are considered to be already split into patches.
+            In this case, the output `merged_shape` and the optional `cropped_shape` cannot be inferred
+            and should be explicitly provided.
         merger_cls: a `Merger` subclass that can be instantiated to merges patch outputs.
             It can also be a string that matches the name of a class inherited from `Merger` class.
             Defaults to `AvgMerger`.
@@ -102,7 +104,7 @@ class PatchInferer(Inferer):
             Defaults to None, where all the keys are used.
         match_spatial_shape: whether to crop the output to match the input shape. Defaults to True.
         merger_kwargs: arguments to be passed to `merger_cls` for instantiation.
-            `merging_shape` is calculated automatically based on the input shape and
+            `merged_shape` is calculated automatically based on the input shape and
             the output patch shape unless it is passed here.
     """
 
@@ -225,15 +227,15 @@ class PatchInferer(Inferer):
             # calculate the ratio of input and output patch sizes
             ratio = tuple(op / ip for ip, op in zip(in_patch.shape[2:], out_patch.shape[2:]))
 
-            # calculate merging_shape and final_shape
+            # calculate merged_shape and cropped_shape
             merger_kwargs = self.merger_kwargs.copy()
-            final_shape, merging_shape = self._get_merged_shapes(inputs, out_patch, ratio)
-            if "merging_shape" not in merger_kwargs:
-                merger_kwargs["merging_shape"] = merging_shape
-                if merger_kwargs["merging_shape"] is None:
-                    raise ValueError("`merging_shape` cannot be `None`.")
-            if "final_shape" not in merger_kwargs:
-                merger_kwargs["final_shape"] = final_shape
+            cropped_shape, merged_shape = self._get_merged_shapes(inputs, out_patch, ratio)
+            if "merged_shape" not in merger_kwargs:
+                merger_kwargs["merged_shape"] = merged_shape
+                if merger_kwargs["merged_shape"] is None:
+                    raise ValueError("`merged_shape` cannot be `None`.")
+            if "cropped_shape" not in merger_kwargs:
+                merger_kwargs["cropped_shape"] = cropped_shape
 
             # initialize the merger
             merger = self.merger_cls(**merger_kwargs)
@@ -265,13 +267,13 @@ class PatchInferer(Inferer):
         padded_output_spatial_shape = tuple(round(s * r) for s, r in zip(padded_spatial_shape, ratio))
 
         # output shapes
-        final_shape = out_patch.shape[:2] + output_spatial_shape
-        merging_shape = out_patch.shape[:2] + padded_output_spatial_shape
+        cropped_shape = out_patch.shape[:2] + output_spatial_shape
+        merged_shape = out_patch.shape[:2] + padded_output_spatial_shape
 
         if not self.match_spatial_shape:
-            final_shape = merging_shape
+            cropped_shape = merged_shape
 
-        return final_shape, merging_shape
+        return cropped_shape, merged_shape
 
     def __call__(
         self,

@@ -32,20 +32,20 @@ class Merger(ABC):
         - finalize: perform any final process and return the merged output
 
     Args:
-        merging_shape: the shape of the tensor required to merge the patches.
-        final_shape: the shape of the final merged output tensor.
-            If not provided, it will be the same as `merging_shape`.
+        merged_shape: the shape of the tensor required to merge the patches.
+        cropped_shape: the shape of the final merged output tensor.
+            If not provided, it will be the same as `merged_shape`.
         device: the device where Merger tensors should reside.
     """
 
     def __init__(
         self,
-        merging_shape: Sequence[int],
-        final_shape: Sequence[int] | None = None,
+        merged_shape: Sequence[int],
+        cropped_shape: Sequence[int] | None = None,
         device: torch.device | str | None = None,
     ) -> None:
-        self.merging_shape = merging_shape
-        self.final_shape = self.merging_shape if final_shape is None else final_shape
+        self.merged_shape = merged_shape
+        self.cropped_shape = self.merged_shape if cropped_shape is None else cropped_shape
         self.device = device
         self.is_finalized = False
 
@@ -85,9 +85,9 @@ class AvgMerger(Merger):
     """Merge patches by taking average of the overlapping area
 
     Args:
-        merging_shape: the shape of the tensor required to merge the patches.
-        final_shape: the shape of the final merged output tensor.
-            If not provided, it will be the same as `merging_shape`.
+        merged_shape: the shape of the tensor required to merge the patches.
+        cropped_shape: the shape of the final merged output tensor.
+            If not provided, it will be the same as `merged_shape`.
         device: the device for aggregator tensors and final results.
         value_dtype: the dtype for value aggregating tensor and the final result.
         count_dtype: the dtype for sample counting tensor.
@@ -95,19 +95,19 @@ class AvgMerger(Merger):
 
     def __init__(
         self,
-        merging_shape: Sequence[int],
-        final_shape: Sequence[int] | None = None,
+        merged_shape: Sequence[int],
+        cropped_shape: Sequence[int] | None = None,
         device: torch.device | str = "cpu",
         value_dtype: torch.dtype = torch.float32,
         count_dtype: torch.dtype = torch.uint8,
     ) -> None:
-        super().__init__(merging_shape=merging_shape, final_shape=final_shape, device=device)
-        if not self.merging_shape:
-            raise ValueError(f"`merging_shape` must be provided for `AvgMerger`. {self.merging_shape} is give.")
+        super().__init__(merged_shape=merged_shape, cropped_shape=cropped_shape, device=device)
+        if not self.merged_shape:
+            raise ValueError(f"`merged_shape` must be provided for `AvgMerger`. {self.merged_shape} is give.")
         self.value_dtype = value_dtype
         self.count_dtype = count_dtype
-        self.values = torch.zeros(self.merging_shape, dtype=self.value_dtype, device=self.device)
-        self.counts = torch.zeros(self.merging_shape, dtype=self.count_dtype, device=self.device)
+        self.values = torch.zeros(self.merged_shape, dtype=self.value_dtype, device=self.device)
+        self.counts = torch.zeros(self.merged_shape, dtype=self.count_dtype, device=self.device)
 
     def aggregate(self, values: torch.Tensor, location: Sequence[int]) -> None:
         """
@@ -146,7 +146,7 @@ class AvgMerger(Merger):
             # use in-place division to save space
             self.values.div_(self.counts)
             # finalize the shape
-            self.values = self.values[tuple(slice(0, end) for end in self.final_shape)]
+            self.values = self.values[tuple(slice(0, end) for end in self.cropped_shape)]
             # set finalize flag to protect performing in-place division again
             self.is_finalized = True
 
