@@ -37,6 +37,7 @@ def data_from_keys(keys, h, w):
             data[k] = torch.unsqueeze(torch.tensor(np.arange(h * w)).reshape(h, w) + i_k * h * w, dim=0)
     return data
 
+
 class _RandXform(Randomizable):
     def randomize(self):
         self.val = self.R.random_sample()
@@ -266,7 +267,6 @@ TEST_COMPOSE_EXECUTE_TEST_CASES = [
 
 
 class TestComposeExecute(unittest.TestCase):
-
     @parameterized.expand(TEST_COMPOSE_EXECUTE_TEST_CASES)
     def test_compose_execute_equivalence(self, keys, pipeline):
         data = data_from_keys(keys, 12, 16)
@@ -566,7 +566,6 @@ TEST_COMPOSE_EXECUTE_LOGGING_TEST_CASES = [
 
 
 class TestComposeExecuteWithLogging(unittest.TestCase):
-
     @parameterized.expand(TEST_COMPOSE_EXECUTE_LOGGING_TEST_CASES)
     def test_compose_with_logging(self, keys, pipeline, lazy, expected):
         stream = StringIO()
@@ -622,7 +621,6 @@ TEST_COMPOSE_EXECUTE_FLAG_TEST_CASES = [
 class TestComposeExecuteWithFlags(unittest.TestCase):
     @parameterized.expand(TEST_COMPOSE_EXECUTE_FLAG_TEST_CASES)
     def test_compose_execute_equivalence_with_flags(self, flags, data, pipeline):
-
         expected = mt.Compose(pipeline, **flags)(data)
 
         for cutoff in range(len(pipeline)):
