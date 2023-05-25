@@ -34,39 +34,63 @@ def _log_pending_info(
     key: str | None = None,
     logger_name: bool | str = False,
 ):
+    # if logger_name is False:
+    #     return
+    # logger_name = logger_name if isinstance(logger_name, str) else "apply_pending_transforms"
+    # logger = get_logger(logger_name)
+    #
+    # if isinstance(transform, LazyTrait):
+    #     if lazy is not None and lazy != transform.lazy:
+    #         tlazy = f", transform.lazy: {transform.lazy} (overridden)"
+    #     else:
+    #         tlazy = f", transform.lazy: {transform.lazy}"
+    # else:
+    #     tlazy = ", transform is not lazy"
+    #
+    # if isinstance(transform, MapTransform):
+    #     transform_keys = transform.keys if key is None else (key,)
+    #     for k in transform_keys:
+    #         if k in data:
+    #             pcount = len(data[k].pending_operations) if isinstance(data[k], MetaTensor) else 0
+    #             logger.info(
+    #                 f"{activity} - lazy mode: {lazy}, key: '{k}', "
+    #                 f"pending: {pcount}, upcoming '{transform.__class__.__name__}'{tlazy}"
+    #             )
+    # else:
+    #     pcount = len(data.pending_operations) if isinstance(data, MetaTensor) else 0
+    #     if key is None:
+    #         logger.info(
+    #             f"{activity} - lazy: {lazy}, " f"pending: {pcount}, upcoming '{transform.__class__.__name__}'{tlazy}"
+    #         )
+    #     else:
+    #         logger.info(
+    #             f"{activity} - lazy mode: {lazy}, key: '{key}', "
+    #             f"pending: {pcount}, upcoming '{transform.__class__.__name__}'{tlazy}"
+    #         )
     if logger_name is False:
         return
     logger_name = logger_name if isinstance(logger_name, str) else "apply_pending_transforms"
     logger = get_logger(logger_name)
 
+    tcname = type(transform).__name__
     if isinstance(transform, LazyTrait):
+        tlazy = f", transform.lazy: {transform.lazy}"
         if lazy is not None and lazy != transform.lazy:
-            tlazy = f", transform.lazy: {transform.lazy} (overridden)"
-        else:
-            tlazy = f", transform.lazy: {transform.lazy}"
+            tlazy += " (overridden)"
     else:
         tlazy = ", transform is not lazy"
+
+    msg = f"{activity} - lazy: {lazy}, {{key_msg}}pending: {{pcount}}, upcoming '{tcname}'{tlazy}"
 
     if isinstance(transform, MapTransform):
         transform_keys = transform.keys if key is None else (key,)
         for k in transform_keys:
             if k in data:
                 pcount = len(data[k].pending_operations) if isinstance(data[k], MetaTensor) else 0
-                logger.info(
-                    f"{activity} - lazy mode: {lazy}, key: '{k}', "
-                    f"pending: {pcount}, upcoming '{transform.__class__.__name__}'{tlazy}"
-                )
+                logger.info(msg.format(pcount=pcount, key_msg=f"key: '{k}', "))
     else:
         pcount = len(data.pending_operations) if isinstance(data, MetaTensor) else 0
-        if key is None:
-            logger.info(
-                f"{activity} - lazy: {lazy}, " f"pending: {pcount}, upcoming '{transform.__class__.__name__}'{tlazy}"
-            )
-        else:
-            logger.info(
-                f"{activity} - lazy mode: {lazy}, key: '{key}', "
-                f"pending: {pcount}, upcoming '{transform.__class__.__name__}'{tlazy}"
-            )
+        logger.info(msg.format(pcount=pcount, key_msg="" if key is None else f"key: '{key}', "))
 
 
 def _log_applied_info(data: Any, key=None, logger_name: bool | str = False):

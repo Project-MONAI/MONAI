@@ -74,6 +74,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
         ],
         lazy=lazy,
         overrides=lazy_kwargs,
+        logger_name=num_workers > 0,
     )
 
     # create a training data loader
