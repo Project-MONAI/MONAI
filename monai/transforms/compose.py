@@ -71,7 +71,7 @@ def execute_compose(
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             defaults to `False`.
         start: the index of the first transform to be executed. If not set, this defaults to 0
-        end: the index after the last transform to be exectued. If set, the transform at index-1
+        end: the index after the last transform to be executed. If set, the transform at index-1
             is the last transform that is executed. If this is not set, it defaults to len(transforms)
         lazy: whether to enable :ref:`lazy evaluation<lazy_resampling>` for lazy transforms. If False, transforms will be
             carried out on a transform by transform basis. If True, all lazy transforms will
@@ -79,7 +79,7 @@ def execute_compose(
         overrides: this optional parameter allows you to specify a dictionary of parameters that should be overridden
             when executing a pipeline. These each parameter that is compatible with a given transform is then applied
             to that transform before it is executed. Note that overrides are currently only applied when
-            :ref:`lazy resampling<Lazy Resampling>` is enabled for the pipeline or a given transform. If lazy is False
+            :ref:`lazy evaluation<lazy_resampling>` is enabled for the pipeline or a given transform. If lazy is False
             they are ignored. Currently supported args are:
             {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``}.
         threading: whether executing is happening in a threaded environment. If set, copies are made

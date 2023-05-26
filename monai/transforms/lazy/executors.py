@@ -138,13 +138,13 @@ def apply_pending_transforms_in_order(
     This method causes "in order" processing of pending transforms to occur.
     "in order" processing of pending transforms ensures that all pending transforms have been applied to the
     tensor before a non-lazy transform (or lazy transform that is executing non-lazily) is carried out.
-    It ensures that no operations will be added to a metatensors's apply_operations while there are outstanding
+    It ensures that no operations will be added to a metatensor's apply_operations while there are outstanding
     pending_operations. Note that there is only one mechanism for executing lazy resampling at present but this
     is expected to change in future releases.
 
     This method is designed to be used only in the context of implementing lazy resampling functionality. In general
     you should not need to interact with or use this method directly, and its API may change without warning between
-    releases. See the :ref:`lazy_resampling<Lazy Resampling topic> for more information about lazy resampling.
+    releases. See the :ref:`Lazy Resampling topic<lazy_resampling> for more information about lazy resampling.
 
     Args:
         transform: a transform that should be evaluated to determine whether pending transforms should be applied

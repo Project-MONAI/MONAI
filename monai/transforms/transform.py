@@ -74,11 +74,11 @@ def _apply_transform(
         lazy: whether to enable lazy evaluation for lazy transforms. If False, transforms will be
             carried out on a transform by transform basis. If True, all lazy transforms will
             be executed by accumulating changes and resampling as few times as possible.
-            See the :ref:`lazy_resampling<Lazy Resampling topic> for more information about lazy resampling.
+            See the :ref:`Lazy Resampling topic<lazy_resampling> for more information about lazy resampling.
         overrides: this optional parameter allows you to specify a dictionary of parameters that should be overridden
             when executing a pipeline. These each parameter that is compatible with a given transform is then applied
             to that transform before it is executed. Note that overrides are currently only applied when
-            :ref:`lazy resampling<Lazy Resampling>` is enabled for the pipeline or a given transform. If lazy is False
+            :ref:`Lazy Resampling<lazy_resampling>` is enabled for the pipeline or a given transform. If lazy is False
             they are ignored. Currently supported args are:
             {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``}.
         logger_name: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
@@ -124,10 +124,10 @@ def apply_transform(
         log_stats: log errors when they occur in the processing pipeline. By default, this is set to False, which
             disables the logger for processing pipeline errors. Setting it to None or True will enable logging to the
             default logger name. Setting it to a string specifies the logger to which errors should be logged.
-        lazy: whether to execute in lazy mode or not. See the :ref:`lazy_resampling<Lazy Resampling topic> for more
+        lazy: whether to execute in lazy mode or not. See the :ref:`Lazy Resampling topic<lazy_resampling> for more
         information about lazy resampling.
         overrides: optional overrides to apply to transform parameters. This parameter is ignored unless transforms
-            are being executed lazily. See the :ref:`lazy_resampling<Lazy Resampling topic> for more details and
+            are being executed lazily. See the :ref:`Lazy Resampling topic<lazy_resampling> for more details and
             examples of its usage.
 
     Raises:
