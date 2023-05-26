@@ -102,6 +102,7 @@ Lazy resampling works very differently. When you execute the same pipeline with 
    list so now there are 5 pending operations
 #. ``RandZoomd`` is executed lazily. It adds a description of its own operation to the pending operation
    list so now there are 6 pending operations
+
    #. [Spacingd, Orientationd, RandSpatialCropd, RandRotate90d, RandRotated, RandZoomd] are all on the pending
       operations list but have yet to be carried out on the data
 #. ``RandGaussianNoised`` is not a lazy transform. It is now time for the pending operations to be evaluated. Their
