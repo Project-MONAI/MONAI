@@ -88,7 +88,7 @@ def _apply_transform(
     Returns:
         ReturnType: The return type of `transform`.
     """
-    from monai.transforms.lazy.executors import apply_pending_transforms_in_order
+    from monai.transforms.lazy.functional import apply_pending_transforms_in_order
 
     data = apply_pending_transforms_in_order(transform, data, lazy, overrides, logger_name)
 
