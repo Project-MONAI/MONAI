@@ -35,15 +35,9 @@ class ApplyPendingd(InvertibleTrait, MapTransform):
         super().__init__(keys)
 
     def __call__(self, data):
-        if not isinstance(data, dict):
-            raise ValueError(f"'data' must be of type dict but is '{type(data)}'")
-
         return data
 
     def inverse(self, data):
-        if not isinstance(data, dict):
-            raise ValueError(f"'data' must be of type dict but is '{type(data)}'")
-
         return data
 
 
