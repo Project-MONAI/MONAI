@@ -142,6 +142,13 @@ def apply_pending_transforms_in_order(
     pending_operations. Note that there is only one mechanism for executing lazy resampling at present but this
     is expected to change in future releases.
 
+    Evaluation of pending transforms is performed under the following circumstances:
+    * If the transform is a lazy transform and:
+      * The transform checks data as part of its execution, or
+      * the transform is not executing lazily
+    * If the transform is an ApplyPending[d] transform
+    * If the transform is not a lazy transform
+
     This method is designed to be used only in the context of implementing lazy resampling functionality. In general
     you should not need to interact with or use this method directly, and its API may change without warning between
     releases. See the :ref:`Lazy Resampling topic<lazy_resampling> for more information about lazy resampling.
