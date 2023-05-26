@@ -28,8 +28,8 @@ TEST_CASES = []
 def get_input_data(device):
     return {
         "input": torch.tensor([[
-            [[1.0, 1.0], [0.5, 0.0]], 
-            [[1.0, 1.0], [0.5, 0.0]], 
+            [[1.0, 1.0], [0.5, 0.0]],
+            [[1.0, 1.0], [0.5, 0.0]],
             [[1.0, 1.0], [0.5, 0.0]]]], device=device), # (1, 3, 2, 2)
         "target": torch.tensor([[[[0, 1], [2, 0]]]], device=device), # (1, 1, 2, 2)
     }
