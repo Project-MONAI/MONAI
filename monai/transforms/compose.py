@@ -54,8 +54,7 @@ def execute_compose(
     lazy: bool | None = False,
     overrides: dict | None = None,
     threading: bool = False,
-    log_stats: bool | str = False,
-    logger_name: bool | str = False,
+    log_stats: bool | str = False
 ) -> NdarrayOrTensor | Sequence[NdarrayOrTensor] | Mapping[Any, NdarrayOrTensor]:
     """
     ``execute_compose`` provides the implementation that the ``Compose`` class uses to execute a sequence
@@ -84,10 +83,7 @@ def execute_compose(
             {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``}.
         threading: whether executing is happening in a threaded environment. If set, copies are made
             of transforms that have the ``RandomizedTrait`` interface.
-        log_stats: log errors when they occur in the processing pipeline. By default, this is set to False, which
-            disables the logger for processing pipeline errors. Setting it to True will enable logging to the
-            default logger name. Setting it to a string specifies the logger to which errors should be logged.
-        logger_name: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
+        log_stats: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
             Setting this to False disables logging. Setting it to True enables logging to the default loggers.
             Setting a string overrides the logger name to which logging is performed.
 
@@ -119,10 +115,9 @@ def execute_compose(
             unpack_items,
             lazy=lazy,
             overrides=overrides,
-            log_stats=log_stats,
-            logger_name=logger_name,
+            log_stats=log_stats
         )
-    data = apply_pending_transforms(data, None, overrides, logger_name=logger_name)
+    data = apply_pending_transforms(data, None, overrides, logger_name=log_stats)
     return data
 
 
@@ -220,9 +215,9 @@ class Compose(Randomizable, InvertibleTransform):
             defaults to `True`.
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             defaults to `False`.
-        log_stats: log errors when they occur in the processing pipeline. By default, this is set to False, which
-            disables the logger for processing pipeline errors. Setting it to True will enable logging to the
-            default logger name. Setting it to a string specifies the logger to which errors should be logged.
+        log_stats: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
+            Setting this to False disables logging. Setting it to True enables logging to the default loggers.
+            Setting a string overrides the logger name to which logging is performed.
         lazy: whether to enable :ref:`Lazy Resampling<lazy_resampling>` for lazy transforms. If False, transforms will
             be carried out on a transform by transform basis. If True, all lazy transforms will be executed by
             accumulating changes and resampling as few times as possible. If lazy is None, `Compose` will
@@ -233,9 +228,6 @@ class Compose(Randomizable, InvertibleTransform):
             :ref:`Lazy Resampling<lazy_resampling>` is enabled for the pipeline or a given transform. If lazy is False
             they are ignored. Currently supported args are:
             {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``}.
-        logger_name: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
-            Setting this to False disables logging. Setting it to True enables logging to the default loggers.
-            Setting a string overrides the logger name to which logging is performed.
     """
 
     def __init__(
@@ -246,7 +238,6 @@ class Compose(Randomizable, InvertibleTransform):
         log_stats: bool | str = False,
         lazy: bool | None = False,
         overrides: dict | None = None,
-        logger_name: bool | str = False,
     ) -> None:
         if transforms is None:
             transforms = []
@@ -257,7 +248,6 @@ class Compose(Randomizable, InvertibleTransform):
         self.set_random_state(seed=get_seed())
         self.lazy = lazy
         self.overrides = overrides
-        self.logger_name = logger_name
 
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> Compose:
         super().set_random_state(seed=seed, state=state)
@@ -346,7 +336,6 @@ class Compose(Randomizable, InvertibleTransform):
             overrides=self.overrides,
             threading=threading,
             log_stats=self.log_stats,
-            logger_name=self.logger_name,
         )
 
         return result
@@ -372,7 +361,6 @@ class Compose(Randomizable, InvertibleTransform):
                 self.unpack_items,
                 lazy=False,
                 log_stats=self.log_stats,
-                logger_name=self.logger_name,
             )
         return data
 
@@ -403,9 +391,9 @@ class OneOf(Compose):
             defaults to `True`.
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             defaults to `False`.
-        log_stats: log errors when they occur in the processing pipeline. By default, this is set to False, which
-            disables the logger for processing pipeline errors. Setting it to None or True will enable logging to the
-            default logger name. Setting it to a string specifies the logger to which errors should be logged.
+        log_stats: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
+            Setting this to False disables logging. Setting it to True enables logging to the default loggers.
+            Setting a string overrides the logger name to which logging is performed.
         lazy: whether to enable :ref:`Lazy Resampling<lazy_resampling>` for lazy transforms. If False, transforms will
             be carried out on a transform by transform basis. If True, all lazy transforms will be executed by
             accumulating changes and resampling as few times as possible. If lazy is None, `Compose` will
@@ -416,9 +404,6 @@ class OneOf(Compose):
             :ref:`Lazy Resampling<lazy_resampling>` is enabled for the pipeline or a given transform. If lazy is False
             they are ignored. Currently supported args are:
             {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``}.
-        logger_name: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
-            Setting this to False disables logging. Setting it to True enables logging to the default loggers.
-            Setting a string overrides the logger name to which logging is performed.
     """
 
     def __init__(
@@ -430,9 +415,8 @@ class OneOf(Compose):
         log_stats: bool | str = False,
         lazy: bool | None = False,
         overrides: dict | None = None,
-        logger_name: bool | str = False,
     ) -> None:
-        super().__init__(transforms, map_items, unpack_items, log_stats, lazy, overrides, logger_name)
+        super().__init__(transforms, map_items, unpack_items, log_stats, lazy, overrides)
         if len(self.transforms) == 0:
             weights = []
         elif weights is None or isinstance(weights, float):
@@ -444,7 +428,6 @@ class OneOf(Compose):
             )
         self.weights = ensure_tuple(self._normalize_probabilities(weights))
         self.log_stats = log_stats
-        self.logger_name = logger_name
 
     def _normalize_probabilities(self, weights):
         if len(weights) == 0:
@@ -496,7 +479,6 @@ class OneOf(Compose):
             overrides=self.overrides,
             threading=threading,
             log_stats=self.log_stats,
-            logger_name=self.logger_name,
         )
 
         # if the data is a mapping (dictionary), append the OneOf transform to the end
@@ -542,9 +524,9 @@ class RandomOrder(Compose):
             defaults to `True`.
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             defaults to `False`.
-        log_stats: log errors when they occur in the processing pipeline. By default, this is set to False, which
-            disables the logger for processing pipeline errors. Setting it to True will enable logging to the
-            default logger name. Setting it to a string specifies the logger to which errors should be logged.
+        log_stats: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
+            Setting this to False disables logging. Setting it to True enables logging to the default loggers.
+            Setting a string overrides the logger name to which logging is performed.
         lazy: whether to enable :ref:`Lazy Resampling<lazy_resampling>` for lazy transforms. If False, transforms will
             be carried out on a transform by transform basis. If True, all lazy transforms will be executed by
             accumulating changes and resampling as few times as possible. If lazy is None, `Compose` will
@@ -555,9 +537,6 @@ class RandomOrder(Compose):
             :ref:`Lazy Resampling<lazy_resampling>` is enabled for the pipeline or a given transform. If lazy is False
             they are ignored. Currently supported args are:
             {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``}.
-        logger_name: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
-            Setting this to False disables logging. Setting it to True enables logging to the default loggers.
-            Setting a string overrides the logger name to which logging is performed.
     """
 
     def __init__(
@@ -568,11 +547,9 @@ class RandomOrder(Compose):
         log_stats: bool | str = False,
         lazy: bool | None = False,
         overrides: dict | None = None,
-        logger_name: bool | str = False,
     ) -> None:
-        super().__init__(transforms, map_items, unpack_items, log_stats, lazy, overrides, logger_name)
+        super().__init__(transforms, map_items, unpack_items, log_stats, lazy, overrides)
         self.log_stats = log_stats
-        self.logger_name = logger_name
 
     def __call__(self, input_, start=0, end=None, threading=False, lazy: bool | None = None):
         if start != 0:
@@ -596,7 +573,6 @@ class RandomOrder(Compose):
             lazy=self.lazy,
             threading=threading,
             log_stats=self.log_stats,
-            logger_name=self.logger_name,
         )
 
         # if the data is a mapping (dictionary), append the RandomOrder transform to the end
@@ -636,7 +612,6 @@ class RandomOrder(Compose):
                     self.map_items,
                     self.unpack_items,
                     log_stats=self.log_stats,
-                    logger_name=self.logger_name,
                 )
         return data
 
@@ -655,9 +630,9 @@ class SomeOf(Compose):
             Defaults to `True`.
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             Defaults to `False`.
-        log_stats: log errors when they occur in the processing pipeline. By default, this is set to False, which
-            disables the logger for processing pipeline errors. Setting it to True will enable logging to the
-            default logger name. Setting it to a string specifies the logger to which errors should be logged.
+        log_stats: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
+            Setting this to False disables logging. Setting it to True enables logging to the default loggers.
+            Setting a string overrides the logger name to which logging is performed.
         num_transforms: a 2-tuple, int, or None. The 2-tuple specifies the minimum and maximum (inclusive) number of
             transforms to sample at each iteration. If an int is given, the lower and upper bounds are set equal.
             None sets it to `len(transforms)`. Default to `None`.
@@ -673,9 +648,6 @@ class SomeOf(Compose):
             :ref:`Lazy Resampling<lazy_resampling>` is enabled for the pipeline or a given transform. If lazy is False
             they are ignored. Currently supported args are:
             {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``}.
-        logger_name: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
-            Setting this to False disables logging. Setting it to True enables logging to the default loggers.
-            Setting a string overrides the logger name to which logging is performed.
     """
 
     def __init__(
@@ -689,7 +661,6 @@ class SomeOf(Compose):
         weights: list[int] | None = None,
         lazy: bool | None = False,
         overrides: dict | None = None,
-        logger_name: bool | str = False,
     ) -> None:
         super().__init__(
             transforms,
@@ -698,13 +669,11 @@ class SomeOf(Compose):
             log_stats=log_stats,
             lazy=lazy,
             overrides=overrides,
-            logger_name=logger_name,
         )
         self.min_num_transforms, self.max_num_transforms = self._ensure_valid_num_transforms(num_transforms)
         self.replace = replace
         self.weights = self._normalize_probabilities(weights)
         self.log_stats = log_stats
-        self.logger_name = logger_name
 
     def _ensure_valid_num_transforms(self, num_transforms: int | tuple[int, int] | None) -> tuple:
         if (
@@ -781,7 +750,6 @@ class SomeOf(Compose):
             overrides=self.overrides,
             threading=threading,
             log_stats=self.log_stats,
-            logger_name=self.logger_name,
         )
         if isinstance(data, monai.data.MetaTensor):
             self.push_transform(data, extra_info={"applied_order": applied_order})
@@ -821,7 +789,6 @@ class SomeOf(Compose):
                     self.map_items,
                     self.unpack_items,
                     log_stats=self.log_stats,
-                    logger_name=self.logger_name,
                 )
 
         return data

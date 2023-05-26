@@ -344,10 +344,10 @@ class TestComposeExecute(unittest.TestCase):
             self.assertIs(data, result)
 
     @parameterized.expand(TEST_COMPOSE_EXECUTE_TEST_CASES)
-    def test_compose_with_logger_name(self, keys, pipeline):
+    def test_compose_with_logger(self, keys, pipeline):
         data = data_from_keys(keys, 12, 16)
 
-        c = mt.Compose(deepcopy(pipeline), logger_name="a_logger_name")
+        c = mt.Compose(deepcopy(pipeline), log_stats="a_logger_name")
         c(data)
 
 
@@ -579,7 +579,7 @@ class TestComposeExecuteWithLogging(unittest.TestCase):
         logger.addHandler(handler)
 
         data = data_from_keys(keys, 12, 16)
-        c = mt.Compose(deepcopy(pipeline), lazy=lazy, logger_name="a_logger_name")
+        c = mt.Compose(deepcopy(pipeline), lazy=lazy, log_stats="a_logger_name")
         c(data)
 
         handler.flush()

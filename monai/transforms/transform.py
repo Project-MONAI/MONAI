@@ -105,8 +105,7 @@ def apply_transform(
     unpack_items: bool = False,
     log_stats: bool | str = False,
     lazy: bool | None = False,
-    overrides: dict | None = None,
-    logger_name: bool | str = False,
+    overrides: dict | None = None
 ) -> list[ReturnType] | ReturnType:
     """
     Transform `data` with `transform`.
@@ -138,8 +137,8 @@ def apply_transform(
     """
     try:
         if isinstance(data, (list, tuple)) and map_items:
-            return [_apply_transform(transform, item, unpack_items, lazy, overrides, logger_name) for item in data]
-        return _apply_transform(transform, data, unpack_items, lazy, overrides, logger_name)
+            return [_apply_transform(transform, item, unpack_items, lazy, overrides, log_stats) for item in data]
+        return _apply_transform(transform, data, unpack_items, lazy, overrides, log_stats)
     except Exception as e:
         # if in debug mode, don't swallow exception so that the breakpoint
         # appears where the exception was raised.
