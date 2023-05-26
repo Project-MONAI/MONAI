@@ -209,7 +209,7 @@ def iter_patch_position(
     image_size: Sequence[int],
     patch_size: Sequence[int] | int | np.ndarray,
     start_pos: Sequence[int] = (),
-    overlap: Sequence[float] | float = 0.0,
+    overlap: Sequence[float] | float | Sequence[int] | int = 0.0,
     padded: bool = False,
 ):
     """
@@ -221,8 +221,10 @@ def iter_patch_position(
         image_size: dimensions of array to iterate over
         patch_size: size of patches to generate slices for, 0 or None selects whole dimension
         start_pos: starting position in the array, default is 0 for each dimension
-        overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
-            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
+        overlap: the amount of overlap of neighboring patches in each dimension.
+            Either a float or list of floats between 0.0 and 1.0 to define relative overlap to patch size, or
+            an int or list of ints to define number of pixels for overlap.
+            If only one float/int number is given, it will be applied to all dimensions. Defaults to 0.0.
         padded: if the image is padded so the patches can go beyond the borders. Defaults to False.
 
     Yields:
@@ -236,7 +238,10 @@ def iter_patch_position(
     overlap = ensure_tuple_rep(overlap, ndim)
 
     # calculate steps, which depends on the amount of overlap
-    steps = tuple(round(p * (1.0 - o)) for p, o in zip(patch_size_, overlap))
+    if isinstance(overlap[0], float):
+        steps = tuple(round(p * (1.0 - o)) for p, o in zip(patch_size_, overlap))
+    else:
+        steps = tuple(p - o for p, o in zip(patch_size_, overlap))
 
     # calculate the last starting location (depending on the padding)
     end_pos = image_size if padded else tuple(s - round(p) + 1 for s, p in zip(image_size, patch_size_))

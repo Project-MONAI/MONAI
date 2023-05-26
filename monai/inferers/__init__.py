@@ -21,5 +21,5 @@ from .inferer import (
     SlidingWindowInfererAdapt,
 )
 from .merger import AvgMerger, Merger
-from .splitter import SlidingWindowSplitter, Splitter
+from .splitter import SlidingWindowSplitter, Splitter, WSISlidingWindowSplitter
 from .utils import sliding_window_inference
