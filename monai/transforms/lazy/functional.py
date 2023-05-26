@@ -17,7 +17,6 @@ import torch
 
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
-
 from monai.transforms.lazy.utils import (
     affine_from_pending,
     combine_transforms,
