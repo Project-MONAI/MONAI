@@ -122,7 +122,7 @@ __all__ = [
     "sync_meta_info",
     "reset_ops_id",
     "resolves_modes",
-    "is_tensor_invertible",
+    "has_status_keys",
 ]
 
 
@@ -2003,7 +2003,7 @@ def check_applied_operations(entry: list | dict, status_key: str, default_messag
         return []
 
 
-def is_tensor_invertible(data: torch.Tensor):
+def has_status_keys(data: torch.Tensor, status_key: Any):
     """
     Checks whether a given tensor is invertible. The rules are as follows:
 
@@ -2029,27 +2029,25 @@ def is_tensor_invertible(data: torch.Tensor):
         user to help debug their pipelines.
 
     """
-    invert_disabled_reasons = list()
+    status_key_occurrences = list()
     if isinstance(data, (list, tuple)):
         for d in data:
-            _, reasons = is_tensor_invertible(d)
+            _, reasons = has_status_keys(d, status_key)
             if reasons is not None:
-                invert_disabled_reasons.extend(reasons)
+                status_key_occurrences.extend(reasons)
     elif isinstance(data, monai.data.MetaTensor):
         for op in data.applied_operations:
-            invert_disabled_reasons.extend(
-                check_applied_operations(
-                    op, TraceStatusKeys.PENDING_DURING_APPLY, "Pending operations while applying an operation"
-                )
+            status_key_occurrences.extend(
+                check_applied_operations(op, status_key, "Pending operations while applying an operation")
             )
     elif isinstance(data, dict):
         for d in data.values():
-            _, reasons = is_tensor_invertible(d)
+            _, reasons = has_status_keys(d, status_key)
             if reasons is not None:
-                invert_disabled_reasons.extend(reasons)
+                status_key_occurrences.extend(reasons)
 
-    if len(invert_disabled_reasons) > 0:
-        return False, invert_disabled_reasons
+    if len(status_key_occurrences) > 0:
+        return False, status_key_occurrences
     return True, None
 
 

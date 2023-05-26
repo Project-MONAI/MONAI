@@ -314,7 +314,7 @@ class LazyTransform(Transform, LazyTrait):
         self._lazy = lazy
 
     @property
-    def checks_data(self):
+    def requires_current_data(self):
         return False
 
 

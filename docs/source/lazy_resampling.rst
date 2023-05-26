@@ -221,10 +221,11 @@ lazy property
 
 The lazy property allows you to get or set the lazy status of a lazy transform after constructing it.
 
-checks_data property (get only)
-"""""""""""""""""""""""""""""""
+requires_current_data property (get only)
+"""""""""""""""""""""""""""""""""""""""""
 
-The ``checks_data`` property indicates that a transform makes use of the data in one or more of the tensors that it is
+The ``requires_current_data`` property indicates that a transform makes use of the data in one or more of the tensors
+that it is
 passed during its execution. Such transforms require that the tensors must therefore be up to date, even if the
 transform itself is executing lazily. This is required for transforms such as ``CropForeground[d]``,
 ``RandCropByPosNegLabel[d]``, and ``RandCropByLabelClasses[d]``. This property is implemented to return ``False`` on

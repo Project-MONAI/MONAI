@@ -37,7 +37,7 @@ from monai.transforms.transform import (  # noqa: F401
     Transform,
     apply_transform,
 )
-from monai.utils import MAX_SEED, TraceKeys, ensure_tuple, get_seed
+from monai.utils import MAX_SEED, TraceKeys, TraceStatusKeys, ensure_tuple, get_seed
 
 logger = get_logger(__name__)
 
@@ -378,9 +378,9 @@ class Compose(Randomizable, InvertibleTransform):
 
     @staticmethod
     def _raise_if_tensor_is_not_invertible(data: Any):
-        from monai.transforms.utils import is_tensor_invertible
+        from monai.transforms.utils import has_status_keys
 
-        invertible, reasons = is_tensor_invertible(data)
+        invertible, reasons = has_status_keys(data, TraceStatusKeys.PENDING_DURING_APPLY)
 
         if invertible is False:
             if reasons is not None:
@@ -684,7 +684,6 @@ class SomeOf(Compose):
         map_items: bool = True,
         unpack_items: bool = False,
         log_stats: bool | str = False,
-        *,
         num_transforms: int | tuple[int, int] | None = None,
         replace: bool = False,
         weights: list[int] | None = None,

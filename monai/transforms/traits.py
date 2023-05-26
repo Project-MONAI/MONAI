@@ -47,14 +47,12 @@ class LazyTrait:
         raise NotImplementedError()
 
     @property
-    def checks_data(self):
+    def requires_current_data(self):
         """
-        Get whether the transform checks the sample pixel/voxel data on its inputs or not as part of its
-        operation. A transform that checks data requires that all of the pending operations on its input
-        transforms are up to date before it is executed, but it can still execute lazily by adding pending
-        operations to the input tensors.
+        Get whether the transform requires the input data to be up to date before the transform executes.
+        Such transforms can still execute lazily by adding pending operations to the output tensors.
         Returns:
-            True if the transform checks data and False if it does not
+            True if the transform requires its inputs to be up to date and False if it does not
         """
 
 

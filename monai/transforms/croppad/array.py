@@ -870,7 +870,7 @@ class CropForeground(Crop):
         self.padder.lazy = _val
 
     @property
-    def checks_data(self):
+    def requires_current_data(self):
         return False
 
     def compute_bounding_box(self, img: torch.Tensor) -> tuple[np.ndarray, np.ndarray]:
@@ -1176,7 +1176,7 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
         self._lazy = _val
 
     @property
-    def checks_data(self):
+    def requires_current_data(self):
         return False
 
     def __call__(
@@ -1358,7 +1358,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
         self._lazy = _val
 
     @property
-    def checks_data(self):
+    def requires_current_data(self):
         return False
 
     def __call__(

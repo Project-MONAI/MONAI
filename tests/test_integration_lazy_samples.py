@@ -24,8 +24,8 @@ import torch
 import monai
 import monai.transforms as mt
 from monai.data import create_test_image_3d, decollate_batch
-from monai.transforms.utils import is_tensor_invertible
-from monai.utils import set_determinism
+from monai.transforms.utils import has_status_keys
+from monai.utils import TraceStatusKeys, set_determinism
 from tests.utils import HAS_CUPY, DistTestCase, SkipIfBeforePyTorchVersion, skip_if_quick
 
 
@@ -151,7 +151,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
                 saver(item)  # just testing the saving
                 saver(in_img)
                 saver(in_seg)
-    invertible, reasons = is_tensor_invertible(batch_data)
+    invertible, reasons = has_status_keys(batch_data, TraceStatusKeys.PENDING_DURING_APPLY)
     inverted = [inverter(b_data) for b_data in decollate_batch(batch_data)]  # expecting no error
 
     return ops

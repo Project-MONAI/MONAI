@@ -177,22 +177,12 @@ def apply_pending_transforms_in_order(
         an object of the same type as data if pending transforms were applied, or 'data' if they were not
 
     """
-    from monai.transforms.lazy.array import ApplyPending
     from monai.transforms.lazy.dictionary import ApplyPendingd
 
-    keys = None
-    if isinstance(transform, LazyTrait):
-        if transform.checks_data:
-            must_apply_pending = True
-        else:
-            must_apply_pending = not (transform.lazy if lazy is None else lazy)
-    elif isinstance(transform, ApplyPending):
-        must_apply_pending = True
-    elif isinstance(transform, ApplyPendingd):
-        must_apply_pending = True
-        keys = transform.keys
-    else:
-        must_apply_pending = True
+    must_apply_pending = True
+    keys = transform.keys if isinstance(transform, ApplyPendingd) else None
+    if isinstance(transform, LazyTrait) and not transform.requires_current_data:
+        must_apply_pending = not (transform.lazy if lazy is None else lazy)
 
     if must_apply_pending is True:
         _log_pending_info(transform, data, "Apply pending transforms", lazy=lazy, logger_name=logger_name)

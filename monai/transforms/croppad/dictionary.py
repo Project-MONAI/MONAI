@@ -788,7 +788,7 @@ class CropForegroundd(Cropd):
         self.cropper.lazy = value
 
     @property
-    def checks_data(self):
+    def requires_current_data(self):
         return True
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
@@ -989,7 +989,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, LazyTransform, MultiSam
         self.cropper.lazy = value
 
     @property
-    def checks_data(self):
+    def requires_current_data(self):
         return True
 
     def __call__(
@@ -1147,7 +1147,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSa
         self.cropper.lazy = value
 
     @property
-    def checks_data(self):
+    def requires_current_data(self):
         return True
 
     def __call__(self, data: Mapping[Hashable, Any], lazy: bool | None = None) -> list[dict[Hashable, torch.Tensor]]:
