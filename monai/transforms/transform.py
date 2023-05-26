@@ -105,7 +105,7 @@ def apply_transform(
     unpack_items: bool = False,
     log_stats: bool | str = False,
     lazy: bool | None = False,
-    overrides: dict | None = None
+    overrides: dict | None = None,
 ) -> list[ReturnType] | ReturnType:
     """
     Transform `data` with `transform`.

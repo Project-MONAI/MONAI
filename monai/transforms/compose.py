@@ -54,7 +54,7 @@ def execute_compose(
     lazy: bool | None = False,
     overrides: dict | None = None,
     threading: bool = False,
-    log_stats: bool | str = False
+    log_stats: bool | str = False,
 ) -> NdarrayOrTensor | Sequence[NdarrayOrTensor] | Mapping[Any, NdarrayOrTensor]:
     """
     ``execute_compose`` provides the implementation that the ``Compose`` class uses to execute a sequence
@@ -109,13 +109,7 @@ def execute_compose(
         if threading:
             _transform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
         data = apply_transform(
-            _transform,
-            data,
-            map_items,
-            unpack_items,
-            lazy=lazy,
-            overrides=overrides,
-            log_stats=log_stats
+            _transform, data, map_items, unpack_items, lazy=lazy, overrides=overrides, log_stats=log_stats
         )
     data = apply_pending_transforms(data, None, overrides, logger_name=log_stats)
     return data
@@ -355,12 +349,7 @@ class Compose(Randomizable, InvertibleTransform):
         # loop backwards over transforms
         for t in reversed(invertible_transforms):
             data = apply_transform(
-                t.inverse,
-                data,
-                self.map_items,
-                self.unpack_items,
-                lazy=False,
-                log_stats=self.log_stats,
+                t.inverse, data, self.map_items, self.unpack_items, lazy=False, log_stats=self.log_stats
             )
         return data
 
@@ -607,11 +596,7 @@ class RandomOrder(Compose):
         for o in reversed(applied_order):
             if isinstance(self.transforms[o], InvertibleTransform):
                 data = apply_transform(
-                    self.transforms[o].inverse,
-                    data,
-                    self.map_items,
-                    self.unpack_items,
-                    log_stats=self.log_stats,
+                    self.transforms[o].inverse, data, self.map_items, self.unpack_items, log_stats=self.log_stats
                 )
         return data
 
@@ -662,14 +647,7 @@ class SomeOf(Compose):
         lazy: bool | None = False,
         overrides: dict | None = None,
     ) -> None:
-        super().__init__(
-            transforms,
-            map_items,
-            unpack_items,
-            log_stats=log_stats,
-            lazy=lazy,
-            overrides=overrides,
-        )
+        super().__init__(transforms, map_items, unpack_items, log_stats=log_stats, lazy=lazy, overrides=overrides)
         self.min_num_transforms, self.max_num_transforms = self._ensure_valid_num_transforms(num_transforms)
         self.replace = replace
         self.weights = self._normalize_probabilities(weights)
@@ -784,11 +762,7 @@ class SomeOf(Compose):
         for o in reversed(applied_order):
             if isinstance(self.transforms[o], InvertibleTransform):
                 data = apply_transform(
-                    self.transforms[o].inverse,
-                    data,
-                    self.map_items,
-                    self.unpack_items,
-                    log_stats=self.log_stats,
+                    self.transforms[o].inverse, data, self.map_items, self.unpack_items, log_stats=self.log_stats
                 )
 
         return data
