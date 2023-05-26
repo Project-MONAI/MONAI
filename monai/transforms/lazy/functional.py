@@ -11,11 +11,12 @@
 
 from __future__ import annotations
 
-from typing import Any, Sequence, Mapping
+from typing import Any, Mapping, Sequence
 
 import torch
-from monai.config import NdarrayOrTensor
 
+from monai.apps.utils import get_logger
+from monai.config import NdarrayOrTensor
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
 from monai.transforms.lazy.utils import (
@@ -25,7 +26,6 @@ from monai.transforms.lazy.utils import (
     kwargs_from_pending,
     resample,
 )
-from monai.apps.utils import get_logger
 from monai.transforms.traits import LazyTrait
 from monai.transforms.transform import MapTransform
 from monai.utils import LazyAttr, look_up_option
