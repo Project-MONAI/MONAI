@@ -145,14 +145,16 @@ A number of new arguments have been added to existing properties, which we'll go
 we'll focus on :class:`monai.transforms.compose.Compose` and :class:`LazyTrait<monai.transforms.traits.LazyTrait>`/
 :class:`LazyTransform<monai.transforms.transform.LazyTransform>` and the way that they interact with each other.
 
+
 Compose
 +++++++
 
-:class:`monai.transforms.compose.Compose<Compose>` gains a number of new arguments that can be used to control resampling
-behaviour. Each of them is covered in its own section:
+:class:`monai.transforms.compose.Compose<Compose>` gains a number of new arguments that can be used to control
+resampling behaviour. Each of them is covered in its own section:
 
 
-*``lazy``*
+lazy
+""""
 
 ``lazy`` controls whether execution is carried out in a lazy manner or not. It has three values that it can take:
 
@@ -160,4 +162,69 @@ behaviour. Each of them is covered in its own section:
 * `lazy=True` forces the pipeline to be executed lazily. Every transform that implements
   :class:`monai.transforms.traits.LazyTrait<LazyTrait>` (or inherits
   :class:`monai.transforms.transform.LazyTransform<LazyTransform>`) will be executed lazily
-* `lazy=None` means that the pipeline can execute lazily, but only on transforms that have their own `lazy` property set to True.
+* `lazy=None` means that the pipeline can execute lazily, but only on transforms that have their own `lazy` property
+  set to True.
+
+
+overrides
+"""""""""
+
+``overrides`` allows the user to specify certain parameters that transforms can be overridden with when they are
+executed lazily. This parameter is primarily provided to allow you to run a pipeline without having to modify fields
+like ``mode`` and ``padding_mode``.
+When executing dictionary-based transforms, you provide a dictionary containing overrides for each key, as follows. You
+can omit keys that don't require overrides:
+
+.. code-block::
+
+    {
+        "image": {"mode": "bilinear"},
+        "label": {"padding_mode": "zeros"}
+    }
+
+
+logger_name
+"""""""""""
+
+Logging of transform execution is provided if you wish to understand exactly how your pipelines execute. It can take a
+``bool`` or ``str`` value, and is False by default, which disables logging. Otherwise, you can enable it by passing it
+the name of a logger that you wish to use (note, you don't have to construct the logger beforehand).
+
+
+LazyTrait / LazyTransform
++++++++++++++++++++++++++
+
+Many transforms now implement either LazyTrait or LazyTransform. Doing so marks the transform for lazy execution. Lazy
+transforms have the following in common:
+
+
+``__init__`` has a ``lazy`` argument
+""""""""""""""""""""""""""""""""""""
+
+``lazy`` is a ``bool`` value that can be passed to the initialiser when a lazy transform is instantiated. This
+indicates to the transform that it should execute lazily or not lazily. Note that this value can be overridden by
+passing ``lazy`` to ``__init__``. ``lazy`` is ``False`` by default
+
+
+``__call__`` has a ``lazy`` argument
+""""""""""""""""""""""""""""""""""""
+
+``lazy`` is an optional ``bool`` value that can be passed at call time to override the behaviour defined during
+initialisation. It has a default value of ``None``. If it is not ``None``, then this value is used instead of
+``self.lazy``. This allows the calling :class:`Compose<monai.transforms.compose.Compose>` instance to override
+default values rather than having to set it on every lazy transform (unless the user sets
+:class:`Compose.lazy<monai.transforms.compose.Compose>` to ``None``).
+
+lazy property
+"""""""""""""
+
+The lazy property allows you to get or set the lazy status of a lazy transform after constructing it.
+
+checks_data property (get only)
+"""""""""""""""""""""""""""""""
+
+The ``checks_data`` property indicates that a transform makes use of the data in one or more of the tensors that it is
+passed during its execution. Such transforms require that the tensors must therefore be up to date, even if the
+transform itself is executing lazily. This is required for transforms such as ``CropForeground[d]``,
+``RandCropByPosNegLabel[d]``, and ``RandCropByLabelClasses[d]``. This property is implemented to return ``False`` on
+``LazyTransform`` and must be overridden to return ``True`` by transforms that check data values when executing.
