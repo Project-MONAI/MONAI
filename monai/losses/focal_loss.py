@@ -200,11 +200,9 @@ class FocalLoss(_Loss):
             raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
         return loss
 
+
 def softmax_focal_loss(
-    input: torch.Tensor,
-    target: torch.Tensor,
-    gamma: float = 2.0,
-    alpha: Optional[float] = None,
+    input: torch.Tensor, target: torch.Tensor, gamma: float = 2.0, alpha: Optional[float] = None
 ) -> torch.Tensor:
     """
     FL(pt) = -alpha * (1 - pt)**gamma * log(pt)
@@ -213,22 +211,20 @@ def softmax_focal_loss(
     s_j is the unnormalized score for class j.
     """
     input_ls = input.log_softmax(1)
-    loss: torch.Tensor = - (1 - input_ls.exp()).pow(gamma) * input_ls * target
+    loss: torch.Tensor = -(1 - input_ls.exp()).pow(gamma) * input_ls * target
 
     if alpha is not None:
         # (1-alpha) for the background class and alpha for the other classes
-        alpha_fac = torch.tensor([1-alpha] + [alpha] * (target.shape[1]-1)).to(loss)
+        alpha_fac = torch.tensor([1 - alpha] + [alpha] * (target.shape[1] - 1)).to(loss)
         broadcast_dims = [-1] + [1] * len(target.shape[2:])
         alpha_fac = alpha_fac.view(broadcast_dims)
         loss = alpha_fac * loss
 
     return loss
 
+
 def sigmoid_focal_loss(
-    input: torch.Tensor,
-    target: torch.Tensor,
-    gamma: float = 2.0,
-    alpha: Optional[float] = None,
+    input: torch.Tensor, target: torch.Tensor, gamma: float = 2.0, alpha: Optional[float] = None
 ) -> torch.Tensor:
     """
     FL(pt) = -alpha * (1 - pt)**gamma * log(pt)
