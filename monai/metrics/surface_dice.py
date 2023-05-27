@@ -32,10 +32,14 @@ from .metric import CumulativeIterationMetric
 
 class SurfaceDiceMetric(CumulativeIterationMetric):
     """
-    Computes the Normalized Surface Distance (NSD) for each batch sample and class of
+    Computes the Normalized Surface Dice (NSD) for each batch sample and class of
     predicted segmentations `y_pred` and corresponding reference segmentations `y` according to equation :eq:`nsd`.
-    This implementation supports 2D images. For 3D images, please refer to DeepMind's implementation
-    https://github.com/deepmind/surface-distance.
+    This implementation is based on https://arxiv.org/abs/2111.05408 and supports 2D and 3D images.
+    Be aware that the computation of boundaries is different from DeepMind's implementation
+    https://github.com/deepmind/surface-distance. In this implementation, the length/area of a segmentation boundary is
+    interpreted as the number of its edge pixels. In DeepMind's implementation, the length of a segmentation boundary
+    depends on the local neighborhood (cf. https://arxiv.org/abs/1809.04430).
+    This issue is discussed here: https://github.com/Project-MONAI/MONAI/issues/4103.
 
     The class- and batch sample-wise NSD values can be aggregated with the function `aggregate`.
 
@@ -79,9 +83,9 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
         r"""
         Args:
             y_pred: Predicted segmentation, typically segmentation model output.
-                It must be a one-hot encoded, batch-first tensor [B,C,H,W].
+                It must be a one-hot encoded, batch-first tensor [B,C,H,W] or [B,C,H,W,D].
             y: Reference segmentation.
-                It must be a one-hot encoded, batch-first tensor [B,C,H,W].
+                It must be a one-hot encoded, batch-first tensor [B,C,H,W] or [B,C,H,W,D].
             kwargs: additional parameters, e.g. ``spacing`` should be passed to correctly compute the metric.
                 ``spacing``: spacing of pixel (or voxel). This parameter is relevant only
                 if ``distance_metric`` is set to ``"euclidean"``.
@@ -168,7 +172,7 @@ def compute_surface_dice(
     will be returned for this class. In the case of a class being present in only one of predicted segmentation or
     reference segmentation, the class NSD will be 0.
 
-    This implementation is based on https://arxiv.org/abs/2111.05408 and supports 2D images.
+    This implementation is based on https://arxiv.org/abs/2111.05408 and supports 2D and 3D images.
     Be aware that the computation of boundaries is different from DeepMind's implementation
     https://github.com/deepmind/surface-distance. In this implementation, the length of a segmentation boundary is
     interpreted as the number of its edge pixels. In DeepMind's implementation, the length of a segmentation boundary
@@ -176,9 +180,9 @@ def compute_surface_dice(
 
     Args:
         y_pred: Predicted segmentation, typically segmentation model output.
-            It must be a one-hot encoded, batch-first tensor [B,C,H,W].
+            It must be a one-hot encoded, batch-first tensor [B,C,H,W] or [B,C,H,W,D].
         y: Reference segmentation.
-            It must be a one-hot encoded, batch-first tensor [B,C,H,W].
+            It must be a one-hot encoded, batch-first tensor [B,C,H,W] or [B,C,H,W,D].
         class_thresholds: List of class-specific thresholds.
             The thresholds relate to the acceptable amount of deviation in the segmentation boundary in pixels.
             Each threshold needs to be a finite, non-negative number.
@@ -215,8 +219,8 @@ def compute_surface_dice(
     if not isinstance(y_pred, torch.Tensor) or not isinstance(y, torch.Tensor):
         raise ValueError("y_pred and y must be PyTorch Tensor.")
 
-    if y_pred.ndimension() != 4 or y.ndimension() != 4:
-        raise ValueError("y_pred and y should have four dimensions: [B,C,H,W].")
+    if y_pred.ndimension() not in (4, 5) or y.ndimension() not in (4, 5):
+        raise ValueError("y_pred and y should be one-hot encoded: [B,C,H,W] or [B,C,H,W,D].")
 
     if y_pred.shape != y.shape:
         raise ValueError(

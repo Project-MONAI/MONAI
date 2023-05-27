@@ -20,6 +20,9 @@ from torch.nn.functional import pad
 from monai.inferers import SlidingWindowSplitter
 from tests.utils import assert_allclose
 
+# ----------------------------------------------------------------------------
+# Tensor test cases
+# ----------------------------------------------------------------------------
 # random int tensor (0, 255)
 TENSOR_4x4 = torch.randint(low=0, high=255, size=(2, 3, 4, 4), dtype=torch.float32)
 
@@ -27,11 +30,8 @@ TENSOR_4x4 = torch.randint(low=0, high=255, size=(2, 3, 4, 4), dtype=torch.float
 TENSOR_4x4_artifact = TENSOR_4x4.clone()
 TENSOR_4x4_artifact[..., :2, 2:] = 512.0
 
-# ----------------------------------------------------------------------------
-# Primary use test cases
-# ----------------------------------------------------------------------------
 # no-overlapping 2x2
-TEST_CASE_0 = [
+TEST_CASE_TENSOR_0 = [
     TENSOR_4x4,
     {"patch_size": (2, 2), "overlap": 0.0},
     [
@@ -43,9 +43,9 @@ TEST_CASE_0 = [
 ]
 
 # no-overlapping 3x3 with pad
-TEST_CASE_1 = [
+TEST_CASE_TENSOR_1 = [
     TENSOR_4x4,
-    {"patch_size": (3, 3), "overlap": 0.0},
+    {"patch_size": (3, 3), "overlap": 0.0, "pad_mode": "constant"},
     [
         (TENSOR_4x4[..., :3, :3], (0, 0)),
         (pad(TENSOR_4x4[..., :3, 3:], (0, 2)), (0, 3)),
@@ -54,8 +54,8 @@ TEST_CASE_1 = [
     ],
 ]
 
-# overlapping 2x2
-TEST_CASE_2 = [
+# overlapping 2x2 with fraction
+TEST_CASE_TENSOR_2 = [
     TENSOR_4x4,
     {"patch_size": (2, 2), "overlap": (0.5, 0.5)},
     [
@@ -71,8 +71,8 @@ TEST_CASE_2 = [
     ],
 ]
 
-# overlapping 3x3 (non-divisible)
-TEST_CASE_3 = [
+# overlapping 3x3 with fraction (non-divisible)
+TEST_CASE_TENSOR_3 = [
     TENSOR_4x4,
     {"patch_size": (3, 3), "overlap": 2.0 / 3.0},
     [
@@ -83,8 +83,36 @@ TEST_CASE_3 = [
     ],
 ]
 
+# overlapping 2x2 with number of pixels
+TEST_CASE_TENSOR_4 = [
+    TENSOR_4x4,
+    {"patch_size": (2, 2), "overlap": (1, 1)},
+    [
+        (TENSOR_4x4[..., 0:2, 0:2], (0, 0)),
+        (TENSOR_4x4[..., 0:2, 1:3], (0, 1)),
+        (TENSOR_4x4[..., 0:2, 2:4], (0, 2)),
+        (TENSOR_4x4[..., 1:3, 0:2], (1, 0)),
+        (TENSOR_4x4[..., 1:3, 1:3], (1, 1)),
+        (TENSOR_4x4[..., 1:3, 2:4], (1, 2)),
+        (TENSOR_4x4[..., 2:4, 0:2], (2, 0)),
+        (TENSOR_4x4[..., 2:4, 1:3], (2, 1)),
+        (TENSOR_4x4[..., 2:4, 2:4], (2, 2)),
+    ],
+]
+
+# overlapping 3x3 with number of pixels (non-divisible)
+TEST_CASE_TENSOR_5 = [
+    TENSOR_4x4,
+    {"patch_size": (3, 3), "overlap": 2},
+    [
+        (TENSOR_4x4[..., :3, :3], (0, 0)),
+        (TENSOR_4x4[..., :3, 1:], (0, 1)),
+        (TENSOR_4x4[..., 1:, :3], (1, 0)),
+        (TENSOR_4x4[..., 1:, 1:], (1, 1)),
+    ],
+]
 # non-overlapping 2x2 with positive offset
-TEST_CASE_4 = [
+TEST_CASE_TENSOR_6 = [
     TENSOR_4x4,
     {"patch_size": (2, 2), "offset": 1},
     [
@@ -96,7 +124,7 @@ TEST_CASE_4 = [
 ]
 
 # non-overlapping 2x2 with negative offset
-TEST_CASE_5 = [
+TEST_CASE_TENSOR_7 = [
     TENSOR_4x4,
     {"patch_size": (2, 2), "offset": -1},
     [
@@ -113,7 +141,11 @@ TEST_CASE_5 = [
 ]
 
 # non-overlapping 2x2 with positive offset and no padding
-TEST_CASE_6 = [TENSOR_4x4, {"patch_size": (2, 2), "offset": 1, "pad_mode": None}, [(TENSOR_4x4[..., 1:3, 1:3], (1, 1))]]
+TEST_CASE_TENSOR_8 = [
+    TENSOR_4x4,
+    {"patch_size": (2, 2), "offset": 1, "pad_mode": None},
+    [(TENSOR_4x4[..., 1:3, 1:3], (1, 1))],
+]
 
 
 # ----------------------------------------------------------------------------
@@ -179,42 +211,48 @@ def missing_parameter_filter(patch):
     return
 
 
-# invalid overlap: 1.0
+# invalid overlap: float 1.0
 TEST_CASE_ERROR_0 = [TENSOR_4x4, {"patch_size": (2, 2), "overlap": 1.0}, ValueError]
-# invalid overlap: negative
+# invalid overlap: negative float
 TEST_CASE_ERROR_1 = [TENSOR_4x4, {"patch_size": (2, 2), "overlap": -0.1}, ValueError]
+# invalid overlap: negative integer
+TEST_CASE_ERROR_2 = [TENSOR_4x4, {"patch_size": (2, 2), "overlap": -1}, ValueError]
+# invalid overlap: integer larger than patch size
+TEST_CASE_ERROR_3 = [TENSOR_4x4, {"patch_size": (2, 2), "overlap": 3}, ValueError]
 
 # invalid offset: positive and larger than image size
-TEST_CASE_ERROR_2 = [TENSOR_4x4, {"patch_size": (2, 2), "offset": 4}, ValueError]
+TEST_CASE_ERROR_4 = [TENSOR_4x4, {"patch_size": (2, 2), "offset": 4}, ValueError]
 # invalid offset: negative and larger than patch size (in magnitude)
-TEST_CASE_ERROR_3 = [TENSOR_4x4, {"patch_size": (2, 2), "offset": -3}, ValueError]
+TEST_CASE_ERROR_5 = [TENSOR_4x4, {"patch_size": (2, 2), "offset": -3, "pad_mode": "constant"}, ValueError]
 # invalid offset: negative and no padding
-TEST_CASE_ERROR_4 = [TENSOR_4x4, {"patch_size": (2, 2), "offset": -1, "pad_mode": None}, ValueError]
+TEST_CASE_ERROR_6 = [TENSOR_4x4, {"patch_size": (2, 2), "offset": -1, "pad_mode": None}, ValueError]
 
 # invalid filter function: with more than two positional parameters
-TEST_CASE_ERROR_5 = [TENSOR_4x4, {"patch_size": (2, 2), "filter_fn": extra_parameter_filter}, ValueError]
+TEST_CASE_ERROR_7 = [TENSOR_4x4, {"patch_size": (2, 2), "filter_fn": extra_parameter_filter}, ValueError]
 # invalid filter function: with less than two positional parameters
-TEST_CASE_ERROR_6 = [TENSOR_4x4, {"patch_size": (2, 2), "filter_fn": missing_parameter_filter}, ValueError]
+TEST_CASE_ERROR_8 = [TENSOR_4x4, {"patch_size": (2, 2), "filter_fn": missing_parameter_filter}, ValueError]
 # invalid filter function: non-callable
-TEST_CASE_ERROR_7 = [TENSOR_4x4, {"patch_size": (2, 2), "filter_fn": 1}, ValueError]
+TEST_CASE_ERROR_9 = [TENSOR_4x4, {"patch_size": (2, 2), "filter_fn": 1}, ValueError]
 
 
 class SlidingWindowSplitterTests(unittest.TestCase):
     @parameterized.expand(
         [
-            TEST_CASE_0,
-            TEST_CASE_1,
-            TEST_CASE_2,
-            TEST_CASE_3,
-            TEST_CASE_4,
-            TEST_CASE_5,
-            TEST_CASE_6,
+            TEST_CASE_TENSOR_0,
+            TEST_CASE_TENSOR_1,
+            TEST_CASE_TENSOR_2,
+            TEST_CASE_TENSOR_3,
+            TEST_CASE_TENSOR_4,
+            TEST_CASE_TENSOR_5,
+            TEST_CASE_TENSOR_6,
+            TEST_CASE_TENSOR_7,
+            TEST_CASE_TENSOR_8,
             TEST_CASE_FILTER_FN_0,
             TEST_CASE_FILTER_FN_1,
             TEST_CASE_FILTER_FN_2,
         ]
     )
-    def test_split_patches(self, image, arguments, expected):
+    def test_split_patches_tensor(self, image, arguments, expected):
         patches = SlidingWindowSplitter(**arguments)(image)
         patches = list(patches)
         self.assertEqual(len(patches), len(expected))
@@ -232,6 +270,8 @@ class SlidingWindowSplitterTests(unittest.TestCase):
             TEST_CASE_ERROR_5,
             TEST_CASE_ERROR_6,
             TEST_CASE_ERROR_7,
+            TEST_CASE_ERROR_8,
+            TEST_CASE_ERROR_9,
         ]
     )
     def test_split_patches_errors(self, image, arguments, expected_error):
