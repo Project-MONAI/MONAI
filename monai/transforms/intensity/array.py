@@ -502,17 +502,22 @@ class ScaleIntensityFixedMean(Transform):
         self.channel_wise = channel_wise
         self.dtype = dtype
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, factor=None) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
+        Args:
+            img: the input tensor/array
+            factor: factor scale by ``v = v * (1 + factor)``
 
         Raises:
             ValueError: When ``self.fixed_mean=True`` and ``self.factor=None``. Incompatible values.
 
         """
 
-        if self.fixed_mean and not self.factor:
-            raise ValueError(f"{self.fixed_mean=} and {self.factor=} is incompatible.")
+        factor = factor if factor is not None else self.factor
+
+        if self.fixed_mean and not factor:
+            raise ValueError(f"self.fixed_mean={self.fixed_mean} and factor={factor} is incompatible.")
 
         img = convert_to_tensor(img, track_meta=get_track_meta())
         img_t = convert_to_tensor(img, track_meta=False)
@@ -528,7 +533,7 @@ class ScaleIntensityFixedMean(Transform):
                     mn = d.mean()
                     d = d - mn
 
-                out_channel = (d * (1 + self.factor)) if self.factor is not None else d
+                out_channel = (d * (1 + factor)) if factor is not None else d
 
                 if self.fixed_mean:
                     out_channel = out_channel + mn
@@ -547,7 +552,7 @@ class ScaleIntensityFixedMean(Transform):
                 mn = img_t.mean()
                 img_t = img_t - mn
 
-            ret = (img_t * (1 + self.factor)) if self.factor is not None else img_t
+            ret = (img_t * (1 + factor)) if factor is not None else img_t
 
             if self.fixed_mean:
                 ret = ret + mn
@@ -601,6 +606,10 @@ class RandScaleIntensityFixedMean(RandomizableTransform):
         self.preserve_range = preserve_range
         self.dtype = dtype
 
+        self.scaler = ScaleIntensityFixedMean(
+            factor=self.factor, fixed_mean=self.fixed_mean, preserve_range=self.preserve_range, dtype=self.dtype
+        )
+
     def randomize(self, data: Any | None = None) -> None:
         super().randomize(None)
         if not self._do_transform:
@@ -618,9 +627,7 @@ class RandScaleIntensityFixedMean(RandomizableTransform):
         if not self._do_transform:
             return convert_data_type(img, dtype=self.dtype)[0]
 
-        return ScaleIntensityFixedMean(
-            factor=self.factor, fixed_mean=self.fixed_mean, preserve_range=self.preserve_range, dtype=self.dtype
-        )(img)
+        return self.scaler(img, self.factor)
 
 
 class RandScaleIntensity(RandomizableTransform):
