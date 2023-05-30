@@ -378,7 +378,8 @@ class ConfigWorkflow(BundleWorkflow):
                         ref = h.get(ref_id, None)
         else:
             ref = self.parser.get(ref_id, None)
-        if ref is not None and ref != ID_REF_KEY + id:
+        # for reference IDs that not refer to a property directly but using expressions, skip the check
+        if ref is not None and not ref.startswith(EXPR_KEY) and ref != ID_REF_KEY + id:
             return False
         return True
 
