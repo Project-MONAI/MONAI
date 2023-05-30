@@ -380,7 +380,7 @@ class ConfigWorkflow(BundleWorkflow):
             ref = self.parser.get(ref_id, None)
         # for reference IDs that not refer to a property directly but using expressions, skip the check
         if ref is not None and not ref.startswith(EXPR_KEY) and ref != ID_REF_KEY + id:
-                return False
+            return False
         return True
 
     @staticmethod
