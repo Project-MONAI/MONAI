@@ -282,7 +282,7 @@ class SlidingWindowSplitter(Splitter):
 
         # Splitting
         for location in iter_patch_position(spatial_shape, patch_size, offset, overlap, False):
-            patch = self._get_patch(inputs, location, patch_size)  # type: ignore
+            patch = self._get_patch(inputs, location, patch_size)
             patch = convert_to_tensor(patch, device=self.device)
             # correct the location with respect to original inputs (remove starting pads)
             if is_start_padded:

@@ -127,7 +127,6 @@ TEST_CASE_10_STR_MERGER = [
     TENSOR_4x4,
 ]
 
-
 # non-divisible patch_size leading to larger image (without matching spatial shape)
 TEST_CASE_11_PADDING = [
     TENSOR_4x4,
