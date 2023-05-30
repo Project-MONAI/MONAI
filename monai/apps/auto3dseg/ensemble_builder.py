@@ -95,7 +95,7 @@ class AlgoEnsemble(ABC):
             datalist = ConfigParser.load_config_file(data_list_or_path)
             if data_key in datalist:
                 self.infer_files, _ = datafold_read(datalist=datalist, basedir=dataroot, fold=-1, key=data_key)
-            elif hasattr(self, "rank") and self.rank == 0:
+            elif not hasattr(self, "rank") or self.rank == 0:
                 logger.info(f"Datalist file has no testing key - {data_key}. No data for inference is specified")
 
         else:
@@ -584,7 +584,7 @@ class EnsembleRunner:
         infer_files = self.ensembler.infer_files
         if len(infer_files) < self.world_size:
             if len(infer_files) == 0:
-                logger.info("No existing infer files. Ensembler ending.")
+                logger.info("No testing files for inference is provided. Ensembler ending.")
                 return
             infer_files = partition_dataset(data=infer_files, shuffle=False,
                                             num_partitions=len(infer_files))[self.rank] \
