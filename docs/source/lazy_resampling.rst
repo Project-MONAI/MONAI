@@ -8,8 +8,6 @@ Lazy Resampling
 .. toctree::
    :maxdepth: 2
 
-   config_syntax.md
-
 Introduction
 ^^^^^^^^^^^^
 
@@ -143,14 +141,15 @@ API changes
 ^^^^^^^^^^^
 
 A number of new arguments have been added to existing properties, which we'll go over in detail here. In particular,
-we'll focus on :class:`monai.transforms.compose.Compose` and :class:`LazyTrait<monai.transforms.traits.LazyTrait>`/
-:class:`LazyTransform<monai.transforms.transform.LazyTransform>` and the way that they interact with each other.
+we'll focus on :class:`Compose<monai.transforms.compose.Compose`> and
+:class:`LazyTrait<monai.transforms.traits.LazyTrait>`/ :class:`LazyTransform<monai.transforms.transform.LazyTransform>`
+and the way that they interact with each other.
 
 
 Compose
 +++++++
 
-:class:`monai.transforms.compose.Compose<Compose>` gains a number of new arguments that can be used to control
+:class:`Compose<monai.transforms.compose.Compose>` gains a number of new arguments that can be used to control
 resampling behaviour. Each of them is covered in its own section:
 
 
@@ -161,8 +160,8 @@ lazy
 
 * `lazy=False` forces the pipeline to be executed in the standard way with every transform applied immediately
 * `lazy=True` forces the pipeline to be executed lazily. Every transform that implements
-  :class:`monai.transforms.traits.LazyTrait<LazyTrait>` (or inherits
-  :class:`monai.transforms.transform.LazyTransform<LazyTransform>`) will be executed lazily
+  :class:`LazyTrait<monai.transforms.traits.LazyTrait>` (or inherits
+  :class:`LazyTransform<monai.transforms.transform.LazyTransform>`) will be executed lazily
 * `lazy=None` means that the pipeline can execute lazily, but only on transforms that have their own `lazy` property
   set to True.
 
@@ -184,8 +183,8 @@ can omit keys that don't require overrides:
     }
 
 
-logger_name
-"""""""""""
+log_stats
+"""""""""
 
 Logging of transform execution is provided if you wish to understand exactly how your pipelines execute. It can take a
 ``bool`` or ``str`` value, and is False by default, which disables logging. Otherwise, you can enable it by passing it
@@ -195,7 +194,8 @@ the name of a logger that you wish to use (note, you don't have to construct the
 LazyTrait / LazyTransform
 +++++++++++++++++++++++++
 
-Many transforms now implement either LazyTrait or LazyTransform. Doing so marks the transform for lazy execution. Lazy
+Many transforms now implement either `LazyTrait<monai.transforms.traits.LazyTrait>` or
+`LazyTransform<monai.transforms.transform.Transform>`. Doing so marks the transform for lazy execution. Lazy
 transforms have the following in common:
 
 
@@ -216,17 +216,58 @@ initialisation. It has a default value of ``None``. If it is not ``None``, then 
 default values rather than having to set it on every lazy transform (unless the user sets
 :class:`Compose.lazy<monai.transforms.compose.Compose>` to ``None``).
 
+
 lazy property
 """""""""""""
 
 The lazy property allows you to get or set the lazy status of a lazy transform after constructing it.
 
+
 requires_current_data property (get only)
 """""""""""""""""""""""""""""""""""""""""
 
 The ``requires_current_data`` property indicates that a transform makes use of the data in one or more of the tensors
-that it is
-passed during its execution. Such transforms require that the tensors must therefore be up to date, even if the
-transform itself is executing lazily. This is required for transforms such as ``CropForeground[d]``,
+that it is passed during its execution. Such transforms require that the tensors must therefore be up to date, even if
+the transform itself is executing lazily. This is required for transforms such as ``CropForeground[d]``,
 ``RandCropByPosNegLabel[d]``, and ``RandCropByLabelClasses[d]``. This property is implemented to return ``False`` on
 ``LazyTransform`` and must be overridden to return ``True`` by transforms that check data values when executing.
+
+
+Controlling laziness
+^^^^^^^^^^^^^^^^^^^^
+
+There are two ways that a user can provide more fine-grained control over laziness. One is to make use of lazy=None
+when initialising or calling ``Compose`` instances. The other is to use the ``ApplyPending[d]`` transforms. These
+techniques can be freely mixed and matched.
+
+
+Using ``lazy=None``
++++++++++++++++++++
+
+``Lazy=None`` tells ``Compose`` to honor the lazy flags set on each lazy transform. These are set to False by default
+so the user must set lazy=True on the transforms that they still wish to execute lazily.
+
+
+``lazy=None`` example:
+""""""""""""""""""""""
+
+.. figure:: ../images/lazy_resampling_none_example.svg
+
+    Figure shwoing the effect of using ``lazy=False`` when ``Compose`` is being executed with ``lazy=None``. Note that
+    the additional resamples that occur due to ``RandRotate90d`` being executed in a non-lazy fashion.
+
+
+Using ``ApplyPending[d]``
++++++++++++++++++++++++++
+
+``ApplyPending[d]`` causes all pending transforms to be executed before the following transform, regardless of whether
+the following transform is a lazy transform, or is configured to execute lazily.
+
+
+``ApplyPending`` Example:
+"""""""""""""""""""""""""
+
+.. figure:: ../images/lazy_resampling_apply_pending_example.svg
+
+    Figure showing the use of :class:`ApplyPendingd<monai.transforms.lazy.dictionary.ApplyPendingd>` to cause
+    resampling to occur in the midele of a chain of lazy transforms.
