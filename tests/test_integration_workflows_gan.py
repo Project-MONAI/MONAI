@@ -27,7 +27,7 @@ from monai.engines import GanTrainer
 from monai.handlers import CheckpointSaver, StatsHandler, TensorBoardStatsHandler
 from monai.networks import normal_init
 from monai.networks.nets import Discriminator, Generator
-from monai.transforms import EnsureChannelFirstd, Compose, LoadImaged, RandFlipd, ScaleIntensityd
+from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, RandFlipd, ScaleIntensityd
 from monai.utils import GanKeys as Keys
 from monai.utils import set_determinism
 from tests.utils import DistTestCase, TimedCall, skip_if_quick

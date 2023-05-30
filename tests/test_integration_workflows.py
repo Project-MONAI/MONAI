@@ -41,9 +41,9 @@ from monai.handlers import (
 from monai.inferers import SimpleInferer, SlidingWindowInferer
 from monai.transforms import (
     Activationsd,
-    EnsureChannelFirstd,
     AsDiscreted,
     Compose,
+    EnsureChannelFirstd,
     KeepLargestConnectedComponentd,
     LoadImaged,
     RandCropByPosNegLabeld,
