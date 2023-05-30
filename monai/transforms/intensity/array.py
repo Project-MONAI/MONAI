@@ -1067,7 +1067,7 @@ class RandAdjustContrast(RandomizableTransform):
         self.invert_image: bool = invert_image
         self.retain_stats: bool = retain_stats
 
-        self.adjustContrast = AdjustContrast(
+        self.adjust_contrast = AdjustContrast(
             self.gamma_value, invert_image=self.invert_image, retain_stats=self.retain_stats
         )
 
@@ -1091,7 +1091,7 @@ class RandAdjustContrast(RandomizableTransform):
         if self.gamma_value is None:
             raise RuntimeError("gamma_value is not set, please call `randomize` function first.")
 
-        return self.adjustContrast(img, self.gamma_value)
+        return self.adjust_contrast(img, self.gamma_value)
 
 
 class ScaleIntensityRangePercentiles(Transform):
