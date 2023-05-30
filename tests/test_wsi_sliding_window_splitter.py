@@ -35,13 +35,11 @@ elif has_osl:
     WSI_READER_STR = "OpenSlide"
     WSI_READER_CLASS = OpenSlideWSIReader
 
-
 WSI_GENERIC_TIFF_KEY = "wsi_generic_tiff"
 WSI_GENERIC_TIFF_PATH = os.path.join(os.path.dirname(__file__), "testing_data", f"temp_{WSI_GENERIC_TIFF_KEY}.tiff")
 
 HEIGHT = 32914
 WIDTH = 46000
-
 
 # ----------------------------------------------------------------------------
 # WSI test cases
