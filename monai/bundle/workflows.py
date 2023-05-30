@@ -379,7 +379,8 @@ class ConfigWorkflow(BundleWorkflow):
         else:
             ref = self.parser.get(ref_id, None)
         if ref is not None and ref != ID_REF_KEY + id:
-            return False
+            if ref[0] != EXPR_KEY:
+                return False
         return True
 
     @staticmethod
