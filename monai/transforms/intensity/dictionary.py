@@ -875,9 +875,10 @@ class AdjustContrastd(MapTransform):
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
         gamma: gamma value to adjust the contrast as function.
-        invert_image: multiplies all intensity values with -1 before gamma transform and again after gamma transform
-        retain_stats: applies a scaling factor and an offset to all intensity values after gamma transform to ensure
-            that the output intensity distribution has the same mean and standard deviation as the intensity
+        invert_image: whether to invert the image before applying gamma augmentation. If True, multiply all intensity
+            values with -1 before the gamma transform and again after the gamma transform.
+        retain_stats: if True, applies a scaling factor and an offset to all intensity values after gamma transform to
+            ensure that the output intensity distribution has the same mean and standard deviation as the intensity
             distribution of the input
         allow_missing_keys: don't raise exception if key is missing.
     """

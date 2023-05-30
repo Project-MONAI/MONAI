@@ -471,7 +471,7 @@ class ScaleIntensity(Transform):
 
 class ScaleIntensityFixedMean(Transform):
     """
-    Scale the intensity of input image ``v = v * (1 + factor)``, then shift the output so that the output image has the
+    Scale the intensity of input image by ``v = v * (1 + factor)``, then shift the output so that the output image has the
     same mean as the input.
     """
 
@@ -969,9 +969,10 @@ class AdjustContrast(Transform):
 
     Args:
         gamma: gamma value to adjust the contrast as function.
-        invert_image: multiplies all intensity values with -1 before gamma transform and again after gamma transform
-        retain_stats: applies a scaling factor and an offset to all intensity values after gamma transform to ensure
-            that the output intensity distribution has the same mean and standard deviation as the intensity
+        invert_image: whether to invert the image before applying gamma augmentation. If True, multiply all intensity
+            values with -1 before the gamma transform and again after the gamma transform.
+        retain_stats: if True, applies a scaling factor and an offset to all intensity values after gamma transform to
+            ensure that the output intensity distribution has the same mean and standard deviation as the intensity
             distribution of the input
     """
 
@@ -1027,9 +1028,10 @@ class RandAdjustContrast(RandomizableTransform):
         prob: Probability of adjustment.
         gamma: Range of gamma values.
             If single number, value is picked from (0.5, gamma), default is (0.5, 4.5).
-        invert_image: multiplies all intensity values with -1 before gamma transform and again after gamma transform
-        retain_stats: applies a scaling factor and an offset to all intensity values after gamma transform to ensure
-            that the output intensity distribution has the same mean and standard deviation as the intensity
+        invert_image: whether to invert the image before applying gamma augmentation. If True, multiply all intensity
+            values with -1 before the gamma transform and again after the gamma transform.
+        retain_stats: if True, applies a scaling factor and an offset to all intensity values after gamma transform to
+            ensure that the output intensity distribution has the same mean and standard deviation as the intensity
             distribution of the input
     """
 
