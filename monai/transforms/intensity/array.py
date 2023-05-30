@@ -984,11 +984,13 @@ class AdjustContrast(Transform):
         self.invert_image = invert_image
         self.retain_stats = retain_stats
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, gamma=None) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
+        gamma: gamma value to adjust the contrast as function.
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
+        gamma = gamma if gamma is not None else self.gamma
 
         if self.invert_image:
             img = -img
@@ -1000,7 +1002,7 @@ class AdjustContrast(Transform):
         epsilon = 1e-7
         img_min = img.min()
         img_range = img.max() - img_min
-        ret: NdarrayOrTensor = ((img - img_min) / float(img_range + epsilon)) ** self.gamma * img_range + img_min
+        ret: NdarrayOrTensor = ((img - img_min) / float(img_range + epsilon)) ** gamma * img_range + img_min
 
         if self.retain_stats:
             # zero mean and normalize
@@ -1057,6 +1059,11 @@ class RandAdjustContrast(RandomizableTransform):
         self.invert_image: bool = invert_image
         self.retain_stats: bool = retain_stats
 
+        self.randomize()
+
+        self.adjustContrast = AdjustContrast(
+            self.gamma_value, invert_image=self.invert_image, retain_stats=self.retain_stats)
+
     def randomize(self, data: Any | None = None) -> None:
         super().randomize(None)
         if not self._do_transform:
@@ -1077,7 +1084,7 @@ class RandAdjustContrast(RandomizableTransform):
         if self.gamma_value is None:
             raise RuntimeError("gamma_value is not set, please call `randomize` function first.")
 
-        return AdjustContrast(self.gamma_value, invert_image=self.invert_image, retain_stats=self.retain_stats)(img)
+        return self.adjustContrast(img, self.gamma_value)
 
 
 class ScaleIntensityRangePercentiles(Transform):
