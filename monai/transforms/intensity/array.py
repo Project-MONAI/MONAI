@@ -964,10 +964,16 @@ class AdjustContrast(Transform):
     Args:
         gamma: gamma value to adjust the contrast as function.
         invert_image: whether to invert the image before applying gamma augmentation. If True, multiply all intensity
-            values with -1 before the gamma transform and again after the gamma transform.
+            values with -1 before the gamma transform and again after the gamma transform. This behaviour is mimicked
+            from `nnU-Net <https://www.nature.com/articles/s41592-020-01008-z>`_, specifically `this
+            <https://github.com/MIC-DKFZ/batchgenerators/blob/7fb802b28b045b21346b197735d64f12fbb070aa/batchgenerators/augmentations/color_augmentations.py#L107>`_
+            function.
         retain_stats: if True, applies a scaling factor and an offset to all intensity values after gamma transform to
             ensure that the output intensity distribution has the same mean and standard deviation as the intensity
-            distribution of the input
+            distribution of the input. This behaviour is mimicked from `nnU-Net
+            <https://www.nature.com/articles/s41592-020-01008-z>`_, specifically `this
+            <https://github.com/MIC-DKFZ/batchgenerators/blob/7fb802b28b045b21346b197735d64f12fbb070aa/batchgenerators/augmentations/color_augmentations.py#L107>`_
+            function.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
@@ -1023,10 +1029,16 @@ class RandAdjustContrast(RandomizableTransform):
         gamma: Range of gamma values.
             If single number, value is picked from (0.5, gamma), default is (0.5, 4.5).
         invert_image: whether to invert the image before applying gamma augmentation. If True, multiply all intensity
-            values with -1 before the gamma transform and again after the gamma transform.
+            values with -1 before the gamma transform and again after the gamma transform. This behaviour is mimicked
+            from `nnU-Net <https://www.nature.com/articles/s41592-020-01008-z>`_, specifically `this
+            <https://github.com/MIC-DKFZ/batchgenerators/blob/7fb802b28b045b21346b197735d64f12fbb070aa/batchgenerators/augmentations/color_augmentations.py#L107>`_
+            function.
         retain_stats: if True, applies a scaling factor and an offset to all intensity values after gamma transform to
             ensure that the output intensity distribution has the same mean and standard deviation as the intensity
-            distribution of the input
+            distribution of the input. This behaviour is mimicked from `nnU-Net
+            <https://www.nature.com/articles/s41592-020-01008-z>`_, specifically `this
+            <https://github.com/MIC-DKFZ/batchgenerators/blob/7fb802b28b045b21346b197735d64f12fbb070aa/batchgenerators/augmentations/color_augmentations.py#L107>`_
+            function.
     """
 
     backend = AdjustContrast.backend
