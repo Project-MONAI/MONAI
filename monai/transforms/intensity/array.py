@@ -479,7 +479,7 @@ class ScaleIntensityFixedMean(Transform):
 
     def __init__(
         self,
-        factor: float | None = 0,
+        factor: float = 0,
         preserve_range: bool = False,
         fixed_mean: bool = True,
         channel_wise: bool = False,
@@ -509,15 +509,9 @@ class ScaleIntensityFixedMean(Transform):
             img: the input tensor/array
             factor: factor scale by ``v = v * (1 + factor)``
 
-        Raises:
-            ValueError: When ``self.fixed_mean=True`` and ``self.factor=None``. Incompatible values.
-
         """
 
         factor = factor if factor is not None else self.factor
-
-        if self.fixed_mean and not factor:
-            raise ValueError(f"self.fixed_mean={self.fixed_mean} and factor={factor} is incompatible.")
 
         img = convert_to_tensor(img, track_meta=get_track_meta())
         img_t = convert_to_tensor(img, track_meta=False)
@@ -533,7 +527,7 @@ class ScaleIntensityFixedMean(Transform):
                     mn = d.mean()
                     d = d - mn
 
-                out_channel = (d * (1 + factor)) if factor is not None else d
+                out_channel = (d * (1 + factor))
 
                 if self.fixed_mean:
                     out_channel = out_channel + mn
@@ -552,7 +546,7 @@ class ScaleIntensityFixedMean(Transform):
                 mn = img_t.mean()
                 img_t = img_t - mn
 
-            ret = (img_t * (1 + factor)) if factor is not None else img_t
+            ret = (img_t * (1 + factor))
 
             if self.fixed_mean:
                 ret = ret + mn
