@@ -1051,11 +1051,9 @@ class RandAdjustContrast(RandomizableTransform):
         else:
             self.gamma = (min(gamma), max(gamma))
 
-        self.gamma_value: float | None = None
+        self.gamma_value: float = 1.0
         self.invert_image: bool = invert_image
         self.retain_stats: bool = retain_stats
-
-        self.randomize()
 
         self.adjustContrast = AdjustContrast(
             self.gamma_value, invert_image=self.invert_image, retain_stats=self.retain_stats
