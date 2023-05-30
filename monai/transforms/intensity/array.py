@@ -527,7 +527,7 @@ class ScaleIntensityFixedMean(Transform):
                     mn = d.mean()
                     d = d - mn
 
-                out_channel = (d * (1 + factor))
+                out_channel = d * (1 + factor)
 
                 if self.fixed_mean:
                     out_channel = out_channel + mn
@@ -546,7 +546,7 @@ class ScaleIntensityFixedMean(Transform):
                 mn = img_t.mean()
                 img_t = img_t - mn
 
-            ret = (img_t * (1 + factor))
+            ret = img_t * (1 + factor)
 
             if self.fixed_mean:
                 ret = ret + mn
@@ -1058,7 +1058,8 @@ class RandAdjustContrast(RandomizableTransform):
         self.randomize()
 
         self.adjustContrast = AdjustContrast(
-            self.gamma_value, invert_image=self.invert_image, retain_stats=self.retain_stats)
+            self.gamma_value, invert_image=self.invert_image, retain_stats=self.retain_stats
+        )
 
     def randomize(self, data: Any | None = None) -> None:
         super().randomize(None)
