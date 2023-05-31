@@ -357,7 +357,9 @@ class Compose(Randomizable, InvertibleTransform):
     def _raise_if_tensor_is_not_invertible(data: Any):
         from monai.transforms.utils import has_status_keys
 
-        invertible, reasons = has_status_keys(data, TraceStatusKeys.PENDING_DURING_APPLY)
+        invertible, reasons = has_status_keys(
+            data, TraceStatusKeys.PENDING_DURING_APPLY, "Pending operations while applying an operation"
+        )
 
         if invertible is False:
             if reasons is not None:

@@ -1345,8 +1345,6 @@ def allow_missing_keys_mode(transform: MapTransform | Compose | tuple[MapTransfo
         with allow_missing_keys_mode(t):
             _ = t(data)  # OK!
     """
-    # from monai.transforms.compose import Compose
-
     # If given a sequence of transforms, Compose them to get a single list
     if issequenceiterable(transform):
         transform = Compose(transform)
@@ -2003,14 +2001,13 @@ def check_applied_operations(entry: list | dict, status_key: str, default_messag
         return []
 
 
-def has_status_keys(data: torch.Tensor, status_key: Any):
+def has_status_keys(data: torch.Tensor, status_key: Any, default_msg: str):
     """
-    Checks whether a given tensor is invertible. The rules are as follows:
+    Checks whether a given tensor is has a particular status key message on any of its
+    applied operations. If it doesn't, it returns the tuple `(False, None)`. If it does
+    it returns a tuple of True and a list of status messages for that status key.
 
-    #. If the tensor is not a MetaTensor, it is not invertible
-    #. If the tensor is a MetaTensor but it has `TraceStatusKeys.PENDING_DURING_APPLY` in the `TraceKeys.STATUS` of any
-       of its `applied_operations` it is not invertible
-    #. Otherwise, it is invertible
+    Status keys are defined in :class:`TraceStatusKeys<monai.utils.enums.TraceStatusKeys>`.
 
     This function also accepts:
 
@@ -2023,6 +2020,8 @@ def has_status_keys(data: torch.Tensor, status_key: Any):
 
     Args:
         data: a `torch.Tensor` or `MetaTensor` or collections of torch.Tensor or MetaTensor, as described above
+        status_key: the status key to look for, from `TraceStatusKeys`
+        default_msg: a default message to use if the status key entry doesn't have a message set
 
     Returns:
         A tuple. The first entry is `False` or `True`. The second entry is the status messages that can be used for the
@@ -2032,17 +2031,17 @@ def has_status_keys(data: torch.Tensor, status_key: Any):
     status_key_occurrences = list()
     if isinstance(data, (list, tuple)):
         for d in data:
-            _, reasons = has_status_keys(d, status_key)
+            _, reasons = has_status_keys(d, status_key, default_msg)
             if reasons is not None:
                 status_key_occurrences.extend(reasons)
     elif isinstance(data, monai.data.MetaTensor):
         for op in data.applied_operations:
             status_key_occurrences.extend(
-                check_applied_operations(op, status_key, "Pending operations while applying an operation")
+                check_applied_operations(op, status_key, default_msg)
             )
     elif isinstance(data, dict):
         for d in data.values():
-            _, reasons = has_status_keys(d, status_key)
+            _, reasons = has_status_keys(d, status_key, default_msg)
             if reasons is not None:
                 status_key_occurrences.extend(reasons)
 
