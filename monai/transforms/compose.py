@@ -335,7 +335,7 @@ class Compose(Randomizable, InvertibleTransform):
         return result
 
     def inverse(self, data):
-        self._raise_if_tensor_is_not_invertible(data)
+        self._raise_if_not_invertible(data)
 
         invertible_transforms = [t for t in self.flatten().transforms if isinstance(t, InvertibleTransform)]
         if not invertible_transforms:
@@ -354,7 +354,7 @@ class Compose(Randomizable, InvertibleTransform):
         return data
 
     @staticmethod
-    def _raise_if_tensor_is_not_invertible(data: Any):
+    def _raise_if_not_invertible(data: Any):
         from monai.transforms.utils import has_status_keys
 
         invertible, reasons = has_status_keys(
