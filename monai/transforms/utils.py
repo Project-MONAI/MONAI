@@ -2036,9 +2036,7 @@ def has_status_keys(data: torch.Tensor, status_key: Any, default_msg: str):
                 status_key_occurrences.extend(reasons)
     elif isinstance(data, monai.data.MetaTensor):
         for op in data.applied_operations:
-            status_key_occurrences.extend(
-                check_applied_operations(op, status_key, default_msg)
-            )
+            status_key_occurrences.extend(check_applied_operations(op, status_key, default_msg))
     elif isinstance(data, dict):
         for d in data.values():
             _, reasons = has_status_keys(d, status_key, default_msg)
