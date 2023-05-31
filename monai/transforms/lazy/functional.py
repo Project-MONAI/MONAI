@@ -242,9 +242,6 @@ def apply_pending(data: torch.Tensor | MetaTensor, pending: list | None = None, 
             - device: device for resampling computation. Defaults to ``None``.
             - resample_mode: the mode of resampling, currently support ``"auto"``. Setting to other values will use the
                 :py:class:`monai.transforms.SpatialResample` for resampling (instead of potentially crop/pad).
-        logger_name: A logger name that is used to log output generated while applying pending transforms. You can
-              suppress logging by setting this to None (default).
-
     """
     overrides = (overrides or {}).copy()
     for k in overrides:
