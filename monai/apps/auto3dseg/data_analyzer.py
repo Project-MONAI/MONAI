@@ -212,7 +212,7 @@ class DataAnalyzer:
                 manager_list = manager.list()
                 processes = []
                 for rank in range(nprocs):
-                    p = tmp_ctx.Process(  # type: ignore[attr-defined]
+                    p = tmp_ctx.Process(
                         target=self._get_all_case_stats, args=(rank, nprocs, manager_list, key, transform_list)
                     )
                     processes.append(p)
