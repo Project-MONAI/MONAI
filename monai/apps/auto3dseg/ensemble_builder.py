@@ -586,9 +586,11 @@ class EnsembleRunner:
             if len(infer_files) == 0:
                 logger.info("No testing files for inference is provided. Ensembler ending.")
                 return
-            infer_files = partition_dataset(data=infer_files, shuffle=False,
-                                            num_partitions=len(infer_files))[self.rank] \
-                                            if self.rank < len(infer_files) else []
+            infer_files = (
+                partition_dataset(data=infer_files, shuffle=False, num_partitions=len(infer_files))[self.rank]
+                if self.rank < len(infer_files)
+                else []
+            )
         else:
             infer_files = partition_dataset(
                 data=infer_files, shuffle=False, num_partitions=self.world_size, even_divisible=True
