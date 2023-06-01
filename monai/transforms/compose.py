@@ -326,7 +326,7 @@ class Compose(Randomizable, InvertibleTransform):
             end=end,
             map_items=self.map_items,
             unpack_items=self.unpack_items,
-            lazy=self.lazy,  # type: ignore
+            lazy=self.lazy,
             overrides=self.overrides,
             threading=threading,
             log_stats=self.log_stats,
@@ -466,7 +466,7 @@ class OneOf(Compose):
             end=end,
             map_items=self.map_items,
             unpack_items=self.unpack_items,
-            lazy=self.lazy,  # type: ignore
+            lazy=self.lazy,
             overrides=self.overrides,
             threading=threading,
             log_stats=self.log_stats,
