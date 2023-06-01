@@ -69,6 +69,7 @@ Technical documentation is available at `docs.monai.io <https://docs.monai.io>`_
   :caption: Specifications
 
   bundle_intro
+  lazy_resampling
 
 Model Zoo
 ---------

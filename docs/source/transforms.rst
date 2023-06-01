@@ -970,6 +970,17 @@ MRI Transforms
     :special-members: __call__
 
 
+Lazy
+^^^^
+
+`ApplyPending`
+""""""""""""""
+
+.. autoclass:: ApplyPending
+    :members:
+    :special-members: __call__
+
+
 Utility
 ^^^^^^^
 
@@ -1930,6 +1941,17 @@ Smooth Field (Dict)
     :special-members: __call__
 
 
+Lazy (Dict)
+^^^^^^^^^^^
+
+`ApplyPendingd`
+"""""""""""""""
+
+.. autoclass:: ApplyPendingd
+    :members:
+    :special-members: __call__
+
+
 Utility (Dict)
 ^^^^^^^^^^^^^^
 
@@ -2229,9 +2251,3 @@ Utilities
 
 .. automodule:: monai.transforms.utils_pytorch_numpy_unification
     :members:
-
-Lazy
-----
-.. automodule:: monai.transforms.lazy
-    :members:
-    :imported-members:

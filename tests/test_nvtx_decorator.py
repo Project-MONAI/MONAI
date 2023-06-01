@@ -62,14 +62,7 @@ TEST_CASE_RECURSIVE_1 = [
 ]
 TEST_CASE_RECURSIVE_2 = [
     torch.randn(3, 3),
-    Compose(
-        [
-            ToNumpy(),
-            Flip(),
-            OneOf([RandAdjustContrast(prob=0.0), RandFlip(prob=1.0)], weights=[0, 1], log_stats=True),
-            ToTensor(),
-        ]
-    ),
+    Compose([ToNumpy(), Flip(), OneOf([RandAdjustContrast(prob=0.0), RandFlip(prob=1.0)], weights=[0, 1]), ToTensor()]),
 ]
 TEST_CASE_RECURSIVE_LIST = [
     torch.randn(3, 3),
@@ -167,7 +160,6 @@ class TestNVTXRangeDecorator(unittest.TestCase):
         # Check the outputs
         self.assertEqual(transforms.map_items, transforms_range.map_items)
         self.assertEqual(transforms.unpack_items, transforms_range.unpack_items)
-        self.assertEqual(transforms.log_stats, transforms_range.log_stats)
         np.testing.assert_equal(output.numpy(), output_r.numpy())
 
     @parameterized.expand([TEST_CASE_RECURSIVE_LIST])
