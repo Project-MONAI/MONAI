@@ -11,15 +11,22 @@
 
 from __future__ import annotations
 
-from .inferer import (
-    Inferer,
-    PatchInferer,
-    SaliencyInferer,
-    SimpleInferer,
-    SliceInferer,
-    SlidingWindowInferer,
-    SlidingWindowInfererAdapt,
-)
-from .merger import AvgMerger, Merger
-from .splitter import SlidingWindowSplitter, Splitter, WSISlidingWindowSplitter
-from .utils import sliding_window_inference
+from monai.transforms.traits import InvertibleTrait
+
+__all__ = ["ApplyPending"]
+
+
+class ApplyPending(InvertibleTrait):
+    """
+    ApplyPending can be inserted into a pipeline that is being executed lazily in order to ensure
+    resampling happens before the next transform. It doesn't do anything itself, but its presence
+    causes the pipeline to be executed as ApplyPending doesn't implement ```LazyTrait``.
+
+    See ``Compose`` for a detailed explanation of the lazy resampling feature.
+    """
+
+    def __call__(self, data):
+        return data
+
+    def inverse(self, data):
+        return data
