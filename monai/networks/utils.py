@@ -943,7 +943,11 @@ def convert_to_trt(
 
     # convert the torch model to a TorchScript model on target device
     model = model.eval().to(target_device)
-    ir_model = convert_to_torchscript(model, device=target_device, inputs=inputs, use_trace=use_trace) if use_torchscript else model
+    ir_model = (
+        convert_to_torchscript(model, device=target_device, inputs=inputs, use_trace=use_trace)
+        if use_torchscript
+        else model
+    )
     ir_model.eval()
 
     if use_onnx:
