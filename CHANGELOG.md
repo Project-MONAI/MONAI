@@ -97,7 +97,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 #### misc
 * Avoid creating cufile.log when `import monai` (#6106)
 * `monai._extensions` module compatibility with rocm (#6161)
-* Remove warning message: deprecated tensor.storage usage (#6105)
+* Issue of repeated UserWarning: "TypedStorage is deprecated" (#6105)
 * Use logging config at module level (#5960)
 * Add ITK to the list of optional dependencies (#5858)
 * `RankFilter` to skip logging when the rank is not meeting criteria (#6243)
