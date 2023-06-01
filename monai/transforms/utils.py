@@ -2001,7 +2001,7 @@ def check_applied_operations(entry: list | dict, status_key: str, default_messag
         return []
 
 
-def has_status_keys(data: torch.Tensor, status_key: Any, default_msg: str):
+def has_status_keys(data: torch.Tensor, status_key: Any, default_message: str = "No message provided"):
     """
     Checks whether a given tensor is has a particular status key message on any of its
     applied operations. If it doesn't, it returns the tuple `(False, None)`. If it does
@@ -2021,7 +2021,7 @@ def has_status_keys(data: torch.Tensor, status_key: Any, default_msg: str):
     Args:
         data: a `torch.Tensor` or `MetaTensor` or collections of torch.Tensor or MetaTensor, as described above
         status_key: the status key to look for, from `TraceStatusKeys`
-        default_msg: a default message to use if the status key entry doesn't have a message set
+        default_message: a default message to use if the status key entry doesn't have a message set
 
     Returns:
         A tuple. The first entry is `False` or `True`. The second entry is the status messages that can be used for the
@@ -2031,15 +2031,15 @@ def has_status_keys(data: torch.Tensor, status_key: Any, default_msg: str):
     status_key_occurrences = list()
     if isinstance(data, (list, tuple)):
         for d in data:
-            _, reasons = has_status_keys(d, status_key, default_msg)
+            _, reasons = has_status_keys(d, status_key, default_message)
             if reasons is not None:
                 status_key_occurrences.extend(reasons)
     elif isinstance(data, monai.data.MetaTensor):
         for op in data.applied_operations:
-            status_key_occurrences.extend(check_applied_operations(op, status_key, default_msg))
+            status_key_occurrences.extend(check_applied_operations(op, status_key, default_message))
     elif isinstance(data, dict):
         for d in data.values():
-            _, reasons = has_status_keys(d, status_key, default_msg)
+            _, reasons = has_status_keys(d, status_key, default_message)
             if reasons is not None:
                 status_key_occurrences.extend(reasons)
 
