@@ -55,6 +55,7 @@ from .enums import (
     SplineMode,
     StrEnum,
     TraceKeys,
+    TraceStatusKeys,
     TransformBackends,
     UpsampleMode,
     Weight,

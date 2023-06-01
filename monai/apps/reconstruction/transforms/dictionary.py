@@ -20,8 +20,8 @@ from torch import Tensor
 from monai.apps.reconstruction.transforms.array import EquispacedKspaceMask, RandomKspaceMask
 from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.transforms import InvertibleTransform
 from monai.transforms.croppad.array import SpatialCrop
-from monai.transforms.croppad.dictionary import Cropd
 from monai.transforms.intensity.array import NormalizeIntensity
 from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.utils import FastMRIKeys
@@ -190,7 +190,7 @@ class EquispacedKspaceMaskd(RandomKspaceMaskd):
         return self
 
 
-class ReferenceBasedSpatialCropd(Cropd):
+class ReferenceBasedSpatialCropd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SpatialCrop`.
     This is similar to :py:class:`monai.transforms.SpatialCropd` which is a
@@ -213,7 +213,7 @@ class ReferenceBasedSpatialCropd(Cropd):
     """
 
     def __init__(self, keys: KeysCollection, ref_key: str, allow_missing_keys: bool = False) -> None:
-        super().__init__(keys, cropper=None, allow_missing_keys=allow_missing_keys)  # type: ignore
+        MapTransform.__init__(self, keys, allow_missing_keys)
         self.ref_key = ref_key
 
     def __call__(self, data: Mapping[Hashable, Tensor]) -> dict[Hashable, Tensor]:

@@ -11,19 +11,31 @@
 
 from __future__ import annotations
 
+import logging
 import sys
 import unittest
 from copy import deepcopy
+from io import StringIO
 
 import numpy as np
 import torch
 from parameterized import parameterized
 
+import monai.transforms as mt
 from monai.data import DataLoader, Dataset
-from monai.transforms import AddChannel, Compose, Flip, NormalizeIntensity, Rotate, Rotate90, Rotated, Zoom
 from monai.transforms.compose import execute_compose
 from monai.transforms.transform import Randomizable
 from monai.utils import set_determinism
+
+
+def data_from_keys(keys, h, w):
+    if keys is None:
+        data = torch.arange(h * w).reshape(1, h, w)
+    else:
+        data = {}
+        for i_k, k in enumerate(keys):
+            data[k] = torch.arange(h * w).reshape(1, h, w).mul_(i_k * h * w)
+    return data
 
 
 class _RandXform(Randomizable):
@@ -37,7 +49,7 @@ class _RandXform(Randomizable):
 
 class TestCompose(unittest.TestCase):
     def test_empty_compose(self):
-        c = Compose()
+        c = mt.Compose()
         i = 1
         self.assertEqual(c(i), 1)
 
@@ -48,7 +60,7 @@ class TestCompose(unittest.TestCase):
         def b(i):
             return i + "b"
 
-        c = Compose([a, b, a, b])
+        c = mt.Compose([a, b, a, b])
         self.assertEqual(c(""), "abab")
 
     def test_dict_compose(self):
@@ -66,7 +78,7 @@ class TestCompose(unittest.TestCase):
         data = {"a": 0, "b": 0}
         expected = {"a": 3, "b": 2}
 
-        self.assertDictEqual(Compose(transforms)(data), expected)
+        self.assertDictEqual(mt.Compose(transforms)(data), expected)
         self.assertDictEqual(execute_compose(data, transforms), expected)
 
     def test_list_dict_compose(self):
@@ -89,7 +101,7 @@ class TestCompose(unittest.TestCase):
         transforms = [a, a, b, c, c]
         data = {"a": 0, "b": 0, "c": 0}
         expected = {"a": 2, "b": 1, "c": 2}
-        value = Compose(transforms)(data)
+        value = mt.Compose(transforms)(data)
         for item in value:
             self.assertDictEqual(item, expected)
         value = execute_compose(data, transforms)
@@ -106,7 +118,7 @@ class TestCompose(unittest.TestCase):
         transforms = [a, b, a, b]
         data = ("", "")
         expected = ("abab", "a2b2a2b2")
-        self.assertEqual(Compose(transforms, map_items=False, unpack_items=True)(data), expected)
+        self.assertEqual(mt.Compose(transforms, map_items=False, unpack_items=True)(data), expected)
         self.assertEqual(execute_compose(data, transforms, map_items=False, unpack_items=True), expected)
 
     def test_list_non_dict_compose_with_unpack(self):
@@ -119,7 +131,7 @@ class TestCompose(unittest.TestCase):
         transforms = [a, b, a, b]
         data = [("", ""), ("t", "t")]
         expected = [("abab", "a2b2a2b2"), ("tabab", "ta2b2a2b2")]
-        self.assertEqual(Compose(transforms, unpack_items=True)(data), expected)
+        self.assertEqual(mt.Compose(transforms, unpack_items=True)(data), expected)
         self.assertEqual(execute_compose(data, transforms, unpack_items=True), expected)
 
     def test_list_dict_compose_no_map(self):
@@ -143,7 +155,7 @@ class TestCompose(unittest.TestCase):
         transforms = [a, a, b, c, c]
         data = {"a": 0, "b": 0, "c": 0}
         expected = {"a": 2, "b": 1, "c": 2}
-        value = Compose(transforms, map_items=False)(data)
+        value = mt.Compose(transforms, map_items=False)(data)
         for item in value:
             self.assertDictEqual(item, expected)
         value = execute_compose(data, transforms, map_items=False)
@@ -161,7 +173,7 @@ class TestCompose(unittest.TestCase):
                 self.randomize()
                 return self.rand + data
 
-        c = Compose([_Acc(), _Acc()])
+        c = mt.Compose([_Acc(), _Acc()])
         self.assertNotAlmostEqual(c(0), c(0))
         c.set_random_state(123)
         self.assertAlmostEqual(c(1), 1.61381597)
@@ -177,17 +189,17 @@ class TestCompose(unittest.TestCase):
             def __call__(self, data):
                 pass
 
-        c = Compose([_RandomClass(), _RandomClass()])
+        c = mt.Compose([_RandomClass(), _RandomClass()])
         with self.assertWarns(Warning):
             c.randomize()
 
     def test_err_msg(self):
-        transforms = Compose([abs, AddChannel(), round], log_stats=False)
+        transforms = mt.Compose([abs, mt.AddChannel(), round])
         with self.assertRaisesRegex(Exception, "AddChannel"):
             transforms(42.1)
 
     def test_data_loader(self):
-        xform_1 = Compose([_RandXform()])
+        xform_1 = mt.Compose([_RandXform()])
         train_ds = Dataset([1], transform=xform_1)
 
         xform_1.set_random_state(123)
@@ -211,7 +223,7 @@ class TestCompose(unittest.TestCase):
 
     def test_data_loader_2(self):
         set_determinism(seed=123)
-        xform_2 = Compose([_RandXform(), _RandXform()])
+        xform_2 = mt.Compose([_RandXform(), _RandXform()])
         train_ds = Dataset([1], transform=xform_2)
 
         out_2 = train_ds[0]
@@ -232,42 +244,37 @@ class TestCompose(unittest.TestCase):
         set_determinism(None)
 
     def test_flatten_and_len(self):
-        x = AddChannel()
-        t1 = Compose([x, x, x, x, Compose([Compose([x, x]), x, x])])
+        x = mt.AddChannel()
+        t1 = mt.Compose([x, x, x, x, mt.Compose([mt.Compose([x, x]), x, x])])
 
         t2 = t1.flatten()
         for t in t2.transforms:
-            self.assertNotIsInstance(t, Compose)
+            self.assertNotIsInstance(t, mt.Compose)
 
         # test len
         self.assertEqual(len(t1), 8)
 
     def test_backwards_compatible_imports(self):
-        from monai.transforms.compose import MapTransform, RandomizableTransform, Transform  # noqa: F401
+        from monai.transforms.transform import MapTransform, RandomizableTransform, Transform  # noqa: F401
 
 
 TEST_COMPOSE_EXECUTE_TEST_CASES = [
     [None, tuple()],
-    [None, (Rotate(np.pi / 8),)],
-    [None, (Flip(0), Flip(1), Rotate90(1), Zoom(0.8), NormalizeIntensity())],
-    [("a",), (Rotated(("a",), np.pi / 8),)],
+    [None, (mt.Rotate(np.pi / 8),)],
+    [None, (mt.Flip(0), mt.Flip(1), mt.Rotate90(1), mt.Zoom(0.8), mt.NormalizeIntensity())],
+    [("a",), (mt.Rotated(("a",), np.pi / 8),)],
 ]
 
 
 class TestComposeExecute(unittest.TestCase):
     @parameterized.expand(TEST_COMPOSE_EXECUTE_TEST_CASES)
     def test_compose_execute_equivalence(self, keys, pipeline):
-        if keys is None:
-            data = torch.unsqueeze(torch.tensor(np.arange(24 * 32).reshape(24, 32)), axis=0)
-        else:
-            data = {}
-            for i_k, k in enumerate(keys):
-                data[k] = torch.unsqueeze(torch.tensor(np.arange(24 * 32)).reshape(24, 32) + i_k * 768, axis=0)
+        data = data_from_keys(keys, 12, 16)
 
-        expected = Compose(deepcopy(pipeline))(data)
+        expected = mt.Compose(deepcopy(pipeline))(data)
 
         for cutoff in range(len(pipeline)):
-            c = Compose(deepcopy(pipeline))
+            c = mt.Compose(deepcopy(pipeline))
             actual = c(c(data, end=cutoff), start=cutoff)
             if isinstance(actual, dict):
                 for k in actual.keys():
@@ -282,6 +289,302 @@ class TestComposeExecute(unittest.TestCase):
                     self.assertTrue(torch.allclose(expected[k], actual[k]))
             else:
                 self.assertTrue(torch.allclose(expected, actual))
+
+    @parameterized.expand(TEST_COMPOSE_EXECUTE_TEST_CASES)
+    def test_compose_execute_bad_start_param(self, keys, pipeline):
+        data = data_from_keys(keys, 12, 16)
+
+        c = mt.Compose(deepcopy(pipeline))
+        with self.assertRaises(ValueError):
+            c(data, start=None)
+        with self.assertRaises(ValueError):
+            c(data, start=None)
+
+        with self.assertRaises(ValueError):
+            execute_compose(data, deepcopy(pipeline), start=None)
+
+        c = mt.Compose(deepcopy(pipeline))
+        with self.assertRaises(ValueError):
+            c(data, start=-1)
+        with self.assertRaises(ValueError):
+            c(data, start=-1)
+
+        with self.assertRaises(ValueError):
+            execute_compose(data, deepcopy(pipeline), start=-1)
+
+    @parameterized.expand(TEST_COMPOSE_EXECUTE_TEST_CASES)
+    def test_compose_execute_negative_range(self, keys, pipeline):
+        data = data_from_keys(keys, 12, 16)
+
+        with self.assertRaises(ValueError):
+            c = mt.Compose(deepcopy(pipeline))
+            c(data, start=2, end=1)
+
+        with self.assertRaises(ValueError):
+            execute_compose(data, deepcopy(pipeline), start=2, end=1)
+
+    @parameterized.expand(TEST_COMPOSE_EXECUTE_TEST_CASES)
+    def test_compose_execute_bad_end_param(self, keys, pipeline):
+        data = data_from_keys(keys, 12, 16)
+
+        with self.assertRaises(ValueError):
+            c = mt.Compose(deepcopy(pipeline))
+            c(data, end=len(pipeline) + 1)
+
+        with self.assertRaises(ValueError):
+            execute_compose(data, deepcopy(pipeline), end=len(pipeline) + 1)
+
+    @parameterized.expand(TEST_COMPOSE_EXECUTE_TEST_CASES)
+    def test_compose_execute_empty_range(self, keys, pipeline):
+        data = data_from_keys(keys, 12, 16)
+
+        c = mt.Compose(deepcopy(pipeline))
+        for i in range(len(pipeline)):
+            result = c(data, start=i, end=i)
+            self.assertIs(data, result)
+
+    @parameterized.expand(TEST_COMPOSE_EXECUTE_TEST_CASES)
+    def test_compose_with_logger(self, keys, pipeline):
+        data = data_from_keys(keys, 12, 16)
+
+        c = mt.Compose(deepcopy(pipeline), log_stats="a_logger_name")
+        c(data)
+
+
+TEST_COMPOSE_EXECUTE_LOGGING_TEST_CASES = [
+    [
+        None,
+        (mt.Flip(0), mt.Spacing((1.2, 1.2)), mt.Flip(1), mt.Rotate90(1), mt.Zoom(0.8), mt.NormalizeIntensity()),
+        False,
+        (
+            "INFO - Apply pending transforms - lazy: False, pending: 0, "
+            "upcoming 'Flip', transform.lazy: False\n"
+            "INFO - Apply pending transforms - lazy: False, pending: 0, "
+            "upcoming 'Spacing', transform.lazy: False\n"
+            "INFO - Apply pending transforms - lazy: False, pending: 0, "
+            "upcoming 'Flip', transform.lazy: False\n"
+            "INFO - Apply pending transforms - lazy: False, pending: 0, "
+            "upcoming 'Rotate90', transform.lazy: False\n"
+            "INFO - Apply pending transforms - lazy: False, pending: 0, "
+            "upcoming 'Zoom', transform.lazy: False\n"
+            "INFO - Apply pending transforms - lazy: False, pending: 0, "
+            "upcoming 'NormalizeIntensity', transform is not lazy\n"
+        ),
+    ],
+    [
+        None,
+        (
+            mt.Flip(0, lazy=True),
+            mt.Spacing((1.2, 1.2), lazy=True),
+            mt.Flip(1, lazy=True),
+            mt.Rotate90(1),
+            mt.Zoom(0.8, lazy=True),
+            mt.NormalizeIntensity(),
+        ),
+        None,
+        (
+            "INFO - Accumulate pending transforms - lazy: None, pending: 0, "
+            "upcoming 'Flip', transform.lazy: True\n"
+            "INFO - Accumulate pending transforms - lazy: None, pending: 1, "
+            "upcoming 'Spacing', transform.lazy: True\n"
+            "INFO - Accumulate pending transforms - lazy: None, pending: 2, "
+            "upcoming 'Flip', transform.lazy: True\n"
+            "INFO - Apply pending transforms - lazy: None, pending: 3, "
+            "upcoming 'Rotate90', transform.lazy: False\n"
+            "INFO - Pending transforms applied: applied_operations: 3\n"
+            "INFO - Accumulate pending transforms - lazy: None, pending: 0, "
+            "upcoming 'Zoom', transform.lazy: True\n"
+            "INFO - Apply pending transforms - lazy: None, pending: 1, "
+            "upcoming 'NormalizeIntensity', transform is not lazy\n"
+            "INFO - Pending transforms applied: applied_operations: 5\n"
+        ),
+    ],
+    [
+        None,
+        (mt.Flip(0), mt.Spacing((1.2, 1.2)), mt.Flip(1), mt.Rotate90(1), mt.Zoom(0.8), mt.NormalizeIntensity()),
+        True,
+        (
+            "INFO - Accumulate pending transforms - lazy: True, pending: 0, "
+            "upcoming 'Flip', transform.lazy: False (overridden)\n"
+            "INFO - Accumulate pending transforms - lazy: True, pending: 1, "
+            "upcoming 'Spacing', transform.lazy: False (overridden)\n"
+            "INFO - Accumulate pending transforms - lazy: True, pending: 2, "
+            "upcoming 'Flip', transform.lazy: False (overridden)\n"
+            "INFO - Accumulate pending transforms - lazy: True, pending: 3, "
+            "upcoming 'Rotate90', transform.lazy: False (overridden)\n"
+            "INFO - Accumulate pending transforms - lazy: True, pending: 4, "
+            "upcoming 'Zoom', transform.lazy: False (overridden)\n"
+            "INFO - Apply pending transforms - lazy: True, pending: 5, "
+            "upcoming 'NormalizeIntensity', transform is not lazy\n"
+            "INFO - Pending transforms applied: applied_operations: 5\n"
+        ),
+    ],
+    [
+        ("a", "b"),
+        (
+            mt.Flipd(("a", "b"), 0),
+            mt.Spacingd(("a", "b"), 1.2),
+            mt.Rotate90d(("a", "b"), 1),
+            mt.NormalizeIntensityd(("a",)),
+        ),
+        True,
+        (
+            "INFO - Accumulate pending transforms - lazy: True, key: 'a', pending: 0, "
+            "upcoming 'Flipd', transform.lazy: False (overridden)\n"
+            "INFO - Accumulate pending transforms - lazy: True, key: 'b', pending: 0, "
+            "upcoming 'Flipd', transform.lazy: False (overridden)\n"
+            "INFO - Accumulate pending transforms - lazy: True, key: 'a', pending: 1, "
+            "upcoming 'Spacingd', transform.lazy: False (overridden)\n"
+            "INFO - Accumulate pending transforms - lazy: True, key: 'b', pending: 1, "
+            "upcoming 'Spacingd', transform.lazy: False (overridden)\n"
+            "INFO - Accumulate pending transforms - lazy: True, key: 'a', pending: 2, "
+            "upcoming 'Rotate90d', transform.lazy: False (overridden)\n"
+            "INFO - Accumulate pending transforms - lazy: True, key: 'b', pending: 2, "
+            "upcoming 'Rotate90d', transform.lazy: False (overridden)\n"
+            "INFO - Apply pending transforms - lazy: True, key: 'a', pending: 3, "
+            "upcoming 'NormalizeIntensityd', transform is not lazy\n"
+            "INFO - Pending transforms applied: key: 'a', applied_operations: 3\n"
+            "INFO - Pending transforms applied: key: 'b', applied_operations: 3\n"
+        ),
+    ],
+    [
+        ("a", "b"),
+        (
+            mt.Flipd(keys="a", spatial_axis=0),
+            mt.Rotate90d(keys="b", k=1, allow_missing_keys=True),
+            mt.Zoomd(keys=("a", "b"), zoom=0.8, allow_missing_keys=True),
+            mt.Spacingd(keys="a", pixdim=1.2),
+        ),
+        True,
+        (
+            "INFO - Accumulate pending transforms - lazy: True, key: 'a', pending: 0, "
+            "upcoming 'Flipd', transform.lazy: False (overridden)\n"
+            "INFO - Accumulate pending transforms - lazy: True, key: 'b', pending: 0, "
+            "upcoming 'Rotate90d', transform.lazy: False (overridden)\n"
+            "INFO - Accumulate pending transforms - lazy: True, key: 'a', pending: 1, "
+            "upcoming 'Zoomd', transform.lazy: False (overridden)\n"
+            "INFO - Accumulate pending transforms - lazy: True, key: 'b', pending: 1, "
+            "upcoming 'Zoomd', transform.lazy: False (overridden)\n"
+            "INFO - Accumulate pending transforms - lazy: True, key: 'a', pending: 2, "
+            "upcoming 'Spacingd', transform.lazy: False (overridden)\n"
+            "INFO - Pending transforms applied: key: 'a', applied_operations: 3\n"
+            "INFO - Pending transforms applied: key: 'b', applied_operations: 2\n"
+        ),
+    ],
+    [
+        None,
+        (
+            mt.Flip(0),
+            mt.Spacing((1.2, 1.2)),
+            mt.Flip(1),
+            mt.ApplyPending(),
+            mt.Rotate90(1),
+            mt.Zoom(0.8),
+            mt.NormalizeIntensity(),
+        ),
+        False,
+        (
+            "INFO - Apply pending transforms - lazy: False, pending: 0, "
+            "upcoming 'Flip', transform.lazy: False\n"
+            "INFO - Apply pending transforms - lazy: False, pending: 0, "
+            "upcoming 'Spacing', transform.lazy: False\n"
+            "INFO - Apply pending transforms - lazy: False, pending: 0, "
+            "upcoming 'Flip', transform.lazy: False\n"
+            "INFO - Apply pending transforms - lazy: False, pending: 0, "
+            "upcoming 'ApplyPending', transform is not lazy\n"
+            "INFO - Apply pending transforms - lazy: False, pending: 0, "
+            "upcoming 'Rotate90', transform.lazy: False\n"
+            "INFO - Apply pending transforms - lazy: False, pending: 0, "
+            "upcoming 'Zoom', transform.lazy: False\n"
+            "INFO - Apply pending transforms - lazy: False, pending: 0, "
+            "upcoming 'NormalizeIntensity', transform is not lazy\n"
+        ),
+    ],
+    [
+        None,
+        (
+            mt.Flip(0),
+            mt.Spacing((1.2, 1.2)),
+            mt.Flip(1),
+            mt.ApplyPending(),
+            mt.Rotate90(1),
+            mt.Zoom(0.8),
+            mt.NormalizeIntensity(),
+        ),
+        True,
+        (
+            "INFO - Accumulate pending transforms - lazy: True, pending: 0, "
+            "upcoming 'Flip', transform.lazy: False (overridden)\n"
+            "INFO - Accumulate pending transforms - lazy: True, pending: 1, "
+            "upcoming 'Spacing', transform.lazy: False (overridden)\n"
+            "INFO - Accumulate pending transforms - lazy: True, pending: 2, "
+            "upcoming 'Flip', transform.lazy: False (overridden)\n"
+            "INFO - Apply pending transforms - lazy: True, pending: 3, "
+            "upcoming 'ApplyPending', transform is not lazy\n"
+            "INFO - Pending transforms applied: applied_operations: 3\n"
+            "INFO - Accumulate pending transforms - lazy: True, pending: 0, "
+            "upcoming 'Rotate90', transform.lazy: False (overridden)\n"
+            "INFO - Accumulate pending transforms - lazy: True, pending: 1, "
+            "upcoming 'Zoom', transform.lazy: False (overridden)\n"
+            "INFO - Apply pending transforms - lazy: True, pending: 2, "
+            "upcoming 'NormalizeIntensity', transform is not lazy\n"
+            "INFO - Pending transforms applied: applied_operations: 5\n"
+        ),
+    ],
+    [
+        ("a", "b"),
+        (
+            mt.Flipd(keys="a", spatial_axis=0),
+            mt.Rotate90d(keys="b", k=1, allow_missing_keys=True),
+            mt.ApplyPendingd(keys=("a", "b")),
+            mt.Zoomd(keys=("a", "b"), zoom=0.8, allow_missing_keys=True),
+            mt.Spacingd(keys="a", pixdim=1.2),
+        ),
+        True,
+        (
+            "INFO - Accumulate pending transforms - lazy: True, key: 'a', pending: 0, "
+            "upcoming 'Flipd', transform.lazy: False (overridden)\n"
+            "INFO - Accumulate pending transforms - lazy: True, key: 'b', pending: 0, "
+            "upcoming 'Rotate90d', transform.lazy: False (overridden)\n"
+            "INFO - Apply pending transforms - lazy: True, key: 'a', pending: 1, "
+            "upcoming 'ApplyPendingd', transform is not lazy\n"
+            "INFO - Apply pending transforms - lazy: True, key: 'b', pending: 1, "
+            "upcoming 'ApplyPendingd', transform is not lazy\n"
+            "INFO - Pending transforms applied: key: 'a', applied_operations: 1\n"
+            "INFO - Pending transforms applied: key: 'b', applied_operations: 1\n"
+            "INFO - Accumulate pending transforms - lazy: True, key: 'a', pending: 0, "
+            "upcoming 'Zoomd', transform.lazy: False (overridden)\n"
+            "INFO - Accumulate pending transforms - lazy: True, key: 'b', pending: 0, "
+            "upcoming 'Zoomd', transform.lazy: False (overridden)\n"
+            "INFO - Accumulate pending transforms - lazy: True, key: 'a', pending: 1, "
+            "upcoming 'Spacingd', transform.lazy: False (overridden)\n"
+            "INFO - Pending transforms applied: key: 'a', applied_operations: 3\n"
+            "INFO - Pending transforms applied: key: 'b', applied_operations: 2\n"
+        ),
+    ],
+]
+
+
+class TestComposeExecuteWithLogging(unittest.TestCase):
+    @parameterized.expand(TEST_COMPOSE_EXECUTE_LOGGING_TEST_CASES)
+    def test_compose_with_logging(self, keys, pipeline, lazy, expected):
+        stream = StringIO()
+        handler = logging.StreamHandler(stream)
+        formatter = logging.Formatter("%(levelname)s - %(message)s")
+        handler.setFormatter(formatter)
+        logger = logging.getLogger("a_logger_name")
+        logger.setLevel(logging.INFO)
+        while len(logger.handlers) > 0:
+            logger.removeHandler(logger.handlers[-1])
+        logger.addHandler(handler)
+
+        data = data_from_keys(keys, 12, 16)
+        c = mt.Compose(deepcopy(pipeline), lazy=lazy, log_stats="a_logger_name")
+        c(data)
+
+        handler.flush()
+        actual = stream.getvalue()
+        self.assertEqual(actual, expected)
 
 
 class TestOps:
@@ -318,10 +621,10 @@ TEST_COMPOSE_EXECUTE_FLAG_TEST_CASES = [
 class TestComposeExecuteWithFlags(unittest.TestCase):
     @parameterized.expand(TEST_COMPOSE_EXECUTE_FLAG_TEST_CASES)
     def test_compose_execute_equivalence_with_flags(self, flags, data, pipeline):
-        expected = Compose(pipeline, **flags)(data)
+        expected = mt.Compose(pipeline, **flags)(data)
 
         for cutoff in range(len(pipeline)):
-            c = Compose(deepcopy(pipeline), **flags)
+            c = mt.Compose(deepcopy(pipeline), **flags)
             actual = c(c(data, end=cutoff), start=cutoff)
             if isinstance(actual, dict):
                 for k in actual.keys():
@@ -336,17 +639,6 @@ class TestComposeExecuteWithFlags(unittest.TestCase):
                     self.assertTrue(expected[k], actual[k])
             else:
                 self.assertTrue(expected, actual)
-
-
-TEST_LAZY_COMPOSE_PIPELINE_FIX_CASES = [[(Flip(0), Flip(1), Rotate90(1), Zoom(0.8), NormalizeIntensity())]]
-
-
-class TestLazyComposePipelineFixes(unittest.TestCase):
-    @parameterized.expand(TEST_LAZY_COMPOSE_PIPELINE_FIX_CASES)
-    def test_lazy_compose_pipeline_fixes(self, pipeline):
-        data = torch.unsqueeze(torch.tensor(np.arange(12 * 16).reshape(12, 16)), dim=0)
-        c = Compose(deepcopy(pipeline), lazy_evaluation=True)
-        _ = c(data)
 
 
 if __name__ == "__main__":
