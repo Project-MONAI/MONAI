@@ -95,7 +95,7 @@ class AlgoEnsemble(ABC):
             datalist = ConfigParser.load_config_file(data_list_or_path)
             if data_key in datalist:
                 self.infer_files, _ = datafold_read(datalist=datalist, basedir=dataroot, fold=-1, key=data_key)
-            elif hasattr(self, "rank") and self.rank == 0:
+            elif not hasattr(self, "rank") or self.rank == 0:
                 logger.info(f"Datalist file has no testing key - {data_key}. No data for inference is specified")
 
         else:
@@ -582,9 +582,20 @@ class EnsembleRunner:
         builder.set_ensemble_method(self.ensemble_method)
         self.ensembler = builder.get_ensemble()
         infer_files = self.ensembler.infer_files
-        infer_files = partition_dataset(
-            data=infer_files, shuffle=False, num_partitions=self.world_size, even_divisible=True
-        )[self.rank]
+        if len(infer_files) < self.world_size:
+            if len(infer_files) == 0:
+                logger.info("No testing files for inference is provided. Ensembler ending.")
+                return
+            infer_files = (
+                partition_dataset(data=infer_files, shuffle=False, num_partitions=len(infer_files))[self.rank]
+                if self.rank < len(infer_files)
+                else []
+            )
+        else:
+            infer_files = partition_dataset(
+                data=infer_files, shuffle=False, num_partitions=self.world_size, even_divisible=True
+            )[self.rank]
+
         # TO DO: Add some function in ensembler for infer_files update?
         self.ensembler.infer_files = infer_files
         # add rank to pred_params

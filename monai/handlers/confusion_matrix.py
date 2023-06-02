@@ -35,7 +35,7 @@ class ConfusionMatrix(IgniteMetric):
         """
 
         Args:
-            include_background: whether to skip metric computation on the first channel of
+            include_background: whether to include metric computation on the first channel of
                 the predicted output. Defaults to True.
             metric_name: [``"sensitivity"``, ``"specificity"``, ``"precision"``, ``"negative predictive value"``,
                 ``"miss rate"``, ``"fall out"``, ``"false discovery rate"``, ``"false omission rate"``,
