@@ -7,20 +7,19 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [1.2.0] - 2023-06-06
 ### Added
-#### main
-* Binary and categorical metrics and event handlers using `MetricsReloaded`
-* nnU-Net V2 integration `monai.apps.nnunet`
-* TensorRT and ONNX support for `monai.bundle` API and the relevant models
 * Various Auto3DSeg enhancements and integration tests including multi-node multi-GPU optimization, major usability improvements
+* TensorRT and ONNX support for `monai.bundle` API and the relevant models
+* nnU-Net V2 integration `monai.apps.nnunet`
+* Binary and categorical metrics and event handlers using `MetricsReloaded`
 * Python module and CLI entry point for bundle workflows in `monai.bundle.workflows` and `monai.fl.client`
 * Modular patch inference API including `PatchInferer`, `merger`, and `splitter`
 * Initial release of lazy resampling including transforms and MetaTensor implementations
 * Bridge for ITK Image object and MetaTensor `monai.data.itk_torch_bridge`
+* Sliding window inference memory efficiency optimization including `SlidingWindowInfererAdapt`
 * Generic kernel filtering transforms `ImageFiltered` and `RandImageFiltered`
 * Trainable bilateral filters and joint bilateral filters
 * ClearML stats and image handlers for experiment tracking
-* Sliding window inference memory efficiency optimization including `SlidingWindowInfererAdapt`
-#### misc
+#### misc.
 * Utility functions to warn API default value changes (#5738)
 * Support of dot notation to access content of `ConfigParser` (#5813)
 * Softmax version to focal loss (#6544)
@@ -94,7 +93,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 * Added callable options for `iteration_log` and `epoch_log` in TensorBoard and MLFlow (#5976)
 * `CheckpointSaver` logging error (#6026)
 * Callable options for `iteration_log` and `epoch_log` in StatsHandler (#5965)
-#### misc
+#### misc.
 * Avoid creating cufile.log when `import monai` (#6106)
 * `monai._extensions` module compatibility with rocm (#6161)
 * Issue of repeated UserWarning: "TypedStorage is deprecated" (#6105)
