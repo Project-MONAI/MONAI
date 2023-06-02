@@ -649,9 +649,7 @@ class Orientation(InvertibleTransform, LazyTransform):
                 )
             spatial_ornt = nib.orientations.ornt_transform(src, dst)
         lazy_ = self.lazy if lazy is None else lazy
-        return orientation(
-            data_array, affine_np, spatial_ornt, lazy=lazy_, transform_info=self.get_transform_info()
-        )  # type: ignore[no-any-return]
+        return orientation(data_array, affine_np, spatial_ornt, lazy=lazy_, transform_info=self.get_transform_info())
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(data)
