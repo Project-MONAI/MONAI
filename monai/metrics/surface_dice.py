@@ -49,7 +49,7 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
         class_thresholds: List of class-specific thresholds.
             The thresholds relate to the acceptable amount of deviation in the segmentation boundary in pixels.
             Each threshold needs to be a finite, non-negative number.
-        include_background: Whether to skip NSD computation on the first channel of the predicted output.
+        include_background: Whether to include NSD computation on the first channel of the predicted output.
             Defaults to ``False``.
         distance_metric: The metric used to compute surface distances.
             One of [``"euclidean"``, ``"chessboard"``, ``"taxicab"``].
@@ -186,7 +186,7 @@ def compute_surface_dice(
         class_thresholds: List of class-specific thresholds.
             The thresholds relate to the acceptable amount of deviation in the segmentation boundary in pixels.
             Each threshold needs to be a finite, non-negative number.
-        include_background: Whether to skip the surface dice computation on the first channel of
+        include_background: Whether to include the surface dice computation on the first channel of
             the predicted output. Defaults to ``False``.
         distance_metric: The metric used to compute surface distances.
             One of [``"euclidean"``, ``"chessboard"``, ``"taxicab"``].
