@@ -154,7 +154,7 @@ def compute_hausdorff_distance(
             should be binarized.
         y: ground truth to compute mean the distance. It must be one-hot format and first dim is batch.
             The values should be binarized.
-        include_background: whether to skip distance computation on the first channel of
+        include_background: whether to include distance computation on the first channel of
             the predicted output. Defaults to ``False``.
         distance_metric: : [``"euclidean"``, ``"chessboard"``, ``"taxicab"``]
             the metric used to compute surface distance. Defaults to ``"euclidean"``.
