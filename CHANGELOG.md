@@ -66,6 +66,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 * Unify output tensor devices for multiple metrics (#5924)
 #### networks
 * Make `RetinaNet` throw errors for NaN only when training (#6479)
+* Replace deprecated arg in torchvision models (#6401)
 * Improves NVFuser import check (#6399)
 * Add `device` in `HoVerNetNuclearTypePostProcessing` and `HoVerNetInstanceMapPostProcessing` (#6333)
 * Enhance hovernet load pretrained function (#6269)
