@@ -42,7 +42,7 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
     Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
 
     Args:
-        include_background: whether to skip distance computation on the first channel of
+        include_background: whether to include distance computation on the first channel of
             the predicted output. Defaults to ``False``.
         symmetric: whether to calculate the symmetric average surface distance between
             `seg_pred` and `seg_gt`. Defaults to ``False``.
@@ -148,7 +148,7 @@ def compute_average_surface_distance(
             should be binarized.
         y: ground truth to compute mean the distance. It must be one-hot format and first dim is batch.
             The values should be binarized.
-        include_background: whether to skip distance computation on the first channel of
+        include_background: whether to include distance computation on the first channel of
             the predicted output. Defaults to ``False``.
         symmetric: whether to calculate the symmetric average surface distance between
             `seg_pred` and `seg_gt`. Defaults to ``False``.
