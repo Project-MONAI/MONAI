@@ -77,6 +77,7 @@ cp, has_cp = optional_import("cupy")
 __all__ = [
     "Identity",
     "RandIdentity",
+    "AsChannelFirst",
     "AsChannelLast",
     "AddChannel",
     "AddCoordinateChannels",

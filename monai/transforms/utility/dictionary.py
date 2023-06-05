@@ -74,15 +74,15 @@ __all__ = [
     "AddChannelD",
     "AddChannelDict",
     "AddChanneld",
-    "AsChannelFirstD",
-    "AsChannelFirstDict",
-    "AsChannelFirstd",
     "AddCoordinateChannelsD",
     "AddCoordinateChannelsDict",
     "AddCoordinateChannelsd",
     "AddExtremePointsChannelD",
     "AddExtremePointsChannelDict",
     "AddExtremePointsChanneld",
+    "AsChannelFirstD",
+    "AsChannelFirstDict",
+    "AsChannelFirstd",
     "AsChannelLastD",
     "AsChannelLastDict",
     "AsChannelLastd",
@@ -1832,7 +1832,6 @@ IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
 AddChannelD = AddChannelDict = AddChanneld
-AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 EnsureChannelFirstD = EnsureChannelFirstDict = EnsureChannelFirstd
 RemoveRepeatedChannelD = RemoveRepeatedChannelDict = RemoveRepeatedChanneld
 RepeatChannelD = RepeatChannelDict = RepeatChanneld
