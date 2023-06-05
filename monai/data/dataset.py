@@ -941,7 +941,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
     Let N be the configured number of objects in cache; and R be the number of replacement objects (R = ceil(N * r),
     where r is the configured replace rate).
     For more details, please refer to:
-    https://docs.nvidia.com/clara/tlt-mi/clara-train-sdk-v3.0/nvmidl/additional_features/smart_cache.html#smart-cache
+    https://docs.nvidia.com/clara/clara-train-archive/3.1/nvmidl/additional_features/smart_cache.html
     If passing slicing indices, will return a PyTorch Subset, for example: `data: Subset = dataset[1:4]`,
     for more details, please check: https://pytorch.org/docs/stable/data.html#torch.utils.data.Subset
 
