@@ -33,7 +33,6 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.traits import MultiSampleTrait, RandomizableTrait
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utility.array import (
-    AddChannel,
     AddCoordinateChannels,
     AddExtremePointsChannel,
     AsChannelLast,
