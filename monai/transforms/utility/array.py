@@ -258,6 +258,28 @@ class EnsureChannelFirst(Transform):
         return convert_to_tensor(result, track_meta=get_track_meta())  # type: ignore
 
 
+@deprecated(
+    since="0.8",
+    removed="1.3",
+    msg_suffix="please use MetaTensor data type and monai.transforms.EnsureChannelFirst instead.",
+)
+class AsChannelFirst(EnsureChannelFirst):
+    """
+    Change the channel dimension of the image to the first dimension.
+    Most of the image transformations in ``monai.transforms``
+    assume the input image is in the channel-first format, which has the shape
+    (num_channels, spatial_dim_1[, spatial_dim_2, ...]).
+    This transform could be used to convert, for example, a channel-last image array in shape
+    (spatial_dim_1[, spatial_dim_2, ...], num_channels) into the channel-first format,
+    so that the multidimensional image array can be correctly interpreted by the other transforms.
+    Args:
+        channel_dim: which dimension of input image is the channel, default is the last dimension.
+    """
+
+    def __init__(self, channel_dim: int = -1) -> None:
+        super().__init__(channel_dim=channel_dim)
+
+
 class RepeatChannel(Transform):
     """
     Repeat channel data to construct expected input shape for models.
@@ -1701,6 +1723,3 @@ class RandImageFilter(RandomizableTransform):
         if self._do_transform:
             img = self.filter(img)
         return img
-
-
-AsChannelFirst = EnsureChannelFirst

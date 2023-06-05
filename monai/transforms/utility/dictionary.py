@@ -310,6 +310,27 @@ class EnsureChannelFirstd(MapTransform):
         return d
 
 
+@deprecated(
+    since="0.8",
+    removed="1.3",
+    msg_suffix="please use MetaTensor data type and monai.transforms.EnsureChannelFirstdq instead.",
+)
+class AsChannelFirstd(EnsureChannelFirstd):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.AsChannelFirst`.
+    """
+
+    def __init__(self, keys: KeysCollection, channel_dim: int = -1, allow_missing_keys: bool = False) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            channel_dim: which dimension of input image is the channel, default is the last dimension.
+            allow_missing_keys: don't raise exception if key is missing.
+        """
+        super().__init__(keys=keys, channel_dim=channel_dim, allow_missing_keys=allow_missing_keys)
+
+
 class RepeatChanneld(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.RepeatChannel`.
@@ -1808,9 +1829,10 @@ class RandImageFilterd(MapTransform, RandomizableTransform):
 RandImageFilterD = RandImageFilterDict = RandImageFilterd
 ImageFilterD = ImageFilterDict = ImageFilterd
 IdentityD = IdentityDict = Identityd
+AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
 AddChannelD = AddChannelDict = AddChanneld
-AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd = EnsureChannelFirstd
+AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 EnsureChannelFirstD = EnsureChannelFirstDict = EnsureChannelFirstd
 RemoveRepeatedChannelD = RemoveRepeatedChannelDict = RemoveRepeatedChanneld
 RepeatChannelD = RepeatChannelDict = RepeatChanneld
