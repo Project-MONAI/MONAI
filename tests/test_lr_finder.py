@@ -24,7 +24,7 @@ from torch.utils.data import DataLoader
 from monai.apps import MedNISTDataset
 from monai.networks.nets import DenseNet
 from monai.optimizers import LearningRateFinder
-from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd, ToTensord
+from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, ScaleIntensityd, ToTensord
 from monai.utils import optional_import, set_determinism
 from monai.utils.misc import MONAIEnvVars
 from tests.utils import skip_if_downloading_fails
@@ -56,7 +56,7 @@ class TestLRFinder(unittest.TestCase):
         self.transforms = Compose(
             [
                 LoadImaged(keys="image"),
-                AddChanneld(keys="image"),
+                EnsureChannelFirstd(keys="image"),
                 ScaleIntensityd(keys="image"),
                 ToTensord(keys="image"),
             ]

@@ -195,7 +195,7 @@ class TestCompose(unittest.TestCase):
 
     def test_err_msg(self):
         transforms = mt.Compose([abs, mt.EnsureChannelFirst(channel_dim="no_channel"), round])
-        with self.assertRaisesRegex(Exception, "AddChannel"):
+        with self.assertRaisesRegex(Exception, "EnsureChannelFirst"):
             transforms(42.1)
 
     def test_data_loader(self):
