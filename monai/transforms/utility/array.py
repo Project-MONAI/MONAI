@@ -382,7 +382,7 @@ class SplitDim(Transform, MultiSampleTrait):
         return outputs
 
 
-@deprecated(since="0.8", msg_suffix="please use `SplitDim` instead.")
+@deprecated(since="0.8", removed="1.3", msg_suffix="please use `SplitDim` instead.")
 class SplitChannel(SplitDim):
     """
     Split Numpy array or PyTorch Tensor data according to the channel dim.

@@ -445,7 +445,7 @@ class SplitDimd(MapTransform, MultiSampleTrait):
         return d
 
 
-@deprecated(since="0.8", msg_suffix="please use `SplitDimd` instead.")
+@deprecated(since="0.8", removed="1.3", msg_suffix="please use `SplitDimd` instead.")
 class SplitChanneld(SplitDimd):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SplitChannel`.
