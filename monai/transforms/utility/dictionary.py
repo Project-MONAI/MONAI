@@ -245,30 +245,6 @@ class AsChannelLastd(MapTransform):
         return d
 
 
-class AddChanneld(MapTransform):
-    """
-    Dictionary-based wrapper of :py:class:`monai.transforms.AddChannel`.
-    """
-
-    backend = AddChannel.backend
-
-    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
-        """
-        Args:
-            keys: keys of the corresponding items to be transformed.
-                See also: :py:class:`monai.transforms.compose.MapTransform`
-            allow_missing_keys: don't raise exception if key is missing.
-        """
-        super().__init__(keys, allow_missing_keys)
-        self.adder = AddChannel()
-
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
-        d = dict(data)
-        for key in self.key_iterator(d):
-            d[key] = self.adder(d[key])
-        return d
-
-
 class EnsureChannelFirstd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.EnsureChannelFirst`.
@@ -313,7 +289,7 @@ class EnsureChannelFirstd(MapTransform):
 @deprecated(
     since="0.8",
     removed="1.3",
-    msg_suffix="please use MetaTensor data type and monai.transforms.EnsureChannelFirstdq instead.",
+    msg_suffix="please use MetaTensor data type and monai.transforms.EnsureChannelFirstd instead.",
 )
 class AsChannelFirstd(EnsureChannelFirstd):
     """
@@ -329,6 +305,29 @@ class AsChannelFirstd(EnsureChannelFirstd):
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys=keys, channel_dim=channel_dim, allow_missing_keys=allow_missing_keys)
+
+
+@deprecated(
+    since="0.8",
+    removed="1.3",
+    msg_suffix="please use MetaTensor data type and monai.transforms.EnsureChannelFirstd instead"
+    " with `channel_dim='no_channel'`.",
+)
+class AddChanneld(EnsureChannelFirstd):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.AddChannel`.
+    """
+
+    backend = EnsureChannelFirstd.backend
+
+    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            allow_missing_keys: don't raise exception if key is missing.
+        """
+        super().__init__(keys, allow_missing_keys, channel_dim="no_channel")
 
 
 class RepeatChanneld(MapTransform):

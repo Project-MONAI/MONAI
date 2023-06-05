@@ -172,31 +172,6 @@ class AsChannelLast(Transform):
         return out
 
 
-@deprecated(since="0.8", msg_suffix="please use MetaTensor data type and monai.transforms.EnsureChannelFirst instead.")
-class AddChannel(Transform):
-    """
-    Adds a 1-length channel dimension to the input image.
-
-    Most of the image transformations in ``monai.transforms``
-    assumes the input image is in the channel-first format, which has the shape
-    (num_channels, spatial_dim_1[, spatial_dim_2, ...]).
-
-    This transform could be used, for example, to convert a (spatial_dim_1[, spatial_dim_2, ...])
-    spatial image into the channel-first format so that the
-    multidimensional image array can be correctly interpreted by the other
-    transforms.
-    """
-
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
-
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
-        """
-        Apply the transform to `img`.
-        """
-        out: NdarrayOrTensor = convert_to_tensor(img[None], track_meta=get_track_meta())
-        return out
-
-
 class EnsureChannelFirst(Transform):
     """
     Adjust or add the channel dimension of input data to ensure `channel_first` shape.
@@ -279,6 +254,32 @@ class AsChannelFirst(EnsureChannelFirst):
 
     def __init__(self, channel_dim: int = -1) -> None:
         super().__init__(channel_dim=channel_dim)
+
+
+@deprecated(
+    since="0.8",
+    removed="1.3",
+    msg_suffix="please use MetaTensor data type and monai.transforms.EnsureChannelFirst instead"
+    " with `channel_dim='no_channel'`.",
+)
+class AddChannel(EnsureChannelFirst):
+    """
+    Adds a 1-length channel dimension to the input image.
+
+    Most of the image transformations in ``monai.transforms``
+    assumes the input image is in the channel-first format, which has the shape
+    (num_channels, spatial_dim_1[, spatial_dim_2, ...]).
+
+    This transform could be used, for example, to convert a (spatial_dim_1[, spatial_dim_2, ...])
+    spatial image into the channel-first format so that the
+    multidimensional image array can be correctly interpreted by the other
+    transforms.
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(self) -> None:
+        super().__init__(channel_dim="no_channel")
 
 
 class RepeatChannel(Transform):
