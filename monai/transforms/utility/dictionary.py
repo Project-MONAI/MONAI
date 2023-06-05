@@ -74,6 +74,9 @@ __all__ = [
     "AddChannelD",
     "AddChannelDict",
     "AddChanneld",
+    "AsChannelFirstD",
+    "AsChannelFirstDict",
+    "AsChannelFirstd",
     "AddCoordinateChannelsD",
     "AddCoordinateChannelsDict",
     "AddCoordinateChannelsd",
@@ -1807,6 +1810,7 @@ ImageFilterD = ImageFilterDict = ImageFilterd
 IdentityD = IdentityDict = Identityd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
 AddChannelD = AddChannelDict = AddChanneld
+AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd = EnsureChannelFirstd
 EnsureChannelFirstD = EnsureChannelFirstDict = EnsureChannelFirstd
 RemoveRepeatedChannelD = RemoveRepeatedChannelDict = RemoveRepeatedChanneld
 RepeatChannelD = RepeatChannelDict = RepeatChanneld

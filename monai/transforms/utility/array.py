@@ -1701,3 +1701,6 @@ class RandImageFilter(RandomizableTransform):
         if self._do_transform:
             img = self.filter(img)
         return img
+
+
+AsChannelFirst = EnsureChannelFirst
