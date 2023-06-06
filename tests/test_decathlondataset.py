@@ -29,7 +29,7 @@ class TestDecathlonDataset(unittest.TestCase):
         transform = Compose(
             [
                 LoadImaged(keys=["image", "label"]),
-                EnsureChannelFirstd(keys=["image", "label"]),
+                EnsureChannelFirstd(keys=["image", "label"], channel_dim="no_channel"),
                 ScaleIntensityd(keys="image"),
             ]
         )

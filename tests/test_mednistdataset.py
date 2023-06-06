@@ -29,7 +29,11 @@ class TestMedNISTDataset(unittest.TestCase):
     def test_values(self):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
         transform = Compose(
-            [LoadImaged(keys="image"), EnsureChannelFirstd(keys="image"), ScaleIntensityd(keys="image")]
+            [
+                LoadImaged(keys="image"),
+                EnsureChannelFirstd(keys="image", channel_dim="no_channel"),
+                ScaleIntensityd(keys="image"),
+            ]
         )
 
         def _test_dataset(dataset):

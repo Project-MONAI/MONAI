@@ -38,7 +38,13 @@ class TestMatshow3d(unittest.TestCase):
     def test_3d(self):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
         keys = "image"
-        xforms = Compose([LoadImaged(keys=keys), EnsureChannelFirstd(keys=keys), ScaleIntensityd(keys=keys)])
+        xforms = Compose(
+            [
+                LoadImaged(keys=keys),
+                EnsureChannelFirstd(keys=keys, channel_dim="no_channel"),
+                ScaleIntensityd(keys=keys),
+            ]
+        )
         image_path = os.path.join(testing_dir, "anatomical.nii")
         ims = xforms({keys: image_path})
 
@@ -89,7 +95,7 @@ class TestMatshow3d(unittest.TestCase):
         xforms = Compose(
             [
                 LoadImaged(keys=keys),
-                EnsureChannelFirstd(keys=keys),
+                EnsureChannelFirstd(keys=keys, channel_dim="no_channel"),
                 ScaleIntensityd(keys=keys),
                 # change to RGB color image
                 RepeatChanneld(keys=keys, repeats=3),

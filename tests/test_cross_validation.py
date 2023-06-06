@@ -27,7 +27,7 @@ class TestCrossValidation(unittest.TestCase):
         train_transform = Compose(
             [
                 LoadImaged(keys=["image", "label"]),
-                EnsureChannelFirstd(keys=["image", "label"]),
+                EnsureChannelFirstd(keys=["image", "label"], channel_dim="no_channel"),
                 ScaleIntensityd(keys="image"),
             ]
         )

@@ -56,7 +56,7 @@ class TestLRFinder(unittest.TestCase):
         self.transforms = Compose(
             [
                 LoadImaged(keys="image"),
-                EnsureChannelFirstd(keys="image"),
+                EnsureChannelFirstd(keys="image", channel_dim="no_channel"),
                 ScaleIntensityd(keys="image"),
                 ToTensord(keys="image"),
             ]

@@ -33,7 +33,7 @@ class TestTciaDataset(unittest.TestCase):
         transform = Compose(
             [
                 LoadImaged(keys=["image", "seg"], reader="PydicomReader", label_dict=TCIA_LABEL_DICT[collection]),
-                EnsureChannelFirstd(keys="image"),
+                EnsureChannelFirstd(keys="image", channel_dim="no_channel"),
                 ScaleIntensityd(keys="image"),
             ]
         )

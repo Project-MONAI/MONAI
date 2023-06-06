@@ -708,7 +708,7 @@ the postprocessing steps should be used before calling the metrics methods
 * Revised transforms:
   * Normalize intensity datatype and normalizer types
   * Padding modes for zoom
-  * Crop returns coordinates
+  * Crop returns coordinatesw
   * Select items transform
   * Weighted patch sampling
   * Option to keep aspect ratio for zoom

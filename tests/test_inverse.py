@@ -388,7 +388,9 @@ class TestInverse(unittest.TestCase):
         im_2d_fname, seg_2d_fname = (make_nifti_image(i) for i in create_test_image_2d(101, 100))
         im_3d_fname, seg_3d_fname = (make_nifti_image(i, affine) for i in create_test_image_3d(100, 101, 107))
 
-        load_ims = Compose([LoadImaged(KEYS), EnsureChannelFirstd(KEYS), FromMetaTensord(KEYS)])
+        load_ims = Compose(
+            [LoadImaged(KEYS), EnsureChannelFirstd(KEYS, channel_dim="no_channel"), FromMetaTensord(KEYS)]
+        )
         self.all_data["2D"] = load_ims({"image": im_2d_fname, "label": seg_2d_fname})
         self.all_data["3D"] = load_ims({"image": im_3d_fname, "label": seg_3d_fname})
 
@@ -471,7 +473,9 @@ class TestInverse(unittest.TestCase):
         batch_size = 10
         # num workers = 0 for mac
         num_workers = 2 if sys.platform == "linux" else 0
-        transforms = Compose([EnsureChannelFirstd(KEYS), SpatialPadd(KEYS, (150, 153)), extra_transform])
+        transforms = Compose(
+            [EnsureChannelFirstd(KEYS, channel_dim="no_channel"), SpatialPadd(KEYS, (150, 153)), extra_transform]
+        )
 
         dataset = CacheDataset(test_data, transform=transforms, progress=False)
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)

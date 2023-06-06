@@ -129,7 +129,7 @@ class TestDeCollate(unittest.TestCase):
 
     @parameterized.expand(TESTS_DICT)
     def test_decollation_dict(self, *transforms):
-        t_compose = Compose([EnsureChannelFirstd(KEYS), Compose(transforms), ToTensord(KEYS)])
+        t_compose = Compose([EnsureChannelFirstd(KEYS, channel_dim="no_channel"), Compose(transforms), ToTensord(KEYS)])
         # If nibabel present, read from disk
         if has_nib:
             t_compose = Compose([LoadImaged("image", image_only=True), t_compose])

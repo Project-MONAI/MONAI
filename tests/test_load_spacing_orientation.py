@@ -33,7 +33,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
     @staticmethod
     def load_image(filename):
         data = {"image": filename}
-        t = Compose([LoadImaged(keys="image"), EnsureChannelFirstd(keys="image")])
+        t = Compose([LoadImaged(keys="image"), EnsureChannelFirstd(keys="image", channel_dim="no_channel")])
         return t(data)
 
     @parameterized.expand(FILES)
