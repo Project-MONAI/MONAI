@@ -194,7 +194,7 @@ class TestCompose(unittest.TestCase):
             c.randomize()
 
     def test_err_msg(self):
-        transforms = mt.Compose([abs, mt.EnsureChannelFirst(channel_dim="no_channel"), round])
+        transforms = mt.Compose([abs, mt.EnsureChannelFirst(), round])
         with self.assertRaisesRegex(Exception, "EnsureChannelFirst"):
             transforms(42.1)
 
