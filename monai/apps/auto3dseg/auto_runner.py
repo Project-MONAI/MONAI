@@ -276,7 +276,7 @@ class AutoRunner:
 
         self.set_training_params()
         self.set_device_info()
-        self.set_prediction_params({"sigmoid": self.data_src_cfg.get("sigmoid", False)})
+        self.set_prediction_params()
         self.set_analyze_params()
         self.set_ensemble_method()
         self.set_num_fold(num_fold=num_fold)
@@ -291,6 +291,9 @@ class AutoRunner:
         self.set_hpo_params()
         self.search_space: dict[str, dict[str, Any]] = {}
         self.hpo_tasks = 0
+
+        if "sigmoid" not in self.kwargs and "sigmoid" in self.data_src_cfg:
+            self.kwargs["sigmoid"] = self.data_src_cfg["sigmoid"]
 
     def read_cache(self):
         """
