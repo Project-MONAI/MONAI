@@ -59,11 +59,11 @@ the exact implementations of a patch inference may vary, the overall process of 
 In this release, we have created a modular design for patch inference, which defines the overall process while abstracting away the specific
 behavior of how to split the image into patches, how to pre and post process each patch, and how to merge the output patches.
 
-## Lazy resampling for preprocessing
+## Lazy Resampling for preprocessing
 Lazy Resampling is a new, experimental feature for preprocessing. It works under
-the hood along with MONAI transforms to concatenate together adjacent spatial and
-cropping transforms. This allows MONAI to reduce the number of resamples
-that your pipeline undergoes. Depending on your preprocessing pipeline, it can potentially:
+the hood along with MONAI transforms to combine adjacent spatial and
+cropping transforms into a single operation. This allows MONAI to reduce the number of data resamples
+ a pipeline undergoes. Depending on the preprocessing pipeline, it can potentially:
 
 * reduce processing time
 * reduce processing memory
@@ -72,6 +72,6 @@ that your pipeline undergoes. Depending on your preprocessing pipeline, it can p
 
 Lazy Resampling pipelines can use a mixture of MONAI and non-MONAI transforms, so
 should work with almost all existing pipelines simply by setting `lazy=True`
-on MONAI `Compose` instances.  Please see the
+on MONAI `Compose` instances.  See the
 [Lazy Resampling topic](https://docs.monai.io/en/stable/lazy_resampling.html)
 in the documentation for more details.
