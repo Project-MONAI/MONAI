@@ -6,6 +6,7 @@
 - MetricsReloaded integration
 - Bundle workflow APIs
 - Modular patch inference
+- Lazy resampling for preprocessing
 
 ## Auto3DSeg enhancements and benchmarks
 Auto3DSeg is an innovative solution for 3D medical image segmentation, leveraging the advancements in MONAI and GPUs for algorithm development and deployment.
@@ -57,3 +58,20 @@ to construct the result image corresponding to the input image. Although dependi
 the exact implementations of a patch inference may vary, the overall process of splitting, running inference, and merging the results remains the same.
 In this release, we have created a modular design for patch inference, which defines the overall process while abstracting away the specific
 behavior of how to split the image into patches, how to pre and post process each patch, and how to merge the output patches.
+
+## Lazy Resampling for preprocessing
+Lazy Resampling is a new, experimental feature for preprocessing. It works under
+the hood along with MONAI transforms to combine adjacent spatial and
+cropping transforms into a single operation. This allows MONAI to reduce the number of data resamples
+ a pipeline undergoes. Depending on the preprocessing pipeline, it can potentially:
+
+* reduce processing time
+* reduce processing memory
+* reduce incidental artifacts added by resampling
+* preserve data that would otherwise be cropped and replaced with padding
+
+Lazy Resampling pipelines can use a mixture of MONAI and non-MONAI transforms, so
+should work with almost all existing pipelines simply by setting `lazy=True`
+on MONAI `Compose` instances.  See the
+[Lazy Resampling topic](https://docs.monai.io/en/stable/lazy_resampling.html)
+in the documentation for more details.
