@@ -292,6 +292,9 @@ class AutoRunner:
         self.search_space: dict[str, dict[str, Any]] = {}
         self.hpo_tasks = 0
 
+        if "sigmoid" not in self.kwargs and "sigmoid" in self.data_src_cfg:
+            self.kwargs["sigmoid"] = self.data_src_cfg["sigmoid"]
+
     def read_cache(self):
         """
         Check if the intermediate result is cached after each step in the current working directory
