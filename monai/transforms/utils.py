@@ -1666,7 +1666,7 @@ def print_transform_backends():
     print_color(f"Number transforms allowing both torch and numpy: {n_t_or_np}", Colors.green)
     print_color(f"Number of TorchTransform: {n_t}", Colors.green)
     print_color(f"Number of NumpyTransform: {n_np}", Colors.yellow)
-    print_color(f"Number of uncategorised: {n_uncategorized}", Colors.red)
+    print_color(f"Number of uncategorized: {n_uncategorized}", Colors.red)
 
 
 def convert_pad_mode(dst: NdarrayOrTensor, mode: str | None):
