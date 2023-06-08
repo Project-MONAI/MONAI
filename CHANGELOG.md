@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-## [1.2.0] - 2023-06-06
+## [1.2.0] - 2023-06-08
 ### Added
 * Various Auto3DSeg enhancements and integration tests including multi-node multi-GPU optimization, major usability improvements
 * TensorRT and ONNX support for `monai.bundle` API and the relevant models
@@ -110,6 +110,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 * `resample=True`; `resample=False` will be the new default in `SaveImage`
 * `random_size=True`; `random_size=False` will be the new default for the random cropping transforms
 * `image_only=False`; `image_only=True` will be the new default in `LoadImage`
+* `AddChannel` and `AsChannelFirst` in favor of `EnsureChannelFirst`
 ### Removed
 * Deprecated APIs since v0.9, including WSIReader from `monai.apps`, `NiftiSaver` and `PNGSaver` from `monai.data`
 * Support for PyTorch 1.8

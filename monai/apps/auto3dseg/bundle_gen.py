@@ -37,7 +37,7 @@ from monai.utils import ensure_tuple
 from monai.utils.enums import AlgoKeys
 
 logger = get_logger(module_name=__name__)
-ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "58af562")
+ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "9db946d")
 
 __all__ = ["BundleAlgo", "BundleGen"]
 
@@ -537,7 +537,7 @@ class BundleGen(AlgoGen):
                 parameters for each bundleAlgo based on gpus. Custom parameters are obtained through dummy
                 training to simulate the actual model training process and hyperparameter optimization (HPO)
                 experiments.
-            gpu_customization_specs (optinal): the dictionary to enable users overwrite the HPO settings. user can
+            gpu_customization_specs: the dictionary to enable users overwrite the HPO settings. user can
                 overwrite part of variables as follows or all of them. The structure is as follows.
             allow_skip: a switch to determine if some Algo in the default templates can be skipped based on the
                 analysis on the dataset from Auto3DSeg DataAnalyzer.

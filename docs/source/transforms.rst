@@ -2251,3 +2251,10 @@ Utilities
 
 .. automodule:: monai.transforms.utils_pytorch_numpy_unification
     :members:
+
+By Categories
+-------------
+.. toctree::
+   :maxdepth: 1
+
+   transforms_idx

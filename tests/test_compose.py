@@ -194,8 +194,8 @@ class TestCompose(unittest.TestCase):
             c.randomize()
 
     def test_err_msg(self):
-        transforms = mt.Compose([abs, mt.AddChannel(), round])
-        with self.assertRaisesRegex(Exception, "AddChannel"):
+        transforms = mt.Compose([abs, mt.EnsureChannelFirst(), round])
+        with self.assertRaisesRegex(Exception, "EnsureChannelFirst"):
             transforms(42.1)
 
     def test_data_loader(self):
@@ -244,7 +244,7 @@ class TestCompose(unittest.TestCase):
         set_determinism(None)
 
     def test_flatten_and_len(self):
-        x = mt.AddChannel()
+        x = mt.EnsureChannelFirst(channel_dim="no_channel")
         t1 = mt.Compose([x, x, x, x, mt.Compose([mt.Compose([x, x]), x, x])])
 
         t2 = t1.flatten()
