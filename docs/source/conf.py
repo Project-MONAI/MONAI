@@ -86,6 +86,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.viewcode",
     "sphinx.ext.autosectionlabel",
+    "sphinx.ext.autosummary",
     "sphinx_autodoc_typehints",
 ]
 
@@ -114,7 +115,7 @@ html_theme_options = {
         {"name": "Twitter", "url": "https://twitter.com/projectmonai", "icon": "fab fa-twitter-square"},
     ],
     "collapse_navigation": True,
-    "navigation_depth": 3,
+    "navigation_depth": 1,
     "show_toc_level": 1,
     "footer_start": ["copyright"],
     "navbar_align": "content",

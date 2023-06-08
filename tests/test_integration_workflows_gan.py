@@ -41,7 +41,7 @@ def run_training_test(root_dir, device="cuda:0"):
     train_transforms = Compose(
         [
             LoadImaged(keys=["reals"]),
-            EnsureChannelFirstd(keys=["reals"]),
+            EnsureChannelFirstd(keys=["reals"], channel_dim=-1),
             ScaleIntensityd(keys=["reals"]),
             RandFlipd(keys=["reals"], prob=0.5),
         ]

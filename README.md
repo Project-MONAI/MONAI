@@ -30,7 +30,7 @@ Its ambitions are:
 - compositional & portable APIs for ease of integration in existing workflows;
 - domain-specific implementations for networks, losses, evaluation metrics and more;
 - customizable design for varying user expertise;
-- multi-GPU data parallelism support.
+- multi-GPU multi-node data parallelism support.
 
 
 ## Installation
