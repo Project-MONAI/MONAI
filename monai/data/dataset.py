@@ -566,7 +566,7 @@ class LMDBDataset(PersistentDataset):
             hash_transform: a callable to compute hash from the transform information when caching.
                 This may reduce errors due to transforms changing during experiments. Default to None (no hash).
                 Other options are `pickle_hashing` and `json_hashing` functions from `monai.data.utils`.
-            reset_ops_id: whether to set `TraceKeys.ID` to ``Tracekys.NONE``, defaults to ``True``.
+            reset_ops_id: whether to set `TraceKeys.ID` to ``Tracekeys.NONE``, defaults to ``True``.
                 When this is enabled, the traced transform instance IDs will be removed from the cached MetaTensors.
                 This is useful for skipping the transform instance checks when inverting applied operations
                 using the cached content and with re-created transform instances.

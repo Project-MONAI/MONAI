@@ -317,6 +317,18 @@ Intensity
     :members:
     :special-members: __call__
 
+`ScaleIntensityFixedMean`
+"""""""""""""""""""""""""
+.. autoclass:: ScaleIntensityFixedMean
+    :members:
+    :special-members: __call__
+
+`RandScaleIntensityFixedMean`
+"""""""""""""""""""""""""""""
+.. autoclass:: RandScaleIntensityFixedMean
+    :members:
+    :special-members: __call__
+
 `NormalizeIntensity`
 """"""""""""""""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/NormalizeIntensity.png
@@ -1386,6 +1398,12 @@ Intensity (Dict)
     :members:
     :special-members: __call__
 
+`RandScaleIntensityFixedMeand`
+"""""""""""""""""""""""""""""""
+.. autoclass:: RandScaleIntensityFixedMeand
+    :members:
+    :special-members: __call__
+
 `NormalizeIntensityd`
 """""""""""""""""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/NormalizeIntensityd.png
@@ -2233,3 +2251,10 @@ Utilities
 
 .. automodule:: monai.transforms.utils_pytorch_numpy_unification
     :members:
+
+By Categories
+-------------
+.. toctree::
+   :maxdepth: 1
+
+   transforms_idx
