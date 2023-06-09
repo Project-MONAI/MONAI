@@ -17,6 +17,7 @@ import os
 import pprint
 import random
 import shutil
+import subprocess
 import tempfile
 import types
 import warnings
@@ -73,6 +74,7 @@ __all__ = [
     "CheckKeyDuplicatesYamlLoader",
     "ConvertUnits",
     "check_kwargs_exist_in_class_init",
+    "run_cmd",
 ]
 
 _seed = None
@@ -821,3 +823,29 @@ def check_kwargs_exist_in_class_init(cls, kwargs):
     extra_kwargs = input_kwargs - init_params
 
     return extra_kwargs == set(), extra_kwargs
+
+
+def run_cmd(cmd_list, **kwargs) -> subprocess.CompletedProcess:
+    """
+    Run a command by using ``subprocess.run`` with capture_output=True and stderr=subprocess.STDOUT
+    so that the raise exception will have that information. The argument `capture_output` can be set explicitly
+    if desired, but will be overriden with the debug status from the variable.
+
+    Args:
+        cmd_list: a list of stringd describing the command to run.
+        kwargs: keyword arguments supported by the ``subprocess.run`` method.
+
+    Returns:
+        a CompletedProcess instance after the command completes.
+    """
+    debug = MONAIEnvVars.debug()
+    kwargs["capture_output"] = kwargs.get("capture_output", debug)
+
+    try:
+        return subprocess.run(cmd_list, **kwargs)
+    except subprocess.CalledProcessError as e:
+        if not debug:
+            raise
+        output = repr(e.stdout).replace("\\n", "\n").replace("\\t", "\t")
+        errors = repr(e.stderr).replace("\\n", "\n").replace("\\t", "\t")
+        raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}.")

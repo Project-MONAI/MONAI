@@ -33,7 +33,7 @@ from monai.auto3dseg.algo_gen import Algo, AlgoGen
 from monai.auto3dseg.utils import algo_to_pickle
 from monai.bundle.config_parser import ConfigParser
 from monai.config import PathLike
-from monai.utils import ensure_tuple
+from monai.utils import ensure_tuple, run_cmd
 from monai.utils.enums import AlgoKeys
 
 logger = get_logger(module_name=__name__)
@@ -243,7 +243,7 @@ class BundleAlgo(Algo):
 
         logger.info(f"Launching: {' '.join(cmd_list)}")
 
-        return subprocess.run(cmd_list, env=ps_environ, check=True)
+        return run_cmd(cmd_list, env=ps_environ, check=True)
 
     def train(
         self, train_params: None | dict = None, device_setting: None | dict = None
