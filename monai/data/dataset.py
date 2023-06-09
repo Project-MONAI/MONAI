@@ -566,7 +566,7 @@ class LMDBDataset(PersistentDataset):
             hash_transform: a callable to compute hash from the transform information when caching.
                 This may reduce errors due to transforms changing during experiments. Default to None (no hash).
                 Other options are `pickle_hashing` and `json_hashing` functions from `monai.data.utils`.
-            reset_ops_id: whether to set `TraceKeys.ID` to ``Tracekys.NONE``, defaults to ``True``.
+            reset_ops_id: whether to set `TraceKeys.ID` to ``Tracekeys.NONE``, defaults to ``True``.
                 When this is enabled, the traced transform instance IDs will be removed from the cached MetaTensors.
                 This is useful for skipping the transform instance checks when inverting applied operations
                 using the cached content and with re-created transform instances.
@@ -941,7 +941,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
     Let N be the configured number of objects in cache; and R be the number of replacement objects (R = ceil(N * r),
     where r is the configured replace rate).
     For more details, please refer to:
-    https://docs.nvidia.com/clara/tlt-mi/clara-train-sdk-v3.0/nvmidl/additional_features/smart_cache.html#smart-cache
+    https://docs.nvidia.com/clara/clara-train-archive/3.1/nvmidl/additional_features/smart_cache.html
     If passing slicing indices, will return a PyTorch Subset, for example: `data: Subset = dataset[1:4]`,
     for more details, please check: https://pytorch.org/docs/stable/data.html#torch.utils.data.Subset
 

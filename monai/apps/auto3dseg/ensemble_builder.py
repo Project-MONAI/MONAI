@@ -161,7 +161,7 @@ class AlgoEnsemble(ABC):
                       only make prediction on the infer_files[file_slices].
                     - ``"mode"``: ensemble mode. Currently "mean" and "vote" (majority voting) schemes are supported.
                     - ``"image_save_func"``: a dictionary used to instantiate the ``SaveImage`` transform. When specified,
-                      the ensemble prediction will save the prediciton files, instead of keeping the files in the memory.
+                      the ensemble prediction will save the prediction files, instead of keeping the files in the memory.
                       Example: `{"_target_": "SaveImage", "output_dir": "./"}`
                     - ``"sigmoid"``: use the sigmoid function (e.g. x > 0.5) to convert the prediction probability map
                       to the label class prediction, otherwise argmax(x) is used.
@@ -552,7 +552,7 @@ class EnsembleRunner:
         self.num_fold = num_fold
 
     def ensemble(self):
-        if self.mgpu:  # torch.cuda.device_count() is not used because env is not set by autorruner
+        if self.mgpu:  # torch.cuda.device_count() is not used because env is not set by autorunner
             # init multiprocessing and update infer_files
             dist.init_process_group(backend="nccl", init_method="env://")
             self.world_size = dist.get_world_size()
@@ -586,14 +586,10 @@ class EnsembleRunner:
             if len(infer_files) == 0:
                 logger.info("No testing files for inference is provided. Ensembler ending.")
                 return
-            infer_files = (
-                partition_dataset(data=infer_files, shuffle=False, num_partitions=len(infer_files))[self.rank]
-                if self.rank < len(infer_files)
-                else []
-            )
+            infer_files = [infer_files[self.rank]] if self.rank < len(infer_files) else []
         else:
             infer_files = partition_dataset(
-                data=infer_files, shuffle=False, num_partitions=self.world_size, even_divisible=True
+                data=infer_files, shuffle=False, num_partitions=self.world_size, even_divisible=False
             )[self.rank]
 
         # TO DO: Add some function in ensembler for infer_files update?
