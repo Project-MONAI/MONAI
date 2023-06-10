@@ -1750,9 +1750,9 @@ def attach_hook(func, hook, mode="pre"):
         _hook, _func = func, hook
 
     @wraps(func)
-    def wrapper(inst, data):
-        data = _hook(inst, data)
-        return _func(inst, data)
+    def wrapper(inst, data, *args, **kwargs):
+        data = _hook(inst, data, *args, **kwargs)
+        return _func(inst, data, *args, **kwargs)
 
     return wrapper
 

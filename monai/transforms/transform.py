@@ -405,7 +405,7 @@ class MapTransform(Transform):
             if not isinstance(key, Hashable):
                 raise TypeError(f"keys must be one of (Hashable, Iterable[Hashable]) but is {type(keys).__name__}.")
 
-    def call_update(self, data):
+    def call_update(self, data, *args, **kwargs):
         """
         This function is to be called after every `self.__call__(data)`,
         update `data[key_transforms]` and `data[key_meta_dict]` using the content from MetaTensor `data[key]`,
