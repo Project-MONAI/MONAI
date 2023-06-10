@@ -373,7 +373,7 @@ class InvertibleTransform(TraceableTransform, InvertibleTrait):
 
     """
 
-    def inverse_update(self, data):
+    def inverse_update(self, data, *args, **kwargs):
         """
         This function is to be called before every `self.inverse(data)`,
         update each MetaTensor `data[key]` using `data[key_transforms]` and `data[key_meta_dict]`,
