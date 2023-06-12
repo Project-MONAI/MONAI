@@ -848,4 +848,4 @@ def run_cmd(cmd_list, **kwargs) -> subprocess.CompletedProcess:
             raise
         output = repr(e.stdout).replace("\\n", "\n").replace("\\t", "\t")
         errors = repr(e.stderr).replace("\\n", "\n").replace("\\t", "\t")
-        raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}.")
+        raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}.") from e
