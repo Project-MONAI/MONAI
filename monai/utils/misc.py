@@ -825,14 +825,14 @@ def check_kwargs_exist_in_class_init(cls, kwargs):
     return extra_kwargs == set(), extra_kwargs
 
 
-def run_cmd(cmd_list, **kwargs) -> subprocess.CompletedProcess:
+def run_cmd(cmd_list: list[str], **kwargs: Any) -> subprocess.CompletedProcess:
     """
     Run a command by using ``subprocess.run`` with capture_output=True and stderr=subprocess.STDOUT
     so that the raise exception will have that information. The argument `capture_output` can be set explicitly
     if desired, but will be overriden with the debug status from the variable.
 
     Args:
-        cmd_list: a list of stringd describing the command to run.
+        cmd_list: a list of strings describing the command to run.
         kwargs: keyword arguments supported by the ``subprocess.run`` method.
 
     Returns:
