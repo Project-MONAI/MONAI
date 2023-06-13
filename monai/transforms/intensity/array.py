@@ -535,7 +535,7 @@ class ScaleIntensityFixedMean(Transform):
                     out_channel = clip(out_channel, clip_min, clip_max)
 
                 out.append(out_channel)
-            ret = torch.stack(out)  # type: ignore
+            ret = torch.stack(out)
         else:
             if self.preserve_range:
                 clip_min = img_t.min()
