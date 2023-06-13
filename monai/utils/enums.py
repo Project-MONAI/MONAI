@@ -671,6 +671,7 @@ class BundlePropertyConfig(StrEnum):
     additional bundle property fields for config based bundle workflow:
     `ID` is the config item ID of the property.
     `REF_ID` is the ID of config item which is supposed to refer to this property.
+    For properties that do not have `REF_ID`, `None` should be set.
     this field is only useful to check the optional property ID.
     """
 
