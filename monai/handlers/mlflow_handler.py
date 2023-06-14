@@ -224,7 +224,6 @@ class MLFlowHandler:
             else:
                 self._default_dataset_logger(engine)
 
-
     def _set_experiment(self):
         experiment = self.experiment
         if not experiment:
@@ -237,7 +236,7 @@ class MLFlowHandler:
             raise ValueError(f"Cannot set a deleted experiment '{self.experiment_name}' as the active experiment")
         self.experiment = experiment
 
-    def _log_dataset(self, sample_dict:dict[str, Any]) -> None:
+    def _log_dataset(self, sample_dict: dict[str, Any]) -> None:
         if not self.cur_run:
             raise ValueError("Current Run is not Active to log the dataset")
         sample_df = pandas.DataFrame(sample_dict)
@@ -376,7 +375,7 @@ class MLFlowHandler:
                 }
                 self._log_metrics(params, step=engine.state.iteration)
 
-    def _default_dataset_logger(self, engine:Engine) -> None:
+    def _default_dataset_logger(self, engine: Engine) -> None:
         """
         Execute dataset log operation based on MONAI `engine.dataloader.dataset` data.
         Abstract meta information from samples in dataset and build a Pandas DataFrame from it.
@@ -389,7 +388,9 @@ class MLFlowHandler:
         dataloader = getattr(engine, "data_loader", None)
         dataset = getattr(dataloader, "dataset", None) if dataloader else None
         if not dataset:
-            raise AttributeError(f"The engine dataloader is {dataloader} and the dataset of the dataloader is {dataset}.")
+            raise AttributeError(
+                f"The engine dataloader is {dataloader} and the dataset of the dataloader is {dataset}."
+            )
         sample_dict = {}
         sample_dict["image_name"] = []
         sample_dict["label_name"] = []
@@ -402,7 +403,7 @@ class MLFlowHandler:
                 image_name = sample[0]["image_meta_dict"]["filename_or_obj"]
                 label_name = sample[0]["label_meta_dict"]["filename_or_obj"]
 
-            if not(isinstance(image_name, str) and isinstance(label_name, str)):
+            if not (isinstance(image_name, str) and isinstance(label_name, str)):
                 raise ValueError(f"Image name is type {type(image_name)} and label name is type{type(label_name)}.")
             else:
                 sample_dict["image_name"].append(image_name)
