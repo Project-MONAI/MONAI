@@ -27,6 +27,7 @@ mlflow, _ = optional_import("mlflow", descriptor="Please install mlflow before u
 mlflow.entities, _ = optional_import(
     "mlflow.entities", descriptor="Please install mlflow.entities before using MLFlowHandler."
 )
+pandas, _ = optional_import("pandas", descriptor="Please install pandas for recording the dataset.")
 
 if TYPE_CHECKING:
     from ignite.engine import Engine
@@ -68,10 +69,13 @@ class MLFlowHandler:
         epoch_log: whether to log data to MLFlow when epoch completed, default to `True`.
             ``epoch_log`` can be also a function and it will be interpreted as an event filter.
             See ``iteration_log`` argument for more details.
+        dataset_log: whether to log information about the dataset at the beginning.
         epoch_logger: customized callable logger for epoch level logging with MLFlow.
             Must accept parameter "engine", use default logger if None.
         iteration_logger: customized callable logger for iteration level logging with MLFlow.
             Must accept parameter "engine", use default logger if None.
+        dataset_logger: customized callable logger to log the dataset information with MLFlow.
+            Must accept parameter "engine", use the default logger if None.
         output_transform: a callable that is used to transform the
             ``ignite.engine.state.output`` into a scalar to track, or a dictionary of {key: scalar}.
             By default this value logging happens when every iteration completed.
@@ -109,8 +113,10 @@ class MLFlowHandler:
         tracking_uri: str | None = None,
         iteration_log: bool | Callable[[Engine, int], bool] = True,
         epoch_log: bool | Callable[[Engine, int], bool] = True,
+        dataset_log: bool = True,
         epoch_logger: Callable[[Engine], Any] | None = None,
         iteration_logger: Callable[[Engine], Any] | None = None,
+        dataset_logger: Callable[[Engine], Any] | None = None,
         output_transform: Callable = lambda x: x[0],
         global_epoch_transform: Callable = lambda x: x,
         state_attributes: Sequence[str] | None = None,
@@ -124,8 +130,10 @@ class MLFlowHandler:
     ) -> None:
         self.iteration_log = iteration_log
         self.epoch_log = epoch_log
+        self.dataset_log = dataset_log
         self.epoch_logger = epoch_logger
         self.iteration_logger = iteration_logger
+        self.dataset_logger = dataset_logger
         self.output_transform = output_transform
         self.global_epoch_transform = global_epoch_transform
         self.state_attributes = state_attributes
@@ -210,6 +218,13 @@ class MLFlowHandler:
         self._delete_exist_param_in_dict(attrs)
         self._log_params(attrs)
 
+        if self.dataset_log:
+            if self.dataset_logger:
+                self.dataset_logger(engine)
+            else:
+                self._default_dataset_logger(engine)
+
+
     def _set_experiment(self):
         experiment = self.experiment
         if not experiment:
@@ -221,6 +236,14 @@ class MLFlowHandler:
         if experiment.lifecycle_stage != mlflow.entities.LifecycleStage.ACTIVE:
             raise ValueError(f"Cannot set a deleted experiment '{self.experiment_name}' as the active experiment")
         self.experiment = experiment
+
+    def _log_dataset(self, sample_dict:dict[str, Any]) -> None:
+        if not self.cur_run:
+            raise ValueError("Current Run is not Active to log the dataset")
+        sample_df = pandas.DataFrame(sample_dict)
+        dataset = mlflow.data.from_pandas(sample_df)
+        datasets = [mlflow.entities.DatasetInput(dataset._to_mlflow_entity())]
+        self.client.log_inputs(run_id=self.cur_run.info.run_id, datasets=datasets)
 
     def _log_params(self, params: dict[str, Any]) -> None:
         if not self.cur_run:
@@ -352,3 +375,36 @@ class MLFlowHandler:
                     for i, param_group in enumerate(cur_optimizer.param_groups)
                 }
                 self._log_metrics(params, step=engine.state.iteration)
+
+    def _default_dataset_logger(self, engine:Engine) -> None:
+        """
+        Execute dataset log operation based on MONAI `engine.dataloader.dataset` data.
+        Abstract meta information from samples in dataset and build a Pandas DataFrame from it.
+        Create a PandasDataset in MLFlow using the meta information and log it.
+
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+
+        """
+        dataloader = getattr(engine, "data_loader", None)
+        dataset = getattr(dataloader, "dataset", None) if dataloader else None
+        if not dataset:
+            raise AttributeError(f"The engine dataloader is {dataloader} and the dataset of the dataloader is {dataset}.")
+        sample_dict = {}
+        sample_dict["image_name"] = []
+        sample_dict["label_name"] = []
+
+        for sample in dataset:
+            if isinstance(sample, dict):
+                image_name = sample["image_meta_dict"]["filename_or_obj"]
+                label_name = sample["label_meta_dict"]["filename_or_obj"]
+            else:
+                image_name = sample[0]["image_meta_dict"]["filename_or_obj"]
+                label_name = sample[0]["label_meta_dict"]["filename_or_obj"]
+
+            if not(isinstance(image_name, str) and isinstance(label_name, str)):
+                raise ValueError(f"Image name is type {type(image_name)} and label name is type{type(label_name)}.")
+            else:
+                sample_dict["image_name"].append(image_name)
+                sample_dict["label_name"].append(label_name)
+        self._log_dataset(sample_dict)
