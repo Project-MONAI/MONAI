@@ -58,15 +58,16 @@ TrainProperties = {
         BundleProperty.REQUIRED: True,
         BundlePropertyConfig.ID: f"train{ID_SEP_KEY}dataset",
     },
-    "train_dataset_data": {
-        BundleProperty.DESC: "data source for the training dataset.",
-        BundleProperty.REQUIRED: True,
-        BundlePropertyConfig.ID: f"train{ID_SEP_KEY}dataset{ID_SEP_KEY}data",
-    },
     "train_inferer": {
         BundleProperty.DESC: "MONAI Inferer object to execute the model computation in training.",
         BundleProperty.REQUIRED: True,
         BundlePropertyConfig.ID: f"train{ID_SEP_KEY}inferer",
+    },
+    "train_dataset_data": {
+        BundleProperty.DESC: "data source for the training dataset.",
+        BundleProperty.REQUIRED: False,
+        BundlePropertyConfig.ID: f"train{ID_SEP_KEY}dataset{ID_SEP_KEY}data",
+        BundlePropertyConfig.REF_ID: None,  # no reference to this ID
     },
     "train_handlers": {
         BundleProperty.DESC: "event-handlers for the training logic.",
@@ -169,11 +170,6 @@ InferProperties = {
         BundleProperty.REQUIRED: True,
         BundlePropertyConfig.ID: "dataset",
     },
-    "dataset_data": {
-        BundleProperty.DESC: "data source for the inference / evaluation dataset.",
-        BundleProperty.REQUIRED: True,
-        BundlePropertyConfig.ID: f"dataset{ID_SEP_KEY}data",
-    },
     "evaluator": {
         BundleProperty.DESC: "inference / evaluation workflow engine.",
         BundleProperty.REQUIRED: True,
@@ -188,6 +184,12 @@ InferProperties = {
         BundleProperty.DESC: "MONAI Inferer object to execute the model computation in inference.",
         BundleProperty.REQUIRED: True,
         BundlePropertyConfig.ID: "inferer",
+    },
+    "dataset_data": {
+        BundleProperty.DESC: "data source for the inference / evaluation dataset.",
+        BundleProperty.REQUIRED: False,
+        BundlePropertyConfig.ID: f"dataset{ID_SEP_KEY}data",
+        BundlePropertyConfig.REF_ID: None,  # no reference to this ID
     },
     "handlers": {
         BundleProperty.DESC: "event-handlers for the inference / evaluation logic.",
