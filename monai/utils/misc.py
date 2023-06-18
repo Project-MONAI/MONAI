@@ -846,6 +846,6 @@ def run_cmd(cmd_list: list[str], **kwargs: Any) -> subprocess.CompletedProcess:
     except subprocess.CalledProcessError as e:
         if not debug:
             raise
-        output = repr(e.stdout).replace("\\n", "\n").replace("\\t", "\t")
-        errors = repr(e.stderr).replace("\\n", "\n").replace("\\t", "\t")
+        output = str(e.stdout.decode(errors="replace"))
+        errors = str(e.stderr.decode(errors="replace"))
         raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}.") from e

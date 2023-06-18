@@ -819,10 +819,10 @@ def command_line_tests(cmd, copy_env=True):
     print(f"CUDA_VISIBLE_DEVICES in {__file__}", test_env.get("CUDA_VISIBLE_DEVICES"))
     try:
         normal_out = subprocess.run(cmd, env=test_env, check=True, capture_output=True)
-        print(repr(normal_out).replace("\\n", "\n").replace("\\t", "\t"))
+        print(str(normal_out.decode(errors="replace")))
     except subprocess.CalledProcessError as e:
-        output = repr(e.stdout).replace("\\n", "\n").replace("\\t", "\t")
-        errors = repr(e.stderr).replace("\\n", "\n").replace("\\t", "\t")
+        output = str(e.stdout.decode(errors="replace"))
+        errors = str(e.stderr.deocde(errors="replace"))
         raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}") from e
 
 
