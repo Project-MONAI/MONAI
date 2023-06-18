@@ -11,10 +11,13 @@
 
 from __future__ import annotations
 
+import logging
+import subprocess
 import sys
 import warnings
 from collections.abc import Callable
 from logging import Filter
+from typing import Any
 
 if sys.version_info >= (3, 8):
     from typing import Literal
@@ -205,3 +208,80 @@ class RankFilter(Filter):
 
     def filter(self, *_args):
         return self.filter_fn(self.rank)
+
+
+def prepare_dist_job_default(script, cmd_prefix: str = None, **kwargs: Any) -> str:
+    """
+    Prepare the command for distributed job submission.
+
+    Args:
+        script: the script to run in the distributed job.
+        cmd_prefix: the command prefix to run the script, e.g., "python" or "torchrun".
+        kwargs: the keyword arguments to be passed to the script.
+
+    Returns:
+        the command to run the distributed job.
+    """
+    cmd = cmd_prefix
+    if cmd is not None and not cmd.endswith(" "):
+        cmd += " "
+    cmd = "torchrun " if cmd is None else cmd
+    if "num_nodes" not in kwargs or "nproc_per_node" not in kwargs:
+        raise ValueError("num_nodes and nproc_per_node must be specified.")
+    cmd += f"{script}"
+    for k, v in kwargs.items():
+        if isinstance(v, dict):
+            raise ValueError("Nested dict is not supported.")
+        elif isinstance(v, list):
+            raise ValueError("List is not supported.")
+        cmd += f" --{k} {str(v)}"
+    return cmd
+
+
+def prepare_bcprun(script, cmd_prefix: str = None, **kwargs: Any) -> str:
+    """
+    Prepare the command for distributed job submission using bcprun.
+
+    Args:
+        script: the script to run in the distributed job.
+        cmd_prefix: the command prefix to run the script, e.g., "python".
+        kwargs: the keyword arguments to be passed to the script.
+
+    Returns:
+        The command to run the script in the distributed job.
+    """
+    bcprun_cmd = "bcprun "
+    hyperparam = kwargs.copy()
+    num_nodes = hyperparam.pop("n", None)
+    n_devices = hyperparam.pop("p", None)
+    if num_nodes is None or n_devices is None:
+        raise ValueError("num_nodes(n) and n_devices(p) must be specified.")
+    bcprun_cmd += f"-n {num_nodes} -p {n_devices} "
+
+    cmd_prefix = "python " if cmd_prefix is None else cmd_prefix
+    if not cmd_prefix.endswith(" "):
+        cmd_prefix += " "
+
+    bcprun_cmd += cmd_prefix
+    cmd += f"{script}"
+    for k, v in hyperparam.items():
+        if isinstance(v, dict):
+            raise ValueError("Nested dict is not supported.")
+        elif isinstance(v, list):
+            raise ValueError("List is not supported.")
+        cmd += f" --{k} {str(v)}"
+    return cmd
+
+
+def launch_dist_job_default(cmd: str) -> subprocess.CompletedProcess:
+    """
+    Launch the distributed job using the command.
+
+    Args:
+        cmd: the command to launch the distributed job.
+
+    Returns:
+        The subprocess.CompletedProcess object that contains the information of the launched job.
+    """
+    logging.info(f"Running command: {cmd}")
+    return subprocess.run(cmd, check=True, capture_output=True)
