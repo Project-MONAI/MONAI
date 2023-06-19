@@ -1641,7 +1641,22 @@ class ImageFilter(Transform):
                 "`class 'torch.nn.modules.module.Module'`, `class 'monai.transforms.Transform'`"
             )
 
-    def _check_kwargs_are_present(self, filter, **kwargs):
+    def _check_kwargs_are_present(self, filter: NdarrayOrTensor | str, **kwargs: Any) -> None:
+        """
+        Perform sanity checks on the kwargs if the filter contains the required keys.
+        If the filter is ``gauss``, kwargs should contain ``sigma``.
+        If the filter is ``savitzky_golay``, kwargs should contain ``order``.
+
+        Args:
+            filter: a number array in tensor/numpy or a string indicating the filter type, e.g. gauss/savitzky_golay.
+            kwargs: additional arguments defining the filter.
+        
+        Raises:
+            KeyError if the filter doesn't contain the requirement key.
+        """
+
+        if not isinstance(filter, str):
+            return
         if filter == "gauss" and "sigma" not in kwargs.keys():
             raise KeyError("`filter='gauss', requires the additional keyword argument `sigma`")
         if filter == "savitzky_golay" and "order" not in kwargs.keys():
