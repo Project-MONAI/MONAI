@@ -819,7 +819,7 @@ def command_line_tests(cmd, copy_env=True):
     print(f"CUDA_VISIBLE_DEVICES in {__file__}", test_env.get("CUDA_VISIBLE_DEVICES"))
     try:
         normal_out = subprocess.run(cmd, env=test_env, check=True, capture_output=True)
-        print(str(repr(normal_out).decode(errors="replace")))
+        print(repr(normal_out).replace("\\n", "\n").replace("\\t", "\t"))
     except subprocess.CalledProcessError as e:
         output = str(e.stdout.decode(errors="replace"))
         errors = str(e.stderr.deocde(errors="replace"))
