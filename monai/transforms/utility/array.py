@@ -1650,7 +1650,7 @@ class ImageFilter(Transform):
         Args:
             filter: a number array in tensor/numpy or a string indicating the filter type, e.g. gauss/savitzky_golay.
             kwargs: additional arguments defining the filter.
-        
+
         Raises:
             KeyError if the filter doesn't contain the requirement key.
         """
