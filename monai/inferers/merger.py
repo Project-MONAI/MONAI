@@ -13,13 +13,20 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+import numpy as np
 import torch
 
-from monai.utils import ensure_tuple_size
+from monai.utils import ensure_tuple_size, optional_import, require_pkg
 
-__all__ = ["Merger", "AvgMerger"]
+if TYPE_CHECKING:
+    import zarr
+else:
+    zarr, _ = optional_import("zarr")
+
+
+__all__ = ["Merger", "AvgMerger", "ZarrAvgMerger"]
 
 
 class Merger(ABC):
@@ -97,9 +104,9 @@ class AvgMerger(Merger):
         self,
         merged_shape: Sequence[int],
         cropped_shape: Sequence[int] | None = None,
-        device: torch.device | str = "cpu",
         value_dtype: torch.dtype = torch.float32,
         count_dtype: torch.dtype = torch.uint8,
+        device: torch.device | str = "cpu",
     ) -> None:
         super().__init__(merged_shape=merged_shape, cropped_shape=cropped_shape, device=device)
         if not self.merged_shape:
@@ -152,12 +159,21 @@ class AvgMerger(Merger):
 
         return self.values
 
+    def get_output(self) -> torch.Tensor:
+        """
+        Get the final merged output.
+
+        Returns:
+            torch.Tensor: merged output.
+        """
+        return self.finalize()
+
     def get_values(self) -> torch.Tensor:
         """
         Get the accumulated values during aggregation or final averaged values after it is finalized.
 
         Returns:
-            Merged (averaged) output tensor.
+            torch.tensor: aggregated values.
 
         Notes:
             - If called before calling `finalize()`, this method returns the accumulating values.
@@ -170,6 +186,176 @@ class AvgMerger(Merger):
         Get the aggregator tensor for number of samples.
 
         Returns:
-            torch.Tensor: Number of accumulated samples at each location.
+            torch.Tensor: number of accumulated samples at each location.
         """
         return self.counts
+
+
+@require_pkg(pkg_name="zarr")
+class ZarrAvgMerger(Merger):
+    """Merge patches by taking average of the overlapping area and store the results in zarr array.
+
+    Args:
+        merged_shape: the shape of the tensor required to merge the patches.
+        cropped_shape: the shape of the final merged output tensor.
+            If not provided, it will be the same as `merged_shape`.
+        output_dtype: the dtype for the final result.
+        value_dtype: the dtype for value aggregating tensor and the final result.
+        count_dtype: the dtype for sample counting tensor.
+        store: the zarr store to save the final results.
+        value_store: the zarr store to save the value aggregating tensor.
+        count_store: the zarr store to save the sample counting tensor.
+        compressor: the compressor for zarr array.
+        chunks : int or tuple of ints, optional
+            Chunk shape. If True, will be guessed from `shape` and `dtype`. If
+            False, will be set to `shape`, i.e., single chunk for the whole array.
+            If an int, the chunk size in each dimension will be given by the value
+            of `chunks`. Default is True.
+    """
+
+    def __init__(
+        self,
+        merged_shape: Sequence[int],
+        cropped_shape: Sequence[int] | None = None,
+        output_dtype: np.dtype | str = "float32",
+        value_dtype: np.dtype | str = "float32",
+        count_dtype: np.dtype | str = "uint8",
+        store: zarr.storage.Store | str = "merged.zarr",
+        value_store: zarr.storage.Store | str = zarr.storage.TempStore(),
+        count_store: zarr.storage.Store | str = zarr.storage.TempStore(),
+        compressor: str = "default",
+        chunks: Sequence[int] | bool = True,
+    ) -> None:
+        super().__init__(merged_shape=merged_shape, cropped_shape=cropped_shape)
+        if not self.merged_shape:
+            raise ValueError(f"`merged_shape` must be provided for `ZarrAvgMerger`. {self.merged_shape} is give.")
+        self.output_dtype = output_dtype
+        self.value_dtype = value_dtype
+        self.count_dtype = count_dtype
+        self.store = store
+        self.chunks = chunks
+        self.compressor = compressor
+        self.output = zarr.empty(
+            shape=self.merged_shape,
+            chunks=self.chunks,
+            dtype=self.output_dtype,
+            compressor=self.compressor,
+            store=store,
+            overwrite=True,
+        )
+        self.values = zarr.zeros(
+            shape=self.merged_shape,
+            chunks=self.chunks,
+            dtype=self.value_dtype,
+            compressor=self.compressor,
+            store=value_store,
+            overwrite=True,
+        )
+        self.counts = zarr.zeros(
+            shape=self.merged_shape,
+            chunks=self.chunks,
+            dtype=self.count_dtype,
+            compressor=self.compressor,
+            store=count_store,
+            overwrite=True,
+        )
+
+    def aggregate(self, values: torch.Tensor, location: Sequence[int]) -> None:
+        """
+        Aggregate values for merging.
+
+        Args:
+            values: a tensor of shape BCHW[D], representing the values of inference output.
+            location: a tuple/list giving the top left location of the patch in the original image.
+
+        Raises:
+            NotImplementedError: When the subclass does not override this method.
+
+        """
+        if self.is_finalized:
+            raise ValueError("`ZarrAvgMerger` is already finalized. Please instantiate a new object to aggregate.")
+        patch_size = values.shape[2:]
+        map_slice = tuple(slice(loc, loc + size) for loc, size in zip(location, patch_size))
+        map_slice = ensure_tuple_size(map_slice, values.ndim, pad_val=slice(None), pad_from_start=True)
+        self.values[map_slice] += values.numpy()
+        self.counts[map_slice] += 1
+
+    def finalize(self) -> zarr.Array:
+        """
+        Finalize merging by dividing values by counts and return the merged tensor.
+
+        Notes:
+            To avoid creating a new tensor for the final results (to save memory space),
+            after this method is called, `get_values()` method will return the "final" averaged values,
+            and not the accumulating values. Also calling `finalize()` multiple times does not have any effect.
+
+        Returns:
+            zarr.Array: a zarr array of of merged patches
+        """
+        # guard against multiple call to finalize
+        if not self.is_finalized:
+            # use chunks for division to be able to fit them into memory
+            self.output[:] = self.values[:] / self.counts[:]
+            # for chunk in iterate_over_chunks(self.values.chunks, self.values.cdata_shape):
+            #     self.output[chunk] = self.values[chunk] / self.counts[chunk]
+            # finalize the shape
+            self.output.resize(self.cropped_shape)
+            # set finalize flag to protect performing in-place division again
+            self.is_finalized = True
+
+        return self.output
+
+    def get_output(self) -> zarr.Array:
+        """
+        Get the final merged output.
+
+        Returns:
+            zarr.Array: Merged (averaged) output tensor.
+        """
+        return self.output
+
+    def get_values(self) -> zarr.Array:
+        """
+        Get the accumulated values during aggregation
+
+        Returns:
+            zarr.Array: aggregated values.
+
+        """
+        return self.values
+
+    def get_counts(self) -> zarr.Array:
+        """
+        Get the aggregator tensor for number of samples.
+
+        Returns:
+            zarr.Array: Number of accumulated samples at each location.
+        """
+        return self.counts
+
+
+def iterate_over_chunks(chunks, cdata_shape, slice_tuple=()):
+    """
+    Iterate over chunks of a given shape.
+
+    Args:
+        chunks: the chunk shape
+        cdata_shape: the shape of the data in chunks
+        slice_tuple: the slice tuple to be used for indexing
+
+    Raises:
+        ValueError: When the length of chunks and cdata_shape are not the same.
+
+    Yields:
+        slices of the data
+    """
+    if len(chunks) != len(cdata_shape):
+        raise ValueError("chunks and cdata_shape must have the same length")
+    if len(chunks) == 1:
+        for i in range(cdata_shape[0]):
+            yield slice_tuple + (slice(i * chunks[0], (i + 1) * chunks[0]),)
+    else:
+        for i in range(cdata_shape[0]):
+            yield from iterate_over_chunks(
+                chunks[1:], cdata_shape[1:], slice_tuple + (slice(i * chunks[0], (i + 1) * chunks[0]),)
+            )
