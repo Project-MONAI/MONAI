@@ -821,8 +821,8 @@ def command_line_tests(cmd, copy_env=True):
         normal_out = subprocess.run(cmd, env=test_env, check=True, capture_output=True)
         print(repr(normal_out).replace("\\n", "\n").replace("\\t", "\t"))
     except subprocess.CalledProcessError as e:
-        output = str(e.stdout.decode(errors="replace"))
-        errors = str(e.stderr.deocde(errors="replace"))
+        output = repr(e.stdout).replace("\\n", "\n").replace("\\t", "\t")
+        errors = repr(e.stderr).replace("\\n", "\n").replace("\\t", "\t")
         raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}") from e
 
 
