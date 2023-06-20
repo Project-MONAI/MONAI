@@ -221,8 +221,8 @@ class ZarrAvgMerger(Merger):
         value_dtype: np.dtype | str = "float32",
         count_dtype: np.dtype | str = "uint8",
         store: zarr.storage.Store | str = "merged.zarr",
-        value_store: zarr.storage.Store | str = zarr.storage.TempStore(),
-        count_store: zarr.storage.Store | str = zarr.storage.TempStore(),
+        value_store: zarr.storage.Store | str | None = None,
+        count_store: zarr.storage.Store | str | None = None,
         compressor: str = "default",
         chunks: Sequence[int] | bool = True,
     ) -> None:
@@ -233,6 +233,8 @@ class ZarrAvgMerger(Merger):
         self.value_dtype = value_dtype
         self.count_dtype = count_dtype
         self.store = store
+        self.value_store = zarr.storage.TempStore() if value_store is None else value_store
+        self.count_store = zarr.storage.TempStore() if count_store is None else count_store
         self.chunks = chunks
         self.compressor = compressor
         self.output = zarr.empty(
@@ -240,7 +242,7 @@ class ZarrAvgMerger(Merger):
             chunks=self.chunks,
             dtype=self.output_dtype,
             compressor=self.compressor,
-            store=store,
+            store=self.store,
             overwrite=True,
         )
         self.values = zarr.zeros(
@@ -248,7 +250,7 @@ class ZarrAvgMerger(Merger):
             chunks=self.chunks,
             dtype=self.value_dtype,
             compressor=self.compressor,
-            store=value_store,
+            store=self.value_store,
             overwrite=True,
         )
         self.counts = zarr.zeros(
@@ -256,7 +258,7 @@ class ZarrAvgMerger(Merger):
             chunks=self.chunks,
             dtype=self.count_dtype,
             compressor=self.compressor,
-            store=count_store,
+            store=self.count_store,
             overwrite=True,
         )
 
