@@ -302,9 +302,6 @@ class MLFlowHandler:
         """
         Handler for train or validation/evaluation completed Event.
         """
-        for input_dataset in self.cur_run.inputs.dataset_inputs:
-            dataset_name = "dataset_" + input_dataset.dataset.digest
-
         if self.artifacts and self.cur_run:
             artifact_list = self._parse_artifacts()
             for artifact in artifact_list:
