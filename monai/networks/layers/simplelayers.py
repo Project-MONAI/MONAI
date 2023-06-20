@@ -155,10 +155,7 @@ class SkipConnectionWithIdx(SkipConnection):
         super().__init__(submodule, dim=dim, mode=mode)
 
     def forward(self, input, indices):
-        y, _ = self.submodule(input, None)
-        if self.mode == "cat":
-            output = torch.cat((input, y), dim=1)
-            return output, indices
+        return super().forward(input), indices
 
 
 class Flatten(nn.Module):
