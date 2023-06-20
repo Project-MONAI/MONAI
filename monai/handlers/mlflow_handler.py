@@ -21,6 +21,7 @@ import torch
 
 from monai.config import IgniteInfo
 from monai.utils import ensure_tuple, min_version, optional_import
+from monai.engines import Trainer
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 mlflow, _ = optional_import("mlflow", descriptor="Please install mlflow before using MLFlowHandler.")
@@ -222,7 +223,7 @@ class MLFlowHandler:
             if self.dataset_logger:
                 self.dataset_logger(engine)
             else:
-                self._default_dataset_logger(engine)
+                self._default_dataset_log(engine)
 
     def _set_experiment(self):
         experiment = self.experiment
@@ -236,13 +237,32 @@ class MLFlowHandler:
             raise ValueError(f"Cannot set a deleted experiment '{self.experiment_name}' as the active experiment")
         self.experiment = experiment
 
-    def _log_dataset(self, sample_dict: dict[str, Any]) -> None:
+    @staticmethod
+    def _get_pandas_dataset_info(pandas_dataset):
+        dataset_name = pandas_dataset.name
+        return {
+            f"{dataset_name}_digest": pandas_dataset.digest,
+            f"{dataset_name}_samples": pandas_dataset.profile["num_rows"],
+        }
+
+    def _log_dataset(self, sample_dict: dict[str, Any], context=None) -> None:
         if not self.cur_run:
             raise ValueError("Current Run is not Active to log the dataset")
+
+        timestamp = str(int(time.time() * 1000))[-5:]
+        dataset_name = f"{context}_dataset_{timestamp}" if context else f"dataset_{timestamp}"
         sample_df = pandas.DataFrame(sample_dict)
-        dataset = mlflow.data.from_pandas(sample_df)
-        datasets = [mlflow.entities.DatasetInput(dataset._to_mlflow_entity())]
-        self.client.log_inputs(run_id=self.cur_run.info.run_id, datasets=datasets)
+        dataset = mlflow.data.from_pandas(sample_df, name=dataset_name)
+        exist_dataset_list = list(
+            filter(lambda x: x.dataset.digest == dataset.digest, self.cur_run.inputs.dataset_inputs)
+        )
+        if not len(exist_dataset_list):
+            datasets = [mlflow.entities.DatasetInput(dataset._to_mlflow_entity())]
+            self.client.log_inputs(run_id=self.cur_run.info.run_id, datasets=datasets)
+            # Need to update the self.cur_run to sync the dataset log, otherwise the `inputs` info will be empty.
+            self.cur_run = self.client.get_run(self.cur_run.info.run_id)
+            dataset_info = MLFlowHandler._get_pandas_dataset_info(dataset)
+            self._log_params(dataset_info)
 
     def _log_params(self, params: dict[str, Any]) -> None:
         if not self.cur_run:
@@ -282,6 +302,9 @@ class MLFlowHandler:
         """
         Handler for train or validation/evaluation completed Event.
         """
+        for input_dataset in self.cur_run.inputs.dataset_inputs:
+            dataset_name = "dataset_" + input_dataset.dataset.digest
+
         if self.artifacts and self.cur_run:
             artifact_list = self._parse_artifacts()
             for artifact in artifact_list:
@@ -375,7 +398,7 @@ class MLFlowHandler:
                 }
                 self._log_metrics(params, step=engine.state.iteration)
 
-    def _default_dataset_logger(self, engine: Engine) -> None:
+    def _default_dataset_log(self, engine: Engine) -> None:
         """
         Execute dataset log operation based on MONAI `engine.dataloader.dataset` data.
         Abstract meta information from samples in dataset and build a Pandas DataFrame from it.
@@ -392,20 +415,19 @@ class MLFlowHandler:
                 f"The engine dataloader is {dataloader} and the dataset of the dataloader is {dataset}."
             )
         sample_dict = {}
-        sample_dict["image_name"] = []
-        sample_dict["label_name"] = []
+        sample_dict["image"] = []
 
         for sample in dataset:
             if isinstance(sample, dict):
-                image_name = sample["image_meta_dict"]["filename_or_obj"]
-                label_name = sample["label_meta_dict"]["filename_or_obj"]
+                image = sample["image_meta_dict"]["filename_or_obj"]
+            elif isinstance(sample, list):
+                image = sample[0]["image_meta_dict"]["filename_or_obj"]
             else:
-                image_name = sample[0]["image_meta_dict"]["filename_or_obj"]
-                label_name = sample[0]["label_meta_dict"]["filename_or_obj"]
+                raise AttributeError(f"Expect samples with type list or dict, but got {type(sample)}")
 
-            if not (isinstance(image_name, str) and isinstance(label_name, str)):
-                raise ValueError(f"Image name is type {type(image_name)} and label name is type{type(label_name)}.")
+            if not isinstance(image, str):
+                raise ValueError(f"Expect image to be string, but got type {type(image)}.")
             else:
-                sample_dict["image_name"].append(image_name)
-                sample_dict["label_name"].append(label_name)
-        self._log_dataset(sample_dict)
+                sample_dict["image"].append(image)
+        dataset_type = "train" if isinstance(engine, Trainer) else "nontrain"
+        self._log_dataset(sample_dict, dataset_type)
