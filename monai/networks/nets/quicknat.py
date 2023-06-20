@@ -28,8 +28,6 @@ se1, flag = optional_import("squeeze_and_excitation")
 
 __all__ = ["Quicknat"]
 
-
-@export("monai.networks.nets")
 class Quicknat(nn.Module):
     """
     Model for "Quick segmentation of NeuroAnaTomy (QuickNAT) based on a deep fully convolutional neural network.
