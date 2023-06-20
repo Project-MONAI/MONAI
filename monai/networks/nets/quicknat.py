@@ -164,16 +164,16 @@ class Quicknat(nn.Module):
         """
         if se_block_type == "CSE":
             return se.ChannelSELayer(2, n_filters)
-        # not implemented in squeeze_and_excitation in monai use other squeeze_and_excitation import: 
+        # not implemented in squeeze_and_excitation in monai use other squeeze_and_excitation import:
         elif se_block_type == "SSE" or se_block_type == "CSSE":
             # Lazy import to avoid dependency
             se1, flag = optional_import("squeeze_and_excitation")
             # Throw error if squeeze_and_excitation is not installed
             if not flag:
                 raise ImportError("Please install squeeze_and_excitation locally to use SpatialSELayer")
-            if se_block_type == "SSE": 
+            if se_block_type == "SSE":
                 return se1.SpatialSELayer(n_filters)
-            else: 
+            else:
                 return se1.ChannelSpatialSELayer(n_filters)
         else:
             return None
