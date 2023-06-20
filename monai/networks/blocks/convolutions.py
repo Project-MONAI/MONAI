@@ -341,12 +341,15 @@ class ClassifierBlock(Convolution):
         super().__init__(spatial_dims, in_channels, out_channels, strides, kernel_size, adn_ordering, act)
 
     def forward(self, input: torch.Tensor, weights=None, indices=None):
-        _, channel, _, _ = input.size()
+        _, channel, *dims = input.size()
         if weights is not None:
             weights, _ = torch.max(weights, dim=0)
             weights = weights.view(1, channel, 1, 1)
             # use weights to adapt how the classes are weighted.
-            out_conv = F.conv2d(input, weights)
+            if len(dims)==2:
+                out_conv = F.conv2d(input, weights)
+            else:
+                raise ValueError("Quicknat is a 2D architecture, please check your dimension.")
         else:
             out_conv = super().forward(input)
         # no indices to return

@@ -153,8 +153,8 @@ class ConvConcatDenseBlock(ConvDenseBlock):
     def __init__(
         self,
         in_channels: int,
-        se_layer: nn.Module | None = None,
-        dropout_layer: type[nn.Dropout2d] | None = None,
+        se_layer: nn.Module | None = nn.Identity,
+        dropout_layer: type[nn.Dropout2d] | None = nn.Identity,
         kernel_size: Sequence[int] | int = 5,
         num_filters: int = 64,
     ):
@@ -200,7 +200,7 @@ class ConvConcatDenseBlock(ConvDenseBlock):
         result = input
         for l in self.children():
             # ignoring the max (un-)pool and droupout already added in the initial initialization step
-            if isinstance(l, nn.MaxPool2d) or isinstance(l, nn.MaxUnpool2d) or isinstance(l, nn.Dropout2d):
+            if isinstance(l, (nn.MaxPool2d, nn.MaxUnpool2d, nn.Dropout2d)):
                 continue
             # first convolutional forward
             result = l(result)
@@ -214,11 +214,9 @@ class ConvConcatDenseBlock(ConvDenseBlock):
                 result = torch.cat((result1, result, input), dim=1)
             i = i + 1
 
-        # if SELayer or Dropout layer defined put output through layer before returning
-        if self.se_layer is not None:
-            result = self.se_layer(result)
-        if self.dropout_layer is not None:
-            result = self.dropout_layer(result)
+        # if SELayer or Dropout layer defined put output through layer before returning, else it just goes through nn.Identity and the output does not change
+        result = self.se_layer(result)
+        result = self.dropout_layer(result)
 
         return result, None
 
