@@ -78,7 +78,7 @@ Mergers
     :special-members: __call__
 
 `ZarrAvgMerger`
-~~~~~~~~~~~
+~~~~~~~~~~~~~~~
 .. autoclass:: ZarrAvgMerger
     :members:
     :special-members: __call__
