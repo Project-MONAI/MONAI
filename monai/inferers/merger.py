@@ -199,18 +199,17 @@ class ZarrAvgMerger(Merger):
         merged_shape: the shape of the tensor required to merge the patches.
         cropped_shape: the shape of the final merged output tensor.
             If not provided, it will be the same as `merged_shape`.
-        output_dtype: the dtype for the final result.
-        value_dtype: the dtype for value aggregating tensor and the final result.
-        count_dtype: the dtype for sample counting tensor.
-        store: the zarr store to save the final results.
-        value_store: the zarr store to save the value aggregating tensor.
-        count_store: the zarr store to save the sample counting tensor.
-        compressor: the compressor for zarr array.
-        chunks : int or tuple of ints, optional
-            Chunk shape. If True, will be guessed from `shape` and `dtype`. If
-            False, will be set to `shape`, i.e., single chunk for the whole array.
-            If an int, the chunk size in each dimension will be given by the value
-            of `chunks`. Default is True.
+        output_dtype: the dtype for the final result. Default is `float32`.
+        value_dtype: the dtype for value aggregating tensor and the final result. Default is `float32`.
+        count_dtype: the dtype for sample counting tensor. Default is `uint8`.
+        store: the zarr store to save the final results. Default is "merged.zarr".
+        value_store: the zarr store to save the value aggregating tensor. Default is a temporary store.
+        count_store: the zarr store to save the sample counting tensor. Default is a temporary store.
+        compressor: the compressor for zarr array. Default is "default".
+        chunks : int or tuple of ints that defines the chunk shape, or boolean. Default is True.
+            If True, chunk shape will be guessed from `shape` and `dtype`.
+            If False, ir will be set to `shape`, i.e., single chunk for the whole array.
+            If an int, the chunk size in each dimension will be given by the value of `chunks`.
     """
 
     def __init__(
