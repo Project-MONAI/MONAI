@@ -200,7 +200,7 @@ class ConvConcatDenseBlock(ConvDenseBlock):
         result = input
         for l in self.children():
             # ignoring the max (un-)pool and droupout already added in the initial initialization step
-            if isinstance(l, nn.MaxPool2d) or isinstance(l, nn.MaxUnpool2d) or isinstance(l, nn.Dropout2d):
+            if isinstance(l, (nn.MaxPool2d, nn.MaxUnpool2d, nn.Dropout2d)):
                 continue
             # first convolutional forward
             result = l(result)
