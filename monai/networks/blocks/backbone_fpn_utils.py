@@ -214,6 +214,6 @@ class Daf3dBackboneWithFPN(BackboneWithFPN):
             elif isinstance(backbone.conv1, nn.Conv3d):
                 spatial_dims = 3
             else:
-                raise ValueError("Could not find spatial_dims of backbone, please specify it.")
+                raise ValueError("Could not determine value of  `spatial_dims` from backbone, please provide explicit value.")
 
         self.fpn = Daf3dFPN(spatial_dims, in_channels_list, out_channels, extra_blocks)
