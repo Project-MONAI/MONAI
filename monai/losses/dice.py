@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Callable, Sequence
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
 import torch
@@ -972,6 +972,148 @@ class GeneralizedDiceFocalLoss(torch.nn.modules.loss._Loss):
         total_loss: torch.Tensor = self.lambda_gdl * gdl_loss + self.lambda_focal * focal_loss
         return total_loss
 
+class CLDiceCELoss(DiceLoss):
+    """
+    a cl-mask-based loss function to get cl-dice loss from 3d ndarray input,only 3d input is valid
+    """
+
+    def __init__(self,
+                 device,
+                 lambda_dice: float = 1.0,
+                 lambda_cl: float = 1.0,
+                 lambda_ce: float = 1.0,
+                 ce_weight = None,
+                 ball_width: int = 2,
+                 reduction: str = "mean",
+                 *args, **kwargs) -> None:
+        """
+        Args follow :DiceLoss
+        """
+
+        super().__init__(*args, **kwargs)
+        reduction = look_up_option(reduction, DiceCEReduction).value
+        try:
+            from skimage.morphology import skeletonize_3d, binary_dilation, ball
+            self.skeletonize_3d = skeletonize_3d
+            self.binary_dilation = binary_dilation
+            self.ball = ball
+        except ImportError as e:
+            raise ImportError("skimage is required")
+        self.device = device
+        if lambda_ce < 0.0:
+            raise ValueError("lambda_dice should be no less than 0.0.")
+        if lambda_cl < 0.0:
+            raise ValueError("lambda_cl should be no less than 0.0.")
+        if lambda_dice < 0.0:
+            raise ValueError("lambda_dice should be no less than 0.0.")
+        self.cross_entropy = torch.nn.CrossEntropyLoss(weight=ce_weight, reduction=reduction)
+        self.lambda_dice = lambda_dice
+        self.lambda_cl = lambda_cl
+        self.lambda_ce = lambda_ce
+        self.ball_width = ball_width
+        self.dice = super().forward
+        self.spatial_weighted = MaskedLoss(loss=self.dice)
+
+
+
+
+    def get_clmask(self, target: np.ndarray):
+        if np.ndim(target) != 3:
+            raise ValueError("the target requires to be a 3d array")
+        if np.max(target) < 0.5:
+            return np.zeros_like(target)
+        target = np.where(target < 0.5, 0., 1.)
+        res = self.skeletonize_3d(target)
+        res = np.where(res > 0, 1., 0.)
+        res = self.binary_dilation(res, self.ball(self.ball_width)).astype(np.float32)
+        return res
+
+    def get_clmasks(self, target: torch.Tensor):
+        res = []
+        target_ = target.detach().cpu().numpy()
+        if np.max(target_) < 0.5:
+            return torch.from_numpy(np.zeros_like(target_)).to(self.device)  # not patch-wise check
+        for i in range(target_.shape[0]):
+            curr = target_[i, 0]
+            curr_cl = self.get_clmask(curr)
+            res.append(curr_cl)
+        return torch.from_numpy(np.stack(res, axis=0).astype(np.float32)[:, np.newaxis, :, :, :]).to(self.device)
+
+    def forward(self, input: torch.Tensor, target: torch.Tensor, mask: Optional[torch.Tensor] = None):
+        if mask is None:
+            mask = self.get_clmasks(target)
+        dice_loss = self.dice(input, target)
+        cldice_loss = self.spatial_weighted(input=input, target=target, mask=mask)
+        ce_loss = self.cross_entropy(input, target)
+        total_loss: torch.Tensor = self.lambda_dice * dice_loss + \
+                                   self.lambda_cl * cldice_loss + \
+                                   self.lambda_ce * ce_loss
+        return total_loss
+
+class CLDiceLoss(DiceLoss):
+    """
+    a cl-mask-based loss function to get cl-dice loss from 3d ndarray input,only 3d input is valid
+    """
+
+    def __init__(self,
+                 device,
+                 lambda_dice: float = 1.0,
+                 lambda_cl: float = 1.0,
+                 ball_width: int = 2,
+                 *args, **kwargs) -> None:
+        """
+        Args follow :DiceLoss
+        """
+        super().__init__(*args, **kwargs)
+        try:
+            from skimage.morphology import skeletonize_3d, binary_dilation, ball
+            self.skeletonize_3d = skeletonize_3d
+            self.binary_dilation = binary_dilation
+            self.ball = ball
+        except ImportError as e:
+            raise ImportError("skimage is required")
+        self.device = device
+        if lambda_dice < 0.0:
+            raise ValueError("lambda_dice should be no less than 0.0.")
+        if lambda_cl < 0.0:
+            raise ValueError("lambda_cl should be no less than 0.0.")
+        self.lambda_dice = lambda_dice
+        self.lambda_cl = lambda_cl
+        self.ball_width = ball_width
+        self.dice = super().forward
+        self.spatial_weighted = MaskedLoss(loss=self.dice)
+
+    def get_clmask(self, target: np.ndarray):
+        if np.ndim(target) != 3:
+            raise ValueError("the target requires to be a 3d array")
+        if np.max(target) < 0.5:
+            return np.zeros_like(target)
+        target = np.where(target < 0.5, 0., 1.)
+        res = self.skeletonize_3d(target)
+        res = np.where(res > 0, 1., 0.)
+        res = self.binary_dilation(res, self.ball(self.ball_width)).astype(np.float32)
+        return res
+
+    def get_clmasks(self, target: torch.Tensor):
+        res = []
+        target_ = target.detach().cpu().numpy()
+        if np.max(target_) < 0.5:
+            return torch.from_numpy(np.zeros_like(target_)).to(self.device)  # not patch-wise check
+        for i in range(target_.shape[0]):
+            curr = target_[i, 0]
+            curr_cl = self.get_clmask(curr)
+            res.append(curr_cl)
+        return torch.from_numpy(np.stack(res, axis=0).astype(np.float32)[:, np.newaxis, :, :, :]).to(self.device)
+
+    def forward(self, input: torch.Tensor, target: torch.Tensor, mask: Optional[torch.Tensor] | None = None):
+        if mask is None:
+            mask = self.get_clmasks(target)
+        dice_loss = self.dice(input, target)
+        cldice_loss = self.spatial_weighted(input=input, target=target, mask=mask)
+        total_loss: torch.Tensor = self.lambda_dice * dice_loss + self.lambda_cl * cldice_loss
+        return total_loss
+
+
 
 Dice = DiceLoss
 dice_ce = DiceCELoss
@@ -979,3 +1121,5 @@ dice_focal = DiceFocalLoss
 generalized_dice = GeneralizedDiceLoss
 generalized_dice_focal = GeneralizedDiceFocalLoss
 generalized_wasserstein_dice = GeneralizedWassersteinDiceLoss
+cl_dice_ce = CLDiceCELoss
+cl_dice = CLDiceLoss
