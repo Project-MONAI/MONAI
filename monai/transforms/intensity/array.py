@@ -2577,3 +2577,41 @@ class ComputeHoVerMaps(Transform):
 
         hv_maps = convert_to_tensor(np.concatenate([h_map, v_map]), track_meta=get_track_meta())
         return hv_maps
+
+
+class ZScoreNormalization(Transform):
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(
+            self,
+            dtype: DtypeLike = np.float32,
+            use_mask_for_norm: bool | None = None
+    ) -> None:
+        self.dtype = dtype
+        self.use_mask_for_norm = use_mask_for_norm
+
+    @staticmethod
+    def zScoreNormalization(image: np.ndarray, seg: np.ndarray = None, use_mask_for_norm=None) -> np.ndarray:
+        """
+        here seg is used to store the zero valued region. The value for that region in the segmentation is -1 by
+        default.
+        """
+        if (use_mask_for_norm is not None) and use_mask_for_norm and (seg is not None):
+            mask = seg >= 0
+            mean = image[mask].mean()
+            std = image[mask].std()
+            image[mask] = (image[mask] - mean) / (max(std, 1e-8))
+        else:
+            mean = image.mean()
+            std = image.std()
+            image = (image - mean) / (max(std, 1e-8))
+        return image
+
+    def __call__(self, lab: NdarrayOrTensor | None, img: NdarrayOrTensor) -> NdarrayOrTensor:
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        if lab is not None:
+            lab = convert_to_tensor(lab, track_meta=get_track_meta())
+        dtype = self.dtype or img.dtype
+        img = self.zScoreNormalization(img, lab, use_mask_for_norm=self.use_mask_for_norm)
+        ret: NdarrayOrTensor = convert_data_type(img, dtype=dtype)[0]
+        return ret

@@ -58,6 +58,7 @@ from monai.transforms.intensity.array import (
     ShiftIntensity,
     StdShiftIntensity,
     ThresholdIntensity,
+    ZScoreNormalization
 )
 from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.transforms.utils import is_positive
@@ -1892,6 +1893,28 @@ class ComputeHoVerMapsd(MapTransform):
 
         return d
 
+class ZScoreNormalizationd(MapTransform):
+    backend = ZScoreNormalization.backend
+
+    def __init__(
+            self,
+            keys: KeysCollection,
+            mask_key: str | None = None,
+            use_mask_for_norm: bool | None = None,
+            dtype: DtypeLike = np.float32,
+            allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.mask_key = mask_key
+        self.scaler = ZScoreNormalization(dtype, use_mask_for_norm)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.scaler(d[self.mask_key], d[key])
+        return d
+
+
 
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
 RandRicianNoiseD = RandRicianNoiseDict = RandRicianNoised
@@ -1926,3 +1949,4 @@ HistogramNormalizeD = HistogramNormalizeDict = HistogramNormalized
 RandCoarseShuffleD = RandCoarseShuffleDict = RandCoarseShuffled
 ForegroundMaskD = ForegroundMaskDict = ForegroundMaskd
 ComputeHoVerMapsD = ComputeHoVerMapsDict = ComputeHoVerMapsd
+ZScoreNormalizationd = ZScoreNormalizationDict = ZScoreNormalizationd
