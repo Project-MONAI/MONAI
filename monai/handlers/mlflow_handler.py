@@ -20,8 +20,8 @@ from typing import TYPE_CHECKING, Any
 import torch
 
 from monai.config import IgniteInfo
-from monai.utils import ensure_tuple, min_version, optional_import
 from monai.engines import Trainer
+from monai.utils import ensure_tuple, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 mlflow, _ = optional_import("mlflow", descriptor="Please install mlflow before using MLFlowHandler.")
