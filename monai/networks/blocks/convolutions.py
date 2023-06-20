@@ -346,7 +346,7 @@ class ClassifierBlock(Convolution):
             weights, _ = torch.max(weights, dim=0)
             weights = weights.view(1, channel, 1, 1)
             # use weights to adapt how the classes are weighted.
-            if len(dims)==2:
+            if len(dims) == 2:
                 out_conv = F.conv2d(input, weights)
             else:
                 raise ValueError("Quicknat is a 2D architecture, please check your dimension.")

@@ -214,7 +214,8 @@ class ConvConcatDenseBlock(ConvDenseBlock):
                 result = torch.cat((result1, result, input), dim=1)
             i = i + 1
 
-        # if SELayer or Dropout layer defined put output through layer before returning, else it just goes through nn.Identity and the output does not change
+        # if SELayer or Dropout layer defined put output through layer before returning,
+        # else it just goes through nn.Identity and the output does not change
         result = self.se_layer(result)
         result = self.dropout_layer(result)
 
