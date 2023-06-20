@@ -151,8 +151,6 @@ tests/testing_data/CT_2D_head_moving.mha
 *.prof
 runs
 
-tests/testing_data/MNI152_T1_2mm.nii.gz
-
 *.gz
 
 *.pth
