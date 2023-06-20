@@ -23,7 +23,6 @@ from monai.networks.layers.factories import Act, Norm
 from monai.networks.layers.simplelayers import SkipConnectionWithIdx
 from monai.networks.layers.utils import get_dropout_layer, get_pool_layer
 from monai.utils import optional_import
-
 # Lazy import to avoid dependency
 se1, flag = optional_import("squeeze_and_excitation")
 
