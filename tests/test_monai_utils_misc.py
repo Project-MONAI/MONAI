@@ -74,6 +74,15 @@ class TestMiscKwargs(unittest.TestCase):
 
 
 class TestCommandRunner(unittest.TestCase):
+    def setUp(self):
+        self.orig_flag = os.environ.get("MONAI_DEBUG")
+
+    def tearDown(self):
+        if self.orig_flag is not None:
+            os.environ["MONAI_DEBUG"] = self.orig_flag
+        else:
+            os.environ.pop("MONAI_DEBUG")
+
     def test_run_cmd(self):
         cmd1 = "python"
         cmd2 = "-c"
