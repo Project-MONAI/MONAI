@@ -18,7 +18,10 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import DAF3D
+from monai.utils import optional_import
 from tests.utils import test_script_save
+
+_, has_tv = optional_import("torchvision")
 
 TEST_CASES = [
     [{"in_channels": 1, "out_channels": 1}, (1, 1, 32, 32, 64), (1, 1, 32, 32, 64)],  # single channel 3D, batch 1
@@ -36,7 +39,7 @@ TEST_CASES = [
     ],  # four channel 3D, same in & out channels
 ]
 
-
+@unittest.SkipUnless(has_tv, "torchvision not installed")
 class TestDAF3D(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_shape, expected_shape):
