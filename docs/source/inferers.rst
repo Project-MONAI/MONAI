@@ -57,6 +57,13 @@ Splitters
     :members:
     :special-members: __call__
 
+`WSISlidingWindowSplitter`
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: WSISlidingWindowSplitter
+    :members:
+    :special-members: __call__
+
+
 Mergers
 -------
 .. currentmodule:: monai.inferers

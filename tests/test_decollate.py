@@ -22,9 +22,9 @@ from parameterized import parameterized
 from monai.data import CacheDataset, DataLoader, Dataset, create_test_image_2d
 from monai.data.utils import decollate_batch
 from monai.transforms import (
-    AddChannel,
-    AddChanneld,
     Compose,
+    EnsureChannelFirst,
+    EnsureChannelFirstd,
     LoadImage,
     LoadImaged,
     RandAffine,
@@ -129,7 +129,7 @@ class TestDeCollate(unittest.TestCase):
 
     @parameterized.expand(TESTS_DICT)
     def test_decollation_dict(self, *transforms):
-        t_compose = Compose([AddChanneld(KEYS), Compose(transforms), ToTensord(KEYS)])
+        t_compose = Compose([EnsureChannelFirstd(KEYS, channel_dim="no_channel"), Compose(transforms), ToTensord(KEYS)])
         # If nibabel present, read from disk
         if has_nib:
             t_compose = Compose([LoadImaged("image", image_only=True), t_compose])
@@ -139,7 +139,7 @@ class TestDeCollate(unittest.TestCase):
 
     @parameterized.expand(TESTS_LIST)
     def test_decollation_tensor(self, *transforms):
-        t_compose = Compose([AddChannel(), Compose(transforms), ToTensor()])
+        t_compose = Compose([EnsureChannelFirst(channel_dim="no_channel"), Compose(transforms), ToTensor()])
         # If nibabel present, read from disk
         if has_nib:
             t_compose = Compose([LoadImage(image_only=True), t_compose])
@@ -149,7 +149,7 @@ class TestDeCollate(unittest.TestCase):
 
     @parameterized.expand(TESTS_LIST)
     def test_decollation_list(self, *transforms):
-        t_compose = Compose([AddChannel(), Compose(transforms), ToTensor()])
+        t_compose = Compose([EnsureChannelFirst(channel_dim="no_channel"), Compose(transforms), ToTensor()])
         # If nibabel present, read from disk
         if has_nib:
             t_compose = Compose([LoadImage(image_only=True), t_compose])

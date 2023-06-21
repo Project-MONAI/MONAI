@@ -132,8 +132,8 @@ class BundleWorkflow(ABC):
 
     def add_property(self, name: str, required: str, desc: str | None = None) -> None:
         """
-        Besides the default predefined properties, some 3rd party aplications may need the bundle
-        definition to provide additonal properties for the specific use cases, if the bundlle can't
+        Besides the default predefined properties, some 3rd party applications may need the bundle
+        definition to provide additional properties for the specific use cases, if the bundle can't
         provide the property, means it can't work with the application.
         This utility adds the property for the application requirements check and access.
 
@@ -183,7 +183,7 @@ class ConfigWorkflow(BundleWorkflow):
             if other string, treat it as file path to load the tracking settings.
             if `dict`, treat it as tracking settings.
             will patch the target config content with `tracking handlers` and the top-level items of `configs`.
-            for detailed usage examples, plesae check the tutorial:
+            for detailed usage examples, please check the tutorial:
             https://github.com/Project-MONAI/tutorials/blob/main/experiment_management/bundle_integrate_mlflow.ipynb.
         workflow: specifies the workflow type: "train" or "training" for a training workflow,
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
@@ -271,8 +271,8 @@ class ConfigWorkflow(BundleWorkflow):
     def check_properties(self) -> list[str] | None:
         """
         Check whether the required properties are existing in the bundle workflow.
-        If the optional properties have reference in the config, will also check whether the properties are exising.
-        If no workflow type specified, return None, otherwise, return a list of required but missing properites.
+        If the optional properties have reference in the config, will also check whether the properties are existing.
+        If no workflow type specified, return None, otherwise, return a list of required but missing properties.
 
         """
         ret = super().check_properties()
@@ -339,8 +339,8 @@ class ConfigWorkflow(BundleWorkflow):
         self, name: str, required: str, config_id: str, desc: str | None = None
     ) -> None:
         """
-        Besides the default predefined properties, some 3rd party aplications may need the bundle
-        definition to provide additonal properties for the specific use cases, if the bundlle can't
+        Besides the default predefined properties, some 3rd party applications may need the bundle
+        definition to provide additional properties for the specific use cases, if the bundle can't
         provide the property, means it can't work with the application.
         This utility adds the property for the application requirements check and access.
 
@@ -371,6 +371,7 @@ class ConfigWorkflow(BundleWorkflow):
             # no ID of reference config item, skipping check for this optional property
             return True
         # check validation `validator` and `interval` properties as the handler index of ValidationHandler is unknown
+        ref: str | None = None
         if name in ("evaluator", "val_interval"):
             if f"train{ID_SEP_KEY}handlers" in self.parser:
                 for h in self.parser[f"train{ID_SEP_KEY}handlers"]:
@@ -378,7 +379,8 @@ class ConfigWorkflow(BundleWorkflow):
                         ref = h.get(ref_id, None)
         else:
             ref = self.parser.get(ref_id, None)
-        if ref is not None and ref != ID_REF_KEY + id:
+        # for reference IDs that not refer to a property directly but using expressions, skip the check
+        if ref is not None and not ref.startswith(EXPR_KEY) and ref != ID_REF_KEY + id:
             return False
         return True
 

@@ -312,7 +312,7 @@ def algo_from_pickle(pkl_filename: str, template_path: PathLike | None = None, *
 
     Raises:
         ValueError if the pkl_filename does not contain a dict, or the dict does not contain `algo_bytes`.
-        ModuleNotFoundError if it is unable to instiante the Algo class.
+        ModuleNotFoundError if it is unable to instantiate the Algo class.
 
     """
     with open(pkl_filename, "rb") as f_pi:

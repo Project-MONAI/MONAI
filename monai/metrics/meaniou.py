@@ -35,7 +35,7 @@ class MeanIoU(CumulativeIterationMetric):
     Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
 
     Args:
-        include_background: whether to skip IoU computation on the first channel of
+        include_background: whether to include IoU computation on the first channel of
             the predicted output. Defaults to ``True``.
         reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
             available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
@@ -113,7 +113,7 @@ def compute_iou(
             should be binarized.
         y: ground truth to compute mean IoU metric. It must be one-hot format and first dim is batch.
             The values should be binarized.
-        include_background: whether to skip IoU computation on the first channel of
+        include_background: whether to include IoU computation on the first channel of
             the predicted output. Defaults to True.
         ignore_empty: whether to ignore empty ground truth cases during calculation.
             If `True`, NaN value will be set for empty ground truth cases.

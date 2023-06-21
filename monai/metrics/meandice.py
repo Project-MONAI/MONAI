@@ -37,7 +37,7 @@ class DiceMetric(CumulativeIterationMetric):
     Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
 
     Args:
-        include_background: whether to skip Dice computation on the first channel of
+        include_background: whether to include Dice computation on the first channel of
             the predicted output. Defaults to ``True``.
         reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
             available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
@@ -128,7 +128,7 @@ def compute_dice(
         y_pred: input data to compute, typical segmentation model output.
             `y_pred` can be single-channel class indices or in the one-hot format.
         y: ground truth to compute mean dice metric. `y` can be single-channel class indices or in the one-hot format.
-        include_background: whether to skip Dice computation on the first channel of
+        include_background: whether to include Dice computation on the first channel of
             the predicted output. Defaults to True.
         ignore_empty: whether to ignore empty ground truth cases during calculation.
             If `True`, NaN value will be set for empty ground truth cases.
@@ -188,7 +188,7 @@ class DiceHelper:
         """
 
         Args:
-            include_background: whether to skip the score on the first channel
+            include_background: whether to include the score on the first channel
                 (default to the value of `sigmoid`, False).
             sigmoid: whether ``y_pred`` are/will be sigmoid activated outputs. If True, thresholding at 0.5
                 will be performed to get the discrete prediction. Defaults to False.

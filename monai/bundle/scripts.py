@@ -674,7 +674,7 @@ def run(
             if other string, treat it as file path to load the tracking settings.
             if `dict`, treat it as tracking settings.
             will patch the target config content with `tracking handlers` and the top-level items of `configs`.
-            for detailed usage examples, plesae check the tutorial:
+            for detailed usage examples, please check the tutorial:
             https://github.com/Project-MONAI/tutorials/blob/main/experiment_management/bundle_integrate_mlflow.ipynb.
         args_file: a JSON or YAML file to provide default values for `runner_id`, `meta_file`,
             `config_file`, `logging`, and override pairs. so that the command line inputs can be simplified.
@@ -725,7 +725,7 @@ def run(
 def run_workflow(workflow: str | BundleWorkflow | None = None, args_file: str | None = None, **kwargs: Any) -> None:
     """
     Specify `bundle workflow` to run monai bundle components and workflows.
-    The workflow should be suclass of `BundleWorkflow` and be available to import.
+    The workflow should be subclass of `BundleWorkflow` and be available to import.
     It can be MONAI existing bundle workflows or user customized workflows.
 
     Typical usage examples:
@@ -888,6 +888,7 @@ def verify_net_in_out(
     p: int | None = None,
     n: int | None = None,
     any: int | None = None,
+    extra_forward_args: dict | None = None,
     args_file: str | None = None,
     **override: Any,
 ) -> None:
@@ -911,6 +912,8 @@ def verify_net_in_out(
         p: power factor to generate fake data shape if dim of expected shape is "x**p", default to 1.
         n: multiply factor to generate fake data shape if dim of expected shape is "x*n", default to 1.
         any: specified size to generate fake data shape if dim of expected shape is "*", default to 1.
+        extra_forward_args: a dictionary that contains other args for the forward function of the network.
+            Default to an empty dictionary.
         args_file: a JSON or YAML file to provide default values for `net_id`, `meta_file`, `config_file`,
             `device`, `p`, `n`, `any`, and override pairs. so that the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.
@@ -927,11 +930,20 @@ def verify_net_in_out(
         p=p,
         n=n,
         any=any,
+        extra_forward_args=extra_forward_args,
         **override,
     )
     _log_input_summary(tag="verify_net_in_out", args=_args)
-    config_file_, meta_file_, net_id_, device_, p_, n_, any_ = _pop_args(
-        _args, "config_file", "meta_file", net_id="", device="cuda:0" if is_available() else "cpu", p=1, n=1, any=1
+    config_file_, meta_file_, net_id_, device_, p_, n_, any_, extra_forward_args_ = _pop_args(
+        _args,
+        "config_file",
+        "meta_file",
+        net_id="",
+        device="cuda:0" if is_available() else "cpu",
+        p=1,
+        n=1,
+        any=1,
+        extra_forward_args={},
     )
 
     parser = ConfigParser()
@@ -959,10 +971,10 @@ def verify_net_in_out(
             from torch.cuda.amp import autocast
 
             with autocast():
-                output = net(test_data.cuda())
+                output = net(test_data.cuda(), **extra_forward_args_)
             net.to(device_)
         else:
-            output = net(test_data)
+            output = net(test_data, **extra_forward_args_)
         if output.shape[1] != output_channels:
             raise ValueError(f"output channel number `{output.shape[1]}` doesn't match: `{output_channels}`.")
         if output.dtype != output_dtype:

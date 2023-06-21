@@ -36,6 +36,7 @@ __all__ = [
     "SkipMode",
     "Method",
     "TraceKeys",
+    "TraceStatusKeys",
     "CommonKeys",
     "GanKeys",
     "PostFix",
@@ -316,7 +317,14 @@ class TraceKeys(StrEnum):
     KEY_SUFFIX: str = "_transforms"
     NONE: str = "none"
     TRACING: str = "tracing"
-    LAZY_EVALUATION: str = "lazy_evaluation"
+    STATUSES: str = "statuses"
+    LAZY: str = "lazy"
+
+
+class TraceStatusKeys(StrEnum):
+    """Enumerable status keys for the TraceKeys.STATUS flag"""
+
+    PENDING_DURING_APPLY = "pending_during_apply"
 
 
 class CommonKeys(StrEnum):
@@ -663,6 +671,7 @@ class BundlePropertyConfig(StrEnum):
     additional bundle property fields for config based bundle workflow:
     `ID` is the config item ID of the property.
     `REF_ID` is the ID of config item which is supposed to refer to this property.
+    For properties that do not have `REF_ID`, `None` should be set.
     this field is only useful to check the optional property ID.
     """
 
