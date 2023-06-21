@@ -1523,7 +1523,7 @@ def push_to_hf_hub(bundle_dir: str, repo_name: str) -> None:
 
     Args:
         bundle_dir: path to the bundle directory to push
-        repo_name: name of the repo to create or push to
+        repo_name: name of the repo to create or push to the HF Hub
     """
     hf_api = huggingface_hub.HfApi()
     repo_id = hf_api.create_repo(name=repo_name, exist_ok=True)
