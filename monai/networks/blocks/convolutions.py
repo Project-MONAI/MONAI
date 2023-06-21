@@ -16,7 +16,6 @@ from collections.abc import Sequence
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from monai.networks.blocks import ADN
 from monai.networks.layers.convutils import same_padding, stride_minus_kernel_padding
