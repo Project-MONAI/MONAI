@@ -263,14 +263,14 @@ def prepare_bcprun(script, cmd_prefix: str = None, **kwargs: Any) -> str:
         cmd_prefix += " "
 
     bcprun_cmd += cmd_prefix
-    cmd += f"{script}"
+    bcprun_cmd += f"{script}"
     for k, v in hyperparam.items():
         if isinstance(v, dict):
             raise ValueError("Nested dict is not supported.")
         elif isinstance(v, list):
             raise ValueError("List is not supported.")
-        cmd += f" --{k} {str(v)}"
-    return cmd
+        bcprun_cmd += f" --{k} {str(v)}"
+    return bcprun_cmd
 
 
 def launch_dist_job_default(cmd: str) -> subprocess.CompletedProcess:
