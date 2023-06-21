@@ -202,6 +202,7 @@ def run_testsuit():
         "test_metrics_reloaded",
         "test_spatial_combine_transforms",
         "test_bundle_workflow",
+        "test_zarr_avg_merger",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 
