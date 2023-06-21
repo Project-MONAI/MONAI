@@ -1515,3 +1515,16 @@ def init_bundle(
         copyfile(str(ckpt_file), str(models_dir / "model.pt"))
     elif network is not None:
         save_state(network, str(models_dir / "model.pt"))
+
+
+def push_to_hf_hub(bundle_dir: str, repo_name: str) -> None:
+    """
+    Push the current bundle to the Hugging Face Hub.
+
+    Args:
+        bundle_dir: path to the bundle directory to push
+        repo_name: name of the repo to create or push to
+    """
+    hf_api = huggingface_hub.HfApi()
+    repo_id = hf_api.create_repo(name=repo_name, exist_ok=True)
+    return hf_api.upload_folder(path=bundle_dir, repo_id=repo_id)
