@@ -195,6 +195,14 @@ class AvgMerger(Merger):
 class ZarrAvgMerger(Merger):
     """Merge patches by taking average of the overlapping area and store the results in zarr array.
 
+    Zarr is a format for the storage of chunked, compressed, N-dimensional arrays.
+    Zarr data can be stored in any storage system that can be represented as a key-value store,
+    like POSIX file systems, cloud object storage, zip files, and relational and document databases.
+    See https://zarr.readthedocs.io/en/stable/ for more details.
+    It is particularly useful for storing N-dimensional arrays too large to fit into memory.
+    One specific use case of this class is to merge patches extracted from whole slide images (WSI),
+    where the merged results does not fit into memory and need to be stored on a file system.
+
     Args:
         merged_shape: the shape of the tensor required to merge the patches.
         cropped_shape: the shape of the final merged output tensor.
