@@ -31,7 +31,6 @@ from .simplelayers import (
     SavitzkyGolayFilter,
     SharpenFilter,
     SkipConnection,
-    SkipConnectionWithIdx,
     apply_filter,
     median_filter,
     separable_filtering,
