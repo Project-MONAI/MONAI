@@ -18,7 +18,6 @@ import torch.nn as nn
 
 from monai.networks.blocks import Bottleneck, ConvConcatDenseBlock, Decoder, Encoder
 from monai.networks.blocks import squeeze_and_excitation as se
-from monai.networks.blocks.convolutions import ClassifierBlock
 from monai.networks.layers.factories import Act, Norm
 from monai.networks.layers.simplelayers import SkipConnectionWithIdx
 from monai.networks.layers.utils import get_dropout_layer, get_pool_layer
@@ -219,3 +218,41 @@ class SequentialWithIdx(nn.Sequential):
         for module in self:
             input, indices = module(input, indices)
         return input, indices
+
+
+class ClassifierBlock(Convolution):
+    """
+    Returns a classifier block without an activation function at the top.
+    It consists of a 1 * 1 convolutional layer which maps the input to a num_class channel feature map.
+    The output is a probability map for each of the classes.
+
+    Args:
+        spatial_dims: number of spatial dimensions.
+        in_channels: number of input channels.
+        out_channels: number of classes to map to.
+        strides: convolution stride. Defaults to 1.
+        kernel_size: convolution kernel size. Defaults to 3.
+        adn_ordering: a string representing the ordering of activation, normalization, and dropout.
+        Defaults to "NDA".
+        act: activation type and arguments. Defaults to PReLU.
+
+    """
+
+    def __init__(self, spatial_dims, in_channels, out_channels, strides, kernel_size, act=None, adn_ordering="A"):
+        super().__init__(spatial_dims, in_channels, out_channels, strides, kernel_size, adn_ordering, act)
+
+    def forward(self, input: torch.Tensor, weights=None, indices=None):
+        _, channel, *dims = input.size()
+        if weights is not None:
+            weights, _ = torch.max(weights, dim=0)
+            weights = weights.view(1, channel, 1, 1)
+            # use weights to adapt how the classes are weighted.
+            if len(dims) == 2:
+                out_conv = F.conv2d(input, weights)
+            else:
+                raise ValueError("Quicknat is a 2D architecture, please check your dimension.")
+        else:
+            out_conv = super().forward(input)
+        # no indices to return
+        return out_conv, None
+
