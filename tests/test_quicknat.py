@@ -18,7 +18,10 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import Quicknat
+from monai.utils import optional_import
 from tests.utils import test_script_save
+
+_, has_se = optional_import("squeeze_and_excitation")
 
 TEST_CASES = [
     # params, input_shape, expected_shape
@@ -32,7 +35,7 @@ TEST_CASES = [
     [{"num_classes": 1, "num_channels": 1, "num_filters": 64, "se_block": "CSSE"}, (1, 1, 32, 32), (1, 1, 32, 32)],
 ]
 
-
+@unittest.skipUnless(has_se, "squeeze_and_excitation not installed")
 class TestQuicknat(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_shape, expected_shape):
