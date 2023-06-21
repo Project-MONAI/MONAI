@@ -210,7 +210,7 @@ class RankFilter(Filter):
         return self.filter_fn(self.rank)
 
 
-def prepare_dist_job_default(script, cmd_prefix: str = None, **kwargs: Any) -> str:
+def prepare_dist_job_default(script: str, cmd_prefix: str | None = None, **kwargs: Any) -> str:
     """
     Prepare the command for distributed job submission.
 
@@ -238,7 +238,7 @@ def prepare_dist_job_default(script, cmd_prefix: str = None, **kwargs: Any) -> s
     return cmd
 
 
-def prepare_bcprun(script, cmd_prefix: str = None, **kwargs: Any) -> str:
+def prepare_bcprun(script: str, cmd_prefix: str | None = None, **kwargs: Any) -> str:
     """
     Prepare the command for distributed job submission using bcprun.
 
