@@ -266,8 +266,8 @@ class ClassifierBlock(Convolution):
             out_conv = super().forward(input)
         # no indices to return
         return out_conv, None
-        
-# Quicknat specific blocks. All blocks inherit from MONAI blocks but have adaptions to their structure 
+
+# Quicknat specific blocks. All blocks inherit from MONAI blocks but have adaptions to their structure
 class ConvConcatDenseBlock(ConvDenseBlock):
      """
      This dense block is defined as a sequence of 'Convolution' blocks. It overwrite the '_get_layer' methodto change the ordering of

@@ -129,5 +129,3 @@ class ConvDenseBlock(DenseBlock):
                 dilation=dilation,
                 bias=self.bias,
             )
-
-
