@@ -200,8 +200,19 @@ class Quicknat(nn.Module):
         return input
 
 
-# Should go into a layers file but not clear which exact one.
+# QuickNAT specific Blocks 
 
+class SkipConnectionWithIdx(SkipConnection):
+    """
+    Combine the forward pass input with the result from the given submodule::
+    --+--submodule--o--
+      |_____________|
+    The available modes are ``"cat"``, ``"add"``, ``"mul"``.
+    Defaults to "cat" and dimension 1.
+    Inherits from SkipConnection but provides the indizes with each forward pass.
+    """
+    def forward(self, input, indices):
+        return super().forward(input), indices
 
 class SequentialWithIdx(nn.Sequential):
     """
@@ -255,3 +266,4 @@ class ClassifierBlock(Convolution):
             out_conv = super().forward(input)
         # no indices to return
         return out_conv, None
+        
