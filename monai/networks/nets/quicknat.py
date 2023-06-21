@@ -16,7 +16,7 @@ from typing import Sequence, Tuple, Union
 import torch
 import torch.nn as nn
 
-from monai.networks.blocks import ConvDenseBlock
+from monai.networks.blocks import ConvDenseBlock, Convolution
 from monai.networks.blocks import squeeze_and_excitation as se
 from monai.networks.layers.factories import Act, Norm
 from monai.networks.layers.simplelayers import SkipConnection
