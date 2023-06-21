@@ -16,8 +16,8 @@ import json
 import logging
 import math
 import os
-import sys
 import pickle
+import sys
 from collections import abc, defaultdict
 from collections.abc import Generator, Iterable, Mapping, Sequence, Sized
 from copy import deepcopy
@@ -1372,10 +1372,12 @@ def json_hashing(item) -> bytes:
     """
     # TODO: Find way to hash transforms content as part of the cache
     cache_key = ""
-    if (sys.version_info.minor < 9):
+    if sys.version_info.minor < 9:
         cache_key = hashlib.md5(json.dumps(item, sort_keys=True).encode("utf-8")).hexdigest()
     else:
-        cache_key = hashlib.md5(json.dumps(item, sort_keys=True).encode("utf-8"), usedforsecurity=False).hexdigest()
+        cache_key = hashlib.md5(
+            json.dumps(item, sort_keys=True).encode("utf-8"), usedforsecurity=False  # type: ignore
+        ).hexdigest()
     return f"{cache_key}".encode()
 
 
@@ -1391,10 +1393,12 @@ def pickle_hashing(item, protocol=pickle.HIGHEST_PROTOCOL) -> bytes:
 
     """
     cache_key = ""
-    if (sys.version_info.minor < 9):
+    if sys.version_info.minor < 9:
         cache_key = hashlib.md5(pickle.dumps(sorted_dict(item), protocol=protocol)).hexdigest()
     else:
-        cache_key = hashlib.md5(pickle.dumps(sorted_dict(item), protocol=protocol), usedforsecurity=False).hexdigest()
+        cache_key = hashlib.md5(
+            pickle.dumps(sorted_dict(item), protocol=protocol), usedforsecurity=False  # type: ignore
+        ).hexdigest()
     return f"{cache_key}".encode()
 
 
