@@ -200,7 +200,7 @@ class Quicknat(nn.Module):
         return input
 
 
-# QuickNAT specific Blocks 
+# QuickNAT specific Blocks
 
 class SkipConnectionWithIdx(SkipConnection):
     """
@@ -266,4 +266,3 @@ class ClassifierBlock(Convolution):
             out_conv = super().forward(input)
         # no indices to return
         return out_conv, None
-        
