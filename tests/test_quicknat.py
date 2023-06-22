@@ -35,6 +35,7 @@ TEST_CASES = [
     [{"num_classes": 1, "num_channels": 1, "num_filters": 64, "se_block": "CSSE"}, (1, 1, 32, 32), (1, 1, 32, 32)],
 ]
 
+
 @unittest.skipUnless(has_se, "squeeze_and_excitation not installed")
 class TestQuicknat(unittest.TestCase):
     @parameterized.expand(TEST_CASES)

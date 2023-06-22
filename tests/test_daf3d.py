@@ -39,6 +39,7 @@ TEST_CASES = [
     ],  # four channel 3D, same in & out channels
 ]
 
+
 @unittest.skipUnless(has_tv, "torchvision not installed")
 class TestDAF3D(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
