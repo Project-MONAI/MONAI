@@ -123,8 +123,8 @@ class ConvConcatDenseBlock(ConvDenseBlock):
     def __init__(
         self,
         in_channels: int,
-        se_layer: nn.Module | None = nn.Identity,
-        dropout_layer: type[nn.Dropout2d] | None = nn.Identity,
+        se_layer: nn.Module = nn.Identity,
+        dropout_layer: type[nn.Dropout2d] = nn.Identity,
         kernel_size: Sequence[int] | int = 5,
         num_filters: int = 64,
     ):
