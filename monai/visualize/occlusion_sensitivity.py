@@ -21,8 +21,7 @@ import torch.nn as nn
 from monai.data.meta_tensor import MetaTensor
 from monai.networks.utils import eval_mode
 from monai.transforms import Compose, GaussianSmooth, Lambda, ScaleIntensity, SpatialCrop
-from monai.utils import deprecated_arg, ensure_tuple_rep
-from monai.visualize.visualizer import default_upsampler
+from monai.utils import ensure_tuple_rep
 
 
 class OcclusionSensitivity:
