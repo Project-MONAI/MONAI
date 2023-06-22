@@ -310,6 +310,9 @@ class Quicknat(nn.Module):
     input (data from the previous layer concatenated with data from the skip connection) in the first convolution. this
     ensures the final output of the network has the same shape as the input.
 
+    The original QuickNAT implementation included a `enable_test_dropout()` mechanism for uncertainty estimation during
+    testing. As the dropout layers are the only stochastic components of this network calling the train() method instead of eval() in testing or inference has the same effect.
+
     Args:
         num_classes: number of classes to segmentate (output channels).
         num_channels: number of input channels.
@@ -423,17 +426,6 @@ class Quicknat(nn.Module):
         else:
             return None
 
-    # TODO: Do I include this:
-    def enable_test_dropout(self):
-        """
-        Enables test time drop out for uncertainity
-        :return:
-        """
-        attr_dict = self.__dict__["_modules"]
-        for i in range(1, 5):
-            encode_block, decode_block = (attr_dict["encode" + str(i)], attr_dict["decode" + str(i)])
-            encode_block.drop_out = encode_block.drop_out.apply(nn.Module.train)
-            decode_block.drop_out = decode_block.drop_out.apply(nn.Module.train)
 
     @property
     def is_cuda(self):
