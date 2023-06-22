@@ -311,7 +311,8 @@ class Quicknat(nn.Module):
     ensures the final output of the network has the same shape as the input.
 
     The original QuickNAT implementation included a `enable_test_dropout()` mechanism for uncertainty estimation during
-    testing. As the dropout layers are the only stochastic components of this network calling the train() method instead of eval() in testing or inference has the same effect.
+    testing. As the dropout layers are the only stochastic components of this network calling the train() method instead
+    of eval() in testing or inference has the same effect.
 
     Args:
         num_classes: number of classes to segmentate (output channels).
@@ -425,7 +426,6 @@ class Quicknat(nn.Module):
                 return se1.ChannelSpatialSELayer(n_filters)
         else:
             return None
-
 
     @property
     def is_cuda(self):
