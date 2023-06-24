@@ -123,8 +123,8 @@ class ConvConcatDenseBlock(ConvDenseBlock):
     def __init__(
         self,
         in_channels: int,
-        se_layer: nn.Module = nn.Identity,
-        dropout_layer: type[nn.Dropout2d] = nn.Identity,
+        se_layer: Optional[nn.Module] = None,
+        dropout_layer: Optional[type[nn.Dropout2d]] = None,
         kernel_size: Sequence[int] | int = 5,
         num_filters: int = 64,
     ):
@@ -137,6 +137,12 @@ class ConvConcatDenseBlock(ConvDenseBlock):
             norm=("instance", {"num_features": in_channels}),
             kernel_size=kernel_size,
         )
+        if se_layer is None:
+            se_layer = nn.Identity()
+        
+        if dropout_layer is None:
+            dropout_layer = nn.Identity()
+            
         self.se_layer = se_layer
         self.dropout_layer = dropout_layer
 
