@@ -197,7 +197,7 @@ class Daf3dResNetBottleneck(ResNetBottleneck):
         self.conv2 = conv_type(planes, planes, kernel_size=3, padding=1, stride=stride, groups=32, bias=False)
 
         # adapt activation function
-        self.relu = nn.PReLU()
+        self.relu = nn.PReLU() # type: ignore
 
 
 class Daf3dResNetDilatedBottleneck(Daf3dResNetBottleneck):
@@ -288,12 +288,12 @@ class Daf3dResNet(ResNet):
             n_input_channels, self.in_planes, kernel_size=7, stride=(1, 2, 2), padding=(3, 3, 3), bias=False
         )
         self.bn1 = norm_type(32, 64)
-        self.relu = nn.PReLU()
+        self.relu = nn.PReLU() # type: ignore
 
         # adapt layers to our needs
         self.layer1 = self._make_layer(Daf3dResNetBottleneck, block_inplanes[0], layers[0], spatial_dims, shortcut_type)
         self.layer2 = self._make_layer(
-            Daf3dResNetBottleneck, block_inplanes[1], layers[1], spatial_dims, shortcut_type, stride=(1, 2, 2)
+            Daf3dResNetBottleneck, block_inplanes[1], layers[1], spatial_dims, shortcut_type, stride=(1, 2, 2) # type: ignore
         )
         self.layer3 = self._make_layer(
             Daf3dResNetDilatedBottleneck, block_inplanes[2], layers[2], spatial_dims, shortcut_type, stride=1
@@ -528,7 +528,7 @@ class DAF3D(nn.Module):
             conv_out_channels=64,
             out_channels=64,
             kernel_sizes=(3, 3, 3, 3),
-            dilations=((1, 1, 1), (1, 6, 6), (1, 12, 12), (1, 18, 18)),
+            dilations=((1, 1, 1), (1, 6, 6), (1, 12, 12), (1, 18, 18)), # type: ignore
             norm_type=group_norm,
             acti_type=None,
             bias=True,
@@ -568,7 +568,7 @@ class DAF3D(nn.Module):
                     F.interpolate(o, size=x.size()[2:], mode="trilinear")
                     for o in supervised1 + supervised2 + supervised3
                 ]
-                output = supervised_final, supervised_inner
+                output = supervised_final + supervised_inner
             else:
                 output = F.interpolate(supervised_final, size=x.size()[2:], mode="trilinear")
         return output
