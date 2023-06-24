@@ -120,7 +120,7 @@ class VarAutoEncoder(AutoEncoder):
         for s in strides:
             self.final_size = calculate_out_shape(self.final_size, self.kernel_size, s, padding)  # type: ignore
 
-        linear_size = int(np.product(self.final_size)) * self.encoded_channels
+        linear_size = int(np.prod(self.final_size)) * self.encoded_channels
         self.mu = nn.Linear(linear_size, self.latent_size)
         self.logvar = nn.Linear(linear_size, self.latent_size)
         self.decodeL = nn.Linear(self.latent_size, linear_size)
