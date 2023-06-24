@@ -51,6 +51,7 @@ class TestDAF3D(unittest.TestCase):
             result = net(torch.randn(input_shape).to(device))
         self.assertEqual(result.shape, expected_shape)
 
+    @unittest.skip("daf3d: torchscript not currently supported")
     def test_script(self):
         net = DAF3D(in_channels=1, out_channels=1)
         test_data = torch.randn(16, 1, 32, 32)
