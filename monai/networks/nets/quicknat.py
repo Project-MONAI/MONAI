@@ -124,7 +124,7 @@ class ConvConcatDenseBlock(ConvDenseBlock):
         self,
         in_channels: int,
         se_layer: Optional[nn.Module] = None,
-        dropout_layer: Optional[type[nn.Dropout2d]] = None,
+        dropout_layer: Optional[nn.Dropout2d] = None,
         kernel_size: Sequence[int] | int = 5,
         num_filters: int = 64,
     ):
