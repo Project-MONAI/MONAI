@@ -15,6 +15,7 @@ import logging
 import os
 import pickle
 import sys
+import subprocess
 from copy import deepcopy
 from numbers import Number
 from typing import Any, cast
@@ -28,7 +29,7 @@ from monai.bundle.utils import ID_SEP_KEY
 from monai.config import PathLike
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import CropForeground, ToCupy
-from monai.utils import min_version, optional_import
+from monai.utils import min_version, optional_import, AlgoLaunchKeys, look_up_option
 
 __all__ = [
     "get_foreground_image",
@@ -372,3 +373,136 @@ def algo_from_pickle(pkl_filename: str, template_path: PathLike | None = None, *
         algo_meta_data.update({k: v})
 
     return algo, algo_meta_data
+
+def list_to_python_fire_arg_str(args: list) -> str:
+    """
+    Convert a list of arguments to a string that can be used in python-fire.
+
+    Args:
+        args: the list of arguments.
+
+    Returns:
+        the string that can be used in python-fire.
+    """
+    args_str = ",".join(str(args))
+    return f"'{args_str}'"
+
+def check_and_set_required_args(params: dict, required_args: list) -> str:
+    """
+    """
+    cmd_mod = ""
+    for arg in required_args:
+        val = params.pop(arg, None)
+        if val is None:
+            raise ValueError(f"The {arg} should be specified in the kwargs.")
+        cmd_mod += f" --{arg} {val}"
+    
+    return cmd_mod
+
+def check_and_set_optional_args(params: dict) -> str:
+    """
+    """
+    cmd_mod_opt = ""
+    for k, v in params.items():
+        if isinstance(v, dict):
+            raise ValueError("Nested dict is not supported.")
+        elif isinstance(v, list):
+            v = list_to_python_fire_arg_str(v)
+        cmd_mod_opt += f" --{k} {str(v)}"
+    return cmd_mod_opt
+
+
+def prepare_default(cmd: str, cmd_prefix: str = "python", **kwargs: Any) -> str:
+    """
+    Prepare the command for job to run the script with the given arguments.
+    
+    Args:
+        cmd: the command or script to run in the distributed job.
+        cmd_prefix: the command prefix to run the script, e.g., "python", "python -m", "python3", "/opt/conda/bin/python3.8 ".
+        kwargs: the keyword arguments to be passed to the script.
+
+    Returns:
+        the command to run the distributed job.
+    
+    Examples:
+        To prepare a subprocess command
+        "python train.py run -k --config 'a,b'", the function can be called as
+        - prepare_default("train.py run -k", config=['a','b'])
+        - prepare_default("train.py run -k --config 'a,b'")
+    
+    """
+    params = kwargs.copy()
+
+    if not cmd_prefix.endswith(" "):
+        cmd_prefix += " "  # ensure a space after the command prefix so that the script can be appended
+        
+    return cmd_prefix + cmd + check_and_set_optional_args(params)
+
+def prepare_torchrun(cmd: str, **kwargs: Any) -> str:
+    """
+    Prepare the command for multi-gpu/multi-node job execution using torchrun.
+
+    Args:
+        cmd: the command or script to run in the distributed job.
+        cmd_prefix: the command prefix to run the script, e.g., "torchrun ", "python -m torch.distributed.launch ".
+        kwargs: the keyword arguments to be passed to the script.
+    
+    Returns:
+        the command to run the multi-gpu/multi-node job.
+    
+    Examples:
+        To prepare a subprocess command
+        
+        "torchrun --nnodes=1 --nproc_per_node=8 train.py run -k --config 'a,b'", the function can be called as
+        - prepare_torchrun("train.py run -k", config=['a','b'], nnodes=1, nproc_per_node=8)
+        - prepare_torchrun("train.py run -k --config 'a,b'", nnodes=1, nproc_per_node=8)
+    """
+    params = kwargs.copy()
+
+    torchrun_cmd = "torchrun " + check_and_set_required_args(params, ["nproc_per_node", "nnodes"])
+    if not torchrun_cmd.endswith(" "):
+        torchrun_cmd += " "  # ensure a space after the command prefix so that the script can be appended
+
+    return torchrun_cmd + cmd + check_and_set_optional_args(params)
+    
+
+def prepare_bcprun(cmd: str, cmd_prefix: str = "python", **kwargs: Any) -> str:
+    """
+    Prepare the command for distributed job submission using bcprun.
+
+    Args:
+        script: the script to run in the distributed job.
+        cmd_prefix: the command prefix to run the script, e.g., "python".
+        kwargs: the keyword arguments to be passed to the script.
+
+    Returns:
+        The command to run the script in the distributed job.
+    
+    Examples:
+         To prepare a subprocess command
+        "bcprun -n 2 -p 8 -c python train.py run -k --config 'a,b'", the function can be called as
+        - prepare_bcprun("train.py run -k", config=['a','b'], n=2, p=8)
+        - prepare_bcprun("train.py run -k --config 'a,b'", n=2, p=8)
+    """
+    params = kwargs.copy()
+
+    if not cmd_prefix.endswith(" "):
+        cmd_prefix += " "
+
+    bcprun_cmd = "bcprun " + check_and_set_required_args(params, ["n", "p"]) + " -c "
+
+    return bcprun_cmd + cmd_prefix + cmd + check_and_set_optional_args(params)
+
+
+def launch_dist_job_default(cmd: str) -> subprocess.CompletedProcess:
+    """
+    Launch the distributed job using the command.
+
+    Args:
+        cmd: the command to launch the distributed job.
+
+    Returns:
+        The subprocess.CompletedProcess object that contains the information of the launched job.
+    """
+    logging.info(f"Running command in subprocess: {cmd}")
+    return subprocess.run(cmd, check=True, capture_output=True)

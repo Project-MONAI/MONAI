@@ -60,6 +60,7 @@ __all__ = [
     "BundleProperty",
     "BundlePropertyConfig",
     "AlgoKeys",
+    "AlgoLaunchKeys",
 ]
 
 
@@ -692,3 +693,13 @@ class AlgoKeys(StrEnum):
     ALGO = "algo_instance"
     IS_TRAINED = "is_trained"
     SCORE = "best_metric"
+
+class AlgoLaunchKeys(StrEnum):
+    """
+    Multi-node training start methods.
+    `DEFAULT` is the default method.
+    `FILE` is the method to start multi-node training from a python file.
+    `FUNCTION` is the method to start multi-node training from a python function.
+    """
+
+    NGC_BCP = "bcprun"
