@@ -139,10 +139,10 @@ class ConvConcatDenseBlock(ConvDenseBlock):
         )
         if se_layer is None:
             se_layer = nn.Identity()
-        
+
         if dropout_layer is None:
             dropout_layer = nn.Identity()
-            
+
         self.se_layer = se_layer
         self.dropout_layer = dropout_layer
 
