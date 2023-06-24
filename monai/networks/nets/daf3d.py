@@ -568,7 +568,7 @@ class DAF3D(nn.Module):
                     F.interpolate(o, size=x.size()[2:], mode="trilinear")
                     for o in supervised1 + supervised2 + supervised3
                 ]
-                output = supervised_final + supervised_inner
+                output = [supervised_final] + supervised_inner
             else:
                 output = F.interpolate(supervised_final, size=x.size()[2:], mode="trilinear")
         return output
