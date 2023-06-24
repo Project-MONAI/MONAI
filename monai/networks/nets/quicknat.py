@@ -137,14 +137,8 @@ class ConvConcatDenseBlock(ConvDenseBlock):
             norm=("instance", {"num_features": in_channels}),
             kernel_size=kernel_size,
         )
-        if se_layer is None:
-            se_layer = nn.Identity()
-
-        if dropout_layer is None:
-            dropout_layer = nn.Identity()
-
-        self.se_layer = se_layer
-        self.dropout_layer = dropout_layer
+        self.se_layer = se_layer if se_layer is not None else nn.Identity()
+        self.dropout_layer = dropout_layer if dropout_layer is not None else nn.Identity()
 
     def _get_layer(self, in_channels, out_channels, dilation):
         """
