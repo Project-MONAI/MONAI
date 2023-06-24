@@ -18,7 +18,6 @@ import subprocess
 import sys
 import time
 import warnings
-from collections.abc import Mapping
 from copy import deepcopy
 from pathlib import Path
 from tempfile import TemporaryDirectory
