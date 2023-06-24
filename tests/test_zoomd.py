@@ -57,7 +57,7 @@ class TestZoomd(NumpyImageTestCase2D):
                 test_resampler_lazy(
                     zoom_fn, zoomed, init_param, call_param, output_key=key, atol=1e-4 if USE_COMPILED else 1e-6
                 )
-                zoom_fn.lazy_evaluation = False
+                zoom_fn.lazy = False
 
             test_local_inversion(zoom_fn, zoomed, {key: im}, key)
             _order = 0

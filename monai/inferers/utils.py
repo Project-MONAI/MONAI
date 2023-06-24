@@ -41,7 +41,7 @@ __all__ = ["sliding_window_inference"]
 
 
 def sliding_window_inference(
-    inputs: torch.Tensor,
+    inputs: torch.Tensor | MetaTensor,
     roi_size: Sequence[int] | int,
     sw_batch_size: int,
     predictor: Callable[..., torch.Tensor | Sequence[torch.Tensor] | dict[Any, torch.Tensor]],
@@ -280,7 +280,7 @@ def sliding_window_inference(
             else:
                 sw_device_buffer[ss] *= w_t
                 sw_device_buffer[ss] = sw_device_buffer[ss].to(device)
-                _compute_coords(sw_batch_size, unravel_slice, z_scale, output_image_list[ss], sw_device_buffer[ss])
+                _compute_coords(unravel_slice, z_scale, output_image_list[ss], sw_device_buffer[ss])
         sw_device_buffer = []
         if buffered:
             b_s += 1
@@ -307,9 +307,11 @@ def sliding_window_inference(
             output_image_list[ss] = output_i[(slice(None), slice(None), *final_slicing)]
 
     final_output = _pack_struct(output_image_list, dict_keys)
-    final_output = convert_to_dst_type(final_output, inputs, device=device)[0]  # type: ignore
     if temp_meta is not None:
-        final_output = MetaTensor(final_output).copy_meta_from(temp_meta)
+        final_output = convert_to_dst_type(final_output, temp_meta, device=device)[0]
+    else:
+        final_output = convert_to_dst_type(final_output, inputs, device=device)[0]
+
     return final_output  # type: ignore
 
 
@@ -322,7 +324,7 @@ def _create_buffered_slices(slices, batch_size, sw_batch_size, buffer_dim, buffe
 
     _, _, _b_lens = np.unique(slices_np[:, 0], return_counts=True, return_index=True)
     b_ends = np.cumsum(_b_lens).tolist()  # possible buffer flush boundaries
-    x = [0, *b_ends][:: min(len(b_ends), int(buffer_steps))]  # type: ignore
+    x = [0, *b_ends][:: min(len(b_ends), int(buffer_steps))]
     if x[-1] < b_ends[-1]:
         x.append(b_ends[-1])
     n_per_batch = len(x) - 1
@@ -340,7 +342,7 @@ def _create_buffered_slices(slices, batch_size, sw_batch_size, buffer_dim, buffe
     return slices, n_per_batch, b_slices, windows_range
 
 
-def _compute_coords(sw, coords, z_scale, out, patch):
+def _compute_coords(coords, z_scale, out, patch):
     """sliding window batch spatial scaling indexing for multi-resolution outputs."""
     for original_idx, p in zip(coords, patch):
         idx_zm = list(original_idx)  # 4D for 2D image, 5D for 3D image
@@ -385,7 +387,7 @@ def _flatten_struct(seg_out):
         dict_keys = sorted(seg_out.keys())  # track predictor's output keys
         seg_probs = tuple(seg_out[k] for k in dict_keys)
     else:
-        seg_probs = ensure_tuple(seg_out)  # type: ignore
+        seg_probs = ensure_tuple(seg_out)
     return dict_keys, seg_probs
 
 

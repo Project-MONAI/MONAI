@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import RandScaleCrop, RandSpatialCrop
-from monai.transforms.lazy.functional import apply_transforms
+from monai.transforms.lazy.functional import apply_pending
 from tests.croppers import CropTest
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
@@ -84,13 +84,13 @@ class TestRandSpatialCrop(CropTest):
                 # lazy
                 # reset random seed to ensure the same results
                 cropper.set_random_state(seed=123)
-                cropper.lazy_evaluation = True
+                cropper.lazy = True
                 pending_result = cropper(input_data)
                 self.assertIsInstance(pending_result, MetaTensor)
                 assert_allclose(pending_result.peek_pending_affine(), expected.affine)
                 assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:])
                 # only support nearest
-                result = apply_transforms(pending_result, mode="nearest", align_corners=False)[0]
+                result = apply_pending(pending_result, overrides={"mode": "nearest", "align_corners": False})[0]
                 # compare
                 assert_allclose(result, expected, rtol=1e-5)
 

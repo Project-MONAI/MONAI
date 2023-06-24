@@ -1,4 +1,4 @@
-# What's new in 1.1 🎉🎉
+# What's new in 1.1
 
 - Digital pathology workflows
 - Experiment management for MONAI bundle

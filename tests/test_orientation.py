@@ -190,7 +190,7 @@ class TestOrientationCase(unittest.TestCase):
         img = MetaTensor(img, affine=affine).to(device)
         ornt = Orientation(**init_param)
         call_param = {"data_array": img}
-        res = ornt(**call_param)
+        res = ornt(**call_param)  # type: ignore[arg-type]
         if img.ndim in (3, 4):
             test_resampler_lazy(ornt, res, init_param, call_param)
 

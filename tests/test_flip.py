@@ -61,7 +61,7 @@ class TestFlip(NumpyImageTestCase2D):
         init_param = {"spatial_axis": spatial_axis}
         xform = Flip(**init_param)
         call_param = {"img": img}
-        res = xform(**call_param)
+        res = xform(**call_param)  # type: ignore[arg-type]
         self.assertEqual(img.shape, res.shape)
         if track_meta:
             test_resampler_lazy(xform, res, init_param, call_param)

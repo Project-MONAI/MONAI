@@ -113,7 +113,7 @@ def compute_generalized_dice(
             and in the NCHW[D] format, where N is the batch dimension, C is the channel dimension, and the
             remaining are the spatial dimensions.
         y (torch.Tensor): binarized ground-truth. It should be binarized, in one-hot format and have the same shape as `y_pred`.
-        include_background (bool, optional): whether to skip score computation on the first channel of the
+        include_background (bool, optional): whether to include score computation on the first channel of the
             predicted output. Defaults to True.
         weight_type (Union[Weight, str], optional): {``"square"``, ``"simple"``, ``"uniform"``}. Type of function to
             transform ground truth volume into a weight factor. Defaults to ``"square"``.

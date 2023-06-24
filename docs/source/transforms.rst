@@ -317,6 +317,18 @@ Intensity
     :members:
     :special-members: __call__
 
+`ScaleIntensityFixedMean`
+"""""""""""""""""""""""""
+.. autoclass:: ScaleIntensityFixedMean
+    :members:
+    :special-members: __call__
+
+`RandScaleIntensityFixedMean`
+"""""""""""""""""""""""""""""
+.. autoclass:: RandScaleIntensityFixedMean
+    :members:
+    :special-members: __call__
+
 `NormalizeIntensity`
 """"""""""""""""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/NormalizeIntensity.png
@@ -958,6 +970,17 @@ MRI Transforms
     :special-members: __call__
 
 
+Lazy
+^^^^
+
+`ApplyPending`
+""""""""""""""
+
+.. autoclass:: ApplyPending
+    :members:
+    :special-members: __call__
+
+
 Utility
 ^^^^^^^
 
@@ -1372,6 +1395,12 @@ Intensity (Dict)
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandScaleIntensityd.png
     :alt: example of RandScaleIntensityd
 .. autoclass:: RandScaleIntensityd
+    :members:
+    :special-members: __call__
+
+`RandScaleIntensityFixedMeand`
+"""""""""""""""""""""""""""""""
+.. autoclass:: RandScaleIntensityFixedMeand
     :members:
     :special-members: __call__
 
@@ -1912,6 +1941,17 @@ Smooth Field (Dict)
     :special-members: __call__
 
 
+Lazy (Dict)
+^^^^^^^^^^^
+
+`ApplyPendingd`
+"""""""""""""""
+
+.. autoclass:: ApplyPendingd
+    :members:
+    :special-members: __call__
+
+
 Utility (Dict)
 ^^^^^^^^^^^^^^
 
@@ -2212,8 +2252,9 @@ Utilities
 .. automodule:: monai.transforms.utils_pytorch_numpy_unification
     :members:
 
-Lazy
-----
-.. automodule:: monai.transforms.lazy
-    :members:
-    :imported-members:
+By Categories
+-------------
+.. toctree::
+   :maxdepth: 1
+
+   transforms_idx

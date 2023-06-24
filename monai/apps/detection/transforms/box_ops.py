@@ -21,11 +21,9 @@ from monai.config.type_definitions import DtypeLike, NdarrayOrTensor, NdarrayTen
 from monai.data.box_utils import COMPUTE_DTYPE, TO_REMOVE, get_spatial_dims
 from monai.transforms import Resize
 from monai.transforms.utils import create_scale
-from monai.utils import look_up_option, optional_import
+from monai.utils import look_up_option
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
-
-scipy, _ = optional_import("scipy")
 
 
 def _apply_affine_to_points(points: torch.Tensor, affine: torch.Tensor, include_shift: bool = True) -> torch.Tensor:
@@ -244,6 +242,9 @@ def convert_box_to_mask(
     boxes_mask_np = np.ones((labels.shape[0],) + spatial_size, dtype=np.int16) * np.int16(bg_label)
 
     boxes_np: np.ndarray = convert_data_type(boxes, np.ndarray, dtype=np.int32)[0]
+    if np.any(boxes_np[:, spatial_dims:] > np.array(spatial_size)):
+        raise ValueError("Some boxes are larger than the image.")
+
     labels_np, *_ = convert_to_dst_type(src=labels, dst=boxes_np)
     for b in range(boxes_np.shape[0]):
         # generate a foreground mask

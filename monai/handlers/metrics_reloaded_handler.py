@@ -36,7 +36,7 @@ class MetricsReloadedBinaryHandler(IgniteMetric):
 
         Args:
             metric_name: Name of a binary metric from the MetricsReloaded package.
-            include_background: whether to skip computation on the first channel of
+            include_background: whether to include computation on the first channel of
                 the predicted output. Defaults to ``True``.
             reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
                 available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
@@ -84,7 +84,7 @@ class MetricsReloadedCategoricalHandler(IgniteMetric):
 
         Args:
             metric_name: Name of a categorical metric from the MetricsReloaded package.
-            include_background: whether to skip computation on the first channel of
+            include_background: whether to include computation on the first channel of
                 the predicted output. Defaults to ``True``.
             reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
                 available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,

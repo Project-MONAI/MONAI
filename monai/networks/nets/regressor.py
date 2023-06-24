@@ -143,7 +143,7 @@ class Regressor(nn.Module):
         return layer
 
     def _get_final_layer(self, in_shape: Sequence[int]):
-        linear = nn.Linear(int(np.product(in_shape)), int(np.product(self.out_shape)))
+        linear = nn.Linear(int(np.prod(in_shape)), int(np.prod(self.out_shape)))
         return nn.Sequential(nn.Flatten(), linear)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

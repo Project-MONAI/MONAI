@@ -23,7 +23,7 @@ from monai.data.utils import affine_to_spacing
 from monai.transforms import Spacingd
 from monai.utils import ensure_tuple_rep
 from tests.lazy_transforms_utils import test_resampler_lazy
-from tests.utils import TEST_DEVICES, assert_allclose
+from tests.utils import TEST_DEVICES, assert_allclose, skip_if_quick
 
 TESTS: list[tuple] = []
 for device in TEST_DEVICES:
@@ -134,6 +134,7 @@ class TestSpacingDCase(unittest.TestCase):
             self.assertNotIsInstance(res, MetaTensor)
             self.assertNotEqual(img.shape, res.shape)
 
+    @skip_if_quick
     def test_space_same_shape(self):
         affine_1 = np.array(
             [

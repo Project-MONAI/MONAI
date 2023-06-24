@@ -118,10 +118,12 @@ from .intensity.array import (
     RandKSpaceSpikeNoise,
     RandRicianNoise,
     RandScaleIntensity,
+    RandScaleIntensityFixedMean,
     RandShiftIntensity,
     RandStdShiftIntensity,
     SavitzkyGolaySmooth,
     ScaleIntensity,
+    ScaleIntensityFixedMean,
     ScaleIntensityRange,
     ScaleIntensityRangePercentiles,
     ShiftIntensity,
@@ -198,6 +200,9 @@ from .intensity.dictionary import (
     RandScaleIntensityd,
     RandScaleIntensityD,
     RandScaleIntensityDict,
+    RandScaleIntensityFixedMeand,
+    RandScaleIntensityFixedMeanD,
+    RandScaleIntensityFixedMeanDict,
     RandShiftIntensityd,
     RandShiftIntensityD,
     RandShiftIntensityDict,
@@ -230,7 +235,9 @@ from .inverse import InvertibleTransform, TraceableTransform
 from .inverse_batch_transform import BatchInverseTransform, Decollated, DecollateD, DecollateDict
 from .io.array import SUPPORTED_READERS, LoadImage, SaveImage
 from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict, SaveImaged, SaveImageD, SaveImageDict
-from .lazy.functional import apply_transforms
+from .lazy.array import ApplyPending
+from .lazy.dictionary import ApplyPendingd, ApplyPendingD, ApplyPendingDict
+from .lazy.functional import apply_pending
 from .lazy.utils import combine_transforms, resample
 from .meta_utility.dictionary import (
     FromMetaTensord,
@@ -624,6 +631,7 @@ from .utils import (
     Fourier,
     allow_missing_keys_mode,
     attach_hook,
+    check_non_lazy_pending_ops,
     compute_divisible_spatial_size,
     convert_applied_interp_mode,
     convert_pad_mode,
@@ -659,6 +667,7 @@ from .utils import (
     rescale_instance_array,
     reset_ops_id,
     resize_center,
+    resolves_modes,
     sync_meta_info,
     weighted_patch_samples,
     zero_margins,

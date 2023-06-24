@@ -946,7 +946,7 @@ class SwinTransformer(nn.Module):
             downsample: module used for downsampling, available options are `"mergingv2"`, `"merging"` and a
                 user-specified `nn.Module` following the API defined in :py:class:`monai.networks.nets.PatchMerging`.
                 The default is currently `"merging"` (the original version defined in v0.9.0).
-            use_v2: using swinunetr_v2, which adds a residual convolution block at the beggining of each swin stage.
+            use_v2: using swinunetr_v2, which adds a residual convolution block at the beginning of each swin stage.
         """
 
         super().__init__()

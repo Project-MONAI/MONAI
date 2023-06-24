@@ -74,7 +74,7 @@ class ConvDenseBlock(DenseBlock):
         adn_ordering: str = "NDA",
         act: tuple | str | None = Act.PRELU,
         norm: tuple | str | None = Norm.INSTANCE,
-        dropout: int | None = None,
+        dropout: tuple | str | float | None = None,
         bias: bool = True,
     ):
         self.spatial_dims = spatial_dims
