@@ -15,7 +15,6 @@ import logging
 import os
 import pickle
 import sys
-import subprocess
 from copy import deepcopy
 from numbers import Number
 from typing import Any, cast
@@ -396,7 +395,7 @@ def check_and_set_required_args(params: dict, required_args: list) -> str:
         if val is None:
             raise ValueError(f"The {arg} should be specified in the kwargs.")
         cmd_mod += f" --{arg} {val}"
-    
+
     return cmd_mod
 
 def check_and_set_optional_args(params: dict) -> str:
@@ -415,7 +414,7 @@ def check_and_set_optional_args(params: dict) -> str:
 def _create_default(cmd: str, cmd_prefix: str = "python", **kwargs: Any) -> str:
     """
     Prepare the command for job to run the script with the given arguments.
-    
+
     Args:
         cmd: the command or script to run in the distributed job.
         cmd_prefix: the command prefix to run the script, e.g., "python", "python -m", "python3", "/opt/conda/bin/python3.8 ".
@@ -423,19 +422,19 @@ def _create_default(cmd: str, cmd_prefix: str = "python", **kwargs: Any) -> str:
 
     Returns:
         the command to run the distributed job.
-    
+
     Examples:
         To prepare a subprocess command
         "python train.py run -k --config 'a,b'", the function can be called as
         - _create_default("train.py run -k", config=['a','b'])
         - _create_default("train.py run -k --config 'a,b'")
-    
+
     """
     params = kwargs.copy()
 
     if not cmd_prefix.endswith(" "):
         cmd_prefix += " "  # ensure a space after the command prefix so that the script can be appended
-        
+
     return cmd_prefix + cmd + check_and_set_optional_args(params)
 
 def _create_torchrun(cmd: str, **kwargs: Any) -> str:
@@ -446,20 +445,20 @@ def _create_torchrun(cmd: str, **kwargs: Any) -> str:
         cmd: the command or script to run in the distributed job.
         cmd_prefix: the command prefix to run the script, e.g., "torchrun ", "python -m torch.distributed.launch ".
         kwargs: the keyword arguments to be passed to the script.
-    
+
     Returns:
         the command to run the multi-gpu/multi-node job.
-    
+
     Examples:
         To prepare a subprocess command
-        
+
         "torchrun --nnodes=1 --nproc_per_node=8 train.py run -k --config 'a,b'", the function can be called as
         - _create_torchrun("train.py run -k", config=['a','b'], nnodes=1, nproc_per_node=8)
         - _create_torchrun("train.py run -k --config 'a,b'", nnodes=1, nproc_per_node=8)
     """
     params = kwargs.copy()
     return cmd + check_and_set_optional_args(params)
-    
+
 
 def _create_bcprun(cmd: str, cmd_prefix: str = "python", **kwargs: Any) -> str:
     """
@@ -472,7 +471,7 @@ def _create_bcprun(cmd: str, cmd_prefix: str = "python", **kwargs: Any) -> str:
 
     Returns:
         The command to run the script in the distributed job.
-    
+
     Examples:
         To prepare a subprocess command
         "bcprun -n 2 -p 8 -c python train.py run -k --config 'a,b'", the function can be called as

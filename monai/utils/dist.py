@@ -15,7 +15,6 @@ import sys
 import warnings
 from collections.abc import Callable
 from logging import Filter
-from typing import Any
 
 if sys.version_info >= (3, 8):
     from typing import Literal
