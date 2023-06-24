@@ -544,7 +544,7 @@ class DAF3D(nn.Module):
         mlf = self.fuse(torch.cat(single_layer_features, 1))
 
         attentive_features_maps = [self.attention(slf, mlf) for slf in single_layer_features]
-        att_features, att_maps = zip(*attentive_features_maps)
+        att_features, att_maps = tuple(zip(*attentive_features_maps))
 
         # second 4 supervised signals (af 1 - 4)
         supervised2 = [self.predict2(af) for af in att_features]
