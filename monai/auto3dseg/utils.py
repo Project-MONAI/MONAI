@@ -29,7 +29,7 @@ from monai.bundle.utils import ID_SEP_KEY
 from monai.config import PathLike
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import CropForeground, ToCupy
-from monai.utils import min_version, optional_import, AlgoLaunchKeys, look_up_option
+from monai.utils import min_version, optional_import, run_cmd
 
 __all__ = [
     "get_foreground_image",
@@ -412,7 +412,7 @@ def check_and_set_optional_args(params: dict) -> str:
     return cmd_mod_opt
 
 
-def prepare_default(cmd: str, cmd_prefix: str = "python", **kwargs: Any) -> str:
+def _create_default(cmd: str, cmd_prefix: str = "python", **kwargs: Any) -> str:
     """
     Prepare the command for job to run the script with the given arguments.
     
@@ -427,8 +427,8 @@ def prepare_default(cmd: str, cmd_prefix: str = "python", **kwargs: Any) -> str:
     Examples:
         To prepare a subprocess command
         "python train.py run -k --config 'a,b'", the function can be called as
-        - prepare_default("train.py run -k", config=['a','b'])
-        - prepare_default("train.py run -k --config 'a,b'")
+        - _create_default("train.py run -k", config=['a','b'])
+        - _create_default("train.py run -k --config 'a,b'")
     
     """
     params = kwargs.copy()
@@ -438,7 +438,7 @@ def prepare_default(cmd: str, cmd_prefix: str = "python", **kwargs: Any) -> str:
         
     return cmd_prefix + cmd + check_and_set_optional_args(params)
 
-def prepare_torchrun(cmd: str, **kwargs: Any) -> str:
+def _create_torchrun(cmd: str, **kwargs: Any) -> str:
     """
     Prepare the command for multi-gpu/multi-node job execution using torchrun.
 
@@ -454,19 +454,14 @@ def prepare_torchrun(cmd: str, **kwargs: Any) -> str:
         To prepare a subprocess command
         
         "torchrun --nnodes=1 --nproc_per_node=8 train.py run -k --config 'a,b'", the function can be called as
-        - prepare_torchrun("train.py run -k", config=['a','b'], nnodes=1, nproc_per_node=8)
-        - prepare_torchrun("train.py run -k --config 'a,b'", nnodes=1, nproc_per_node=8)
+        - _create_torchrun("train.py run -k", config=['a','b'], nnodes=1, nproc_per_node=8)
+        - _create_torchrun("train.py run -k --config 'a,b'", nnodes=1, nproc_per_node=8)
     """
     params = kwargs.copy()
-
-    torchrun_cmd = "torchrun " + check_and_set_required_args(params, ["nproc_per_node", "nnodes"])
-    if not torchrun_cmd.endswith(" "):
-        torchrun_cmd += " "  # ensure a space after the command prefix so that the script can be appended
-
-    return torchrun_cmd + cmd + check_and_set_optional_args(params)
+    return cmd + check_and_set_optional_args(params)
     
 
-def prepare_bcprun(cmd: str, cmd_prefix: str = "python", **kwargs: Any) -> str:
+def _create_bcprun(cmd: str, cmd_prefix: str = "python", **kwargs: Any) -> str:
     """
     Prepare the command for distributed job submission using bcprun.
 
@@ -479,30 +474,22 @@ def prepare_bcprun(cmd: str, cmd_prefix: str = "python", **kwargs: Any) -> str:
         The command to run the script in the distributed job.
     
     Examples:
-         To prepare a subprocess command
+        To prepare a subprocess command
         "bcprun -n 2 -p 8 -c python train.py run -k --config 'a,b'", the function can be called as
-        - prepare_bcprun("train.py run -k", config=['a','b'], n=2, p=8)
-        - prepare_bcprun("train.py run -k --config 'a,b'", n=2, p=8)
+        - _create_bcprun("train.py run -k", config=['a','b'], n=2, p=8)
+        - _create_bcprun("train.py run -k --config 'a,b'", n=2, p=8)
     """
+
+    return _create_default(cmd, cmd_prefix, **kwargs)
+
+def _run_cmd_torchrun(cmd: str, **kwargs):
     params = kwargs.copy()
+    torchrun_args = check_and_set_required_args(params, ["nnodes", "nproc_per_node"])
+    cmd_list = ["torchrun"] + torchrun_args.split(" ") + cmd.split(" ")
+    return run_cmd(cmd_list, **kwargs)
 
-    if not cmd_prefix.endswith(" "):
-        cmd_prefix += " "
-
-    bcprun_cmd = "bcprun " + check_and_set_required_args(params, ["n", "p"]) + " -c "
-
-    return bcprun_cmd + cmd_prefix + cmd + check_and_set_optional_args(params)
-
-
-def launch_dist_job_default(cmd: str) -> subprocess.CompletedProcess:
-    """
-    Launch the distributed job using the command.
-
-    Args:
-        cmd: the command to launch the distributed job.
-
-    Returns:
-        The subprocess.CompletedProcess object that contains the information of the launched job.
-    """
-    logging.info(f"Running command in subprocess: {cmd}")
-    return subprocess.run(cmd, check=True, capture_output=True)
+def _run_cmd_bcprun(cmd: str, **kwargs):
+    params = kwargs.copy()
+    bcprun_args = check_and_set_required_args(params, ["n", "p"])
+    cmd_list = ["bcprun"] + bcprun_args.split(" ") + ["-c"] + cmd
+    return run_cmd(cmd_list, **kwargs)
